@@ -497,19 +497,18 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         pipeline_asm_user_deps_need_coemit(dep_paths, n_deps) == 0)
         pctx->asm_entry_module_only = 1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    /* Win PE: clear entry-only only for core.option/result (no PE objects).
+    /* Win PE: clear entry-only only for core.option (no PE objects).
      * core.fmt via hello must NOT clear — keeps hosted entry-only. */
     if (emit_elf_o && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0) {
-        int has_opt_res = 0;
+        int has_opt = 0;
         for (j = 0; j < n_deps; j++) {
             const char *dp = dep_paths[j] ? dep_paths[j] : "";
-            if ((memcmp(dp, "core.option", 11) == 0 && (dp[11] == 0 || dp[11] == '.')) ||
-                (memcmp(dp, "core.result", 11) == 0 && (dp[11] == 0 || dp[11] == '.'))) {
-                has_opt_res = 1;
+            if (memcmp(dp, "core.option", 11) == 0 && (dp[11] == 0 || dp[11] == '.')) {
+                has_opt = 1;
                 break;
             }
         }
-        if (has_opt_res)
+        if (has_opt)
             pctx->asm_entry_module_only = 0;
     }
 #endif
@@ -576,10 +575,8 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 need_import_map = 0;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
             else if (emit_elf_o && dep_paths[j] &&
-                     ((memcmp(dep_paths[j], "core.option", 11) == 0 &&
-                       (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')) ||
-                      (memcmp(dep_paths[j], "core.result", 11) == 0 &&
-                       (dep_paths[j][11] == 0 || dep_paths[j][11] == '.'))))
+                     memcmp(dep_paths[j], "core.option", 11) == 0 &&
+                     (dep_paths[j][11] == 0 || dep_paths[j][11] == '.'))
                 need_import_map = 1;
 #endif
             else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j]))
@@ -612,11 +609,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
             } else if (emit_elf_o && dep_paths[j] &&
-                       ((memcmp(dep_paths[j], "core.option", 11) == 0 &&
-                         (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')) ||
-                        (memcmp(dep_paths[j], "core.result", 11) == 0 &&
-                         (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')))) {
-                /* Win co-emit option/result: parse_only → CG002; full .x typeck can hang.
+                       memcmp(dep_paths[j], "core.option", 11) == 0 &&
+                       (dep_paths[j][11] == 0 || dep_paths[j][11] == '.')) {
+                /* Win co-emit core.option: parse_only → CG002; full .x typeck can hang.
                  * parse_skip_typeck fills func slots (std.net twin). PLATFORM: WINDOWS PE. */
                 ec_loop = xlang_pipeline_dep_prerun_parse_skip_typeck(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j], (void *)dep_out, (void *)one_ctx);

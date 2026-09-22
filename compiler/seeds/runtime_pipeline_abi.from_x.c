@@ -62770,7 +62770,6 @@ int32_t pipeline_codegen_dep_skip_asm_user_core_lib(uint8_t *path) {
     return 1;
   if (memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.'))
     return 1;
-  if (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == '.'))
     return 1;
   return 0;
 }
@@ -62834,13 +62833,11 @@ int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
     if (strstr((const char *)p, "/std/") != NULL)
       continue;
     /* Only in-tree core/ — scratch core.m6 etc. must co-emit (UN _core_*).
-     * PLATFORM: WINDOWS PE — no shipped core.option/result PE objects
+     * PLATFORM: WINDOWS PE — no shipped core.option PE object
      * (Darwin has Mach-O). Do NOT trip on core.fmt/types: hello imports
      * those and must stay entry-only (hosted std.fmt.o). */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
     if (memcmp(p, "core.option", 11) == 0 && (p[11] == 0 || p[11] == '.'))
-      return 1;
-    if (memcmp(p, "core.result", 11) == 0 && (p[11] == 0 || p[11] == '.'))
       return 1;
 #endif
     if (pipeline_asm_user_dep_is_in_tree_core(p) != 0)

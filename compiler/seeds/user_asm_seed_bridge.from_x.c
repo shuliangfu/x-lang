@@ -737,14 +737,11 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
           continue;
         /* PLATFORM: SHARED — core.fmt/types/option/result skip co-emit when
          * formal core PE objects exist (Darwin/Ubuntu). WINDOWS PE: co-emit
-         * only core.option/result (hello must not co-emit core.fmt). */
+         * only core.option (hello pulls core.result — must stay entry-only). */
         if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
           int win_co = 0;
           if (memcmp(dep_path_buf, "core.option", 11) == 0 &&
-              (dep_path_buf[11] == 0 || dep_path_buf[11] == '.'))
-            win_co = 1;
-          if (memcmp(dep_path_buf, "core.result", 11) == 0 &&
               (dep_path_buf[11] == 0 || dep_path_buf[11] == '.'))
             win_co = 1;
           if (!win_co)
