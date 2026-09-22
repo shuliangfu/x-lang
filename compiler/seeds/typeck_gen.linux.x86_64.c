@@ -2972,7 +2972,8 @@ int32_t typeck_reject_bare_import_const(struct ast_Module * module, struct ast_A
 }
 int32_t typeck_find_layout_idx_by_type_name(struct ast_Module * module, uint8_t * nm, int32_t nlen) {
   int32_t k = 0;
-  while ((k < ((module)->num_struct_layouts))) {
+  int32_t nsl = pipeline_module_num_struct_layouts_at(module);
+  while ((k < nsl)) {
     if (typeck_layout_name_equal(module, k, nm, nlen)) {
       return k;
     }
@@ -3578,7 +3579,8 @@ int32_t typeck_validate_struct_layouts_zero_padding(struct ast_Module * module, 
 int32_t typeck_get_field_offset_from_layout(struct ast_Module * module, uint8_t * type_name, int32_t type_name_len, uint8_t * field_name, int32_t field_name_len) {
   {
     int32_t k = 0;
-    while ((k < ((module)->num_struct_layouts))) {
+    int32_t nsl = pipeline_module_num_struct_layouts_at(module);
+    while ((k < nsl)) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         int32_t j = 0;
         while ((j < pipeline_module_struct_layout_num_fields(module, k))) {
@@ -3603,7 +3605,8 @@ int32_t typeck_get_field_offset_from_layout(struct ast_Module * module, uint8_t 
 int32_t typeck_get_field_type_ref_from_layout(struct ast_Module * module, uint8_t * type_name, int32_t type_name_len, uint8_t * field_name, int32_t field_name_len) {
   {
     int32_t k = 0;
-    while ((k < ((module)->num_struct_layouts))) {
+    int32_t nsl = pipeline_module_num_struct_layouts_at(module);
+    while ((k < nsl)) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         int32_t j = 0;
         while ((j < pipeline_module_struct_layout_num_fields(module, k))) {
@@ -4690,6 +4693,24 @@ int32_t typeck_field_unknown_hard_fail(struct ast_Module * module, struct ast_AS
       if (((nlen <=0) || (nlen > 255))) {
         return 0;
       }
+      (void)(({   int32_t dot_pos = -1;
+  int32_t si = 0;
+  while ((si < nlen)) {
+    if (((nbuf)[si] ==46)) {
+      (void)((dot_pos = si));
+    }
+    (void)((si = (si + 1)));
+  }
+  (((dot_pos >=0) && ((dot_pos + 1) < nlen)) ? ({   int32_t suffix_len = (nlen - (dot_pos + 1));
+  (void)((si = 0));
+  while ((si < suffix_len)) {
+    (void)(((nbuf)[si] = (nbuf)[((dot_pos + 1) + si)]));
+    (void)((si = (si + 1)));
+  }
+  (void)(((nbuf)[suffix_len] = 0));
+  (void)((nlen = suffix_len));
+ }) : 0);
+ }));
       (void)((has_struct = 0));
       (void)((has_enum = 0));
       (void)((nsl = pipeline_module_num_struct_layouts_at(module)));
@@ -15134,6 +15155,7 @@ int32_t typeck_x_ast_impl(struct ast_Module * module, struct ast_ASTArena * aren
     if ((((module ==0) || (arena ==0)) || (ctx ==0))) {
       return -2;
     }
+    (void)(typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx));
     if ((xlang_trait_check_impls_complete_c(module) !=0)) {
       return -1;
     }
@@ -15185,6 +15207,7 @@ int32_t typeck_x_ast_library(struct ast_Module * module, struct ast_ASTArena * a
     if ((((module ==0) || (arena ==0)) || (ctx ==0))) {
       return -5;
     }
+    (void)(typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx));
     if ((typeck_validate_struct_layouts_zero_padding(module, arena) !=0)) {
       return -7;
     }
