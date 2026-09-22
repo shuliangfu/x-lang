@@ -250,7 +250,20 @@ _PABI_CONST_LIT=""
 if [ -s src/runtime_pipeline_abi_const_lit.o ]; then
   _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
 fi
-_DRIVER_SEED_OBJS="$_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
+# wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
+# var (si/if-assign) + field scalar. Built by g05_ensure when seeds present.
+# PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
+_WIN_ASSIGN_OVERRIDES=""
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o; do
+      if [ -s "$_wov" ]; then
+        _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
+      fi
+    done
+    ;;
+esac
+_DRIVER_SEED_OBJS="$_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

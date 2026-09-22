@@ -2316,6 +2316,30 @@ if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full
   fi
 fi
 
+# --- Win assign overrides (Class R wave767) ---
+# PE first-wins: build src/win_assign_{var,field}_override.o from seeds when on
+# Windows so g05_relink_env can prepend them. No-op on Darwin/Linux.
+# PLATFORM: WINDOWS | MSYS | MINGW.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    for _pair in       "seeds/win_assign_var_override.c|src/win_assign_var_override.o"       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"
+    do
+      _src="${_pair%%|*}"
+      _out="${_pair#*|}"
+      if [ -f "$_src" ]; then
+        if [ ! -s "$_out" ] || [ "$_src" -nt "$_out" ]; then
+          echo "g05_ensure: cc -c $_out (Win assign override)" >&2
+          mkdir -p "$(dirname "$_out")"
+          # shellcheck disable=SC2086
+          if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_out" "$_src"; then
+            echo "g05_ensure: WARN Win override cc failed: $_src" >&2
+          fi
+        fi
+      fi
+    done
+    ;;
+esac
+
 # --- 齐备检查 ---
 mkdir -p build_asm/seed_host
 miss=0

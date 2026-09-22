@@ -327,7 +327,41 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
   }
   return 0;
 }
-int32_t glue_emit_assign_field_elf_c() { return -1; }
+/* wave767 Class R: FIELD assign real scalar path (was return -1).
+ * Twin of LINUX assign_field_scalar_thin: RHS→rax, push, lvalue→rbx, pop,
+ * store indirect by field load_sz. INDEX/DEREF remain -1.
+ * PLATFORM: WINDOWS leftover-PE. */
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                       void *ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_indirect_arch(void *elf_ctx, int32_t elem_sz, int32_t ta);
+extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
+
+int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
+                                    int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t sz;
+  if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  sz = pipeline_expr_field_access_load_byte_sz(arena, pipeline_asm_emit_module_ref_c(), left_ref);
+  if (sz <= 0)
+    sz = 8;
+  return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, sz, ta);
+}
 int32_t glue_emit_assign_index_elf_c() { return -1; }
 int32_t glue_emit_assign_deref_elf_c() { return -1; }
 /* Cap residual glue_emit_index_eff_addr_scaled is #ifndef FROM_X; windows_e
