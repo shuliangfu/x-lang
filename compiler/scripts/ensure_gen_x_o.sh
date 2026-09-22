@@ -312,10 +312,13 @@ build_lexer_x() {
   if [ -f scripts/driver_leaf_x_to_o.sh ] && [ -f "seeds/lexer_gen.linux.x86_64.c" ]; then
     # Manual cold-seed rung (skip PREFER_X_O to avoid token_is_eof duplicate).
     BASE_CFLAGS="${BASE_CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
-    _leaf_tmp="$(mktemp "${TMPDIR:-/tmp}/lexer_cold_seed.XXXXXX.c")"
-    sed -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
+    # BusyBox/w64devkit: XXXXXX must be template suffix (no .c).
+    _t=$(mktemp "${TMPDIR:-/tmp}/lexer_cold_seed.XXXXXX") || return 1
+    _leaf_tmp="${_t}.c"
+    mv "$_t" "$_leaf_tmp"
+    sed -e '\|^extern uint8_t \* malloc(|d' \
+        -e '\|^extern void free(|d' \
+        -e '\|^extern uint8_t \* calloc(|d' \
         "seeds/lexer_gen.linux.x86_64.c" > "$_leaf_tmp"
     # shellcheck disable=SC2086
     if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then

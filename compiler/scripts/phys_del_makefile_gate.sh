@@ -201,7 +201,7 @@ is_msys() {
     *MSYS*|*MINGW*|*msys*|*mingw*) return 0 ;;
   esac
   case "$(uname -s 2>/dev/null || true)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) return 0 ;;
   esac
   return 1
 }

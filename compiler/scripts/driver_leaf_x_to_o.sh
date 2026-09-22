@@ -413,11 +413,23 @@ EOF
   exit 0
 }
 
+
+# BusyBox/w64devkit mktemp (and BSD) require XXXXXX at end of TEMPLATE — no .c/.o suffix.
+# PLATFORM: SHARED — create bare temp then rename to .c for cc without -x c.
+_xlang_mktemp_c() {
+  local _t _pref="${1:-xlang}"
+  _t=$(mktemp "${TMPDIR:-/tmp}/${_pref}.XXXXXX") || return 1
+  mv "$_t" "${_t}.c" || { rm -f "$_t"; return 1; }
+  printf '%s\n' "${_t}.c"
+}
+
 # wave860: BASE_CFLAGS from make export leaf when unset (G.7; not physical delete).
 # Composition needs make expansion (OPT CFLAGS, PIPELINE_GEN_CFLAGS clang ifeq).
 # PLATFORM: SHARED — KEY=value from export target; fallback matches historic default.
 _load_driver_leaf_base_cflags_via_make() {
   local raw line
+  # wave941+: Makefile may be absent (phys delete). Skip make noise; caller falls back.
+  [ -f Makefile ] || return 1
   raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-driver-leaf-base-cflags) || return 1
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -432,7 +444,7 @@ _load_driver_leaf_base_cflags_via_make() {
 # PLATFORM: WINDOWS — 2026-07-31 leftover PE fallback to cold seeds.
 driver_leaf_windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) return 0 ;;
   esac
   return 1
 }
@@ -588,7 +600,7 @@ driver_leaf_build() {
   esac
 
   if XLANG_BIN=$(pick_xlang); then
-    tmp="$(mktemp "${TMPDIR:-/tmp}/driver_leaf.XXXXXX.c")"
+    tmp="$(_xlang_mktemp_c driver_leaf)" || exit 1
     # -E alarm guard (wave338: per-leaf scalable; was hardcoded 30s).
     # shellcheck disable=SC2086
     _e_rc=0
@@ -631,23 +643,23 @@ driver_leaf_build() {
         echo '#include <sys/uio.h>'
         echo '#include <poll.h>'
         echo '#endif'
-        sed -e '/^#include /d' \
-            -e '/^extern ssize_t read(/d' \
-            -e '/^extern ssize_t write(/d' \
-            -e '/^extern int32_t open(/d' \
-            -e '/^extern int open(/d' \
-            -e '/^extern int32_t fcntl(/d' \
-            -e '/^extern int fcntl(/d' \
-            -e '/^extern int32_t close(/d' \
-            -e '/^extern int close(/d' \
-            -e '/^extern uint8_t \* calloc(/d' \
-            -e '/^extern uint8_t \* malloc(/d' \
-            -e '/^extern void free(/d' \
-            -e '/^extern char \* getenv(/d' \
-            -e '/^extern uint8_t \* getenv(/d' \
-            -e '/^extern int32_t unlink(/d' \
-            -e '/^extern int unlink(/d' \
-            -e '/^extern size_t strlen(/d' \
+        sed -e '\|^#include |d' \
+            -e '\|^extern ssize_t read(|d' \
+            -e '\|^extern ssize_t write(|d' \
+            -e '\|^extern int32_t open(|d' \
+            -e '\|^extern int open(|d' \
+            -e '\|^extern int32_t fcntl(|d' \
+            -e '\|^extern int fcntl(|d' \
+            -e '\|^extern int32_t close(|d' \
+            -e '\|^extern int close(|d' \
+            -e '\|^extern uint8_t \* calloc(|d' \
+            -e '\|^extern uint8_t \* malloc(|d' \
+            -e '\|^extern void free(|d' \
+            -e '\|^extern char \* getenv(|d' \
+            -e '\|^extern uint8_t \* getenv(|d' \
+            -e '\|^extern int32_t unlink(|d' \
+            -e '\|^extern int unlink(|d' \
+            -e '\|^extern size_t strlen(|d' \
             "$tmp"
       } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
       # G.7 post_E_fixup (wave335):
@@ -655,7 +667,7 @@ driver_leaf_build() {
       #   · init_globals cross-module scrub (parser_x.o only)
       #   · 5 missing public-API body append (typeck_x.o only)
       # Script lives next to this shell driver; always invoke from compiler/ (orig pwd).
-      tmp_fix="$(mktemp "${TMPDIR:-/tmp}/driver_leaf_fix.XXXXXX.c")"
+      tmp_fix="$(_xlang_mktemp_c driver_leaf_fix)" || exit 1
       ( cd "$_orig_pwd" && \
         python3 scripts/post_E_fixup.py "$tmp" "$tmp_fix" \
           $SCRUB_INIT_GLOBALS_FLAG $APPEND_TYPECK_BODIES_FLAG ) \
@@ -693,11 +705,30 @@ driver_leaf_build() {
     # system headers on macOS (void* vs uint8_t*). Strip before compile.
     # wave1035: apply SYM_RENAME to cold seed too (lsp_io seed has un-renamed
     # std_heap_alloc_usize etc.; historic path used -D flags at cc time).
-    _seed_tmp="$(mktemp "${TMPDIR:-/tmp}/cold_seed.XXXXXX.c")"
-    sed -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
-        "$COLD_SEED" > "$_seed_tmp"
+    _seed_tmp="$(_xlang_mktemp_c cold_seed)" || return 1
+    # PLATFORM: WINDOWS — Linux archaeology seeds redeclare mmap/lseek/… and
+    # conflict with MinGW headers; strip like malloc/free (SHARED sed, Win-only extras).
+    _seed_sed=(
+      -e '\|^extern uint8_t \* malloc(|d'
+      -e '\|^extern void free(|d'
+      -e '\|^extern uint8_t \* calloc(|d'
+    )
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        _seed_sed+=(
+          -e '\|^extern uint8_t \* mmap(|d'
+          -e '\|^extern void \* mmap(|d'
+          -e '\|^extern int32_t munmap(|d'
+          -e '\|^extern int munmap(|d'
+          -e '\|^extern int32_t ftruncate(|d'
+          -e '\|^extern int ftruncate(|d'
+          -e '\|^extern int64_t lseek(|d'
+          -e '\|^extern long lseek(|d'
+          -e '\|^extern off_t lseek(|d'
+        )
+        ;;
+    esac
+    sed "${_seed_sed[@]}" "$COLD_SEED" > "$_seed_tmp"
     apply_rename "$_seed_tmp" "$SYM_RENAME"
     # shellcheck disable=SC2086
     if $CC $BASE_CFLAGS -c -o "$OUT_O" "$_seed_tmp" 2>/dev/null; then

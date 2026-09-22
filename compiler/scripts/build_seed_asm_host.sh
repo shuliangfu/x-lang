@@ -89,7 +89,7 @@ case "$_seed_arch" in x86_64|amd64) _seed_arch="x86_64" ;; aarch64|arm64) _seed_
 case "$_seed_os" in
   darwin) _seed_os="darwin" ;;
   linux) _seed_os="linux" ;;
-  msys_nt*|mingw*_nt*|mingw*|cygwin*) _seed_os="windows" ;;
+  windows_nt*|msys_nt*|mingw*_nt*|mingw*|cygwin*) _seed_os="windows" ;;
 esac
 HOST_SEED="./seeds/bootstrap_xlangc.${_seed_os}.${_seed_arch}"
 
@@ -433,7 +433,7 @@ case "$arch" in x86_64|amd64) arch="x86_64" ;; aarch64|arm64) arch="arm64" ;; es
 case "$os" in
   darwin) os="darwin" ;;
   linux) os="linux" ;;
-  msys_nt*|mingw*_nt*|mingw*|cygwin*) os="windows" ;;
+  windows_nt*|msys_nt*|mingw*_nt*|mingw*|cygwin*) os="windows" ;;
 esac
 SEED_PARTIAL="seeds/asm_backend_partial.${os}.${arch}.o"
 

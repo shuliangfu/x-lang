@@ -183,7 +183,7 @@ else
   fi
   # shellcheck disable=SC2064
   trap 'if [ "${_rebuild_cat_owned:-0}" = "1" ]; then rm -f "${_rebuild_cat_cache:-}" /tmp/xlang_rebuild_cat_err_$$.txt; fi' EXIT HUP INT TERM
-  SEED_REBUILD_OBJS="$(printf '%s\n' "$catalog_out" | sed -n "s/^${catalog_key}=//p" | head -1)"
+  SEED_REBUILD_OBJS="$(printf '%s\n' "$catalog_out" | sed -n "s|^${catalog_key}=||p" | head -1)"
   # list_source set above
 fi
 

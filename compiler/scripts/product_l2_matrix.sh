@@ -90,10 +90,19 @@ case "$XLANG" in
   *) XLANG="$(CDPATH= cd -- "$(dirname "$XLANG")" && pwd)/$(basename "$XLANG")" ;;
 esac
 
-TMP="${XLANG_MATRIX_TMP:-/tmp/xlang_l2_matrix_$$}"
+_matrix_uname_s="$(uname -s 2>/dev/null || echo Unknown)"
+_matrix_exe_suffix=""
+case "$_matrix_uname_s" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    _matrix_tmp_base="${TEMP:-${TMPDIR:-C:/xlang_tmp}}"
+    _matrix_exe_suffix=".exe"
+    ;;
+  *) _matrix_tmp_base="${TMPDIR:-/tmp}" ;;
+esac
+TMP="${XLANG_MATRIX_TMP:-${_matrix_tmp_base}/xlang_l2_matrix_$$}"
 mkdir -p "$TMP"
 SHA="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-HOST="$(uname -s)-$(uname -m 2>/dev/null || echo unknown)"
+HOST="${_matrix_uname_s}-$(uname -m 2>/dev/null || echo unknown)"
 XLANG_MTIME="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$XLANG" 2>/dev/null \
   || stat -c '%y' "$XLANG" 2>/dev/null | cut -c1-16 \
   || echo unknown)"
@@ -119,7 +128,7 @@ probe_run() {
   local src="$2"
   local expect_run="$3"
   shift 3 || true
-  local out="$TMP/$name"
+  local out="$TMP/${name}${_matrix_exe_suffix}"
   local log="$TMP/${name}.log"
   local build_rc=0
   local run_rc=0
@@ -178,7 +187,7 @@ probe_hello() {
   local name="hello"
   local src="examples/hello.x"
   local expect_run=0
-  local out="$TMP/$name"
+  local out="$TMP/${name}${_matrix_exe_suffix}"
   local log="$TMP/${name}.log"
   local build_rc=0
   local run_rc=0

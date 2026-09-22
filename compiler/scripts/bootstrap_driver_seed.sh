@@ -44,6 +44,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# w64devkit BusyBox sed treats a script that starts with `/` as a filesystem path
+# (error: "unsupported command C/A"). Prefer Git for Windows GNU sed when present;
+# keep w64devkit earlier for gcc/ld by appending after Git usr/bin only for sed-family.
+# PLATFORM: WINDOWS — SHARED scripts stay BusyBox-safe via \|addr|d where already patched.
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    _git_usr="/c/Program Files/Git/usr/bin"
+    if [ -x "$_git_usr/sed" ] || [ -x "$_git_usr/sed.exe" ]; then
+      PATH="$_git_usr:${PATH:-}"
+      export PATH
+    fi
+    ;;
+esac
+
+
 MAKE="${MAKE:-make}"
 TARGET="${TARGET:-xlang}"
 XLANG_C="${XLANG_C:-xlang-c}"
@@ -136,11 +151,11 @@ _ensure_asm_host_dispatch_objs() {
   # (R3_COLD_SEED_OBJS + R1_MISC_BASENAME_OBJS). Verify existence; if any
   # missing, re-run try-heat for that leaf (G.7 single body).
   local _dispatch_objs _obj
-  _dispatch_objs=$(sed -n 's/^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=//p' \
+  _dispatch_objs=$(sed -n 's|^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=||p' \
     "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
   if [ -z "${_dispatch_objs// /}" ]; then
     _dispatch_objs=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null \
-      | sed -n 's/^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=//p' | head -1)
+      | sed -n 's|^DRIVER_SEED_ASM_HOST_DISPATCH_OBJS=||p' | head -1)
   fi
   # shellcheck disable=SC2086
   for _obj in $_dispatch_objs; do
@@ -157,16 +172,16 @@ _ensure_filtered_objs() {
   # ensure (FILTER_AGAINST_PARTIAL_OBJS + FILTER_PIPELINE_OBJS in catalog).
   # Linux: BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS empty → no-op.
   local _filtered_objs _against_partial _pipeline _obj
-  _filtered_objs=$(sed -n 's/^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=//p' \
+  _filtered_objs=$(sed -n 's|^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=||p' \
     "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
   if [ -z "${_filtered_objs// /}" ]; then
     _filtered_objs=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null \
-      | sed -n 's/^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=//p' | head -1)
+      | sed -n 's|^BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS=||p' | head -1)
   fi
   [ -z "${_filtered_objs// /}" ] && return 0
-  _against_partial=$(sed -n 's/^FILTER_AGAINST_PARTIAL_OBJS=//p' \
+  _against_partial=$(sed -n 's|^FILTER_AGAINST_PARTIAL_OBJS=||p' \
     "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
-  _pipeline=$(sed -n 's/^FILTER_PIPELINE_OBJS=//p' \
+  _pipeline=$(sed -n 's|^FILTER_PIPELINE_OBJS=||p' \
     "${XLANG_CATALOG_CACHE_FILE}" 2>/dev/null | head -1)
   # shellcheck disable=SC2086
   for _obj in $_filtered_objs; do
@@ -221,7 +236,8 @@ case "$arch" in x86_64|amd64) arch=x86_64 ;; aarch64|arm64) arch=arm64 ;; esac
 case "$os" in
   darwin) os=darwin ;;
   linux) os=linux ;;
-  msys_nt*|mingw*_nt*|mingw*|cygwin*) os=windows ;;
+  # Git Bash / w64devkit often report Windows_NT (not MINGW64_NT-*).
+  msys_nt*|mingw*_nt*|mingw*|cygwin*|windows_nt*) os=windows ;;
 esac
 seed_partial="seeds/asm_backend_partial.${os}.${arch}.o"
 if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$seed_partial" ] && [ -s "$seed_partial" ]; then

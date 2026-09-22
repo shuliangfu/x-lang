@@ -189,7 +189,7 @@ if [ -z "${HOST_CC_LINK_OBJS:-}" ]; then
       || fail "failed to expand export-objs-core-link-objs (wave891 LINK_OBJS shell-load)"
   else
     HOST_CC_LINK_OBJS=$(bash scripts/driver_seed_obj_catalog.sh --link-objs-export objs-core 2>/dev/null \
-      | sed -n 's/^LINK_OBJS=//p' | head -1) \
+      | sed -n 's|^LINK_OBJS=||p' | head -1) \
       || fail "failed to expand catalog --link-objs-export objs-core (wave962)"
   fi
 fi
@@ -204,7 +204,7 @@ if [ -z "${HOST_CC_CFLAGS:-}" ]; then
       || fail "failed to expand export-try-heat-cflags (wave891 CFLAGS shell-load)"
   else
     HOST_CC_CFLAGS=$(bash scripts/driver_seed_obj_catalog.sh --cflags-export 2>/dev/null \
-      | sed -n 's/^CFLAGS=//p' | head -1) \
+      | sed -n 's|^CFLAGS=||p' | head -1) \
       || fail "failed to expand catalog --cflags-export (wave962)"
   fi
 fi

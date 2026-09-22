@@ -30,6 +30,17 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# PLATFORM: WINDOWS — see bootstrap_driver_seed.sh (BusyBox sed `/` path trap).
+case "$(uname -s 2>/dev/null)" in
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+    _git_usr="/c/Program Files/Git/usr/bin"
+    if [ -x "$_git_usr/sed" ] || [ -x "$_git_usr/sed.exe" ]; then
+      PATH="$_git_usr:${PATH:-}"
+      export PATH
+    fi
+    ;;
+esac
+
 MAKE="${MAKE:-make}"
 MODE=run
 case "${1:-}" in
@@ -60,7 +71,7 @@ if [ ! -f scripts/driver_seed_obj_catalog.sh ]; then
 fi
 
 catalog_out="$(bash scripts/driver_seed_obj_catalog.sh)"
-prereqs="$(printf '%s\n' "$catalog_out" | sed -n 's/^DRIVER_SEED_PREREQS=//p' | head -1)"
+prereqs="$(printf '%s\n' "$catalog_out" | sed -n 's|^DRIVER_SEED_PREREQS=||p' | head -1)"
 
 # wave304 G.7 8.3.6: historical extra_glue companion
 #   build_asm/pipeline_glue_strict_minimal.o
@@ -215,14 +226,14 @@ fi
 _migrate_x_objs=""
 _driver_leaf_product_objs=""
 if [ -n "${XLANG_CATALOG_CACHE_FILE:-}" ] && [ -s "${XLANG_CATALOG_CACHE_FILE}" ]; then
-  _migrate_x_objs=$(sed -n 's/^MIGRATE_X_OBJS=//p' "${XLANG_CATALOG_CACHE_FILE}" | head -1)
-  _driver_leaf_product_objs=$(sed -n 's/^DRIVER_LEAF_PRODUCT_OBJS=//p' "${XLANG_CATALOG_CACHE_FILE}" | head -1)
+  _migrate_x_objs=$(sed -n 's|^MIGRATE_X_OBJS=||p' "${XLANG_CATALOG_CACHE_FILE}" | head -1)
+  _driver_leaf_product_objs=$(sed -n 's|^DRIVER_LEAF_PRODUCT_OBJS=||p' "${XLANG_CATALOG_CACHE_FILE}" | head -1)
 fi
 # Fallback: re-expand catalog if cache missing or keys empty.
 if [ -z "${_migrate_x_objs// /}" ] || [ -z "${_driver_leaf_product_objs// /}" ]; then
   _cat_blob=$(bash scripts/driver_seed_obj_catalog.sh 2>/dev/null)
-  _migrate_x_objs=$(printf '%s\n' "$_cat_blob" | sed -n 's/^MIGRATE_X_OBJS=//p' | head -1)
-  _driver_leaf_product_objs=$(printf '%s\n' "$_cat_blob" | sed -n 's/^DRIVER_LEAF_PRODUCT_OBJS=//p' | head -1)
+  _migrate_x_objs=$(printf '%s\n' "$_cat_blob" | sed -n 's|^MIGRATE_X_OBJS=||p' | head -1)
+  _driver_leaf_product_objs=$(printf '%s\n' "$_cat_blob" | sed -n 's|^DRIVER_LEAF_PRODUCT_OBJS=||p' | head -1)
 fi
 
 # Membership check: $1=target, $2=space-separated list.
@@ -259,25 +270,63 @@ for _t in "$@"; do
       #   driver_leaf_x_to_o.sh ensure (Makefile rule body; .x→.o catalog).
       # - All other .o: try-heat auto-dispatch (prefer/R1/R2/R3 tables).
       if _in_list "$_t" "$_migrate_x_objs"; then
-        if bash scripts/migrate_x_objs.sh "$_t" >&2; then
+        # PLATFORM: WINDOWS — skip rebuild when OUT present (same rationale as try-heat).
+        if [ "${FORCE:-0}" != "1" ] && [ -s "$_t" ]; then
+          case "$(uname -s 2>/dev/null)" in
+            Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+              echo "driver_seed_ensure_prereqs: skip migrate $_t (Win present)" >&2
+              _ok=$((_ok+1))
+              ;;
+            *)
+              if bash scripts/migrate_x_objs.sh "$_t" >&2; then _ok=$((_ok+1)); else
+                echo "driver_seed_ensure_prereqs: FAIL migrate_x_objs.sh $_t" >&2; _fail=$((_fail+1)); fi
+              ;;
+          esac
+        elif bash scripts/migrate_x_objs.sh "$_t" >&2; then
           _ok=$((_ok+1))
         else
           echo "driver_seed_ensure_prereqs: FAIL migrate_x_objs.sh $_t" >&2
           _fail=$((_fail+1))
         fi
       elif _in_list "$_t" "$_driver_leaf_product_objs"; then
-        if bash scripts/driver_leaf_x_to_o.sh ensure "$_t" >&2; then
+        if [ "${FORCE:-0}" != "1" ] && [ -s "$_t" ]; then
+          case "$(uname -s 2>/dev/null)" in
+            Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+              echo "driver_seed_ensure_prereqs: skip driver_leaf $_t (Win present)" >&2
+              _ok=$((_ok+1))
+              ;;
+            *)
+              if bash scripts/driver_leaf_x_to_o.sh ensure "$_t" >&2; then _ok=$((_ok+1)); else
+                echo "driver_seed_ensure_prereqs: FAIL driver_leaf_x_to_o.sh ensure $_t" >&2; _fail=$((_fail+1)); fi
+              ;;
+          esac
+        elif bash scripts/driver_leaf_x_to_o.sh ensure "$_t" >&2; then
           _ok=$((_ok+1))
         else
           echo "driver_seed_ensure_prereqs: FAIL driver_leaf_x_to_o.sh ensure $_t" >&2
           _fail=$((_fail+1))
         fi
       else
-        if bash scripts/ensure_host_cc_seed_o.sh try-heat "$_t" >&2; then
-          _ok=$((_ok+1))
-        else
-          echo "driver_seed_ensure_prereqs: FAIL try-heat $_t" >&2
-          _fail=$((_fail+1))
+        # PLATFORM: WINDOWS — MinGW bash spends minutes parsing
+        # ensure_host_cc_seed_o.sh (~17k lines) once per leaf. If OUT already
+        # exists from a prior cold step, skip re-parse (FORCE=1 still heats).
+        _win_skip=0
+        case "$(uname -s 2>/dev/null)" in
+          Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+            if [ "${FORCE:-0}" != "1" ] && [ -s "$_t" ]; then
+              echo "driver_seed_ensure_prereqs: skip try-heat $_t (Win present)" >&2
+              _ok=$((_ok+1))
+              _win_skip=1
+            fi
+            ;;
+        esac
+        if [ "$_win_skip" = "0" ]; then
+          if bash scripts/ensure_host_cc_seed_o.sh try-heat "$_t" >&2; then
+            _ok=$((_ok+1))
+          else
+            echo "driver_seed_ensure_prereqs: FAIL try-heat $_t" >&2
+            _fail=$((_fail+1))
+          fi
         fi
       fi
       ;;

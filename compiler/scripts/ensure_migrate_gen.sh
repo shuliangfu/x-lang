@@ -80,7 +80,7 @@ log() { echo "ensure-migrate-gen: $*" >&2; }
 # PLATFORM: WINDOWS — leftover 2026-07-31 PE is present for Track L / can_run.
 migrate_gen_windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) return 0 ;;
   esac
   return 1
 }

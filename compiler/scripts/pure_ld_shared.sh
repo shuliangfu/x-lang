@@ -111,7 +111,7 @@ pure_ld_multidef_flags() {
   case "$(uname -s 2>/dev/null || echo Unknown)" in
     Darwin) printf '%s\n' "" ;;
     Linux) printf '%s\n' "--allow-multiple-definition" ;;
-    MINGW*|MSYS*|CYGWIN*) printf '%s\n' "--allow-multiple-definition" ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) printf '%s\n' "--allow-multiple-definition" ;;
     *) printf '%s\n' "" ;;
   esac
 }

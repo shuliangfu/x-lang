@@ -695,7 +695,7 @@ catalog_key_list() {
     echo "ensure_host_cc_seed_o: catalog_key_list needs KEY" >&2
     exit 2
   fi
-  key_line="$(catalog_blob | sed -n "s/^${key}=//p" | head -1)"
+  key_line="$(catalog_blob | sed -n "s|^${key}=||p" | head -1)"
   if [ -z "${key_line// /}" ]; then
     echo "ensure_host_cc_seed_o: empty $key from catalog (export missing?)" >&2
     exit 1
@@ -1059,7 +1059,7 @@ catalog_key_words() {
   # $1 = KEY — print space-separated words from cached catalog blob
   local key="$1"
   local line
-  line="$(catalog_blob | sed -n "s/^${key}=//p" | head -1)"
+  line="$(catalog_blob | sed -n "s|^${key}=||p" | head -1)"
   printf '%s\n' "$line"
 }
 
@@ -1514,10 +1514,20 @@ ensure_r3_prefer() {
 # egg pick, but attempting -E with it hangs or corrupts stdout.
 windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) return 0 ;;
   esac
   return 1
 }
+
+
+# stdout: -include win32_compat.h on Windows hosts (setenv/mmap shims).
+# PLATFORM: WINDOWS — empty on POSIX. Use on cold seed cc that call setenv etc.
+host_cc_win_compat_cflags() {
+  case "$(uname -s 2>/dev/null)" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) printf '%s' '-include win32_compat.h' ;;
+  esac
+}
+
 
 labi_prefer_pick_xlang() {
   # PLATFORM: WINDOWS — leftover PE cannot -E tip slices; fallback to cold seed.
@@ -2461,6 +2471,7 @@ ensure_rt_prefer_one() {
               if [ -n "$_rt_cmp_thin_o" ] && [ -n "$_rt_cmp_rest_o" ] \
                 && rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_COMPILE_FROM_X \
+                     $(host_cc_win_compat_cflags) \
                      -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
                 && pure_ld_partial_merge "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
                 && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_state_alloc_c$" \
@@ -2475,7 +2486,8 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_compile_ok" = "0" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_cmp_o" "$_rt_compile_seed"; then
+              # shellcheck disable=SC2046,SC2086
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $(host_cc_win_compat_cflags) -c -o "$_rt_cmp_o" "$_rt_compile_seed"; then
                 _rt_compile_ok=1
                 echo "rt-prefer: R6 compile pure ← $_rt_compile_seed (G-02f-291~296 seed slice)"
               fi
@@ -4130,9 +4142,37 @@ ensure_pipeline_abi_prefer_one() {
     local win_rest win_thin win_sz
     win_thin="build_asm/pipeline_glue_standalone.o"
     mkdir -p "$(dirname "$o")"
+    # Keep a prior good cold hybrid unless FORCE (sat rebuild must not wipe it).
+    if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
+      win_sz=$(wc -c <"$o" | tr -d ' ')
+      if [ -n "$win_sz" ] && [ "$win_sz" -gt 100000 ]; then
+        log "pipeline_abi prefer: keep existing Windows hybrid $o (${win_sz}B)"
+        return 0
+      fi
+    fi
     if [ ! -s "$win_thin" ]; then
-      echo "ensure_host_cc_seed_o: Windows leftover PE cannot -E; missing $win_thin (cold twins)" >&2
-      return 1
+      # wave309 retired product glue floor; Windows cold still needs the thin twin
+      # for FROM_X rest merge (seed restored under seeds/ + pipeline_glue.c).
+      # PLATFORM: WINDOWS — build seed-map thin then continue hybrid merge.
+      local _gs _gx
+      _gs="$(seed_for_seed_map "$win_thin")"
+      _gx="$(extras_for_seed_map "$win_thin")"
+      if [ ! -f "$_gs" ]; then
+        echo "ensure_host_cc_seed_o: Windows leftover PE cannot -E; missing $win_thin and seed $_gs" >&2
+        return 1
+      fi
+      log "pipeline_abi prefer: cold-build $win_thin from $_gs (Win archaeology twin)"
+      # Direct cc — avoid nested re-parse of this script via ensure_one (MinGW bash
+      # spends minutes parsing 17k lines). PLATFORM: WINDOWS cold bootstrap.
+      if [ -f scripts/ensure_pipeline_glue_types.sh ]; then
+        bash scripts/ensure_pipeline_glue_types.sh >/dev/null 2>&1 || true
+      fi
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Ibuild_asm -Wno-error=return-type \
+           $_gx $(host_cc_win_compat_cflags) -c -o "$win_thin" "$_gs"; then
+        echo "ensure_host_cc_seed_o: Windows cold-build $win_thin failed" >&2
+        return 1
+      fi
     fi
     win_rest="$(mktemp "${TMPDIR:-/tmp}/pabi_win_rest.XXXXXX")"
     log "pipeline_abi prefer: leftover PE cannot -E mega; host-cc FROM_X rest + grow_vec/sidecar twins + leftover standalone thin"
@@ -13684,7 +13724,7 @@ r2_typeck_f64_host_pick_src() {
   uname_m="$(uname -m 2>/dev/null || echo unknown)"
   # PLATFORM: WINDOWS — MSYS/MinGW uname often MINGW64_NT-* / MSYS_NT-*.
   case "$uname_s" in
-    MINGW*|MSYS*|CYGWIN*)
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
       if [ -f src/typeck/typeck_f64_bits_x86_64_mingw.s ]; then
         printf '%s\n' "src/typeck/typeck_f64_bits_x86_64_mingw.s"
         return 0
@@ -13858,7 +13898,7 @@ r2_crt0_host_relevant() {
       ;;
     src/asm/crt0_mingw.o)
       case "$uname_s" in
-        MINGW*|MSYS*|CYGWIN*) return 0 ;;
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*) return 0 ;;
       esac
       [ "${XLANG_IS_WIN_HOST:-0}" = "1" ]
       ;;

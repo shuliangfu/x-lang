@@ -112,7 +112,7 @@ case "$UNAME_S" in
   # wave309: topology mirrors Linux (empty pipeline mega + raw USER_ASM_SEED_OBJS).
   # Darwin-only filtered objs do not apply on PE). Single authority is the
   # Makefile; this shell branch is the G-05 product-path mirror (G.7).
-  MINGW*|MSYS*|CYGWIN*)
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
   _ASM_GLUE_DUP_LDFLAGS="-Wl,--allow-multiple-definition"
   case "$UNAME_M" in
   x86_64|amd64)

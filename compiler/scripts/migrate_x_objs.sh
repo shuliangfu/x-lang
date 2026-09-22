@@ -189,7 +189,7 @@ want_ensure_gen() {
 # PLATFORM: WINDOWS — leftover 2026-07-31 PE cannot -E tip typeck.x/codegen.x.
 migrate_windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) return 0 ;;
   esac
   return 1
 }
@@ -221,7 +221,10 @@ _try_frontend_track_l_cold_seed() {
   fi
   local base_cflags="${CFLAGS:-} ${PIPELINE_GEN_CFLAGS:-} -I. -Iinclude -Isrc -Wno-implicit-function-declaration"
   local tmp
-  tmp="$(mktemp "${TMPDIR:-/tmp}/fe_cold_seed.XXXXXX.c")"
+  # BusyBox/w64devkit: XXXXXX must be template suffix (no .c).
+  _t=$(mktemp "${TMPDIR:-/tmp}/fe_cold_seed.XXXXXX") || return 1
+  tmp="${_t}.c"
+  mv "$_t" "$tmp"
   {
     echo '#include <stddef.h>'
     echo '#include <stdint.h>'
@@ -236,10 +239,10 @@ _try_frontend_track_l_cold_seed() {
     echo '#include <sys/uio.h>'
     echo '#include <poll.h>'
     echo '#endif'
-    sed -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
-        -e '/^#include /d' \
+    sed -e '\|^extern uint8_t \* malloc(|d' \
+        -e '\|^extern void free(|d' \
+        -e '\|^extern uint8_t \* calloc(|d' \
+        -e '\|^#include |d' \
         "$seed"
   } > "$tmp"
   # shellcheck disable=SC2086

@@ -288,7 +288,7 @@ ensure_parser_x_obj() {
   _pgc=""
   if [ -f scripts/driver_seed_obj_catalog.sh ]; then
     _pgc=$(bash scripts/driver_seed_obj_catalog.sh --cflags-export 2>/dev/null \
-      | sed -n 's/^PIPELINE_GEN_CFLAGS=//p' | tail -n 1)
+      | sed -n 's|^PIPELINE_GEN_CFLAGS=||p' | tail -n 1)
   fi
   "$CC" $CFLAGS ${_pgc} \
   -I. -Iinclude -Isrc \

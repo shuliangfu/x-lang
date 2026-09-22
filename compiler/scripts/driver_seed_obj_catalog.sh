@@ -133,6 +133,12 @@ REQUIRED_KEYS=(
 # PLATFORM: SHARED product default; LEGACY flags force make path.
 # ---------------------------------------------------------------------------
 catalog_need_make_escape() {
+  # wave763 Windows_NT root fix: Makefile was physically deleted (wave941).
+  # In that state the shell parser is the only authority, including LEGACY mode;
+  # do not call the dead bootstrap-driver-seed-export-obj-catalog target.
+  if [ ! -f Makefile ]; then
+    return 1
+  fi
   # Non-empty LEGACY / experimental flags diverge from product-default shell picks.
   if [ -n "${XLANG_LEGACY_C_FRONTEND:-}" ] && [ "${XLANG_LEGACY_C_FRONTEND}" != "0" ]; then
     return 0
@@ -239,7 +245,7 @@ catalog_seed_host_defaults() {
     is_win=1
   else
     case "$uname_s" in
-      MINGW*|MSYS*|CYGWIN*) is_win=1 ;;
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*) is_win=1 ;;
     esac
   fi
 
@@ -934,7 +940,7 @@ if [ "$CHECK" -eq 1 ]; then
     fi
   done
   # Empty lists ok (e.g. FILTERED on Linux); values must expand USER_ASM non-empty.
-  user_asm=$(sed -n 's/^USER_ASM_SEED_OBJS=//p' <<<"$out" | head -1)
+  user_asm=$(sed -n 's|^USER_ASM_SEED_OBJS=||p' <<<"$out" | head -1)
   if [ -z "${user_asm// /}" ]; then
     echo "driver_seed_obj_catalog: USER_ASM_SEED_OBJS empty (mk include broken?)" >&2
     missing=1
@@ -952,8 +958,8 @@ if [ "$CHECK" -eq 1 ]; then
         fi
         parity_fail=0
         for k in "${REQUIRED_KEYS[@]}"; do
-          sv=$(sed -n "s/^${k}=//p" <<<"$shell_out" | head -1)
-          mv=$(sed -n "s/^${k}=//p" <<<"$make_out" | head -1)
+          sv=$(sed -n "s|^${k}=||p" <<<"$shell_out" | head -1)
+          mv=$(sed -n "s|^${k}=||p" <<<"$make_out" | head -1)
           sv=$(catalog_norm_ws "$sv")
           mv=$(catalog_norm_ws "$mv")
           if [ "$sv" != "$mv" ]; then
