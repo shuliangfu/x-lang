@@ -798,13 +798,7 @@ void driver_pipeline_entry_source_len_store(size_t len) {
 /* wave13 pure：hybrid thin owns load+debug note (append + diag_report); cold keeps integer twin.
  * PLATFORM: SHARED — truthy XLANG_DEBUG_PIPE (non-empty and != '0') matches thin driver_env_flag_truthy. */
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
-    const char *e = link_abi_getenv("XLANG_DEBUG_PIPE");
-    if (e != NULL && e[0] != '\0' && e[0] != '0') {
-        /* Integer twin of thin pure note text (no float; matches driver_abi_append_i64 decimal). */
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: entry_source_len_global=%lld",
-                     (long long)g_pipeline_entry_source_len);
-    }
+    /* Class AI: XLANG_DEBUG_PIPE entry_source_len note retired (mirror thin). */
     return g_pipeline_entry_source_len;
 }
 
@@ -3999,14 +3993,7 @@ void driver_parsed_work_cleanup(void) {
     void *dl = g_parsed_work_p[8];
     void *da = g_parsed_work_p[9];
     void *dm = g_parsed_work_p[10];
-    if (link_abi_getenv && link_abi_getenv("XLANG_DEBUG_SIDECAR")) {
-        /* Cap residual 9.7.1: debug trace via raw fd-2 write (no stdio). */
-        char sidecar_buf[160];
-        xlang_snprintf(sidecar_buf, sizeof(sidecar_buf),
-                       "xlang: [SIDECAR] cleanup enter n_deps=%d arena=%p module=%p da=%p dm=%p\n",
-                       n, g_parsed_work_p[3], g_parsed_work_p[4], da, dm);
-        (void)xlang_io_write(2, sidecar_buf, strlen(sidecar_buf));
-    }
+    /* Class AI: Cap XLANG_DEBUG_SIDECAR cleanup trace retired. */
     for (i = 0; i < n; i++) {
         if (da) {
             p = ((void **)da)[i];

@@ -1732,7 +1732,8 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
 }
 
 /** Load pipeline entry source length from thin BSS; optionally emit a debug note.
- * Wave13 pure: when XLANG_DEBUG_PIPE is truthy (non-empty and not '0'), assemble
+ * Wave13 pure / Class AI: length cell only — DEBUG_PIPE note retired.
+ * Was: when XLANG_DEBUG_PIPE truthy, assemble
  * "pipeline debug: entry_source_len_global=<len>" via driver_diag_append_cstr +
  * driver_abi_append_i64 + diag_report (no va_list diag_reportf). Env gate reuses
  * driver_env_flag_truthy (same shape as driver_diag_env_debug_pipe / G.7).
@@ -1740,15 +1741,9 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
  * PLATFORM: SHARED — hybrid pure authority for the length cell + debug note. */
 #[no_mangle]
 export function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
+  // Class AI: XLANG_DEBUG_PIPE entry_source_len note retired (was append+diag_report).
   unsafe {
-    let len: i64 = g_pipeline_entry_source_len[0];
-    if (driver_env_flag_truthy("XLANG_DEBUG_PIPE") != 0) {
-      let msg: u8[96] = [0];
-      let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "pipeline debug: entry_source_len_global=");
-      at = driver_abi_append_i64(&msg[0], 96, at, len);
-      diag_report(0 as *u8, 0, 0, "note", &msg[0], 0 as *u8);
-    }
-    return len;
+    return g_pipeline_entry_source_len[0];
   }
   return 0;
 }
