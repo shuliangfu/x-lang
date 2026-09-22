@@ -4366,8 +4366,14 @@ static int xlang_nm_u_fill_undef_cache(const char *o_path) {
     char line[512];
     if (!o_path || !o_path[0])
         return 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    /* cmd.exe / Mingw popen: single quotes are literal; use double quotes. */
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u \"%s\" 2>nul", o_path) >= sizeof cmd)
+        return 0;
+#else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 0;
+#endif
     fp = popen(cmd, "r");
     if (!fp)
         return 0;
@@ -4411,8 +4417,13 @@ static int xlang_nm_t_fill_defined_cache(const char *o_path) {
     char line[512];
     if (!o_path || !o_path[0])
         return 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm \"%s\" 2>nul", o_path) >= sizeof cmd)
+        return 0;
+#else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 0;
+#endif
     fp = popen(cmd, "r");
     if (!fp)
         return 0;
@@ -5642,8 +5653,13 @@ int xlang_asm_user_o_has_undef_syms(const char *o_path) {
     size_t i;
     if (!o_path || !o_path[0])
         return 1;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u \"%s\" 2>nul", o_path) >= sizeof cmd)
+        return 1;
+#else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 1;
+#endif
     fp = popen(cmd, "r");
     if (!fp) {
 #if defined(__linux__)
