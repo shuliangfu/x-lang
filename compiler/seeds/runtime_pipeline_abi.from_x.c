@@ -49836,19 +49836,15 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
 }
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE find_or_alloc_ptr unique */
 
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE find_or_alloc_ptr unique */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE find_or_alloc_ptr unique */
-
-/*
- * WAVE270: ast_pool_type pure-owned leave cold twins
- * (pipeline_type_* pool accessors + find_or_alloc + init/ensure + region label).
- * Only compiled when product pure is NOT linked (-U FROM_X cold path).
- * Type LE matches pure: kind@0 name[256]@4 name_len@260 elem@264 array_size@268
- * region_label[256]@272 region_label_len@528 size 532.
- * Cap residual: pipeline_arena_type_ptr / pipeline_arena_type_alloc.
- * PLATFORM: SHARED freestanding type pool Cap leave.
+/* WAVE270 type-pool twins:
+ * - Cold (!FROM_X): full block.
+ * - Windows leftover-PE (FROM_X + WIN_LEFTOVER_GROW_VEC): accessors so phase1
+ *   PE link gets T pipeline_type_kind_ord_at / elem_ref / named_name (prefer
+ *   hybrid rest otherwise leaves them U; PE arch stubs do not cover these).
+ * find_or_alloc_ptr + set_elem_array_size_at: WIN unique block above; skipped
+ * here under WIN_LEFTOVER. PLATFORM: SHARED + WINDOWS leftover-PE.
  */
-#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* XLANG_PABI_TYPE_POOL_THIN_BEGIN */
 extern void *pipeline_arena_type_ptr(void *arena, int32_t ref);
 extern int32_t pipeline_arena_type_alloc(void *arena);
@@ -50005,6 +50001,8 @@ int32_t pipeline_type_find_or_alloc_slice(void *a, int32_t elem_ref, uint8_t *re
   return k;
 }
 
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* cold-only: WIN leftover unique find_or_alloc_ptr */
 int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
   int32_t nt, k;
   uint8_t *t;
@@ -50040,6 +50038,7 @@ int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *regi
   }
   return k;
 }
+#endif
 
 int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref) {
   uint8_t *t = wave270_slot_at(arena, ref);
@@ -50055,6 +50054,8 @@ int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref) {
   return wave270_load_i32(t, 136);
 }
 
+#if !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* cold-only: WIN leftover unique set_elem_array_size_at */
 int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t elem_ref, int32_t array_size) {
   uint8_t *t = wave270_slot_at(arena, ref);
   if (!t)
@@ -50063,6 +50064,7 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
   wave270_store_i32(t, 140, array_size);
   return 1;
 }
+#endif
 
 int32_t pipeline_type_array_size_at(void *arena, int32_t ref) {
   uint8_t *t = wave270_slot_at(arena, ref);
@@ -50199,16 +50201,7 @@ int32_t pipeline_type_find_or_alloc_compound(void *a, int32_t kind_ord, int32_t 
 
 /* XLANG_PABI_TYPE_POOL_THIN_END */
 /* end wave270 type pool cold twins */
-#endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave270 cold twins */
-
-/*
- * Close enclosing FROM_X (wave178 @28474, wave154 @27198) so WAVE271 can
- * compile under XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC while
- * FROM_X rest is still the product TU. Reopened immediately after this
- * block so wave272–274 stay cold-only. PLATFORM: WINDOWS leftover-PE.
- */
-#endif /* close wave178 FROM_X @28474 for wave271 WIN leftover */
-#endif /* close wave154 FROM_X @27198 for wave271 WIN leftover */
+#endif /* !FROM_X || WIN_LEFTOVER — wave270 type-pool twins */
 
 /*
  * WAVE271: pipeline_grow_vec pure-owned leave cold twins
