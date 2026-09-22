@@ -23,6 +23,10 @@ int32_t pipeline_asm_emit_struct_let_init_elf_c() { return -1; }
  * PE stubs merge last (last-wins) — real body must live here. PLATFORM: WINDOWS leftover-PE. */
 extern void *glue_emit_module_from_ctx(void *ctx);
 extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf, int32_t off, int32_t sz, int32_t ta);
 extern int32_t pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref);
 extern int32_t pipeline_expr_struct_lit_init_ref(void *a, int32_t expr_ref, int32_t fi);
 extern int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_ref, int32_t fi);
