@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；Class AL diagnostic DEBUG_PIPE／PARSE_GENERIC／PARSE_COMMIT Cap 剥 ✅ · 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；Class AM diagnostic TYPECK_BINOP／PARSE_PARAM Cap 剥 ✅ · 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -256,7 +256,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AL** 已收（AL＝diagnostic DEBUG_PIPE／PARSE_GENERIC／PARSE_COMMIT Cap 剥）。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝下一产品梯真减 host-cc。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AM** 已收（AM＝diagnostic TYPECK_BINOP／PARSE_PARAM Cap 剥）。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝下一产品梯真减 host-cc。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
