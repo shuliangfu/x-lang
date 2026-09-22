@@ -9956,6 +9956,13 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
       (void)((mod = module));
       if (((dep >=0) && (ctx !=0))) {
         (void)((dm = pipeline_dep_ctx_module_at(ctx, dep)));
+        {
+          uint8_t * alt_dm = typeck_driver_dep_module_buf(dep);
+          /* Win PE: sidecar module_at often stale (num_funcs=0); prefer live dbuf. */
+          if ((alt_dm !=0)) {
+            (void)((dm = ((struct ast_Module *)alt_dm)));
+          }
+        }
         ((dm !=0) ? ({   (void)((mod = dm));
  }) : 0);
       }
@@ -10385,6 +10392,12 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
     (void)((mod = module));
     if (((dep >=0) && (ctx !=0))) {
       (void)((dm = pipeline_dep_ctx_module_at(ctx, dep)));
+      {
+        uint8_t * alt_dm = typeck_driver_dep_module_buf(dep);
+        if ((alt_dm !=0)) {
+          (void)((dm = ((struct ast_Module *)alt_dm)));
+        }
+      }
       ((dm !=0) ? ({   (void)((mod = dm));
  }) : 0);
     }
