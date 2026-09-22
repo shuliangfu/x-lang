@@ -6,6 +6,8 @@
 // wave739: LINUX product PREFER_ASM replace leftover gcc W rec
 //   (standalone T=2 U=35); MACOS keep full thin overlay.
 //   Do not fall back to -E for this TU. Full emit_expr_elf_c tip still BAN.
+// wave752: tip classify — live tip leftover gcc W wrapper; full tip -c
+//   smash; HARD BAN PREFER tip (helpers PREFER already on LINUX).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;

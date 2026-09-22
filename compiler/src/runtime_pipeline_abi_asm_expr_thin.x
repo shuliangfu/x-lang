@@ -6,6 +6,15 @@
 // ensure: inject_asm_expr_thin injects THIS on MACOS only.
 // wave409/419: MACOS PREFER full (product L2 green); LINUX HARD BAN tip
 //   reinject (helpers-only also product opt=255 after proper relink).
+// wave752: classify full emit_expr_elf_c tip frame — NOT leftover-wipe.
+//   Live tip = leftover gcc W thin wrapper (Darwin weak sub #0x40 /
+//   LINUX W endbr64 sub $0x20 size 0x3e) that calls emit_expr_elf_rec.
+//   LINUX rec already w739 PREFER T (push+sub $0x19b8). MACOS keep full
+//   overlay (rec weak sub #0x60). Standalone full -c T=3 U=35 nsects=1:
+//   tip still smash (Darwin sub #0x890 / LINUX push+sub $0x888); rec smash
+//   (sub ~#0x19c0 / $0x19b8). Re-PREFER of full tip would dest-overwrite
+//   healthy leftover W tip wrapper. HARD BAN PREFER of tip remains.
+//   Do not gcc -E as the repair. Do not leftover-first.
 // PLATFORM: SHARED freestanding emit · LINUX gold · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;

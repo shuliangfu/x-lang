@@ -5980,6 +5980,10 @@ pipeline_abi_inject_assign_index_thin() {
 #   gcc W rec (endbr64, sub $0x50, size 0x6a1) → PREFER_ASM T (no host-cc).
 #   MACOS keep prior full-thin PREFER overlay (do not re-inject Darwin ld -r).
 #   Do not fall back to -E for this TU. Full emit_expr_elf_c tip still BAN.
+# wave752: classify full tip. Live tip = leftover gcc W wrapper (Darwin
+#   weak sub #0x40 / LINUX W endbr64 sub $0x20 size 0x3e → call rec).
+#   Full -c tip smash sub $0x888/#0x890. HARD BAN PREFER tip remains.
+#   Do NOT tip PREFER / tip -E as repair. Not leftover-first.
 # G.7: thin body matches mega; LINUX leftover holds emit_expr_elf_c tip.
 # PLATFORM: SHARED · MACOS full PREFER keep / LINUX helpers PREFER_ASM.
 pipeline_abi_inject_asm_expr_thin() {
@@ -5993,6 +5997,7 @@ pipeline_abi_inject_asm_expr_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # wave752: tip HARD BAN PREFER; MACOS keep overlay; LINUX helpers-only.
   # PLATFORM: MACOS — keep w495 full PREFER overlay; do not re-inject.
   if [ "$(uname -s)" != "Linux" ]; then
     touch "$stamp"
