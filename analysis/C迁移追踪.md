@@ -186,7 +186,7 @@
 
 - 🟡 **11.1.1–11.1.6** 依赖图／调度／平台／链接／`build.x`／吞并 g05 — 终局未完  
 - ⬜ **11.2.1** stage1→2→3 编排 + 自动 v2==v3  
-- ⬜ **11.2.4** Windows／MSYS2 本地 xbuild 入口  
+- 🟡 **11.2.4** Windows／MSYS2 冷底座（g05＋crt0 烟测）✅；产品 hybrid／L2／三端硬闸 ⬜（无 PE egg：leftover-PE phase1 UNDEF）  
 - ⬜ **11.3.3** 其它 make 碎片（含 tree-sitter）  
 - ⬜ **11.3.4** 「无 make + 无 cc」CI 闸门  
 - 🟡 **11.4.5** docker 仍装 gcc／make  
