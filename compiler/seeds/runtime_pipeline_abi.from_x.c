@@ -18643,6 +18643,9 @@ void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   *(int32_t *)((uint8_t *)ctx + 4) = off;
 }
 
+extern void *pipeline_asm_emit_ctx_arena_get(void);
+extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
+extern int32_t pipeline_module_func_param_type_ref_at(void *mod, int32_t func_index, int32_t param_index);
 int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, int32_t func_index, int32_t ta) {
   int32_t np;
   int32_t i;
@@ -18676,12 +18679,38 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
     return 0;
   gp = (sret_act != 0) ? 1 : 0;
   home = 16;
-  for (i = 0; i < np && (gp + i) < 6; i++) {
-    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp + i, ta) != 0)
-      return -1;
-    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
-      return -1;
-    home += 8;
+  /* 9–16B aggregate: dual-GP home (low@home, high@home-8), advance home by 16.
+   * Option_ptr expect/is_some previously only parked rcx → value half lost (-16).
+   * PLATFORM: WINDOWS leftover-PE. */
+  for (i = 0; i < np && gp < 6; i++) {
+    int32_t w;
+    void *arena_ph;
+    arena_ph = pipeline_asm_emit_ctx_arena_get();
+    w = glue_func_param_home_width_c(arena_ph, mod, func_index, i);
+    if (w <= 0)
+      w = 8;
+    if (w > 8 && w <= 16) {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      gp = gp + 1;
+      if (gp >= 6)
+        return -1;
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+        return -1;
+      gp = gp + 1;
+      home = home + 16;
+    } else {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      gp = gp + 1;
+      home = home + 8;
+    }
   }
   return 0;
 }
@@ -34405,13 +34434,28 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
   int32_t sz;
   int32_t tk;
   int32_t half2;
-  (void)init_ref;
+  int32_t nsz;
   (void)ctx;
   if (!elf_ctx)
     return -1;
   sz = 0;
   if (ty_ref > 0)
     sz = glue_type_size_simple(m, arena, ty_ref, 0);
+  extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+  /* Option_ptr_u8 etc: size_simple may report 8 while STRUCT_LIT/emit uses 16.
+   * Widen via named_layout / dual_gp / CALL return so rdx half is stored
+   * (tests/option -16: only rax landed in let home). PLATFORM: WINDOWS leftover-PE. */
+  if (arena && ty_ref > 0) {
+    nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (nsz > sz)
+      sz = nsz;
+  }
+  if (sz <= 8 && arena && init_ref > 0) {
+    nsz = glue_call_return_byte_size_c(arena, init_ref);
+    if (nsz > sz)
+      sz = nsz;
+  }
   /* leftover rest glue_type_size_simple TYPE_SLICE (11) is 16.
    * SAT extract may still report 8 — tk==11 path below is the
    * G.7 TYPE_SLICE dual-GP store, not size_simple.
@@ -34438,13 +34482,15 @@ int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *elf_ctx,
       return 0;
     }
   }
-  if (!m || !arena || ty_ref <= 0)
-    return 0;
+  /* Even if ty_ref missing, CALL-return widen above may set sz∈(8,16]. */
   if (sz > 8 && sz <= 16) {
     half2 = (ta == 1) ? (slot_off + 8) : (slot_off - 8);
     if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, half2, ta) != 0)
       return -1;
+    return 0;
   }
+  if (!m || !arena || ty_ref <= 0)
+    return 0;
   return 0;
 }
 #endif /* FROM_X && WIN leftover rest store_retval_pair */
@@ -41256,11 +41302,25 @@ int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref) {
 }
 
 int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index) {
-  (void)arena;
-  (void)mod;
-  (void)func_index;
-  (void)param_index;
-  return 8;
+  int32_t pty;
+  int32_t sz;
+  int32_t nsz;
+  if (!mod || func_index < 0 || param_index < 0)
+    return 8;
+  pty = pipeline_module_func_param_type_ref_at(mod, func_index, param_index);
+  if (pty <= 0)
+    return 8;
+  sz = glue_type_size_simple(mod, arena, pty, 0);
+  if (arena && pty > 0) {
+    nsz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
+    if (nsz > sz)
+      sz = nsz;
+  }
+  if (sz <= 0)
+    return 8;
+  if (sz > 16)
+    return 8; /* >16B by-ref / sret; GP home stays pointer-sized */
+  return sz;
 }
 
 int32_t pipeline_asm_host_is_arm64_c(void) {
@@ -41809,6 +41869,12 @@ int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void
       return 0;
     }
   }
+  /* TYPE_ARRAY=10: decay to pointer (lea), not load first qword as *u8.
+   * some_ptr_u8(buf)/map_ptr_u8(_, buf) previously mov'd [1,2,3,4] bits into
+   * rcx → Option value garbage → tests/option bp[0]!=1 (-16).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (arena && tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 10)
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
   rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
   if (rc != 0)
     return -1;
