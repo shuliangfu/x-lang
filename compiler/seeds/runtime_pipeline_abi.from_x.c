@@ -22740,7 +22740,11 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
             return -1;
         }
       }
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, backend_asm_ctx_slot_offset(ctx, slot), ta) != 0)
+      /* Prefer dual-GP store_retval (Option_ptr rdx half) over bare store_rax.
+       * PLATFORM: WINDOWS leftover-PE. */
+      if (glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx,
+              type_ref > 0 ? type_ref : pipeline_block_let_type_ref(arena, block_ref, i),
+              backend_asm_ctx_slot_offset(ctx, slot), ta, init_ref, ctx) != 0)
         return -1;
       }
       }
@@ -34474,6 +34478,33 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
     nsz = glue_call_return_byte_size_c(arena, init_ref);
     if (nsz > sz)
       sz = nsz;
+    /* Last resort: CALL returning Option_ptr_* — force dual-GP. */
+    {
+      int32_t ko;
+      ko = pipeline_expr_kind_ord_at(arena, init_ref);
+      if ((ko == 48 || ko == 49) && sz <= 8) {
+        void *rmod;
+        int32_t rfi;
+        int32_t rdep;
+        int32_t rty;
+        uint8_t nm[64];
+        int32_t nl;
+        rmod = 0;
+        rfi = -1;
+        rdep = -1;
+        if (glue_asm_resolve_call_target_module_c(arena, init_ref, &rmod, &rfi, &rdep) == 0 && rmod &&
+            rfi >= 0) {
+          rty = pipeline_module_func_return_type_at(rmod, rfi);
+          if (rty > 0) {
+            nl = pipeline_type_named_name_into(arena, rty, nm);
+            if (nl >= 11 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105 &&
+                nm[4] == 111 && nm[5] == 110 && nm[6] == 95 && nm[7] == 112 && nm[8] == 116 &&
+                nm[9] == 114 && nm[10] == 95)
+              sz = 16;
+          }
+        }
+      }
+    }
   }
   /* leftover rest glue_type_size_simple TYPE_SLICE (11) is 16.
    * SAT extract may still report 8 — tk==11 path below is the
