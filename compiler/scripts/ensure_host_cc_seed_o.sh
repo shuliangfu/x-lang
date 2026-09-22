@@ -13074,7 +13074,10 @@ try_ensure_gen_c_to_o_one() {
 # link_alias).
 # wave758 Class I: host_lit itself from pure-asm of cfg_eval_host_lit.x (cold
 # fallback still cc_inc_tu of seeds/cfg_eval_host_lit.from_x.c). Zero host-cc
-# on Rung0 when xlang_asm present. Do not -E as the repair. Do not bump pin.
+# on Rung0 when xlang_asm present.
+# wave759 Class J: Darwin file-level let ADRP must be PAGE21 (not BR26) or
+# Rung0 ld -r fails and falls to pin. Regression: scripts/smoke_file_let_page21.sh.
+# Do not -E as the repair. Do not bump pin.
 #
 # Exit codes:
 #   0 — OUT is B5 member; ladder produced OUT (or skip up-to-date)
