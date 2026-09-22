@@ -19,6 +19,7 @@ export extern function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf:
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
  * PLATFORM: SHARED — product hybrid full.x path owns f32 xmm / WPO fold env gates. */
 export extern function link_abi_getenv(name: *u8): *u8;
+export extern function link_abi_host_is_windows(): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
@@ -810,8 +811,15 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
     let lea7: u8[7] = [];
     lea7[0] = 72; // 0x48
     lea7[1] = 141; // 0x8d
+    // Win64 arg0=rcx(0x0d); SysV arg0=rdi(0x3d); reg_k!=0 → rax(0x05).
+    // Runtime host gate (not compile-time _WIN32): leftover-PE product may
+    // carry .x-lowered body that must match Win64 println(rcx,rdx).
     if (reg_k == 0) {
-      lea7[2] = 61; // 0x3d rdi
+      if (link_abi_host_is_windows() != 0) {
+        lea7[2] = 13; // 0x0d rcx
+      } else {
+        lea7[2] = 61; // 0x3d rdi
+      }
     } else {
       lea7[2] = 5; // 0x05 rax
     }
