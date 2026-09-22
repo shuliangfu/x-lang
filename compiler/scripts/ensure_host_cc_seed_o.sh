@@ -4139,7 +4139,27 @@ ensure_pipeline_abi_prefer_one() {
   # Merge rest-first so tip FROM_X wins overlaps; leftover fills missing twins.
   # POSIX (Linux gold / Darwin): FORCE hybrid -E stays the product path.
   if pipeline_abi_windows_leftover_pe_cannot_e; then
-    local win_rest win_thin win_sz
+    local win_rest win_thin win_sz win_e
+    # PLATFORM: WINDOWS — committed Darwin -E thin (windows_e.c) is the PE-egg
+    # substitute for this leaf: full product bodies, no FROM_X dual-decl hybrid.
+    win_e="seeds/runtime_pipeline_abi.windows_e.c"
+    if [ -f "$win_e" ]; then
+      mkdir -p "$(dirname "$o")"
+      if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$win_e" -nt "$o" ]; then
+        win_sz=$(wc -c <"$o" | tr -d ' ')
+        log "pipeline_abi prefer: keep Windows egg-thin $o (${win_sz}B) vs $win_e"
+        return 0
+      fi
+      log "pipeline_abi prefer: Windows egg-thin host-cc $win_e → $o"
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE            $(host_cc_win_compat_cflags) -c -o "$o" "$win_e"; then
+        echo "ensure_host_cc_seed_o: Windows egg-thin cc failed for $o" >&2
+        return 1
+      fi
+      win_sz=$(wc -c <"$o" | tr -d ' ')
+      log "prefer Windows egg-thin $o <- $win_e (${win_sz:-0}B)"
+      return 0
+    fi
     win_thin="build_asm/pipeline_glue_standalone.o"
     mkdir -p "$(dirname "$o")"
     # Keep a prior good cold hybrid unless FORCE (sat rebuild must not wipe it).
