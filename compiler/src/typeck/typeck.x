@@ -2017,7 +2017,8 @@ expr_ref: i32, ctx: *PipelineDepCtx, vbuf: *u8, vnlen: i32): i32 {
 */
 export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nlen: i32): i32 {
   let k: i32 = 0;
-  while (k < module.num_struct_layouts) {
+  let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+  while (k < nsl) {
     if (typeck_layout_name_equal(module, k, nm, nlen)) {
       return k;
     }
@@ -2800,7 +2801,8 @@ field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
-    while (k < module.num_struct_layouts) {
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
         while (j < pipeline_module_struct_layout_num_fields(module, k)) {
@@ -2829,7 +2831,8 @@ field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
-    while (k < module.num_struct_layouts) {
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
         while (j < pipeline_module_struct_layout_num_fields(module, k)) {
@@ -4370,6 +4373,27 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
       nlen = pipeline_type_named_name_into(arena, check_ty, &nbuf[0]);
       if (nlen <= 0 || nlen > 255) {
         return 0;
+      }
+      /* Parity with typeck_field_layout_named: strip last "mod." so dep layouts match. */
+      {
+        let dot_pos: i32 = 0 - 1;
+        let si: i32 = 0;
+        while (si < nlen) {
+          if (nbuf[si] == 46) {
+            dot_pos = si;
+          }
+          si = si + 1;
+        }
+        if (dot_pos >= 0 && dot_pos + 1 < nlen) {
+          let suffix_len: i32 = nlen - (dot_pos + 1);
+          si = 0;
+          while (si < suffix_len) {
+            nbuf[si] = nbuf[dot_pos + 1 + si];
+            si = si + 1;
+          }
+          nbuf[suffix_len] = 0;
+          nlen = suffix_len;
+        }
       }
       has_struct = 0;
       has_enum = 0;
@@ -20145,6 +20169,9 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return -2;
     }
+    /* Win si T001: merge dep struct layouts into entry before FIELD_ACCESS typeck.
+     * Backend merge runs after typeck — too late for hard_fail. PLATFORM: SHARED. */
+    typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
     /* wave421 Cap residual pure — missing method before per-func check_block.
      * Root: incomplete impl Trait for T was false-green (only free-fn hoist).
      * G.7: xlang_trait_check_impls_complete_c (skip_tl registry). Soft: bounds/dyn. */
@@ -20208,6 +20235,8 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
     if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return -5;
     }
+    /* Win si T001: merge dep layouts before library FIELD_ACCESS typeck. PLATFORM: SHARED. */
+    typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
     if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {
       return -7;
     }
