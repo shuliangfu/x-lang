@@ -50057,9 +50057,14 @@ int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref) {
 
 int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref) {
   uint8_t *t = wave270_slot_at(arena, ref);
+  int32_t v;
   if (!t)
     return 0;
-  return wave270_load_i32(t, 136);
+  v = wave270_load_i32(t, 136);
+  /* Win PE egg Cap writers store elem@264; prefer wave270 then Cap. */
+  if (v == 0)
+    v = wave270_load_i32(t, 264);
+  return v;
 }
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
@@ -50076,9 +50081,13 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
 
 int32_t pipeline_type_array_size_at(void *arena, int32_t ref) {
   uint8_t *t = wave270_slot_at(arena, ref);
+  int32_t v;
   if (!t)
     return 0;
-  return wave270_load_i32(t, 140);
+  v = wave270_load_i32(t, 140);
+  if (v == 0)
+    v = wave270_load_i32(t, 268);
+  return v;
 }
 
 int32_t pipeline_type_ensure_by_kind_ord(void *a, int32_t kind_ord) {
