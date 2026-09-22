@@ -3461,6 +3461,41 @@ int32_t typeck_soa_array_storage_size_glue(struct ast_Module * module, struct as
     return 0;
   }
 }
+/* Win parse-only layouts leave field type_ref=0; synthesize for known stdlib fields. */
+int32_t typeck_synth_layout_field_type_ref(struct ast_ASTArena * arena, uint8_t * field_name, int32_t field_name_len) {
+  uint8_t nm_is_some[7] = {105, 115, 95, 115, 111, 109, 101};
+  uint8_t nm_is_none[7] = {105, 115, 95, 110, 111, 110, 101};
+  uint8_t nm_is_ok[5] = {105, 115, 95, 111, 107};
+  uint8_t nm_is_err[6] = {105, 115, 95, 101, 114, 114};
+  uint8_t nm_value[5] = {118, 97, 108, 117, 101};
+  uint8_t nm_err[3] = {101, 114, 114};
+  if ((arena == 0) || (field_name == 0) || (field_name_len <= 0)) {
+    return 0;
+  }
+  if (((field_name_len == 7) && typeck_name_equal(field_name, field_name_len, &((nm_is_some)[0]), 7))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 7) && typeck_name_equal(field_name, field_name_len, &((nm_is_none)[0]), 7))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 5) && typeck_name_equal(field_name, field_name_len, &((nm_is_ok)[0]), 5))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 6) && typeck_name_equal(field_name, field_name_len, &((nm_is_err)[0]), 6))) {
+    return typeck_ensure_bool_type_ref(arena);
+  }
+  if (((field_name_len == 5) && typeck_name_equal(field_name, field_name_len, &((nm_value)[0]), 5))) {
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  if (((field_name_len == 3) && typeck_name_equal(field_name, field_name_len, &((nm_err)[0]), 3))) {
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  if (((field_name_len >= 4) && ((field_name)[0] == 95) && ((field_name)[1] == 112) && ((field_name)[2] == 97) && ((field_name)[3] == 100))) {
+    return typeck_ensure_i32_type_ref(arena);
+  }
+  return 0;
+}
+
 int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTArena * arena, int32_t li, int32_t depth, int32_t check_pad, int32_t * out_sz, int32_t * out_al) {
   {
     int32_t nf = 0;
@@ -3609,41 +3644,6 @@ int32_t typeck_get_field_offset_from_layout(struct ast_Module * module, uint8_t 
     }
     return -1;
   }
-}
-
-/* Win parse-only layouts leave field type_ref=0; synthesize for known stdlib fields. */
-static int32_t typeck_synth_layout_field_type_ref(struct ast_ASTArena * arena, uint8_t * field_name, int32_t field_name_len) {
-  uint8_t nm_is_some[7] = {105, 115, 95, 115, 111, 109, 101};
-  uint8_t nm_is_none[7] = {105, 115, 95, 110, 111, 110, 101};
-  uint8_t nm_is_ok[5] = {105, 115, 95, 111, 107};
-  uint8_t nm_is_err[6] = {105, 115, 95, 101, 114, 114};
-  uint8_t nm_value[5] = {118, 97, 108, 117, 101};
-  uint8_t nm_err[3] = {101, 114, 114};
-  if ((arena == 0) || (field_name == 0) || (field_name_len <= 0)) {
-    return 0;
-  }
-  if (((field_name_len == 7) && typeck_name_equal(field_name, field_name_len, &((nm_is_some)[0]), 7))) {
-    return typeck_ensure_bool_type_ref(arena);
-  }
-  if (((field_name_len == 7) && typeck_name_equal(field_name, field_name_len, &((nm_is_none)[0]), 7))) {
-    return typeck_ensure_bool_type_ref(arena);
-  }
-  if (((field_name_len == 5) && typeck_name_equal(field_name, field_name_len, &((nm_is_ok)[0]), 5))) {
-    return typeck_ensure_bool_type_ref(arena);
-  }
-  if (((field_name_len == 6) && typeck_name_equal(field_name, field_name_len, &((nm_is_err)[0]), 6))) {
-    return typeck_ensure_bool_type_ref(arena);
-  }
-  if (((field_name_len == 5) && typeck_name_equal(field_name, field_name_len, &((nm_value)[0]), 5))) {
-    return typeck_ensure_i32_type_ref(arena);
-  }
-  if (((field_name_len == 3) && typeck_name_equal(field_name, field_name_len, &((nm_err)[0]), 3))) {
-    return typeck_ensure_i32_type_ref(arena);
-  }
-  if (((field_name_len >= 4) && ((field_name)[0] == 95) && ((field_name)[1] == 112) && ((field_name)[2] == 97) && ((field_name)[3] == 100))) {
-    return typeck_ensure_i32_type_ref(arena);
-  }
-  return 0;
 }
 
 int32_t typeck_get_field_type_ref_from_layout(struct ast_Module * module, uint8_t * type_name, int32_t type_name_len, uint8_t * field_name, int32_t field_name_len) {
