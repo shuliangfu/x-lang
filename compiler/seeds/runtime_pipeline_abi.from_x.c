@@ -49917,11 +49917,6 @@ int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64) 
   n = wave270_load_i32(t, 132);
   if (n <= 0)
     n = wave270_load_i32(t, 260);
-  /* WINDBG_NAME_DUMP_FX */
-  if (ref == 5 && n <= 0) {
-    fprintf(stderr, "xlang: WINDBG_NAME_FX ref=5 t=%p k0=%d n132=%d n260=%d\n",
-      (void*)t, (int)wave270_load_i32(t,0), (int)wave270_load_i32(t,132), (int)wave270_load_i32(t,260));
-  }
   cn = n > 64 ? 64 : n;
   for (i = 0; i < cn; i++)
     out64[i] = t[4 + i];

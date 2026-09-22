@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <stdio.h> /* WINDBG_STDIO */
 #ifndef XLANG_DYN_OBJ
 #define XLANG_DYN_OBJ
 
@@ -5486,24 +5485,17 @@ int32_t typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_Pipeline
       ((pipeline_dep_ctx_module_at(ctx, from_dep_index) ==0) ? ({   return 0;
  }) : 0);
     }
-    fprintf(stderr, "xlang: WINDBG3 get_dep idx=%d ref=%d nt=%d entry=%p\n",
-      (int)from_dep_index, (int)dep_return_type_ref, (int)((dep_arena)->num_types),
-      (void*)g_typeck_entry_module_for_dep_map);
     if (((g_typeck_entry_module_for_dep_map !=0) && (dep_return_type_ref > 0))) {
       ((dep_return_type_ref <=((dep_arena)->num_types)) ? ({   (void)((kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref)));
   ((kind ==ord_named) ? ({   (void)((nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm_buf)));
-  fprintf(stderr, "xlang: WINDBG3 named kind=%d nlen=%d name=%.*s\n", (int)kind, (int)nlen, (int)((nlen>0&&nlen<40)?nlen:0), (char*)nm_buf);
   ((nlen > 0) ? ({   int32_t _mr = typeck_map_import_binding_named_to_caller(g_typeck_entry_module_for_dep_map, from_dep_index, caller_arena, nm_buf, nlen);
-  fprintf(stderr, "xlang: WINDBG3 map_named ret=%d\n", (int)_mr);
   return _mr;
  }) : 0);
  }) : 0);
-  fprintf(stderr, "xlang: WINDBG3 kind=%d (not named path)\n", (int)kind);
  }) : 0);
     }
     {
       int32_t _cr = typeck_dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
-      fprintf(stderr, "xlang: WINDBG3 copy_to_caller ret=%d\n", (int)_cr);
       return _cr;
     }
   }
@@ -9966,8 +9958,6 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
     (void)((num_args = pipeline_expr_call_num_args_at(arena, expr_ref)));
     (void)((fi = pipeline_expr_call_resolved_func_index_at(arena, expr_ref)));
     (void)((dep = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref)));
-    fprintf(stderr, "xlang: WINDBG_ARITY0 er=%d fi=%d dep=%d nargs=%d\n",
-      (int)expr_ref, (int)fi, (int)dep, (int)num_args);
     if ((fi >=0)) {
       (void)((mod = module));
       if (((dep >=0) && (ctx !=0))) {
@@ -9984,8 +9974,6 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
       }
       /* Cap 10.7.1 slice8: exact or variadic. Twin typeck.x. */
       (void)((np = pipeline_module_func_num_params_at(mod, fi)));
-      fprintf(stderr, "xlang: WINDBG_ARITY er=%d fi=%d dep=%d nargs=%d np=%d mod=%p\n",
-        (int)expr_ref, (int)fi, (int)dep, (int)num_args, (int)np, (void*)mod);
       if ((typeck_call_arity_compatible(mod, fi, num_args) ==0)) {
         (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
         (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
@@ -10060,9 +10048,6 @@ int32_t typeck_check_call_arity(struct ast_Module * module, struct ast_ASTArena 
       }
       (void)((j = (j + 1)));
     }
-    fprintf(stderr, "xlang: WINDBG_ARITY2 er=%d fi=%d dep=%d nargs=%d hits=%d/%d name=%.*s nf=%d\n",
-      (int)expr_ref, (int)fi, (int)dep, (int)num_args, (int)name_hits, (int)arity_hits,
-      (int)((cnml>0&&cnml<40)?cnml:0), (char*)cnm, (int)((module)->num_funcs));
     if (((name_hits > 0) && (arity_hits ==0))) {
       (void)((line_a = pipeline_expr_line_at(arena, expr_ref)));
       (void)((col_a = pipeline_expr_col_at(arena, expr_ref)));
@@ -10467,38 +10452,6 @@ int32_t typeck_check_call_arg_types(struct ast_Module * module, struct ast_ASTAr
           (void)(typeck_coerce_array_lit_struct_elems_to_decl(module, arena, arg_ref, pty_c));
         }
         (void)((sc = typeck_overload_arg_param_score(arena, expr_ref, ai, param_raw, dep, ctx)));
-        if ((sc < 0) && (arg_ref > 0)) {
-          int32_t _at = pipeline_expr_resolved_type_ref(arena, arg_ref);
-          int32_t _pt = param_raw;
-          if ((dep >=0)) {
-            int32_t _m = typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_PipelineDepCtx_ptr_reti32(dep, param_raw, arena, ctx);
-            if ((_m > 0)) _pt = _m;
-          }
-          fprintf(stderr, "xlang: WINDBG_SCORE er=%d ai=%d sc=%d arg_ty=%d ak=%d asz=%d param_raw=%d pt=%d pk=%d ae=%d pe=%d\n",
-            (int)expr_ref, (int)ai, (int)sc, (int)_at,
-            (int)(_at>0?pipeline_type_kind_ord_at(arena,_at):-1),
-            (int)(_at>0?pipeline_type_array_size_at(arena,_at):-1),
-            (int)param_raw, (int)_pt,
-            (int)(_pt>0?pipeline_type_kind_ord_at(arena,_pt):-1),
-            (int)(_at>0?pipeline_type_elem_ref_at(arena,_at):-1),
-            (int)(_pt>0?pipeline_type_elem_ref_at(arena,_pt):-1));
-          /* Raw Cap vs wave270 field probe via typeck_scratch — use pipeline_arena_type_ptr if available */
-          {
-            extern uint8_t * pipeline_arena_type_ptr(struct ast_ASTArena * a, int32_t ref);
-            uint8_t * ta = (_at>0) ? pipeline_arena_type_ptr(arena, _at) : 0;
-            uint8_t * tp = (_pt>0) ? pipeline_arena_type_ptr(arena, _pt) : 0;
-            if (ta) {
-              int32_t *i136=(int32_t*)(ta+136), *i140=(int32_t*)(ta+140), *i264=(int32_t*)(ta+264), *i268=(int32_t*)(ta+268);
-              fprintf(stderr, "xlang: WINDBG_SLOT arg t=%p @136=%d @140=%d @264=%d @268=%d\n",
-                (void*)ta, (int)(*i136), (int)(*i140), (int)(*i264), (int)(*i268));
-            }
-            if (tp) {
-              int32_t *i136=(int32_t*)(tp+136), *i264=(int32_t*)(tp+264);
-              fprintf(stderr, "xlang: WINDBG_SLOT param t=%p @136=%d @264=%d\n",
-                (void*)tp, (int)(*i136), (int)(*i264));
-            }
-          }
-        }
         ((sc < 0) ? ({   if (((arg_ref > 0) && (typeck_call_arg_repr_compatible_ok(mod, arena, param_raw, arg_ref) !=0))) {
     (void)((ai = (ai + 1)));
     continue;
@@ -11624,7 +11577,6 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
     int32_t callee_ref = 0;
     int32_t ret_ty = 0;
     if ((typeck_check_extern_call_unsafe_boundary(module, arena, expr_ref, ctx) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail extern_unsafe er=%d\n", (int)expr_ref);
       return -1;
     }
     (void)((num_args = pipeline_expr_call_num_args_at(arena, expr_ref)));
@@ -11634,32 +11586,26 @@ int32_t typeck_check_expr_call(struct ast_Module * module, struct ast_ASTArena *
     }
     (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), expect_store));
     if ((typeck_check_expr_call_arg(module, arena, expr_ref, return_type_ref, ctx, 0, num_args) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail args er=%d nargs=%d\n", (int)expr_ref, (int)num_args);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_expr_call_resolve(module, arena, expr_ref, ctx) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail resolve er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_call_arity(module, arena, expr_ref, ctx) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail arity er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_call_arg_types(module, arena, expr_ref, ctx) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail arg_types er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((pipeline_typeck_check_call_generic_type_args_c_Module_ptr_ASTArena_ptr_i32_PipelineDepCtx_ptr_i32_reti32(module, arena, expr_ref, ctx, expect_store) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail generic er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
     if ((typeck_check_call_slice_region(module, arena, expr_ref, ctx) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_CALL fail slice er=%d\n", (int)expr_ref);
       (void)(typeck_i32_ptr_store(typeck_overload_expected_ret_slot(), 0));
       return -1;
     }
@@ -14503,11 +14449,6 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
  }) : 0);
       }
       ((typeck_check_expr(module, arena, ld_ir, init_ctx, ctx) !=0) ? ({
-  fprintf(stderr, "xlang: WINDBG_LET check_expr fail idx=%d ld_ir=%d ld_tr=%d init_ctx=%d ek=%d tk=%d lname=%.*s\n",
-    (int)idx, (int)ld_ir, (int)ld_tr, (int)init_ctx,
-    (int)pipeline_expr_kind_ord_at(arena, ld_ir),
-    (int)(ld_tr>0?pipeline_type_kind_ord_at(arena, ld_tr):-1),
-    (int)((lname_len>0&&lname_len<40)?lname_len:0), (char*)lname_buf);
   return -1;
  }) : 0);
     }
@@ -14537,8 +14478,6 @@ int32_t typeck_check_block_one_let(struct ast_Module * module, struct ast_ASTAre
       if (((!(ast_ref_is_null(init_ty)) && !(typeck_type_refs_equal(arena, ld_tr, init_ty))) && (pipeline_typeck_linear_accepts_init_c_ASTArena_ptr_i32_i32_reti32(arena, ld_tr, init_ty) ==0))) {
         int32_t decl_k2 = pipeline_type_kind_ord_at(arena, ld_tr);
         int32_t init_k2 = pipeline_type_kind_ord_at(arena, init_ty);
-        fprintf(stderr, "xlang: WINDBG_LET mismatch idx=%d ld_tr=%d init_ty=%d dk=%d ik=%d\n",
-          (int)idx, (int)ld_tr, (int)init_ty, (int)decl_k2, (int)init_k2);
         int32_t dyn_init_reject = 0;
         int32_t fn_init_ok = 0;
         if ((decl_k2 ==17)) {
@@ -14921,7 +14860,6 @@ int32_t typeck_check_block_impl(struct ast_Module * module, struct ast_ASTArena 
         return -1;
       }
       if ((typeck_check_block_legacy_lets(module, arena, block_ref, return_type_ref, ctx, 0, nl) !=0)) {
-        fprintf(stderr, "xlang: WINDBG_BLK legacy_lets fail br=%d nl=%d\n", (int)block_ref, (int)nl);
         (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
         return -1;
       }
@@ -14934,18 +14872,15 @@ int32_t typeck_check_block_impl(struct ast_Module * module, struct ast_ASTArena 
         return -1;
       }
       if ((typeck_check_block_legacy_ifs(module, arena, block_ref, return_type_ref, ctx, 0, nif) !=0)) {
-        fprintf(stderr, "xlang: WINDBG_BLK legacy_ifs fail br=%d nif=%d\n", (int)block_ref, (int)nif);
         (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
         return -1;
       }
       ((typeck_check_block_legacy_expr_stmts(module, arena, block_ref, return_type_ref, ctx, 0, nes) !=0) ? ({
-  fprintf(stderr, "xlang: WINDBG_BLK legacy_expr_stmts fail br=%d nes=%d\n", (int)block_ref, (int)nes);
   (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
   return -1;
  }) : 0);
     }
     if ((typeck_check_block_final(module, arena, block_ref, return_type_ref, ctx, fin0) !=0)) {
-      fprintf(stderr, "xlang: WINDBG_BLK final fail br=%d fin0=%d\n", (int)block_ref, (int)fin0);
       (void)(pipeline_typeck_block_impl_restore_ctx_c_PipelineDepCtx_ptr_i32(ctx, saved_block_ref));
       return -1;
     }
