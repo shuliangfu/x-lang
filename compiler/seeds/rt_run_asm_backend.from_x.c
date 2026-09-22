@@ -111,6 +111,7 @@ extern void codegen_set_preamble_has_core_option_result(int on);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 extern void pipeline_asm_seed_std_net_struct_layouts(void *m);
 extern int pipeline_asm_user_deps_need_coemit(char **dep_paths, int n_deps);
+extern int32_t pipeline_asm_user_dep_is_in_tree_core(uint8_t *path);
 extern void pipeline_debug_module_funcs(void *module);
 extern void driver_diagnostic_after_entry_parse_module(void *module);
 extern int driver_check_diag_emitted_get(void);
@@ -495,6 +496,23 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         driver_freestanding_get() == 0 &&
         pipeline_asm_user_deps_need_coemit(dep_paths, n_deps) == 0)
         pctx->asm_entry_module_only = 1;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    /* Win PE: no shipped core/*.o. Hosted entry-only for pure std/core left
+     * U core_option_* (option matrix). Clear entry-only when any in-tree core
+     * dep is present so asm_codegen co-emits those bodies. Keep hello (std
+     * only) on entry-only. PLATFORM: WINDOWS PE. */
+    if (emit_elf_o && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0) {
+        int has_core = 0;
+        for (j = 0; j < n_deps; j++) {
+            if (pipeline_asm_user_dep_is_in_tree_core((uint8_t *)(dep_paths[j] ? dep_paths[j] : "")) != 0) {
+                has_core = 1;
+                break;
+            }
+        }
+        if (has_core)
+            pctx->asm_entry_module_only = 0;
+    }
+#endif
     driver_dep_seeded_clear_all();
     /*
      * build_xlang_asm（XLANG_ASM_BUILD_SKIP_TYPECK + ENTRY_MODULE_ONLY）：dep 已由 build_asm/*.o 提供，仅 publish 槽位。
