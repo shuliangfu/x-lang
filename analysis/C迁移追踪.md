@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；Class AB Win `asm_wpo_collect_walk` 7 参 ABI ✅ · 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-22 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；Class AC Win `pgo_emit_order_prepare` 空壳→真 ✅ · 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -28,7 +28,7 @@
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 |
 | 非 gen 产品 C／8.3 | 🟡 | wave309 壳物理退役（present 0）；产品 `.inc`／其它 host-cc seed 仍开 |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 |
-| Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**；FIELD／INDEX／DEREF／`struct_let_init`／`copy_large_struct`／SIMD／`asm_parser_*`／m8_tail／`collect_walk` ABI override **进 live**（Class S–AB leftover-safe LEGACY g05）；**三端 L2 硬闸已启用** |
+| Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**；FIELD／INDEX／DEREF／`struct_let_init`／`copy_large_struct`／SIMD／`asm_parser_*`／m8_tail／`collect_walk`／`pgo_emit_order_*` override **进 live**（Class S–AC leftover-safe LEGACY g05）；**三端 L2 硬闸已启用** |
 | 语言能力 L2（阶段 10） | 🟡 | 主面 ✅；残 NT／MSVC／qemu／Win 实机 |
 | xbuild／MG（阶段 11） | 🟡 | Makefile 物理删 ✅；终局／零 cc CI 仍开 |
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
