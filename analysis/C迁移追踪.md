@@ -255,7 +255,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F–L**：cfg_eval／lsp sizes／stubs／host_lit 纯 asm（减 host-cc）。下一刀＝下一产品梯（减 host-cc）。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F–M**：cfg_eval／lsp sizes／stubs／host_lit／pthread stub 纯 asm（减 host-cc）。下一刀＝下一产品梯（减 host-cc）。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
