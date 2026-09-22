@@ -44253,6 +44253,8 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
       tr = glue_field_access_field_type_ref_c(arena, mod, base_ref);
     } else {
       tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+      if (tr <= 0)
+        tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
     }
     /* Base *T / **T: glue peels outer PTR once. Do not pre-peel then call glue
      * (double-peel **u8 → sizeof(u8)=1; pure-asm argv[i] scale1+ldrb SEGV).
@@ -44280,10 +44282,12 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (pipeline_type_kind_ord_at(arena, tr) == 11)
       return 16;
     esz_res = glue_index_elem_byte_sz_from_type_ref_c(arena, tr);
-    if (esz_res >= 8) {
+    /* Win option bp[0]: INDEX result may stamp i32 (esz=4) while base is *u8.
+     * Prefer base *T peel whenever it is strictly smaller (not only esz>=8).
+     * PLATFORM: WINDOWS leftover-PE / SHARED INDEX esz. */
+    {
       int32_t base_ref2 = pipeline_expr_index_base_ref(arena, expr_ref);
       int32_t tr_base;
-      int32_t pointee2;
       int32_t esz_pt;
       if (base_ref2 > 0) {
         if (pipeline_expr_kind_ord_at(arena, base_ref2) == 44) {
@@ -44291,11 +44295,12 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
           tr_base = glue_field_access_field_type_ref_c(arena, mod, base_ref2);
         } else {
           tr_base = pipeline_expr_resolved_type_ref(arena, base_ref2);
+          if (tr_base <= 0)
+            tr_base = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref2);
         }
-        /* Base *T: glue peels once — pass tr_base, not pre-peeled pointee2. */
         if (tr_base > 0 && pipeline_type_kind_ord_at(arena, tr_base) == 9) {
           esz_pt = glue_index_elem_byte_sz_from_type_ref_c(arena, tr_base);
-          if (esz_pt > 0 && esz_pt < esz_res)
+          if (esz_pt > 0 && (esz_res <= 0 || esz_pt < esz_res))
             return esz_pt;
         }
       }
