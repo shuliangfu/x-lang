@@ -579,12 +579,9 @@ const char * link_diag_code_for_kind(const char *kind) {
 const char * link_diag_code_for_kind(const char *kind);
 #endif
 
-/* Cap residual (wave217 / Class AC): POSIX wait status decode _impl.
- * wave777 Class AC: when XLANG_LABI_DIAG_PURE_FROM_X, _impl lives in
- * labi_diag_pure.x (pure-asm; Win=win32_compat twin / POSIX=rt_exec_wif* twin).
- * Skip Cap host-cc here (residual defs 2→0). Cold non-hybrid keeps Cap bodies.
- * PLATFORM: SHARED — Darwin + Ubuntu + Win. */
-#ifndef XLANG_LABI_DIAG_PURE_FROM_X
+/* Cap residual (always _impl, wave217): POSIX wait status decode.
+ * Pure orch (labi_diag_pure L1) owns public thin; _impl is always mega.
+ * PLATFORM: POSIX (macOS + Linux). Windows hybrid uses win32_compat wait macros. */
 int link_diag_wait_is_signaled_impl(int status) {
     return WIFSIGNALED(status) ? 1 : 0;
 }
@@ -595,10 +592,6 @@ int link_diag_wait_code_impl(int status) {
         return (int)WEXITSTATUS(status);
     return -1;
 }
-#else
-int link_diag_wait_is_signaled_impl(int status);
-int link_diag_wait_code_impl(int status);
-#endif
 
 /* wave217: public pure thin lives in labi_diag_pure.x (hybrid L1);
  * mega cold twin under #ifndef XLANG_LABI_DIAG_PURE_FROM_X.

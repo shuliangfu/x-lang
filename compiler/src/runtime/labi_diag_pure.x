@@ -24,47 +24,11 @@ export extern "C" function link_diag_ld_debug_argv_impl(label: *u8, argv: *u8): 
  * wave217: public pure thin owns link_diag_strerror_current under hybrid L1. */
 export extern "C" function link_diag_strerror_current_impl(): *u8;
 
-/* wave777 Class AC: Cap residual wait decode _impl → pure-asm (was always
- * host-cc in link_abi rest). Twin of Cap WIF* / win32_compat:
- *   Windows: WIFSIGNALED=0, WIFEXITED=1, WEXITSTATUS=(s&0xff) (win32_compat.h).
- *   POSIX: same bit form as rt_exec_wifsignaled / wifexited / wexitstatus;
- *          WTERMSIG = (s & 0x7f) when signaled.
- * Public thin below still calls _impl (single authority). Cold Cap kept under
- * #ifndef XLANG_LABI_DIAG_PURE_FROM_X. PLATFORM: SHARED — Darwin+Ubuntu+Win. */
-#[cfg(target_os = "windows")]
-#[no_mangle]
-export function link_diag_wait_is_signaled_impl(status: i32): i32 {
-  return 0;
-}
-#[cfg(not(target_os = "windows"))]
-#[no_mangle]
-export function link_diag_wait_is_signaled_impl(status: i32): i32 {
-  let t: i32 = status & 127;
-  if (t == 0) {
-    return 0;
-  }
-  if (t == 127) {
-    return 0;
-  }
-  return 1;
-}
-#[cfg(target_os = "windows")]
-#[no_mangle]
-export function link_diag_wait_code_impl(status: i32): i32 {
-  return status & 255;
-}
-#[cfg(not(target_os = "windows"))]
-#[no_mangle]
-export function link_diag_wait_code_impl(status: i32): i32 {
-  let t: i32 = status & 127;
-  if (t != 0) {
-    if (t != 127) {
-      return t;
-    }
-    return 0 - 1;
-  }
-  return (status >> 8) & 255;
-}
+/* Cap residual (mega always _impl): POSIX wait status macros (WIFSIGNALED /
+ * WTERMSIG / WIFEXITED / WEXITSTATUS). wave217: public pure thin under hybrid L1.
+ * PLATFORM: POSIX (macOS + Linux product hosts); Windows hybrid win32_compat. */
+export extern "C" function link_diag_wait_is_signaled_impl(status: i32): i32;
+export extern "C" function link_diag_wait_code_impl(status: i32): i32;
 
 /* Cap residual (wave216): waitpid + EINTR retry + strerror report (mega always). */
 export extern "C" function xlang_waitpid_retry_impl(pid: i64, status_out: *i32): i32;
@@ -760,8 +724,8 @@ export function link_diag_strerror_current(): *u8 {
  * @param status i32 — raw wait status word
  * @return i32 — 1 signaled, 0 otherwise
  * Pure orch: ≡ mega public thin before Cap residual wait decode (wave217).
- * Cap residual: Class AC pure-asm owns link_diag_wait_is_signaled_impl (was mega).
- * PLATFORM: SHARED orch; Win=win32_compat twin / POSIX=rt_exec_wif* twin.
+ * Cap residual: link_diag_wait_is_signaled_impl (mega always).
+ * PLATFORM: SHARED orch; residual is POSIX wait macros (win32_compat on Windows).
  * Track-L: #[no_mangle] keeps short surface name for tool/obj status orch.
  */
 #[no_mangle]
@@ -779,8 +743,8 @@ export function link_diag_wait_is_signaled(status: i32): i32 {
  * @param status i32 — raw wait status word
  * @return i32 — signal number, exit code, or -1
  * Pure orch: ≡ mega public thin before Cap residual wait decode (wave217).
- * Cap residual: Class AC pure-asm owns link_diag_wait_code_impl (was mega).
- * PLATFORM: SHARED orch; Win=win32_compat twin / POSIX=rt_exec_wif* twin.
+ * Cap residual: link_diag_wait_code_impl (mega always).
+ * PLATFORM: SHARED orch; residual is POSIX wait macros (win32_compat on Windows).
  * Track-L: #[no_mangle] keeps short surface name for tool/obj status orch.
  */
 #[no_mangle]
