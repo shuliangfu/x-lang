@@ -13015,6 +13015,12 @@ try_ensure_gen_c_to_o_one() {
 # disabled). Cold may soft-ensure xlang-c via ensure_xlang_c.sh (wave950;
 # was make-target xlang-c); pin/stub rungs do not require it.
 #
+# wave755 Class F (cfg_eval pure-asm): live `-backend asm -c` of cfg_eval.x is
+# U-complete both ends (host lit stays U; alias supplies cfg_host_*). Prefer
+# that pure-asm rung BEFORE -E-extern+cc so this TU stops host-cc of gen.c.
+# Link host_lit only (not full link_alias). host_lit still host-cc (tiny).
+# Do not gcc -E as the repair. Do not bump pin.
+#
 # Exit codes:
 #   0 — OUT is B5 member; ladder produced OUT (or skip up-to-date)
 #   3 — OUT is not src/lexer/cfg_eval.o
@@ -13052,6 +13058,32 @@ _cfg_eval_default_ld_relflags() {
       printf '%s' ""
       ;;
   esac
+}
+
+# Link cfg_eval pure-asm .o + host_lit only → OUT (wave755 Class F).
+# Bare cfg_* names from -backend asm -c clash with link_alias wrappers
+# (those expect lexer_cfg_* from -E-extern). host_lit supplies only
+# cfg_host_os_lit / cfg_host_arch_lit.
+# PLATFORM: SHARED — same LD/LD_RELFLAGS defaults as alias link.
+_cfg_eval_link_x_plus_host_lit() {
+  local out="$1" x_o="$2"
+  local ld_bin="${LD:-ld}"
+  local ld_rel="${LD_RELFLAGS-}"
+  local lit_o="src/lexer/cfg_eval_host_lit.o"
+  if [ -z "${LD_RELFLAGS+x}" ]; then
+    ld_rel="$(_cfg_eval_default_ld_relflags)"
+  fi
+  if [ ! -f scripts/cc_inc_tu.sh ]; then
+    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing scripts/cc_inc_tu.sh" >&2
+    return 1
+  fi
+  if [ ! -f seeds/cfg_eval_host_lit.from_x.c ]; then
+    echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing seeds/cfg_eval_host_lit.from_x.c" >&2
+    return 1
+  fi
+  sh scripts/cc_inc_tu.sh seeds/cfg_eval_host_lit.from_x.c "$lit_o" || return 1
+  # shellcheck disable=SC2086
+  $ld_bin $ld_rel -r -o "$out" "$x_o" "$lit_o"
 }
 
 # Link cfg_eval_x.o + link_alias → OUT (historic Makefile $(LD) -r twin).
@@ -13128,6 +13160,30 @@ ensure_cfg_eval_ladder_one() {
   # (do not reintroduce bare make-target xlang-c here)
 
   rm -f "$x_o"
+
+  # Rung 0 (wave755 Class F): pure-asm -c of cfg_eval.x + host_lit only.
+  # PLATFORM: SHARED — xlang_asm preferred; fall back to xlang / xlang-c -backend.
+  # Host lit stays U in the .x object; do NOT link full link_alias (dup
+  # cfg_eval_expr_c vs bare pure-asm T). Do not -E as the first repair.
+  if [ -f "$x_src" ]; then
+    local asm_bin=""
+    if [ -x "./xlang_asm" ]; then
+      asm_bin="./xlang_asm"
+    elif [ -x "./xlang" ]; then
+      asm_bin="./xlang"
+    elif [ -x "$xlang_c" ]; then
+      asm_bin="$xlang_c"
+    fi
+    if [ -n "$asm_bin" ]; then
+      if "$asm_bin" -backend asm -c "$x_src" -o "$x_o" 2>/dev/null \
+        && [ -s "$x_o" ] \
+        && _cfg_eval_link_x_plus_host_lit "$o" "$x_o"; then
+        log "cfg_eval.o from cfg_eval.x (pure-asm -c + host_lit) [Class F]"
+        return 0
+      fi
+      rm -f "$x_o"
+    fi
+  fi
 
   # Rung 1: live -E -E-extern -L .. + PIPELINE_GEN_CFLAGS + alias
   # PLATFORM: SHARED — prefer live gen; wave98: bare -E forbidden (dangling BSS).
