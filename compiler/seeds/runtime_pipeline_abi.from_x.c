@@ -62833,7 +62833,14 @@ int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
       continue;
     if (strstr((const char *)p, "/std/") != NULL)
       continue;
-    /* Only in-tree core/ — scratch core.m6 etc. must co-emit (UN _core_*). */
+    /* Only in-tree core/ — scratch core.m6 etc. must co-emit (UN _core_*).
+     * PLATFORM: WINDOWS PE — no shipped core/*.o (Darwin has Mach-O option.o).
+     * Hosted entry-only then leaves U core_option_* and MinGW ld fails option.
+     * Co-emit in-tree core on Win so product_l2 opt resolves. */
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (pipeline_asm_user_dep_is_in_tree_core(p) != 0)
+      return 1;
+#endif
     if (pipeline_asm_user_dep_is_in_tree_core(p) != 0)
       continue;
     return 1;
