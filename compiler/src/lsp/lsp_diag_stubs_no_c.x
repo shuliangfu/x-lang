@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// wave757 Class H: standalone `-backend asm -c` T=5 U=0 both ends.
+// Product try-lsp-sat-prefer thin_rest_e prefers pure-asm thin + seed
+// rest (FROM_X) before -E thin — cuts host-cc of .x gen. Seed rest
+// remains host-cc C. Do not -E as repair.
+// PLATFORM: SHARED freestanding · LINUX + MACOS.
 // lsp_diag_stubs_no_c_x_doc_anchor: see function docblock below.
 
 /** Exported function `lsp_diag_stubs_no_c_x_doc_anchor`.

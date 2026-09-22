@@ -12782,13 +12782,17 @@ try_ensure_std_core_prefer_one() {
 #                .x → host-cc -x c -c → OUT (no rest merge).
 #                cold: seeds/lsp_diag_pipeline_sizes.from_x.c
 #                Historic Makefile: prefer when ./xlang-c exists (no PREFER env).
-#   thin_rest_e — PREFER: xlang-c -E .x → thin.o + seed rest
+#   thin_rest_e — PREFER: pure-asm -c thin first (wave757 Class H), else
+#                 xlang-c -E .x → thin.o + seed rest
 #                 -DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X → ld -r multidef.
 #                 cold: seeds/lsp_diag_stubs_no_c.from_x.c
 # Prefer fail / no xlang-c → cold seed. NOT physical delete — Makefile thin-call.
 # wave756 Class G: lsp_diag_pipeline_sizes.x standalone -backend asm -c is
 # U-complete both ends (T=3). Prefer that before -E+cc so this satellite
 # stops host-cc of gen. Do not -E as the repair when rung wins. Pin unchanged.
+# wave757 Class H: lsp_diag_stubs_no_c.x standalone -c T=5 U=0 both ends.
+# Prefer pure-asm thin + seed rest (FROM_X) before -E thin. Seed rest still
+# host-cc (C body); .x gen path cuts host-cc. Do not -E as repair. Pin unchanged.
 # Callers: Makefile 2 leaves (wave781).
 # Exit codes:
 #   0 — OUT is a table member; body produced OUT
@@ -12926,7 +12930,34 @@ ensure_lsp_sat_prefer_one() {
       ;;
 
     thin_rest_e)
-      # PLATFORM: SHARED — PREFER thin -E .x + seed rest FROM_X → ld -r multidef.
+      # PLATFORM: SHARED — Class H pure-asm thin first; else -E thin + seed rest.
+      if [ -f "$x_src" ] && [ -n "$from_x_def" ]; then
+        local asm_bin=""
+        if [ -x "./xlang_asm" ]; then
+          asm_bin="./xlang_asm"
+        elif [ -x "./xlang" ]; then
+          asm_bin="./xlang"
+        elif [ -x ./xlang-c ]; then
+          asm_bin="./xlang-c"
+        fi
+        if [ -n "$asm_bin" ]; then
+          # wave757: xlang_asm -c requires a .o suffix (else it links as exe
+          # and fails looking for main). BSD mktemp wants X at end of template.
+          thin_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_thin.XXXXXX").o"
+          rest_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_rest.XXXXXX").o"
+          # shellcheck disable=SC2086
+          if "$asm_bin" -backend asm -c "$x_src" -o "$thin_o" 2>/dev/null \
+            && [ -s "$thin_o" ] \
+            && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+                 -D"$from_x_def" -c "$seed" -o "$rest_o" \
+            && _std_core_ld_r "$o" "$thin_o" "$rest_o"; then
+            rm -f "$thin_o" "$rest_o" "${thin_o%.o}" "${rest_o%.o}"
+            log "prefer thin_rest_e pure-asm $o <- $x_src + seed-rest (try-lsp-sat-prefer/Class H)"
+            return 0
+          fi
+          rm -f "$thin_o" "$rest_o" "${thin_o%.o}" "${rest_o%.o}" "$o"
+        fi
+      fi
       if [ -f "$x_src" ] && [ -x ./xlang-c ] && [ -n "$from_x_def" ]; then
         tmp_c="$(mktemp "${TMPDIR:-/tmp}/ldsn.XXXXXX")"
         thin_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_thin.XXXXXX")"
