@@ -62834,11 +62834,13 @@ int32_t pipeline_asm_user_deps_need_coemit(char **dep_paths, int32_t n) {
     if (strstr((const char *)p, "/std/") != NULL)
       continue;
     /* Only in-tree core/ — scratch core.m6 etc. must co-emit (UN _core_*).
-     * PLATFORM: WINDOWS PE — no shipped core/*.o (Darwin has Mach-O option.o).
-     * Hosted entry-only then leaves U core_option_* and MinGW ld fails option.
-     * Co-emit in-tree core on Win so product_l2 opt resolves. */
+     * PLATFORM: WINDOWS PE — no shipped core.option/result PE objects
+     * (Darwin has Mach-O). Do NOT trip on core.fmt/types: hello imports
+     * those and must stay entry-only (hosted std.fmt.o). */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    if (pipeline_asm_user_dep_is_in_tree_core(p) != 0)
+    if (memcmp(p, "core.option", 11) == 0 && (p[11] == 0 || p[11] == '.'))
+      return 1;
+    if (memcmp(p, "core.result", 11) == 0 && (p[11] == 0 || p[11] == '.'))
       return 1;
 #endif
     if (pipeline_asm_user_dep_is_in_tree_core(p) != 0)
@@ -62861,8 +62863,15 @@ int32_t pipeline_asm_user_dep_skip_x_typeck(uint8_t *path) {
     return 1;
   if (pipeline_codegen_dep_skip_asm_user_std_misc(path) != 0)
     return 1;
-  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0)
+  if (pipeline_codegen_dep_skip_asm_user_core_lib(path) != 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    /* Win co-emits option/result: parse-only leaves mega_body fail (code_len=12). */
+    if ((memcmp(path, "core.option", 11) == 0 && (path[11] == 0 || path[11] == '.')) ||
+        (memcmp(path, "core.result", 11) == 0 && (path[11] == 0 || path[11] == '.')))
+      return 0;
+#endif
     return 1;
+  }
   if (pipeline_asm_user_std_net_dep_path(path) != 0)
     return 1;
   return 0;

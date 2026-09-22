@@ -497,19 +497,19 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         pipeline_asm_user_deps_need_coemit(dep_paths, n_deps) == 0)
         pctx->asm_entry_module_only = 1;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    /* Win PE: no shipped core/*.o. Hosted entry-only for pure std/core left
-     * U core_option_* (option matrix). Clear entry-only when any in-tree core
-     * dep is present so asm_codegen co-emits those bodies. Keep hello (std
-     * only) on entry-only. PLATFORM: WINDOWS PE. */
+    /* Win PE: clear entry-only only for core.option/result (no PE objects).
+     * core.fmt via hello must NOT clear — keeps hosted entry-only. */
     if (emit_elf_o && n_deps > 0 && !asm_smoke_only && driver_asm_build_skip_typeck() == 0) {
-        int has_core = 0;
+        int has_opt_res = 0;
         for (j = 0; j < n_deps; j++) {
-            if (pipeline_asm_user_dep_is_in_tree_core((uint8_t *)(dep_paths[j] ? dep_paths[j] : "")) != 0) {
-                has_core = 1;
+            const char *dp = dep_paths[j] ? dep_paths[j] : "";
+            if ((memcmp(dp, "core.option", 11) == 0 && (dp[11] == 0 || dp[11] == '.')) ||
+                (memcmp(dp, "core.result", 11) == 0 && (dp[11] == 0 || dp[11] == '.'))) {
+                has_opt_res = 1;
                 break;
             }
         }
-        if (has_core)
+        if (has_opt_res)
             pctx->asm_entry_module_only = 0;
     }
 #endif
