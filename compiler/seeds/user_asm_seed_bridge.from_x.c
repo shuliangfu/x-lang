@@ -735,14 +735,17 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
           continue;
         if (pipeline_codegen_dep_skip_asm_user_std_misc(dep_path_buf) != 0)
           continue;
-        if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0)
-          continue;
-        /* PLATFORM: SHARED — mixed scratch core.m6 + in-tree core.slice:
-         * need_coemit is already 1; still skip hosted core/ so formal .o
-         * stays the single authority (no duplicate T with on-demand).
-         * PLATFORM: WINDOWS PE — no formal core PE objects; must co-emit
-         * (option CG green then ld U core_option_*). */
+        /* PLATFORM: SHARED — core.fmt/types/option/result skip co-emit when
+         * formal core/*.o exists (Darwin/Ubuntu). WINDOWS PE has no those
+         * objects: do not skip in-tree core or option stays U core_option_*. */
+        if (pipeline_codegen_dep_skip_asm_user_core_lib(dep_path_buf) != 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+          if (pipeline_asm_user_dep_is_in_tree_core(dep_path_buf) == 0)
+#endif
+            continue;
+        }
 #if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
+        /* PLATFORM: SHARED (non-Win) — other in-tree core.* also use formal .o. */
         if (pipeline_asm_user_dep_is_in_tree_core(dep_path_buf) != 0)
           continue;
 #endif
