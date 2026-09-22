@@ -19,8 +19,8 @@ int32_t glue_emit_struct_type_let_init_elf_c() { return -1; }
 int32_t glue_emit_vector_type_let_init_elf_c() { return -1; }
 int32_t glue_try_index_var_or_field_base_to_rax_elf_c() { return -1; }
 int32_t glue_try_index_var_or_field_base_to_rbx_elf_c() { return -1; }
-int32_t pipe_modlet_bake_scalar_imm_to_data() { return -1; }
-int32_t pipeline_asm_emit_assign_elf_c() { return -1; }
+/* int32_t pipe_modlet_bake_scalar_imm_to_data() { return -1; } — real body in windows_e extras; stubs merge last */
+/* int32_t pipeline_asm_emit_assign_elf_c() { return -1; } — real body in windows_e extras; stubs merge last */
 int32_t pipeline_asm_emit_struct_let_init_elf_c() { return -1; }
 int32_t pipeline_asm_emit_struct_lit_elf_c() { return -1; }
 int32_t pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32() { return -1; }

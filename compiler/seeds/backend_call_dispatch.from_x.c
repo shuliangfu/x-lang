@@ -398,7 +398,12 @@ int32_t glue_asm_emit_jmp_skip_string_then_lea_impl(uint8_t *ctx_bytes, int32_t 
   disp32 = -slen - 8;
   lea7[0] = 0x48;
   lea7[1] = 0x8d;
+  /* SysV arg0=rdi(0x3d); Win64 arg0=rcx(0x0d); else rax(0x05). */
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+  lea7[2] = (uint8_t)(reg_k == 0 ? 0x0d : 0x05);
+#else
   lea7[2] = (uint8_t)(reg_k == 0 ? 0x3d : 0x05);
+#endif
   lea7[3] = (uint8_t)(disp32);
   lea7[4] = (uint8_t)((uint32_t)disp32 >> 8);
   lea7[5] = (uint8_t)((uint32_t)disp32 >> 16);

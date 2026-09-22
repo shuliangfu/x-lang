@@ -413,6 +413,44 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   num_syms = ctx->num_syms;
   if (num_relocs < 0 || num_syms < 0)
     return -1;
+  /* PLATFORM: WINDOWS — reloc names missing from syms → EXTERNAL UNDEF.
+   * Else COFF reloc sym_idx stays 0 (.text) and calls resolve to self. */
+  for (r = 0; r < num_relocs; r++) {
+    uint8_t r_sym_buf[256];
+    int32_t rlen;
+    int32_t m;
+    int32_t found;
+    memset(r_sym_buf, 0, sizeof(r_sym_buf));
+    pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
+    rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
+    if (rlen <= 0 || rlen > 256)
+      continue;
+    found = 0;
+    for (m = 0; m < num_syms; m++) {
+      uint8_t *sym_nm = seed_elf_sym_name_ptr(ctx, m);
+      if (sym_nm != NULL && rlen == ctx->syms[m].name_len &&
+          memcmp(r_sym_buf, sym_nm, (size_t)rlen) == 0) {
+        found = 1;
+        break;
+      }
+    }
+    if (found == 0 && num_syms < 16384) {
+      int32_t snl = ctx->sym_name_len;
+      int32_t k;
+      if (snl < 0)
+        snl = 0;
+      if (snl + rlen <= 131072) {
+        for (k = 0; k < rlen; k++)
+          ctx->sym_name_data[snl + k] = r_sym_buf[k];
+        ctx->sym_name_len = snl + rlen;
+        ctx->syms[num_syms].name_len = rlen;
+        ctx->syms[num_syms].offset = 0;
+        ctx->syms[num_syms].sym_shndx = 0; /* IMAGE_SYM_UNDEFINED */
+        num_syms = num_syms + 1;
+        ctx->num_syms = num_syms;
+      }
+    }
+  }
   reloc_size = num_relocs * 10;
   num_coff_syms = 2 + num_syms;
   symtab_size = num_coff_syms * 18;
@@ -569,11 +607,18 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
        * TYPE_FN let-init `Lxlang_al_*` landed in RX .text (store/call SEGV).
        * PLATFORM: WINDOWS leftover-PE / SHARED COFF cross-emit. */
       is_common = (ctx->syms[s].sym_shndx == (int32_t)0xfff2) ? 1 : 0;
-      if (is_common != 0) {
+      /* sym_shndx==0: EXTERNAL UNDEF (call/reloc target not defined here). */
+      if (is_common != 0 || ctx->syms[s].sym_shndx == 0) {
         ent[12] = 0;
         ent[13] = 0;
-        ent[14] = 0;
-        ent[15] = 0;
+        if (is_common != 0) {
+          ent[14] = 0;
+          ent[15] = 0;
+        } else {
+          /* Type = IMAGE_SYM_DTYPE_FUNCTION << 4 */
+          ent[14] = 32;
+          ent[15] = 0;
+        }
         ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
         ent[17] = 0;
       } else {
