@@ -42882,10 +42882,95 @@ int32_t glue_load_f32_var_slot_to_rbx_elf_c(void *elf_ctx, void *arena, void *ct
   (void)ta;
   return -1;
 }
+/*
+ * Win leftover-PE first-wins: real INDEX elem peel (*u8→1, *i32→4, **T→8).
+ * Prior FROM_X twin was return-4 stub → bp[0] movl vs movzbl → option -16.
+ * Match windows_e G.7 peel; keep void* signature for from_x TU.
+ * PLATFORM: WINDOWS leftover-PE / SHARED INDEX esz.
+ */
 int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
-  (void)arena;
-  (void)tr;
-  return 4;
+  int32_t kind_ord;
+  int32_t pointee;
+  int32_t asz;
+  int32_t ssz;
+  void *mod;
+  if (tr <= 0 || arena == 0)
+    return 4;
+  kind_ord = pipeline_type_kind_ord_at(arena, tr);
+  if (kind_ord == 9) {
+    pointee = pipeline_type_elem_ref_at(arena, tr);
+    if (pointee > 0) {
+      kind_ord = pipeline_type_kind_ord_at(arena, pointee);
+      if (kind_ord == 2 || kind_ord == 1)
+        return 1;
+      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+        return 4;
+      if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
+        return 8;
+      if (kind_ord == 9)
+        return 8;
+      if (kind_ord == 10) {
+        asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0)
+          return asz;
+      }
+      if (kind_ord == 8) {
+        mod = pipeline_asm_emit_module_ref_c();
+        if (mod) {
+          ssz = glue_type_size_simple(mod, arena, pointee, 0);
+          if (ssz > 0)
+            return ssz;
+        }
+      }
+    }
+    return 4;
+  }
+  if (kind_ord == 10 || kind_ord == 11) {
+    pointee = pipeline_type_elem_ref_at(arena, tr);
+    if (pointee > 0) {
+      kind_ord = pipeline_type_kind_ord_at(arena, pointee);
+      if (kind_ord == 2 || kind_ord == 1)
+        return 1;
+      if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+        return 4;
+      if (kind_ord == 15)
+        return 8;
+      if (kind_ord == 9 || kind_ord == 18)
+        return 8;
+      if (kind_ord == 10) {
+        asz = glue_fixed_array_total_bytes_c(arena, pointee, 0);
+        if (asz > 0)
+          return asz;
+      }
+      if (kind_ord == 11)
+        return 16;
+      if (kind_ord == 8) {
+        mod = pipeline_asm_emit_module_ref_c();
+        if (mod) {
+          ssz = glue_type_size_simple(mod, arena, pointee, 0);
+          if (ssz > 0)
+            return ssz;
+        }
+      }
+    }
+  }
+  if (kind_ord == 2 || kind_ord == 1)
+    return 1;
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+    return 4;
+  if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7)
+    return 8;
+  if (kind_ord == 11)
+    return 16;
+  if (kind_ord == 8) {
+    mod = pipeline_asm_emit_module_ref_c();
+    if (mod) {
+      ssz = glue_type_size_simple(mod, arena, tr, 0);
+      if (ssz > 0)
+        return ssz;
+    }
+  }
+  return 8;
 }
 
 extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
