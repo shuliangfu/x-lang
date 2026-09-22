@@ -23,9 +23,59 @@ int32_t glue_emit_assign_var_elf_c() { return -1; }
 int32_t glue_emit_assign_field_elf_c() { return -1; }
 int32_t glue_emit_assign_index_elf_c() { return -1; }
 int32_t glue_emit_assign_deref_elf_c() { return -1; }
-int32_t glue_emit_index_eff_addr_scaled_elf_c() { return -1; }
-int32_t glue_try_index_var_or_field_base_to_rax_elf_c() { return -1; }
-int32_t glue_try_index_var_or_field_base_to_rbx_elf_c() { return -1; }
+/* Cap residual glue_emit_index_eff_addr_scaled is #ifndef FROM_X; windows_e
+ * emit_index calls these. Prior stubs returned -1 → option `bp[0]` CG002 after
+ * ARRAY_LIT fix. Minimal Win body: eff_addr_base + lit add / scaled rbx.
+ * try_* return -2 (not-handled) so Cap/windows_e fallthroughs keep working.
+ * PLATFORM: WINDOWS leftover-PE. */
+extern int32_t glue_emit_index_eff_addr_base_elf_c(void *arena, void *elf_ctx, int32_t ix_ref,
+                                                   void *ctx, int32_t ta);
+extern int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(void *elf_ctx, int32_t esz, int32_t ta);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *a, void *elf, int32_t er, void *ctx, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf, int32_t imm, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf, int32_t ta);
+int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                     void *ctx, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)base_ref; (void)ctx; (void)ta;
+  return -2;
+}
+int32_t glue_try_index_var_or_field_base_to_rbx_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
+                                                     void *ctx, int32_t ta) {
+  (void)arena; (void)elf_ctx; (void)base_ref; (void)ctx; (void)ta;
+  return -2;
+}
+int32_t glue_emit_index_eff_addr_scaled_elf_c(void *arena, void *elf_ctx, int32_t ix_ref,
+                                             int32_t base_ref, int32_t idx_ref, void *ctx,
+                                             int32_t ta, int32_t esz) {
+  int32_t iko;
+  int32_t lit;
+  if (!arena || !elf_ctx || !ctx || ix_ref <= 0 || base_ref <= 0 || idx_ref <= 0)
+    return -1;
+  if (glue_emit_index_eff_addr_base_elf_c(arena, elf_ctx, ix_ref, ctx, ta) != 0)
+    return -1;
+  iko = pipeline_expr_kind_ord_at(arena, idx_ref);
+  if (iko == 0) {
+    lit = pipeline_expr_int_val_at(arena, idx_ref);
+    if (lit != 0 && esz != 0) {
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, lit * esz, ta) != 0)
+        return -1;
+    }
+    return 0;
+  }
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  return glue_emit_index_rax_plus_rbx_scaled_elf_c(elf_ctx, esz, ta);
+}
 int32_t glue_copy_large_struct_from_rax_ptr_elf_c() { return -1; }
 /* Win PE egg calls Cap-mangled name; Cap residual body is #ifndef FROM_X.
  * Prior stub returned -1 → fixed-array let init fail → option CG002 after unwrap_or
