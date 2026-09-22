@@ -6002,6 +6002,100 @@ pipeline_abi_inject_fnptr_as_thin() {
 #   assign_emit_thin is also PREFERed — w452 BAN). Not the w746/w747
 #   leftover-wipe class. Do not gcc -E as the repair.
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
+
+# wave764 Class P: Linux g05 UNDEF heal for assign_index setup/resolve.
+# Root: w607 mid -E inject leaves T callers; w543/w546 Soft-Cap BAN tip
+# reinject left stamps while leftover wipe dropped defs → nm -u UNDEF at
+# pure-ld. Heal ONLY when symbol is undefined (link surface). Do not reopen
+# HARD BAN classification; do not Soft-Cap tip PREFER when already T.
+# PLATFORM: LINUX gold · MACOS no-op (overlay keep) · WINDOWS no-op.
+pipeline_abi_heal_assign_index_undef() {
+  local o="$1"
+  local u_syms need_setup=0 need_resolve=0 need_walk=0 need_peel=0
+  local saved_prefer saved_e_repl had_prefer=0 had_e_repl=0 rc=0
+  [ -s "$o" ] || return 0
+  case "$(uname -s)" in
+    Linux) ;;
+    *) return 0 ;;
+  esac
+  u_syms=$(nm -u "$o" 2>/dev/null | awk '{print $NF}')
+  case "$u_syms" in
+    *glue_emit_assign_index_setup_elf_c*) need_setup=1 ;;
+  esac
+  case "$u_syms" in
+    *glue_emit_assign_index_array_resolve_elf_c*) need_resolve=1 ;;
+  esac
+  case "$u_syms" in
+    *glue_emit_assign_index_array_walk_elf_c*) need_walk=1 ;;
+  esac
+  case "$u_syms" in
+    *glue_emit_assign_index_array_peel_elf_c*) need_peel=1 ;;
+  esac
+  if [ "$need_setup" = "0" ] && [ "$need_resolve" = "0" ] \
+    && [ "$need_walk" = "0" ] && [ "$need_peel" = "0" ]; then
+    return 0
+  fi
+  log "pipeline_abi Class P heal assign_index UNDEF: setup=$need_setup walk=$need_walk peel=$need_peel resolve=$need_resolve"
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+    saved_prefer="${XLANG_PABI_THIN_PREFER_ASM}"
+  fi
+  if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then
+    had_e_repl=1
+    saved_e_repl="${XLANG_PABI_THIN_ALLOW_E_REPLACE}"
+  fi
+  unset XLANG_PABI_THIN_PREFER_ASM
+  export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+  export XLANG_PABI_THIN_FORCE_INJECT=1
+  if [ "$need_walk" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_array_walk_thin.x ]; then
+    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_walk_thin.x" "ClassP-heal-index-walk" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ "$need_peel" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_array_peel_thin.x ]; then
+    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_peel_thin.x" "ClassP-heal-index-peel" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ "$need_setup" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_setup_thin.x ]; then
+    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_setup_thin.x" "ClassP-heal-index-setup" || rc=$?
+  fi
+  if [ "$rc" -eq 0 ] && [ "$need_resolve" = "1" ] && [ -f src/runtime_pipeline_abi_assign_index_array_resolve_thin.x ]; then
+    pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_resolve_thin.x" "ClassP-heal-index-resolve" || rc=$?
+  fi
+  unset XLANG_PABI_THIN_FORCE_INJECT
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  if [ "$had_e_repl" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"
+  else
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  u_syms=$(nm -u "$o" 2>/dev/null | awk '{print $NF}')
+  need_walk=0
+  need_peel=0
+  case "$u_syms" in *glue_emit_assign_index_array_walk_elf_c*) need_walk=1 ;; esac
+  case "$u_syms" in *glue_emit_assign_index_array_peel_elf_c*) need_peel=1 ;; esac
+  if [ "$need_walk" = "1" ] || [ "$need_peel" = "1" ]; then
+    export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
+    export XLANG_PABI_THIN_FORCE_INJECT=1
+    unset XLANG_PABI_THIN_PREFER_ASM
+    if [ "$need_walk" = "1" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_walk_thin.x" "ClassP-heal-index-walk2" || true
+    fi
+    if [ "$need_peel" = "1" ]; then
+      pipeline_abi_inject_thin_leaf "$o" "src/runtime_pipeline_abi_assign_index_array_peel_thin.x" "ClassP-heal-index-peel2" || true
+    fi
+    unset XLANG_PABI_THIN_FORCE_INJECT
+    unset XLANG_PABI_THIN_ALLOW_E_REPLACE
+  fi
+  if nm -u "$o" 2>/dev/null | grep -q 'glue_emit_assign_index_setup_elf_c\|glue_emit_assign_index_array_resolve_elf_c'; then
+    log "pipeline_abi Class P heal: still UNDEF after inject"
+    return 1
+  fi
+  log "pipeline_abi Class P heal assign_index UNDEF: OK"
+  return 0
+}
+
 pipeline_abi_inject_assign_index_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_index_thin.x"
@@ -6134,6 +6228,9 @@ pipeline_abi_inject_assign_index_thin() {
     touch "$stamp"
     touch "$stamp_e"
     log "pipeline_abi w607-assign-index: LINUX -E replace (smash leftover T family)"
+  fi
+  if [ "$rc" -eq 0 ]; then
+    pipeline_abi_heal_assign_index_undef "$o" || true
   fi
   return "$rc"
 }
