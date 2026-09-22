@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <stdio.h> /* WINDBG_STDIO */
 #ifndef XLANG_DYN_OBJ
 #define XLANG_DYN_OBJ
 
@@ -5484,15 +5485,26 @@ int32_t typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_Pipeline
       ((pipeline_dep_ctx_module_at(ctx, from_dep_index) ==0) ? ({   return 0;
  }) : 0);
     }
+    fprintf(stderr, "xlang: WINDBG3 get_dep idx=%d ref=%d nt=%d entry=%p\n",
+      (int)from_dep_index, (int)dep_return_type_ref, (int)((dep_arena)->num_types),
+      (void*)g_typeck_entry_module_for_dep_map);
     if (((g_typeck_entry_module_for_dep_map !=0) && (dep_return_type_ref > 0))) {
       ((dep_return_type_ref <=((dep_arena)->num_types)) ? ({   (void)((kind = pipeline_type_kind_ord_at(dep_arena, dep_return_type_ref)));
   ((kind ==ord_named) ? ({   (void)((nlen = pipeline_type_named_name_into(dep_arena, dep_return_type_ref, nm_buf)));
-  ((nlen > 0) ? ({   return typeck_map_import_binding_named_to_caller(g_typeck_entry_module_for_dep_map, from_dep_index, caller_arena, nm_buf, nlen);
+  fprintf(stderr, "xlang: WINDBG3 named kind=%d nlen=%d name=%.*s\n", (int)kind, (int)nlen, (int)((nlen>0&&nlen<40)?nlen:0), (char*)nm_buf);
+  ((nlen > 0) ? ({   int32_t _mr = typeck_map_import_binding_named_to_caller(g_typeck_entry_module_for_dep_map, from_dep_index, caller_arena, nm_buf, nlen);
+  fprintf(stderr, "xlang: WINDBG3 map_named ret=%d\n", (int)_mr);
+  return _mr;
  }) : 0);
  }) : 0);
+  fprintf(stderr, "xlang: WINDBG3 kind=%d (not named path)\n", (int)kind);
  }) : 0);
     }
-    return typeck_dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
+    {
+      int32_t _cr = typeck_dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
+      fprintf(stderr, "xlang: WINDBG3 copy_to_caller ret=%d\n", (int)_cr);
+      return _cr;
+    }
   }
 }
 int32_t typeck_ensure_i64_type_ref(struct ast_ASTArena * caller_arena) {
