@@ -377,7 +377,20 @@ int32_t asm_parser_func_is_thin_delegate(void *m, int32_t func_index) {
   }
   return 0;
 }
-void asm_wpo_collect_walk(void *a, void *b) { (void)a; (void)b; }
+/* wave777 Class AB: was void(a,b) wrong arity — callers pass 7 args
+ * (is_block, a, ref, caller_id, caller_mod, ctx, depth). Win leftover had
+ * empty wpo_thin.o (0 bytes) so stub won; PREFER thin -c is HARD BAN / CG002
+ * on Win. ABI-safe no-op until PE thin is green. PLATFORM: WINDOWS leftover-PE. */
+void asm_wpo_collect_walk(int32_t is_block, void *a, int32_t ref, int32_t caller_id,
+                          void *caller_mod, void *ctx, int32_t depth) {
+  (void)is_block;
+  (void)a;
+  (void)ref;
+  (void)caller_id;
+  (void)caller_mod;
+  (void)ctx;
+  (void)depth;
+}
 /* int32_t pipe_modlet_bake_scalar_imm_to_data() { return -1; } — real body in windows_e extras; stubs merge last */
 /* int32_t pipeline_asm_emit_assign_elf_c() { return -1; } — real body in windows_e extras; stubs merge last */
 /* Real CALL/METHOD/STRUCT_LIT let-init (stub was return -2 → bare store_rax
