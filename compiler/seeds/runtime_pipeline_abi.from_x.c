@@ -18617,6 +18617,9 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, 
 extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
 extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
 
+extern void *pipeline_asm_emit_ctx_arena_get(void);
+extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
+
 void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   int32_t off;
   int32_t np;
@@ -18624,21 +18627,36 @@ void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   uint8_t pname_buf[256];
   int32_t plen;
   int32_t slot_off;
+  int32_t w;
+  void *arena_ph;
   if (!ctx || !mod)
     return;
-  /* i32/ptr homes: 8-byte slots from 16. Wide/agg width stays SAT egg path. */
+  /* Match emit_param_home: 8B @off; 9–16B high-end mag at off+width (avoids
+   * rbp-8 / saved-rbx). PLATFORM: WINDOWS leftover-PE. */
   off = 16;
   np = pipeline_asm_module_func_num_params_at(mod, func_index);
+  arena_ph = pipeline_asm_emit_ctx_arena_get();
   for (i = 0; i < np; i++) {
     pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
     plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
     if (plen <= 0)
       continue;
-    slot_off = off;
+    w = 8;
+    if (arena_ph)
+      w = glue_func_param_home_width_c(arena_ph, mod, func_index, i);
+    if (w <= 0)
+      w = 8;
+    if (w > 8 && w <= 16)
+      slot_off = off + w;
+    else
+      slot_off = off;
     if (asm_ctx_local_append((uint8_t *)ctx, pname_buf, plen, slot_off) < 0)
       return;
     *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
-    off += 8;
+    if (w > 8 && w <= 16)
+      off = slot_off + 8;
+    else
+      off += 8;
   }
   *(int32_t *)((uint8_t *)ctx + 4) = off;
 }
@@ -18679,30 +18697,32 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
     return 0;
   gp = (sret_act != 0) ? 1 : 0;
   home = 16;
-  /* 9–16B aggregate: dual-GP home (low@home, high@home-8), advance home by 16.
-   * Option_ptr expect/is_some previously only parked rcx → value half lost (-16).
-   * PLATFORM: WINDOWS leftover-PE. */
+  /* 9–16B: high-end mag home=cur+width (low@home, high@home-8). Never park
+   * high at magnitude 8 — that is saved rbx after push. Matches windows_e +
+   * fill_param_slots. PLATFORM: WINDOWS leftover-PE. */
   for (i = 0; i < np && gp < 6; i++) {
     int32_t w;
+    int32_t wide_home;
     void *arena_ph;
     arena_ph = pipeline_asm_emit_ctx_arena_get();
     w = glue_func_param_home_width_c(arena_ph, mod, func_index, i);
     if (w <= 0)
       w = 8;
     if (w > 8 && w <= 16) {
+      wide_home = home + w;
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, wide_home, ta) != 0)
         return -1;
       gp = gp + 1;
       if (gp >= 6)
         return -1;
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
         return -1;
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, wide_home - 8, ta) != 0)
         return -1;
       gp = gp + 1;
-      home = home + 16;
+      home = wide_home + 8;
     } else {
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
         return -1;
