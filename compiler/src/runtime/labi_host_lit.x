@@ -1,57 +1,64 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-269 / P2 link_abi L2: host-literal probe thin shell → R2 full.
-// Product: PREFER_X_O → g05_try_x_to_o; cold-start seeds/labi_host_lit.from_x.c.
-// Hybrid macro XLANG_LABI_HOST_LIT_FROM_X (FROM_X rest business H=0, marker only).
-//
-// R2 full: .x owns 2 public gates + count:
-//   - xlang_host_is_linux → _impl (#if __linux__ Cap residual mega rest)
-//   - xlang_host_is_apple_aarch64 → _impl (#if APPLE+aarch64 Cap residual)
-// Dual mechanism with cfg host lit (f-182): compile-time #if, not uname.
-// No #if inside .x (language has no conditional-compile literals).
+// G-02f-269 / P2 link_abi L2 host lit → R2 full.
+// wave760 Class K: #[cfg] two-level owns xlang_host_is_*_impl (was Cap #if in
+// seeds/runtime_link_abi.from_x.c rest). FROM_X rest skips those #if bodies.
+// Same-name #[cfg] `return 1` dual-emits reti32 on Darwin — helpers + dispatch.
+// Cold non-FROM_X still uses rest #if. Do not -E as repair.
+// PLATFORM: SHARED — Darwin + Ubuntu L2.
 
-export extern "C" function xlang_host_is_linux_impl(): i32;
-export extern "C" function xlang_host_is_apple_aarch64_impl(): i32;
-
-/**
- * Return 1 if host is Linux (delegates to compile-time #if residual).
- * Params: none.
- * Returns: 1 on Linux host, else 0.
- * Contracts: thin shell only; real probe is xlang_host_is_linux_impl.
- * Track-L: #[no_mangle] keeps surface short name.
- * PLATFORM: residual uses #if __linux__ (not uname).
- */
+#[cfg(target_os = "linux")]
 #[no_mangle]
-export function xlang_host_is_linux(): i32 {
-  unsafe {
-    return xlang_host_is_linux_impl();
-  }
-  return 0;
+export function xlang_host_is_linux_impl_on(): i32 { return 1; }
+#[cfg(not(target_os = "linux"))]
+#[no_mangle]
+export function xlang_host_is_linux_impl_off(): i32 { return 0; }
+
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function xlang_host_is_linux_impl(): i32 {
+  return xlang_host_is_linux_impl_on();
+}
+#[cfg(not(target_os = "linux"))]
+#[no_mangle]
+export function xlang_host_is_linux_impl(): i32 {
+  return xlang_host_is_linux_impl_off();
 }
 
-/**
- * Return 1 if host is Apple aarch64 (delegates to compile-time #if residual).
- * Params: none.
- * Returns: 1 on Apple aarch64, else 0.
- * Contracts: thin shell only; real probe is xlang_host_is_apple_aarch64_impl.
- * Track-L: #[no_mangle] keeps surface short name.
- * PLATFORM: residual uses #if APPLE+aarch64 (not uname).
- */
+#[cfg(target_os = "macos")]
+#[cfg(target_arch = "aarch64")]
 #[no_mangle]
-export function xlang_host_is_apple_aarch64(): i32 {
-  unsafe {
-    return xlang_host_is_apple_aarch64_impl();
-  }
-  return 0;
+export function xlang_host_is_apple_aarch64_impl_on(): i32 { return 1; }
+#[cfg(target_os = "macos")]
+#[cfg(not(target_arch = "aarch64"))]
+#[no_mangle]
+export function xlang_host_is_apple_aarch64_impl_off(): i32 { return 0; }
+#[cfg(not(target_os = "macos"))]
+#[no_mangle]
+export function xlang_host_is_apple_aarch64_impl_off(): i32 { return 0; }
+
+#[cfg(target_os = "macos")]
+#[cfg(target_arch = "aarch64")]
+#[no_mangle]
+export function xlang_host_is_apple_aarch64_impl(): i32 {
+  return xlang_host_is_apple_aarch64_impl_on();
+}
+#[cfg(target_os = "macos")]
+#[cfg(not(target_arch = "aarch64"))]
+#[no_mangle]
+export function xlang_host_is_apple_aarch64_impl(): i32 {
+  return xlang_host_is_apple_aarch64_impl_off();
+}
+#[cfg(not(target_os = "macos"))]
+#[no_mangle]
+export function xlang_host_is_apple_aarch64_impl(): i32 {
+  return xlang_host_is_apple_aarch64_impl_off();
 }
 
-/**
- * Pure audit: number of L2 host-lit thin gates in this slice.
- * Returns: 2 (fixed catalog size for hybrid FROM_X bookkeeping).
- * Track-L: #[no_mangle] keeps surface short name.
- */
 #[no_mangle]
-export function labi_host_lit_count(): i32 {
-  return 2;
-}
+export function xlang_host_is_linux(): i32 { return xlang_host_is_linux_impl(); }
+#[no_mangle]
+export function xlang_host_is_apple_aarch64(): i32 { return xlang_host_is_apple_aarch64_impl(); }
+#[no_mangle]
+export function labi_host_lit_count(): i32 { return 2; }

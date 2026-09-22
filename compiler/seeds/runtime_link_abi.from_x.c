@@ -2078,6 +2078,9 @@ int xlang_ensure_runtime_panic_o(const char *argv0);
  */
 /** G-02f-36：OS 门闩槽 — .x freestanding_enabled 读此，避免 .x 内 #if。 */
 /* G-02f-269 / R2 labi_host_lit：#if body Cap residual 常驻 rest（与 path_io stat 同构） */
+/* wave760 Class K: when XLANG_LABI_HOST_LIT_FROM_X, impls live in
+ * labi_host_lit.x (pure-asm #[cfg]); skip Cap #if host-cc here. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 int xlang_host_is_linux_impl(void) {
 #if defined(__linux__)
     return 1;
@@ -2085,6 +2088,7 @@ int xlang_host_is_linux_impl(void) {
     return 0;
 #endif
 }
+#endif
 
 /* R2：public thin 非 hybrid 时 rest 自带；FROM_X 时由 L2 full .x 提供 */
 #ifndef XLANG_LABI_HOST_LIT_FROM_X
@@ -2098,6 +2102,7 @@ int xlang_host_is_linux(void);
 
 /** G-02f-43：Apple aarch64 门闩槽 — .x resolve_target_arch 读此。 */
 /* G-02f-269 / R2 labi_host_lit：#if body Cap residual 常驻 rest */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 int xlang_host_is_apple_aarch64_impl(void) {
 #if defined(__APPLE__) && defined(__aarch64__)
     return 1;
@@ -2105,6 +2110,7 @@ int xlang_host_is_apple_aarch64_impl(void) {
     return 0;
 #endif
 }
+#endif
 
 /* R2：public thin 非 hybrid 时 rest 自带；FROM_X 时由 L2 full .x 提供 */
 #ifndef XLANG_LABI_HOST_LIT_FROM_X
