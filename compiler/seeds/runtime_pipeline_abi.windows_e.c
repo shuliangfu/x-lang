@@ -7,6 +7,7 @@
  * PLATFORM: WINDOWS cold egg path only (not Linux/Darwin product authority).
  */
 #include <stdint.h>
+#include <stdio.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <string.h>
@@ -51967,6 +51968,21 @@ int32_t pipeline_type_named_name_into(uint8_t * arena, int32_t ref, uint8_t * ou
   int32_t n = pipe_load_i32_le(t, pipe_ar_ty_name_len());
   if ((n <=0)) {
     (void)((n = pipe_load_i32_le(t, 132)));
+  }
+  /* WINDBG_NAME_DUMP */
+  if ((ref ==5) && (n <=0)) {
+    int32_t k0 = pipe_load_i32_le(t, 0);
+    int32_t n132 = pipe_load_i32_le(t, 132);
+    int32_t n260 = pipe_load_i32_le(t, 260);
+    int32_t e136 = pipe_load_i32_le(t, 136);
+    int32_t e264 = pipe_load_i32_le(t, 264);
+    fprintf(stderr, "xlang: WINDBG_NAME ref=5 t=%p k0=%d n132=%d n260=%d e136=%d e264=%d bytes4-20=",
+      (void*)t, (int)k0, (int)n132, (int)n260, (int)e136, (int)e264);
+    int32_t bi;
+    for (bi = 4; bi < 24; bi++) {
+      fprintf(stderr, "%02x", (unsigned)(t[bi]));
+    }
+    fprintf(stderr, "\n");
   }
   int32_t cn = n;
   if ((cn > 255)) {
