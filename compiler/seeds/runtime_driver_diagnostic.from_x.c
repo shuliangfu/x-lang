@@ -370,11 +370,12 @@ void driver_diagnostic_typeck_func_fail(int32_t func_idx, const uint8_t *name, i
 void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int32_t inner_nlen, int32_t base_resolved_ref,
                                       int32_t num_struct_layouts)
 {
-    if (!link_abi_getenv("XLANG_TYPECK_PTR"))
-        return;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "typeck ptr debug: FIELD_ACCESS bt_kind=%d inner_kind=%d inner_nlen=%d base_resolved_ref=%d num_struct_layouts=%d",
-                 (int)bt_kind, (int)inner_kind, (int)inner_nlen, (int)base_resolved_ref, (int)num_struct_layouts);
+    /* Class AN: XLANG_TYPECK_PTR Cap debug retired (mirror thin). */
+    (void)bt_kind;
+    (void)inner_kind;
+    (void)inner_nlen;
+    (void)base_resolved_ref;
+    (void)num_struct_layouts;
 }
 #endif
 
@@ -387,11 +388,11 @@ void driver_diagnostic_typeck_ptr_field(int32_t bt_kind, int32_t inner_kind, int
 #ifndef XLANG_L2_RDD_THIN_FROM_X
 void driver_diagnostic_typeck_ret_fail(int32_t stage, int32_t op_expr_ref, int32_t expect_ty_ref, int32_t got_ty_ref)
 {
-    if (link_abi_getenv("XLANG_TYPECK_RET")) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "typeck return debug: stage=%d op_expr_ref=%d expect_ty_ref=%d got_ty_ref=%d",
-                     (int)stage, (int)op_expr_ref, (int)expect_ty_ref, (int)got_ty_ref);
-    }
+    /* Class AN: XLANG_TYPECK_RET Cap debug retired (mirror thin). */
+    (void)stage;
+    (void)op_expr_ref;
+    (void)expect_ty_ref;
+    (void)got_ty_ref;
 }
 #endif
 
@@ -1007,37 +1008,38 @@ uint8_t *driver_typeck_diag_scratch_found(void) { return g_type_diag_scratch_fou
 void driver_diagnostic_typeck_block_enter(int32_t func_idx, int32_t block_ref, int32_t n_const, int32_t n_let, int32_t n_loop,
                                           int32_t n_for, int32_t n_expr, int32_t final_ref)
 {
-    if (!link_abi_getenv("XLANG_TYPECK_BLOCK"))
-        return;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "typeck block debug: func_idx=%d block_ref=%d const=%d let=%d while=%d for=%d expr_stmt=%d final_expr=%d",
-                 (int)func_idx, (int)block_ref, (int)n_const, (int)n_let, (int)n_loop, (int)n_for, (int)n_expr, (int)final_ref);
+    /* Class AN: XLANG_TYPECK_BLOCK Cap debug retired (mirror thin). */
+    (void)func_idx;
+    (void)block_ref;
+    (void)n_const;
+    (void)n_let;
+    (void)n_loop;
+    (void)n_for;
+    (void)n_expr;
+    (void)final_ref;
 }
 
 /** 诊断：typeck_x_ast_impl 逐函数入口；XLANG_TYPECK_FN=1 时打印 func_idx 与名称。 */
 void driver_diagnostic_typeck_fn_enter(int32_t func_idx, const uint8_t *name, int32_t name_len)
 {
-    char namebuf[72];
-    if (!link_abi_getenv("XLANG_TYPECK_FN"))
-        return;
-    driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "typeck function debug: func_idx=%d name=%s",
-                 (int)func_idx, namebuf[0] ? namebuf : "(unknown)");
+    /* Class AN: XLANG_TYPECK_FN Cap debug retired (mirror thin). */
+    (void)func_idx;
+    (void)name;
+    (void)name_len;
 }
 
 /** 诊断：EXPR_VAR 解析来源；XLANG_TYPECK_VAR=1 时打印。source 1=block, 2=param, 3=top-level。 */
 void driver_diagnostic_typeck_var_resolution(int32_t expr_ref, const uint8_t *name, int32_t name_len,
                                              int32_t func_idx, int32_t block_ref, int32_t source, int32_t type_ref)
 {
-    char namebuf[72];
-    if (!link_abi_getenv("XLANG_TYPECK_VAR"))
-        return;
-    driver_diag_copy_bytes(namebuf, sizeof(namebuf), name, name_len);
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "typeck var debug: expr=%d name=%s func=%d block=%d source=%d type_ref=%d",
-                 (int)expr_ref, namebuf[0] ? namebuf : "?", (int)func_idx, (int)block_ref,
-                 (int)source, (int)type_ref);
+    /* Class AN: XLANG_TYPECK_VAR Cap debug retired (mirror thin). */
+    (void)expr_ref;
+    (void)name;
+    (void)name_len;
+    (void)func_idx;
+    (void)block_ref;
+    (void)source;
+    (void)type_ref;
 }
 #endif
 

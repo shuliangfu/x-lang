@@ -802,23 +802,7 @@ export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, nam
  * No-op if env unset. No va_list. PLATFORM: SHARED — pure in thin; cold seed keeps C body. */
 #[no_mangle]
 export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32, inner_nlen: i32, base_resolved_ref: i32, num_struct_layouts: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_TYPECK_PTR") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[240] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "typeck ptr debug: FIELD_ACCESS bt_kind=");
-  at = driver_diag_append_i32(&msg[0], 240, at, bt_kind);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " inner_kind=");
-  at = driver_diag_append_i32(&msg[0], 240, at, inner_kind);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " inner_nlen=");
-  at = driver_diag_append_i32(&msg[0], 240, at, inner_nlen);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " base_resolved_ref=");
-  at = driver_diag_append_i32(&msg[0], 240, at, base_resolved_ref);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " num_struct_layouts=");
-  at = driver_diag_append_i32(&msg[0], 240, at, num_struct_layouts);
-  driver_diag_note(&msg[0]);
+  // Class AN: XLANG_TYPECK_PTR Cap debug retired.
 }
 
 /** Optional EXPR_RETURN debug note when link_abi_getenv("XLANG_TYPECK_RET") is set. Prints stage,
@@ -827,21 +811,7 @@ export function driver_diagnostic_typeck_ptr_field(bt_kind: i32, inner_kind: i32
  * PLATFORM: SHARED — pure in thin; cold seed keeps C body. */
 #[no_mangle]
 export function driver_diagnostic_typeck_ret_fail(stage: i32, op_expr_ref: i32, expect_ty_ref: i32, got_ty_ref: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_TYPECK_RET") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[200] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 200, 0, "typeck return debug: stage=");
-  at = driver_diag_append_i32(&msg[0], 200, at, stage);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " op_expr_ref=");
-  at = driver_diag_append_i32(&msg[0], 200, at, op_expr_ref);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " expect_ty_ref=");
-  at = driver_diag_append_i32(&msg[0], 200, at, expect_ty_ref);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " got_ty_ref=");
-  at = driver_diag_append_i32(&msg[0], 200, at, got_ty_ref);
-  driver_diag_note(&msg[0]);
+  // Class AN: XLANG_TYPECK_RET Cap debug retired.
 }
 
 // pure: assignment-diag dual scratch buffers (96B; seed width; single-thread pipeline)
@@ -1173,29 +1143,7 @@ export function parser_diag_scan_fail(step: i32): void {
  */
 #[no_mangle]
 export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i32, n_const: i32, n_let: i32, n_loop: i32, n_for: i32, n_expr: i32, final_ref: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_TYPECK_BLOCK") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[240] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, "typeck block debug: func_idx=");
-  at = driver_diag_append_i32(&msg[0], 240, at, func_idx);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " block_ref=");
-  at = driver_diag_append_i32(&msg[0], 240, at, block_ref);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " const=");
-  at = driver_diag_append_i32(&msg[0], 240, at, n_const);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " let=");
-  at = driver_diag_append_i32(&msg[0], 240, at, n_let);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " while=");
-  at = driver_diag_append_i32(&msg[0], 240, at, n_loop);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " for=");
-  at = driver_diag_append_i32(&msg[0], 240, at, n_for);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " expr_stmt=");
-  at = driver_diag_append_i32(&msg[0], 240, at, n_expr);
-  at = driver_diag_append_cstr(&msg[0], 240, at, " final_expr=");
-  at = driver_diag_append_i32(&msg[0], 240, at, final_ref);
-  driver_diag_note(&msg[0]);
+  // Class AN: XLANG_TYPECK_BLOCK Cap debug retired.
 }
 
 // pure: XLANG_TYPECK_FN set -> function-enter note
@@ -1208,21 +1156,7 @@ export function driver_diagnostic_typeck_block_enter(func_idx: i32, block_ref: i
  */
 #[no_mangle]
 export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name_len: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_TYPECK_FN") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[160] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 160, 0, "typeck function debug: func_idx=");
-  at = driver_diag_append_i32(&msg[0], 160, at, func_idx);
-  at = driver_diag_append_cstr(&msg[0], 160, at, " name=");
-  if (name != 0 as *u8 && name_len > 0) {
-    at = driver_diag_append_name(&msg[0], 160, at, name, name_len);
-  } else {
-    at = driver_diag_append_cstr(&msg[0], 160, at, "(unknown)");
-  }
-  driver_diag_note(&msg[0]);
+  // Class AN: XLANG_TYPECK_FN Cap debug retired.
 }
 
 // pure: XLANG_TYPECK_VAR set -> VAR resolution source note
@@ -1239,29 +1173,7 @@ export function driver_diagnostic_typeck_fn_enter(func_idx: i32, name: *u8, name
  */
 #[no_mangle]
 export function driver_diagnostic_typeck_var_resolution(expr_ref: i32, name: *u8, name_len: i32, func_idx: i32, block_ref: i32, source: i32, type_ref: i32): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_TYPECK_VAR") == 0 as *u8) {
-      return;
-    }
-  }
-  let msg: u8[200] = [];
-  let at: i32 = driver_diag_append_cstr(&msg[0], 200, 0, "typeck var debug: expr=");
-  at = driver_diag_append_i32(&msg[0], 200, at, expr_ref);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " name=");
-  if (name != 0 as *u8 && name_len > 0) {
-    at = driver_diag_append_name(&msg[0], 200, at, name, name_len);
-  } else {
-    at = driver_diag_append_cstr(&msg[0], 200, at, "?");
-  }
-  at = driver_diag_append_cstr(&msg[0], 200, at, " func=");
-  at = driver_diag_append_i32(&msg[0], 200, at, func_idx);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " block=");
-  at = driver_diag_append_i32(&msg[0], 200, at, block_ref);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " source=");
-  at = driver_diag_append_i32(&msg[0], 200, at, source);
-  at = driver_diag_append_cstr(&msg[0], 200, at, " type_ref=");
-  at = driver_diag_append_i32(&msg[0], 200, at, type_ref);
-  driver_diag_note(&msg[0]);
+  // Class AN: XLANG_TYPECK_VAR Cap debug retired.
 }
 
 // pure: scratch BSS pointers (expect/found 96B each)
