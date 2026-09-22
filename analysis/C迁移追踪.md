@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-22 · 状态债 · Win PE egg ✅；B-hybrid ✅；Win L2 **5/5** ✅＠`89d99eb0c`；**三端 L2 硬闸已启用** ✅＠`7edba47f4` · 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-22 · 状态债 · **三端 L2 硬闸已启用** ✅；BC inventory present **13→0**（Class O wave309 物理退役）✅ · 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -26,7 +26,7 @@
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
 | Mega 去 pin M4（阶段 7） | 🟡 | leftover flatten 完；parser seed 物理删 ⬜；产品 `.inc` 仍 host-cc |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 |
-| 非 gen 产品 C／8.3 | 🟡 | `pipeline_x` 产品链已退役；冷孪生／`.inc` 仍开 |
+| 非 gen 产品 C／8.3 | 🟡 | wave309 壳物理退役（present 0）；产品 `.inc`／其它 host-cc seed 仍开 |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 |
 | Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**＠`89d99eb0c`；Darwin／Ubuntu 5/5；**三端 L2 硬闸已启用**＠`7edba47f4` |
 | 语言能力 L2（阶段 10） | 🟡 | 主面 ✅；残 NT／MSVC／qemu／Win 实机 |
@@ -34,7 +34,7 @@
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
-| BC（编译层零 host-cc） | 🟡 | `pipeline_x` 已退役；余量＝冷孪生 |
+| BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 host-cc seed／`.inc` |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
 | `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER：add_defs／param_ptr_slot／unused_hints／asm_expr helpers／`asm_wpo_thin`／`wpo_dump` helpers／`asm_locals`；Darwin COMMON lea／F7 data_len sidecar。HARD BAN：assign_index／call_arg_lea／fnptr_as／fnptr_arr_esz／return_elf_impl_thin／full tip／wpo_dump orch（已分类：活体 dump＝主 thin T；orch `-c` smash）／asm_locals get peer（未分类）。leftover-first 非主刀。mega FORCE 禁。禁 `-E` 当修。 |
 | nest 冻帽 | ✅ | **64** |
@@ -127,8 +127,8 @@
 
 ### 开项
 
-- 🟡 **8.3.1** `pipeline_glue` 冷孪生未离 host-cc  
-- 🟡 **8.3.2** `ast_pool` 冷孪生未离 host-cc  
+- ✅ **8.3.1** `pipeline_glue`／fwd／standalone 壳物理退役（Class O；inventory present 0）  
+- ✅ **8.3.2** `ast_pool`／typedefs 壳物理退役（Class O；inventory present 0）  
 - 🟡 **8.3.3** field_access／soa — 叶 leave ✅；父项随冷孪生  
 - 🟡 **8.3.8** `build_asm/gen_driver/*.c` — `pipeline_gen.c` 残留  
 - ⬜ **8.3.10** `editors/tree-sitter-xlang/` 第三方 .c  
@@ -256,7 +256,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：已绿 thin 站住 PREFER_ASM。HARD BAN PREFER 名单仍跳（禁反复分类记账）。**Class F–N** 已收（N＝bootstrap_init 纯 asm；rest Cap WEAK **2→0**）。**日常放行＝三端 L2 硬闸已启用**＠`7edba47f4`。下一刀＝下一产品梯真减 host-cc。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–O** 已收（O＝wave309 孤儿物理退役；BC present **13→0**）。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝下一产品梯真减 host-cc。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
