@@ -51962,7 +51962,12 @@ int32_t pipeline_type_named_name_into(uint8_t * arena, int32_t ref, uint8_t * ou
   if ((t ==0)) {
     return 0;
   }
+  /* Cap 4.2.8 Type LE uses name[256]@4 → name_len@260; wave270 / leftover
+   * writers still use name[128]@4 → name_len@132. Prefer Cap, fall back. */
   int32_t n = pipe_load_i32_le(t, pipe_ar_ty_name_len());
+  if ((n <=0)) {
+    (void)((n = pipe_load_i32_le(t, 132)));
+  }
   int32_t cn = n;
   if ((cn > 255)) {
     (void)((cn = 255));
@@ -52183,7 +52188,12 @@ int32_t pipeline_type_elem_ref_at(uint8_t * arena, int32_t ref) {
   if ((t ==0)) {
     return 0;
   }
-  return pipe_load_i32_le(t, pipe_ar_ty_elem());
+  int32_t v = pipe_load_i32_le(t, pipe_ar_ty_elem());
+  /* wave270 writers store elem@136; Cap pipe_ar uses @264. */
+  if ((v ==0)) {
+    (void)((v = pipe_load_i32_le(t, 136)));
+  }
+  return v;
 }
 int32_t pipeline_type_set_elem_array_size_at(uint8_t * arena, int32_t ref, int32_t elem_ref, int32_t array_size) {
   uint8_t * t = pipe_ty_slot_at(arena, ref);
@@ -52199,7 +52209,12 @@ int32_t pipeline_type_array_size_at(uint8_t * arena, int32_t ref) {
   if ((t ==0)) {
     return 0;
   }
-  return pipe_load_i32_le(t, pipe_ar_ty_arr());
+  int32_t v = pipe_load_i32_le(t, pipe_ar_ty_arr());
+  /* wave270 writers store array_size@140; Cap pipe_ar uses @268. */
+  if ((v ==0)) {
+    (void)((v = pipe_load_i32_le(t, 140)));
+  }
+  return v;
 }
 int32_t pipeline_type_ensure_by_kind_ord(uint8_t * a, int32_t kind_ord) {
   if ((a ==0)) {
