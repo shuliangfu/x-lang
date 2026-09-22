@@ -740,8 +740,8 @@ int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, void *elf_ct
         /* PLATFORM: SHARED — mixed scratch core.m6 + in-tree core.slice:
          * need_coemit is already 1; still skip hosted core/ so formal .o
          * stays the single authority (no duplicate T with on-demand).
-         * PLATFORM: WINDOWS PE — no formal core/*.o; must co-emit (option CG
-         * green then ld U core_option_*). */
+         * PLATFORM: WINDOWS PE — no formal core PE objects; must co-emit
+         * (option CG green then ld U core_option_*). */
 #if !(defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__))
         if (pipeline_asm_user_dep_is_in_tree_core(dep_path_buf) != 0)
           continue;
