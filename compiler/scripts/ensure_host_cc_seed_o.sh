@@ -5677,6 +5677,12 @@ pipeline_abi_inject_unused_hints_thin() {
 #   lea / f2i orch are the same smash leftover T. Darwin overlay
 #   already emits the load. LINUX -E replace the family. HARD BAN
 #   PREFER. MACOS stamp-only keep overlay. Do not Soft-Cap.
+# wave751: classify thin frame. Live unique AS = leftover gcc W monolith
+#   pipeline_asm_emit_as_elf_impl (Darwin weak sub #0x1a0 / LINUX W
+#   endbr64 sub $0x170 size 0xe91). Peer cast_orch/orch/arms/lea absent
+#   from product pabi. Gate -c smash sub $0x888/#0x890; cast_orch -c
+#   smash sub $0x898/#0x8a0. Stamp skip correct. Do NOT re-PREFER.
+#   Do NOT gcc -E as the repair. Not leftover-first.
 # PLATFORM: SHARED shell · LINUX gold + MACOS.
 pipeline_abi_inject_fnptr_as_thin() {
   local o="$1"
@@ -5690,6 +5696,7 @@ pipeline_abi_inject_fnptr_as_thin() {
   local rc=0
   local p_peer p_x p_rest p_stamp p_tag
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # wave751: stamp skip keeps leftover gcc W monolith; re-PREFER / tip -E BAN.
   # Skip when w606 stamp is fresh vs every peer thin.
   if [ -f "$stamp_e" ] && [ ! "$thin_x" -nt "$stamp_e" ]; then
     local _ok=1

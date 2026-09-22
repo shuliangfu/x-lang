@@ -3,6 +3,10 @@
 // tip BB budget: monolith tip T001/CG002 after i→f32 i64mov; single-arm
 //   peers tipU-complete; gate→cast_orch→sub-orch→arms→lea.
 // PRODUCT: LINUX -E (w606 smash leftover as_cast) / MACOS overlay keep.
+// wave751: classify — this export is absent from product pabi; live AS is
+//   leftover gcc W monolith pipeline_asm_emit_as_elf_impl. Standalone -c
+//   still smash (Darwin sub #0x8a0 / LINUX push+sub $0x898). HARD BAN
+//   PREFER of the family. Do not gcc -E. Do not leftover-first.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_emit_as_f2i_orch_elf_c(arena: *u8, elf_ctx: *u8, op: i32, ctx: *u8, ta: i32, tgt: i32): i32;

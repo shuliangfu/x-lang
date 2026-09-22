@@ -3,6 +3,15 @@
 // tip BB budget: monolith tip T001/CG002 after i→f32 i64mov; single-arm
 //   peers tipU-complete; gate→cast_orch→sub-orch→arms→lea.
 // PRODUCT: LINUX -E (w606 smash leftover as_cast) / MACOS overlay keep.
+// wave751: classify thin frame — NOT leftover-wipe of a dead peel alone.
+//   Live unique AS = leftover gcc W monolith pipeline_asm_emit_as_elf_impl
+//   (Darwin weak sub #0x1a0 / LINUX W endbr64 sub $0x170 size 0xe91) plus
+//   wrapper pipeline_asm_emit_as_elf_c. Peer symbols (glue_emit_as_cast_orch
+//   / f2i orch / i2f orch / lea / arms) are absent from product pabi.
+//   Gate standalone -c T=2 U=8 nsects=1 still smash (Darwin sub #0x890 /
+//   LINUX push+sub $0x888). cast_orch thin -c smash sub $0x898 / #0x8a0.
+//   Re-PREFER of the family would dest-overwrite healthy leftover W.
+//   HARD BAN PREFER remains. Do not gcc -E as the repair. Do not leftover-first.
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS.
 
 export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
