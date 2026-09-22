@@ -14,7 +14,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/types.h>
-#include <stdio.h> /* WINDBG_STDIO */
 #ifndef XLANG_DYN_OBJ
 #define XLANG_DYN_OBJ
 
@@ -1618,7 +1617,7 @@ extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx * ctx,
 extern uint8_t pipeline_dep_ctx_import_path_byte_at(struct ast_PipelineDepCtx * ctx, int32_t idx, int32_t off);
 extern void pipeline_dep_ctx_import_path_copy64(struct ast_PipelineDepCtx * ctx, int32_t idx, uint8_t * dst);
 extern uint8_t *typeck_driver_dep_module_buf(int32_t i);
-extern int32_t pipeline_visibility_allow_func(struct ast_Module *m, int32_t fi, int32_t cross);
+extern uint8_t *driver_dep_arena_buf(int32_t i);
 extern int32_t pipeline_dep_ctx_ndep(struct ast_PipelineDepCtx * ctx);
 extern void pipeline_dep_ctx_set_ndep(struct ast_PipelineDepCtx * ctx, int32_t n);
 extern int32_t pipeline_ctx_append_lib_root(struct ast_PipelineDepCtx * ctx, uint8_t * path, int32_t len);
@@ -5470,8 +5469,12 @@ int32_t typeck_get_dep_return_type_in_caller_arena_i32_i32_ASTArena_ptr_Pipeline
     (void)((dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index)));
     if ((dep_arena ==0)) {
       (void)((dep_arena = pipeline_get_dep_arena_slot(from_dep_index)));
-      ((dep_arena ==0) ? ({   return 0;
- }) : 0);
+    }
+    if ((dep_arena ==0)) {
+      (void)((dep_arena = ((struct ast_ASTArena *)driver_dep_arena_buf(from_dep_index))));
+    }
+    if ((dep_arena ==0)) {
+      return 0;
     }
     if ((from_dep_index >=pipeline_dep_ctx_ndep(ctx))) {
       ((pipeline_dep_ctx_module_at(ctx, from_dep_index) ==0) ? ({   return 0;
@@ -13192,51 +13195,13 @@ int32_t typeck_check_expr_method_call(struct ast_Module * module, struct ast_AST
       (void)((func_ix = -1));
       if ((dep_slot >=0)) {
         (void)((dm = pipeline_dep_ctx_module_at(ctx, dep_slot)));
-        {
+        if (((dm ==0) || (pipeline_module_num_funcs(dm) ==0))) {
           uint8_t * alt_dm = typeck_driver_dep_module_buf(dep_slot);
-          fprintf(stderr, "xlang: WINDBG2 dm_n=%d alt=%p alt_n=%d\n",
-            dm?(int)pipeline_module_num_funcs(dm):-1, (void*)alt_dm,
-            alt_dm?(int)pipeline_module_num_funcs((struct ast_Module*)alt_dm):-1);
           if (((alt_dm !=0) && (pipeline_module_num_funcs(((struct ast_Module *)alt_dm)) > 0))) {
             (void)((dm = ((struct ast_Module *)alt_dm)));
           }
         }
-        (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({
-  int32_t _nf = pipeline_module_num_funcs(dm);
-  int32_t _j;
-  int32_t _hits = 0;
-  for (_j = 0; _j < _nf && _j < 40; _j++) {
-    int32_t _nl = pipeline_module_func_name_len_at(dm, _j);
-    if (_j < 5) {
-      uint8_t _nb[64]; int32_t _k;
-      for (_k=0;_k<64;_k++) _nb[_k]=0;
-      pipeline_module_func_name_copy64(dm, _j, &_nb[0]);
-      fprintf(stderr, "xlang: WINDBG2 func[%d] len=%d name=%.*s\n", (int)_j, (int)_nl, (int)((_nl>0&&_nl<60)?_nl:0), (char*)_nb);
-    }
-    if (pipeline_module_func_name_equal_at(dm, _j, &((method_nm)[0]), method_nlen) != 0) {
-      _hits++;
-      fprintf(stderr, "xlang: WINDBG2 name_hit j=%d nparams=%d\n",
-        (int)_j, (int)pipeline_module_func_num_params_at(dm, _j));
-    }
-  }
-  fprintf(stderr, "xlang: WINDBG2 nf=%d hits=%d method_nlen=%d\n", (int)_nf, (int)_hits, (int)method_nlen);
-  {
-    int32_t rtr0 = pipeline_module_func_return_type_at(dm, 0);
-    int32_t vis = pipeline_visibility_allow_func(dm, 0, 1);
-    fprintf(stderr, "xlang: WINDBG2 rtr0=%d vis=%d mode_probe\n", (int)rtr0, (int)vis);
-  }
-  (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
-  fprintf(stderr, "xlang: WINDBG2 find ret=%d fix=%d\n", (int)import_ret_ty, (int)func_ix);
-  {
-    int32_t r2 = 0; int32_t fi2 = -1;
-    r2 = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, -1, num_args, 0, 0, ctx, &fi2);
-    fprintf(stderr, "xlang: WINDBG2 find_local ret=%d fix=%d\n", (int)r2, (int)fi2);
-  }
-  {
-    int32_t r3 = 0; int32_t fi3 = -1;
-    r3 = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, 0, 0, ctx, &fi3);
-    fprintf(stderr, "xlang: WINDBG2 find_nocall ret=%d fix=%d\n", (int)r3, (int)fi3);
-  }
+        (((dm !=0) && (pipeline_module_num_funcs(dm) > 0)) ? ({   (void)((import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(dm, arena, &((method_nm)[0]), method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &(func_ix))));
   ((import_ret_ty > 0) ? ({   (void)((dep_ix = dep_slot));
  }) : 0);
  }) : 0);

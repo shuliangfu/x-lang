@@ -53042,18 +53042,24 @@ uint8_t * pipeline_dep_ctx_arena_at(uint8_t * ctx, int32_t idx) {
     return 0;
   }
   uint8_t * sc = pipe_depctx_sidecar_get(ctx, 0);
-  if ((sc ==0)) {
-    return 0;
+  uint8_t * a = 0;
+  if ((sc !=0)) {
+    uint8_t * ars = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
+    if ((idx < pipe_gv_load_len(ars))) {
+      uint8_t * pa = grow_vec_at(ars, idx);
+      if ((pa !=0)) {
+        (void)((a = pipe_load_ptr_slot(pa, 0)));
+      }
+    }
   }
-  uint8_t * ars = pipe_dep_sc_gv(sc, pipe_dep_sc_off_dep_arenas());
-  if ((idx >=pipe_gv_load_len(ars))) {
-    return 0;
+  /* Twin of module_at: prefer live driver_dep_arena_buf when sidecar is stale. */
+  if ((a ==0)) {
+    uint8_t * alt = driver_dep_arena_buf(idx);
+    if ((alt !=0)) {
+      return alt;
+    }
   }
-  uint8_t * pa = grow_vec_at(ars, idx);
-  if ((pa ==0)) {
-    return 0;
-  }
-  return pipe_load_ptr_slot(pa, 0);
+  return a;
 }
 void pipeline_dep_ctx_set_import_path(uint8_t * ctx, int32_t idx, uint8_t * bytes, int32_t len) {
   if (((((ctx ==0) || (idx < 0)) || (bytes ==0)) || (len <=0))) {
