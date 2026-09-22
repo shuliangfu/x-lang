@@ -263,12 +263,12 @@ if [ -s src/runtime_pipeline_abi_const_lit.o ]; then
   _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
 fi
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
-# var (si/if-assign) + field scalar. Built by g05_ensure when seeds present.
+# var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o; do
+    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o; do
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi

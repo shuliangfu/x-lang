@@ -329,7 +329,7 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
 }
 /* wave767 Class R: FIELD assign real scalar path (was return -1).
  * Twin of LINUX assign_field_scalar_thin: RHS→rax, push, lvalue→rbx, pop,
- * store indirect by field load_sz. INDEX/DEREF remain -1.
+ * store indirect by field load_sz. Class T: INDEX/DEREF scalar too.
  * PLATFORM: WINDOWS leftover-PE. */
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                        void *ctx, int32_t ta);
@@ -362,8 +362,61 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
     sz = 8;
   return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, sz, ta);
 }
-int32_t glue_emit_assign_index_elf_c() { return -1; }
-int32_t glue_emit_assign_deref_elf_c() { return -1; }
+/* wave768 Class T: INDEX/DEREF assign real scalar (was return -1).
+ * Twin of FIELD scalar: RHS→rax, push, lvalue→rbx, pop, store indirect.
+ * INDEX esz via pipeline_asm_index_elem_byte_sz_c; DEREF via type width.
+ * PLATFORM: WINDOWS leftover-PE. */
+extern int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr);
+
+int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
+                                    int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t sz;
+  if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  sz = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
+  if (sz <= 0)
+    sz = 8;
+  return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, sz, ta);
+}
+
+int32_t glue_emit_assign_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
+                                    int32_t right_ref, void *ctx, int32_t ta) {
+  int32_t sz;
+  int32_t tr;
+  if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
+    return -1;
+  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28)
+    return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  tr = pipeline_expr_resolved_type_ref(arena, left_ref);
+  sz = (tr > 0) ? glue_index_elem_byte_sz_from_type_ref_c(arena, tr) : 0;
+  if (sz <= 0)
+    sz = 4;
+  return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, sz, ta);
+}
 /* Cap residual glue_emit_index_eff_addr_scaled is #ifndef FROM_X; windows_e
  * emit_index calls these. Prior stubs returned -1 → option `bp[0]` CG002 after
  * ARRAY_LIT fix. Minimal Win body: eff_addr_base + lit add / scaled rbx.
