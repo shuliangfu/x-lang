@@ -2340,6 +2340,22 @@ case "$(uname -s 2>/dev/null)" in
     ;;
 esac
 
+# --- Class S: ast_gen2.o for Win LEGACY g05 (link END) ---
+# g05_relink_env defaults XLANG_LEGACY_C_FRONTEND=1 on Windows; LEGACY G05_OBJS
+# ends with ast_gen2.o. Build it here so leftover-safe relink does not MISSING.
+# PLATFORM: WINDOWS | when LEGACY explicitly on.
+if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" = "1" ]; then
+  if [ -f ast_gen2.c ]; then
+    if [ ! -s ast_gen2.o ] || [ ast_gen2.c -nt ast_gen2.o ]; then
+      echo "g05_ensure: cc -c ast_gen2.o (LEGACY)" >&2
+      # shellcheck disable=SC2086
+      if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o ast_gen2.o ast_gen2.c; then
+        echo "g05_ensure: WARN ast_gen2.cc failed" >&2
+      fi
+    fi
+  fi
+fi
+
 # --- 齐备检查 ---
 mkdir -p build_asm/seed_host
 miss=0

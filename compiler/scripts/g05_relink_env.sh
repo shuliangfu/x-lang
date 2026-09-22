@@ -160,6 +160,18 @@ esac
 # binary layout (the pinned bootstrap_xlangc was captured under LEGACY mode).
 # Without this guard g05 relink-xlang on Windows produced a xlang.exe that
 # links cleanly but cannot run even `function main(): i32 { return 42; }`.
+# Class S / leftover-safe (2026-09-22): Windows PE product path must use LEGACY
+# runtime_driver.o (Win64 argc/argv). Unset XLANG_LEGACY_C_FRONTEND used to fall
+# through to no_c → SysV driver_run_compiler_full → --help SEGV in driver_argv_at,
+# so FIELD override never landed in a runnable live. Default LEGACY=1 on Win hosts
+# when unset; XLANG_NO_C_SEED_LINK=1 still forces no_c; explicit =0 still allowed.
+case "$(uname -s 2>/dev/null || echo Unknown)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -z "${XLANG_LEGACY_C_FRONTEND+x}" ]; then
+      XLANG_LEGACY_C_FRONTEND=1
+    fi
+    ;;
+esac
 # Honor XLANG_LEGACY_C_FRONTEND (=1 LEGACY; otherwise no_c default) and
 # XLANG_NO_C_SEED_LINK (=1 forces no_c even under LEGACY — experimental).
 if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" = "1" ]; then
