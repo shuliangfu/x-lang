@@ -233,19 +233,36 @@ int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, in
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
     return -1;
   if (!dest_in_rbx) {
+    /* value_bytes can under-report (Option_ptr: 8 while fields land at +8).
+     * Raise nbytes from field ends so 16B returns load RAX+RDX. */
+    {
+      int32_t nf2, fi2, foff2, fsz2, end2;
+      nf2 = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      if (nf2 < 0)
+        nf2 = 0;
+      for (fi2 = 0; fi2 < nf2 && fi2 < 64; fi2++) {
+        foff2 = 0;
+        if (mod)
+          foff2 = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi2);
+        if (foff2 < 0)
+          foff2 = 0;
+        fsz2 = glue_struct_lit_field_store_sz(arena, expr_ref, fi2);
+        if (fsz2 <= 0)
+          continue;
+        if (fsz2 > 8)
+          fsz2 = 8;
+        end2 = foff2 + fsz2;
+        if (end2 > nbytes)
+          nbytes = end2;
+      }
+    }
     /* ≤16B rvalue/return: materialize VALUE into GP regs (not lea pointer).
-     * Prior lea left stack addr in rax; Option_i32 is_some read low byte of
-     * pointer → none looked like some → tests/option run=-2.
-     * Win64 ≤8B aggregate returns in RAX; 9–16B dual-GP matches store_retval
-     * pair path used by POSIX/Win fallthrough. >16B keep lea (sret dest ptr).
+     * Win64 ≤8B in RAX; 9–16B dual-GP. >16B keep lea (sret).
      * PLATFORM: WINDOWS leftover-PE. */
     if (nbytes <= 8) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
     } else if (nbytes <= 16) {
-      /* offset = positive rbp-down magnitude (x86_enc_movq_from_rbp_neg).
-       * High qword sits at less-negative addr → smaller magnitude = home - 8.
-       * home+8 encoded - (home+8)(%rbp) past the slot (saw Option_ptr rdx garbage → -16). */
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
       if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, home - 8, ta) != 0)
