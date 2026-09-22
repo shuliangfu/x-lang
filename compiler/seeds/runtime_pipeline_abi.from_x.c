@@ -30981,6 +30981,8 @@ extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
 extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ty_ref, uint8_t *dst);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ty_ref);
 extern int32_t pipeline_expr_call_resolved_func_index_at(void *a, int32_t er);
 extern void pipeline_expr_apply_call_resolve(void *a, int32_t er, int32_t dep_ix, int32_t func_ix);
 extern int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
@@ -34450,6 +34452,23 @@ extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
     nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
     if (nsz > sz)
       sz = nsz;
+    /* size_simple/named_layout may still report 8 for allow(padding)
+     * Option_ptr_* (bool+ptr). Force 16 so rdx half is parked. */
+    {
+      uint8_t nm[64];
+      int32_t nl;
+      int32_t tk0;
+      tk0 = pipeline_type_kind_ord_at(arena, ty_ref);
+      if (tk0 == 8) {
+        nl = pipeline_type_named_name_into(arena, ty_ref, nm);
+        if (nl >= 11 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105 &&
+            nm[4] == 111 && nm[5] == 110 && nm[6] == 95 && nm[7] == 112 && nm[8] == 116 &&
+            nm[9] == 114 && nm[10] == 95) {
+          if (sz < 16)
+            sz = 16;
+        }
+      }
+    }
   }
   if (sz <= 8 && arena && init_ref > 0) {
     nsz = glue_call_return_byte_size_c(arena, init_ref);
@@ -41315,6 +41334,21 @@ int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index,
     nsz = glue_type_named_layout_size_any_module_elf_c(arena, pty);
     if (nsz > sz)
       sz = nsz;
+    {
+      uint8_t nm[64];
+      int32_t nl;
+      int32_t tk0;
+      tk0 = pipeline_type_kind_ord_at(arena, pty);
+      if (tk0 == 8) {
+        nl = pipeline_type_named_name_into(arena, pty, nm);
+        if (nl >= 11 && nm[0] == 79 && nm[1] == 112 && nm[2] == 116 && nm[3] == 105 &&
+            nm[4] == 111 && nm[5] == 110 && nm[6] == 95 && nm[7] == 112 && nm[8] == 116 &&
+            nm[9] == 114 && nm[10] == 95) {
+          if (sz < 16)
+            sz = 16;
+        }
+      }
+    }
   }
   if (sz <= 0)
     return 8;
