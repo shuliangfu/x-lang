@@ -25277,9 +25277,7 @@ int32_t glue_block_let_is_simd_vector_type(void *arena, int32_t block_ref, int32
     if (ko == 46 || ko == 3 || glue_is_vector_lane_scalar_binop_ko(ko))
       return 1;
   }
-  if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
-    pabi_trace( "xlang: let idx=%d type_ref=%d kind=%d slot_b=%d init=%d\n", (int)let_idx, (int)tr,
-            (int)pipeline_type_kind_ord_at(arena, tr), (int)asm_local_slot_bytes(arena, tr), (int)init_ref);
+  /* Class AY: Cap XLANG_ASM_EMIT_TRACE note retired. */
   return 0;
 }
 
@@ -29804,8 +29802,7 @@ int32_t pipeline_asm_emit_var_field_access_elf_c(void *arena,
   if (var_off < 0)
     var_off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
   if (var_off < 0) {
-    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
-      pabi_trace( "xlang: var_field_access miss var='%.*s'\n", (int)vlen, (char *)vname);
+    /* Class AY: Cap XLANG_ASM_EMIT_TRACE note retired. */
     return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
   }
   /*
@@ -30664,13 +30661,7 @@ int32_t pipeline_expr_enum_namespace_field_tag(void *a, int32_t expr_ref) {
   if (flen <= 0 || flen > 255)
     return -1;
   pipeline_expr_field_access_name_into(a, expr_ref, field_buf);
-  if (link_abi_getenv("XLANG_ASM_EMIT_TRACE")) {
-    /* Cap residual 9.7.1: char-loop fprintf/fputc → single bounded %.*s trace. */
-    pabi_trace("xlang: enum_ns_tag base_len=%d field_len=%d mod=%p base='%.*s' field='%.*s'\n",
-               (int)blen, (int)flen, (void *)g_pipeline_asm_emit_module,
-               blen < 31 ? (int)blen : 31, (const char *)base_buf,
-               flen < 63 ? (int)flen : 63, (const char *)field_buf);
-  }
+  /* Class AY: Cap XLANG_ASM_EMIT_TRACE note retired. */
   if (blen == 8 && memcmp(base_buf, "ExprKind", 8) == 0) {
     if (glue_enum_field_name_equal(field_buf, flen, "EXPR_LIT"))
       return 0;
@@ -30725,8 +30716,7 @@ int32_t pipeline_expr_enum_namespace_field_tag(void *a, int32_t expr_ref) {
   }
   {
     int32_t mod_tag = pipeline_expr_enum_field_tag_via_module(base_buf, blen, field_buf, flen);
-    if (link_abi_getenv("XLANG_ASM_EMIT_TRACE"))
-      pabi_trace( "xlang: enum_ns_tag mod_tag=%d\n", (int)mod_tag);
+    /* Class AY: Cap XLANG_ASM_EMIT_TRACE note retired. */
     if (mod_tag >= 0)
       return mod_tag;
   }
@@ -59606,29 +59596,18 @@ void pipeline_expr_set_var_name(void *a, int32_t er, const uint8_t *nm, int32_t 
  * Write resolved_type_ref on arena-pooled Expr. Called by typeck.x
  * EMIT_HEAVY emit path to stamp the inferred type without Expr
  * by-value get/set (which tears the struct on the asm backend).
- * Includes optional XLANG_TRACE_EXPR_SET debug tracing.
+ * Class AY: Cap XLANG_TRACE_EXPR_SET debug tracing retired.
  */
 void pipeline_expr_set_resolved_type_ref(void *a, int32_t expr_ref, int32_t type_ref) {
   W278_Expr *ex;
-  const char *trace_expr;
-  int32_t trace_ref;
-  int32_t old_ref;
 
   if (!a || expr_ref <= 0 || expr_ref > w278_num_exprs(a))
     return;
   ex = w278_expr_ptr(a, expr_ref);
   if (!ex)
     return;
-  old_ref = ex->resolved_type_ref;
   ex->resolved_type_ref = type_ref;
-  trace_expr = link_abi_getenv("XLANG_TRACE_EXPR_SET");
-  if (!trace_expr || !*trace_expr)
-    return;
-  trace_ref = atoi(trace_expr);
-  if (trace_ref != expr_ref)
-    return;
-  pabi_trace( "note: expr set debug: expr=%d kind=%d block=%d old_ty=%d new_ty=%d\n", (int)expr_ref,
-          (int)ex->kind, (int)ex->block_ref, (int)old_ref, (int)type_ref);
+  /* Class AY: Cap XLANG_TRACE_EXPR_SET retired. */
 }
 
 /**
@@ -64864,30 +64843,7 @@ int driver_get_module_main_func_index(void *m) {
 }
 
 void driver_diagnostic_entry_module(struct ast_Module *mod, struct ast_ASTArena *a) {
-  const char *list_env;
-  int32_t i, j, n;
-  list_env = link_abi_getenv("XLANG_ASM_LIST_FUNCS");
-  if (list_env && list_env[0] != '\0' && list_env[0] != '0' && mod) {
-    n = pipeline_module_num_funcs(mod);
-    for (i = 0; i < n; i++) {
-      uint8_t nm[256];
-      int32_t nl = pipeline_module_func_name_len_at(mod, i);
-      int32_t body_ref = pipeline_module_func_body_ref_at(mod, i);
-      int32_t nlet = 0, nso = 0, nreg = 0;
-      int32_t nblocks = w284_arena_num_blocks(a);
-      pipeline_module_func_name_copy64(mod, i, nm);
-      if (body_ref > 0 && a && body_ref <= nblocks) {
-        nlet = ast_ast_block_num_lets(a, body_ref);
-        nso = ast_ast_block_num_stmt_order(a, body_ref);
-        nreg = ast_ast_block_num_regions(a, body_ref);
-      }
-      pabi_trace("asm_list: #%d extern=%d body_ref=%d nlet=%d nso=%d nreg=%d name=%.*s\n",
-              (int)i, (int)pipeline_module_func_is_extern_at(mod, i),
-              (int)body_ref, (int)nlet, (int)nso, (int)nreg,
-              nl < 64 ? (int)nl : 64, (const char *)nm);
-    }
-    return;
-  }
+  /* Class AY: Cap XLANG_ASM_LIST_FUNCS dump retired. */
   (void)mod;
   (void)a;
 }
