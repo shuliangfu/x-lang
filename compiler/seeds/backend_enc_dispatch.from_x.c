@@ -15,6 +15,9 @@
  * wave881: arch_riscv64_enc_enc_jalr_reg lives in that .x too. It still
  * forwards to backend_enc_riscv64_jalr_reg_c, which stays in this tail.
  * The symbol stays strong.
+ * wave882: arch_riscv64_enc_enc_ldr_xreg_xreg_imm lives in that .x too.
+ * It still forwards to backend_enc_riscv64_ldr_xreg_xreg_imm_c, which
+ * stays in this tail. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1756,10 +1759,10 @@ int32_t backend_enc_riscv64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCt
  * Stays strong.
  * w881: arch_riscv64_enc_enc_jalr_reg is defined in that .x too.
  * The prototype above still satisfies backend_enc_blr_arch. Stays strong.
+ * w882: arch_riscv64_enc_enc_ldr_xreg_xreg_imm is defined in that .x too.
+ * The prototype above still satisfies backend_enc_ldr_xreg_xreg_imm_arch.
+ * Stays strong.
  * PLATFORM: SHARED. */
-int32_t arch_riscv64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
-  return backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset);
-}
 /* Cross-arch indirect call dispatch: ta=1 arm64, ta=2 riscv64, else x86_64. */
 int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta) {
   if (ta == 1) { return arch_arm64_enc_enc_blr(elf_ctx, reg); }
