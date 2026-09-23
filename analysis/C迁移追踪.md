@@ -57,16 +57,24 @@
 - 🟡 巨型字符串表仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class DO（2026-09-24）pipeline_expr_field_access_name_into 带签名转发已收入 .x
+
+- ✅ `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 的产品定义只在 `x_frontend_link_alias.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void 并留在 pipeline 对象，符号仍弱。这是 void 三参。产品路径不再 `cc` 它。安装器纯 asm 这一文件，再 `cc` lexer 结构返回尾和其余 `XLANG_WEAK` 别名。没有 gcc `-E`
+- 🟡 lexer 结构返回尾与其余 `XLANG_WEAK` 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 833 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把这条转发改成强符号。不把其余 `XLANG_WEAK` 别名改成强符号。不把剩余的单参 i32、指针返回或 uint8 返回别名当成这一刀的 void 三参
+
 ### Class DN（2026-09-24）pipeline_expr_binop_right_ref_at 带签名转发已收入 .x
 
 - ✅ `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 的产品定义只在 `x_frontend_link_alias.x`，仍转调 `pipeline_expr_binop_right_ref_at`，无后缀实现留在 pipeline 对象，符号仍弱。产品路径不再 `cc` 它。安装器纯 asm 这一文件，再 `cc` lexer 结构返回尾和其余 `XLANG_WEAK` 别名。没有 gcc `-E`
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余 `XLANG_WEAK` 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
-- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 805 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把这条转发改成强符号。不把其余 `XLANG_WEAK` 别名改成强符号。不把剩余的 void 三参、单参 i32、指针返回或 uint8 返回别名当成同形转发
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 805 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把这条转发改成强符号。不把其余 `XLANG_WEAK` 别名改成强符号。不把剩余的单参 i32、指针返回或 uint8 返回别名当成 void 三参转发
 
 ### Class DM（2026-09-24）pipeline_expr_binop_left_ref_at 带签名转发已收入 .x
 
 - ✅ `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 的产品定义只在 `x_frontend_link_alias.x`，仍转调 `pipeline_expr_binop_left_ref_at`，无后缀实现留在 pipeline 对象，符号仍弱。产品路径不再 `cc` 它。安装器纯 asm 这一文件，再 `cc` lexer 结构返回尾和其余 `XLANG_WEAK` 别名。没有 gcc `-E`
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余 `XLANG_WEAK` 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 777 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把这条转发改成强符号。不把其余 `XLANG_WEAK` 别名改成强符号
 
@@ -75,6 +83,7 @@
 - ✅ `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 的产品定义只在 `x_frontend_link_alias.x`，仍转调 `pipeline_expr_field_access_base_ref`，无后缀实现留在 pipeline 对象，符号仍弱。产品路径不再 `cc` 它。安装器纯 asm 这一文件，再 `cc` lexer 结构返回尾和其余 `XLANG_WEAK` 别名。没有 gcc `-E`
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余 `XLANG_WEAK` 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 749 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把这条转发改成强符号。不把其余 `XLANG_WEAK` 别名改成强符号
 
@@ -84,6 +93,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余 `XLANG_WEAK` 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 721 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把这条转发改成强符号。不把其余 `XLANG_WEAK` 别名改成强符号
 
@@ -94,6 +104,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余 `XLANG_WEAK` 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 694 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`。不移动结构返回。不把其余 `XLANG_WEAK` 别名改成强符号
 
@@ -105,6 +116,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾、import-path 强转发与其余带修饰别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 652 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`
 
@@ -117,6 +129,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余带修饰别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 604 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`
 
@@ -130,6 +143,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余带修饰别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 556 条前缀对不上的编译器上重编 `x_frontend_link_alias.o`
 
@@ -144,6 +158,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余带修饰别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 18 个别名前缀对不上的编译器上重编 `x_frontend_link_alias.o`
 
@@ -238,6 +253,7 @@
 - ✅ w869 起 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱（见 Class DL）
 - ✅ w870 起 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱（见 Class DM）
 - ✅ w871 起 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 也在这份 `.x`，仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱（见 Class DN）
+- ✅ w872 起 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 也在这份 `.x`，仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱（见 Class DO）
 - 🟡 lexer 结构返回尾与其余带修饰 ABI 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
 - 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）
 
@@ -555,7 +571,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class DN** 把 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱）；lexer 尾与其余 `XLANG_WEAK` 别名仍 host-cc。**Class DM** 把 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱）。**Class DL** 把 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱）。**Class DK** 把 `pipeline_expr_field_access_name_len_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_field_access_name_len`，符号仍弱）。**Class DJ** 把 `glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_codegen_import_path_to_c_prefix_into`，无后缀实现返回 void，符号仍强）。**Class DI** 把 `glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_try_std_heap_redirect_sym_local`，符号仍强）。**Class DH** 把 `glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_asm_build_import_binding_call_sym`，符号仍强）。**Class DG** 把 `glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_asm_build_func_export_sym_c`，符号仍强）。**Class DF** 把 `pipeline_type_kind_ord_at_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_type_kind_ord_at`，符号仍强）。**Class DE** 把 `backend_enc_dispatch_slice_marker` 收进 thin `.x`（仍返回 1）；f64／Cap 尾仍 host-cc。**Class CX** 删掉 `backend_enc_dispatch` 薄层公共函数的冷路径 C 体和无人引用的 thin 种子，权威在 thin `.x`。**Class CW** 删掉 `runtime_driver_diagnostic` 薄层公共函数的冷路径 C 体，权威在 `.x`；asm BSS 仍 host-cc。**Class CV** 删掉 `lsp_diag_pipeline_ctx` 九个薄别名的 C 体，权威在 `.x`；`_impl`／状态缓冲仍 host-cc。**Class DD** 把 `labi_rt_preamble_slice_marker` 收进 `.x`（仍返回 1）；字符串表仍 host-cc。**Class DC** 把 `labi_rt_parse_diag_slice_marker` 收进 `.x`（仍返回 1）；恢复诊断仍 host-cc。**Class DB** 把 `labi_rt_emit_state_slice_marker` 收进 `.x`（仍返回 1）；BSS／lib-name／入口前缀仍 host-cc。**Class DA** 把 `labi_rt_arena_buf_slice_marker` 收进 `.x`（仍返回 1）；128MiB／2MiB BSS 仍 host-cc。**Class CZ** 把 `backend_arch_emit_dispatch_slice_marker` 收进 `.x` 并删除种子，该对象不再 host-cc。**Class CT** 的 47 个分派壳仍在 `.x`。**Class CS** 整文件删掉 `lsp_diag_pipeline_sizes` 产品种子，三枚 sizeof 权威在 `.x`；非产品 weak 种子仍 host-cc。**Class CR** 删掉 `x_frontend_link_alias` 18 个别名的 C 体，权威在 `.x`；w863 又收进 `pipeline_type_kind_ord_at` 的带签名转发；w864 又收进 `glue_asm_build_func_export_sym_c` 的带签名转发；w865 又收进 `glue_asm_build_import_binding_call_sym` 的带签名转发；w866 又收进 `glue_try_std_heap_redirect_sym_local` 的带签名转发；w867 又收进 `glue_codegen_import_path_to_c_prefix_into` 的带签名转发；w868 又收进 `pipeline_expr_field_access_name_len` 的带签名转发，符号仍弱；w869 又收进 `pipeline_expr_field_access_base_ref` 的带签名转发，符号仍弱；w870 又收进 `pipeline_expr_binop_left_ref_at` 的带签名转发，符号仍弱；w871 又收进 `pipeline_expr_binop_right_ref_at` 的带签名转发，符号仍弱；lexer 尾与其余 `XLANG_WEAK` 别名仍 host-cc。**Class CQ** 的恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc（marker 已见 Class DD）。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。lexer 尾还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class DO** 把 `pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_field_access_name_into`，无后缀实现返回 void，符号仍弱）；lexer 尾与其余 `XLANG_WEAK` 别名仍 host-cc。**Class DN** 把 `pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_binop_right_ref_at`，符号仍弱）；lexer 尾与其余 `XLANG_WEAK` 别名仍 host-cc。**Class DM** 把 `pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_binop_left_ref_at`，符号仍弱）。**Class DL** 把 `pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_field_access_base_ref`，符号仍弱）。**Class DK** 把 `pipeline_expr_field_access_name_len_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_expr_field_access_name_len`，符号仍弱）。**Class DJ** 把 `glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_codegen_import_path_to_c_prefix_into`，无后缀实现返回 void，符号仍强）。**Class DI** 把 `glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_try_std_heap_redirect_sym_local`，符号仍强）。**Class DH** 把 `glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_asm_build_import_binding_call_sym`，符号仍强）。**Class DG** 把 `glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `glue_asm_build_func_export_sym_c`，符号仍强）。**Class DF** 把 `pipeline_type_kind_ord_at_u8_ptr_i32_reti32` 收进 `x_frontend_link_alias.x`（仍转调 `pipeline_type_kind_ord_at`，符号仍强）。**Class DE** 把 `backend_enc_dispatch_slice_marker` 收进 thin `.x`（仍返回 1）；f64／Cap 尾仍 host-cc。**Class CX** 删掉 `backend_enc_dispatch` 薄层公共函数的冷路径 C 体和无人引用的 thin 种子，权威在 thin `.x`。**Class CW** 删掉 `runtime_driver_diagnostic` 薄层公共函数的冷路径 C 体，权威在 `.x`；asm BSS 仍 host-cc。**Class CV** 删掉 `lsp_diag_pipeline_ctx` 九个薄别名的 C 体，权威在 `.x`；`_impl`／状态缓冲仍 host-cc。**Class DD** 把 `labi_rt_preamble_slice_marker` 收进 `.x`（仍返回 1）；字符串表仍 host-cc。**Class DC** 把 `labi_rt_parse_diag_slice_marker` 收进 `.x`（仍返回 1）；恢复诊断仍 host-cc。**Class DB** 把 `labi_rt_emit_state_slice_marker` 收进 `.x`（仍返回 1）；BSS／lib-name／入口前缀仍 host-cc。**Class DA** 把 `labi_rt_arena_buf_slice_marker` 收进 `.x`（仍返回 1）；128MiB／2MiB BSS 仍 host-cc。**Class CZ** 把 `backend_arch_emit_dispatch_slice_marker` 收进 `.x` 并删除种子，该对象不再 host-cc。**Class CT** 的 47 个分派壳仍在 `.x`。**Class CS** 整文件删掉 `lsp_diag_pipeline_sizes` 产品种子，三枚 sizeof 权威在 `.x`；非产品 weak 种子仍 host-cc。**Class CR** 删掉 `x_frontend_link_alias` 18 个别名的 C 体，权威在 `.x`；w863 又收进 `pipeline_type_kind_ord_at` 的带签名转发；w864 又收进 `glue_asm_build_func_export_sym_c` 的带签名转发；w865 又收进 `glue_asm_build_import_binding_call_sym` 的带签名转发；w866 又收进 `glue_try_std_heap_redirect_sym_local` 的带签名转发；w867 又收进 `glue_codegen_import_path_to_c_prefix_into` 的带签名转发；w868 又收进 `pipeline_expr_field_access_name_len` 的带签名转发，符号仍弱；w869 又收进 `pipeline_expr_field_access_base_ref` 的带签名转发，符号仍弱；w870 又收进 `pipeline_expr_binop_left_ref_at` 的带签名转发，符号仍弱；w871 又收进 `pipeline_expr_binop_right_ref_at` 的带签名转发，符号仍弱；w872 又收进 `pipeline_expr_field_access_name_into` 的带签名转发，无后缀实现返回 void，符号仍弱；lexer 尾与其余 `XLANG_WEAK` 别名仍 host-cc。**Class CQ** 的恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc（marker 已见 Class DD）。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。lexer 尾还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
