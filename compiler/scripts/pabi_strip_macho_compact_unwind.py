@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
-"""Class BB／BD: strip __LD,__compact_unwind (+ its relocs) from Darwin
+"""Class BB／BD／BQ: strip __LD,__compact_unwind (+ its relocs) from Darwin
 Mach-O relocatable .o without FORCE-rebuild.
 
 Safe on: runtime_pipeline_abi.o, runtime_link_abi.o, runtime_driver_abi.o,
-runtime_driver_no_c.o, backend_call_dispatch.o.
-Do NOT apply to parser_asm_thin_glue.o (LOH／n_sect corrupt after strip).
+runtime_driver_no_c.o, seed_link_compat.o, runtime_driver_diagnostic.o,
+backend_try_inline_dispatch.o.
+UNSAFE (LOH／n_sect): parser_asm_thin_glue.o, backend_call_dispatch.o,
+backend_enc_dispatch.o, diag.o — do not strip.
 PLATFORM: Darwin only. Idempotent if section already absent.
+Class BQ batch: scripts/bq_strip_compact_unwind_safe.sh
 """
 from __future__ import annotations
 
