@@ -2226,13 +2226,45 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # ~~G-02f-350/410 fmt_check_cmd_driver dual hybrid~~ wave771 → try-other-l2-prefer above
   # ~~G-02f-15 / wave536 lsp_diag dual hybrid~~ wave771 → try-other-l2-prefer above
   # ~~G-02f-442/441/439 L2 asm dual hybrid~~ wave769 → try-l2-asm-prefer above
-  # G-02f-16：x_frontend_link_alias 产品 seed
+  # G-02f-16 / w837: POSIX product pure-asm of the .x-owned aliases.
+  # Seed tail (lexer struct-return + mangled ABI aliases) stays host-cc
+  # under -DXLANG_XFLA_ASM. Windows and a pure-asm miss keep the full
+  # seed cc (no macro). Five aliases are weakened inside pure_asm via
+  # G05_X_O_WEAK_FUNCS so strong typeck bodies still win.
+  # PLATFORM: POSIX product asm · WINDOWS full seed.
   _xfla=seeds/x_frontend_link_alias.from_x.c
+  _xfla_x=x_frontend_link_alias.x
   if [ -f "$_xfla" ]; then
-    if [ ! -f x_frontend_link_alias.o ] || [ "$_xfla" -nt x_frontend_link_alias.o ]; then
-      echo "g05_ensure: x_frontend_link_alias.o ← seed (G-02f-16)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o x_frontend_link_alias.o "$_xfla"
+    if [ ! -f x_frontend_link_alias.o ] || [ "$_xfla" -nt x_frontend_link_alias.o ] \
+      || { [ -f "$_xfla_x" ] && [ "$_xfla_x" -nt x_frontend_link_alias.o ]; }; then
+      _xfla_done=0
+      case "$(uname -s 2>/dev/null || echo Unknown)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*) ;;
+        *)
+          if [ -f "$_xfla_x" ]; then
+            _xfla_asm=$(mktemp "${TMPDIR:-/tmp}/g05_xfla_asm.XXXXXX") || true
+            _xfla_rest=$(mktemp "${TMPDIR:-/tmp}/g05_xfla_rest.XXXXXX") || true
+            # shellcheck disable=SC2086
+            if [ -n "$_xfla_asm" ] && [ -n "$_xfla_rest" ] \
+              && G05_X_O_WEAK_FUNCS="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c" \
+                 XLANG_PREFER_ASM_O=1 pure_asm_x_to_o "$_xfla_asm" "$_xfla_x" \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_XFLA_ASM \
+                   -c -o "$_xfla_rest" "$_xfla" \
+              && pure_ld_partial_merge x_frontend_link_alias.o "$_xfla_asm" "$_xfla_rest" 2>/dev/null; then
+              echo "g05_ensure: x_frontend_link_alias.o ← pure-asm .x + seed tail (w837)"
+              _xfla_done=1
+            else
+              echo "g05_ensure: x_frontend pure-asm failed; fallback full seed" >&2
+            fi
+            rm -f "$_xfla_asm" "$_xfla_rest"
+          fi
+          ;;
+      esac
+      if [ "$_xfla_done" = "0" ]; then
+        echo "g05_ensure: x_frontend_link_alias.o ← seed (G-02f-16)"
+        # shellcheck disable=SC2086
+        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o x_frontend_link_alias.o "$_xfla"
+      fi
     fi
   fi
   # Track L：driver 叶子 + lsp_io_std_heap 构建链退役 — 仅 .x→.o 或 seeds/* 冷启动

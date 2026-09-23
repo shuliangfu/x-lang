@@ -2,6 +2,11 @@
  * Regen: ./xlang-c -E -L .. x_frontend_link_alias.x > /tmp/xfla.c
  *         then re-apply weak polish + lexer C tail (see G-02f-26).
  * lexer_* struct returns remain C; other forwards are .x.
+ * w837: POSIX product cc passes -DXLANG_XFLA_ASM and omits the .x-owned
+ * alias bodies below. x_frontend_link_alias.x pure-asm supplies them.
+ * Cold seed and Windows do not define the macro. Lexer struct-return
+ * tail and mangled ABI aliases stay in this file either way.
+ * PLATFORM: SHARED gate / POSIX product asm.
  */
 #include <xlang_weak.h>
 #include <stdint.h>
@@ -22,6 +27,16 @@ extern int32_t pipeline_module_struct_layout_field_align_at(uint8_t * m, int32_t
 extern void pipeline_module_struct_layout_set_field_align(uint8_t * m, int32_t li, int32_t j, int32_t al);
 extern int32_t codegen_x_ast_emit_header(uint8_t * out);
 extern int32_t codegen_x_ast(uint8_t * module, uint8_t * arena, uint8_t * out, uint8_t * ctx, int32_t dep_index);
+/* Class CH (w837): .x-owned alias faces are omitted when
+ * -DXLANG_XFLA_ASM (POSIX product). Pure-asm x_frontend_link_alias.x
+ * supplies those symbols. Five of them stay weak (check_block_impl,
+ * check_expr_impl, find_or_alloc_ptr_type_ref,
+ * pipeline_typeck_set_active_ctx_c,
+ * pipeline_typeck_ptr_for_addr_of_operand_c) so a strong typeck body
+ * still wins. Cold seed and Windows omit the macro.
+ * PLATFORM: SHARED gate / POSIX product asm.
+ */
+#if !defined(XLANG_XFLA_ASM)
 int32_t typeck_pipeline_module_num_funcs(uint8_t * module) {
   (void)(({   {
     int32_t r = pipeline_module_num_funcs(module);
@@ -148,6 +163,7 @@ int32_t codegen_codegen_x_ast(uint8_t * module, uint8_t * arena, uint8_t * out, 
  }));
   return 0;
 }
+#endif /* XLANG_XFLA_ASM */
 
 /* ---- lexer C tail (G-02f-26): struct-return ABI not yet from .x ---- */
 struct lexer_Lexer {

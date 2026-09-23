@@ -1,12 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-26： .x — pipeline_x  lexer/typeck/codegen_x （i32/void ）。
-// Regen: ./xlang-c -E → seeds/x_frontend_link_alias.from_x.c → x_frontend_link_alias.o
-// wave293: host wrapper x_frontend_link_alias.c deleted; product cc seed only.
-// lexer  struct  seeds  C （/ABI ）。
-// weak  seed  __attribute__((weak))。
-// ：./xlang-c -E → seeds/x_frontend_link_alias.from_x.c（+ C ）
+// G-02f-26 / w837: alias forwards for pipeline_x lexer/typeck/codegen_x.
+// POSIX product compiles this file with -backend asm. The seed still
+// holds the lexer struct-return tail and the mangled ABI aliases, and
+// omits these bodies under -DXLANG_XFLA_ASM. Cold seed and Windows
+// still compile the C twins. Five faces are weakened after asm so a
+// strong typeck definition wins:
+// check_block_impl, check_expr_impl, find_or_alloc_ptr_type_ref,
+// pipeline_typeck_set_active_ctx_c, pipeline_typeck_ptr_for_addr_of_operand_c.
+// PLATFORM: SHARED link aliases / POSIX product asm.
 
 /* ---- typeck / pipeline ---- */
 extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;
