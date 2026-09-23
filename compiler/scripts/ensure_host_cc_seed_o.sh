@@ -977,7 +977,7 @@ ensure_catalog_family() {
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
-    # w847/w863/w864/w865/w866/w867/w868/w869/w870: seed-only cc drops the alias bodies that live in the .x.
+    # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871: seed-only cc drops the alias bodies that live in the .x.
     # PLATFORM: SHARED.
     if [ "$o" = "x_frontend_link_alias.o" ]; then
       ensure_x_frontend_link_alias_prefer || exit 1
@@ -1368,8 +1368,9 @@ ensure_main_runtime() {
 #   glue_try_std_heap_redirect_sym_local mangled face, the w867
 #   glue_codegen_import_path_to_c_prefix_into mangled face, the w868
 #   pipeline_expr_field_access_name_len mangled face, the w869
-#   pipeline_expr_field_access_base_ref mangled face, and the w870
-#   pipeline_expr_binop_left_ref_at mangled face; eight weakened)
+#   pipeline_expr_field_access_base_ref mangled face, the w870
+#   pipeline_expr_binop_left_ref_at mangled face, and the w871
+#   pipeline_expr_binop_right_ref_at mangled face; nine weakened)
 #   + seeds/x_frontend_link_alias.from_x.c (lexer struct-return + XLANG_WEAK
 #   cluster)
 # w847 deleted the 18 C bodies and the XLANG_XFLA_ASM gate. w863 moved
@@ -1388,6 +1389,8 @@ ensure_main_runtime() {
 # into the .x; it stays weak. The unsuffixed body stays in the pipeline object.
 # w870 moved pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32
 # into the .x; it stays weak. The unsuffixed body stays in the pipeline object.
+# w871 moved pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32
+# into the .x; it stays weak. The unsuffixed body stays in the pipeline object.
 # A seed-only cc does not define those symbols. There is no full-seed
 # fallback and no Windows special case. XLANG_G05_PREFER_X_O is ignored.
 # Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
@@ -1398,7 +1401,7 @@ ensure_x_frontend_link_alias_prefer() {
   local seed="seeds/x_frontend_link_alias.from_x.c"
   local xsrc="x_frontend_link_alias.x"
   local thin rest bare_thin bare_rest
-  local weak_funcs="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c,pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32,pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32"
+  local weak_funcs="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c,pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32,pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32,pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32"
 
   if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o try-xfla-prefer: missing $seed or $xsrc" >&2
@@ -1431,7 +1434,7 @@ ensure_x_frontend_link_alias_prefer() {
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && pure_ld_partial_merge "$o" "$thin" "$rest"; then
-    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer/mangled rest (w870; type_kind_ord, func_export, import_binding, heap_redirect, import_path, field_name_len, field_base_ref, and binop_left faces are in the .x; field_name_len, field_base_ref, and binop_left stay weak)"
+    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer/mangled rest (w871; type_kind_ord, func_export, import_binding, heap_redirect, import_path, field_name_len, field_base_ref, binop_left, and binop_right faces are in the .x; field_name_len, field_base_ref, binop_left, and binop_right stay weak)"
     rm -f "$thin" "$rest"
     return 0
   fi
@@ -1579,7 +1582,7 @@ try_ensure_r1_one() {
     ensure_pipeline_abi_prefer_one "$o" || return 1
     return 0
   fi
-  # w847/w863/w864/w865/w866/w867/w868/w869/w870: alias bodies that live in the .x are not in the seed.
+  # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871: alias bodies that live in the .x are not in the seed.
   # Seed-only cc drops them. Do not gate on XLANG_G05_PREFER_X_O.
   # PLATFORM: SHARED.
   if [ "$o" = "x_frontend_link_alias.o" ]; then
