@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""Class BB／BD／BQ／BS／BT: strip __LD,__compact_unwind (+ its relocs) from Darwin
+"""Class BB／BD／BQ／BS／BT／BU: strip __LD,__compact_unwind (+ its relocs) from Darwin
 Mach-O relocatable .o without FORCE-rebuild.
 
 Class BS: remap nlist n_sect after section removal.
-Class BT: expand tip-link batch (simd／arm64_enc／fmt_check／lsp_diag／…).
-Still ban parser_asm_thin_glue.o.
+Class BT／BU: tip-link batch expands to all G05 objs with CU (ban thin_glue).
 Safe batch: scripts/bq_strip_compact_unwind_safe.sh
 PLATFORM: Darwin only. Idempotent if section already absent.
 """
