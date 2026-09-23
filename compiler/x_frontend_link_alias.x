@@ -21,15 +21,20 @@
 // w868 also places pipeline_expr_field_access_name_len_u8_ptr_i32_reti32
 // here. That face forwards to pipeline_expr_field_access_name_len and
 // stays weak. The unsuffixed body stays in the pipeline object.
+// w869 also places pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32
+// here. That face forwards to pipeline_expr_field_access_base_ref and
+// stays weak. The unsuffixed body stays in the pipeline object.
 // The product installer pure-asm's this file, then cc's the seed for the
 // lexer struct-return tail and the remaining XLANG_WEAK cluster.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
 // Windows takes the same path.
-// Six faces are weakened after asm. The first five stay weak so a strong
-// typeck definition wins. The sixth is the w868 field-name-length alias:
+// Seven faces are weakened after asm. The first five stay weak so a strong
+// typeck definition wins. The sixth is the w868 field-name-length alias.
+// The seventh is the w869 field-base-ref alias:
 // check_block_impl, check_expr_impl, find_or_alloc_ptr_type_ref,
 // pipeline_typeck_set_active_ctx_c, pipeline_typeck_ptr_for_addr_of_operand_c,
-// pipeline_expr_field_access_name_len_u8_ptr_i32_reti32.
+// pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,
+// pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32.
 // Do not gcc -E this TU. Do not pass XLANG_XFLA_ASM.
 // PLATFORM: SHARED.
 
@@ -60,6 +65,7 @@ extern "C" function glue_asm_build_import_binding_call_sym(a: *u8, b: i32, c: *u
 extern "C" function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
 extern "C" function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
 extern "C" function pipeline_expr_field_access_name_len(a: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_base_ref(a: *u8, er: i32): i32;
 
 // lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
 
@@ -327,5 +333,23 @@ function glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(path: *u8, 
 #[no_mangle]
 function pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
   unsafe { let v: i32 = pipeline_expr_field_access_name_len(a, er); return v; }
+  return 0;
+}
+/**
+ * X-ABI mangled face of pipeline_expr_field_access_base_ref.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in the pipeline object. This face only forwards.
+ * It does not check null. The symbol stays weak so another definition can win.
+ * @param a *u8 — arena or expression table; null is forwarded, not checked here
+ * @param er i32 — expression row forwarded unchanged
+ * @return i32 — the value pipeline_expr_field_access_base_ref returns
+ * #[no_mangle] keeps the signature-suffixed link name.
+ * The installer weakens this symbol by name. Do not make it strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
+ * remaining XLANG_WEAK cluster stay in the C seed.
+ */
+#[no_mangle]
+function pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
+  unsafe { let v: i32 = pipeline_expr_field_access_base_ref(a, er); return v; }
   return 0;
 }
