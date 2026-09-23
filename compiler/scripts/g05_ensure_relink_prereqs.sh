@@ -2025,43 +2025,81 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p2b_thin_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
       fi
-      # Class BX: peel skip_tl .inc out of tip thin_c without full P1–P20 hybrid
-      # (full hybrid SEGV with pin parser). Recipe: thin rest −skip_tl −lex_skip
-      # + pthin_skip_tl.x/seed + pthin_lex_skip.x/seed + lex_step bridge.
-      # Class BY: seed_parse .inc archived (tip already NO_SEED_PARSE). primary_slice
-      # peel blocked (ctrl／type_ref／set_unary cascade). glue_tail ban.
+      # Class CA: BX skip_tl peel + P6 FN_BLOCK peel (one_function_buf／struct_layout／
+      # library／block_from_res out of tip rest). primary／glue_tail stay (primary
+      # cascade blocked; glue_tail ban). seed_parse／skip_tl seeds blobs already gone (BZ).
       if [ "$_pthin_done" = "0" ] && [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] \
         && [ -f "$_pthin_p12_seed" ] && [ -f "$_pthin_p12b_x" ] \
-        && [ -f "$_pthin_p1_seed" ] && [ -f "$_pthin_p1b_x" ]; then
+        && [ -f "$_pthin_p1_seed" ] && [ -f "$_pthin_p1b_x" ] \
+        && [ -f "$_pthin_p6_seed" ] && [ -f "$_pthin_p6b_x" ]; then
         _bx_p12b=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p12b.XXXXXX") || true
         _bx_p12=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p12.XXXXXX") || true
         _bx_p1b=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p1b.XXXXXX") || true
         _bx_p1=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p1.XXXXXX") || true
         _bx_bridge=$(mktemp "${TMPDIR:-/tmp}/g05_bx_bridge.XXXXXX") || true
+        _ca_p6b=$(mktemp "${TMPDIR:-/tmp}/g05_ca_p6b.XXXXXX") || true
+        _ca_p6=$(mktemp "${TMPDIR:-/tmp}/g05_ca_p6.XXXXXX") || true
         _bx_rest=$(mktemp "${TMPDIR:-/tmp}/g05_bx_rest.XXXXXX") || true
         _bx_bridge_seed=seeds/parser_asm_lex_step_bridge.from_x.c
+        _ca_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
-          && [ -n "$_bx_bridge" ] && [ -n "$_bx_rest" ] && [ -f "$_bx_bridge_seed" ] \
+          && [ -n "$_bx_bridge" ] && [ -n "$_ca_p6b" ] && [ -n "$_ca_p6" ] && [ -n "$_bx_rest" ] \
+          && [ -f "$_bx_bridge_seed" ] \
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_bx_p12b" \
           && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_bx_p1b" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_ca_p6b" \
+          && g05_obj_defines "$_ca_p6b" "parser_asm_struct_layout_first_name_match_idx_c"; then
+          if g05_obj_defines "$_ca_p6b" "parser_asm_parse_struct_record_layout_x_into_c"; then
+            _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
+          fi
+          if g05_obj_defines "$_ca_p6b" "parser_asm_fill_block_const_let_from_res_x_into_c"; then
+            _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X"
+          fi
+          if g05_obj_defines "$_ca_p6b" "parser_asm_parse_one_function_library_finish_x_into_c"; then
+            _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X"
+          fi
+          if g05_obj_defines "$_ca_p6b" "parser_asm_parse_one_function_buf_header_x_into_c"; then
+            _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X"
+          fi
+          _ca_bstub=$(mktemp "${TMPDIR:-/tmp}/g05_ca_bstub.XXXXXX.o") || true
+          _ca_bstub_c=$(mktemp "${TMPDIR:-/tmp}/g05_ca_bstub_c.XXXXXX.c") || true
+          if [ -n "$_ca_bstub" ] && [ -n "$_ca_bstub_c" ]             && printf '%s\n' \
+               '#include <stddef.h>' '#include <stdint.h>' \
+               'extern void *pipeline_arena_expr_ptr(void *a, int32_t ref);' \
+               'typedef struct { int32_t kind; int32_t resolved_type_ref; int32_t line; int32_t col;' \
+               '  int64_t int_val; double float_val; uint8_t var_name[256]; int32_t var_name_len;' \
+               '  int32_t binop_left_ref; int32_t binop_right_ref; int32_t unary_operand_ref;' \
+               '} CaB_ExprPrefix;' \
+               'void pipeline_expr_set_binop_operands_c(void *a, int32_t er, int32_t left, int32_t right) {' \
+               '  CaB_ExprPrefix *ex; if (!a || er <= 0) return;' \
+               '  ex = (CaB_ExprPrefix *)pipeline_arena_expr_ptr(a, er);' \
+               '  if (ex) { ex->binop_left_ref = left; ex->binop_right_ref = right; } }' \
+               > "$_ca_bstub_c" \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_ca_bstub" "$_ca_bstub_c" \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X -DXLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X \
                -c -o "$_bx_p12" "$_pthin_p12_seed" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DXLANG_PTHIN_LEX_SKIP_BODIES_FROM_X \
                -c -o "$_bx_p1" "$_pthin_p1_seed" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_ca_p6_extra \
+               -c -o "$_ca_p6" "$_pthin_p6_seed" \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -c -o "$_bx_bridge" "$_bx_bridge_seed" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
                -DXLANG_PTHIN_SKIP_TL_FROM_X -DXLANG_PTHIN_LEX_SKIP_FROM_X \
+               -DXLANG_PTHIN_FN_BLOCK_FROM_X \
                -c -o "$_bx_rest" "$_pthin" \
-          && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
-               "$_bx_p1" "$_bx_p1b" "$_bx_bridge" 2>/dev/null; then
-          echo "g05_ensure: parser_asm_thin_glue.o ← Class BX skip_tl peel (rest −skip_tl.inc + .x／lex_skip／bridge)"
-          _pthin_done=1
+            && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
+               "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_ca_bstub" 2>/dev/null; then
+            echo "g05_ensure: parser_asm_thin_glue.o ← Class CA skip_tl+FN_BLOCK peel (+binop stub)"
+            _pthin_done=1
+          fi
+          rm -f "$_ca_bstub" "$_ca_bstub_c"
         fi
-        rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_bx_rest"
+        rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" "$_bx_rest"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
