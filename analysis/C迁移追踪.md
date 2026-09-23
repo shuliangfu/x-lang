@@ -57,6 +57,12 @@
 - 🟡 巨型字符串表仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class DW（2026-09-24）arch_x86_64_enc_enc_load_rax_rbx_disp32 已收入 .x
+
+- ✅ `arch_x86_64_enc_enc_load_rax_rbx_disp32` 的产品定义只在 `src/asm/backend_enc_dispatch_thin.x`，仍转调 `backend_enc_x86_64_load_rax_rbx_disp32_c`，被调函数留在 C 尾，符号仍强。这是 i32 四参，`sub sp, #0x880`，与 w878 的 `arch_arm64_enc_enc_ldr_xreg_xreg_imm` 同帧，符号和被调函数不同；不是 w879 那条 i32 两参的 `sub sp, #0x870`，也不是 `x_frontend` 那组 i32 两参的 28 条 `sub sp, #0x880`。产品路径不再 `cc` 它。安装器纯 asm 薄层，再 `cc` f64／Cap 尾。没有 gcc `-E`，没有 full `.x`
+- 🟡 f64／Cap 尾与其余 `arch_*_enc_enc_*` 单行转发仍 host-cc，`backend_enc_dispatch.from_x.c` 还不能整文件删除。`addsd` 的 nm 门还在
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 13097 条前缀对不上的编译器上重编 `backend_enc_dispatch.o`。不把这条转发改成弱符号
+
 ### Class DV（2026-09-24）arch_x86_64_enc_enc_call_reg 已收入 .x
 
 - ✅ `arch_x86_64_enc_enc_call_reg` 的产品定义只在 `src/asm/backend_enc_dispatch_thin.x`，仍转调 `backend_enc_x86_64_call_reg_c`，被调函数留在 C 尾，符号仍强。这是 i32 两参，`sub sp, #0x870`，与 w877 的 `arch_arm64_enc_enc_blr` 同帧，符号和被调函数不同；不是 w878 那条 i32 四参的 `sub sp, #0x880`，也不是 `x_frontend` 那组 i32 两参的 28 条 `sub sp, #0x880`。产品路径不再 `cc` 它。安装器纯 asm 薄层，再 `cc` f64／Cap 尾。没有 gcc `-E`，没有 full `.x`
