@@ -1219,6 +1219,67 @@ ensure_rt_parse_diag_prefer() {
   return 0
 }
 
+# Product install of src/runtime/rt_preamble.o:
+#   pure-asm src/runtime/rt_preamble.x
+#   + seeds/rt_preamble.from_x.c (string tables + slice marker only)
+# The two writers were deleted from the seed in w843. There is no full-seed
+# fallback and no Windows special case: a seed-only cc does not define
+# write_io_net_abi_inline or write_fs_path_map_error_abi_inline.
+# XLANG_G05_PREFER_X_O is ignored for that reason. Do not gcc -E this TU.
+# PLATFORM: SHARED — POSIX and Windows both take this path.
+# G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
+# experimental bootstrap call this. The older try-rt-prefer temp must not
+# replace this .o.
+ensure_rt_preamble_prefer() {
+  local o="src/runtime/rt_preamble.o"
+  local seed="seeds/rt_preamble.from_x.c"
+  local xsrc="src/runtime/rt_preamble.x"
+  local thin rest ld_flags bare_thin bare_rest
+
+  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-preamble-prefer: missing $seed or $xsrc" >&2
+    return 1
+  fi
+
+  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
+  # the deleted C writers still rebuilds once either input moves.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
+    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
+      log "skip up-to-date $o (rt-preamble)"
+      return 0
+    fi
+  fi
+
+  bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpre_thin.XXXXXX")" || true
+  bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpre_rest.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+    echo "ensure: rt-preamble mktemp failed" >&2
+    return 1
+  fi
+  rm -f "$bare_thin" "$bare_rest"
+  thin="${bare_thin}.o"
+  rest="${bare_rest}.o"
+  # pure_asm only. Do not fall through to gcc -E of this TU.
+  # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
+    && ld_flags="$(r3_prefer_ld_r_flags)" \
+    && ld $ld_flags -o "$o" "$thin" "$rest"; then
+    log "rt-preamble $o <- pure-asm $xsrc + table rest (w843; C writers deleted)"
+    rm -f "$thin" "$rest"
+    return 0
+  fi
+  echo "ensure: rt-preamble pure-asm failed; C writers are gone, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$o"
+  return 1
+}
+
 ensure_rt_slice() {
   local list o n=0
   list="$(catalog_key_words "RT_SEED_SLICE_OBJS")"
@@ -1231,6 +1292,8 @@ ensure_rt_slice() {
       ensure_rt_arena_buf_prefer || exit 1
     elif [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
       ensure_rt_parse_diag_prefer || exit 1
+    elif [ "$o" = "src/runtime/rt_preamble.o" ]; then
+      ensure_rt_preamble_prefer || exit 1
     else
       ensure_one "$o" "$(seed_for_o "$o")"
     fi
@@ -17632,6 +17695,9 @@ case "$MODE" in
     ;;
   try-rt-parse-diag-prefer|try-rt-parse-diag)
     ensure_rt_parse_diag_prefer
+    ;;
+  try-rt-preamble-prefer|try-rt-preamble)
+    ensure_rt_preamble_prefer
     ;;
   core-seed|core_seed|core|r1-core|r1-core-seed|family=r1_core_seed)
     ensure_core_seed

@@ -511,10 +511,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # functions missing until a manual rm+try-heat). Delegate to the existing
     # rt-slice family authority (seed -nt .o → cc -c). PLATFORM: SHARED.
     # w840/w841/w842: emit_state, arena_buf, and parse_diag slices are
-    # pure-asm .x + FROM_X rest on POSIX when PREFER=1. preamble and stack
-    # stay full seed cc. PLATFORM: SHARED caller; Windows full-cc is inside
-    # ensure_rt_emit_state_prefer / ensure_rt_arena_buf_prefer /
-    # ensure_rt_parse_diag_prefer.
+    # pure-asm .x + FROM_X rest on POSIX when PREFER=1. Windows full-cc of
+    # those three stays inside their prefer helpers.
+    # w843: preamble writers are deleted from the seed. rt-slice always
+    # pure-asms rt_preamble.x and cc's the table rest (POSIX and Windows).
+    # stack stays full seed cc. PLATFORM: SHARED caller.
     echo "g05_ensure: rt-slice standalone refresh (G05_OBJS members)"
     XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
       bash scripts/ensure_host_cc_seed_o.sh rt-slice \

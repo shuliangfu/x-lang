@@ -1,12 +1,16 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// R2 full: write_io_net_abi_inline / write_fs_path_map_error_abi_inline pure.
-// Cap-giant-string table *data* stays in seeds/rt_preamble.from_x.c (always seed).
-// Line access: driver_preamble_*_line_at/count (runtime_driver_abi pure wave20).
-// fputs: driver_preamble_fputs (wave22). Skip mask: codegen_get_preamble_skip_mask.
-// PLATFORM: SHARED — product PREFER hybrid = this .x + rest tables/marker.
-// wave29: WEAK_IO_BATCH skip i=178..181 (n=224); was dual-auth 124..134 vs seed i==174.
+// Sole bodies of write_io_net_abi_inline / write_fs_path_map_error_abi_inline.
+// The C twins in seeds/rt_preamble.from_x.c were deleted in w843. Do not
+// restore them. Cap-giant-string table data and labi_rt_preamble_slice_marker
+// stay in that seed. Line access is driver_preamble_*_line_at/count
+// (runtime_driver_abi). Each line is written by driver_preamble_fputs, which
+// decodes the opaque fd-handle and calls xlang_io_write.
+// Product install: ensure_rt_preamble_prefer (pure-asm this file + cc the
+// seed). No gcc -E. No full-seed fallback.
+// PLATFORM: SHARED — same object on POSIX and Windows.
+// wave29: WEAK_IO_BATCH skip i=178..181 (n=224).
 
 export extern "C" function codegen_get_preamble_skip_mask(): i32;
 export extern "C" function driver_preamble_io_net_line_at(i: i32): *u8;
@@ -26,9 +30,9 @@ export extern "C" function driver_preamble_fputs(s: *u8, stream: *u8): i32;
  * Honors codegen_get_preamble_skip_mask so co-emit of std.io.core / std.io.driver
  * does not redefine macros or weak stubs already emitted in the same TU.
  * @param cf *u8 — opaque FILE* (must be non-null open write stream)
- * @return i32 — 0 on success; 1 if any fputs fails (EOF)
- * PLATFORM: SHARED — authority under PREFER hybrid; cold seed twin in
- * seeds/rt_preamble.from_x.c must keep the same skip ranges.
+ * @return i32 — 0 on success; 1 if any fputs fails (EOF or a bad handle)
+ * PLATFORM: SHARED — sole definition. Skip ranges are 60..63 (handle),
+ * 64..81 (core macros), 105..118 (undef/rebind), and 178..181 (weak IO).
  */
 #[no_mangle]
 export function write_io_net_abi_inline(cf: *u8): i32 {
@@ -96,8 +100,8 @@ export function write_io_net_abi_inline(cf: *u8): i32 {
  * Write std.fs / std.path / std.map / std.error Cap-giant-string ABI lines.
  * No skip mask today (full table always emitted).
  * @param cf *u8 — opaque FILE* (must be non-null open write stream)
- * @return i32 — 0 on success; 1 if any fputs fails (EOF)
- * PLATFORM: SHARED — pure under PREFER hybrid; cold seed twin loops fputs.
+ * @return i32 — 0 on success; 1 if any fputs fails (EOF or a bad handle)
+ * PLATFORM: SHARED — sole definition. Every table row is written.
  */
 #[no_mangle]
 export function write_fs_path_map_error_abi_inline(cf: *u8): i32 {

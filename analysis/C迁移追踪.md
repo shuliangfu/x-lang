@@ -36,19 +36,25 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CN（2026-09-23）rt_preamble 写入函数 C 体已删除
+
+- ✅ `write_io_net_abi_inline`／`write_fs_path_map_error_abi_inline` 只在 `src/runtime/rt_preamble.x`。种子里的 C 体已删除，没有整份回退
+- 🟡 巨型字符串表与 marker 仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
+- 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
+
 ### Class CM（2026-09-23）rt_parse_diag 切片退出整份 host-cc
 
 - ✅ `runtime_report_precise_parse_failure_if_known` 在 `-DXLANG_RT_PARSE_DIAG_FROM_X` 下由 tip 纯 asm 提供（预处理 29625→29041；种子未改；不定义 `PRECISE_BRIDGE`）
 - 🟡 恢复诊断与 marker 仍 host-cc
 - 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
-- 🟡 同族 `rt_preamble` 产品切片仍整份 host-cc（`.x` 已能纯 asm；巨型字符串表留种子）
+- 🟡 同族 `rt_preamble` 见 Class CN
 
 ### Class CL（2026-09-23）rt_arena_buf 切片退出整份 host-cc
 
 - ✅ `driver_arena_buf`／`driver_module_buf` 在 `-DXLANG_RT_ARENA_BUF_FROM_X` 下由 tip 纯 asm 提供（预处理 33303→32850；种子未改）
 - 🟡 128MiB／2MiB BSS 与 marker 仍 host-cc
 - 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
-- 🟡 同族 `rt_parse_diag` 见 Class CM。`rt_preamble` 产品切片仍整份 host-cc（`.x` 已能纯 asm）
+- 🟡 同族 `rt_parse_diag` 见 Class CM。`rt_preamble` 见 Class CN
 
 ### Class CK（2026-09-23）rt_emit_state 切片退出整份 host-cc
 
@@ -347,7 +353,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CJ** 把 `runtime_driver_diagnostic` 的 thin 面退出整份 POSIX 产品 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份 tip 能纯 asm、且非 HARD BAN 的 from_x。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CN** 删掉 `rt_preamble` 两个写入函数的 C 体，权威在 `.x`；字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、C 体可以物理删除的 from_x。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

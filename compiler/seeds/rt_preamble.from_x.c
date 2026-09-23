@@ -1,29 +1,14 @@
-/* seeds/rt_preamble.from_x.c — G-02f-265 P2 R3 preamble ABI 内联
- * Logic source: src/runtime/rt_preamble.x
- * Hybrid: XLANG_RT_PREAMBLE_FROM_X + ld -r into runtime_driver_no_c.o
- *
- * R2 full（2026-07-14）：write_io_net / write_fs_path_map_error 由 .x 提供；
- * FROM_X 下本文件：巨型字符串表（Cap-giant-string residual 数据）+ 前向声明 + marker
- * （产品 rest 业务 T=0）。冷启动/无 PREFER 时仍编译完整 C 体。
- * Cap residual 行访问 API 在 runtime_driver_abi（平台层，供 .x 取表）。
- * wave29：io_net n=224；WEAK_IO_BATCH skip i=178..181（与 rt_preamble.x / surface 同权威）。
+/* seeds/rt_preamble.from_x.c — Cap-giant-string tables + slice marker.
+ * write_io_net_abi_inline and write_fs_path_map_error_abi_inline are defined
+ * only in src/runtime/rt_preamble.x. Their C bodies were deleted in w843.
+ * Do not reintroduce a #ifndef twin. This file remains because the string
+ * tables are not an .x export. Line accessors live in runtime_driver_abi.
+ * wave29: io_net n=224; WEAK_IO_BATCH skip is 178..181 inside the .x.
+ * PLATFORM: SHARED — product links pure-asm .x + this object. No full-seed
+ * fallback: a seed-only cc no longer defines the two writers.
  */
-#include <xlang_weak.h>
-#include <stdio.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <string.h>
-/* Cap residual 9.7.1: inline ABI writers take the opaque fd-handle stream. */
-#include "xlang_driver_stream_cap.h"
-
-#ifndef CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS
-#define CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS    1u
-#define CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE  2u
-#define CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE 4u
-#define CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH         8u
-#endif
-
-extern unsigned codegen_get_preamble_skip_mask(void);
 
 /* Cap-giant-string residual 数据：巨型 C 字面量表始终非 static 跨 TU
  * （.x 禁巨型字串表；driver_abi 经 line_at/count 暴露给 .x）。 */
@@ -642,65 +627,10 @@ const char *const driver_preamble_fs_path_lines[] = {
 const int32_t driver_preamble_fs_path_lines_n =
     (int32_t)(sizeof(driver_preamble_fs_path_lines) / sizeof(driver_preamble_fs_path_lines[0]));
 
-#ifndef XLANG_RT_PREAMBLE_FROM_X
-
-/** 向生成 C 写入 std.io / std.net 内联 ABI。成功返回 0。
- * 9.7.1: cf is the opaque fd-handle stream (xlang_driver_stream_cap.h). */
-int write_io_net_abi_inline(uint8_t *cf) {
-    const unsigned skip = codegen_get_preamble_skip_mask();
-    int fd = xlang_driver_handle_to_fd(cf);
-    if (fd < 0)
-        return 1;
-    for (int32_t i = 0; i < driver_preamble_io_net_lines_n; i++) {
-        int skip_line = 0;
-        /* std_io_driver_handle_* 别名：codegen 已 emit handle_stdin 等时跳过。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_DRIVER_HANDLE) && i >= 60 && i < 64)
-            skip_line = 1;
-        /* std_io_core_io_* 宏：无 std.io.core 内联时可整段省略。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS) && i >= 64 && i < 82)
-            skip_line = 1;
-        /* #undef / 重绑 std_io_core_*：X 内联 std.io.core 且 codegen 已 emit 时由 codegen 侧承担。 */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE) && i >= 105 && i < 119)
-            skip_line = 1;
-        /*
-         * weak IO batch: table rows 178..181 inclusive (wave29 re-count, n=224):
-         *   178 #include <stdio.h> + #ifndef __cplusplus
-         *   179 weak xlang_io_* / io_* batch stubs (large)
-         *   180 weak process_xlang_* / args_iter_*
-         *   181 weak std_io_driver_* / ctx_* + #endif
-         * Stale i==174 only hit a comment after rows grew; product .x had 124..134
-         * (xlang_io_* externs) — dual authority; both wrong for co-emit redef.
-         * PLATFORM: SHARED — align with driver_parsed_apply_preamble_skip(WEAK_IO_BATCH)
-         * and src/runtime/rt_preamble.x. Skipping drops process weaks; link
-         * runtime_process_argv.o when argv is required.
-         */
-        if ((skip & CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH) && i >= 178 && i <= 181)
-            skip_line = 1;
-        if (!skip_line && xlang_io_write(fd, driver_preamble_io_net_lines[i],
-                                         strlen(driver_preamble_io_net_lines[i])) < 0)
-            return 1;
-    }
-    return 0;
-}
-
-/** 向生成 C 写入 std.fs / std.path / std.map / std.error 内联 ABI。成功返回 0。
- * 9.7.1: cf is the opaque fd-handle stream (xlang_driver_stream_cap.h). */
-int write_fs_path_map_error_abi_inline(uint8_t *cf) {
-    int fd = xlang_driver_handle_to_fd(cf);
-    if (fd < 0)
-        return 1;
-    for (int32_t i = 0; i < driver_preamble_fs_path_lines_n; i++) {
-        if (xlang_io_write(fd, driver_preamble_fs_path_lines[i],
-                           strlen(driver_preamble_fs_path_lines[i])) < 0)
-            return 1;
-    }
-    return 0;
-}
-
-#else
+/* Writers deleted in w843. Definitions: src/runtime/rt_preamble.x.
+ * These declarations do not emit symbols. PLATFORM: SHARED. */
 int write_io_net_abi_inline(uint8_t *cf);
 int write_fs_path_map_error_abi_inline(uint8_t *cf);
-#endif
 
 int labi_rt_preamble_slice_marker(void) {
     return 1;
