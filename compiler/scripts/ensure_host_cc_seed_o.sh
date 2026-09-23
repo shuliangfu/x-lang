@@ -1715,12 +1715,19 @@ ensure_labi_prefer_one() {
     labi_prefer_layer L3 "$l3_x" "$l3_seed" "$l3_o" && l3_ok=1
     labi_prefer_layer L4 "$l4_x" "$l4_seed" "$l4_o" && l4_ok=1
     labi_prefer_layer L5 "$l5_x" "$l5_seed" "$l5_o" && l5_ok=1
-    labi_prefer_layer L6 "$l6_x" "$l6_seed" "$l6_o" && l6_ok=1
+    # Class AU: never prefer L6 .x — tip asm miscompiles append_std plan shell
+    # (f[zi]=0 infinite loop) and prefer L6 OP_STD/ensure leaves miss std/fmt.
+    # L6 stays host-cc via mega rest (no XLANG_LABI_INVOKE_LD_LIST_FROM_X).
+    l6_ok=0
+    log "labi L6 ← host-cc rest (Class AU: skip prefer .x)"
     labi_prefer_layer L7 "$l7_x" "$l7_seed" "$l7_o" && l7_ok=1
-    labi_prefer_layer L8 "$l8_x" "$l8_seed" "$l8_o" && l8_ok=1
+    # Class AU: L8 plan table also host-cc (with L6) until tip asm fk/plan proven.
+    l8_ok=0
+    log "labi L8 ← host-cc rest (Class AU: skip prefer .x)"
     labi_prefer_layer L9 "$l9_x" "$l9_seed" "$l9_o" && l9_ok=1
 
     # wave263: L8b early + L8c heavy must BOTH prefer .x, else full L8b seed covers both.
+    # Class AU: L6+L8 stay host-cc; L8b/L8c prefer still allowed.
     if [ "$prefer" = "1" ] && [ -f "$l8b_x" ] && labi_prefer_try_x_to_o "$l8b_x" "$l8b_o"; then
       l8b_x_ok=1
     fi

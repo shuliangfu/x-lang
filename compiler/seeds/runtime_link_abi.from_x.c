@@ -2718,6 +2718,92 @@ int link_abi_user_o_needs_compress_libs(const char *user_o);
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 #include "seeds/labi_invoke_ld_list.from_x.c"
 #else
+/* Class AU: under FROM_X, keep append_std plan shell + flags_reset on host-cc.
+ * Prefer L6 .x no longer exports append_std_objs_for_user (tip asm f[zi] hang +
+ * incomplete std push). G.7: same bodies as labi_invoke_ld_list.from_x.c. */
+void labi_std_link_flags_reset(ShuAsmLdStdLinkFlags *flags) {
+  if (!flags)
+    return;
+  memset(flags, 0, sizeof *flags);
+  flags->have_io = 1;
+  flags->have_fs = 1;
+}
+
+/* Peers live in prefer L8/L6 .x under FROM_X. */
+int labi_std_plan_count(void);
+int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out);
+void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
+int labi_std_glue_have_for_op(int op, ShuAsmLdStdLinkFlags *flags, int *local_have);
+void labi_std_append_glue_for_op(int op, int have, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+void labi_std_append_task_special(const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+int labi_std_need_process_argv(ShuAsmLdStdLinkFlags *flags, int *local_have);
+void labi_std_append_process_argv_if(int need, const char *link_argv0,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+
+void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
+  int local_have[6];
+  int n_steps;
+  int si;
+  memset(local_have, 0, sizeof local_have);
+  /* Class AU: shared reset (prefer .x calls same helper — avoid f[zi] codegen hang). */
+  labi_std_link_flags_reset(flags);
+  n_steps = labi_std_plan_count();
+  for (si = 0; si < n_steps; si++) {
+    int op = 0;
+    const char *rel = NULL;
+    int fk = 0;
+    if (!labi_std_plan_step_at(si, &op, &rel, &fk))
+      continue;
+    switch (op) {
+    case 2: /* LABI_STD_OP_IO_STUBS */
+    case 3: /* LABI_STD_OP_PRIMARY_PANIC */
+    case 4: /* LABI_STD_OP_PRIMARY_TIME_OS */
+    case 5: /* LABI_STD_OP_PRIMARY_RANDOM_FILL */
+    case 6: /* LABI_STD_OP_PRIMARY_ENV_OS */
+      labi_std_append_primary_for_op(op, link_argv0, user_o, rel,
+          lib_roots, n_lib_roots, bank, argv, la, max_la);
+      break;
+    case 1: /* LABI_STD_OP_STD */
+      labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots,
+          bank, argv, la, max_la, flags, local_have);
+      break;
+    case 10: /* LABI_STD_OP_GLUE_THREAD */
+    case 11:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20: /* LABI_STD_OP_GLUE_HTTP */
+      labi_std_append_glue_for_op(op, labi_std_glue_have_for_op(op, flags, local_have),
+          link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      break;
+    case 30: /* LABI_STD_OP_TASK_SPECIAL */
+      labi_std_append_task_special(link_argv0, user_o, rel, lib_roots, n_lib_roots,
+          bank, argv, la, max_la);
+      break;
+    default:
+      break;
+    }
+  }
+  labi_std_append_process_argv_if(labi_std_need_process_argv(flags, local_have),
+      link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+}
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
 const char *labi_ld_flag_lz(void);
@@ -5384,9 +5470,7 @@ void xlang_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 /* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
 #else
-void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
-    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
-    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+/* Class AU: append_std_objs_for_user defined above under FROM_X */
 #endif
 
 /* G-02f-272 L8b on_demand list pure */
