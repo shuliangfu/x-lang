@@ -54,6 +54,12 @@
 - 🟡 巨型字符串表与 marker 仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class CR（2026-09-23）x_frontend_link_alias 18 个别名 C 体已删除
+
+- ✅ 18 个别名只在 `x_frontend_link_alias.x`。种子里的 C 体和 `XLANG_XFLA_ASM` 门已删除，没有整份回退
+- 🟡 lexer 结构返回尾与带修饰 ABI 别名仍 host-cc，`x_frontend_link_alias.from_x.c` 还不能整文件删除
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）
+
 ### Class CQ（2026-09-23）rt_parse_diag 精确诊断 C 体已删除
 
 - ✅ `runtime_report_precise_parse_failure_if_known` 只在 `src/runtime/rt_parse_diag.x`。种子里的 C 体和 `PRECISE_BRIDGE` 已删除，没有整份回退
@@ -93,9 +99,8 @@
 
 ### Class CH（2026-09-23）x_frontend_link_alias 退出 POSIX 产品 host-cc
 
-- ✅ 18 个别名面在 `-DXLANG_XFLA_ASM` 下不再进入 POSIX 产品 `cc`（预处理 −3538；纯 asm `.x` 供符号；5 个保持 weak）
+- ✅ 18 个别名的 C 体已删除，见 Class CR
 - 🟡 lexer 结构返回尾与带修饰 ABI 别名仍 host-cc
-- 🟡 Windows 与冷种子仍 host-cc 这 18 个 C 体
 
 ### Class CG（2026-09-23）elf_codegen_forwarders 退出 POSIX 产品 host-cc
 - ✅ 19 个 elf_codegen_forwarders 面在 `-DXLANG_PABI_ELF_CODEGEN_FORWARDERS_ASM` 下不再进入 POSIX 产品 rest（预处理 −2538；纯 asm thin 供符号）
@@ -369,7 +374,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CQ** 删掉 `rt_parse_diag` 精确诊断的 C 体，权威在 `.x`；恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。恢复诊断还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CR** 删掉 `x_frontend_link_alias` 18 个别名的 C 体，权威在 `.x`；lexer 尾与带修饰别名仍 host-cc。**Class CQ** 的恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。lexer 尾还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

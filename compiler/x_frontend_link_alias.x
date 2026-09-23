@@ -1,15 +1,18 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-26 / w837: alias forwards for pipeline_x lexer/typeck/codegen_x.
-// POSIX product compiles this file with -backend asm. The seed still
-// holds the lexer struct-return tail and the mangled ABI aliases, and
-// omits these bodies under -DXLANG_XFLA_ASM. Cold seed and Windows
-// still compile the C twins. Five faces are weakened after asm so a
-// strong typeck definition wins:
+// G-02f-26 / w847: alias forwards for pipeline_x lexer/typeck/codegen_x.
+// The 18 functions in this file are the only bodies. w847 deleted their
+// C twins and the XLANG_XFLA_ASM gate from
+// seeds/x_frontend_link_alias.from_x.c. The product installer pure-asm's
+// this file, then cc's the seed for the lexer struct-return tail and the
+// mangled ABI aliases. There is no full-seed fallback and
+// XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+// Five faces are weakened after asm so a strong typeck definition wins:
 // check_block_impl, check_expr_impl, find_or_alloc_ptr_type_ref,
 // pipeline_typeck_set_active_ctx_c, pipeline_typeck_ptr_for_addr_of_operand_c.
-// PLATFORM: SHARED link aliases / POSIX product asm.
+// Do not gcc -E this TU. Do not pass XLANG_XFLA_ASM.
+// PLATFORM: SHARED.
 
 /* ---- typeck / pipeline ---- */
 extern "C" function typeck_x_ast(module: *u8, arena: *u8, ctx: *u8): i32;

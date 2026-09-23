@@ -1,171 +1,21 @@
-/* Generated from x_frontend_link_alias.x (G-02f-26 true .x + C tail).
- * Regen: ./xlang-c -E -L .. x_frontend_link_alias.x > /tmp/xfla.c
- *         then re-apply weak polish + lexer C tail (see G-02f-26).
- * lexer_* struct returns remain C; other forwards are .x.
- * w837: POSIX product cc passes -DXLANG_XFLA_ASM and omits the .x-owned
- * alias bodies below. x_frontend_link_alias.x pure-asm supplies them.
- * Cold seed and Windows do not define the macro. Lexer struct-return
- * tail and mangled ABI aliases stay in this file either way.
- * PLATFORM: SHARED gate / POSIX product asm.
+/* seeds/x_frontend_link_alias.from_x.c
+ * w847: the 18 alias functions live only in x_frontend_link_alias.x.
+ * Their C bodies and the XLANG_XFLA_ASM gate were deleted. A seed-only
+ * cc does not define those symbols. This file remains for the lexer
+ * struct-return tail and the mangled ABI aliases, which are not in .x.
+ * Product install is pure-asm of the .x plus cc of this rest, then a
+ * partial merge. There is no full-seed fallback. -DXLANG_XFLA_ASM is
+ * now a no-op. Five aliases stay weak via G05_X_O_WEAK_FUNCS on the
+ * asm object: check_block_impl, check_expr_impl,
+ * find_or_alloc_ptr_type_ref, pipeline_typeck_set_active_ctx_c,
+ * pipeline_typeck_ptr_for_addr_of_operand_c.
+ * PLATFORM: SHARED.
  */
 #include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
-extern int32_t typeck_x_ast(uint8_t * module, uint8_t * arena, uint8_t * ctx);
-extern int32_t typeck_x_ast_library(uint8_t * module, uint8_t * arena, uint8_t * ctx);
-extern void typeck_merge_dep_struct_layouts_into_entry(uint8_t * mod, uint8_t * arena, uint8_t * ctx);
-extern void typeck_wpo_unify_soa_layouts(uint8_t * entry, uint8_t * ctx);
-extern int32_t pipeline_typeck_check_block_impl_c(uint8_t * module, uint8_t * arena, int32_t block_ref, int32_t return_type_ref, uint8_t * ctx);
-extern int32_t pipeline_typeck_check_expr_impl_c(uint8_t * module, uint8_t * arena, int32_t expr_ref, int32_t return_type_ref, uint8_t * ctx);
-extern int32_t typeck_find_or_alloc_ptr_type_ref(uint8_t * arena, int32_t elem_ref);
-extern int32_t pipeline_module_num_funcs(uint8_t * module);
-extern int32_t pipeline_module_main_func_index(uint8_t * module);
-extern void pipeline_module_struct_layout_set_soa(uint8_t * m, int32_t idx, int32_t v);
-extern int32_t pipeline_module_struct_layout_soa_at(uint8_t * m, int32_t idx);
-extern int32_t pipeline_module_struct_layout_packed_at(uint8_t * m, int32_t idx);
-extern int32_t pipeline_module_struct_layout_field_align_at(uint8_t * m, int32_t li, int32_t j);
-extern void pipeline_module_struct_layout_set_field_align(uint8_t * m, int32_t li, int32_t j, int32_t al);
-extern int32_t codegen_x_ast_emit_header(uint8_t * out);
-extern int32_t codegen_x_ast(uint8_t * module, uint8_t * arena, uint8_t * out, uint8_t * ctx, int32_t dep_index);
-/* Class CH (w837): .x-owned alias faces are omitted when
- * -DXLANG_XFLA_ASM (POSIX product). Pure-asm x_frontend_link_alias.x
- * supplies those symbols. Five of them stay weak (check_block_impl,
- * check_expr_impl, find_or_alloc_ptr_type_ref,
- * pipeline_typeck_set_active_ctx_c,
- * pipeline_typeck_ptr_for_addr_of_operand_c) so a strong typeck body
- * still wins. Cold seed and Windows omit the macro.
- * PLATFORM: SHARED gate / POSIX product asm.
- */
-#if !defined(XLANG_XFLA_ASM)
-int32_t typeck_pipeline_module_num_funcs(uint8_t * module) {
-  (void)(({   {
-    int32_t r = pipeline_module_num_funcs(module);
-    return r;
-  }
- }));
-  return 0;
-}
-int32_t typeck_pipeline_module_main_func_index(uint8_t * module) {
-  (void)(({   {
-    int32_t r = pipeline_module_main_func_index(module);
-    return r;
-  }
- }));
-  return 0;
-}
-int32_t typeck_typeck_x_ast(uint8_t * module, uint8_t * arena, uint8_t * ctx) {
-  (void)(({   {
-    int32_t r = typeck_x_ast(module, arena, ctx);
-    return r;
-  }
- }));
-  return 0;
-}
-int32_t typeck_typeck_x_ast_library(uint8_t * module, uint8_t * arena, uint8_t * ctx) {
-  (void)(({   {
-    int32_t r = typeck_x_ast_library(module, arena, ctx);
-    return r;
-  }
- }));
-  return 0;
-}
-void typeck_typeck_merge_dep_struct_layouts_into_entry(uint8_t * mod, uint8_t * arena, uint8_t * ctx) {
-  (void)(({   {
-    (void)(typeck_merge_dep_struct_layouts_into_entry(mod, arena, ctx));
-  }
- }));
-}
-void typeck_typeck_wpo_unify_soa_layouts(uint8_t * entry, uint8_t * ctx) {
-  (void)(({   {
-    (void)(typeck_wpo_unify_soa_layouts(entry, ctx));
-  }
- }));
-}
-XLANG_WEAK int32_t check_block_impl(uint8_t * module, uint8_t * arena, int32_t block_ref, int32_t return_type_ref, uint8_t * ctx) {
-  (void)(({   {
-    int32_t r = pipeline_typeck_check_block_impl_c(module, arena, block_ref, return_type_ref, ctx);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t check_expr_impl(uint8_t * module, uint8_t * arena, int32_t expr_ref, int32_t return_type_ref, uint8_t * ctx) {
-  (void)(({   {
-    int32_t r = pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t find_or_alloc_ptr_type_ref(uint8_t * arena, int32_t elem_ref) {
-  (void)(({   {
-    int32_t r = typeck_find_or_alloc_ptr_type_ref(arena, elem_ref);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK void pipeline_typeck_set_active_ctx_c(uint8_t * module, uint8_t * ctx) {
-  (void)(0);
-}
-XLANG_WEAK int32_t pipeline_typeck_ptr_for_addr_of_operand_c(uint8_t * arena, int32_t op_ref, int32_t elem_ty, uint8_t * module, uint8_t * ctx) {
-  return 0;
-}
-void ast_pipeline_module_struct_layout_set_soa(uint8_t * m, int32_t idx, int32_t v) {
-  (void)(({   {
-    (void)(pipeline_module_struct_layout_set_soa(m, idx, v));
-  }
- }));
-}
-int32_t ast_pipeline_module_struct_layout_soa_at(uint8_t * m, int32_t idx) {
-  (void)(({   {
-    int32_t r = pipeline_module_struct_layout_soa_at(m, idx);
-    return r;
-  }
- }));
-  return 0;
-}
-int32_t ast_pipeline_module_struct_layout_packed_at(uint8_t * m, int32_t idx) {
-  (void)(({   {
-    int32_t r = pipeline_module_struct_layout_packed_at(m, idx);
-    return r;
-  }
- }));
-  return 0;
-}
-int32_t ast_pipeline_module_struct_layout_field_align_at(uint8_t * m, int32_t li, int32_t j) {
-  (void)(({   {
-    int32_t r = pipeline_module_struct_layout_field_align_at(m, li, j);
-    return r;
-  }
- }));
-  return 0;
-}
-void ast_pipeline_module_struct_layout_set_field_align(uint8_t * m, int32_t li, int32_t j, int32_t al) {
-  (void)(({   {
-    (void)(pipeline_module_struct_layout_set_field_align(m, li, j, al));
-  }
- }));
-}
-int32_t codegen_codegen_x_ast_emit_header(uint8_t * out) {
-  (void)(({   {
-    int32_t r = codegen_x_ast_emit_header(out);
-    return r;
-  }
- }));
-  return 0;
-}
-int32_t codegen_codegen_x_ast(uint8_t * module, uint8_t * arena, uint8_t * out, uint8_t * ctx, int32_t dep_index) {
-  (void)(({   {
-    int32_t r = codegen_x_ast(module, arena, out, ctx, dep_index);
-    return r;
-  }
- }));
-  return 0;
-}
-#endif /* XLANG_XFLA_ASM */
 
-/* ---- lexer C tail (G-02f-26): struct-return ABI not yet from .x ---- */
+/* Lexer struct-return tail (G-02f-26). Not yet in the .x. */
 struct lexer_Lexer {
   size_t pos;
   int32_t line;

@@ -962,6 +962,12 @@ ensure_catalog_family() {
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
+    # w847: seed-only cc drops the 18 alias bodies. PLATFORM: SHARED.
+    if [ "$o" = "x_frontend_link_alias.o" ]; then
+      ensure_x_frontend_link_alias_prefer || exit 1
+      n=$((n + 1))
+      continue
+    fi
     # wave321: runtime* R1 leaves never host-cc monofile (multi-slice only).
     if [ "$seed_mode" = "main-runtime" ] && is_runtime_multi_slice_leaf "$o"; then
       ensure_runtime_multi_slice_leaf "$o" || exit 1
@@ -1278,8 +1284,65 @@ ensure_main_runtime() {
   ensure_catalog_family "R1_MAIN_RUNTIME_OBJS" "main-runtime" "main-runtime"
 }
 
+# Product install of x_frontend_link_alias.o:
+#   pure-asm x_frontend_link_alias.x (18 aliases; five weakened)
+#   + seeds/x_frontend_link_alias.from_x.c (lexer struct-return + mangled ABI)
+# w847 deleted the 18 C bodies and the XLANG_XFLA_ASM gate. A seed-only cc
+# does not define those symbols. There is no full-seed fallback and no
+# Windows special case. XLANG_G05_PREFER_X_O is ignored. Do not gcc -E
+# this TU. Do not rebuild runtime_driver_no_c.o from this path.
+# PLATFORM: SHARED — POSIX and Windows both take this path.
+# G.7: one body. try-r1 / try-heat, the alias-stubs family, and g05 call this.
+ensure_x_frontend_link_alias_prefer() {
+  local o="x_frontend_link_alias.o"
+  local seed="seeds/x_frontend_link_alias.from_x.c"
+  local xsrc="x_frontend_link_alias.x"
+  local thin rest bare_thin bare_rest
+  local weak_funcs="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c"
+
+  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-xfla-prefer: missing $seed or $xsrc" >&2
+    return 1
+  fi
+
+  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
+  # the deleted C bodies still rebuilds once either input moves.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
+    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
+      log "skip up-to-date $o (x-frontend-link-alias)"
+      return 0
+    fi
+  fi
+
+  bare_thin="$(mktemp "${TMPDIR:-/tmp}/xfla_thin.XXXXXX")" || true
+  bare_rest="$(mktemp "${TMPDIR:-/tmp}/xfla_rest.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+    echo "ensure: x-frontend-link-alias mktemp failed" >&2
+    return 1
+  fi
+  rm -f "$bare_thin" "$bare_rest"
+  thin="${bare_thin}.o"
+  rest="${bare_rest}.o"
+  # pure_asm only. Do not fall through to gcc -E of this TU.
+  # PLATFORM: SHARED — PREFER_ASM_O is scoped to this subshell.
+  if (
+    export XLANG_PREFER_ASM_O=1
+    export G05_X_O_WEAK_FUNCS="$weak_funcs"
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
+    && pure_ld_partial_merge "$o" "$thin" "$rest"; then
+    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer/mangled rest (w847; C bodies deleted)"
+    rm -f "$thin" "$rest"
+    return 0
+  fi
+  echo "ensure: x-frontend-link-alias pure-asm failed; C bodies are gone, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$o"
+  return 1
+}
+
 ensure_alias_stubs() {
   # Basename convention — same seed_mode as core-seed / rt-slice.
+  # x_frontend_link_alias.o is intercepted inside ensure_catalog_family.
   ensure_catalog_family "R1_ALIAS_STUBS_OBJS" "alias-stubs" "basename"
 }
 
@@ -1414,6 +1477,12 @@ try_ensure_r1_one() {
   # PLATFORM: SHARED · pin egg required for true-cold hybrid.
   if [ "$o" = "src/runtime_pipeline_abi.o" ]; then
     ensure_pipeline_abi_prefer_one "$o" || return 1
+    return 0
+  fi
+  # w847: the 18 alias C bodies are deleted. Seed-only cc drops them.
+  # Do not gate on XLANG_G05_PREFER_X_O. PLATFORM: SHARED.
+  if [ "$o" = "x_frontend_link_alias.o" ]; then
+    ensure_x_frontend_link_alias_prefer || return 1
     return 0
   fi
   # wave321 7.1.1: runtime monofile retired — multi-slice product body only.
@@ -17666,6 +17735,9 @@ case "$MODE" in
     ;;
   try-rt-preamble-prefer|try-rt-preamble)
     ensure_rt_preamble_prefer
+    ;;
+  try-xfla-prefer|try-x-frontend-link-alias-prefer)
+    ensure_x_frontend_link_alias_prefer
     ;;
   core-seed|core_seed|core|r1-core|r1-core-seed|family=r1_core_seed)
     ensure_core_seed
