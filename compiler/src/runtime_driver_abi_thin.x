@@ -1104,7 +1104,8 @@ export function driver_compile_phase_index_ok(phase: i32): i32 {
  */
 #[no_mangle]
 export function driver_compile_phase_timing_enabled(): i32 {
-  return driver_env_nonnull("XLANG_COMPILE_PHASE_TIMING");
+  // Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off).
+  return 0;
 }
 
 /** Load accumulated phase ms from thin BSS (0 if phase out of range).
@@ -1134,14 +1135,8 @@ export function driver_compile_phase_timing_clear(): void {
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_begin(phase: i32): void {
-  if (driver_compile_phase_timing_enabled() == 0) {
-    return;
-  }
-  if (driver_compile_phase_index_ok(phase) == 0) {
-    return;
-  }
-  g_compile_phase_start_sec[phase] = compile_phase_now_sec();
-  g_compile_phase_active[phase] = 1;
+  // Class AS: Cap phase timing begin retired.
+  let _p: i32 = phase;
 }
 
 /** Accumulate phase duration into acc_ms (ms) and clear active.
@@ -1149,20 +1144,8 @@ export function driver_compile_phase_timing_begin(phase: i32): void {
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_end(phase: i32): void {
-  if (driver_compile_phase_timing_enabled() == 0) {
-    return;
-  }
-  if (driver_compile_phase_index_ok(phase) == 0) {
-    return;
-  }
-  if (g_compile_phase_active[phase] == 0) {
-    return;
-  }
-  let now: f64 = compile_phase_now_sec();
-  // PLATFORM: SHARED — use (1000 as f64); decimal f64 lit 1000.0 lowers to 0.0 under -E.
-  g_compile_phase_acc_ms[phase] =
-    g_compile_phase_acc_ms[phase] + (now - g_compile_phase_start_sec[phase]) * (1000 as f64);
-  g_compile_phase_active[phase] = 0;
+  // Class AS: Cap phase timing end retired.
+  let _p: i32 = phase;
 }
 
 /** Print compile phase timing note then clear thin BSS.
@@ -1171,26 +1154,7 @@ export function driver_compile_phase_timing_end(phase: i32): void {
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps integer-ms twin; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
-  if (driver_compile_phase_timing_enabled() == 0) {
-    return;
-  }
-  unsafe {
-    let a0: i32 = driver_compile_phase_acc_ms_get(0) as i32;
-    let a1: i32 = driver_compile_phase_acc_ms_get(1) as i32;
-    let a2: i32 = driver_compile_phase_acc_ms_get(2) as i32;
-    let total: i32 = a0 + a1 + a2;
-    let msg: u8[192] = [];
-    let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "compile phase timing: parse_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, a0);
-    at = driver_diag_append_cstr(&msg[0], 192, at, " typeck_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, a1);
-    at = driver_diag_append_cstr(&msg[0], 192, at, " codegen_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, a2);
-    at = driver_diag_append_cstr(&msg[0], 192, at, " total_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, total);
-    diag_report(0 as *u8, 0, 0, "note", &msg[0], 0 as *u8);
-  }
-  driver_compile_phase_timing_clear();
+  // Class AS: Cap XLANG_COMPILE_PHASE_TIMING flush note retired.
 }
 
 // ---- G-02f-345：ascii_toupper / typeck_skip / sanitize_get ----
@@ -1389,7 +1353,8 @@ export function driver_set_pipeline_entry_source_len(len: i64): void {
  */
 #[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
-  return driver_env_nonnull("XLANG_COMPILE_PHASE_TIMING");
+  // Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off).
+  return 0;
 }
 
 /** Map target OS kind (1..4) to a static define literal pointer (OS_LINUX/…).

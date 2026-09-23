@@ -1108,7 +1108,8 @@ static int g_compile_phase_active[XLANG_COMPILE_PHASE_MAX];
 /* pure 权威：thin.x compile_phase_timing_enabled（getenv 非空）；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 int compile_phase_timing_enabled_impl(void) {
-  return link_abi_getenv("XLANG_COMPILE_PHASE_TIMING") != NULL;
+  /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off). */
+  return 0;
 }
 
 int compile_phase_timing_enabled(void) {
@@ -1187,10 +1188,8 @@ void driver_compile_phase_timing_clear(void) {
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_begin_impl(int32_t phase) {
-    if (!driver_compile_phase_index_ok(phase))
-        return;
-    g_compile_phase_start_sec[phase] = compile_phase_now_sec();
-    g_compile_phase_active[phase] = 1;
+    /* Class AS: Cap phase timing begin retired. */
+    (void)phase;
 }
 #endif
 
@@ -1201,10 +1200,8 @@ void driver_compile_phase_timing_begin_impl(int32_t phase) {
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_end_impl(int32_t phase) {
-    if (!driver_compile_phase_index_ok(phase) || !g_compile_phase_active[phase])
-        return;
-    g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
-    g_compile_phase_active[phase] = 0;
+    /* Class AS: Cap phase timing end retired. */
+    (void)phase;
 }
 #endif
 
@@ -1213,15 +1210,7 @@ void driver_compile_phase_timing_end_impl(int32_t phase) {
  * FROM_X 无 pure-dup flush _impl。acc 经 driver_compile_phase_acc_ms_get（thin/cold twin）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_flush_impl(void) {
-    int a0 = (int)driver_compile_phase_acc_ms_get(0);
-    int a1 = (int)driver_compile_phase_acc_ms_get(1);
-    int a2 = (int)driver_compile_phase_acc_ms_get(2);
-    int total = a0 + a1 + a2;
-    /* PLATFORM: SHARED — whole-ms twin of thin pure (wave6); no reportf floats. */
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "compile phase timing: parse_ms=%d typeck_ms=%d codegen_ms=%d total_ms=%d",
-                 a0, a1, a2, total);
-    driver_compile_phase_timing_clear();
+    /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING flush note retired. */
 }
 
 void driver_compile_phase_timing_flush(void) {
@@ -1255,14 +1244,7 @@ void driver_compile_phase_timing_end(int32_t phase) {
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 int32_t driver_compile_phase_timing_enabled(void)
 {
-  (void)(({   {
-    char *e = link_abi_getenv("XLANG_COMPILE_PHASE_TIMING");
-    if ((e ==((char *)(0)))) {
-      return 0;
-    }
-    return 1;
-  }
- }));
+  /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off). */
   return 0;
 }
 #endif
