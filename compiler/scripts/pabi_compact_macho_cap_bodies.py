@@ -53,6 +53,21 @@ def want_compact(name: str) -> bool:
         return True
     if name.startswith("_asm_wpo_mark_pgo"):
         return True
+    # Class BI: remaining PGO-Lite Cap helpers (env-gated; product L2 unset)
+    if name.startswith("_asm_wpo_user_pgo"):
+        return True
+    if name in (
+        "_asm_wpo_is_user_single_file_pgo_entry",
+        "_asm_wpo_pgo_depth_of",
+        "_pipeline_asm_wpo_pgo_is_hot_func",
+        "_pipeline_elf_pgo_hot_enabled",
+        "_platform_elf_pipeline_elf_pgo_hot_enabled",
+        "_pipe_elf_pgo_undef_name_row",
+        "_pipe_elf_pgo_undef_len_at",
+        "_pipe_elf_pgo_undef_len_set",
+        "_pipe_elf_pgo_undef_cap",
+    ):
+        return True
     return False
 
 
