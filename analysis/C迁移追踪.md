@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AT** Cap／driver 剥 ✅；**Class AU** labi prefer 根修 ✅；**Class AV** pipeline／rt_run Cap 剥 ✅（seed＋mega 门闩；pabi leftover 未 FORCE；真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AT** Cap／driver 剥 ✅；**Class AU** labi prefer 根修 ✅；**Class AV–AW** pipeline Cap／ASM_DEBUG seed 剥 ✅（pabi leftover 未 FORCE；真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -36,7 +36,7 @@
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
 | BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 from_x／seed／`.inc`／大户 leftover 真减；Darwin tip **可 prefer labi**（AU；L6／L8 仍 host-cc；AV Cap seed 已剥） |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
-| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER 面同上。**Class AP** leftover 拼装已收；**Class AV** seed／mega DEBUG Cap 门闩已剥（产品 leftover 同尺寸，禁 FORCE）。真减 host-cc 续。HARD BAN／leftover-first／mega FORCE／`-E` 当修仍禁。 |
+| `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER 面同上。**Class AP** leftover 拼装已收；**Class AV–AW** seed DEBUG／ASM_DEBUG Cap 已剥（产品 leftover 同尺寸，禁 FORCE）。真减 host-cc 续。HARD BAN／leftover-first／mega FORCE／`-E` 当修仍禁。 |
 | nest 冻帽 | ✅ | **64** |
 | check 闸门 | ⏸ | 自举期须点名才 dogfood |
 
