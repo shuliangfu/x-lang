@@ -36,6 +36,12 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CP（2026-09-23）rt_emit_state setter C 体已删除
+
+- ✅ `driver_run_x_emit_c_set_path`／`set_lib`／`set_n_lib_roots`／`set_emit_extern`／`driver_argv_parse_x_emit_c` 只在 `src/runtime/rt_emit_state.x`。种子里的 C 体已删除，没有整份回退
+- 🟡 BSS、lib-name、入口前缀与 marker 仍 host-cc，`rt_emit_state.from_x.c` 还不能整文件删除
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）
+
 ### Class CO（2026-09-23）rt_arena_buf 函数 C 体已删除
 
 - ✅ `driver_arena_buf`／`driver_module_buf` 只在 `src/runtime/rt_arena_buf.x`。种子里的 C 体已删除，没有整份回退
@@ -64,10 +70,9 @@
 
 ### Class CK（2026-09-23）rt_emit_state 切片退出整份 host-cc
 
-- ✅ 五个 setter 在 `-DXLANG_RT_EMIT_STATE_FROM_X` 下由 tip 纯 asm 提供（预处理 62257→60416；无宏与迁前逐字节相同）
+- ✅ 五个 setter 的 C 体已删除，见 Class CP
 - 🟡 BSS、lib-name、入口前缀、marker 仍 host-cc
-- 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
-- 🟡 同族 `rt_parse_diag` 见 Class CM；`rt_arena_buf` 见 Class CL
+- 🟡 同族 `rt_parse_diag` 见 Class CM；`rt_arena_buf` 见 Class CO
 
 ### Class CJ（2026-09-23）runtime_driver_diagnostic thin 退出整份 host-cc
 
@@ -359,7 +364,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CO** 删掉 `rt_arena_buf` 两个函数的 C 体，权威在 `.x`；128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CP** 删掉 `rt_emit_state` 五个 setter 的 C 体，权威在 `.x`；BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。`rt_parse_diag` 精确诊断仍有 C 孪生。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

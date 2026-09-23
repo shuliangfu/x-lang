@@ -510,12 +510,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # survived g05 green and broke the link later (rt_emit_state trap: new seed
     # functions missing until a manual rm+try-heat). Delegate to the existing
     # rt-slice family authority (seed -nt .o → cc -c). PLATFORM: SHARED.
-    # w840/w841/w842: emit_state, arena_buf, and parse_diag slices are
-    # pure-asm .x + FROM_X rest on POSIX when PREFER=1. Windows full-cc of
-    # those three stays inside their prefer helpers.
+    # w845: emit_state setters are deleted from the seed. rt-slice always
+    # pure-asms rt_emit_state.x and cc's the BSS rest (POSIX and Windows).
+    # w844: arena_buf functions are deleted from the seed; same shape.
+    # w842: parse_diag is pure-asm .x + FROM_X rest on POSIX when PREFER=1.
+    # Windows full-cc of parse_diag stays inside that prefer helper.
     # w843: preamble writers are deleted from the seed. rt-slice always
     # pure-asms rt_preamble.x and cc's the table rest (POSIX and Windows).
     # stack stays full seed cc. PLATFORM: SHARED caller.
+    # Refreshing a slice must not go through try-rt-prefer of
+    # runtime_driver_no_c.o: that prefer rebuild makes hello exit 1.
     echo "g05_ensure: rt-slice standalone refresh (G05_OBJS members)"
     XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
       bash scripts/ensure_host_cc_seed_o.sh rt-slice \
