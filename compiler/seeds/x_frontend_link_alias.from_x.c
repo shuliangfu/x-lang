@@ -10,6 +10,9 @@
  * w865: glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32
  * also lives only in that .x. It still forwards to
  * glue_asm_build_import_binding_call_sym and stays strong.
+ * w866: glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32
+ * also lives only in that .x. It still forwards to
+ * glue_try_std_heap_redirect_sym_local and stays strong.
  * This file remains for the lexer struct-return tail and the other
  * mangled ABI aliases, which are not in .x.
  * Product install is pure-asm of the .x plus cc of this rest, then a
@@ -113,17 +116,7 @@ void glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(void *a, void *
 /* w863: pipeline_type_kind_ord_at_u8_ptr_i32_reti32 lives in
  * x_frontend_link_alias.x and still forwards to pipeline_type_kind_ord_at.
  * PLATFORM: SHARED. */
-/* X-ABI mangled face for the 4-param heap-redirect local (name, nlen, out,
- * out_cap): the -E'd backend_call_dispatch.x emits signature-suffixed calls
- * to it, and the strong plain-name body lives in backend_call_dispatch.o
- * (seed + prefer lanes alike). Replaces the stale pre-cap 3-param weak stub
- * (fossil of the old signature, satisfied nobody). Without this face the
- * seed-phase1 / g05 pure-ld links fail on
- * glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32 unless
- * the generated asm_full_link_stubs scan happens to cover the gap.
+/* w866: glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32
+ * lives in x_frontend_link_alias.x and still forwards to
+ * glue_try_std_heap_redirect_sym_local. The symbol stays strong.
  * PLATFORM: SHARED. */
-extern int32_t glue_try_std_heap_redirect_sym_local(void *name, int32_t nlen, void *out, int32_t out_cap);
-int32_t glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32(
-    void *name, int32_t nlen, void *out, int32_t out_cap) {
-  return glue_try_std_heap_redirect_sym_local(name, nlen, out, out_cap);
-}
