@@ -27,10 +27,11 @@ export extern function codegen_out_buf_set_len(out: *u8, n: i32): void;
 export extern function pipeline_scratch_buf64(): *u8;
 export extern function pipeline_scratch_buf64_slot(slot: i32): *u8;
 
-/* LP64 sizeof(ElfCodegenCtx); keep lockstep with seed WAVE291 constant. */
-/* wave651: patches 16384->65536 (+13172736). Keep in lockstep with
- * ElfCodegenCtx field set + seed twin. */
-const WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE: i64 = 53477424;
+/* LP64 sizeof(ElfCodegenCtx) is the integer literal in pipeline_sizeof_elf_ctx.
+ * wave651: patches 16384->65536. Lockstep with the seed macro
+ * WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE (53477424). No file-scope const:
+ * the current tip faults in asm_module_top_level_const_lit_i32 when a
+ * file-scope const is referenced in a TU that also contains unsafe shims. */
 
 /**
  * platform.elf prefix → pipeline_elf_ctx_reloc_sym_name_ptr.
@@ -235,12 +236,15 @@ export function codegen_pipeline_scratch_buf64_slot(slot: i32): *u8 {
 }
 
 /**
- * pipeline_sizeof_elf_ctx — LP64 layout size for malloc of ElfCodegenCtx.
- * Freestanding Cap uses fixed size constant (no host sizeof(struct)).
- * @return i64 — byte size (cast from size_t face at C ABI)
+ * LP64 byte size of ElfCodegenCtx, used as the malloc length.
+ * Freestanding Cap does not call host sizeof on the struct.
+ * The value is an integer literal so this TU does not reference a
+ * file-scope const. Lockstep with seed WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE.
+ * @return i64 — 53477424 bytes (size_t width on LP64)
  * PLATFORM: SHARED LP64.
  */
 #[no_mangle]
 export function pipeline_sizeof_elf_ctx(): i64 {
-  return WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE;
+  // 53477424: wave651 layout after the patch table grew to 65536 slots.
+  return 53477424;
 }

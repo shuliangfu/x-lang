@@ -35250,7 +35250,11 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
  * plus pipeline_sizeof_elf_ctx (LP64 layout size; no host sizeof(struct)).
  * M2 Class E: .x thin leave = runtime_pipeline_abi_elf_codegen_forwarders_thin.x
  * (wave292 C→.x PREFER_ASM inject; was wave291 C thin).
- * Not gated by FROM_X. dual-export ban: only seed ALWAYS defines these bodies.
+ * w836: POSIX product rest omits the C bodies under
+ * XLANG_PABI_ELF_CODEGEN_FORWARDERS_ASM. The pure-asm thin supplies them.
+ * Cold seed and Windows do not define that macro.
+ * Not gated by FROM_X. dual-export ban: only seed ALWAYS defines these bodies
+ * when the product-asm macro is unset.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
 /* XLANG_PABI_ELF_CODEGEN_FORWARDERS_THIN_BEGIN */
@@ -35291,6 +35295,13 @@ extern uint8_t *pipeline_scratch_buf64_slot(int32_t slot);
 #define WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE ((size_t)53477424)
 #endif
 
+/* Class CG (w836): elf_codegen_forwarders product faces are omitted when
+ * -DXLANG_PABI_ELF_CODEGEN_FORWARDERS_ASM (POSIX product rest). The pure-asm
+ * thin src/runtime_pipeline_abi_elf_codegen_forwarders_thin.x supplies those
+ * symbols. Cold seed and Windows FROM_X do not define the macro, so they
+ * still compile these bodies. PLATFORM: SHARED gate / POSIX product asm.
+ */
+#if !defined(XLANG_PABI_ELF_CODEGEN_FORWARDERS_ASM)
 /* --- platform.elf prefix forwarders (12) --- */
 uint8_t *platform_elf_pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
   return pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
@@ -35360,6 +35371,7 @@ uint8_t *codegen_pipeline_scratch_buf64_slot(int32_t slot) {
 size_t pipeline_sizeof_elf_ctx(void) {
   return WAVE291_PIPELINE_ELF_CODEGEN_CTX_SIZE;
 }
+#endif /* XLANG_PABI_ELF_CODEGEN_FORWARDERS_ASM */
 
 /* XLANG_PABI_ELF_CODEGEN_FORWARDERS_THIN_END */
 #endif /* WAVE291_ELF_CODEGEN_FORWARDERS_ALWAYS */
