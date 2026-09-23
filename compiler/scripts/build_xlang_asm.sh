@@ -4402,6 +4402,7 @@ ensure_bstrict_seed_support_objs() {
   fi
   if [ "$_disp" = "backend_enc_dispatch" ]; then
     # w854: thin publics live only in the .x. The seed is the f64/Cap tail.
+    # w862: the slice marker lives in the .x too and returns 1.
     # pure-asm + tail. No raw cc. No gcc -E. No full .x.
     # PLATFORM: SHARED.
     bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer "src/asm/${_disp}.o" || return 1

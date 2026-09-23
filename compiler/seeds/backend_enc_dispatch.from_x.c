@@ -1,5 +1,6 @@
 /* seeds/backend_enc_dispatch.from_x.c — C tail for backend_enc_dispatch.o.
  * wave854: the thin public bodies live only in src/asm/backend_enc_dispatch_thin.x.
+ * wave862: backend_enc_dispatch_slice_marker lives in that .x too and returns 1.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -10,7 +11,8 @@
  */
 #ifndef XLANG_BACKEND_ENC_DISPATCH_FROM_X
 /* G-02f-352～361 / R2 thin full：PREFER hybrid thin 由 src/asm/backend_enc_dispatch_thin.x；
- * rest XLANG_L2_ENC_DISPATCH_THIN_FROM_X（public 门闩→_impl；slice_marker + Cap residual 体）。
+ * rest XLANG_L2_ENC_DISPATCH_THIN_FROM_X (publics are prototypes; Cap residual stays).
+ * Product slice marker lives in the thin .x and returns 1 (w862).
  * seeds/backend_enc_dispatch.from_x.c — G-02f-208 enc_dispatch *_arch closed; G-02f-9 product TU
  * G-02f-130 true .x pure helpers.
  * G-02f-127 true .x pure helpers.
@@ -1800,11 +1802,10 @@ int32_t backend_enc_lea_sym_to_reg_arch(struct platform_elf_ElfCodegenCtx *elf_c
   return -1;
 }
 
-int backend_enc_dispatch_slice_marker(void) {
-    return 1;
-}
-
-#else /* XLANG_BACKEND_ENC_DISPATCH_FROM_X：产品 rest 业务 H=0 */
+/* w862: the product slice marker lives in src/asm/backend_enc_dispatch_thin.x
+ * and still returns 1. The #else below is the unused full-from-x empty tail.
+ * PLATFORM: SHARED. */
+#else /* XLANG_BACKEND_ENC_DISPATCH_FROM_X: empty tail, marker returns 0 */
 int backend_enc_dispatch_slice_marker(void) {
   return 0;
 }

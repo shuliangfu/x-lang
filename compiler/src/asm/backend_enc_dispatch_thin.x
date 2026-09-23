@@ -1,15 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_ENC_DISPATCH_THIN_FROM_X）ld -r → backend_enc_dispatch.o
-// See implementation.
-// See implementation.
-// See implementation.
-//
-// See implementation.
-// RBP lane：LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29。
-// See implementation.
+// Thin enc publics for backend_enc_dispatch.o.
+// w854 deleted the C bodies of these functions. w862 also places
+// backend_enc_dispatch_slice_marker here. The marker returns 1.
+// The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
+// seeds/backend_enc_dispatch.from_x.c.
+// The installer pure-asms this file, then cc's that seed with
+// -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
+// RBP lane: LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29.
+// PLATFORM: SHARED.
 //
 
 export extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
@@ -3567,4 +3567,16 @@ export function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: i32, label: *
 export function arch_x86_64_enc_enc_cdqe_rax(elf_ctx: *u8): i32 {
   unsafe { return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx); }
   return 0 - 1;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm. The f64/Cap tail stays in the C seed.
+ */
+#[no_mangle]
+export function backend_enc_dispatch_slice_marker(): i32 {
+  return 1;
 }

@@ -572,8 +572,8 @@ ensure_one() {
     echo "ensure_host_cc_seed_o: missing seed $seed" >&2
     exit 1
   fi
-  # w854: thin enc publics are deleted from C. Do not cc the tail alone.
-  # PLATFORM: SHARED.
+  # w862: thin enc publics and the slice marker are in the .x.
+  # Do not cc the tail alone. PLATFORM: SHARED.
   if [ "$out" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
     return 0
@@ -1627,7 +1627,7 @@ try_ensure_r3_cold_one() {
     ensure_rdd_pure || return 1
     return 0
   fi
-  # w854: enc thin publics have no cold C bodies. Same pure-asm path.
+  # w862: enc thin publics and the slice marker have no product C bodies.
   if [ "$o" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
     return 0
@@ -1696,9 +1696,9 @@ r3_prefer_leaf_spec() {
       printf '%s\n' "src/asm/simd_loop_thin.x|XLANG_L2_SIMD_LOOP_THIN_FROM_X|glue_simd_loop_pick_lanes_c|src/asm/simd_loop.x|XLANG_SIMD_LOOP_FROM_X"
       ;;
     src/asm/backend_enc_dispatch.o)
-      # w854: ensure_r3_prefer_one does not use this spec. Thin publics are
-      # pure-asm of backend_enc_dispatch_thin.x. The seed is the f64/Cap tail.
-      # nm gate stays on backend_enc_addsd_rax_rbx_arch until the .x exports it.
+      # w862: ensure_r3_prefer_one does not use this spec. Thin publics and
+      # the slice marker are pure-asm of backend_enc_dispatch_thin.x.
+      # The seed is the f64/Cap tail. The marker returns 1.
       # Do not switch the product to the full .x.
       printf '%s\n' "src/asm/backend_enc_dispatch_thin.x|XLANG_L2_ENC_DISPATCH_THIN_FROM_X|backend_enc_addsd_rax_rbx_arch|src/asm/backend_enc_dispatch.x|XLANG_BACKEND_ENC_DISPATCH_FROM_X"
       ;;
@@ -1939,11 +1939,13 @@ ensure_rdd_pure() {
 }
 
 # w854: thin enc publics live only in backend_enc_dispatch_thin.x.
+# w862: backend_enc_dispatch_slice_marker lives in that .x too and returns 1.
 # Product object is pure_asm_x_to_o of that thin plus cc of the f64/Cap tail
 # with -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed cc.
 # No full.x attempt. XLANG_G05_PREFER_X_O is ignored. Windows takes the same
 # path. Keep default unwind tables: the linked object carries __compact_unwind.
-# nm gate stays on backend_enc_addsd_rax_rbx_arch (not exported by the thin).
+# nm gates: backend_enc_addsd_rax_rbx_arch (tail), backend_enc_append_u32_le_c
+# (thin), and backend_enc_dispatch_slice_marker (thin).
 # Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED.
 ensure_enc_dispatch_pure() {
@@ -1967,7 +1969,7 @@ ensure_enc_dispatch_pure() {
       stale=1
     fi
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (enc dispatch pure-asm w854)"
+      log "skip up-to-date $o (enc dispatch pure-asm w862)"
       return 0
     fi
   fi
@@ -2019,14 +2021,15 @@ ensure_enc_dispatch_pure() {
   # shellcheck disable=SC2086
   if ! ld $ld_flags -o "$merged_o" "$thin_o" "$rest_o" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_addsd_rax_rbx_arch" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_append_u32_le_c"; then
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_append_u32_le_c" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_dispatch_slice_marker"; then
     echo "ensure: enc dispatch merge failed; C bodies are gone, no fallback" >&2
     rm -f "$thin_o" "$rest_o" "$merged_o"
     return 1
   fi
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w854]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w862; marker is in the .x]"
   return 0
 }
 
@@ -2049,8 +2052,8 @@ ensure_r3_prefer_one() {
     ensure_rdd_pure || return 1
     return 0
   fi
-  # w854: do not gcc -E this TU, do not try the full .x, and do not cold-cc
-  # the f64/Cap tail alone.
+  # w862: do not gcc -E this TU, do not try the full .x, and do not cold-cc
+  # the f64/Cap tail alone. The slice marker is in the thin .x.
   if [ "$o" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
     return 0
