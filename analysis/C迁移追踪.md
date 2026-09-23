@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ** labi hello-stage1 Cap ✅；**Class AR** labi DEBUG_LD push Cap 剥 ✅；**Class AS** driver_abi COMPILE_PHASE_TIMING Cap 剥 ✅（Cap／真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AR** labi Cap ✅；**Class AS** driver_abi PHASE_TIMING Cap ✅；**Class AT** driver_abi DUMP_PREP Cap 剥 ✅（Cap／真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -26,7 +26,7 @@
 | Mega 拆分 M1–M3（阶段 6） | ✅ | 3/3 |
 | Mega 去 pin M4（阶段 7） | 🟡 | leftover flatten 完；parser seed 物理删 ⬜；产品 `.inc` 仍 host-cc；P20b zeros 已纯 asm |
 | Pinned gen 退役（阶段 8） | ✅ | 30/30 |
-| 非 gen 产品 C／8.3 | 🟡 | wave309 壳物理退役（present 0）；产品 `.inc`／from_x／其它 host-cc seed 仍开；AP leftover 拼装＋parse_commit／AS driver_abi phase-timing Cap 剥已收 |
+| 非 gen 产品 C／8.3 | 🟡 | wave309 壳物理退役（present 0）；产品 `.inc`／from_x／其它 host-cc seed 仍开；AP leftover 拼装＋AS／AT driver_abi Cap 剥已收 |
 | Cap residual 消灭（阶段 9） | ✅ | 9.1–9.7 |
 | Win PE egg pin | ✅ | egg＠`99b008cc1`；默认 asm **5/5**；FIELD／INDEX／DEREF／`struct_let_init`／`copy_large_struct`／SIMD／`asm_parser_*`／m8_tail／`collect_walk`／`pgo_emit_order_*` override **进 live**（Class S–AC leftover-safe LEGACY g05）；**三端 L2 硬闸已启用** |
 | 语言能力 L2（阶段 10） | 🟡 | 主面 ✅；残 NT／MSVC／qemu／Win 实机 |
@@ -34,7 +34,7 @@
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
-| BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 from_x／seed／`.inc`／大户 Cap／真减（AS driver_abi Cap 剥后） |
+| BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 from_x／seed／`.inc`／大户 Cap／真减（AT DUMP_PREP Cap 剥后） |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
 | `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER 面同上。**Class AP**：Darwin leftover 拼装半刀已收；diagnostic `parse_commit` Cap gather 已剥（prefer 同路径可测减）。Cap／真减 host-cc 续。HARD BAN／leftover-first／mega FORCE／`-E` 当修仍禁。 |
 | nest 冻帽 | ✅ | **64** |
