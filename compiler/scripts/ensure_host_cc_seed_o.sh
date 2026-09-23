@@ -1629,6 +1629,15 @@ labi_prefer_layer() {
   return 1
 }
 
+
+# Class CB-fix: nm gates for labi L2 host_lit (SHARED Darwin/Linux).
+labi_obj_defines() {
+  nm -gU "$1" 2>/dev/null | grep -E " [TWtw] (_)?${2}\$" >/dev/null
+}
+labi_obj_undefines() {
+  nm -gu "$1" 2>/dev/null | grep -E " (_)?${2}\$" >/dev/null
+}
+
 ensure_labi_prefer_one() {
   # Prefer multi-slice or cold full seed for src/runtime_link_abi.o (no membership check).
   local o="$1"
@@ -1684,6 +1693,11 @@ ensure_labi_prefer_one() {
     # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
     if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
+    fi
+    # Class CB-fix: stale hybrid — FROM_X rest + L2 without *_impl → final U.
+    if [ "$stale" = "0" ] && labi_obj_undefines "$o" "xlang_host_is_linux_impl"; then
+      stale=1
+      log "labi $o U-refs xlang_host_is_linux_impl; force rebuild (CB-fix)"
     fi
     if [ "$stale" = "0" ]; then
       log "skip up-to-date $o (labi-prefer)"
@@ -1747,6 +1761,16 @@ ensure_labi_prefer_one() {
         l8b_ok=1
         l8c_ok=0
         log "labi L8b ← $l8b_seed (full seed; L8c unused)"
+      fi
+    fi
+
+    # Class CB-fix: HOST_LIT_FROM_X only when L2 actually owns *_impl (.x prefer).
+    # Cold seed L2 only wraps → U-ref; demote so Cap #if impls stay in rest.
+    if [ "$l2_ok" = "1" ]; then
+      if ! labi_obj_defines "$l2_o" "xlang_host_is_linux_impl" \
+        || ! labi_obj_defines "$l2_o" "xlang_host_is_apple_aarch64_impl"; then
+        log "labi L2 lacking *_impl (cold seed?); demote l2_ok — keep rest Cap (CB-fix)"
+        l2_ok=0
       fi
     fi
 
