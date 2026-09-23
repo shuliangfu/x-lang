@@ -510,8 +510,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # survived g05 green and broke the link later (rt_emit_state trap: new seed
     # functions missing until a manual rm+try-heat). Delegate to the existing
     # rt-slice family authority (seed -nt .o → cc -c). PLATFORM: SHARED.
+    # w840: emit_state slice is pure-asm .x + FROM_X rest on POSIX when
+    # PREFER=1. The other four slices stay full seed cc. PLATFORM: SHARED
+    # caller; Windows full-cc is inside ensure_rt_emit_state_prefer.
     echo "g05_ensure: rt-slice standalone refresh (G05_OBJS members)"
-    bash scripts/ensure_host_cc_seed_o.sh rt-slice \
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      bash scripts/ensure_host_cc_seed_o.sh rt-slice \
       || echo "g05_ensure: rt-slice refresh failed (non-fatal if unused)" >&2
     # Same class: driver_x.o compiles from driver_gen.c (gen-x family), but a
     # driver_gen.c regen above never re-triggered the .o in the warm g05 path

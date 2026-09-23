@@ -36,6 +36,13 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CK（2026-09-23）rt_emit_state 切片退出整份 host-cc
+
+- ✅ 五个 setter 在 `-DXLANG_RT_EMIT_STATE_FROM_X` 下由 tip 纯 asm 提供（预处理 62257→60416；无宏与迁前逐字节相同）
+- 🟡 BSS、lib-name、入口前缀、marker 仍 host-cc
+- 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
+- 🟡 同族 `rt_arena_buf`／`rt_parse_diag` 产品切片仍整份 host-cc（`.x` 已能纯 asm）
+
 ### Class CJ（2026-09-23）runtime_driver_diagnostic thin 退出整份 host-cc
 
 - ✅ thin 面由 tip 纯 asm 提供；无宏预处理与迁前逐字节相同

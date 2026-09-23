@@ -2103,6 +2103,14 @@ ensure_rt_seed_slice_objs() {
     "seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
   o="${pair##*:}"
+  # w840: same product object as ensure_rt_emit_state_prefer.
+  # PLATFORM: POSIX product asm · WINDOWS full seed inside the helper.
+  if [ "$o" = "src/runtime/rt_emit_state.o" ]; then
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-rt-emit-state-prefer \
+      || return 1
+    continue
+  fi
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- $src (RT seed slice)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"

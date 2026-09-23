@@ -2,8 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-303/304 / P2 runtime rest: -x -E emit state slots + setters + argv scan.
-// R2 full: .x owns set_path/set_lib/set_n/set_extern + argv_parse;
-// product PREFER_X_O rest is T=0 (marker only; BSS lives in rest).
+// R2 full: .x owns set_path/set_lib/set_n/set_extern + argv_parse.
+// w840 POSIX product slice: pure-asm this file, then cc the seed under
+// -DXLANG_RT_EMIT_STATE_FROM_X. That rest keeps BSS, the lib-name pair,
+// the entry-prefix setter, and the slice marker. Those five setters are
+// not compiled by the POSIX product cc. Windows and PREFER=0 still cc
+// the full seed.
 // Cap-global-bss residual: shared buffers/pointer binds use driver_abi slot APIs
 // (.x must not write **u8 pointers into BSS, must not use local u8[512] —
 // -E would drop functions or corrupt init_globals).
