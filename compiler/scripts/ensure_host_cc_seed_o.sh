@@ -4397,10 +4397,14 @@ ensure_pipeline_abi_prefer_one() {
     # (Cap residual only in seed rest). Basename ban + RT=0 keep product -E hybrid.
     # PLATFORM: SHARED · G.7 call-site + pure_asm_x_to_o basename skip.
     # shellcheck disable=SC2086
+    # w834: POSIX product rest does not host-cc ast_forwarders faces.
+    # Pure-asm thin inject supplies them. Windows / cold omit this macro.
+    # PLATFORM: POSIX — WINDOWS keeps the C bodies (cannot -E tip thins).
     if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -DXLANG_RUNTIME_PIPELINE_ABI_MODLET_IN_REST \
+           -DXLANG_PABI_AST_FORWARDERS_ASM \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       # PLATFORM: MACOS — libtool -static fallback yields ar named .o; Cap LEA
@@ -10901,8 +10905,14 @@ pipeline_abi_inject_ast_forwarders_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # w834: POSIX product rest omits these faces (-DXLANG_PABI_AST_FORWARDERS_ASM).
+  # A stamp skip on a fresh hybrid leaves them undefined. Re-inject when the
+  # sentinel is not already strong text. Old hybrids that still contain the
+  # C body stay put until the rest is rebuilt. PLATFORM: SHARED.
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ]; then
-    return 0
+    if pipeline_abi_strong_text_syms "$o" | grep -Eq '(^|_)pipeline_copy_lib_root_to_buf256$'; then
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
