@@ -12000,56 +12000,53 @@ try_ensure_pipeline_abi_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
-# wave767: try-ldpc-prefer OUT — g05 lsp_diag_pipeline_ctx product PREFER.
+# wave852: try-ldpc-prefer OUT — lsp_diag_pipeline_ctx pure-asm + C tail.
 #
-# Single leaf: src/lsp/lsp_diag_pipeline_ctx.o (R1_MISC_BASENAME; cold twin =
-# ensure_one plain seed).
-# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
-#   thin .x → .o via rt_prefer_try_x_to_o with G05_X_O_WEAK=1 (alias weak vs
-#     bootstrap/filtered strong symbols; G-02f-331)
-#   rest = seeds/lsp_diag_pipeline_ctx.from_x.c under
-#     -DXLANG_L2_LSP_CTX_THIN_FROM_X
-#   merge: $CC -r -nostdlib thin + rest → OUT
-# Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
-# Stage 12.0.5 pure-asm hybrid (opt-in PREFER_ASM_O; not product-default):
-#   G05_X_O_WEAK=1 still required vs lsp_diag_x strong defs of
-#   lsp_diag_{hover,definition,references}_at. pure_asm_x_to_o now applies
-#   objcopy --weaken polish after freestanding emit (G.7 有则补全; nmedit
-#   cannot weak pure-asm objects). Missing objcopy → fall through -E+$CC.
-# Callers: g05_ensure (wave767) · Makefile src/lsp/lsp_diag_pipeline_ctx.o.
-# Exit codes:
-#   0 — OUT is lsp_diag_pipeline_ctx.o; prefer or cold body produced OUT
-#   3 — OUT is not src/lsp/lsp_diag_pipeline_ctx.o
-#   1 — cold seed missing / compile failed
-# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
-# G.7: reuses rt_prefer_try_x_to_o harness (有则补全).
-# Residual after: ~~target_cpu~~(wave768) · other L2 · pure-ld · physical delete.
+# Nine thin aliases exist only in src/lsp/lsp_diag_pipeline_ctx.x.
+# Their C bodies are deleted. The seed keeps the _impl tail and the
+# 16388-byte state buffer.
+#   pure_asm_x_to_o of the .x (no gcc -E)
+#   G05_X_O_WEAK_FUNCS on the eight aliases plus fill_paths / write_all /
+#     typeck_lsp_main / debug / apply. lsp_diag_x_alloc_dep_ctx_size stays
+#     strong (live binding). Do not set G05_X_O_WEAK=1.
+#   cc the seed with -DXLANG_L2_LSP_CTX_THIN_FROM_X and no unwind tables
+#   pure_ld_partial_merge
+# Failure leaves the previous .o and returns 1. No full-seed cc fallback.
+# XLANG_G05_PREFER_X_O is ignored.
+# Callers: g05_ensure · Makefile src/lsp/lsp_diag_pipeline_ctx.o.
+# PLATFORM: SHARED — Darwin weaken via llvm-objcopy; Windows same path.
 # ---------------------------------------------------------------------------
+
+# True when OBJ has SYM as a weak text definition.
+# PLATFORM: MACOS — nm prints a leading underscore. PLATFORM: SHARED — also
+# accept the bare name.
+_ldpc_nm_weak() {
+  local obj="$1" sym="$2"
+  nm -m "$obj" 2>/dev/null | grep -E "weak.* (_)?${sym}\$" >/dev/null
+}
 
 ensure_ldpc_prefer_one() {
   local o="$1"
   local seed="seeds/lsp_diag_pipeline_ctx.from_x.c"
   local x_src="src/lsp/lsp_diag_pipeline_ctx.x"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
-  local stale=0 done=0
-  local thin_o rest_o
+  local stale=0
+  local thin_o rest_o merged asm_bin
+  # Named weak only. alloc stays strong so --weaken-all is wrong.
+  local weak_funcs="lsp_apply_default_io_policy,lsp_build_diagnostics_response,lsp_build_semantic_tokens_response,lsp_debug_report_sqpoll_env,lsp_diag_definition_at,lsp_diag_hover_at,lsp_diag_pipeline_ctx_fill_paths,lsp_diag_references_at,lsp_hover_at,lsp_io_lsp_diag_invalidate_cache,lsp_references_at,lsp_write_all,typeck_lsp_main"
+  local w
 
-  if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o try-ldpc-prefer: missing seed $seed" >&2
+  if [ ! -f "$seed" ] || [ ! -f "$x_src" ]; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: missing $x_src or $seed; C aliases are gone, no fallback" >&2
     return 1
   fi
 
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
     stale=0
     [ "$seed" -nt "$o" ] && stale=1
-    if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
-      stale=1
-    fi
-    # wave793: project-header mtime (FORCE thin; G.7 single body).
+    [ "$x_src" -nt "$o" ] && stale=1
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
-    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
     if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
       stale=1
     fi
@@ -12060,36 +12057,79 @@ ensure_ldpc_prefer_one() {
   fi
 
   mkdir -p "$(dirname "$o")"
+  if [ -x "./xlang_asm" ]; then
+    asm_bin="./xlang_asm"
+  elif [ -x "./xlang" ]; then
+    asm_bin="./xlang"
+  elif [ -x "./xlang-c" ]; then
+    asm_bin="./xlang-c"
+  fi
+  if [ -z "$asm_bin" ]; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: no asm compiler; C aliases are gone, no fallback" >&2
+    return 1
+  fi
 
-  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
-    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
-    thin_o="$(mktemp "${TMPDIR:-/tmp}/ldpc_thin.XXXXXX")"
-    rest_o="$(mktemp "${TMPDIR:-/tmp}/ldpc_rest.XXXXXX")"
-    # thin 别名 weak，避免与 bootstrap/filtered 强符号冲突（对齐 strict_glue / g05）
-    # shellcheck disable=SC2086
-    if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
-      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_CTX_THIN_FROM_X \
-           -c -o "$rest_o" "$seed" \
-      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $x_src + seed-rest (try-ldpc-prefer)"
-      done=1
-    else
-      log "ldpc hybrid failed; fallback full seed"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/ldpc_thin.XXXXXX")"
+  rest_o="$(mktemp "${TMPDIR:-/tmp}/ldpc_rest.XXXXXX")"
+  merged="$(mktemp "${TMPDIR:-/tmp}/ldpc_merge.XXXXXX")"
+  mv "$thin_o" "${thin_o}.o"
+  mv "$rest_o" "${rest_o}.o"
+  mv "$merged" "${merged}.o"
+  thin_o="${thin_o}.o"
+  rest_o="${rest_o}.o"
+  merged="${merged}.o"
+
+  # PLATFORM: SHARED — pure-asm only. WEAK_FUNCS does not weaken alloc.
+  if ! (
+    export XLANG="$asm_bin"
+    export XLANG_PREFER_ASM_O=1
+    export G05_X_O_WEAK_FUNCS="$weak_funcs"
+    unset G05_X_O_WEAK
+    pure_asm_x_to_o "$thin_o" "$x_src"
+  ); then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: pure-asm failed; C aliases are gone, no fallback" >&2
+    rm -f "$thin_o" "$rest_o" "$merged"
+    return 1
+  fi
+  for w in lsp_diag_hover_at lsp_diag_definition_at lsp_diag_references_at typeck_lsp_main; do
+    if ! _ldpc_nm_weak "$thin_o" "$w"; then
+      echo "ensure_host_cc_seed_o try-ldpc-prefer: $w is not weak; refusing install" >&2
+      rm -f "$thin_o" "$rest_o" "$merged"
+      return 1
     fi
-    rm -f "$thin_o" "$rest_o"
+  done
+  if _ldpc_nm_weak "$thin_o" "lsp_diag_x_alloc_dep_ctx_size"; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: alloc must stay strong; refusing install" >&2
+    rm -f "$thin_o" "$rest_o" "$merged"
+    return 1
   fi
 
-  if [ "$done" = "1" ]; then
-    return 0
+  # PLATFORM: SHARED — no unwind section, so the merge stays text-only plus
+  # the state-buffer common and the tail cstring. FROM_X keeps _impl names.
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_LSP_CTX_THIN_FROM_X \
+       -fno-asynchronous-unwind-tables -fno-unwind-tables \
+       -c -o "$rest_o" "$seed"; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: C tail cc failed; leaving previous object" >&2
+    rm -f "$thin_o" "$rest_o" "$merged"
+    return 1
   fi
-
-  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
-    FORCE=1
-    ensure_one "$o" "$seed"
-    FORCE=0
-  else
-    ensure_one "$o" "$seed"
+  if ! pure_ld_partial_merge "$merged" "$thin_o" "$rest_o"; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: merge failed; leaving previous object" >&2
+    rm -f "$thin_o" "$rest_o" "$merged"
+    return 1
   fi
+  if ! r3_prefer_nm_has_sym "$merged" "lsp_diag_x_alloc_dep_ctx_size" \
+    || ! r3_prefer_nm_has_sym "$merged" "lsp_diag_pipeline_ctx_fill_paths_impl" \
+    || ! r3_prefer_nm_has_sym "$merged" "g_lsp_state_buf" \
+    || ! _ldpc_nm_weak "$merged" "lsp_diag_hover_at"; then
+    echo "ensure_host_cc_seed_o try-ldpc-prefer: merged object failed nm gate; leaving previous object" >&2
+    rm -f "$thin_o" "$rest_o" "$merged"
+    return 1
+  fi
+  mv -f "$merged" "$o"
+  rm -f "$thin_o" "$rest_o"
+  log "lsp_diag_pipeline_ctx.o from $x_src (pure-asm) + C tail [w852]"
   return 0
 }
 
