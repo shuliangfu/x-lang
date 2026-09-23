@@ -64564,9 +64564,7 @@ int32_t pipeline_sync_dep_slots_from_driver_impl_c(struct ast_Module *module, st
   dep_sync_nd = pipeline_dep_ctx_ndep(ctx);
   n_entry_imports = parser_get_module_num_imports(module);
   if (n_entry_imports >= 0 && n_entry_imports < dep_sync_nd) {
-  /* Class AV: Cap DEBUG note retired. */
-              "xlang: [XLANG_DEBUG_PIPE] skip entry-index dep sync (ndep=%d entry_imports=%d)\n",
-              (int)dep_sync_nd, (int)n_entry_imports);
+    /* Class AV: Cap DEBUG note retired. */
     return 0;
   }
   dep_sync_i = 0;
@@ -65602,7 +65600,6 @@ int32_t pipeline_typeck_check_expr_c(void *module, void *arena, int32_t expr_ref
     return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
   rc = pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
   /* Class AV: Cap DEBUG note retired. */
-            -1, (int)expr_ref, (int)kind, -1);
   (void)ctx;
   return rc;
 }
