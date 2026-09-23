@@ -36,6 +36,11 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CF（2026-09-23）typeck_orch 退出 POSIX 产品 host-cc
+- ✅ 7 个 typeck_orch 面在 `-DXLANG_PABI_TYPECK_ORCH_ASM` 下不再进入 POSIX 产品 rest（预处理 −1535；纯 asm thin 供符号）
+- 🟡 Windows 与冷种子仍 host-cc 这些 C 体
+- 🟡 活 rest 的其余面仍 host-cc
+
 ### Class CE（2026-09-23）ast_forwarders 退出 POSIX 产品 host-cc
 - ✅ 186 个 ast_forwarders 面在 `-DXLANG_PABI_AST_FORWARDERS_ASM` 下不再进入 POSIX 产品 rest（预处理 −31012；纯 asm thin 供符号）
 - 🟡 Windows 与冷种子仍 host-cc 这些 C 体
@@ -298,7 +303,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CE** 把 ast_forwarders 186 面退出 POSIX 产品 host-cc。活 FROM_X rest 的其余面仍 host-cc。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝继续停已有纯 asm thin、且非 HARD BAN 的活 rest 面。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CF** 把 typeck_orch 7 面退出 POSIX 产品 host-cc。活 FROM_X rest 的其余面仍 host-cc。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝继续停 tip 能纯 asm、且非 HARD BAN 的活 rest 面。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
@@ -309,3 +314,4 @@
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
 - 2026-09-23 pipeline_abi：纯 `#ifndef FROM_X` 冷孪生出 seeds（文件约 2.78MB→1.51MB）。产品 rest 预处理不变，仍 host-cc。
 - 2026-09-23 ast_forwarders：POSIX 产品 rest 在 `XLANG_PABI_AST_FORWARDERS_ASM` 下不再编这 186 个 C 体，改由纯 asm thin 提供。Windows／冷种子仍编 C 体。
+- 2026-09-23 typeck_orch：POSIX 产品 rest 在 `XLANG_PABI_TYPECK_ORCH_ASM` 下不再编这 7 个 C 体，改由纯 asm thin 提供。Windows／冷种子仍编 C 体。

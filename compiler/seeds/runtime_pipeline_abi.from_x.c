@@ -33576,9 +33576,10 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
  * validate_zero_padding_c / patch_all_body_parent_links_c (wave89–92).
  * Cold WEAK twins for those pure faces live only under #ifndef
  * XLANG_RUNTIME_PIPELINE_ABI_FROM_X (prefer cold / no pure).
- * M2 Class E: layout glue C thin = runtime_pipeline_abi_typeck_orch_thin.c;
- * rename shims .x = runtime_pipeline_abi_typeck_orch_thin.x (wave293 C→.x;
- * layout glue stays C — out-param &i32 Option ptr red until ABI green).
+ * M2 Class E: layout glue and rename shims live in
+ * runtime_pipeline_abi_typeck_orch_thin.x (wave293 C→.x; wave481 out-param
+ * reloc is pure-asm). POSIX product rest omits the C bodies under
+ * XLANG_PABI_TYPECK_ORCH_ASM (w835). Cold seed and Windows still compile them.
  * PLATFORM: SHARED freestanding Cap leave (seed residual class).
  * ============================================================================= */
 /* XLANG_PABI_TYPECK_ORCH_THIN_BEGIN */
@@ -33609,6 +33610,13 @@ extern int32_t pipeline_module_num_struct_layouts_at(void *m);
 extern void pipeline_typeck_patch_all_body_parent_links_c(void *module, void *arena);
 extern char *link_abi_getenv(const char *name);
 
+/* Class CF (w835): typeck_orch product faces are omitted when
+ * -DXLANG_PABI_TYPECK_ORCH_ASM (POSIX product rest). The pure-asm thin
+ * src/runtime_pipeline_abi_typeck_orch_thin.x supplies those symbols.
+ * Cold seed and Windows FROM_X do not define the macro, so they still
+ * compile these bodies. PLATFORM: SHARED gate / POSIX product asm.
+ */
+#if !defined(XLANG_PABI_TYPECK_ORCH_ASM)
 /**
  * Product-mega C face for per-function body typeck.
  * Thin → typeck_x_ast_check_one_func (wave684+ generic body check).
@@ -33693,6 +33701,7 @@ int32_t typeck_x_type_align_from_layout_glue(void *module, void *arena, int32_t 
     return 1;
   return al2 > 0 ? al2 : 1;
 }
+#endif /* XLANG_PABI_TYPECK_ORCH_ASM */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
 #include "../../analysis/archive/runtime_pipeline_abi/cold_L65094.inc"
