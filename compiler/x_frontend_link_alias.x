@@ -8,6 +8,9 @@
 // That face forwards to pipeline_type_kind_ord_at and stays strong.
 // w864 also places glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
 // here. That face forwards to glue_asm_build_func_export_sym_c and stays strong.
+// w865 also places
+// glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32
+// here. That face forwards to glue_asm_build_import_binding_call_sym and stays strong.
 // The product installer pure-asm's this file, then cc's the seed for the
 // lexer struct-return tail and the remaining mangled ABI aliases.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
@@ -41,6 +44,7 @@ extern "C" function pipeline_type_kind_ord_at(a: *u8, r: i32): i32;
 extern "C" function codegen_x_ast_emit_header(out: *u8): i32;
 extern "C" function codegen_x_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8, dep_index: i32): i32;
 extern "C" function glue_asm_build_func_export_sym_c(a: *u8, b: *u8, c: i32, d: *u8, e: i32): i32;
+extern "C" function glue_asm_build_import_binding_call_sym(a: *u8, b: i32, c: *u8, d: i32, e: *u8): i32;
 
 // lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
 
@@ -238,5 +242,23 @@ function pipeline_type_kind_ord_at_u8_ptr_i32_reti32(a: *u8, r: i32): i32 {
 #[no_mangle]
 function glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32(a: *u8, b: *u8, c: i32, d: *u8, e: i32): i32 {
   unsafe { let v: i32 = glue_asm_build_func_export_sym_c(a, b, c, d, e); return v; }
+  return 0;
+}
+/**
+ * X-ABI mangled face of glue_asm_build_import_binding_call_sym.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in backend_call_dispatch. This face only forwards.
+ * @param a *u8 — prefix buffer; null is forwarded, not checked here
+ * @param b i32 — prefix length forwarded unchanged
+ * @param c *u8 — field or c-name buffer; null is forwarded, not checked here
+ * @param d i32 — field length forwarded unchanged
+ * @param e *u8 — output buffer; null is forwarded, not checked here
+ * @return i32 — the value glue_asm_build_import_binding_call_sym returns
+ * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ */
+#[no_mangle]
+function glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32(a: *u8, b: i32, c: *u8, d: i32, e: *u8): i32 {
+  unsafe { let v: i32 = glue_asm_build_import_binding_call_sym(a, b, c, d, e); return v; }
   return 0;
 }

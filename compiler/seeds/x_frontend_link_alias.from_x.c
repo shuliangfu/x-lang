@@ -7,6 +7,9 @@
  * w864: glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
  * also lives only in that .x. It still forwards to
  * glue_asm_build_func_export_sym_c and stays strong.
+ * w865: glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32
+ * also lives only in that .x. It still forwards to
+ * glue_asm_build_import_binding_call_sym and stays strong.
  * This file remains for the lexer struct-return tail and the other
  * mangled ABI aliases, which are not in .x.
  * Product install is pure-asm of the .x plus cc of this rest, then a
@@ -99,11 +102,10 @@ XLANG_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint
  * lives in x_frontend_link_alias.x and still forwards to
  * glue_asm_build_func_export_sym_c. The symbol stays strong.
  * PLATFORM: SHARED. */
-extern int32_t glue_asm_build_import_binding_call_sym(void *a, int32_t b, void *c, int32_t d, void *e);
-int32_t glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32(
-    void *a, int32_t b, void *c, int32_t d, void *e) {
-  return glue_asm_build_import_binding_call_sym(a, b, c, d, e);
-}
+/* w865: glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32
+ * lives in x_frontend_link_alias.x and still forwards to
+ * glue_asm_build_import_binding_call_sym. The symbol stays strong.
+ * PLATFORM: SHARED. */
 extern void glue_codegen_import_path_to_c_prefix_into(void *a, void *b, int32_t c);
 void glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(void *a, void *b, int32_t c) {
   glue_codegen_import_path_to_c_prefix_into(a, b, c);
