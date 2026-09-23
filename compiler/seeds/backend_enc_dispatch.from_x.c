@@ -20,6 +20,8 @@
  * stays in this tail. The symbol stays strong.
  * wave883: arch_x86_64_enc_enc_cdqe_rax_impl lives in that .x too.
  * It appends the x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
+ * wave884: backend_enc_append_u8_c_impl lives in that .x too.
+ * It appends the low 8 bits of one byte. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -273,15 +275,11 @@ int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_
 }
 
 
-/* G-02f-361：单字节 append，供 thin f32/xmm / store_eax 无 static 数组路径 */
-/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
-int32_t backend_enc_append_u8_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte) {
-  uint8_t b;
-  if (!elf_ctx)
-    return -1;
-  b = (uint8_t)(byte & 255);
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b, 1);
-}
+/* w884: backend_enc_append_u8_c_impl is defined in
+ * backend_enc_dispatch_thin.x. It appends the low 8 bits of byte.
+ * The thin's public backend_enc_append_u8_c still forwards here.
+ * Stays strong. PLATFORM: SHARED. */
+int32_t backend_enc_append_u8_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte);
 
 
 

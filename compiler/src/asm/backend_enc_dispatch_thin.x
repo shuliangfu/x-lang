@@ -23,6 +23,8 @@
 // That symbol stays strong.
 // w883 places arch_x86_64_enc_enc_cdqe_rax_impl here. It appends the
 // x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
+// w884 places backend_enc_append_u8_c_impl here. It appends the low
+// 8 bits of one byte. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -32,7 +34,6 @@
 //
 
 export extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
-export extern "C" function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
@@ -3713,6 +3714,26 @@ export function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32 {
     cdqe[0] = 72;
     cdqe[1] = 152;
     return pipeline_elf_ctx_append_bytes(elf_ctx, &cdqe[0], 2);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Append one byte to the emit buffer.
+ * The stored byte is the low 8 bits of byte. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected
+ * @param byte i32 — value whose low 8 bits are appended
+ * @return i32 — 0 when the byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    // One local byte, same mask as the former C (uint8_t)(byte & 255).
+    let b: u8[1] = [];
+    b[0] = (byte & 255) as u8;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 1);
   }
   return 0 - 1;
 }

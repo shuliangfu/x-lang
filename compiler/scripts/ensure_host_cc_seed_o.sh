@@ -2008,7 +2008,8 @@ ensure_rdd_pure() {
 # arch_x86_64_enc_enc_load_rax_rbx_disp32 (thin, w880, stays strong), and
 # arch_riscv64_enc_enc_jalr_reg (thin, w881, stays strong), and
 # arch_riscv64_enc_enc_ldr_xreg_xreg_imm (thin, w882, stays strong), and
-# arch_x86_64_enc_enc_cdqe_rax_impl (thin, w883, stays strong).
+# arch_x86_64_enc_enc_cdqe_rax_impl (thin, w883, stays strong), and
+# backend_enc_append_u8_c_impl (thin, w884, stays strong).
 # Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED.
 ensure_enc_dispatch_pure() {
@@ -2032,7 +2033,7 @@ ensure_enc_dispatch_pure() {
       stale=1
     fi
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (enc dispatch pure-asm w883)"
+      log "skip up-to-date $o (enc dispatch pure-asm w884)"
       return 0
     fi
   fi
@@ -2092,14 +2093,15 @@ ensure_enc_dispatch_pure() {
     || ! r3_prefer_nm_has_sym "$merged_o" "arch_x86_64_enc_enc_load_rax_rbx_disp32" \
     || ! r3_prefer_nm_has_sym "$merged_o" "arch_riscv64_enc_enc_jalr_reg" \
     || ! r3_prefer_nm_has_sym "$merged_o" "arch_riscv64_enc_enc_ldr_xreg_xreg_imm" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "arch_x86_64_enc_enc_cdqe_rax_impl"; then
+    || ! r3_prefer_nm_has_sym "$merged_o" "arch_x86_64_enc_enc_cdqe_rax_impl" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_append_u8_c_impl"; then
     echo "ensure: enc dispatch merge failed; C bodies are gone, no fallback" >&2
     rm -f "$thin_o" "$rest_o" "$merged_o"
     return 1
   fi
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w883; marker, arch_arm64_enc_enc_blr, arch_arm64_enc_enc_ldr_xreg_xreg_imm, arch_x86_64_enc_enc_call_reg, arch_x86_64_enc_enc_load_rax_rbx_disp32, arch_riscv64_enc_enc_jalr_reg, arch_riscv64_enc_enc_ldr_xreg_xreg_imm, and arch_x86_64_enc_enc_cdqe_rax_impl are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w884; marker, arch_arm64_enc_enc_blr, arch_arm64_enc_enc_ldr_xreg_xreg_imm, arch_x86_64_enc_enc_call_reg, arch_x86_64_enc_enc_load_rax_rbx_disp32, arch_riscv64_enc_enc_jalr_reg, arch_riscv64_enc_enc_ldr_xreg_xreg_imm, arch_x86_64_enc_enc_cdqe_rax_impl, and backend_enc_append_u8_c_impl are in the .x; all stay strong]"
   return 0
 }
 
