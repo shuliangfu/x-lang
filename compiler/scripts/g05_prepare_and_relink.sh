@@ -54,6 +54,12 @@ if [ "$_cli_sync_set" = "1" ]; then
   :
 fi
 
+# Class BV: compact token/typekind tag tables (strong; leftover Cap stubs weak).
+if [[ ! -s src/token_typekind_tag_tables.o || seeds/token_typekind_tag_tables.c -nt src/token_typekind_tag_tables.o ]]; then
+  echo "g05_prepare_and_relink: cc -c seeds/token_typekind_tag_tables.c"
+  ${CC:-cc} ${CFLAGS:--O2} -I include -c seeds/token_typekind_tag_tables.c -o src/token_typekind_tag_tables.o
+fi
+
 echo "g05_prepare_and_relink: ensure prereqs (shell, no make)"
 bash scripts/g05_ensure_relink_prereqs.sh
 

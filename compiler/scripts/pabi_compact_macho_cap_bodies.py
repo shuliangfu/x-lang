@@ -161,6 +161,14 @@ def want_compact(name: str) -> bool:
         "_pipeline_asm_debug_enabled",
     ):
         return True
+
+    # Class BV: leftover token_kind／typekind fat tables → Cap stub (weak);
+    # strong compact defs in src/token_typekind_tag_tables.o.
+    if name in (
+        "_pipeline_token_kind_variant_tag",
+        "_pipeline_asm_typekind_variant_tag",
+    ):
+        return True
     return False
 
 
