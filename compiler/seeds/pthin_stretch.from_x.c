@@ -255,7 +255,7 @@ int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *
  * classify_toplevel / import_path_score live in P9b .x (hybrid) or lite
  * (cold). Cold (no P9a): keep the suite C twins as the fallback authority. */
 #ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
-#include "parser_asm_emit_heavy_stretch_suite_slice.inc"
+#include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
 #endif
 
 int labi_pthin_stretch_slice_marker(void) {

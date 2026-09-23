@@ -5,6 +5,13 @@
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
 > **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AT** Cap／driver 剥 ✅；**Class AU** labi prefer 根修 ✅；**Class AV–BA** pipeline Cap／parser stretch suite 空桩＋产品 keep（thin_glue **1837656→343168**）✅；**Class BB–BD** Darwin leftover unwind／Cap 压桩＋labi／driver unwind 剥（pabi **1478272→1325868**）✅；**Class BE–BG** labi needle 表（labi **455872→406232**）✅；**Class BH** leftover Cap PGO／WPO_MONO＋BSS／reloc 修（pabi **→1313088**）✅；**Class BI** leftover Cap PGO-Lite 余桩（pabi **→1310504**）✅；**Class BJ** labi 26× od／fs needle 表（labi **→396392**）✅；**Class BK** call_dispatch Cap va／atomic／simd 剥（call_dispatch **→140568**）✅；**Class BL** try_inline WPO_MONO Cap 剥（try_inline **→39512**）✅；**Class BM** call_dispatch heap redirect 表化（call_dispatch **→133624**）✅；**Class BN** leftover Cap WPO reach／DCE（pabi **→1294672**）✅；**Class BO** leftover Cap-heavy safe（pabi **→1275064**）✅；**Class BP** leftover Cap-heavy skip／safe（pabi **→1253384**）✅；**Class BQ** tip compact_unwind 安全剥（slc／diagnostic／try_inline **−20360**）✅；**Class BR** Cap-skip 压桩＋call_dispatch ASM_DEBUG Cap 剥（pabi **→1246112**；call_dispatch **→127536**）✅；**Class BS** compact_unwind n_sect 修＋call／enc／diag 剥（合计 **−16440**）✅；**Class BT** tip compact_unwind 扩剥（合计 **−25280**）✅；**Class BU** tip compact_unwind G05 全扫（合计 **−80520**）✅；**Class BV** token／typekind 表化（pabi **→1232824**）✅（禁 FORCE；禁 thin_glue；禁 diag／vsnprintf Cap；真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
 
+
+### Class BW（2026-09-23）host-cc=0 债
+- ✅ `parser_asm_emit_heavy_stretch_suite_slice.inc` 退出 seeds 产品链（archive；AUDIT wrapper）
+- ✅ `backend_call_dispatch.from_x.c` tip 债归零量级（1129B；cold twin archive）
+- 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
+- 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
+
 ### 维护约定
 
 1. 做到 → **🟡**；完成 → **✅**；未开 → **⬜**。  

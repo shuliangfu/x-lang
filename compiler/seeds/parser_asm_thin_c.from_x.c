@@ -2884,7 +2884,7 @@ struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer 
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 #ifdef XLANG_PARSER_STRETCH_AUDIT
-#include "parser_asm_emit_heavy_stretch_suite_slice.inc"
+#include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
 #else
 /* Class BA: product keep — no suite symbol-string bloat. */
 #include "parser_asm_stretch_suite_product_keep.inc"
