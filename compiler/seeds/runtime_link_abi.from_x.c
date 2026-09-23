@@ -1009,66 +1009,14 @@ void xlang_linux_ld_child_path(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
     const char *msg, int v1, int v2, int v3) {
-    char url[256];
-    char session[64];
-    const char *env_paths[] = { ".dbg/hello-stage1-segv.env", "../.dbg/hello-stage1-segv.env", NULL };
-    int path_i;
-    url[0] = '\0';
-    session[0] = '\0';
-    for (path_i = 0; env_paths[path_i]; path_i++) {
-        /* Cap residual 9.5.3 slice3b: whole-file read via xlang_proc_read_file
-         * (9.1.12 authority); lines split in place with xlang_proc_next_line.
-         * The debug env file is a tiny local config, so the 1 KiB cap replaces
-         * fgets' 320-byte line window; values strip \r\n exactly as before. */
-        char envbuf[1024];
-        char *line;
-        if (xlang_proc_read_file(env_paths[path_i], envbuf, sizeof envbuf) < 0)
-            continue;
-        for (line = envbuf; line; line = xlang_proc_next_line(line)) {
-            if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
-                strncpy(url, line + 17, sizeof(url) - 1);
-                url[sizeof(url) - 1] = '\0';
-                url[strcspn(url, "\r\n")] = '\0';
-            } else if (strncmp(line, "DEBUG_SESSION_ID=", 17) == 0) {
-                strncpy(session, line + 17, sizeof(session) - 1);
-                session[sizeof(session) - 1] = '\0';
-                session[strcspn(session, "\r\n")] = '\0';
-            }
-        }
-        if (url[0] && session[0])
-            break;
-    }
-    if (!url[0])
-        strncpy(url, "http://127.0.0.1:7777/event", sizeof(url) - 1);
-    if (!session[0])
-        strncpy(session, "hello-stage1-segv", sizeof(session) - 1);
-#if !defined(_WIN32) && !defined(_WIN64)
-    if (xlang_proc_fork() == 0) {
-        char body[768];
-        char *cargv[12];
-        (void)snprintf(body, sizeof(body),
-            "{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"%s\",\"location\":\"%s\","
-            "\"msg\":\"[DEBUG] %s\",\"data\":{\"v1\":%d,\"v2\":%d,\"v3\":%d}}",
-            session, hypothesis_id ? hypothesis_id : "A", location ? location : "runtime_link_abi.c",
-            msg ? msg : "hello-stage1", v1, v2, v3);
-        cargv[0] = (char *)"curl";
-        cargv[1] = (char *)"-s";
-        cargv[2] = (char *)"-X";
-        cargv[3] = (char *)"POST";
-        cargv[4] = url;
-        cargv[5] = (char *)"-H";
-        cargv[6] = (char *)"Content-Type: application/json";
-        cargv[7] = (char *)"-d";
-        cargv[8] = body;
-        cargv[9] = NULL;
-        (void)xlang_proc_execvp("curl", cargv);
-        xlang_proc_exit(0);
-    }
-#endif
+    /* Class AQ: Cap hello-stage1-segv debug-point retired (no curl/env fork). */
+    (void)hypothesis_id;
+    (void)location;
+    (void)msg;
+    (void)v1;
+    (void)v2;
+    (void)v3;
 }
-
-
-
 /* #endregion */
 
 /**
@@ -3625,7 +3573,6 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     (void)csv_o;
     (void)log_o;
     /* #region debug-point B:invoke-cc-enter */
-    xlang_debug_hello_stage1_report("B", "runtime_link_abi.c:2954", "invoke_cc_enter", n, use_lto, (include_root && include_root[0]) ? 1 : 0);
     /* #endregion */
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
@@ -3733,12 +3680,10 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     invoke_cc_append_argv_tail_flags(argv, &i, argv_cap, thread_o, sync_o, channel_o);
     /* wave205 pure: parent-side spawn cc candidates + strip -x when opt != 0. */
     /* #region debug-point C:invoke-cc-spawn */
-    xlang_debug_hello_stage1_report("C", "runtime_link_abi.c:invoke_cc_spawn", "invoke_cc_spawn", n, use_lto, i);
     /* #endregion */
     if (invoke_cc_run_cc_argv(argv) != 0)
         return -1;
     /* #region debug-point D:invoke-cc-strip */
-    xlang_debug_hello_stage1_report("D", "runtime_link_abi.c:invoke_cc_strip", "invoke_cc_strip", 0, 0, 0);
     /* #endregion */
     invoke_cc_maybe_strip_out(out_path, opt_level);
     return 0;

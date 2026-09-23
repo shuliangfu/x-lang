@@ -3350,13 +3350,9 @@ export function link_abi_obj_has_undef_sym(obj_o: *u8, sym: *u8): i32 {
 
 // See implementation.
 
-export extern "C" function xlang_debug_hello_stage1_report_impl(): void;
-
-/* See implementation. */
-
+/* Class AQ: Cap hello-stage1-segv debug-point retired; keep symbol. */
 #[no_mangle]
 export function xlang_debug_hello_stage1_report(): void {
-  unsafe { xlang_debug_hello_stage1_report_impl(); }
 }
 
 // xlang_asm_ld_lib_root_ptr_usable: see function docblock below.

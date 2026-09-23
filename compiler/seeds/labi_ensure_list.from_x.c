@@ -1175,9 +1175,6 @@ int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
   int fs;
   int need;
   int rc;
-  xlang_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_enter",
-                                 "prepare_for_exe_link_enter", driver_freestanding,
-                                 use_macho_o, use_coff_o);
   if (!link_eff || !user_o)
     return -1;
   fs = xlang_link_freestanding_enabled(driver_freestanding);
@@ -1246,8 +1243,6 @@ int xlang_asm_ld_prepare_for_exe_link(const char *link_eff, const char *user_o,
     link_diag_freestanding_unsupported();
     return -1;
   }
-  xlang_debug_hello_stage1_report("A", "runtime_link_abi.c:prepare_for_exe_link_exit",
-                                 "prepare_for_exe_link_exit", 0, 0, 0);
   return 0;
 }
 
