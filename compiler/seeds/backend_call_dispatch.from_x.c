@@ -3322,77 +3322,15 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
  */
 /* G-02f-125：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-374 call：实现体始终 seed；public PREFER 时 thin forward */
-int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
-                                                    int32_t out_cap) {
-  static const struct {
-    const char *from;
-    const char *to;
-  } k_tab[] = {
-      /** 核心堆 API：co-emit 薄模块缺函数体，链 runtime_heap_user.o（heap_*_c）。
-       * PLATFORM: SHARED — do NOT map bare free/realloc (collide with libc free/realloc
-       * in std.heap.libc co-emit → U heap_free_c under freestanding). Typed free_* /
-       * realloc_* remain; usize alloc/realloc use explicit mid or heap_*_c names. */
-      {"alloc", "heap_alloc_c"},
-      /* bare realloc/free removed: libc FFI names in heap.libc (G.7 complete, no dual). */
-      {"alloc_i32", "heap_alloc_i32_c"},
-      {"alloc_i32_ret_i32_ptr", "heap_alloc_i32_c"},
-      {"alloc_i32_ret_u8_ptr", "heap_alloc_u8_c"},
-      {"alloc_i32_ret_u64_ptr", "heap_alloc_u64_c"},
-      {"alloc_i32_ret_f64_ptr", "heap_alloc_f64_c"},
-      {"alloc_i32_ret_f32_ptr", "heap_alloc_f32_c"},
-      {"realloc_i32", "heap_realloc_i32_c"},
-      {"realloc_i32_ret_i32_ptr", "heap_realloc_i32_c"},
-      {"realloc_u64_ret_u64_ptr", "heap_realloc_u64_c"},
-      {"realloc_f64_ret_f64_ptr", "heap_realloc_f64_c"},
-      {"realloc_f32_ret_f32_ptr", "heap_realloc_f32_c"},
-      {"realloc_u8_ret_u8_ptr", "heap_realloc_u8_c"},
-      {"free_i32", "heap_free_i32_c"},
-      {"free_i32_ptr", "heap_free_i32_c"},
-      {"free_u64_ptr", "heap_free_u64_c"},
-      {"free_f64_ptr", "heap_free_f64_c"},
-      {"free_f32_ptr", "heap_free_f32_c"},
-      {"alloc_u8", "heap_alloc_u8_c"},
-      {"realloc_u8", "heap_realloc_u8_c"},
-      {"free_u8", "heap_free_u8_c"},
-      {"alloc_f32", "heap_alloc_f32_c"},
-      {"realloc_f32", "heap_realloc_f32_c"},
-      {"free_f32", "heap_free_f32_c"},
-      {"copy_i32_at", "heap_copy_i32_at_c"},
-      {"copy_u8_at", "heap_copy_u8_at_c"},
-      {"copy_f32_at", "heap_copy_f32_at_c"},
-      {"copy_u64_at", "heap_copy_u64_at_c"},
-      {"copy_f64_at", "heap_copy_f64_at_c"},
-      {"copy_i32_ptr_i32_i32_ptr_i32", "heap_copy_i32_at_c"},
-      {"copy_u8_ptr_i32_u8_ptr_i32", "heap_copy_u8_at_c"},
-      {"copy_f32_ptr_i32_f32_ptr_i32", "heap_copy_f32_at_c"},
-      {"copy_u64_ptr_i32_u64_ptr_i32", "heap_copy_u64_at_c"},
-      {"copy_f64_ptr_i32_f64_ptr_i32", "heap_copy_f64_at_c"},
-      {"arena64_init", "heap_arena64_init_c"},
-      {"arena64_alloc", "heap_arena64_alloc_c"},
-      {"arena64_deinit", "heap_arena64_deinit_c"},
-      {"ptr_mod", "heap_ptr_mod_c"},
-  };
-  size_t i;
-  if (!name || name_len <= 0 || !sym_out || out_cap <= 0)
-    return 0;
-  for (i = 0; i < sizeof(k_tab) / sizeof(k_tab[0]); i++) {
-    size_t flen = strlen(k_tab[i].from);
-    size_t tlen = strlen(k_tab[i].to);
-    if ((int32_t)flen != name_len || memcmp(name, k_tab[i].from, flen) != 0)
-      continue;
-    if ((int32_t)tlen + 1 > out_cap)
-      return 0;
-    memcpy(sym_out, k_tab[i].to, tlen);
-    return (int32_t)tlen;
-  }
-  return 0;
-}
+/* Class BM: glue_try_std_heap_redirect_sym_local_impl → call_dispatch_std_redirect_tables.c */
+#include "call_dispatch_std_redirect_tables.c" /* Class BM */
+
+
+
 
 #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X
-int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
-                                                    int32_t out_cap) {
-  return glue_try_std_heap_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
-}
+/* Class BM: glue_try_std_heap_redirect_sym_local → call_dispatch_std_redirect_tables.c */
+
 #endif
 
 
@@ -7013,6 +6951,8 @@ int32_t pipeline_asm_try_emit_dyn_coerce_let(struct ast_ASTArena *arena,
 }
 
 #else /* XLANG_BACKEND_CALL_DISPATCH_FROM_X：产品 rest 业务 H=0 */
+#include "call_dispatch_std_redirect_tables.c" /* Class BM */
+
 int backend_call_dispatch_slice_marker(void) {
   return 0;
 }
