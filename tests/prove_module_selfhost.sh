@@ -574,9 +574,9 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_enc_dispatch.from_x.c 全 C 体
   # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
   "backend_enc_dispatch|src/asm/backend_enc_dispatch.x|seeds/backend_enc_dispatch_surface.from_x.c||"
-  # backend_arch_emit_dispatch R2 full：.x 吃满 47 ta 分派壳公共业务；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_arch_emit_dispatch.from_x.c 全 C 体
-  # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
+  # w849: 47 ta-dispatch C bodies deleted. Product object is pure-asm of
+  # backend_arch_emit_dispatch.x plus the slice marker. No cold full C.
+  # prove still nm-diffs the surface seed, not the deleted bodies.
   "backend_arch_emit_dispatch|src/asm/backend_arch_emit_dispatch.x|seeds/backend_arch_emit_dispatch_surface.from_x.c||"
   # backend_try_inline_dispatch R2 full：.x 吃满 try_inline/glue 公共业务；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_try_inline_dispatch.from_x.c 全 C 体

@@ -1,12 +1,14 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-//   → src/asm/backend_arch_emit_dispatch.o
-// See implementation.
-// See implementation.
+// w849: the 47 ta-dispatch shells and the doc anchor are the only bodies.
+// w849 deleted those C bodies from seeds/backend_arch_emit_dispatch.from_x.c
+// and deleted seeds/backend_arch_emit_dispatch_thin.from_x.c.
+// Product src/asm/backend_arch_emit_dispatch.o is pure-asm of this file
+// plus the slice marker (returns 0). There is no gcc -E path and no
+// cold-seed fallback. XLANG_G05_PREFER_X_O is ignored. Windows takes
+// the same path.
+// PLATFORM: SHARED.
 // backend_arch_emit_dispatch_x_doc_anchor: see function docblock below.
 
 /** Exported function `backend_arch_emit_dispatch_x_doc_anchor`.
@@ -17,7 +19,10 @@ export function backend_arch_emit_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-209：arch_emit ta-dispatch shells ---- */
+/* ta-dispatch shells. Each shell picks arm64 (ta==1), riscv64 (ta==2),
+ * or x86_64. The arch_*_emit_* callees live in another translation unit.
+ * PLATFORM: SHARED.
+ */
 
 export extern "C" function arch_arm64_emit_add_imm_to_rax(out: *u8, imm: i32): i32;
 export extern "C" function arch_arm64_emit_add_rax_rbx(out: *u8): i32;

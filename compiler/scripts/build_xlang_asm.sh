@@ -4393,6 +4393,13 @@ ensure_bstrict_seed_support_objs() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o src/asm/asm_backend_compat_stubs.o
   fi
   for _disp in backend_enc_dispatch backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
+  if [ "$_disp" = "backend_arch_emit_dispatch" ]; then
+    # w849: 47 ta-dispatch bodies live only in the .x. The seed is the
+    # slice marker. pure-asm + marker. No raw cc. No gcc -E.
+    # PLATFORM: SHARED.
+    bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer "src/asm/${_disp}.o" || return 1
+    continue
+  fi
   if [ -f "seeds/${_disp}.from_x.c" ]; then
   if [ ! -f "src/asm/${_disp}.o" ] || [ "seeds/${_disp}.from_x.c" -nt "src/asm/${_disp}.o" ]; then
   echo " cc -c seeds/${_disp}.from_x.c -> src/asm/${_disp}.o"
