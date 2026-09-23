@@ -57,6 +57,12 @@
 - 🟡 巨型字符串表仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class EB（2026-09-24）backend_enc_append_u32_le_c_impl 已收入 .x
+
+- ✅ `backend_enc_append_u32_le_c_impl` 的产品定义只在 `src/asm/backend_enc_dispatch_thin.x`。它把一个 32 位字的四个小端字节交给 `pipeline_elf_ctx_append_bytes`，符号仍强。这是 i32 与 u32 两参，98 条指令，`sub sp, #0x880`。首字与 w884 那条 54 条和 w882 那条 44 条相同，长度不同。已经在薄层里的 `backend_enc_append_u32_le_c` 仍转调它。C 尾的 `backend_enc_arm64_call_c_impl` 仍直接调用这个符号。产品路径不再 `cc` 这个实现。安装器纯 asm 薄层，再 `cc` f64／Cap 尾。没有 gcc `-E`，没有 full `.x`
+- 🟡 f64／Cap 尾、`backend_enc_arm64_call_c_impl`、`backend_enc_x86_jcc_rel32_c_impl`、被调函数和分发器仍 host-cc，`backend_enc_dispatch.from_x.c` 还不能整文件删除。`addsd` 的 nm 门还在
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 13324 条前缀对不上的编译器上重编 `backend_enc_dispatch.o`。不把这个实现改成弱符号
+
 ### Class EA（2026-09-24）backend_enc_append_u8_c_impl 已收入 .x
 
 - ✅ `backend_enc_append_u8_c_impl` 的产品定义只在 `src/asm/backend_enc_dispatch_thin.x`。它把一个字节的低 8 位交给 `pipeline_elf_ctx_append_bytes`，符号仍强。这是 i32 两参，54 条指令，`sub sp, #0x880`。首字与 w882 那条 i32 四参相同，长度不同（那些是 44 条）。已经在薄层里的 `backend_enc_append_u8_c` 仍转调它。产品路径不再 `cc` 这个实现。安装器纯 asm 薄层，再 `cc` f64／Cap 尾。没有 gcc `-E`，没有 full `.x`
