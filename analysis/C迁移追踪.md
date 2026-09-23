@@ -54,6 +54,12 @@
 - 🟡 巨型字符串表与 marker 仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class CU（2026-09-23）cfg_eval_host_lit 产品种子已删除
+
+- ✅ `cfg_host_os_lit`／`cfg_host_arch_lit` 只在 `src/lexer/cfg_eval_host_lit.x`。`seeds/cfg_eval_host_lit.from_x.c` 已整文件删除，没有 gcc `-E`，没有 host-cc 回退
+- 🟡 `cfg_eval` 阶梯的 link_alias、linux pin、bootstrap stub 仍 host-cc
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）。不重编 `cfg_eval.o`，除非 `cfg_eval.x` 的当前汇编先和链上对象对上
+
 ### Class CT（2026-09-23）backend_arch_emit_dispatch 分派壳 C 体已删除
 
 - ✅ 47 个 `backend_arch_emit_*` ta 分派壳只在 `src/asm/backend_arch_emit_dispatch.x`。种子里的 C 体已删除，`backend_arch_emit_dispatch_thin.from_x.c` 已整文件删除，没有 gcc `-E`，没有冷种子回退
