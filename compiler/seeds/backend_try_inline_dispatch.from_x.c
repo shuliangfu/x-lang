@@ -203,72 +203,8 @@ extern int32_t backend_enc_call_stack_cleanup_arch(struct platform_elf_ElfCodege
  * Overrides runtime_driver_strict_glue_stubs WEAK stub (always -1).
  * Format: base + "__wpo" + "_" + decimal (negatives: "_n" + abs). */
 int codegen_wpo_mono_sym_format(const char *base, int nargs, const int *args, char *out, int cap) {
-  int i;
-  int n;
-  int pos;
-  int v;
-  int start;
-  int end;
-  char tmp;
-  unsigned uv;
-  if (!base || !out || cap <= 1)
-    return -1;
-  if (nargs < 0)
-    return -1;
-  if (nargs > 0 && !args)
-    return -1;
-  pos = 0;
-  for (i = 0; base[i] != 0; i++) {
-    if (pos + 1 >= cap)
-      return -1;
-    out[pos++] = base[i];
-  }
-  if (pos + 5 >= cap)
-    return -1;
-  out[pos++] = '_';
-  out[pos++] = '_';
-  out[pos++] = 'w';
-  out[pos++] = 'p';
-  out[pos++] = 'o';
-  for (n = 0; n < nargs; n++) {
-    if (pos + 1 >= cap)
-      return -1;
-    out[pos++] = '_';
-    v = args[n];
-    if (v < 0) {
-      if (pos + 1 >= cap)
-        return -1;
-      out[pos++] = 'n';
-      uv = (unsigned)(-(v + 1)) + 1u;
-    } else {
-      uv = (unsigned)v;
-    }
-    start = pos;
-    if (uv == 0u) {
-      if (pos + 1 >= cap)
-        return -1;
-      out[pos++] = '0';
-    } else {
-      while (uv > 0u) {
-        if (pos + 1 >= cap)
-          return -1;
-        out[pos++] = (char)('0' + (int)(uv % 10u));
-        uv /= 10u;
-      }
-      end = pos - 1;
-      while (start < end) {
-        tmp = out[start];
-        out[start] = out[end];
-        out[end] = tmp;
-        start++;
-        end--;
-      }
-    }
-  }
-  if (pos >= cap)
-    return -1;
-  out[pos] = 0;
-  return pos;
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 extern void glue_wpo_mono_register_thunk(const char *base, int32_t av0, int32_t av1, int32_t folded);
 extern void glue_wpo_mono_register_thunk_n(const char *base, int32_t nargs, const int32_t *args, int32_t folded);
@@ -2071,101 +2007,16 @@ int32_t glue_fold_func_returns_param0_index_const(struct ast_ASTArena *arena, st
 int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                            struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_ASTArena *outer_arena;
-  struct ast_Module *outer_mod;
-  struct ast_ASTArena *inner_arena;
-  struct ast_Module *inner_mod;
-  int32_t outer_fi;
-  int32_t lane;
-  int32_t inner_call_ref;
-  int32_t inner_fi;
-  int32_t binop_ko;
-  int32_t arg0;
-  int32_t arg1;
-  int32_t av0;
-  int32_t av1;
-  int32_t folded;
-  int32_t hi;
-  int32_t ko;
-  int32_t iko;
-  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL) {
-    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0)
-      return 0;
-  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
-    return 0;
-  }
-  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
-  {
-    int32_t recv_ref_guard = 0;
-    if (ko == GLUE_EXPR_METHOD_CALL) {
-      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    } else {
-      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    }
-    if (recv_ref_guard > 0) {
-      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
-      if (recv_ty_guard > 0) {
-        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
-        if (recv_kind_guard == 17) { return 0; }
-      }
-    }
-  }
-  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &outer_arena, &outer_mod, &outer_fi) == 0)
-    return 0;
-  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
-   * (overload pick). Name-only first-match is METHOD-only. */
-  if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL)
-    inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-  else
-    inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-  if (inner_call_ref <= 0)
-    return 0;
-  iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
-  if (iko != GLUE_EXPR_CALL && iko != GLUE_EXPR_METHOD_CALL)
-    return 0;
-  if (iko == GLUE_EXPR_METHOD_CALL) {
-    if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1)
-      return 0;
-  } else if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) {
-    return 0;
-  }
-  if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &inner_arena, &inner_mod, &inner_fi) == 0)
-    return 0;
-  if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0)
-    return 0;
-  if (iko == GLUE_EXPR_METHOD_CALL) {
-    arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
-    arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
-  } else {
-    arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
-  }
-  if (arg0 <= 0 || arg1 <= 0)
-    return 0;
-  if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0)
-    return 0;
-  if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0)
-    return 0;
-  if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0)
-    return 0;
-  hi = (folded < 0) ? -1 : 0;
-  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, folded, hi, ta) != 0)
-    return -1;
-  return 1;
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
 int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
                                                            struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                            struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  return try_inline_wpo_const_vector_lane_of_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 #endif
 
@@ -2180,76 +2031,16 @@ int32_t try_inline_wpo_const_vector_lane_of_binop_call_elf(struct ast_ASTArena *
 int32_t try_inline_wpo_const_scalar_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                     struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_ASTArena *callee_arena;
-  struct ast_Module *callee_mod;
-  int32_t fi;
-  int32_t binop_ko;
-  int32_t arg0;
-  int32_t arg1;
-  int32_t av0;
-  int32_t av1;
-  int32_t folded;
-  int32_t hi;
-  int32_t ko;
-  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL) {
-    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1)
-      return 0;
-  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) {
-    return 0;
-  }
-  /* F7: dyn Trait (TYPE_DYN kind=17) receiver must NOT be inlined — vtable dispatch. */
-  {
-    int32_t recv_ref_guard = 0;
-    if (ko == GLUE_EXPR_METHOD_CALL) {
-      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    } else {
-      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    }
-    if (recv_ref_guard > 0) {
-      int32_t recv_ty_guard = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
-      if (recv_ty_guard > 0) {
-        int32_t recv_kind_guard = pipeline_type_kind_ord_at(arena, recv_ty_guard);
-        if (recv_kind_guard == 17) { return 0; }
-      }
-    }
-  }
-  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
-    return 0;
-  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
-   * (overload pick_i32 vs pick_i64). Name-only first-match is METHOD-only. */
-  if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL) {
-    arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
-  } else {
-    arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
-  }
-  if (arg0 <= 0 || arg1 <= 0)
-    return 0;
-  if (glue_try_expr_const_i32(arena, arg0, &av0) == 0)
-    return 0;
-  if (glue_try_expr_const_i32(arena, arg1, &av1) == 0)
-    return 0;
-  if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0)
-    return 0;
-  hi = (folded < 0) ? -1 : 0;
-  if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, folded, hi, ta) != 0)
-    return -1;
-  return 1;
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
 int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
                                                     struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t expr_ref,
                                                     struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  return try_inline_wpo_const_scalar_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 #endif
 
@@ -2264,78 +2055,15 @@ int32_t try_inline_wpo_const_scalar_binop_call_elf(struct ast_ASTArena *arena,
 /* G-02f-376 try：实现体始终 seed；public PREFER 时 thin forward */
 int32_t try_call_wpo_mono_symbol_elf_impl(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_ASTArena *callee_arena;
-  struct ast_Module *callee_mod;
-  int32_t fi;
-  int32_t binop_ko;
-  int32_t arg0;
-  int32_t arg1;
-  int32_t av0;
-  int32_t av1;
-  int32_t folded;
-  int32_t args[2];
-  char sym[256];
-  int sym_len;
-  uint8_t cname[256];
-  int32_t clen;
-  int32_t ko;
-  /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
-  if (!link_abi_getenv("XLANG_WPO_MONO"))
-    return 0;
-  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL) {
-    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1)
-      return 0;
-  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) {
-    return 0;
-  }
-  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &callee_arena, &callee_mod, &fi) == 0)
-    return 0;
-  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
-   * (overload pick). Name-only first-match is METHOD-only. */
-  if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL) {
-    arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
-  } else {
-    arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
-  }
-  if (arg0 <= 0 || arg1 <= 0)
-    return 0;
-  if (glue_try_expr_const_i32(arena, arg0, &av0) == 0)
-    return 0;
-  if (glue_try_expr_const_i32(arena, arg1, &av1) == 0)
-    return 0;
-  if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0)
-    return 0;
-  clen = pipeline_asm_module_func_name_len_at(callee_mod, fi);
-  if (clen <= 0 || clen > 63)
-    return 0;
-  pipeline_asm_module_func_name_copy64(callee_mod, fi, cname);
-  cname[clen] = 0;
-  glue_wpo_mono_register_thunk((const char *)cname, av0, av1, folded);
-  args[0] = av0;
-  args[1] = av1;
-  sym_len = codegen_wpo_mono_sym_format((const char *)cname, 2, args, sym, (int)sizeof(sym));
-  if (sym_len <= 0)
-    return -1;
-  if (backend_enc_call_arch(elf_ctx, (uint8_t *)sym, sym_len, ta) != 0)
-    return -1;
-  if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  return 1;
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
 int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform_elf_ElfCodegenCtx *elf_ctx,
                                      int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  return try_call_wpo_mono_symbol_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 #endif
 
@@ -2354,119 +2082,16 @@ int32_t try_call_wpo_mono_symbol_elf(struct ast_ASTArena *arena, struct platform
 int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  struct ast_ASTArena *outer_arena;
-  struct ast_Module *outer_mod;
-  struct ast_ASTArena *inner_arena;
-  struct ast_Module *inner_mod;
-  int32_t outer_fi;
-  int32_t lane;
-  int32_t inner_call_ref;
-  int32_t inner_fi;
-  int32_t binop_ko;
-  int32_t arg0;
-  int32_t arg1;
-  int32_t av0;
-  int32_t av1;
-  int32_t folded;
-  int32_t mono_args[GLUE_WPO_MONO_MAX_ARGS];
-  int32_t nargs;
-  int32_t li;
-  char sym[256];
-  int sym_len;
-  uint8_t cname[256];
-  int32_t clen;
-  int32_t ko;
-  int32_t iko;
-  /* wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv). */
-  if (!link_abi_getenv("XLANG_WPO_MONO"))
-    return 0;
-  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
-    return 0;
-  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
-  if (ko != GLUE_EXPR_CALL && ko != GLUE_EXPR_METHOD_CALL)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL) {
-    if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0)
-      return 0;
-  } else if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) {
-    return 0;
-  }
-  if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &outer_arena, &outer_mod, &outer_fi) == 0)
-    return 0;
-  /* Why: CALL path of glue_call_lookup prefers resolved_func_index
-   * (overload pick). Name-only first-match is METHOD-only. */
-  if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0)
-    return 0;
-  if (ko == GLUE_EXPR_METHOD_CALL)
-    inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-  else
-    inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-  if (inner_call_ref <= 0)
-    return 0;
-  iko = pipeline_expr_kind_ord_at(arena, inner_call_ref);
-  if (iko != GLUE_EXPR_CALL && iko != GLUE_EXPR_METHOD_CALL)
-    return 0;
-  if (iko == GLUE_EXPR_METHOD_CALL) {
-    if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1)
-      return 0;
-  } else if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) {
-    return 0;
-  }
-  if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &inner_arena, &inner_mod, &inner_fi) == 0)
-    return 0;
-  if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0)
-    return 0;
-  if (iko == GLUE_EXPR_METHOD_CALL) {
-    arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
-    arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
-  } else {
-    arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-    arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
-  }
-  if (arg0 <= 0 || arg1 <= 0)
-    return 0;
-  nargs = pipeline_expr_array_lit_num_elems_at(arena, arg0);
-  if (nargs <= 0 || nargs != pipeline_expr_array_lit_num_elems_at(arena, arg1))
-    return 0;
-  if (nargs > GLUE_WPO_MONO_MAX_ARGS / 2)
-    return 0;
-  for (li = 0; li < nargs; li++) {
-    int32_t e0;
-    int32_t e1;
-    if (glue_try_array_lit_lane_const_i32(arena, arg0, li, &e0) == 0)
-      return 0;
-    if (glue_try_array_lit_lane_const_i32(arena, arg1, li, &e1) == 0)
-      return 0;
-    mono_args[li] = e0;
-    mono_args[nargs + li] = e1;
-  }
-  if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0)
-    return 0;
-  if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0)
-    return 0;
-  if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0)
-    return 0;
-  clen = pipeline_asm_module_func_name_len_at(outer_mod, outer_fi);
-  if (clen <= 0 || clen > 63)
-    return 0;
-  pipeline_asm_module_func_name_copy64(outer_mod, outer_fi, cname);
-  cname[clen] = 0;
-  glue_wpo_mono_register_thunk_n((const char *)cname, nargs * 2, mono_args, folded);
-  sym_len = codegen_wpo_mono_sym_format((const char *)cname, nargs * 2, mono_args, sym, (int)sizeof(sym));
-  if (sym_len <= 0)
-    return -1;
-  if (backend_enc_call_arch(elf_ctx, (uint8_t *)sym, sym_len, ta) != 0)
-    return -1;
-  if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0)
-    return -1;
-  return 1;
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 
 #ifndef XLANG_L2_TRY_INLINE_THIN_FROM_X
 int32_t try_call_wpo_mono_vector_lane_of_binop_call_elf(struct ast_ASTArena *arena,
                                                           struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                           int32_t expr_ref, struct glue_AsmFuncCtx *ctx, int32_t ta) {
-  return try_call_wpo_mono_vector_lane_of_binop_call_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 #endif
 
