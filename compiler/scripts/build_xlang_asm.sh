@@ -4400,6 +4400,13 @@ ensure_bstrict_seed_support_objs() {
     bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer "src/asm/${_disp}.o" || return 1
     continue
   fi
+  if [ "$_disp" = "backend_enc_dispatch" ]; then
+    # w854: thin publics live only in the .x. The seed is the f64/Cap tail.
+    # pure-asm + tail. No raw cc. No gcc -E. No full .x.
+    # PLATFORM: SHARED.
+    bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer "src/asm/${_disp}.o" || return 1
+    continue
+  fi
   if [ -f "seeds/${_disp}.from_x.c" ]; then
   if [ ! -f "src/asm/${_disp}.o" ] || [ "seeds/${_disp}.from_x.c" -nt "src/asm/${_disp}.o" ]; then
   echo " cc -c seeds/${_disp}.from_x.c -> src/asm/${_disp}.o"
