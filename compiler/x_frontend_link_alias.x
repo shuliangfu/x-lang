@@ -1,13 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-26 / w847: alias forwards for pipeline_x lexer/typeck/codegen_x.
-// The 18 functions in this file are the only bodies. w847 deleted their
-// C twins and the XLANG_XFLA_ASM gate from
-// seeds/x_frontend_link_alias.from_x.c. The product installer pure-asm's
-// this file, then cc's the seed for the lexer struct-return tail and the
-// mangled ABI aliases. There is no full-seed fallback and
-// XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+// G-02f-26 / w847 / w863: alias forwards for pipeline_x lexer/typeck/codegen_x.
+// w847 put the original 18 alias bodies only in this file and deleted
+// their C twins and the XLANG_XFLA_ASM gate.
+// w863 also places pipeline_type_kind_ord_at_u8_ptr_i32_reti32 here.
+// That face forwards to pipeline_type_kind_ord_at and stays strong.
+// The product installer pure-asm's this file, then cc's the seed for the
+// lexer struct-return tail and the remaining mangled ABI aliases.
+// There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
+// Windows takes the same path.
 // Five faces are weakened after asm so a strong typeck definition wins:
 // check_block_impl, check_expr_impl, find_or_alloc_ptr_type_ref,
 // pipeline_typeck_set_active_ctx_c, pipeline_typeck_ptr_for_addr_of_operand_c.
@@ -31,6 +33,7 @@ extern "C" function pipeline_module_struct_layout_soa_at(m: *u8, idx: i32): i32;
 extern "C" function pipeline_module_struct_layout_packed_at(m: *u8, idx: i32): i32;
 extern "C" function pipeline_module_struct_layout_field_align_at(m: *u8, li: i32, j: i32): i32;
 extern "C" function pipeline_module_struct_layout_set_field_align(m: *u8, li: i32, j: i32, al: i32): void;
+extern "C" function pipeline_type_kind_ord_at(a: *u8, r: i32): i32;
 
 /* ---- codegen ---- */
 extern "C" function codegen_x_ast_emit_header(out: *u8): i32;
@@ -199,5 +202,20 @@ function codegen_codegen_x_ast_emit_header(out: *u8): i32 {
 #[no_mangle]
 function codegen_codegen_x_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8, dep_index: i32): i32 {
   unsafe { let r: i32 = codegen_x_ast(module, arena, out, ctx, dep_index); return r; }
+  return 0;
+}
+/**
+ * X-ABI mangled face of pipeline_type_kind_ord_at.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in the pipeline object. This face only forwards.
+ * @param a *u8 — type-table base; null is forwarded, not checked here
+ * @param r i32 — row index forwarded unchanged
+ * @return i32 — the value pipeline_type_kind_ord_at returns
+ * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ */
+#[no_mangle]
+function pipeline_type_kind_ord_at_u8_ptr_i32_reti32(a: *u8, r: i32): i32 {
+  unsafe { let v: i32 = pipeline_type_kind_ord_at(a, r); return v; }
   return 0;
 }

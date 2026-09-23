@@ -1,8 +1,11 @@
 /* seeds/x_frontend_link_alias.from_x.c
  * w847: the 18 alias functions live only in x_frontend_link_alias.x.
  * Their C bodies and the XLANG_XFLA_ASM gate were deleted. A seed-only
- * cc does not define those symbols. This file remains for the lexer
- * struct-return tail and the mangled ABI aliases, which are not in .x.
+ * cc does not define those symbols.
+ * w863: pipeline_type_kind_ord_at_u8_ptr_i32_reti32 also lives only in
+ * that .x. It still forwards to pipeline_type_kind_ord_at and stays strong.
+ * This file remains for the lexer struct-return tail and the other
+ * mangled ABI aliases, which are not in .x.
  * Product install is pure-asm of the .x plus cc of this rest, then a
  * partial merge. There is no full-seed fallback. -DXLANG_XFLA_ASM is
  * now a no-op. Five aliases stay weak via G05_X_O_WEAK_FUNCS on the
@@ -103,10 +106,9 @@ extern void glue_codegen_import_path_to_c_prefix_into(void *a, void *b, int32_t 
 void glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(void *a, void *b, int32_t c) {
   glue_codegen_import_path_to_c_prefix_into(a, b, c);
 }
-extern int32_t pipeline_type_kind_ord_at(void *a, int32_t r);
-int32_t pipeline_type_kind_ord_at_u8_ptr_i32_reti32(void *a, int32_t r) {
-  return pipeline_type_kind_ord_at(a, r);
-}
+/* w863: pipeline_type_kind_ord_at_u8_ptr_i32_reti32 lives in
+ * x_frontend_link_alias.x and still forwards to pipeline_type_kind_ord_at.
+ * PLATFORM: SHARED. */
 /* X-ABI mangled face for the 4-param heap-redirect local (name, nlen, out,
  * out_cap): the -E'd backend_call_dispatch.x emits signature-suffixed calls
  * to it, and the strong plain-name body lives in backend_call_dispatch.o
