@@ -1,6 +1,8 @@
 /* seeds/backend_enc_dispatch.from_x.c — C tail for backend_enc_dispatch.o.
  * wave854: the thin public bodies live only in src/asm/backend_enc_dispatch_thin.x.
  * wave862: backend_enc_dispatch_slice_marker lives in that .x too and returns 1.
+ * wave877: arch_arm64_enc_enc_blr lives in that .x too. It still forwards to
+ * backend_enc_arm64_blr_c, which stays in this tail. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1729,10 +1731,10 @@ int32_t backend_enc_riscv64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCt
   return backend_enc_append_u32_le_c(elf_ctx,
     ((uint32_t)imm12 << 20) | ((uint32_t)base_reg << 15) | (3u << 12) | ((uint32_t)dst_reg << 7) | 3u);
 }
-/* Thin wrappers: arch_*_enc_enc_* → backend_enc_*_c. */
-int32_t arch_arm64_enc_enc_blr(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
-  return backend_enc_arm64_blr_c(elf_ctx, reg);
-}
+/* Thin wrappers: arch_*_enc_enc_* → backend_enc_*_c.
+ * w877: arch_arm64_enc_enc_blr is defined in backend_enc_dispatch_thin.x.
+ * The prototype above still satisfies backend_enc_blr_arch. Stays strong.
+ * PLATFORM: SHARED. */
 int32_t arch_arm64_enc_enc_ldr_xreg_xreg_imm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
   return backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset);
 }
