@@ -295,3 +295,5 @@
 5. ⬜ **阶段 12–13** 最小 seed · 全路径零 cc · v2==v3 · 公告  
 
 > 完成一步只改对应 `⬜`→`🟡`→`✅`。不要在本文写 tip／wave／日志路径。
+
+- 2026-09-23 CB-fix：labi HOST_LIT nm gate＋TLS 空导出已清；Ubuntu tip cold option 仍 134（return-elf smash／e9 00）。FAT prefer 可出 offs，Cap residual 未齐。
