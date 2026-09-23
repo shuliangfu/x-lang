@@ -3,7 +3,12 @@
 //
 // G-02f-309/443 / P2 runtime rest → R2 full: static arena/module buffers.
 // .x owns driver_arena_buf / driver_module_buf (memset + num_types clear).
-// Product PREFER_X_O: full .x + rest under FROM_X has business T=0 (marker + BSS data).
+// w841 POSIX product slice: pure-asm this file, then cc the seed under
+// -DXLANG_RT_ARENA_BUF_FROM_X. That rest keeps the 128MiB arena array, the
+// 2MiB module array, and the slice marker. Those two functions are not
+// compiled by the POSIX product cc. Windows and PREFER=0 still cc the full
+// seed. The .x calls libc memset; the old full-cc body was lowered to bzero.
+// Product PREFER_X_O temps are a different path and must not replace this .o.
 // Cap-global-bss residual: 128MiB/2MiB arrays live in rest seed; slot API in driver_abi
 // (.x export let becomes static; cannot export large arrays across TUs).
 
