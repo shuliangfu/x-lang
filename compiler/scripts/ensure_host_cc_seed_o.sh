@@ -1555,6 +1555,11 @@ try_ensure_r3_cold_one() {
     ensure_arch_emit_dispatch_pure || return 1
     return 0
   fi
+  # w853: diagnostic thin publics have no cold C bodies. Same pure-asm path.
+  if [ "$o" = "src/runtime_driver_diagnostic.o" ]; then
+    ensure_rdd_pure || return 1
+    return 0
+  fi
   seed="$(seed_for_o "$o")"
   ensure_one "$o" "$seed"
   return 0
@@ -1606,6 +1611,9 @@ r3_prefer_leaf_spec() {
       printf '%s\n' "src/runtime_driver_abi_thin.x|XLANG_L2_RDABI_THIN_FROM_X|-|-|-"
       ;;
     src/runtime_driver_diagnostic.o)
+      # w853: ensure_r3_prefer_one does not use this spec. Thin publics are
+      # pure-asm of runtime_driver_diagnostic_thin.x. The seed is the asm BSS
+      # tail only. Kept so the leaf map still names the .x.
       printf '%s\n' "src/runtime_driver_diagnostic_thin.x|XLANG_L2_RDD_THIN_FROM_X|-|-|-"
       ;;
     src/asm/simd_enc.o)
@@ -1792,6 +1800,96 @@ ensure_arch_emit_dispatch_pure() {
   return 0
 }
 
+# w853: thin public bodies live only in runtime_driver_diagnostic_thin.x.
+# Product object is pure_asm_x_to_o of that thin plus cc of the asm BSS tail
+# with -DXLANG_L2_RDD_THIN_FROM_X. No gcc -E. No cold full-seed cc.
+# XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+# Keep default unwind tables: the linked object carries __compact_unwind.
+# Failure leaves the previous .o in place and returns 1.
+# PLATFORM: SHARED.
+ensure_rdd_pure() {
+  local o="src/runtime_driver_diagnostic.o"
+  local x_src="src/runtime_driver_diagnostic_thin.x"
+  local seed="seeds/runtime_driver_diagnostic.from_x.c"
+  local thin_tmp thin_o rest_tmp rest_o merged_tmp merged_o ld_flags asm_bin
+  local stale=0
+
+  if [ ! -f "$x_src" ] || [ ! -f "$seed" ]; then
+    echo "ensure: diagnostic missing $x_src or $seed; C bodies are gone, no fallback" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    [ "$seed" -nt "$o" ] && stale=1
+    [ "$x_src" -nt "$o" ] && stale=1
+    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (diagnostic pure-asm w853)"
+      return 0
+    fi
+  fi
+
+  if [ -x ./xlang_asm ]; then
+    asm_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    asm_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    asm_bin=./xlang-c
+  else
+    echo "ensure: diagnostic pure-asm has no compiler; C bodies are gone, no fallback" >&2
+    return 1
+  fi
+
+  mkdir -p "$(dirname "$o")"
+  thin_tmp="$(mktemp "${TMPDIR:-/tmp}/rdd_x.XXXXXX")"
+  thin_o="${thin_tmp}.o"
+  mv "$thin_tmp" "$thin_o"
+  rest_tmp="$(mktemp "${TMPDIR:-/tmp}/rdd_tail.XXXXXX")"
+  rest_o="${rest_tmp}.o"
+  mv "$rest_tmp" "$rest_o"
+  merged_tmp="$(mktemp "${TMPDIR:-/tmp}/rdd_merged.XXXXXX")"
+  merged_o="${merged_tmp}.o"
+  mv "$merged_tmp" "$merged_o"
+
+  if ! (
+    export XLANG="$asm_bin"
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK
+    unset G05_X_O_WEAK_FUNCS
+    pure_asm_x_to_o "$thin_o" "$x_src"
+  ); then
+    echo "ensure: diagnostic pure-asm failed; C bodies are gone, no fallback" >&2
+    rm -f "$thin_o" "$rest_o" "$merged_o"
+    return 1
+  fi
+  # Tail cc matches the linked object, including __compact_unwind.
+  # Do not pass -fno-unwind-tables. PLATFORM: SHARED.
+  # shellcheck disable=SC2086
+  if ! ${CC:-cc} $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+      -DXLANG_L2_RDD_THIN_FROM_X -c -o "$rest_o" "$seed"; then
+    echo "ensure: diagnostic tail cc failed; C bodies are gone, no fallback" >&2
+    rm -f "$thin_o" "$rest_o" "$merged_o"
+    return 1
+  fi
+  ld_flags="$(r3_prefer_ld_r_flags)"
+  # shellcheck disable=SC2086
+  if ! ld $ld_flags -o "$merged_o" "$thin_o" "$rest_o" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "driver_diagnostic_parse_fail" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "driver_diagnostic_asm_fail_at"; then
+    echo "ensure: diagnostic merge failed; C bodies are gone, no fallback" >&2
+    rm -f "$thin_o" "$rest_o" "$merged_o"
+    return 1
+  fi
+  mv -f "$merged_o" "$o"
+  rm -f "$thin_o" "$rest_o"
+  log "runtime_driver_diagnostic.o from $x_src (pure-asm) + asm BSS tail [w853]"
+  return 0
+}
+
 ensure_r3_prefer_one() {
   # Prefer ladder (full→thin) or cold seed for one R3_COLD member (no membership check).
   local o="$1"
@@ -1804,6 +1902,11 @@ ensure_r3_prefer_one() {
   # w849: do not gcc -E this TU and do not cold-cc the marker alone.
   if [ "$o" = "src/asm/backend_arch_emit_dispatch.o" ]; then
     ensure_arch_emit_dispatch_pure || return 1
+    return 0
+  fi
+  # w853: do not gcc -E this TU and do not cold-cc the tail alone.
+  if [ "$o" = "src/runtime_driver_diagnostic.o" ]; then
+    ensure_rdd_pure || return 1
     return 0
   fi
 

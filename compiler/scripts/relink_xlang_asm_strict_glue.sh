@@ -1751,11 +1751,9 @@ if asm_strict_typeck_x_glue_via_pipeline_x && [ -f "$ST_TYPECK_X_LINK" ]; then
 fi
 
 ensure_runtime_driver_diagnostic_obj() {
-  local o="src/runtime_driver_diagnostic.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_diagnostic.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/runtime_driver_diagnostic.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o "$o"
-  fi
+  # wave853: thin publics live only in the .x. Bare cc of the seed is the
+  # asm BSS tail and would drop those symbols. PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/runtime_driver_diagnostic.o
 }
 
 ensure_diag_obj() {

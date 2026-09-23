@@ -5172,11 +5172,9 @@ ensure_diag_obj() {
 }
 
 ensure_runtime_driver_diagnostic_obj() {
-  local o="src/runtime_driver_diagnostic.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_diagnostic.from_x.c" -nt "$o" ]; then
-  echo " cc -c $o <- seeds/runtime_driver_diagnostic.from_x.c (E-04 typeck diagnostic hooks)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o "$o"
-  fi
+  # wave853: thin publics live only in the .x. Bare cc of the seed is the
+  # asm BSS tail and would drop those symbols. PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/runtime_driver_diagnostic.o
 }
 
 # Cap residual：driver_abi 跨 TU 数据/thread_fn（与 Makefile RT_SEED_SLICE_OBJS 同源）。
