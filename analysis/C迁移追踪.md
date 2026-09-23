@@ -36,6 +36,12 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CO（2026-09-23）rt_arena_buf 函数 C 体已删除
+
+- ✅ `driver_arena_buf`／`driver_module_buf` 只在 `src/runtime/rt_arena_buf.x`。种子里的 C 体已删除，没有整份回退
+- 🟡 128MiB／2MiB BSS 与 marker 仍 host-cc，`rt_arena_buf.from_x.c` 还不能整文件删除
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）
+
 ### Class CN（2026-09-23）rt_preamble 写入函数 C 体已删除
 
 - ✅ `write_io_net_abi_inline`／`write_fs_path_map_error_abi_inline` 只在 `src/runtime/rt_preamble.x`。种子里的 C 体已删除，没有整份回退
@@ -353,7 +359,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CN** 删掉 `rt_preamble` 两个写入函数的 C 体，权威在 `.x`；字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、C 体可以物理删除的 from_x。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CO** 删掉 `rt_arena_buf` 两个函数的 C 体，权威在 `.x`；128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

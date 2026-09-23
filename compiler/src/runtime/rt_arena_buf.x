@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-309/443 / P2 runtime rest → R2 full: static arena/module buffers.
-// .x owns driver_arena_buf / driver_module_buf (memset + num_types clear).
-// w841 POSIX product slice: pure-asm this file, then cc the seed under
-// -DXLANG_RT_ARENA_BUF_FROM_X. That rest keeps the 128MiB arena array, the
-// 2MiB module array, and the slice marker. Those two functions are not
-// compiled by the POSIX product cc. Windows and PREFER=0 still cc the full
-// seed. The .x calls libc memset; the old full-cc body was lowered to bzero.
-// Product PREFER_X_O temps are a different path and must not replace this .o.
-// Cap-global-bss residual: 128MiB/2MiB arrays live in rest seed; slot API in driver_abi
-// (.x export let becomes static; cannot export large arrays across TUs).
+// w844: driver_arena_buf and driver_module_buf live only in this file.
+// Their C twins were deleted from seeds/rt_arena_buf.from_x.c. The product
+// installer pure-asm's this file, then cc's the seed for the 128MiB arena
+// array, the 2MiB module array, and the slice marker. There is no full-seed
+// fallback and XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+// Do not gcc -E this TU. Product PREFER_X_O temps must not replace this .o.
+// The .x calls libc memset; the deleted full-cc body was lowered to bzero.
+// Cap-global-bss residual: the arrays stay in the seed. Slot API is in
+// driver_abi. An export let lowers to static and cannot publish the arrays.
 
 export extern "C" function driver_arena_static_slot(): *u8;
 export extern "C" function driver_module_static_slot(): *u8;

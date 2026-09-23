@@ -1068,78 +1068,65 @@ ensure_rt_emit_state_prefer() {
   return 0
 }
 
-# POSIX product install of src/runtime/rt_arena_buf.o:
+# Product install of src/runtime/rt_arena_buf.o:
 #   pure-asm src/runtime/rt_arena_buf.x
-#   + seeds/rt_arena_buf.from_x.c under -DXLANG_RT_ARENA_BUF_FROM_X
-# driver_arena_buf / driver_module_buf leave host-cc. The 128MiB arena and
-# 2MiB module arrays stay in the seed (zerofill; .x export let cannot publish
-# them across TUs). The slice marker stays in the seed. Windows and a
-# pure-asm miss keep the full seed cc (macro unset). Cold callers leave
-# XLANG_G05_PREFER_X_O=0. Do not gcc -E this TU.
-# PLATFORM: POSIX product asm · WINDOWS full seed.
-# G.7: one body; g05 rt-slice, build_xlang_asm, and strict glue call this.
-# Same installer shape as ensure_rt_emit_state_prefer (w840).
+#   + seeds/rt_arena_buf.from_x.c (128MiB / 2MiB BSS + slice marker only)
+# driver_arena_buf / driver_module_buf were deleted from the seed in w844.
+# There is no full-seed fallback and no Windows special case: a seed-only cc
+# does not define those two functions. XLANG_G05_PREFER_X_O is ignored.
+# Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
+# PLATFORM: SHARED — POSIX and Windows both take this path.
+# G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
+# experimental bootstrap call this. The older try-rt-prefer temp must not
+# replace this .o.
 ensure_rt_arena_buf_prefer() {
   local o="src/runtime/rt_arena_buf.o"
   local seed="seeds/rt_arena_buf.from_x.c"
   local xsrc="src/runtime/rt_arena_buf.x"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
-  local saved_force="${FORCE}"
-  local os thin rest ld_flags bare_thin bare_rest
+  local thin rest ld_flags bare_thin bare_rest
 
-  if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o try-rt-arena-buf-prefer: missing $seed" >&2
+  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-arena-buf-prefer: missing $seed or $xsrc" >&2
     return 1
   fi
 
-  # Up-to-date: seed, the .x twin, and project headers. A full-cc .o that
-  # predates this prefer still rebuilds once the .x mtime moves.
+  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
+  # the deleted C bodies still rebuilds once either input moves.
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
-    if { [ ! -f "$xsrc" ] || [ ! "$xsrc" -nt "$o" ]; } \
-      && ! seed_project_hdrs_newer "$seed" "$o"; then
+    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
       log "skip up-to-date $o (rt-arena-buf)"
       return 0
     fi
   fi
 
-  os="$(uname -s 2>/dev/null || echo Unknown)"
-  case "$os" in
-    Windows_NT*|MINGW*|MSYS*|CYGWIN*) prefer=0 ;;
-  esac
-
-  if [ "$prefer" = "1" ] && [ -f "$xsrc" ]; then
-    bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtarena_thin.XXXXXX")" || true
-    bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtarena_rest.XXXXXX")" || true
-    if [ -n "$bare_thin" ] && [ -n "$bare_rest" ]; then
-      rm -f "$bare_thin" "$bare_rest"
-      thin="${bare_thin}.o"
-      rest="${bare_rest}.o"
-      # pure_asm only. Do not fall through to gcc -E of this TU.
-      # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
-      if (
-        if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
-          export XLANG_PREFER_ASM_O=1
-        elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
-          unset XLANG_PREFER_ASM_O
-        fi
-        pure_asm_x_to_o "$thin" "$xsrc"
-      ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
-          -DXLANG_RT_ARENA_BUF_FROM_X -c "$seed" -o "$rest" \
-        && ld_flags="$(r3_prefer_ld_r_flags)" \
-        && ld $ld_flags -o "$o" "$thin" "$rest"; then
-        log "rt-arena-buf $o <- pure-asm $xsrc + FROM_X rest (w841)"
-        rm -f "$thin" "$rest"
-        return 0
-      fi
-      echo "ensure: rt-arena-buf pure-asm failed; fallback full seed" >&2
-      rm -f "$thin" "$rest"
-    fi
+  bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtarena_thin.XXXXXX")" || true
+  bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtarena_rest.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+    echo "ensure: rt-arena-buf mktemp failed" >&2
+    return 1
   fi
-
-  FORCE=1
-  ensure_one "$o" "$seed"
-  FORCE="$saved_force"
-  return 0
+  rm -f "$bare_thin" "$bare_rest"
+  thin="${bare_thin}.o"
+  rest="${bare_rest}.o"
+  # pure_asm only. Do not fall through to gcc -E of this TU.
+  # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
+    && ld_flags="$(r3_prefer_ld_r_flags)" \
+    && ld $ld_flags -o "$o" "$thin" "$rest"; then
+    log "rt-arena-buf $o <- pure-asm $xsrc + BSS rest (w844; C bodies deleted)"
+    rm -f "$thin" "$rest"
+    return 0
+  fi
+  echo "ensure: rt-arena-buf pure-asm failed; C bodies are gone, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$o"
+  return 1
 }
 
 # POSIX product install of src/runtime/rt_parse_diag.o:

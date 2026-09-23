@@ -626,9 +626,9 @@ MODULES=(
   # rt_fs_open R2 full：.x 吃满 path_copy + open_read + open_write；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL（3 公共符号）；冷/无 PREFER 仍可走 seeds/rt_fs_open.from_x.c 全 C 体
   "rt_fs_open|src/runtime/rt_fs_open.x|seeds/rt_fs_open_surface.from_x.c||"
-  # rt_arena_buf R2 full：.x 吃满 arena_buf + module_buf；产品 rest 在 FROM_X 下业务 H=0（marker+BSS）
-  # Cap-global-bss residual：槽 API 在 driver_abi；prove 锁 full surface IDENTICAL
-  # 冷/无 PREFER 仍可走 seeds/rt_arena_buf.from_x.c 全 C 体
+  # rt_arena_buf R2 full：.x 是 driver_arena_buf + driver_module_buf 的唯一函数体（w844 已删 C 孪生）。
+  # 种子只留 marker + 128MiB/2MiB BSS；槽 API 在 driver_abi。
+  # prove 锁 full surface IDENTICAL。没有全 C 体可回退。
   "rt_arena_buf|src/runtime/rt_arena_buf.x|seeds/rt_arena_buf_surface.from_x.c||"
   # rt_preamble R2 full：.x 是 write_io_net + write_fs_path_map_error 的唯一函数体（w843 已删 C 孪生）。
   # 种子只留 marker + 巨型字串表；Cap-giant-string 行访问在 driver_abi。

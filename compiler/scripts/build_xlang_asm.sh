@@ -5199,11 +5199,10 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_emit_state prefer failed"; return 1; }
       continue
     fi
-    # w841: arena_buf product object is pure-asm .x + FROM_X rest.
-    # 128MiB/2MiB BSS stays in the seed. PLATFORM: POSIX product · WINDOWS full seed.
+    # w844: arena_buf functions live only in the .x. BSS stays in the seed.
+    # No full-seed fallback. PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_arena_buf.o" ]; then
-      XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
-        bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
+      bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
         || { build_xlang_asm_error "rt_arena_buf prefer failed"; return 1; }
       continue
     fi

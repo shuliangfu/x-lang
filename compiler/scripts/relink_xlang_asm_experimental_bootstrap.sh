@@ -513,6 +513,13 @@ for _exp_rt_pair in \
   "rt_stack:src/runtime/rt_stack.o"; do
   _exp_rt_name="${_exp_rt_pair%%:*}"
   _exp_rt_out="${_exp_rt_pair##*:}"
+  # w844: seed-only cc would drop driver_arena_buf / driver_module_buf.
+  # PLATFORM: SHARED.
+  if [ "$_exp_rt_name" = "rt_arena_buf" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
+      || return 1
+    continue
+  fi
   # w843: seed-only cc would drop the two writers. Use the product installer.
   # PLATFORM: SHARED.
   if [ "$_exp_rt_name" = "rt_preamble" ]; then

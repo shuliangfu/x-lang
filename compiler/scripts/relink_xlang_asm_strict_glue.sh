@@ -2111,11 +2111,10 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
-  # w841: same product object as ensure_rt_arena_buf_prefer.
-  # PLATFORM: POSIX product asm · WINDOWS full seed inside the helper.
+  # w844: same product object as ensure_rt_arena_buf_prefer.
+  # C bodies are deleted. PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_arena_buf.o" ]; then
-    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
-      bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
       || return 1
     continue
   fi
