@@ -12,7 +12,7 @@
 | **Source extension** | `.x` |
 | **Project build** | `build.x` — build strategy written in X (`xlang build` / `build_tool` / `xlang-build.sh`) |
 | **Status (2026-09-23)** | **Product L4 pin `ecdb5cc1e`** (dual-host true cold; **no daily raise**). Tip on **`dev`**: **M2** host-cc true-cut (Class AD–BI Cap / stretch / unwind / needle / leftover) · Cap residual **9.1–9.7 ✅** · BC inventory **present 0** · leftover unique **0** · Darwin tip **prefer labi** · Ubuntu tip full rebuild often **warm** (SEGV/FAIL) · Win default **LEGACY** · write `let x: Trait = a` (do **not** write `dyn Trait` — **P013**) · **three-end L2 hard gate enabled** (mac + Ubuntu + Windows). MG Makefile **deleted** (0-make). **Self-host not finished** — cold start still needs seed / host `cc`; true debt = map-out `from_x` / product `.inc` / large leftover; `labi_invoke_cc` not deleted; mega FORCE still banned. |
-| **Live dashboard** | [Progress](analysis/自举进度.md) · [M2 method](analysis/自举效率方法-M2主链.md) · [C-migration debt](analysis/C迁移追踪.md) · [Verification](analysis/自举验证.md) · [Makefile map](analysis/Makefile迁移表.md) · [Archive 2026-09-22](analysis/自举进度-归档-2026-09-22.md) · [Archive 2026-09-21](analysis/自举进度-归档-2026-09-21.md) |
+| **Live dashboard** | [Progress](analysis/自举进度.md) · [M2 method](analysis/自举效率方法-M2主链.md) · [C-migration debt](analysis/C迁移追踪.md) · [Verification](analysis/自举验证.md) · [Makefile map](analysis/Makefile迁移表.md) · [Archive 2026-09-23](analysis/自举进度-归档-2026-09-23.md) · [Archive 2026-09-22](analysis/自举进度-归档-2026-09-22.md) |
 | **Chinese** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---

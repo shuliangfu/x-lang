@@ -4,9 +4,11 @@
 // Runtime parse diagnostics helpers (G.9 English; body is authoritative).
 // w846: runtime_report_precise_parse_failure_if_known lives only in this
 // file. Its C twin and the PRECISE_BRIDGE wrapper were deleted from
-// seeds/rt_parse_diag.from_x.c. The product installer pure-asm's this
-// file, then cc's the seed for recovery diagnostics and the slice marker.
-// There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
+// seeds/rt_parse_diag.from_x.c.
+// w860: labi_rt_parse_diag_slice_marker lives here too. It returns 1.
+// The product installer pure-asm's this file, then cc's the seed for
+// recovery diagnostics. There is no full-seed fallback and
+// XLANG_G05_PREFER_X_O is ignored.
 // Windows takes the same path. Do not gcc -E this TU. Do not pass
 // XLANG_RT_PARSE_DIAG_PRECISE_BRIDGE. Product PREFER_X_O temps must not
 // replace this .o.
@@ -201,5 +203,17 @@ export function runtime_report_precise_parse_failure_if_known(
   unsafe {
     diag_report_with_code(input_path, 0, 0, &kind[0], &code[0], &msg[0], 0 as *u8);
   }
+  return 1;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm. Recovery diagnostics stay in the C seed.
+ */
+#[no_mangle]
+export function labi_rt_parse_diag_slice_marker(): i32 {
   return 1;
 }

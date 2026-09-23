@@ -8,9 +8,10 @@
  *
  * This file remains because the recovery diagnostic is not in the .x yet:
  *   runtime_report_parse_recovery_diagnostics
- *   labi_rt_parse_diag_slice_marker
- * A seed-only cc does not define the precise diagnostic. The product
- * installer pure-asm's the .x, then cc's this file. No full-seed fallback.
+ * w860 deleted labi_rt_parse_diag_slice_marker from this file. The .x
+ * marker still returns 1. A seed-only cc does not define the precise
+ * diagnostic or the marker. The product installer pure-asm's the .x,
+ * then cc's this file. No full-seed fallback.
  * PLATFORM: SHARED.
  *
  * Why recovery stays (2026-07-15): after the C parser was removed, multi-error
@@ -567,8 +568,4 @@ int runtime_report_parse_recovery_diagnostics(const char *input_path, const char
                  "aborting due to %d previous errors", errors);
   }
   return errors;
-}
-
-int labi_rt_parse_diag_slice_marker(void) {
-  return 1;
 }

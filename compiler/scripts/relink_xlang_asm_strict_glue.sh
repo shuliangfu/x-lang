@@ -2117,8 +2117,9 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
-  # w846: same product object as ensure_rt_parse_diag_prefer.
-  # The precise C body is deleted. PLATFORM: SHARED.
+  # w860: same product object as ensure_rt_parse_diag_prefer.
+  # The precise diagnostic and the slice marker are in the .x.
+  # Recovery stays in the seed. PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
       || return 1

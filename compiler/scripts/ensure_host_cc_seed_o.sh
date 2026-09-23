@@ -1172,14 +1172,17 @@ ensure_rt_arena_buf_prefer() {
 }
 
 # Product install of src/runtime/rt_parse_diag.o:
-#   pure-asm src/runtime/rt_parse_diag.x
-#   + seeds/rt_parse_diag.from_x.c (recovery diagnostics + slice marker)
+#   pure-asm src/runtime/rt_parse_diag.x (precise diagnostic + slice marker)
+#   + seeds/rt_parse_diag.from_x.c (recovery diagnostics)
 # runtime_report_precise_parse_failure_if_known was deleted from the seed
-# in w846, including the PRECISE_BRIDGE wrapper. There is no full-seed
-# fallback and no Windows special case: a seed-only cc does not define
-# that function. XLANG_G05_PREFER_X_O is ignored. Do not gcc -E this TU.
+# in w846, including the PRECISE_BRIDGE wrapper.
+# labi_rt_parse_diag_slice_marker moved into the .x in w860 (still returns 1).
+# There is no full-seed fallback and no Windows special case: a seed-only cc
+# does not define the precise diagnostic or the marker. XLANG_G05_PREFER_X_O
+# is ignored. Do not gcc -E this TU.
 # Do not pass -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE.
 # Do not rebuild runtime_driver_no_c.o from this path.
+# Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED — POSIX and Windows both take this path.
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
@@ -1189,7 +1192,7 @@ ensure_rt_parse_diag_prefer() {
   local o="src/runtime/rt_parse_diag.o"
   local seed="seeds/rt_parse_diag.from_x.c"
   local xsrc="src/runtime/rt_parse_diag.x"
-  local thin rest ld_flags bare_thin bare_rest
+  local thin rest merged ld_flags bare_thin bare_rest bare_merged
 
   if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o try-rt-parse-diag-prefer: missing $seed or $xsrc" >&2
@@ -1207,31 +1210,42 @@ ensure_rt_parse_diag_prefer() {
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_thin.XXXXXX")" || true
   bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_rest.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_merged.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
     echo "ensure: rt-parse-diag mktemp failed" >&2
+    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest"
+  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
   thin="${bare_thin}.o"
   rest="${bare_rest}.o"
+  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
   # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  # The marker is in the .x. The seed cc emits recovery diagnostics.
+  # Default unwind: the live object has __compact_unwind. Do not pass
+  # -fno-unwind-tables.
   if (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
       unset XLANG_PREFER_ASM_O
     fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$o" "$thin" "$rest"; then
-    log "rt-parse-diag $o <- pure-asm $xsrc + recovery rest (w846; C body deleted)"
+    && ld $ld_flags -o "$merged" "$thin" "$rest" \
+    && r3_prefer_nm_has_sym "$merged" "runtime_report_precise_parse_failure_if_known" \
+    && r3_prefer_nm_has_sym "$merged" "labi_rt_parse_diag_slice_marker" \
+    && r3_prefer_nm_has_sym "$merged" "runtime_report_parse_recovery_diagnostics"; then
+    mv -f "$merged" "$o"
+    log "rt-parse-diag $o <- pure-asm $xsrc + recovery rest (w860; marker is in the .x)"
     rm -f "$thin" "$rest"
     return 0
   fi
-  echo "ensure: rt-parse-diag pure-asm failed; C body is gone, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$o"
+  echo "ensure: rt-parse-diag pure-asm failed; marker and precise diagnostic are in the .x, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$merged"
   return 1
 }
 
@@ -3357,7 +3371,7 @@ ensure_rt_prefer_one() {
             fi
           fi
           if [ -n "$_rt_pd_o" ] && [ -f "$_rt_parse_diag_seed" ]; then
-            # w846: the precise C body and PRECISE_BRIDGE are deleted.
+            # w860: the precise diagnostic and the slice marker are in the .x.
             # FROM_X / PRECISE_BRIDGE below are no-ops. This temp is rm'd
             # and must not replace src/runtime/rt_parse_diag.o. Do not
             # route a slice refresh through try-rt-prefer of no_c.

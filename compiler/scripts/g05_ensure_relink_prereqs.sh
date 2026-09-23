@@ -514,8 +514,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # pure-asms rt_emit_state.x and cc's the BSS, lib-name, and entry-prefix
     # rest (POSIX and Windows).
     # w844: arena_buf functions are deleted from the seed; same shape.
-    # w846: the precise diagnostic's C body is deleted. rt-slice always
-    # pure-asms rt_parse_diag.x and cc's the recovery rest (POSIX and Windows).
+    # w860: the precise diagnostic and the slice marker are in the .x.
+    # rt-slice pure-asms rt_parse_diag.x and cc's the recovery rest
+    # (POSIX and Windows).
     # w843: preamble writers are deleted from the seed. rt-slice always
     # pure-asms rt_preamble.x and cc's the table rest (POSIX and Windows).
     # stack stays full seed cc. PLATFORM: SHARED caller.

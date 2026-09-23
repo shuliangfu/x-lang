@@ -5220,8 +5220,9 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_arena_buf prefer failed"; return 1; }
       continue
     fi
-    # w846: the precise diagnostic lives only in the .x. Recovery stays in
-    # the seed. No full-seed fallback. PLATFORM: SHARED (Windows pure-asm too).
+    # w860: the precise diagnostic and the slice marker live only in the .x.
+    # Recovery stays in the seed. No full-seed fallback.
+    # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
         || { build_xlang_asm_error "rt_parse_diag prefer failed"; return 1; }

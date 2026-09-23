@@ -493,8 +493,9 @@ else
   # PLATFORM: LINUX — --allow-multiple-definition is still supported by GNU ld.
   EXP_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 fi
-# w846: seed-only cc would drop runtime_report_precise_parse_failure_if_known.
-# Recovery diagnostics stay in the seed. PLATFORM: SHARED.
+# w860: seed-only cc would drop runtime_report_precise_parse_failure_if_known
+# and labi_rt_parse_diag_slice_marker. Recovery diagnostics stay in the seed.
+# PLATFORM: SHARED.
 bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
   || return 1
 # RT_SEED_SLICE companions: same source as build_xlang_asm.sh line 4738-4741 and
