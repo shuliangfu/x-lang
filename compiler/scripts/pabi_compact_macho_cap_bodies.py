@@ -105,6 +105,38 @@ def want_compact(name: str) -> bool:
         "_asm_typeck_emit_heavy_safe_helper",
     ):
         return True
+
+    # Class BP: Cap-heavy emit skip/safe helpers (product L2 Cap heavy unset).
+    # Avoid diag／vsnprintf (BO: Mach-O align / option FAIL).
+    if name in (
+        "_asm_skip_heavy_module_func_body",
+        "_asm_pipeline_emit_heavy_safe_helper",
+        "_asm_driver_compile_emit_heavy_safe_helper",
+        "_asm_skip_heavy_backend_m8_helper_keep",
+        "_asm_skip_heavy_backend_m8_tail_thin_keep",
+        "_asm_skip_heavy_backend_helper_keep",
+        "_asm_skip_heavy_typeck_helper_keep",
+        "_asm_skip_heavy_backend_mega_entry",
+        "_asm_skip_heavy_typeck_mega_entry",
+        "_asm_skip_heavy_parser_mega_entry",
+        "_asm_parser_emit_heavy_force_stub",
+        "_asm_parser_emit_heavy_bisect_max_index",
+        "_asm_parser_emit_heavy_slot_max",
+        "_asm_parser_mega_bisect_skip_stub",
+        "_asm_parser_emit_heavy_resolve_call_to_glue",
+        "_asm_parser_emit_heavy_callee_is_same_module_local",
+        "_pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c",
+        "_asm_emit_heavy_abort_hi",
+        "_asm_emit_heavy_abort_lo",
+        "_asm_thin_delegate_emit",
+        "_asm_module_is_parser_emit_heavy",
+        "_asm_parser_func_is_thin_delegate",
+        "_asm_backend_m8_tail_thin_delegate_c_name",
+        "_asm_pipeline_m8_tail_thin_delegate_c_name",
+        "_asm_typeck_m8_tail_thin_delegate_c_name",
+        "_asm_parser_m8_tail_thin_delegate_c_name",
+    ):
+        return True
     return False
 
 
