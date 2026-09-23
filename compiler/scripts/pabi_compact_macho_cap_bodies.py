@@ -38,6 +38,21 @@ def want_compact(name: str) -> bool:
     # Class BD: WPO dump helpers (only called from dump Cap path)
     if name.startswith("_w502_wpo_"):
         return True
+    # Class BH: PGO-Lite / WPO_MONO Cap (env-gated; product L2 unset)
+    if name in (
+        "_pipeline_elf_write_o_pgo_to_buf",
+        "_pipe_elf_pgo_emit_rela_for_sh",
+        "_pipe_elf_init_shstr_pgo",
+        "_pipeline_asm_emit_wpo_mono_thunks_elf_c",
+        "_glue_wpo_mono_register_thunk_n",
+        "_glue_wpo_mono_has_sym",
+        "_glue_wpo_mono_register_thunk",
+        "_glue_wpo_mono_reset_pending",
+        "_platform_elf_pipeline_elf_write_o_pgo_to_buf",
+    ):
+        return True
+    if name.startswith("_asm_wpo_mark_pgo"):
+        return True
     return False
 
 
@@ -173,7 +188,8 @@ def main() -> int:
         old_vm = base + r_addr
         skip = False
         for s, e, _ in ranges:
-            if s < old_vm < e:
+            # Class BH: inclusive start — reloc at function entry must drop too
+            if s <= old_vm < e:
                 skip = True
                 break
         if skip:
@@ -195,6 +211,7 @@ def main() -> int:
     struct.pack_into("<Q", hdr, seg_off + 32, vmsize - saved)
 
     old_reloc_end = reloc_off + nreloc * 8
+    text_vm_end = text["addr"] + text["size"]
     for s in sects:
         if s["name"] == b"__text":
             continue
@@ -207,6 +224,11 @@ def main() -> int:
             struct.pack_into("<I", hdr, s["hdr"] + 56, ro - saved - reloc_shrink)
         elif ro >= after_text_start:
             struct.pack_into("<I", hdr, s["hdr"] + 56, ro - saved)
+        # Class BH: slide VM addr for sections after __text (single-segment .o
+        # keeps __DATA/__bss after text; shrinking text without sliding addr
+        # leaves __bss past segment vmsize → ld fail).
+        if s["addr"] >= text_vm_end:
+            struct.pack_into("<Q", hdr, s["hdr"] + 32, s["addr"] - saved)
 
     struct.pack_into("<I", hdr, text["hdr"] + 56, reloc_off - saved)
     struct.pack_into("<I", hdr, text["hdr"] + 60, len(new_relocs) // 8)
@@ -220,6 +242,9 @@ def main() -> int:
             if nvm is None:
                 raise SystemExit("unmapped sym " + s["name"])
             struct.pack_into("<Q", sym_bytes, s["i"] * 16 + 8, nvm)
+        elif s["val"] >= text_vm_end and s["val"] != 0:
+            # Class BH: data/bss/abs-ish addrs after shrunk text
+            struct.pack_into("<Q", sym_bytes, s["i"] * 16 + 8, s["val"] - saved)
 
     content_start = text["fileoff"]
     pad = content_start - (32 + sizeofcmds)
