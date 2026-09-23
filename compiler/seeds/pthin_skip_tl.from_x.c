@@ -2,7 +2,7 @@
  * Logic source: src/asm/pthin_skip_tl.x
  * Hybrid: XLANG_PTHIN_SKIP_TL_FROM_X + ld -r into parser_asm_thin_glue.o
  *
- * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (~8.2k)
+ * Body: analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ; tip BODIES/.x)
  * skip_one_struct/enum/trait/impl/extern + parse_one_extern + enum_register
  *
  * Hybrid P12b–P12u (XLANG_PTHIN_SKIP_TL_BODIES_FROM_X) + P12v param/ret_shape (XLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X):
@@ -525,7 +525,7 @@ int32_t parser_asm_skip_tl_parse_type_ref_into_c(void *arena, void *lex_inout, v
 }
 #endif /* XLANG_PTHIN_SKIP_TL_BODIES_FROM_X */
 
-#include "parser_asm_skip_tl_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc" /* Class BZ: seeds blob deleted */
 
 /* PLATFORM: SHARED — P12i TypeKind pins ≡ pthin_skip_tl.x TYPE_NAMED/PTR
  * and XLANG_TRAIT_TY_* in this .inc. Fire if the skip_tl #define drifts. */

@@ -37,7 +37,7 @@ export extern function typeck_float64_bits_lo(d: f64): i32;
 export extern function typeck_float64_bits_hi(d: f64): i32;
 /*
  * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body lives
- * in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
+ * in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) as the twin of
  * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
  * g_xlang_skip_impl_* globals directly).
  *
@@ -59,7 +59,7 @@ export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
  * accessors are used by codegen to enumerate trait methods when building the
  * per-impl function-pointer array at the concrete->dyn coerce site.
  *
- * Bodies live in seeds/parser_asm/parser_asm_skip_tl_slice.inc (twins of
+ * Bodies live in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) (twins of
  * xlang_skip_impl_self_matches_for_c). typeck must NOT iterate
  * g_xlang_skip_trait_reg_* globals directly.
  * PLATFORM: SHARED.

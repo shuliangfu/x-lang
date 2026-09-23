@@ -157,7 +157,7 @@ export extern function typeck_is_cap_va_builtin_name(name: *u8, name_len: i32): 
  * `xlang_skip_trait_method_ret_kind_c` gives the builtin return kind for the
  * function-pointer cast (only needed if the cast tightens past `void`).
  *
- * Bodies live in seeds/parser_asm/parser_asm_skip_tl_slice.inc (twins of
+ * Bodies live in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) (twins of
  * xlang_skip_impl_self_matches_for_c). codegen must NOT iterate
  * g_xlang_skip_trait_reg_* globals directly.
  * PLATFORM: SHARED.
@@ -171,7 +171,7 @@ export extern function xlang_skip_trait_method_ret_kind_c(trait_nm: *u8, trait_n
  * Formal TypeKind ordinal for one trait-method parameter (including self at 0).
  * Call-site host-C dyn casts use extra i → param_ix i+1 so the fn-ptr
  * type matches codegen_emit_vtable_wrapper_def (no default-arg promotion).
- * Body: seeds/parser_asm/parser_asm_skip_tl_slice.inc (G.7 single accessor).
+ * Body: analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) (G.7 single accessor).
  * @param trait_nm *u8 — trait name bytes; null rejected
  * @param trait_nlen i32 — name length; must be > 0
  * @param slot i32 — vtable slot (0-based)
@@ -183,7 +183,7 @@ export extern function xlang_skip_trait_method_param_kind_c(trait_nm: *u8, trait
         slot: i32, param_ix: i32): i32;
 /*
  * F4 per-impl vtable statics: impl-registry iterator accessors + type alloc
- * helpers. Iterators (bodies in seeds/parser_asm/parser_asm_skip_tl_slice.inc)
+ * helpers. Iterators (bodies in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ))
  * let codegen enumerate every `impl Trait for Type` to emit a module-level
  * static vtable per impl. Type alloc helpers (bodies in
  * src/asm/pipeline_glue_strict_minimal.x) reconstruct a type_ref from a

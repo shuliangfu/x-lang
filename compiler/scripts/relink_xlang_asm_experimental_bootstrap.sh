@@ -307,7 +307,7 @@ ensure_parser_x_obj
 ensure_parser_parse_bootstrap_asm_obj() {
   PARSER_PARSE_BOOT_O="$BUILD_DIR/parser_parse_bootstrap.o"
   PBOOT_C_SRC="seeds/parser_asm/parser_asm_parse_bootstrap_obj.inc"
-  PBOOT_SEED_SLICE="seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc"
+  PBOOT_SEED_SLICE="../analysis/archive/parser_asm/parser_asm_seed_parse_into_buf_slice.inc"
   mkdir -p "$BUILD_DIR"
 
   compile_parser_parse_bootstrap_cc_obj() {

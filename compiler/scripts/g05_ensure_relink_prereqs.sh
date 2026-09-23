@@ -875,7 +875,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f seeds/parser_asm/parser_asm_library_wrap_slice.inc ] && [ seeds/parser_asm/parser_asm_library_wrap_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_body_tl_slice.inc ] && [ seeds/parser_asm/parser_asm_body_tl_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_imports_slice.inc ] && [ seeds/parser_asm/parser_asm_imports_slice.inc -nt parser_asm_thin_glue.o ]; } \
-      || { [ -f seeds/parser_asm/parser_asm_skip_tl_slice.inc ] && [ seeds/parser_asm/parser_asm_skip_tl_slice.inc -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f ../analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc ] && [ ../analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_helpers_slice.inc ] && [ seeds/parser_asm/parser_asm_helpers_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_lex_skip_slice.inc ] && [ seeds/parser_asm/parser_asm_lex_skip_slice.inc -nt parser_asm_thin_glue.o ]; } \
       || { [ -f seeds/parser_asm/parser_asm_foundation_slice.inc ] && [ seeds/parser_asm/parser_asm_foundation_slice.inc -nt parser_asm_thin_glue.o ]; } \

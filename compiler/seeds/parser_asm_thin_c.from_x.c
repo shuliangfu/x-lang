@@ -2916,7 +2916,7 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
  * Non-product smoke may still include seeds/ wrapper (→ archive). 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供。 */
 /* G-02f-289 P8 seed_parse：默认 #include wrapper；hybrid 时在 pthin_seed_parse.from_x.c */
 #ifndef XLANG_PTHIN_SEED_PARSE_FROM_X
-#include "parser_asm_seed_parse_into_buf_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_seed_parse_into_buf_slice.inc" /* Class BZ */
 #else
 struct parser_asm_seed_parse_into_result {
   int32_t ok;
@@ -3011,7 +3011,7 @@ int labi_pthin_diag_pipeline_slice_marker(void);
 
 /* G-02f-321 P12 skip_tl：默认 #include；hybrid 时在 pthin_skip_tl.from_x.c */
 #ifndef XLANG_PTHIN_SKIP_TL_FROM_X
-#include "parser_asm_skip_tl_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc" /* Class BZ */
 #else
 void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);

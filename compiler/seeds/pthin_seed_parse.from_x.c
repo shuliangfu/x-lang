@@ -225,7 +225,7 @@ extern void parser_onefunc_res_wire_dummy_for_if(struct parser_asm_onefunc_resul
  * (skip_tl_slice.inc, thin glue TU) and uses a source stash set by parser.x via
  * xlang_generic_bound_set_source_c. No call from seed_parse needed. */
 
-#include "parser_asm_seed_parse_into_buf_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_seed_parse_into_buf_slice.inc" /* Class BZ: wrapper deleted */
 
 int labi_pthin_seed_parse_slice_marker(void) {
   return 1;

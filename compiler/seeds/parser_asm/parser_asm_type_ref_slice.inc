@@ -223,7 +223,7 @@ static int32_t parser_asm_type_ref_ident_is_dyn_c(struct parser_asm_slice_u8 *so
 #endif /* !XLANG_PTHIN_TYPE_REF_BODIES_FROM_X */
 
 /*
- * Skip-trait registry: defined in parser_asm_skip_tl_slice.inc (same product
+ * Skip-trait registry: defined in analysis/archive/…/parser_asm_skip_tl_slice.inc (same product
  * TU, later include). pthin_type_ref hybrid resolves it from skip_tl glue.
  * PLATFORM: SHARED parse.
  */
