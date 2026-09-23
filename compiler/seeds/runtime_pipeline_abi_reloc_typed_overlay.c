@@ -31,10 +31,12 @@ extern int32_t g_pipe_elf_reloc_r_type[];
 extern uint8_t g_pipe_elf_reloc_r_pcrel[];
 extern uint8_t *g_pipe_elf_reloc_sidecar_owner;
 
-/* Leftover compact-writer statics (macho_write inlines this home). */
-extern int32_t g_pipeline_elf_reloc_r_type[];
-extern int8_t g_pipeline_elf_reloc_r_pcrel[];
-extern uint8_t *g_pipeline_elf_reloc_sidecar_owner;
+/* Leftover compact-writer BSS home (macho_write inlines this).
+ * wave831 CB-fix: tip cold Win link needs a defining TU — overlay owns
+ * these globals (from_x keeps file-static twins). PLATFORM: SHARED. */
+int32_t g_pipeline_elf_reloc_r_type[16384];
+int8_t g_pipeline_elf_reloc_r_pcrel[16384];
+uint8_t *g_pipeline_elf_reloc_sidecar_owner;
 
 enum {
   W743_PIPE_ELF_OFF_NUM_RELOCS = 39190540,
