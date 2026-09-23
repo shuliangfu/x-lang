@@ -2955,9 +2955,7 @@ export function link_diag_freestanding_unsupported(): void {
  */
 #[no_mangle]
 export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
-  unsafe {
-    link_diag_ld_debug_push_impl(rel, stage, path);
-  }
+  // Class AR: Cap XLANG_DEBUG_LD push note retired (keep symbol).
 }
 
 /** Exported function `link_diag_ld_debug_argv`.

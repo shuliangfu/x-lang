@@ -860,14 +860,16 @@ void link_diag_freestanding_unsupported(void);
 /* R2：ld_debug_push 消息体 hybrid 由 L1 .x */
 #ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char *path) {
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "ld debug: push %s %s=%s",
-                 rel ? rel : "(null)",
-                 stage ? stage : "path",
-                 path ? path : "(null)");
+    /* Class AR: Cap XLANG_DEBUG_LD push note retired (mirror thin L1). */
+    (void)rel;
+    (void)stage;
+    (void)path;
 }
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
-    link_diag_ld_debug_push_impl(rel, stage, path);
+    /* Class AR: Cap push retired; keep symbol. */
+    (void)rel;
+    (void)stage;
+    (void)path;
 }
 #else
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
