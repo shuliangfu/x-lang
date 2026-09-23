@@ -1780,14 +1780,12 @@ ensure_labi_prefer_one() {
         [ "$l9_ok" = "1" ] && link_objs="$link_objs $l9_o"
         # Class BE: when L8b+L8c prefer .x, link host-cc needle tables (bodies omitted in .x).
         # Full L8b seed already #includes tables unless NEEDLE_TABLES_EXTERNAL.
-        needle_o=""
-        if [ "$l8b_x_ok" = "1" ] && [ "$l8c_x_ok" = "1" ]; then
-          needle_o="$(mktemp "${TMPDIR:-/tmp}/labi_needle.XXXXXX")"
-          # shellcheck disable=SC2086
-          if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$needle_o" seeds/labi_od_needle_tables.c 2>/dev/null; then
-            rm -f "$needle_o"
-            needle_o=""
-          fi
+        # Class BG: always link needle tables when prefer multi-slice (L5 icc + L8b/L8c od).
+        needle_o="$(mktemp "${TMPDIR:-/tmp}/labi_needle.XXXXXX")"
+        # shellcheck disable=SC2086
+        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$needle_o" seeds/labi_od_needle_tables.c 2>/dev/null; then
+          rm -f "$needle_o"
+          needle_o=""
         fi
         # shellcheck disable=SC2086
         # PLATFORM: SHARED — historic g05 used $CC -r -nostdlib (not ld Darwin flags).

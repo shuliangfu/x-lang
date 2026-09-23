@@ -685,36 +685,8 @@ int link_abi_user_o_needs_core_mem(const char *user_o) {
 /* wave124: product core.slice exact UNDEF table + needs_core_slice pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_core_slice_sym_count(void) { return 9; }
-const char *labi_od_core_slice_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "core_slice_i32_from_ptr_c";
-  if (i == 1)
-    return "core_subslice_i32_c";
-  if (i == 2)
-    return "core_slice_u8_from_ptr_c";
-  if (i == 3)
-    return "core_subslice_u8_c";
-  if (i == 4)
-    return "core_slice_u64_from_ptr_c";
-  if (i == 5)
-    return "core_subslice_u64_c";
-  /*
-   * wave957: core.slice X-facing u64 on_demand probes (chunks_len / split_at /
-   * subslice). Before wave957: probe table only had C-bridge _c suffix symbols;
-   * user programs calling slice.chunks_len / slice.split_at / slice.subslice
-   * with u64 codegen to core_slice_*_u64 (X-facing, no _c) which didn't match.
-   * G.7: complete the single core_slice probe table. PLATFORM: SHARED.
-   */
-  if (i == 6)
-    return "core_slice_chunks_len_u64";
-  if (i == 7)
-    return "core_slice_split_at_u64";
-  if (i == 8)
-    return "core_slice_subslice_u64";
-  return NULL;
-}
+/* Class BG: labi_od_core_slice_sym_at → needle tables */
+const char *labi_od_core_slice_sym_at(int i);
 
 /* Pure orch: core_slice table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_core_slice(const char *user_o) {
@@ -813,27 +785,8 @@ int link_abi_user_o_needs_std_sys_macos(const char *user_o) {
 /* wave127: product std.sys facade exact UNDEF table + needs_std_sys pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_sys_sym_count(void) { return 8; }
-const char *labi_od_sys_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_sys_write_stdout";
-  if (i == 1)
-    return "std_sys_write_stderr";
-  if (i == 2)
-    return "std_sys_write";
-  if (i == 3)
-    return "std_sys_read";
-  if (i == 4)
-    return "std_sys_close";
-  if (i == 5)
-    return "std_sys_exit";
-  if (i == 6)
-    return "std_sys_freestanding_write_available";
-  if (i == 7)
-    return "std_sys_linux_syscall_table_available";
-  return NULL;
-}
+/* Class BG: labi_od_sys_sym_at → needle tables */
+const char *labi_od_sys_sym_at(int i);
 
 /* Pure orch: sys table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_sys(const char *user_o) {
@@ -874,25 +827,8 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o) {
 /* wave129: product runtime_heap_user exact UNDEF table + needs_heap_user_syms pure orch.
  * PLATFORM: SHARED — exact symbols only; product complete includes with_arena init/deinit. */
 int labi_od_heap_user_sym_count(void) { return 7; }
-const char *labi_od_heap_user_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "heap_alloc_c";
-  if (i == 1)
-    return "heap_free_c";
-  if (i == 2)
-    return "heap_realloc_c";
-  if (i == 3)
-    return "heap_arena64_alloc_c";
-  if (i == 4)
-    return "heap_arena_init_c";
-  if (i == 5)
-    return "heap_arena64_deinit_c";
-  if (i == 6)
-    return "heap_arena64_init_c";
-  return NULL;
-}
+/* Class BG: labi_od_heap_user_sym_at → needle tables */
+const char *labi_od_heap_user_sym_at(int i);
 
 /* Pure orch: heap_user table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
@@ -2400,8 +2336,9 @@ int labi_ondemand_list_slice_marker(void) {
   return 1;
 }
 
-#if !defined(XLANG_LABI_NEEDLE_TABLES_EXTERNAL)
-/* Class BE: cold mega / L8b full-seed path embeds needle tables. Prefer merge
+#if !defined(XLANG_LABI_NEEDLE_TABLES_EXTERNAL) && !defined(XLANG_LABI_NEEDLE_TABLES_PROVIDED)
+#define XLANG_LABI_NEEDLE_TABLES_PROVIDED
+/* Class BE/BG: cold mega / layer-seed embeds needle tables. Prefer merge
  * passes -DXLANG_LABI_NEEDLE_TABLES_EXTERNAL and links labi_od_needle_tables.o. */
 #include "seeds/labi_od_needle_tables.c"
 #endif

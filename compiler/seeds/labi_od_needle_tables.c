@@ -1819,3 +1819,376 @@ const char *labi_od_std_task_sym_at(int i) {
     return NULL;
   return labi_od_std_task_sym_at_tab[i];
 }
+
+/* Class BG: table form of labi_icc_std_need_needle_at. PLATFORM: SHARED. */
+static const char *const labi_icc_std_need_needle_at_m0[5] = {
+  "std_process_",
+  "xlang_process_spawn",
+  "xlang_process_wait",
+  "process_spawn",
+  "process_exec"
+};
+static const char *const labi_icc_std_need_needle_at_m1[8] = {
+  "process_xlang_argc_get",
+  "process_xlang_argv_get",
+  "process_args_count_c",
+  "process_arg_c",
+  "args_iter_count_c",
+  "args_iter_at_c",
+  "std_process_args",
+  "std_env_args_iter"
+};
+static const char *const labi_icc_std_need_needle_at_m2[2] = {
+  "std_string_",
+  "xlang_string_"
+};
+static const char *const labi_icc_std_need_needle_at_m3[3] = {
+  "std_path_",
+  "path_join",
+  "path_dirname"
+};
+static const char *const labi_icc_std_need_needle_at_m4[1] = {
+  "std_runtime_"
+};
+static const char *const labi_icc_std_need_needle_at_m5[18] = {
+  "std_net_listen",
+  "std_net_connect",
+  "std_net_udp_bind",
+  "std_net_udp_recv",
+  "std_net_udp_send",
+  "std_net_addr_to_u32",
+  "std_net_close_udp",
+  "net_tcp_connect_c",
+  "net_tcp_listen_c",
+  "net_udp_bind_c",
+  "net_udp_recv_many_buf_c",
+  "net_udp_send_many_buf_c",
+  "net_udp_send_c",
+  "net_dns_resolve_c",
+  "net_sock_create_c",
+  "net_stream_write_batch_c",
+  "net_close_socket_c_real",
+  "net_run_accept_workers_c_real"
+};
+static const char *const labi_icc_std_need_needle_at_m6[3] = {
+  "std_thread_",
+  "thread_create_c",
+  "thread_join_c"
+};
+static const char *const labi_icc_std_need_needle_at_m7[3] = {
+  "std_time_",
+  "time_now_",
+  "time_sleep_"
+};
+static const char *const labi_icc_std_need_needle_at_m8[2] = {
+  "std_random_",
+  "random_fill_"
+};
+static const char *const labi_icc_std_need_needle_at_m9[3] = {
+  "std_env_",
+  "env_get_",
+  "env_set_"
+};
+static const char *const labi_icc_std_need_needle_at_m10[3] = {
+  "std_sync_",
+  "sync_mutex_",
+  "sync_rwlock_"
+};
+static const char *const labi_icc_std_need_needle_at_m11[1] = {
+  "std_encoding_"
+};
+static const char *const labi_icc_std_need_needle_at_m12[3] = {
+  "std_base64_",
+  "base64_encode",
+  "base64_decode"
+};
+static const char *const labi_icc_std_need_needle_at_m13[5] = {
+  "std_crypto_",
+  "core_crypto_mem_eq",
+  "core_crypto_sha",
+  "crypto_sha",
+  "ed25519_"
+};
+static const char *const labi_icc_std_need_needle_at_m14[3] = {
+  "std_log_",
+  "log_write_c",
+  "log_info_"
+};
+static const char *const labi_icc_std_need_needle_at_m15[4] = {
+  "std_atomic_",
+  "atomic_load_i32_c",
+  "atomic_store_i32_c",
+  "atomic_fetch_"
+};
+static const char *const labi_icc_std_need_needle_at_m16[3] = {
+  "std_channel_",
+  "channel_send",
+  "channel_recv"
+};
+static const char *const labi_icc_std_need_needle_at_m17[2] = {
+  "std_backtrace_",
+  "backtrace_capture"
+};
+static const char *const labi_icc_std_need_needle_at_m18[3] = {
+  "std_hash_",
+  "hash_fnv",
+  "hash_sip"
+};
+static const char *const labi_icc_std_need_needle_at_m19[3] = {
+  "std_math_",
+  "math_sin",
+  "math_cos"
+};
+static const char *const labi_icc_std_need_needle_at_m20[3] = {
+  "std_sort_",
+  "sort_i32",
+  "sort_stable"
+};
+static const char *const labi_icc_std_need_needle_at_m21[10] = {
+  "std_vec_new",
+  "std_vec_push",
+  "std_vec_length_Vec",
+  "std_vec_len_ptr",
+  "std_vec_with_capacity",
+  "std_vec_from_slice",
+  "std_vec_append",
+  "std_vec_reserve",
+  "std_vec_clear",
+  "std_vec_free"
+};
+static const char *const labi_icc_std_need_needle_at_m22[2] = {
+  "std_ffi_",
+  "ffi_call"
+};
+static const char *const labi_icc_std_need_needle_at_m23[3] = {
+  "std_db_",
+  "sqlite3_",
+  "db_sqlite_"
+};
+static const char *const labi_icc_std_need_needle_at_m24[2] = {
+  "std_elf_",
+  "elf_parse"
+};
+static const char *const labi_icc_std_need_needle_at_m25[2] = {
+  "std_json_",
+  "json_parse_"
+};
+static const char *const labi_icc_std_need_needle_at_m26[2] = {
+  "std_csv_",
+  "csv_next_field"
+};
+static const char *const labi_icc_std_need_needle_at_m27[2] = {
+  "std_regex_",
+  "regex_match"
+};
+static const char *const labi_icc_std_need_needle_at_m28[4] = {
+  "std_compress_",
+  "compress_gzip",
+  "compress_zstd",
+  "compress_brotli"
+};
+static const char *const labi_icc_std_need_needle_at_m29[2] = {
+  "std_unicode_",
+  "unicode_utf8"
+};
+static const char *const labi_icc_std_need_needle_at_m30[2] = {
+  "std_dynlib_",
+  "dynlib_open"
+};
+static const char *const labi_icc_std_need_needle_at_m31[3] = {
+  "std_http_",
+  "http_request",
+  "http2_"
+};
+static const char *const labi_icc_std_need_needle_at_m32[3] = {
+  "std_tar_",
+  "tar_open",
+  "tar_extract"
+};
+static const char *const labi_icc_std_need_needle_at_m33[1] = {
+  "std_simd_"
+};
+static const char *const labi_icc_std_need_needle_at_m34[8] = {
+  "std_context_background(",
+  "std_context_with_cancel(",
+  "std_context_with_deadline(",
+  "std_context_with_timeout(",
+  "std_context_cancel(",
+  "std_context_set_value(",
+  "std_context_get_value(",
+  "std_context_free("
+};
+static const char *const labi_icc_std_need_needle_at_m35[2] = {
+  "std_error_",
+  "error_wrap_"
+};
+static const char *const labi_icc_std_need_needle_at_m36[1] = {
+  "std_datetime_"
+};
+static const char *const labi_icc_std_need_needle_at_m37[3] = {
+  "std_uuid_",
+  "uuid_v4",
+  "uuid_parse"
+};
+static const char *const labi_icc_std_need_needle_at_m38[3] = {
+  "std_url_",
+  "url_parse",
+  "url_join"
+};
+static const char *const labi_icc_std_need_needle_at_m39[2] = {
+  "std_cli_",
+  "cli_parse"
+};
+static const char *const labi_icc_std_need_needle_at_m40[1] = {
+  "std_security_"
+};
+static const char *const labi_icc_std_need_needle_at_m41[1] = {
+  "std_config_"
+};
+static const char *const labi_icc_std_need_needle_at_m42[1] = {
+  "std_cache_"
+};
+static const char *const labi_icc_std_need_needle_at_m43[1] = {
+  "std_trace_"
+};
+static const char *const labi_icc_std_need_needle_at_m44[1] = {
+  "std_task_"
+};
+static const char *const labi_icc_std_need_needle_at_m45[1] = {
+  "std_schema_"
+};
+static const char *const labi_icc_std_need_needle_at_m46[2] = {
+  "std_test_",
+  "test_call_"
+};
+static const char *const labi_icc_std_need_needle_at_m47[3] = {
+  "std_socketio_",
+  "socketio_emit",
+  "socketio_on"
+};
+static const char *const labi_icc_std_need_needle_at_m48[1] = {
+  "std_set_"
+};
+static const char *const labi_icc_std_need_needle_at_m49[1] = {
+  "std_map_"
+};
+static const char *const labi_icc_std_need_needle_at_m50[1] = {
+  "std_queue_"
+};
+static const char *const labi_icc_std_need_needle_at_m51[1] = {
+  "xlang_panic_("
+};
+struct labi_icc_std_need_needle_at_row { const char *const *syms; int n; };
+static const struct labi_icc_std_need_needle_at_row labi_icc_std_need_needle_at_rows[] = {
+  { labi_icc_std_need_needle_at_m0, 5 },
+  { labi_icc_std_need_needle_at_m1, 8 },
+  { labi_icc_std_need_needle_at_m2, 2 },
+  { labi_icc_std_need_needle_at_m3, 3 },
+  { labi_icc_std_need_needle_at_m4, 1 },
+  { labi_icc_std_need_needle_at_m5, 18 },
+  { labi_icc_std_need_needle_at_m6, 3 },
+  { labi_icc_std_need_needle_at_m7, 3 },
+  { labi_icc_std_need_needle_at_m8, 2 },
+  { labi_icc_std_need_needle_at_m9, 3 },
+  { labi_icc_std_need_needle_at_m10, 3 },
+  { labi_icc_std_need_needle_at_m11, 1 },
+  { labi_icc_std_need_needle_at_m12, 3 },
+  { labi_icc_std_need_needle_at_m13, 5 },
+  { labi_icc_std_need_needle_at_m14, 3 },
+  { labi_icc_std_need_needle_at_m15, 4 },
+  { labi_icc_std_need_needle_at_m16, 3 },
+  { labi_icc_std_need_needle_at_m17, 2 },
+  { labi_icc_std_need_needle_at_m18, 3 },
+  { labi_icc_std_need_needle_at_m19, 3 },
+  { labi_icc_std_need_needle_at_m20, 3 },
+  { labi_icc_std_need_needle_at_m21, 10 },
+  { labi_icc_std_need_needle_at_m22, 2 },
+  { labi_icc_std_need_needle_at_m23, 3 },
+  { labi_icc_std_need_needle_at_m24, 2 },
+  { labi_icc_std_need_needle_at_m25, 2 },
+  { labi_icc_std_need_needle_at_m26, 2 },
+  { labi_icc_std_need_needle_at_m27, 2 },
+  { labi_icc_std_need_needle_at_m28, 4 },
+  { labi_icc_std_need_needle_at_m29, 2 },
+  { labi_icc_std_need_needle_at_m30, 2 },
+  { labi_icc_std_need_needle_at_m31, 3 },
+  { labi_icc_std_need_needle_at_m32, 3 },
+  { labi_icc_std_need_needle_at_m33, 1 },
+  { labi_icc_std_need_needle_at_m34, 8 },
+  { labi_icc_std_need_needle_at_m35, 2 },
+  { labi_icc_std_need_needle_at_m36, 1 },
+  { labi_icc_std_need_needle_at_m37, 3 },
+  { labi_icc_std_need_needle_at_m38, 3 },
+  { labi_icc_std_need_needle_at_m39, 2 },
+  { labi_icc_std_need_needle_at_m40, 1 },
+  { labi_icc_std_need_needle_at_m41, 1 },
+  { labi_icc_std_need_needle_at_m42, 1 },
+  { labi_icc_std_need_needle_at_m43, 1 },
+  { labi_icc_std_need_needle_at_m44, 1 },
+  { labi_icc_std_need_needle_at_m45, 1 },
+  { labi_icc_std_need_needle_at_m46, 2 },
+  { labi_icc_std_need_needle_at_m47, 3 },
+  { labi_icc_std_need_needle_at_m48, 1 },
+  { labi_icc_std_need_needle_at_m49, 1 },
+  { labi_icc_std_need_needle_at_m50, 1 },
+  { labi_icc_std_need_needle_at_m51, 1 }
+};
+const char *labi_icc_std_need_needle_at(int mid, int i) {
+  const struct labi_icc_std_need_needle_at_row *row;
+  if (mid < 0 || i < 0) return NULL;
+  if ((unsigned)mid >= (unsigned)(sizeof(labi_icc_std_need_needle_at_rows)/sizeof(labi_icc_std_need_needle_at_rows[0]))) return NULL;
+  row = &labi_icc_std_need_needle_at_rows[mid];
+  if (!row->syms || i >= row->n) return NULL;
+  return row->syms[i];
+}
+
+/* Class BG: table form of labi_od_core_slice_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_core_slice_sym_at_tab[9] = {
+  "core_slice_i32_from_ptr_c",
+  "core_subslice_i32_c",
+  "core_slice_u8_from_ptr_c",
+  "core_subslice_u8_c",
+  "core_slice_u64_from_ptr_c",
+  "core_subslice_u64_c",
+  "core_slice_chunks_len_u64",
+  "core_slice_split_at_u64",
+  "core_slice_subslice_u64"
+};
+const char *labi_od_core_slice_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_core_slice_sym_at_tab)/sizeof(labi_od_core_slice_sym_at_tab[0]))) return NULL;
+  return labi_od_core_slice_sym_at_tab[i];
+}
+
+/* Class BG: table form of labi_od_sys_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_sys_sym_at_tab[8] = {
+  "std_sys_write_stdout",
+  "std_sys_write_stderr",
+  "std_sys_write",
+  "std_sys_read",
+  "std_sys_close",
+  "std_sys_exit",
+  "std_sys_freestanding_write_available",
+  "std_sys_linux_syscall_table_available"
+};
+const char *labi_od_sys_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_sys_sym_at_tab)/sizeof(labi_od_sys_sym_at_tab[0]))) return NULL;
+  return labi_od_sys_sym_at_tab[i];
+}
+
+/* Class BG: table form of labi_od_heap_user_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_heap_user_sym_at_tab[7] = {
+  "heap_alloc_c",
+  "heap_free_c",
+  "heap_realloc_c",
+  "heap_arena64_alloc_c",
+  "heap_arena_init_c",
+  "heap_arena64_deinit_c",
+  "heap_arena64_init_c"
+};
+const char *labi_od_heap_user_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_heap_user_sym_at_tab)/sizeof(labi_od_heap_user_sym_at_tab[0]))) return NULL;
+  return labi_od_heap_user_sym_at_tab[i];
+}

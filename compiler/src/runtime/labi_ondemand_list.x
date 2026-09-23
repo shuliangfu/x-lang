@@ -1374,63 +1374,8 @@ export function labi_od_core_slice_sym_count(): i32 {
   return 9;
 }
 
-/**
- * Product core.slice on_demand UNDEF symbol at index (needs_core_slice probe table).
- * @param i i32 — index in [0, 9)
- * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED — G.7 complete needs_core_slice authority (no second hard-coded list)
- */
-#[no_mangle]
-export function labi_od_core_slice_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "core_slice_i32_from_ptr_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "core_subslice_i32_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "core_slice_u8_from_ptr_c";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "core_subslice_u8_c";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "core_slice_u64_from_ptr_c";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "core_subslice_u64_c";
-    return p;
-  }
-  /*
-   * wave957: core.slice X-facing u64 on_demand probes (chunks_len / split_at /
-   * subslice). Before wave957: probe table only had C-bridge _c suffix symbols;
-   * user programs calling slice.chunks_len / slice.split_at / slice.subslice
-   * with u64 codegen to core_slice_*_u64 (X-facing, no _c) which didn't match
-   * any probe entry → BLD001 UNDEF. G.7: complete the single core_slice probe
-   * table. PLATFORM: SHARED.
-   */
-  if (i == 6) {
-    let p: *u8 = "core_slice_chunks_len_u64";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "core_slice_split_at_u64";
-    return p;
-  }
-  if (i == 8) {
-    let p: *u8 = "core_slice_subslice_u64";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BG: labi_od_core_slice_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+export extern function labi_od_core_slice_sym_at(i: i32): *u8;
 
 /**
  * Whether user .o references core.slice glue API (on-demand chain core/slice/slice.o).
@@ -1664,51 +1609,8 @@ export function labi_od_sys_sym_count(): i32 {
   return 8;
 }
 
-/**
- * Product std.sys on_demand UNDEF symbol at index (needs_std_sys probe table).
- * @param i i32 — index in [0, 8)
- * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED — G.7 complete needs_std_sys authority (no second hard-coded list)
- */
-#[no_mangle]
-export function labi_od_sys_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_sys_write_stdout";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_sys_write_stderr";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "std_sys_write";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "std_sys_read";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "std_sys_close";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "std_sys_exit";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "std_sys_freestanding_write_available";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "std_sys_linux_syscall_table_available";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BG: labi_od_sys_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+export extern function labi_od_sys_sym_at(i: i32): *u8;
 
 /**
  * Whether user .o references std.sys facade API (on-demand chain std/sys/sys.o).
@@ -1815,48 +1717,8 @@ export function labi_od_heap_user_sym_count(): i32 {
   return 7;
 }
 
-/**
- * Product runtime_heap_user on_demand UNDEF symbol at index (needs_heap_user_syms probe table).
- * @param i i32 — index in [0, 7)
- * @return *u8 — static C string symbol, or null if out of range
- * PLATFORM: SHARED — G.7 complete needs_heap_user_syms authority (no second hard-coded list)
- */
-#[no_mangle]
-export function labi_od_heap_user_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "heap_alloc_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "heap_free_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "heap_realloc_c";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "heap_arena64_alloc_c";
-    return p;
-  }
-  // with_arena asm emit (pipeline_glue) — complete product probes (G.7).
-  if (i == 4) {
-    let p: *u8 = "heap_arena_init_c";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "heap_arena64_deinit_c";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "heap_arena64_init_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BG: labi_od_heap_user_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+export extern function labi_od_heap_user_sym_at(i: i32): *u8;
 
 /**
  * Whether user .o references runtime_heap_user symbols (on-demand chain runtime_heap_user.o).
