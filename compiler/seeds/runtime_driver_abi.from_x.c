@@ -3852,12 +3852,10 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
  * PLATFORM: SHARED — mask bits match codegen.h; dump path /tmp dev-only. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
-    if (!link_abi_getenv("XLANG_DUMP_PREP") || !src)
-        return;
-    if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
-        diag_reportf((const char *)(void *)input_path, 0, 0, "note", NULL,
-                     "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
-    }
+    /* Class AT: Cap XLANG_DUMP_PREP retired (always no-op). */
+    (void)input_path;
+    (void)src;
+    (void)src_len;
 }
 
 int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps) {

@@ -4019,22 +4019,10 @@ export function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): 
  */
 #[no_mangle]
 export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len: usize): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_DUMP_PREP") == 0 as *u8) {
-      return;
-    }
-    if (src == 0 as *u8) {
-      return;
-    }
-    // runtime_io_abi: 0 = success (matches cold seed twin).
-    if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len as i64) == 0) {
-      let msg: u8[192] = [];
-      let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "dumped prep entry (");
-      at = driver_abi_append_i64(&msg[0], 192, at, src_len as i64);
-      at = driver_diag_append_cstr(&msg[0], 192, at, " bytes) to /tmp/xlang_prep_entry.bin");
-      diag_report(input_path, 0, 0, "note", &msg[0], 0 as *u8);
-    }
-  }
+  // Class AT: Cap XLANG_DUMP_PREP retired (always no-op).
+  let _ip: *u8 = input_path;
+  let _s: *u8 = src;
+  let _n: usize = src_len;
 }
 
 // ---- Wave32 Cap residual pure: parsed ABI field accessors + try_c_after_pp ----
