@@ -703,19 +703,8 @@ export function parser_diagnostic_parse_func_generic(byte_pos: i32, num_funcs_so
 
 #[no_mangle]
 export function pipeline_debug_module_funcs(m: *u8): void {
-  // wave374: Cap-T001 whole-body unsafe (export-extern / PREFER_ASM).
-  // PLATFORM: SHARED — asm typeck contract.
-  unsafe {
-    if (m == (0 as *u8)) { return; }
-    let n: i32 = pipeline_module_num_funcs(m);
-    let i: i32 = 0;
-    while (i < n) {
-      let nm: u8[256] = [];
-      memset(&nm[0], 0, 256 as usize);
-      pipeline_module_func_name_copy64(m, i, &nm[0]);
-      i = i + 1;
-    }
-  }
+  // Class AX: Cap DEBUG module func dump retired.
+  let _m: *u8 = m;
 }
 
 #[no_mangle]

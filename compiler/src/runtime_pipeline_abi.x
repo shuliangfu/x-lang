@@ -12491,59 +12491,11 @@ export function asm_diag_start_func_skip(): i32 {
  */
 #[no_mangle]
 export function asm_diag_trace_func_body(arena: *u8, body_ref: i32): void {
-  if (arena == 0 as *u8) {
-    return;
-  }
-  if (body_ref <= 0) {
-    return;
-  }
-  let trace: *u8 = 0 as *u8;
-  unsafe {
-    trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
-  }
-  if (asm_diag_env_truthy(trace) == 0) {
-    return;
-  }
-  let msg: u8[256];
-  let cap: i32 = 256;
-  let at: i32 = 0;
-  // Heuristic invalid: all zero metrics + final_expr 0 is possible for empty
-  // blocks; C used block_at null. Pure has no block_at - print metrics always.
-  let n_const: i32 = 0;
-  let n_let: i32 = 0;
-  let n_loop: i32 = 0;
-  let n_for: i32 = 0;
-  let n_if: i32 = 0;
-  let n_so: i32 = 0;
-  let fin: i32 = 0;
-  unsafe {
-    n_const = ast_ast_block_num_consts(arena, body_ref);
-    n_let = ast_ast_block_num_lets(arena, body_ref);
-    n_loop = ast_ast_block_num_loops(arena, body_ref);
-    n_for = ast_ast_block_num_for_loops(arena, body_ref);
-    n_if = ast_ast_block_num_if_stmts(arena, body_ref);
-    n_so = ast_ast_block_num_stmt_order(arena, body_ref);
-    fin = ast_ast_block_final_expr_ref(arena, body_ref);
-  }
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, "asm_body: ref=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, body_ref);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " consts=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_const);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " lets=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_let);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " loops=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_loop);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " for=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_for);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " ifs=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_if);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " stmt_order=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, n_so);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, " final_expr=");
-  at = pipe_diag_msg_append_i32(&msg[0], cap, at, fin);
-  at = pipe_diag_msg_append_cstr(&msg[0], cap, at, "\n");
-  asm_diag_stderr_write(&msg[0], at);
+  // Class AX: Cap XLANG_ASM_BODY_TRACE retired.
+  let _a: *u8 = arena;
+  let _b: i32 = body_ref;
 }
+
 
 /**
  * XLANG_ASM_BODY_TRACE=1: print body_ref only.
@@ -12553,20 +12505,10 @@ export function asm_diag_trace_func_body(arena: *u8, body_ref: i32): void {
  */
 #[no_mangle]
 export function asm_diag_trace_body_ref(body_ref: i32): void {
-  let trace: *u8 = 0 as *u8;
-  unsafe {
-    trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
-  }
-  if (asm_diag_env_truthy(trace) == 0) {
-    return;
-  }
-  let msg: u8[64];
-  let at: i32 = 0;
-  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "asm_body_ref=");
-  at = pipe_diag_msg_append_i32(&msg[0], 64, at, body_ref);
-  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "\n");
-  asm_diag_stderr_write(&msg[0], at);
+  // Class AX: Cap XLANG_ASM_BODY_TRACE retired.
+  let _b: i32 = body_ref;
 }
+
 
 /**
  * XLANG_ASM_BODY_TRACE=1: emit phase marker (1=fill 2=prologue 3=emit_body).
@@ -12576,20 +12518,10 @@ export function asm_diag_trace_body_ref(body_ref: i32): void {
  */
 #[no_mangle]
 export function asm_diag_trace_emit_phase(phase: i32): void {
-  let trace: *u8 = 0 as *u8;
-  unsafe {
-    trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
-  }
-  if (asm_diag_env_truthy(trace) == 0) {
-    return;
-  }
-  let msg: u8[64];
-  let at: i32 = 0;
-  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "asm_emit_phase=");
-  at = pipe_diag_msg_append_i32(&msg[0], 64, at, phase);
-  at = pipe_diag_msg_append_cstr(&msg[0], 64, at, "\n");
-  asm_diag_stderr_write(&msg[0], at);
+  // Class AX: Cap XLANG_ASM_BODY_TRACE retired.
+  let _p: i32 = phase;
 }
+
 
 /**
  * XLANG_ASM_FUNC_TRACE=1: print optional func index + name bytes to stderr.
@@ -12601,36 +12533,12 @@ export function asm_diag_trace_emit_phase(phase: i32): void {
  */
 #[no_mangle]
 export function asm_diag_trace_func_idx(func_idx: i32, name: *u8, name_len: i32): void {
-  if (name == 0 as *u8) {
-    return;
-  }
-  if (name_len <= 0) {
-    return;
-  }
-  let trace: *u8 = 0 as *u8;
-  unsafe {
-    trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
-  }
-  if (asm_diag_env_truthy(trace) == 0) {
-    return;
-  }
-  let msg: u8[256];
-  let at: i32 = 0;
-  if (func_idx >= 0) {
-    at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "asm_trace: #");
-    at = pipe_diag_msg_append_i32(&msg[0], 128, at, func_idx);
-    at = pipe_diag_msg_append_cstr(&msg[0], 128, at, " ");
-  } else {
-    at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "asm_trace: ");
-  }
-  let n: i32 = name_len;
-  if (n > 64) {
-    n = 64;
-  }
-  at = pipe_diag_msg_append_name(&msg[0], 128, at, name, n);
-  at = pipe_diag_msg_append_cstr(&msg[0], 128, at, "\n");
-  asm_diag_stderr_write(&msg[0], at);
+  // Class AX: Cap XLANG_ASM_FUNC_TRACE retired.
+  let _i: i32 = func_idx;
+  let _n: *u8 = name;
+  let _l: i32 = name_len;
 }
+
 
 /**
  * XLANG_ASM_FUNC_TRACE=1 wrapper: print name without func index.

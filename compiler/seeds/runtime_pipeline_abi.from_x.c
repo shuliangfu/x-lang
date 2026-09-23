@@ -314,25 +314,11 @@ int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx
 void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all);
 
 /* G-02f-62 helper protos */
-void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena);
-int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
-    int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n);
-
-/* wave1225: release AST sidecars before free on collect/prerun tmp arenas.
- * free alone leaves g_arena_sc / g_module_sc used; malloc address reuse reattaches
- * stale GrowVec data (directory check truncates large files after importful peers).
- * PLATFORM: SHARED — cold twin of pipe_release_tmp_arena_module in .x. */
-extern void ast_pool_arena_release(void *a);
-extern void ast_pool_module_release(void *m);
-static void pipe_release_tmp_arena_module(void *arena, void *module) {
-    if (arena) {
-        ast_pool_arena_release(arena);
-        free(arena);
-    }
-    if (module) {
-        ast_pool_module_release(module);
-        free(module);
-    }
+void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
+  /* Class AX: Cap XLANG_DEBUG_BODY_FUNC body retired (gate already NULL @ AV). */
+  (void)phase;
+  (void)module;
+  (void)arena;
 }
 
 int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
@@ -5019,43 +5005,26 @@ int32_t asm_diag_start_func_skip(void) {
 }
 
 void asm_diag_trace_func_body(struct ast_ASTArena *arena, int32_t body_ref) {
-  const char *trace;
-  if (!arena || body_ref <= 0)
-    return;
-  trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
-  if (!trace || trace[0] == '\0' || trace[0] == '0')
-    return;
-  /* Cold twin lacks Block layout; pure product path prints full metrics. */
-  pabi_trace( "asm_body: ref=%d (cold)\n", (int)body_ref);
+  /* Class AX: Cap XLANG_ASM_BODY_TRACE retired. */
+  (void)arena;
+  (void)body_ref;
 }
 
 void asm_diag_trace_body_ref(int32_t body_ref) {
-  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
-  if (!trace || trace[0] == '\0' || trace[0] == '0')
-    return;
-  pabi_trace( "asm_body_ref=%d\n", (int)body_ref);
+  /* Class AX: Cap XLANG_ASM_BODY_TRACE retired. */
+  (void)body_ref;
 }
 
 void asm_diag_trace_emit_phase(int32_t phase) {
-  const char *trace = link_abi_getenv("XLANG_ASM_BODY_TRACE");
-  if (!trace || trace[0] == '\0' || trace[0] == '0')
-    return;
-  pabi_trace( "asm_emit_phase=%d\n", (int)phase);
+  /* Class AX: Cap XLANG_ASM_BODY_TRACE retired. */
+  (void)phase;
 }
 
 void asm_diag_trace_func_idx(int32_t func_idx, uint8_t *name, int32_t name_len) {
-  const char *trace;
-  int32_t i;
-  if (!name || name_len <= 0)
-    return;
-  trace = link_abi_getenv("XLANG_ASM_FUNC_TRACE");
-  if (!trace || trace[0] == '\0' || trace[0] == '0')
-    return;
-  if (func_idx >= 0)
-    pabi_trace("asm_trace: #%d %.*s\n", (int)func_idx,
-               name_len < 64 ? (int)name_len : 64, (const char *)name);
-  else
-    pabi_trace("asm_trace: %.*s\n", name_len < 64 ? (int)name_len : 64, (const char *)name);
+  /* Class AX: Cap XLANG_ASM_FUNC_TRACE retired. */
+  (void)func_idx;
+  (void)name;
+  (void)name_len;
 }
 
 void asm_diag_trace_func(uint8_t *name, int32_t name_len) {
@@ -64883,18 +64852,8 @@ size_t pipeline_sizeof_onefunc_result(void) { return W284_ONEFUNC_RESULT_SZ; }
 size_t pipeline_arena_offset_num_types(void) { return W284_ARENA_OFF_NUM_TYPES; }
 
 void pipeline_debug_module_funcs(void *m) {
-  int i, n, len;
-  uint8_t nm[256];
-  if (!m)
-    return;
-  n = (int)pipeline_module_num_funcs(m);
-  for (i = 0; i < n; i++) {
-    len = (int)pipeline_module_func_name_len_at(m, i);
-    memset(nm, 0, sizeof(nm));
-    pipeline_module_func_name_copy64(m, i, nm);
-    pabi_trace( "[DEBUG] module func[%d] name_len=%d name=%.*s\n", i, len,
-            len > 0 && len <= 64 ? len : 0, (const char *)nm);
-  }
+  /* Class AX: Cap DEBUG module func dump retired. */
+  (void)m;
 }
 
 int driver_get_module_num_funcs(void *m) {
