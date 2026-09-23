@@ -1991,7 +1991,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && [ "$_pthin_p19_ok" = "1" ] && [ "$_pthin_p20_ok" = "1" ] && [ -n "$_pthin_link" ]; then
           _pthin_full=1
         fi
-        if [ "$_pthin_full" = "1" ]; then
+        # Class BX: full P1–P20 omit-rest hybrid SEGV with pin parser on tip; opt-in only.
+        if [ "$_pthin_full" = "1" ] && [ "${XLANG_G05_PTHIN_FULL:-0}" = "1" ]; then
           # shellcheck disable=SC2086
           if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
             echo "g05_ensure: parser_asm_thin_glue.o ← P1–P7+P9–P20 only (G-02f-330 omit empty rest; P8 smoke-only)"
@@ -2004,10 +2005,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                $_pthin_rest_defs -c -o "$_pthin_rest_o" "$_pthin"; then
             _pthin_rest_t=$(nm -gU "$_pthin_rest_o" 2>/dev/null | awk '$2=="T"{c++} END{print c+0}')
             # shellcheck disable=SC2086
+            # Class BX: slices-only (rest T=0) == full hybrid tip SEGV — leave done=0 for BX peel
+            # unless XLANG_G05_PTHIN_FULL=1. Non-empty rest still merges (partial hybrid).
             if [ "${_pthin_rest_t:-1}" = "0" ]; then
-              if pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
+              if [ "${XLANG_G05_PTHIN_FULL:-0}" = "1" ]                 && pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link 2>/dev/null; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices only (rest T=0 omit; G-02f-330)"
                 _pthin_done=1
+              else
+                echo "g05_ensure: skip full-hybrid omit-rest (Class BX; set XLANG_G05_PTHIN_FULL=1 to force)"
               fi
             elif pure_ld_partial_merge parser_asm_thin_glue.o $_pthin_link "$_pthin_rest_o" 2>/dev/null; then
               echo "g05_ensure: parser_asm_thin_glue.o ← hybrid slices + thin rest (G-02f-330 partial; rest T=$_pthin_rest_t)"
@@ -2019,6 +2024,42 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           echo "g05_ensure: parser thin P1–P7+P9–P20 hybrid failed; fallback full seed" >&2
         fi
         rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p2b_thin_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
+      fi
+      # Class BX: peel skip_tl .inc out of tip thin_c without full P1–P20 hybrid
+      # (full hybrid SEGV with pin parser). Recipe: thin rest −skip_tl −lex_skip
+      # + pthin_skip_tl.x/seed + pthin_lex_skip.x/seed + lex_step bridge.
+      if [ "$_pthin_done" = "0" ] && [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] \
+        && [ -f "$_pthin_p12_seed" ] && [ -f "$_pthin_p12b_x" ] \
+        && [ -f "$_pthin_p1_seed" ] && [ -f "$_pthin_p1b_x" ]; then
+        _bx_p12b=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p12b.XXXXXX") || true
+        _bx_p12=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p12.XXXXXX") || true
+        _bx_p1b=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p1b.XXXXXX") || true
+        _bx_p1=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p1.XXXXXX") || true
+        _bx_bridge=$(mktemp "${TMPDIR:-/tmp}/g05_bx_bridge.XXXXXX") || true
+        _bx_rest=$(mktemp "${TMPDIR:-/tmp}/g05_bx_rest.XXXXXX") || true
+        _bx_bridge_seed=seeds/parser_asm_lex_step_bridge.from_x.c
+        if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
+          && [ -n "$_bx_bridge" ] && [ -n "$_bx_rest" ] && [ -f "$_bx_bridge_seed" ] \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_bx_p12b" \
+          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_bx_p1b" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X -DXLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X \
+               -c -o "$_bx_p12" "$_pthin_p12_seed" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DXLANG_PTHIN_LEX_SKIP_BODIES_FROM_X \
+               -c -o "$_bx_p1" "$_pthin_p1_seed" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -c -o "$_bx_bridge" "$_bx_bridge_seed" \
+          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
+               -DXLANG_PTHIN_SKIP_TL_FROM_X -DXLANG_PTHIN_LEX_SKIP_FROM_X \
+               -c -o "$_bx_rest" "$_pthin" \
+          && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
+               "$_bx_p1" "$_bx_p1b" "$_bx_bridge" 2>/dev/null; then
+          echo "g05_ensure: parser_asm_thin_glue.o ← Class BX skip_tl peel (rest −skip_tl.inc + .x／lex_skip／bridge)"
+          _pthin_done=1
+        fi
+        rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_bx_rest"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
