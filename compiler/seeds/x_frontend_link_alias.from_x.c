@@ -51,11 +51,15 @@
  * .x. It still forwards to pipeline_asm_emit_dep_pipe_c and stays weak.
  * The unsuffixed body stays in the pipeline object. This face returns
  * *u8 and takes no arguments.
- * This file remains for the lexer struct-return tail and the remaining
- * uint8 XLANG_WEAK alias, which are not in .x.
+ * w876: pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8 also
+ * lives only in that .x. It still forwards to
+ * pipeline_module_import_path_byte_at and stays weak. The unsuffixed
+ * body stays in the pipeline object. This face returns uint8 and takes
+ * three arguments.
+ * This file remains for the lexer struct-return tail, which is not in .x.
  * Product install is pure-asm of the .x plus cc of this rest, then a
  * partial merge. There is no full-seed fallback. -DXLANG_XFLA_ASM is
- * now a no-op. Thirteen aliases stay weak via G05_X_O_WEAK_FUNCS on the
+ * now a no-op. Fourteen aliases stay weak via G05_X_O_WEAK_FUNCS on the
  * asm object: check_block_impl, check_expr_impl,
  * find_or_alloc_ptr_type_ref, pipeline_typeck_set_active_ctx_c,
  * pipeline_typeck_ptr_for_addr_of_operand_c, the w868
@@ -65,8 +69,9 @@
  * pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32, the w872
  * pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr, the w873
  * pipeline_dep_ctx_ndep_u8_ptr_reti32, the w874
- * pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr, and the w875
- * pipeline_asm_emit_dep_pipe_c_retu8_ptr.
+ * pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr, the w875
+ * pipeline_asm_emit_dep_pipe_c_retu8_ptr, and the w876
+ * pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8.
  * PLATFORM: SHARED.
  */
 #include <xlang_weak.h>
@@ -103,10 +108,6 @@ struct lexer_LexerResult lexer_lexer_next_buf(struct lexer_Lexer lex,
                                             struct xlang_slice_uint8_t *data) {
   return lexer_next_buf(lex, data);
 }
-
-/* R2 full try_inline/call_dispatch：.x -E 对 extern "C" 仍发 ABI 后缀名；
- * 产品 pipeline 导出无后缀符号。弱别名桥接（非业务双权威）。 */
-extern uint8_t pipeline_module_import_path_byte_at(uint8_t *m, int32_t i, int32_t j);
 
 /* w868: pipeline_expr_field_access_name_len_u8_ptr_i32_reti32
  * lives in x_frontend_link_alias.x and still forwards to
@@ -148,9 +149,11 @@ extern uint8_t pipeline_module_import_path_byte_at(uint8_t *m, int32_t i, int32_
  * pipeline_asm_emit_dep_pipe_c. The symbol stays weak.
  * The unsuffixed body stays in the pipeline object.
  * This face returns *u8 and takes no arguments. PLATFORM: SHARED. */
-XLANG_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint8_t *m, int32_t i, int32_t j) {
-  return pipeline_module_import_path_byte_at(m, i, j);
-}
+/* w876: pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8
+ * lives in x_frontend_link_alias.x and still forwards to
+ * pipeline_module_import_path_byte_at. The symbol stays weak.
+ * The unsuffixed body stays in the pipeline object.
+ * This face returns uint8 and takes three arguments. PLATFORM: SHARED. */
 
 /* wave L7-check residual: backend_call_dispatch X-ABI mangled faces → C product symbols.
  * Needed when call_dispatch.o expects mangled names not produced by host-cc seed path.

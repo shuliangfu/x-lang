@@ -977,7 +977,7 @@ ensure_catalog_family() {
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
-    # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875: seed-only cc drops the alias bodies that live in the .x.
+    # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: seed-only cc drops the alias bodies that live in the .x.
     # PLATFORM: SHARED.
     if [ "$o" = "x_frontend_link_alias.o" ]; then
       ensure_x_frontend_link_alias_prefer || exit 1
@@ -1373,10 +1373,10 @@ ensure_main_runtime() {
 #   pipeline_expr_binop_right_ref_at mangled face, the w872
 #   pipeline_expr_field_access_name_into mangled face, the w873
 #   pipeline_dep_ctx_ndep mangled face, the w874
-#   pipeline_dep_ctx_module_at mangled face, and the w875
-#   pipeline_asm_emit_dep_pipe_c mangled face; thirteen weakened)
-#   + seeds/x_frontend_link_alias.from_x.c (lexer struct-return + XLANG_WEAK
-#   cluster)
+#   pipeline_dep_ctx_module_at mangled face, the w875
+#   pipeline_asm_emit_dep_pipe_c mangled face, and the w876
+#   pipeline_module_import_path_byte_at mangled face; fourteen weakened)
+#   + seeds/x_frontend_link_alias.from_x.c (lexer struct-return tail)
 # w847 deleted the 18 C bodies and the XLANG_XFLA_ASM gate. w863 moved
 # pipeline_type_kind_ord_at_u8_ptr_i32_reti32 into the .x; it stays strong.
 # w864 moved glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
@@ -1412,6 +1412,12 @@ ensure_main_runtime() {
 # returns *u8 and takes no arguments. It is not the *u8 two-argument
 # shape, not the i32 one-argument shape, not the void three-argument
 # shape, and not the i32 two-argument shape.
+# w876 moved pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8 into
+# the .x; it stays weak. The unsuffixed body stays in the pipeline object.
+# This face returns u8 and takes three arguments. It is not the
+# zero-argument *u8 shape, not the *u8 two-argument shape, not the i32
+# one-argument shape, not the void three-argument shape, and not the i32
+# two-argument shape.
 # A seed-only cc does not define those symbols. There is no full-seed
 # fallback and no Windows special case. XLANG_G05_PREFER_X_O is ignored.
 # Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
@@ -1422,7 +1428,7 @@ ensure_x_frontend_link_alias_prefer() {
   local seed="seeds/x_frontend_link_alias.from_x.c"
   local xsrc="x_frontend_link_alias.x"
   local thin rest bare_thin bare_rest
-  local weak_funcs="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c,pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32,pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32,pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32,pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr,pipeline_dep_ctx_ndep_u8_ptr_reti32,pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr,pipeline_asm_emit_dep_pipe_c_retu8_ptr"
+  local weak_funcs="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c,pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32,pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32,pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32,pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr,pipeline_dep_ctx_ndep_u8_ptr_reti32,pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr,pipeline_asm_emit_dep_pipe_c_retu8_ptr,pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8"
 
   if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o try-xfla-prefer: missing $seed or $xsrc" >&2
@@ -1455,7 +1461,7 @@ ensure_x_frontend_link_alias_prefer() {
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && pure_ld_partial_merge "$o" "$thin" "$rest"; then
-    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer/mangled rest (w875; type_kind_ord, func_export, import_binding, heap_redirect, import_path, field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, and emit_dep_pipe faces are in the .x; field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, and emit_dep_pipe stay weak)"
+    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer rest (w876; type_kind_ord, func_export, import_binding, heap_redirect, import_path, field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, emit_dep_pipe, and import_path_byte faces are in the .x; field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, emit_dep_pipe, and import_path_byte stay weak)"
     rm -f "$thin" "$rest"
     return 0
   fi
@@ -1603,7 +1609,7 @@ try_ensure_r1_one() {
     ensure_pipeline_abi_prefer_one "$o" || return 1
     return 0
   fi
-  # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875: alias bodies that live in the .x are not in the seed.
+  # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: alias bodies that live in the .x are not in the seed.
   # Seed-only cc drops them. Do not gate on XLANG_G05_PREFER_X_O.
   # PLATFORM: SHARED.
   if [ "$o" = "x_frontend_link_alias.o" ]; then

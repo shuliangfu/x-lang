@@ -50,11 +50,18 @@
 // and takes no arguments. It is not the *u8 two-argument shape, not
 // the i32 one-argument shape, not the void three-argument shape, and
 // not the i32 two-argument shape.
+// w876 also places pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8
+// here. That face forwards to pipeline_module_import_path_byte_at and
+// stays weak. The unsuffixed body stays in the pipeline object. This
+// face returns u8 and takes three arguments. It is not the zero-argument
+// *u8 shape, not the *u8 two-argument shape, not the i32 one-argument
+// shape, not the void three-argument shape, and not the i32 two-argument
+// shape.
 // The product installer pure-asm's this file, then cc's the seed for the
-// lexer struct-return tail and the remaining XLANG_WEAK cluster.
+// lexer struct-return tail.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
 // Windows takes the same path.
-// Thirteen faces are weakened after asm. The first five stay weak so a strong
+// Fourteen faces are weakened after asm. The first five stay weak so a strong
 // typeck definition wins. The sixth is the w868 field-name-length alias.
 // The seventh is the w869 field-base-ref alias.
 // The eighth is the w870 binop-left alias.
@@ -62,7 +69,8 @@
 // The tenth is the w872 field-name-into alias.
 // The eleventh is the w873 dependency-count alias.
 // The twelfth is the w874 dependency-module alias.
-// The thirteenth is the w875 emit-dep-pipe alias:
+// The thirteenth is the w875 emit-dep-pipe alias.
+// The fourteenth is the w876 import-path-byte alias:
 // check_block_impl, check_expr_impl, find_or_alloc_ptr_type_ref,
 // pipeline_typeck_set_active_ctx_c, pipeline_typeck_ptr_for_addr_of_operand_c,
 // pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,
@@ -72,7 +80,8 @@
 // pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr,
 // pipeline_dep_ctx_ndep_u8_ptr_reti32,
 // pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr,
-// pipeline_asm_emit_dep_pipe_c_retu8_ptr.
+// pipeline_asm_emit_dep_pipe_c_retu8_ptr,
+// pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8.
 // Do not gcc -E this TU. Do not pass XLANG_XFLA_ASM.
 // PLATFORM: SHARED.
 
@@ -110,6 +119,7 @@ extern "C" function pipeline_expr_field_access_name_into(a: *u8, er: i32, dst: *
 extern "C" function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, i: i32): *u8;
 extern "C" function pipeline_asm_emit_dep_pipe_c(): *u8;
+extern "C" function pipeline_module_import_path_byte_at(m: *u8, i: i32, j: i32): u8;
 
 // lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
 
@@ -511,4 +521,26 @@ function pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(ctx: *u8, i: i32): *u8 
 function pipeline_asm_emit_dep_pipe_c_retu8_ptr(): *u8 {
   unsafe { let v: *u8 = pipeline_asm_emit_dep_pipe_c(); return v; }
   return 0 as *u8;
+}
+/**
+ * X-ABI mangled face of pipeline_module_import_path_byte_at.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in the pipeline object. This face only forwards.
+ * It does not check null. The symbol stays weak so another definition can win.
+ * This returns u8 and takes three arguments. It is not the zero-argument
+ * *u8 forwarder, not the *u8 two-argument forwarder, not the i32
+ * one-argument forwarder, not the void three-argument forwarder, and not
+ * the i32 two-argument forwarder.
+ * @param m *u8 — module pointer; null is forwarded, not checked here
+ * @param i i32 — import index forwarded unchanged
+ * @param j i32 — byte offset forwarded unchanged
+ * @return u8 — the byte pipeline_module_import_path_byte_at returns
+ * #[no_mangle] keeps the signature-suffixed link name.
+ * The installer weakens this symbol by name. Do not make it strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ */
+#[no_mangle]
+function pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(m: *u8, i: i32, j: i32): u8 {
+  unsafe { let v: u8 = pipeline_module_import_path_byte_at(m, i, j); return v; }
+  return 0 as u8;
 }
