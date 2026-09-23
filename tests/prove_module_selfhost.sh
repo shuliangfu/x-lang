@@ -35,8 +35,8 @@ MODULES=(
   "lsp_io_std_heap|src/lsp/lsp_io_std_heap.x|seeds/lsp_io_std_heap_gen.linux.x86_64.c|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free|"
   # token：enum+Token+token_is_eof；产品链仍用 include/token.h（C 头），本条锁 nm 面 / 扩 N
   "token|src/lexer/token.x|token_gen.c||"
-  # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
-  "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
+  # w848: lsp_diag_pipeline_sizes C seed deleted. Product nostub is pure-asm
+  # of src/lsp/lsp_diag_pipeline_sizes.x. No seed left to nm-diff.
   # labi_path_pure R2 full：.x 吃满公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files + wave253/258 user_env path + push_minimal companion + wave262 private helper short names (no_mangle)；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径；bank_push/rel/skip Cap；resolve Cap（wave160/184）；resolve+rel Cap（wave162）；realpath+getcwd+skip Cap（wave163）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体

@@ -672,12 +672,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
-  # G-02f-256/257 L2 表：1:1 pure TUs（默认 seed；PREFER_X_O=1 优先 .x）
-  g05_ensure_l2_or_seed \
-    src/lsp/lsp_diag_pipeline_sizes_nostub.o \
-    src/lsp/lsp_diag_pipeline_sizes.x \
-    seeds/lsp_diag_pipeline_sizes.from_x.c \
-    "sizes_nostub"
+  # w848: the three sizeof C bodies and seeds/lsp_diag_pipeline_sizes.from_x.c
+  # are deleted. Single installer is try-lsp-sat-prefer (pure-asm of the .x).
+  # No gcc -E. No cold seed. Windows takes the same path.
+  # Do not rebuild runtime_driver_no_c.o from this path. PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-lsp-sat-prefer \
+    src/lsp/lsp_diag_pipeline_sizes_nostub.o || {
+    echo "g05_ensure: lsp sizes pure-asm failed; C seed is gone, no fallback" >&2
+    exit 1
+  }
   # ~~G-02f-6 / G-02f-257 target_cpu dual hybrid~~ wave768 → try-target-cpu-prefer above
   # ~~R2 async three dual hybrid~~ wave770 → try-async-prefer above
   # wave309 G.7 8.3 structure floor leave: product pure-ld no longer links

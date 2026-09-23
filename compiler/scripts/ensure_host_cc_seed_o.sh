@@ -13448,18 +13448,18 @@ try_ensure_std_core_prefer_one() {
 # authority — dedicated table is the single body for these two leaves.
 #
 # leaf_kind:
-#   direct_e   — PREFER: pure-asm -c first (wave756 Class G), else xlang-c -E
-#                .x → host-cc -x c -c → OUT (no rest merge).
-#                cold: seeds/lsp_diag_pipeline_sizes.from_x.c
-#                Historic Makefile: prefer when ./xlang-c exists (no PREFER env).
+#   direct_e   — w848: pure_asm_x_to_o of the .x only. The C seed
+#                seeds/lsp_diag_pipeline_sizes.from_x.c is deleted.
+#                No gcc -E. No cold seed. Failure returns 1.
+#                XLANG_G05_PREFER_X_O is ignored. PLATFORM: SHARED.
 #   thin_rest_e — PREFER: pure-asm -c thin first (wave757 Class H), else
 #                 xlang-c -E .x → thin.o + seed rest
 #                 -DXLANG_LSP_DIAG_STUBS_NO_C_FROM_X → ld -r multidef.
 #                 cold: seeds/lsp_diag_stubs_no_c.from_x.c
 # Prefer fail / no xlang-c → cold seed. NOT physical delete — Makefile thin-call.
-# wave756 Class G: lsp_diag_pipeline_sizes.x standalone -backend asm -c is
-# U-complete both ends (T=3). Prefer that before -E+cc so this satellite
-# stops host-cc of gen. Do not -E as the repair when rung wins. Pin unchanged.
+# wave756 Class G: lsp_diag_pipeline_sizes.x standalone asm is U-complete
+# (T=3). w848 deleted the C seed. direct_e is pure_asm_x_to_o only.
+# Do not gcc -E this TU. Do not restore the seed. Pin unchanged.
 # wave757 Class H: lsp_diag_stubs_no_c.x standalone -c T=5 U=0 both ends.
 # Prefer pure-asm thin + seed rest (FROM_X) before -E thin. Seed rest still
 # host-cc (C body); .x gen path cuts host-cc. Do not -E as repair. Pin unchanged.
@@ -13477,7 +13477,8 @@ try_ensure_std_core_prefer_one() {
 lsp_sat_prefer_spec_for_out() {
   case "$1" in
     src/lsp/lsp_diag_pipeline_sizes_nostub.o)
-      printf '%s' "seeds/lsp_diag_pipeline_sizes.from_x.c|src/lsp/lsp_diag_pipeline_sizes.x||direct_e"
+      # w848: seed field is "-" because the C file is deleted.
+      printf '%s' "-|src/lsp/lsp_diag_pipeline_sizes.x||direct_e"
       ;;
     src/lsp/lsp_diag_stubs_no_c.o)
       printf '%s' "seeds/lsp_diag_stubs_no_c.from_x.c|src/lsp/lsp_diag_stubs_no_c.x|XLANG_LSP_DIAG_STUBS_NO_C_FROM_X|thin_rest_e"
@@ -13528,7 +13529,8 @@ ensure_lsp_sat_prefer_one() {
   from_x_def="${rest%%|*}"
   leaf_kind="${rest#*|}"
 
-  if [ ! -f "$seed" ]; then
+  # w848: direct_e seed is "-" (file deleted). Other leaves still require a seed.
+  if [ "$seed" != "-" ] && [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o try-lsp-sat-prefer: missing seed $seed for $o" >&2
     return 1
   fi
@@ -13557,46 +13559,24 @@ ensure_lsp_sat_prefer_one() {
 
   case "$leaf_kind" in
     direct_e)
-      # PLATFORM: SHARED — Class G pure-asm first; else -E → host-cc; cold seed.
-      if [ -f "$x_src" ]; then
-        local asm_bin=""
-        if [ -x "./xlang_asm" ]; then
-          asm_bin="./xlang_asm"
-        elif [ -x "./xlang" ]; then
-          asm_bin="./xlang"
-        elif [ -x ./xlang-c ]; then
-          asm_bin="./xlang-c"
-        fi
-        if [ -n "$asm_bin" ]; then
-          if "$asm_bin" -backend asm -c "$x_src" -o "$o" 2>/dev/null \
-            && [ -s "$o" ]; then
-            log "prefer direct_e pure-asm $o <- $x_src (try-lsp-sat-prefer/Class G)"
-            return 0
-          fi
-          rm -f "$o"
-        fi
+      # w848: the three sizeof functions live only in the .x. The C seed
+      # is deleted. pure_asm_x_to_o only. No gcc -E. No cold-seed cc.
+      # XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+      # PLATFORM: SHARED.
+      if [ ! -f "$x_src" ]; then
+        echo "ensure: lsp sizes missing $x_src; C seed is gone, no fallback" >&2
+        return 1
       fi
-      if [ -f "$x_src" ] && [ -x ./xlang-c ]; then
-        tmp_c="$(mktemp "${TMPDIR:-/tmp}/lsp_sizes.XXXXXX")"
-        # shellcheck disable=SC2086
-        if _lsp_sat_xlang_c_e "$x_src" "$tmp_c" direct_e \
-          && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
-               -x c -c "$tmp_c" -o "$o"; then
-          rm -f "$tmp_c"
-          log "prefer direct_e $o <- $x_src (try-lsp-sat-prefer/direct_e)"
-          return 0
-        fi
-        rm -f "$tmp_c"
-        log "lsp-sat direct_e prefer failed for $o; fallback full seed"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$o" "$x_src"
+      ); then
+        log "prefer direct_e pure-asm $o <- $x_src (w848; C seed deleted)"
+        return 0
       fi
-      if [ -f "$o" ]; then
-        FORCE=1
-        ensure_one "$o" "$seed"
-        FORCE=0
-      else
-        ensure_one "$o" "$seed"
-      fi
-      return 0
+      echo "ensure: lsp sizes pure-asm failed; C seed is gone, no fallback" >&2
+      rm -f "$o"
+      return 1
       ;;
 
     thin_rest_e)
@@ -13672,7 +13652,7 @@ try_ensure_lsp_sat_prefer_one() {
   if [ -z "$(lsp_sat_prefer_spec_for_out "$o")" ]; then
     return 3
   fi
-  ensure_lsp_sat_prefer_one "$o"
+  ensure_lsp_sat_prefer_one "$o" || return 1
   return 0
 }
 

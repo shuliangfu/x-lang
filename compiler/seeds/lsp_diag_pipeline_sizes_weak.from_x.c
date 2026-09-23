@@ -1,15 +1,10 @@
 /* seeds/lsp_diag_pipeline_sizes_weak.from_x.c — G-02f-81
  * Non-product xlang-c chain: sizeof + weak fill_paths stubs.
- * Product G05 uses seeds/lsp_diag_pipeline_sizes.from_x.c (nostub).
+ * Product G05 src/lsp/lsp_diag_pipeline_sizes_nostub.o is pure-asm of
+ * src/lsp/lsp_diag_pipeline_sizes.x. w848 deleted
+ * seeds/lsp_diag_pipeline_sizes.from_x.c. This file is not that object.
  * Promoted from compiler/src/lsp/lsp_diag_pipeline_sizes.inc.
- */
-/**
- * lsp_diag_pipeline_sizes_weak.from_x.c — 非产品链（含 weak fill_paths 占位）的瘦 sizeof + 弱桩。
- *
- * G-02f-1：产品 G05 的 `lsp_diag_pipeline_sizes_nostub.o` 已改由
- * `src/lsp/lsp_diag_pipeline_sizes.x`（#[no_mangle]）→ `seeds/lsp_diag_pipeline_sizes.from_x.c` 提供；
- * 本 .inc 仅供 `lsp_diag_pipeline_sizes.o`（xlang-c / 无 ctx 链）继续使用。
- * 瘦 sizeof 常量须与 .x 一致：arena=16 / module=40 / dep_ctx=1368。
+ * Size constants must match the .x: arena=16, module=40, dep_ctx=1368.
  */
 #include <xlang_weak.h>
 #include <stddef.h>
