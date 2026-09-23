@@ -913,7 +913,8 @@ export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   // 0fb0 write). Invalidate HERE — the single authority all emission sites call
   // (125+ sites audited; only 32 had ad-hoc invalidations, 117 of 119 lacked it).
   // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
-  glue_binop_var_slot_cache_invalidate_rbx();
+  // Extern FFI: typeck requires unsafe, same as the thin twin.
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx); }
@@ -1689,8 +1690,11 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
   // (T001 'requires type arguments' on copy<A>). Same family as BM5's rbx
   // invalidation at mov_rax_to_rbx. Invalidate BOTH at the call authority.
   // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
-  glue_binop_var_slot_cache_invalidate_rax();
-  glue_binop_var_slot_cache_invalidate_rbx();
+  // Extern FFI: typeck requires unsafe, same as the thin twin.
+  unsafe {
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+  }
   unsafe {
   if (ta == 1) { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
@@ -3092,7 +3096,8 @@ export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta
     if (k < 0) { return 0 - 1; }
     if (k > 7) { return 0 - 1; }
     // fmov sK, w0 — 0x1e270000 | K (≡ addss ta==1 first insn).
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32);
+    // AAPCS64 fmov encoding is an extern append; typeck requires unsafe.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32); }
   }
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -3123,7 +3128,8 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
     if (k < 0) { return 0 - 1; }
     if (k > 7) { return 0 - 1; }
     // fmov w0, sK — 0x1e260000 | (K << 5).
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32);
+    // AAPCS64 fmov encoding is an extern append; typeck requires unsafe.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32); }
   }
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }

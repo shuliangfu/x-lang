@@ -32,6 +32,13 @@
 struct platform_elf_ElfCodegenCtx;
 
 #ifdef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+/* Public append wrappers live in the pure-asm thin. The Cap residual tail
+ * still calls them. Prototypes only — bodies stay out of this TU so the
+ * thin's strong defs are the single definitions.
+ * PLATFORM: SHARED gate / POSIX product thin asm.
+ */
+int32_t backend_enc_append_u32_le_c(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
+int32_t backend_enc_append_u8_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t byte);
 int32_t backend_enc_arm64_add_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 int32_t backend_enc_arm64_sub_sp_imm12_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
 int32_t backend_enc_arm64_str_x0_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes);
@@ -393,14 +400,22 @@ int32_t backend_enc_arm64_store_arg_sp_offset_c(struct platform_elf_ElfCodegenCt
   }
   return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
 }
+#endif /* XLANG_L2_ENC_DISPATCH_THIN_FROM_X */
 
+/* Dispatcher is not in backend_enc_dispatch_thin.x. The width-aware helper
+ * above is, so the thin supplies that body and this TU keeps the ta split.
+ * PLATFORM: SHARED — POSIX product thin asm; cold seed still compiles both.
+ */
+#ifdef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
+int32_t backend_enc_arm64_store_arg_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                int32_t off_bytes, int32_t nbytes);
+#endif
 int32_t backend_enc_store_arg_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
                                              int32_t nbytes, int32_t ta) {
   if (ta == 1)
     return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes);
   return -1;
 }
-#endif
 
 
 

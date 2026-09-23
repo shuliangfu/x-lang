@@ -36,6 +36,12 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CI（2026-09-23）backend_enc_dispatch thin 退出整份 host-cc
+
+- ✅ thin 面在 `-DXLANG_L2_ENC_DISPATCH_THIN_FROM_X` 下由 tip 纯 asm 提供（预处理 −37253；迁前 167 个全局符号仍在）
+- 🟡 f64／Cap 尾仍 host-cc（含 `backend_enc_addsd_rax_rbx_arch`）
+- 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
+
 ### Class CH（2026-09-23）x_frontend_link_alias 退出 POSIX 产品 host-cc
 
 - ✅ 18 个别名面在 `-DXLANG_XFLA_ASM` 下不再进入 POSIX 产品 `cc`（预处理 −3538；纯 asm `.x` 供符号；5 个保持 weak）
@@ -314,7 +320,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CH** 把 x_frontend_link_alias 18 个别名退出 POSIX 产品 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份 tip 能纯 asm、且非 HARD BAN 的 from_x。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CI** 把 `backend_enc_dispatch` 的 thin 面退出整份 POSIX 产品 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份 tip 能纯 asm、且非 HARD BAN 的 from_x。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
@@ -328,3 +334,4 @@
 - 2026-09-23 typeck_orch：POSIX 产品 rest 在 `XLANG_PABI_TYPECK_ORCH_ASM` 下不再编这 7 个 C 体，改由纯 asm thin 提供。Windows／冷种子仍编 C 体。
 - 2026-09-23 elf_codegen_forwarders：POSIX 产品 rest 在 `XLANG_PABI_ELF_CODEGEN_FORWARDERS_ASM` 下不再编这 19 个 C 体，改由纯 asm thin 提供。Windows／冷种子仍编 C 体。
 - 2026-09-23 x_frontend_link_alias：POSIX 产品在 `XLANG_XFLA_ASM` 下不再编这 18 个别名 C 体，改由纯 asm `.x` 提供（5 个保持 weak）。lexer 尾与带修饰别名仍 host-cc。Windows／冷种子仍编 C 体。
+- 2026-09-23 backend_enc_dispatch：POSIX 产品 prefer 纯 asm thin，种子尾仍 host-cc f64／Cap。无 `XLANG_L2_ENC_DISPATCH_THIN_FROM_X` 时预处理与迁前相同。Windows／冷种子仍可整份 `cc`。
