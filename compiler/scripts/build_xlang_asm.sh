@@ -5203,8 +5203,9 @@ ensure_rt_seed_slice_objs() {
       build_xlang_asm_error "rt seed slice missing: $seed"
       return 1
     fi
-    # w845: emit_state setters live only in the .x. BSS, lib-name, and the
-    # entry-prefix setter stay in the seed. No full-seed fallback.
+    # w859: emit_state setters and the slice marker live only in the .x.
+    # BSS, lib-name, and the entry-prefix setter stay in the seed.
+    # No full-seed fallback.
     # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_emit_state.o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh try-rt-emit-state-prefer \

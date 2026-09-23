@@ -1,8 +1,9 @@
 /* seeds/rt_emit_state.from_x.c — Cap-global-bss + lib-name + entry prefix.
  * driver_run_x_emit_c_set_path, driver_run_x_emit_c_set_lib,
  * driver_run_x_emit_c_set_n_lib_roots, driver_run_x_emit_c_set_emit_extern,
- * and driver_argv_parse_x_emit_c are defined only in
- * src/runtime/rt_emit_state.x. Their C bodies were deleted in w845.
+ * driver_argv_parse_x_emit_c, and labi_rt_emit_state_slice_marker are defined
+ * only in src/runtime/rt_emit_state.x. The five setters' C bodies were deleted
+ * in w845. The marker was deleted in w859 and still returns 1.
  * Do not reintroduce a #ifndef twin. This file remains because the shared
  * path, library, and scan buffers are not an .x export (export let becomes
  * static), and because xlang_driver_x_emit_set_lib_name,
@@ -10,7 +11,7 @@
  * xlang_pipeline_pctx_set_entry_lib_prefix have no .x body.
  * Slot accessors live in runtime_driver_abi.
  * PLATFORM: SHARED — product links pure-asm .x + this object. No full-seed
- * fallback: a seed-only cc no longer defines the five setters.
+ * fallback: a seed-only cc no longer defines the five setters or the marker.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -93,8 +94,4 @@ int32_t xlang_driver_x_emit_lib_name_into(uint8_t *out, int32_t cap) {
   memcpy(out, driver_x_emit_lib_name_buf, (size_t)n);
   out[n] = '\0';
   return n;
-}
-
-int labi_rt_emit_state_slice_marker(void) {
-  return 1;
 }

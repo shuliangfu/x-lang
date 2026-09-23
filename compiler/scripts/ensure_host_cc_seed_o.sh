@@ -1018,13 +1018,14 @@ ensure_catalog_family() {
 }
 
 # Product install of src/runtime/rt_emit_state.o:
-#   pure-asm src/runtime/rt_emit_state.x
-#   + seeds/rt_emit_state.from_x.c (BSS + lib-name + entry prefix + marker)
-# The five setters were deleted from the seed in w845. There is no full-seed
-# fallback and no Windows special case: a seed-only cc does not define
-# set_path / set_lib / set_n / set_extern / argv_parse.
-# XLANG_G05_PREFER_X_O is ignored. Do not gcc -E this TU.
-# Do not rebuild runtime_driver_no_c.o from this path.
+#   pure-asm src/runtime/rt_emit_state.x (five setters + slice marker)
+#   + seeds/rt_emit_state.from_x.c (BSS + lib-name + entry prefix)
+# The five setters were deleted from the seed in w845.
+# labi_rt_emit_state_slice_marker moved into the .x in w859 (still returns 1).
+# There is no full-seed fallback and no Windows special case: a seed-only cc
+# does not define the setters or the marker. XLANG_G05_PREFER_X_O is ignored.
+# Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
+# Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED — POSIX and Windows both take this path.
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
@@ -1033,7 +1034,7 @@ ensure_rt_emit_state_prefer() {
   local o="src/runtime/rt_emit_state.o"
   local seed="seeds/rt_emit_state.from_x.c"
   local xsrc="src/runtime/rt_emit_state.x"
-  local thin rest ld_flags bare_thin bare_rest
+  local thin rest merged ld_flags bare_thin bare_rest bare_merged
 
   if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o try-rt-emit-state-prefer: missing $seed or $xsrc" >&2
@@ -1051,31 +1052,48 @@ ensure_rt_emit_state_prefer() {
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtemit_thin.XXXXXX")" || true
   bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtemit_rest.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtemit_merged.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
     echo "ensure: rt-emit-state mktemp failed" >&2
+    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest"
+  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
   thin="${bare_thin}.o"
   rest="${bare_rest}.o"
+  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
   # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  # The marker is in the .x. The seed cc emits BSS, lib-name, and entry prefix.
   if (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
       unset XLANG_PREFER_ASM_O
     fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$o" "$thin" "$rest"; then
-    log "rt-emit-state $o <- pure-asm $xsrc + BSS rest (w845; C bodies deleted)"
+    && ld $ld_flags -o "$merged" "$thin" "$rest" \
+    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_path" \
+    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_lib" \
+    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_n_lib_roots" \
+    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_emit_extern" \
+    && r3_prefer_nm_has_sym "$merged" "driver_argv_parse_x_emit_c" \
+    && r3_prefer_nm_has_sym "$merged" "labi_rt_emit_state_slice_marker" \
+    && r3_prefer_nm_has_sym "$merged" "xlang_pipeline_pctx_set_entry_lib_prefix" \
+    && r3_prefer_nm_has_sym "$merged" "xlang_driver_x_emit_set_lib_name" \
+    && r3_prefer_nm_has_sym "$merged" "xlang_driver_x_emit_lib_name_into" \
+    && r3_prefer_nm_has_sym "$merged" "driver_x_emit_c_path" \
+    && r3_prefer_nm_has_sym "$merged" "driver_x_emit_lib_name_buf"; then
+    mv -f "$merged" "$o"
+    log "rt-emit-state $o <- pure-asm $xsrc + BSS rest (w859; marker is in the .x)"
     rm -f "$thin" "$rest"
     return 0
   fi
-  echo "ensure: rt-emit-state pure-asm failed; C bodies are gone, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$o"
+  echo "ensure: rt-emit-state pure-asm failed; marker and setters are in the .x, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$merged"
   return 1
 }
 

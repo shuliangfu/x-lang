@@ -39,8 +39,9 @@
 ### Class CP（2026-09-23）rt_emit_state setter C 体已删除
 
 - ✅ `driver_run_x_emit_c_set_path`／`set_lib`／`set_n_lib_roots`／`set_emit_extern`／`driver_argv_parse_x_emit_c` 只在 `src/runtime/rt_emit_state.x`。种子里的 C 体已删除，没有整份回退
-- 🟡 BSS、lib-name、入口前缀与 marker 仍 host-cc，`rt_emit_state.from_x.c` 还不能整文件删除
-- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）
+- ✅ w859 起 `labi_rt_emit_state_slice_marker` 也在 `.x`，仍返回 1（见 Class DB）
+- 🟡 BSS、lib-name、入口前缀仍 host-cc，`rt_emit_state.from_x.c` 还不能整文件删除
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）。不在纯 asm 前缀对不上的编译器上重编 `rt_emit_state.o`
 
 ### Class CO（2026-09-23）rt_arena_buf 函数 C 体已删除
 
@@ -54,6 +55,12 @@
 - ✅ `write_io_net_abi_inline`／`write_fs_path_map_error_abi_inline` 只在 `src/runtime/rt_preamble.x`。种子里的 C 体已删除，没有整份回退
 - 🟡 巨型字符串表与 marker 仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
+
+### Class DB（2026-09-23）rt_emit_state 切片 marker 已收入 .x
+
+- ✅ `labi_rt_emit_state_slice_marker` 只在 `src/runtime/rt_emit_state.x`，仍返回 1。种子不再定义它。安装器纯 asm 这一文件，再 `cc` BSS、lib-name 和入口前缀。没有 gcc `-E`
+- 🟡 BSS、lib-name、入口前缀仍 host-cc，`rt_emit_state.from_x.c` 还不能整文件删除。不是 host-cc=0
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在纯 asm 前缀对不上的编译器上重编 `rt_emit_state.o`
 
 ### Class DA（2026-09-23）rt_arena_buf 切片 marker 已收入 .x
 
@@ -427,7 +434,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CX** 删掉 `backend_enc_dispatch` 薄层公共函数的冷路径 C 体和无人引用的 thin 种子，权威在 thin `.x`；f64／Cap 尾仍 host-cc。**Class CW** 删掉 `runtime_driver_diagnostic` 薄层公共函数的冷路径 C 体，权威在 `.x`；asm BSS 仍 host-cc。**Class CV** 删掉 `lsp_diag_pipeline_ctx` 九个薄别名的 C 体，权威在 `.x`；`_impl`／状态缓冲仍 host-cc。**Class DA** 把 `labi_rt_arena_buf_slice_marker` 收进 `.x`（仍返回 1）；128MiB／2MiB BSS 仍 host-cc。**Class CZ** 把 `backend_arch_emit_dispatch_slice_marker` 收进 `.x` 并删除种子，该对象不再 host-cc。**Class CT** 的 47 个分派壳仍在 `.x`。**Class CS** 整文件删掉 `lsp_diag_pipeline_sizes` 产品种子，三枚 sizeof 权威在 `.x`；非产品 weak 种子仍 host-cc。**Class CR** 删掉 `x_frontend_link_alias` 18 个别名的 C 体，权威在 `.x`；lexer 尾与带修饰别名仍 host-cc。**Class CQ** 的恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。lexer 尾还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CX** 删掉 `backend_enc_dispatch` 薄层公共函数的冷路径 C 体和无人引用的 thin 种子，权威在 thin `.x`；f64／Cap 尾仍 host-cc。**Class CW** 删掉 `runtime_driver_diagnostic` 薄层公共函数的冷路径 C 体，权威在 `.x`；asm BSS 仍 host-cc。**Class CV** 删掉 `lsp_diag_pipeline_ctx` 九个薄别名的 C 体，权威在 `.x`；`_impl`／状态缓冲仍 host-cc。**Class DB** 把 `labi_rt_emit_state_slice_marker` 收进 `.x`（仍返回 1）；BSS／lib-name／入口前缀仍 host-cc。**Class DA** 把 `labi_rt_arena_buf_slice_marker` 收进 `.x`（仍返回 1）；128MiB／2MiB BSS 仍 host-cc。**Class CZ** 把 `backend_arch_emit_dispatch_slice_marker` 收进 `.x` 并删除种子，该对象不再 host-cc。**Class CT** 的 47 个分派壳仍在 `.x`。**Class CS** 整文件删掉 `lsp_diag_pipeline_sizes` 产品种子，三枚 sizeof 权威在 `.x`；非产品 weak 种子仍 host-cc。**Class CR** 删掉 `x_frontend_link_alias` 18 个别名的 C 体，权威在 `.x`；lexer 尾与带修饰别名仍 host-cc。**Class CQ** 的恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。lexer 尾还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

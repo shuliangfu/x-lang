@@ -4,10 +4,12 @@
 // G-02f-303/304 / P2 runtime rest: -x -E emit state slots + setters + argv scan.
 // w845: driver_run_x_emit_c_set_path, set_lib, set_n_lib_roots, set_emit_extern,
 // and driver_argv_parse_x_emit_c live only in this file. Their C twins were
-// deleted from seeds/rt_emit_state.from_x.c. The product installer pure-asm's
-// this file, then cc's the seed for the shared buffers, the lib-name pair,
-// the entry-prefix setter, and the slice marker. There is no full-seed
-// fallback and XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+// deleted from seeds/rt_emit_state.from_x.c.
+// w859: labi_rt_emit_state_slice_marker lives here too. It returns 1.
+// The product installer pure-asm's this file, then cc's the seed for the
+// shared buffers, the lib-name pair, and the entry-prefix setter. There is
+// no full-seed fallback and XLANG_G05_PREFER_X_O is ignored. Windows takes
+// the same path.
 // Do not gcc -E this TU. Product PREFER_X_O temps must not replace this .o.
 // Cap-global-bss residual: shared buffers/pointer binds use driver_abi slot APIs
 // (.x must not write **u8 pointers into BSS, must not use local u8[512] —
@@ -387,4 +389,16 @@ export function driver_argv_parse_x_emit_c(argc: i32, argv: **u8): i32 {
     return 0;
   }
   return rt_scan_x_emit_argv(argc, argv, 1);
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm. Lib-name, entry prefix, and the shared buffers stay in the C seed.
+ */
+#[no_mangle]
+export function labi_rt_emit_state_slice_marker(): i32 {
+  return 1;
 }

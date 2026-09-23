@@ -2101,8 +2101,9 @@ ensure_rt_seed_slice_objs() {
     "seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
   o="${pair##*:}"
-  # w845: same product object as ensure_rt_emit_state_prefer.
-  # C setter bodies are deleted. PLATFORM: SHARED.
+  # w859: same product object as ensure_rt_emit_state_prefer.
+  # Setters and the slice marker are in the .x. BSS, lib-name, and the
+  # entry-prefix setter stay in the seed. PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_emit_state.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-emit-state-prefer \
       || return 1
