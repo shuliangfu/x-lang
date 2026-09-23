@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AR** labi Cap ✅；**Class AS** driver_abi PHASE_TIMING Cap ✅；**Class AT** driver_abi DUMP_PREP Cap 剥 ✅（Cap／真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AT** Cap／driver 剥 ✅；**Class AU** Darwin try-labi-prefer 死循环根修 ✅（L6／L8 host-cc；L8b prefer；Cap／真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -34,7 +34,7 @@
 | 冷启动零 cc（阶段 12） | 🟡 | LINK／`.s` 大半 ✅；全路径零 cc ⬜ |
 | 终局 MG+BC+PC+v2==v3（阶段 13） | 🟡 | MG 文件层 ✅；BC／PC／v2==v3 未终 |
 | 产品 L4 钉盘 | ✅ | **`ecdb5cc1e`**（升钉默认不做） |
-| BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 from_x／seed／`.inc`／大户 Cap／真减（AT DUMP_PREP Cap 剥后） |
+| BC（编译层零 host-cc） | 🟡 | inventory present **0**（Class O）；余量＝map 外 from_x／seed／`.inc`／大户 Cap／真减；Darwin tip **可 prefer labi**（AU；L6／L8 仍 host-cc） |
 | PC（产品默认 asm） | 🟡 | 门控已收；`labi_invoke_cc` 未删 |
 | `pipeline_abi` mega pure-asm | 🟡 | 已绿 PREFER 面同上。**Class AP**：Darwin leftover 拼装半刀已收；diagnostic `parse_commit` Cap gather 已剥（prefer 同路径可测减）。Cap／真减 host-cc 续。HARD BAN／leftover-first／mega FORCE／`-E` 当修仍禁。 |
 | nest 冻帽 | ✅ | **64** |
