@@ -68,6 +68,35 @@ def want_compact(name: str) -> bool:
         "_pipe_elf_pgo_undef_cap",
     ):
         return True
+    # Class BN: leftover WPO reach/DCE Cap bodies (product prefer thin wins;
+    # leftover stubs shrink host-cc pabi; L2 unset WPO DCE).
+    if name in (
+        "_pipeline_asm_wpo_reach_compute_for_elf",
+        "_pipeline_asm_wpo_should_emit_func",
+        "_pipeline_asm_wpo_reach_clear",
+        "_asm_wpo_build_reach",
+        "_asm_wpo_reach_fixpoint_expand",
+        "_asm_wpo_call_callee_id",
+        "_asm_wpo_pipeline_strict_preserve_emit",
+        "_asm_wpo_close_std_heap_helpers",
+        "_asm_wpo_add_edge",
+        "_asm_wpo_call_callee_name",
+        "_asm_wpo_register_func",
+        "_asm_wpo_func_id_in_module",
+        "_asm_wpo_scan_func_body_calls",
+        "_asm_wpo_dce_env_enabled",
+        "_asm_wpo_register_mod",
+        "_asm_wpo_user_main_func_id",
+        "_asm_wpo_func_id_by_name",
+        "_asm_wpo_is_user_program_entry",
+        "_asm_wpo_func_id_of",
+        "_asm_wpo_precollect_all_func_edges",
+        "_asm_wpo_mod_is_std_heap",
+        "_asm_wpo_mod_index",
+        "_asm_wpo_collect_edges_from_expr",
+        "_asm_wpo_collect_from_block",
+    ):
+        return True
     return False
 
 
