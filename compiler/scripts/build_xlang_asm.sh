@@ -5211,8 +5211,9 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_emit_state prefer failed"; return 1; }
       continue
     fi
-    # w844: arena_buf functions live only in the .x. BSS stays in the seed.
-    # No full-seed fallback. PLATFORM: SHARED (Windows pure-asm too).
+    # w858: arena_buf functions and the slice marker live only in the .x.
+    # BSS stays in the seed. No full-seed fallback.
+    # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_arena_buf.o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
         || { build_xlang_asm_error "rt_arena_buf prefer failed"; return 1; }

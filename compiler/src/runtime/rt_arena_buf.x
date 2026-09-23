@@ -3,10 +3,11 @@
 //
 // G-02f-309/443 / P2 runtime rest → R2 full: static arena/module buffers.
 // w844: driver_arena_buf and driver_module_buf live only in this file.
+// w858: labi_rt_arena_buf_slice_marker lives here too. It returns 1.
 // Their C twins were deleted from seeds/rt_arena_buf.from_x.c. The product
 // installer pure-asm's this file, then cc's the seed for the 128MiB arena
-// array, the 2MiB module array, and the slice marker. There is no full-seed
-// fallback and XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+// array and the 2MiB module array only. There is no full-seed fallback and
+// XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
 // Do not gcc -E this TU. Product PREFER_X_O temps must not replace this .o.
 // The .x calls libc memset; the deleted full-cc body was lowered to bzero.
 // Cap-global-bss residual: the arrays stay in the seed. Slot API is in
@@ -77,4 +78,16 @@ export function driver_module_buf(): *u8 {
     memset(p, 0, sz);
   }
   return p;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm. The 128MiB and 2MiB arrays stay in the C seed.
+ */
+#[no_mangle]
+export function labi_rt_arena_buf_slice_marker(): i32 {
+  return 1;
 }

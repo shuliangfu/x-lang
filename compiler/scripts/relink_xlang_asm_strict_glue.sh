@@ -2108,8 +2108,9 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
-  # w844: same product object as ensure_rt_arena_buf_prefer.
-  # C bodies are deleted. PLATFORM: SHARED.
+  # w858: same product object as ensure_rt_arena_buf_prefer.
+  # Functions and the slice marker are in the .x. BSS stays in the seed.
+  # PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_arena_buf.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
       || return 1

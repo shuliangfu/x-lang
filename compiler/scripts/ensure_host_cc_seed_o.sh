@@ -1080,12 +1080,14 @@ ensure_rt_emit_state_prefer() {
 }
 
 # Product install of src/runtime/rt_arena_buf.o:
-#   pure-asm src/runtime/rt_arena_buf.x
-#   + seeds/rt_arena_buf.from_x.c (128MiB / 2MiB BSS + slice marker only)
+#   pure-asm src/runtime/rt_arena_buf.x (two buffers + slice marker)
+#   + seeds/rt_arena_buf.from_x.c (128MiB / 2MiB BSS only)
 # driver_arena_buf / driver_module_buf were deleted from the seed in w844.
+# labi_rt_arena_buf_slice_marker moved into the .x in w858 (still returns 1).
 # There is no full-seed fallback and no Windows special case: a seed-only cc
-# does not define those two functions. XLANG_G05_PREFER_X_O is ignored.
+# does not define those symbols. XLANG_G05_PREFER_X_O is ignored.
 # Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
+# Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED — POSIX and Windows both take this path.
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
@@ -1094,7 +1096,7 @@ ensure_rt_arena_buf_prefer() {
   local o="src/runtime/rt_arena_buf.o"
   local seed="seeds/rt_arena_buf.from_x.c"
   local xsrc="src/runtime/rt_arena_buf.x"
-  local thin rest ld_flags bare_thin bare_rest
+  local thin rest merged ld_flags bare_thin bare_rest bare_merged
 
   if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o try-rt-arena-buf-prefer: missing $seed or $xsrc" >&2
@@ -1112,31 +1114,42 @@ ensure_rt_arena_buf_prefer() {
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtarena_thin.XXXXXX")" || true
   bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtarena_rest.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtarena_merged.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
     echo "ensure: rt-arena-buf mktemp failed" >&2
+    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest"
+  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
   thin="${bare_thin}.o"
   rest="${bare_rest}.o"
+  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
   # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  # The marker is in the .x. The seed cc emits BSS only.
   if (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
       unset XLANG_PREFER_ASM_O
     fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$o" "$thin" "$rest"; then
-    log "rt-arena-buf $o <- pure-asm $xsrc + BSS rest (w844; C bodies deleted)"
+    && ld $ld_flags -o "$merged" "$thin" "$rest" \
+    && r3_prefer_nm_has_sym "$merged" "driver_arena_buf" \
+    && r3_prefer_nm_has_sym "$merged" "driver_module_buf" \
+    && r3_prefer_nm_has_sym "$merged" "labi_rt_arena_buf_slice_marker" \
+    && r3_prefer_nm_has_sym "$merged" "driver_arena_static" \
+    && r3_prefer_nm_has_sym "$merged" "driver_module_static"; then
+    mv -f "$merged" "$o"
+    log "rt-arena-buf $o <- pure-asm $xsrc + BSS rest (w858; marker is in the .x)"
     rm -f "$thin" "$rest"
     return 0
   fi
-  echo "ensure: rt-arena-buf pure-asm failed; C bodies are gone, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$o"
+  echo "ensure: rt-arena-buf pure-asm failed; marker and buffers are in the .x, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$merged"
   return 1
 }
 

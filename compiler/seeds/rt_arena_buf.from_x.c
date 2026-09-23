@@ -1,11 +1,12 @@
-/* seeds/rt_arena_buf.from_x.c — Cap-global-bss arrays + slice marker.
- * driver_arena_buf and driver_module_buf are defined only in
- * src/runtime/rt_arena_buf.x. Their C bodies were deleted in w844.
- * Do not reintroduce a #ifndef twin. This file remains because the
- * 128MiB arena and the 2MiB module array are not an .x export
- * (export let becomes static). Slot accessors live in runtime_driver_abi.
- * PLATFORM: SHARED — product links pure-asm .x + this object. No full-seed
- * fallback: a seed-only cc no longer defines the two functions.
+/* seeds/rt_arena_buf.from_x.c — Cap-global-bss arrays only.
+ * driver_arena_buf, driver_module_buf, and labi_rt_arena_buf_slice_marker
+ * are defined only in src/runtime/rt_arena_buf.x. The marker C body was
+ * deleted in w858 (it returned 1). Do not reintroduce a #ifndef twin.
+ * This file remains because the 128MiB arena and the 2MiB module array
+ * are not an .x export (export let becomes static). Slot accessors live
+ * in runtime_driver_abi.
+ * PLATFORM: SHARED — product links pure-asm .x + this BSS object. No
+ * full-seed fallback: a seed-only cc defines neither function nor marker.
  */
 #include <stdint.h>
 
@@ -26,7 +27,3 @@
  */
 uint8_t driver_arena_static[DRIVER_ARENA_STATIC_SIZE] = {0};
 uint8_t driver_module_static[DRIVER_MODULE_STATIC_SIZE] = {0};
-
-int labi_rt_arena_buf_slice_marker(void) {
-  return 1;
-}
