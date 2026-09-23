@@ -4,6 +4,9 @@
  * cc does not define those symbols.
  * w863: pipeline_type_kind_ord_at_u8_ptr_i32_reti32 also lives only in
  * that .x. It still forwards to pipeline_type_kind_ord_at and stays strong.
+ * w864: glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
+ * also lives only in that .x. It still forwards to
+ * glue_asm_build_func_export_sym_c and stays strong.
  * This file remains for the lexer struct-return tail and the other
  * mangled ABI aliases, which are not in .x.
  * Product install is pure-asm of the .x plus cc of this rest, then a
@@ -92,11 +95,10 @@ XLANG_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint
 /* wave L7-check residual: backend_call_dispatch X-ABI mangled faces → C product symbols.
  * Needed when call_dispatch.o expects mangled names not produced by host-cc seed path.
  * PLATFORM: SHARED link residual (G.7 alias face; not dual implementation). */
-extern int32_t glue_asm_build_func_export_sym_c(void *a, void *b, int32_t c, void *d, int32_t e);
-int32_t glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32(
-    void *a, void *b, int32_t c, void *d, int32_t e) {
-  return glue_asm_build_func_export_sym_c(a, b, c, d, e);
-}
+/* w864: glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
+ * lives in x_frontend_link_alias.x and still forwards to
+ * glue_asm_build_func_export_sym_c. The symbol stays strong.
+ * PLATFORM: SHARED. */
 extern int32_t glue_asm_build_import_binding_call_sym(void *a, int32_t b, void *c, int32_t d, void *e);
 int32_t glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32(
     void *a, int32_t b, void *c, int32_t d, void *e) {

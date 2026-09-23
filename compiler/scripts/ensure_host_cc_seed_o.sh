@@ -977,7 +977,7 @@ ensure_catalog_family() {
   # shellcheck disable=SC2086
   for o in $list; do
     [ -z "$o" ] && continue
-    # w847/w863: seed-only cc drops the alias bodies that live in the .x.
+    # w847/w863/w864: seed-only cc drops the alias bodies that live in the .x.
     # PLATFORM: SHARED.
     if [ "$o" = "x_frontend_link_alias.o" ]; then
       ensure_x_frontend_link_alias_prefer || exit 1
@@ -1362,11 +1362,14 @@ ensure_main_runtime() {
 
 # Product install of x_frontend_link_alias.o:
 #   pure-asm x_frontend_link_alias.x (18 aliases plus the w863
-#   pipeline_type_kind_ord_at mangled face; five weakened)
+#   pipeline_type_kind_ord_at mangled face and the w864
+#   glue_asm_build_func_export_sym_c mangled face; five weakened)
 #   + seeds/x_frontend_link_alias.from_x.c (lexer struct-return + remaining
 #   mangled ABI aliases)
 # w847 deleted the 18 C bodies and the XLANG_XFLA_ASM gate. w863 moved
 # pipeline_type_kind_ord_at_u8_ptr_i32_reti32 into the .x; it stays strong.
+# w864 moved glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
+# into the .x; it stays strong.
 # A seed-only cc does not define those symbols. There is no full-seed
 # fallback and no Windows special case. XLANG_G05_PREFER_X_O is ignored.
 # Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
@@ -1410,7 +1413,7 @@ ensure_x_frontend_link_alias_prefer() {
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && pure_ld_partial_merge "$o" "$thin" "$rest"; then
-    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer/mangled rest (w863; type_kind_ord face is in the .x)"
+    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer/mangled rest (w864; type_kind_ord and func_export faces are in the .x)"
     rm -f "$thin" "$rest"
     return 0
   fi
@@ -1558,7 +1561,7 @@ try_ensure_r1_one() {
     ensure_pipeline_abi_prefer_one "$o" || return 1
     return 0
   fi
-  # w847/w863: alias bodies that live in the .x are not in the seed.
+  # w847/w863/w864: alias bodies that live in the .x are not in the seed.
   # Seed-only cc drops them. Do not gate on XLANG_G05_PREFER_X_O.
   # PLATFORM: SHARED.
   if [ "$o" = "x_frontend_link_alias.o" ]; then

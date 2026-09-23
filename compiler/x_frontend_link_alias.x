@@ -1,11 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-26 / w847 / w863: alias forwards for pipeline_x lexer/typeck/codegen_x.
+// G-02f-26 / w847 / w863 / w864: alias forwards for pipeline_x lexer/typeck/codegen_x.
 // w847 put the original 18 alias bodies only in this file and deleted
 // their C twins and the XLANG_XFLA_ASM gate.
 // w863 also places pipeline_type_kind_ord_at_u8_ptr_i32_reti32 here.
 // That face forwards to pipeline_type_kind_ord_at and stays strong.
+// w864 also places glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
+// here. That face forwards to glue_asm_build_func_export_sym_c and stays strong.
 // The product installer pure-asm's this file, then cc's the seed for the
 // lexer struct-return tail and the remaining mangled ABI aliases.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
@@ -38,6 +40,7 @@ extern "C" function pipeline_type_kind_ord_at(a: *u8, r: i32): i32;
 /* ---- codegen ---- */
 extern "C" function codegen_x_ast_emit_header(out: *u8): i32;
 extern "C" function codegen_x_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8, dep_index: i32): i32;
+extern "C" function glue_asm_build_func_export_sym_c(a: *u8, b: *u8, c: i32, d: *u8, e: i32): i32;
 
 // lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
 
@@ -217,5 +220,23 @@ function codegen_codegen_x_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8, dep_
 #[no_mangle]
 function pipeline_type_kind_ord_at_u8_ptr_i32_reti32(a: *u8, r: i32): i32 {
   unsafe { let v: i32 = pipeline_type_kind_ord_at(a, r); return v; }
+  return 0;
+}
+/**
+ * X-ABI mangled face of glue_asm_build_func_export_sym_c.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in backend_call_dispatch. This face only forwards.
+ * @param a *u8 — first pointer argument; null is forwarded, not checked here
+ * @param b *u8 — second pointer argument; null is forwarded, not checked here
+ * @param c i32 — integer argument forwarded unchanged
+ * @param d *u8 — fourth pointer argument; null is forwarded, not checked here
+ * @param e i32 — integer argument forwarded unchanged
+ * @return i32 — the value glue_asm_build_func_export_sym_c returns
+ * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ */
+#[no_mangle]
+function glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32(a: *u8, b: *u8, c: i32, d: *u8, e: i32): i32 {
+  unsafe { let v: i32 = glue_asm_build_func_export_sym_c(a, b, c, d, e); return v; }
   return 0;
 }
