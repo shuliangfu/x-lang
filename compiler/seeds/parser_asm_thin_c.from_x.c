@@ -2912,8 +2912,9 @@ struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 #endif
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
-/* 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_x.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
-/* G-02f-289 P8 seed_parse：默认 #include；hybrid 时在 pthin_seed_parse.from_x.c */
+/* Class BY: tip product always NO_SEED_PARSE — .inc body archived under analysis/archive/parser_asm/.
+ * Non-product smoke may still include seeds/ wrapper (→ archive). 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供。 */
+/* G-02f-289 P8 seed_parse：默认 #include wrapper；hybrid 时在 pthin_seed_parse.from_x.c */
 #ifndef XLANG_PTHIN_SEED_PARSE_FROM_X
 #include "parser_asm_seed_parse_into_buf_slice.inc"
 #else

@@ -3,7 +3,7 @@
  * Hybrid: XLANG_PTHIN_SEED_PARSE_FROM_X (only when not NO_SEED_PARSE)
  *         + ld -r into thin glue for seed-bootstrap paths.
  *
- * Body: seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc
+ * Body: seeds wrapper → analysis/archive/parser_asm/… (Class BY).
  * Product G05 still uses -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE (parser_x owns parse_into_buf).
  */
 #include <stddef.h>

@@ -2028,6 +2028,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       # Class BX: peel skip_tl .inc out of tip thin_c without full P1–P20 hybrid
       # (full hybrid SEGV with pin parser). Recipe: thin rest −skip_tl −lex_skip
       # + pthin_skip_tl.x/seed + pthin_lex_skip.x/seed + lex_step bridge.
+      # Class BY: seed_parse .inc archived (tip already NO_SEED_PARSE). primary_slice
+      # peel blocked (ctrl／type_ref／set_unary cascade). glue_tail ban.
       if [ "$_pthin_done" = "0" ] && [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] \
         && [ -f "$_pthin_p12_seed" ] && [ -f "$_pthin_p12b_x" ] \
         && [ -f "$_pthin_p1_seed" ] && [ -f "$_pthin_p1b_x" ]; then
