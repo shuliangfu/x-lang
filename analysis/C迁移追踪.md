@@ -54,6 +54,12 @@
 - 🟡 巨型字符串表与 marker 仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class CY（2026-09-23）五份无人编译的 L2 thin C 种子已删除
+
+- ✅ `runtime_driver_diagnostic_thin.from_x.c`、`backend_call_dispatch_thin.from_x.c`、`backend_try_inline_dispatch_thin.from_x.c`、`simd_enc_thin.from_x.c`、`simd_loop_thin.from_x.c` 已整文件删除。没有任何脚本编译它们。公共函数体在对应 `.x`
+- 🟡 诊断 asm BSS、call／try_inline／simd 的产品种子冷路径仍 host-cc。当前编译器纯 asm 与上午对象对不上，这些产品对象不重编
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）。不重编 `cfg_eval.o`。不重链 `async_asm_pool`
+
 ### Class CX（2026-09-23）backend_enc_dispatch 薄层公共函数 C 体已删除
 
 - ✅ 薄层公共函数只在 `src/asm/backend_enc_dispatch_thin.x`。种子里的冷路径 C 体已删除，无人引用的 `backend_enc_dispatch_thin.from_x.c` 已整文件删除。安装器只做纯 asm，再 cc f64／Cap 尾，失败即停，没有 gcc `-E`，没有 full `.x`，没有整份回退
