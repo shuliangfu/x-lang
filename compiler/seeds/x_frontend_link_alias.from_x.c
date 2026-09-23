@@ -13,8 +13,12 @@
  * w866: glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32
  * also lives only in that .x. It still forwards to
  * glue_try_std_heap_redirect_sym_local and stays strong.
- * This file remains for the lexer struct-return tail and the other
- * mangled ABI aliases, which are not in .x.
+ * w867: glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32
+ * also lives only in that .x. It still forwards to
+ * glue_codegen_import_path_to_c_prefix_into and stays strong.
+ * The unsuffixed body returns void.
+ * This file remains for the lexer struct-return tail and the
+ * XLANG_WEAK cluster, which are not in .x.
  * Product install is pure-asm of the .x plus cc of this rest, then a
  * partial merge. There is no full-seed fallback. -DXLANG_XFLA_ASM is
  * now a no-op. Five aliases stay weak via G05_X_O_WEAK_FUNCS on the
@@ -109,10 +113,11 @@ XLANG_WEAK uint8_t pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(uint
  * lives in x_frontend_link_alias.x and still forwards to
  * glue_asm_build_import_binding_call_sym. The symbol stays strong.
  * PLATFORM: SHARED. */
-extern void glue_codegen_import_path_to_c_prefix_into(void *a, void *b, int32_t c);
-void glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(void *a, void *b, int32_t c) {
-  glue_codegen_import_path_to_c_prefix_into(a, b, c);
-}
+/* w867: glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32
+ * lives in x_frontend_link_alias.x and still forwards to
+ * glue_codegen_import_path_to_c_prefix_into. The symbol stays strong.
+ * The unsuffixed body returns void.
+ * PLATFORM: SHARED. */
 /* w863: pipeline_type_kind_ord_at_u8_ptr_i32_reti32 lives in
  * x_frontend_link_alias.x and still forwards to pipeline_type_kind_ord_at.
  * PLATFORM: SHARED. */

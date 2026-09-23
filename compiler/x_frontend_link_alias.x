@@ -1,7 +1,7 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-26 / w847 / w863 / w864 / w865 / w866: alias forwards for pipeline_x lexer/typeck/codegen_x.
+// G-02f-26 / w847 / w863 / w864 / w865 / w866 / w867: alias forwards for pipeline_x lexer/typeck/codegen_x.
 // w847 put the original 18 alias bodies only in this file and deleted
 // their C twins and the XLANG_XFLA_ASM gate.
 // w863 also places pipeline_type_kind_ord_at_u8_ptr_i32_reti32 here.
@@ -14,8 +14,12 @@
 // w866 also places
 // glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32
 // here. That face forwards to glue_try_std_heap_redirect_sym_local and stays strong.
+// w867 also places
+// glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32
+// here. That face forwards to glue_codegen_import_path_to_c_prefix_into
+// and stays strong. The unsuffixed body returns void.
 // The product installer pure-asm's this file, then cc's the seed for the
-// lexer struct-return tail and the remaining mangled ABI aliases.
+// lexer struct-return tail and the XLANG_WEAK cluster.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
 // Windows takes the same path.
 // Five faces are weakened after asm so a strong typeck definition wins:
@@ -49,6 +53,7 @@ extern "C" function codegen_x_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8, d
 extern "C" function glue_asm_build_func_export_sym_c(a: *u8, b: *u8, c: i32, d: *u8, e: i32): i32;
 extern "C" function glue_asm_build_import_binding_call_sym(a: *u8, b: i32, c: *u8, d: i32, e: *u8): i32;
 extern "C" function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
+extern "C" function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i32): void;
 
 // lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
 
@@ -282,4 +287,21 @@ function glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_ret
 function glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
   unsafe { let v: i32 = glue_try_std_heap_redirect_sym_local(name, nlen, out, cap); return v; }
   return 0;
+}
+/**
+ * X-ABI mangled face of glue_codegen_import_path_to_c_prefix_into.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in backend_call_dispatch and returns void.
+ * This face only forwards. It does not check null or capacity.
+ * @param path *u8 — import path bytes; null is forwarded, not checked here
+ * @param buf *u8 — prefix output buffer; null is forwarded, not checked here
+ * @param buf_cap i32 — output capacity forwarded unchanged
+ * @return void — the callee writes the C prefix into buf
+ * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
+ * XLANG_WEAK cluster stay in the C seed.
+ */
+#[no_mangle]
+function glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(path: *u8, buf: *u8, buf_cap: i32): void {
+  unsafe { glue_codegen_import_path_to_c_prefix_into(path, buf, buf_cap); }
 }
