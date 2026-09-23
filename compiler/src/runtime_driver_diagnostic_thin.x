@@ -1738,27 +1738,7 @@ export function parser_diagnostic_parse_commit_shape(byte_pos: i32, num_funcs_so
  */
 #[no_mangle]
 export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8, final_expr_ref: i32): void {
-  let pool_nc: i32 = 0;
-  let pool_nl: i32 = 0;
-  let pool_nif: i32 = 0;
-  let pool_nreg: i32 = 0;
-  let pool_nso: i32 = 0;
-  let _a: *u8 = arena;
-  if (_a == 0 as *u8) {
-    // keep seed (void)arena semantics — pre does not read block metrics
-  }
-  if (pool != 0 as *u8) {
-    pool_nc = pipeline_onefunc_num_consts(pool);
-    pool_nl = pipeline_onefunc_num_lets(pool);
-    pool_nif = pipeline_onefunc_num_if_stmts(pool);
-    pool_nreg = pipeline_onefunc_num_regions(pool);
-    pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
-  }
-  driver_diagnostic_parse_commit_shape(
-    0, 0, name, name_len, 0, block_ref,
-    pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
-    0, 0, 0, 0, 0, final_expr_ref
-  );
+  // Class AP: Cap parse_commit_pre gather retired (shape already empty @ Class AL).
 }
 
 /**
@@ -1776,37 +1756,7 @@ export function parser_diagnostic_parse_commit_pre(arena: *u8, name: *u8, name_l
  */
 #[no_mangle]
 export function parser_diagnostic_parse_commit_post(arena: *u8, name: *u8, name_len: i32, block_ref: i32, pool: *u8): void {
-  let pool_nc: i32 = 0;
-  let pool_nl: i32 = 0;
-  let pool_nif: i32 = 0;
-  let pool_nreg: i32 = 0;
-  let pool_nso: i32 = 0;
-  let blk_nc: i32 = 0;
-  let blk_nl: i32 = 0;
-  let blk_nif: i32 = 0;
-  let blk_nreg: i32 = 0;
-  let blk_nso: i32 = 0;
-  let final_er: i32 = 0;
-  if (pool != 0 as *u8) {
-    pool_nc = pipeline_onefunc_num_consts(pool);
-    pool_nl = pipeline_onefunc_num_lets(pool);
-    pool_nif = pipeline_onefunc_num_if_stmts(pool);
-    pool_nreg = pipeline_onefunc_num_regions(pool);
-    pool_nso = pipeline_onefunc_num_src_stmt_order(pool);
-  }
-  if (arena != 0 as *u8) {
-    blk_nc = ast_ast_block_num_consts(arena, block_ref);
-    blk_nl = ast_ast_block_num_lets(arena, block_ref);
-    blk_nif = ast_ast_block_num_if_stmts(arena, block_ref);
-    blk_nreg = ast_ast_block_num_regions(arena, block_ref);
-    blk_nso = ast_ast_block_num_stmt_order(arena, block_ref);
-    final_er = ast_ast_block_final_expr_ref(arena, block_ref);
-  }
-  driver_diagnostic_parse_commit_shape(
-    0, 0, name, name_len, 1, block_ref,
-    pool_nc, pool_nl, pool_nif, pool_nreg, pool_nso,
-    blk_nc, blk_nl, blk_nif, blk_nreg, blk_nso, final_er
-  );
+  // Class AP: Cap parse_commit_post gather retired (shape already empty @ Class AL).
 }
 
 // ---- Cap residual pure deep-migrate wave4: after_entry_parse_module + codegen_emit_func_fail ----
