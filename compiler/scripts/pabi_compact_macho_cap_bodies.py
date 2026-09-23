@@ -5,7 +5,7 @@ runtime_pipeline_abi.o (no FORCE rebuild).
 Replaces wpo_dump_* / pipeline_debug_* / asm_diag_trace_* /
 pipeline_typeck_wpo_dump_callgraph bodies with an 8-byte
 `mov w0,#0; ret` stub and drops the remainder of each body
-(+ mid-body text relocs). Typical save ~20–25KB on tip leftover.
+(+ mid-body text relocs). Typical save ~20–35KB on tip leftover (BC dump/trace + BD w502_wpo).
 PLATFORM: Darwin MH_MAGIC_64 only. Idempotent if targets already 8B.
 """
 from __future__ import annotations
@@ -34,6 +34,9 @@ def want_compact(name: str) -> bool:
     if name.startswith("_asm_diag_trace_"):
         return True
     if name == "_pipeline_typeck_wpo_dump_callgraph":
+        return True
+    # Class BD: WPO dump helpers (only called from dump Cap path)
+    if name.startswith("_w502_wpo_"):
         return True
     return False
 

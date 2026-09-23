@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Class BB: strip __LD,__compact_unwind (+ its relocs) from Darwin leftover
-runtime_pipeline_abi.o without FORCE-rebuild.
+"""Class BB／BD: strip __LD,__compact_unwind (+ its relocs) from Darwin
+Mach-O relocatable .o without FORCE-rebuild.
 
-Why: Mach-O leftover carries ~93KB unwind + ~23KB reloc for it; product L2
-does not need the section in the relocatable. Removes ~116KB file size.
+Safe on: runtime_pipeline_abi.o, runtime_link_abi.o, runtime_driver_abi.o,
+runtime_driver_no_c.o, backend_call_dispatch.o.
+Do NOT apply to parser_asm_thin_glue.o (LOH／n_sect corrupt after strip).
 PLATFORM: Darwin only. Idempotent if section already absent.
 """
 from __future__ import annotations
