@@ -2192,3 +2192,353 @@ const char *labi_od_heap_user_sym_at(int i) {
   if ((unsigned)i >= (unsigned)(sizeof(labi_od_heap_user_sym_at_tab)/sizeof(labi_od_heap_user_sym_at_tab[0]))) return NULL;
   return labi_od_heap_user_sym_at_tab[i];
 }
+
+/* ===== Class BJ: remaining od/fs single-index needles ===== */
+/* Class BJ: table form of labi_od_async_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_async_sym_at_tab[4] = {
+  "std_async_placeholder",
+  "std_async_drain_idle",
+  "std_async_scheduler_reset",
+  "std_async_net_fs_async_smoke",
+};
+const char *labi_od_async_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_async_sym_at_tab)/sizeof(labi_od_async_sym_at_tab[0]))) return NULL;
+  return labi_od_async_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_time_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_time_sym_at_tab[4] = {
+  "std_time_now_monotonic_ns",
+  "std_time_sleep_ms",
+  "std_time_timer_start",
+  "time_now_monotonic_ns_c",
+};
+const char *labi_od_time_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_time_sym_at_tab)/sizeof(labi_od_time_sym_at_tab[0]))) return NULL;
+  return labi_od_time_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_queue_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_queue_sym_at_tab[3] = {
+  "sync_queue_contention_smoke_c",
+  "queue_os_run_two_workers_c",
+  "queue_contention_worker_push_c",
+};
+const char *labi_od_queue_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_queue_sym_at_tab)/sizeof(labi_od_queue_sym_at_tab[0]))) return NULL;
+  return labi_od_queue_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_thread_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_thread_sym_at_tab[4] = {
+  "std_thread_create",
+  "std_thread_join",
+  "std_thread_start",
+  "std_thread_stats",
+};
+const char *labi_od_thread_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_thread_sym_at_tab)/sizeof(labi_od_thread_sym_at_tab[0]))) return NULL;
+  return labi_od_thread_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_http_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_http_sym_at_tab[5] = {
+  "std_http_parse_status_line",
+  "std_http_decode_chunked_body",
+  "std_http_has_chunked_encoding",
+  "std_http_has_keep_alive",
+  "std_http_headers_body_offset",
+};
+const char *labi_od_http_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_http_sym_at_tab)/sizeof(labi_od_http_sym_at_tab[0]))) return NULL;
+  return labi_od_http_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_page_mmap_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_page_mmap_sym_at_tab[5] = {
+  "std_heap_page_mmap_page_mmap_heap_available",
+  "std_heap_page_mmap_page_mmap_heap_init",
+  "std_heap_page_mmap_page_mmap_heap_alloc",
+  "std_heap_page_mmap_page_mmap_heap_deinit",
+  "std_heap_page_mmap_page_mmap_heap_free",
+};
+const char *labi_od_page_mmap_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_page_mmap_sym_at_tab)/sizeof(labi_od_page_mmap_sym_at_tab[0]))) return NULL;
+  return labi_od_page_mmap_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_runtime_process_argv_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_runtime_process_argv_sym_at_tab[5] = {
+  "process_xlang_argc_get",
+  "process_xlang_argv_get",
+  "process_arg_c",
+  "process_args_count_c",
+  "std_env_args_iter",
+};
+const char *labi_od_runtime_process_argv_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_runtime_process_argv_sym_at_tab)/sizeof(labi_od_runtime_process_argv_sym_at_tab[0]))) return NULL;
+  return labi_od_runtime_process_argv_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_provides_core_mem_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_provides_core_mem_sym_at_tab[2] = {
+  "core_mem_mem_copy",
+  "core_mem_placeholder",
+};
+const char *labi_od_provides_core_mem_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_provides_core_mem_sym_at_tab)/sizeof(labi_od_provides_core_mem_sym_at_tab[0]))) return NULL;
+  return labi_od_provides_core_mem_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_od_provides_std_heap_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_provides_std_heap_sym_at_tab[2] = {
+  "std_heap_libc_heap_alloc_c",
+  "std_heap_alloc_usize",
+};
+const char *labi_od_provides_std_heap_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_provides_std_heap_sym_at_tab)/sizeof(labi_od_provides_std_heap_sym_at_tab[0]))) return NULL;
+  return labi_od_provides_std_heap_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_io_sym_at. PLATFORM: SHARED. */
+static const char *const labi_fs_io_sym_at_tab[16] = {
+  "xlang_sys_write",
+  "xlang_sys_read",
+  "xlang_sys_close",
+  "xlang_sys_exit",
+  "xlang_sys_open",
+  "xlang_sys_openat",
+  "xlang_sys_mmap",
+  "xlang_sys_munmap",
+  "xlang_sys_socket",
+  "xlang_sys_connect",
+  "xlang_sys_bind",
+  "xlang_sys_listen",
+  "xlang_sys_accept",
+  "backtrace_capture_c",
+  "backtrace_symbolicate_c",
+  "xlang_target_cpu_detect_host",
+};
+const char *labi_fs_io_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_io_sym_at_tab)/sizeof(labi_fs_io_sym_at_tab[0]))) return NULL;
+  return labi_fs_io_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_heap_c_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_heap_c_needle_at_tab[9] = {
+  "malloc",
+  "calloc",
+  "realloc",
+  "posix_memalign",
+  "heap_alloc_c",
+  "heap_free_c",
+  "heap_realloc_c",
+  "heap_alloc_zeroed_c",
+  "getenv",
+};
+const char *labi_fs_heap_c_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_heap_c_needle_at_tab)/sizeof(labi_fs_heap_c_needle_at_tab[0]))) return NULL;
+  return labi_fs_heap_c_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_heap_o_sym_at. PLATFORM: SHARED. */
+static const char *const labi_fs_heap_o_sym_at_tab[6] = {
+  "malloc",
+  "calloc",
+  "realloc",
+  "free",
+  "posix_memalign",
+  "getenv",
+};
+const char *labi_fs_heap_o_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_heap_o_sym_at_tab)/sizeof(labi_fs_heap_o_sym_at_tab[0]))) return NULL;
+  return labi_fs_heap_o_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_memcpy_face_sym_at. PLATFORM: SHARED. */
+static const char *const labi_fs_memcpy_face_sym_at_tab[3] = {
+  "memcpy",
+  "memcmp",
+  "memset",
+};
+const char *labi_fs_memcpy_face_sym_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_memcpy_face_sym_at_tab)/sizeof(labi_fs_memcpy_face_sym_at_tab[0]))) return NULL;
+  return labi_fs_memcpy_face_sym_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_fs_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_fs_needle_at_tab[5] = {
+  "fs_open_read_c",
+  "fs_last_error_c",
+  "fs_close_c",
+  "fs_read_c",
+  "fs_write_c",
+};
+const char *labi_fs_gen_fs_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_fs_needle_at_tab)/sizeof(labi_fs_gen_fs_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_fs_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_random_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_random_needle_at_tab[3] = {
+  "random_rng_smoke_c",
+  "random_fill_bytes_c",
+  "random_u64_c",
+};
+const char *labi_fs_gen_random_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_random_needle_at_tab)/sizeof(labi_fs_gen_random_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_random_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_time_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_time_needle_at_tab[10] = {
+  "std_time_now_monotonic_ns",
+  "std_time_sleep_ms",
+  "std_time_duration_ns",
+  "std_time_now_wall_ns",
+  "std_time_format_timezone_smoke",
+  "time_now_monotonic_ns_c",
+  "time_sleep_ms_c",
+  "time_duration_ns_c",
+  "time_now_wall_ns_c",
+  "time_format_timezone_smoke_c",
+};
+const char *labi_fs_gen_time_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_time_needle_at_tab)/sizeof(labi_fs_gen_time_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_time_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_runtime_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_runtime_needle_at_tab[3] = {
+  "runtime_crash_evidence_collect_c",
+  "runtime_panic",
+  "runtime_abort",
+};
+const char *labi_fs_gen_runtime_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_runtime_needle_at_tab)/sizeof(labi_fs_gen_runtime_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_runtime_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_zlib_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_zlib_needle_at_tab[7] = {
+  "_compress2",
+  "_deflate",
+  "_inflate",
+  "_uncompress",
+  "compress2",
+  "deflateInit",
+  "inflateInit",
+};
+const char *labi_fs_gen_zlib_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_zlib_needle_at_tab)/sizeof(labi_fs_gen_zlib_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_zlib_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_zstd_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_zstd_needle_at_tab[5] = {
+  "ZSTD_compress",
+  "ZSTD_decompress",
+  "ZSTD_create",
+  "ZSTD_free",
+  "ZSTD_isError",
+};
+const char *labi_fs_gen_zstd_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_zstd_needle_at_tab)/sizeof(labi_fs_gen_zstd_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_zstd_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_brotli_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_brotli_needle_at_tab[2] = {
+  "BrotliEncoder",
+  "BrotliDecoder",
+};
+const char *labi_fs_gen_brotli_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_brotli_needle_at_tab)/sizeof(labi_fs_gen_brotli_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_brotli_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_core_slice_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_core_slice_needle_at_tab[6] = {
+  "core_slice_i32_from_ptr_c",
+  "core_subslice_i32_c",
+  "core_slice_u8_from_ptr_c",
+  "core_subslice_u8_c",
+  "core_slice_u64_from_ptr_c",
+  "core_subslice_u64_c",
+};
+const char *labi_fs_gen_core_slice_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_core_slice_needle_at_tab)/sizeof(labi_fs_gen_core_slice_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_core_slice_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_db_kv_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_db_kv_needle_at_tab[7] = {
+  "db_kv_open_c",
+  "db_kv_put_c",
+  "db_kv_get_c",
+  "db_kv_append_ts_c",
+  "db_kv_wal_flush_c",
+  "db_kv_compact_c",
+  "db_kv_sst_level_count_c",
+};
+const char *labi_fs_gen_db_kv_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_db_kv_needle_at_tab)/sizeof(labi_fs_gen_db_kv_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_db_kv_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_db_arrow_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_db_arrow_needle_at_tab[3] = {
+  "arrow_column_",
+  "arrow_batch_",
+  "arrow_smoke_c",
+};
+const char *labi_fs_gen_db_arrow_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_db_arrow_needle_at_tab)/sizeof(labi_fs_gen_db_arrow_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_db_arrow_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_async_scheduler_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_async_scheduler_needle_at_tab[9] = {
+  "xlang_async_run_i32",
+  "xlang_async_cps_suspend",
+  "xlang_async_task_submit",
+  "xlang_async_run_seed_",
+  "xlang_async_coop_pingpong_jmp",
+  "xlang_async_coop_pingpong",
+  "xlang_async_run_drain_until_idle",
+  "xlang_async_queue_reset",
+  "xlang_async_bind_context_c",
+};
+const char *labi_fs_gen_async_scheduler_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_async_scheduler_needle_at_tab)/sizeof(labi_fs_gen_async_scheduler_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_async_scheduler_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_win32_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_win32_needle_at_tab[9] = {
+  "GetStdHandle",
+  "WriteFile",
+  "CreateFileA",
+  "ReadFile",
+  "CloseHandle",
+  "ExitProcess",
+  "win32_write",
+  "win32_read_file_into",
+  "win32_exit_process",
+};
+const char *labi_fs_gen_win32_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_win32_needle_at_tab)/sizeof(labi_fs_gen_win32_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_win32_needle_at_tab[i];
+}
+/* Class BJ: table form of labi_fs_gen_win32_wsa_needle_at. PLATFORM: SHARED. */
+static const char *const labi_fs_gen_win32_wsa_needle_at_tab[3] = {
+  "WSAStartup",
+  "WSACleanup",
+  "win32_net_available",
+};
+const char *labi_fs_gen_win32_wsa_needle_at(int i) {
+  if (i < 0) return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_fs_gen_win32_wsa_needle_at_tab)/sizeof(labi_fs_gen_win32_wsa_needle_at_tab[0]))) return NULL;
+  return labi_fs_gen_win32_wsa_needle_at_tab[i];
+}

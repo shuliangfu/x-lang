@@ -992,21 +992,9 @@ export function labi_od_provides_core_mem_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 single product table (no second hard-coded list in mega)
  */
-#[no_mangle]
-export function labi_od_provides_core_mem_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "core_mem_mem_copy";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "core_mem_placeholder";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_provides_core_mem_sym_at(i: i32): *u8;
+
 
 /**
  * Whether user .o already co-emits core.mem strong definitions (T/t).
@@ -1066,21 +1054,9 @@ export function labi_od_provides_std_heap_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 single product table
  */
-#[no_mangle]
-export function labi_od_provides_std_heap_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_heap_libc_heap_alloc_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_heap_alloc_usize";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_provides_std_heap_sym_at(i: i32): *u8;
+
 
 /**
  * Whether user .o already co-emits std.heap strong definitions (T/t).

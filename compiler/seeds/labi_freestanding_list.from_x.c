@@ -88,43 +88,9 @@ int labi_fs_io_sym_count(void) {
   return 16;
 }
 
-const char *labi_fs_io_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "xlang_sys_write";
-  if (i == 1)
-    return "xlang_sys_read";
-  if (i == 2)
-    return "xlang_sys_close";
-  if (i == 3)
-    return "xlang_sys_exit";
-  if (i == 4)
-    return "xlang_sys_open";
-  if (i == 5)
-    return "xlang_sys_openat";
-  if (i == 6)
-    return "xlang_sys_mmap";
-  if (i == 7)
-    return "xlang_sys_munmap";
-  if (i == 8)
-    return "xlang_sys_socket";
-  if (i == 9)
-    return "xlang_sys_connect";
-  if (i == 10)
-    return "xlang_sys_bind";
-  if (i == 11)
-    return "xlang_sys_listen";
-  if (i == 12)
-    return "xlang_sys_accept";
-  if (i == 13)
-    return "backtrace_capture_c";
-  if (i == 14)
-    return "backtrace_symbolicate_c";
-  if (i == 15)
-    return "xlang_target_cpu_detect_host";
-  return NULL;
-}
+/* Class BJ: labi_fs_io_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_io_sym_at(int i);
+
 
 /* ---- freestanding panic probe ---- */
 const char *labi_fs_panic_sym(void) {
@@ -199,59 +165,17 @@ const char *labi_fs_io_src_rel(void) { return "src/asm/freestanding_io_x86_64.s"
 
 /* ---- wave117: heap / nostdlib face pure tables + orch ---- */
 int labi_fs_heap_c_needle_count(void) { return 9; }
-const char *labi_fs_heap_c_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "malloc";
-  if (i == 1)
-    return "calloc";
-  if (i == 2)
-    return "realloc";
-  if (i == 3)
-    return "posix_memalign";
-  if (i == 4)
-    return "heap_alloc_c";
-  if (i == 5)
-    return "heap_free_c";
-  if (i == 6)
-    return "heap_realloc_c";
-  if (i == 7)
-    return "heap_alloc_zeroed_c";
-  if (i == 8)
-    return "getenv";
-  return NULL;
-}
+/* Class BJ: labi_fs_heap_c_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_heap_c_needle_at(int i);
+
 int labi_fs_heap_o_sym_count(void) { return 6; }
-const char *labi_fs_heap_o_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "malloc";
-  if (i == 1)
-    return "calloc";
-  if (i == 2)
-    return "realloc";
-  if (i == 3)
-    return "free";
-  if (i == 4)
-    return "posix_memalign";
-  if (i == 5)
-    return "getenv";
-  return NULL;
-}
+/* Class BJ: labi_fs_heap_o_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_heap_o_sym_at(int i);
+
 int labi_fs_memcpy_face_sym_count(void) { return 3; }
-const char *labi_fs_memcpy_face_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "memcpy";
-  if (i == 1)
-    return "memcmp";
-  if (i == 2)
-    return "memset";
-  return NULL;
-}
+/* Class BJ: labi_fs_memcpy_face_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_memcpy_face_sym_at(int i);
+
 
 /* wave175: pure orch contains_substr (cold twin ≡ .x).
  * Cap residual: runtime_read_file_malloc + free + link_abi_buf_contains_substr.
@@ -375,77 +299,27 @@ int link_abi_user_o_needs_freestanding_nostdlib_face(const char *user_o) {
 int labi_fs_gen_fs_needle_count(void) {
   return 5;
 }
-const char *labi_fs_gen_fs_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "fs_open_read_c";
-  if (i == 1)
-    return "fs_last_error_c";
-  if (i == 2)
-    return "fs_close_c";
-  if (i == 3)
-    return "fs_read_c";
-  if (i == 4)
-    return "fs_write_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_fs_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_fs_needle_at(int i);
+
 int labi_fs_gen_random_needle_count(void) {
   return 3;
 }
-const char *labi_fs_gen_random_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "random_rng_smoke_c";
-  if (i == 1)
-    return "random_fill_bytes_c";
-  if (i == 2)
-    return "random_u64_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_random_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_random_needle_at(int i);
+
 int labi_fs_gen_time_needle_count(void) {
   return 10;
 }
-const char *labi_fs_gen_time_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_time_now_monotonic_ns";
-  if (i == 1)
-    return "std_time_sleep_ms";
-  if (i == 2)
-    return "std_time_duration_ns";
-  if (i == 3)
-    return "std_time_now_wall_ns";
-  if (i == 4)
-    return "std_time_format_timezone_smoke";
-  if (i == 5)
-    return "time_now_monotonic_ns_c";
-  if (i == 6)
-    return "time_sleep_ms_c";
-  if (i == 7)
-    return "time_duration_ns_c";
-  if (i == 8)
-    return "time_now_wall_ns_c";
-  if (i == 9)
-    return "time_format_timezone_smoke_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_time_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_time_needle_at(int i);
+
 int labi_fs_gen_runtime_needle_count(void) {
   return 3;
 }
-const char *labi_fs_gen_runtime_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "runtime_crash_evidence_collect_c";
-  if (i == 1)
-    return "runtime_panic";
-  if (i == 2)
-    return "runtime_abort";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_runtime_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_runtime_needle_at(int i);
+
 int link_abi_generated_c_needs_fs(const char *c_path) {
   int n, i;
   if (!c_path || !c_path[0])
@@ -499,55 +373,21 @@ int link_abi_generated_c_needs_runtime(const char *c_path) {
 int labi_fs_gen_zlib_needle_count(void) {
   return 7;
 }
-const char *labi_fs_gen_zlib_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "_compress2";
-  if (i == 1)
-    return "_deflate";
-  if (i == 2)
-    return "_inflate";
-  if (i == 3)
-    return "_uncompress";
-  if (i == 4)
-    return "compress2";
-  if (i == 5)
-    return "deflateInit";
-  if (i == 6)
-    return "inflateInit";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_zlib_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_zlib_needle_at(int i);
+
 int labi_fs_gen_zstd_needle_count(void) {
   return 5;
 }
-const char *labi_fs_gen_zstd_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "ZSTD_compress";
-  if (i == 1)
-    return "ZSTD_decompress";
-  if (i == 2)
-    return "ZSTD_create";
-  if (i == 3)
-    return "ZSTD_free";
-  if (i == 4)
-    return "ZSTD_isError";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_zstd_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_zstd_needle_at(int i);
+
 int labi_fs_gen_brotli_needle_count(void) {
   return 2;
 }
-const char *labi_fs_gen_brotli_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "BrotliEncoder";
-  if (i == 1)
-    return "BrotliDecoder";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_brotli_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_brotli_needle_at(int i);
+
 int link_abi_generated_c_needs_zlib(const char *c_path) {
   int n, i;
   if (!c_path || !c_path[0])
@@ -589,59 +429,21 @@ int link_abi_generated_c_needs_brotli(const char *c_path) {
 int labi_fs_gen_core_slice_needle_count(void) {
   return 6;
 }
-const char *labi_fs_gen_core_slice_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "core_slice_i32_from_ptr_c";
-  if (i == 1)
-    return "core_subslice_i32_c";
-  if (i == 2)
-    return "core_slice_u8_from_ptr_c";
-  if (i == 3)
-    return "core_subslice_u8_c";
-  if (i == 4)
-    return "core_slice_u64_from_ptr_c";
-  if (i == 5)
-    return "core_subslice_u64_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_core_slice_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_core_slice_needle_at(int i);
+
 int labi_fs_gen_db_kv_needle_count(void) {
   return 7;
 }
-const char *labi_fs_gen_db_kv_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "db_kv_open_c";
-  if (i == 1)
-    return "db_kv_put_c";
-  if (i == 2)
-    return "db_kv_get_c";
-  if (i == 3)
-    return "db_kv_append_ts_c";
-  if (i == 4)
-    return "db_kv_wal_flush_c";
-  if (i == 5)
-    return "db_kv_compact_c";
-  if (i == 6)
-    return "db_kv_sst_level_count_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_db_kv_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_db_kv_needle_at(int i);
+
 int labi_fs_gen_db_arrow_needle_count(void) {
   return 3;
 }
-const char *labi_fs_gen_db_arrow_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "arrow_column_";
-  if (i == 1)
-    return "arrow_batch_";
-  if (i == 2)
-    return "arrow_smoke_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_db_arrow_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_db_arrow_needle_at(int i);
+
 int link_abi_generated_c_needs_core_slice(const char *c_path) {
   int n, i;
   if (!c_path || !c_path[0])
@@ -736,43 +538,15 @@ int link_abi_generated_c_provides_std_heap(const char *c_path) {
 int labi_fs_gen_win32_needle_count(void) {
   return 9;
 }
-const char *labi_fs_gen_win32_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "GetStdHandle";
-  if (i == 1)
-    return "WriteFile";
-  if (i == 2)
-    return "CreateFileA";
-  if (i == 3)
-    return "ReadFile";
-  if (i == 4)
-    return "CloseHandle";
-  if (i == 5)
-    return "ExitProcess";
-  if (i == 6)
-    return "win32_write";
-  if (i == 7)
-    return "win32_read_file_into";
-  if (i == 8)
-    return "win32_exit_process";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_win32_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_win32_needle_at(int i);
+
 int labi_fs_gen_win32_wsa_needle_count(void) {
   return 3;
 }
-const char *labi_fs_gen_win32_wsa_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "WSAStartup";
-  if (i == 1)
-    return "WSACleanup";
-  if (i == 2)
-    return "win32_net_available";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_win32_wsa_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_win32_wsa_needle_at(int i);
+
 int link_abi_generated_c_needs_win32(const char *c_path) {
   int n, i;
   if (!c_path || !c_path[0])
@@ -818,29 +592,9 @@ int link_abi_generated_c_needs_core_mem(const char *c_path) {
 int labi_fs_gen_async_scheduler_needle_count(void) {
   return 9;
 }
-const char *labi_fs_gen_async_scheduler_needle_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "xlang_async_run_i32";
-  if (i == 1)
-    return "xlang_async_cps_suspend";
-  if (i == 2)
-    return "xlang_async_task_submit";
-  if (i == 3)
-    return "xlang_async_run_seed_";
-  if (i == 4)
-    return "xlang_async_coop_pingpong_jmp";
-  if (i == 5)
-    return "xlang_async_coop_pingpong";
-  if (i == 6)
-    return "xlang_async_run_drain_until_idle";
-  if (i == 7)
-    return "xlang_async_queue_reset";
-  if (i == 8)
-    return "xlang_async_bind_context_c";
-  return NULL;
-}
+/* Class BJ: labi_fs_gen_async_scheduler_needle_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_fs_gen_async_scheduler_needle_at(int i);
+
 int xlang_generated_c_needs_async_scheduler(const char *c_path) {
   int n, i;
   if (!c_path || !c_path[0])

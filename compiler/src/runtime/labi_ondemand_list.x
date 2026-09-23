@@ -666,31 +666,9 @@ export function labi_od_async_sym_count(): i32 {
  * @return *u8 — NUL-terminated symbol; null if i out of range
  * PLATFORM: SHARED — matcher is exact; import METHOD is std_async_*.
  */
-#[no_mangle]
-export function labi_od_async_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_async_placeholder";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_async_drain_idle";
-    return p;
-  }
-  // import("std.async").scheduler_reset → mangled unique METHOD.
-  if (i == 2) {
-    let p: *u8 = "std_async_scheduler_reset";
-    return p;
-  }
-  // import("std.async").net_fs_async_smoke → mangled unique METHOD (cookbook async_net_fs).
-  if (i == 3) {
-    let p: *u8 = "std_async_net_fs_async_smoke";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_async_sym_at(i: i32): *u8;
+
 
 /**
  * Rel path of the formal_mod c_face vehicle for leftover unique std.async names.
@@ -714,29 +692,9 @@ export function labi_od_time_sym_count(): i32 {
  * @param i i32
  * @return *u8
  */
-#[no_mangle]
-export function labi_od_time_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_time_now_monotonic_ns";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_time_sleep_ms";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "std_time_timer_start";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "time_now_monotonic_ns_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_time_sym_at(i: i32): *u8;
+
 
 /** Exported function `labi_od_time_rel`.
  * Implements `labi_od_time_rel`.
@@ -769,25 +727,9 @@ export function labi_od_queue_sym_count(): i32 {
  * @param i i32
  * @return *u8
  */
-#[no_mangle]
-export function labi_od_queue_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "sync_queue_contention_smoke_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "queue_os_run_two_workers_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "queue_contention_worker_push_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_queue_sym_at(i: i32): *u8;
+
 
 /** Exported function `labi_od_queue_rel`.
  * Implements `labi_od_queue_rel`.
@@ -876,39 +818,9 @@ export function labi_od_thread_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 single thread probe table (no second path)
  */
-#[no_mangle]
-export function labi_od_thread_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  /*
-   * wave956: std.thread cookbook on_demand probes (create / join / start /
-   * stats). Before wave956: thread_pool_stats.x hit BLD001 UNDEF
-   * std_thread_stats because asm on_demand only pushed thread.o inside the
-   * need_net block (L2568 labi_ondemand_heavy.x); user programs importing
-   * only std.thread (no std.net) never triggered thread.o ensure. Probe
-   * shape: thread.create / thread.join / thread.start / thread.stats
-   * codegen to std_thread_* mangled symbols in thread.o. G.7: single
-   * thread probe table (mirrors labi_od_net_sym_*). PLATFORM: SHARED.
-   */
-  if (i == 0) {
-    let p: *u8 = "std_thread_create";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_thread_join";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "std_thread_start";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "std_thread_stats";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_thread_sym_at(i: i32): *u8;
+
 
 /**
  * Whether user .o references std.thread / std_thread_* (on-demand chain thread.o).
@@ -1030,33 +942,9 @@ export function labi_od_http_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_http authority (no second table)
  */
-#[no_mangle]
-export function labi_od_http_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_http_parse_status_line";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_http_decode_chunked_body";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "std_http_has_chunked_encoding";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "std_http_has_keep_alive";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "std_http_headers_body_offset";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_http_sym_at(i: i32): *u8;
+
 
 /**
  * Whether user .o references std.http API (on-demand chain std/http/http.o).
@@ -1431,33 +1319,9 @@ export function labi_od_page_mmap_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — G.7 complete needs_std_heap_page_mmap authority (no second hard-coded list)
  */
-#[no_mangle]
-export function labi_od_page_mmap_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_available";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_init";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_alloc";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_deinit";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "std_heap_page_mmap_page_mmap_heap_free";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_page_mmap_sym_at(i: i32): *u8;
+
 
 /**
  * Whether user .o references std.heap.page_mmap API (on-demand chain std/heap/page_mmap.o).
@@ -2245,33 +2109,9 @@ export function labi_od_runtime_process_argv_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED — exact match (Darwin nm -u has no type letter U)
  */
-#[no_mangle]
-export function labi_od_runtime_process_argv_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "process_xlang_argc_get";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "process_xlang_argv_get";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "process_arg_c";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "process_args_count_c";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "std_env_args_iter";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_od_runtime_process_argv_sym_at(i: i32): *u8;
+
 
 /**
  * Whether user .o needs runtime process_argv companion (PRIMARY process argv bulk gate).

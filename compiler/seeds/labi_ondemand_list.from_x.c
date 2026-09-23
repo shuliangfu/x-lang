@@ -386,21 +386,9 @@ int labi_od_async_sym_count(void) {
   return 4;
 }
 
-const char *labi_od_async_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_async_placeholder";
-  if (i == 1)
-    return "std_async_drain_idle";
-  /* import("std.async").scheduler_reset → mangled unique METHOD. */
-  if (i == 2)
-    return "std_async_scheduler_reset";
-  /* import("std.async").net_fs_async_smoke → mangled unique METHOD. */
-  if (i == 3)
-    return "std_async_net_fs_async_smoke";
-  return NULL;
-}
+/* Class BJ: labi_od_async_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_async_sym_at(int i);
+
 
 const char *labi_od_async_rel(void) {
   return "std/async/async.o";
@@ -411,19 +399,9 @@ int labi_od_time_sym_count(void) {
   return 4;
 }
 
-const char *labi_od_time_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_time_now_monotonic_ns";
-  if (i == 1)
-    return "std_time_sleep_ms";
-  if (i == 2)
-    return "std_time_timer_start";
-  if (i == 3)
-    return "time_now_monotonic_ns_c";
-  return NULL;
-}
+/* Class BJ: labi_od_time_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_time_sym_at(int i);
+
 
 const char *labi_od_time_rel(void) {
   return "std/time/time.o";
@@ -438,17 +416,9 @@ int labi_od_queue_sym_count(void) {
   return 3;
 }
 
-const char *labi_od_queue_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "sync_queue_contention_smoke_c";
-  if (i == 1)
-    return "queue_os_run_two_workers_c";
-  if (i == 2)
-    return "queue_contention_worker_push_c";
-  return NULL;
-}
+/* Class BJ: labi_od_queue_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_queue_sym_at(int i);
+
 
 const char *labi_od_queue_rel(void) {
   return "std/queue/queue.o";
@@ -486,19 +456,9 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
  * labi_od_net_sym_* / link_abi_user_o_needs_std_net. PLATFORM: SHARED.
  */
 int labi_od_thread_sym_count(void) { return 4; }
-const char *labi_od_thread_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_thread_create";
-  if (i == 1)
-    return "std_thread_join";
-  if (i == 2)
-    return "std_thread_start";
-  if (i == 3)
-    return "std_thread_stats";
-  return NULL;
-}
+/* Class BJ: labi_od_thread_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_thread_sym_at(int i);
+
 
 int link_abi_user_o_needs_std_thread(const char *user_o) {
   int n;
@@ -543,21 +503,9 @@ int link_abi_user_o_needs_std_vec(const char *user_o) {
  * PLATFORM: SHARED.
  */
 int labi_od_http_sym_count(void) { return 5; }
-const char *labi_od_http_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_http_parse_status_line";
-  if (i == 1)
-    return "std_http_decode_chunked_body";
-  if (i == 2)
-    return "std_http_has_chunked_encoding";
-  if (i == 3)
-    return "std_http_has_keep_alive";
-  if (i == 4)
-    return "std_http_headers_body_offset";
-  return NULL;
-}
+/* Class BJ: labi_od_http_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_http_sym_at(int i);
+
 
 int link_abi_user_o_needs_std_http(const char *user_o) {
   int n;
@@ -706,21 +654,9 @@ int link_abi_user_o_needs_core_slice(const char *user_o) {
 /* wave125: product std.heap.page_mmap exact UNDEF table + needs_std_heap_page_mmap pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_page_mmap_sym_count(void) { return 5; }
-const char *labi_od_page_mmap_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_heap_page_mmap_page_mmap_heap_available";
-  if (i == 1)
-    return "std_heap_page_mmap_page_mmap_heap_init";
-  if (i == 2)
-    return "std_heap_page_mmap_page_mmap_heap_alloc";
-  if (i == 3)
-    return "std_heap_page_mmap_page_mmap_heap_deinit";
-  if (i == 4)
-    return "std_heap_page_mmap_page_mmap_heap_free";
-  return NULL;
-}
+/* Class BJ: labi_od_page_mmap_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_page_mmap_sym_at(int i);
+
 
 /* Pure orch: page_mmap table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
@@ -1009,21 +945,9 @@ int labi_user_needs_runtime_env_os(const char *user_o) {
  * PLATFORM: SHARED — product std_process_* is fk==1 → process.o (not process_argv).
  * Twin of labi_ondemand_list.x (G.7 seed/.x same commit). */
 int labi_od_runtime_process_argv_sym_count(void) { return 5; }
-const char *labi_od_runtime_process_argv_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "process_xlang_argc_get";
-  if (i == 1)
-    return "process_xlang_argv_get";
-  if (i == 2)
-    return "process_arg_c";
-  if (i == 3)
-    return "process_args_count_c";
-  if (i == 4)
-    return "std_env_args_iter";
-  return NULL;
-}
+/* Class BJ: labi_od_runtime_process_argv_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_runtime_process_argv_sym_at(int i);
+
 int labi_user_needs_runtime_process_argv(const char *user_o) {
   int n;
   int i;
@@ -1304,15 +1228,9 @@ int labi_std_fk_user_needs(const char *user_o, int fk) {
 /* wave140: user.o provides_core_mem/std_heap defined-sym tables + pure orch.
  * Cap residual: xlang_link_obj_has_defined_sym (popen/nm). PLATFORM: SHARED. */
 int labi_od_provides_core_mem_sym_count(void) { return 2; }
-const char *labi_od_provides_core_mem_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "core_mem_mem_copy";
-  if (i == 1)
-    return "core_mem_placeholder";
-  return NULL;
-}
+/* Class BJ: labi_od_provides_core_mem_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_provides_core_mem_sym_at(int i);
+
 
 int link_abi_user_o_provides_core_mem(const char *user_o) {
   int n;
@@ -1329,15 +1247,9 @@ int link_abi_user_o_provides_core_mem(const char *user_o) {
 }
 
 int labi_od_provides_std_heap_sym_count(void) { return 2; }
-const char *labi_od_provides_std_heap_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_heap_libc_heap_alloc_c";
-  if (i == 1)
-    return "std_heap_alloc_usize";
-  return NULL;
-}
+/* Class BJ: labi_od_provides_std_heap_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_provides_std_heap_sym_at(int i);
+
 
 int link_abi_user_o_provides_std_heap(const char *user_o) {
   int n;

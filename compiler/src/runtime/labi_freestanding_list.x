@@ -93,77 +93,9 @@ export function labi_fs_io_sym_count(): i32 {
  * @param i i32
  * @return *u8
  */
-#[no_mangle]
-export function labi_fs_io_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "xlang_sys_write";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "xlang_sys_read";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "xlang_sys_close";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "xlang_sys_exit";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "xlang_sys_open";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "xlang_sys_openat";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "xlang_sys_mmap";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "xlang_sys_munmap";
-    return p;
-  }
-  if (i == 8) {
-    let p: *u8 = "xlang_sys_socket";
-    return p;
-  }
-  if (i == 9) {
-    let p: *u8 = "xlang_sys_connect";
-    return p;
-  }
-  if (i == 10) {
-    let p: *u8 = "xlang_sys_bind";
-    return p;
-  }
-  if (i == 11) {
-    let p: *u8 = "xlang_sys_listen";
-    return p;
-  }
-  if (i == 12) {
-    let p: *u8 = "xlang_sys_accept";
-    return p;
-  }
-  if (i == 13) {
-    let p: *u8 = "backtrace_capture_c";
-    return p;
-  }
-  if (i == 14) {
-    let p: *u8 = "backtrace_symbolicate_c";
-    return p;
-  }
-  if (i == 15) {
-    let p: *u8 = "xlang_target_cpu_detect_host";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_io_sym_at(i: i32): *u8;
+
 
 /** Exported function `labi_fs_panic_sym`.
  * Implements `labi_fs_panic_sym`.
@@ -533,49 +465,9 @@ export function labi_fs_heap_c_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_heap_c_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "malloc";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "calloc";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "realloc";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "posix_memalign";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "heap_alloc_c";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "heap_free_c";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "heap_realloc_c";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "heap_alloc_zeroed_c";
-    return p;
-  }
-  if (i == 8) {
-    let p: *u8 = "getenv";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_heap_c_needle_at(i: i32): *u8;
+
 
 /**
  * Count of user .o undef symbols for libc-heap face.
@@ -593,37 +485,9 @@ export function labi_fs_heap_o_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_heap_o_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "malloc";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "calloc";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "realloc";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "free";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "posix_memalign";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "getenv";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_heap_o_sym_at(i: i32): *u8;
+
 
 /**
  * Count of extra mem* symbols for freestanding nostdlib face (beyond heap).
@@ -641,25 +505,9 @@ export function labi_fs_memcpy_face_sym_count(): i32 {
  * @return *u8 — static C string symbol, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_memcpy_face_sym_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "memcpy";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "memcmp";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "memset";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_memcpy_face_sym_at(i: i32): *u8;
+
 
 /**
  * Whether generated C needs libc heap / heap API (on-demand -lc or stubs).
@@ -790,33 +638,9 @@ export function labi_fs_gen_fs_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_fs_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "fs_open_read_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "fs_last_error_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "fs_close_c";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "fs_read_c";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "fs_write_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_fs_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for std.random C-path on-demand.
@@ -834,25 +658,9 @@ export function labi_fs_gen_random_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_random_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "random_rng_smoke_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "random_fill_bytes_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "random_u64_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_random_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for std.time C-path on-demand.
@@ -870,53 +678,9 @@ export function labi_fs_gen_time_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_time_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "std_time_now_monotonic_ns";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "std_time_sleep_ms";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "std_time_duration_ns";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "std_time_now_wall_ns";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "std_time_format_timezone_smoke";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "time_now_monotonic_ns_c";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "time_sleep_ms_c";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "time_duration_ns_c";
-    return p;
-  }
-  if (i == 8) {
-    let p: *u8 = "time_now_wall_ns_c";
-    return p;
-  }
-  if (i == 9) {
-    let p: *u8 = "time_format_timezone_smoke_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_time_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for std.runtime C-path on-demand.
@@ -934,25 +698,9 @@ export function labi_fs_gen_runtime_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_runtime_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "runtime_crash_evidence_collect_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "runtime_panic";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "runtime_abort";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_runtime_needle_at(i: i32): *u8;
+
 
 /**
  * Whether generated C needs std.fs C symbols (C-path -lc / fs face).
@@ -1119,41 +867,9 @@ export function labi_fs_gen_zlib_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_zlib_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "_compress2";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "_deflate";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "_inflate";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "_uncompress";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "compress2";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "deflateInit";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "inflateInit";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_zlib_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for libzstd C-path on-demand (-lzstd).
@@ -1171,33 +887,9 @@ export function labi_fs_gen_zstd_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_zstd_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "ZSTD_compress";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "ZSTD_decompress";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "ZSTD_create";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "ZSTD_free";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "ZSTD_isError";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_zstd_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for libbrotli C-path on-demand (-lbrotli*).
@@ -1215,21 +907,9 @@ export function labi_fs_gen_brotli_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_brotli_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "BrotliEncoder";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "BrotliDecoder";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_brotli_needle_at(i: i32): *u8;
+
 
 /**
  * Whether generated C needs libz (-lz).
@@ -1361,37 +1041,9 @@ export function labi_fs_gen_core_slice_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_core_slice_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "core_slice_i32_from_ptr_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "core_subslice_i32_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "core_slice_u8_from_ptr_c";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "core_subslice_u8_c";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "core_slice_u64_from_ptr_c";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "core_subslice_u64_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_core_slice_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for std.db.kv C-path on-demand (kv.o).
@@ -1409,41 +1061,9 @@ export function labi_fs_gen_db_kv_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_db_kv_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "db_kv_open_c";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "db_kv_put_c";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "db_kv_get_c";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "db_kv_append_ts_c";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "db_kv_wal_flush_c";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "db_kv_compact_c";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "db_kv_sst_level_count_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_db_kv_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for std.db.arrow C-path on-demand (arrow.o).
@@ -1461,25 +1081,9 @@ export function labi_fs_gen_db_arrow_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_db_arrow_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "arrow_column_";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "arrow_batch_";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "arrow_smoke_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_db_arrow_needle_at(i: i32): *u8;
+
 
 /**
  * Whether generated C references core.slice C helpers (scan only; G-01 no slice.o).
@@ -1758,49 +1362,9 @@ export function labi_fs_gen_win32_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_win32_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "GetStdHandle";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "WriteFile";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "CreateFileA";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "ReadFile";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "CloseHandle";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "ExitProcess";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "win32_write";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "win32_read_file_into";
-    return p;
-  }
-  if (i == 8) {
-    let p: *u8 = "win32_exit_process";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_win32_needle_at(i: i32): *u8;
+
 
 /**
  * Count of generated-C substr needles for Win32 WSA / winsock2.
@@ -1818,25 +1382,9 @@ export function labi_fs_gen_win32_wsa_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_win32_wsa_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "WSAStartup";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "WSACleanup";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "win32_net_available";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_win32_wsa_needle_at(i: i32): *u8;
+
 
 /**
  * Whether generated C needs Win32 kernel32 / xlang win32 helpers.
@@ -1965,49 +1513,9 @@ export function labi_fs_gen_async_scheduler_needle_count(): i32 {
  * @return *u8 — static C string needle, or null if out of range
  * PLATFORM: SHARED
  */
-#[no_mangle]
-export function labi_fs_gen_async_scheduler_needle_at(i: i32): *u8 {
-  if (i < 0) {
-    return 0 as *u8;
-  }
-  if (i == 0) {
-    let p: *u8 = "xlang_async_run_i32";
-    return p;
-  }
-  if (i == 1) {
-    let p: *u8 = "xlang_async_cps_suspend";
-    return p;
-  }
-  if (i == 2) {
-    let p: *u8 = "xlang_async_task_submit";
-    return p;
-  }
-  if (i == 3) {
-    let p: *u8 = "xlang_async_run_seed_";
-    return p;
-  }
-  if (i == 4) {
-    let p: *u8 = "xlang_async_coop_pingpong_jmp";
-    return p;
-  }
-  if (i == 5) {
-    let p: *u8 = "xlang_async_coop_pingpong";
-    return p;
-  }
-  if (i == 6) {
-    let p: *u8 = "xlang_async_run_drain_until_idle";
-    return p;
-  }
-  if (i == 7) {
-    let p: *u8 = "xlang_async_queue_reset";
-    return p;
-  }
-  if (i == 8) {
-    let p: *u8 = "xlang_async_bind_context_c";
-    return p;
-  }
-  return 0 as *u8;
-}
+/* Class BJ: body in seeds/labi_od_needle_tables.c */
+export extern function labi_fs_gen_async_scheduler_needle_at(i: i32): *u8;
+
 
 /**
  * Whether generated C needs async_scheduler.o (C frontend on-demand link).
