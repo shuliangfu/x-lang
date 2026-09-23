@@ -30,21 +30,28 @@
 // w871 also places pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32
 // here. That face forwards to pipeline_expr_binop_right_ref_at and
 // stays weak. The unsuffixed body stays in the pipeline object.
+// w872 also places pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr
+// here. That face forwards to pipeline_expr_field_access_name_into and
+// stays weak. The unsuffixed body returns void and stays in the pipeline
+// object. This face is void with three arguments, not the i32 two-argument
+// shape.
 // The product installer pure-asm's this file, then cc's the seed for the
 // lexer struct-return tail and the remaining XLANG_WEAK cluster.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
 // Windows takes the same path.
-// Nine faces are weakened after asm. The first five stay weak so a strong
+// Ten faces are weakened after asm. The first five stay weak so a strong
 // typeck definition wins. The sixth is the w868 field-name-length alias.
 // The seventh is the w869 field-base-ref alias.
 // The eighth is the w870 binop-left alias.
-// The ninth is the w871 binop-right alias:
+// The ninth is the w871 binop-right alias.
+// The tenth is the w872 field-name-into alias:
 // check_block_impl, check_expr_impl, find_or_alloc_ptr_type_ref,
 // pipeline_typeck_set_active_ctx_c, pipeline_typeck_ptr_for_addr_of_operand_c,
 // pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,
 // pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32,
 // pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32,
-// pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32.
+// pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32,
+// pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr.
 // Do not gcc -E this TU. Do not pass XLANG_XFLA_ASM.
 // PLATFORM: SHARED.
 
@@ -78,6 +85,7 @@ extern "C" function pipeline_expr_field_access_name_len(a: *u8, er: i32): i32;
 extern "C" function pipeline_expr_field_access_base_ref(a: *u8, er: i32): i32;
 extern "C" function pipeline_expr_binop_left_ref_at(a: *u8, er: i32): i32;
 extern "C" function pipeline_expr_binop_right_ref_at(a: *u8, er: i32): i32;
+extern "C" function pipeline_expr_field_access_name_into(a: *u8, er: i32, dst: *u8): void;
 
 // lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
 
@@ -400,4 +408,24 @@ function pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32(a: *u8, er: i32): i32
 function pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
   unsafe { let v: i32 = pipeline_expr_binop_right_ref_at(a, er); return v; }
   return 0;
+}
+/**
+ * X-ABI mangled face of pipeline_expr_field_access_name_into.
+ * Callers that were emitted with the signature suffix resolve this symbol.
+ * The unsuffixed body stays in the pipeline object and returns void.
+ * This face only forwards. It does not check null or write dst itself.
+ * The symbol stays weak so another definition can win.
+ * This is a void three-argument face, not the i32 two-argument forwarder.
+ * @param a *u8 — arena or expression table; null is forwarded, not checked here
+ * @param er i32 — expression row forwarded unchanged
+ * @param dst *u8 — destination name buffer; null is forwarded, not checked here
+ * @return void — the callee writes the field name into dst
+ * #[no_mangle] keeps the signature-suffixed link name.
+ * The installer weakens this symbol by name. Do not make it strong.
+ * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
+ * remaining XLANG_WEAK cluster stay in the C seed.
+ */
+#[no_mangle]
+function pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(a: *u8, er: i32, dst: *u8): void {
+  unsafe { pipeline_expr_field_access_name_into(a, er, dst); }
 }
