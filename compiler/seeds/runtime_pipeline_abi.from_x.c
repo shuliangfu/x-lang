@@ -786,7 +786,8 @@ int pipeline_debug_body_func_match(const char *filter, const char *name) {
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
-    const char *filter = link_abi_getenv("XLANG_DEBUG_BODY_FUNC");
+    /* Class AV: Cap XLANG_DEBUG_BODY_FUNC retired. */
+    const char *filter = NULL; (void)phase;
     int32_t nf;
     int32_t fi;
     if (!filter || !filter[0] || filter[0] == '0' || !module || !arena)
@@ -3240,13 +3241,9 @@ void *pipeline_run_x_thread_fn_impl(void *arg) {
     if (!a)
         return NULL;
     driver_set_pipeline_entry_source_len(a->source_len);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: pipeline thread start len=%zu", a->source_len);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     a->result = pipeline_run_x_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: pipeline thread done ec=%d", a->result);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     return NULL;
 }
 
@@ -3364,35 +3361,19 @@ int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, c
     parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                     (uint8_t *)src, len_i32);
     if (parse_rc != 0) {
-        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-            diag_reportf(NULL, 0, 0, "note", NULL,
-                         "pipeline debug: dep prerun parse rc=%d", (int)parse_rc);
+        /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
         return -2;
     }
     load_rc = pipeline_load_and_sync_direct_import_deps_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                                           (struct ast_PipelineDepCtx *)one_ctx);
     if (load_rc != 0) {
-        if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-            diag_reportf(NULL, 0, 0, "note", NULL,
-                         "pipeline debug: dep prerun load rc=%d ndep=%d",
-                         (int)load_rc, (int)pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)one_ctx));
+        /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
         return load_rc;
     }
-    if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-        uint8_t dep_path_buf[256];
-        memset(dep_path_buf, 0, sizeof(dep_path_buf));
-        pipeline_dep_ctx_import_path_copy64((struct ast_PipelineDepCtx *)one_ctx, 0, dep_path_buf);
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: dep prerun call path=%s main=%d",
-                     dep_path_buf[0] ? (char *)dep_path_buf : "?", (int)pipeline_module_main_func_index(dep_mod));
-    }
+  /* Class AV: Cap DEBUG note retired. */
     tc_rc = pipeline_typeck_dep_prerun_module_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
                                               (struct ast_PipelineDepCtx *)one_ctx);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE") && tc_rc != 0)
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: dep prerun typeck rc=%d funcs=%d main=%d ctx=%p",
-                     (int)tc_rc, (int)pipeline_module_num_funcs(dep_mod),
-                     (int)pipeline_module_main_func_index(dep_mod), one_ctx);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     return tc_rc;
 }
 
@@ -4120,11 +4101,7 @@ void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, si
             parser_parse_into_init(*tmp_module, *tmp_arena);
             xlang_module_collect_imports_from_buf(*tmp_module, (uint8_t *)prep, (int64_t)prep_len);
             n_imp = parser_get_module_num_imports(*tmp_module);
-            if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-                diag_reportf(NULL, 0, 0, "note", NULL,
-                             "pipeline debug: collect imports dep=%s n_imp=%d",
-                             debug_path ? debug_path : "?", n_imp);
-            }
+  /* Class AV: Cap DEBUG note retired. */
             (void)n_imp;
             xlang_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, n_loaded);
         }
@@ -31673,7 +31650,8 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
   static int32_t dbg_prev_expr_ref = -1;
   static int32_t dbg_prev_ko = -1;
   static int32_t dbg_same_expr_streak = 0;
-  dbg_on = link_abi_getenv("XLANG_DEBUG_REGEX_EMIT") != NULL ? 1 : 0;
+  /* Class AV: Cap XLANG_DEBUG_REGEX_EMIT retired. */
+  dbg_on = 0;
   dbg_depth_now = 0;
   dbg_log_now = 0;
   ko = expr_ref > 0 ? pipeline_expr_kind_ord_at(arena, expr_ref) : -1;
@@ -56442,7 +56420,8 @@ int32_t pipeline_block_append_let(void *a, int32_t br, uint8_t *name, int32_t na
   const char *dbg_append_block;
   if (!a || !(sc = arena_sidecar_get(a, 1)) || !(b = w277_block_at(a, br)))
     return -1;
-  dbg_append_block = link_abi_getenv("XLANG_DEBUG_APPEND_BLOCK");
+  /* Class AV: Cap XLANG_DEBUG_APPEND_BLOCK retired. */
+  dbg_append_block = NULL;
   idx = block_pool_append_pos(a, br, &sc->lets, offsetof(W277_Block, let_base), b->num_lets);
   if (idx < 0)
     return -1;
@@ -60731,13 +60710,7 @@ void ast_pool_drop_bodies_for_check(void *a, void *m) {
       (void)malloc_trim(0);
   }
 #endif
-  if (link_abi_getenv("XLANG_DEBUG_CHECK_MEM")) {
-    pabi_trace(
-            "xlang: [CHECK_MEM] drop_bodies arena=%p n_expr=%d n_block=%d n_type=%d "
-            "n_func=%d freed_body_approx=%zuMB\n",
-            a, (int)n_expr, (int)n_block, (int)n_type,
-            m ? (int)((W279_ModuleHdr *)m)->num_funcs : -1, freed_approx / (1024 * 1024));
-  }
+  /* Class AV: Cap DEBUG note retired. */
 }
 
 /**
@@ -61271,10 +61244,7 @@ void pipeline_module_func_set_num_generic_params(void *m, int32_t fi, int32_t n)
   W280_Func *f = module_func_at(m, fi);
   if (f && n >= 0)
     f->num_generic_params = n;
-  if (f && link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
-    pabi_trace( "xlang: [XLANG_DEBUG_FUNC_GENERIC_SLOT] set fi=%d n=%d name=%.*s\n",
-            (int)fi, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0), (const char *)f->name);
-  }
+  /* Class AV: Cap DEBUG note retired. */
 }
 
 int32_t pipeline_module_func_num_params_at(void *m, int32_t func_index) {
@@ -61292,11 +61262,7 @@ int32_t pipeline_module_func_num_generic_params_at(void *m, int32_t func_index) 
   f = module_func_at(m, func_index);
   if (!f)
     return 0;
-  if (link_abi_getenv("XLANG_DEBUG_FUNC_GENERIC_SLOT")) {
-    pabi_trace( "xlang: [XLANG_DEBUG_FUNC_GENERIC_SLOT] get fi=%d n=%d name=%.*s\n",
-            (int)func_index, (int)f->num_generic_params, (int)(f->name_len > 0 ? f->name_len : 0),
-            (const char *)f->name);
-  }
+  /* Class AV: Cap DEBUG note retired. */
   return (int32_t)f->num_generic_params;
 }
 
@@ -64720,8 +64686,7 @@ int32_t pipeline_sync_dep_slots_from_driver_impl_c(struct ast_Module *module, st
   dep_sync_nd = pipeline_dep_ctx_ndep(ctx);
   n_entry_imports = parser_get_module_num_imports(module);
   if (n_entry_imports >= 0 && n_entry_imports < dep_sync_nd) {
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-      pabi_trace(
+  /* Class AV: Cap DEBUG note retired. */
               "xlang: [XLANG_DEBUG_PIPE] skip entry-index dep sync (ndep=%d entry_imports=%d)\n",
               (int)dep_sync_nd, (int)n_entry_imports);
     return 0;
@@ -64879,11 +64844,7 @@ int32_t pipeline_typeck_after_parse_ok_impl_c(struct ast_ASTArena *arena, struct
     return r.main_idx;
   pipeline_module_set_main_func_index(module, r.main_idx);
   pipeline_typeck_set_active_ctx_c(module, ctx);
-  if (link_abi_getenv("XLANG_DEBUG_PIPE") != NULL) {
-    pabi_trace( "xlang: [XLANG_DEBUG_PIPE] type_aliases=%d struct_layouts=%d\n",
-            (int)pipeline_module_num_type_aliases_at(module),
-            (int)pipeline_module_num_struct_layouts_at(module));
-  }
+  /* Class AV: Cap DEBUG note retired. */
   if (pipeline_module_main_func_index(module) < 0) {
     tc = typeck_typeck_x_ast_library(module, arena, ctx);
     if (tc != 0) {
@@ -65328,8 +65289,7 @@ XLANG_WEAK int32_t pipeline_typeck_dep_prerun_module_c(void *module, void *arena
   pipeline_typeck_diag_soft_suppress_set(0);
   if (tc == 0)
     return 0;
-  if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-    pabi_trace( "xlang: [XLANG_DEBUG_PIPE] dep prerun full typeck rc=%d, light fallback\n", (int)tc);
+  /* Class AV: Cap DEBUG note retired. */
   if (pipeline_typeck_validate_struct_layouts_zero_padding_c(module, arena) != 0)
     return -7;
   pipeline_typeck_patch_all_body_parent_links_c(module, arena);
@@ -65796,8 +65756,7 @@ int32_t pipeline_typeck_check_expr_c(void *module, void *arena, int32_t expr_ref
   if (kind == W286_EXPR_TRY_PROPAGATE || kind == W286_EXPR_C_TRY_PROPAGATE)
     return pipeline_typeck_check_expr_try_propagate_c(module, arena, expr_ref, return_type_ref, ctx);
   rc = pipeline_typeck_check_expr_impl_c(module, arena, expr_ref, return_type_ref, ctx);
-  if (rc != 0 && link_abi_getenv("XLANG_DEBUG_PIPE"))
-    pabi_trace( "xlang: [XLANG_DEBUG_PIPE] check_expr fail func=%d expr=%d kind=%d block=%d\n",
+  /* Class AV: Cap DEBUG note retired. */
             -1, (int)expr_ref, (int)kind, -1);
   (void)ctx;
   return rc;

@@ -11131,11 +11131,7 @@ export function xlang_asm_codegen_elf_o_large_stack_impl(module: *u8, arena: *u8
  */
 #[no_mangle]
 export function pipeline_asm_debug_enabled(): i32 {
-  unsafe {
-    // wave235 G.7: XLANG_ASM_DEBUG via link_abi_getenv (not raw getenv).
-    let e: *u8 = link_abi_getenv("XLANG_ASM_DEBUG");
-    if (e != 0) { return 1; }
-  }
+  // Class AV: Cap XLANG_ASM_DEBUG gate retired (always off).
   return 0;
 }
 
@@ -51844,12 +51840,9 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   let out_rc: i32 = 0;
   let envp: *u8 = 0 as *u8;
   let ns_tag: i32 = 0;
-  unsafe {
-    envp = link_abi_getenv("XLANG_DEBUG_REGEX_EMIT");
-  }
-  if (envp != (0 as *u8)) {
-    dbg_on = 1;
-  }
+  // Class AV: Cap XLANG_DEBUG_REGEX_EMIT retired (always off).
+  envp = 0 as *u8;
+  dbg_on = 0;
   if (expr_ref > 0) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, expr_ref);

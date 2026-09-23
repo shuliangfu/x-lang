@@ -217,10 +217,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
-                     driver_get_module_num_funcs(module), src_len);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     /*
      * A-11 run-typeck-parse-count-gate：ENTRY_MODULE_ONLY 下 entry parse_into 即金标准；
      * 全量 asm_codegen_elf_o(typeck.x) 在 Docker 内易 OOM(137)，仅 stderr 指标 + 占位 .o。
@@ -579,10 +576,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (link_abi_getenv("XLANG_ASM_DEBUG"))
-                    diag_reportf(NULL, 0, 0, "note", NULL,
-                                 "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
-                                 dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
+                /* Class AV: Cap XLANG_ASM_DEBUG note retired. */
                 ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
             } else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
@@ -733,12 +727,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
-                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
-        pipeline_debug_module_funcs(module);
-    }
+    /* Class AV: Cap XLANG_ASM_DEBUG note retired. */
     if (asm_smoke_only) {
         for (j = 0; j < n_deps; j++) {
             free(dep_arenas[j]);
@@ -846,11 +835,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             } else {
                 xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
                 int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-                if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-                    diag_reportf(NULL, 0, 0, "note", NULL,
-                                 "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
-                                 (int)elf_ec, (size_t)out_buf->length);
-                }
+                /* Class AV: Cap XLANG_ASM_DEBUG note retired. */
                 if (elf_ec != 0 || out_buf->length <= 0) {
                     /* Non-extern module with 0 output or codegen error — real CG002. */
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,

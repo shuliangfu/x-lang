@@ -252,12 +252,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * PLATFORM: SHARED — consume-site hygiene; product PREFER rest is
      * FROM_X marker (H=0); this body compiles only on cold/no-PREFER.
      */
-    if (link_abi_getenv("XLANG_DUMP_PREP")) {
-        if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
-            diag_reportf(input_path, 0, 0, "note", NULL,
-                         "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
-        }
-    }
+    /* Class AV: Cap XLANG_DUMP_PREP retired (always no-op; mirror driver_abi AT). */
     size_t arena_sz = pipeline_sizeof_arena();
     size_t module_sz = pipeline_sizeof_module();
     void *arena = malloc(arena_sz);
@@ -310,10 +305,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     }
     parser_parse_into_set_main_index(module, pr.main_idx);
     int32_t n_imports = parser_get_module_num_imports(module);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: driver post-parse_into_buf num_funcs=%d n_imports=%d pr_ok=%d pr_main_idx=%d src_len=%zu",
-                     driver_get_module_num_funcs(module), (int)n_imports, (int)pr.ok, (int)pr.main_idx, src_len);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     char entry_dir_buf[512];
     xlang_get_entry_dir(input_path, entry_dir_buf, sizeof(entry_dir_buf));
     if (n_imports > 0)
@@ -330,13 +322,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
             free(src);
             return 1;
         }
-        if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-            diag_reportf(NULL, 0, 0, "note", NULL,
-                         "pipeline debug: n_deps=%d", n_deps);
-            for (int dj = 0; dj < n_deps; dj++)
-                diag_reportf(NULL, 0, 0, "note", NULL,
-                             "pipeline debug: dep[%d]=%s", dj, dep_paths[dj] ? dep_paths[dj] : "?");
-        }
+        /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     }
     typeck_ndep_store((int32_t)(0));
     /* 模板末尾须为 6 个 X，mkstemp 后重命名为 .c 以便 cc/ld 识别 */
@@ -532,9 +518,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      * 隐式 padding 校验会变成空操作（tests/run-struct.sh padding_no_allow）。
      * import 已解析完毕；清零后 pipeline 从同一预处理源码重建 module/arena。
      */
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: before entry memset arena_sz=%zu", arena_sz);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     /* wave1225: drop first-pass sidecar GrowVecs before reusing the same
      * arena/module heap for pipeline re-parse. parse_into_init resets lens when
      * a sidecar still matches, but release+recreate is the authoritative clean
@@ -550,10 +534,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
     if (n_deps > 0 && !driver_check_only_get() && want_asm_backend &&
         driver_deps_are_std_core_closure_only(dep_paths, n_deps))
         pctx->asm_entry_module_only = 1;
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: before pipeline_run entry=%s src_len=%zu",
-                     input_path ? input_path : "?", (size_t)src_slice.length);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     /*
      * Retired leftover !XLANG_NO_C_FRONTEND driver_c_typeck_entry_large_stack
      * precheck on std/core-closure deps. Product authority is
@@ -574,9 +555,7 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
      */
     int ec = xlang_pipeline_run_x_pipeline_large_stack(module, arena, src_slice.data, (size_t)src_slice.length, (void *)out_buf, (void *)pctx);
     driver_x_pipeline_skip_typeck_set(0);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: after pipeline_run ec=%d", ec);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     driver_dep_seeded_clear_all();
     codegen_set_dep_slots_for_x_pipeline(NULL, NULL, 0);
     for (int j = n_deps - 1; j >= 0; j--) { rt_cp_release_arena_module(dep_arenas[j], dep_modules[j]); }
@@ -585,12 +564,8 @@ int driver_run_compiler_parsed(DriverCompileParsed *p, int argc, char **argv) {
         diag_reportf_with_code(input_path, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
                      "pipeline failed for '%s' (ec=%d, out_len=%d)",
                      input_path, ec, (int)out_buf->length);
-        if (link_abi_getenv("XLANG_DEBUG_PIPE") && out_buf->length > 0) {
-            size_t show = (size_t)out_buf->length > 800u ? 800u : (size_t)out_buf->length;
-            diag_reportf(NULL, 0, 0, "note", NULL,
-                         "pipeline debug: out (first %zu bytes):\n%.*s", show, (int)show,
-                         (const char *)out_buf->data);
-        }
+        /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
+
         if (!emit_to_stdout) { xlang_driver_handle_close(cf); unlink(tmp_c); }
         rt_cp_release_arena_module(arena, module);
         free(src);
