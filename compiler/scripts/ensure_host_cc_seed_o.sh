@@ -1119,81 +1119,68 @@ ensure_rt_arena_buf_prefer() {
   return 1
 }
 
-# POSIX product install of src/runtime/rt_parse_diag.o:
+# Product install of src/runtime/rt_parse_diag.o:
 #   pure-asm src/runtime/rt_parse_diag.x
-#   + seeds/rt_parse_diag.from_x.c under -DXLANG_RT_PARSE_DIAG_FROM_X
-# runtime_report_precise_parse_failure_if_known leaves host-cc. The .x is
-# #[no_mangle], so the object exports the short name. Do not also pass
-# -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE: that macro defines the same short
-# name in the rest (it only bridges the gcc -E mangled symbol on the
-# try-rt-prefer TEMP path). Recovery diagnostics and the slice marker stay
-# in the seed. Windows and a pure-asm miss keep the full seed cc (macro
-# unset). Cold callers leave XLANG_G05_PREFER_X_O=0. Do not gcc -E this TU.
-# PLATFORM: POSIX product asm · WINDOWS full seed.
-# G.7: one body; g05 rt-slice, build_xlang_asm, and strict glue call this.
-# Same installer shape as ensure_rt_arena_buf_prefer (w841). The older
-# try-rt-prefer temp must not replace this .o.
+#   + seeds/rt_parse_diag.from_x.c (recovery diagnostics + slice marker)
+# runtime_report_precise_parse_failure_if_known was deleted from the seed
+# in w846, including the PRECISE_BRIDGE wrapper. There is no full-seed
+# fallback and no Windows special case: a seed-only cc does not define
+# that function. XLANG_G05_PREFER_X_O is ignored. Do not gcc -E this TU.
+# Do not pass -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE.
+# Do not rebuild runtime_driver_no_c.o from this path.
+# PLATFORM: SHARED — POSIX and Windows both take this path.
+# G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
+# experimental bootstrap call this. The older try-rt-prefer temp must not
+# replace this .o. Its -DXLANG_RT_PARSE_DIAG_FROM_X /
+# PRECISE_BRIDGE flags are no-ops and that temp is not merged into no_c.
 ensure_rt_parse_diag_prefer() {
   local o="src/runtime/rt_parse_diag.o"
   local seed="seeds/rt_parse_diag.from_x.c"
   local xsrc="src/runtime/rt_parse_diag.x"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
-  local saved_force="${FORCE}"
-  local os thin rest ld_flags bare_thin bare_rest
+  local thin rest ld_flags bare_thin bare_rest
 
-  if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o try-rt-parse-diag-prefer: missing $seed" >&2
+  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-parse-diag-prefer: missing $seed or $xsrc" >&2
     return 1
   fi
 
-  # Up-to-date: seed, the .x twin, and project headers. A full-cc .o that
-  # predates this prefer still rebuilds once the .x mtime moves.
+  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
+  # the deleted C body still rebuilds once either input moves.
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
-    if { [ ! -f "$xsrc" ] || [ ! "$xsrc" -nt "$o" ]; } \
-      && ! seed_project_hdrs_newer "$seed" "$o"; then
+    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
       log "skip up-to-date $o (rt-parse-diag)"
       return 0
     fi
   fi
 
-  os="$(uname -s 2>/dev/null || echo Unknown)"
-  case "$os" in
-    Windows_NT*|MINGW*|MSYS*|CYGWIN*) prefer=0 ;;
-  esac
-
-  if [ "$prefer" = "1" ] && [ -f "$xsrc" ]; then
-    bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_thin.XXXXXX")" || true
-    bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_rest.XXXXXX")" || true
-    if [ -n "$bare_thin" ] && [ -n "$bare_rest" ]; then
-      rm -f "$bare_thin" "$bare_rest"
-      thin="${bare_thin}.o"
-      rest="${bare_rest}.o"
-      # pure_asm only. Do not fall through to gcc -E of this TU.
-      # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
-      if (
-        if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
-          export XLANG_PREFER_ASM_O=1
-        elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
-          unset XLANG_PREFER_ASM_O
-        fi
-        pure_asm_x_to_o "$thin" "$xsrc"
-      ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
-          -DXLANG_RT_PARSE_DIAG_FROM_X -c "$seed" -o "$rest" \
-        && ld_flags="$(r3_prefer_ld_r_flags)" \
-        && ld $ld_flags -o "$o" "$thin" "$rest"; then
-        log "rt-parse-diag $o <- pure-asm $xsrc + FROM_X rest (w842)"
-        rm -f "$thin" "$rest"
-        return 0
-      fi
-      echo "ensure: rt-parse-diag pure-asm failed; fallback full seed" >&2
-      rm -f "$thin" "$rest"
-    fi
+  bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_thin.XXXXXX")" || true
+  bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_rest.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+    echo "ensure: rt-parse-diag mktemp failed" >&2
+    return 1
   fi
-
-  FORCE=1
-  ensure_one "$o" "$seed"
-  FORCE="$saved_force"
-  return 0
+  rm -f "$bare_thin" "$bare_rest"
+  thin="${bare_thin}.o"
+  rest="${bare_rest}.o"
+  # pure_asm only. Do not fall through to gcc -E of this TU.
+  # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  if (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
+    && ld_flags="$(r3_prefer_ld_r_flags)" \
+    && ld $ld_flags -o "$o" "$thin" "$rest"; then
+    log "rt-parse-diag $o <- pure-asm $xsrc + recovery rest (w846; C body deleted)"
+    rm -f "$thin" "$rest"
+    return 0
+  fi
+  echo "ensure: rt-parse-diag pure-asm failed; C body is gone, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$o"
+  return 1
 }
 
 # Product install of src/runtime/rt_preamble.o:
@@ -2984,6 +2971,10 @@ ensure_rt_prefer_one() {
             fi
           fi
           if [ -n "$_rt_pd_o" ] && [ -f "$_rt_parse_diag_seed" ]; then
+            # w846: the precise C body and PRECISE_BRIDGE are deleted.
+            # FROM_X / PRECISE_BRIDGE below are no-ops. This temp is rm'd
+            # and must not replace src/runtime/rt_parse_diag.o. Do not
+            # route a slice refresh through try-rt-prefer of no_c.
             # G-02f-448：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_parse_diag_x" ]; then
               _rt_pd_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_parse_diag_thin.XXXXXX") || true

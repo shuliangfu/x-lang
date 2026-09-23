@@ -493,12 +493,10 @@ else
   # PLATFORM: LINUX — --allow-multiple-definition is still supported by GNU ld.
   EXP_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 fi
-# parse_diag：与 Makefile RT_SEED_SLICE / g05 同源；runtime 仅声明 recovery 诊断。
-if [ ! -f src/runtime/rt_parse_diag.o ] || [ seeds/rt_parse_diag.from_x.c -nt src/runtime/rt_parse_diag.o ]; then
-  mkdir -p src/runtime
-  experimental_bootstrap_info "cc src/runtime/rt_parse_diag.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/rt_parse_diag.from_x.c -o src/runtime/rt_parse_diag.o
-fi
+# w846: seed-only cc would drop runtime_report_precise_parse_failure_if_known.
+# Recovery diagnostics stay in the seed. PLATFORM: SHARED.
+bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
+  || return 1
 # RT_SEED_SLICE companions: same source as build_xlang_asm.sh line 4738-4741 and
 # g05_relink_env (linked as separate .o to avoid Darwin duplicate symbols per
 # ensure_host_cc_seed_o.sh comment). rt_emit_state.o provides driver_x_emit_c_path

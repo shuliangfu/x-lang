@@ -5206,12 +5206,10 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_arena_buf prefer failed"; return 1; }
       continue
     fi
-    # w842: parse_diag product object is pure-asm .x + FROM_X rest.
-    # Recovery diagnostics stay in the seed. No PRECISE_BRIDGE (short name).
-    # PLATFORM: POSIX product · WINDOWS full seed.
+    # w846: the precise diagnostic lives only in the .x. Recovery stays in
+    # the seed. No full-seed fallback. PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
-      XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
-        bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
+      bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
         || { build_xlang_asm_error "rt_parse_diag prefer failed"; return 1; }
       continue
     fi

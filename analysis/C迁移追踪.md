@@ -54,11 +54,16 @@
 - 🟡 巨型字符串表与 marker 仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class CQ（2026-09-23）rt_parse_diag 精确诊断 C 体已删除
+
+- ✅ `runtime_report_precise_parse_failure_if_known` 只在 `src/runtime/rt_parse_diag.x`。种子里的 C 体和 `PRECISE_BRIDGE` 已删除，没有整份回退
+- 🟡 恢复诊断与 marker 仍 host-cc，`rt_parse_diag.from_x.c` 还不能整文件删除
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`（该重编会使 hello 退出 1）
+
 ### Class CM（2026-09-23）rt_parse_diag 切片退出整份 host-cc
 
-- ✅ `runtime_report_precise_parse_failure_if_known` 在 `-DXLANG_RT_PARSE_DIAG_FROM_X` 下由 tip 纯 asm 提供（预处理 29625→29041；种子未改；不定义 `PRECISE_BRIDGE`）
+- ✅ 精确诊断的 C 体已删除，见 Class CQ
 - 🟡 恢复诊断与 marker 仍 host-cc
-- 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
 - 🟡 同族 `rt_preamble` 见 Class CN
 
 ### Class CL（2026-09-23）rt_arena_buf 切片退出整份 host-cc
@@ -364,7 +369,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CP** 删掉 `rt_emit_state` 五个 setter 的 C 体，权威在 `.x`；BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。`rt_parse_diag` 精确诊断仍有 C 孪生。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CQ** 删掉 `rt_parse_diag` 精确诊断的 C 体，权威在 `.x`；恢复诊断仍 host-cc。**Class CP** 的 BSS／lib-name／入口前缀仍 host-cc。**Class CO** 的 128MiB／2MiB BSS 仍 host-cc。**Class CN** 字符串表仍 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份业务已在 `.x`、产品对象是独立 `.o`、C 体可以物理删除的 from_x。恢复诊断还没有 `.x` 体。不要优先 `.x` 整包重编 `runtime_driver_no_c.o`。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值或 `rt_stack` CG002；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  

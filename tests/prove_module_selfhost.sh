@@ -617,8 +617,9 @@ MODULES=(
   # 9.7.6 residual 9: mega sibling → _impl wrapper retired (T 100→99);
   # spawn body stays in rt_dispatch_thin (HAS a real fork/exec body)
   "rt_run_x_emit|src/runtime/rt_run_x_emit.x|seeds/rt_run_x_emit_surface.from_x.c||"
-  # rt_parse_diag R2 full：.x 吃满 precise parse failure P001；产品 rest 在 FROM_X 下业务符号 H=0
-  # prove 锁 full surface IDENTICAL（1 公共符号）；冷/无 PREFER 仍可走 seeds/rt_parse_diag.from_x.c 全 C 体
+  # rt_parse_diag: the precise diagnostic lives only in the .x (w846 deleted
+  # the C twin and PRECISE_BRIDGE). The seed keeps recovery diagnostics and
+  # the slice marker. No full-seed fallback. PLATFORM: SHARED.
   "rt_parse_diag|src/runtime/rt_parse_diag.x|seeds/rt_parse_diag_surface.from_x.c||"
   # rt_diag_errno R2 full：.x 吃满 code_for_kind + errno{,_path,_path_pair} + cli_usage_note；产品 rest 在 FROM_X 下业务 H=0
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_diag_errno.from_x.c 全 C 体

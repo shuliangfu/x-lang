@@ -1,32 +1,26 @@
-/* seeds/rt_parse_diag.from_x.c — G-02f-307 P2 runtime rest (precise parse diag)
- * Logic source: src/runtime/rt_parse_diag.x
- * Hybrid: XLANG_RT_PARSE_DIAG_FROM_X + ld -r into runtime_driver_no_c.o
+/* seeds/rt_parse_diag.from_x.c — G-02f-307 P2 runtime rest.
  *
- * R2 full（2026-07-14）：runtime_report_precise_parse_failure_if_known 由 .x 提供；
- * FROM_X 下本文件仅前向声明 + slice marker（产品 rest 业务 H=0）。
- * 冷启动/无 PREFER 时仍编译完整 C 体（TOKEN_STRING → P001）。
+ * runtime_report_precise_parse_failure_if_known lives only in
+ * src/runtime/rt_parse_diag.x (#[no_mangle]). w846 deleted the C body,
+ * the PRECISE_BRIDGE wrapper, and the forward declaration. Do not
+ * reintroduce a #ifndef twin. -DXLANG_RT_PARSE_DIAG_FROM_X and
+ * -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE are no-ops.
  *
- * 【Why 根源 2026-07-15】C parser 删除后 multi-error recovery 诊断丢失；
- * xlang check 在 check_only + 空 out 时假绿。本文件增加：
- * 1) runtime_report_parse_recovery_diagnostics — 词法级恢复诊断（对齐已删 parser.c fail 文案）
- * 2) 供 check / parse 失败路径调用，写入 lsp_diag 或 stderr
+ * This file remains because the recovery diagnostic is not in the .x yet:
+ *   runtime_report_parse_recovery_diagnostics
+ *   labi_rt_parse_diag_slice_marker
+ * A seed-only cc does not define the precise diagnostic. The product
+ * installer pure-asm's the .x, then cc's this file. No full-seed fallback.
+ * PLATFORM: SHARED.
+ *
+ * Why recovery stays (2026-07-15): after the C parser was removed, multi-error
+ * recovery diagnostics disappeared and `xlang check` on check_only + empty
+ * out went false-green. The scanner below writes lsp_diag or stderr.
  */
 #include <stddef.h>
-#include <stdint.h>
 #include <string.h>
 #include <ctype.h>
 
-#include "token.h"
-#include "runtime_diag_codes.h"
-
-struct xlang_slice_uint8_t {
-  uint8_t *data;
-  size_t length;
-};
-
-extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t *source);
-extern void diag_reportf_with_code(const char *file, int line, int col, const char *kind, const char *code,
-                                   const char *detail, const char *fmt, ...);
 extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code,
                                   const char *msg, const char *detail);
 extern void diag_reportf(const char *file, int line, int col, const char *kind, const char *detail,
@@ -35,40 +29,6 @@ extern int lsp_diag_enabled;
 extern void lsp_diag_add_code(int line, int col, int severity, const char *code, const char *msg);
 extern int driver_check_only_get(void);
 extern void driver_check_diag_emitted_note(void);
-
-#ifndef XLANG_RT_PARSE_DIAG_FROM_X
-int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
-  struct xlang_slice_uint8_t diag_src_slice;
-  int32_t fail_tok;
-  if (!src || src_len == 0)
-    return 0;
-  diag_src_slice.data = (uint8_t *)src;
-  diag_src_slice.length = src_len;
-  fail_tok = parser_diag_fail_at_token_kind(&diag_src_slice);
-  if (fail_tok == TOKEN_STRING) {
-    diag_reportf_with_code(input_path, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
-                           "expected integer literal, float literal, identifier, 'true', 'false', 'if', "
-                           "'break', 'continue', 'return', 'panic', 'match', or '('");
-    return 1;
-  }
-  return 0;
-}
-#elif defined(XLANG_RT_PARSE_DIAG_PRECISE_BRIDGE)
-/*
- * Hybrid PREFER_X_O + thin .x：-E 后符号常为
- *   rt_parse_diag_runtime_report_precise_parse_failure_if_known
- * 产品 ABI 须无前缀；仅 thin+rest 合并时定义桥接。
- * PREFER_X_O=0 的 recovery-only merge 不定义本宏，避免与 runtime.from_x.c 内 precise 重定义。
- */
-int rt_parse_diag_runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src,
-                                                                size_t src_len);
-int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len) {
-  return rt_parse_diag_runtime_report_precise_parse_failure_if_known(input_path, src, src_len);
-}
-#else
-/* FROM_X 且无 bridge：precise 由 runtime.from_x.c 或其它 TU 提供；本文件只出 recovery。 */
-int runtime_report_precise_parse_failure_if_known(const char *input_path, const char *src, size_t src_len);
-#endif
 
 /* ---- multi-error recovery diagnostics (always linked) ---- */
 

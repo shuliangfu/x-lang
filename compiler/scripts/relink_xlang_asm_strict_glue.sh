@@ -2117,11 +2117,10 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
-  # w842: same product object as ensure_rt_parse_diag_prefer.
-  # PLATFORM: POSIX product asm · WINDOWS full seed inside the helper.
+  # w846: same product object as ensure_rt_parse_diag_prefer.
+  # The precise C body is deleted. PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
-    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
-      bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
       || return 1
     continue
   fi

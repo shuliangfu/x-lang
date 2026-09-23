@@ -513,8 +513,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # w845: emit_state setters are deleted from the seed. rt-slice always
     # pure-asms rt_emit_state.x and cc's the BSS rest (POSIX and Windows).
     # w844: arena_buf functions are deleted from the seed; same shape.
-    # w842: parse_diag is pure-asm .x + FROM_X rest on POSIX when PREFER=1.
-    # Windows full-cc of parse_diag stays inside that prefer helper.
+    # w846: the precise diagnostic's C body is deleted. rt-slice always
+    # pure-asms rt_parse_diag.x and cc's the recovery rest (POSIX and Windows).
     # w843: preamble writers are deleted from the seed. rt-slice always
     # pure-asms rt_preamble.x and cc's the table rest (POSIX and Windows).
     # stack stays full seed cc. PLATFORM: SHARED caller.
