@@ -1670,7 +1670,7 @@ ensure_labi_prefer_one() {
       "$l0_x" "$l0_seed" "$l1_x" "$l1_seed" "$l2_x" "$l2_seed" \
       "$l3_x" "$l3_seed" "$l4_x" "$l4_seed" "$l5_x" "$l5_seed" \
       "$l6_x" "$l6_seed" "$l7_x" "$l7_seed" "$l8_x" "$l8_seed" \
-      "$l8b_x" "$l8b_seed" "$l8c_x" "$l9_x" "$l9_seed"
+      "$l8b_x" "$l8b_seed" "$l8c_x" "$l9_x" "$l9_seed" seeds/labi_od_needle_tables.c
     do
       if [ -f "$f" ] && [ "$f" -nt "$o" ]; then
         stale=1
@@ -1751,7 +1751,7 @@ ensure_labi_prefer_one() {
     fi
 
     # Rest FROM_X flags (L0 always required for hybrid path).
-    rest_defs="-DXLANG_LABI_PATH_PURE_FROM_X"
+    rest_defs="-DXLANG_LABI_PATH_PURE_FROM_X -DXLANG_LABI_NEEDLE_TABLES_EXTERNAL"
     [ "$l1_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_DIAG_PURE_FROM_X"
     [ "$l2_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_HOST_LIT_FROM_X"
     [ "$l3_ok" = "1" ] && rest_defs="$rest_defs -DXLANG_LABI_PATH_IO_FROM_X"
@@ -1778,9 +1778,26 @@ ensure_labi_prefer_one() {
         [ "$l8b_ok" = "1" ] && link_objs="$link_objs $l8b_o"
         [ "$l8c_ok" = "1" ] && link_objs="$link_objs $l8c_o"
         [ "$l9_ok" = "1" ] && link_objs="$link_objs $l9_o"
+        # Class BE: when L8b+L8c prefer .x, link host-cc needle tables (bodies omitted in .x).
+        # Full L8b seed already #includes tables unless NEEDLE_TABLES_EXTERNAL.
+        needle_o=""
+        if [ "$l8b_x_ok" = "1" ] && [ "$l8c_x_ok" = "1" ]; then
+          needle_o="$(mktemp "${TMPDIR:-/tmp}/labi_needle.XXXXXX")"
+          # shellcheck disable=SC2086
+          if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$needle_o" seeds/labi_od_needle_tables.c 2>/dev/null; then
+            rm -f "$needle_o"
+            needle_o=""
+          fi
+        fi
         # shellcheck disable=SC2086
         # PLATFORM: SHARED — historic g05 used $CC -r -nostdlib (not ld Darwin flags).
-        if pure_ld_partial_merge "$o" $link_objs "$rest_o" 2>/dev/null; then
+        if [ -n "$needle_o" ]; then
+          if pure_ld_partial_merge "$o" $link_objs "$rest_o" "$needle_o" 2>/dev/null; then
+            log "prefer multi-slice $o <- L0..L9+L8b+L8c + needle tables + link_abi rest (try-labi-prefer)"
+            done=1
+          fi
+          rm -f "$needle_o"
+        elif pure_ld_partial_merge "$o" $link_objs "$rest_o" 2>/dev/null; then
           log "prefer multi-slice $o <- L0..L9+L8b+L8c + link_abi rest (try-labi-prefer)"
           done=1
         fi
