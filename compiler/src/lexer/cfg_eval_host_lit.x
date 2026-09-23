@@ -1,17 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// wave758 Class I: host OS/arch lit for cfg_eval product Rung0 — pure-asm only.
-// Companion to cfg_eval.x (export-extern cfg_host_*_lit). Product ladder
-// prefers `-backend asm -c` of this file + ld -r (no host-cc of
-// seeds/cfg_eval_host_lit.from_x.c when xlang_asm present).
+// wave851: sole bodies of cfg_host_os_lit and cfg_host_arch_lit.
+// Companion to cfg_eval.x (export-extern cfg_host_*_lit). The product
+// ladder pure-asms this file and ld -r's it next to cfg_eval.x.
+// seeds/cfg_eval_host_lit.from_x.c is deleted. There is no host-cc
+// fallback and this TU is not on the gcc -E path.
 //
-// wave98: multi-#[cfg] same-name under -E-extern is illegal C — this TU is NOT
-// on the -E path (cold fallback still uses the C seed). Values match
-// seeds/cfg_eval_host_lit.from_x.c. Global *u8 string lits (not stack arrays /
-// not same-name overload returns) so pure-asm keeps bare cfg_host_* names and
-// embeds cstring data.
-// PLATFORM: SHARED — Darwin + Ubuntu L2.
+// File-scope *u8 string lits (not stack arrays, not same-name overload
+// returns) keep the bare cfg_host_* names and embed the cstring bytes.
+// PLATFORM: SHARED — Darwin, Ubuntu, and Windows via #[cfg].
 
 #[cfg(target_os = "linux")]
 let CFG_HOST_OS_LIT: *u8 = "linux";
