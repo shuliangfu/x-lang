@@ -123,4 +123,12 @@ if [ -n "$_stage2_xl" ] \
   fi
 fi
 
+# PLATFORM: LINUX — tip asm slot frames (sub $0x1038 / $0x8a8) overlap
+# u8[4] with Option_ptr_u8. Host-cc the authoritative .x thins and
+# trampoline. Good prologues (warm gcc / Darwin / already trampolined)
+# return in the probe, before -E. PLATFORM: SHARED call, Linux body.
+if [ -f scripts/overlay_tip_slot_bytes_gcc.sh ] && [ -f xlang_asm ]; then
+  bash scripts/overlay_tip_slot_bytes_gcc.sh xlang_asm
+fi
+
 echo "g05_prepare_and_relink OK"

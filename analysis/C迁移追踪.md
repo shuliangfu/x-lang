@@ -296,4 +296,4 @@
 
 > 完成一步只改对应 `⬜`→`🟡`→`✅`。不要在本文写 tip／wave／日志路径。
 
-- 2026-09-23 CB-fix：labi HOST_LIT／TLS 已清；return-elf／array lit／as／lea_not_load 已植入。余根＝tip peel `pipe_local_slot_bytes_mod`／`glue_fixed_array_temp_bytes` 坏帧 → option 栈槽重叠。Ubuntu tip cold 已植入 warm leftover：**L2 5/5**（option=102）。债：源码侧固化 slot_bytes（Ubuntu 现靠 inject）。Win tip cold 新链已 5/5（overlay 补 BSS）。
+- 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
