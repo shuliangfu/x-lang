@@ -25,6 +25,8 @@
 // x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
 // w884 places backend_enc_append_u8_c_impl here. It appends the low
 // 8 bits of one byte. The symbol stays strong.
+// w885 places backend_enc_append_u32_le_c_impl here. It appends four
+// little-endian bytes of one word. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -33,7 +35,6 @@
 // PLATFORM: SHARED.
 //
 
-export extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
@@ -3734,6 +3735,31 @@ export function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32 {
     let b: u8[1] = [];
     b[0] = (byte & 255) as u8;
     return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 1);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Append one little-endian 32-bit word to the emit buffer.
+ * The four stored bytes are the low 8 bits of word, then the next three.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected
+ * @param word u32 — value stored as four little-endian bytes
+ * @return i32 — 0 when the four bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    // Four local bytes. Unsigned division matches store_eax in this file
+    // and the former C (uint8_t)(word >> n) masks.
+    let b: u8[4] = [];
+    b[0] = (word & 255) as u8;
+    b[1] = ((word / 256) & 255) as u8;
+    b[2] = ((word / 65536) & 255) as u8;
+    b[3] = ((word / 16777216) & 255) as u8;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 4);
   }
   return 0 - 1;
 }

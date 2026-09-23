@@ -22,6 +22,8 @@
  * It appends the x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
  * wave884: backend_enc_append_u8_c_impl lives in that .x too.
  * It appends the low 8 bits of one byte. The symbol stays strong.
+ * wave885: backend_enc_append_u32_le_c_impl lives in that .x too.
+ * It appends four little-endian bytes of one word. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -261,18 +263,12 @@ int32_t backend_enc_x86_jcc_rel32_c_impl(struct platform_elf_ElfCodegenCtx *elf_
 
 }
 
-/* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
-int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word) {
-  uint8_t buf[4];
-  if (!elf_ctx)
-    return -1;
-  buf[0] = (uint8_t)(word & 255u);
-  buf[1] = (uint8_t)((word >> 8) & 255u);
-  buf[2] = (uint8_t)((word >> 16) & 255u);
-  buf[3] = (uint8_t)((word >> 24) & 255u);
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, buf, 4);
-}
+/* w885: backend_enc_append_u32_le_c_impl is defined in
+ * backend_enc_dispatch_thin.x. It appends four little-endian bytes.
+ * The thin's public backend_enc_append_u32_le_c still forwards here.
+ * backend_enc_arm64_call_c_impl in this tail still calls this symbol.
+ * Stays strong. PLATFORM: SHARED. */
+int32_t backend_enc_append_u32_le_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word);
 
 
 /* w884: backend_enc_append_u8_c_impl is defined in
