@@ -36,6 +36,11 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CD（2026-09-23）pipeline_abi 冷孪生出 seeds
+- ✅ 纯 `#ifndef FROM_X` 冷孪生 60 块 → `analysis/archive/runtime_pipeline_abi/`（seeds `runtime_pipeline_abi.from_x.c` **2784374→1512616**）
+- 🟡 产品 FROM_X rest 仍 host-cc（预处理与迁前相同；`execve(cc)` 未减）
+- 🟡 `WIN_LEFTOVER` 组与带引号的 wpo `#include` 仍留在 from_x 内
+
 ### 维护约定
 
 1. 做到 → **🟡**；完成 → **✅**；未开 → **⬜**。  
@@ -288,7 +293,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收（AO＝diagnostic ASM_FUNC_TRACE／Cap parse-step 剥）。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝下一产品梯真减 host-cc（diagnostic Cap 已薄；可转大户）。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CD** 把 pipeline_abi 纯冷孪生移出 seeds；活 FROM_X rest 仍 host-cc。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝停这块活 rest 的 host cc。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
@@ -297,3 +302,4 @@
 > 完成一步只改对应 `⬜`→`🟡`→`✅`。不要在本文写 tip／wave／日志路径。
 
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
+- 2026-09-23 pipeline_abi：纯 `#ifndef FROM_X` 冷孪生出 seeds（文件约 2.78MB→1.51MB）。产品 rest 预处理不变，仍 host-cc。
