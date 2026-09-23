@@ -1250,12 +1250,13 @@ ensure_rt_parse_diag_prefer() {
 }
 
 # Product install of src/runtime/rt_preamble.o:
-#   pure-asm src/runtime/rt_preamble.x
-#   + seeds/rt_preamble.from_x.c (string tables + slice marker only)
-# The two writers were deleted from the seed in w843. There is no full-seed
-# fallback and no Windows special case: a seed-only cc does not define
-# write_io_net_abi_inline or write_fs_path_map_error_abi_inline.
-# XLANG_G05_PREFER_X_O is ignored for that reason. Do not gcc -E this TU.
+#   pure-asm src/runtime/rt_preamble.x (two writers + slice marker)
+#   + seeds/rt_preamble.from_x.c (string tables only)
+# w843 deleted the C writers. w861 deleted the C marker. There is no
+# full-seed fallback and no Windows special case: a seed-only cc does not
+# define write_io_net_abi_inline, write_fs_path_map_error_abi_inline, or
+# labi_rt_preamble_slice_marker. XLANG_G05_PREFER_X_O is ignored.
+# Do not gcc -E this TU. Default unwind: do not pass -fno-unwind-tables.
 # PLATFORM: SHARED — POSIX and Windows both take this path.
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
@@ -1264,7 +1265,7 @@ ensure_rt_preamble_prefer() {
   local o="src/runtime/rt_preamble.o"
   local seed="seeds/rt_preamble.from_x.c"
   local xsrc="src/runtime/rt_preamble.x"
-  local thin rest ld_flags bare_thin bare_rest
+  local thin rest merged ld_flags bare_thin bare_rest bare_merged
 
   if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o try-rt-preamble-prefer: missing $seed or $xsrc" >&2
@@ -1282,31 +1283,45 @@ ensure_rt_preamble_prefer() {
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpre_thin.XXXXXX")" || true
   bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpre_rest.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtpre_merged.XXXXXX")" || true
+  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
     echo "ensure: rt-preamble mktemp failed" >&2
+    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest"
+  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
   thin="${bare_thin}.o"
   rest="${bare_rest}.o"
+  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
   # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+  # The marker is in the .x. The seed cc emits the string tables.
+  # Default unwind. Do not pass -fno-unwind-tables.
   if (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
       unset XLANG_PREFER_ASM_O
     fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
   ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$o" "$thin" "$rest"; then
-    log "rt-preamble $o <- pure-asm $xsrc + table rest (w843; C writers deleted)"
+    && ld $ld_flags -o "$merged" "$thin" "$rest" \
+    && r3_prefer_nm_has_sym "$merged" "write_io_net_abi_inline" \
+    && r3_prefer_nm_has_sym "$merged" "write_fs_path_map_error_abi_inline" \
+    && r3_prefer_nm_has_sym "$merged" "labi_rt_preamble_slice_marker" \
+    && r3_prefer_nm_has_sym "$merged" "driver_preamble_io_net_lines" \
+    && r3_prefer_nm_has_sym "$merged" "driver_preamble_io_net_lines_n" \
+    && r3_prefer_nm_has_sym "$merged" "driver_preamble_fs_path_lines" \
+    && r3_prefer_nm_has_sym "$merged" "driver_preamble_fs_path_lines_n"; then
+    mv -f "$merged" "$o"
+    log "rt-preamble $o <- pure-asm $xsrc + table rest (w861; marker is in the .x)"
     rm -f "$thin" "$rest"
     return 0
   fi
-  echo "ensure: rt-preamble pure-asm failed; C writers are gone, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$o"
+  echo "ensure: rt-preamble pure-asm failed; writers and marker are in the .x, no seed fallback" >&2
+  rm -f "$thin" "$rest" "$merged"
   return 1
 }
 
@@ -3151,7 +3166,9 @@ ensure_rt_prefer_one() {
             fi
           fi
           if [ -n "$_rt_p_o" ] && [ -f "$_rt_pre_seed" ]; then
-            # R2 full：PREFER_X_O=1 时 full .x + rest seed（表+marker）→ cc -r 合并
+            # w861: the two writers and the slice marker are in the .x.
+            # This temp merges .x + string tables. It must not replace
+            # src/runtime/rt_preamble.o. Do not invoke try-rt-prefer.
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_pre_x" ]; then
               _rt_p_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre_thin.XXXXXX") || true
               _rt_p_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre_rest.XXXXXX") || true
@@ -3161,7 +3178,7 @@ ensure_rt_prefer_one() {
                      -c -o "$_rt_p_rest_o" "$_rt_pre_seed" \
                 && pure_ld_partial_merge "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
                 _rt_pre_ok=1
-                echo "rt-prefer: R3 preamble ← full .x + rest tables/marker (R2 full H=0)"
+                echo "rt-prefer: R3 preamble ← full .x + rest tables (w861; marker is in the .x)"
               fi
               rm -f "$_rt_p_thin_o" "$_rt_p_rest_o"
             fi

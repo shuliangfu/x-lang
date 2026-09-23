@@ -517,8 +517,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # w860: the precise diagnostic and the slice marker are in the .x.
     # rt-slice pure-asms rt_parse_diag.x and cc's the recovery rest
     # (POSIX and Windows).
-    # w843: preamble writers are deleted from the seed. rt-slice always
-    # pure-asms rt_preamble.x and cc's the table rest (POSIX and Windows).
+    # w861: preamble writers and the slice marker are in the .x. rt-slice
+    # pure-asms rt_preamble.x and cc's the string-table rest
+    # (POSIX and Windows).
     # stack stays full seed cc. PLATFORM: SHARED caller.
     # Refreshing a slice must not go through try-rt-prefer of
     # runtime_driver_no_c.o: that prefer rebuild makes hello exit 1.

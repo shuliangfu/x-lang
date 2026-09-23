@@ -5228,8 +5228,9 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_parse_diag prefer failed"; return 1; }
       continue
     fi
-    # w843: preamble writers live only in the .x. Tables stay in the seed.
-    # No full-seed fallback. PLATFORM: SHARED (Windows pure-asm too).
+    # w861: preamble writers and the slice marker live only in the .x.
+    # String tables stay in the seed. No full-seed fallback.
+    # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_preamble.o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \
         || { build_xlang_asm_error "rt_preamble prefer failed"; return 1; }

@@ -1,11 +1,13 @@
-/* seeds/rt_preamble.from_x.c — Cap-giant-string tables + slice marker.
+/* seeds/rt_preamble.from_x.c — Cap-giant-string tables.
  * write_io_net_abi_inline and write_fs_path_map_error_abi_inline are defined
  * only in src/runtime/rt_preamble.x. Their C bodies were deleted in w843.
- * Do not reintroduce a #ifndef twin. This file remains because the string
- * tables are not an .x export. Line accessors live in runtime_driver_abi.
+ * w861 deleted labi_rt_preamble_slice_marker from this file. The .x marker
+ * still returns 1. Do not reintroduce a #ifndef twin. This file remains
+ * because the string tables are not an .x export. Line accessors live in
+ * runtime_driver_abi.
  * wave29: io_net n=224; WEAK_IO_BATCH skip is 178..181 inside the .x.
  * PLATFORM: SHARED — product links pure-asm .x + this object. No full-seed
- * fallback: a seed-only cc no longer defines the two writers.
+ * fallback: a seed-only cc no longer defines the two writers or the marker.
  */
 #include <stddef.h>
 #include <stdint.h>
@@ -627,11 +629,8 @@ const char *const driver_preamble_fs_path_lines[] = {
 const int32_t driver_preamble_fs_path_lines_n =
     (int32_t)(sizeof(driver_preamble_fs_path_lines) / sizeof(driver_preamble_fs_path_lines[0]));
 
-/* Writers deleted in w843. Definitions: src/runtime/rt_preamble.x.
- * These declarations do not emit symbols. PLATFORM: SHARED. */
+/* Writers deleted in w843. Marker deleted in w861. Definitions:
+ * src/runtime/rt_preamble.x. These declarations do not emit symbols.
+ * PLATFORM: SHARED. */
 int write_io_net_abi_inline(uint8_t *cf);
 int write_fs_path_map_error_abi_inline(uint8_t *cf);
-
-int labi_rt_preamble_slice_marker(void) {
-    return 1;
-}

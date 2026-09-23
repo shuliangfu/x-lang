@@ -526,8 +526,8 @@ for _exp_rt_pair in \
       || return 1
     continue
   fi
-  # w843: seed-only cc would drop the two writers. Use the product installer.
-  # PLATFORM: SHARED.
+  # w861: seed-only cc would drop the two writers and the slice marker.
+  # Use the product installer. PLATFORM: SHARED.
   if [ "$_exp_rt_name" = "rt_preamble" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \
       || return 1

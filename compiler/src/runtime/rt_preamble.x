@@ -3,12 +3,13 @@
 //
 // Sole bodies of write_io_net_abi_inline / write_fs_path_map_error_abi_inline.
 // The C twins in seeds/rt_preamble.from_x.c were deleted in w843. Do not
-// restore them. Cap-giant-string table data and labi_rt_preamble_slice_marker
-// stay in that seed. Line access is driver_preamble_*_line_at/count
-// (runtime_driver_abi). Each line is written by driver_preamble_fputs, which
-// decodes the opaque fd-handle and calls xlang_io_write.
+// restore them. w861: labi_rt_preamble_slice_marker lives here too and still
+// returns 1. Cap-giant-string table data stays in that seed. Line access is
+// driver_preamble_*_line_at/count (runtime_driver_abi). Each line is written
+// by driver_preamble_fputs, which decodes the opaque fd-handle and calls
+// xlang_io_write.
 // Product install: ensure_rt_preamble_prefer (pure-asm this file + cc the
-// seed). No gcc -E. No full-seed fallback.
+// seed for the string tables). No gcc -E. No full-seed fallback.
 // PLATFORM: SHARED — same object on POSIX and Windows.
 // wave29: WEAK_IO_BATCH skip i=178..181 (n=224).
 
@@ -123,4 +124,16 @@ export function write_fs_path_map_error_abi_inline(cf: *u8): i32 {
     i = i + 1;
   }
   return 0;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm. String tables stay in the C seed.
+ */
+#[no_mangle]
+export function labi_rt_preamble_slice_marker(): i32 {
+  return 1;
 }

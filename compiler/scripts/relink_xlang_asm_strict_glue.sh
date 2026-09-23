@@ -2125,8 +2125,9 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
-  # w843: same product object as ensure_rt_preamble_prefer.
-  # C writers are deleted. PLATFORM: SHARED.
+  # w861: same product object as ensure_rt_preamble_prefer.
+  # Writers and the slice marker are in the .x. Tables stay in the seed.
+  # PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_preamble.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \
       || return 1
