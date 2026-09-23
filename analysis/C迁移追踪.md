@@ -3,7 +3,7 @@
 > **用途**：终局债 **状态 only**（✅／🟡／⬜ + 短事实）。  
 > **禁止**：tip 流水账、wave／SHA 日记、双端日志。波次流水只写 [`自举进度.md`](自举进度.md) §6。  
 > **考古**：[`archive/C迁移追踪-流水账归档-20260919.md`](archive/C迁移追踪-流水账归档-20260919.md) · [20260910](archive/C迁移追踪-流水账归档-20260910.md) · [20260825](archive/C迁移追踪-流水账归档-20260825.md)  
-> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AT** Cap／driver 剥 ✅；**Class AU** labi prefer 根修 ✅；**Class AV–AX** pipeline Cap／ASM_DEBUG／ASM_*_TRACE 剥 ✅（pabi leftover 未 FORCE；真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
+> **刷新**：2026-09-23 · 状态债 · **三端 L2 硬闸已启用** ✅；BC present **0**；AD–AP Cap／diagnostic／pipeline 拼装 ✅；**Class AQ–AT** Cap／driver 剥 ✅；**Class AU** labi prefer 根修 ✅；**Class AV–AY** pipeline Cap／ASM_DEBUG／ASM_*_TRACE／EMIT_TRACE／TRACE_EXPR／LIST_FUNCS 剥 ✅（pabi leftover 未 FORCE；真减续 🟡）· 钉盘 **`ecdb5cc1e`**（不升）
 
 ### 维护约定
 
@@ -18,6 +18,7 @@
 
 | 轨道／债 | 状态 | 事实（短） |
 |----------|------|------------|
+
 | 库层 .X 化（阶段 1） | ✅ | 100% |
 | Thin 退役（阶段 2） | ✅ | T 18/18 |
 | Prove 注册（阶段 3） | ✅ | N 111/111 |
