@@ -9,6 +9,9 @@
  * wave879: arch_x86_64_enc_enc_call_reg lives in that .x too. It still
  * forwards to backend_enc_x86_64_call_reg_c, which stays in this tail.
  * The symbol stays strong.
+ * wave880: arch_x86_64_enc_enc_load_rax_rbx_disp32 lives in that .x too.
+ * It still forwards to backend_enc_x86_64_load_rax_rbx_disp32_c, which
+ * stays in this tail. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1745,10 +1748,10 @@ int32_t backend_enc_riscv64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCt
  * Stays strong.
  * w879: arch_x86_64_enc_enc_call_reg is defined in that .x too.
  * The prototype above still satisfies backend_enc_blr_arch. Stays strong.
+ * w880: arch_x86_64_enc_enc_load_rax_rbx_disp32 is defined in that .x too.
+ * The prototype above still satisfies backend_enc_ldr_xreg_xreg_imm_arch.
+ * Stays strong.
  * PLATFORM: SHARED. */
-int32_t arch_x86_64_enc_enc_load_rax_rbx_disp32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
-  return backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx, dst_reg, base_reg, offset);
-}
 int32_t arch_riscv64_enc_enc_jalr_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
   return backend_enc_riscv64_jalr_reg_c(elf_ctx, reg);
 }

@@ -12,6 +12,9 @@
 // w879 places arch_x86_64_enc_enc_call_reg here. It forwards to
 // backend_enc_x86_64_call_reg_c, which stays in the C tail.
 // That symbol stays strong.
+// w880 places arch_x86_64_enc_enc_load_rax_rbx_disp32 here. It forwards to
+// backend_enc_x86_64_load_rax_rbx_disp32_c, which stays in the C tail.
+// That symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -29,6 +32,7 @@ export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8
 export extern "C" function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32;
 export extern "C" function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32;
+export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
 
@@ -3633,5 +3637,21 @@ export function arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32,
 #[no_mangle]
 export function arch_x86_64_enc_enc_call_reg(elf_ctx: *u8, reg: i32): i32 {
   unsafe { return backend_enc_x86_64_call_reg_c(elf_ctx, reg); }
+  return 0 - 1;
+}
+
+/**
+ * Forward arch_x86_64_enc_enc_load_rax_rbx_disp32 to backend_enc_x86_64_load_rax_rbx_disp32_c.
+ * The callee stays in the C tail of this object. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param dst_reg i32 — destination register passed through
+ * @param base_reg i32 — base register passed through
+ * @param offset i32 — disp32 byte offset passed through
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the x86_64 load.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  unsafe { return backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx, dst_reg, base_reg, offset); }
   return 0 - 1;
 }

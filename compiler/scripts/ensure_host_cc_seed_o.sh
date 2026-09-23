@@ -2004,7 +2004,8 @@ ensure_rdd_pure() {
 # (thin), backend_enc_dispatch_slice_marker (thin), and
 # arch_arm64_enc_enc_blr (thin, w877, stays strong), and
 # arch_arm64_enc_enc_ldr_xreg_xreg_imm (thin, w878, stays strong), and
-# arch_x86_64_enc_enc_call_reg (thin, w879, stays strong).
+# arch_x86_64_enc_enc_call_reg (thin, w879, stays strong), and
+# arch_x86_64_enc_enc_load_rax_rbx_disp32 (thin, w880, stays strong).
 # Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED.
 ensure_enc_dispatch_pure() {
@@ -2028,7 +2029,7 @@ ensure_enc_dispatch_pure() {
       stale=1
     fi
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (enc dispatch pure-asm w879)"
+      log "skip up-to-date $o (enc dispatch pure-asm w880)"
       return 0
     fi
   fi
@@ -2084,14 +2085,15 @@ ensure_enc_dispatch_pure() {
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_dispatch_slice_marker" \
     || ! r3_prefer_nm_has_sym "$merged_o" "arch_arm64_enc_enc_blr" \
     || ! r3_prefer_nm_has_sym "$merged_o" "arch_arm64_enc_enc_ldr_xreg_xreg_imm" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "arch_x86_64_enc_enc_call_reg"; then
+    || ! r3_prefer_nm_has_sym "$merged_o" "arch_x86_64_enc_enc_call_reg" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "arch_x86_64_enc_enc_load_rax_rbx_disp32"; then
     echo "ensure: enc dispatch merge failed; C bodies are gone, no fallback" >&2
     rm -f "$thin_o" "$rest_o" "$merged_o"
     return 1
   fi
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w879; marker, arch_arm64_enc_enc_blr, arch_arm64_enc_enc_ldr_xreg_xreg_imm, and arch_x86_64_enc_enc_call_reg are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w880; marker, arch_arm64_enc_enc_blr, arch_arm64_enc_enc_ldr_xreg_xreg_imm, arch_x86_64_enc_enc_call_reg, and arch_x86_64_enc_enc_load_rax_rbx_disp32 are in the .x; all stay strong]"
   return 0
 }
 
