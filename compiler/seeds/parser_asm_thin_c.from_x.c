@@ -2883,7 +2883,12 @@ struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lex
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+#ifdef XLANG_PARSER_STRETCH_AUDIT
 #include "parser_asm_emit_heavy_stretch_suite_slice.inc"
+#else
+/* Class BA: product keep — no suite symbol-string bloat. */
+#include "parser_asm_stretch_suite_product_keep.inc"
+#endif
 #else
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
 int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len);
