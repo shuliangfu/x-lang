@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
-"""Class BB／BD／BQ: strip __LD,__compact_unwind (+ its relocs) from Darwin
+"""Class BB／BD／BQ／BS: strip __LD,__compact_unwind (+ its relocs) from Darwin
 Mach-O relocatable .o without FORCE-rebuild.
 
-Safe on: runtime_pipeline_abi.o, runtime_link_abi.o, runtime_driver_abi.o,
-runtime_driver_no_c.o, seed_link_compat.o, runtime_driver_diagnostic.o,
-backend_try_inline_dispatch.o.
-UNSAFE (LOH／n_sect): parser_asm_thin_glue.o, backend_call_dispatch.o,
-backend_enc_dispatch.o, diag.o — do not strip.
+Class BS: remap nlist n_sect after section removal (fixes LOH／n_sect on
+call_dispatch／enc／diag／try_inline cold rebuilds). Still ban thin_glue.
+Safe batch: scripts/bq_strip_compact_unwind_safe.sh (+ BS expanded list).
 PLATFORM: Darwin only. Idempotent if section already absent.
-Class BQ batch: scripts/bq_strip_compact_unwind_safe.sh
 """
 from __future__ import annotations
 
@@ -174,7 +171,29 @@ def main() -> int:
     parts.append(bytes(data[cursor:]))
     body = b"".join(parts)
 
-    out = bytes(new_hdr) + bytes(new_cmds) + (b"\0" * pad) + body
+    out = bytearray(bytes(new_hdr) + bytes(new_cmds) + (b"\0" * pad) + body)
+
+    # Class BS: remap nlist n_sect after removing __compact_unwind.
+    cu_idx = next(i + 1 for i, s in enumerate(sects) if s["name"] == b"__compact_unwind")
+    pos = 0
+    while pos < len(new_cmds):
+        c = struct.unpack_from("<I", new_cmds, pos)[0]
+        cs = struct.unpack_from("<I", new_cmds, pos + 4)[0]
+        if c == 0x2:  # LC_SYMTAB
+            symoff_n, nsyms_n, _, _ = struct.unpack_from("<IIII", new_cmds, pos + 8)
+            for i in range(nsyms_n):
+                o = symoff_n + i * 16
+                strx, typ, sect, desc, val = struct.unpack_from("<IBBHQ", out, o)
+                if sect == cu_idx:
+                    # Local labels that lived in compact_unwind → absolute/empty.
+                    typ = (typ & ~0x0E) | 0x02  # N_ABS
+                    sect = 0
+                elif sect > cu_idx:
+                    sect -= 1
+                struct.pack_into("<IBBHQ", out, o, strx, typ, sect, desc, val)
+            break
+        pos += cs
+
     dst.write_bytes(out)
     print(f"OK {src} {len(data)} -> {len(out)} (-{len(data) - len(out)}) -> {dst}")
     return 0
