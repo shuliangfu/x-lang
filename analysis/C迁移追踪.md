@@ -296,4 +296,4 @@
 
 > 完成一步只改对应 `⬜`→`🟡`→`✅`。不要在本文写 tip／wave／日志路径。
 
-- 2026-09-23 CB-fix：labi HOST_LIT／TLS 已清；return-elf／array lit／as／lea_not_load 已植入。余根＝tip peel `pipe_local_slot_bytes_mod`／`glue_fixed_array_temp_bytes` 坏帧 → option 栈槽重叠。Ubuntu tip cold 已植入 warm leftover：**L2 5/5**（option=102）。债：源码侧固化 slot_bytes；Win tip cold 新链 g05 链失败（`g_pipeline_elf_reloc_*` U；LEGACY 不得充数）。
+- 2026-09-23 CB-fix：labi HOST_LIT／TLS 已清；return-elf／array lit／as／lea_not_load 已植入。余根＝tip peel `pipe_local_slot_bytes_mod`／`glue_fixed_array_temp_bytes` 坏帧 → option 栈槽重叠。Ubuntu tip cold 已植入 warm leftover：**L2 5/5**（option=102）。债：源码侧固化 slot_bytes（Ubuntu 现靠 inject）。Win tip cold 新链已 5/5（overlay 补 BSS）。
