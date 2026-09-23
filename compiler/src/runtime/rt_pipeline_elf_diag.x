@@ -31,12 +31,12 @@ export const RT_ELF_LABEL_ENTRY_SIZE: i32 = 264;
 export const RT_ELF_PATCH_ENTRY_SIZE: i32 = 268;
 /** Byte offset of labels table (after code_len). */
 export const RT_ELF_LABELS_OFF: i32 = 4;
-/** Byte offset of num_labels (4 + CAP*264) — ≡ pipe_elf_off_num_labels. */
-export const RT_ELF_NUM_LABELS_OFF: i32 = 4325380;
-/** Byte offset of patches (num_labels + 4) — ≡ pipe_elf_off_patches. */
-export const RT_ELF_PATCHES_OFF: i32 = 4325384;
-/** Byte offset of num_patches (patches + CAP*268) — ≡ pipe_elf_off_num_patches. */
-export const RT_ELF_NUM_PATCHES_OFF: i32 = 8716296;
+/** Byte offset of num_labels — ≡ pipe_elf_off_num_labels (G.7 thin/warm; not 4+CAP*264 dead). */
+export const RT_ELF_NUM_LABELS_OFF: i32 = 17301508;
+/** Byte offset of patches — ≡ pipe_elf_off_patches (G.7 thin/warm). */
+export const RT_ELF_PATCHES_OFF: i32 = 17301512;
+/** Byte offset of num_patches — ≡ pipe_elf_off_num_patches (G.7=34865160=0x2140008). */
+export const RT_ELF_NUM_PATCHES_OFF: i32 = 34865160;
 /** LabelEntry.name_len offset (name[256] then i32). */
 export const RT_ELF_LAB_OFF_NAME_LEN: i32 = 256;
 /** LabelEntry.offset field (name_len + 4). */
