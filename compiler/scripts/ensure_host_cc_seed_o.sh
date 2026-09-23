@@ -1142,6 +1142,83 @@ ensure_rt_arena_buf_prefer() {
   return 0
 }
 
+# POSIX product install of src/runtime/rt_parse_diag.o:
+#   pure-asm src/runtime/rt_parse_diag.x
+#   + seeds/rt_parse_diag.from_x.c under -DXLANG_RT_PARSE_DIAG_FROM_X
+# runtime_report_precise_parse_failure_if_known leaves host-cc. The .x is
+# #[no_mangle], so the object exports the short name. Do not also pass
+# -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE: that macro defines the same short
+# name in the rest (it only bridges the gcc -E mangled symbol on the
+# try-rt-prefer TEMP path). Recovery diagnostics and the slice marker stay
+# in the seed. Windows and a pure-asm miss keep the full seed cc (macro
+# unset). Cold callers leave XLANG_G05_PREFER_X_O=0. Do not gcc -E this TU.
+# PLATFORM: POSIX product asm · WINDOWS full seed.
+# G.7: one body; g05 rt-slice, build_xlang_asm, and strict glue call this.
+# Same installer shape as ensure_rt_arena_buf_prefer (w841). The older
+# try-rt-prefer temp must not replace this .o.
+ensure_rt_parse_diag_prefer() {
+  local o="src/runtime/rt_parse_diag.o"
+  local seed="seeds/rt_parse_diag.from_x.c"
+  local xsrc="src/runtime/rt_parse_diag.x"
+  local prefer="${XLANG_G05_PREFER_X_O:-0}"
+  local saved_force="${FORCE}"
+  local os thin rest ld_flags bare_thin bare_rest
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o try-rt-parse-diag-prefer: missing $seed" >&2
+    return 1
+  fi
+
+  # Up-to-date: seed, the .x twin, and project headers. A full-cc .o that
+  # predates this prefer still rebuilds once the .x mtime moves.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
+    if { [ ! -f "$xsrc" ] || [ ! "$xsrc" -nt "$o" ]; } \
+      && ! seed_project_hdrs_newer "$seed" "$o"; then
+      log "skip up-to-date $o (rt-parse-diag)"
+      return 0
+    fi
+  fi
+
+  os="$(uname -s 2>/dev/null || echo Unknown)"
+  case "$os" in
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*) prefer=0 ;;
+  esac
+
+  if [ "$prefer" = "1" ] && [ -f "$xsrc" ]; then
+    bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_thin.XXXXXX")" || true
+    bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_rest.XXXXXX")" || true
+    if [ -n "$bare_thin" ] && [ -n "$bare_rest" ]; then
+      rm -f "$bare_thin" "$bare_rest"
+      thin="${bare_thin}.o"
+      rest="${bare_rest}.o"
+      # pure_asm only. Do not fall through to gcc -E of this TU.
+      # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
+      if (
+        if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+          export XLANG_PREFER_ASM_O=1
+        elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+          unset XLANG_PREFER_ASM_O
+        fi
+        pure_asm_x_to_o "$thin" "$xsrc"
+      ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
+          -DXLANG_RT_PARSE_DIAG_FROM_X -c "$seed" -o "$rest" \
+        && ld_flags="$(r3_prefer_ld_r_flags)" \
+        && ld $ld_flags -o "$o" "$thin" "$rest"; then
+        log "rt-parse-diag $o <- pure-asm $xsrc + FROM_X rest (w842)"
+        rm -f "$thin" "$rest"
+        return 0
+      fi
+      echo "ensure: rt-parse-diag pure-asm failed; fallback full seed" >&2
+      rm -f "$thin" "$rest"
+    fi
+  fi
+
+  FORCE=1
+  ensure_one "$o" "$seed"
+  FORCE="$saved_force"
+  return 0
+}
+
 ensure_rt_slice() {
   local list o n=0
   list="$(catalog_key_words "RT_SEED_SLICE_OBJS")"
@@ -1152,6 +1229,8 @@ ensure_rt_slice() {
       ensure_rt_emit_state_prefer || exit 1
     elif [ "$o" = "src/runtime/rt_arena_buf.o" ]; then
       ensure_rt_arena_buf_prefer || exit 1
+    elif [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
+      ensure_rt_parse_diag_prefer || exit 1
     else
       ensure_one "$o" "$(seed_for_o "$o")"
     fi
@@ -17550,6 +17629,9 @@ case "$MODE" in
     ;;
   try-rt-arena-buf-prefer|try-rt-arena-buf)
     ensure_rt_arena_buf_prefer
+    ;;
+  try-rt-parse-diag-prefer|try-rt-parse-diag)
+    ensure_rt_parse_diag_prefer
     ;;
   core-seed|core_seed|core|r1-core|r1-core-seed|family=r1_core_seed)
     ensure_core_seed

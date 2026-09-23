@@ -2,10 +2,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Runtime parse diagnostics helpers (G.9 English; body is authoritative).
-// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
-// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
-// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
-// Runtime parse diagnostics helpers (G.9 English; body is authoritative).
+// w842 POSIX product slice: pure-asm this file, then cc the seed under
+// -DXLANG_RT_PARSE_DIAG_FROM_X. #[no_mangle] publishes the short name
+// runtime_report_precise_parse_failure_if_known, so the rest must not
+// define XLANG_RT_PARSE_DIAG_PRECISE_BRIDGE (that bridge is only for the
+// gcc -E mangled symbol on the try-rt-prefer temp path). Recovery
+// diagnostics and the slice marker stay in the seed. Windows and PREFER=0
+// still cc the full seed. Product PREFER_X_O temps must not replace this .o.
+// PLATFORM: POSIX product asm · WINDOWS full seed.
 
 export extern "C" function parser_diag_fail_at_token_kind_buf(data: *u8, len: i32): i32;
 export extern "C" function diag_report_with_code(
