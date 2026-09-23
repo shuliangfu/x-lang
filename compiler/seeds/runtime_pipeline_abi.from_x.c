@@ -702,7 +702,8 @@ void pipeline_diag_merge_dep_missing(const char *import_path) {
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int pipeline_asm_debug_enabled(void) {
-  return link_abi_getenv("XLANG_ASM_DEBUG") != NULL;
+  /* Class AW: Cap XLANG_ASM_DEBUG gate retired (always off). */
+  return 0;
 }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE pipeline_asm_debug_enabled unique */
 
@@ -9795,13 +9796,10 @@ extern const char *link_abi_getenv(const char *name);
 #define ASM_EMIT_HEAVY_PARSER_SLOT_MAX 16
 
 void asm_parser_emit_heavy_dbg_real(void *m, int32_t fi, const char *why) {
-  uint8_t fn[256];
-  int32_t fl;
-  if (!link_abi_getenv("XLANG_ASM_DEBUG") || !m || fi < 0 || !why)
-    return;
-  fl = pipeline_module_func_name_len_at(m, fi);
-  pipeline_module_func_name_copy64(m, fi, fn);
-  pabi_trace( "xlang: parser REAL_EMIT fi=%d fn=%.*s why=%s\n", fi, (int)(fl > 127 ? 127 : fl), fn, why);
+  /* Class AW: Cap-only XLANG_ASM_DEBUG dbg_real retired. */
+  (void)m;
+  (void)fi;
+  (void)why;
 }
 
 int32_t asm_parser_emit_heavy_bisect_max_index(void) {
@@ -22694,9 +22692,7 @@ int32_t pipeline_asm_emit_block_inits_elf_c(struct ast_ASTArena *arena, struct p
         return -1;
       } else {
         /* -2 unsupported fixed-array init — do not store pointer into array slot. */
-        if (link_abi_getenv("XLANG_ASM_DEBUG"))
-          pabi_trace( "xlang: fixed array let init unhandled block=%d i=%d init_ko=%d\n",
-                  (int)block_ref, (int)i, (int)pipeline_expr_kind_ord_at(arena, init_ref));
+        /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
         return -1;
       }
     } else {
@@ -31655,28 +31651,7 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
   dbg_depth_now = 0;
   dbg_log_now = 0;
   ko = expr_ref > 0 ? pipeline_expr_kind_ord_at(arena, expr_ref) : -1;
-  if (dbg_on) {
-    dbg_depth = dbg_depth + 1;
-    dbg_depth_now = dbg_depth;
-    if (expr_ref == dbg_prev_expr_ref && ko == dbg_prev_ko)
-      dbg_same_expr_streak = dbg_same_expr_streak + 1;
-    else
-      dbg_same_expr_streak = 1;
-    dbg_prev_expr_ref = expr_ref;
-    dbg_prev_ko = ko;
-    if (dbg_depth_now <= 24 || dbg_depth_now > dbg_max_depth ||
-        dbg_same_expr_streak == 2 || dbg_same_expr_streak == 4 || dbg_same_expr_streak == 8 ||
-        dbg_same_expr_streak == 16 || dbg_same_expr_streak == 32 || dbg_same_expr_streak == 64) {
-      dbg_log_now = 1;
-      if (dbg_depth_now > dbg_max_depth)
-        dbg_max_depth = dbg_depth_now;
-    }
-    if (dbg_log_now) {
-      pabi_trace(
-              "xlang: [XLANG_DEBUG_REGEX_EMIT] rec depth=%d expr_ref=%d ko=%d streak=%d ctx=%p ta=%d\\n",
-              (int)dbg_depth_now, (int)expr_ref, (int)ko, (int)dbg_same_expr_streak, (void *)ctx, (int)ta);
-    }
-  }
+  /* Class AW: Cap dbg_on dead branch retired. */
   r = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
   if (r != PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED) {
     out_rc = r;
@@ -33319,13 +33294,8 @@ int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_
   } else
     out_rc = backend_emit_expr_elf_slow(arena, elf_ctx, expr_ref, ctx, ta);
 debug_done:
-  if (dbg_on && dbg_log_now && out_rc == PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED) {
-    pabi_trace(
-            "xlang: [XLANG_DEBUG_REGEX_EMIT] unhandled depth=%d expr_ref=%d ko=%d\\n",
-            (int)dbg_depth_now, (int)expr_ref, (int)ko);
-  }
-  if (dbg_on && dbg_depth > 0)
-    dbg_depth = dbg_depth - 1;
+  /* Class AW: Cap dbg_on dead branch retired. */
+  /* Class AW: Cap dbg_on dead branch retired. */
   return out_rc;
 }
 
@@ -33928,10 +33898,7 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
     if (off < 0) {
       int32_t mod_imm;
       void *mod = pipeline_asm_emit_module_ref_c();
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        pabi_trace(
-                "xlang: emit_expr_fast VAR miss vlen=%d name=%.*s off=%d ctx=%p\n",
-                (int)vlen, (int)vlen, (char *)vname, (int)off, (void *)ctx);
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       if (mod && asm_module_top_level_const_lit_i32(mod, arena, vname, vlen, &mod_imm) != 0)
         return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
       if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, vname, vlen) == 0)
@@ -40720,10 +40687,7 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
         return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, expr_ref, off, ctx, ta);
       return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
     }
-    if (link_abi_getenv("XLANG_ASM_DEBUG"))
-      pabi_trace(
-              "xlang: for_call_args VAR miss expr_ref=%d off=%d ctx=%p\n",
-              (int)expr_ref, (int)off, (void *)ctx);
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   }
   /* ARRAY_LIT: rec dest pointer. TYPE_ARRAY ≤8B load_64 payload (SAT
    * INDEX lea-home); >8B dest is E*. TYPE_SLICE (11): dest-SLICE stamp
@@ -54451,12 +54415,7 @@ int32_t pipeline_elf_ctx_resolve_patches(uint8_t *ctx_bytes) {
         patch_shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
         target_shndx = PIPELINE_ELF_SHNX_TEXT_HOT;
       } else {
-        if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-          pabi_trace(
-                  "xlang: elf patch shndx mismatch p=%d patch_sh=%d target_sh=%d rel=%d tgt=%d code_len=%d hot=%d\n",
-                  (int)p, (int)patch_shndx, (int)target_shndx, (int)rel32_offset, (int)target_offset,
-                  (int)ctx->code_len, (int)ctx->code_hot_len);
-        }
+        /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
         driver_diagnostic_asm_elf_unresolved_patch(patch->name, patch->name_len);
         return -1;
       }
@@ -56433,12 +56392,8 @@ int32_t pipeline_block_append_let(void *a, int32_t br, uint8_t *name, int32_t na
   ld->name_len = name_len > 255 ? 255 : name_len;
   ld->type_ref = type_ref;
   ld->init_ref = init_ref;
-  if (dbg_append_block && dbg_append_block[0] && atoi(dbg_append_block) == br) {
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "append let debug: block=%d rel_idx=%d name=%.*s init_ref=%d init_kind=%d type_ref=%d",
-                 (int)br, (int)b->num_lets, name_len > 0 ? (int)name_len : 0, (const char *)(name ? name : (uint8_t *)""),
-                 (int)init_ref, (int)pipeline_expr_kind_ord_at(a, init_ref), (int)type_ref);
-  }
+  /* Class AW: Cap XLANG_DEBUG_APPEND_BLOCK note retired. */
+
   b->num_lets++;
   return idx - b->let_base;
 }
@@ -56720,9 +56675,7 @@ int32_t pipeline_block_append_while(void *a, int32_t br, int32_t cond_ref, int32
   memset(wl, 0, sizeof(*wl));
   wl->cond_ref = cond_ref;
   wl->body_ref = body_ref;
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: append_while br=%d cond=%d body=%d wi=%d\n", (int)br, (int)cond_ref, (int)body_ref,
-            (int)(idx - b->loop_base));
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   b->num_loops++;
   return idx - b->loop_base;
 }
@@ -57723,24 +57676,16 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
     }
   }
   if (wa_ri < 0 || inner <= 0 || inner == br) {
-    if (link_abi_getenv("XLANG_ASM_DEBUG") && b->num_regions > 0)
-      pabi_trace( "xlang: wa_fixup skip br=%d wa_ri=%d inner=%d nso=%d\n", (int)br, (int)wa_ri, (int)inner,
-              (int)b->num_stmt_order);
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
     return;
   }
   for (i = 0; i < b->num_stmt_order; i++) {
     if (pipeline_block_stmt_order_kind(a, br, i) == 6) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-        W277_Block *ib = inner > 0 ? w277_block_at(a, inner) : NULL;
-        pabi_trace( "xlang: wa_fixup ok br=%d inner=%d in_nso=%d in_nif=%d\n", (int)br, (int)inner,
-                ib ? (int)ib->num_stmt_order : -1, ib ? (int)ib->num_if_stmts : -1);
-      }
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       return;
     }
   }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: wa_fixup apply br=%d wa_ri=%d inner=%d old_nso=%d\n", (int)br, (int)wa_ri, (int)inner,
-            (int)b->num_stmt_order);
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   abs = b->stmt_order_base;
   if (abs < 0)
     return;
@@ -57775,17 +57720,13 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   int32_t if_in_order;
   int32_t emitted_ifs;
   int32_t abs;
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: rebuild_sparse_ifs ENTER br=%d\n", (int)br);
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   if (!a || br <= 0)
     return;
   b = w277_block_at(a, br);
   sc = arena_sidecar_get(a, 1);
   if (!b || !sc || b->num_if_stmts <= 0) {
-    if (link_abi_getenv("XLANG_ASM_DEBUG"))
-      pabi_trace(
-              "xlang: rebuild_sparse_ifs early br=%d b=%p sc=%p nif=%d\n",
-              (int)br, (void *)b, (void *)sc, b ? (int)b->num_if_stmts : -1);
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
     return;
   }
   nso = b->num_stmt_order;
@@ -57797,14 +57738,9 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
     uint8_t k0 = pipeline_block_stmt_order_kind(a, br, i);
     if (k0 == 5)
       if_in_order++;
-    if (link_abi_getenv("XLANG_ASM_DEBUG"))
-      pabi_trace( "xlang: rebuild_sparse_ifs so[%d]=kind=%u idx=%d\n", (int)i, (unsigned)k0,
-              (int)pipeline_block_stmt_order_idx(a, br, i));
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace(
-            "xlang: rebuild_sparse_ifs br=%d nso=%d nif=%d if_in_order=%d\n",
-            (int)br, (int)nso, (int)nif, (int)if_in_order);
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   if (if_in_order >= nif)
     return;
   nn = 0;
@@ -57880,9 +57816,7 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
     if (so)
       *so = neu[i];
   }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: if_rebuild br=%d nif=%d old_if_in_order=%d new_nso=%d\n", (int)br, (int)nif, (int)if_in_order,
-            (int)nn);
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
 }
 
 /** 对 module 全部函数体块执行 with_arena stmt_order 修补（parse 后/typeck 前调用）。 */
@@ -57897,9 +57831,7 @@ void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) {
     if (br <= 0)
       continue;
     b = w277_block_at(a, br);
-    if (link_abi_getenv("XLANG_ASM_DEBUG") && b && b->num_regions > 0)
-      pabi_trace( "xlang: wa_fixup scan fi=%d br=%d nreg=%d nso=%d\n", (int)fi, (int)br, (int)b->num_regions,
-              (int)b->num_stmt_order);
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
     pipeline_block_with_arena_fixup_stmt_order(a, br);
     pipeline_block_stmt_order_rebuild_sparse_ifs(a, br);
     if (b) {
@@ -62752,8 +62684,7 @@ void pipeline_block_fill_whiles_from_onefunc(void *a, int32_t br, uint8_t *out, 
   for (i = 0; i < count; i++) {
     int32_t cond_ref = pipeline_onefunc_while_cond_ref(out, i);
     int32_t body_ref = pipeline_onefunc_while_body_ref(out, i);
-    if (link_abi_getenv("XLANG_ASM_DEBUG"))
-      pabi_trace( "xlang: fill_while_from_onefunc i=%d cond=%d body=%d\n", (int)i, (int)cond_ref, (int)body_ref);
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
     pipeline_block_append_while(a, br, cond_ref, body_ref);
   }
 }
@@ -62762,8 +62693,7 @@ void pipeline_block_fill_whiles_from_onefunc(void *a, int32_t br, uint8_t *out, 
 
 void pipeline_block_fill_fors_from_onefunc(void *a, int32_t br, uint8_t *out, int32_t count) {
   int32_t i;
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: fill_fors br=%d count=%d\n", (int)br, (int)count);
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   for (i = 0; i < count; i++) {
     pipeline_block_append_for(a, br, pipeline_onefunc_for_init_ref(out, i), pipeline_onefunc_for_cond_ref(out, i),
                               pipeline_onefunc_for_step_ref(out, i), pipeline_onefunc_for_body_ref(out, i));
@@ -66561,13 +66491,10 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
   emit_n = pipeline_asm_wpo_pgo_emit_order_count(m);
   /* PLATFORM: SHARED x86_64 — text-embedded module mutable lit cells once before funcs. */
   if (pipeline_asm_modlet_prepare_and_emit_elf_c(m, a, elf_ctx, ta) != 0) {
-    if (link_abi_getenv("XLANG_ASM_DEBUG"))
-      pabi_trace( "xlang: mega_body_c modlet prepare fail\n");
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
     return -1;
   }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: mega_body_c start emit_n=%d start_skip=%d nf=%d\n", (int)emit_n, (int)start_skip,
-            (int)pipeline_module_num_funcs(m));
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   for (k = 0; k < emit_n; k++) {
     int32_t i = pipeline_asm_wpo_pgo_emit_order_at(m, k);
     int32_t body_ref;
@@ -66604,22 +66531,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     /* PLATFORM: WINDOWS leftover-PE — diagnose callee-param VAR CG002.
      * call0 (0 params) green; add/id fail in callee body with code_len=12
      * (prologue only). Print np / param0 name_len / local-slot count. */
-    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-      int32_t np_dbg = pipeline_asm_module_func_num_params_at(m, i);
-      int32_t plen0 = (np_dbg > 0) ? pipeline_asm_module_func_param_name_len_at(m, i, 0) : -1;
-      int32_t nloc = asm_ctx_local_count((uint8_t *)bctx);
-      uint8_t p0[256];
-      int32_t off0 = -2;
-      memset(p0, 0, sizeof(p0));
-      if (np_dbg > 0 && plen0 > 0) {
-        pipeline_asm_module_func_param_name_copy32(m, i, 0, p0);
-        off0 = asm_ctx_local_find_offset((uint8_t *)bctx, p0, plen0);
-      }
-      pabi_trace(
-              "xlang: mega_body_c post_fill fi=%d np=%d plen0=%d nloc=%d off0=%d p0=%.*s\n",
-              (int)i, (int)np_dbg, (int)plen0, (int)nloc, (int)off0,
-              (int)(plen0 > 0 ? plen0 : 0), (char *)p0);
-    }
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
     /*
      * >16B return: mark sret active + record ret_sz. The 8B hidden-dest slot
      * is reserved after fill_local_slots (wave692) so 532-byte Type / 1224-byte
@@ -66640,8 +66552,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
     if (export_sym_len <= 0)
       return -1;
     if (backend_enc_label_arch(elf_ctx, export_sym, export_sym_len, 1, ta) != 0) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        pabi_trace( "xlang: mega_body_c enc_label fail func=%.*s\n", (int)export_sym_len, (char *)export_sym);
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       return -1;
     }
     if (asm_skip_heavy_module_func_body(m, a, i) != 0) {
@@ -66692,23 +66603,18 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
         ly_fs->frame_size = frame_sz;
     }
     if (pipeline_asm_emit_param_home_elf_c(elf_ctx, bctx, m, i, ta) != 0) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        pabi_trace( "xlang: mega_body_c param_home fail fi=%d\n", (int)i);
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       return -1;
     }
     /* Mutable module-level lit lets on non-hoist: seed stack slots after param home. */
     if (pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(a, elf_ctx, bctx, m, i, ta) != 0) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        pabi_trace( "xlang: mega_body_c top_level lit inits fail func=%.*s fi=%d\n", (int)fname_len,
-                (char *)fname_buf, (int)i);
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       return -1;
     }
     /* COMMON BSS starts zero; non-zero modlet inits once on hoist target. */
     if (i == pipeline_asm_hoist_target_func_index(m) &&
         pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx, ta) != 0) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        pabi_trace( "xlang: mega_body_c modlet nonzero seed fail func=%.*s\n", (int)fname_len,
-                (char *)fname_buf);
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       return -1;
     }
     if (pipeline_asm_emit_async_cps_entry_elf_c(a, elf_ctx, bctx, m, i, ta) != 0)
@@ -66718,9 +66624,7 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
       if (pipeline_asm_block_num_stmt_order_at(a, body_ref) > 0) {
         pipeline_debug_trace_named_func_bodies("mega_pre_emit_block_body", m, a);
         if (backend_emit_block_body_sync_elf(a, elf_ctx, body_ref, bctx, ta) != 0) {
-          if (link_abi_getenv("XLANG_ASM_DEBUG"))
-            pabi_trace( "xlang: mega_body_c emit_block_body fail func=%.*s fi=%d body_ref=%d\n",
-                    (int)fname_len, (char *)fname_buf, (int)i, (int)body_ref);
+          /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
           return -1;
         }
       } else {
@@ -66848,15 +66752,12 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
       }
     }
     if (backend_enc_epilogue_arch(elf_ctx, ta) != 0) {
-      if (link_abi_getenv("XLANG_ASM_DEBUG"))
-        pabi_trace( "xlang: mega_body_c epilogue fail func=%.*s fi=%d\n", (int)fname_len, (char *)fname_buf,
-                (int)i);
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
       return -1;
     }
     pipeline_asm_emit_async_cps_end_func_elf_c();
   }
-  if (link_abi_getenv("XLANG_ASM_DEBUG"))
-    pabi_trace( "xlang: mega_body_c done emit_n=%d rc=0\n", (int)emit_n);
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
   return 0;
 }
 
