@@ -559,17 +559,18 @@ ensure_one() {
     echo "ensure_host_cc_seed_o one: need <out.o> <seed.from_x.c>" >&2
     exit 2
   fi
-  if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o: missing seed $seed" >&2
-    exit 1
-  fi
 
-  # w849: the 47 ta-dispatch C bodies are deleted. Any ensure_one of this
-  # object is pure-asm of the .x plus the marker. Do not cc the seed alone.
+  # w857: this object has no C seed. Check it before the missing-seed exit
+  # so a caller that still passes the old path name does not fail closed.
   # PLATFORM: SHARED.
   if [ "$out" = "src/asm/backend_arch_emit_dispatch.o" ]; then
     ensure_arch_emit_dispatch_pure || return 1
     return 0
+  fi
+
+  if [ ! -f "$seed" ]; then
+    echo "ensure_host_cc_seed_o: missing seed $seed" >&2
+    exit 1
   fi
   # w854: thin enc publics are deleted from C. Do not cc the tail alone.
   # PLATFORM: SHARED.
@@ -1736,27 +1737,27 @@ r3_prefer_try_step() {
   return 1
 }
 
-# w849: 47 ta-dispatch shells live only in backend_arch_emit_dispatch.x.
-# Product object is pure_asm_x_to_o of that .x plus the slice marker.
-# No gcc -E. No cold full-seed cc. XLANG_G05_PREFER_X_O is ignored.
-# Windows takes the same path. PLATFORM: SHARED.
-# Failure leaves the previous .o in place and returns 1.
+# w857: 47 ta-dispatch shells, the doc anchor, and the slice marker live
+# only in backend_arch_emit_dispatch.x. The C seed is deleted. Product
+# object is pure_asm_x_to_o of that file. No host cc, no gcc -E, no ld -r.
+# nm gates: backend_arch_emit_ret_imm32, the slice marker, the doc anchor.
+# G05_X_O_WEAK is cleared so those symbols stay strong.
+# XLANG_G05_PREFER_X_O is ignored. Failure leaves the previous .o.
+# PLATFORM: SHARED.
 ensure_arch_emit_dispatch_pure() {
   local o="src/asm/backend_arch_emit_dispatch.o"
   local x_src="src/asm/backend_arch_emit_dispatch.x"
-  local seed="seeds/backend_arch_emit_dispatch.from_x.c"
-  local thin_tmp thin_o rest_tmp rest_o merged_tmp merged_o ld_flags
+  local thin_tmp thin_o
   local stale=0
 
-  if [ ! -f "$x_src" ] || [ ! -f "$seed" ]; then
-    echo "ensure: arch emit missing $x_src or $seed; C bodies are gone, no fallback" >&2
+  if [ ! -f "$x_src" ]; then
+    echo "ensure: arch emit missing $x_src; no C fallback" >&2
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
-    [ "$seed" -nt "$o" ] && stale=1
     [ "$x_src" -nt "$o" ] && stale=1
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (arch-emit pure-asm w849)"
+      log "skip up-to-date $o (arch-emit pure-asm w857)"
       return 0
     fi
   fi
@@ -1765,49 +1766,25 @@ ensure_arch_emit_dispatch_pure() {
   thin_tmp="$(mktemp "${TMPDIR:-/tmp}/arch_emit_x.XXXXXX")"
   thin_o="${thin_tmp}.o"
   mv "$thin_tmp" "$thin_o"
-  rest_tmp="$(mktemp "${TMPDIR:-/tmp}/arch_emit_marker.XXXXXX")"
-  rest_o="${rest_tmp}.o"
-  mv "$rest_tmp" "$rest_o"
-  merged_tmp="$(mktemp "${TMPDIR:-/tmp}/arch_emit_merged.XXXXXX")"
-  merged_o="${merged_tmp}.o"
-  mv "$merged_tmp" "$merged_o"
 
   if ! (
     export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin_o" "$x_src"
   ); then
-    echo "ensure: arch emit pure-asm failed; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
+    echo "ensure: arch emit pure-asm failed; no C fallback" >&2
+    rm -f "$thin_o"
     return 1
   fi
-  # The marker is not a frame. -fno-unwind-tables keeps the rest from
-  # growing __compact_unwind / .eh_frame. The previous product object
-  # had neither. PLATFORM: SHARED.
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} $BASE_CFLAGS -fno-asynchronous-unwind-tables -fno-unwind-tables \
-      -I. -Iinclude -Isrc -c -o "$rest_o" "$seed"; then
-    echo "ensure: arch emit marker cc failed; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
+  if ! r3_prefer_nm_has_sym "$thin_o" "backend_arch_emit_ret_imm32" \
+    || ! r3_prefer_nm_has_sym "$thin_o" "backend_arch_emit_dispatch_slice_marker" \
+    || ! r3_prefer_nm_has_sym "$thin_o" "backend_arch_emit_dispatch_x_doc_anchor"; then
+    echo "ensure: arch emit nm gate failed; no C fallback" >&2
+    rm -f "$thin_o"
     return 1
   fi
-  ld_flags="$(r3_prefer_ld_r_flags)"
-  # PLATFORM: MACOS — clang may still emit __compact_unwind. The previous
-  # product object did not carry that section.
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ]; then
-    ld_flags="$ld_flags -no_compact_unwind"
-  fi
-  # shellcheck disable=SC2086
-  if ! ld $ld_flags -o "$merged_o" "$thin_o" "$rest_o" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "backend_arch_emit_ret_imm32" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "backend_arch_emit_dispatch_slice_marker" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "backend_arch_emit_dispatch_x_doc_anchor"; then
-    echo "ensure: arch emit merge failed; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
-    return 1
-  fi
-  mv -f "$merged_o" "$o"
-  rm -f "$thin_o" "$rest_o"
-  log "prefer pure-asm $o <- $x_src + marker (w849; C bodies deleted)"
+  mv -f "$thin_o" "$o"
+  log "prefer pure-asm $o <- $x_src (w857; marker is in the .x, no host cc)"
   return 0
 }
 

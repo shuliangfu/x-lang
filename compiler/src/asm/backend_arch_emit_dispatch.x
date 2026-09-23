@@ -1,13 +1,11 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// w849: the 47 ta-dispatch shells and the doc anchor are the only bodies.
-// w849 deleted those C bodies from seeds/backend_arch_emit_dispatch.from_x.c
-// and deleted seeds/backend_arch_emit_dispatch_thin.from_x.c.
-// Product src/asm/backend_arch_emit_dispatch.o is pure-asm of this file
-// plus the slice marker (returns 0). There is no gcc -E path and no
-// cold-seed fallback. XLANG_G05_PREFER_X_O is ignored. Windows takes
-// the same path.
+// w849: the 47 ta-dispatch shells and the doc anchor live here.
+// w857: the slice marker lives here too. seeds/backend_arch_emit_dispatch.from_x.c
+// is deleted. Product src/asm/backend_arch_emit_dispatch.o is pure-asm of
+// this file only. There is no host cc, no gcc -E, and no cold-seed fallback.
+// XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
 // PLATFORM: SHARED.
 // backend_arch_emit_dispatch_x_doc_anchor: see function docblock below.
 
@@ -986,4 +984,15 @@ export function backend_arch_emit_epilogue(out: *u8, frame_sz: i32, ta: i32): i3
   if (ta == 2) { return arch_riscv64_emit_epilogue(out, frame_sz); }
   return arch_x86_64_emit_epilogue(out, frame_sz);
   }
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 0, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 0
+ * PLATFORM: SHARED — pure asm; the host C seed is gone.
+ */
+export function backend_arch_emit_dispatch_slice_marker(): i32 {
+  return 0;
 }
