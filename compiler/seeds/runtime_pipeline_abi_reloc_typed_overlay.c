@@ -32,11 +32,20 @@ extern uint8_t g_pipe_elf_reloc_r_pcrel[];
 extern uint8_t *g_pipe_elf_reloc_sidecar_owner;
 
 /* Leftover compact-writer BSS home (macho_write inlines this).
- * wave831 CB-fix: tip cold Win link needs a defining TU — overlay owns
- * these globals (from_x keeps file-static twins). PLATFORM: SHARED. */
+ * wave831: overlay owns these globals when pabi does not export them
+ * (from_x keeps file-static twins). Darwin pabi already exports the
+ * names, so this TU only declares them there. Linux and Windows pabi
+ * do not, so this TU defines the BSS. PLATFORM: LINUX|WINDOWS
+ * definition. MACOS extern (pabi owns them). */
+#if defined(__APPLE__)
+extern int32_t g_pipeline_elf_reloc_r_type[16384];
+extern int8_t g_pipeline_elf_reloc_r_pcrel[16384];
+extern uint8_t *g_pipeline_elf_reloc_sidecar_owner;
+#else
 int32_t g_pipeline_elf_reloc_r_type[16384];
 int8_t g_pipeline_elf_reloc_r_pcrel[16384];
 uint8_t *g_pipeline_elf_reloc_sidecar_owner;
+#endif
 
 enum {
   W743_PIPE_ELF_OFF_NUM_RELOCS = 39190540,

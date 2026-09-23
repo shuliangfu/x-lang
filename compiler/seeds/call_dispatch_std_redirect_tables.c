@@ -74,16 +74,14 @@ static const int32_t call_dispatch_std_heap_redirect_nrows =
     (int32_t)(sizeof(call_dispatch_std_heap_redirect_rows) /
               sizeof(call_dispatch_std_heap_redirect_rows[0]));
 
-int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t nlen,
-                                            uint8_t *out, int32_t cap) {
-  /* Class BM: table form (was char-ladder). */
+/* The public name lives in backend_call_dispatch_thin.x and forwards here.
+ * This body must be the table. Calling the public name back recurses:
+ * wrapper -> impl -> wrapper, and hello dies in glue_try_std_heap_redirect_sym_local.
+ * PLATFORM: SHARED. */
+int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t nlen,
+                                                 uint8_t *out, int32_t cap) {
   return call_dispatch_std_redirect_lookup(
       call_dispatch_std_heap_redirect_rows, call_dispatch_std_heap_redirect_nrows,
       name, nlen, out, cap);
-}
-
-int32_t glue_try_std_heap_redirect_sym_local_impl(const uint8_t *name, int32_t nlen,
-                                                 uint8_t *out, int32_t cap) {
-  return glue_try_std_heap_redirect_sym_local(name, nlen, out, cap);
 }
 

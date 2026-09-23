@@ -32,11 +32,21 @@ extern uint8_t g_pipe_elf_data_buf[W744_PIPE_ELF_DATA_CAP];
 extern int32_t g_pipe_elf_data_len;
 extern uint8_t *g_pipe_elf_data_owner;
 
-/* Leftover compact-writer statics (macho_write inlines len+buf).
+/* Leftover compact-writer homes (macho_write inlines len+buf).
  * data_owner is .x-only in product pabi (leftover C owner was unused and
- * dropped from the overlay TU). PLATFORM: SHARED leftover gcc sidecar. */
+ * dropped from this TU).
+ * Darwin and Windows pabi already export these two names (Darwin aliases
+ * data_len onto g_pipe_elf_data_len). Linux pure-asm pabi emits only the
+ * g_pipe_elf_data_* names, so this TU owns the g_pipeline_elf_data_* BSS
+ * there — the same split the reloc overlay uses for g_pipeline_elf_reloc_*.
+ * PLATFORM: LINUX|UBUNTU definition. MACOS|WINDOWS extern (pabi owns them). */
+#if defined(__APPLE__) || defined(_WIN32)
 extern uint8_t g_pipeline_elf_data_buf[W744_PIPE_ELF_DATA_CAP];
 extern int32_t g_pipeline_elf_data_len;
+#else
+uint8_t g_pipeline_elf_data_buf[W744_PIPE_ELF_DATA_CAP];
+int32_t g_pipeline_elf_data_len;
+#endif
 
 /**
  * Clamp a data_len to [0, CAP].
