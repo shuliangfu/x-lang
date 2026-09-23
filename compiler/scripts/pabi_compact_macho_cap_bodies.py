@@ -97,6 +97,14 @@ def want_compact(name: str) -> bool:
         "_asm_wpo_collect_from_block",
     ):
         return True
+
+
+    # Class BO: Cap-heavy safe-name ladders only (2 funcs; product L2 Cap heavy off).
+    if name in (
+        "_asm_parser_emit_heavy_safe_helper",
+        "_asm_typeck_emit_heavy_safe_helper",
+    ):
+        return True
     return False
 
 
