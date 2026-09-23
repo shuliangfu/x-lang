@@ -18,6 +18,8 @@
  * wave882: arch_riscv64_enc_enc_ldr_xreg_xreg_imm lives in that .x too.
  * It still forwards to backend_enc_riscv64_ldr_xreg_xreg_imm_c, which
  * stays in this tail. The symbol stays strong.
+ * wave883: arch_x86_64_enc_enc_cdqe_rax_impl lives in that .x too.
+ * It appends the x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -343,7 +345,10 @@ int32_t backend_enc_store_arg_sp_offset_arch(struct platform_elf_ElfCodegenCtx *
 
 
 
-/** x86_64 cdqe；定义见本文件末尾。 */
+/* w883: the body of arch_x86_64_enc_enc_cdqe_rax_impl lives in
+ * src/asm/backend_enc_dispatch_thin.x and appends 0x48 0x98.
+ * This prototype remains so this tail can still name the symbol.
+ * Stays strong. PLATFORM: SHARED. */
 int32_t arch_x86_64_enc_enc_cdqe_rax_impl(struct platform_elf_ElfCodegenCtx *elf_ctx);
 
 extern int32_t arch_arm64_enc_enc_add_imm_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm);
@@ -1658,16 +1663,10 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
  */
 /* G-02f-206：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
-/**
- * x86_64 cdqe（48 98）：movl (%rax),%eax 后符号扩展 eax→rax，避免 binop 误用残留指针。
- */
-/* G-02f-419：实现体始终 seed；public PREFER 时 thin pure forward */
-int32_t arch_x86_64_enc_enc_cdqe_rax_impl(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t cdqe[2] = {0x48, 0x98};
-  if (!elf_ctx)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cdqe, 2);
-}
+/* w883: arch_x86_64_enc_enc_cdqe_rax_impl is defined in
+ * backend_enc_dispatch_thin.x. It appends 0x48 0x98 so a 32-bit load
+ * sign-extends eax into rax. The prototype earlier in this file still
+ * names the symbol. Stays strong. PLATFORM: SHARED. */
 
 /* F7 dyn Trait vtable dispatch: per-arch indirect call + 64-bit load encoders.
  * Logic source: src/asm/backend_enc_dispatch.x (G.7 twin product seed).

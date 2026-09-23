@@ -21,6 +21,8 @@
 // w882 places arch_riscv64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
 // backend_enc_riscv64_ldr_xreg_xreg_imm_c, which stays in the C tail.
 // That symbol stays strong.
+// w883 places arch_x86_64_enc_enc_cdqe_rax_impl here. It appends the
+// x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -1392,7 +1394,6 @@ export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx
 export extern "C" function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
-export extern "C" function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32;
 /* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
  * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
@@ -3691,5 +3692,27 @@ export function arch_riscv64_enc_enc_jalr_reg(elf_ctx: *u8, reg: i32): i32 {
 #[no_mangle]
 export function arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
   unsafe { return backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset); }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+
+/**
+ * Emit x86_64 cdqe so a 32-bit load sign-extends eax into rax.
+ * The two bytes are 0x48 0x98. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected
+ * @return i32 — 0 when both bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32 {
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    // Local pair, same bytes as the former static {0x48, 0x98}.
+    let cdqe: u8[2] = [];
+    cdqe[0] = 72;
+    cdqe[1] = 152;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &cdqe[0], 2);
+  }
   return 0 - 1;
 }
