@@ -6,10 +6,9 @@
 // seeds/runtime_link_abi.from_x.c rest). FROM_X rest skips those #if bodies.
 // Same-name #[cfg] `return 1` dual-emits reti32 on Darwin — helpers + dispatch.
 // Cold non-FROM_X still uses rest #if. Do not -E as repair.
-// wave763 Class N: bootstrap_init_static_tls / bootstrap_init_environ were
-// Cap XLANG_WEAK no-ops in link_abi rest (always host-cc). Move to L2 pure-asm;
-// FROM_X rest skips those bodies. Product authority stays empty no-op (nostdlib
-// strong defs in bootstrap_nostdlib_stubs are orphan / freestanding-only).
+// wave763 Class N: FROM_X rest skips Cap WEAK empty bootstrap_init_* ;
+// product strong TLS/environ init stays in bootstrap_nostdlib_stubs (CB-fix:
+// L2 must not export empty strong and win allow-multiple-definition).
 // PLATFORM: SHARED — Darwin + Ubuntu L2.
 
 #[cfg(target_os = "linux")]
@@ -173,15 +172,9 @@ export function bootstrap_nostdlib_pthread_is_stub(): i32 {
   return bootstrap_nostdlib_pthread_is_stub_off();
 }
 
-// wave763 Class N: crt0 calls these before main. Product WEAK defs were empty
-// no-ops in link_abi rest (always host-cc). Pure-asm owns the same no-ops;
-// FROM_X rest skips Cap bodies. Freestanding strong bodies stay in
-// seeds/bootstrap_nostdlib_stubs.from_x.c (orphan on product link).
-
-#[no_mangle]
-export function bootstrap_init_static_tls(): void {
-}
-
-#[no_mangle]
-export function bootstrap_init_environ(argc: i32, argv: *u8): void {
-}
+// wave763 Class N / Class CB-fix: do NOT export empty bootstrap_init_static_tls
+// / bootstrap_init_environ here. Strong empty + G05 -Wl,--allow-multiple-definition
+// + runtime_link_abi before bootstrap_nostdlib_stubs in G05_OBJS stole the real
+// stubs TLS init → Ubuntu tip pure-ld SEGV on %fs:0x28 stack canary.
+// FROM_X rest only forward-declares; product strong body = seeds/bootstrap_nostdlib_stubs.
+// Cap WEAK empty remains in !FROM_X rest as archaeology fallback.
