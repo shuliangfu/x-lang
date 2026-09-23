@@ -36,6 +36,12 @@
 - 🟡 tip `parser_asm_thin_glue` 暂 cold monothin（prefer hybrid 待稳）
 - 🟡 `__compact_unwind` 批剥脚本暂 no-op（LOH 腐蚀；禁当主刀）
 
+### Class CJ（2026-09-23）runtime_driver_diagnostic thin 退出整份 host-cc
+
+- ✅ thin 面由 tip 纯 asm 提供；无宏预处理与迁前逐字节相同
+- 🟡 asm BSS 八函数仍 host-cc（文件级 `let` 赋值在当前 tip 上 CG002）
+- 🟡 Windows 与冷种子仍可整份 host-cc 这颗种子
+
 ### Class CI（2026-09-23）backend_enc_dispatch thin 退出整份 host-cc
 
 - ✅ thin 面在 `-DXLANG_L2_ENC_DISPATCH_THIN_FROM_X` 下由 tip 纯 asm 提供（预处理 −37253；迁前 167 个全局符号仍在）
@@ -320,7 +326,7 @@
 
 ### 推荐推进序
 
-1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CI** 把 `backend_enc_dispatch` 的 thin 面退出整份 POSIX 产品 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份 tip 能纯 asm、且非 HARD BAN 的 from_x。禁 leftover-first；禁 `-E` 当修；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
+1. **主刀 M2**（[`自举效率方法-M2主链.md`](自举效率方法-M2主链.md)）：**Class F–AO** 已收。**Class CJ** 把 `runtime_driver_diagnostic` 的 thin 面退出整份 POSIX 产品 host-cc。asm BSS 八函数仍 host-cc。f64 尾仍 host-cc。lexer 尾仍 host-cc。活 FROM_X rest 的其余面仍 host-cc，剩下的 thin 面在 HARD BAN。HARD BAN 禁分类主刀。**三端 L2 硬闸仍启用**。下一刀＝另一份 tip 能纯 asm、且非 HARD BAN 的 from_x。禁 leftover-first；禁 `-E` 当修文件级 `let` 赋值；禁盲 FORCE mega；禁升钉；禁再搬已经 `#ifndef` 的冷孪生；禁剥 thin_glue。
 2. 🟡 **7.2.1b 残**＋**8.3 冷孪生** — 产品 `.inc` 仍 host-cc；禁再深链分批 eq  
 3. ⬜ **7.2.1／7.2.2** parser seed 物理删／去 pin  
 4. 🟡 **阶段 10** 残（NT／MSVC／qemu／Win 实机）  
@@ -328,6 +334,7 @@
 
 > 完成一步只改对应 `⬜`→`🟡`→`✅`。不要在本文写 tip／wave／日志路径。
 
+- 2026-09-23 driver_diagnostic：POSIX 产品 thin 纯 asm。asm BSS 八函数仍在 rest 里 host-cc。无宏预处理与迁前相同。Windows／冷种子仍可整份 `cc`。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
 - 2026-09-23 pipeline_abi：纯 `#ifndef FROM_X` 冷孪生出 seeds（文件约 2.78MB→1.51MB）。产品 rest 预处理不变，仍 host-cc。
 - 2026-09-23 ast_forwarders：POSIX 产品 rest 在 `XLANG_PABI_AST_FORWARDERS_ASM` 下不再编这 186 个 C 体，改由纯 asm thin 提供。Windows／冷种子仍编 C 体。

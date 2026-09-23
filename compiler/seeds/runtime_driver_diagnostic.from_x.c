@@ -8,11 +8,12 @@
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
  * typeck_import_const/warn_pad/warn_hot/hint_unused +
  * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
- * after_entry_parse_module/codegen_emit_func_fail +
- * asm last_expr/store/trace/print/var/fail_at + slice_marker dropped;
+ * after_entry_parse_module/codegen_emit_func_fail + slice_marker dropped;
  * wave6: Cap-va report_x cold-only (FROM_X dead — pure XP001/XP002 cover callers);
  * lsp_diag_get_enabled authority moved to runtime_lsp_glue (G.7 with flag owner).
- * FROM_X rest T=0 (empty TU of public business symbols).
+ * Asm BSS (last_expr/store/trace/print/var/fail_at) stays in this TU under
+ * FROM_X: the tip CG002s on a file-scope let store, so the thin does not
+ * own that buffer. Other thin public bodies stay out of the FROM_X rest.
  * Generated from (G-02f-86/96 +copy/report_prefixed) src/runtime_driver_diagnostic.x.
  * Regen: ./xlang-c -E -L .. src/runtime_driver_diagnostic.x > /tmp/rdd.c
  *         merge fixed-msg wrappers; polish slice strings; Cap snprintf (10.7.2).
@@ -34,9 +35,9 @@ extern char *link_abi_getenv(const char *name);
  * parse_skip/parse_commit_fail/parse_func_generic/parser_onefunc_param_ref +
  * typeck_import_const/warn_pad/warn_hot/hint_unused +
  * typeck_binop_operands/parse_commit_shape/parser_diagnostic_parse_commit_shape +
- * after_entry_parse_module/codegen_emit_func_fail +
- * asm last_expr/store/trace/print/var/fail_at
- * — rest must not #define dropped _impl */
+ * after_entry_parse_module/codegen_emit_func_fail
+ * — rest must not #define those dropped publics.
+ * Asm BSS bodies are later in this file and stay defined under FROM_X. */
 /* thin supplies pure public for rest residual callers */
 int driver_diag_env_debug_pipe(void);
 int32_t driver_parse_strict_enabled(void);
@@ -1408,9 +1409,13 @@ void driver_diagnostic_asm_macho_missing_und_reloc(int32_t reloc_idx)
 
 
 
-/* pure authority wave5: thin.x module BSS + store/set/trace/print/var/fail_at (append+note).
- * Cold keeps C static BSS + reportf bodies; FROM_X rest no pure-dup _impl (H↓). */
-#ifndef XLANG_L2_RDD_THIN_FROM_X
+/* Asm BSS family stays in this TU for both cold and XLANG_L2_RDD_THIN_FROM_X.
+ * The thin used to own these eight functions, but the current tip CG002s on
+ * any store to a file-scope let (a load of the same let emits). One C static
+ * buffer is the store and the notes that read it.
+ * PLATFORM: SHARED — POSIX product rest keeps this block; cold seed unchanged
+ * when the macro is unset (the old #ifndef body was already compiled).
+ */
 /** asm 后端：记录当前正在 emit 的 ExprKind 序数，供 fail_at 时打印。 */
 static int driver_diagnostic_asm_last_expr_kind = -1;
 void driver_diagnostic_asm_last_expr_kind_set_impl(int32_t k) {
@@ -1504,7 +1509,6 @@ void driver_diagnostic_asm_fail_at(int32_t loc)
                  "asm codegen fail_at=%d (last_expr_kind=%d)",
                  (int)loc, driver_diagnostic_asm_last_expr_kind);
 }
-#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 
