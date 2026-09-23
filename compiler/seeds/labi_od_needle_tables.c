@@ -1138,3 +1138,684 @@ const char *labi_std_fk_gate_sym_at(int fk, int i) {
     return NULL;
   return row->syms[i];
 }
+
+/* Class BF: table form of labi_od_kv_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_kv_sym_at_tab[14] = {
+  "std_db_kv_mmap_available",
+  "std_db_kv_open",
+  "std_db_kv_close",
+  "std_db_kv_append_ts",
+  "std_db_kv_get",
+  "std_db_kv_wal_flush",
+  "std_db_kv_compact",
+  "std_db_kv_sst_level_count",
+  "std_db_kv_sync",
+  "std_db_kv_put",
+  "std_db_kv_compact_generation",
+  "std_db_kv_wal_bytes",
+  "db_kv_open_c",
+  "db_kv_get_c"
+};
+const char *labi_od_kv_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_kv_sym_at_tab) / sizeof(labi_od_kv_sym_at_tab[0])))
+    return NULL;
+  return labi_od_kv_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_arrow_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_arrow_sym_at_tab[29] = {
+  "std_db_arrow_adopt_f32_ptr_i32_i32",
+  "std_db_arrow_sum",
+  "std_db_arrow_dot",
+  "std_db_arrow_free_ArrowColumn",
+  "std_db_arrow_new_i32",
+  "std_db_arrow_new_f32",
+  "std_db_arrow_new_f64",
+  "std_db_arrow_adopt_i32_ptr_i32_i32",
+  "std_db_arrow_length_ArrowColumn",
+  "std_db_arrow_length_ArrowBatch",
+  "std_db_arrow_owned",
+  "std_db_arrow_null_bitmap",
+  "std_db_arrow_valid",
+  "std_db_arrow_data_i32",
+  "std_db_arrow_data_f32",
+  "std_db_arrow_data_f64",
+  "std_db_arrow_append_ArrowColumn_i32",
+  "std_db_arrow_append_ArrowColumn_f32",
+  "std_db_arrow_append_ArrowColumn_f64",
+  "std_db_arrow_append_null",
+  "std_db_arrow_batch",
+  "std_db_arrow_add",
+  "std_db_arrow_get",
+  "std_db_arrow_free_ArrowBatch",
+  "std_db_arrow_sum_valid_i32",
+  "std_db_arrow_sum_valid_f32",
+  "std_db_arrow_simd_hw_available",
+  "arrow_column_i32_create_c",
+  "arrow_column_adopt_f32_c"
+};
+const char *labi_od_arrow_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_arrow_sym_at_tab) / sizeof(labi_od_arrow_sym_at_tab[0])))
+    return NULL;
+  return labi_od_arrow_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_net_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_net_sym_at_tab[34] = {
+  "std_net_listen",
+  "std_net_connect",
+  "std_net_udp_bind",
+  "std_net_udp_recv_many_buf",
+  "std_net_udp_send_many_buf",
+  "std_net_addr_to_u32",
+  "std_net_close_udp",
+  "net_stream_write_batch_c",
+  "net_tcp_connect_c",
+  "net_tcp_listen_c",
+  "net_udp_bind_c",
+  "net_udp_recv_many_buf_c",
+  "net_udp_send_many_buf_c",
+  "net_close_socket_c",
+  "net_udp_send_c",
+  "net_dns_resolve_c",
+  "net_sock_create_c",
+  "std_net_resolve_ex",
+  "std_net_resolve_err_host_not_found",
+  "std_net_resolve_err_no_data",
+  "std_net_close_stream",
+  "std_net_connect_blocking",
+  "std_net_write_batch",
+  "std_net_tcp_pool_connect_count",
+  "std_net_tcp_pool_destroy",
+  "std_net_tcp_pool_drain",
+  "std_net_tcp_pool_idle_count",
+  "std_net_close_listener",
+  "std_net_tcp_pool_new",
+  "std_net_tcp_pool_smoke",
+  "std_net_tcp_pool_acquire",
+  "std_net_tcp_pool_release",
+  "net_resolve_ipv4_ex_c",
+  "net_resolve_ipv6_ex_c"
+};
+const char *labi_od_net_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_net_sym_at_tab) / sizeof(labi_od_net_sym_at_tab[0])))
+    return NULL;
+  return labi_od_net_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_vec_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_vec_sym_at_tab[44] = {
+  "std_vec_push_Vec_u16_ptr_u16",
+  "std_vec_push_Vec_i32_ptr_i32",
+  "std_vec_push_Vec_u8_ptr_u8",
+  "std_vec_get_Vec_u16_i32",
+  "std_vec_length_Vec_u16",
+  "std_vec_deinit_Vec_u16_ptr",
+  "std_vec_get_Vec_i32_i32",
+  "std_vec_length_Vec_i32",
+  "std_vec_deinit_Vec_i32_ptr",
+  "std_vec_from_slice_u8_ptr_i32",
+  "std_vec_capacity_Vec_u8",
+  "std_vec_clear_Vec_u8_ptr",
+  "std_vec_pop_Vec_i32_ptr",
+  "std_vec_pop_Vec_u8_ptr",
+  "std_vec_extend_Vec_i32_ptr_i32_ptr_i32",
+  "std_vec_extend_Vec_u8_ptr_u8_ptr_i32",
+  "std_vec_extend_Vec_u64_ptr_u64_ptr_i32",
+  "std_vec_extend_Vec_f64_ptr_f64_ptr_i32",
+  "std_vec_from_slice_u64_ptr_i32",
+  "std_vec_from_slice_f64_ptr_i32",
+  "std_vec_push_Vec_u64_ptr_u64",
+  "std_vec_push_Vec_f64_ptr_f64",
+  "std_vec_length_Vec_u64",
+  "std_vec_deinit_Vec_u64_ptr",
+  "std_vec_length_Vec_f64",
+  "std_vec_deinit_Vec_f64_ptr",
+  "std_vec_get_Vec_u64_i32",
+  "std_vec_get_Vec_f64_i32",
+  "std_vec_vec3f_soa_push",
+  "std_vec_vec3f_soa_deinit",
+  "std_vec_vec3f_aos_push",
+  "std_vec_vec3f_aos_deinit",
+  "std_vec_vec3f_soa_sum_x",
+  "std_vec_vec3f_soa_reserve_one",
+  "std_vec_vec3f_soa_len",
+  "std_vec_vec3f_soa_get_x",
+  "std_vec_vec3f_soa_get_y",
+  "std_vec_vec3f_soa_get_z",
+  "std_vec_vec3f_soa_set",
+  "std_vec_vec3f_soa_with_capacity",
+  "std_vec_vec3f_aos_reserve_one",
+  "std_vec_vec3f_aos_get_x",
+  "std_vec_vec3f_aos_sum_x",
+  "std_vec_vec3f_aos_with_capacity"
+};
+const char *labi_od_vec_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_vec_sym_at_tab) / sizeof(labi_od_vec_sym_at_tab[0])))
+    return NULL;
+  return labi_od_vec_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_set_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_set_sym_at_tab[20] = {
+  "std_set_new_i32_retSet_i32",
+  "std_set_new_i32_retSet_u64",
+  "std_set_with_capacity_Set_i32_ptr_i32",
+  "std_set_insert_Set_i32_ptr_i32",
+  "std_set_insert_Set_u64_ptr_u64",
+  "std_set_contains_key_Set_i32_i32",
+  "std_set_contains_key_Set_u64_u64",
+  "std_set_remove_Set_i32_ptr_i32",
+  "std_set_remove_Set_u64_ptr_u64",
+  "std_set_length_Set_i32",
+  "std_set_length_Set_u64",
+  "std_set_deinit_Set_i32_ptr",
+  "std_set_deinit_Set_u64_ptr",
+  "std_set_str_new",
+  "std_set_str_insert",
+  "std_set_set_i32_insert",
+  "std_set_set_i32_contains",
+  "std_set_set_i32_remove",
+  "std_set_set_i32_len",
+  "std_set_set_i32_deinit"
+};
+const char *labi_od_set_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_set_sym_at_tab) / sizeof(labi_od_set_sym_at_tab[0])))
+    return NULL;
+  return labi_od_set_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_map_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_map_sym_at_tab[15] = {
+  "std_map_empty_size",
+  "std_map_new_Map_i32_i32",
+  "std_map_with_capacity_Map_i32_i32_ptr_i32",
+  "std_map_insert_Map_i32_i32_ptr_i32_i32",
+  "std_map_get_Map_i32_i32_i32",
+  "std_map_find_Map_i32_i32_i32",
+  "std_map_deinit_Map_i32_i32_ptr",
+  "std_map_str_new",
+  "std_map_str_insert",
+  "std_map_new_u64",
+  "std_map_with_capacity_Map_u64_i32_ptr_i32",
+  "std_map_insert_Map_u64_i32_ptr_u64_i32",
+  "std_map_get_Map_u64_i32_u64_i32",
+  "std_map_remove_Map_u64_i32_ptr_u64",
+  "std_map_deinit_Map_u64_i32_ptr"
+};
+const char *labi_od_map_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_map_sym_at_tab) / sizeof(labi_od_map_sym_at_tab[0])))
+    return NULL;
+  return labi_od_map_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_queue_api_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_queue_api_sym_at_tab[12] = {
+  "std_queue_new_retQueue_i32",
+  "std_queue_new_retQueue_u8",
+  "std_queue_push_back_Queue_i32_ptr_i32",
+  "std_queue_push_back_Queue_u8_ptr_u8",
+  "std_queue_push_front",
+  "std_queue_pop_front_Queue_i32_ptr",
+  "std_queue_pop_back",
+  "std_queue_get",
+  "std_queue_length_Queue_i32",
+  "std_queue_is_empty_Queue_i32",
+  "std_queue_deinit_Queue_i32_ptr",
+  "std_queue_with_capacity"
+};
+const char *labi_od_queue_api_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_queue_api_sym_at_tab) / sizeof(labi_od_queue_api_sym_at_tab[0])))
+    return NULL;
+  return labi_od_queue_api_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_test_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_test_sym_at_tab[28] = {
+  "test_call_i32_void_c",
+  "test_runner_",
+  "test_expect_",
+  "test_bench_",
+  "test_f_test_",
+  "test_io_",
+  "test_fuzz_",
+  "std_test_expect",
+  "std_test_expect_eq_i32",
+  "std_test_expect_ne_i32",
+  "std_test_assert",
+  "std_test_runner_case",
+  "test_expect_c",
+  "test_expect_eq_i32_c",
+  "test_expect_eq_u32_c",
+  "test_expect_ne_i32_c",
+  "test_run_c",
+  "test_bench_run_c",
+  "test_bench_report_c",
+  "test_fuzz_seed_c",
+  "test_fuzz_next_c",
+  "test_fuzz_run_c",
+  "test_bench_run_noop_c",
+  "test_fuzz_run_noop_c",
+  "test_runner_reset_c",
+  "test_runner_report_case_c",
+  "test_runner_report_skip_c",
+  "test_runner_finish_c"
+};
+const char *labi_od_test_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_test_sym_at_tab) / sizeof(labi_od_test_sym_at_tab[0])))
+    return NULL;
+  return labi_od_test_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_core_mem_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_core_mem_sym_at_tab[31] = {
+  "core_mem_align_up",
+  "core_mem_align_down",
+  "core_mem_mem_copy",
+  "core_mem_mem_set",
+  "core_mem_mem_zero",
+  "core_mem_mem_move",
+  "core_mem_mem_compare",
+  "core_mem_mem_swap",
+  "core_mem_is_alignment_power_of_two",
+  "core_mem_placeholder",
+  "core_mem_align_of_i32",
+  "core_mem_align_of_bool",
+  "core_mem_align_of_u8",
+  "core_mem_align_of_u32",
+  "core_mem_align_of_u64",
+  "core_mem_align_of_i64",
+  "core_mem_align_of_usize",
+  "core_mem_align_of_isize",
+  "core_mem_align_of_f32",
+  "core_mem_align_of_f64",
+  "core_mem_align_of_pointer",
+  "core_mem_volatile_load_u8",
+  "core_mem_volatile_store_u8",
+  "core_mem_volatile_load_u16",
+  "core_mem_volatile_store_u16",
+  "core_mem_volatile_load_u32",
+  "core_mem_volatile_store_u32",
+  "core_mem_compiler_fence",
+  "core_mem_fence_acquire",
+  "core_mem_fence_release",
+  "core_mem_fence_seq_cst"
+};
+const char *labi_od_core_mem_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_core_mem_sym_at_tab) / sizeof(labi_od_core_mem_sym_at_tab[0])))
+    return NULL;
+  return labi_od_core_mem_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_sys_linux_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_sys_linux_sym_at_tab[38] = {
+  "std_sys_linux_linux_syscall_nr_read_amd64",
+  "std_sys_linux_linux_syscall_nr_write_amd64",
+  "std_sys_linux_linux_syscall_nr_open_amd64",
+  "std_sys_linux_linux_syscall_nr_close_amd64",
+  "std_sys_linux_linux_syscall_nr_exit_amd64",
+  "std_sys_linux_linux_syscall_nr_mmap_amd64",
+  "std_sys_linux_linux_syscall_nr_read_arm64",
+  "std_sys_linux_linux_syscall_nr_write_arm64",
+  "std_sys_linux_linux_syscall_nr_openat_arm64",
+  "std_sys_linux_linux_syscall_nr_close_arm64",
+  "std_sys_linux_linux_syscall_nr_exit_arm64",
+  "std_sys_linux_linux_syscall_nr_mmap_arm64",
+  "std_sys_linux_linux_syscall_table_available",
+  "std_sys_linux_linux_syscall_invoke_available",
+  "std_sys_linux_linux_syscall_read",
+  "std_sys_linux_linux_syscall_close",
+  "std_sys_linux_linux_syscall_write",
+  "std_sys_linux_linux_syscall_exit",
+  "std_sys_linux_linux_syscall_openat",
+  "std_sys_linux_linux_anonymous_mmap",
+  "std_sys_linux_linux_syscall_munmap",
+  "std_sys_linux_linux_read_file_openat",
+  "std_sys_linux_linux_syscall_open",
+  "std_sys_linux_linux_read_file_into",
+  "std_sys_linux_linux_syscall_socket",
+  "std_sys_linux_linux_syscall_connect",
+  "std_sys_linux_linux_syscall_bind",
+  "std_sys_linux_linux_syscall_listen",
+  "std_sys_linux_linux_syscall_accept",
+  "std_sys_linux_linux_mmap_rw",
+  "std_sys_linux_linux_munmap",
+  "std_sys_linux_linux_msync_sync",
+  "std_sys_linux_linux_mmap_file_available",
+  "std_sys_linux_linux_sys_module_anchor",
+  "xlang_sys_close",
+  "xlang_sys_openat",
+  "xlang_sys_exit",
+  "xlang_sys_connect"
+};
+const char *labi_od_sys_linux_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_sys_linux_sym_at_tab) / sizeof(labi_od_sys_linux_sym_at_tab[0])))
+    return NULL;
+  return labi_od_sys_linux_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_sys_macos_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_sys_macos_sym_at_tab[13] = {
+  "std_sys_macos_macos_exit",
+  "std_sys_macos_macos_write_available",
+  "std_sys_macos_macos_write",
+  "std_sys_macos_macos_write_stdout",
+  "std_sys_macos_macos_write_stderr",
+  "std_sys_macos_macos_read",
+  "std_sys_macos_macos_close",
+  "std_sys_macos_macos_read_file_into",
+  "std_sys_macos_macos_anonymous_mmap",
+  "std_sys_macos_macos_munmap",
+  "std_sys_macos_macos_mmap_available",
+  "std_sys_macos_macos_mmap_rw",
+  "std_sys_macos_macos_msync_sync"
+};
+const char *labi_od_sys_macos_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_sys_macos_sym_at_tab) / sizeof(labi_od_sys_macos_sym_at_tab[0])))
+    return NULL;
+  return labi_od_sys_macos_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_heap_api_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_heap_api_sym_at_tab[32] = {
+  "std_heap_alloc_i32",
+  "std_heap_alloc_u8",
+  "std_heap_free_i32",
+  "std_heap_free_u8",
+  "std_heap_alloc_size_zero",
+  "std_heap_alloc_usize",
+  "std_heap_free_u8_ptr",
+  "std_heap_default_alloc",
+  "std_heap_kind_arena",
+  "std_heap_alloc_Allocator_usize",
+  "std_heap_realloc_Allocator_u8_ptr_usize",
+  "std_heap_free_Allocator_u8_ptr",
+  "std_heap_arena64_alloc",
+  "std_heap_libc_heap_arena64_alloc_c",
+  "std_heap_libc_heap_alloc_c",
+  "std_heap_libc_heap_free_c",
+  "std_heap_libc_heap_alloc_aligned_c",
+  "std_heap_libc_heap_alloc_i32_c",
+  "std_heap_libc_heap_alloc_u8_c",
+  "std_heap_libc_heap_alloc_u64_c",
+  "std_heap_libc_heap_free_i32_c",
+  "std_heap_libc_heap_free_u8_c",
+  "std_heap_libc_heap_free_u64_c",
+  "std_heap_map_find",
+  "std_heap_libc_heap_copy_u8_at_c",
+  "std_heap_trace_on",
+  "std_heap_trace_reset",
+  "std_heap_arena64_empty",
+  "std_heap_arena64_init",
+  "std_heap_arena64_deinit",
+  "std_heap_mem_set",
+  "std_heap_mem_compare"
+};
+const char *labi_od_heap_api_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_heap_api_sym_at_tab) / sizeof(labi_od_heap_api_sym_at_tab[0])))
+    return NULL;
+  return labi_od_heap_api_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_async_scheduler_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_async_scheduler_sym_at_tab[35] = {
+  "xlang_async_coop_pingpong",
+  "xlang_async_coop_pingpong_jmp",
+  "xlang_async_cps_suspend",
+  "xlang_async_asm_frame_phase_by_id",
+  "xlang_async_asm_frame_store_from_ptr",
+  "xlang_async_asm_frame_load_to_ptr",
+  "xlang_async_asm_frame_reset_by_id",
+  "xlang_async_cps_suspend_io",
+  "xlang_async_run_i32",
+  "xlang_async_task_submit",
+  "xlang_async_task_submit_to",
+  "xlang_async_scheduler_drain",
+  "xlang_async_worker_drain",
+  "xlang_async_worker_count",
+  "xlang_async_worker_pending",
+  "xlang_async_queue_reset",
+  "xlang_async_scheduler_pending",
+  "xlang_async_io_wake_all",
+  "xlang_async_io_waiters_pending",
+  "xlang_async_io_completions_ready",
+  "xlang_async_run_seed_set_i32",
+  "xlang_async_run_seed_reset",
+  "xlang_async_run_seed_push_i32",
+  "xlang_async_run_seed_push_u32",
+  "xlang_async_run_seed_push_i64",
+  "xlang_async_run_seed_valid",
+  "xlang_async_run_seed_take_i32",
+  "xlang_async_run_seed_take_u32",
+  "xlang_async_run_seed_take_i64",
+  "xlang_io_submit_read_async",
+  "xlang_io_complete_read_async",
+  "xlang_io_complete_read_async_slot",
+  "xlang_io_submit_write_async",
+  "xlang_io_complete_write_async",
+  "xlang_io_complete_write_async_slot"
+};
+const char *labi_od_async_scheduler_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_async_scheduler_sym_at_tab) / sizeof(labi_od_async_scheduler_sym_at_tab[0])))
+    return NULL;
+  return labi_od_async_scheduler_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_zlib_undef_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_zlib_undef_sym_at_tab[22] = {
+  "_compress2",
+  "_deflate",
+  "_inflate",
+  "_uncompress",
+  "compress2",
+  "deflate",
+  "inflate",
+  "uncompress",
+  "_deflateInit2",
+  "_inflateInit2",
+  "_std_compress_gzip_gzip_compress",
+  "_std_compress_gzip_gzip_decompress",
+  "deflateInit2",
+  "inflateInit2",
+  "std_compress_gzip_gzip_compress",
+  "std_compress_gzip_gzip_decompress",
+  "_std_compress_gzip_compress",
+  "_std_compress_gzip_decompress",
+  "std_compress_gzip_compress",
+  "std_compress_gzip_decompress",
+  "_std_compress_compress_init",
+  "std_compress_compress_init"
+};
+const char *labi_od_zlib_undef_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_zlib_undef_sym_at_tab) / sizeof(labi_od_zlib_undef_sym_at_tab[0])))
+    return NULL;
+  return labi_od_zlib_undef_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_zstd_undef_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_zstd_undef_sym_at_tab[12] = {
+  "ZSTD_",
+  "_ZSTD",
+  "_std_compress_zstd_compress",
+  "_std_compress_zstd_decompress",
+  "std_compress_zstd_compress",
+  "std_compress_zstd_decompress",
+  "_std_compress_zstd_zstd_compress",
+  "_std_compress_zstd_zstd_decompress",
+  "std_compress_zstd_zstd_compress",
+  "std_compress_zstd_zstd_decompress",
+  "_std_compress_compress_init",
+  "std_compress_compress_init"
+};
+const char *labi_od_zstd_undef_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_zstd_undef_sym_at_tab) / sizeof(labi_od_zstd_undef_sym_at_tab[0])))
+    return NULL;
+  return labi_od_zstd_undef_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_brotli_undef_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_brotli_undef_sym_at_tab[12] = {
+  "BrotliEncoderCompress",
+  "BrotliDecoderDecompress",
+  "_std_compress_brotli_compress",
+  "_std_compress_brotli_decompress",
+  "std_compress_brotli_compress",
+  "std_compress_brotli_decompress",
+  "_std_compress_brotli_brotli_compress",
+  "_std_compress_brotli_brotli_decompress",
+  "std_compress_brotli_brotli_compress",
+  "std_compress_brotli_brotli_decompress",
+  "_std_compress_compress_init",
+  "std_compress_compress_init"
+};
+const char *labi_od_brotli_undef_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_brotli_undef_sym_at_tab) / sizeof(labi_od_brotli_undef_sym_at_tab[0])))
+    return NULL;
+  return labi_od_brotli_undef_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_runtime_time_os_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_runtime_time_os_sym_at_tab[10] = {
+  "time_now_monotonic_ns_c",
+  "time_now_wall_ns_c",
+  "time_sleep_ns_c",
+  "time_format_wall_rfc3339_c",
+  "time_wall_local_offset_min_c",
+  "std_time_now_monotonic_ns",
+  "std_time_now_wall_ns",
+  "std_time_sleep_ms",
+  "std_time_timer_start",
+  "std_time_duration_ns"
+};
+const char *labi_od_runtime_time_os_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_runtime_time_os_sym_at_tab) / sizeof(labi_od_runtime_time_os_sym_at_tab[0])))
+    return NULL;
+  return labi_od_runtime_time_os_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_runtime_random_fill_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_runtime_random_fill_sym_at_tab[12] = {
+  "random_fill_bytes_c",
+  "std_random_fill_bytes",
+  "std_random_fill",
+  "std_random_next",
+  "std_random_range_u32_u32",
+  "std_random_gen",
+  "std_random_flip",
+  "std_random_rng_smoke",
+  "std_random_seed",
+  "random_u32_c",
+  "random_u64_c",
+  "random_rng_smoke_c"
+};
+const char *labi_od_runtime_random_fill_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_runtime_random_fill_sym_at_tab) / sizeof(labi_od_runtime_random_fill_sym_at_tab[0])))
+    return NULL;
+  return labi_od_runtime_random_fill_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_runtime_env_os_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_runtime_env_os_sym_at_tab[19] = {
+  "env_getenv_c",
+  "env_getenv_exists_c",
+  "env_getenv_z_c",
+  "env_getenv_ptr_c",
+  "env_setenv_c",
+  "env_unsetenv_c",
+  "env_temp_dir_c",
+  "env_iter_count_c",
+  "env_iter_at_c",
+  "std_env_getenv",
+  "std_env_getenv_exists",
+  "std_env_getenv_z",
+  "std_env_getenv_ptr",
+  "std_env_setenv",
+  "std_env_unsetenv",
+  "std_env_temp_dir",
+  "std_env_iter",
+  "std_env_iter_count",
+  "std_env_args_iter"
+};
+const char *labi_od_runtime_env_os_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_runtime_env_os_sym_at_tab) / sizeof(labi_od_runtime_env_os_sym_at_tab[0])))
+    return NULL;
+  return labi_od_runtime_env_os_sym_at_tab[i];
+}
+
+/* Class BF: table form of labi_od_std_task_sym_at. PLATFORM: SHARED. */
+static const char *const labi_od_std_task_sym_at_tab[29] = {
+  "std_task_new",
+  "std_task_free",
+  "std_task_bind",
+  "std_task_spawn",
+  "std_task_join",
+  "std_task_pending",
+  "std_task_check_leak",
+  "std_task_cancel",
+  "std_task_total",
+  "std_task_set_new",
+  "std_task_set_free",
+  "std_task_set_spawn",
+  "std_task_set_join",
+  "std_task_set_check_leak",
+  "std_task_echo",
+  "std_task_echo_ptr",
+  "std_task_retry",
+  "std_task_err_ok",
+  "task_group_create_c",
+  "task_group_spawn_c",
+  "task_group_join_c",
+  "task_group_free_c",
+  "join_set_create_c",
+  "join_set_spawn_c",
+  "join_set_join_c",
+  "task_smoke_c",
+  "task_supervise_retry_c",
+  "task_echo_fn_c",
+  "task_echo_fn_ptr_c"
+};
+const char *labi_od_std_task_sym_at(int i) {
+  if (i < 0)
+    return NULL;
+  if ((unsigned)i >= (unsigned)(sizeof(labi_od_std_task_sym_at_tab) / sizeof(labi_od_std_task_sym_at_tab[0])))
+    return NULL;
+  return labi_od_std_task_sym_at_tab[i];
+}
