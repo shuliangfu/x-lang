@@ -41,6 +41,11 @@
  * w919: cmp_setcc lives in backend_enc_dispatch_thin.x. The cond field
  * still comes from pipeline_asm_arm64_cset_cond_enc_from_cc. This file
  * no longer emits that symbol. PLATFORM: SHARED.
+ * w925: lea_rbp_to_rax and lea_rbp_to_rbx are defined in
+ * backend_enc_dispatch_thin.x. Each forwards to
+ * arm64_enc_add_rd_rn_imm_chunks. rax uses rd 0 and rn 29.
+ * rbx uses rd 1 and rn 29. This file no longer emits those symbols.
+ * The chunk walk stays here. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -573,46 +578,19 @@ int32_t arch_arm64_enc_enc_ret_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx,
  * It appends the ARM64 word 0x9ac22800 (asr x0, x0, x2).
  * Stays strong. PLATFORM: SHARED. */
 
-/**
- * wave420: LEA x0 = x29 + offset; multi-chunk when offset > 4095.
- * PLATFORM: MACOS|ARM64 product pure-asm.
- */
-int32_t arch_arm64_enc_enc_lea_rbp_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t abs_off;
-  if (offset >= 0)
-    return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 29, offset);
-  abs_off = -offset;
-  /* mov x0, x29; then multi-chunk sub x0,x0,#c */
-  if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | (29u << 16) | 0u) != 0)
-    return -1;
-  while (abs_off > 0) {
-    int32_t chunk = abs_off > 4095 ? 4095 : abs_off;
-    if (arm64_enc_u32_le(elf_ctx, 0xD1000000u | ((uint32_t)chunk << 10) | (0u << 5) | 0u) != 0)
-      return -1;
-    abs_off -= chunk;
-  }
-  return 0;
-}
+/* w925: arch_arm64_enc_enc_lea_rbp_to_rax is defined in
+ * backend_enc_dispatch_thin.x. It forwards to
+ * arm64_enc_add_rd_rn_imm_chunks with rd 0 and rn 29.
+ * A negative offset is a SUB chunk walk inside that helper.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
-/**
- * wave420: LEA x1 = x29 + offset; multi-chunk twin of lea_rbp_to_rax.
- * PLATFORM: MACOS|ARM64.
- */
-int32_t arch_arm64_enc_enc_lea_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t abs_off;
-  if (offset >= 0)
-    return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 29, offset);
-  abs_off = -offset;
-  if (arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | (29u << 16) | 1u) != 0)
-    return -1;
-  while (abs_off > 0) {
-    int32_t chunk = abs_off > 4095 ? 4095 : abs_off;
-    if (arm64_enc_u32_le(elf_ctx, 0xD1000000u | ((uint32_t)chunk << 10) | (1u << 5) | 1u) != 0)
-      return -1;
-    abs_off -= chunk;
-  }
-  return 0;
-}
+/* w925: arch_arm64_enc_enc_lea_rbp_to_rbx is defined in
+ * backend_enc_dispatch_thin.x. It forwards to
+ * arm64_enc_add_rd_rn_imm_chunks with rd 1 and rn 29.
+ * A negative offset is a SUB chunk walk inside that helper.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /**
  * wave420: LDR x0, [x29, #offset] with correct scaled imm12 (byte/8 ≤ 4095).

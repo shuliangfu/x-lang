@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Thin enc publics for backend_enc_dispatch.o.
+// w925 places arch_arm64_enc_enc_lea_rbp_to_rax and
+// arch_arm64_enc_enc_lea_rbp_to_rbx here.
+// Each forwards to arm64_enc_add_rd_rn_imm_chunks.
+// rax uses rd 0 and rn 29. rbx uses rd 1 and rn 29.
+// The chunk walk stays in that C helper. Both stay strong.
 // w924 places arm64_enc_branch_patch here.
 // It appends one instruction word, then reads the code length in a later
 // block and patches that slot. The caller's kind is the patch width.
@@ -106,45 +111,52 @@
 // argument moves stay in the C seed.
 // w913 places seven ARM64 frame load and store encoders here. An aligned
 // offset through 32760 appends one scaled word. offset*128 is the imm12
-// field. A negative load of x0 or x1 forwards to the C lea. A wider
+// field. A negative load of x0 or x1 forwards to lea. A wider
 // offset forwards to arm64_enc_add_rd_rn_imm_chunks, which stays in the
 // C seed. They stay strong. None of them compares elf_ctx with 0 or
-// divides. Jumps, calls, cmp_setcc, prologue, and lea stay in the C seed.
+// divides. Jumps, calls, cmp_setcc, and prologue stay in the C seed.
+// w925 moves the two leas into the thin.
 // w914 places two ARM64 add-immediate encoders here. Each one forwards
 // to arm64_enc_add_rd_rn_imm_chunks, which stays in the C seed. They stay
 // strong. Neither compares elf_ctx with 0 or divides. Jumps, calls,
-// cmp_setcc, prologue, and lea stay in the C seed.
+// cmp_setcc, and prologue stay in the C seed.
+// w925 moves the two leas into the thin.
 // w915 places three x86 append helpers here: x86_enc_u8, x86_enc_u32_le,
 // and x86_enc_bytes. u8 forwards to backend_enc_append_u8_c. u32_le
 // forwards to backend_enc_append_u32_le_c. bytes forwards to
 // pipeline_elf_ctx_append_bytes. They stay strong. None of them compares
-// elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, prologue, lea, and
+// elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, prologue, and
 // the Win64 argument moves stay in the C seed.
+// w925 moves the two leas into the thin.
 // w916 places the x86_64 prologue and epilogue here. Prologue emits
 // push rbp, mov rbp rsp, push rbx, then sub rsp by a frame that is
 // 8 mod 16. Epilogue emits lea rsp [rbp-8], pop rbx, pop rbp, and ret.
 // Both append through x86_enc_u8. They stay strong. Neither compares
-// elf_ctx with 0 or divides. Label, jumps, calls, cmp_setcc, lea, and
+// elf_ctx with 0 or divides. Label, jumps, calls, cmp_setcc, and
 // the Win64 argument moves stay in the C seed.
+// w925 moves the two leas into the thin.
 // w917 places four x86_64 conditional jumps here: jz, jeq, jge, and jnz.
 // Each one forwards to x86_enc_jcc_rel32. The opcodes are 132, 132, 141,
 // and 133. The rel32 patch stays in that C helper. They stay strong.
 // None of them compares elf_ctx with 0 or divides. jmp, call, label,
-// cmp_setcc, lea, and the Win64 argument moves stay in the C seed.
+// cmp_setcc, and the Win64 argument moves stay in the C seed.
+// w925 moves the two leas into the thin.
 // w918 places six ARM64 branches here: jmp, jz, jne, jnz, jeq, and jge.
 // Each one forwards to arm64_enc_branch_patch. jmp uses word 335544320
 // and kind 26. jz uses 872415232 and kind 19. jne and jnz use 1409286145
 // and kind 19. jeq uses 1409286144 and kind 19. jge uses 1409286154 and
 // kind 19. w924 moves that patch into the thin. They stay strong. None of
 // them compares elf_ctx with 0 or divides. Label, prologue, epilogue,
-// cmp_setcc, and the two leas stay in the C seed.
+// and cmp_setcc stay in the C seed.
+// w925 moves the two leas into the thin.
 // w919 places arch_arm64_enc_enc_cmp_setcc_movzbl here. The cond field
 // comes from pipeline_asm_arm64_cset_cond_enc_from_cc. A negative field
 // is cleared by its sign bit. The low 4 bits are multiplied by 4096 and
 // ORed into word 446629856 (0x1a9f07e0). The word is appended through
 // backend_enc_append_u32_le_c. It stays strong. It does not compare
-// elf_ctx with 0 or divide. The x86 cmp_setcc, label, prologue, epilogue,
-// and the two leas stay in the C seed.
+// elf_ctx with 0 or divide. The x86 cmp_setcc, label, prologue, and
+// epilogue stay in the C seed.
+// w925 moves the two leas into the thin.
 // w920 places arch_x86_64_enc_enc_cmp_setcc_movzbl here. cc 0..9 select
 // opcodes 148, 149, 156, 158, 159, 157, 146, 150, 151, and 147. Every
 // other cc selects 148. The six bytes are 15, opcode, 192, 15, 182, 192.
@@ -10338,5 +10350,49 @@ export function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label: *u8, labe
     }
     return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, kind);
   }
+  return 0 - 1;
+}
+
+/**
+ * Address x0 as x29 plus a signed byte offset.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks.
+ * rd 0 and rn 29 select x0 and x29.
+ * A positive offset emits ADD chunks after the move from x29.
+ * A negative offset emits SUB chunks after that move.
+ * Zero emits only the move from x29.
+ * The most negative i32 is rejected by the chunk helper.
+ * A null context returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param offset i32 — signed byte addend from x29
+ * @return i32 — 0 when the address is formed, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 29, offset); }
+  return 0 - 1;
+}
+
+/**
+ * Address x1 as x29 plus a signed byte offset.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks.
+ * rd 1 and rn 29 select x1 and x29.
+ * A positive offset emits ADD chunks after the move from x29.
+ * A negative offset emits SUB chunks after that move.
+ * Zero emits only the move from x29.
+ * The most negative i32 is rejected by the chunk helper.
+ * A null context returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param offset i32 — signed byte addend from x29
+ * @return i32 — 0 when the address is formed, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 29, offset); }
   return 0 - 1;
 }
