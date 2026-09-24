@@ -69,6 +69,11 @@
 // w907 places 68 ARM64 fixed-word encoders here. Each one appends a single
 // instruction word through backend_enc_append_u32_le_c. They stay strong.
 // None of them compares elf_ctx with 0 or divides.
+// w908 places six ARM64 encoder bodies here. mov_rax_to_rbx and
+// mov_edx_to_eax each append two fixed words. cltd returns 0.
+// store_rax_to_rbx_indirect picks one width word. mov_rax_to_arg_reg and
+// mov_arg_reg_to_rax clamp k and append one mov word. They stay strong.
+// None of them compares elf_ctx with 0 or divides.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -5880,4 +5885,117 @@ export function arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx: *u8): i32 {
   return backend_enc_append_u32_le_c(elf_ctx, 2853110753 as u32);
+}
+
+/**
+ * Emit ARM64 `mov x1, x0` and then `mov x19, x0`.
+ * x1 is the rbx alias. x19 keeps the value when a 16-byte call clobbers x1.
+ * The words are 2852127713 and 2852127731. A null context returns -1 from append.
+ * The first append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32 {
+  // 0xaa0003e1 is mov x1, x0. 0xaa0003f3 is mov x19, x0.
+  if (backend_enc_append_u32_le_c(elf_ctx, 2852127713 as u32) != 0) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127731 as u32);
+}
+
+/**
+ * Emit the ARM64 signed-remainder pair `sdiv w2, w0, w1` then `msub w0, w2, w1, w0`.
+ * The words are 448859138 and 453083200. They are instruction data, not a host divide.
+ * A null context returns -1 from append.
+ * The first append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32 {
+  // 0x1ac10c02 is sdiv w2, w0, w1. 0x1b018040 is msub w0, w2, w1, w0.
+  if (backend_enc_append_u32_le_c(elf_ctx, 448859138 as u32) != 0) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, 453083200 as u32);
+}
+
+/**
+ * ARM64 has no cdq. Signed remainder uses the sdiv and msub words above.
+ * This body appends nothing.
+ * @param elf_ctx *u8 — unused; ARM64 does not read the context for cdq
+ * @return i32 — always 0
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cltd(elf_ctx: *u8): i32 {
+  return 0;
+}
+
+/**
+ * Store x0 through x1 at the width named by elem_sz.
+ * elem_sz 1 appends `strb w0, [x1]` (956301344).
+ * elem_sz 4 appends `str w0, [x1]` (3103784992).
+ * Every other size, including 8, appends `str x0, [x1]` (4177526816).
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param elem_sz i32 — element width in bytes; 1 and 4 select the narrow stores
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32 {
+  // 0x39000020 strb w0, [x1]. 0xb9000020 str w0, [x1]. 0xf9000020 str x0, [x1].
+  if (elem_sz == 1) {
+    return backend_enc_append_u32_le_c(elf_ctx, 956301344 as u32);
+  }
+  if (elem_sz == 4) {
+    return backend_enc_append_u32_le_c(elf_ctx, 3103784992 as u32);
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4177526816 as u32);
+}
+
+/**
+ * Copy x0 into AAPCS64 argument register xk.
+ * k below 0 is treated as 0. k above 7 is treated as 7.
+ * k 0 is already x0, so this body appends nothing and returns 0.
+ * Otherwise the word is 2852127712 with the register number in bits 4:0.
+ * A null context returns -1 from append when a word is emitted.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param k i32 — argument register index, clamped to 0..7
+ * @return i32 — 0 when no word is needed or the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  // 0xaa0003e0 is mov x0, x0. The low 5 bits are the destination register.
+  let rd: i32 = k;
+  if (rd < 0) { rd = 0; }
+  if (rd > 7) { rd = 7; }
+  if (rd == 0) { return 0; }
+  return backend_enc_append_u32_le_c(elf_ctx, (2852127712 as u32) | (rd as u32));
+}
+
+/**
+ * Copy AAPCS64 argument register xk into x0.
+ * k outside 0..7 returns -1. k 0 is already x0, so this body returns 0.
+ * Otherwise the word is 2852127712 with the source register in bits 20:16.
+ * A null context returns -1 from append when a word is emitted.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param k i32 — argument register index, accepted only for 0..7
+ * @return i32 — 0 when no word is needed or the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
+  // 0xaa0003e0 | (k << 16) is mov x0, xk. 65536 places k in bits 20:16.
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  if (k == 0) { return 0; }
+  return backend_enc_append_u32_le_c(elf_ctx, (2852127712 as u32) | ((k as u32) * 65536));
 }

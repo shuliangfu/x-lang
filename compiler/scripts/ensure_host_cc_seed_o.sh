@@ -2236,9 +2236,26 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w908: six ARM64 encoder bodies live in the thin and stay strong.
+  # PLATFORM: SHARED.
+  local w908_sym
+  for w908_sym in \
+    arch_arm64_enc_enc_mov_rax_to_rbx \
+    arch_arm64_enc_enc_mov_edx_to_eax \
+    arch_arm64_enc_enc_cltd \
+    arch_arm64_enc_enc_store_rax_to_rbx_indirect \
+    arch_arm64_enc_enc_mov_rax_to_arg_reg \
+    arch_arm64_enc_enc_mov_arg_reg_to_rax
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w908_sym"; then
+      echo "ensure: enc dispatch missing $w908_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w907; 68 ARM64 fixed-word encoders, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w908; mov rax-rbx, rem pair, cltd, store indirect, mov arg, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

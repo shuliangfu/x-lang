@@ -18,6 +18,10 @@
  * w907: 68 more fixed-word encoders (gpr loads, scaled adds, mov xN,
  * barriers, atomics, and CAS) are defined in backend_enc_dispatch_thin.x.
  * This file no longer emits those symbols. PLATFORM: SHARED.
+ * w908: mov_rax_to_rbx, mov_edx_to_eax, cltd, store_rax_to_rbx_indirect,
+ * mov_rax_to_arg_reg, and mov_arg_reg_to_rax are defined in
+ * backend_enc_dispatch_thin.x. This file no longer emits those symbols.
+ * PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -457,14 +461,9 @@ int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *e
   return 0;
 }
 
-int32_t arch_arm64_enc_enc_mov_rax_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* PLATFORM: MACOS|ARM64 — x86 rbx is callee-saved; ARM64 rbx=x1 is the
-   * 16B AAPCS64 hi return. Copy dest to x19 so store_size>=16 survives CALL.
-   * sz<=8 / INDEX still use x1. Twin: arch/arm64_enc.x enc_mov_rax_to_rbx. */
-  if (arm64_enc_u32_le(elf_ctx, 0xaa0003e1u) != 0) /* mov x1, x0 */
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xaa0003f3u); /* mov x19, x0 */
-}
+/* w908: arch_arm64_enc_enc_mov_rax_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends 0xaa0003e1 (mov x1, x0) then 0xaa0003f3 (mov x19, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /* w906: arch_arm64_enc_enc_mov_rbx_to_rax is defined in backend_enc_dispatch_thin.x.
  * It appends the ARM64 word 0xaa0103e0 (mov x0, x1).
@@ -559,23 +558,15 @@ int32_t arch_arm64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *elf
   return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 1, imm);
 }
 
-int32_t arch_arm64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
-  int32_t rd = k;
-  if (rd < 0)
-    rd = 0;
-  if (rd > 7)
-    rd = 7;
-  if (rd == 0)
-    return 0;
-  return arm64_enc_u32_le(elf_ctx, 0xaa0003e0u | (uint32_t)(rd & 31));
-}
+/* w908: arch_arm64_enc_enc_mov_rax_to_arg_reg is defined in backend_enc_dispatch_thin.x.
+ * k is clamped to 0..7. k 0 appends nothing. Otherwise the word is
+ * 0xaa0003e0 with rd in bits 4:0. Stays strong. PLATFORM: SHARED. */
 
 /* Remaining less-used stubs: still real enough to avoid -1 hard fail on product paths. */
 
-int32_t arch_arm64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  (void)elf_ctx;
-  return 0; /* no-op on arm64 (idiv path uses sdiv) */
-}
+/* w908: arch_arm64_enc_enc_cltd is defined in backend_enc_dispatch_thin.x.
+ * ARM64 remainder does not need cdq, so the body returns 0 and appends nothing.
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * wave645 Cap residual: arm64 signed remainder w0 = w0 % w1.
@@ -589,13 +580,10 @@ int32_t arch_arm64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
  * Sequence: sdiv w2,w0,w1 ; msub w0,w2,w1,w0  (rem = dividend - quot*divisor).
  * Encodings match arm64_enc.x (0x1ac10c02 / 0x1b018040).
  */
-int32_t arch_arm64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* sdiv w2, w0, w1 */
-  if (arm64_enc_u32_le(elf_ctx, 0x1ac10c02u) != 0)
-    return -1;
-  /* msub w0, w2, w1, w0 */
-  return arm64_enc_u32_le(elf_ctx, 0x1b018040u);
-}
+/* w908: arch_arm64_enc_enc_mov_edx_to_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends 0x1ac10c02 (sdiv w2, w0, w1) then 0x1b018040 (msub w0, w2, w1, w0).
+ * Those words are data. This file does not emit an sdiv instruction.
+ * Stays strong. PLATFORM: SHARED. */
 
 /* w906: arch_arm64_enc_enc_mov_rbx_to_ecx is defined in backend_enc_dispatch_thin.x.
  * It appends the ARM64 word 0xaa0103e2 (mov x2, x1).
@@ -871,14 +859,10 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf
  *   strb w0,[x1]=0x39000020 · str w0,[x1]=0xb9000020 · str x0,[x1]=0xf9000020
  * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: arch/arm64_enc.x.
  */
-int32_t arch_arm64_enc_enc_store_rax_to_rbx_indirect(struct platform_elf_ElfCodegenCtx *elf_ctx,
-                                                     int32_t elem_sz) {
-  if (elem_sz == 1)
-    return arm64_enc_u32_le(elf_ctx, 0x39000020u); /* strb w0, [x1] */
-  if (elem_sz == 4)
-    return arm64_enc_u32_le(elf_ctx, 0xb9000020u); /* str w0, [x1] */
-  return arm64_enc_u32_le(elf_ctx, 0xf9000020u); /* str x0, [x1] */
-}
+/* w908: arch_arm64_enc_enc_store_rax_to_rbx_indirect is defined in
+ * backend_enc_dispatch_thin.x. elem_sz 1 appends 0x39000020 (strb w0, [x1]).
+ * elem_sz 4 appends 0xb9000020 (str w0, [x1]). Every other size appends
+ * 0xf9000020 (str x0, [x1]). Stays strong. PLATFORM: SHARED. */
 
 /*
  * wave391 Cap residual pure: store value@x0 into [x1 + offset] with correct width/scale.
@@ -947,11 +931,9 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodege
  * mov_rax_to_x9 after left-assoc ADD emit when loading INDEX/AS right.
  * PLATFORM: MACOS/DARWIN arm64 pure-asm (ta==1); strong override of weak stubs.
  */
-static int32_t arm64_enc_mov_xn_xm(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd, int32_t rm) {
-  if (rd < 0 || rd > 30 || rm < 0 || rm > 30)
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xAA0003E0u | ((uint32_t)rm << 16) | (uint32_t)rd);
-}
+/* w908: arm64_enc_mov_xn_xm's only caller, mov_arg_reg_to_rax, now builds
+ * 0xAA0003E0 | (k << 16) in backend_enc_dispatch_thin.x. The helper is not
+ * a second encoder. PLATFORM: SHARED. */
 
 /** Preserve rbx across INDEX addr: x1 → x2. */
 /* w907: arch_arm64_enc_enc_mov_rbx_to_x2 is defined in backend_enc_dispatch_thin.x.
@@ -1003,13 +985,9 @@ static int32_t arm64_enc_mov_xn_xm(struct platform_elf_ElfCodegenCtx *elf_ctx, i
  * family — do not invent a second arg→x0 map in call_dispatch.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k) {
-  if (k < 0 || k > 7)
-    return -1;
-  if (k == 0)
-    return 0;
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, k);
-}
+/* w908: arch_arm64_enc_enc_mov_arg_reg_to_rax is defined in backend_enc_dispatch_thin.x.
+ * k outside 0..7 returns -1. k 0 appends nothing. Otherwise the word is
+ * 0xaa0003e0 with rm in bits 20:16. Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 S3.1 10.1.2: svc #0 (0xD4000001).
