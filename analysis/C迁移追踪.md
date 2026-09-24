@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `arm64_enc_branch_patch`
 - ✅ `x86_enc_jcc_rel32`
 - ✅ `arch_x86_64_enc_enc_jmp`
 - ✅ `backend_enc_mov_imm32_to_w0_arch`
