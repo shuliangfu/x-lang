@@ -8817,10 +8817,11 @@ static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf
 }
 
 /* Fold one array element that is an f64 constant into IEEE lo/hi.
- * EXPR_FLOAT_LIT (ek 1), NEG over a folded float (ek 22), ADD/SUB/MUL
- * (ek 4..6), and EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15).
- * Integer elems return 0. DIV and MOD stay loud-fail. NEG flips the sign
- * bit. ADD/SUB/MUL use the host double. An f32-typed binop is rounded and
+ * EXPR_FLOAT_LIT (ek 1), NEG over a folded float (ek 22), ADD/SUB/MUL/DIV
+ * (ek 4..7), and EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15).
+ * Integer elems return 0. Float DIV uses the host double. A zero divisor
+ * stays the IEEE result. Float MOD is rejected by typeck. NEG flips the
+ * sign bit. ADD/SUB/MUL/DIV use the host double. An f32-typed binop is rounded and
  * widened. AS to f64 keeps the operand bits. AS to f32 rounds then widens.
  * Little-endian: p[0] is lo.
  * Twin of pipe_modlet_fold_f64_elem_bits. PLATFORM: SHARED. */
@@ -8850,7 +8851,7 @@ static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
     *out_hi = (int32_t)((uint32_t)(*out_hi) ^ 2147483648u);
     return 1;
   }
-  if (ek == 4 || ek == 5 || ek == 6) {
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7) {
     union { int32_t p[2]; double d; } a, b, r;
     left = pipeline_expr_binop_left_ref_at(arena, eref);
     right = pipeline_expr_binop_right_ref_at(arena, eref);
@@ -8868,8 +8869,10 @@ static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
       r.d = a.d + b.d;
     else if (ek == 5)
       r.d = a.d - b.d;
-    else
+    else if (ek == 6)
       r.d = a.d * b.d;
+    else
+      r.d = a.d / b.d;
     *out_lo = r.p[0];
     *out_hi = r.p[1];
     {
@@ -9043,9 +9046,10 @@ static int32_t pipe_modlet_data_poke_u32_le_cold(uint8_t *elf_ctx, int32_t off, 
  * Bake ARRAY_LIT constant elems into an already-reserved .data cell.
  * Elem contract: EXPR_LIT, EXPR_NEG over a folded constant, and integer
  * binops ek 4..13 fold via pipe_modlet_array_lit_elem_const_val_cold.
- * Float constants (FLOAT_LIT, NEG of a float, ADD/SUB/MUL) poke IEEE bits
- * via pipe_modlet_fold_f64_elem_bits_cold (esz 4 packs to f32, esz 8 pokes
- * both halves). DIV/MOD stay loud-fail.
+ * Float constants (FLOAT_LIT, NEG of a float, ADD/SUB/MUL/DIV) poke IEEE
+ * bits via pipe_modlet_fold_f64_elem_bits_cold (esz 4 packs to f32, esz 8
+ * pokes both halves). A zero float divisor stays IEEE. Float MOD is not
+ * an operator.
  * Anything else loud-fails (the historic silent drop baked zeros for
  * `[-1, 2]`); STRING_LIT elems
  * intern into the .data string pool and record an absolute64 reloc on

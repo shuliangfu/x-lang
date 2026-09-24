@@ -841,19 +841,22 @@ function pipe_modlet_seed_struct_lit_to_rbx(
  * Fold one array element that is an f64 constant into IEEE lo/hi halves.
  * Accepts EXPR_FLOAT_LIT (ek 1), EXPR_NEG over a folded float (ek 22,
  * including the parser form `[-1.0, 2.0]`), EXPR_ADD / EXPR_SUB / EXPR_MUL
- * (ek 4, 5, 6) of two folded floats, and EXPR_AS (ek 54) whose target is
- * TYPE_F32 (14) or TYPE_F64 (15) of a folded float. Integer literals and
- * integer binops return 0 so the caller keeps
+ * / EXPR_DIV (ek 4, 5, 6, 7) of two folded floats, and EXPR_AS (ek 54)
+ * whose target is TYPE_F32 (14) or TYPE_F64 (15) of a folded float.
+ * Integer literals and integer binops return 0 so the caller keeps
  * pipe_modlet_array_lit_elem_const_val, which folds integer DIV and MOD.
- * Float DIV and MOD stay loud-fail: this helper accepts only ADD, SUB, and MUL.
+ * Float MOD is not an operator: typeck rejects `%` on f32 and f64, so
+ * this helper never sees ek 8 for a float. A zero float divisor stays
+ * the IEEE result of the host divide (infinity or NaN), the same result
+ * as divsd. It is not the integer idiv trap.
  * NEG flips the f64 sign bit (high half xor 0x80000000). That is unary
  * minus on the IEEE encoding, including a negated float binop.
- * ADD, SUB, and MUL copy the halves into f64 with memcpy, apply the
+ * ADD, SUB, MUL, and DIV copy the halves into f64 with memcpy, apply the
  * language operator, and copy the bits back. Same host-float path as
  * glue_ieee_f64_bits_to_f32_bits. A binop whose resolved type is f32 is
  * rounded back to f32 and widened, so a nested f32 op does not keep extra
- * f64 bits. Two f32 values' sum or product fits in an f64, so one round
- * matches an f32 operator.
+ * f64 bits. Two f32 values' quotient is rounded once, matching an f32
+ * operator.
  * EXPR_AS to f64 keeps the operand bits. EXPR_AS to f32 rounds through
  * glue_ieee_f64_bits_to_f32_bits and widens with
  * glue_ieee_f32_bits_to_f64_lo / hi, the same carry as
@@ -914,8 +917,9 @@ function pipe_modlet_fold_f64_elem_bits(
     unsafe { out_hi[0] = hu as i32; }
     return 1;
   }
-  // Float ADD/SUB/MUL. DIV and MOD are not folded.
-  if (ek == 4 || ek == 5 || ek == 6) {
+  // Float ADD/SUB/MUL/DIV. A zero divisor stays IEEE (divsd).
+  // Float MOD is rejected by typeck and never reaches this helper.
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7) {
     let av: f64 = 0.0;
     let bv: f64 = 0.0;
     let fr: f64 = 0.0;
@@ -962,7 +966,12 @@ function pipe_modlet_fold_f64_elem_bits(
       if (ek == 5) {
         fr = av - bv;
       } else {
-        fr = av * bv;
+        if (ek == 6) {
+          fr = av * bv;
+        } else {
+          // EXPR_DIV. Host f64 `/` lowers to divsd. Zero stays IEEE.
+          fr = av / bv;
+        }
       }
     }
     unsafe {
@@ -1073,12 +1082,12 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * no-op (zeros already reserved). Elem contract: EXPR_LIT, EXPR_NEG over
  * a folded constant, and integer binops EXPR_ADD..EXPR_BITXOR fold via
  * pipe_modlet_array_lit_elem_const_val. Float constants
- * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL of floats, AS to f32 or f64)
+ * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL/DIV of floats, AS to f32 or f64)
  * poke IEEE bits via
  * pipe_modlet_fold_f64_elem_bits: esz 4 packs f64 bits to f32 through
  * glue_ieee_f64_bits_to_f32_bits, esz 8 pokes both halves. STRUCT_LIT elems
  * poke integer, string, pointer, and nested array fields. Anything else
- * (float DIV/MOD, VAR, ...) loud-fails —
+ * (VAR, integer cast to float, ...) loud-fails —
  * the historic silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
  * .data string pool and record an absolute64 reloc on the pointer slot.
  * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
@@ -1226,7 +1235,7 @@ function pipe_modlet_bake_array_lit_elems_to_data(
         ei = ei + 1;
         continue;
       }
-      // Float constant (FLOAT_LIT, NEG of a float, ADD/SUB/MUL). Integer
+      // Float constant (FLOAT_LIT, NEG, ADD/SUB/MUL/DIV). Integer
       // elems return 0 and fall through. esz 4 packs to f32; esz 8 pokes
       // both halves. Other sizes are not a float slot. PLATFORM: SHARED.
       let flo: i32 = 0;
