@@ -2,7 +2,8 @@
  * wave854: the thin public bodies live only in src/asm/backend_enc_dispatch_thin.x.
  * wave862: backend_enc_dispatch_slice_marker lives in that .x too and returns 1.
  * wave877: arch_arm64_enc_enc_blr lives in that .x too. It still forwards to
- * backend_enc_arm64_blr_c, which stays in this tail. The symbol stays strong.
+ * backend_enc_arm64_blr_c. wave891 moves that callee into the same .x.
+ * Both symbols stay strong.
  * wave878: arch_arm64_enc_enc_ldr_xreg_xreg_imm lives in that .x too. It still
  * forwards to backend_enc_arm64_ldr_xreg_xreg_imm_c, which stays in this tail.
  * The symbol stays strong.
@@ -24,6 +25,8 @@
  * It appends the low 8 bits of one byte. The symbol stays strong.
  * wave885: backend_enc_append_u32_le_c_impl lives in that .x too.
  * It appends four little-endian bytes of one word. The symbol stays strong.
+ * wave891: backend_enc_arm64_blr_c lives in that .x too.
+ * It appends one ARM64 blr instruction word. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1668,12 +1671,10 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
  * F7: outside #ifndef XLANG_L2_ENC_DISPATCH_THIN_FROM_X so thin hybrid path also
  * compiles these symbols (vtable dispatch must be present in all build profiles).
  */
-/* arm64 BLR xN = 0xD63F0000 | (N<<5); no reloc (reg encoded in insn). */
-int32_t backend_enc_arm64_blr_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
-  if (!elf_ctx) { return -1; }
-  if (reg < 0 || reg > 30) { return -1; }
-  return backend_enc_append_u32_le_c(elf_ctx, (uint32_t)0xD63F0000u | ((uint32_t)reg << 5));
-}
+/* w891: backend_enc_arm64_blr_c is defined in
+ * backend_enc_dispatch_thin.x. It appends 0xD63F0000 | (reg << 5).
+ * arch_arm64_enc_enc_blr still forwards to it. The prototype above
+ * still names the symbol. Stays strong. PLATFORM: SHARED. */
 /* arm64 LDR xN,[xM,#off] = 0xF9400000 | ((off/8)<<10) | (base<<5) | dst. */
 int32_t backend_enc_arm64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
   if (!elf_ctx) { return -1; }

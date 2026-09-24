@@ -5,7 +5,8 @@
 // w854 deleted the C bodies of these functions. w862 also places
 // backend_enc_dispatch_slice_marker here. The marker returns 1.
 // w877 places arch_arm64_enc_enc_blr here. It forwards to
-// backend_enc_arm64_blr_c, which stays in the C tail. The symbol stays strong.
+// backend_enc_arm64_blr_c. w891 places that callee here too.
+// Both symbols stay strong.
 // w878 places arch_arm64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
 // backend_enc_arm64_ldr_xreg_xreg_imm_c, which stays in the C tail.
 // That symbol stays strong.
@@ -27,6 +28,8 @@
 // 8 bits of one byte. The symbol stays strong.
 // w885 places backend_enc_append_u32_le_c_impl here. It appends four
 // little-endian bytes of one word. The symbol stays strong.
+// w891 places backend_enc_arm64_blr_c here. It appends one ARM64 blr
+// instruction word. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -39,7 +42,6 @@ export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i3
 export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
-export extern "C" function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32;
 export extern "C" function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32;
 export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
@@ -3609,7 +3611,7 @@ export function backend_enc_dispatch_slice_marker(): i32 {
 
 /**
  * Forward arch_arm64_enc_enc_blr to backend_enc_arm64_blr_c.
- * The callee stays in the C tail of this object. This symbol stays strong.
+ * The callee is defined later in this file. This symbol stays strong.
  * @param elf_ctx *u8 — emit context passed through; the callee rejects null
  * @param reg i32 — ARM64 register number passed through
  * @return i32 — the callee's status, 0 on success and -1 on failure
@@ -3767,4 +3769,24 @@ export function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32 {
     return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 4);
   }
   return 0 - 1;
+}
+
+/**
+ * Emit one ARM64 blr xN instruction.
+ * The word is 0xD63F0000 with the register number in bits 9:5.
+ * Register numbers outside 0..30 return -1. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — ARM64 register number, accepted only for 0..30
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32 {
+  // 0xD63F0000 | (reg << 5). Multiply by 32 matches the other ARM64 encoders.
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 30) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (3595386880 as u32) | ((reg as u32) * 32));
 }
