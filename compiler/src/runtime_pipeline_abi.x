@@ -32433,7 +32433,8 @@ function pipe_modlet_seed_struct_lit_to_rbx(
  * EXPR_FLOAT_LIT (ek 1), EXPR_NEG over a folded float (ek 22, including
  * `[-1.0, 2.0]`), EXPR_ADD / EXPR_SUB / EXPR_MUL (ek 4, 5, 6), and
  * EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15).
- * Integer elems return 0. DIV and MOD stay loud-fail. NEG flips the f64
+ * Integer elems return 0. Float DIV and MOD stay loud-fail. Integer DIV
+ * and MOD are folded by pipe_modlet_fold_i32_binop. NEG flips the f64
  * sign bit. ADD/SUB/MUL use the host f64 operator via memcpy, the same
  * bit copy as glue_ieee_f64_bits_to_f32_bits. An f32-typed binop is
  * rounded and widened. AS to f64 keeps the operand bits. AS to f32
@@ -33261,11 +33262,14 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
  * Fold one integer binop of two already-folded i32 operands.
  * Kinds are the parser pins: EXPR_ADD=4 through EXPR_BITXOR=13.
  * A shift count outside 0..31 is not a constant: the caller loud-fails.
- * EXPR_DIV (7) and EXPR_MOD (8) stay loud-fail: a variable divisor in this
- * thin inserts an xlang_panic_ call, and the sidecar nops exactly two
- * panics that already belong to the span checks. Comparisons (14..21) and
- * float binops are not this helper. FLOAT_LIT stays on the array baker,
- * which has the element size. Twin of the modlet thin.
+ * EXPR_DIV (7) and EXPR_MOD (8) use the language operators. A zero divisor
+ * is not a constant. The most-negative i32 divided or remaindered by -1
+ * is not a constant either: x86 idiv traps on that pair, so this helper
+ * returns 0 and the baker loud-fails. The linked thin is compiled as a
+ * compiler leaf (XLANG_PREFER_ASM_O=1), so those operators do not emit
+ * xlang_panic_. Comparisons (14..21) and float binops are not this helper.
+ * FLOAT_LIT stays on the array baker, which has the element size.
+ * Twin of the modlet thin.
  * @param ek i32 - expr kind ordinal
  * @param lv i32 - left two's-complement value
  * @param rv i32 - right two's-complement value
@@ -33289,7 +33293,24 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
     unsafe { out_val[0] = lv * rv; }
     return 1;
   }
-  // EXPR_DIV=7 and EXPR_MOD=8 are not folded. See the docblock.
+  // EXPR_DIV=7 and EXPR_MOD=8. Zero and INT_MIN with -1 are not constants.
+  // lv + 2147483647 == -1 only for the most-negative i32.
+  if (ek == 7 || ek == 8) {
+    if (rv == 0) {
+      return 0;
+    }
+    if (rv == (0 - 1)) {
+      if (lv + 2147483647 == (0 - 1)) {
+        return 0;
+      }
+    }
+    if (ek == 7) {
+      unsafe { out_val[0] = lv / rv; }
+      return 1;
+    }
+    unsafe { out_val[0] = lv % rv; }
+    return 1;
+  }
   if (ek == 9) {
     if (rv < 0 || rv >= 32) {
       return 0;
@@ -33323,7 +33344,7 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * Fold one ARRAY_LIT element to its constant i32 value.
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * the parser's NEG-over-LIT form `[-600, 2]`), and integer binops
- * EXPR_ADD..EXPR_BITXOR (ek 4..13, except DIV and MOD) whose operands fold. FLOAT_LIT is not
+ * EXPR_ADD..EXPR_BITXOR (ek 4..13, including DIV and MOD) whose operands fold. FLOAT_LIT is not
  * an i32: the array baker pokes IEEE bits from the element size. VAR and
  * any other kind are not compile-time constants; callers must loud-fail
  * (return -1) instead of silently dropping the element — the historic
