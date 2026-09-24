@@ -12,6 +12,10 @@
  * backend_enc_dispatch_thin.x. This file no longer emits them.
  * w912: nineteen rbp displacement and register-immediate bodies live in
  * backend_enc_dispatch_thin.x. This file no longer emits them.
+ * w915: x86_enc_u8, x86_enc_u32_le, and x86_enc_bytes live in
+ * backend_enc_dispatch_thin.x. This file no longer emits them.
+ * Prologue, epilogue, label, jumps, calls, cmp_setcc, and the Win64
+ * argument moves still call those three. PLATFORM: SHARED.
  */
 /**
  * backend_x86_64_enc_c.c — x86_64 ELF 指令编码 C 体（覆盖 asm_full_link_stubs weak -1）
@@ -60,32 +64,21 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 }
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/** 追加 1 字节机器码。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_u8(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t b) {
-  return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), &b, 1);
-}
+/* w915: x86_enc_u8 is defined in backend_enc_dispatch_thin.x.
+ * It forwards to backend_enc_append_u8_c. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 
 
 
-/** 追加 imm32 小端。 */
-/* G-02f-128：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  uint8_t buf[4];
-  buf[0] = (uint8_t)(imm & 255);
-  buf[1] = (uint8_t)((imm >> 8) & 255);
-  buf[2] = (uint8_t)((imm >> 16) & 255);
-  buf[3] = (uint8_t)((imm >> 24) & 255);
-  return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), buf, 4);
-}
+/* w915: x86_enc_u32_le is defined in backend_enc_dispatch_thin.x.
+ * It forwards to backend_enc_append_u32_le_c. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 
-/** 追加固定字节序列。 */
-/* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n) {
-  return pipeline_elf_ctx_append_bytes(x86_enc_ctx_bytes(elf_ctx), (uint8_t *)buf, n);
-}
+/* w915: x86_enc_bytes is defined in backend_enc_dispatch_thin.x.
+ * It forwards to pipeline_elf_ctx_append_bytes. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */

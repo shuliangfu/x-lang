@@ -103,6 +103,12 @@
 // to arm64_enc_add_rd_rn_imm_chunks, which stays in the C seed. They stay
 // strong. Neither compares elf_ctx with 0 or divides. Jumps, calls,
 // cmp_setcc, prologue, and lea stay in the C seed.
+// w915 places three x86 append helpers here: x86_enc_u8, x86_enc_u32_le,
+// and x86_enc_bytes. u8 forwards to backend_enc_append_u8_c. u32_le
+// forwards to backend_enc_append_u32_le_c. bytes forwards to
+// pipeline_elf_ctx_append_bytes. They stay strong. None of them compares
+// elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, prologue, lea, and
+// the Win64 argument moves stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9680,5 +9686,59 @@ export function arch_arm64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32 {
 export function arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 {
   // rd 1 and rn 1 are x1. The earlier extern makes this an extern call.
   unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 1, imm); }
+  return 0 - 1;
+}
+
+/**
+ * Append one x86 machine byte.
+ * The low 8 bits are stored. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param b i32 — byte value; only the low 8 bits are stored
+ * @return i32 — 0 when the byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * C callers still pass a byte. This body does not compare elf_ctx with 0
+ * and does not divide. The call is checked by append. Its result is
+ * returned directly.
+ */
+#[no_mangle]
+export function x86_enc_u8(elf_ctx: *u8, b: i32): i32 {
+  // Same mask as backend_enc_append_u8_c_impl. Defined earlier in this file.
+  return backend_enc_append_u8_c(elf_ctx, b & 255);
+}
+
+/**
+ * Append one little-endian i32 to the x86 emit buffer.
+ * The four stored bytes are the low 8 bits, then the next three.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — value stored as four little-endian bytes
+ * @return i32 — 0 when the four bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * The byte split stays in backend_enc_append_u32_le_c. This body does not
+ * compare elf_ctx with 0 and does not divide. The call is checked by
+ * append. Its result is returned directly.
+ */
+#[no_mangle]
+export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
+  // The bit pattern of imm is the word. Defined earlier in this file.
+  return backend_enc_append_u32_le_c(elf_ctx, imm as u32);
+}
+
+/**
+ * Append n bytes from a buffer to the x86 emit buffer.
+ * A null context or a short buffer returns -1 from the append callee.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param buf *u8 — source bytes; the callee reads n bytes
+ * @param n i32 — byte count passed through
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * The copy stays in pipeline_elf_ctx_append_bytes. This body does not
+ * compare elf_ctx with 0 and does not divide. The call is checked by
+ * that callee. Its result is returned directly.
+ */
+#[no_mangle]
+export function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
+  // The earlier extern makes this an extern call.
+  unsafe { return pipeline_elf_ctx_append_bytes(elf_ctx, buf, n); }
   return 0 - 1;
 }
