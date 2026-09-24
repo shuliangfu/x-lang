@@ -93,6 +93,12 @@
 // an immediate in -128..127. They stay strong. None of them compares
 // elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, and the Win64
 // argument moves stay in the C seed.
+// w913 places seven ARM64 frame load and store encoders here. An aligned
+// offset through 32760 appends one scaled word. offset*128 is the imm12
+// field. A negative load of x0 or x1 forwards to the C lea. A wider
+// offset forwards to arm64_enc_add_rd_rn_imm_chunks, which stays in the
+// C seed. They stay strong. None of them compares elf_ctx with 0 or
+// divides. Jumps, calls, cmp_setcc, prologue, and lea stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9364,4 +9370,273 @@ export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): 
     return 0 - 1;
   }
   return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+export extern "C" function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, imm: i32): i32;
+
+/**
+ * Load x0 from [x29, #offset].
+ * A negative offset forwards to arch_arm64_enc_enc_lea_rbp_to_rax.
+ * An aligned offset through 32760 appends one LDR word. offset*128 is
+ * (offset/8)<<10. Any other non-negative offset forwards to lea and then
+ * appends ldr x0, [x0].
+ * A null context returns -1 from append or from lea.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative uses lea
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722016 is ldr x0, [x29, #0]. 128 scales a byte offset into imm12.
+  // 4181721088 is ldr x0, [x0]. 32760 is 4095*8.
+  if (offset < 0) {
+    unsafe { return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722016 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721088 as u32);
+}
+
+/**
+ * Load x1 from [x29, #offset].
+ * A negative offset forwards to arch_arm64_enc_enc_lea_rbp_to_rbx.
+ * An aligned offset through 32760 appends one LDR word. Any other
+ * non-negative offset forwards to lea and then appends ldr x1, [x1].
+ * A null context returns -1 from append or from lea.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative uses lea
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722017 is ldr x1, [x29, #0]. 4181721121 is ldr x1, [x1].
+  if (offset < 0) {
+    unsafe { return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722017 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721121 as u32);
+}
+
+/**
+ * Load x2 from [x29, #offset].
+ * A negative offset returns -1. An aligned offset through 32760 appends
+ * one LDR word. Any other offset adds that byte count to x29 into x2,
+ * then appends ldr x2, [x2].
+ * A null context returns -1 from append or from the chunk helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722018 is ldr x2, [x29, #0]. 4181721154 is ldr x2, [x2].
+  // The chunk helper adds offset to x29 and leaves the address in x2.
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722018 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 2, 29, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721154 as u32);
+}
+
+/**
+ * Load x3 from [x29, #offset].
+ * A negative offset returns -1. An aligned offset through 32760 appends
+ * one LDR word. Any other offset adds that byte count to x29 into x3,
+ * then appends ldr x3, [x3].
+ * A null context returns -1 from append or from the chunk helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722019 is ldr x3, [x29, #0]. 4181721187 is ldr x3, [x3].
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722019 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 3, 29, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721187 as u32);
+}
+
+/**
+ * Store Xt to [x29, #offset].
+ * reg outside 0..30 is clamped. A negative offset returns -1.
+ * An aligned offset through 32760 appends one STR word. Any other
+ * offset adds that byte count to x29 into x16, then stores Xt at [x16].
+ * A null context returns -1 from append or from the chunk helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param reg i32 — AAPCS64 Xt index; clamped to 0..30
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the store is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  // 4177526784 is the STR X base. 928 is x29 in bits 9:5. 512 is x16.
+  // offset*128 is the scaled imm12 field. rt occupies bits 4:0.
+  let rt: i32 = reg;
+  if (rt < 0) {
+    rt = 0;
+  }
+  if (rt > 30) {
+    rt = 30;
+  }
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((offset as u32) * 128) | (928 as u32) | (rt as u32));
+    }
+  }
+  unsafe {
+    if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, 29, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | (512 as u32) | (rt as u32));
+}
+
+/**
+ * Store x0 to [x29, #offset].
+ * Forwards to arch_arm64_enc_enc_store_x_reg_to_rbp with reg 0.
+ * A null context returns -1 from that callee.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the store is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  // reg 0 is x0. The callee owns the displacement check.
+  // The earlier extern declaration makes this call an extern call.
+  unsafe { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 0, offset); }
+  return 0 - 1;
+}
+
+/**
+ * Store x0 at [x1 + offset], or the 16-byte pair at [x19 + offset].
+ * store_size 16 or more writes x0 then x1, eight bytes apart, with x19
+ * as the base. store_size 1, 2, and 4 select STRB, STRH, and STR W.
+ * Every other size selects STR X. A negative offset is stored as 0.
+ * The scaled immediate is a shift of the u32 bit pattern, clamped to 4095.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — byte offset; a negative value is stored as 0
+ * @param store_size i32 — 1, 2, 4, or 16 select the width; other values are 8
+ * @return i32 — 0 when the store is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32 {
+  // 608 is x19 in bits 9:5. 32 is x1. 1024 is the imm12 shift.
+  // STRB, STRH, STR W, and STR X bases are the four width words.
+  // A shift of the u32 pattern matches a non-negative divide.
+  let off: i32 = offset;
+  if (off < 0) {
+    off = 0;
+  }
+  let u: u32 = off as u32;
+  let imm_lo: i32 = (u >> 3) as i32;
+  let imm_hi: i32 = ((u + 8) >> 3) as i32;
+  let imm12: i32 = off;
+  let base: u32 = 4177526784 as u32;
+  if (store_size >= 16) {
+    if (imm_lo > 4095) {
+      imm_lo = 4095;
+    }
+    if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (608 as u32)) != 0) {
+      return 0 - 1;
+    }
+    if (imm_hi > 4095) {
+      imm_hi = 4095;
+    }
+    return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (608 as u32) | (1 as u32));
+  }
+  if (store_size == 1) {
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    base = 956301312 as u32;
+  }
+  if (store_size == 2) {
+    imm12 = (u >> 1) as i32;
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    base = 2030043136 as u32;
+  }
+  if (store_size == 4) {
+    imm12 = (u >> 2) as i32;
+    if (imm12 > 4095) {
+      imm12 = 4095;
+    }
+    base = 3103784960 as u32;
+  }
+  if (store_size != 1) {
+    if (store_size != 2) {
+      if (store_size != 4) {
+        imm12 = (u >> 3) as i32;
+        if (imm12 > 4095) {
+          imm12 = 4095;
+        }
+        base = 4177526784 as u32;
+      }
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (32 as u32));
 }

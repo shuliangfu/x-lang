@@ -2414,9 +2414,27 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w913: ARM64 frame load and store encoders live in the thin.
+  # PLATFORM: SHARED.
+  local w913_sym
+  for w913_sym in \
+    arch_arm64_enc_enc_load_rbp_to_rax \
+    arch_arm64_enc_enc_load_rbp_to_rbx \
+    arch_arm64_enc_enc_load_rbp_to_x2 \
+    arch_arm64_enc_enc_load_rbp_to_x3 \
+    arch_arm64_enc_enc_store_x_reg_to_rbp \
+    arch_arm64_enc_enc_store_rax_to_rbp \
+    arch_arm64_enc_enc_store_rax_to_rbx_offset
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w913_sym"; then
+      echo "ensure: enc dispatch missing $w913_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w912; 19 x86 rbp displacement and register-immediate encoders, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w913; 7 ARM64 frame load and store encoders, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

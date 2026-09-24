@@ -25,6 +25,11 @@
  * w909: u32_le, mov_imm32_to_w0, mov_imm32_to_rbx, and mov_imm64_to_rax
  * are defined in backend_enc_dispatch_thin.x. This file no longer emits
  * those symbols. PLATFORM: SHARED.
+ * w913: load_rbp_to_rax, load_rbp_to_rbx, load_rbp_to_x2, load_rbp_to_x3,
+ * store_x_reg_to_rbp, store_rax_to_rbp, and store_rax_to_rbx_offset are
+ * defined in backend_enc_dispatch_thin.x. This file no longer emits those
+ * symbols. arm64_enc_add_rd_rn_imm_chunks stays here and is no longer
+ * static, because those bodies call it. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -151,7 +156,10 @@ static int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx 
  * @param imm signed byte addend (0 is no-op after optional MOV)
  * @return 0 success, -1 failure
  */
-static int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd,
+/* w913: the rbp load and store bodies in backend_enc_dispatch_thin.x
+ * call this helper for an offset past one imm12. It stays in this file.
+ * PLATFORM: SHARED. */
+int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t rd,
                                              int32_t rn, int32_t imm) {
   int32_t left;
   int32_t is_sub;
@@ -647,30 +655,21 @@ int32_t arch_arm64_enc_enc_lea_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *elf
  * Offsets > 32760 or unaligned: LEA then LDR [x0].
  * PLATFORM: MACOS|ARM64 product pure-asm.
  */
-int32_t arch_arm64_enc_enc_load_rbp_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  if (offset < 0)
-    return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset);
-  /* 64-bit LDR unsigned scaled: imm12 = offset/8, max byte offset 32760. */
-  if ((offset % 8) == 0 && (offset / 8) <= 4095)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a0u | (((uint32_t)(offset / 8)) << 10));
-  if (arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset) != 0)
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xf9400000u); /* ldr x0, [x0] */
-}
+/* w913: arch_arm64_enc_enc_load_rbp_to_rax is defined in backend_enc_dispatch_thin.x.
+ * A negative offset forwards to lea. An aligned offset through 32760 appends
+ * one scaled LDR. Any other offset forwards to lea and then ldr x0, [x0].
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /**
  * wave420: LDR x1, [x29, #offset] twin of load_rbp_to_rax.
  * PLATFORM: MACOS|ARM64.
  */
-int32_t arch_arm64_enc_enc_load_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  if (offset < 0)
-    return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset);
-  if ((offset % 8) == 0 && (offset / 8) <= 4095)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a1u | (((uint32_t)(offset / 8)) << 10));
-  if (arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset) != 0)
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xf9400021u); /* ldr x1, [x1] */
-}
+/* w913: arch_arm64_enc_enc_load_rbp_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * A negative offset forwards to lea. An aligned offset through 32760 appends
+ * one scaled LDR. Any other offset forwards to lea and then ldr x1, [x1].
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /**
  * Store Xn (reg) to frame home [x29, #offset] (positive scaled imm12).
@@ -692,30 +691,16 @@ int32_t arch_arm64_enc_enc_load_rbp_to_rbx(struct platform_elf_ElfCodegenCtx *el
  * PLATFORM: MACOS|ARM64 product pure-asm — G.7 align dispatch + arm64_enc.x
  * (reg, offset); positive STR matches other product enc_store_rax_to_rbp slots.
  */
-int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
-                                              int32_t offset) {
-  int32_t rt;
-  rt = reg;
-  if (rt < 0)
-    rt = 0;
-  if (rt > 30)
-    rt = 30;
-  if (offset < 0)
-    return -1;
-  /* STR Xt, [x29, #imm12*8] when offset in range. */
-  if ((offset % 8) == 0 && (offset / 8) <= 4095)
-    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)(offset / 8)) << 10) | (29u << 5) |
-                            (uint32_t)rt);
-  /* Scratch x16 (IP0): lea x16,[x29+#off]; str xt,[x16]. Avoid clobbering Rt. */
-  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, 29, offset) != 0)
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (16u << 5) | (uint32_t)rt);
-}
+/* w913: arch_arm64_enc_enc_store_x_reg_to_rbp is defined in backend_enc_dispatch_thin.x.
+ * reg is clamped to 0..30. A negative offset returns -1. An aligned offset
+ * through 32760 appends one scaled STR. Any other offset calls
+ * arm64_enc_add_rd_rn_imm_chunks into x16 and then stores at [x16].
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
-int32_t arch_arm64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  /* x0 only — thin wrapper over store_x_reg (wave392 reg ABI). */
-  return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 0, offset);
-}
+/* w913: arch_arm64_enc_enc_store_rax_to_rbp is defined in backend_enc_dispatch_thin.x.
+ * It forwards to store_x_reg_to_rbp with reg 0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w907: arch_arm64_enc_enc_load_32_from_rax is defined in backend_enc_dispatch_thin.x.
  * It appends the ARM64 word 0xb9400000 (ldr w0, [x0]).
@@ -733,16 +718,11 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *e
  * wave420: LDR x2, [x29, #offset] — same scaled-imm fix as load_rbp_to_rax.
  * PLATFORM: MACOS|ARM64.
  */
-int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  if (offset < 0)
-    return -1;
-  if ((offset % 8) == 0 && (offset / 8) <= 4095)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a2u | (((uint32_t)(offset / 8)) << 10));
-  /* lea x2, [x29+#off]; ldr x2, [x2] */
-  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 2, 29, offset) != 0)
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xf9400042u); /* ldr x2, [x2] */
-}
+/* w913: arch_arm64_enc_enc_load_rbp_to_x2 is defined in backend_enc_dispatch_thin.x.
+ * A negative offset returns -1. An aligned offset through 32760 appends one
+ * scaled LDR. Any other offset calls arm64_enc_add_rd_rn_imm_chunks and then
+ * ldr x2, [x2]. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* G.7 twin of enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary scratch).
  * Positive-offset LDR X3, [X29, #imm12] (scaled) or lea+ldr fallback.
@@ -751,16 +731,11 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x2(struct platform_elf_ElfCodegenCtx *elf
  *   below stack pointer for arr[i+j] right operand.
  * Invariant: Must use SAME positive-offset convention as load_rbp_to_x2.
  * PLATFORM: MACOS|ARM64 — G.7 twin arch/arm64_enc.x::enc_load_rbp_to_x3. */
-int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  if (offset < 0)
-    return -1;
-  if ((offset % 8) == 0 && (offset / 8) <= 4095)
-    return arm64_enc_u32_le(elf_ctx, 0xf94003a3u | (((uint32_t)(offset / 8)) << 10));
-  /* lea x3, [x29+#off]; ldr x3, [x3] */
-  if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 3, 29, offset) != 0)
-    return -1;
-  return arm64_enc_u32_le(elf_ctx, 0xf9400063u); /* ldr x3, [x3] */
-}
+/* w913: arch_arm64_enc_enc_load_rbp_to_x3 is defined in backend_enc_dispatch_thin.x.
+ * A negative offset returns -1. An aligned offset through 32760 appends one
+ * scaled LDR. Any other offset calls arm64_enc_add_rd_rn_imm_chunks and then
+ * ldr x3, [x3]. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /*
  * wave417 Cap residual pure: ARM64 ADD (shifted register) scale for INDEX.
@@ -837,53 +812,11 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf
  * STR X imm=offset/8. Rt=x0 Rn=x1.
  * PLATFORM: MACOS|ARM64 product pure-asm (ta==1). Authority twin: arch/arm64_enc.x.
  */
-int32_t arch_arm64_enc_enc_store_rax_to_rbx_offset(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                                   int32_t store_size) {
-  int32_t imm12;
-  uint32_t base;
-  if (offset < 0)
-    offset = 0;
-  /* dest shadow x19 (enc_mov_rax_to_rbx) + dual-GP: lo x0, hi x1.
-   * PLATFORM: MACOS|ARM64 — 16B CALL clobbers x1; do not use x1 as dest. */
-  if (store_size >= 16) {
-    imm12 = offset / 8;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    if (arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12) << 10) | (19u << 5)) != 0)
-      return -1; /* str x0, [x19, #offset] */
-    imm12 = (offset + 8) / 8;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    return arm64_enc_u32_le(elf_ctx, 0xf9000000u | (((uint32_t)imm12) << 10) | (19u << 5) | 1u);
-    /* str x1, [x19, #offset+8] */
-  }
-  if (store_size == 1) {
-    /* strb w0, [x1, #offset] — imm12 is byte count 0..4095 */
-    imm12 = offset;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    base = 0x39000000u; /* STRB */
-  } else if (store_size == 2) {
-    /* strh w0, [x1, #offset] — offset multiple of 2 */
-    imm12 = offset / 2;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    base = 0x79000000u; /* STRH */
-  } else if (store_size == 4) {
-    /* str w0, [x1, #offset] — offset multiple of 4 */
-    imm12 = offset / 4;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    base = 0xb9000000u; /* STR W */
-  } else {
-    /* str x0, [x1, #offset] — offset multiple of 8 (default / 8-byte store) */
-    imm12 = offset / 8;
-    if (imm12 > 4095)
-      imm12 = 4095;
-    base = 0xf9000000u; /* STR X */
-  }
-  return arm64_enc_u32_le(elf_ctx, base | (((uint32_t)imm12) << 10) | (1u << 5));
-}
+/* w913: arch_arm64_enc_enc_store_rax_to_rbx_offset is defined in backend_enc_dispatch_thin.x.
+ * Width 16 stores the x0/x1 pair at [x19]. Widths 1, 2, and 4 select STRB,
+ * STRH, and STR W at [x1]. Every other width selects STR X. The scaled
+ * immediate is a shift, clamped to 4095. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /*
  * wave109: GP spill/preserve moves used by pipeline_glue binop 7.3 paths.
