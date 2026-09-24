@@ -5,6 +5,9 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_prologue`
+- ✅ `arch_arm64_enc_enc_epilogue`
+- ✅ `arch_arm64_enc_enc_ret_imm32`
 - ✅ `arch_x86_64_enc_enc_call`
 - ✅ `arch_x86_64_enc_enc_label`
 - ✅ `arch_arm64_enc_enc_label`
