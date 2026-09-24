@@ -2157,9 +2157,88 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w907: the 68 fixed-word ARM64 encoders live in the thin and stay strong.
+  # PLATFORM: SHARED.
+  local w907_sym
+  for w907_sym in \
+    arch_arm64_enc_enc_load_32_from_rax \
+    arch_arm64_enc_enc_load_64_from_rax \
+    arch_arm64_enc_enc_load_zext8_from_rax \
+    arch_arm64_enc_enc_rax_plus_rbx_scale1 \
+    arch_arm64_enc_enc_rax_plus_rbx_scale4 \
+    arch_arm64_enc_enc_rax_plus_rbx_scale8 \
+    arch_arm64_enc_enc_rbx_plus_x2_scale1 \
+    arch_arm64_enc_enc_rbx_plus_x2_scale4 \
+    arch_arm64_enc_enc_rbx_plus_x2_scale8 \
+    arch_arm64_enc_enc_svc \
+    arch_arm64_enc_enc_dmb_ish \
+    arch_arm64_enc_enc_dmb_ishld \
+    arch_arm64_enc_enc_dmb_ishst \
+    arch_arm64_enc_enc_ldar_w0_x0 \
+    arch_arm64_enc_enc_stlr_w1_x0 \
+    arch_arm64_enc_enc_ldr_w0_x3 \
+    arch_arm64_enc_enc_str_w0_x3 \
+    arch_arm64_enc_enc_mov_w0_to_w4 \
+    arch_arm64_enc_enc_casal_w0_w1_x2 \
+    arch_arm64_enc_enc_cmp_w0_w4 \
+    arch_arm64_enc_enc_cset_eq_w0 \
+    arch_arm64_enc_enc_ldar_x0_x0 \
+    arch_arm64_enc_enc_stlr_x1_x0 \
+    arch_arm64_enc_enc_ldr_x0_x3 \
+    arch_arm64_enc_enc_str_x0_x3 \
+    arch_arm64_enc_enc_casal_x0_x1_x2 \
+    arch_arm64_enc_enc_cmp_x0_x4 \
+    arch_arm64_enc_enc_ldarh_w0_x0 \
+    arch_arm64_enc_enc_stlrh_w1_x0 \
+    arch_arm64_enc_enc_ldrh_w0_x3 \
+    arch_arm64_enc_enc_strh_w0_x3 \
+    arch_arm64_enc_enc_casalh_w0_w1_x2 \
+    arch_arm64_enc_enc_mov_rbx_to_x2 \
+    arch_arm64_enc_enc_mov_x2_to_rbx \
+    arch_arm64_enc_enc_mov_rax_to_x2 \
+    arch_arm64_enc_enc_mov_x2_to_rax \
+    arch_arm64_enc_enc_mov_rax_to_x9 \
+    arch_arm64_enc_enc_mov_rax_to_x8 \
+    arch_arm64_enc_enc_mov_x8_to_rax \
+    arch_arm64_enc_enc_mov_x0_to_x1 \
+    arch_arm64_enc_enc_mov_x0_to_x2 \
+    arch_arm64_enc_enc_mov_x0_to_x3 \
+    arch_arm64_enc_enc_mov_x0_to_x4 \
+    arch_arm64_enc_enc_mov_x9_to_rax \
+    arch_arm64_enc_enc_mov_rax_to_x10 \
+    arch_arm64_enc_enc_mov_x10_to_rax \
+    arch_arm64_enc_enc_mov_rbx_to_x10 \
+    arch_arm64_enc_enc_mov_x10_to_rbx \
+    arch_arm64_enc_enc_mov_rax_to_x11 \
+    arch_arm64_enc_enc_mov_x11_to_rax \
+    arch_arm64_enc_enc_mov_rbx_to_x11 \
+    arch_arm64_enc_enc_mov_x11_to_rbx \
+    arch_arm64_enc_enc_mov_rax_to_x12 \
+    arch_arm64_enc_enc_mov_x12_to_rax \
+    arch_arm64_enc_enc_mov_rbx_to_x12 \
+    arch_arm64_enc_enc_mov_x12_to_rbx \
+    arch_arm64_enc_enc_mov_rax_to_x13 \
+    arch_arm64_enc_enc_mov_x13_to_rax \
+    arch_arm64_enc_enc_mov_rbx_to_x13 \
+    arch_arm64_enc_enc_mov_x13_to_rbx \
+    arch_arm64_enc_enc_mov_rax_to_x14 \
+    arch_arm64_enc_enc_mov_x14_to_rax \
+    arch_arm64_enc_enc_mov_rbx_to_x14 \
+    arch_arm64_enc_enc_mov_x14_to_rbx \
+    arch_arm64_enc_enc_mov_rax_to_x15 \
+    arch_arm64_enc_enc_mov_x15_to_rax \
+    arch_arm64_enc_enc_mov_rbx_to_x15 \
+    arch_arm64_enc_enc_mov_x15_to_rbx
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w907_sym"; then
+      echo "ensure: enc dispatch missing $w907_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w906; 27 ARM64 fixed-word encoders, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w907; 68 ARM64 fixed-word encoders, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

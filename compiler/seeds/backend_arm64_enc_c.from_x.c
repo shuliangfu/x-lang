@@ -15,6 +15,9 @@
  * w906: the 27 fixed-word encoders (mov/add/sub/mul/sdiv/logic/cmp/neg/mvn/
  * test/push/pop/shifts/cset) are defined in backend_enc_dispatch_thin.x.
  * This file no longer emits those symbols. PLATFORM: SHARED.
+ * w907: 68 more fixed-word encoders (gpr loads, scaled adds, mov xN,
+ * barriers, atomics, and CAS) are defined in backend_enc_dispatch_thin.x.
+ * This file no longer emits those symbols. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -765,17 +768,17 @@ int32_t arch_arm64_enc_enc_store_rax_to_rbp(struct platform_elf_ElfCodegenCtx *e
   return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 0, offset);
 }
 
-int32_t arch_arm64_enc_enc_load_32_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xb9400000u); /* ldr w0, [x0] */
-}
+/* w907: arch_arm64_enc_enc_load_32_from_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xb9400000 (ldr w0, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_load_64_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xf9400000u); /* ldr x0, [x0] */
-}
+/* w907: arch_arm64_enc_enc_load_64_from_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf9400000 (ldr x0, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_load_zext8_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x39400000u); /* ldrb w0, [x0] */
-}
+/* w907: arch_arm64_enc_enc_load_zext8_from_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x39400000 (ldrb w0, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * wave420: LDR x2, [x29, #offset] — same scaled-imm fix as load_rbp_to_rax.
@@ -820,20 +823,17 @@ int32_t arch_arm64_enc_enc_load_rbp_to_x3(struct platform_elf_ElfCodegenCtx *elf
  * G.7: product authority seeds/backend_arm64_enc_c.from_x.c (g05 strong);
  * twin arch/arm64_enc.x same commit. PLATFORM: MACOS|ARM64.
  */
-int32_t arch_arm64_enc_enc_rax_plus_rbx_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x0, x1, lsl #0 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b010000u);
-}
+/* w907: arch_arm64_enc_enc_rax_plus_rbx_scale1 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8b010000 (add x0, x0, x1, lsl #0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_rax_plus_rbx_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x0, x1, lsl #2  (×4) — was 0x8b011800 (lsl #6) pre-wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b010800u);
-}
+/* w907: arch_arm64_enc_enc_rax_plus_rbx_scale4 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8b010800 (add x0, x0, x1, lsl #2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x0, x0, x1, lsl #3  (×8) — was 0x8b011c00 (lsl #7) pre-wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b010c00u);
-}
+/* w907: arch_arm64_enc_enc_rax_plus_rbx_scale8 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8b010c00 (add x0, x0, x1, lsl #3).
+ * Stays strong. PLATFORM: SHARED. */
 
 /*
  * wave614 Cap residual pure: INDEX assign EA must land in x1 (rbx twin).
@@ -846,20 +846,17 @@ int32_t arch_arm64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx
  * G.7: product seed + arch/arm64_enc.x same commit; API name is *_to_rbx*.
  * PLATFORM: MACOS|ARM64 · assign-only consumer (backend_enc_rbx_plus_index_scratch_scaled).
  */
-int32_t arch_arm64_enc_enc_rbx_plus_x2_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x1, x1, x2, lsl #0 — EA in x1 (was add x0,x1,x2 pre-wave614) */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020021u);
-}
+/* w907: arch_arm64_enc_enc_rbx_plus_x2_scale1 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8b020021 (add x1, x1, x2, lsl #0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_rbx_plus_x2_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x1, x1, x2, lsl #2 — was 0x8b020820 (Rd=x0) pre-wave614; scale fix wave417 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020821u);
-}
+/* w907: arch_arm64_enc_enc_rbx_plus_x2_scale4 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8b020821 (add x1, x1, x2, lsl #2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_rbx_plus_x2_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add x1, x1, x2, lsl #3 — was 0x8b020c20 (Rd=x0) pre-wave614 */
-  return arm64_enc_u32_le(elf_ctx, 0x8b020c21u);
-}
+/* w907: arch_arm64_enc_enc_rbx_plus_x2_scale8 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8b020c21 (add x1, x1, x2, lsl #3).
+ * Stays strong. PLATFORM: SHARED. */
 
 /*
  * wave614 Cap residual pure: store value@x0 into [x1] with correct width.
@@ -957,26 +954,26 @@ static int32_t arm64_enc_mov_xn_xm(struct platform_elf_ElfCodegenCtx *elf_ctx, i
 }
 
 /** Preserve rbx across INDEX addr: x1 → x2. */
-int32_t arch_arm64_enc_enc_mov_rbx_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 2, 1);
-}
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x2 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103e2 (mov x2, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_x2_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 2);
-}
+/* w907: arch_arm64_enc_enc_mov_x2_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0203e1 (mov x1, x2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_rax_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 2, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x2 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e2 (mov x2, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_x2_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 2);
-}
+/* w907: arch_arm64_enc_enc_mov_x2_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0203e0 (mov x0, x2).
+ * Stays strong. PLATFORM: SHARED. */
 
 /** Preserve rax while loading rbx operand that clobbers rax (FIELD/INDEX/AS). */
-int32_t arch_arm64_enc_enc_mov_rax_to_x9(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 9, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x9 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e9 (mov x9, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 S3.1 10.1.2: mov x8, x0 (ORR x8, xzr, x0).
@@ -984,9 +981,9 @@ int32_t arch_arm64_enc_enc_mov_rax_to_x9(struct platform_elf_ElfCodegenCtx *elf_
  * arg-reg k slot; k=0..7 are x0..x7). G.7 complete existing mov_xn_xm family.
  * PLATFORM: LINUX|aarch64 runtime effect; SHARED emit code.
  */
-int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 8, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x8 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e8 (mov x8, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage10 10.2.1 slice10: mov x0, x8 (ORR x0, xzr, x8) — reverse of mov_rax_to_x8.
@@ -994,9 +991,9 @@ int32_t arch_arm64_enc_enc_mov_rax_to_x8(struct platform_elf_ElfCodegenCtx *elf_
  * a second map (glue_arm64_mov_x8_to_x0 is AAPCS sret helper — keep asm on enc_*).
  * PLATFORM: LINUX|aarch64 runtime effect; SHARED emit code.
  */
-int32_t arch_arm64_enc_enc_mov_x8_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 8);
-}
+/* w907: arch_arm64_enc_enc_mov_x8_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0803e0 (mov x0, x8).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage10 10.2.2 slice1: mov x0, x{k} for AAPCS64 arg homes (k=0..7).
@@ -1020,303 +1017,303 @@ int32_t arch_arm64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx 
  * — this encoder is Linux-only; the CALL intercept skips Mach-O.
  * PLATFORM: LINUX|aarch64 runtime effect; SHARED emit code.
  */
-int32_t arch_arm64_enc_enc_svc(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xd4000001u);
-}
+/* w907: arch_arm64_enc_enc_svc is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xd4000001 (svc #0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.2 arm64: dmb ish (0xD5033BBF) — seq_cst full barrier.
  * PLATFORM: SHARED aarch64 emit (Linux ELF + Darwin Mach-O).
  */
-int32_t arch_arm64_enc_enc_dmb_ish(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xd5033bbfu);
-}
+/* w907: arch_arm64_enc_enc_dmb_ish is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xd5033bbf (dmb ish).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.2 arm64: dmb ishld (0xD50339BF) — acquire/load barrier.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_dmb_ishld(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xd50339bfu);
-}
+/* w907: arch_arm64_enc_enc_dmb_ishld is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xd50339bf (dmb ishld).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.2 arm64: dmb ishst (0xD5033ABF) — release/store barrier.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_dmb_ishst(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xd5033abfu);
-}
+/* w907: arch_arm64_enc_enc_dmb_ishst is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xd5033abf (dmb ishst).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.1 arm64: ldar w0, [x0] (0x88DFFC00) — atomic_load_i32.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_ldar_w0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x88dffc00u);
-}
+/* w907: arch_arm64_enc_enc_ldar_w0_x0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x88dffc00 (ldar w0, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.1 arm64: stlr w1, [x0] (0x889FFC01) — atomic_store_i32.
  * Pre: w1=val, x0=ptr.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_stlr_w1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x889ffc01u);
-}
+/* w907: arch_arm64_enc_enc_stlr_w1_x0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x889ffc01 (stlr w1, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * mov x1, x0 — park i32 desired/val in w1 without touching x19.
  * PLATFORM: SHARED aarch64 emit. G.7 mov_xn_xm family.
  */
-int32_t arch_arm64_enc_enc_mov_x0_to_x1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_x0_to_x1 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e1 (mov x1, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * mov x2, x0 — ptr home for CASAL.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_mov_x0_to_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 2, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_x0_to_x2 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e2 (mov x2, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * mov x3, x0 — expected* home for CAS i32.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_mov_x0_to_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 3, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_x0_to_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e3 (mov x3, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * ldr w0, [x3] — load *expected before CASAL.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_ldr_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xb9400060u);
-}
+/* w907: arch_arm64_enc_enc_ldr_w0_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xb9400060 (ldr w0, [x3]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * str w0, [x3] — write old CAS value back to *expected.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_str_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xb9000060u);
-}
+/* w907: arch_arm64_enc_enc_str_w0_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xb9000060 (str w0, [x3]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * mov w4, w0 — save expected for post-CASAL cmp.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_mov_w0_to_w4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x2a0003e4u);
-}
+/* w907: arch_arm64_enc_enc_mov_w0_to_w4 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x2a0003e4 (mov w4, w0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * casal w0, w1, [x2] (0x88E0FC41) — LSE compare-and-swap acquire-release i32.
  * Pre: w0=expected, w1=desired, x2=ptr. Post: w0=old value at ptr.
  * PLATFORM: SHARED aarch64 emit (requires ARMv8.1 LSE; modern Linux/Darwin aarch64).
  */
-int32_t arch_arm64_enc_enc_casal_w0_w1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x88e0fc41u);
-}
+/* w907: arch_arm64_enc_enc_casal_w0_w1_x2 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x88e0fc41 (casal w0, w1, [x2]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * cmp w0, w4 (subs wzr, w0, w4) — CAS success test.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_cmp_w0_w4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x6b04001fu);
-}
+/* w907: arch_arm64_enc_enc_cmp_w0_w4 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x6b04001f (cmp w0, w4).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * cset w0, eq (0x1A9F17E0) — CAS bool result in w0.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_cset_eq_w0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x1a9f17e0u);
-}
+/* w907: arch_arm64_enc_enc_cset_eq_w0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x1a9f17e0 (cset w0, eq).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.1 arm64 i64: ldar x0, [x0] (0xC8DFFC00).
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_ldar_x0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xc8dffc00u);
-}
+/* w907: arch_arm64_enc_enc_ldar_x0_x0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xc8dffc00 (ldar x0, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.1 arm64 i64: stlr x1, [x0] (0xC89FFC01).
  * Pre: x1=val, x0=ptr.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_stlr_x1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xc89ffc01u);
-}
+/* w907: arch_arm64_enc_enc_stlr_x1_x0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xc89ffc01 (stlr x1, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * ldr x0, [x3] — load *expected i64 before CASAL.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_ldr_x0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xf9400060u);
-}
+/* w907: arch_arm64_enc_enc_ldr_x0_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf9400060 (ldr x0, [x3]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * str x0, [x3] — write old CAS i64 to *expected.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_str_x0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xf9000060u);
-}
+/* w907: arch_arm64_enc_enc_str_x0_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf9000060 (str x0, [x3]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * mov x4, x0 — save expected i64 for post-CASAL cmp.
  * PLATFORM: SHARED aarch64 emit. G.7 mov_xn_xm family.
  */
-int32_t arch_arm64_enc_enc_mov_x0_to_x4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 4, 0);
-}
+/* w907: arch_arm64_enc_enc_mov_x0_to_x4 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003e4 (mov x4, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * casal x0, x1, [x2] (0xC8E0FC41) — LSE CAS acquire-release i64.
  * Pre: x0=expected, x1=desired, x2=ptr. Post: x0=old.
  * PLATFORM: SHARED aarch64 emit (ARMv8.1 LSE).
  */
-int32_t arch_arm64_enc_enc_casal_x0_x1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xc8e0fc41u);
-}
+/* w907: arch_arm64_enc_enc_casal_x0_x1_x2 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xc8e0fc41 (casal x0, x1, [x2]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * cmp x0, x4 (subs xzr, x0, x4) — i64 CAS success test.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_cmp_x0_x4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xeb04001fu);
-}
+/* w907: arch_arm64_enc_enc_cmp_x0_x4 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xeb04001f (cmp x0, x4).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.1 arm64 i16: ldarh w0, [x0] (0x48DFFC00).
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_ldarh_w0_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x48dffc00u);
-}
+/* w907: arch_arm64_enc_enc_ldarh_w0_x0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x48dffc00 (ldarh w0, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Stage 10 10.4.1 arm64 i16: stlrh w1, [x0] (0x489FFC01).
  * Pre: w1=val, x0=ptr.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_stlrh_w1_x0(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x489ffc01u);
-}
+/* w907: arch_arm64_enc_enc_stlrh_w1_x0 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x489ffc01 (stlrh w1, [x0]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * ldrh w0, [x3] — load *expected i16 before CASALH.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_ldrh_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x79400060u);
-}
+/* w907: arch_arm64_enc_enc_ldrh_w0_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x79400060 (ldrh w0, [x3]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * strh w0, [x3] — write old CAS i16 to *expected.
  * PLATFORM: SHARED aarch64 emit.
  */
-int32_t arch_arm64_enc_enc_strh_w0_x3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x79000060u);
-}
+/* w907: arch_arm64_enc_enc_strh_w0_x3 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x79000060 (strh w0, [x3]).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * casalh w0, w1, [x2] (0x48E0FC41) — LSE CAS acquire-release i16.
  * Pre: w0=expected, w1=desired, x2=ptr. Post: w0=old.
  * PLATFORM: SHARED aarch64 emit (ARMv8.1 LSE).
  */
-int32_t arch_arm64_enc_enc_casalh_w0_w1_x2(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x48e0fc41u);
-}
+/* w907: arch_arm64_enc_enc_casalh_w0_w1_x2 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x48e0fc41 (casalh w0, w1, [x2]).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_x9_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 9);
-}
+/* w907: arch_arm64_enc_enc_mov_x9_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0903e0 (mov x0, x9).
+ * Stays strong. PLATFORM: SHARED. */
 
 /** Binop 7.3 physical spill slots x10..x15 (rax/rbx save/reload). */
-int32_t arch_arm64_enc_enc_mov_rax_to_x10(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 10, 0);
-}
-int32_t arch_arm64_enc_enc_mov_x10_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 10);
-}
-int32_t arch_arm64_enc_enc_mov_rbx_to_x10(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 10, 1);
-}
-int32_t arch_arm64_enc_enc_mov_x10_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 10);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x10 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003ea (mov x10, x0).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x10_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0a03e0 (mov x0, x10).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x10 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103ea (mov x10, x1).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x10_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0a03e1 (mov x1, x10).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_rax_to_x11(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 11, 0);
-}
-int32_t arch_arm64_enc_enc_mov_x11_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 11);
-}
-int32_t arch_arm64_enc_enc_mov_rbx_to_x11(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 11, 1);
-}
-int32_t arch_arm64_enc_enc_mov_x11_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 11);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x11 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003eb (mov x11, x0).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x11_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0b03e0 (mov x0, x11).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x11 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103eb (mov x11, x1).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x11_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0b03e1 (mov x1, x11).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_rax_to_x12(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 12, 0);
-}
-int32_t arch_arm64_enc_enc_mov_x12_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 12);
-}
-int32_t arch_arm64_enc_enc_mov_rbx_to_x12(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 12, 1);
-}
-int32_t arch_arm64_enc_enc_mov_x12_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 12);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x12 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003ec (mov x12, x0).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x12_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0c03e0 (mov x0, x12).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x12 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103ec (mov x12, x1).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x12_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0c03e1 (mov x1, x12).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_rax_to_x13(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 13, 0);
-}
-int32_t arch_arm64_enc_enc_mov_x13_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 13);
-}
-int32_t arch_arm64_enc_enc_mov_rbx_to_x13(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 13, 1);
-}
-int32_t arch_arm64_enc_enc_mov_x13_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 13);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x13 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003ed (mov x13, x0).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x13_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0d03e0 (mov x0, x13).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x13 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103ed (mov x13, x1).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x13_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0d03e1 (mov x1, x13).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_rax_to_x14(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 14, 0);
-}
-int32_t arch_arm64_enc_enc_mov_x14_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 14);
-}
-int32_t arch_arm64_enc_enc_mov_rbx_to_x14(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 14, 1);
-}
-int32_t arch_arm64_enc_enc_mov_x14_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 14);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x14 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003ee (mov x14, x0).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x14_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0e03e0 (mov x0, x14).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x14 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103ee (mov x14, x1).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x14_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0e03e1 (mov x1, x14).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_mov_rax_to_x15(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 15, 0);
-}
-int32_t arch_arm64_enc_enc_mov_x15_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 0, 15);
-}
-int32_t arch_arm64_enc_enc_mov_rbx_to_x15(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 15, 1);
-}
-int32_t arch_arm64_enc_enc_mov_x15_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_mov_xn_xm(elf_ctx, 1, 15);
-}
+/* w907: arch_arm64_enc_enc_mov_rax_to_x15 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0003ef (mov x15, x0).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x15_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0f03e0 (mov x0, x15).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_rbx_to_x15 is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103ef (mov x15, x1).
+ * Stays strong. PLATFORM: SHARED. */
+/* w907: arch_arm64_enc_enc_mov_x15_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0f03e1 (mov x1, x15).
+ * Stays strong. PLATFORM: SHARED. */

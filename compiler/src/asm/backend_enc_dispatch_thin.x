@@ -66,6 +66,9 @@
 // w906 places 27 ARM64 fixed-word encoders here. Each one appends a single
 // instruction word through backend_enc_append_u32_le_c. They stay strong.
 // None of them compares elf_ctx with 0 or divides.
+// w907 places 68 ARM64 fixed-word encoders here. Each one appends a single
+// instruction word through backend_enc_append_u32_le_c. They stay strong.
+// None of them compares elf_ctx with 0 or divides.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -4926,4 +4929,955 @@ export function arch_arm64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_arm64_enc_enc_sar_cl_rax(elf_ctx: *u8): i32 {
   return backend_enc_append_u32_le_c(elf_ctx, 2596415488 as u32);
+}
+
+/**
+ * Emit ARM64 `ldr w0, [x0]`.
+ * The instruction word is 3107979264. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3107979264 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr x0, [x0]`.
+ * The instruction word is 4181721088. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721088 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldrb w0, [x0]`.
+ * The instruction word is 960495616. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 960495616 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x0, x0, x1, lsl #0`.
+ * The instruction word is 2332098560. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rax_plus_rbx_scale1(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332098560 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x0, x0, x1, lsl #2`.
+ * The instruction word is 2332100608. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rax_plus_rbx_scale4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332100608 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x0, x0, x1, lsl #3`.
+ * The instruction word is 2332101632. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332101632 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x1, x1, x2, lsl #0`.
+ * The instruction word is 2332164129. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rbx_plus_x2_scale1(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332164129 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x1, x1, x2, lsl #2`.
+ * The instruction word is 2332166177. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rbx_plus_x2_scale4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332166177 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x1, x1, x2, lsl #3`.
+ * The instruction word is 2332167201. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rbx_plus_x2_scale8(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332167201 as u32);
+}
+
+
+/**
+ * Emit ARM64 `svc #0`.
+ * The instruction word is 3556769793. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3556769793 as u32);
+}
+
+
+/**
+ * Emit ARM64 `dmb ish`.
+ * The instruction word is 3573758911. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_dmb_ish(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3573758911 as u32);
+}
+
+
+/**
+ * Emit ARM64 `dmb ishld`.
+ * The instruction word is 3573758399. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_dmb_ishld(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3573758399 as u32);
+}
+
+
+/**
+ * Emit ARM64 `dmb ishst`.
+ * The instruction word is 3573758655. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_dmb_ishst(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3573758655 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldar w0, [x0]`.
+ * The instruction word is 2296380416. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldar_w0_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2296380416 as u32);
+}
+
+
+/**
+ * Emit ARM64 `stlr w1, [x0]`.
+ * The instruction word is 2292186113. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_stlr_w1_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2292186113 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr w0, [x3]`.
+ * The instruction word is 3107979360. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldr_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3107979360 as u32);
+}
+
+
+/**
+ * Emit ARM64 `str w0, [x3]`.
+ * The instruction word is 3103785056. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_str_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3103785056 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov w4, w0`.
+ * The instruction word is 704644068. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_w0_to_w4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 704644068 as u32);
+}
+
+
+/**
+ * Emit ARM64 `casal w0, w1, [x2]`.
+ * The instruction word is 2296446017. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_casal_w0_w1_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2296446017 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cmp w0, w4`.
+ * The instruction word is 1795424287. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_w0_w4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1795424287 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cset w0, eq`.
+ * The instruction word is 446633952. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cset_eq_w0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 446633952 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldar x0, [x0]`.
+ * The instruction word is 3370122240. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldar_x0_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3370122240 as u32);
+}
+
+
+/**
+ * Emit ARM64 `stlr x1, [x0]`.
+ * The instruction word is 3365927937. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_stlr_x1_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3365927937 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr x0, [x3]`.
+ * The instruction word is 4181721184. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldr_x0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721184 as u32);
+}
+
+
+/**
+ * Emit ARM64 `str x0, [x3]`.
+ * The instruction word is 4177526880. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_str_x0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4177526880 as u32);
+}
+
+
+/**
+ * Emit ARM64 `casal x0, x1, [x2]`.
+ * The instruction word is 3370187841. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_casal_x0_x1_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3370187841 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cmp x0, x4`.
+ * The instruction word is 3942907935. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_x0_x4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3942907935 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldarh w0, [x0]`.
+ * The instruction word is 1222638592. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldarh_w0_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1222638592 as u32);
+}
+
+
+/**
+ * Emit ARM64 `stlrh w1, [x0]`.
+ * The instruction word is 1218444289. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_stlrh_w1_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1218444289 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldrh w0, [x3]`.
+ * The instruction word is 2034237536. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldrh_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2034237536 as u32);
+}
+
+
+/**
+ * Emit ARM64 `strh w0, [x3]`.
+ * The instruction word is 2030043232. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_strh_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2030043232 as u32);
+}
+
+
+/**
+ * Emit ARM64 `casalh w0, w1, [x2]`.
+ * The instruction word is 1222704193. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_casalh_w0_w1_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1222704193 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x1`.
+ * The instruction word is 2852193250. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193250 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x2`.
+ * The instruction word is 2852258785. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852258785 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x0`.
+ * The instruction word is 2852127714. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127714 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x2`.
+ * The instruction word is 2852258784. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x2_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852258784 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x9, x0`.
+ * The instruction word is 2852127721. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x9(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127721 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x8, x0`.
+ * The instruction word is 2852127720. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127720 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x8`.
+ * The instruction word is 2852652000. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852652000 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x0`.
+ * The instruction word is 2852127713. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127713 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x0`.
+ * The instruction word is 2852127714. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127714 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x3, x0`.
+ * The instruction word is 2852127715. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127715 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x4, x0`.
+ * The instruction word is 2852127716. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127716 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x9`.
+ * The instruction word is 2852717536. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x9_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852717536 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x10, x0`.
+ * The instruction word is 2852127722. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x10(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127722 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x10`.
+ * The instruction word is 2852783072. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x10_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852783072 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x10, x1`.
+ * The instruction word is 2852193258. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x10(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193258 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x10`.
+ * The instruction word is 2852783073. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x10_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852783073 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x11, x0`.
+ * The instruction word is 2852127723. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x11(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127723 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x11`.
+ * The instruction word is 2852848608. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x11_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852848608 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x11, x1`.
+ * The instruction word is 2852193259. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x11(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193259 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x11`.
+ * The instruction word is 2852848609. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x11_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852848609 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x12, x0`.
+ * The instruction word is 2852127724. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x12(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127724 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x12`.
+ * The instruction word is 2852914144. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x12_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852914144 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x12, x1`.
+ * The instruction word is 2852193260. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x12(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193260 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x12`.
+ * The instruction word is 2852914145. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x12_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852914145 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x13, x0`.
+ * The instruction word is 2852127725. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x13(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127725 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x13`.
+ * The instruction word is 2852979680. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x13_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852979680 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x13, x1`.
+ * The instruction word is 2852193261. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x13(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193261 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x13`.
+ * The instruction word is 2852979681. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x13_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852979681 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x14, x0`.
+ * The instruction word is 2852127726. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x14(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127726 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x14`.
+ * The instruction word is 2853045216. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x14_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853045216 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x14, x1`.
+ * The instruction word is 2852193262. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x14(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193262 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x14`.
+ * The instruction word is 2853045217. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853045217 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x15, x0`.
+ * The instruction word is 2852127727. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x15(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127727 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x15`.
+ * The instruction word is 2853110752. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853110752 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x15, x1`.
+ * The instruction word is 2852193263. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193263 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x15`.
+ * The instruction word is 2853110753. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853110753 as u32);
 }
