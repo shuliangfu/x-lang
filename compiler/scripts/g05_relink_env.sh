@@ -145,6 +145,14 @@ case "$UNAME_S" in
   exit 1
   ;;
 esac
+# PLATFORM: LINUX — arch_x86_64_enc_enc_cltd in src/asm/backend_x86_64_enc_c.o
+# still emits cltd (99). idiv %rbx is 64-bit, so the live sign-extend has to
+# be cqo. This one-symbol object is compiled from that function and linked
+# first. Rebuilding the whole x86 encoder TU changes its other symbols.
+# Absent file keeps the previous sign-extend.
+if [ "$UNAME_S" = "Linux" ] && [ -s build_asm/selfhost_pabi/cltd_cqo.o ]; then
+  _USER_ASM_LINK="build_asm/selfhost_pabi/cltd_cqo.o $_USER_ASM_LINK"
+fi
 
 # DRIVER_SEED layout: mirror Makefile LEGACY vs no_c default.
 # PLATFORM: SHARED — Makefile is the single authority (makefile L1843-1900).

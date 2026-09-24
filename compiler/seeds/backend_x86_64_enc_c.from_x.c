@@ -281,8 +281,9 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cltd */
 /* w910: arch_x86_64_enc_enc_cltd is defined in backend_enc_dispatch_thin.x.
- * Fixed bytes 0x99. Stays strong. PLATFORM: SHARED.
- * The body does not compare elf_ctx with 0 and does not divide. */
+ * w952: bytes are cqo 0x48, 0x99. idiv %rbx is REX.W, so cltd (0x99) leaves
+ * the high half of rdx clear and a negative dividend traps. Stays strong.
+ * PLATFORM: SHARED. The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 

@@ -6546,19 +6546,23 @@ export function arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32 {
 }
 
 /**
- * Emit the fixed x86_64 bytes for cltd.
- * The bytes are 99.
- * Each byte is appended through backend_enc_append_u8_c.
- * A null context returns -1 from that append.
+ * Emit cqo before the 64-bit idiv %rbx.
+ * The link name stays arch_x86_64_enc_enc_cltd. The bytes are 48 99, not 99.
+ * idiv %rbx is REX.W. cltd only fills edx, so a negative rax dividend traps.
+ * cqo sign-extends rax into rdx. Each byte is appended through
+ * backend_enc_append_u8_c. A null context returns -1 from that append.
  * @param elf_ctx *u8 — emit context; null is rejected by append
- * @return i32 — 0 when every byte is appended, -1 on failure
+ * @return i32 — 0 when both bytes are appended, -1 on failure
  * PLATFORM: SHARED — product link name. This symbol stays strong.
  * This body does not compare elf_ctx with 0 and does not divide.
  * Each append is checked directly. Its result is not stored and then compared.
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32 {
-  // 99
+  // cqo: 48 99. Not cltd (99). The following idiv %rbx is 64-bit.
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
   return backend_enc_append_u8_c(elf_ctx, 153);
 }
 

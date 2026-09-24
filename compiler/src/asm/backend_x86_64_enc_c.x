@@ -628,17 +628,23 @@ export function arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins, 2);
 }
 
-/** Emit fixed x86_64 insn `cltd` (1 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit cqo before the 64-bit idiv %rbx.
+ * The link name stays arch_x86_64_enc_enc_cltd. Callers are the signed
+ * divide and remainder paths, which then emit idiv %rbx (REX.W, 48 f7 fb).
+ * Byte 99 (cltd) only sign-extends eax into edx. A negative dividend already
+ * sign-extended in rax then traps (#DE): rdx is 0x00000000ffffffff, not -1.
+ * Bytes 48 99 (cqo) sign-extend rax into rdx. A userspace pointer keeps bit
+ * 63 clear, so rdx stays 0 and the 64-bit pointer divide still works.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null returns -1
+ * @return i32 — 0 when both bytes are appended, -1 on null or overflow
+ * PLATFORM: SHARED — x86_64 SysV. LINUX gold. The paired idiv is 64-bit.
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[1] = [153];
-  return x86_enc_bytes(elf_ctx, ins, 1);
+  // cqo, not cltd. See the docblock.
+  let ins: u8[2] = [72, 153];
+  return x86_enc_bytes(elf_ctx, ins, 2);
 }
 
 /** Emit fixed x86_64 insn `idiv_rbx` (2 bytes).
