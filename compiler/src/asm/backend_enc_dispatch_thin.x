@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Thin enc publics for backend_enc_dispatch.o.
+// w923 places x86_enc_jcc_rel32 and arch_x86_64_enc_enc_jmp here.
+// Each appends its bytes, then reads the code length in a later block
+// and patches the rel32 slot. Both stay strong.
 // w922 places backend_enc_mov_imm32_to_w0_arch here. ta 1 forwards
 // to arch_arm64_enc_enc_mov_imm32_to_w0. ta 2 forwards to
 // arch_riscv64_enc_enc_ret_imm32. Any other ta forwards to
@@ -10205,5 +10208,94 @@ export function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm32: i32, ta: i
     unsafe { return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32); }
   }
   unsafe { return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
+export extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
+
+/**
+ * Emit an x86_64 conditional jump and a rel32 patch.
+ * The six bytes are 15, opcode2, then four zero bytes.
+ * The patch slot is the code length minus 4, read after those bytes.
+ * The patch helper is called with imm bits 0.
+ * A non-positive label length returns -1 before any byte is stored.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param opcode2 i32 — second opcode byte
+ * @param label *u8 — label name bytes
+ * @param label_len i32 — byte count; a non-positive count returns -1
+ * @return i32 — 0 when the jump and the patch are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of a let in a later block.
+ */
+#[no_mangle]
+export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32 {
+  if (label_len <= 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, opcode2) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 unconditional jump and a rel32 patch.
+ * The first byte is 233. The next four bytes are zero.
+ * The patch slot is the code length minus 4, read after those bytes.
+ * The patch helper is called with imm bits 0.
+ * A non-positive label length returns -1 before any byte is stored.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param label *u8 — label name bytes
+ * @param label_len i32 — byte count; a non-positive count returns -1
+ * @return i32 — 0 when the jump and the patch are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of a let in a later block.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (label_len <= 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
+  }
   return 0 - 1;
 }

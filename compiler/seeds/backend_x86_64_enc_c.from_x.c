@@ -19,15 +19,17 @@
  * w917: arch_x86_64_enc_enc_jz, arch_x86_64_enc_enc_jeq,
  * arch_x86_64_enc_enc_jge, and arch_x86_64_enc_enc_jnz live in
  * backend_enc_dispatch_thin.x. This file no longer emits them.
- * They forward to x86_enc_jcc_rel32, which stays here. jmp, call,
- * label, cmp_setcc, and the Win64 argument moves stay here.
+ * They forward to x86_enc_jcc_rel32. w923 moves that helper and
+ * arch_x86_64_enc_enc_jmp into backend_enc_dispatch_thin.x.
  * w920: x86 cmp_setcc lives in backend_enc_dispatch_thin.x.
  * The opcode is a straight-line let. This file no longer emits that
- * symbol. jmp, call, label, and the Win64 argument moves stay here.
+ * symbol. call, label, and the Win64 argument moves stay here.
  * w921: seven unused rbp and alu helpers are no longer emitted.
  * The public rbp and immediate encoders in the thin already append
- * those bytes. jmp, call, label, jcc, and the Win64 argument moves
- * stay here.
+ * those bytes. call, label, and the Win64 argument moves stay here.
+ * w923: x86_enc_jcc_rel32 and arch_x86_64_enc_enc_jmp live in
+ * backend_enc_dispatch_thin.x. Each appends its bytes, then reads
+ * the code length in a later block. This file no longer emits them.
  * PLATFORM: SHARED.
  */
 /**
@@ -88,26 +90,11 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 #define X86_ENC_FIXED(ctx, arr) x86_enc_bytes((ctx), (const uint8_t *)(arr), (int32_t)sizeof(arr))
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/** x86 rel32 条件跳转 + patch（与 x86_64_enc.x enc_jz/enc_jge 一致）。 */
-/* G-02f-129：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
-                                 int32_t label_len) {
-  uint8_t buf[6];
-  int32_t rel32_at;
-  uint8_t *cb;
-  if (!elf_ctx || !label || label_len <= 0)
-    return -1;
-  cb = x86_enc_ctx_bytes(elf_ctx);
-  buf[0] = 0x0F;
-  buf[1] = opcode2;
-  buf[2] = buf[3] = buf[4] = buf[5] = 0;
-  if (pipeline_elf_ctx_append_bytes(cb, buf, 6) != 0)
-    return -1;
-  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  if (pipeline_elf_ctx_ensure_label(cb, label, label_len) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_patch(cb, rel32_at, label, label_len, 0);
-}
+/* w923: x86_enc_jcc_rel32 is defined in backend_enc_dispatch_thin.x.
+ * Six bytes are 15, opcode2, then four zeros. The patch slot is the
+ * code length minus 4, read after those bytes. imm bits are 0.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 
 /* w921: x86_enc_movq_from_rbp_neg, x86_enc_lea_from_rbp_neg,
@@ -1063,45 +1050,38 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* w917: arch_x86_64_enc_enc_jz is defined in backend_enc_dispatch_thin.x.
- * It forwards to x86_enc_jcc_rel32 with opcode 132. The patch stays here.
+ * It forwards to x86_enc_jcc_rel32 with opcode 132. w923 moves that patch into the thin.
  * Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* w917: arch_x86_64_enc_enc_jeq is defined in backend_enc_dispatch_thin.x.
- * It forwards to x86_enc_jcc_rel32 with opcode 132. The patch stays here.
+ * It forwards to x86_enc_jcc_rel32 with opcode 132. w923 moves that patch into the thin.
  * Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* w917: arch_x86_64_enc_enc_jge is defined in backend_enc_dispatch_thin.x.
- * It forwards to x86_enc_jcc_rel32 with opcode 141. The patch stays here.
+ * It forwards to x86_enc_jcc_rel32 with opcode 141. w923 moves that patch into the thin.
  * Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* w917: arch_x86_64_enc_enc_jnz is defined in backend_enc_dispatch_thin.x.
- * It forwards to x86_enc_jcc_rel32 with opcode 133. The patch stays here.
+ * It forwards to x86_enc_jcc_rel32 with opcode 133. w923 moves that patch into the thin.
  * Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_jmp */
-int32_t arch_x86_64_enc_enc_jmp(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len) {
-  int32_t rel32_at;
-  uint8_t *cb;
-  if (!elf_ctx || !label || label_len <= 0) return -1;
-  cb = x86_enc_ctx_bytes(elf_ctx);
-  if (x86_enc_u8(elf_ctx, 233) != 0) return -1;
-  if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
-  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  if (pipeline_elf_ctx_ensure_label(cb, label, label_len) != 0) return -1;
-  return pipeline_elf_ctx_append_patch(cb, rel32_at, label, label_len, 0);
-}
+/* w923: arch_x86_64_enc_enc_jmp is defined in backend_enc_dispatch_thin.x.
+ * Byte 233 then four zero bytes. The patch slot is the code length
+ * minus 4, read after those bytes. imm bits are 0.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
