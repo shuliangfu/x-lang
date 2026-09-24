@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `backend_enc_ldr_xreg_xreg_imm_arch`
 - ✅ `backend_enc_store_arg_sp_offset_arch`
 - ✅ `backend_enc_blr_arch`
 - ✅ `backend_enc_ucomiss_rbx_rax_arch`
