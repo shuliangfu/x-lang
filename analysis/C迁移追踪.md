@@ -5,6 +5,8 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_add_imm_to_rax`
+- ✅ `arch_arm64_enc_enc_add_imm_to_rbx`
 - ✅ `arch_arm64_enc_enc_load_rbp_to_rax`
 - ✅ `arch_arm64_enc_enc_load_rbp_to_rbx`
 - ✅ `arch_arm64_enc_enc_load_rbp_to_x2`
