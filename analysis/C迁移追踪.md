@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_cmp_setcc_movzbl`
 - ✅ `arch_arm64_enc_enc_jmp`
 - ✅ `arch_arm64_enc_enc_jz`
 - ✅ `arch_arm64_enc_enc_jne`
