@@ -5,6 +5,10 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_u32_le`
+- ✅ `arch_arm64_enc_enc_mov_imm32_to_w0`
+- ✅ `arch_arm64_enc_enc_mov_imm32_to_rbx`
+- ✅ `arch_arm64_enc_enc_mov_imm64_to_rax`
 - ✅ `arch_arm64_enc_enc_mov_rax_to_rbx`
 - ✅ `arch_arm64_enc_enc_mov_edx_to_eax`
 - ✅ `arch_arm64_enc_enc_cltd`
