@@ -5,6 +5,8 @@
 
 ### 已完成
 
+- ✅ `arch_x86_64_enc_enc_prologue`
+- ✅ `arch_x86_64_enc_enc_epilogue`
 - ✅ `x86_enc_u8`
 - ✅ `x86_enc_u32_le`
 - ✅ `x86_enc_bytes`
