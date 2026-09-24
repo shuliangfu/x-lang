@@ -6,6 +6,8 @@
  * G-02f-102 helper gates.
  * G-02f-101 x86 enc helper gates. — G-02f-15 product TU
  * Product object from this seed; logic still C until full .x port.
+ * w910: the fixed-byte arch_x86_64_enc_enc_* bodies live in
+ * backend_enc_dispatch_thin.x. This file no longer emits them.
  */
 /**
  * backend_x86_64_enc_c.c — x86_64 ELF 指令编码 C 体（覆盖 asm_full_link_stubs weak -1）
@@ -350,22 +352,18 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
  *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
  *            ptr-arith scaled paths, NOT this function.
  * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
-int32_t arch_x86_64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {1, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_add_rax_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x01, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_and_rbx_rax.
  * REX.W andq %rbx,%rax — 32-bit andl wiped usize/ptr high 32. */
-int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 33, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_and_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x21, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
@@ -373,153 +371,123 @@ int32_t arch_x86_64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_c
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_or_rbx_rax.
  * REX.W orq %rbx,%rax — 32-bit orl truncated g02f_load_ptr_at (Ubuntu SIGSEGV).
  * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. Twin of ARM64 ELF orr x0,x0,x1. */
-int32_t arch_x86_64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 9, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_or_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x09, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_rbx_rax.
  * REX.W xorq %rbx,%rax — same high-32 wipe as AND/OR. */
-int32_t arch_x86_64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 49, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_xor_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x31, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_rax_to_rbx */
-int32_t arch_x86_64_enc_enc_mov_rax_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 137, 195};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_mov_rax_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x89, 0xc3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_rbx_to_rax */
-int32_t arch_x86_64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 137, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_mov_rbx_to_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x89, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_rbx_to_ecx */
-int32_t arch_x86_64_enc_enc_mov_rbx_to_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {137, 217};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_mov_rbx_to_ecx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x89, 0xd9. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_mov_edx_to_eax */
-int32_t arch_x86_64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {137, 208};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_mov_edx_to_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x89, 0xd0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_not_eax */
-int32_t arch_x86_64_enc_enc_not_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {247, 208};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_not_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf7, 0xd0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_neg_eax */
-int32_t arch_x86_64_enc_enc_neg_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {247, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_neg_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf7, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_test_eax_eax */
-int32_t arch_x86_64_enc_enc_test_eax_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {133, 192};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_test_eax_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x85, 0xc0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_test_rbx_rbx */
-int32_t arch_x86_64_enc_enc_test_rbx_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {133, 219};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_test_rbx_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x85, 0xdb. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** test %edx,%edx — Result `?` 检查第二槽 err（双寄存器返回 ABI）。 */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_test_edx_edx */
-int32_t arch_x86_64_enc_enc_test_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {0x85, 0xD2};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_test_edx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x85, 0xd2. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cmp_rbx_rax */
-int32_t arch_x86_64_enc_enc_cmp_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {57, 195};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_cmp_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x39, 0xc3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cmp_rax_rbx */
-int32_t arch_x86_64_enc_enc_cmp_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {57, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_cmp_rax_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x39, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_cltd */
-int32_t arch_x86_64_enc_enc_cltd(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {153};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_cltd is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x99. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_idiv_rbx */
-int32_t arch_x86_64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 247, 251}; /* wave676: REX.W — 64-bit idiv (was 32-bit, truncated 64-bit dividends) */
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_idiv_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0xf7, 0xfb. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
@@ -529,266 +497,214 @@ int32_t arch_x86_64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx)
  * Why: Must match .x authority x86_64_enc.x::enc_imul_rbx_rax.
  *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
  * PLATFORM: LINUX|UBUNTU|WINDOWS|x86_64. */
-int32_t arch_x86_64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 195};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_imul_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xaf, 0xc3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_push_rax */
-int32_t arch_x86_64_enc_enc_push_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {80};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_push_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x50. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_push_rbx */
-int32_t arch_x86_64_enc_enc_push_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {83};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_push_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x53. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_pop_rbx */
-int32_t arch_x86_64_enc_enc_pop_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {91};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_pop_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x5b. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_pop_rax */
-int32_t arch_x86_64_enc_enc_pop_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {88};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_pop_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x58. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shl_cl_eax */
-int32_t arch_x86_64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {211, 224};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_shl_cl_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xd3, 0xe0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shr_cl_eax */
-int32_t arch_x86_64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {211, 232};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_shr_cl_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xd3, 0xe8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sar_cl_eax */
-int32_t arch_x86_64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {211, 248};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_sar_cl_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xd3, 0xf8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** shlq %cl, %rax — 64-bit 逻辑左移（REX.W=0x48 前缀）。i64/u64 移位须用 64-bit 指令。 */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shl_cl_rax */
-int32_t arch_x86_64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 211, 224};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_shl_cl_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0xd3, 0xe0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** shrq %cl, %rax — 64-bit 逻辑右移（REX.W=0x48 前缀）。u64/usize 逻辑右移保留高 32 位。 */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_shr_cl_rax */
-int32_t arch_x86_64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 211, 232};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_shr_cl_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0xd3, 0xe8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** sarq %cl, %rax — 64-bit 算术右移（REX.W=0x48 前缀）。i64/isize 算术右移符号位扩展。 */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sar_cl_rax */
-int32_t arch_x86_64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 211, 248};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_sar_cl_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0xd3, 0xf8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** xorl %edx, %edx — 32-bit 无符号除法前清零 edx（替代 cltd 符号扩展）。 */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_xor_edx_edx */
-int32_t arch_x86_64_enc_enc_xor_edx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {49, 210};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_xor_edx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x31, 0xd2. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 /** divl %ebx — 32-bit 无符号除法（被除数在 edx:eax，除数在 %ebx）。u32 除法必须用 divl。 */
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_div_rbx */
-int32_t arch_x86_64_enc_enc_div_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 247, 243}; /* wave676: REX.W — 64-bit div */
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_div_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0xf7, 0xf3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_32_from_rax */
-int32_t arch_x86_64_enc_enc_load_32_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {139, 0};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_load_32_from_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x8b, 0x00. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_64_from_rax */
-int32_t arch_x86_64_enc_enc_load_64_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 139, 0};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_load_64_from_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8b, 0x00. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_load_zext8_from_rax */
-int32_t arch_x86_64_enc_enc_load_zext8_from_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 182, 0};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_load_zext8_from_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xb6, 0x00. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rax_plus_rbx_scale1 */
-int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 141, 4, 24};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_rax_plus_rbx_scale1 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8d, 0x04, 0x18. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rax_plus_rbx_scale4 */
-int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 141, 4, 152};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_rax_plus_rbx_scale4 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8d, 0x04, 0x98. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rax_plus_rbx_scale8 */
-int32_t arch_x86_64_enc_enc_rax_plus_rbx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 141, 4, 216};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_rax_plus_rbx_scale8 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8d, 0x04, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1 */
-int32_t arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 141, 28, 11};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8d, 0x1c, 0x0b. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4 */
-int32_t arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 141, 28, 139};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8d, 0x1c, 0x8b. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8 */
-int32_t arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {72, 141, 28, 203};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8d, 0x1c, 0xcb. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_ecx_edx */
-int32_t arch_x86_64_enc_enc_add_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {1, 209};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_add_ecx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x01, 0xd1. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_ecx_edx */
-int32_t arch_x86_64_enc_enc_sub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {41, 209};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_sub_ecx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x29, 0xd1. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_add_ebx_edx */
-int32_t arch_x86_64_enc_enc_add_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {1, 211};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_add_ebx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x01, 0xd3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_ebx_edx */
-int32_t arch_x86_64_enc_enc_sub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {41, 211};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_sub_ebx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x29, 0xd3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
@@ -796,11 +712,9 @@ int32_t arch_x86_64_enc_enc_sub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_c
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ecx_edx.
  * Wave184 root-fix: 0F AF /r IMUL ecx,edx (ModRM 0xCA). Was 0xD1 (IMUL edx,ecx).
  * PLATFORM: SHARED x86_64 SysV — index_scratch primary *= secondary. */
-int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 202};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_imul_ecx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xaf, 0xca. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
@@ -808,59 +722,41 @@ int32_t arch_x86_64_enc_enc_imul_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_imul_ebx_edx.
  * Wave184 root-fix: 0F AF /r IMUL ebx,edx (ModRM 0xDA). Was 0xD3 (IMUL edx,ebx).
  * PLATFORM: SHARED x86_64 SysV — INDEX read path rbx *= secondary; scale uses rbx. */
-int32_t arch_x86_64_enc_enc_imul_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t ins[] = {15, 175, 218};
-  if (!elf_ctx) return -1;
-  return x86_enc_bytes(elf_ctx, ins, (int32_t)sizeof(ins));
-}
+/* w910: arch_x86_64_enc_enc_imul_ebx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xaf, 0xda. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_sub_rbx_rax_then_mov */
-int32_t arch_x86_64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t sub[] = {72, 41, 195};
-  static const uint8_t mov[] = {72, 137, 216};
-  if (!elf_ctx) return -1;
-  if (x86_enc_bytes(elf_ctx, sub, 3) != 0) return -1;
-  return x86_enc_bytes(elf_ctx, mov, 3);
-}
+/* w910: arch_x86_64_enc_enc_sub_rbx_rax_then_mov is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x29, 0xc3, 0x48, 0x89, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rsub_ecx_edx */
-int32_t arch_x86_64_enc_enc_rsub_ecx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t sub[] = {41, 202};
-  static const uint8_t mov[] = {137, 209};
-  if (!elf_ctx) return -1;
-  if (x86_enc_bytes(elf_ctx, sub, 2) != 0) return -1;
-  return x86_enc_bytes(elf_ctx, mov, 2);
-}
+/* w910: arch_x86_64_enc_enc_rsub_ecx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x29, 0xca, 0x89, 0xd1. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_rsub_ebx_edx */
-int32_t arch_x86_64_enc_enc_rsub_ebx_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t sub[] = {41, 218};
-  static const uint8_t mov[] = {137, 211};
-  if (!elf_ctx) return -1;
-  if (x86_enc_bytes(elf_ctx, sub, 2) != 0) return -1;
-  return x86_enc_bytes(elf_ctx, mov, 2);
-}
+/* w910: arch_x86_64_enc_enc_rsub_ebx_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x29, 0xda, 0x89, 0xd3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* Cap residual pure R2 wave1: .x provides arch_x86_64_enc_enc_setz_movzbl_eax */
-int32_t arch_x86_64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  static const uint8_t s[] = {15, 148, 192};
-  static const uint8_t m[] = {15, 182, 192};
-  if (!elf_ctx) return -1;
-  if (x86_enc_bytes(elf_ctx, s, 3) != 0) return -1;
-  return x86_enc_bytes(elf_ctx, m, 3);
-}
+/* w910: arch_x86_64_enc_enc_setz_movzbl_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0x94, 0xc0, 0x0f, 0xb6, 0xc0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
@@ -890,262 +786,184 @@ int32_t arch_x86_64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *
 /* Stage 10 S3.1 slice 2 (10.1.1): syscall (0F 05). Twin of
  * arch_x86_64_enc_enc_syscall in backend_x86_64_enc_c.x.
  * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code. */
-int32_t arch_x86_64_enc_enc_syscall(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 5);
-}
+/* w910: arch_x86_64_enc_enc_syscall is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0x05. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: movl (%rax), %eax (8B 00). Twin of backend_x86_64_enc_c.x. */
-int32_t arch_x86_64_enc_enc_movl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 0);
-}
+/* w910: arch_x86_64_enc_enc_movl_mem_rax_to_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x8b, 0x00. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: movl (%rcx), %eax (8B 01) — *expected while ptr lives elsewhere. */
-int32_t arch_x86_64_enc_enc_movl_mem_rcx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 1);
-}
+/* w910: arch_x86_64_enc_enc_movl_mem_rcx_to_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x8b, 0x01. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: xchg %edx, (%rax) (87 10). */
-int32_t arch_x86_64_enc_enc_xchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 135) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 16);
-}
+/* w910: arch_x86_64_enc_enc_xchg_edx_mem_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x87, 0x10. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: mov %rax, %rcx (48 89 C1). */
-int32_t arch_x86_64_enc_enc_mov_rax_to_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 193);
-}
+/* w910: arch_x86_64_enc_enc_mov_rax_to_rcx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x89, 0xc1. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: movl %eax, (%rcx) (89 01). */
-int32_t arch_x86_64_enc_enc_movl_eax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 1);
-}
+/* w910: arch_x86_64_enc_enc_movl_eax_to_mem_rcx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x89, 0x01. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: lock cmpxchg %edx, (%rax) (F0 0F B1 10) — kept for completeness. */
-int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 16);
-}
+/* w910: arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf0, 0x0f, 0xb1, 0x10. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: lock cmpxchg %edx, (%rbx) (F0 0F B1 13) — ptr≠rax so eax keeps expected. */
-int32_t arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 19);
-}
+/* w910: arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf0, 0x0f, 0xb1, 0x13. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: sete %al (0F 94 C0). */
-int32_t arch_x86_64_enc_enc_sete_al(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 148) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 192);
-}
+/* w910: arch_x86_64_enc_enc_sete_al is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0x94, 0xc0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: movzbl %al, %eax (0F B6 C0). */
-int32_t arch_x86_64_enc_enc_movzbl_al_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 182) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 192);
-}
+/* w910: arch_x86_64_enc_enc_movzbl_al_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xb6, 0xc0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice1: mov %eax, %edx (89 C2). */
-int32_t arch_x86_64_enc_enc_mov_eax_to_edx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 194);
-}
+/* w910: arch_x86_64_enc_enc_mov_eax_to_edx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x89, 0xc2. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice2: movq (%rax), %rax (48 8B 00). */
-int32_t arch_x86_64_enc_enc_movq_mem_rax_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 0);
-}
+/* w910: arch_x86_64_enc_enc_movq_mem_rax_to_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8b, 0x00. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice2: xchg %rdx, (%rax) (48 87 10). */
-int32_t arch_x86_64_enc_enc_xchg_rdx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 135) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 16);
-}
+/* w910: arch_x86_64_enc_enc_xchg_rdx_mem_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x87, 0x10. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice2: mov %rax, %rdx (48 89 C2). */
-int32_t arch_x86_64_enc_enc_mov_rax_to_rdx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 194);
-}
+/* w910: arch_x86_64_enc_enc_mov_rax_to_rdx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x89, 0xc2. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice2: movq (%rcx), %rax (48 8B 01). */
-int32_t arch_x86_64_enc_enc_movq_mem_rcx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 139) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 1);
-}
+/* w910: arch_x86_64_enc_enc_movq_mem_rcx_to_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x8b, 0x01. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice2: movq %rax, (%rcx) (48 89 01). */
-int32_t arch_x86_64_enc_enc_movq_rax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 1);
-}
+/* w910: arch_x86_64_enc_enc_movq_rax_to_mem_rcx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x48, 0x89, 0x01. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice2: lock cmpxchg %rdx, (%rbx) (F0 48 0F B1 13). */
-int32_t arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 72) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 19);
-}
+/* w910: arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf0, 0x48, 0x0f, 0xb1, 0x13. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.2: mfence (0F AE F0). */
-int32_t arch_x86_64_enc_enc_mfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 240);
-}
+/* w910: arch_x86_64_enc_enc_mfence is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xae, 0xf0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.2: lfence (0F AE E8). */
-int32_t arch_x86_64_enc_enc_lfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 232);
-}
+/* w910: arch_x86_64_enc_enc_lfence is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xae, 0xe8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.2: sfence (0F AE F8). */
-int32_t arch_x86_64_enc_enc_sfence(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 174) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 248);
-}
+/* w910: arch_x86_64_enc_enc_sfence is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xae, 0xf8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice3: movzwl (%rax), %eax (0F B7 00). */
-int32_t arch_x86_64_enc_enc_movzwl_mem_rax_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 183) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 0);
-}
+/* w910: arch_x86_64_enc_enc_movzwl_mem_rax_to_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xb7, 0x00. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice3: xchg %dx, (%rax) (66 87 10). */
-int32_t arch_x86_64_enc_enc_xchg_dx_mem_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 135) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 16);
-}
+/* w910: arch_x86_64_enc_enc_xchg_dx_mem_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x66, 0x87, 0x10. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice3: mov %ax, %dx (66 89 C2). */
-int32_t arch_x86_64_enc_enc_mov_ax_to_dx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 194);
-}
+/* w910: arch_x86_64_enc_enc_mov_ax_to_dx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x66, 0x89, 0xc2. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice3: movzwl (%rcx), %eax (0F B7 01). */
-int32_t arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 183) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 1);
-}
+/* w910: arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x0f, 0xb7, 0x01. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice3: movw %ax, (%rcx) (66 89 01). */
-int32_t arch_x86_64_enc_enc_movw_ax_to_mem_rcx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 1);
-}
+/* w910: arch_x86_64_enc_enc_movw_ax_to_mem_rcx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x66, 0x89, 0x01. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
 /* 10.4.1 slice3: lock cmpxchg %dx, (%rbx) (F0 66 0F B1 13). */
-int32_t arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 240) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 102) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 15) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 177) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 19);
-}
+/* w910: arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf0, 0x66, 0x0f, 0xb1, 0x13. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
@@ -1153,59 +971,44 @@ int32_t arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(struct platform_elf_ElfCodeg
  * arch_x86_64_enc_enc_mov_rax_to_r10 in backend_x86_64_enc_c.x. r10 has no
  * C-ABI mov_rax_to_arg_reg k slot (G.7; do not fork a second register map).
  * PLATFORM: LINUX|x86_64 runtime effect; SHARED emit code. */
-int32_t arch_x86_64_enc_enc_mov_rax_to_r10(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 73) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 194);
-}
+/* w910: arch_x86_64_enc_enc_mov_rax_to_r10 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x49, 0x89, 0xc2. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* Stage10 10.2.1 slice7: mov %r10, %rax (4C 89 D0). Twin of
  * arch_x86_64_enc_enc_mov_r10_to_rax in backend_x86_64_enc_c.x.
  * PLATFORM: LINUX|x86_64; SHARED emit. */
-int32_t arch_x86_64_enc_enc_mov_r10_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 76) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 208);
-}
+/* w910: arch_x86_64_enc_enc_mov_r10_to_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x4c, 0x89, 0xd0. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* Stage10 10.2.3: mov %rax, %r11 (49 89 C3). Twin of
  * arch_x86_64_enc_enc_mov_rax_to_r11 in backend_x86_64_enc_c.x.
  * PLATFORM: SHARED. */
-int32_t arch_x86_64_enc_enc_mov_rax_to_r11(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 73) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 195);
-}
+/* w910: arch_x86_64_enc_enc_mov_rax_to_r11 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x49, 0x89, 0xc3. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* Stage10 10.2.3: mov %r11, %rax (4C 89 D8). Twin of
  * arch_x86_64_enc_enc_mov_r11_to_rax in backend_x86_64_enc_c.x.
  * PLATFORM: SHARED. */
-int32_t arch_x86_64_enc_enc_mov_r11_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 76) != 0) return -1;
-  if (x86_enc_u8(elf_ctx, 137) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 216);
-}
+/* w910: arch_x86_64_enc_enc_mov_r11_to_rax is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0x4c, 0x89, 0xd8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* Stage10 10.2.3: pause (F3 90). Twin of
  * arch_x86_64_enc_enc_pause in backend_x86_64_enc_c.x.
  * PLATFORM: SHARED. */
-int32_t arch_x86_64_enc_enc_pause(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  if (x86_enc_u8(elf_ctx, 243) != 0) return -1;
-  return x86_enc_u8(elf_ctx, 144);
-}
+/* w910: arch_x86_64_enc_enc_pause is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xf3, 0x90. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* Stage10 10.2.3: int3 (CC). Twin of
  * arch_x86_64_enc_enc_int3 in backend_x86_64_enc_c.x.
  * PLATFORM: SHARED. */
-int32_t arch_x86_64_enc_enc_int3(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  if (!elf_ctx) return -1;
-  return x86_enc_u8(elf_ctx, 204);
-}
+/* w910: arch_x86_64_enc_enc_int3 is defined in backend_enc_dispatch_thin.x.
+ * Fixed bytes 0xcc. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X

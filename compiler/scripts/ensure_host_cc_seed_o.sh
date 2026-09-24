@@ -2268,9 +2268,101 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w910: x86_64 fixed-byte encoders live in the thin and stay strong.
+  # PLATFORM: SHARED.
+  local w910_sym
+  for w910_sym in \
+    arch_x86_64_enc_enc_add_rax_rbx \
+    arch_x86_64_enc_enc_and_rbx_rax \
+    arch_x86_64_enc_enc_or_rbx_rax \
+    arch_x86_64_enc_enc_xor_rbx_rax \
+    arch_x86_64_enc_enc_mov_rax_to_rbx \
+    arch_x86_64_enc_enc_mov_rbx_to_rax \
+    arch_x86_64_enc_enc_mov_rbx_to_ecx \
+    arch_x86_64_enc_enc_mov_edx_to_eax \
+    arch_x86_64_enc_enc_not_eax \
+    arch_x86_64_enc_enc_neg_eax \
+    arch_x86_64_enc_enc_test_eax_eax \
+    arch_x86_64_enc_enc_test_rbx_rbx \
+    arch_x86_64_enc_enc_test_edx_edx \
+    arch_x86_64_enc_enc_cmp_rbx_rax \
+    arch_x86_64_enc_enc_cmp_rax_rbx \
+    arch_x86_64_enc_enc_cltd \
+    arch_x86_64_enc_enc_idiv_rbx \
+    arch_x86_64_enc_enc_imul_rbx_rax \
+    arch_x86_64_enc_enc_push_rax \
+    arch_x86_64_enc_enc_push_rbx \
+    arch_x86_64_enc_enc_pop_rbx \
+    arch_x86_64_enc_enc_pop_rax \
+    arch_x86_64_enc_enc_shl_cl_eax \
+    arch_x86_64_enc_enc_shr_cl_eax \
+    arch_x86_64_enc_enc_sar_cl_eax \
+    arch_x86_64_enc_enc_shl_cl_rax \
+    arch_x86_64_enc_enc_shr_cl_rax \
+    arch_x86_64_enc_enc_sar_cl_rax \
+    arch_x86_64_enc_enc_xor_edx_edx \
+    arch_x86_64_enc_enc_div_rbx \
+    arch_x86_64_enc_enc_load_32_from_rax \
+    arch_x86_64_enc_enc_load_64_from_rax \
+    arch_x86_64_enc_enc_load_zext8_from_rax \
+    arch_x86_64_enc_enc_rax_plus_rbx_scale1 \
+    arch_x86_64_enc_enc_rax_plus_rbx_scale4 \
+    arch_x86_64_enc_enc_rax_plus_rbx_scale8 \
+    arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1 \
+    arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4 \
+    arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8 \
+    arch_x86_64_enc_enc_add_ecx_edx \
+    arch_x86_64_enc_enc_sub_ecx_edx \
+    arch_x86_64_enc_enc_add_ebx_edx \
+    arch_x86_64_enc_enc_sub_ebx_edx \
+    arch_x86_64_enc_enc_imul_ecx_edx \
+    arch_x86_64_enc_enc_imul_ebx_edx \
+    arch_x86_64_enc_enc_sub_rbx_rax_then_mov \
+    arch_x86_64_enc_enc_rsub_ecx_edx \
+    arch_x86_64_enc_enc_rsub_ebx_edx \
+    arch_x86_64_enc_enc_setz_movzbl_eax \
+    arch_x86_64_enc_enc_syscall \
+    arch_x86_64_enc_enc_movl_mem_rax_to_eax \
+    arch_x86_64_enc_enc_movl_mem_rcx_to_eax \
+    arch_x86_64_enc_enc_xchg_edx_mem_rax \
+    arch_x86_64_enc_enc_mov_rax_to_rcx \
+    arch_x86_64_enc_enc_movl_eax_to_mem_rcx \
+    arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax \
+    arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx \
+    arch_x86_64_enc_enc_sete_al \
+    arch_x86_64_enc_enc_movzbl_al_eax \
+    arch_x86_64_enc_enc_mov_eax_to_edx \
+    arch_x86_64_enc_enc_movq_mem_rax_to_rax \
+    arch_x86_64_enc_enc_xchg_rdx_mem_rax \
+    arch_x86_64_enc_enc_mov_rax_to_rdx \
+    arch_x86_64_enc_enc_movq_mem_rcx_to_rax \
+    arch_x86_64_enc_enc_movq_rax_to_mem_rcx \
+    arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx \
+    arch_x86_64_enc_enc_mfence \
+    arch_x86_64_enc_enc_lfence \
+    arch_x86_64_enc_enc_sfence \
+    arch_x86_64_enc_enc_movzwl_mem_rax_to_eax \
+    arch_x86_64_enc_enc_xchg_dx_mem_rax \
+    arch_x86_64_enc_enc_mov_ax_to_dx \
+    arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax \
+    arch_x86_64_enc_enc_movw_ax_to_mem_rcx \
+    arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx \
+    arch_x86_64_enc_enc_mov_rax_to_r10 \
+    arch_x86_64_enc_enc_mov_r10_to_rax \
+    arch_x86_64_enc_enc_mov_rax_to_r11 \
+    arch_x86_64_enc_enc_mov_r11_to_rax \
+    arch_x86_64_enc_enc_pause \
+    arch_x86_64_enc_enc_int3
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w910_sym"; then
+      echo "ensure: enc dispatch missing $w910_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w909; u32_le, mov imm32 w0, mov imm32 rbx, mov imm64, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w910; 81 x86 fixed-byte encoders, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 
