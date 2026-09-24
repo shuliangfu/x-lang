@@ -8449,12 +8449,18 @@ static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t r
 
 /* Fold one ARRAY_LIT element to its constant i32 value. Accepts
  * EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
- * NEG-over-LIT `[-600, 2]`), and integer binops ek 4..13 including DIV and
- * MOD whose operands fold. FLOAT_LIT is not an i32; the array baker pokes IEEE bits.
- * Anything else loud-fails — the historic silent drop baked zeros for
- * `let g: i32[2] = [-1, 2]`. Returns 1 when *out_val is written.
+ * NEG-over-LIT `[-600, 2]`), integer binops ek 4..13 including DIV and
+ * MOD whose operands fold, and EXPR_AS (ek 54) to TYPE_I32 (0) or
+ * TYPE_U32 (3) of a folded float. The cast truncates toward zero
+ * (cvttsd2si). Inf/NaN and a magnitude outside signed i32 return 0.
+ * |x| < 1 truncates to 0. An AS of a non-float stays 0.
+ * FLOAT_LIT with no cast is not an i32. Anything else loud-fails —
+ * the historic silent drop baked zeros for `let g: i32[2] = [-1, 2]`.
+ * Returns 1 when *out_val is written.
  * Twin of runtime_pipeline_abi.x pipe_modlet_array_lit_elem_const_val.
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
+ * PLATFORM: SHARED — little-endian host float trunc; LINUX gold. */
+static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
+                                                   int32_t *out_lo, int32_t *out_hi);
 static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t eref,
                                                           int32_t *out_val) {
   int32_t ek = 0, op = 0, v = 0, left = 0, right = 0, lv = 0, rv = 0;
@@ -8486,6 +8492,47 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
       return 0;
     rv = *out_val;
     return pipe_modlet_fold_i32_binop_cold(ek, lv, rv, out_val);
+  }
+  /* EXPR_AS of a folded float to i32 (0) or u32 (3). Truncate toward
+   * zero. Inf/NaN and |x| >= 2^31 (except exactly -2^31) return 0.
+   * An operand that is not a float constant stays 0. */
+  if (ek == 54) {
+    int32_t tgt = 0, tk = 0, flo = 0, fhi = 0, exp = 0;
+    int32_t parts[2];
+    double dv;
+    int32_t iv;
+    op = pipeline_expr_as_operand_ref_at(arena, eref);
+    tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
+    if (op <= 0 || tgt <= 0)
+      return 0;
+    tk = pipeline_type_kind_ord_at(arena, tgt);
+    if (tk != 0 && tk != 3)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi))
+      return 0;
+    exp = (fhi >> 20) & 2047;
+    if (exp == 2047)
+      return 0;
+    if (exp < 1023) {
+      *out_val = 0;
+      return 1;
+    }
+    if (exp > 1054)
+      return 0;
+    if (exp == 1054) {
+      if (fhi >= 0)
+        return 0;
+      if ((fhi & 1048575) != 0 || flo != 0)
+        return 0;
+      *out_val = 0 - 2147483647 - 1;
+      return 1;
+    }
+    parts[0] = flo;
+    parts[1] = fhi;
+    memcpy(&dv, parts, 8);
+    iv = (int32_t)dv;
+    *out_val = iv;
+    return 1;
   }
   return 0;
 }

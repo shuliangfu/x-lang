@@ -202,17 +202,24 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
 /**
  * Fold one ARRAY_LIT element to its constant i32 value.
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
- * the parser's NEG-over-LIT form `[-600, 2]`), and integer binops
- * EXPR_ADD..EXPR_BITXOR (ek 4..13, including DIV and MOD) whose operands fold. FLOAT_LIT is not
- * an i32: the array baker pokes IEEE bits from the element size. VAR and
- * any other kind are not compile-time constants; callers must loud-fail
- * (return -1) instead of silently dropping the element — the historic
- * silent drop baked zeros for `let g: i32[2] = [-1, 2]`.
- * @param arena *u8 - ASTArena
- * @param eref i32 - element expr ref
- * @param out_val *i32 - folded two's-complement i32 value
+ * the parser's NEG-over-LIT form `[-600, 2]`), integer binops
+ * EXPR_ADD..EXPR_BITXOR (ek 4..13, including DIV and MOD) whose operands fold,
+ * and EXPR_AS (ek 54) to TYPE_I32 (0) or TYPE_U32 (3) of a folded float.
+ * The cast truncates toward zero, the same cvttsd2si result as
+ * glue_emit_as_f2i32_elf_c. A magnitude that does not fit in signed i32,
+ * and Inf/NaN, return 0 so the baker loud-fails instead of storing the
+ * indefinite 0x80000000. |x| < 1 truncates to 0 and is a successful fold.
+ * An AS whose operand is not a float constant stays 0: integer `1 as i32`
+ * and `1 as i64` are not this arm. FLOAT_LIT with no cast is not an i32;
+ * the array baker pokes IEEE bits from the element size. VAR and any other
+ * kind are not compile-time constants; callers must loud-fail (return -1)
+ * instead of silently dropping the element — the historic silent drop
+ * baked zeros for `let g: i32[2] = [-1, 2]`.
+ * @param arena *u8 - ASTArena; null returns 0
+ * @param eref i32 - element expr ref; <= 0 returns 0
+ * @param out_val *i32 - folded two's-complement i32 value; null returns 0
  * @return i32 - 1 = folded constant; 0 = not a supported constant elem
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ * PLATFORM: SHARED — little-endian host float trunc; LINUX gold.
  */
 function pipe_modlet_array_lit_elem_const_val(
   arena: *u8, eref: i32, out_val: *i32
@@ -273,6 +280,72 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     unsafe { rv = out_val[0]; }
     return pipe_modlet_fold_i32_binop(ek, lv, rv, out_val);
+  }
+  // EXPR_AS of a folded float to i32 or u32. Same target kinds as
+  // glue_emit_as_f2i32_elf_c. The operand must fold as a float; an
+  // integer operand stays 0 so `1 as i32` is not silently accepted.
+  if (ek == 54) {
+    let tgt: i32 = 0;
+    let tk: i32 = 0;
+    let flo: i32 = 0;
+    let fhi: i32 = 0;
+    let exp: i32 = 0;
+    let parts: i32[2] = [];
+    let dv: f64 = 0.0;
+    let iv: i32 = 0;
+    unsafe {
+      unsafe { op = pipeline_expr_as_operand_ref_at(arena, eref); }
+      unsafe { tgt = pipeline_expr_as_target_type_ref_at(arena, eref); }
+    }
+    if (op <= 0 || tgt <= 0) {
+      return 0;
+    }
+    unsafe {
+      unsafe { tk = pipeline_type_kind_ord_at(arena, tgt); }
+    }
+    // .x TypeKind: TYPE_I32 = 0, TYPE_U32 = 3. Not the C enum.
+    if (tk != 0 && tk != 3) {
+      return 0;
+    }
+    if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {
+      return 0;
+    }
+    // Exponent lives in bits 20..30. An arithmetic shift still leaves
+    // those 11 bits after the mask, including a negative high half.
+    exp = (fhi >> 20) & 2047;
+    // Inf / NaN. cvttsd2si would yield the indefinite integer.
+    if (exp == 2047) {
+      return 0;
+    }
+    // |x| < 1 truncates to 0, including zero and subnormals.
+    if (exp < 1023) {
+      unsafe { out_val[0] = 0; }
+      return 1;
+    }
+    // |x| >= 2^31 does not fit in signed i32, except exactly -2^31.
+    if (exp > 1054) {
+      return 0;
+    }
+    if (exp == 1054) {
+      if (fhi >= 0) {
+        return 0;
+      }
+      if ((fhi & 1048575) != 0 || flo != 0) {
+        return 0;
+      }
+      unsafe { out_val[0] = 0 - 2147483647 - 1; }
+      return 1;
+    }
+    // Host f64-to-i32 truncates toward zero (cvttsd2si). The bit gate
+    // above already rejected non-finite and out-of-range values.
+    parts[0] = flo;
+    parts[1] = fhi;
+    unsafe {
+      unsafe { memcpy((&dv) as *u8, (&(parts[0])) as *u8, 8 as usize); }
+    }
+    iv = dv as i32;
+    unsafe { out_val[0] = iv; }
+    return 1;
   }
   return 0;
 }
