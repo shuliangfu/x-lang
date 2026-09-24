@@ -9760,29 +9760,26 @@ export function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
  * @return i32 — 0 when the frame is opened, -1 on failure
  * PLATFORM: SHARED — product link name. This symbol stays strong.
  * C callers still pass the frame size. This body does not compare
- * elf_ctx with 0 and does not divide. The low 4 bits select the
- * alignment residue. Each append is checked directly.
+ * elf_ctx with 0 and does not divide. The sign bit clears a negative
+ * size. The low 4 bits select the alignment addend. Each append is
+ * checked directly. Stores are straight-line so a host that drops
+ * an assignment inside a branch still emits the adjusted size.
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
-  // Non-negative sizes keep their value. A negative size stays 0.
-  // Residue 0..7 grows up to 8. Residue 9..15 grows up to the next 8.
-  // Residue 8 is already the required alignment.
-  let fs: i32 = 0;
-  let rem: i32 = 0;
-  let u: u32 = 0;
-  if (frame_sz > (0 - 1)) {
-    fs = frame_sz;
-  }
-  rem = fs & 15;
-  if (rem != 8) {
-    if (rem < 8) {
-      fs = fs + (8 - rem);
-    }
-    if (rem >= 8) {
-      fs = fs + (16 - rem + 8);
-    }
-  }
+  // Sign bit 1 makes the mask 0, so a negative size becomes 0.
+  // Sign bit 0 makes the mask all ones, so a non-negative size is kept.
+  // Addend (8 - residue) masked to 4 bits is 0 when the residue is 8,
+  // 8 - residue when the residue is 0..7, and 24 - residue when it is 9..15.
+  let bits: u32 = frame_sz as u32;
+  let sign: u32 = bits >> 31;
+  let mask: u32 = sign - 1;
+  let fs_u: u32 = bits & mask;
+  let fs: i32 = fs_u as i32;
+  let rem: i32 = fs & 15;
+  let add: i32 = (8 - rem) & 15;
+  let aligned: i32 = fs + add;
+  let u: u32 = aligned as u32;
   if (x86_enc_u8(elf_ctx, 85) != 0) {
     return 0 - 1;
   }
@@ -9807,7 +9804,6 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   if (x86_enc_u8(elf_ctx, 236) != 0) {
     return 0 - 1;
   }
-  u = fs as u32;
   if (x86_enc_u8(elf_ctx, (u & 255) as i32) != 0) {
     return 0 - 1;
   }
