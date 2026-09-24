@@ -5,6 +5,13 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_load_rbp_to_rax`
+- ✅ `arch_arm64_enc_enc_load_rbp_to_rbx`
+- ✅ `arch_arm64_enc_enc_load_rbp_to_x2`
+- ✅ `arch_arm64_enc_enc_load_rbp_to_x3`
+- ✅ `arch_arm64_enc_enc_store_x_reg_to_rbp`
+- ✅ `arch_arm64_enc_enc_store_rax_to_rbp`
+- ✅ `arch_arm64_enc_enc_store_rax_to_rbx_offset`
 - ✅ `arch_x86_64_enc_enc_store_rax_to_rbp`
 - ✅ `arch_x86_64_enc_enc_store_r64_to_rbp`
 - ✅ `arch_x86_64_enc_enc_load_rbp_to_rax`
