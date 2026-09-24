@@ -21,6 +21,9 @@
  * backend_enc_dispatch_thin.x. This file no longer emits them.
  * They forward to x86_enc_jcc_rel32, which stays here. jmp, call,
  * label, cmp_setcc, and the Win64 argument moves stay here.
+ * w920: x86 cmp_setcc lives in backend_enc_dispatch_thin.x.
+ * The opcode is a straight-line let. This file no longer emits that
+ * symbol. jmp, call, label, and the Win64 argument moves stay here.
  * PLATFORM: SHARED.
  */
 /**
@@ -732,25 +735,11 @@ int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, ui
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_cmp_setcc_movzbl */
-int32_t arch_x86_64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc) {
-  uint8_t op = 148;
-  static const uint8_t m[] = {15, 182, 192};
-  uint8_t s[3];
-  if (!elf_ctx) return -1;
-  if (cc == 1) op = 149;
-  else if (cc == 2) op = 156;
-  else if (cc == 3) op = 158;
-  else if (cc == 4) op = 159;
-  else if (cc == 5) op = 157;
-  else if (cc == 6) op = 146; /* SETB */
-  else if (cc == 7) op = 150; /* SETBE */
-  else if (cc == 8) op = 151; /* SETA */
-  else if (cc == 9) op = 147; /* SETAE */
-  s[0] = 15; s[1] = op; s[2] = 192;
-  if (x86_enc_bytes(elf_ctx, s, 3) != 0) return -1;
-  return x86_enc_bytes(elf_ctx, m, 3);
-}
+/* w920: arch_x86_64_enc_enc_cmp_setcc_movzbl is defined in backend_enc_dispatch_thin.x.
+ * cc 0..9 select opcodes 148, 149, 156, 158, 159, 157, 146, 150, 151, and 147.
+ * Every other cc selects 148. The six bytes are 15, opcode, 192, 15, 182, 192.
+ * They go through x86_enc_u8. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X

@@ -134,6 +134,12 @@
 // backend_enc_append_u32_le_c. It stays strong. It does not compare
 // elf_ctx with 0 or divide. The x86 cmp_setcc, label, prologue, epilogue,
 // and the two leas stay in the C seed.
+// w920 places arch_x86_64_enc_enc_cmp_setcc_movzbl here. cc 0..9 select
+// opcodes 148, 149, 156, 158, 159, 157, 146, 150, 151, and 147. Every
+// other cc selects 148. The six bytes are 15, opcode, 192, 15, 182, 192.
+// They go through x86_enc_u8. It stays strong. It does not compare
+// elf_ctx with 0 or divide. The opcode is a straight-line let. jmp,
+// call, label, and the Win64 argument moves stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -10098,4 +10104,77 @@ export function arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 
     return backend_enc_append_u32_le_c(elf_ctx, (446629856 as u32) | field);
   }
   return 0 - 1;
+}
+
+/**
+ * Emit x86 setcc plus movzbl for a logical compare code.
+ * cc 0..5 are sete, setne, setl, setle, setg, and setge.
+ * cc 6..9 are setb, setbe, seta, and setae.
+ * Every other cc, including a negative one, emits sete.
+ * The six bytes are 15, opcode, 192, 15, 182, and 192.
+ * A null context returns -1 from x86_enc_u8.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param cc i32 — logical compare code
+ * @return i32 — 0 when the six bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The opcode is a straight-line let. It is not stored inside a branch.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 {
+  // pack_lo bytes are 148, 149, 156, 158. Decimal 2661062036.
+  // pack_hi bytes are 159, 157, 146, 150. Decimal 2526191007.
+  // cc 8 is 151. cc 9 is 147. A negative cc selects 148.
+  let ccu: u32 = cc as u32;
+  let neg_cc: u32 = ccu >> 31;
+  let nonneg: u32 = neg_cc - 1;
+  let raw_below4: u32 = (ccu - 4) >> 31;
+  let below4: u32 = raw_below4 & nonneg;
+  let m4: u32 = 0 - below4;
+  let raw_below8: u32 = (ccu - 8) >> 31;
+  let below8: u32 = raw_below8 & nonneg;
+  let m8: u32 = 0 - below8;
+  let m4_sign: u32 = m4 >> 31;
+  let not_m4: u32 = m4_sign - 1;
+  let in_hi: u32 = m8 & not_m4;
+  let sh: u32 = (ccu & 3) * 8;
+  let pack_lo: u32 = 2661062036;
+  let pack_hi: u32 = 2526191007;
+  let b_lo: u32 = (pack_lo >> sh) & 255;
+  let b_hi: u32 = (pack_hi >> sh) & 255;
+  let op_low: u32 = (b_lo & m4) | (b_hi & in_hi);
+  let diff8: u32 = ccu - 8;
+  let neg8: u32 = 0 - diff8;
+  let or8: u32 = diff8 | neg8;
+  let nz8: u32 = or8 >> 31;
+  let eq8: u32 = nz8 - 1;
+  let diff9: u32 = ccu - 9;
+  let neg9: u32 = 0 - diff9;
+  let or9: u32 = diff9 | neg9;
+  let nz9: u32 = or9 >> 31;
+  let eq9: u32 = nz9 - 1;
+  let op8: u32 = 151 & eq8;
+  let op9: u32 = 147 & eq9;
+  let any: u32 = m8 | eq8 | eq9;
+  let any_sign: u32 = any >> 31;
+  let none: u32 = any_sign - 1;
+  let op_def: u32 = 148 & none;
+  let op: u32 = op_low | op8 | op9 | op_def;
+  let byte: i32 = (op & 255) as i32;
+  if (x86_enc_u8(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, byte) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 192) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 182) != 0) {
+    return 0 - 1;
+  }
+  return x86_enc_u8(elf_ctx, 192);
 }
