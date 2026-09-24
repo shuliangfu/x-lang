@@ -11,8 +11,8 @@
  * forwards to backend_enc_x86_64_call_reg_c. wave893 moves that callee
  * into the same .x. Both symbols stay strong.
  * wave880: arch_x86_64_enc_enc_load_rax_rbx_disp32 lives in that .x too.
- * It still forwards to backend_enc_x86_64_load_rax_rbx_disp32_c, which
- * stays in this tail. The symbol stays strong.
+ * It still forwards to backend_enc_x86_64_load_rax_rbx_disp32_c.
+ * wave896 moves that callee into the same .x. Both symbols stay strong.
  * wave881: arch_riscv64_enc_enc_jalr_reg lives in that .x too. It still
  * forwards to backend_enc_riscv64_jalr_reg_c. wave892 moves that callee
  * into the same .x. Both symbols stay strong.
@@ -35,6 +35,8 @@
  * It appends one RISC-V ld instruction word. The symbol stays strong.
  * wave895: backend_enc_arm64_ldr_xreg_xreg_imm_c lives in that .x too.
  * It appends one ARM64 ldr instruction word. The symbol stays strong.
+ * wave896: backend_enc_x86_64_load_rax_rbx_disp32_c lives in that .x too.
+ * It appends one x86_64 mov rDst, [rBase+disp32]. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1697,34 +1699,13 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
  * then 0xD0 | (reg & 7). arch_x86_64_enc_enc_call_reg still forwards
  * to it. The prototype above still names the symbol. Stays strong.
  * PLATFORM: SHARED. */
-/* x86_64 mov rax,[rbx+disp32]: 48 8B 83 disp32_le. dst/base ignored (fixed pair). */
-int32_t backend_enc_x86_64_load_rax_rbx_disp32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
-  int32_t rex;
-  int32_t modrm;
-  uint8_t b0, b1, b2, b3;
-  if (!elf_ctx) { return -1; }
-  if (dst_reg < 0 || dst_reg > 15) { return -1; }
-  if (base_reg < 0 || base_reg > 15) { return -1; }
-  rex = 0x48;
-  if (dst_reg >= 8) rex += 4;
-  if (base_reg >= 8) rex += 1;
-  if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return -1; }
-  if (backend_enc_append_u8_c(elf_ctx, 0x8B) != 0) { return -1; }
-  modrm = 0x80 + ((dst_reg & 7) * 8) + (base_reg & 7);
-  if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return -1; }
-  if ((base_reg & 7) == 4) {
-    if (backend_enc_append_u8_c(elf_ctx, 0x24) != 0) { return -1; }
-  }
-  b0 = (uint8_t)(offset & 0xFF);
-  b1 = (uint8_t)((offset >> 8) & 0xFF);
-  b2 = (uint8_t)((offset >> 16) & 0xFF);
-  b3 = (uint8_t)((offset >> 24) & 0xFF);
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b0, 1) != 0) { return -1; }
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b1, 1) != 0) { return -1; }
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b2, 1) != 0) { return -1; }
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b3, 1) != 0) { return -1; }
-  return 0;
-}
+/* w896: backend_enc_x86_64_load_rax_rbx_disp32_c is defined in
+ * backend_enc_dispatch_thin.x. It appends REX.W, 0x8B, ModRM
+ * (mod=2), optional SIB 0x24 when (base & 7) == 4, then four
+ * little-endian displacement bytes. Registers are 0..15.
+ * arch_x86_64_enc_enc_load_rax_rbx_disp32 still forwards to it.
+ * The prototype above still names the symbol. Stays strong.
+ * PLATFORM: SHARED. */
 /* w892: backend_enc_riscv64_jalr_reg_c is defined in
  * backend_enc_dispatch_thin.x. It appends 0xE7 | (reg << 15).
  * arch_riscv64_enc_enc_jalr_reg still forwards to it. The prototype above

@@ -14,8 +14,8 @@
 // backend_enc_x86_64_call_reg_c. w893 places that callee here too.
 // Both symbols stay strong.
 // w880 places arch_x86_64_enc_enc_load_rax_rbx_disp32 here. It forwards to
-// backend_enc_x86_64_load_rax_rbx_disp32_c, which stays in the C tail.
-// That symbol stays strong.
+// backend_enc_x86_64_load_rax_rbx_disp32_c. w896 places that callee here too.
+// Both symbols stay strong.
 // w881 places arch_riscv64_enc_enc_jalr_reg here. It forwards to
 // backend_enc_riscv64_jalr_reg_c. w892 places that callee here too.
 // Both symbols stay strong.
@@ -38,6 +38,8 @@
 // one RISC-V ld instruction word. The symbol stays strong.
 // w895 places backend_enc_arm64_ldr_xreg_xreg_imm_c here. It appends
 // one ARM64 ldr instruction word. The symbol stays strong.
+// w896 places backend_enc_x86_64_load_rax_rbx_disp32_c here. It appends
+// one x86_64 mov rDst, [rBase+disp32]. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -50,7 +52,6 @@ export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i3
 export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
-export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
 
@@ -3659,7 +3660,7 @@ export function arch_x86_64_enc_enc_call_reg(elf_ctx: *u8, reg: i32): i32 {
 
 /**
  * Forward arch_x86_64_enc_enc_load_rax_rbx_disp32 to backend_enc_x86_64_load_rax_rbx_disp32_c.
- * The callee stays in the C tail of this object. This symbol stays strong.
+ * The callee is defined later in this file. This symbol stays strong.
  * @param elf_ctx *u8 — emit context passed through; the callee rejects null
  * @param dst_reg i32 — destination register passed through
  * @param base_reg i32 — base register passed through
@@ -3918,4 +3919,50 @@ export function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32
     elf_ctx,
     (4181721088 as u32) | ((offset as u32) * 128) | ((base_reg as u32) * 32) | (dst_reg as u32)
   );
+}
+
+/**
+ * Emit one x86_64 mov rDst, [rBase + disp32] instruction.
+ * The bytes are REX.W, 0x8B, ModRM with mod=2, an optional SIB when
+ * the low 3 bits of the base are 4, then the displacement as four
+ * little-endian bytes. Registers outside 0..15 return -1.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param dst_reg i32 — destination register, accepted only for 0..15
+ * @param base_reg i32 — base register, accepted only for 0..15
+ * @param offset i32 — disp32; stored as its two's-complement bytes
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u8_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  // REX.W is 0x48. REX.R (bit 2) is 4 when dst >= 8. REX.B (bit 0) is 1 when base >= 8.
+  // 0x8B is the mov r/m, r opcode. ModRM 0x80 is mod=2 (disp32), reg in bits 5:3, r/m in bits 2:0.
+  // SIB 0x24 is needed when r/m is 4 (RSP encoding), otherwise that ModRM means SIB follows.
+  // Displacement bytes are shifts of the unsigned bit pattern, masked to 8 bits.
+  // A divide is not used: the host lowers `/` as a 64-bit idiv that traps on a negative dividend.
+  let rex: i32 = 0;
+  let modrm: i32 = 0;
+  let disp: u32 = 0;
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 15) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 15) { return 0 - 1; }
+  rex = 72 + (((dst_reg >> 3) & 1) * 4) + ((base_reg >> 3) & 1);
+  if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) { return 0 - 1; }
+  modrm = 128 + ((dst_reg & 7) * 8) + (base_reg & 7);
+  if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return 0 - 1; }
+  if ((base_reg & 7) == 4) {
+    if (backend_enc_append_u8_c(elf_ctx, 36) != 0) { return 0 - 1; }
+  }
+  disp = offset as u32;
+  if (backend_enc_append_u8_c(elf_ctx, (disp & 255) as i32) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, ((disp >> 8) & 255) as i32) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, ((disp >> 16) & 255) as i32) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, ((disp >> 24) & 255) as i32) != 0) { return 0 - 1; }
+  return 0;
 }
