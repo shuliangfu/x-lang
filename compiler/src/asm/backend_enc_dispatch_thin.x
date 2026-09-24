@@ -17,8 +17,8 @@
 // backend_enc_x86_64_load_rax_rbx_disp32_c, which stays in the C tail.
 // That symbol stays strong.
 // w881 places arch_riscv64_enc_enc_jalr_reg here. It forwards to
-// backend_enc_riscv64_jalr_reg_c, which stays in the C tail.
-// That symbol stays strong.
+// backend_enc_riscv64_jalr_reg_c. w892 places that callee here too.
+// Both symbols stay strong.
 // w882 places arch_riscv64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
 // backend_enc_riscv64_ldr_xreg_xreg_imm_c, which stays in the C tail.
 // That symbol stays strong.
@@ -30,6 +30,8 @@
 // little-endian bytes of one word. The symbol stays strong.
 // w891 places backend_enc_arm64_blr_c here. It appends one ARM64 blr
 // instruction word. The symbol stays strong.
+// w892 places backend_enc_riscv64_jalr_reg_c here. It appends one
+// RISC-V jalr instruction word. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -45,7 +47,6 @@ export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8
 export extern "C" function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32;
 export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
-export extern "C" function backend_enc_riscv64_jalr_reg_c(elf_ctx: *u8, reg: i32): i32;
 export extern "C" function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
@@ -3671,7 +3672,7 @@ export function arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx: *u8, dst_reg: i
 
 /**
  * Forward arch_riscv64_enc_enc_jalr_reg to backend_enc_riscv64_jalr_reg_c.
- * The callee stays in the C tail of this object. This symbol stays strong.
+ * The callee is defined later in this file. This symbol stays strong.
  * @param elf_ctx *u8 — emit context passed through; the callee rejects null
  * @param reg i32 — RISC-V register number passed through; the callee rejects values outside 0..31
  * @return i32 — the callee's status, 0 on success and -1 on failure
@@ -3789,4 +3790,25 @@ export function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32 {
   if (reg < 0) { return 0 - 1; }
   if (reg > 30) { return 0 - 1; }
   return backend_enc_append_u32_le_c(elf_ctx, (3594452992 as u32) | ((reg as u32) * 32));
+}
+
+/**
+ * Emit one RISC-V jalr x1, 0(xN) instruction.
+ * The word is 0xE7 with the register number in bits 19:15.
+ * Register numbers outside 0..31 return -1. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — RISC-V register number, accepted only for 0..31
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_riscv64_jalr_reg_c(elf_ctx: *u8, reg: i32): i32 {
+  // 0xE7 | (reg << 15). 0xE7 is jalr with rd=x1 and opcode 0x67.
+  // Multiply by 32768 places the register number in bits 19:15.
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 31) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (231 as u32) | ((reg as u32) * 32768));
 }

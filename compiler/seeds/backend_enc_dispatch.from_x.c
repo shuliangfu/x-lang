@@ -14,8 +14,8 @@
  * It still forwards to backend_enc_x86_64_load_rax_rbx_disp32_c, which
  * stays in this tail. The symbol stays strong.
  * wave881: arch_riscv64_enc_enc_jalr_reg lives in that .x too. It still
- * forwards to backend_enc_riscv64_jalr_reg_c, which stays in this tail.
- * The symbol stays strong.
+ * forwards to backend_enc_riscv64_jalr_reg_c. wave892 moves that callee
+ * into the same .x. Both symbols stay strong.
  * wave882: arch_riscv64_enc_enc_ldr_xreg_xreg_imm lives in that .x too.
  * It still forwards to backend_enc_riscv64_ldr_xreg_xreg_imm_c, which
  * stays in this tail. The symbol stays strong.
@@ -27,6 +27,8 @@
  * It appends four little-endian bytes of one word. The symbol stays strong.
  * wave891: backend_enc_arm64_blr_c lives in that .x too.
  * It appends one ARM64 blr instruction word. The symbol stays strong.
+ * wave892: backend_enc_riscv64_jalr_reg_c lives in that .x too.
+ * It appends one RISC-V jalr instruction word. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1724,12 +1726,10 @@ int32_t backend_enc_x86_64_load_rax_rbx_disp32_c(struct platform_elf_ElfCodegenC
   if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &b3, 1) != 0) { return -1; }
   return 0;
 }
-/* riscv64 jalr x1,0(xN) = (N<<15) | 0xE7. */
-int32_t backend_enc_riscv64_jalr_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
-  if (!elf_ctx) { return -1; }
-  if (reg < 0 || reg > 31) { return -1; }
-  return backend_enc_append_u32_le_c(elf_ctx, (uint32_t)0xE7u | ((uint32_t)reg << 15));
-}
+/* w892: backend_enc_riscv64_jalr_reg_c is defined in
+ * backend_enc_dispatch_thin.x. It appends 0xE7 | (reg << 15).
+ * arch_riscv64_enc_enc_jalr_reg still forwards to it. The prototype above
+ * still names the symbol. Stays strong. PLATFORM: SHARED. */
 /* riscv64 ld rd,off(rs1) = (imm12<<20)|(rs1<<15)|(3<<12)|(rd<<7)|3. */
 int32_t backend_enc_riscv64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
   if (!elf_ctx) { return -1; }
