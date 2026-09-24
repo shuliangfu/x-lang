@@ -24,6 +24,10 @@
  * w920: x86 cmp_setcc lives in backend_enc_dispatch_thin.x.
  * The opcode is a straight-line let. This file no longer emits that
  * symbol. jmp, call, label, and the Win64 argument moves stay here.
+ * w921: seven unused rbp and alu helpers are no longer emitted.
+ * The public rbp and immediate encoders in the thin already append
+ * those bytes. jmp, call, label, jcc, and the Win64 argument moves
+ * stay here.
  * PLATFORM: SHARED.
  */
 /**
@@ -55,17 +59,6 @@ extern int32_t x86_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_
 extern int32_t x86_enc_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx, const uint8_t *buf, int32_t n);
 extern int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t opcode2, uint8_t *label,
                                  int32_t label_len);
-extern int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                         uint8_t disp8_modrm, uint8_t disp32_modrm);
-extern int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                        uint8_t disp8_modrm, uint8_t disp32_modrm);
-extern int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                           uint8_t disp8_modrm, uint8_t disp32_modrm);
-extern int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
-extern int32_t x86_enc_store_r64_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t offset);
-extern int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
-                                        uint8_t reg_modrm);
-extern int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset);
 
 /** 取 ElfCodegenCtx 字节视图。 */
 static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
@@ -117,155 +110,12 @@ int32_t x86_enc_jcc_rel32(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t op
 }
 
 
-/** movq -offset(%rbp), %reg：modrm_reg 为 disp8 第三字节（69=rax, 93=rbx 等）。 */
-/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_movq_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                         uint8_t disp8_modrm, uint8_t disp32_modrm) {
-  int32_t disp;
-  uint8_t buf[7];
-  disp = 0 - offset;
-  if (disp >= -128 && disp <= -1) {
-    buf[0] = 72;
-    buf[1] = 0x8B;
-    buf[2] = disp8_modrm;
-    buf[3] = (uint8_t)disp;
-    return x86_enc_bytes(elf_ctx, buf, 4);
-  }
-  buf[0] = 72;
-  buf[1] = 0x8B;
-  buf[2] = disp32_modrm;
-  buf[3] = (uint8_t)(disp & 255);
-  buf[4] = (uint8_t)((disp >> 8) & 255);
-  buf[5] = (uint8_t)((disp >> 16) & 255);
-  buf[6] = (uint8_t)((disp >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 7);
-
-}
-
-
-/** leaq -offset(%rbp), %reg。 */
-/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_lea_from_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                        uint8_t disp8_modrm, uint8_t disp32_modrm) {
-  int32_t disp;
-  uint8_t buf[7];
-  disp = 0 - offset;
-  if (disp >= -128 && disp <= -1) {
-    buf[0] = 72;
-    buf[1] = 0x8D;
-    buf[2] = disp8_modrm;
-    buf[3] = (uint8_t)disp;
-    return x86_enc_bytes(elf_ctx, buf, 4);
-  }
-  buf[0] = 72;
-  buf[1] = 0x8D;
-  buf[2] = disp32_modrm;
-  buf[3] = (uint8_t)(disp & 255);
-  buf[4] = (uint8_t)((disp >> 8) & 255);
-  buf[5] = (uint8_t)((disp >> 16) & 255);
-  buf[6] = (uint8_t)((disp >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 7);
-
-}
-
-
-/** movl -offset(%rbp), 32-bit reg（disp8 modrm 在 buf[2]）。 */
-/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_movl_from_rbp_neg32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset,
-                                           uint8_t disp8_modrm, uint8_t disp32_modrm) {
-  int32_t disp;
-  uint8_t buf[6];
-  disp = 0 - offset;
-  if (disp >= -128 && disp <= -1) {
-    buf[0] = 0x8B;
-    buf[1] = disp8_modrm;
-    buf[2] = (uint8_t)disp;
-    return x86_enc_bytes(elf_ctx, buf, 3);
-  }
-  buf[0] = 0x8B;
-  buf[1] = disp32_modrm;
-  buf[2] = (uint8_t)(disp & 255);
-  buf[3] = (uint8_t)((disp >> 8) & 255);
-  buf[4] = (uint8_t)((disp >> 16) & 255);
-  buf[5] = (uint8_t)((disp >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 6);
-
-}
-
-
-/** movq %rax, -offset(%rbp)。 */
-/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_store_rax_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t disp;
-  uint8_t buf[7];
-  disp = 0 - offset;
-  if (disp >= -128 && disp <= -1) {
-    buf[0] = 72;
-    buf[1] = 0x89;
-    buf[2] = 0x45;
-    buf[3] = (uint8_t)disp;
-    return x86_enc_bytes(elf_ctx, buf, 4);
-  }
-  buf[0] = 72;
-  buf[1] = 0x89;
-  buf[2] = 0x85;
-  buf[3] = (uint8_t)(disp & 255);
-  buf[4] = (uint8_t)((disp >> 8) & 255);
-  buf[5] = (uint8_t)((disp >> 16) & 255);
-  buf[6] = (uint8_t)((disp >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 7);
-
-}
-
-#ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* movq %r64, -offset(%rbp). F7 dyn coerce vtable store. PLATFORM: LINUX x86_64. */
-int32_t x86_enc_store_r64_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg,
-                                     int32_t offset) {
-  int32_t disp;
-  uint8_t buf[8];
-  int32_t lo;
-  if (!elf_ctx || reg < 0 || reg > 15)
-    return -1;
-  disp = 0 - offset;
-  lo = reg & 7;
-  buf[0] = (reg >= 8) ? 76 : 72;
-  buf[1] = 0x89;
-  if (disp >= -128 && disp <= -1) {
-    buf[2] = (uint8_t)(0x45 + lo * 8);
-    buf[3] = (uint8_t)disp;
-    return x86_enc_bytes(elf_ctx, buf, 4);
-  }
-  buf[2] = (uint8_t)(0x85 + lo * 8);
-  buf[3] = (uint8_t)(disp & 255);
-  buf[4] = (uint8_t)((disp >> 8) & 255);
-  buf[5] = (uint8_t)((disp >> 16) & 255);
-  buf[6] = (uint8_t)((disp >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 7);
-}
-#endif
-
-/** add/sub/imul imm32 到 32-bit reg 的通用模板。 */
-/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_alu_imm32_to_reg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm, uint8_t op_prefix,
-                                        uint8_t reg_modrm) {
-  uint8_t buf[6];
-  if (imm == 0)
-    return 0;
-  if (imm >= -128 && imm <= 127) {
-    buf[0] = 0x83;
-    buf[1] = reg_modrm;
-    buf[2] = (uint8_t)imm;
-    return x86_enc_bytes(elf_ctx, buf, 3);
-  }
-  buf[0] = op_prefix;
-  buf[1] = reg_modrm;
-  buf[2] = (uint8_t)(imm & 255);
-  buf[3] = (uint8_t)((imm >> 8) & 255);
-  buf[4] = (uint8_t)((imm >> 16) & 255);
-  buf[5] = (uint8_t)((imm >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 6);
-
-}
+/* w921: x86_enc_movq_from_rbp_neg, x86_enc_lea_from_rbp_neg,
+ * x86_enc_movl_from_rbp_neg32, x86_enc_store_rax_to_rbp_neg,
+ * x86_enc_store_r64_to_rbp_neg, and x86_enc_alu_imm32_to_reg are
+ * not emitted. The public rbp and immediate encoders in
+ * backend_enc_dispatch_thin.x already append those bytes. No product
+ * object calls these helpers. PLATFORM: SHARED. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
@@ -1322,29 +1172,9 @@ int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uin
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/** movq %rdx, -offset(%rbp)。 */
-/* G-02f-130：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int32_t x86_enc_store_rdx_to_rbp_neg(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t offset) {
-  int32_t disp;
-  uint8_t buf[7];
-  disp = 0 - offset;
-  if (disp >= -128 && disp <= -1) {
-    buf[0] = 72;
-    buf[1] = 0x89;
-    buf[2] = 0x55;
-    buf[3] = (uint8_t)disp;
-    return x86_enc_bytes(elf_ctx, buf, 4);
-  }
-  buf[0] = 72;
-  buf[1] = 0x89;
-  buf[2] = 0x95;
-  buf[3] = (uint8_t)(disp & 255);
-  buf[4] = (uint8_t)((disp >> 8) & 255);
-  buf[5] = (uint8_t)((disp >> 16) & 255);
-  buf[6] = (uint8_t)((disp >> 24) & 255);
-  return x86_enc_bytes(elf_ctx, buf, 7);
-
-}
+/* w921: x86_enc_store_rdx_to_rbp_neg is not emitted.
+ * arch_x86_64_enc_enc_store_rdx_to_rbp in the thin already appends
+ * those bytes. No product object calls this helper. PLATFORM: SHARED. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 
