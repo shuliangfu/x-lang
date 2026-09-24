@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `backend_enc_mulsd_rax_rbx_arch`
 - ✅ `backend_enc_subsd_rax_rbx_arch`
 - ✅ `backend_enc_subsd_rbx_rax_arch`
 - ✅ `backend_enc_addsd_rax_rbx_arch`
