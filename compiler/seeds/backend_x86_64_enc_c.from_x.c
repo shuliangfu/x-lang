@@ -30,6 +30,10 @@
  * w923: x86_enc_jcc_rel32 and arch_x86_64_enc_enc_jmp live in
  * backend_enc_dispatch_thin.x. Each appends its bytes, then reads
  * the code length in a later block. This file no longer emits them.
+ * w927: arch_x86_64_enc_enc_label lives in backend_enc_dispatch_thin.x.
+ * Pad runs in its own block. The code length is read in a later block.
+ * A function export copies with memcpy. This file no longer emits
+ * that symbol. call and the Win64 argument moves stay here.
  * PLATFORM: SHARED.
  */
 /**
@@ -122,33 +126,14 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_label when FROM_X.
- * Ordering: pad_code_to_4 BEFORE emit_code_len (G.7 dual-authority with .x).
- * Hoist of emit_code_len before pad → multi-func SEGV (overload.x). */
-int32_t arch_x86_64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_func) {
-  uint8_t *cb;
-  /* Cap 4.2.8: mn[256] holds '_' + up to 255 content (was [128] with k<255 smash). */
-  uint8_t mn[256];
-  int32_t k;
-  int32_t code_len;
-  if (!elf_ctx || !name || name_len < 0) return -1;
-  cb = x86_enc_ctx_bytes(elf_ctx);
-  /* Block 1: pad only. */
-  if (is_func != 0 && pipeline_elf_ctx_pad_code_to_4(cb) != 0) return -1;
-  /* Block 2: capture after pad. */
-  code_len = pipeline_elf_ctx_emit_code_len(cb);
-  if (pipeline_elf_ctx_add_label(cb, name, name_len, code_len) != 0) return -1;
-  if (is_func == 0) return 0;
-  /* Cap 4.2.8: mn u8[256] holds '_' + up to 255 content (was wave580 [128]).
-   * PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
-    mn[0] = 95;
-    k = 0;
-    while (k < name_len && k < 255) { mn[k + 1] = name[k]; k = k + 1; }
-    return pipeline_elf_ctx_add_sym(cb, mn, name_len + 1, pipeline_elf_ctx_emit_code_len(cb));
-  }
-  return pipeline_elf_ctx_add_sym(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb));
-}
+/* w927: arch_x86_64_enc_enc_label is defined in backend_enc_dispatch_thin.x.
+ * Pad runs in its own block. The code length is read in a later block.
+ * add_label uses that length. A function export may prepend one
+ * underscore byte via memcpy, then calls add_sym.
+ * A local label returns after add_label.
+ * This file no longer emits this symbol.
+ * The body does not compare elf_ctx with 0 and does not divide.
+ * PLATFORM: SHARED. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
