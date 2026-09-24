@@ -2011,9 +2011,13 @@ function pipe_modlet_write_hex8(lbase: i32, off: i32, v: i64): void {
  * @param name_len i32 - length; <=0 -> -1
  * @return i32 - >=0 index on match; -1 on miss
  * wave139 pure: was static pipeline_asm_modlet_find.
+ * The pabi copy is a weak global that reads that object's local table.
+ * Callers outside the family (durable array address) must hit this
+ * definition so they see the same table prepare filled.
  * PLATFORM: SHARED - linear scan; cold asm emit path.
  */
-function pipeline_asm_modlet_find(name: *u8, name_len: i32): i32 {
+#[no_mangle]
+export function pipeline_asm_modlet_find(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
     return 0 - 1;
   }

@@ -31041,9 +31041,12 @@ function pipeline_asm_modlet_reset(): void {
  * @param name_len i32 - length; <=0 -> -1
  * @return i32 - >=0 index on match; -1 on miss
  * wave139 pure: was static pipeline_asm_modlet_find.
+ * Callers outside this family must use this definition. A second table
+ * would report the name missing and take a stack slot instead.
  * PLATFORM: SHARED - linear scan; cold asm emit path.
  */
-function pipeline_asm_modlet_find(name: *u8, name_len: i32): i32 {
+#[no_mangle]
+export function pipeline_asm_modlet_find(name: *u8, name_len: i32): i32 {
   if (name == 0 as *u8 || name_len <= 0) {
     return 0 - 1;
   }
