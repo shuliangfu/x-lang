@@ -75,7 +75,7 @@ for src in src/runtime_pipeline_abi_fnptr_as_*.x; do
   compile_one "$src" "$OUT/${base}.o"
 done
 
-python3 - "$WORK/two_raw.o" "$WORK/two_stripped.o" <<'PY'
+cat > "$WORK/nop_panic.py" <<'PY'
 import struct, sys
 src, dst = sys.argv[1], sys.argv[2]
 data = bytearray(open(src, "rb").read())
@@ -158,6 +158,7 @@ for s in secs:
 open(dst, "wb").write(out)
 print("noped", noped)
 PY
+python3 "$WORK/nop_panic.py" "$WORK/two_raw.o" "$WORK/two_stripped.o"
 
 weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod
 weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
@@ -181,6 +182,37 @@ if nm -u "$OUT/two.o" | awk '{print $2}' | grep -qx 'xlang_panic_'; then
     echo "linux_selfhost_pabi_sidecars: panic reloc survived" >&2
     exit 1
   fi
+fi
+
+# w944: module-level array index address, then the spill walker compiled
+# by a compiler that already emits that store. The walker calls the
+# previous body under a second name so locals and fields stay there.
+compile_one src/runtime_pipeline_abi_index_base_rbx_thin.x "$OUT/base.o"
+compile_one src/runtime_pipeline_abi_w157_sum_thin.x "$WORK/sum_raw.o"
+python3 "$WORK/nop_panic.py" "$WORK/sum_raw.o" "$WORK/sum_noped.o"
+objcopy \
+  --redefine-sym w157_sum_expr_call_spill_bytes=w944_sum_expr_spill_helper \
+  --weaken-symbol glue_sum_block_slice_reent_dc_bytes_c \
+  --weaken-symbol w157_walk_block_rec_x \
+  "$WORK/sum_noped.o" "$OUT/spill.o"
+if objdump -r "$OUT/spill.o" | grep -q 'xlang_panic_'; then
+  echo "linux_selfhost_pabi_sidecars: spill panic reloc survived" >&2
+  exit 1
+fi
+
+# nm from compiler/ — the object with the assign and spill bytes.
+_base_addr=$(nm src/runtime_pipeline_abi.o | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
+if [ -z "$_base_addr" ]; then
+  echo "linux_selfhost_pabi_sidecars: index base symbol missing" >&2
+  exit 1
+fi
+cp -f src/runtime_pipeline_abi.o "$OUT/pabi_alias.o"
+objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o"
+# The source object is not modified. The alias is an extra name for the
+# same text so the new strong body can call it.
+if ! nm "$OUT/pabi_alias.o" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{found=1} END{exit !found}'; then
+  echo "linux_selfhost_pabi_sidecars: alias dropped the original symbol" >&2
+  exit 1
 fi
 
 : > "$OUT/READY"
