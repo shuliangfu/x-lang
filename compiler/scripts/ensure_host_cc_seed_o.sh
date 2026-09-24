@@ -2360,9 +2360,33 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w911: x86_64 immediate and leftover fixed-byte encoders live in the thin.
+  # PLATFORM: SHARED.
+  local w911_sym
+  for w911_sym in \
+    arch_x86_64_enc_enc_mov_imm32_to_rbx \
+    arch_x86_64_enc_enc_ret_imm32 \
+    arch_x86_64_enc_enc_mov_imm64_to_rax \
+    arch_x86_64_enc_enc_cmp_eax_imm32 \
+    arch_x86_64_enc_enc_add_imm_to_rax \
+    arch_x86_64_enc_enc_add_imm_to_rbx \
+    arch_x86_64_enc_enc_add_rsp_imm \
+    arch_x86_64_enc_enc_store_rax_to_rbx_indirect \
+    arch_x86_64_enc_enc_store_rax_to_rbx_offset \
+    arch_x86_64_enc_enc_sub_rax_rbx \
+    arch_x86_64_enc_enc_load_qword_from_rbx_to_rax \
+    arch_x86_64_enc_enc_load_qword_rbx8_to_rdx \
+    arch_x86_64_enc_enc_mov_rdx_to_arg_reg
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w911_sym"; then
+      echo "ensure: enc dispatch missing $w911_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w910; 81 x86 fixed-byte encoders, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w911; 13 x86 immediate and leftover fixed-byte encoders, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 
