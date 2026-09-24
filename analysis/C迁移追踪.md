@@ -57,6 +57,12 @@
 - 🟡 巨型字符串表仍 host-cc，`rt_preamble.from_x.c` 还不能整文件删除
 - 🟡 `rt_stack` 仍整份 host-cc（`.x` 纯 asm CG002）
 
+### Class EH（2026-09-24）backend_enc_riscv64_jalr_reg_c 已收入 .x
+
+- ✅ `backend_enc_riscv64_jalr_reg_c` 的产品定义只在 `src/asm/backend_enc_dispatch_thin.x`。它把 `0xE7 | (reg << 15)` 交给 `backend_enc_append_u32_le_c`，符号仍强。这是 i32 两参，60 条指令，`sub sp, #0x870`。首字与 w891 那条 63 条和 w883 那条 57 条相同，长度不同。`arch_riscv64_enc_enc_jalr_reg` 仍转调它。产品路径不再 `cc` 这个实现。安装器纯 asm 薄层，再 `cc` f64／Cap 尾。没有 gcc `-E`，没有 full `.x`
+- 🟡 f64／Cap 尾、`backend_enc_arm64_call_c_impl`、`backend_enc_x86_jcc_rel32_c_impl`、其余被调函数和分发器仍 host-cc，`backend_enc_dispatch.from_x.c` 还不能整文件删除。`addsd` 的 nm 门还在
+- 🟡 不优先 `.x` 整包重编 `runtime_driver_no_c.o`。不在 13512 条前缀对不上的编译器上重编 `backend_enc_dispatch.o`。不把这个实现改成弱符号
+
 ### Class EG（2026-09-24）backend_enc_arm64_blr_c 已收入 .x
 
 - ✅ `backend_enc_arm64_blr_c` 的产品定义只在 `src/asm/backend_enc_dispatch_thin.x`。它把 `0xD63F0000 | (reg << 5)` 交给 `backend_enc_append_u32_le_c`，符号仍强。这是 i32 两参，63 条指令，`sub sp, #0x870`。首字与 w883 那条 57 条和 w877 那条 28 条相同，长度不同。`arch_arm64_enc_enc_blr` 仍转调它。产品路径不再 `cc` 这个实现。安装器纯 asm 薄层，再 `cc` f64／Cap 尾。没有 gcc `-E`，没有 full `.x`
