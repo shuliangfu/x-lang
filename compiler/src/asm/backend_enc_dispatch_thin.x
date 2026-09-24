@@ -50,6 +50,8 @@
 // scalar f64 multiply. The symbol stays strong.
 // w901 places backend_enc_divsd_rax_rbx_arch here. It appends one
 // scalar f64 divide of rax by rbx. The symbol stays strong.
+// w902 places backend_enc_ucomisd_rbx_rax_arch here. It appends one
+// scalar f64 compare of rbx against rax. The symbol stays strong.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -4183,6 +4185,48 @@ export function backend_enc_divsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
     if (backend_enc_append_u32_le_c_impl(elf_ctx, (3244167154 as u32)) != 0) { return 0 - 1; }
     if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
     return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one ordered scalar f64 compare: the IEEE bits in rbx against the bits in rax.
+ * The result stays in the condition flags. rax is not updated.
+ * x86_64 (ta == 0) appends movq xmm0, rbx; movq xmm1, rax; ucomisd xmm0, xmm1.
+ * ARM64 (ta == 1) appends fmov d0, x1; fmov d1, x0; fcmp d0, d1.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * Operand order is the reverse of divsd: xmm0 and d0 hold rbx, xmm1 and d1 hold rax.
+ * ucomisd sets CF, ZF, and PF. It does not write the quotient back into rax.
+ */
+#[no_mangle]
+export function backend_enc_ucomisd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670020 fmov d0,x1; 0x9E670001 fmov d1,x0;
+  // 0x1E612000 fcmp d0,d1. No fmov of the flags back into x0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550368 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550337 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (509681664 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rbx is 66 48 0F 6E C3. movq xmm1, rax is 66 48 0F 6E C8.
+  // ucomisd xmm0, xmm1 is 66 0F 2E C1. There is no movq back into rax.
+  // Each four-byte group is one little-endian word. The fifth byte of each movq is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 195) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, (3241021286 as u32));
   }
   return 0 - 1;
 }

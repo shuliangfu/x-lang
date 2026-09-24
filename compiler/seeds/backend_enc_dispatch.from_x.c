@@ -47,6 +47,8 @@
  * It appends one scalar f64 multiply. The symbol stays strong.
  * wave901: backend_enc_divsd_rax_rbx_arch lives in that .x too.
  * It appends one scalar f64 divide of rax by rbx. The symbol stays strong.
+ * wave902: backend_enc_ucomisd_rbx_rax_arch lives in that .x too.
+ * It appends one scalar f64 compare of rbx against rax. The symbol stays strong.
  * This file keeps the rest of the f64/Cap tail and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
  * -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed.
@@ -932,32 +934,11 @@ int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCt
  * ta == 0 appends movq, movq, divsd, movq. The prototype above
  * still names the symbol. Stays strong. PLATFORM: SHARED. */
 
-/**
- * PLATFORM: LINUX+MACOS x86_64 — ordered f64 compare: left in rbx, right in rax (IEEE bits).
- * movq xmm0,rbx; movq xmm1,rax; ucomisd xmm0,xmm1
- * Flags use CF/ZF (not SF); pair with backend_enc_fp_cmp_setcc_movzbl_arch.
- * Signed cmpq of IEEE bits reverses order among negatives — do not use cmpq for f64.
- */
-int32_t backend_enc_ucomisd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  static const uint8_t movq_xmm0_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc3};
-  static const uint8_t movq_xmm1_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc8};
-  static const uint8_t ucomisd_xmm0_xmm1[4] = {0x66, 0x0f, 0x2e, 0xc1};
-  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
-  if (ta == 1) {
-    if (!elf_ctx) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670020u) != 0) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670001u) != 0) return -1;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e612000u);
-  }
-
-  if (ta != 0 || !elf_ctx)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rbx, 5) != 0)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rax, 5) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomisd_xmm0_xmm1, 4);
-}
+/* w902: backend_enc_ucomisd_rbx_rax_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends fmov/fcmp.
+ * ta == 0 appends movq, movq, ucomisd. Flags stay in CF/ZF/PF.
+ * The prototype above still names the symbol. Stays strong.
+ * PLATFORM: SHARED. */
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 / MACOS|ARM64 — ordered f32 compare: left in rbx/x1, right in rax/x0.
