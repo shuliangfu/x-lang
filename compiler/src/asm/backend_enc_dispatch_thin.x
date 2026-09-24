@@ -127,6 +127,13 @@
 // kind 19. The patch stays in that C helper. They stay strong. None of
 // them compares elf_ctx with 0 or divides. Label, prologue, epilogue,
 // cmp_setcc, and the two leas stay in the C seed.
+// w919 places arch_arm64_enc_enc_cmp_setcc_movzbl here. The cond field
+// comes from pipeline_asm_arm64_cset_cond_enc_from_cc. A negative field
+// is cleared by its sign bit. The low 4 bits are multiplied by 4096 and
+// ORed into word 446629856 (0x1a9f07e0). The word is appended through
+// backend_enc_append_u32_le_c. It stays strong. It does not compare
+// elf_ctx with 0 or divide. The x86 cmp_setcc, label, prologue, epilogue,
+// and the two leas stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9403,6 +9410,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): 
 export extern "C" function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, imm: i32): i32;
 export extern "C" function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
 export extern "C" function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label: *u8, label_len: i32, kind: i32): i32;
+export extern "C" function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
 /**
  * Load x0 from [x29, #offset].
@@ -10057,5 +10065,37 @@ export function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32)
 export function arch_arm64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
   // Word 1409286154, kind 19. The earlier extern makes this an extern call.
   unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286154, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit ARM64 cset w0 from a logical compare code.
+ * The cond field is pipeline_asm_arm64_cset_cond_enc_from_cc(cc).
+ * A negative field is cleared by its sign bit, then the low 4 bits
+ * are placed at bits 15:12 of word 446629856 (0x1a9f07e0).
+ * The caller has already emitted the compare. A null context returns
+ * -1 from the append callee.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param cc i32 — logical compare code passed to the cond helper
+ * @return i32 — 0 when the cset word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The cond call is the initializer of a let. Its result is not stored
+ * again and then compared. 4096 is the imm12 shift, not a divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 {
+  // Sign bit 1 makes the mask 0, so a negative cond becomes 0.
+  // Sign bit 0 makes the mask all ones, so a non-negative cond is kept.
+  // The low 4 bits times 4096 are the CSET cond field.
+  unsafe {
+    let raw: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    let bits: u32 = raw as u32;
+    let sign: u32 = bits >> 31;
+    let mask: u32 = sign - 1;
+    let kept: u32 = bits & mask;
+    let field: u32 = (kept & 15) * 4096;
+    return backend_enc_append_u32_le_c(elf_ctx, (446629856 as u32) | field);
+  }
   return 0 - 1;
 }

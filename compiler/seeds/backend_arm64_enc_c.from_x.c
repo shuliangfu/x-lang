@@ -38,6 +38,9 @@
  * backend_enc_dispatch_thin.x. Each forwards to arm64_enc_branch_patch,
  * which stays here and still writes the placeholder plus the patch.
  * jnz uses the same word and kind as jne. PLATFORM: SHARED.
+ * w919: cmp_setcc lives in backend_enc_dispatch_thin.x. The cond field
+ * still comes from pipeline_asm_arm64_cset_cond_enc_from_cc. This file
+ * no longer emits that symbol. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -541,21 +544,12 @@ int32_t arm64_enc_branch_patch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint3
  * It appends the ARM64 word 0xaa0103e2 (mov x2, x1).
  * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc) {
-  /* PLATFORM: MACOS|ARM64 — cset w0 from logical cc (0=eq,1=ne,2=lt,3=le,4=gt,5=ge).
-   * wave388: prior stub ignored cc and always emitted cset eq → var-var !=/>/</>=
-   * all behaved as == (lit path const-folded so soft only hit non-folded).
-   * G.7: cond invert field via pipeline_asm_arm64_cset_cond_enc_from_cc;
-   * setcc-only (caller already emitted cmp_rbx_rax). Encoding:
-   * CSET W0,<cond> = CSINC W0,WZR,WZR,invert(cond) → 0x1a9f07e0 | (inv_cond<<12). */
-  int32_t c;
-  if (!elf_ctx)
-    return -1;
-  c = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-  if (c < 0)
-    c = 0;
-  return arm64_enc_u32_le(elf_ctx, 0x1a9f07e0u | ((uint32_t)(c & 15) << 12));
-}
+/* w919: arch_arm64_enc_enc_cmp_setcc_movzbl is defined in backend_enc_dispatch_thin.x.
+ * The cond field comes from pipeline_asm_arm64_cset_cond_enc_from_cc.
+ * A negative field is cleared by its sign bit. The low 4 bits times 4096
+ * are ORed into word 446629856 (0x1a9f07e0). The append stays in
+ * backend_enc_append_u32_le_c. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w906: arch_arm64_enc_enc_setz_movzbl_eax is defined in backend_enc_dispatch_thin.x.
  * It appends the ARM64 word 0x1a9f17e0 (cset w0, eq).
