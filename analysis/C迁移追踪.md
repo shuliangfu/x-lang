@@ -5,6 +5,19 @@
 
 ### 已完成
 
+- ✅ `arch_x86_64_enc_enc_mov_imm32_to_rbx`
+- ✅ `arch_x86_64_enc_enc_ret_imm32`
+- ✅ `arch_x86_64_enc_enc_mov_imm64_to_rax`
+- ✅ `arch_x86_64_enc_enc_cmp_eax_imm32`
+- ✅ `arch_x86_64_enc_enc_add_imm_to_rax`
+- ✅ `arch_x86_64_enc_enc_add_imm_to_rbx`
+- ✅ `arch_x86_64_enc_enc_add_rsp_imm`
+- ✅ `arch_x86_64_enc_enc_store_rax_to_rbx_indirect`
+- ✅ `arch_x86_64_enc_enc_store_rax_to_rbx_offset`
+- ✅ `arch_x86_64_enc_enc_sub_rax_rbx`
+- ✅ `arch_x86_64_enc_enc_load_qword_from_rbx_to_rax`
+- ✅ `arch_x86_64_enc_enc_load_qword_rbx8_to_rdx`
+- ✅ `arch_x86_64_enc_enc_mov_rdx_to_arg_reg`
 - ✅ `arch_x86_64_enc_enc_add_rax_rbx`
 - ✅ `arch_x86_64_enc_enc_and_rbx_rax`
 - ✅ `arch_x86_64_enc_enc_or_rbx_rax`
