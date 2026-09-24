@@ -99,6 +99,10 @@
 // offset forwards to arm64_enc_add_rd_rn_imm_chunks, which stays in the
 // C seed. They stay strong. None of them compares elf_ctx with 0 or
 // divides. Jumps, calls, cmp_setcc, prologue, and lea stay in the C seed.
+// w914 places two ARM64 add-immediate encoders here. Each one forwards
+// to arm64_enc_add_rd_rn_imm_chunks, which stays in the C seed. They stay
+// strong. Neither compares elf_ctx with 0 or divides. Jumps, calls,
+// cmp_setcc, prologue, and lea stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9639,4 +9643,42 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
     }
   }
   return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (32 as u32));
+}
+
+/**
+ * Add a signed immediate to x0, in 4095-sized chunks.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks. Zero emits
+ * nothing. A negative immediate emits SUB chunks. A null context
+ * returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param imm i32 — signed byte addend
+ * @return i32 — 0 when the adds are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32 {
+  // rd 0 and rn 0 are x0. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 0, imm); }
+  return 0 - 1;
+}
+
+/**
+ * Add a signed immediate to x1, in 4095-sized chunks.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks. Zero emits
+ * nothing. A negative immediate emits SUB chunks. A null context
+ * returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param imm i32 — signed byte addend
+ * @return i32 — 0 when the adds are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 {
+  // rd 1 and rn 1 are x1. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 1, imm); }
+  return 0 - 1;
 }

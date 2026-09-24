@@ -30,6 +30,10 @@
  * defined in backend_enc_dispatch_thin.x. This file no longer emits those
  * symbols. arm64_enc_add_rd_rn_imm_chunks stays here and is no longer
  * static, because those bodies call it. PLATFORM: SHARED.
+ * w914: add_imm_to_rax and add_imm_to_rbx are defined in
+ * backend_enc_dispatch_thin.x. This file no longer emits those symbols.
+ * They forward to arm64_enc_add_rd_rn_imm_chunks, which stays here.
+ * PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -515,17 +519,19 @@ int32_t arch_arm64_enc_enc_jge(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8
  * Used for INDEX byte offsets and large array element address math.
  * PLATFORM: MACOS|ARM64.
  */
-int32_t arch_arm64_enc_enc_add_imm_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 0, imm);
-}
+/* w914: arch_arm64_enc_enc_add_imm_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It forwards to arm64_enc_add_rd_rn_imm_chunks with rd=0 and rn=0.
+ * The chunk walk stays in this file. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /**
  * wave420: multi-chunk ADD x1,x1,#imm (twin of add_imm_to_rax).
  * PLATFORM: MACOS|ARM64.
  */
-int32_t arch_arm64_enc_enc_add_imm_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm) {
-  return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 1, imm);
-}
+/* w914: arch_arm64_enc_enc_add_imm_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * It forwards to arm64_enc_add_rd_rn_imm_chunks with rd=1 and rn=1.
+ * The chunk walk stays in this file. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w908: arch_arm64_enc_enc_mov_rax_to_arg_reg is defined in backend_enc_dispatch_thin.x.
  * k is clamped to 0..7. k 0 appends nothing. Otherwise the word is
