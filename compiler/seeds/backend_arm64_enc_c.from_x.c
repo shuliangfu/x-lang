@@ -46,6 +46,11 @@
  * arm64_enc_add_rd_rn_imm_chunks. rax uses rd 0 and rn 29.
  * rbx uses rd 1 and rn 29. This file no longer emits those symbols.
  * The chunk walk stays here. PLATFORM: SHARED.
+ * w926: arch_arm64_enc_enc_label is defined in
+ * backend_enc_dispatch_thin.x. Pad runs first. The code length is
+ * read in a later block. add_label uses that length. A function
+ * export may prepend one underscore byte via memcpy, then calls
+ * add_sym. This file no longer emits that symbol. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -87,38 +92,15 @@ static int32_t arm64_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
  * It appends the caller's 32-bit word through backend_enc_append_u32_le_c.
  * Stays strong. PLATFORM: SHARED. */
 
-/**
- * Strong: function/local label + optional Mach-O export sym.
- * Port of arm64_enc.x enc_label ≡ x86 seed arch_x86_64_enc_enc_label.
- */
-int32_t arch_arm64_enc_enc_label(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len,
-                                 int32_t is_func) {
-  uint8_t *cb;
-  /* Cap 4.2.8: mn[256] holds '_' + up to 255 content (was [128]/127 stack-smash risk). */
-  uint8_t mn[256];
-  int32_t k;
-  if (!elf_ctx || !name || name_len < 0)
-    return -1;
-  cb = arm64_enc_ctx_bytes(elf_ctx);
-  if (is_func != 0 && pipeline_elf_ctx_pad_code_to_4(cb) != 0)
-    return -1;
-  if (pipeline_elf_ctx_add_label(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb)) != 0)
-    return -1;
-  if (is_func == 0)
-    return 0;
-  /* Cap 4.2.8: mn is u8[256] → '_' + up to 255 content bytes (was wave580 [128]/127).
-   * PLATFORM: MACOS|DARWIN arm64 pure-asm export syms. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
-    mn[0] = 95;
-    k = 0;
-    while (k < name_len && k < 255) {
-      mn[k + 1] = name[k];
-      k = k + 1;
-    }
-    return pipeline_elf_ctx_add_sym(cb, mn, name_len + 1, pipeline_elf_ctx_emit_code_len(cb));
-  }
-  return pipeline_elf_ctx_add_sym(cb, name, name_len, pipeline_elf_ctx_emit_code_len(cb));
-}
+/* w926: arch_arm64_enc_enc_label is defined in
+ * backend_enc_dispatch_thin.x.
+ * Pad runs first. The code length is read in a later block.
+ * add_label uses that length. A function export may prepend one
+ * underscore byte via memcpy, then calls add_sym.
+ * A local label returns after add_label.
+ * This file no longer emits this symbol.
+ * The body does not compare elf_ctx with 0 and does not divide.
+ * PLATFORM: SHARED. */
 
 /**
  * Adjust SP by ±imm using one or more ADD/SUB (imm12), for frames > 4095.
