@@ -8402,9 +8402,10 @@ static int32_t pipe_modlet_scalar_init_is_ptr_addr_cold(void *arena, void *m, in
   return 0;
 }
 
-/* Fold EXPR_ADD=4 .. EXPR_BITXOR=13 of two i32s. Division or remainder by
- * zero, and a shift count outside 0..31, are not constants. Comparisons
- * and float binops are not this helper. Twin of pipe_modlet_fold_i32_binop.
+/* Fold integer binops of two i32s. EXPR_DIV=7 and EXPR_MOD=8 stay
+ * loud-fail: a variable divisor inserts xlang_panic_, and the sidecar nops
+ * exactly two panics that already belong to the span checks. A shift count
+ * outside 0..31 is not a constant. Twin of pipe_modlet_fold_i32_binop.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
 static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t rv,
                                                int32_t *out_val) {
@@ -8413,18 +8414,6 @@ static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t r
   if (ek == 4) { *out_val = lv + rv; return 1; }
   if (ek == 5) { *out_val = lv - rv; return 1; }
   if (ek == 6) { *out_val = lv * rv; return 1; }
-  if (ek == 7) {
-    if (rv == 0)
-      return 0;
-    *out_val = lv / rv;
-    return 1;
-  }
-  if (ek == 8) {
-    if (rv == 0)
-      return 0;
-    *out_val = lv % rv;
-    return 1;
-  }
   if (ek == 9) {
     if (rv < 0 || rv >= 32)
       return 0;
@@ -8445,8 +8434,8 @@ static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t r
 
 /* Fold one ARRAY_LIT element to its constant i32 value. Accepts
  * EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
- * NEG-over-LIT `[-600, 2]`), and integer binops ek 4..13 whose operands
- * fold. FLOAT_LIT is not an i32; the array baker pokes IEEE bits.
+ * NEG-over-LIT `[-600, 2]`), and integer binops ek 4..13 except DIV and
+ * MOD whose operands fold. FLOAT_LIT is not an i32; the array baker pokes IEEE bits.
  * Anything else loud-fails — the historic silent drop baked zeros for
  * `let g: i32[2] = [-1, 2]`. Returns 1 when *out_val is written.
  * Twin of runtime_pipeline_abi.x pipe_modlet_array_lit_elem_const_val.

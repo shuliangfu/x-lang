@@ -33081,8 +33081,10 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
 /**
  * Fold one integer binop of two already-folded i32 operands.
  * Kinds are the parser pins: EXPR_ADD=4 through EXPR_BITXOR=13.
- * Division or remainder by zero, and a shift count outside 0..31,
- * are not constants: the caller loud-fails. Comparisons (14..21) and
+ * A shift count outside 0..31 is not a constant: the caller loud-fails.
+ * EXPR_DIV (7) and EXPR_MOD (8) stay loud-fail: a variable divisor in this
+ * thin inserts an xlang_panic_ call, and the sidecar nops exactly two
+ * panics that already belong to the span checks. Comparisons (14..21) and
  * float binops are not this helper. FLOAT_LIT stays on the array baker,
  * which has the element size. Twin of the modlet thin.
  * @param ek i32 - expr kind ordinal
@@ -33108,20 +33110,7 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
     unsafe { out_val[0] = lv * rv; }
     return 1;
   }
-  if (ek == 7) {
-    if (rv == 0) {
-      return 0;
-    }
-    unsafe { out_val[0] = lv / rv; }
-    return 1;
-  }
-  if (ek == 8) {
-    if (rv == 0) {
-      return 0;
-    }
-    unsafe { out_val[0] = lv % rv; }
-    return 1;
-  }
+  // EXPR_DIV=7 and EXPR_MOD=8 are not folded. See the docblock.
   if (ek == 9) {
     if (rv < 0 || rv >= 32) {
       return 0;
@@ -33155,7 +33144,7 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * Fold one ARRAY_LIT element to its constant i32 value.
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * the parser's NEG-over-LIT form `[-600, 2]`), and integer binops
- * EXPR_ADD..EXPR_BITXOR (ek 4..13) whose operands fold. FLOAT_LIT is not
+ * EXPR_ADD..EXPR_BITXOR (ek 4..13, except DIV and MOD) whose operands fold. FLOAT_LIT is not
  * an i32: the array baker pokes IEEE bits from the element size. VAR and
  * any other kind are not compile-time constants; callers must loud-fail
  * (return -1) instead of silently dropping the element — the historic
