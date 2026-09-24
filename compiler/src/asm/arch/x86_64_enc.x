@@ -456,7 +456,11 @@ export function enc_mov_arg_reg_to_rax(ctx: *ElfCodegenCtx, k: i32): i32 {
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
   if (idx > 5) { idx = 5; }
-  /* Win64: rcx, rdx, r8, r9 — mirror seed enc_mov_rax_to_arg_reg. */
+  /* Win64: rcx, rdx, r8, r9. Arguments 5 and 6 are not registers.
+   * After push %rbp; mov %rbp, %rsp they sit at 0x30(%rbp) and
+   * 0x38(%rbp). Reusing r8/r9 copied argument 3 into the 5th home
+   * (backend_enc_label_arch saw name_len as ta; .Lf0_2 stayed at
+   * offset -1). PLATFORM: WINDOWS. */
   if (idx == 0) {
     let w0: u8[3] = [72, 137, 200];
     return elf.append_elf_bytes(ctx, w0, 3);
@@ -474,11 +478,11 @@ export function enc_mov_arg_reg_to_rax(ctx: *ElfCodegenCtx, k: i32): i32 {
     return elf.append_elf_bytes(ctx, w3, 3);
   }
   if (idx == 4) {
-    let w4: u8[3] = [76, 137, 192];
-    return elf.append_elf_bytes(ctx, w4, 3);
+    let w4: u8[4] = [72, 139, 69, 48];
+    return elf.append_elf_bytes(ctx, w4, 4);
   }
-  let w5: u8[3] = [76, 137, 200];
-  return elf.append_elf_bytes(ctx, w5, 3);
+  let w5: u8[4] = [72, 139, 69, 56];
+  return elf.append_elf_bytes(ctx, w5, 4);
 }
 
 #[cfg(not(target_os = "windows"))]

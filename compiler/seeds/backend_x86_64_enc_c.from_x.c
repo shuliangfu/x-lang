@@ -1463,8 +1463,21 @@ int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx
     if (idx == 1) return x86_enc_bytes(elf_ctx, win1, 3);
     if (idx == 2) return x86_enc_bytes(elf_ctx, win2, 3);
     if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
-    if (idx == 4) return x86_enc_bytes(elf_ctx, win2, 3);
-    return x86_enc_bytes(elf_ctx, win3, 3);
+    /* Win64 has four GP argument registers. Argument 5 is 0x30(%rbp)
+     * and argument 6 is 0x38(%rbp) after push %rbp; mov %rbp, %rsp.
+     * Homing runs after that prologue. Copying r8/r9 here reused arg2
+     * as the 5th formal, so backend_enc_label_arch treated name_len as
+     * ta and a later define did not update the forward label.
+     * stdlib-import then reported CG002 with .Lf0_2 offset -1.
+     * PLATFORM: WINDOWS. */
+    if (idx == 4) {
+      static const uint8_t win4[] = {0x48, 0x8B, 0x45, 0x30};
+      return x86_enc_bytes(elf_ctx, win4, 4);
+    }
+    {
+      static const uint8_t win5[] = {0x48, 0x8B, 0x45, 0x38};
+      return x86_enc_bytes(elf_ctx, win5, 4);
+    }
   }
   if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);
   if (idx == 1) return x86_enc_bytes(elf_ctx, sysv1, 3);
@@ -1503,9 +1516,18 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
     if (idx == 1) return x86_enc_bytes(elf_ctx, win1, 3);
     if (idx == 2) return x86_enc_bytes(elf_ctx, win2, 3);
     if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
-    /* Win64 only 4 GP args in regs; spill path unused for fmt hello. */
-    if (idx == 4) return x86_enc_bytes(elf_ctx, win2, 3);
-    return x86_enc_bytes(elf_ctx, win3, 3);
+    /* Outgoing Win64 argument 5 is [rsp+0x20] (32-byte shadow plus the
+     * slot) and argument 6 is [rsp+0x28]. The call sequence emits this
+     * after the frame subtract, so rsp is the outgoing area. Writing
+     * r8/r9 here clobbered argument 3. PLATFORM: WINDOWS. */
+    if (idx == 4) {
+      static const uint8_t win4[] = {0x48, 0x89, 0x44, 0x24, 0x20};
+      return x86_enc_bytes(elf_ctx, win4, 5);
+    }
+    {
+      static const uint8_t win5[] = {0x48, 0x89, 0x44, 0x24, 0x28};
+      return x86_enc_bytes(elf_ctx, win5, 5);
+    }
   }
   if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);
   if (idx == 1) return x86_enc_bytes(elf_ctx, sysv1, 3);

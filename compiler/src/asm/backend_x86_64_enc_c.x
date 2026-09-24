@@ -1844,7 +1844,49 @@ export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32
   return x86_enc_bytes(elf_ctx, buf2, 6);
 }
 
-/** mov SysV arg_reg[k] -> rax (k clamped 0..5). Cap residual pure R2 wave2. PLATFORM: SHARED */
+/** mov incoming arg k into rax.
+ * SysV k=0..5 is rdi, rsi, rdx, rcx, r8, r9.
+ * Win64 k=0..3 is rcx, rdx, r8, r9. k=4 is `mov rax, 0x30(%rbp)` and
+ * k=5 is `mov rax, 0x38(%rbp)` (the stack args after `push %rbp`).
+ * Reusing r8 for k=4 copied argument 3 into the 5th home.
+ * @param elf_ctx opaque ElfCodegenCtx*; null returns -1
+ * @param k argument index, clamped to 0..5
+ * @return 0 on success, -1 on null
+ * PLATFORM: SHARED encode; WINDOWS stack homes for k>=4.
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 200];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 208];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [76, 137, 192];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [76, 137, 200];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  if (idx == 4) {
+    let b4: u8[4] = [72, 139, 69, 48];
+    return x86_enc_bytes(elf_ctx, b4, 4);
+  }
+  let b5: u8[4] = [72, 139, 69, 56];
+  return x86_enc_bytes(elf_ctx, b5, 4);
+}
+
+/** SysV incoming arg k into rax. See the Windows twin. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
@@ -1875,7 +1917,46 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
   return x86_enc_bytes(elf_ctx, b5, 3);
 }
 
-/** mov rax -> SysV arg_reg[k] (k clamped 0..5). Cap residual pure R2 wave2. PLATFORM: SHARED */
+/** mov rax -> outgoing arg k.
+ * Win64 k>=4 stores `[rsp+0x20]` / `[rsp+0x28]` instead of r8/r9,
+ * which would clobber argument 3. PLATFORM: SHARED; WINDOWS stack for k>=4.
+ * @param elf_ctx opaque ElfCodegenCtx*; null returns -1
+ * @param k argument index, clamped to 0..5
+ * @return 0 on success, -1 on null
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 193];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 194];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [73, 137, 192];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [73, 137, 193];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  if (idx == 4) {
+    let b4: u8[5] = [72, 137, 68, 36, 32];
+    return x86_enc_bytes(elf_ctx, b4, 5);
+  }
+  let b5: u8[5] = [72, 137, 68, 36, 40];
+  return x86_enc_bytes(elf_ctx, b5, 5);
+}
+
+/** SysV outgoing arg k. See the Windows twin. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
