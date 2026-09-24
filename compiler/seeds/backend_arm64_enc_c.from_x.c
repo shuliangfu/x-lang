@@ -22,6 +22,9 @@
  * mov_rax_to_arg_reg, and mov_arg_reg_to_rax are defined in
  * backend_enc_dispatch_thin.x. This file no longer emits those symbols.
  * PLATFORM: SHARED.
+ * w909: u32_le, mov_imm32_to_w0, mov_imm32_to_rbx, and mov_imm64_to_rax
+ * are defined in backend_enc_dispatch_thin.x. This file no longer emits
+ * those symbols. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -59,10 +62,9 @@ static int32_t arm64_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
   return pipeline_elf_ctx_append_bytes(arm64_enc_ctx_bytes(elf_ctx), bytes, 4);
 }
 
-/** Strong: matches arm64_enc.x enc_u32_le (i64 val truncated). */
-int32_t arch_arm64_enc_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t val) {
-  return arm64_enc_u32_le(elf_ctx, (uint32_t)val);
-}
+/* w909: arch_arm64_enc_enc_u32_le is defined in backend_enc_dispatch_thin.x.
+ * It appends the caller's 32-bit word through backend_enc_append_u32_le_c.
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * Strong: function/local label + optional Mach-O export sym.
@@ -296,41 +298,18 @@ int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) 
  * 0x42280000 → fcvtzs run=0. G.7 match arch/arm64_enc.x enc_mov_imm32_to_w0:
  * MOVZ w0,#lo; MOVK w0,#hi,lsl#16 (0x72a0… hw=1).
  */
-int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
-  uint32_t lo;
-  uint32_t hi;
-  if (!elf_ctx)
-    return -1;
-  lo = (uint32_t)imm32 & 65535u;
-  hi = ((uint32_t)imm32 >> 16) & 65535u;
-  /* MOVZ w0, #lo */
-  if (arm64_enc_u32_le(elf_ctx, 0x52800000u | (lo << 5)) != 0)
-    return -1;
-  /* MOVK w0, #hi, lsl #16 — hw=1 (0x72a00000), not hw=0 (0x72800000). */
-  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72a00000u | (hi << 5)) != 0)
-    return -1;
-  return 0;
-}
+/* w909: arch_arm64_enc_enc_mov_imm32_to_w0 is defined in backend_enc_dispatch_thin.x.
+ * MOVZ w0,#lo then MOVK w0,#hi,lsl#16 (0x72a00000) when hi is not zero.
+ * Stays strong. PLATFORM: SHARED. */
+extern int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32);
 
 /**
  * Strong: MOVZ/MOVK w1 (rbx alias on arm64 path).
  * PLATFORM: MACOS|ARM64 — wave616: same MOVK hw=1 fix as mov_imm32_to_w0.
  */
-int32_t arch_arm64_enc_enc_mov_imm32_to_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
-  uint32_t lo;
-  uint32_t hi;
-  if (!elf_ctx)
-    return -1;
-  lo = (uint32_t)imm32 & 65535u;
-  hi = ((uint32_t)imm32 >> 16) & 65535u;
-  /* MOVZ w1, #lo */
-  if (arm64_enc_u32_le(elf_ctx, 0x52800001u | (lo << 5)) != 0)
-    return -1;
-  /* MOVK w1, #hi, lsl #16 */
-  if (hi != 0 && arm64_enc_u32_le(elf_ctx, 0x72a00001u | (hi << 5)) != 0)
-    return -1;
-  return 0;
-}
+/* w909: arch_arm64_enc_enc_mov_imm32_to_rbx is defined in backend_enc_dispatch_thin.x.
+ * MOVZ w1,#lo then MOVK w1,#hi,lsl#16 (0x72a00001) when hi is not zero.
+ * Stays strong. PLATFORM: SHARED. */
 
 /** Strong: mov w0 + epilogue or bare ret (arm64_enc.x enc_ret_imm32). */
 int32_t arch_arm64_enc_enc_ret_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
@@ -438,28 +417,10 @@ int32_t arch_arm64_enc_enc_jge(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8
  * @param hi i32 — high 32 bits of the immediate
  * @return 0 on success, -1 on null/append failure
  */
-int32_t arch_arm64_enc_enc_mov_imm64_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t lo, int32_t hi) {
-  /* MOVZ x0,#lo0 ; MOVK lsl#16 ; MOVK lsl#32 ; MOVK lsl#48 — full 64 bits */
-  uint32_t lo0 = (uint32_t)lo & 65535u;
-  uint32_t lo1 = ((uint32_t)lo >> 16) & 65535u;
-  uint32_t hi0 = (uint32_t)hi & 65535u;
-  uint32_t hi1 = ((uint32_t)hi >> 16) & 65535u;
-  if (!elf_ctx)
-    return -1;
-  /* MOVZ x0, #lo0 */
-  if (arm64_enc_u32_le(elf_ctx, 0xd2800000u | (lo0 << 5)) != 0)
-    return -1;
-  /* MOVK x0, #lo1, LSL #16 */
-  if (lo1 != 0 && arm64_enc_u32_le(elf_ctx, 0xf2a00000u | (lo1 << 5)) != 0)
-    return -1;
-  /* MOVK x0, #hi0, LSL #32 */
-  if (hi0 != 0 && arm64_enc_u32_le(elf_ctx, 0xf2c00000u | (hi0 << 5)) != 0)
-    return -1;
-  /* MOVK x0, #hi1, LSL #48 — was missing (wave306) */
-  if (hi1 != 0 && arm64_enc_u32_le(elf_ctx, 0xf2e00000u | (hi1 << 5)) != 0)
-    return -1;
-  return 0;
-}
+/* w909: arch_arm64_enc_enc_mov_imm64_to_rax is defined in backend_enc_dispatch_thin.x.
+ * MOVZ x0,#lo0, then MOVK lsl #16 / #32 / #48 when that halfword is not zero.
+ * Words 0xd2800000, 0xf2a00000, 0xf2c00000, 0xf2e00000. Stays strong.
+ * PLATFORM: SHARED. */
 
 /* w908: arch_arm64_enc_enc_mov_rax_to_rbx is defined in backend_enc_dispatch_thin.x.
  * It appends 0xaa0003e1 (mov x1, x0) then 0xaa0003f3 (mov x19, x0).

@@ -74,6 +74,11 @@
 // store_rax_to_rbx_indirect picks one width word. mov_rax_to_arg_reg and
 // mov_arg_reg_to_rax clamp k and append one mov word. They stay strong.
 // None of them compares elf_ctx with 0 or divides.
+// w909 places four ARM64 immediate encoders here. u32_le appends the
+// caller's word. mov_imm32_to_w0 and mov_imm32_to_rbx emit MOVZ plus a
+// hw=1 MOVK when the high half is not zero. mov_imm64_to_rax emits MOVZ
+// plus up to three MOVK halfwords. They stay strong. None of them
+// compares elf_ctx with 0 or divides.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -5998,4 +6003,121 @@ export function arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32
   if (k > 7) { return 0 - 1; }
   if (k == 0) { return 0; }
   return backend_enc_append_u32_le_c(elf_ctx, (2852127712 as u32) | ((k as u32) * 65536));
+}
+
+/**
+ * Append one ARM64 instruction word.
+ * val is the raw 32-bit encoding. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param val i32 — instruction bits, taken as an unsigned 32-bit word
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, val as u32);
+}
+
+/**
+ * Materialize a 32-bit immediate in w0.
+ * Always appends MOVZ w0,#lo. Appends MOVK w0,#hi,lsl#16 only when hi is not zero.
+ * The high half uses hw=1 (0x72a00000), not hw=0. A null context returns -1 from append.
+ * Each append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — bit pattern of the immediate
+ * @return i32 — 0 when the words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx: *u8, imm32: i32): i32 {
+  // 0x52800000 is MOVZ w0. 0x72a00000 is MOVK w0, #hi, lsl #16.
+  // 32 places the halfword in bits 20:5. The high half is bits 31:16.
+  let u: u32 = imm32 as u32;
+  let lo: u32 = u & 65535;
+  let hi: u32 = (u >> 16) & 65535;
+  if (backend_enc_append_u32_le_c(elf_ctx, (1384120320 as u32) | (lo * 32)) != 0) {
+    return 0 - 1;
+  }
+  if (hi != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (1923088384 as u32) | (hi * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Materialize a 32-bit immediate in w1, the rbx alias.
+ * Always appends MOVZ w1,#lo. Appends MOVK w1,#hi,lsl#16 only when hi is not zero.
+ * The high half uses hw=1. A null context returns -1 from append.
+ * Each append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — bit pattern of the immediate
+ * @return i32 — 0 when the words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32 {
+  // 0x52800001 is MOVZ w1. 0x72a00001 is MOVK w1, #hi, lsl #16.
+  // 32 places the halfword in bits 20:5. The low bit selects w1.
+  let u: u32 = imm32 as u32;
+  let lo: u32 = u & 65535;
+  let hi: u32 = (u >> 16) & 65535;
+  if (backend_enc_append_u32_le_c(elf_ctx, (1384120321 as u32) | (lo * 32)) != 0) {
+    return 0 - 1;
+  }
+  if (hi != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (1923088385 as u32) | (hi * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Materialize a 64-bit immediate in x0 from two 32-bit halves.
+ * Always appends MOVZ x0,#lo0. Each later MOVK is appended only when that
+ * halfword is not zero: lsl #16, lsl #32, then lsl #48.
+ * A null context returns -1 from append.
+ * Each append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param lo i32 — low 32 bits of the immediate
+ * @param hi i32 — high 32 bits of the immediate
+ * @return i32 — 0 when the words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32 {
+  // 0xd2800000 MOVZ x0. 0xf2a00000 MOVK lsl #16.
+  // 0xf2c00000 MOVK lsl #32. 0xf2e00000 MOVK lsl #48.
+  // 32 places each halfword in bits 20:5.
+  let ulo: u32 = lo as u32;
+  let uhi: u32 = hi as u32;
+  let lo0: u32 = ulo & 65535;
+  let lo1: u32 = (ulo >> 16) & 65535;
+  let hi0: u32 = uhi & 65535;
+  let hi1: u32 = (uhi >> 16) & 65535;
+  if (backend_enc_append_u32_le_c(elf_ctx, (3531603968 as u32) | (lo0 * 32)) != 0) {
+    return 0 - 1;
+  }
+  if (lo1 != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4070572032 as u32) | (lo1 * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  if (hi0 != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4072669184 as u32) | (hi0 * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  if (hi1 != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4074766336 as u32) | (hi1 * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
 }
