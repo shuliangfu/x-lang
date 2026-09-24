@@ -200,6 +200,23 @@ if objdump -r "$OUT/spill.o" | grep -q 'xlang_panic_'; then
   exit 1
 fi
 
+# w945: assignment. The gcc body jumps to the epilogue after the
+# pointer peel, so `*p = v` returns success and emits no store. This
+# object falls through to the scalar store. Extra exports stay weak so
+# glue_emit_assign_rhs_to_rax_elf_c remains the product body.
+# PLATFORM: LINUX. Do not PREFER this into runtime_pipeline_abi.o.
+compile_one src/runtime_pipeline_abi_assign_thin.x "$WORK/assign_raw.o"
+weaken_keep "$WORK/assign_raw.o" "$OUT/assign.o" \
+  pipeline_asm_emit_assign_elf_c \
+  asg_thin_align_next_offset \
+  asg_thin_ctx_off_next_offset \
+  asg_thin_load_i32_le \
+  asg_thin_store_i32_le
+if objdump -r "$OUT/assign.o" | grep -q 'xlang_panic_'; then
+  echo "linux_selfhost_pabi_sidecars: assign panic reloc survived" >&2
+  exit 1
+fi
+
 # nm from compiler/ — the object with the assign and spill bytes.
 _base_addr=$(nm src/runtime_pipeline_abi.o | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
 if [ -z "$_base_addr" ]; then
