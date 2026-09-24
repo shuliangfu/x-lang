@@ -32428,15 +32428,46 @@ function pipe_modlet_seed_struct_lit_to_rbx(
 }
 
 /**
+ * Poke four little-endian bytes of an i32 bit pattern into the .data buffer.
+ * Used for an f32 pack and for each half of an f64 FLOAT_LIT. The value is
+ * a bit pattern, not a numeric magnitude: high bytes are shifted with
+ * unsigned division so a negative pattern does not sign-fill.
+ * Twin of the modlet thin. PLATFORM: SHARED freestanding · ELF .data.
+ * @param elf_ctx *u8 - ElfCodegenCtx
+ * @param off i32 - absolute offset in the .data buffer
+ * @param bits i32 - 32-bit pattern to store
+ * @return i32 - 0 ok; -1 poke failed
+ */
+function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
+  let bi: i32 = 0;
+  let uw: u32 = 0;
+  let rc: i32 = 0;
+  uw = bits as u32;
+  while (bi < 4) {
+    unsafe {
+      rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, off + bi, (uw & 255) as i32);
+    }
+    if (rc != 0) {
+      return 0 - 1;
+    }
+    uw = uw / 256;
+    bi = bi + 1;
+  }
+  return 0;
+}
+
+/**
  * Bake ARRAY_LIT constant elems into an already-reserved .data cell.
  * Twin of pipe_modlet_seed_array_lit_elems_to_rbx but writes object-file
  * bytes (library TUs never enter hoist-target seed). One nested ARRAY_LIT
  * level for `[K][N]T` rows; deeper nest is a later leaf. Empty lit is a
- * no-op (zeros already reserved). Elem contract: EXPR_LIT and
- * EXPR_NEG-over-LIT fold via pipe_modlet_array_lit_elem_const_val.
- * STRUCT_LIT elems poke integer, string, pointer, and nested array fields.
- * Anything else (FLOAT_LIT, binop, VAR, ...) loud-fails — the historic
- * silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
+ * no-op (zeros already reserved). Elem contract: EXPR_LIT, EXPR_NEG over
+ * a folded constant, and integer binops EXPR_ADD..EXPR_BITXOR fold via
+ * pipe_modlet_array_lit_elem_const_val. FLOAT_LIT (ek 1) pokes IEEE bits:
+ * esz 4 packs f64 bits to f32 through glue_ieee_f64_bits_to_f32_bits, esz 8
+ * pokes both halves. STRUCT_LIT elems poke integer, string, pointer, and
+ * nested array fields. Anything else (float binop, VAR, ...) loud-fails —
+ * the historic silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
  * .data string pool and record an absolute64 reloc on the pointer slot.
  * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
  * named symbol (G.7 complete of pipeline_elf_ctx_append_reloc_absolute64).
@@ -32583,7 +32614,42 @@ function pipe_modlet_bake_array_lit_elems_to_data(
         ei = ei + 1;
         continue;
       }
-      // LIT / EXPR_NEG-over-LIT: fold, then peel two's-complement bytes
+      // FLOAT_LIT is stored as f64 bits. esz 4 packs to f32; esz 8 pokes
+      // both halves. Other sizes are not a float slot. PLATFORM: SHARED.
+      if (ek == 1) {
+        let flo: i32 = 0;
+        let fhi: i32 = 0;
+        let fb: i32 = 0;
+        unsafe {
+          flo = pipeline_expr_float_bits_lo_at(arena, eref);
+          fhi = pipeline_expr_float_bits_hi_at(arena, eref);
+        }
+        if (esz == 4) {
+          unsafe {
+            fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          }
+          rc = pipe_modlet_data_poke_u32_le(elf_ctx, data_base + base_off + ei * esz, fb);
+          if (rc != 0) {
+            return rc;
+          }
+        } else {
+          if (esz == 8) {
+            rc = pipe_modlet_data_poke_u32_le(elf_ctx, data_base + base_off + ei * esz, flo);
+            if (rc != 0) {
+              return rc;
+            }
+            rc = pipe_modlet_data_poke_u32_le(elf_ctx, data_base + base_off + ei * esz + 4, fhi);
+            if (rc != 0) {
+              return rc;
+            }
+          } else {
+            return 0 - 1;
+          }
+        }
+        ei = ei + 1;
+        continue;
+      }
+      // LIT / NEG / integer binop: fold, then peel two's-complement bytes
       // little-endian via u32 (unsigned division). The historic signed
       // `cur / 256` peel corrupted bytes 1..3 of negative elems.
       if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev) == 0) {
@@ -33013,13 +33079,87 @@ function pipe_modlet_bake_ptr_addr_elem_to_data(
 }
 
 /**
+ * Fold one integer binop of two already-folded i32 operands.
+ * Kinds are the parser pins: EXPR_ADD=4 through EXPR_BITXOR=13.
+ * Division or remainder by zero, and a shift count outside 0..31,
+ * are not constants: the caller loud-fails. Comparisons (14..21) and
+ * float binops are not this helper. FLOAT_LIT stays on the array baker,
+ * which has the element size. Twin of the modlet thin.
+ * @param ek i32 - expr kind ordinal
+ * @param lv i32 - left two's-complement value
+ * @param rv i32 - right two's-complement value
+ * @param out_val *i32 - folded result; null returns 0
+ * @return i32 - 1 written; 0 not this kind or undefined arithmetic
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ */
+function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i32 {
+  if (out_val == (0 as *i32)) {
+    return 0;
+  }
+  if (ek == 4) {
+    unsafe { out_val[0] = lv + rv; }
+    return 1;
+  }
+  if (ek == 5) {
+    unsafe { out_val[0] = lv - rv; }
+    return 1;
+  }
+  if (ek == 6) {
+    unsafe { out_val[0] = lv * rv; }
+    return 1;
+  }
+  if (ek == 7) {
+    if (rv == 0) {
+      return 0;
+    }
+    unsafe { out_val[0] = lv / rv; }
+    return 1;
+  }
+  if (ek == 8) {
+    if (rv == 0) {
+      return 0;
+    }
+    unsafe { out_val[0] = lv % rv; }
+    return 1;
+  }
+  if (ek == 9) {
+    if (rv < 0 || rv >= 32) {
+      return 0;
+    }
+    unsafe { out_val[0] = lv << rv; }
+    return 1;
+  }
+  if (ek == 10) {
+    if (rv < 0 || rv >= 32) {
+      return 0;
+    }
+    unsafe { out_val[0] = lv >> rv; }
+    return 1;
+  }
+  if (ek == 11) {
+    unsafe { out_val[0] = lv & rv; }
+    return 1;
+  }
+  if (ek == 12) {
+    unsafe { out_val[0] = lv | rv; }
+    return 1;
+  }
+  if (ek == 13) {
+    unsafe { out_val[0] = lv ^ rv; }
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Fold one ARRAY_LIT element to its constant i32 value.
- * Accepts EXPR_LIT (ek 0) and EXPR_NEG over EXPR_LIT (ek 22) — the parser's
- * compound-reparse normal form for negative literals, e.g. `[-600, 2]`
- * produces EXPR_NEG(EXPR_LIT), not a bare negative LIT. Anything else
- * (FLOAT_LIT, binop, VAR, ...) is not a compile-time constant elem; callers
- * must loud-fail (return -1) instead of silently dropping the element —
- * the historic silent drop baked/seeded zeros for `let g: i32[2] = [-1, 2]`.
+ * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
+ * the parser's NEG-over-LIT form `[-600, 2]`), and integer binops
+ * EXPR_ADD..EXPR_BITXOR (ek 4..13) whose operands fold. FLOAT_LIT is not
+ * an i32: the array baker pokes IEEE bits from the element size. VAR and
+ * any other kind are not compile-time constants; callers must loud-fail
+ * (return -1) instead of silently dropping the element — the historic
+ * silent drop baked zeros for `let g: i32[2] = [-1, 2]`.
  * @param arena *u8 - ASTArena
  * @param eref i32 - element expr ref
  * @param out_val *i32 - folded two's-complement i32 value
@@ -33032,6 +33172,10 @@ function pipe_modlet_array_lit_elem_const_val(
   let ek: i32 = 0;
   let op: i32 = 0;
   let v: i32 = 0;
+  let left: i32 = 0;
+  let right: i32 = 0;
+  let lv: i32 = 0;
+  let rv: i32 = 0;
   if (arena == (0 as *u8) || eref <= 0 || out_val == (0 as *i32)) {
     return 0;
   }
@@ -33054,19 +33198,31 @@ function pipe_modlet_array_lit_elem_const_val(
     if (op <= 0) {
       return 0;
     }
-    unsafe {
-      ek = pipeline_expr_kind_ord_at(arena, op);
-    }
-    if (ek != 0) {
+    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val) == 0) {
       return 0;
     }
     unsafe {
-      v = pipeline_expr_int_val_at(arena, op);
-    }
-    unsafe {
-      out_val[0] = 0 - v;
+      out_val[0] = 0 - out_val[0];
     }
     return 1;
+  }
+  if (ek >= 4 && ek <= 13) {
+    unsafe {
+      left = pipeline_expr_binop_left_ref_at(arena, eref);
+      right = pipeline_expr_binop_right_ref_at(arena, eref);
+    }
+    if (left <= 0 || right <= 0) {
+      return 0;
+    }
+    if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val) == 0) {
+      return 0;
+    }
+    unsafe { lv = out_val[0]; }
+    if (pipe_modlet_array_lit_elem_const_val(arena, right, out_val) == 0) {
+      return 0;
+    }
+    unsafe { rv = out_val[0]; }
+    return pipe_modlet_fold_i32_binop(ek, lv, rv, out_val);
   }
   return 0;
 }
@@ -33623,7 +33779,50 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
           ei = ei + 1;
           continue;
         }
-        // LIT / EXPR_NEG-over-LIT elem: fold to the constant value. A
+        // FLOAT_LIT: esz 4 stores the f32 pack; esz 8 stores both f64 halves.
+        // A negative f32 pattern sign-extends only the unused high half of
+        // the imm64 so the 4-byte store keeps the IEEE bits. PLATFORM: SHARED.
+        if (ek == 1) {
+          let flo: i32 = 0;
+          let fhi: i32 = 0;
+          let fb: i32 = 0;
+          unsafe {
+            flo = pipeline_expr_float_bits_lo_at(arena, eref);
+            fhi = pipeline_expr_float_bits_hi_at(arena, eref);
+          }
+          if (esz == 4) {
+            unsafe {
+              fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+            }
+            hi = 0;
+            if (fb < 0) {
+              hi = 0 - 1;
+            }
+            unsafe {
+              rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, fb, hi, ta);
+            }
+          } else {
+            if (esz == 8) {
+              unsafe {
+                rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta);
+              }
+            } else {
+              return 0 - 1;
+            }
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          unsafe {
+            rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta);
+          }
+          if (rc != 0) {
+            return 0 - 1;
+          }
+          ei = ei + 1;
+          continue;
+        }
+        // LIT / NEG / integer binop: fold to the constant value. A
         // negative imm passes hi=-1 so the (hi:lo) imm64 halves rebuild
         // the two's-complement value in rax before the esz store. Any
         // other elem kind is not a compile-time constant: loud-fail
