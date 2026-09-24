@@ -109,6 +109,12 @@
 // pipeline_elf_ctx_append_bytes. They stay strong. None of them compares
 // elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, prologue, lea, and
 // the Win64 argument moves stay in the C seed.
+// w916 places the x86_64 prologue and epilogue here. Prologue emits
+// push rbp, mov rbp rsp, push rbx, then sub rsp by a frame that is
+// 8 mod 16. Epilogue emits lea rsp [rbp-8], pop rbx, pop rbp, and ret.
+// Both append through x86_enc_u8. They stay strong. Neither compares
+// elf_ctx with 0 or divides. Label, jumps, calls, cmp_setcc, lea, and
+// the Win64 argument moves stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9741,4 +9747,109 @@ export function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
   // The earlier extern makes this an extern call.
   unsafe { return pipeline_elf_ctx_append_bytes(elf_ctx, buf, n); }
   return 0 - 1;
+}
+
+/**
+ * Open an x86_64 frame.
+ * Bytes are push rbp, mov rbp rsp, push rbx, then sub rsp, imm32.
+ * After the two pushes RSP is 8 mod 16, so the subtracted immediate
+ * is adjusted until it is also 8 mod 16. A negative frame size is
+ * treated as 0. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param frame_sz i32 — requested local bytes before alignment
+ * @return i32 — 0 when the frame is opened, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * C callers still pass the frame size. This body does not compare
+ * elf_ctx with 0 and does not divide. The low 4 bits select the
+ * alignment residue. Each append is checked directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
+  // Non-negative sizes keep their value. A negative size stays 0.
+  // Residue 0..7 grows up to 8. Residue 9..15 grows up to the next 8.
+  // Residue 8 is already the required alignment.
+  let fs: i32 = 0;
+  let rem: i32 = 0;
+  let u: u32 = 0;
+  if (frame_sz > (0 - 1)) {
+    fs = frame_sz;
+  }
+  rem = fs & 15;
+  if (rem != 8) {
+    if (rem < 8) {
+      fs = fs + (8 - rem);
+    }
+    if (rem >= 8) {
+      fs = fs + (16 - rem + 8);
+    }
+  }
+  if (x86_enc_u8(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 229) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 83) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 236) != 0) {
+    return 0 - 1;
+  }
+  u = fs as u32;
+  if (x86_enc_u8(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return x86_enc_u8(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Close an x86_64 frame.
+ * Bytes are lea rsp [rbp-8], pop rbx, pop rbp, and ret.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the frame is closed, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_epilogue(elf_ctx: *u8): i32 {
+  // lea rsp, [rbp-8] is 72, 141, 101, 248. Then pop rbx, pop rbp, ret.
+  if (x86_enc_u8(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 101) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 248) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 91) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return x86_enc_u8(elf_ctx, 195);
 }
