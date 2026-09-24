@@ -45,6 +45,8 @@
  * It appends one scalar f64 subtract of rbx from rax. The symbol stays strong.
  * wave900: backend_enc_mulsd_rax_rbx_arch lives in that .x too.
  * It appends one scalar f64 multiply. The symbol stays strong.
+ * wave901: backend_enc_divsd_rax_rbx_arch lives in that .x too.
+ * It appends one scalar f64 divide of rax by rbx. The symbol stays strong.
  * This file keeps the rest of the f64/Cap tail and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
  * -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed.
@@ -925,36 +927,10 @@ int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCt
  * ta == 0 appends movq, movq, mulsd, movq. The prototype above
  * still names the symbol. Stays strong. PLATFORM: SHARED. */
 
-/**
- * PLATFORM: LINUX+MACOS x86_64 SysV — scalar f64 div: rax / rbx → rax (IEEE bits in GPRs).
- * movq xmm0,rax; movq xmm1,rbx; divsd xmm0,xmm1; movq rax,xmm0
- * G.7: same authority as mulsd/addsd (not integer idiv on IEEE bit patterns).
- * Div-by-zero yields IEEE Inf/NaN; do not emit integer div-zero panic before this.
- */
-int32_t backend_enc_divsd_rax_rbx_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  static const uint8_t movq_xmm0_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc0};
-  static const uint8_t movq_xmm1_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xcb};
-  static const uint8_t divsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5e, 0xc1};
-  static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
-  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
-  if (ta == 1) {
-    if (!elf_ctx) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670000u) != 0) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670021u) != 0) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e611800u) != 0) return -1;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
-  }
-
-  if (ta != 0 || !elf_ctx)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rax, 5) != 0)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rbx, 5) != 0)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)divsd_xmm0_xmm1, 4) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
-}
+/* w901: backend_enc_divsd_rax_rbx_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends fmov/fdiv/fmov.
+ * ta == 0 appends movq, movq, divsd, movq. The prototype above
+ * still names the symbol. Stays strong. PLATFORM: SHARED. */
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 — ordered f64 compare: left in rbx, right in rax (IEEE bits).
