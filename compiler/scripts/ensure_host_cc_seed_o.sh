@@ -2384,9 +2384,39 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w912: x86_64 rbp displacement and register-immediate encoders live in the thin.
+  # PLATFORM: SHARED.
+  local w912_sym
+  for w912_sym in \
+    arch_x86_64_enc_enc_store_rax_to_rbp \
+    arch_x86_64_enc_enc_store_r64_to_rbp \
+    arch_x86_64_enc_enc_load_rbp_to_rax \
+    arch_x86_64_enc_enc_load_rbp_to_rbx \
+    arch_x86_64_enc_enc_lea_rbp_to_rax \
+    arch_x86_64_enc_enc_lea_rbp_to_rbx \
+    arch_x86_64_enc_enc_load_rbp_pos_to_rax \
+    arch_x86_64_enc_enc_load_rbp_to_eax32 \
+    arch_x86_64_enc_enc_load_rbp_to_ebx32 \
+    arch_x86_64_enc_enc_load_rbp_to_ecx \
+    arch_x86_64_enc_enc_load_rbp_to_edx \
+    arch_x86_64_enc_enc_add_imm_to_ecx \
+    arch_x86_64_enc_enc_sub_imm_from_ecx \
+    arch_x86_64_enc_enc_add_imm_to_ebx_index \
+    arch_x86_64_enc_enc_sub_imm_from_ebx_index \
+    arch_x86_64_enc_enc_imul_imm_to_ecx \
+    arch_x86_64_enc_enc_imul_imm_to_ebx \
+    arch_x86_64_enc_enc_store_rdx_to_rbp \
+    arch_x86_64_enc_enc_load_rbp_to_rdx
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w912_sym"; then
+      echo "ensure: enc dispatch missing $w912_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w911; 13 x86 immediate and leftover fixed-byte encoders, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w912; 19 x86 rbp displacement and register-immediate encoders, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

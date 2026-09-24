@@ -87,6 +87,12 @@
 // little-endian bytes taken with shifts. They stay strong. None of them
 // compares elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, and the
 // Win64 argument moves stay in the C seed.
+// w912 places 19 x86_64 rbp displacement and register-immediate encoders
+// here. A short displacement is the low 8 bits of the u32 cast of
+// 0 minus the offset. Add, sub, and imul use the same low 8 bits for
+// an immediate in -128..127. They stay strong. None of them compares
+// elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, and the Win64
+// argument moves stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -8438,4 +8444,924 @@ export function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i3
     return 0 - 1;
   }
   return backend_enc_append_u8_c(elf_ctx, 209);
+}
+
+/**
+ * Emit movq rax to -offset(rbp). Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq rN to -offset(rbp). N outside 0..15 returns -1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — x86_64 register number, accepted only for 0..15
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  // Registers outside 0..15 emit nothing and return -1.
+  // REX.W is 72. Registers 8..15 use 76. The ModRM low 3 bits
+  // are reg masked with 7, scaled by 8, then added to 69 or 133.
+  if (reg < 0) {
+    return 0 - 1;
+  }
+  if (reg > 15) {
+    return 0 - 1;
+  }
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (reg >= 8) {
+  if (backend_enc_append_u8_c(elf_ctx, 76) != 0) {
+    return 0 - 1;
+  }
+  }
+  if (reg < 8) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, (69 + ((reg & 7) * 8))) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (133 + ((reg & 7) * 8))) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq -offset(rbp) to rax. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq -offset(rbp) to rbx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 157) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit leaq -offset(rbp) to rax. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit leaq -offset(rbp) to rbx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 157) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq off_pos(rbp) to rax. A negative off_pos is encoded as zero.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param off_pos i32 — non-negative displacement; negatives clamp to 0
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx: *u8, off_pos: i32): i32 {
+  // A negative off_pos is clamped to 0. 0..127 uses disp8.
+  // A larger value uses disp32. The byte is the low 8 bits of the u32 cast.
+  let disp: i32 = off_pos;
+  if (disp < 0) {
+    disp = 0;
+  }
+  let u: u32 = disp as u32;
+  if (disp <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to eax. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to ebx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 157) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to ecx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 77) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to edx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 149) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add imm to ecx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 193) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 193) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit sub imm from ecx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add imm to ebx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 195) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 195) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit sub imm from ebx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 235) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 235) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit imul ecx, ecx, imm. An immediate of 1 or less emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — multiplier; 1 and every smaller value emit no bytes
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx: *u8, imm: i32): i32 {
+  // An immediate of 1 or less emits nothing, including every negative.
+  // 2..127 uses opcode 107 and one byte. Larger values use opcode 105.
+  if (imm <= 1) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 107) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 201) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 105) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 201) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit imul ebx, ebx, imm. An immediate of 1 or less emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — multiplier; 1 and every smaller value emit no bytes
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32 {
+  // An immediate of 1 or less emits nothing, including every negative.
+  // 2..127 uses opcode 107 and one byte. Larger values use opcode 105.
+  if (imm <= 1) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 107) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 219) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 105) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 219) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq rdx to -offset(rbp). Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 149) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq -offset(rbp) to rdx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 149) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
 }
