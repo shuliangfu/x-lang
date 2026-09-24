@@ -2119,9 +2119,47 @@ ensure_enc_dispatch_pure() {
     rm -f "$thin_o" "$rest_o" "$merged_o"
     return 1
   fi
+  # w906: the 27 fixed-word ARM64 encoders live in the thin and stay strong.
+  # PLATFORM: SHARED.
+  local w906_sym
+  for w906_sym in \
+    arch_arm64_enc_enc_mov_rbx_to_rax \
+    arch_arm64_enc_enc_add_rax_rbx \
+    arch_arm64_enc_enc_sub_rax_rbx \
+    arch_arm64_enc_enc_sub_rbx_rax_then_mov \
+    arch_arm64_enc_enc_imul_rbx_rax \
+    arch_arm64_enc_enc_idiv_rbx \
+    arch_arm64_enc_enc_and_rbx_rax \
+    arch_arm64_enc_enc_or_rbx_rax \
+    arch_arm64_enc_enc_xor_rbx_rax \
+    arch_arm64_enc_enc_cmp_rbx_rax \
+    arch_arm64_enc_enc_cmp_rax_rbx \
+    arch_arm64_enc_enc_neg_eax \
+    arch_arm64_enc_enc_not_eax \
+    arch_arm64_enc_enc_test_eax_eax \
+    arch_arm64_enc_enc_test_rbx_rbx \
+    arch_arm64_enc_enc_push_rax \
+    arch_arm64_enc_enc_push_rbx \
+    arch_arm64_enc_enc_pop_rax \
+    arch_arm64_enc_enc_pop_rbx \
+    arch_arm64_enc_enc_mov_rbx_to_ecx \
+    arch_arm64_enc_enc_setz_movzbl_eax \
+    arch_arm64_enc_enc_shl_cl_eax \
+    arch_arm64_enc_enc_shr_cl_eax \
+    arch_arm64_enc_enc_sar_cl_eax \
+    arch_arm64_enc_enc_shl_cl_rax \
+    arch_arm64_enc_enc_shr_cl_rax \
+    arch_arm64_enc_enc_sar_cl_rax
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w906_sym"; then
+      echo "ensure: enc dispatch missing $w906_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w905; ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w906; 27 ARM64 fixed-word encoders, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

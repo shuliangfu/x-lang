@@ -11,6 +11,10 @@
  * PLATFORM: MACOS/DARWIN arm64 product pure-asm; also safe on other hosts (ta!=1
  * never calls these). Link into USER_ASM_LINK / g05 Darwin path so strong symbols
  * override seed_link_compat weak stubs.
+ *
+ * w906: the 27 fixed-word encoders (mov/add/sub/mul/sdiv/logic/cmp/neg/mvn/
+ * test/push/pop/shifts/cset) are defined in backend_enc_dispatch_thin.x.
+ * This file no longer emits those symbols. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -459,117 +463,81 @@ int32_t arch_arm64_enc_enc_mov_rax_to_rbx(struct platform_elf_ElfCodegenCtx *elf
   return arm64_enc_u32_le(elf_ctx, 0xaa0003f3u); /* mov x19, x0 */
 }
 
-int32_t arch_arm64_enc_enc_mov_rbx_to_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mov x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0xaa0103e0u);
-}
+/* w906: arch_arm64_enc_enc_mov_rbx_to_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103e0 (mov x0, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_add_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* add w0, w0, w1 — 32-bit add (sf=0).
-   * Why: X language integer arithmetic defaults to 32-bit (i32/u32/u8/bool).
-   *      A 32-bit ADD W0,W0,W1 zero-extends the result to X0, giving correct
-   *      wrapping semantics for u32 (0xFFFFFFFF + 1 = 0). The prior 64-bit
-   *      ADD X0,X0,X1 did not wrap at 32 bits, breaking unsigned overflow.
-   * Invariant: Must match .x authority arm64_enc.x::enc_add_rax_rbx (0x0B000020).
-   *            i64/u64/ptr arithmetic uses enc_rax_plus_rbx_scale1 (64-bit) or
-   *            ptr-arith scaled paths, NOT this function.
-   * PLATFORM: MACOS|ARM64 — twin of compiler/src/asm/arch/arm64_enc.x. */
-  return arm64_enc_u32_le(elf_ctx, 0x0B000020u);
-}
+/* w906: arch_arm64_enc_enc_add_rax_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x0b000020 (add w0, w0, w1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_sub_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* sub w0, w0, w1 — 32-bit sub (sf=0), zero-extends to X0.
-   * Why: Must match .x authority arm64_enc.x::enc_sub_rax_rbx (0x4B010000).
-   *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
-   * Root: prior 0x4B000001 had Rd=1,Rm=0 → SUB W1,W0,W0 (=0, result in wrong
-   *      reg) instead of SUB W0,W0,W1. SUB is NOT commutative so Rm must be 1
-   *      (rbx=W1) for rax = rax - rbx. Broke (i-j)-k assign bounds-check eval.
-   * PLATFORM: MACOS|ARM64. */
-  return arm64_enc_u32_le(elf_ctx, 0x4B010000u);
-}
+/* w906: arch_arm64_enc_enc_sub_rax_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x4b010000 (sub w0, w0, w1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_sub_rbx_rax_then_mov(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* sub x0, x1, x0 */
-  return arm64_enc_u32_le(elf_ctx, 0xcb000020u);
-}
+/* w906: arch_arm64_enc_enc_sub_rbx_rax_then_mov is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xcb000020 (sub x0, x1, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_imul_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mul w0, w0, w1 — 32-bit mul (sf=0), zero-extends to X0.
-   * Why: Must match .x authority arm64_enc.x::enc_imul_rbx_rax (0x1B017C00).
-   *      i64/u64/ptr arithmetic uses scaled paths, NOT this function.
-   * Root: prior 0x1B007C00 had Rm=0 → MUL W0,W0,W0 (self-multiply) instead of
-   *      MUL W0,W0,W1. Bounds-check binop eval for arr[i*j] computed i*i not
-   *      i*j → out-of-bounds panic. Rm must be 1 (rbx=W1) for rax*=rbx.
-   * PLATFORM: MACOS|ARM64. */
-  return arm64_enc_u32_le(elf_ctx, 0x1B017C00u);
-}
+/* w906: arch_arm64_enc_enc_imul_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x1b017c00 (mul w0, w0, w1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_idiv_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* sdiv x0, x0, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0x9ac10c00u);
-}
+/* w906: arch_arm64_enc_enc_idiv_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x9ac10c00 (sdiv x0, x0, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_and_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x8a010000u);
-}
+/* w906: arch_arm64_enc_enc_and_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x8a010000 (and x0, x0, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_or_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xaa010000u);
-}
+/* w906: arch_arm64_enc_enc_or_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa010000 (orr x0, x0, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xca010000u);
-}
+/* w906: arch_arm64_enc_enc_xor_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xca010000 (eor x0, x0, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_cmp_rbx_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* PLATFORM: MACOS|ARM64 — left in x1 (rbx), right in x0 (rax).
-   * cmp x1, x0 → flags for (left - right); matches x86 `cmp %rax,%rbx`.
-   * wave388: prior encoding was cmp x0,x1 (right-left), which inverted lt/gt/le/ge
-   * after setcc honored real cc values. G.7 align arm64_enc.x enc_cmp_rbx_rax. */
-  return arm64_enc_u32_le(elf_ctx, 0xeb00003fu);
-}
+/* w906: arch_arm64_enc_enc_cmp_rbx_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xeb00003f (cmp x1, x0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_cmp_rax_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* PLATFORM: MACOS|ARM64 — reverse of cmp_rbx_rax: cmp x0, x1 (right - left). */
-  return arm64_enc_u32_le(elf_ctx, 0xeb01001fu);
-}
+/* w906: arch_arm64_enc_enc_cmp_rax_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xeb01001f (cmp x0, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_neg_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* neg w0, w0 */
-  return arm64_enc_u32_le(elf_ctx, 0x4b0003e0u);
-}
+/* w906: arch_arm64_enc_enc_neg_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x4b0003e0 (neg w0, w0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_not_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mvn w0, w0 */
-  return arm64_enc_u32_le(elf_ctx, 0x2a2003e0u);
-}
+/* w906: arch_arm64_enc_enc_not_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x2a2003e0 (mvn w0, w0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_test_eax_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* ands wzr, w0, w0 */
-  return arm64_enc_u32_le(elf_ctx, 0x6a00001fu);
-}
+/* w906: arch_arm64_enc_enc_test_eax_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x6a00001f (ands wzr, w0, w0).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_test_rbx_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x6a01003fu);
-}
+/* w906: arch_arm64_enc_enc_test_rbx_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x6a01003f (ands wzr, w1, w1).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_push_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* str x0, [sp, #-16]! */
-  return arm64_enc_u32_le(elf_ctx, 0xf81f0fe0u);
-}
+/* w906: arch_arm64_enc_enc_push_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf81f0fe0 (str x0, [sp, #-16]!).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_push_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xf81f0fe1u);
-}
+/* w906: arch_arm64_enc_enc_push_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf81f0fe1 (str x1, [sp, #-16]!).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_pop_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* ldr x0, [sp], #16 */
-  return arm64_enc_u32_le(elf_ctx, 0xf84107e0u);
-}
+/* w906: arch_arm64_enc_enc_pop_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf84107e0 (ldr x0, [sp], #16).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_pop_rbx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0xf84107e1u);
-}
+/* w906: arch_arm64_enc_enc_pop_rbx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xf84107e1 (ldr x1, [sp], #16).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * wave420: multi-chunk ADD x0,x0,#imm (was hard clamp imm≤4095).
@@ -626,10 +594,9 @@ int32_t arch_arm64_enc_enc_mov_edx_to_eax(struct platform_elf_ElfCodegenCtx *elf
   return arm64_enc_u32_le(elf_ctx, 0x1b018040u);
 }
 
-int32_t arch_arm64_enc_enc_mov_rbx_to_ecx(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* mov x2, x1 */
-  return arm64_enc_u32_le(elf_ctx, 0xaa0103e2u);
-}
+/* w906: arch_arm64_enc_enc_mov_rbx_to_ecx is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0xaa0103e2 (mov x2, x1).
+ * Stays strong. PLATFORM: SHARED. */
 
 int32_t arch_arm64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc) {
   /* PLATFORM: MACOS|ARM64 — cset w0 from logical cc (0=eq,1=ne,2=lt,3=le,4=gt,5=ge).
@@ -647,24 +614,21 @@ int32_t arch_arm64_enc_enc_cmp_setcc_movzbl(struct platform_elf_ElfCodegenCtx *e
   return arm64_enc_u32_le(elf_ctx, 0x1a9f07e0u | ((uint32_t)(c & 15) << 12));
 }
 
-int32_t arch_arm64_enc_enc_setz_movzbl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  return arm64_enc_u32_le(elf_ctx, 0x1a9f17e0u);
-}
+/* w906: arch_arm64_enc_enc_setz_movzbl_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x1a9f17e0 (cset w0, eq).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_shl_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* lsl w0, w0, w2 */
-  return arm64_enc_u32_le(elf_ctx, 0x1ac22000u);
-}
+/* w906: arch_arm64_enc_enc_shl_cl_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x1ac22000 (lsl w0, w0, w2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_shr_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* lsr w0, w0, w2 */
-  return arm64_enc_u32_le(elf_ctx, 0x1ac22400u);
-}
+/* w906: arch_arm64_enc_enc_shr_cl_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x1ac22400 (lsr w0, w0, w2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* asr w0, w0, w2 */
-  return arm64_enc_u32_le(elf_ctx, 0x1ac22800u);
-}
+/* w906: arch_arm64_enc_enc_sar_cl_eax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x1ac22800 (asr w0, w0, w2).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * wave306 Cap residual: 64-bit shift forms for is_64bit i64/u64 paths.
@@ -672,20 +636,17 @@ int32_t arch_arm64_enc_enc_sar_cl_eax(struct platform_elf_ElfCodegenCtx *elf_ctx
  * `let a: i64 = …; a >> 56` used `lsr w0` and dropped high bits (mac SE).
  * PLATFORM: MACOS|ARM64 — sf=1 variants of LSL/LSR/ASR (register).
  */
-int32_t arch_arm64_enc_enc_shl_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* lsl x0, x0, x2 */
-  return arm64_enc_u32_le(elf_ctx, 0x9ac22000u);
-}
+/* w906: arch_arm64_enc_enc_shl_cl_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x9ac22000 (lsl x0, x0, x2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_shr_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* lsr x0, x0, x2 */
-  return arm64_enc_u32_le(elf_ctx, 0x9ac22400u);
-}
+/* w906: arch_arm64_enc_enc_shr_cl_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x9ac22400 (lsr x0, x0, x2).
+ * Stays strong. PLATFORM: SHARED. */
 
-int32_t arch_arm64_enc_enc_sar_cl_rax(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  /* asr x0, x0, x2 */
-  return arm64_enc_u32_le(elf_ctx, 0x9ac22800u);
-}
+/* w906: arch_arm64_enc_enc_sar_cl_rax is defined in backend_enc_dispatch_thin.x.
+ * It appends the ARM64 word 0x9ac22800 (asr x0, x0, x2).
+ * Stays strong. PLATFORM: SHARED. */
 
 /**
  * wave420: LEA x0 = x29 + offset; multi-chunk when offset > 4095.
