@@ -55,6 +55,9 @@
  * backend_enc_mov_xmm_arg_reg_to_rax_arch move f64 bits for arg register k.
  * backend_enc_fp_cmp_setcc_movzbl_arch turns compare flags into 0 or 1.
  * Those symbols stay strong.
+ * wave904: backend_enc_store_arg_sp_offset_arch and backend_enc_blr_arch
+ * live in that .x too. Both stay strong. This file keeps jcc, arm64 call,
+ * the weak arch stubs, the 5-arg ldr, and lea.
  * This file keeps the rest of the f64/Cap tail and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
  * -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed.
@@ -350,20 +353,21 @@ int32_t backend_enc_arm64_call_c_impl(struct platform_elf_ElfCodegenCtx *elf_ctx
 
 /* G-02f-127：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 
-/* Dispatcher is not in backend_enc_dispatch_thin.x. The width-aware helper
- * above is, so the thin supplies that body and this TU keeps the ta split.
+/* w904: the ta split lives in backend_enc_dispatch_thin.x. The width-aware
+ * helper above is there too. This TU keeps the prototype only.
  * PLATFORM: SHARED — POSIX product thin asm; cold seed still compiles both.
  */
 #ifdef XLANG_L2_ENC_DISPATCH_THIN_FROM_X
 int32_t backend_enc_arm64_store_arg_sp_offset_c(struct platform_elf_ElfCodegenCtx *elf_ctx,
                                                 int32_t off_bytes, int32_t nbytes);
 #endif
+/* w904: backend_enc_store_arg_sp_offset_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 forwards to
+ * backend_enc_arm64_store_arg_sp_offset_c. Any other ta returns -1.
+ * The prototype stays so this tail can still name the symbol.
+ * Stays strong. PLATFORM: SHARED. */
 int32_t backend_enc_store_arg_sp_offset_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off_bytes,
-                                             int32_t nbytes, int32_t ta) {
-  if (ta == 1)
-    return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes);
-  return -1;
-}
+                                             int32_t nbytes, int32_t ta);
 
 
 
@@ -1497,12 +1501,11 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
  * The prototype above still satisfies backend_enc_ldr_xreg_xreg_imm_arch.
  * Stays strong.
  * PLATFORM: SHARED. */
-/* Cross-arch indirect call dispatch: ta=1 arm64, ta=2 riscv64, else x86_64. */
-int32_t backend_enc_blr_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg, int32_t ta) {
-  if (ta == 1) { return arch_arm64_enc_enc_blr(elf_ctx, reg); }
-  if (ta == 2) { return arch_riscv64_enc_enc_jalr_reg(elf_ctx, reg); }
-  return arch_x86_64_enc_enc_call_reg(elf_ctx, reg);
-}
+/* w904: backend_enc_blr_arch is defined in backend_enc_dispatch_thin.x.
+ * ta == 1 forwards to arch_arm64_enc_enc_blr. ta == 2 forwards to
+ * arch_riscv64_enc_enc_jalr_reg. Any other ta forwards to
+ * arch_x86_64_enc_enc_call_reg. The prototype above still names the symbol.
+ * Stays strong. PLATFORM: SHARED. */
 /* Cross-arch 64-bit load dispatch: ta=1 arm64, ta=2 riscv64, else x86_64. */
 int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset, int32_t ta) {
   if (ta == 1) { return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }

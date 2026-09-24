@@ -55,6 +55,10 @@
 // w903 places four encoders here. ucomiss compares f32 bits in rbx and rax.
 // mov_rax_to_xmm and mov_xmm_to_rax move f64 bits for arg register k.
 // fp_cmp_setcc_movzbl turns the compare flags into 0 or 1. All stay strong.
+// w904 places two ta dispatchers here. store_arg_sp_offset forwards ARM64
+// to backend_enc_arm64_store_arg_sp_offset_c and returns -1 for other ta.
+// blr forwards ta 1/2/else to the ARM64, RISC-V, and x86_64 indirect-call
+// callees already in this file. Both stay strong.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -4466,4 +4470,50 @@ export function backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: 
     return 0 - 1;
   }
   return 0 - 1;
+}
+
+/**
+ * Store one outgoing ARM64 stack argument at [sp + off_bytes].
+ * ta == 1 forwards to backend_enc_arm64_store_arg_sp_offset_c, which
+ * selects STRB, STRH, STR W, or STR X from nbytes.
+ * Any other ta returns -1. x86_64 does not use this helper.
+ * @param elf_ctx *u8 — emit context; the callee rejects a null context
+ * @param off_bytes i32 — byte offset from sp; the callee rejects a negative offset
+ * @param nbytes i32 — 1, 2, or 4 select a narrow store; any other width is 8 bytes
+ * @param ta i32 — 1 is ARM64
+ * @return i32 — 0 when the store is appended, -1 when ta is not ARM64 or the callee fails
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0. The Windows host compiler
+ * lowers that compare to `cmp rbx, 0` without reloading the pointer.
+ * This body does not divide. The callee's existing width checks stay there.
+ */
+#[no_mangle]
+export function backend_enc_store_arg_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, nbytes: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an indirect call through a general register.
+ * ta == 1 forwards to arch_arm64_enc_enc_blr.
+ * ta == 2 forwards to arch_riscv64_enc_enc_jalr_reg.
+ * Any other ta forwards to arch_x86_64_enc_enc_call_reg.
+ * @param elf_ctx *u8 — emit context; each callee rejects a null context
+ * @param reg i32 — register number; each callee checks its own range
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, anything else is x86_64
+ * @return i32 — 0 when the call instruction is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function backend_enc_blr_arch(elf_ctx: *u8, reg: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return arch_arm64_enc_enc_blr(elf_ctx, reg);
+  }
+  if (ta == 2) {
+    return arch_riscv64_enc_enc_jalr_reg(elf_ctx, reg);
+  }
+  return arch_x86_64_enc_enc_call_reg(elf_ctx, reg);
 }
