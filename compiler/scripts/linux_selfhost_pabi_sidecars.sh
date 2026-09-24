@@ -217,6 +217,18 @@ if objdump -r "$OUT/assign.o" | grep -q 'xlang_panic_'; then
   exit 1
 fi
 
+# w946: module STRUCT_LIT array init. The baker treated S { v: 1 } as a
+# scalar constant and returned -1, so prepare aborted with code_len 0.
+# This object is the whole modlet family and its one table. Do not weaken
+# a member of that family. Do not PREFER this into runtime_pipeline_abi.o.
+# PLATFORM: LINUX.
+compile_one src/runtime_pipeline_abi_modlet_thin.x "$WORK/modlet_raw.o"
+python3 "$WORK/nop_panic.py" "$WORK/modlet_raw.o" "$OUT/modlet.o"
+if objdump -r "$OUT/modlet.o" | grep -q 'xlang_panic_'; then
+  echo "linux_selfhost_pabi_sidecars: modlet panic reloc survived" >&2
+  exit 1
+fi
+
 # nm from compiler/ — the object with the assign and spill bytes.
 _base_addr=$(nm src/runtime_pipeline_abi.o | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
 if [ -z "$_base_addr" ]; then

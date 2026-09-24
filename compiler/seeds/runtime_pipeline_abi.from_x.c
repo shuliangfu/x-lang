@@ -8562,6 +8562,117 @@ static int32_t pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(void *arena, uint8_t *
   return 0;
 }
 
+/* Width of one integer STRUCT_LIT field. 1/4/8, or -1.
+ * PLATFORM: SHARED — twin of pipe_modlet_struct_field_int_width. */
+static int32_t pipe_modlet_struct_field_int_width_cold(void *arena, void *m, int32_t lit_ref, int32_t fi) {
+  int32_t fty, k;
+  extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                            int32_t field_ix);
+  if (!arena || !m || lit_ref <= 0 || fi < 0)
+    return -1;
+  fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+  if (fty <= 0)
+    return -1;
+  k = pipeline_type_kind_ord_at(arena, fty);
+  if (k == 1 || k == 2)
+    return 1;
+  if (k == 0 || k == 3 || k == 13 || k == 14)
+    return 4;
+  if (k == 4 || k == 5 || k == 6 || k == 7 || k == 15)
+    return 8;
+  return -1;
+}
+
+/* Poke one STRUCT_LIT into an already-zeroed .data span.
+ * PLATFORM: SHARED — twin of pipe_modlet_bake_struct_lit_to_data. */
+static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
+                                                        int32_t elem_base, void *m) {
+  int32_t nf, fi, iref, ik, foff, fsz, ev, bi, b, fill;
+  uint32_t uw;
+  extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
+  extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
+  extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
+                                                         int32_t field_ix);
+  if (!arena || !elf_ctx || !m || lit_ref <= 0 || elem_base < 0)
+    return -1;
+  nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
+  if (nf < 0 || nf > 64)
+    return -1;
+  for (fi = 0; fi < nf; fi++) {
+    iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
+    if (iref <= 0)
+      continue;
+    ik = pipeline_expr_kind_ord_at(arena, iref);
+    foff = pipeline_expr_struct_lit_field_offset_at(arena, m, lit_ref, fi);
+    if (foff < 0)
+      return -1;
+    if (ik == 45) {
+      if (pipe_modlet_bake_struct_lit_to_data_cold(arena, elf_ctx, iref, elem_base + foff, m) != 0)
+        return -1;
+      continue;
+    }
+    fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
+    if (fsz <= 0)
+      return -1;
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev))
+      return -1;
+    uw = (uint32_t)ev;
+    fill = (ev < 0) ? 255 : 0;
+    for (bi = 0; bi < fsz && bi < 4; bi++) {
+      b = (int32_t)(uw & 255u);
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, b) != 0)
+        return -1;
+      uw >>= 8;
+    }
+    for (; bi < fsz; bi++) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, fill) != 0)
+        return -1;
+    }
+  }
+  return 0;
+}
+
+/* Store one STRUCT_LIT into the COMMON cell addressed by rbx.
+ * PLATFORM: SHARED — twin of pipe_modlet_seed_struct_lit_to_rbx. */
+static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
+                                                       int32_t ta, int32_t base_off, void *m) {
+  int32_t nf, fi, iref, ik, foff, fsz, ev, hi;
+  extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
+  extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
+  extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
+                                                         int32_t field_ix);
+  if (!arena || !elf_ctx || !m || lit_ref <= 0)
+    return -1;
+  nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
+  if (nf < 0 || nf > 64)
+    return -1;
+  for (fi = 0; fi < nf; fi++) {
+    iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
+    if (iref <= 0)
+      continue;
+    ik = pipeline_expr_kind_ord_at(arena, iref);
+    foff = pipeline_expr_struct_lit_field_offset_at(arena, m, lit_ref, fi);
+    if (foff < 0)
+      return -1;
+    if (ik == 45) {
+      if (pipe_modlet_seed_struct_lit_to_rbx_cold(arena, elf_ctx, iref, ta, base_off + foff, m) != 0)
+        return -1;
+      continue;
+    }
+    fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
+    if (fsz <= 0)
+      return -1;
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev))
+      return -1;
+    hi = (ev < 0) ? -1 : 0;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, fsz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
 static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t *elf_ctx,
                                                             int32_t init_ref, int32_t elem_ty,
                                                             int32_t ta, int32_t base_off, void *m) {
@@ -8598,8 +8709,13 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
     return 0;
   }
   esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
-  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
-    esz = 4;
+  /* TYPE_NAMED keeps the struct stride. See the bake twin. */
+  if (etk != 8) {
+    if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+      esz = 4;
+  }
+  if (etk == 8 && esz <= 0)
+    return -1;
   ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   /* ne<=0: empty lit is a no-op (BSS zero). ne>1024: entry-seed code-size
    * bound (~16B emitted per elem) — loud-fail instead of silent zero fill. */
@@ -8631,6 +8747,13 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
         return -1;
       if (sa == 0)
         continue;
+      /* STRUCT_LIT: store each integer field at rbx+off. PLATFORM: SHARED. */
+      if (ek == 45) {
+        if (pipe_modlet_seed_struct_lit_to_rbx_cold(arena, elf_ctx, eref, ta,
+                                                    base_off + ei * esz, m) != 0)
+          return -1;
+        continue;
+      }
       /* LIT / EXPR_NEG-over-LIT elem: fold to the constant value. A
        * negative imm passes hi=-1 so the (hi:lo) imm64 halves rebuild
        * the two's-complement value in rax before the esz store. Any
@@ -8701,8 +8824,14 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
     return 0;
   }
   esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
-  if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
-    esz = 4;
+  /* TYPE_NAMED keeps the struct stride. Clamping a 12-byte struct to 4
+   * would overlap the next element. Scalar elems stay 1/2/4/8. */
+  if (etk != 8) {
+    if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+      esz = 4;
+  }
+  if (etk == 8 && esz <= 0)
+    return -1;
   ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   /* ne<=0: empty lit is a no-op (zeros already reserved). Span guard:
    * elem count must fit this literal's elem span (no silent truncation). */
@@ -8728,6 +8857,14 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
         return -1;
       if (sa == 0)
         continue;
+    }
+    /* STRUCT_LIT: poke integer fields. The span is already zero.
+     * PLATFORM: SHARED. */
+    if (ek == 45) {
+      if (pipe_modlet_bake_struct_lit_to_data_cold(arena, elf_ctx, eref,
+                                                   data_base + base_off + ei * esz, m) != 0)
+        return -1;
+      continue;
     }
     if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev))
       return -1;
