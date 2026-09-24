@@ -5,6 +5,12 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_mov_rax_to_rbx`
+- ✅ `arch_arm64_enc_enc_mov_edx_to_eax`
+- ✅ `arch_arm64_enc_enc_cltd`
+- ✅ `arch_arm64_enc_enc_store_rax_to_rbx_indirect`
+- ✅ `arch_arm64_enc_enc_mov_rax_to_arg_reg`
+- ✅ `arch_arm64_enc_enc_mov_arg_reg_to_rax`
 - ✅ `arch_arm64_enc_enc_load_32_from_rax`
 - ✅ `arch_arm64_enc_enc_load_64_from_rax`
 - ✅ `arch_arm64_enc_enc_load_zext8_from_rax`
