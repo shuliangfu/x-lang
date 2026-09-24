@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_label`
 - ✅ `arch_arm64_enc_enc_lea_rbp_to_rax`
 - ✅ `arch_arm64_enc_enc_lea_rbp_to_rbx`
 - ✅ `arm64_enc_branch_patch`
