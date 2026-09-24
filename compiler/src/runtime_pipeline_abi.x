@@ -32118,7 +32118,9 @@ function pipe_modlet_struct_field_int_width(
 /**
  * Poke one STRUCT_LIT into an already-zeroed .data span.
  * Integer fields (LIT and NEG-over-LIT) are stored little-endian at
- * elem_base plus the layout offset. Nested STRUCT_LIT recurses.
+ * elem_base plus the layout offset. f32 and f64 fields reuse
+ * pipe_modlet_fold_f64_elem_bits and poke IEEE bits (esz 4 packs, esz 8
+ * pokes both halves). Nested STRUCT_LIT recurses.
  * STRING_LIT fields intern through pipe_modlet_bake_string_lit_elem_to_data.
  * Pointer and function fields record an absolute64 reloc through
  * pipe_modlet_bake_ptr_addr_elem_to_data. ARRAY_LIT fields reuse
@@ -32152,6 +32154,9 @@ function pipe_modlet_bake_struct_lit_to_data(
   let et: i32 = 0;
   let span: i32 = 0;
   let pa: i32 = 0;
+  let flo: i32 = 0;
+  let fhi: i32 = 0;
+  let fb: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || m == (0 as *u8) || lit_ref <= 0 || elem_base < 0) {
     return 0 - 1;
   }
@@ -32232,6 +32237,36 @@ function pipe_modlet_bake_struct_lit_to_data(
               }
             }
             if (pa != 0) {
+              // TYPE_F32 (14) and TYPE_F64 (15) reuse the array-element
+              // folder. A fold of 0 loud-fails (VAR, a non-float cast, or
+              // an integer div0 inside the operand). Integer fields stay
+              // on the peel below. PLATFORM: SHARED.
+              if (fk == 14 || fk == 15) {
+                flo = 0;
+                fhi = 0;
+                fb = 0;
+                if (pipe_modlet_fold_f64_elem_bits(arena, iref, &flo, &fhi) == 0) {
+                  return 0 - 1;
+                }
+                if (fk == 14) {
+                  unsafe {
+                    fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+                  }
+                  rc = pipe_modlet_data_poke_u32_le(elf_ctx, elem_base + foff, fb);
+                  if (rc != 0) {
+                    return rc;
+                  }
+                } else {
+                  rc = pipe_modlet_data_poke_u32_le(elf_ctx, elem_base + foff, flo);
+                  if (rc != 0) {
+                    return rc;
+                  }
+                  rc = pipe_modlet_data_poke_u32_le(elf_ctx, elem_base + foff + 4, fhi);
+                  if (rc != 0) {
+                    return rc;
+                  }
+                }
+              } else {
               fsz = pipe_modlet_struct_field_int_width(arena, m, lit_ref, fi);
               if (fsz <= 0) {
                 return 0 - 1;
@@ -32265,6 +32300,7 @@ function pipe_modlet_bake_struct_lit_to_data(
                 }
                 bi = bi + 1;
               }
+              }
             }
           }
         }
@@ -32278,7 +32314,9 @@ function pipe_modlet_bake_struct_lit_to_data(
 /**
  * Store one STRUCT_LIT into the COMMON cell whose address is in rbx.
  * Integer fields use mov-imm64 plus a sized store at base_off plus the
- * layout offset. Nested STRUCT_LIT recurses. STRING_LIT fields lea the
+ * layout offset. f32 and f64 fields reuse pipe_modlet_fold_f64_elem_bits
+ * and store the IEEE bits (f32 sign-extends only the unused high half).
+ * Nested STRUCT_LIT recurses. STRING_LIT fields lea the
  * bytes and store the pointer. Pointer and function fields use
  * pipe_modlet_seed_ptr_addr_elem_to_rbx. ARRAY_LIT fields reuse
  * pipe_modlet_seed_array_lit_elems_to_rbx. Any other field kind
@@ -32309,6 +32347,9 @@ function pipe_modlet_seed_struct_lit_to_rbx(
   let et: i32 = 0;
   let span: i32 = 0;
   let pa: i32 = 0;
+  let flo: i32 = 0;
+  let fhi: i32 = 0;
+  let fb: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || m == (0 as *u8) || lit_ref <= 0) {
     return 0 - 1;
   }
@@ -32394,6 +32435,50 @@ function pipe_modlet_seed_struct_lit_to_rbx(
               }
             }
             if (pa != 0) {
+              // Same f32/f64 contract as the .data baker. COMMON cells only.
+              // PLATFORM: SHARED.
+              if (fk == 14 || fk == 15) {
+                flo = 0;
+                fhi = 0;
+                fb = 0;
+                if (pipe_modlet_fold_f64_elem_bits(arena, iref, &flo, &fhi) == 0) {
+                  return 0 - 1;
+                }
+                if (fk == 14) {
+                  unsafe {
+                    fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+                  }
+                  hi = 0;
+                  if (fb < 0) {
+                    hi = 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, fb, hi, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 4, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                } else {
+                  unsafe {
+                    rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                  unsafe {
+                    rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 8, ta);
+                  }
+                  if (rc != 0) {
+                    return 0 - 1;
+                  }
+                }
+              } else {
               fsz = pipe_modlet_struct_field_int_width(arena, m, lit_ref, fi);
               if (fsz <= 0) {
                 return 0 - 1;
@@ -32416,6 +32501,7 @@ function pipe_modlet_seed_struct_lit_to_rbx(
               }
               if (rc != 0) {
                 return 0 - 1;
+              }
               }
             }
           }

@@ -8648,8 +8648,13 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
                                                             int32_t init_ref, int32_t elem_ty,
                                                             int32_t ta, int32_t base_off, void *m);
 
+/* Fold and the 4-byte poke are defined below. Struct float fields call them. */
+static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
+                                                   int32_t *out_lo, int32_t *out_hi);
+static int32_t pipe_modlet_data_poke_u32_le_cold(uint8_t *elf_ctx, int32_t off, int32_t bits);
+
 /* Poke one STRUCT_LIT into an already-zeroed .data span.
- * Integer, string, pointer/fn, and array fields. Nested STRUCT_LIT recurses.
+ * Integer, f32/f64, string, pointer/fn, and array fields. Nested STRUCT_LIT recurses.
  * PLATFORM: SHARED — twin of pipe_modlet_bake_struct_lit_to_data. */
 static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
                                                         int32_t elem_base, void *m) {
@@ -8714,6 +8719,25 @@ static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *el
       }
       if (pa == 0)
         continue;
+      /* TYPE_F32 (14) / TYPE_F64 (15): same IEEE poke as the array baker.
+       * A fold of 0 loud-fails. Integer fields stay on the peel below.
+       * PLATFORM: SHARED. */
+      if (fk == 14 || fk == 15) {
+        int32_t flo = 0, fhi = 0, fb = 0;
+        if (!pipe_modlet_fold_f64_elem_bits_cold(arena, iref, &flo, &fhi))
+          return -1;
+        if (fk == 14) {
+          fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, elem_base + foff, fb) != 0)
+            return -1;
+        } else {
+          if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, elem_base + foff, flo) != 0)
+            return -1;
+          if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, elem_base + foff + 4, fhi) != 0)
+            return -1;
+        }
+        continue;
+      }
     }
     fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
     if (fsz <= 0)
@@ -8801,6 +8825,27 @@ static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf
       }
       if (pa == 0)
         continue;
+      /* Same f32/f64 contract as the .data baker. COMMON cells only.
+       * PLATFORM: SHARED. */
+      if (fk == 14 || fk == 15) {
+        int32_t flo = 0, fhi = 0, fb = 0, shi = 0;
+        if (!pipe_modlet_fold_f64_elem_bits_cold(arena, iref, &flo, &fhi))
+          return -1;
+        if (fk == 14) {
+          fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          shi = (fb < 0) ? -1 : 0;
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, fb, shi, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 4, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 8, ta) != 0)
+            return -1;
+        }
+        continue;
+      }
     }
     fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
     if (fsz <= 0)
