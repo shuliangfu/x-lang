@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `backend_enc_mov_imm32_to_w0_arch`
 - ✅ `x86_enc_movq_from_rbp_neg`
 - ✅ `x86_enc_lea_from_rbp_neg`
 - ✅ `x86_enc_movl_from_rbp_neg32`
