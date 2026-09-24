@@ -8818,11 +8818,15 @@ static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf
 
 /* Fold one array element that is an f64 constant into IEEE lo/hi.
  * EXPR_FLOAT_LIT (ek 1), NEG over a folded float (ek 22), ADD/SUB/MUL/DIV
- * (ek 4..7), and EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15).
+ * (ek 4..7), and EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15) of a
+ * folded float or an integer constant.
  * Integer elems return 0. Float DIV uses the host double. A zero divisor
  * stays the IEEE result. Float MOD is rejected by typeck. NEG flips the
  * sign bit. ADD/SUB/MUL/DIV use the host double. An f32-typed binop is rounded and
- * widened. AS to f64 keeps the operand bits. AS to f32 rounds then widens.
+ * widened. AS of a folded float keeps bits (f64) or rounds then widens
+ * (f32). AS of an integer constant uses glue_i32_to_f32_bits or
+ * glue_i64_to_f64_bits. A zero integer divisor or INT_MIN/-1 inside that
+ * operand still returns 0.
  * Little-endian: p[0] is lo.
  * Twin of pipe_modlet_fold_f64_elem_bits. PLATFORM: SHARED. */
 extern int32_t pipeline_expr_as_target_type_ref_at(void *arena, int32_t expr_ref);
@@ -8830,6 +8834,8 @@ extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi);
 extern int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb);
 extern int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb);
+extern int32_t glue_i32_to_f32_bits(int32_t v);
+extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
 static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
                                                    int32_t *out_lo, int32_t *out_hi) {
   int32_t ek = 0, op = 0, left = 0, right = 0;
@@ -8887,10 +8893,12 @@ static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
     }
     return 1;
   }
-  /* EXPR_AS of a folded float. Integer and pointer casts return 0.
+  /* EXPR_AS to f32 or f64. A folded float keeps the round path.
+   * An integer constant uses glue_i32_to_f32_bits / glue_i64_to_f64_bits.
+   * Pointer casts and other targets return 0. Integer div0 stays 0.
    * .x TypeKind: TYPE_F32 = 14, TYPE_F64 = 15. Not the C enum. */
   if (ek == 54) {
-    int32_t tgt = 0, tk = 0, fb = 0;
+    int32_t tgt = 0, tk = 0, fb = 0, iv = 0;
     op = pipeline_expr_as_operand_ref_at(arena, eref);
     tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
     if (op <= 0 || tgt <= 0)
@@ -8898,8 +8906,19 @@ static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
     tk = pipeline_type_kind_ord_at(arena, tgt);
     if (tk != 14 && tk != 15)
       return 0;
-    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, out_lo, out_hi))
-      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, out_lo, out_hi)) {
+      /* Operand is not a float constant. Fold it as an i32 constant. */
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, &iv))
+        return 0;
+      if (tk == 14) {
+        fb = glue_i32_to_f32_bits(iv);
+        *out_lo = glue_ieee_f32_bits_to_f64_lo(fb);
+        *out_hi = glue_ieee_f32_bits_to_f64_hi(fb);
+        return 1;
+      }
+      glue_i64_to_f64_bits((int64_t)iv, out_lo, out_hi);
+      return 1;
+    }
     if (tk == 15)
       return 1;
     fb = glue_ieee_f64_bits_to_f32_bits(*out_lo, *out_hi);
@@ -9143,8 +9162,9 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
         return -1;
       continue;
     }
-    /* Float constant. esz 4 packs to f32; esz 8 pokes both halves.
-     * Integer elems return 0 and fall through. PLATFORM: SHARED. */
+    /* Float constant, or as f32 / as f64 of a folded float or an integer
+     * constant. Bare integer elems return 0 and fall through.
+     * esz 4 packs to f32; esz 8 pokes both halves. PLATFORM: SHARED. */
     {
       int32_t flo = 0, fhi = 0, fb = 0;
       if (pipe_modlet_fold_f64_elem_bits_cold(arena, eref, &flo, &fhi)) {

@@ -32431,17 +32431,22 @@ function pipe_modlet_seed_struct_lit_to_rbx(
  * Fold one array element that is an f64 constant into IEEE lo/hi halves.
  * Twin of the modlet thin pipe_modlet_fold_f64_elem_bits. Accepts
  * EXPR_FLOAT_LIT (ek 1), EXPR_NEG over a folded float (ek 22, including
- * `[-1.0, 2.0]`), EXPR_ADD / EXPR_SUB / EXPR_MUL (ek 4, 5, 6), and
- * EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15).
+ * `[-1.0, 2.0]`), EXPR_ADD / EXPR_SUB / EXPR_MUL / EXPR_DIV (ek 4, 5, 6, 7),
+ * and EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15) of a folded float
+ * or an integer constant.
  * Integer elems return 0. Float DIV uses the host f64 operator. A zero
  * divisor stays the IEEE result (infinity or NaN), matching divsd.
  * Float MOD is not an operator: typeck rejects `%` on f32 and f64.
  * Integer DIV and MOD are folded by pipe_modlet_fold_i32_binop. NEG flips
  * the f64 sign bit. ADD/SUB/MUL/DIV use the host f64 operator via memcpy,
  * the same bit copy as glue_ieee_f64_bits_to_f32_bits. An f32-typed binop
- * is rounded and widened. AS to f64 keeps the operand bits. AS to f32
- * rounds through glue_ieee_f64_bits_to_f32_bits and widens with
- * glue_ieee_f32_bits_to_f64_lo / hi.
+ * is rounded and widened. AS to f64 of a folded float keeps the operand
+ * bits. AS to f32 of a folded float rounds through
+ * glue_ieee_f64_bits_to_f32_bits and widens with
+ * glue_ieee_f32_bits_to_f64_lo / hi. AS of an integer constant uses
+ * pipe_modlet_array_lit_elem_const_val, then glue_i32_to_f32_bits or
+ * glue_i64_to_f64_bits. A zero integer divisor or INT_MIN/-1 inside that
+ * operand still returns 0.
  * @param arena *u8 - ASTArena; null returns 0
  * @param eref i32 - element expr ref; <= 0 returns 0
  * @param out_lo *i32 - low 32 bits; null returns 0
@@ -32578,11 +32583,14 @@ function pipe_modlet_fold_f64_elem_bits(
     }
     return 1;
   }
-  // EXPR_AS of a folded float. Integer and pointer casts return 0.
+  // EXPR_AS to f32 or f64. A folded float keeps the round path.
+  // An integer constant uses glue_i32_to_f32_bits / glue_i64_to_f64_bits.
+  // Pointer casts and other targets return 0. Integer div0 stays 0.
   if (ek == 54) {
     let tgt: i32 = 0;
     let tk: i32 = 0;
     let fb: i32 = 0;
+    let iv: i32 = 0;
     unsafe {
       op = pipeline_expr_as_operand_ref_at(arena, eref);
       tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
@@ -32598,7 +32606,23 @@ function pipe_modlet_fold_f64_elem_bits(
       return 0;
     }
     if (pipe_modlet_fold_f64_elem_bits(arena, op, out_lo, out_hi) == 0) {
-      return 0;
+      // Operand is not a float constant. Fold it as an i32 constant.
+      // glue_* is the same host cast the runtime emitter already calls.
+      if (pipe_modlet_array_lit_elem_const_val(arena, op, &iv) == 0) {
+        return 0;
+      }
+      if (tk == 14) {
+        unsafe {
+          fb = glue_i32_to_f32_bits(iv);
+          out_lo[0] = glue_ieee_f32_bits_to_f64_lo(fb);
+          out_hi[0] = glue_ieee_f32_bits_to_f64_hi(fb);
+        }
+        return 1;
+      }
+      unsafe {
+        glue_i64_to_f64_bits(iv as i64, out_lo, out_hi);
+      }
+      return 1;
     }
     if (tk == 15) {
       return 1;
@@ -32652,12 +32676,13 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * no-op (zeros already reserved). Elem contract: EXPR_LIT, EXPR_NEG over
  * a folded constant, and integer binops EXPR_ADD..EXPR_BITXOR fold via
  * pipe_modlet_array_lit_elem_const_val. Float constants
- * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL/DIV of floats, AS to f32 or f64)
+ * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL/DIV of floats, AS to f32 or f64
+ * of a folded float or an integer constant)
  * poke IEEE bits via
  * pipe_modlet_fold_f64_elem_bits: esz 4 packs f64 bits to f32 through
  * glue_ieee_f64_bits_to_f32_bits, esz 8 pokes both halves. STRUCT_LIT elems
  * poke integer, string, pointer, and nested array fields. Anything else
- * (VAR, integer cast to float, ...) loud-fails —
+ * (VAR, a cast whose target is not f32 or f64, ...) loud-fails —
  * the historic silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
  * .data string pool and record an absolute64 reloc on the pointer slot.
  * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
@@ -32805,9 +32830,10 @@ function pipe_modlet_bake_array_lit_elems_to_data(
         ei = ei + 1;
         continue;
       }
-      // Float constant (FLOAT_LIT, NEG, ADD/SUB/MUL/DIV). Integer
-      // elems return 0 and fall through. esz 4 packs to f32; esz 8 pokes
-      // both halves. Other sizes are not a float slot. PLATFORM: SHARED.
+      // Float constant, or `as f32` / `as f64` of a folded float or an
+      // integer constant. Bare integer elems return 0 and fall through.
+      // esz 4 packs to f32; esz 8 pokes both halves. Other sizes are not
+      // a float slot. PLATFORM: SHARED.
       let flo: i32 = 0;
       let fhi: i32 = 0;
       let fb: i32 = 0;
