@@ -275,7 +275,24 @@ case "$UNAME_S" in
     done
     ;;
 esac
-_DRIVER_SEED_OBJS="$_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o src/token_typekind_tag_tables.o"
+# w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
+# Linux first-wins (--allow-multiple-definition) keeps these strong
+# definitions. The stale frames stay in that .o; do not PREFER into it
+# and do not gcc -E them onto a page. Built by
+# scripts/linux_selfhost_pabi_sidecars.sh. Absent directory → old list.
+# PLATFORM: LINUX — ELF sidecars. Darwin and Windows leave this empty.
+_PABI_SELFHOST=""
+if [ "$UNAME_S" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/slot.o build_asm/selfhost_pabi/esz.o build_asm/selfhost_pabi/loc.o build_asm/selfhost_pabi/lea.o build_asm/selfhost_pabi/rec.o build_asm/selfhost_pabi/two.o build_asm/selfhost_pabi/one.o build_asm/selfhost_pabi/as.o build_asm/selfhost_pabi/sizeof.o"
+  for _sh in build_asm/selfhost_pabi/slot.o build_asm/selfhost_pabi/esz.o build_asm/selfhost_pabi/loc.o build_asm/selfhost_pabi/lea.o build_asm/selfhost_pabi/rec.o build_asm/selfhost_pabi/two.o build_asm/selfhost_pabi/one.o build_asm/selfhost_pabi/as.o build_asm/selfhost_pabi/sizeof.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_cast_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_lea_thin.o; do
+    if [ ! -s "$_sh" ]; then
+      echo "g05_relink_env: missing $_sh; self-host sidecars dropped" >&2
+      _PABI_SELFHOST=""
+      break
+    fi
+  done
+fi
+_DRIVER_SEED_OBJS="$_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
