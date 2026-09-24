@@ -3702,13 +3702,16 @@ export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: 
 /**
  * Emit x86_64 cdqe so a 32-bit load sign-extends eax into rax.
  * The two bytes are 0x48 0x98. A null context returns -1.
- * @param elf_ctx *u8 — emit context; null is rejected
+ * @param elf_ctx *u8 — emit context; null is rejected by append
  * @return i32 — 0 when both bytes are appended, -1 on failure
  * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * The null check lives in pipeline_elf_ctx_append_bytes. A compare of
+ * elf_ctx against 0 in this body is lowered by the Windows x86_64 host
+ * compiler to `cmp rbx, 0` without reloading the pointer. After ta==0,
+ * rbx is 0, so that compare returns -1 and the bytes are never stored.
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32 {
-  if (elf_ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
     // Local pair, same bytes as the former static {0x48, 0x98}.
     let cdqe: u8[2] = [];
@@ -3722,14 +3725,15 @@ export function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32 {
 /**
  * Append one byte to the emit buffer.
  * The stored byte is the low 8 bits of byte. A null context returns -1.
- * @param elf_ctx *u8 — emit context; null is rejected
+ * @param elf_ctx *u8 — emit context; null is rejected by append
  * @param byte i32 — value whose low 8 bits are appended
  * @return i32 — 0 when the byte is appended, -1 on failure
  * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by pipeline_elf_ctx_append_bytes. See cdqe for why
+ * this body does not compare elf_ctx to 0 on its own.
  */
 #[no_mangle]
 export function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32 {
-  if (elf_ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
     // One local byte, same mask as the former C (uint8_t)(byte & 255).
     let b: u8[1] = [];
@@ -3743,14 +3747,15 @@ export function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32 {
  * Append one little-endian 32-bit word to the emit buffer.
  * The four stored bytes are the low 8 bits of word, then the next three.
  * A null context returns -1.
- * @param elf_ctx *u8 — emit context; null is rejected
+ * @param elf_ctx *u8 — emit context; null is rejected by append
  * @param word u32 — value stored as four little-endian bytes
  * @return i32 — 0 when the four bytes are appended, -1 on failure
  * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by pipeline_elf_ctx_append_bytes. See cdqe for why
+ * this body does not compare elf_ctx to 0 on its own.
  */
 #[no_mangle]
 export function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32 {
-  if (elf_ctx == 0 as *u8) { return 0 - 1; }
   unsafe {
     // Four local bytes. Unsigned division matches store_eax in this file
     // and the former C (uint8_t)(word >> n) masks.
