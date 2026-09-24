@@ -5,6 +5,9 @@
 
 ### 已完成
 
+- ✅ `x86_enc_u8`
+- ✅ `x86_enc_u32_le`
+- ✅ `x86_enc_bytes`
 - ✅ `arch_arm64_enc_enc_add_imm_to_rax`
 - ✅ `arch_arm64_enc_enc_add_imm_to_rbx`
 - ✅ `arch_arm64_enc_enc_load_rbp_to_rax`
