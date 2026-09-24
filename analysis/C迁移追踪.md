@@ -5,6 +5,8 @@
 
 ### 已完成
 
+- ✅ `backend_enc_store_arg_sp_offset_arch`
+- ✅ `backend_enc_blr_arch`
 - ✅ `backend_enc_ucomiss_rbx_rax_arch`
 - ✅ `backend_enc_mov_rax_to_xmm_arg_reg_arch`
 - ✅ `backend_enc_mov_xmm_arg_reg_to_rax_arch`
