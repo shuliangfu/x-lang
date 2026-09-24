@@ -5,6 +5,10 @@
 
 ### 已完成
 
+- ✅ `arch_x86_64_enc_enc_jz`
+- ✅ `arch_x86_64_enc_enc_jeq`
+- ✅ `arch_x86_64_enc_enc_jge`
+- ✅ `arch_x86_64_enc_enc_jnz`
 - ✅ `arch_x86_64_enc_enc_prologue`
 - ✅ `arch_x86_64_enc_enc_epilogue`
 - ✅ `x86_enc_u8`
