@@ -2102,14 +2102,15 @@ ensure_enc_dispatch_pure() {
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_x86_64_call_reg_c" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_riscv64_ldr_xreg_xreg_imm_c" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_arm64_ldr_xreg_xreg_imm_c" \
-    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_x86_64_load_rax_rbx_disp32_c"; then
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_x86_64_load_rax_rbx_disp32_c" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_subsd_rbx_rax_arch"; then
     echo "ensure: enc dispatch merge failed; C bodies are gone, no fallback" >&2
     rm -f "$thin_o" "$rest_o" "$merged_o"
     return 1
   fi
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w897; addsd and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w898; subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

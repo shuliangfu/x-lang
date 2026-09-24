@@ -39,6 +39,8 @@
  * It appends one x86_64 mov rDst, [rBase+disp32]. The symbol stays strong.
  * wave897: backend_enc_addsd_rax_rbx_arch lives in that .x too.
  * It appends one scalar f64 add. The symbol stays strong.
+ * wave898: backend_enc_subsd_rbx_rax_arch lives in that .x too.
+ * It appends one scalar f64 subtract of rax from rbx. The symbol stays strong.
  * This file keeps the rest of the f64/Cap tail and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
  * -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed.
@@ -904,30 +906,10 @@ int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCt
  * PLATFORM: LINUX+MACOS x86_64 SysV — scalar f64 sub: rbx - rax → rax (left in rbx, right in rax).
  * movq xmm0,rbx; movq xmm1,rax; subsd xmm0,xmm1; movq rax,xmm0
  */
-int32_t backend_enc_subsd_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  static const uint8_t movq_xmm0_rbx[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc3};
-  static const uint8_t movq_xmm1_rax[5] = {0x66, 0x48, 0x0f, 0x6e, 0xc8};
-  static const uint8_t subsd_xmm0_xmm1[4] = {0xf2, 0x0f, 0x5c, 0xc1};
-  static const uint8_t movq_rax_xmm0[5] = {0x66, 0x48, 0x0f, 0x7e, 0xc0};
-  /* wave616 Cap residual: MACOS|ARM64 freestanding float (bits in x0/x1). */
-  if (ta == 1) {
-    if (!elf_ctx) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670020u) != 0) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e670001u) != 0) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e613800u) != 0) return -1;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x9e660000u);
-  }
-
-  if (ta != 0 || !elf_ctx)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm0_rbx, 5) != 0)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_xmm1_rax, 5) != 0)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)subsd_xmm0_xmm1, 4) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movq_rax_xmm0, 5);
-}
+/* w898: backend_enc_subsd_rbx_rax_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends fmov/fsub/fmov.
+ * ta == 0 appends movq, movq, subsd, movq. The prototype above
+ * still names the symbol. Stays strong. PLATFORM: SHARED. */
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — scalar f64 sub: rax - rbx → rax (left in rax, right in rbx).
