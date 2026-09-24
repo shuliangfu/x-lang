@@ -5,6 +5,12 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_jmp`
+- ✅ `arch_arm64_enc_enc_jz`
+- ✅ `arch_arm64_enc_enc_jne`
+- ✅ `arch_arm64_enc_enc_jnz`
+- ✅ `arch_arm64_enc_enc_jeq`
+- ✅ `arch_arm64_enc_enc_jge`
 - ✅ `arch_x86_64_enc_enc_jz`
 - ✅ `arch_x86_64_enc_enc_jeq`
 - ✅ `arch_x86_64_enc_enc_jge`
