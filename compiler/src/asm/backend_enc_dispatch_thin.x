@@ -40,8 +40,9 @@
 // one ARM64 ldr instruction word. The symbol stays strong.
 // w896 places backend_enc_x86_64_load_rax_rbx_disp32_c here. It appends
 // one x86_64 mov rDst, [rBase+disp32]. The symbol stays strong.
-// The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
-// seeds/backend_enc_dispatch.from_x.c.
+// w897 places backend_enc_addsd_rax_rbx_arch here. It appends one
+// scalar f64 add. The symbol stays strong.
+// The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
 // RBP lane: LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29.
@@ -3965,4 +3966,46 @@ export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: 
   if (backend_enc_append_u8_c(elf_ctx, ((disp >> 16) & 255) as i32) != 0) { return 0 - 1; }
   if (backend_enc_append_u8_c(elf_ctx, ((disp >> 24) & 255) as i32) != 0) { return 0 - 1; }
   return 0;
+}
+
+/**
+ * Emit one scalar f64 add: the IEEE bits in rax plus the bits in rbx, result in rax.
+ * x86_64 (ta == 0) appends movq xmm0, rax; movq xmm1, rbx; addsd xmm0, xmm1; movq rax, xmm0.
+ * ARM64 (ta == 1) appends fmov d0, x0; fmov d1, x1; fadd d0, d0, d1; fmov x0, d0.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not divide.
+ */
+#[no_mangle]
+export function backend_enc_addsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670000 fmov d0,x0; 0x9E670021 fmov d1,x1;
+  // 0x1E612800 fadd d0,d0,d1; 0x9E660000 fmov x0,d0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550336 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550369 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (509683712 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (2657484800 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rax is 66 48 0F 6E C0. movq xmm1, rbx is 66 48 0F 6E CB.
+  // addsd xmm0, xmm1 is F2 0F 58 C1. movq rax, xmm0 is 66 48 0F 7E C0.
+  // Each four-byte group is one little-endian word. The fifth byte is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 203) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3243773938 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
 }

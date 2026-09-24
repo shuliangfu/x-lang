@@ -2109,7 +2109,7 @@ ensure_enc_dispatch_pure() {
   fi
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + f64/Cap tail [w896; marker, arch forwarders, append/cdqe/blr/jalr/call/ld/ldr, and backend_enc_x86_64_load_rax_rbx_disp32_c are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w897; addsd and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 
