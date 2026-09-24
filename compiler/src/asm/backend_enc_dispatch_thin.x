@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Thin enc publics for backend_enc_dispatch.o.
+// w922 places backend_enc_mov_imm32_to_w0_arch here. ta 1 forwards
+// to arch_arm64_enc_enc_mov_imm32_to_w0. ta 2 forwards to
+// arch_riscv64_enc_enc_ret_imm32. Any other ta forwards to
+// arch_x86_64_enc_enc_ret_imm32. The symbol stays strong.
 // w854 deleted the C bodies of these functions. w862 also places
 // backend_enc_dispatch_slice_marker here. The marker returns 1.
 // w877 places arch_arm64_enc_enc_blr here. It forwards to
@@ -10177,4 +10181,29 @@ export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32
     return 0 - 1;
   }
   return x86_enc_u8(elf_ctx, 192);
+}
+
+/**
+ * Materialize imm32 in the result register.
+ * ta 1 forwards to arch_arm64_enc_enc_mov_imm32_to_w0.
+ * ta 2 forwards to arch_riscv64_enc_enc_ret_imm32.
+ * Any other ta forwards to arch_x86_64_enc_enc_ret_imm32.
+ * That x86 callee emits mov eax, imm32.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param imm32 i32 — immediate bits
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, any other value is x86_64
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx, imm32);
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  }
+  unsafe { return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  return 0 - 1;
 }

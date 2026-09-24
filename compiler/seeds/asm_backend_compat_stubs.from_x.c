@@ -299,16 +299,14 @@ int32_t backend_emit_expr_elf_slow(struct ast_ASTArena *arena, struct platform_e
   return backend_emit_expr_elf_full(arena, elf_ctx, expr_ref, ctx, ta);
 }
 
-/**
- * 将 imm32 装入“结果寄存器”（arm64 w0 / x86 eax / riscv a0）。
- */
-int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32, int32_t ta) {
-  if (ta == 1)
-    return xlang_arm64_mov_imm32_to_w0_c(elf_ctx, imm32);
-  if (ta == 2)
-    return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32);
-  return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32);
-}
+/* w922: backend_enc_mov_imm32_to_w0_arch is defined in
+ * backend_enc_dispatch_thin.x. ta 1 forwards to
+ * arch_arm64_enc_enc_mov_imm32_to_w0. ta 2 forwards to
+ * arch_riscv64_enc_enc_ret_imm32. Any other ta forwards to
+ * arch_x86_64_enc_enc_ret_imm32. Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
+extern int32_t backend_enc_mov_imm32_to_w0_arch(struct platform_elf_ElfCodegenCtx *elf_ctx,
+                                                int32_t imm32, int32_t ta);
 
 /**
  * 登记块内 const/let 栈槽（runtime_pipeline_abi：按类型宽度步进，并记录 block→slot_base；
