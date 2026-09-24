@@ -331,6 +331,26 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/modlet.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/modlet.o $_PABI_SELFHOST"
 fi
+# w959: module INDEX store. Darwin pabi calls the cold lea, which misses
+# the live table and faults. The forwarder is the cold name and calls the
+# live function. Darwin ld has no multidef, so the cold symbol in a copy
+# of pabi is weakened; the original runtime_pipeline_abi.o stays untouched.
+# Windows GNU ld is first-wins, so the forwarder alone is enough.
+# PLATFORM: MACOS|DARWIN — needs both objects. A missing file keeps pabi.
+if [ "$UNAME_S" = "Darwin" ] \
+  && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
+  && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
+  _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
+fi
+# PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
+    fi
+    ;;
+esac
 _DRIVER_SEED_OBJS="$_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
