@@ -52,6 +52,9 @@
 // scalar f64 divide of rax by rbx. The symbol stays strong.
 // w902 places backend_enc_ucomisd_rbx_rax_arch here. It appends one
 // scalar f64 compare of rbx against rax. The symbol stays strong.
+// w903 places four encoders here. ucomiss compares f32 bits in rbx and rax.
+// mov_rax_to_xmm and mov_xmm_to_rax move f64 bits for arg register k.
+// fp_cmp_setcc_movzbl turns the compare flags into 0 or 1. All stay strong.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -4227,6 +4230,240 @@ export function backend_enc_ucomisd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
     if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
     if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
     return backend_enc_append_u32_le_c_impl(elf_ctx, (3241021286 as u32));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one ordered scalar f32 compare: the low 32 IEEE bits in rbx against the bits in rax.
+ * The result stays in the condition flags. rax is not updated.
+ * x86_64 (ta == 0) appends movd xmm0, ebx; movd xmm1, eax; ucomiss xmm0, xmm1.
+ * ARM64 (ta == 1) appends fmov s0, w1; fmov s1, w0; fcmp s0, s1.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * movd is four bytes and has no REX.W. ucomiss is three bytes, so it is
+ * not one little-endian word. These immediates are not the f64 ucomisd words.
+ */
+#[no_mangle]
+export function backend_enc_ucomiss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x1E270020 fmov s0,w1; 0x1E270001 fmov s1,w0;
+  // 0x1E212000 fcmp s0,s1. No fmov of the flags back into w0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (505872416 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (505872385 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (505487360 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movd xmm0, ebx is 66 0F 6E C3. movd xmm1, eax is 66 0F 6E C8.
+  // ucomiss xmm0, xmm1 is 0F 2E C1. There is no 0x48 and no 0x66 on ucomiss.
+  // Each movd is one little-endian word. The three ucomiss bytes are separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3278770022 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3362656102 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 46) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 193);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Move the f64 bits in rax/x0 into FP argument register k.
+ * x86_64 (ta == 0) appends movq xmmK, rax. ARM64 (ta == 1) appends fmov dK, x0.
+ * k outside 0..7 returns -1. Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param k i32 — xmmK or dK, accepted only for 0..7
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when the instruction is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * k is multiplied by 8 for the x86 ModRM register field and is added into
+ * the low bits of the ARM64 fmov word.
+ */
+#[no_mangle]
+export function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  // 0x9E670000 is fmov d0, x0. The low bits select dK.
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((2657550336 as u32) | (k as u32)) as i32); }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmmK, rax is 66 48 0F 6E, then ModRM 0xC0 with K in bits 5:3.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Move the f64 bits in FP argument register k into rax/x0.
+ * x86_64 (ta == 0) appends movq rax, xmmK. ARM64 (ta == 1) appends fmov x0, dK.
+ * k outside 0..7 returns -1. Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param k i32 — xmmK or dK, accepted only for 0..7
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when the instruction is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * k is multiplied by 32 for the ARM64 fmov source field and by 8 for the
+ * x86 ModRM register field.
+ */
+#[no_mangle]
+export function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  // 0x9E660000 is fmov x0, d0. Multiplying k by 32 places it in bits 9:5.
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((2657484800 as u32) | ((k as u32) * 32)) as i32); }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq rax, xmmK is 66 48 0F 7E, then ModRM 0xC0 with K in bits 5:3.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Turn the flags from ucomisd or ucomiss into 0 or 1 in eax/w0.
+ * cc is 0 eq, 1 ne, 2 lt, 3 le, 4 gt, 5 ge. Any other cc returns -1.
+ * x86_64 accounts for the unordered NaN case: eq/lt/le also require PF=0,
+ * and ne is true when PF=1. ARM64 uses CSET with the inverted FP condition.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param cc i32 — relation code 0..5
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * Each cc is its own straight sequence so a host cannot drop a stored opcode.
+ */
+#[no_mangle]
+export function backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  // ARM64 CSET W0. 0x1A9F07E0 plus the inverted condition in bits 15:12.
+  // Conditions are 1, 0, 5, 8, 13, 11 for cc 0..5.
+  if (ta == 1) {
+    unsafe {
+      if (cc == 0) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446633952 as i32)); }
+      if (cc == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446629856 as i32)); }
+      if (cc == 2) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446650336 as i32)); }
+      if (cc == 3) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446662624 as i32)); }
+      if (cc == 4) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446683104 as i32)); }
+      if (cc == 5) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446674912 as i32)); }
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // cc 1: setp cl; setne al; or cl, al; movzbl eax, al.
+  if (cc == 1) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 154) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 149) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 2: setnp cl; setb al; and cl, al; movzbl.
+  if (cc == 2) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 155) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 146) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 3: setnp cl; setbe al; and cl, al; movzbl.
+  if (cc == 3) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 155) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 150) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 0: setnp cl; sete al; and cl, al; movzbl.
+  if (cc == 0) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 155) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 148) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 4: seta al; movzbl. Unordered is already false.
+  if (cc == 4) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 151) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 5: setae al; movzbl. Unordered is already false.
+  if (cc == 5) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 147) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
   }
   return 0 - 1;
 }

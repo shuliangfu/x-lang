@@ -49,6 +49,12 @@
  * It appends one scalar f64 divide of rax by rbx. The symbol stays strong.
  * wave902: backend_enc_ucomisd_rbx_rax_arch lives in that .x too.
  * It appends one scalar f64 compare of rbx against rax. The symbol stays strong.
+ * wave903: four more encoders live in that .x too.
+ * backend_enc_ucomiss_rbx_rax_arch appends one scalar f32 compare.
+ * backend_enc_mov_rax_to_xmm_arg_reg_arch and
+ * backend_enc_mov_xmm_arg_reg_to_rax_arch move f64 bits for arg register k.
+ * backend_enc_fp_cmp_setcc_movzbl_arch turns compare flags into 0 or 1.
+ * Those symbols stay strong.
  * This file keeps the rest of the f64/Cap tail and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
  * -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed.
@@ -867,43 +873,19 @@ extern int32_t arch_x86_64_enc_enc_xor_rbx_rax(struct platform_elf_ElfCodegenCtx
  * PLATFORM: LINUX+MACOS x86_64 SysV — movq xmmK, rax (66 REX.W 0F 6E /r).
  * f64 bits in GPR → SSE arg/return register. Always in seed rest (not thin-gated).
  */
-int32_t backend_enc_mov_rax_to_xmm_arg_reg_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
-  static const uint8_t prefix[4] = {0x66, 0x48, 0x0f, 0x6e};
-  uint8_t modrm;
-  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov dK, x0 (IEEE bits in x0 → dK). */
-  if (ta == 1) {
-    if (!elf_ctx || k < 0 || k > 7)
-      return -1;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x9e670000u | (uint32_t)k));
-  }
-  if (ta != 0 || !elf_ctx || k < 0 || k > 7)
-    return -1;
-  modrm = (uint8_t)(0xc0 | (k << 3));
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)prefix, 4) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
-}
+/* w903: backend_enc_mov_rax_to_xmm_arg_reg_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends fmov dK, x0.
+ * ta == 0 appends movq xmmK, rax. The prototype above still names
+ * the symbol. Stays strong. PLATFORM: SHARED. */
 
 /**
  * PLATFORM: LINUX+MACOS x86_64 SysV — movq rax, xmmK (66 REX.W 0F 7E /r).
  * Harvest f64 SysV return (xmm0) or param into internal rax-bits convention.
  */
-int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t k, int32_t ta) {
-  static const uint8_t prefix[4] = {0x66, 0x48, 0x0f, 0x7e};
-  uint8_t modrm;
-  /* PLATFORM: MACOS|ARM64 AAPCS64 — fmov x0, dK (host-C f64 ret in d0). */
-  if (ta == 1) {
-    if (!elf_ctx || k < 0 || k > 7)
-      return -1;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x9e660000u | ((uint32_t)k << 5)));
-  }
-  if (ta != 0 || !elf_ctx || k < 0 || k > 7)
-    return -1;
-  modrm = (uint8_t)(0xc0 | (k << 3));
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)prefix, 4) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, &modrm, 1);
-}
+/* w903: backend_enc_mov_xmm_arg_reg_to_rax_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends fmov x0, dK.
+ * ta == 0 appends movq rax, xmmK. The prototype above still names
+ * the symbol. Stays strong. PLATFORM: SHARED. */
 
 /* w897: backend_enc_addsd_rax_rbx_arch is defined in
  * backend_enc_dispatch_thin.x. ta == 1 appends fmov/fadd/fmov.
@@ -940,107 +922,17 @@ int32_t backend_enc_mov_xmm_arg_reg_to_rax_arch(struct platform_elf_ElfCodegenCt
  * The prototype above still names the symbol. Stays strong.
  * PLATFORM: SHARED. */
 
-/**
- * PLATFORM: LINUX+MACOS x86_64 / MACOS|ARM64 — ordered f32 compare: left in rbx/x1, right in rax/x0.
- * wave621 Cap residual: freestanding f32 ==/!=/<> used integer cmp of 64-bit stack loads
- * (high half garbage → equal floats fail; signed order wrong for negatives).
- * x86_64: movd xmm0,ebx; movd xmm1,eax; ucomiss xmm0,xmm1 (low 32 only; CF/ZF setcc).
- * arm64: fmov s0,w1; fmov s1,w0; fcmp s0,s1 (Wn = low 32 of Xn).
- * Pair with backend_enc_fp_cmp_setcc_movzbl_arch (same CF/ZF / NZCV contract as f64).
- * G.7: sibling of backend_enc_ucomisd_rbx_rax_arch — do not reuse ucomisd for f32.
- */
-int32_t backend_enc_ucomiss_rbx_rax_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t ta) {
-  /* movd xmm0, ebx (no REX.W — 32-bit GP → xmm); movd xmm1, eax; ucomiss xmm0, xmm1 */
-  static const uint8_t movd_xmm0_ebx[4] = {0x66, 0x0f, 0x6e, 0xc3};
-  static const uint8_t movd_xmm1_eax[4] = {0x66, 0x0f, 0x6e, 0xc8};
-  static const uint8_t ucomiss_xmm0_xmm1[3] = {0x0f, 0x2e, 0xc1};
-  /* PLATFORM: MACOS|ARM64 — fmov s0,w1; fmov s1,w0; fcmp s0,s1 */
-  if (ta == 1) {
-    if (!elf_ctx) return -1;
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270020u) != 0) return -1; /* fmov s0, w1 */
-    if (arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e270001u) != 0) return -1; /* fmov s1, w0 */
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)0x1e212000u);             /* fcmp s0, s1 */
-  }
-  if (ta != 0 || !elf_ctx)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm0_ebx, 4) != 0)
-    return -1;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movd_xmm1_eax, 4) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)ucomiss_xmm0_xmm1, 3);
-}
+/* w903: backend_enc_ucomiss_rbx_rax_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends fmov/fcmp of single
+ * registers. ta == 0 appends movd, movd, ucomiss. Flags stay in CF/ZF/PF.
+ * movd has no REX.W. ucomiss is three bytes. The prototype above still
+ * names the symbol. Stays strong. PLATFORM: SHARED. */
 
-/**
- * PLATFORM: LINUX+MACOS x86_64 — setcc after ucomisd/comisd (CF/ZF/PF based).
- * cc: 0=eq 1=ne 2=lt(b) 3=le(be) 4=gt(a) 5=ge(ae); then movzbl %al,%eax.
- * Integer setl/setle/setg/setge read SF/OF and are wrong after ucomisd.
- * IEEE unordered (NaN): ucomis* sets ZF=PF=CF=1, so plain sete/setne/setb/
- * setbe answer C-wrong for NaN operands (a!=a was false, a<b was true).
- * cc 0/2/3 are ordered-only (AND with !PF via setnp), cc 1 is unordered-or
- * (OR with PF via setp); cc 4/5 (seta/setae) already exclude unordered.
- * %cl is scratch here: the compare glue pins operands in rbx/rax and only
- * eax carries the result out.
- */
-int32_t backend_enc_fp_cmp_setcc_movzbl_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t cc, int32_t ta) {
-  static const uint8_t movzbl_al_eax[3] = {0x0f, 0xb6, 0xc0};
-  static const uint8_t setnp_cl[3] = {0x0f, 0x9b, 0xc1}; /* setnp %cl (PF=0, ordered) */
-  static const uint8_t setp_cl[3] = {0x0f, 0x9a, 0xc1};  /* setp %cl (PF=1, unordered) */
-  static const uint8_t and_cl_al[2] = {0x20, 0xc8};      /* and %cl,%al — al &= cl */
-  static const uint8_t or_cl_al[2] = {0x00, 0xc8};       /* or %cl,%al  — al |= cl */
-  uint8_t op = 0x94; /* sete */
-  uint8_t s[3];
-  /* PLATFORM: MACOS|ARM64 — CSET W0,<inv_cond> directly (do NOT reuse the
-   * integer table pipeline_asm_arm64_cset_cond_enc_from_cc: wave616's
-   * "NZCV matches integer cset" claim only holds for cc 0/1/4/5). fcmp
-   * unordered sets Z=0,C=1,V=1, so integer LT/LE (N!=V based) answer true
-   * on NaN where C FP semantics demand false. FP relations map to
-   * {EQ,NE,MI,LS,GT,GE}; stored inverted for CSINC: {1,0,5,8,13,11}
-   * (ordered lt = N==1 -> invert PL; ordered le = Z==1||C==0 -> invert HI). */
-  if (ta == 1) {
-    static const int32_t fp_inv_cond[6] = {1, 0, 5, 8, 13, 11};
-    if (cc < 0 || cc > 5)
-      return -1;
-    return arch_arm64_enc_enc_u32_le(elf_ctx, (int32_t)(0x1a9f07e0u | ((uint32_t)fp_inv_cond[cc] << 12)));
-  }
-  if (ta != 0 || !elf_ctx)
-    return -1;
-  if (cc == 1) {
-    /* NE = ordered-ne OR unordered: setp %cl first, OR it in below. */
-    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)setp_cl, 3) != 0)
-      return -1;
-    op = 0x95; /* setne */
-  } else if (cc == 2 || cc == 3) {
-    /* LT/LE are ordered-only: setnp %cl first, AND it in below. */
-    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)setnp_cl, 3) != 0)
-      return -1;
-    if (cc == 2)
-      op = 0x92; /* setb  = CF (below / less) */
-    else
-      op = 0x96; /* setbe = CF|ZF */
-  } else if (cc == 0) {
-    /* EQ is ordered-only too: plain sete is true on unordered. */
-    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)setnp_cl, 3) != 0)
-      return -1;
-  } else if (cc == 4)
-    op = 0x97; /* seta  = !CF & !ZF — unordered-false already */
-  else if (cc == 5)
-    op = 0x93; /* setae = !CF — unordered-false already */
-  else
-    return -1;
-  s[0] = 0x0f;
-  s[1] = op;
-  s[2] = 0xc0;
-  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, s, 3) != 0)
-    return -1;
-  if (cc == 1) {
-    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)or_cl_al, 2) != 0)
-      return -1;
-  } else if (cc == 0 || cc == 2 || cc == 3) {
-    if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_cl_al, 2) != 0)
-      return -1;
-  }
-  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)movzbl_al_eax, 3);
-}
+/* w903: backend_enc_fp_cmp_setcc_movzbl_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 appends one CSET word.
+ * ta == 0 appends setcc plus movzbl, including the NaN PF fixup.
+ * The prototype above still names the symbol. Stays strong.
+ * PLATFORM: SHARED. */
 
 /**
  * ta 分派：enc_sub_rax_rbx_arch
