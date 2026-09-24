@@ -5,6 +5,13 @@
 
 ### 已完成
 
+- ✅ `x86_enc_movq_from_rbp_neg`
+- ✅ `x86_enc_lea_from_rbp_neg`
+- ✅ `x86_enc_movl_from_rbp_neg32`
+- ✅ `x86_enc_store_rax_to_rbp_neg`
+- ✅ `x86_enc_store_r64_to_rbp_neg`
+- ✅ `x86_enc_alu_imm32_to_reg`
+- ✅ `x86_enc_store_rdx_to_rbp_neg`
 - ✅ `arch_x86_64_enc_enc_cmp_setcc_movzbl`
 - ✅ `arch_arm64_enc_enc_cmp_setcc_movzbl`
 - ✅ `arch_arm64_enc_enc_jmp`
