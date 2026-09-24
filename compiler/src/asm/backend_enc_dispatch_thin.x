@@ -8,8 +8,8 @@
 // backend_enc_arm64_blr_c. w891 places that callee here too.
 // Both symbols stay strong.
 // w878 places arch_arm64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
-// backend_enc_arm64_ldr_xreg_xreg_imm_c, which stays in the C tail.
-// That symbol stays strong.
+// backend_enc_arm64_ldr_xreg_xreg_imm_c. w895 places that callee here too.
+// Both symbols stay strong.
 // w879 places arch_x86_64_enc_enc_call_reg here. It forwards to
 // backend_enc_x86_64_call_reg_c. w893 places that callee here too.
 // Both symbols stay strong.
@@ -36,6 +36,8 @@
 // x86_64 indirect call. The symbol stays strong.
 // w894 places backend_enc_riscv64_ldr_xreg_xreg_imm_c here. It appends
 // one RISC-V ld instruction word. The symbol stays strong.
+// w895 places backend_enc_arm64_ldr_xreg_xreg_imm_c here. It appends
+// one ARM64 ldr instruction word. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -48,7 +50,6 @@ export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i3
 export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
-export extern "C" function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
@@ -3628,7 +3629,7 @@ export function arch_arm64_enc_enc_blr(elf_ctx: *u8, reg: i32): i32 {
 
 /**
  * Forward arch_arm64_enc_enc_ldr_xreg_xreg_imm to backend_enc_arm64_ldr_xreg_xreg_imm_c.
- * The callee stays in the C tail of this object. This symbol stays strong.
+ * The callee is defined later in this file. This symbol stays strong.
  * @param elf_ctx *u8 — emit context passed through; the callee rejects null
  * @param dst_reg i32 — destination ARM64 register passed through
  * @param base_reg i32 — base ARM64 register passed through
@@ -3870,5 +3871,42 @@ export function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i
   return backend_enc_append_u32_le_c(
     elf_ctx,
     (((offset & 4095) as u32) * 1048576) | ((base_reg as u32) * 32768) | (12288 as u32) | ((dst_reg as u32) * 128) | (3 as u32)
+  );
+}
+
+/**
+ * Emit one ARM64 ldr xDst, [xBase, #offset] instruction.
+ * The word is 0xF9400000 with the scaled offset in bits 21:10,
+ * the base register in bits 9:5, and the destination in bits 4:0.
+ * Registers outside 0..30 return -1. x31 is the stack pointer and is rejected.
+ * A negative offset returns -1. An offset that is not a multiple of 8 returns -1.
+ * The scaled immediate is offset/8. A value above 4095 is clamped to 4095.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param dst_reg i32 — destination register, accepted only for 0..30
+ * @param base_reg i32 — base register, accepted only for 0..30
+ * @param offset i32 — byte offset; must be non-negative and a multiple of 8
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  // 0xF9400000 | ((offset / 8) << 10) | (base << 5) | dst.
+  // 4181721088 is 0xF9400000. 1024 is 1<<10. 32 is 1<<5.
+  // A scaled immediate above 4095 is clamped to 4095, matching the C tail.
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 30) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 30) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  if ((offset & 7) != 0) { return 0 - 1; }
+  let imm12: i32 = offset / 8;
+  if (imm12 > 4095) { imm12 = 4095; }
+  return backend_enc_append_u32_le_c(
+    elf_ctx,
+    (4181721088 as u32) | ((imm12 as u32) * 1024) | ((base_reg as u32) * 32) | (dst_reg as u32)
   );
 }

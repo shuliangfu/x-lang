@@ -5,8 +5,8 @@
  * backend_enc_arm64_blr_c. wave891 moves that callee into the same .x.
  * Both symbols stay strong.
  * wave878: arch_arm64_enc_enc_ldr_xreg_xreg_imm lives in that .x too. It still
- * forwards to backend_enc_arm64_ldr_xreg_xreg_imm_c, which stays in this tail.
- * The symbol stays strong.
+ * forwards to backend_enc_arm64_ldr_xreg_xreg_imm_c. wave895 moves that
+ * callee into the same .x. Both symbols stay strong.
  * wave879: arch_x86_64_enc_enc_call_reg lives in that .x too. It still
  * forwards to backend_enc_x86_64_call_reg_c. wave893 moves that callee
  * into the same .x. Both symbols stay strong.
@@ -33,6 +33,8 @@
  * It appends an x86_64 indirect call. The symbol stays strong.
  * wave894: backend_enc_riscv64_ldr_xreg_xreg_imm_c lives in that .x too.
  * It appends one RISC-V ld instruction word. The symbol stays strong.
+ * wave895: backend_enc_arm64_ldr_xreg_xreg_imm_c lives in that .x too.
+ * It appends one ARM64 ldr instruction word. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1681,17 +1683,14 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
  * backend_enc_dispatch_thin.x. It appends 0xD63F0000 | (reg << 5).
  * arch_arm64_enc_enc_blr still forwards to it. The prototype above
  * still names the symbol. Stays strong. PLATFORM: SHARED. */
-/* arm64 LDR xN,[xM,#off] = 0xF9400000 | ((off/8)<<10) | (base<<5) | dst. */
-int32_t backend_enc_arm64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
-  if (!elf_ctx) { return -1; }
-  if (dst_reg < 0 || dst_reg > 30) { return -1; }
-  if (base_reg < 0 || base_reg > 30) { return -1; }
-  if (offset < 0 || (offset & 7) != 0) { return -1; }
-  int32_t imm12 = offset / 8;
-  if (imm12 > 4095) { imm12 = 4095; }
-  return backend_enc_append_u32_le_c(elf_ctx,
-    (uint32_t)0xF9400000u | ((uint32_t)imm12 << 10) | ((uint32_t)base_reg << 5) | (uint32_t)dst_reg);
-}
+/* w895: backend_enc_arm64_ldr_xreg_xreg_imm_c is defined in
+ * backend_enc_dispatch_thin.x. It appends
+ * 0xF9400000 | ((offset/8)<<10) | (base<<5) | dst.
+ * 4181721088 is 0xF9400000. Registers are 0..30.
+ * A non-multiple of 8 returns -1. A scaled immediate above 4095
+ * is clamped to 4095. arch_arm64_enc_enc_ldr_xreg_xreg_imm still
+ * forwards to it. The prototype above still names the symbol.
+ * Stays strong. PLATFORM: SHARED. */
 /* w893: backend_enc_x86_64_call_reg_c is defined in
  * backend_enc_dispatch_thin.x. It appends optional 0x41, then 0xFF,
  * then 0xD0 | (reg & 7). arch_x86_64_enc_enc_call_reg still forwards
