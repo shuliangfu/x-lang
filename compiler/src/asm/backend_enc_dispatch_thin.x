@@ -20,8 +20,8 @@
 // backend_enc_riscv64_jalr_reg_c. w892 places that callee here too.
 // Both symbols stay strong.
 // w882 places arch_riscv64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
-// backend_enc_riscv64_ldr_xreg_xreg_imm_c, which stays in the C tail.
-// That symbol stays strong.
+// backend_enc_riscv64_ldr_xreg_xreg_imm_c. w894 places that callee here too.
+// Both symbols stay strong.
 // w883 places arch_x86_64_enc_enc_cdqe_rax_impl here. It appends the
 // x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
 // w884 places backend_enc_append_u8_c_impl here. It appends the low
@@ -34,6 +34,8 @@
 // RISC-V jalr instruction word. The symbol stays strong.
 // w893 places backend_enc_x86_64_call_reg_c here. It appends an
 // x86_64 indirect call. The symbol stays strong.
+// w894 places backend_enc_riscv64_ldr_xreg_xreg_imm_c here. It appends
+// one RISC-V ld instruction word. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -48,7 +50,6 @@ export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
-export extern "C" function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32;
 
@@ -3687,7 +3688,7 @@ export function arch_riscv64_enc_enc_jalr_reg(elf_ctx: *u8, reg: i32): i32 {
 
 /**
  * Forward arch_riscv64_enc_enc_ldr_xreg_xreg_imm to backend_enc_riscv64_ldr_xreg_xreg_imm_c.
- * The callee stays in the C tail of this object. This symbol stays strong.
+ * The callee is defined later in this file. This symbol stays strong.
  * @param elf_ctx *u8 — emit context passed through; the callee rejects null
  * @param dst_reg i32 — destination RISC-V register passed through; the callee rejects values outside 0..31
  * @param base_reg i32 — base RISC-V register passed through; the callee rejects values outside 0..31
@@ -3838,4 +3839,36 @@ export function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32 {
   }
   if (backend_enc_append_u8_c(elf_ctx, 255) != 0) { return 0 - 1; }
   return backend_enc_append_u8_c(elf_ctx, 208 | (reg & 7));
+}
+
+/**
+ * Emit one RISC-V ld rd, off(rs1) instruction.
+ * The word places imm12 in bits 31:20, the base register in bits 19:15,
+ * funct3 3 in bits 14:12, the destination in bits 11:7, and opcode 3.
+ * A negative offset returns -1. Register numbers outside 0..31 return -1.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param dst_reg i32 — destination register, accepted only for 0..31
+ * @param base_reg i32 — base register, accepted only for 0..31
+ * @param offset i32 — byte offset; negative is rejected; the low 12 bits are imm12
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  // (imm12 << 20) | (base << 15) | (3 << 12) | (dst << 7) | 3.
+  // 1048576 is 1<<20. 32768 is 1<<15. 12288 is 3<<12. 128 is 1<<7.
+  // 4095 keeps the low 12 bits of a non-negative offset.
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 31) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 31) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(
+    elf_ctx,
+    (((offset & 4095) as u32) * 1048576) | ((base_reg as u32) * 32768) | (12288 as u32) | ((dst_reg as u32) * 128) | (3 as u32)
+  );
 }
