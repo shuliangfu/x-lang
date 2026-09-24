@@ -56,8 +56,10 @@
  * backend_enc_fp_cmp_setcc_movzbl_arch turns compare flags into 0 or 1.
  * Those symbols stay strong.
  * wave904: backend_enc_store_arg_sp_offset_arch and backend_enc_blr_arch
- * live in that .x too. Both stay strong. This file keeps jcc, arm64 call,
- * the weak arch stubs, the 5-arg ldr, and lea.
+ * live in that .x too. Both stay strong.
+ * wave905: backend_enc_ldr_xreg_xreg_imm_arch lives in that .x too.
+ * ta == 1/2/else forwards to the three load callees. It stays strong.
+ * This file keeps jcc, arm64 call, the weak arch stubs, and lea.
  * This file keeps the rest of the f64/Cap tail and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
  * -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed.
@@ -1506,12 +1508,12 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
  * arch_riscv64_enc_enc_jalr_reg. Any other ta forwards to
  * arch_x86_64_enc_enc_call_reg. The prototype above still names the symbol.
  * Stays strong. PLATFORM: SHARED. */
-/* Cross-arch 64-bit load dispatch: ta=1 arm64, ta=2 riscv64, else x86_64. */
-int32_t backend_enc_ldr_xreg_xreg_imm_arch(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset, int32_t ta) {
-  if (ta == 1) { return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
-  if (ta == 2) { return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset); }
-  return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
-}
+/* w905: backend_enc_ldr_xreg_xreg_imm_arch is defined in
+ * backend_enc_dispatch_thin.x. ta == 1 forwards to
+ * arch_arm64_enc_enc_ldr_xreg_xreg_imm. ta == 2 forwards to
+ * arch_riscv64_enc_enc_ldr_xreg_xreg_imm. Any other ta forwards to
+ * arch_x86_64_enc_enc_load_rax_rbx_disp32. The prototype above still
+ * names the symbol. Stays strong. PLATFORM: SHARED. */
 
 /* F7: materialize symbol address. ARM64 adrp+add PAGE21/12;
  * x86_64 lea r64,[rip+disp32] + untyped PC32 (not movabs ABS64 — TEXTREL on PIE).

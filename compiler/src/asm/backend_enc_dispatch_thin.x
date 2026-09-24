@@ -59,6 +59,10 @@
 // to backend_enc_arm64_store_arg_sp_offset_c and returns -1 for other ta.
 // blr forwards ta 1/2/else to the ARM64, RISC-V, and x86_64 indirect-call
 // callees already in this file. Both stay strong.
+// w905 places backend_enc_ldr_xreg_xreg_imm_arch here. ta 1/2/else forwards
+// to the ARM64, RISC-V, and x86_64 load callees already in this file.
+// The symbol stays strong. ta is the fifth formal, the same slot as
+// backend_enc_label_arch.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -4516,4 +4520,30 @@ export function backend_enc_blr_arch(elf_ctx: *u8, reg: i32, ta: i32): i32 {
     return arch_riscv64_enc_enc_jalr_reg(elf_ctx, reg);
   }
   return arch_x86_64_enc_enc_call_reg(elf_ctx, reg);
+}
+
+/**
+ * Load a 64-bit value from [base + offset] into dst.
+ * ta == 1 forwards to arch_arm64_enc_enc_ldr_xreg_xreg_imm.
+ * ta == 2 forwards to arch_riscv64_enc_enc_ldr_xreg_xreg_imm.
+ * Any other ta forwards to arch_x86_64_enc_enc_load_rax_rbx_disp32.
+ * @param elf_ctx *u8 — emit context; each callee rejects a null context
+ * @param dst_reg i32 — destination register; each callee checks its own range
+ * @param base_reg i32 — base register; each callee checks its own range
+ * @param offset i32 — byte displacement; each callee checks alignment and range
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, anything else is x86_64
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * ta is the fifth formal. backend_enc_label_arch in this file already
+ * uses that slot. This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset);
+  }
+  if (ta == 2) {
+    return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset);
+  }
+  return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
 }
