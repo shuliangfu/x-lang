@@ -16,8 +16,12 @@
  * backend_enc_dispatch_thin.x. This file no longer emits them.
  * w916: arch_x86_64_enc_enc_prologue and arch_x86_64_enc_enc_epilogue
  * live in backend_enc_dispatch_thin.x. This file no longer emits them.
- * Label, jumps, calls, cmp_setcc, and the Win64 argument moves still
- * call the three append helpers. PLATFORM: SHARED.
+ * w917: arch_x86_64_enc_enc_jz, arch_x86_64_enc_enc_jeq,
+ * arch_x86_64_enc_enc_jge, and arch_x86_64_enc_enc_jnz live in
+ * backend_enc_dispatch_thin.x. This file no longer emits them.
+ * They forward to x86_enc_jcc_rel32, which stays here. jmp, call,
+ * label, cmp_setcc, and the Win64 argument moves stay here.
+ * PLATFORM: SHARED.
  */
 /**
  * backend_x86_64_enc_c.c — x86_64 ELF 指令编码 C 体（覆盖 asm_full_link_stubs weak -1）
@@ -1219,35 +1223,31 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_jz */
-int32_t arch_x86_64_enc_enc_jz(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len) {
-  if (!elf_ctx) return -1;
-  return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len);
-}
+/* w917: arch_x86_64_enc_enc_jz is defined in backend_enc_dispatch_thin.x.
+ * It forwards to x86_enc_jcc_rel32 with opcode 132. The patch stays here.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_jeq */
-int32_t arch_x86_64_enc_enc_jeq(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len) {
-  if (!elf_ctx) return -1;
-  return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len);
-}
+/* w917: arch_x86_64_enc_enc_jeq is defined in backend_enc_dispatch_thin.x.
+ * It forwards to x86_enc_jcc_rel32 with opcode 132. The patch stays here.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_jge */
-int32_t arch_x86_64_enc_enc_jge(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len) {
-  if (!elf_ctx) return -1;
-  return x86_enc_jcc_rel32(elf_ctx, 141, label, label_len);
-}
+/* w917: arch_x86_64_enc_enc_jge is defined in backend_enc_dispatch_thin.x.
+ * It forwards to x86_enc_jcc_rel32 with opcode 141. The patch stays here.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_jnz */
-int32_t arch_x86_64_enc_enc_jnz(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *label, int32_t label_len) {
-  if (!elf_ctx) return -1;
-  return x86_enc_jcc_rel32(elf_ctx, 133, label, label_len);
-}
+/* w917: arch_x86_64_enc_enc_jnz is defined in backend_enc_dispatch_thin.x.
+ * It forwards to x86_enc_jcc_rel32 with opcode 133. The patch stays here.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X

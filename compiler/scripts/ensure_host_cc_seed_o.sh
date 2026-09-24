@@ -2470,9 +2470,23 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # w917: four x86 conditional jumps. The last name has no continuation backslash.
+  local w917_sym
+  for w917_sym in \
+    arch_x86_64_enc_enc_jz \
+    arch_x86_64_enc_enc_jeq \
+    arch_x86_64_enc_enc_jge \
+    arch_x86_64_enc_enc_jnz
+  do
+    if ! r3_prefer_nm_has_sym "$merged_o" "$w917_sym"; then
+      echo "ensure: enc dispatch missing $w917_sym; C bodies are gone, no fallback" >&2
+      rm -f "$thin_o" "$rest_o" "$merged_o"
+      return 1
+    fi
+  done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w916; x86 prologue and epilogue, the w915 3 x86 append helpers, the w914 2, the w913 7, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w917; x86 jz jeq jge jnz, the w916 prologue and epilogue, the w915 3 x86 append helpers, the w914 2, the w913 7, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 

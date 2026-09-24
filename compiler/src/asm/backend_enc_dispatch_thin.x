@@ -115,6 +115,11 @@
 // Both append through x86_enc_u8. They stay strong. Neither compares
 // elf_ctx with 0 or divides. Label, jumps, calls, cmp_setcc, lea, and
 // the Win64 argument moves stay in the C seed.
+// w917 places four x86_64 conditional jumps here: jz, jeq, jge, and jnz.
+// Each one forwards to x86_enc_jcc_rel32. The opcodes are 132, 132, 141,
+// and 133. The rel32 patch stays in that C helper. They stay strong.
+// None of them compares elf_ctx with 0 or divides. jmp, call, label,
+// cmp_setcc, lea, and the Win64 argument moves stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9389,6 +9394,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): 
 }
 
 export extern "C" function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, imm: i32): i32;
+export extern "C" function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
 
 /**
  * Load x0 from [x29, #offset].
@@ -9848,4 +9854,80 @@ export function arch_x86_64_enc_enc_epilogue(elf_ctx: *u8): i32 {
     return 0 - 1;
   }
   return x86_enc_u8(elf_ctx, 195);
+}
+
+/**
+ * Emit an x86_64 jz to a label.
+ * Opcode 132 is the JE/JZ rel32 form. The patch stays in x86_enc_jcc_rel32.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 132. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 jeq to a label.
+ * Opcode 132 is the same JE/JZ rel32 form as jz. The patch stays in
+ * x86_enc_jcc_rel32. A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 132. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 jge to a label.
+ * Opcode 141 is the JGE rel32 form. The patch stays in x86_enc_jcc_rel32.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 141. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 141, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 jnz to a label.
+ * Opcode 133 is the JNE/JNZ rel32 form. The patch stays in x86_enc_jcc_rel32.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 133. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 133, label, label_len); }
+  return 0 - 1;
 }
