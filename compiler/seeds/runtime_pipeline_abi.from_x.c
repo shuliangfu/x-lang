@@ -8583,7 +8583,17 @@ static int32_t pipe_modlet_struct_field_int_width_cold(void *arena, void *m, int
   return -1;
 }
 
+/* Defined below. Struct fields that are arrays call back into these. */
+static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t data_base, int32_t base_off,
+                                                            int32_t span_bytes, void *m);
+static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t ta, int32_t base_off, void *m);
+
 /* Poke one STRUCT_LIT into an already-zeroed .data span.
+ * Integer, string, pointer/fn, and array fields. Nested STRUCT_LIT recurses.
  * PLATFORM: SHARED — twin of pipe_modlet_bake_struct_lit_to_data. */
 static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
                                                         int32_t elem_base, void *m) {
@@ -8610,6 +8620,44 @@ static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *el
       if (pipe_modlet_bake_struct_lit_to_data_cold(arena, elf_ctx, iref, elem_base + foff, m) != 0)
         return -1;
       continue;
+    }
+    /* STRING_LIT, ARRAY_LIT, and pointer/fn reuse the existing bakers.
+     * PLATFORM: SHARED. */
+    if (ik == 59) {
+      if (pipe_modlet_bake_string_lit_elem_to_data_cold(arena, elf_ctx, iref, elem_base + foff) != 0)
+        return -1;
+      continue;
+    }
+    if (ik == 46) {
+      int32_t fty, span, et;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty <= 0)
+        return -1;
+      span = glue_fixed_array_total_bytes_c(arena, fty, 0);
+      if (span <= 0)
+        return -1;
+      et = pipeline_type_elem_ref_at(arena, fty);
+      if (pipe_modlet_bake_array_lit_elems_to_data_cold(arena, elf_ctx, iref, et, elem_base + foff, 0,
+                                                       span, m) != 0)
+        return -1;
+      continue;
+    }
+    {
+      int32_t fty = 0, fk = 0, pa = 1;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty > 0)
+        fk = pipeline_type_kind_ord_at(arena, fty);
+      if (fk == 9 || fk == 18) {
+        pa = pipe_modlet_bake_ptr_addr_elem_to_data_cold(arena, elf_ctx, m, iref, 8, elem_base + foff);
+        if (pa < 0)
+          return -1;
+      }
+      if (pa == 0)
+        continue;
     }
     fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
     if (fsz <= 0)
@@ -8658,6 +8706,45 @@ static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf
       if (pipe_modlet_seed_struct_lit_to_rbx_cold(arena, elf_ctx, iref, ta, base_off + foff, m) != 0)
         return -1;
       continue;
+    }
+    /* Same field kinds as the .data baker. COMMON cells only. PLATFORM: SHARED. */
+    if (ik == 59) {
+      if (glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, iref, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 8, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (ik == 46) {
+      int32_t fty, span, et;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty <= 0)
+        return -1;
+      span = glue_fixed_array_total_bytes_c(arena, fty, 0);
+      if (span <= 0)
+        return -1;
+      et = pipeline_type_elem_ref_at(arena, fty);
+      if (pipe_modlet_seed_array_lit_elems_to_rbx_cold(arena, elf_ctx, iref, et, ta, base_off + foff,
+                                                      m) != 0)
+        return -1;
+      continue;
+    }
+    {
+      int32_t fty = 0, fk = 0, pa = 1;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty > 0)
+        fk = pipeline_type_kind_ord_at(arena, fty);
+      if (fk == 9 || fk == 18) {
+        pa = pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(arena, elf_ctx, m, iref, 8, base_off + foff, ta);
+        if (pa < 0)
+          return -1;
+      }
+      if (pa == 0)
+        continue;
     }
     fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
     if (fsz <= 0)
@@ -8747,7 +8834,7 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
         return -1;
       if (sa == 0)
         continue;
-      /* STRUCT_LIT: store each integer field at rbx+off. PLATFORM: SHARED. */
+      /* STRUCT_LIT: store integer, string, pointer, and array fields. PLATFORM: SHARED. */
       if (ek == 45) {
         if (pipe_modlet_seed_struct_lit_to_rbx_cold(arena, elf_ctx, eref, ta,
                                                     base_off + ei * esz, m) != 0)
@@ -8858,7 +8945,7 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
       if (sa == 0)
         continue;
     }
-    /* STRUCT_LIT: poke integer fields. The span is already zero.
+    /* STRUCT_LIT: poke integer, string, pointer, and array fields. The span is already zero.
      * PLATFORM: SHARED. */
     if (ek == 45) {
       if (pipe_modlet_bake_struct_lit_to_data_cold(arena, elf_ctx, eref,
