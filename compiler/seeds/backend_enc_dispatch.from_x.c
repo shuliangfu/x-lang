@@ -1686,11 +1686,12 @@ extern int32_t arch_arm64_enc_enc_store_x_reg_to_rbp(struct platform_elf_ElfCode
 /* w895: backend_enc_arm64_ldr_xreg_xreg_imm_c is defined in
  * backend_enc_dispatch_thin.x. It appends
  * 0xF9400000 | ((offset/8)<<10) | (base<<5) | dst.
- * 4181721088 is 0xF9400000. Registers are 0..30.
- * A non-multiple of 8 returns -1. A scaled immediate above 4095
- * is clamped to 4095. arch_arm64_enc_enc_ldr_xreg_xreg_imm still
- * forwards to it. The prototype above still names the symbol.
- * Stays strong. PLATFORM: SHARED. */
+ * 4181721088 is 0xF9400000. offset*128 is that scaled field when
+ * offset is a non-negative multiple of 8. An offset above 32760
+ * uses 4095 in that field (4193280). Registers are 0..30.
+ * arch_arm64_enc_enc_ldr_xreg_xreg_imm still forwards to it.
+ * The prototype above still names the symbol. Stays strong.
+ * PLATFORM: SHARED. */
 /* w893: backend_enc_x86_64_call_reg_c is defined in
  * backend_enc_dispatch_thin.x. It appends optional 0x41, then 0xFF,
  * then 0xD0 | (reg & 7). arch_x86_64_enc_enc_call_reg still forwards

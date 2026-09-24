@@ -3880,7 +3880,9 @@ export function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i
  * the base register in bits 9:5, and the destination in bits 4:0.
  * Registers outside 0..30 return -1. x31 is the stack pointer and is rejected.
  * A negative offset returns -1. An offset that is not a multiple of 8 returns -1.
- * The scaled immediate is offset/8. A value above 4095 is clamped to 4095.
+ * The scaled immediate is offset/8. Because offset is a multiple of 8,
+ * offset*128 equals (offset/8)<<10. An offset above 32760 uses the
+ * same field as scale 4095.
  * A null context returns -1.
  * @param elf_ctx *u8 — emit context; null is rejected by append
  * @param dst_reg i32 — destination register, accepted only for 0..30
@@ -3895,18 +3897,25 @@ export function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i
 #[no_mangle]
 export function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
   // 0xF9400000 | ((offset / 8) << 10) | (base << 5) | dst.
-  // 4181721088 is 0xF9400000. 1024 is 1<<10. 32 is 1<<5.
-  // A scaled immediate above 4095 is clamped to 4095, matching the C tail.
+  // 4181721088 is 0xF9400000. 128 is (1<<10)/8. 32 is 1<<5.
+  // 32760 is 4095*8. 4193280 is 4095<<10.
+  // Multiply stays on the accepted range so a negative offset returns -1
+  // without a trapping divide. The clamp is its own return so the store
+  // cannot be dropped.
   if (dst_reg < 0) { return 0 - 1; }
   if (dst_reg > 30) { return 0 - 1; }
   if (base_reg < 0) { return 0 - 1; }
   if (base_reg > 30) { return 0 - 1; }
   if (offset < 0) { return 0 - 1; }
   if ((offset & 7) != 0) { return 0 - 1; }
-  let imm12: i32 = offset / 8;
-  if (imm12 > 4095) { imm12 = 4095; }
+  if (offset > 32760) {
+    return backend_enc_append_u32_le_c(
+      elf_ctx,
+      (4181721088 as u32) | (4193280 as u32) | ((base_reg as u32) * 32) | (dst_reg as u32)
+    );
+  }
   return backend_enc_append_u32_le_c(
     elf_ctx,
-    (4181721088 as u32) | ((imm12 as u32) * 1024) | ((base_reg as u32) * 32) | (dst_reg as u32)
+    (4181721088 as u32) | ((offset as u32) * 128) | ((base_reg as u32) * 32) | (dst_reg as u32)
   );
 }
