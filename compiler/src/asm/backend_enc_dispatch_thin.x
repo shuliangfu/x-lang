@@ -120,6 +120,13 @@
 // and 133. The rel32 patch stays in that C helper. They stay strong.
 // None of them compares elf_ctx with 0 or divides. jmp, call, label,
 // cmp_setcc, lea, and the Win64 argument moves stay in the C seed.
+// w918 places six ARM64 branches here: jmp, jz, jne, jnz, jeq, and jge.
+// Each one forwards to arm64_enc_branch_patch. jmp uses word 335544320
+// and kind 26. jz uses 872415232 and kind 19. jne and jnz use 1409286145
+// and kind 19. jeq uses 1409286144 and kind 19. jge uses 1409286154 and
+// kind 19. The patch stays in that C helper. They stay strong. None of
+// them compares elf_ctx with 0 or divides. Label, prologue, epilogue,
+// cmp_setcc, and the two leas stay in the C seed.
 // The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
 // -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
@@ -9395,6 +9402,7 @@ export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): 
 
 export extern "C" function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, imm: i32): i32;
 export extern "C" function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
+export extern "C" function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label: *u8, label_len: i32, kind: i32): i32;
 
 /**
  * Load x0 from [x29, #offset].
@@ -9929,5 +9937,125 @@ export function arch_x86_64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32
 export function arch_x86_64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
   // Opcode 133. The earlier extern makes this an extern call.
   unsafe { return x86_enc_jcc_rel32(elf_ctx, 133, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 unconditional branch to a label.
+ * Word 335544320 is the B placeholder. Kind 26 is the patch width.
+ * The patch stays in arm64_enc_branch_patch.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 335544320, kind 26. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 335544320, label, label_len, 26); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jz to a label.
+ * Word 872415232 is the conditional placeholder. Kind 19 is the patch width.
+ * The patch stays in arm64_enc_branch_patch.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 872415232, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 872415232, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jne to a label.
+ * Word 1409286145 is the conditional placeholder. Kind 19 is the patch width.
+ * The patch stays in arm64_enc_branch_patch.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jne(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 1409286145, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286145, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jnz to a label.
+ * jnz uses the same word 1409286145 and kind 19 as jne.
+ * The patch stays in arm64_enc_branch_patch.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Same word and kind as jne. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286145, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jeq to a label.
+ * Word 1409286144 is the conditional placeholder. Kind 19 is the patch width.
+ * The patch stays in arm64_enc_branch_patch.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 1409286144, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286144, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jge to a label.
+ * Word 1409286154 is the conditional placeholder. Kind 19 is the patch width.
+ * The patch stays in arm64_enc_branch_patch.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 1409286154, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286154, label, label_len, 19); }
   return 0 - 1;
 }
