@@ -291,6 +291,11 @@ if [ "$UNAME_S" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
       break
     fi
   done
+  if [ -n "$_PABI_SELFHOST" ]; then
+    # Peer arms are not in runtime_pipeline_abi.o. They must be on the
+    # list or pipeline_asm_emit_as_elf_impl cannot resolve them.
+    _PABI_SELFHOST="$_PABI_SELFHOST build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_cast_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_f2i_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_i64mov_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_k15_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_sf64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f32_u64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_f32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i32_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_i64mov_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_orch_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_i2f64_u64_thin.o build_asm/selfhost_pabi/runtime_pipeline_abi_fnptr_as_lea_thin.o"
+  fi
 fi
 _DRIVER_SEED_OBJS="$_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o src/runtime_pipeline_abi.o $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o src/token_typekind_tag_tables.o"
 
