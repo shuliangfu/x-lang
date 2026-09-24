@@ -34,6 +34,13 @@
  * Pad runs in its own block. The code length is read in a later block.
  * A function export copies with memcpy. This file no longer emits
  * that symbol. call and the Win64 argument moves stay here.
+ * w928: arch_x86_64_enc_enc_call lives in backend_enc_dispatch_thin.x.
+ * Byte 232 then four zero bytes. The reloc slot is the code length
+ * minus 4, read after those bytes. A Mach-O name is one underscore
+ * plus the original bytes, copied with memcpy. The underscore is
+ * prepended even when the name already starts with underscore.
+ * This file no longer emits that symbol. The Win64 argument moves
+ * stay here.
  * PLATFORM: SHARED.
  */
 /**
@@ -1070,28 +1077,16 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* Cap residual pure R2 wave2: .x provides arch_x86_64_enc_enc_call */
-int32_t arch_x86_64_enc_enc_call(struct platform_elf_ElfCodegenCtx *elf_ctx, uint8_t *name, int32_t name_len) {
-  int32_t rel32_at;
-  uint8_t *cb;
-  uint8_t rn[128];
-  int32_t k;
-  if (!elf_ctx || !name || name_len <= 0) return -1;
-  cb = x86_enc_ctx_bytes(elf_ctx);
-  if (x86_enc_u8(elf_ctx, 232) != 0) return -1;
-  if (x86_enc_u32_le(elf_ctx, 0) != 0) return -1;
-  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  /* wave580 Cap: rn u8[128] holds '_' + up to 255 content (was 63).
-   * PLATFORM: MACOS|DARWIN x86_64 call reloc.
-   * Stage 12.0.5 ABI: always prepend '_' even when C name starts with '_'
-   * (__error → ___error). Do not skip on name[0]=='_'. */
-  if (pipeline_elf_ctx_macho_leading_underscore(cb) != 0 && name_len > 0 && name_len <= 255) {
-    rn[0] = 95; k = 0;
-    while (k < name_len && k < 255) { rn[k + 1] = name[k]; k = k + 1; }
-    return pipeline_elf_ctx_append_reloc(cb, rel32_at, rn, name_len + 1);
-  }
-  return pipeline_elf_ctx_append_reloc(cb, rel32_at, name, name_len);
-}
+/* w928: arch_x86_64_enc_enc_call is defined in backend_enc_dispatch_thin.x.
+ * Byte 232 then four zero bytes. The reloc slot is the code length
+ * minus 4, read after those bytes.
+ * A Mach-O name is one underscore plus the original bytes, copied
+ * with memcpy. The underscore is prepended even when the name
+ * already starts with underscore.
+ * This file no longer emits that symbol.
+ * The Win64 argument moves stay here.
+ * PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X

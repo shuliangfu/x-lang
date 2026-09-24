@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Thin enc publics for backend_enc_dispatch.o.
+// w928 places arch_x86_64_enc_enc_call here.
+// Byte 232 and four zero bytes are appended first.
+// The reloc slot is the code length minus 4, read in a later block.
+// A Mach-O name is one underscore plus the original bytes, copied with memcpy.
+// The underscore is prepended even when the name already starts with underscore.
+// The symbol stays strong.
 // w927 places arch_x86_64_enc_enc_label here.
 // Pad runs in its own block. The code length is read in a later block.
 // A function export may prepend one underscore byte, then calls add_sym.
@@ -158,6 +164,7 @@
 // and cmp_setcc stay in the C seed.
 // w926 moves the ARM64 label into the thin.
 // w927 moves the x86 label into the thin.
+// w928 moves the x86 call into the thin.
 // w925 moves the two leas into the thin.
 // w919 places arch_arm64_enc_enc_cmp_setcc_movzbl here. The cond field
 // comes from pipeline_asm_arm64_cset_cond_enc_from_cc. A negative field
@@ -10552,6 +10559,72 @@ export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32
       }
     }
     return pipeline_elf_ctx_add_sym(elf_ctx, name, name_len, code_len);
+  }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
+
+/**
+ * Emit an x86_64 direct call and a reloc at the rel32 slot.
+ * The first byte is 232. The next four bytes are zero.
+ * The reloc slot is the code length minus 4, read after those bytes.
+ * A non-positive name length returns -1 before any byte is stored.
+ * The underscore buffer is filled with memcpy on the straight-line path.
+ * The copy count is the name length when it is below 255,
+ * and 255 when the name length is 255 or more.
+ * Mach-O prepends one underscore byte when the flag is set
+ * and the length is in 1..255.
+ * That prepend happens even when the name already starts with underscore.
+ * Other calls pass the original name to the reloc helper.
+ * A null context returns -1 from the byte append.
+ * @param elf_ctx *u8 — emit context; null is rejected by the byte append
+ * @param name *u8 — callee name bytes
+ * @param name_len i32 — byte count; a non-positive count returns -1
+ * @return i32 — 0 when the call and the reloc are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of nlen in a later block.
+ * Stores of the underscore buffer are straight-line.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 232) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    /* Sign of (name_len - 255): 1 keeps name_len, 0 selects 255. */
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let rn: u8[256] = [];
+    rn[0] = 95;
+    let copied: *u8 = memcpy(&rn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len > 0) {
+        if (name_len <= 255) {
+          return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &rn[0], name_len + 1);
+        }
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
   }
   return 0 - 1;
 }
