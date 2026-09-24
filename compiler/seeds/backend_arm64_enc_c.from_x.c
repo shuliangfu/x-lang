@@ -51,6 +51,13 @@
  * read in a later block. add_label uses that length. A function
  * export may prepend one underscore byte via memcpy, then calls
  * add_sym. This file no longer emits that symbol. PLATFORM: SHARED.
+ * w929: arch_arm64_enc_enc_prologue, arch_arm64_enc_enc_epilogue, and
+ * arch_arm64_enc_enc_ret_imm32 are defined in
+ * backend_enc_dispatch_thin.x. The frame size stays in this file.
+ * arm64_enc_frame_size_store and arm64_enc_frame_size_load are the
+ * bridge, because the thin has no extern var. The chunk walk and the
+ * x19 helper stay here and are no longer static. This file no longer
+ * emits the three public symbols. PLATFORM: SHARED.
  */
 #include <stdint.h>
 #include <string.h>
@@ -71,6 +78,23 @@ extern int32_t pipeline_asm_arm64_cset_cond_enc_from_cc(int32_t cc);
 
 /** Frame size set by prologue; read by epilogue/ret_imm (single-threaded emit). */
 static int32_t g_arm64_enc_frame_size = 0;
+
+/* w929: the thin prologue writes the frame size through this function.
+ * A null context returns -1 and leaves the stored size unchanged.
+ * The thin has no extern var, so the static stays in this file.
+ * PLATFORM: SHARED. */
+int32_t arm64_enc_frame_size_store(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t fs) {
+  if (!elf_ctx)
+    return -1;
+  g_arm64_enc_frame_size = fs;
+  return 0;
+}
+
+/* w929: the thin epilogue and ret_imm32 read the frame size here.
+ * PLATFORM: SHARED. */
+int32_t arm64_enc_frame_size_load(void) {
+  return g_arm64_enc_frame_size;
+}
 
 static uint8_t *arm64_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
   return (uint8_t *)elf_ctx;
@@ -110,7 +134,9 @@ static int32_t arm64_enc_u32_le(struct platform_elf_ElfCodegenCtx *elf_ctx, uint
  * @return 0 success, -1 failure
  * PLATFORM: MACOS|ARM64 — AAPCS64 SP 16-byte align expected by caller.
  */
-static int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
+/* w929: the thin prologue and epilogue call this helper.
+ * The chunk walk stays here. PLATFORM: SHARED. */
+int32_t arm64_enc_addsub_sp_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm,
                                               int32_t is_sub) {
   int32_t left;
   if (!elf_ctx)
@@ -200,7 +226,9 @@ int32_t arm64_enc_add_rd_rn_imm_chunks(struct platform_elf_ElfCodegenCtx *elf_ct
  * @return 0 success, -1 failure
  * PLATFORM: MACOS|ARM64 AAPCS64 — x19 callee-saved; x16 not preserved.
  */
-static int32_t arm64_enc_x19_sp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off,
+/* w929: the thin prologue and epilogue call this helper.
+ * The byte-to-word scale stays here. PLATFORM: SHARED. */
+int32_t arm64_enc_x19_sp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t off,
                                     int32_t is_ldr) {
   uint32_t base;
   int32_t left;
@@ -222,79 +250,21 @@ static int32_t arm64_enc_x19_sp_off(struct platform_elf_ElfCodegenCtx *elf_ctx, 
   return arm64_enc_u32_le(elf_ctx, is_ldr != 0 ? 0xF9400213u : 0xF9000213u);
 }
 
-/**
- * wave414 Cap residual pure: arm64 frame must cover positive [x29,#off] locals.
- *
- * Root: wave402 low-end home + product store/lea use [x29,+off] (payload grows up).
- * Old prologue was `stp [sp,#-16]!; mov x29,sp; sub sp,#frame` — frame sat BELOW
- * x29 while locals wrote ABOVE into the caller's stack. Small arrays "worked";
- * payload past ~472B hit the guard page → SIGBUS (i32[n] n>=118 / u8 n>=472).
- *
- * G.7: single allocation with x29 at the bottom of the frame so [x29+0..frame)
- * is fully owned:
- *   sub sp,sp,#frame ; stp x29,x30,[sp] ; mov x29,sp ; str x19,[sp,#locals]
- * Epilogue: ldr x19,[sp,#locals] ; ldp x29,x30,[sp] ; add sp,sp,#frame ; ret
- * Extra 16B at the high end holds callee-saved x19 (AAPCS64). Locals stay at
- * [x29,#0x10 .. #locals) so dest-in-rbx slot offsets do not shift.
- * Why (2026-08-17): L1 labi_diag_pure pure-asm hybrid smashed C x19
- * (`link_abi_getenv` `mov x19,x0` with no save) → Darwin SIGSEGV 0xfe.
- * Multi-chunk add/sub when frame > 4095 (imm12 cap).
- * PLATFORM: MACOS|ARM64 product pure-asm — pairs with asm_local_slot_reg_offset
- * low-end home (ast_pool_bootstrap_glue.c wave402).
- */
-int32_t arch_arm64_enc_enc_prologue(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t frame_size) {
-  int32_t fs;
-  int32_t x19_off;
-  if (!elf_ctx)
-    return -1;
-  fs = frame_size;
-  if (fs < 16)
-    fs = 16;
-  /* AAPCS64: keep SP 16-byte aligned. */
-  if ((fs & 15) != 0)
-    fs += 16 - (fs & 15);
-  /* High-end x19 slot: locals occupy [0, fs); grow by 16. */
-  x19_off = fs;
-  fs = fs + 16;
-  g_arm64_enc_frame_size = fs;
-  /* sub sp, sp, #fs (chunks if fs > 4095) */
-  if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 1) != 0)
-    return -1;
-  /* stp x29, x30, [sp] — save at frame bottom (offs 0 and 8) */
-  if (arm64_enc_u32_le(elf_ctx, 0xA9007BFDu) != 0)
-    return -1;
-  /* mov x29, sp  (add x29, sp, #0) */
-  if (arm64_enc_u32_le(elf_ctx, 2432697341u) != 0)
-    return -1;
-  /* str x19, [sp, #x19_off] — AAPCS64 callee-saved dest-shadow. */
-  return arm64_enc_x19_sp_off(elf_ctx, x19_off, 0);
-}
+/* w929: arch_arm64_enc_enc_prologue is defined in
+ * backend_enc_dispatch_thin.x.
+ * A request below 16 becomes 16, then the size is aligned to 16.
+ * Sixteen more bytes hold x19. The frame size is stored before any
+ * instruction byte. sub sp uses arm64_enc_addsub_sp_imm_chunks.
+ * stp x29,x30,[sp] then mov x29,sp, then str x19 at the high slot.
+ * This file no longer emits this symbol.
+ * PLATFORM: SHARED. */
 
-/**
- * wave414: match bottom-x29 prologue — restore x19 then fp/lr, then free frame.
- * PLATFORM: MACOS|ARM64 product pure-asm.
- */
-int32_t arch_arm64_enc_enc_epilogue(struct platform_elf_ElfCodegenCtx *elf_ctx) {
-  int32_t fs;
-  int32_t x19_off;
-  if (!elf_ctx)
-    return -1;
-  fs = g_arm64_enc_frame_size;
-  if (fs < 0)
-    fs = 0;
-  /* x19 lives at the high 16B added by prologue (locals were fs-16). */
-  x19_off = fs - 16;
-  if (x19_off >= 16 && arm64_enc_x19_sp_off(elf_ctx, x19_off, 1) != 0)
-    return -1;
-  /* ldp x29, x30, [sp] */
-  if (arm64_enc_u32_le(elf_ctx, 0xA9407BFDu) != 0)
-    return -1;
-  /* add sp, sp, #fs (chunks if needed) */
-  if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 0) != 0)
-    return -1;
-  /* ret */
-  return arm64_enc_u32_le(elf_ctx, 3596551104u);
-}
+/* w929: arch_arm64_enc_enc_epilogue is defined in
+ * backend_enc_dispatch_thin.x.
+ * It loads the frame size, restores x19 when that slot is at least 16,
+ * then ldp x29,x30,[sp], add sp, and ret.
+ * This file no longer emits this symbol.
+ * PLATFORM: SHARED. */
 
 /**
  * Strong: MOVZ/MOVK w0 for full 32-bit imm (f32 IEEE bits, large i32).
@@ -317,16 +287,12 @@ extern int32_t arch_arm64_enc_enc_mov_imm32_to_w0(struct platform_elf_ElfCodegen
  * MOVZ w1,#lo then MOVK w1,#hi,lsl#16 (0x72a00001) when hi is not zero.
  * Stays strong. PLATFORM: SHARED. */
 
-/** Strong: mov w0 + epilogue or bare ret (arm64_enc.x enc_ret_imm32). */
-int32_t arch_arm64_enc_enc_ret_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t imm32) {
-  if (!elf_ctx)
-    return -1;
-  if (arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx, imm32) != 0)
-    return -1;
-  if (g_arm64_enc_frame_size > 0)
-    return arch_arm64_enc_enc_epilogue(elf_ctx);
-  return arm64_enc_u32_le(elf_ctx, 3596551104u);
-}
+/* w929: arch_arm64_enc_enc_ret_imm32 is defined in
+ * backend_enc_dispatch_thin.x.
+ * It moves the immediate into w0. A positive frame size returns
+ * the epilogue. A zero frame size appends ret only.
+ * This file no longer emits this symbol.
+ * PLATFORM: SHARED. */
 
 /* w924: arm64_enc_branch_patch is defined in backend_enc_dispatch_thin.x.
  * It appends one instruction word, then reads the code length in a later

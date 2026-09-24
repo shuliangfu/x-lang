@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Thin enc publics for backend_enc_dispatch.o.
+// w929 places arch_arm64_enc_enc_prologue, arch_arm64_enc_enc_epilogue,
+// and arch_arm64_enc_enc_ret_imm32 here.
+// The frame size is stored by arm64_enc_frame_size_store and read back
+// by arm64_enc_frame_size_load. Both stay in the ARM64 C file.
+// The chunk walk and the x19 slot helper stay in that C file too.
+// The three symbols stay strong.
 // w928 places arch_x86_64_enc_enc_call here.
 // Byte 232 and four zero bytes are appended first.
 // The reloc slot is the code length minus 4, read in a later block.
@@ -165,6 +171,7 @@
 // w926 moves the ARM64 label into the thin.
 // w927 moves the x86 label into the thin.
 // w928 moves the x86 call into the thin.
+// w929 moves the ARM64 prologue, epilogue, and ret_imm32 into the thin.
 // w925 moves the two leas into the thin.
 // w919 places arch_arm64_enc_enc_cmp_setcc_movzbl here. The cond field
 // comes from pipeline_asm_arm64_cset_cond_enc_from_cc. A negative field
@@ -10627,4 +10634,160 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
     return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
   }
   return 0 - 1;
+}
+
+export extern "C" function arm64_enc_frame_size_store(elf_ctx: *u8, fs: i32): i32;
+export extern "C" function arm64_enc_frame_size_load(): i32;
+export extern "C" function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i32): i32;
+export extern "C" function arm64_enc_x19_sp_off(elf_ctx: *u8, off: i32, is_ldr: i32): i32;
+
+/**
+ * Emit an ARM64 function prologue and record the aligned frame size.
+ * A request below 16 becomes 16. The size is then aligned to 16.
+ * Sixteen more bytes hold callee-saved x19.
+ * The frame size is stored before any instruction byte.
+ * sub sp uses the chunk helper. Then stp x29,x30,[sp], mov x29,sp,
+ * and str x19 at the high slot.
+ * A null context returns -1 from the store and leaves the size unchanged.
+ * @param elf_ctx *u8 — emit context; null is rejected by the store
+ * @param frame_sz i32 — requested frame bytes before alignment
+ * @return i32 — 0 when the prologue is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The chunk walk and the x19 scale stay in the C helpers.
+ * Frame-size stores are straight-line.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
+  /* A negative request becomes 0. A request below 16 becomes 16. */
+  let fs0: i32 = frame_sz;
+  let neg: u32 = (fs0 as u32) >> 31;
+  let neg_m: u32 = 0 - neg;
+  let inv_neg: u32 = 4294967295 - neg_m;
+  let fs_nonneg: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
+  let fs_nn: i32 = fs_nonneg as i32;
+  let diff: i32 = fs_nn - 16;
+  let dsign: u32 = (diff as u32) >> 31;
+  let dkeep: u32 = 0 - dsign;
+  let dinv: u32 = 4294967295 - dkeep;
+  let fs_min_u: u32 = ((16 as u32) & dkeep) | ((fs_nn as u32) & dinv);
+  let fs_m: i32 = fs_min_u as i32;
+  /* (0 - size) masked to 4 bits is the pad up to the next multiple of 16. */
+  let addend_u: u32 = ((0 - fs_m) as u32) & (15 as u32);
+  let fs_al: i32 = fs_m + (addend_u as i32);
+  let x19_off: i32 = fs_al;
+  let fs: i32 = fs_al + 16;
+  unsafe {
+    if (arm64_enc_frame_size_store(elf_ctx, fs) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 1) != 0) {
+      return 0 - 1;
+    }
+  }
+  /* stp x29, x30, [sp] is 0xA9007BFD. mov x29, sp is 0x910003FD. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1459586051) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1862269955) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (arm64_enc_x19_sp_off(elf_ctx, x19_off, 0) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Emit an ARM64 function epilogue for the frame stored by the prologue.
+ * A negative stored size is cleared to 0.
+ * x19 is restored when its slot is at least 16.
+ * Then ldp x29,x30,[sp], add sp by the stored size, and ret.
+ * The frame size is loaded again in the add block.
+ * A null context returns -1 from the helpers.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helpers
+ * @return i32 — 0 when the epilogue is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each load is the initializer of fs0 in its own block.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32 {
+  unsafe {
+    let fs0: i32 = arm64_enc_frame_size_load();
+    let neg: u32 = (fs0 as u32) >> 31;
+    let neg_m: u32 = 0 - neg;
+    let inv_neg: u32 = 4294967295 - neg_m;
+    let fs_u: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
+    let fs: i32 = fs_u as i32;
+    let x19_off: i32 = fs - 16;
+    if (x19_off >= 16) {
+      if (arm64_enc_x19_sp_off(elf_ctx, x19_off, 1) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  /* ldp x29, x30, [sp] is 0xA9407BFD. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1455391747) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    let fs0: i32 = arm64_enc_frame_size_load();
+    let neg: u32 = (fs0 as u32) >> 31;
+    let neg_m: u32 = 0 - neg;
+    let inv_neg: u32 = 4294967295 - neg_m;
+    let fs_u: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
+    let fs: i32 = fs_u as i32;
+    if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 0) != 0) {
+      return 0 - 1;
+    }
+  }
+  /* ret is 0xD65F03C0. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 698416192) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Move imm32 into w0, then return from the current ARM64 frame.
+ * A positive stored frame size emits the epilogue, which includes ret.
+ * A zero frame size appends ret only.
+ * A null context returns -1 from the move.
+ * @param elf_ctx *u8 — emit context; null is rejected by the move
+ * @param imm32 i32 — value placed in w0
+ * @return i32 — 0 when the return is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The load is the initializer of fs in its own block.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  if (arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx, imm32) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let fs: i32 = arm64_enc_frame_size_load();
+    if (fs > 0) {
+      return arch_arm64_enc_enc_epilogue(elf_ctx);
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 698416192) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
 }
