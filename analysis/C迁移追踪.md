@@ -5,6 +5,8 @@
 
 ### 已完成
 
+- ✅ `x86_enc_jcc_rel32`
+- ✅ `arch_x86_64_enc_enc_jmp`
 - ✅ `backend_enc_mov_imm32_to_w0_arch`
 - ✅ `x86_enc_movq_from_rbp_neg`
 - ✅ `x86_enc_lea_from_rbp_neg`
