@@ -32431,10 +32431,14 @@ function pipe_modlet_seed_struct_lit_to_rbx(
  * Fold one array element that is an f64 constant into IEEE lo/hi halves.
  * Twin of the modlet thin pipe_modlet_fold_f64_elem_bits. Accepts
  * EXPR_FLOAT_LIT (ek 1), EXPR_NEG over a folded float (ek 22, including
- * `[-1.0, 2.0]`), and EXPR_ADD / EXPR_SUB / EXPR_MUL (ek 4, 5, 6).
+ * `[-1.0, 2.0]`), EXPR_ADD / EXPR_SUB / EXPR_MUL (ek 4, 5, 6), and
+ * EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15).
  * Integer elems return 0. DIV and MOD stay loud-fail. NEG flips the f64
  * sign bit. ADD/SUB/MUL use the host f64 operator via memcpy, the same
- * bit copy as glue_ieee_f64_bits_to_f32_bits.
+ * bit copy as glue_ieee_f64_bits_to_f32_bits. An f32-typed binop is
+ * rounded and widened. AS to f64 keeps the operand bits. AS to f32
+ * rounds through glue_ieee_f64_bits_to_f32_bits and widens with
+ * glue_ieee_f32_bits_to_f64_lo / hi.
  * @param arena *u8 - ASTArena; null returns 0
  * @param eref i32 - element expr ref; <= 0 returns 0
  * @param out_lo *i32 - low 32 bits; null returns 0
@@ -32498,6 +32502,9 @@ function pipe_modlet_fold_f64_elem_bits(
     let lp: i32[2] = [];
     let rp: i32[2] = [];
     let oparts: i32[2] = [];
+    let rty: i32 = 0;
+    let rtk: i32 = 0;
+    let fb2: i32 = 0;
     unsafe {
       left = pipeline_expr_binop_left_ref_at(arena, eref);
       right = pipeline_expr_binop_right_ref_at(arena, eref);
@@ -32544,6 +32551,56 @@ function pipe_modlet_fold_f64_elem_bits(
       out_lo[0] = oparts[0];
       out_hi[0] = oparts[1];
     }
+    // TYPE_F32 result: round, then widen. Unset resolved type stays f64.
+    unsafe {
+      rty = pipeline_expr_resolved_type_ref(arena, eref);
+    }
+    if (rty > 0) {
+      unsafe {
+        rtk = pipeline_type_kind_ord_at(arena, rty);
+      }
+    }
+    if (rtk == 14) {
+      unsafe {
+        fb2 = glue_ieee_f64_bits_to_f32_bits(oparts[0], oparts[1]);
+        out_lo[0] = glue_ieee_f32_bits_to_f64_lo(fb2);
+        out_hi[0] = glue_ieee_f32_bits_to_f64_hi(fb2);
+      }
+    }
+    return 1;
+  }
+  // EXPR_AS of a folded float. Integer and pointer casts return 0.
+  if (ek == 54) {
+    let tgt: i32 = 0;
+    let tk: i32 = 0;
+    let fb: i32 = 0;
+    unsafe {
+      op = pipeline_expr_as_operand_ref_at(arena, eref);
+      tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
+    }
+    if (op <= 0 || tgt <= 0) {
+      return 0;
+    }
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, tgt);
+    }
+    // .x TypeKind: TYPE_F32 = 14, TYPE_F64 = 15. Not the C enum.
+    if (tk != 14 && tk != 15) {
+      return 0;
+    }
+    if (pipe_modlet_fold_f64_elem_bits(arena, op, out_lo, out_hi) == 0) {
+      return 0;
+    }
+    if (tk == 15) {
+      return 1;
+    }
+    unsafe {
+      flo = out_lo[0];
+      fhi = out_hi[0];
+      fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+      out_lo[0] = glue_ieee_f32_bits_to_f64_lo(fb);
+      out_hi[0] = glue_ieee_f32_bits_to_f64_hi(fb);
+    }
     return 1;
   }
   return 0;
@@ -32586,7 +32643,8 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * no-op (zeros already reserved). Elem contract: EXPR_LIT, EXPR_NEG over
  * a folded constant, and integer binops EXPR_ADD..EXPR_BITXOR fold via
  * pipe_modlet_array_lit_elem_const_val. Float constants
- * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL of floats) poke IEEE bits via
+ * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL of floats, AS to f32 or f64)
+ * poke IEEE bits via
  * pipe_modlet_fold_f64_elem_bits: esz 4 packs f64 bits to f32 through
  * glue_ieee_f64_bits_to_f32_bits, esz 8 pokes both halves. STRUCT_LIT elems
  * poke integer, string, pointer, and nested array fields. Anything else
