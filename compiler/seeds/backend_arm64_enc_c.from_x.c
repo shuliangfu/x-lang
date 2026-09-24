@@ -35,8 +35,8 @@
  * They forward to arm64_enc_add_rd_rn_imm_chunks, which stays here.
  * PLATFORM: SHARED.
  * w918: jmp, jz, jne, jnz, jeq, and jge are defined in
- * backend_enc_dispatch_thin.x. Each forwards to arm64_enc_branch_patch,
- * which stays here and still writes the placeholder plus the patch.
+ * backend_enc_dispatch_thin.x. Each forwards to arm64_enc_branch_patch.
+ * w924 moves that patch into the thin. This file no longer emits it.
  * jnz uses the same word and kind as jne. PLATFORM: SHARED.
  * w919: cmp_setcc lives in backend_enc_dispatch_thin.x. The cond field
  * still comes from pipeline_asm_arm64_cset_cond_enc_from_cc. This file
@@ -341,54 +341,42 @@ int32_t arch_arm64_enc_enc_ret_imm32(struct platform_elf_ElfCodegenCtx *elf_ctx,
   return arm64_enc_u32_le(elf_ctx, 3596551104u);
 }
 
-/* Placeholder branch plus a patch. The six public jumps forward here.
- * word is the 4-byte instruction with a zero displacement.
- * kind is the patch width: 26 for B, 19 for the conditional forms.
- * PLATFORM: SHARED. */
-int32_t arm64_enc_branch_patch(struct platform_elf_ElfCodegenCtx *elf_ctx, uint32_t word,
-                               uint8_t *label, int32_t label_len, int32_t kind) {
-  uint8_t *cb;
-  int32_t at;
-  if (!elf_ctx || !label || label_len < 0)
-    return -1;
-  cb = arm64_enc_ctx_bytes(elf_ctx);
-  if (arm64_enc_u32_le(elf_ctx, word) != 0)
-    return -1;
-  at = pipeline_elf_ctx_emit_code_len(cb) - 4;
-  if (pipeline_elf_ctx_ensure_label(cb, label, label_len) != 0)
-    return -1;
-  return pipeline_elf_ctx_append_patch(cb, at, label, label_len, kind);
-}
+/* w924: arm64_enc_branch_patch is defined in backend_enc_dispatch_thin.x.
+ * It appends one instruction word, then reads the code length in a later
+ * block and patches that slot. The caller's kind is the patch width.
+ * Kind 26 is B. Kind 19 is a conditional branch.
+ * Stays strong. PLATFORM: SHARED.
+ * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w918: arch_arm64_enc_enc_jmp is defined in backend_enc_dispatch_thin.x.
  * It forwards to arm64_enc_branch_patch with word 335544320 and kind 26.
- * The patch stays here. Stays strong. PLATFORM: SHARED.
+ * w924 moves that patch into the thin. Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w918: arch_arm64_enc_enc_jz is defined in backend_enc_dispatch_thin.x.
  * It forwards to arm64_enc_branch_patch with word 872415232 and kind 19.
- * The patch stays here. Stays strong. PLATFORM: SHARED.
+ * w924 moves that patch into the thin. Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w918: arch_arm64_enc_enc_jne is defined in backend_enc_dispatch_thin.x.
  * It forwards to arm64_enc_branch_patch with word 1409286145 and kind 19.
- * The patch stays here. Stays strong. PLATFORM: SHARED.
+ * w924 moves that patch into the thin. Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w918: arch_arm64_enc_enc_jnz is defined in backend_enc_dispatch_thin.x.
  * It forwards to arm64_enc_branch_patch with word 1409286145 and kind 19,
- * the same placeholder as jne. The patch stays here. Stays strong.
+ * the same placeholder as jne. w924 moves that patch into the thin. Stays strong.
  * PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w918: arch_arm64_enc_enc_jeq is defined in backend_enc_dispatch_thin.x.
  * It forwards to arm64_enc_branch_patch with word 1409286144 and kind 19.
- * The patch stays here. Stays strong. PLATFORM: SHARED.
+ * w924 moves that patch into the thin. Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* w918: arch_arm64_enc_enc_jge is defined in backend_enc_dispatch_thin.x.
  * It forwards to arm64_enc_branch_patch with word 1409286154 and kind 19.
- * The patch stays here. Stays strong. PLATFORM: SHARED.
+ * w924 moves that patch into the thin. Stays strong. PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
 
 /* arch_arm64_enc_enc_call / add_sp_imm12 / sub_sp_imm12 / str_x0_sp_offset:

@@ -2,6 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Thin enc publics for backend_enc_dispatch.o.
+// w924 places arm64_enc_branch_patch here.
+// It appends one instruction word, then reads the code length in a later
+// block and patches that slot. The caller's kind is the patch width.
+// It stays strong.
 // w923 places x86_enc_jcc_rel32 and arch_x86_64_enc_enc_jmp here.
 // Each appends its bytes, then reads the code length in a later block
 // and patches the rel32 slot. Both stay strong.
@@ -131,7 +135,7 @@
 // Each one forwards to arm64_enc_branch_patch. jmp uses word 335544320
 // and kind 26. jz uses 872415232 and kind 19. jne and jnz use 1409286145
 // and kind 19. jeq uses 1409286144 and kind 19. jge uses 1409286154 and
-// kind 19. The patch stays in that C helper. They stay strong. None of
+// kind 19. w924 moves that patch into the thin. They stay strong. None of
 // them compares elf_ctx with 0 or divides. Label, prologue, epilogue,
 // cmp_setcc, and the two leas stay in the C seed.
 // w919 places arch_arm64_enc_enc_cmp_setcc_movzbl here. The cond field
@@ -9964,7 +9968,7 @@ export function arch_x86_64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32
 /**
  * Emit an ARM64 unconditional branch to a label.
  * Word 335544320 is the B placeholder. Kind 26 is the patch width.
- * The patch stays in arm64_enc_branch_patch.
+ * w924 moves that patch into the thin.
  * A null context or a bad label returns -1 from that helper.
  * @param elf_ctx *u8 — emit context; null is rejected by the helper
  * @param label *u8 — label name bytes; the helper rejects null
@@ -9984,7 +9988,7 @@ export function arch_arm64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32)
 /**
  * Emit an ARM64 jz to a label.
  * Word 872415232 is the conditional placeholder. Kind 19 is the patch width.
- * The patch stays in arm64_enc_branch_patch.
+ * w924 moves that patch into the thin.
  * A null context or a bad label returns -1 from that helper.
  * @param elf_ctx *u8 — emit context; null is rejected by the helper
  * @param label *u8 — label name bytes; the helper rejects null
@@ -10004,7 +10008,7 @@ export function arch_arm64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32):
 /**
  * Emit an ARM64 jne to a label.
  * Word 1409286145 is the conditional placeholder. Kind 19 is the patch width.
- * The patch stays in arm64_enc_branch_patch.
+ * w924 moves that patch into the thin.
  * A null context or a bad label returns -1 from that helper.
  * @param elf_ctx *u8 — emit context; null is rejected by the helper
  * @param label *u8 — label name bytes; the helper rejects null
@@ -10024,7 +10028,7 @@ export function arch_arm64_enc_enc_jne(elf_ctx: *u8, label: *u8, label_len: i32)
 /**
  * Emit an ARM64 jnz to a label.
  * jnz uses the same word 1409286145 and kind 19 as jne.
- * The patch stays in arm64_enc_branch_patch.
+ * w924 moves that patch into the thin.
  * A null context or a bad label returns -1 from that helper.
  * @param elf_ctx *u8 — emit context; null is rejected by the helper
  * @param label *u8 — label name bytes; the helper rejects null
@@ -10044,7 +10048,7 @@ export function arch_arm64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32)
 /**
  * Emit an ARM64 jeq to a label.
  * Word 1409286144 is the conditional placeholder. Kind 19 is the patch width.
- * The patch stays in arm64_enc_branch_patch.
+ * w924 moves that patch into the thin.
  * A null context or a bad label returns -1 from that helper.
  * @param elf_ctx *u8 — emit context; null is rejected by the helper
  * @param label *u8 — label name bytes; the helper rejects null
@@ -10064,7 +10068,7 @@ export function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32)
 /**
  * Emit an ARM64 jge to a label.
  * Word 1409286154 is the conditional placeholder. Kind 19 is the patch width.
- * The patch stays in arm64_enc_branch_patch.
+ * w924 moves that patch into the thin.
  * A null context or a bad label returns -1 from that helper.
  * @param elf_ctx *u8 — emit context; null is rejected by the helper
  * @param label *u8 — label name bytes; the helper rejects null
@@ -10296,6 +10300,43 @@ export function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32
       return 0 - 1;
     }
     return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 branch placeholder and record its patch.
+ * One instruction word is appended first.
+ * The patch slot is the code length minus 4, read after that word.
+ * The patch helper receives the caller's kind.
+ * Kind 26 is an unconditional branch. Kind 19 is a conditional branch.
+ * A negative label length returns -1 before any byte is stored.
+ * A zero label length is passed through to the label helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param word i32 — placeholder instruction bits
+ * @param label *u8 — label name bytes
+ * @param label_len i32 — byte count; a negative count returns -1
+ * @param kind i32 — patch width passed to the patch helper
+ * @return i32 — 0 when the branch and the patch are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of a let in a later block.
+ */
+#[no_mangle]
+export function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label: *u8, label_len: i32, kind: i32): i32 {
+  if (label_len < 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u32_le_c(elf_ctx, word as u32) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, kind);
   }
   return 0 - 1;
 }
