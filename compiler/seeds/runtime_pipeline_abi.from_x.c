@@ -8447,37 +8447,57 @@ static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t r
   return 0;
 }
 
-/* Fold one ARRAY_LIT element to its constant i32 value. Accepts
+/* Fold one ARRAY_LIT element to its constant integer value. Accepts
  * EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * NEG-over-LIT `[-600, 2]`), integer binops ek 4..13 including DIV and
- * MOD whose operands fold, and EXPR_AS (ek 54) to TYPE_I32 (0) or
- * TYPE_U32 (3) of a folded float. The cast truncates toward zero
- * (cvttsd2si). Inf/NaN and a magnitude outside signed i32 return 0.
- * |x| < 1 truncates to 0. An AS of a non-float stays 0.
- * FLOAT_LIT with no cast is not an i32. Anything else loud-fails —
- * the historic silent drop baked zeros for `let g: i32[2] = [-1, 2]`.
+ * MOD whose operands fold, and EXPR_AS (ek 54) of a folded float.
+ * 32-bit targets: TYPE_I32 (0), TYPE_U32 (3), same as
+ * glue_emit_as_f2i32_elf_c. 64-bit targets: TYPE_U64 (4), TYPE_I64 (5),
+ * TYPE_USIZE (6), TYPE_ISIZE (7), same as glue_emit_as_f2i64_elf_c.
+ * Truncate toward zero (cvttsd2si). Inf/NaN and a magnitude outside the
+ * signed destination return 0. |x| < 1 truncates to 0. Exactly -2^31
+ * fits in i32. Exactly -2^63 fits in i64. An AS of a non-float stays 0.
+ * out_hi may be null. A 64-bit result whose high half is not the sign
+ * fill of the low half returns 0 when out_hi is null. On success an i32
+ * result writes the sign fill when out_hi is set.
  * Returns 1 when *out_val is written.
  * Twin of runtime_pipeline_abi.x pipe_modlet_array_lit_elem_const_val.
  * PLATFORM: SHARED — little-endian host float trunc; LINUX gold. */
 static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
                                                    int32_t *out_lo, int32_t *out_hi);
 static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t eref,
-                                                          int32_t *out_val) {
-  int32_t ek = 0, op = 0, v = 0, left = 0, right = 0, lv = 0, rv = 0;
+                                                          int32_t *out_val,
+                                                          int32_t *out_hi) {
+  int32_t ek = 0, op = 0, v = 0, left = 0, right = 0, lv = 0, rv = 0, lhi = 0;
   if (!arena || eref <= 0 || !out_val)
     return 0;
   ek = pipeline_expr_kind_ord_at(arena, eref);
   if (ek == 0) {
-    *out_val = pipeline_expr_int_val_at(arena, eref);
+    v = pipeline_expr_int_val_at(arena, eref);
+    *out_val = v;
+    if (out_hi)
+      *out_hi = (v < 0) ? -1 : 0;
     return 1;
   }
   if (ek == 22) {
     op = pipeline_expr_unary_operand_ref_at(arena, eref);
     if (op <= 0)
       return 0;
-    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val))
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val, out_hi))
       return 0;
+    /* 32-bit negate. A wider high half would make the low-word negate wrong. */
+    if (out_hi) {
+      lhi = *out_hi;
+      if (*out_val < 0) {
+        if (lhi != -1)
+          return 0;
+      } else if (lhi != 0) {
+        return 0;
+      }
+    }
     *out_val = -*out_val;
+    if (out_hi)
+      *out_hi = (*out_val < 0) ? -1 : 0;
     return 1;
   }
   if (ek >= 4 && ek <= 13) {
@@ -8485,27 +8505,99 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
     right = pipeline_expr_binop_right_ref_at(arena, eref);
     if (left <= 0 || right <= 0)
       return 0;
-    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, left, out_val))
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, left, out_val, out_hi))
       return 0;
     lv = *out_val;
-    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, right, out_val))
+    if (out_hi) {
+      lhi = *out_hi;
+      if (lv < 0) {
+        if (lhi != -1)
+          return 0;
+      } else if (lhi != 0) {
+        return 0;
+      }
+    }
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, right, out_val, out_hi))
       return 0;
     rv = *out_val;
-    return pipe_modlet_fold_i32_binop_cold(ek, lv, rv, out_val);
+    if (out_hi) {
+      lhi = *out_hi;
+      if (rv < 0) {
+        if (lhi != -1)
+          return 0;
+      } else if (lhi != 0) {
+        return 0;
+      }
+    }
+    if (!pipe_modlet_fold_i32_binop_cold(ek, lv, rv, out_val))
+      return 0;
+    if (out_hi)
+      *out_hi = (*out_val < 0) ? -1 : 0;
+    return 1;
   }
-  /* EXPR_AS of a folded float to i32 (0) or u32 (3). Truncate toward
-   * zero. Inf/NaN and |x| >= 2^31 (except exactly -2^31) return 0.
-   * An operand that is not a float constant stays 0. */
+  /* EXPR_AS of a folded float. An integer operand stays 0. */
   if (ek == 54) {
     int32_t tgt = 0, tk = 0, flo = 0, fhi = 0, exp = 0;
     int32_t parts[2];
     double dv;
     int32_t iv;
+    int64_t iv64;
+    int32_t ip[2];
+    int32_t wlo, whi;
     op = pipeline_expr_as_operand_ref_at(arena, eref);
     tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
     if (op <= 0 || tgt <= 0)
       return 0;
     tk = pipeline_type_kind_ord_at(arena, tgt);
+    /* TYPE_U64=4 TYPE_I64=5 TYPE_USIZE=6 TYPE_ISIZE=7. Signed trunc. */
+    if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
+      if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi))
+        return 0;
+      exp = (fhi >> 20) & 2047;
+      if (exp == 2047)
+        return 0;
+      if (exp < 1023) {
+        *out_val = 0;
+        if (out_hi)
+          *out_hi = 0;
+        return 1;
+      }
+      /* |x| >= 2^64. Bias 1023, unbiased 64 → biased 1087. */
+      if (exp > 1086)
+        return 0;
+      /* Binade [2^63, 2^64). Only exactly -2^63 fits. */
+      if (exp == 1086) {
+        if (fhi >= 0)
+          return 0;
+        if ((fhi & 1048575) != 0 || flo != 0)
+          return 0;
+        if (!out_hi)
+          return 0;
+        *out_val = 0;
+        *out_hi = 0 - 2147483647 - 1;
+        return 1;
+      }
+      parts[0] = flo;
+      parts[1] = fhi;
+      memcpy(&dv, parts, 8);
+      iv64 = (int64_t)dv;
+      memcpy(ip, &iv64, 8);
+      wlo = ip[0];
+      whi = ip[1];
+      if (!out_hi) {
+        if (wlo < 0) {
+          if (whi != -1)
+            return 0;
+        } else if (whi != 0) {
+          return 0;
+        }
+        *out_val = wlo;
+        return 1;
+      }
+      *out_val = wlo;
+      *out_hi = whi;
+      return 1;
+    }
     if (tk != 0 && tk != 3)
       return 0;
     if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi))
@@ -8515,6 +8607,8 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
       return 0;
     if (exp < 1023) {
       *out_val = 0;
+      if (out_hi)
+        *out_hi = 0;
       return 1;
     }
     if (exp > 1054)
@@ -8525,6 +8619,8 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
       if ((fhi & 1048575) != 0 || flo != 0)
         return 0;
       *out_val = 0 - 2147483647 - 1;
+      if (out_hi)
+        *out_hi = -1;
       return 1;
     }
     parts[0] = flo;
@@ -8532,6 +8628,8 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
     memcpy(&dv, parts, 8);
     iv = (int32_t)dv;
     *out_val = iv;
+    if (out_hi)
+      *out_hi = (iv < 0) ? -1 : 0;
     return 1;
   }
   return 0;
@@ -8550,7 +8648,7 @@ static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init
     *out_imm = pipeline_expr_int_val_at(arena, init_ref);
     return 1;
   }
-  if (pipe_modlet_array_lit_elem_const_val_cold(arena, init_ref, &fold)) {
+  if (pipe_modlet_array_lit_elem_const_val_cold(arena, init_ref, &fold, 0)) {
     *out_imm = fold;
     return 1;
   }
@@ -8705,7 +8803,7 @@ static int32_t pipe_modlet_data_poke_u32_le_cold(uint8_t *elf_ctx, int32_t off, 
  * PLATFORM: SHARED — twin of pipe_modlet_bake_struct_lit_to_data. */
 static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
                                                         int32_t elem_base, void *m) {
-  int32_t nf, fi, iref, ik, foff, fsz, ev, bi, b, fill;
+  int32_t nf, fi, iref, ik, foff, fsz, ev, bi, b, ehi;
   uint32_t uw;
   extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
   extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
@@ -8789,19 +8887,24 @@ static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *el
     fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
     if (fsz <= 0)
       return -1;
-    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev))
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev, &ehi))
       return -1;
+    /* Low four bytes, then the folder's high half. Unsigned shift inside
+     * each half so a negative pattern does not sign-fill a half.
+     * PLATFORM: SHARED. */
     uw = (uint32_t)ev;
-    fill = (ev < 0) ? 255 : 0;
     for (bi = 0; bi < fsz && bi < 4; bi++) {
       b = (int32_t)(uw & 255u);
       if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, b) != 0)
         return -1;
       uw >>= 8;
     }
+    uw = (uint32_t)ehi;
     for (; bi < fsz; bi++) {
-      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, fill) != 0)
+      b = (int32_t)(uw & 255u);
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, b) != 0)
         return -1;
+      uw >>= 8;
     }
   }
   return 0;
@@ -8897,9 +9000,8 @@ static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf
     fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
     if (fsz <= 0)
       return -1;
-    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev))
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev, &hi))
       return -1;
-    hi = (ev < 0) ? -1 : 0;
     if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta) != 0)
       return -1;
     if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, fsz, ta) != 0)
@@ -9000,7 +9102,7 @@ static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
       return 0;
     if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, out_lo, out_hi)) {
       /* Operand is not a float constant. Fold it as an i32 constant. */
-      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, &iv))
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, &iv, 0))
         return 0;
       if (tk == 14) {
         fb = glue_i32_to_f32_bits(iv);
@@ -9025,7 +9127,7 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
                                                             int32_t init_ref, int32_t elem_ty,
                                                             int32_t ta, int32_t base_off, void *m) {
   int32_t ne = 0, ei = 0, eref = 0, ek = 0, ev = 0, esz = 4, etk = 0;
-  int32_t inner_et = 0, row_sz = 0, rc = 0, sa = 0;
+  int32_t inner_et = 0, row_sz = 0, rc = 0, sa = 0, ehi = 0;
   if (!arena || !elf_ctx || init_ref <= 0)
     return 0;
   if (elem_ty > 0)
@@ -9127,9 +9229,9 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
        * the two's-complement value in rax before the esz store. Any
        * other elem kind is not a compile-time constant: loud-fail
        * (was: silently skipped, leaving the elem zero at runtime). */
-      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev))
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev, &ehi))
         return -1;
-      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, ev < 0 ? -1 : 0, ta) != 0)
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, ehi, ta) != 0)
         return -1;
       if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta) != 0)
         return -1;
@@ -9179,7 +9281,7 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
                                                             int32_t data_base, int32_t base_off,
                                                             int32_t span_bytes, void *m) {
   int32_t ne = 0, ei = 0, eref = 0, ek = 0, ev = 0, esz = 4, etk = 0;
-  int32_t inner_et = 0, row_sz = 0, bi = 0;
+  int32_t inner_et = 0, row_sz = 0, bi = 0, ehi = 0;
   uint32_t uw = 0;
   if (!arena || !elf_ctx || init_ref <= 0)
     return 0;
@@ -9276,10 +9378,19 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
       continue;
       }
     }
-    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev))
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev, &ehi))
       return -1;
+    /* Low half, then the high half. esz <= 4 never reads ehi.
+     * PLATFORM: SHARED. */
     uw = (uint32_t)ev;
-    for (bi = 0; bi < esz; bi++) {
+    for (bi = 0; bi < esz && bi < 4; bi++) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_base + base_off + ei * esz + bi,
+                                        (int32_t)(uw & 255u)) != 0)
+        return -1;
+      uw >>= 8;
+    }
+    uw = (uint32_t)ehi;
+    for (; bi < esz; bi++) {
       if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_base + base_off + ei * esz + bi,
                                         (int32_t)(uw & 255u)) != 0)
         return -1;

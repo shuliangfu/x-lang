@@ -204,25 +204,36 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * the parser's NEG-over-LIT form `[-600, 2]`), integer binops
  * EXPR_ADD..EXPR_BITXOR (ek 4..13, including DIV and MOD) whose operands fold,
- * and EXPR_AS (ek 54) to TYPE_I32 (0) or TYPE_U32 (3) of a folded float.
- * The cast truncates toward zero, the same cvttsd2si result as
- * glue_emit_as_f2i32_elf_c. A magnitude that does not fit in signed i32,
- * and Inf/NaN, return 0 so the baker loud-fails instead of storing the
- * indefinite 0x80000000. |x| < 1 truncates to 0 and is a successful fold.
- * An AS whose operand is not a float constant stays 0: integer `1 as i32`
- * and `1 as i64` are not this arm. FLOAT_LIT with no cast is not an i32;
- * the array baker pokes IEEE bits from the element size. VAR and any other
- * kind are not compile-time constants; callers must loud-fail (return -1)
- * instead of silently dropping the element — the historic silent drop
- * baked zeros for `let g: i32[2] = [-1, 2]`.
+ * and EXPR_AS (ek 54) of a folded float to a 32-bit or 64-bit integer.
+ * 32-bit targets are TYPE_I32 (0) and TYPE_U32 (3), the same kinds as
+ * glue_emit_as_f2i32_elf_c. 64-bit targets are TYPE_U64 (4), TYPE_I64 (5),
+ * TYPE_USIZE (6), and TYPE_ISIZE (7), the same kinds as
+ * glue_emit_as_f2i64_elf_c. Both truncate toward zero (cvttsd2si).
+ * Inf/NaN, and a magnitude outside the signed destination, return 0 so
+ * the baker loud-fails instead of storing the indefinite sign bit.
+ * |x| < 1 truncates to 0 and is a successful fold. Exactly -2^31 fits in
+ * i32. Exactly -2^63 fits in i64. An AS whose operand is not a float
+ * constant stays 0: integer `1 as i32` and `1 as i64` are not this arm.
+ * FLOAT_LIT with no cast is not an integer; the array baker pokes IEEE
+ * bits from the element size. VAR and any other kind are not compile-time
+ * constants; callers must loud-fail (return -1) instead of silently
+ * dropping the element — the historic silent drop baked zeros for
+ * `let g: i32[2] = [-1, 2]`.
+ * out_hi is optional. Null means the caller only keeps the low 32 bits.
+ * An i32 result then writes only out_val. A 64-bit result whose high
+ * half is not the sign fill of that low half returns 0 when out_hi is
+ * null, so a 32-bit caller cannot truncate 2^31 by accident. When out_hi
+ * is set, an i32 result writes the sign fill (0 or -1) and a 64-bit
+ * result writes the real high half. On failure out_hi is not meaningful.
  * @param arena *u8 - ASTArena; null returns 0
  * @param eref i32 - element expr ref; <= 0 returns 0
- * @param out_val *i32 - folded two's-complement i32 value; null returns 0
+ * @param out_val *i32 - low half of the folded two's-complement value; null returns 0
+ * @param out_hi *i32 - high half; null when the caller only wants 32 bits
  * @return i32 - 1 = folded constant; 0 = not a supported constant elem
  * PLATFORM: SHARED — little-endian host float trunc; LINUX gold.
  */
 function pipe_modlet_array_lit_elem_const_val(
-  arena: *u8, eref: i32, out_val: *i32
+  arena: *u8, eref: i32, out_val: *i32, out_hi: *i32
 ): i32 {
   let ek: i32 = 0;
   let op: i32 = 0;
@@ -231,6 +242,7 @@ function pipe_modlet_array_lit_elem_const_val(
   let right: i32 = 0;
   let lv: i32 = 0;
   let rv: i32 = 0;
+  let lhi: i32 = 0;
   if (arena == (0 as *u8) || eref <= 0 || out_val == (0 as *i32)) {
     return 0;
   }
@@ -244,9 +256,19 @@ function pipe_modlet_array_lit_elem_const_val(
     unsafe {
       out_val[0] = v;
     }
+    // Integer literals in this AST are i32. The high half is the sign fill.
+    if (out_hi != (0 as *i32)) {
+      if (v < 0) {
+        unsafe { out_hi[0] = 0 - 1; }
+      } else {
+        unsafe { out_hi[0] = 0; }
+      }
+    }
     return 1;
   }
   // NEG of a folded constant, not only a bare LIT. Recurses once per unary.
+  // The negate stays 32-bit. A high half that is not the sign fill of the
+  // low half is a wider i64; negating only the low word would be wrong.
   if (ek == 22) {
     unsafe {
       unsafe { op = pipeline_expr_unary_operand_ref_at(arena, eref); }
@@ -254,15 +276,37 @@ function pipe_modlet_array_lit_elem_const_val(
     if (op <= 0) {
       return 0;
     }
-    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val) == 0) {
+    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi) == 0) {
       return 0;
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lhi = out_hi[0]; }
+      unsafe { lv = out_val[0]; }
+      if (lv < 0) {
+        if (lhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (lhi != 0) {
+          return 0;
+        }
+      }
     }
     unsafe {
       out_val[0] = 0 - out_val[0];
     }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lv = out_val[0]; }
+      if (lv < 0) {
+        unsafe { out_hi[0] = 0 - 1; }
+      } else {
+        unsafe { out_hi[0] = 0; }
+      }
+    }
     return 1;
   }
   // Integer binop. Read the left fold out before the right call reuses out_val.
+  // A child whose high half is not the sign fill is wider than i32.
   if (ek >= 4 && ek <= 13) {
     unsafe {
       unsafe { left = pipeline_expr_binop_left_ref_at(arena, eref); }
@@ -271,19 +315,53 @@ function pipe_modlet_array_lit_elem_const_val(
     if (left <= 0 || right <= 0) {
       return 0;
     }
-    if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val) == 0) {
+    if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi) == 0) {
       return 0;
     }
     unsafe { lv = out_val[0]; }
-    if (pipe_modlet_array_lit_elem_const_val(arena, right, out_val) == 0) {
+    if (out_hi != (0 as *i32)) {
+      unsafe { lhi = out_hi[0]; }
+      if (lv < 0) {
+        if (lhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (lhi != 0) {
+          return 0;
+        }
+      }
+    }
+    if (pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi) == 0) {
       return 0;
     }
     unsafe { rv = out_val[0]; }
-    return pipe_modlet_fold_i32_binop(ek, lv, rv, out_val);
+    if (out_hi != (0 as *i32)) {
+      unsafe { lhi = out_hi[0]; }
+      if (rv < 0) {
+        if (lhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (lhi != 0) {
+          return 0;
+        }
+      }
+    }
+    if (pipe_modlet_fold_i32_binop(ek, lv, rv, out_val) == 0) {
+      return 0;
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lv = out_val[0]; }
+      if (lv < 0) {
+        unsafe { out_hi[0] = 0 - 1; }
+      } else {
+        unsafe { out_hi[0] = 0; }
+      }
+    }
+    return 1;
   }
-  // EXPR_AS of a folded float to i32 or u32. Same target kinds as
-  // glue_emit_as_f2i32_elf_c. The operand must fold as a float; an
-  // integer operand stays 0 so `1 as i32` is not silently accepted.
+  // EXPR_AS of a folded float. The operand must fold as a float; an
+  // integer operand stays 0 so `1 as i32` and `1 as i64` are not accepted.
   if (ek == 54) {
     let tgt: i32 = 0;
     let tk: i32 = 0;
@@ -293,6 +371,10 @@ function pipe_modlet_array_lit_elem_const_val(
     let parts: i32[2] = [];
     let dv: f64 = 0.0;
     let iv: i32 = 0;
+    let ip: i32[2] = [];
+    let iv64: i64 = 0;
+    let wlo: i32 = 0;
+    let whi: i32 = 0;
     unsafe {
       unsafe { op = pipeline_expr_as_operand_ref_at(arena, eref); }
       unsafe { tgt = pipeline_expr_as_target_type_ref_at(arena, eref); }
@@ -303,23 +385,93 @@ function pipe_modlet_array_lit_elem_const_val(
     unsafe {
       unsafe { tk = pipeline_type_kind_ord_at(arena, tgt); }
     }
-    // .x TypeKind: TYPE_I32 = 0, TYPE_U32 = 3. Not the C enum.
+    // .x TypeKind, not the C enum. 4/5/6/7 match glue_emit_as_f2i64_elf_c.
+    // The trunc is signed cvttsd2si into rax, so u64 uses the same bits.
+    if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
+      if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {
+        return 0;
+      }
+      // Exponent lives in bits 20..30. An arithmetic shift still leaves
+      // those 11 bits after the mask, including a negative high half.
+      exp = (fhi >> 20) & 2047;
+      // Inf / NaN. cvttsd2si would yield the indefinite integer.
+      if (exp == 2047) {
+        return 0;
+      }
+      // |x| < 1 truncates to 0, including zero and subnormals.
+      if (exp < 1023) {
+        unsafe { out_val[0] = 0; }
+        if (out_hi != (0 as *i32)) {
+          unsafe { out_hi[0] = 0; }
+        }
+        return 1;
+      }
+      // |x| >= 2^64. Bias 1023, so unbiased 64 is biased 1087.
+      if (exp > 1086) {
+        return 0;
+      }
+      // Binade [2^63, 2^64). Only exactly -2^63 fits in signed i64.
+      // Do not host-cast this boundary: the positive power is the
+      // indefinite 0x8000000000000000.
+      if (exp == 1086) {
+        if (fhi >= 0) {
+          return 0;
+        }
+        if ((fhi & 1048575) != 0 || flo != 0) {
+          return 0;
+        }
+        if (out_hi == (0 as *i32)) {
+          return 0;
+        }
+        unsafe { out_val[0] = 0; }
+        unsafe { out_hi[0] = 0 - 2147483647 - 1; }
+        return 1;
+      }
+      // In range for signed i64. Host f64-to-i64 truncates toward zero.
+      parts[0] = flo;
+      parts[1] = fhi;
+      unsafe {
+        unsafe { memcpy((&dv) as *u8, (&(parts[0])) as *u8, 8 as usize); }
+      }
+      iv64 = dv as i64;
+      unsafe {
+        unsafe { memcpy((&(ip[0])) as *u8, (&iv64) as *u8, 8 as usize); }
+      }
+      wlo = ip[0];
+      whi = ip[1];
+      if (out_hi == (0 as *i32)) {
+        if (wlo < 0) {
+          if (whi != (0 - 1)) {
+            return 0;
+          }
+        } else {
+          if (whi != 0) {
+            return 0;
+          }
+        }
+        unsafe { out_val[0] = wlo; }
+        return 1;
+      }
+      unsafe { out_val[0] = wlo; }
+      unsafe { out_hi[0] = whi; }
+      return 1;
+    }
+    // TYPE_I32 = 0, TYPE_U32 = 3. Same 32-bit gate as before.
     if (tk != 0 && tk != 3) {
       return 0;
     }
     if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {
       return 0;
     }
-    // Exponent lives in bits 20..30. An arithmetic shift still leaves
-    // those 11 bits after the mask, including a negative high half.
     exp = (fhi >> 20) & 2047;
-    // Inf / NaN. cvttsd2si would yield the indefinite integer.
     if (exp == 2047) {
       return 0;
     }
-    // |x| < 1 truncates to 0, including zero and subnormals.
     if (exp < 1023) {
       unsafe { out_val[0] = 0; }
+      if (out_hi != (0 as *i32)) {
+        unsafe { out_hi[0] = 0; }
+      }
       return 1;
     }
     // |x| >= 2^31 does not fit in signed i32, except exactly -2^31.
@@ -334,10 +486,11 @@ function pipe_modlet_array_lit_elem_const_val(
         return 0;
       }
       unsafe { out_val[0] = 0 - 2147483647 - 1; }
+      if (out_hi != (0 as *i32)) {
+        unsafe { out_hi[0] = 0 - 1; }
+      }
       return 1;
     }
-    // Host f64-to-i32 truncates toward zero (cvttsd2si). The bit gate
-    // above already rejected non-finite and out-of-range values.
     parts[0] = flo;
     parts[1] = fhi;
     unsafe {
@@ -345,6 +498,13 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     iv = dv as i32;
     unsafe { out_val[0] = iv; }
+    if (out_hi != (0 as *i32)) {
+      if (iv < 0) {
+        unsafe { out_hi[0] = 0 - 1; }
+      } else {
+        unsafe { out_hi[0] = 0; }
+      }
+    }
     return 1;
   }
   return 0;
@@ -629,7 +789,6 @@ function pipe_modlet_bake_struct_lit_to_data(
   let bi: i32 = 0;
   let rc: i32 = 0;
   let b: i32 = 0;
-  let fill: i32 = 0;
   let uw: u32 = 0 as u32;
   let fty: i32 = 0;
   let fk: i32 = 0;
@@ -753,17 +912,15 @@ function pipe_modlet_bake_struct_lit_to_data(
         if (fsz <= 0) {
           return 0 - 1;
         }
-        if (pipe_modlet_array_lit_elem_const_val(arena, iref, &ev) == 0) {
+        let ehi: i32 = 0;
+        if (pipe_modlet_array_lit_elem_const_val(arena, iref, &ev, &ehi) == 0) {
           return 0 - 1;
         }
-        // Peel the low four bytes in a straight while, same as the scalar
-        // ARRAY_LIT baker. Bytes past four are the sign extension. The
-        // span was reserved as zeros, so a short field leaves the tail 0.
+        // Low four bytes, then the high half from the folder. A value that
+        // fits in i32 has a sign-filled high half. A wider i64 trunc carries
+        // the real high half, so 2^31 is not sign-extended to a negative.
+        // Unsigned division inside each half. PLATFORM: SHARED.
         uw = ev as u32;
-        fill = 0;
-        if (ev < 0) {
-          fill = 255;
-        }
         bi = 0;
         while (bi < fsz && bi < 4) {
           b = (uw & 255) as i32;
@@ -776,13 +933,16 @@ function pipe_modlet_bake_struct_lit_to_data(
           uw = uw / 256;
           bi = bi + 1;
         }
+        uw = ehi as u32;
         while (bi < fsz) {
+          b = (uw & 255) as i32;
           unsafe {
-            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, fill);
+            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, b);
           }
           if (rc != 0) {
             return 0 - 1;
           }
+          uw = uw / 256;
           bi = bi + 1;
         }
               }
@@ -968,12 +1128,8 @@ function pipe_modlet_seed_struct_lit_to_rbx(
               if (fsz <= 0) {
                 return 0 - 1;
               }
-              if (pipe_modlet_array_lit_elem_const_val(arena, iref, &ev) == 0) {
+              if (pipe_modlet_array_lit_elem_const_val(arena, iref, &ev, &hi) == 0) {
                 return 0 - 1;
-              }
-              hi = 0;
-              if (ev < 0) {
-                hi = 0 - 1;
               }
               unsafe {
                 unsafe { rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta); }
@@ -1194,7 +1350,7 @@ function pipe_modlet_fold_f64_elem_bits(
     if (pipe_modlet_fold_f64_elem_bits(arena, op, out_lo, out_hi) == 0) {
       // Operand is not a float constant. Fold it as an i32 constant.
       // glue_* is the same host cast the runtime emitter already calls.
-      if (pipe_modlet_array_lit_elem_const_val(arena, op, &iv) == 0) {
+      if (pipe_modlet_array_lit_elem_const_val(arena, op, &iv, (0 as *i32)) == 0) {
         return 0;
       }
       if (tk == 14) {
@@ -1275,8 +1431,10 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * poke IEEE bits via
  * pipe_modlet_fold_f64_elem_bits: esz 4 packs f64 bits to f32 through
  * glue_ieee_f64_bits_to_f32_bits, esz 8 pokes both halves. STRUCT_LIT elems
- * poke integer, string, pointer, and nested array fields. Anything else
- * (VAR, a cast whose target is not f32 or f64, ...) loud-fails —
+ * poke integer, string, pointer, and nested array fields. EXPR_AS of a
+ * folded float to i32/u32/i64/u64/usize/isize folds through the same
+ * integer helper; the 8-byte peel writes that helper's high half.
+ * Anything else (VAR, an integer `as`, a pointer cast, ...) loud-fails —
  * the historic silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
  * .data string pool and record an absolute64 reloc on the pointer slot.
  * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
@@ -1460,11 +1618,28 @@ function pipe_modlet_bake_array_lit_elems_to_data(
       // LIT / NEG / integer binop: fold, then peel two's-complement bytes
       // little-endian via u32 (unsigned division). The historic signed
       // `cur / 256` peel corrupted bytes 1..3 of negative elems.
-      if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev) == 0) {
+      let ehi: i32 = 0;
+      if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev, &ehi) == 0) {
         return 0 - 1;
       }
+      // Low half, then the high half. esz <= 4 never reads ehi, so an i32
+      // slot stays the historic 4-byte peel. esz 8 writes the i64 high half.
+      // Unsigned division so a negative pattern does not sign-fill inside
+      // one half. PLATFORM: SHARED.
       let uw: u32 = ev as u32;
       bi = 0;
+      while (bi < esz && bi < 4) {
+        unsafe {
+          rc = pipeline_elf_ctx_data_poke_u8(
+            elf_ctx, data_base + base_off + ei * esz + bi, (uw & 255) as i32);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        uw = uw / 256;
+        bi = bi + 1;
+      }
+      uw = ehi as u32;
       while (bi < esz) {
         unsafe {
           rc = pipeline_elf_ctx_data_poke_u8(
@@ -2205,7 +2380,7 @@ function pipe_modlet_scalar_init_common_imm(
     }
     return 1;
   }
-  if (pipe_modlet_array_lit_elem_const_val(arena, init_ref, &fold_buf[0]) == 1) {
+  if (pipe_modlet_array_lit_elem_const_val(arena, init_ref, &fold_buf[0], (0 as *i32)) == 1) {
     unsafe {
       out_imm[0] = fold_buf[0];
     }
@@ -2587,17 +2762,12 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
           ei = ei + 1;
           continue;
         }
-        // LIT / NEG / integer binop: fold to the constant value. A
-        // negative imm passes hi=-1 so the (hi:lo) imm64 halves rebuild
-        // the two's-complement value in rax before the esz store. Any
-        // other elem kind is not a compile-time constant: loud-fail
-        // (was: silently skipped, leaving the elem zero at runtime).
-        if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev) == 0) {
+        // LIT / NEG / integer binop / float-to-integer AS: fold to the
+        // constant. out_hi is the sign fill of an i32, or the real high
+        // half of an i64 trunc. The (hi:lo) imm64 is stored at esz.
+        // Any other elem kind loud-fails (was: silently left zero).
+        if (pipe_modlet_array_lit_elem_const_val(arena, eref, &ev, &hi) == 0) {
           return 0 - 1;
-        }
-        hi = 0;
-        if (ev < 0) {
-          hi = 0 - 1;
         }
         unsafe {
           unsafe { rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta); }
