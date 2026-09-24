@@ -178,7 +178,7 @@ export function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (reg < 0) { return 0 - 1; }
   if (reg > 30) { return 0 - 1; }
-  return backend_enc_append_u32_le_c(elf_ctx, (3595386880 as u32) | ((reg as u32) * 32));
+  return backend_enc_append_u32_le_c(elf_ctx, (3594452992 as u32) | ((reg as u32) * 32));
 }
 
 /**
