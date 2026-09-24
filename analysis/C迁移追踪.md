@@ -5,6 +5,25 @@
 
 ### 已完成
 
+- ✅ `arch_x86_64_enc_enc_store_rax_to_rbp`
+- ✅ `arch_x86_64_enc_enc_store_r64_to_rbp`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_rax`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_rbx`
+- ✅ `arch_x86_64_enc_enc_lea_rbp_to_rax`
+- ✅ `arch_x86_64_enc_enc_lea_rbp_to_rbx`
+- ✅ `arch_x86_64_enc_enc_load_rbp_pos_to_rax`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_eax32`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_ebx32`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_ecx`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_edx`
+- ✅ `arch_x86_64_enc_enc_add_imm_to_ecx`
+- ✅ `arch_x86_64_enc_enc_sub_imm_from_ecx`
+- ✅ `arch_x86_64_enc_enc_add_imm_to_ebx_index`
+- ✅ `arch_x86_64_enc_enc_sub_imm_from_ebx_index`
+- ✅ `arch_x86_64_enc_enc_imul_imm_to_ecx`
+- ✅ `arch_x86_64_enc_enc_imul_imm_to_ebx`
+- ✅ `arch_x86_64_enc_enc_store_rdx_to_rbp`
+- ✅ `arch_x86_64_enc_enc_load_rbp_to_rdx`
 - ✅ `arch_x86_64_enc_enc_mov_imm32_to_rbx`
 - ✅ `arch_x86_64_enc_enc_ret_imm32`
 - ✅ `arch_x86_64_enc_enc_mov_imm64_to_rax`
