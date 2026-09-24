@@ -12,7 +12,7 @@
 | **源文件后缀** | `.x` |
 | **项目构建** | `build.x` — 用 X 语言描述构建策略（`xlang build` / `build_tool` / `xlang-build.sh`） |
 | **现阶段（2026-09-23）** | **产品 L4 钉盘 `ecdb5cc1e`**（双端真冷；**日常不升钉**）。tip 在 **`dev`**：**M2** 真减 host-cc（Class AD–BI Cap／stretch／unwind／needle／leftover）· Cap residual **9.1–9.7 ✅** · BC inventory **present 0** · leftover unique **0** · Darwin tip **prefer labi** · Ubuntu tip 全量重链常走 **warm**（SEGV／FAIL）· Win 默认 **LEGACY** · 写 `let x: Trait = a`（**不要**写 `dyn Trait`，**P013**）· **三端 L2 硬闸已启用**（mac + Ubuntu + Windows）。MG Makefile **已删**（0-make）。**尚未完全自举** — 冷启动仍需 seed／宿主 `cc`；真债＝map 外 `from_x`／产品 `.inc`／大户 leftover；`labi_invoke_cc` 未删；mega FORCE 仍禁。 |
-| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [M2 主链](analysis/自举效率方法-M2主链.md) · [C 迁移债](analysis/C迁移追踪.md) · [自举验证](analysis/自举验证.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [9 月 23 日归档](analysis/自举进度-归档-2026-09-23.md) · [9 月 22 日归档](analysis/自举进度-归档-2026-09-22.md) |
+| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [M2 主链](analysis/自举效率方法-M2主链.md) · [C 迁移债](analysis/C迁移追踪.md) · [自举验证](analysis/自举验证.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [9 月 24 日归档](analysis/自举进度-归档-2026-09-24.md) · [9 月 23 日归档](analysis/自举进度-归档-2026-09-23.md) · [9 月 22 日归档](analysis/自举进度-归档-2026-09-22.md) |
 | **English** | [README.md](README.md) |
 
 ---
