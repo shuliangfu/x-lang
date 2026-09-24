@@ -9427,6 +9427,17 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
   return 0;
 }
 
+/* PLATFORM: WINDOWS — do not emit this cold body.
+ * XLANG_WEAK is empty on PE, so it would be a second strong
+ * pipeline_asm_modlet_prepare_and_emit_elf_c that writes
+ * g_pipeline_asm_modlet_cold. The mega loop in this file calls it,
+ * while the egg's glue_emit_index_eff_addr_base calls the live load
+ * on g_pipeline_asm_modlet. Module g[0] then misses (CG002,
+ * code_len=12, 0 patches). On Windows the egg body is the authority
+ * and the call below stays an extern. POSIX keeps the weak cold body
+ * so a strong thin can override it.
+ */
+#if !defined(_WIN32) && !defined(_WIN64)
 XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
   int32_t tl, n, i;
   pipeline_asm_modlet_reset_cold();
@@ -9641,6 +9652,7 @@ XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, 
   }
   return 0;
 }
+#endif /* !Windows: cold prepare must not be a second strong modlet table */
 
 XLANG_WEAK int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) {
   int32_t i;
