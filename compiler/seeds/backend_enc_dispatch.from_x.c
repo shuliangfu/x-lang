@@ -8,8 +8,8 @@
  * forwards to backend_enc_arm64_ldr_xreg_xreg_imm_c, which stays in this tail.
  * The symbol stays strong.
  * wave879: arch_x86_64_enc_enc_call_reg lives in that .x too. It still
- * forwards to backend_enc_x86_64_call_reg_c, which stays in this tail.
- * The symbol stays strong.
+ * forwards to backend_enc_x86_64_call_reg_c. wave893 moves that callee
+ * into the same .x. Both symbols stay strong.
  * wave880: arch_x86_64_enc_enc_load_rax_rbx_disp32 lives in that .x too.
  * It still forwards to backend_enc_x86_64_load_rax_rbx_disp32_c, which
  * stays in this tail. The symbol stays strong.
@@ -29,6 +29,8 @@
  * It appends one ARM64 blr instruction word. The symbol stays strong.
  * wave892: backend_enc_riscv64_jalr_reg_c lives in that .x too.
  * It appends one RISC-V jalr instruction word. The symbol stays strong.
+ * wave893: backend_enc_x86_64_call_reg_c lives in that .x too.
+ * It appends an x86_64 indirect call. The symbol stays strong.
  * This file keeps the f64/Cap residual tail (including
  * backend_enc_addsd_rax_rbx_arch) and the declarations that tail calls.
  * Product link pure-asms the thin, then cc's this tail with
@@ -1688,16 +1690,11 @@ int32_t backend_enc_arm64_ldr_xreg_xreg_imm_c(struct platform_elf_ElfCodegenCtx 
   return backend_enc_append_u32_le_c(elf_ctx,
     (uint32_t)0xF9400000u | ((uint32_t)imm12 << 10) | ((uint32_t)base_reg << 5) | (uint32_t)dst_reg);
 }
-/* x86_64 call rN: optional REX.B (0x41) for r8-r15; FF /2 (ModRM=0xD0|(reg&7)). */
-int32_t backend_enc_x86_64_call_reg_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t reg) {
-  if (!elf_ctx) { return -1; }
-  if (reg < 0 || reg > 15) { return -1; }
-  if (reg >= 8) {
-    if (backend_enc_append_u8_c(elf_ctx, 0x41) != 0) { return -1; }
-  }
-  if (backend_enc_append_u8_c(elf_ctx, 0xFF) != 0) { return -1; }
-  return backend_enc_append_u8_c(elf_ctx, 0xD0 | (reg & 7));
-}
+/* w893: backend_enc_x86_64_call_reg_c is defined in
+ * backend_enc_dispatch_thin.x. It appends optional 0x41, then 0xFF,
+ * then 0xD0 | (reg & 7). arch_x86_64_enc_enc_call_reg still forwards
+ * to it. The prototype above still names the symbol. Stays strong.
+ * PLATFORM: SHARED. */
 /* x86_64 mov rax,[rbx+disp32]: 48 8B 83 disp32_le. dst/base ignored (fixed pair). */
 int32_t backend_enc_x86_64_load_rax_rbx_disp32_c(struct platform_elf_ElfCodegenCtx *elf_ctx, int32_t dst_reg, int32_t base_reg, int32_t offset) {
   int32_t rex;

@@ -11,8 +11,8 @@
 // backend_enc_arm64_ldr_xreg_xreg_imm_c, which stays in the C tail.
 // That symbol stays strong.
 // w879 places arch_x86_64_enc_enc_call_reg here. It forwards to
-// backend_enc_x86_64_call_reg_c, which stays in the C tail.
-// That symbol stays strong.
+// backend_enc_x86_64_call_reg_c. w893 places that callee here too.
+// Both symbols stay strong.
 // w880 places arch_x86_64_enc_enc_load_rax_rbx_disp32 here. It forwards to
 // backend_enc_x86_64_load_rax_rbx_disp32_c, which stays in the C tail.
 // That symbol stays strong.
@@ -32,6 +32,8 @@
 // instruction word. The symbol stays strong.
 // w892 places backend_enc_riscv64_jalr_reg_c here. It appends one
 // RISC-V jalr instruction word. The symbol stays strong.
+// w893 places backend_enc_x86_64_call_reg_c here. It appends an
+// x86_64 indirect call. The symbol stays strong.
 // The f64/Cap tail, including backend_enc_addsd_rax_rbx_arch, stays in
 // seeds/backend_enc_dispatch.from_x.c.
 // The installer pure-asms this file, then cc's that seed with
@@ -45,7 +47,6 @@ export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern "C" function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
-export extern "C" function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32;
 export extern "C" function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32;
 export extern "C" function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32;
@@ -3642,9 +3643,9 @@ export function arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32,
 
 /**
  * Forward arch_x86_64_enc_enc_call_reg to backend_enc_x86_64_call_reg_c.
- * The callee stays in the C tail of this object. This symbol stays strong.
+ * The callee is defined later in this file. This symbol stays strong.
  * @param elf_ctx *u8 — emit context passed through; the callee rejects null
- * @param reg i32 — x86_64 register number passed through
+ * @param reg i32 — x86_64 register number passed through; the callee rejects values outside 0..15
  * @return i32 — the callee's status, 0 on success and -1 on failure
  * PLATFORM: SHARED — product link name. The callee emits the x86_64 indirect call.
  */
@@ -3811,4 +3812,30 @@ export function backend_enc_riscv64_jalr_reg_c(elf_ctx: *u8, reg: i32): i32 {
   if (reg < 0) { return 0 - 1; }
   if (reg > 31) { return 0 - 1; }
   return backend_enc_append_u32_le_c(elf_ctx, (231 as u32) | ((reg as u32) * 32768));
+}
+
+/**
+ * Emit one x86_64 indirect call through rN.
+ * Registers 8..15 are prefixed with REX.B (0x41). Every call then
+ * appends opcode 0xFF and ModRM 0xD0 with the low 3 register bits.
+ * Register numbers outside 0..15 return -1. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — x86_64 register number, accepted only for 0..15
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u8_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32 {
+  // 0x41 is REX.B. 0xFF is the call opcode. 0xD0 is ModRM /2.
+  // (reg & 7) selects rax..rdi or r8..r15 inside that ModRM byte.
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 15) { return 0 - 1; }
+  if (reg >= 8) {
+    if (backend_enc_append_u8_c(elf_ctx, 65) != 0) { return 0 - 1; }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 255) != 0) { return 0 - 1; }
+  return backend_enc_append_u8_c(elf_ctx, 208 | (reg & 7));
 }
