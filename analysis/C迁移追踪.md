@@ -5,6 +5,7 @@
 
 ### 已完成
 
+- ✅ `backend_enc_addsd_rax_rbx_arch`
 - ✅ `backend_enc_x86_64_load_rax_rbx_disp32_c`
 - ✅ `backend_enc_arm64_ldr_xreg_xreg_imm_c`
 - ✅ `backend_enc_riscv64_ldr_xreg_xreg_imm_c`
