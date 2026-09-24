@@ -53,6 +53,7 @@ export extern "C" function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): 
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_module_top_level_let_init_ref(module: *u8, idx: i32): i32;
@@ -813,6 +814,135 @@ function pipe_modlet_seed_struct_lit_to_rbx(
 }
 
 /**
+ * Fold one array element that is an f64 constant into IEEE lo/hi halves.
+ * Accepts EXPR_FLOAT_LIT (ek 1), EXPR_NEG over a folded float (ek 22,
+ * including the parser form `[-1.0, 2.0]`), and EXPR_ADD / EXPR_SUB /
+ * EXPR_MUL (ek 4, 5, 6) of two folded floats. Integer literals and integer
+ * binops return 0 so the caller keeps pipe_modlet_array_lit_elem_const_val.
+ * EXPR_DIV and EXPR_MOD stay loud-fail on both paths: a variable divisor in
+ * this thin inserts xlang_panic_, and the sidecar nops exactly two
+ * span-check panics.
+ * NEG flips the f64 sign bit (high half xor 0x80000000). That is unary
+ * minus on the IEEE encoding, including a negated float binop.
+ * ADD, SUB, and MUL copy the halves into f64 with memcpy, apply the
+ * language operator, and copy the bits back. Same host-float path as
+ * glue_ieee_f64_bits_to_f32_bits. Little-endian: lo is the first word.
+ * @param arena *u8 - ASTArena; null returns 0
+ * @param eref i32 - element expr ref; <= 0 returns 0
+ * @param out_lo *i32 - low 32 bits of the f64 pattern; null returns 0
+ * @param out_hi *i32 - high 32 bits of the f64 pattern; null returns 0
+ * @return i32 - 1 when both halves are written; 0 when this is not a float constant
+ * PLATFORM: SHARED — little-endian host float; LINUX gold.
+ */
+function pipe_modlet_fold_f64_elem_bits(
+  arena: *u8, eref: i32, out_lo: *i32, out_hi: *i32
+): i32 {
+  let ek: i32 = 0;
+  let op: i32 = 0;
+  let left: i32 = 0;
+  let right: i32 = 0;
+  let llo: i32 = 0;
+  let lhi: i32 = 0;
+  let rlo: i32 = 0;
+  let rhi: i32 = 0;
+  let hu: u32 = 0;
+  let sign: u32 = 2147483648;
+  let flo: i32 = 0;
+  let fhi: i32 = 0;
+  if (arena == (0 as *u8) || eref <= 0 || out_lo == (0 as *i32) || out_hi == (0 as *i32)) {
+    return 0;
+  }
+  unsafe {
+    unsafe { ek = pipeline_expr_kind_ord_at(arena, eref); }
+  }
+  if (ek == 1) {
+    unsafe {
+      unsafe { flo = pipeline_expr_float_bits_lo_at(arena, eref); }
+      unsafe { fhi = pipeline_expr_float_bits_hi_at(arena, eref); }
+    }
+    unsafe {
+      out_lo[0] = flo;
+      out_hi[0] = fhi;
+    }
+    return 1;
+  }
+  // Unary minus of a float constant. Integer NEG returns 0 here.
+  if (ek == 22) {
+    unsafe {
+      unsafe { op = pipeline_expr_unary_operand_ref_at(arena, eref); }
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    if (pipe_modlet_fold_f64_elem_bits(arena, op, out_lo, out_hi) == 0) {
+      return 0;
+    }
+    unsafe { hu = out_hi[0] as u32; }
+    hu = hu ^ sign;
+    unsafe { out_hi[0] = hu as i32; }
+    return 1;
+  }
+  // Float ADD/SUB/MUL. DIV and MOD are not folded.
+  if (ek == 4 || ek == 5 || ek == 6) {
+    let av: f64 = 0.0;
+    let bv: f64 = 0.0;
+    let fr: f64 = 0.0;
+    let lp: i32[2] = [];
+    let rp: i32[2] = [];
+    let oparts: i32[2] = [];
+    unsafe {
+      unsafe { left = pipeline_expr_binop_left_ref_at(arena, eref); }
+      unsafe { right = pipeline_expr_binop_right_ref_at(arena, eref); }
+    }
+    if (left <= 0 || right <= 0) {
+      return 0;
+    }
+    // Left bits must be copied out before the right call reuses out_lo/out_hi.
+    if (pipe_modlet_fold_f64_elem_bits(arena, left, out_lo, out_hi) == 0) {
+      return 0;
+    }
+    unsafe {
+      llo = out_lo[0];
+      lhi = out_hi[0];
+    }
+    if (pipe_modlet_fold_f64_elem_bits(arena, right, out_lo, out_hi) == 0) {
+      return 0;
+    }
+    unsafe {
+      rlo = out_lo[0];
+      rhi = out_hi[0];
+    }
+    lp[0] = llo;
+    lp[1] = lhi;
+    rp[0] = rlo;
+    rp[1] = rhi;
+    // Host f64 operator. memcpy is the same bit copy as glue_ieee_f64_bits_to_f32_bits.
+    unsafe {
+      unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
+      unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
+    }
+    if (ek == 4) {
+      fr = av + bv;
+    } else {
+      if (ek == 5) {
+        fr = av - bv;
+      } else {
+        fr = av * bv;
+      }
+    }
+    unsafe {
+      unsafe { memcpy((&(oparts[0])) as *u8, (&fr) as *u8, 8 as usize); }
+    }
+    unsafe {
+      out_lo[0] = oparts[0];
+      out_hi[0] = oparts[1];
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * Poke four little-endian bytes of an i32 bit pattern into the .data buffer.
  * Used for an f32 pack and for each half of an f64 FLOAT_LIT. The value is
  * a bit pattern, not a numeric magnitude: high bytes are shifted with
@@ -850,10 +980,12 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * level for `[K][N]T` rows; deeper nest is a later leaf. Empty lit is a
  * no-op (zeros already reserved). Elem contract: EXPR_LIT, EXPR_NEG over
  * a folded constant, and integer binops EXPR_ADD..EXPR_BITXOR fold via
- * pipe_modlet_array_lit_elem_const_val. FLOAT_LIT (ek 1) pokes IEEE bits:
- * esz 4 packs f64 bits to f32 through glue_ieee_f64_bits_to_f32_bits, esz 8
- * pokes both halves. STRUCT_LIT elems poke integer, string, pointer, and
- * nested array fields. Anything else (float binop, VAR, ...) loud-fails —
+ * pipe_modlet_array_lit_elem_const_val. Float constants
+ * (FLOAT_LIT, NEG of a float, ADD/SUB/MUL of floats) poke IEEE bits via
+ * pipe_modlet_fold_f64_elem_bits: esz 4 packs f64 bits to f32 through
+ * glue_ieee_f64_bits_to_f32_bits, esz 8 pokes both halves. STRUCT_LIT elems
+ * poke integer, string, pointer, and nested array fields. Anything else
+ * (float DIV/MOD, VAR, ...) loud-fails —
  * the historic silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
  * .data string pool and record an absolute64 reloc on the pointer slot.
  * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
@@ -1001,16 +1133,13 @@ function pipe_modlet_bake_array_lit_elems_to_data(
         ei = ei + 1;
         continue;
       }
-      // FLOAT_LIT is stored as f64 bits. esz 4 packs to f32; esz 8 pokes
+      // Float constant (FLOAT_LIT, NEG of a float, ADD/SUB/MUL). Integer
+      // elems return 0 and fall through. esz 4 packs to f32; esz 8 pokes
       // both halves. Other sizes are not a float slot. PLATFORM: SHARED.
-      if (ek == 1) {
-        let flo: i32 = 0;
-        let fhi: i32 = 0;
-        let fb: i32 = 0;
-        unsafe {
-          unsafe { flo = pipeline_expr_float_bits_lo_at(arena, eref); }
-          unsafe { fhi = pipeline_expr_float_bits_hi_at(arena, eref); }
-        }
+      let flo: i32 = 0;
+      let fhi: i32 = 0;
+      let fb: i32 = 0;
+      if (pipe_modlet_fold_f64_elem_bits(arena, eref, &flo, &fhi) == 1) {
         if (esz == 4) {
           unsafe {
             unsafe { fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi); }
@@ -2126,17 +2255,14 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
           ei = ei + 1;
           continue;
         }
-        // FLOAT_LIT: esz 4 stores the f32 pack; esz 8 stores both f64 halves.
-        // A negative f32 pattern sign-extends only the unused high half of
-        // the imm64 so the 4-byte store keeps the IEEE bits. PLATFORM: SHARED.
-        if (ek == 1) {
-          let flo: i32 = 0;
-          let fhi: i32 = 0;
-          let fb: i32 = 0;
-          unsafe {
-            unsafe { flo = pipeline_expr_float_bits_lo_at(arena, eref); }
-            unsafe { fhi = pipeline_expr_float_bits_hi_at(arena, eref); }
-          }
+        // Float constant: esz 4 stores the f32 pack; esz 8 stores both
+        // f64 halves. A negative f32 pattern sign-extends only the unused
+        // high half of the imm64 so the 4-byte store keeps the IEEE bits.
+        // Integer elems return 0 and fall through. PLATFORM: SHARED.
+        let flo: i32 = 0;
+        let fhi: i32 = 0;
+        let fb: i32 = 0;
+        if (pipe_modlet_fold_f64_elem_bits(arena, eref, &flo, &fhi) == 1) {
           if (esz == 4) {
             unsafe {
               unsafe { fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi); }

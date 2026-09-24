@@ -8801,6 +8801,59 @@ static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf
   return 0;
 }
 
+/* Fold one array element that is an f64 constant into IEEE lo/hi.
+ * EXPR_FLOAT_LIT (ek 1), NEG over a folded float (ek 22), and ADD/SUB/MUL
+ * (ek 4..6). Integer elems return 0. DIV and MOD stay loud-fail. NEG flips
+ * the sign bit. ADD/SUB/MUL use the host double. Little-endian: p[0] is lo.
+ * Twin of pipe_modlet_fold_f64_elem_bits. PLATFORM: SHARED. */
+static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
+                                                   int32_t *out_lo, int32_t *out_hi) {
+  int32_t ek = 0, op = 0, left = 0, right = 0;
+  int32_t llo = 0, lhi = 0, rlo = 0, rhi = 0;
+  if (!arena || eref <= 0 || !out_lo || !out_hi)
+    return 0;
+  ek = pipeline_expr_kind_ord_at(arena, eref);
+  if (ek == 1) {
+    *out_lo = pipeline_expr_float_bits_lo_at(arena, eref);
+    *out_hi = pipeline_expr_float_bits_hi_at(arena, eref);
+    return 1;
+  }
+  if (ek == 22) {
+    op = pipeline_expr_unary_operand_ref_at(arena, eref);
+    if (op <= 0)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, out_lo, out_hi))
+      return 0;
+    *out_hi = (int32_t)((uint32_t)(*out_hi) ^ 2147483648u);
+    return 1;
+  }
+  if (ek == 4 || ek == 5 || ek == 6) {
+    union { int32_t p[2]; double d; } a, b, r;
+    left = pipeline_expr_binop_left_ref_at(arena, eref);
+    right = pipeline_expr_binop_right_ref_at(arena, eref);
+    if (left <= 0 || right <= 0)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, left, &llo, &lhi))
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, right, &rlo, &rhi))
+      return 0;
+    a.p[0] = llo;
+    a.p[1] = lhi;
+    b.p[0] = rlo;
+    b.p[1] = rhi;
+    if (ek == 4)
+      r.d = a.d + b.d;
+    else if (ek == 5)
+      r.d = a.d - b.d;
+    else
+      r.d = a.d * b.d;
+    *out_lo = r.p[0];
+    *out_hi = r.p[1];
+    return 1;
+  }
+  return 0;
+}
+
 static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t *elf_ctx,
                                                             int32_t init_ref, int32_t elem_ty,
                                                             int32_t ta, int32_t base_off, void *m) {
@@ -8882,13 +8935,11 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
           return -1;
         continue;
       }
-      /* FLOAT_LIT: esz 4 stores the f32 pack; esz 8 stores both f64 halves.
-       * A negative f32 pattern sign-extends only the unused high half.
-       * PLATFORM: SHARED. */
-      if (ek == 1) {
-        int32_t flo = pipeline_expr_float_bits_lo_at(arena, eref);
-        int32_t fhi = pipeline_expr_float_bits_hi_at(arena, eref);
-        int32_t fb = 0;
+      /* Float constant: esz 4 stores the f32 pack; esz 8 stores both
+       * halves. Integer elems return 0 and fall through. PLATFORM: SHARED. */
+      {
+        int32_t flo = 0, fhi = 0, fb = 0;
+        if (pipe_modlet_fold_f64_elem_bits_cold(arena, eref, &flo, &fhi)) {
         if (esz == 4) {
           fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
           if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, fb, fb < 0 ? -1 : 0, ta) != 0)
@@ -8902,6 +8953,7 @@ static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t
         if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta) != 0)
           return -1;
         continue;
+        }
       }
       /* LIT / NEG / integer binop: fold to the constant value. A
        * negative imm passes hi=-1 so the (hi:lo) imm64 halves rebuild
@@ -8938,7 +8990,9 @@ static int32_t pipe_modlet_data_poke_u32_le_cold(uint8_t *elf_ctx, int32_t off, 
  * Bake ARRAY_LIT constant elems into an already-reserved .data cell.
  * Elem contract: EXPR_LIT, EXPR_NEG over a folded constant, and integer
  * binops ek 4..13 fold via pipe_modlet_array_lit_elem_const_val_cold.
- * FLOAT_LIT pokes IEEE bits (esz 4 packs to f32, esz 8 pokes both halves).
+ * Float constants (FLOAT_LIT, NEG of a float, ADD/SUB/MUL) poke IEEE bits
+ * via pipe_modlet_fold_f64_elem_bits_cold (esz 4 packs to f32, esz 8 pokes
+ * both halves). DIV/MOD stay loud-fail.
  * Anything else loud-fails (the historic silent drop baked zeros for
  * `[-1, 2]`); STRING_LIT elems
  * intern into the .data string pool and record an absolute64 reloc on
@@ -9032,12 +9086,11 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
         return -1;
       continue;
     }
-    /* FLOAT_LIT is stored as f64 bits. esz 4 packs to f32; esz 8 pokes
-     * both halves. PLATFORM: SHARED. */
-    if (ek == 1) {
-      int32_t flo = pipeline_expr_float_bits_lo_at(arena, eref);
-      int32_t fhi = pipeline_expr_float_bits_hi_at(arena, eref);
-      int32_t fb = 0;
+    /* Float constant. esz 4 packs to f32; esz 8 pokes both halves.
+     * Integer elems return 0 and fall through. PLATFORM: SHARED. */
+    {
+      int32_t flo = 0, fhi = 0, fb = 0;
+      if (pipe_modlet_fold_f64_elem_bits_cold(arena, eref, &flo, &fhi)) {
       int32_t slot = data_base + base_off + ei * esz;
       if (esz == 4) {
         fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
@@ -9052,6 +9105,7 @@ static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_
         return -1;
       }
       continue;
+      }
     }
     if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev))
       return -1;
