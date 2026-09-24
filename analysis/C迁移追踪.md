@@ -5,6 +5,33 @@
 
 ### 已完成
 
+- ✅ `arch_arm64_enc_enc_mov_rbx_to_rax`
+- ✅ `arch_arm64_enc_enc_add_rax_rbx`
+- ✅ `arch_arm64_enc_enc_sub_rax_rbx`
+- ✅ `arch_arm64_enc_enc_sub_rbx_rax_then_mov`
+- ✅ `arch_arm64_enc_enc_imul_rbx_rax`
+- ✅ `arch_arm64_enc_enc_idiv_rbx`
+- ✅ `arch_arm64_enc_enc_and_rbx_rax`
+- ✅ `arch_arm64_enc_enc_or_rbx_rax`
+- ✅ `arch_arm64_enc_enc_xor_rbx_rax`
+- ✅ `arch_arm64_enc_enc_cmp_rbx_rax`
+- ✅ `arch_arm64_enc_enc_cmp_rax_rbx`
+- ✅ `arch_arm64_enc_enc_neg_eax`
+- ✅ `arch_arm64_enc_enc_not_eax`
+- ✅ `arch_arm64_enc_enc_test_eax_eax`
+- ✅ `arch_arm64_enc_enc_test_rbx_rbx`
+- ✅ `arch_arm64_enc_enc_push_rax`
+- ✅ `arch_arm64_enc_enc_push_rbx`
+- ✅ `arch_arm64_enc_enc_pop_rax`
+- ✅ `arch_arm64_enc_enc_pop_rbx`
+- ✅ `arch_arm64_enc_enc_mov_rbx_to_ecx`
+- ✅ `arch_arm64_enc_enc_setz_movzbl_eax`
+- ✅ `arch_arm64_enc_enc_shl_cl_eax`
+- ✅ `arch_arm64_enc_enc_shr_cl_eax`
+- ✅ `arch_arm64_enc_enc_sar_cl_eax`
+- ✅ `arch_arm64_enc_enc_shl_cl_rax`
+- ✅ `arch_arm64_enc_enc_shr_cl_rax`
+- ✅ `arch_arm64_enc_enc_sar_cl_rax`
 - ✅ `backend_enc_ldr_xreg_xreg_imm_arch`
 - ✅ `backend_enc_store_arg_sp_offset_arch`
 - ✅ `backend_enc_blr_arch`
