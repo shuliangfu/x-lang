@@ -25,6 +25,13 @@
 extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx_bytes, int32_t offset, uint8_t *name,
                                              int32_t name_len);
 extern int32_t pipe_load_i32_le(uint8_t *base, int32_t off);
+/* Live pabi accessor. The unrebuilt object returns 0xc7000c.
+ * The mega .x constant 39190540 is a later layout and is not the
+ * slot append_reloc increments. Reading that constant makes ri
+ * fall outside the 16384 table, this function returns 0, and the
+ * ELF writer emits R_X86_64_PC32 for an absolute64 data slot.
+ * PLATFORM: SHARED — follow the linked accessor, not the .x literal. */
+extern int32_t pipe_elf_off_num_relocs(void);
 
 /* .x named BSS (leftover gcc lea already wrote this home). */
 extern int32_t g_pipe_elf_reloc_r_type[];
@@ -48,7 +55,6 @@ uint8_t *g_pipeline_elf_reloc_sidecar_owner;
 #endif
 
 enum {
-  W743_PIPE_ELF_OFF_NUM_RELOCS = 39190540,
   W743_PIPE_ELF_TABLE_CAP = 16384
 };
 
@@ -80,7 +86,7 @@ int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, 
   }
   g_pipe_elf_reloc_sidecar_owner = ctx_bytes;
   g_pipeline_elf_reloc_sidecar_owner = ctx_bytes;
-  ri = pipe_load_i32_le(ctx_bytes, W743_PIPE_ELF_OFF_NUM_RELOCS) - 1;
+  ri = pipe_load_i32_le(ctx_bytes, pipe_elf_off_num_relocs()) - 1;
   if (ri < 0 || ri >= W743_PIPE_ELF_TABLE_CAP)
     return 0;
   g_pipe_elf_reloc_r_type[ri] = r_type;
