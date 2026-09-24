@@ -8450,13 +8450,16 @@ static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t r
 /* Fold one ARRAY_LIT element to its constant integer value. Accepts
  * EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * NEG-over-LIT `[-600, 2]`), integer binops ek 4..13 including DIV and
- * MOD whose operands fold, and EXPR_AS (ek 54) of a folded float.
- * 32-bit targets: TYPE_I32 (0), TYPE_U32 (3), same as
- * glue_emit_as_f2i32_elf_c. 64-bit targets: TYPE_U64 (4), TYPE_I64 (5),
- * TYPE_USIZE (6), TYPE_ISIZE (7), same as glue_emit_as_f2i64_elf_c.
- * Truncate toward zero (cvttsd2si). Inf/NaN and a magnitude outside the
+ * MOD whose operands fold, and EXPR_AS (ek 54) to an integer.
+ * A float operand truncates toward zero (cvttsd2si). An integer operand
+ * is folded by this same function: a 64-bit target keeps both halves
+ * (an i32 child sign-extends) and a 32-bit target keeps the low word
+ * (a wider child truncates). 32-bit targets: TYPE_I32 (0), TYPE_U32 (3),
+ * same as glue_emit_as_f2i32_elf_c. 64-bit targets: TYPE_U64 (4),
+ * TYPE_I64 (5), TYPE_USIZE (6), TYPE_ISIZE (7), same as
+ * glue_emit_as_f2i64_elf_c. Inf/NaN and a float magnitude outside the
  * signed destination return 0. |x| < 1 truncates to 0. Exactly -2^31
- * fits in i32. Exactly -2^63 fits in i64. An AS of a non-float stays 0.
+ * fits in i32. Exactly -2^63 fits in i64. BOOL and U8 targets stay 0.
  * out_hi may be null. A 64-bit result whose high half is not the sign
  * fill of the low half returns 0 when out_hi is null. On success an i32
  * result writes the sign fill when out_hi is set.
@@ -8535,9 +8538,11 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
       *out_hi = (*out_val < 0) ? -1 : 0;
     return 1;
   }
-  /* EXPR_AS of a folded float. An integer operand stays 0. */
+  /* EXPR_AS. A folded float truncates toward zero. An integer operand
+   * is this same function: 64-bit keeps both halves, 32-bit keeps the
+   * low word. BOOL and U8 stay 0. */
   if (ek == 54) {
-    int32_t tgt = 0, tk = 0, flo = 0, fhi = 0, exp = 0;
+    int32_t tgt = 0, tk = 0, flo = 0, fhi = 0, exp = 0, ihi = 0;
     int32_t parts[2];
     double dv;
     int32_t iv;
@@ -8551,8 +8556,23 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
     tk = pipeline_type_kind_ord_at(arena, tgt);
     /* TYPE_U64=4 TYPE_I64=5 TYPE_USIZE=6 TYPE_ISIZE=7. Signed trunc. */
     if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
-      if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi))
-        return 0;
+      if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi)) {
+        /* Integer operand. Both halves are already the widening. */
+        if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val, &ihi))
+          return 0;
+        lv = *out_val;
+        if (!out_hi) {
+          if (lv < 0) {
+            if (ihi != -1)
+              return 0;
+          } else if (ihi != 0) {
+            return 0;
+          }
+          return 1;
+        }
+        *out_hi = ihi;
+        return 1;
+      }
       exp = (fhi >> 20) & 2047;
       if (exp == 2047)
         return 0;
@@ -8600,8 +8620,15 @@ static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t er
     }
     if (tk != 0 && tk != 3)
       return 0;
-    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi))
-      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi)) {
+      /* Integer operand. The low word is the cast; a wider child truncates. */
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val, &ihi))
+        return 0;
+      lv = *out_val;
+      if (out_hi)
+        *out_hi = (lv < 0) ? -1 : 0;
+      return 1;
+    }
     exp = (fhi >> 20) & 2047;
     if (exp == 2047)
       return 0;

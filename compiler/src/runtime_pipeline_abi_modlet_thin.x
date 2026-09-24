@@ -204,16 +204,18 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * the parser's NEG-over-LIT form `[-600, 2]`), integer binops
  * EXPR_ADD..EXPR_BITXOR (ek 4..13, including DIV and MOD) whose operands fold,
- * and EXPR_AS (ek 54) of a folded float to a 32-bit or 64-bit integer.
- * 32-bit targets are TYPE_I32 (0) and TYPE_U32 (3), the same kinds as
- * glue_emit_as_f2i32_elf_c. 64-bit targets are TYPE_U64 (4), TYPE_I64 (5),
- * TYPE_USIZE (6), and TYPE_ISIZE (7), the same kinds as
- * glue_emit_as_f2i64_elf_c. Both truncate toward zero (cvttsd2si).
- * Inf/NaN, and a magnitude outside the signed destination, return 0 so
- * the baker loud-fails instead of storing the indefinite sign bit.
+ * and EXPR_AS (ek 54) to a 32-bit or 64-bit integer. A float operand
+ * truncates toward zero (cvttsd2si). An integer operand is folded by this
+ * same function: a 64-bit target keeps both halves, so an i32 child
+ * sign-extends, and a 32-bit target keeps the low word, so a wider child
+ * truncates. 32-bit targets are TYPE_I32 (0) and TYPE_U32 (3), the same
+ * kinds as glue_emit_as_f2i32_elf_c. 64-bit targets are TYPE_U64 (4),
+ * TYPE_I64 (5), TYPE_USIZE (6), and TYPE_ISIZE (7), the same kinds as
+ * glue_emit_as_f2i64_elf_c.
+ * Inf/NaN, and a float magnitude outside the signed destination, return 0
+ * so the baker loud-fails instead of storing the indefinite sign bit.
  * |x| < 1 truncates to 0 and is a successful fold. Exactly -2^31 fits in
- * i32. Exactly -2^63 fits in i64. An AS whose operand is not a float
- * constant stays 0: integer `1 as i32` and `1 as i64` are not this arm.
+ * i32. Exactly -2^63 fits in i64. BOOL and U8 targets stay 0.
  * FLOAT_LIT with no cast is not an integer; the array baker pokes IEEE
  * bits from the element size. VAR and any other kind are not compile-time
  * constants; callers must loud-fail (return -1) instead of silently
@@ -360,8 +362,9 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     return 1;
   }
-  // EXPR_AS of a folded float. The operand must fold as a float; an
-  // integer operand stays 0 so `1 as i32` and `1 as i64` are not accepted.
+  // EXPR_AS. A folded float truncates toward zero. An integer operand
+  // is this same function: 64-bit keeps both halves, 32-bit keeps the
+  // low word. BOOL and U8 stay 0.
   if (ek == 54) {
     let tgt: i32 = 0;
     let tk: i32 = 0;
@@ -375,6 +378,7 @@ function pipe_modlet_array_lit_elem_const_val(
     let iv64: i64 = 0;
     let wlo: i32 = 0;
     let whi: i32 = 0;
+    let ihi: i32 = 0;
     unsafe {
       unsafe { op = pipeline_expr_as_operand_ref_at(arena, eref); }
       unsafe { tgt = pipeline_expr_as_target_type_ref_at(arena, eref); }
@@ -389,7 +393,25 @@ function pipe_modlet_array_lit_elem_const_val(
     // The trunc is signed cvttsd2si into rax, so u64 uses the same bits.
     if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
       if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {
-        return 0;
+        // Integer operand. Both halves are already the widening.
+        if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val, &ihi) == 0) {
+          return 0;
+        }
+        unsafe { lv = out_val[0]; }
+        if (out_hi == (0 as *i32)) {
+          if (lv < 0) {
+            if (ihi != (0 - 1)) {
+              return 0;
+            }
+          } else {
+            if (ihi != 0) {
+              return 0;
+            }
+          }
+          return 1;
+        }
+        unsafe { out_hi[0] = ihi; }
+        return 1;
       }
       // Exponent lives in bits 20..30. An arithmetic shift still leaves
       // those 11 bits after the mask, including a negative high half.
@@ -461,7 +483,19 @@ function pipe_modlet_array_lit_elem_const_val(
       return 0;
     }
     if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {
-      return 0;
+      // Integer operand. The low word is the cast; a wider child truncates.
+      if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val, &ihi) == 0) {
+        return 0;
+      }
+      unsafe { lv = out_val[0]; }
+      if (out_hi != (0 as *i32)) {
+        if (lv < 0) {
+          unsafe { out_hi[0] = 0 - 1; }
+        } else {
+          unsafe { out_hi[0] = 0; }
+        }
+      }
+      return 1;
     }
     exp = (fhi >> 20) & 2047;
     if (exp == 2047) {
@@ -1432,9 +1466,10 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * pipe_modlet_fold_f64_elem_bits: esz 4 packs f64 bits to f32 through
  * glue_ieee_f64_bits_to_f32_bits, esz 8 pokes both halves. STRUCT_LIT elems
  * poke integer, string, pointer, and nested array fields. EXPR_AS of a
- * folded float to i32/u32/i64/u64/usize/isize folds through the same
- * integer helper; the 8-byte peel writes that helper's high half.
- * Anything else (VAR, an integer `as`, a pointer cast, ...) loud-fails —
+ * folded float, or of an integer constant, to i32/u32/i64/u64/usize/isize
+ * folds through the same integer helper; the 8-byte peel writes that
+ * helper's high half.
+ * Anything else (VAR, a bool or u8 cast, a pointer cast, ...) loud-fails —
  * the historic silent drop baked zeros for `[-1, 2]`. STRING_LIT elems intern into the
  * .data string pool and record an absolute64 reloc on the pointer slot.
  * 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an absolute64 reloc on the
