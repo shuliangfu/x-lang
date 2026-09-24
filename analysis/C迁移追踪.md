@@ -5,6 +5,10 @@
 
 ### 已完成
 
+- ✅ `backend_enc_ucomiss_rbx_rax_arch`
+- ✅ `backend_enc_mov_rax_to_xmm_arg_reg_arch`
+- ✅ `backend_enc_mov_xmm_arg_reg_to_rax_arch`
+- ✅ `backend_enc_fp_cmp_setcc_movzbl_arch`
 - ✅ `backend_enc_ucomisd_rbx_rax_arch`
 - ✅ `backend_enc_divsd_rax_rbx_arch`
 - ✅ `backend_enc_mulsd_rax_rbx_arch`
