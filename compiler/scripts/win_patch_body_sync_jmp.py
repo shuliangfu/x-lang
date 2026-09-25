@@ -16,6 +16,14 @@ w1013: pipe_modlet_bake_array_lit_elems_to_data — egg has local e8 to Cap
 residual bake; tip bake_elems first-wins T + weaken leftover; jmp W→T so
 named i8 ARRAY packs at esz=1. Also patches *_cold local entry if present.
 
+w1026: tip-compiled call_dispatch / enc_label publics first-win over Cap
+residual `_impl` (or a later twin). Those fat .x bodies smash Win64 multi-arg
+ABI and PE symbol values (2nd function Value=0; call reloc name truncated to
+`t`). Cap residual `_impl` / later twin is correct. Patch earliest tip fat
+entry to `jmp rel32` toward `_impl` (or the later twin). Do NOT swap in
+backend_call_dispatch.o.bak (175735) — that cleared CG002 then SEGV/reloc
+truncated at run. PLATFORM: WINDOWS tip bake stack.
+
 Usage (from compiler/ after g05 link):
   python3 scripts/win_patch_body_sync_jmp.py [xlang.exe]
 
@@ -27,6 +35,26 @@ import struct
 import subprocess
 import sys
 from pathlib import Path
+
+# w1026: tip fat public → Cap residual _impl (call / string / reloc surface).
+_TIP_FAT_TO_IMPL: tuple[str, ...] = (
+    "pipeline_asm_emit_call_elf_c",
+    "pipeline_asm_emit_call_args_elf_c",
+    "glue_asm_emit_call_with_cleanup",
+    "glue_asm_emit_jmp_skip_string_then_lea",
+    "glue_asm_emit_string_lit_ptr_rax_elf_c",
+    "glue_emit_one_call_arg_elf_c",
+    "glue_asm_string_lit_into",
+    "glue_asm_try_emit_fmt_string_lit_import_call_elf_c",
+    "glue_asm_enc_call_redirected",
+    "glue_asm_build_call_export_sym_c",
+)
+
+# w1026: dual strong T — earliest tip fat → later Cap residual twin.
+_TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = (
+    "arch_x86_64_enc_enc_label",
+    "pipeline_elf_ctx_append_reloc",
+)
 
 
 def _nm(exe: Path) -> dict[str, list[tuple[int, str]]]:
@@ -84,6 +112,66 @@ def _patch_w_to_t(
         data[off : off + 5] = want
         patched += 1
         print(f"win_patch_body_sync_jmp: {name} W={w_addr:#x} -> T={t_addr:#x}")
+    return patched
+
+
+def _patch_jmp(
+    data: bytearray,
+    secs: list[tuple[int, int, int, str]],
+    name: str,
+    src: int,
+    dst: int,
+) -> int:
+    """Write `jmp rel32` at src toward dst. Returns 1 if bytes changed."""
+    if src == dst:
+        return 0
+    off = _va_to_off(secs, src)
+    want = bytes([0xE9]) + struct.pack("<i", dst - (src + 5))
+    if data[off : off + 5] == want:
+        print(f"win_patch_body_sync_jmp: {name} already patched @{src:#x}")
+        return 0
+    data[off : off + 5] = want
+    print(f"win_patch_body_sync_jmp: {name} @{src:#x} -> @{dst:#x}")
+    return 1
+
+
+def _patch_tip_fat_to_impl(
+    data: bytearray,
+    secs: list[tuple[int, int, int, str]],
+    syms: dict[str, list[tuple[int, str]]],
+) -> int:
+    """
+    w1026: tip .x fat public first-wins over Cap residual `_impl`.
+    Jump the earliest public T to `_impl`. PLATFORM: WINDOWS.
+    """
+    patched = 0
+    for base in _TIP_FAT_TO_IMPL:
+        impl = base + "_impl"
+        pub = [a for a, k in syms.get(base, []) if k == "T"]
+        dsts = [a for a, k in syms.get(impl, []) if k == "T"]
+        if not pub or not dsts:
+            print(f"win_patch_body_sync_jmp: skip {base} (T/_impl missing)")
+            continue
+        patched += _patch_jmp(data, secs, base, min(pub), min(dsts))
+    return patched
+
+
+def _patch_tip_fat_earliest_to_later(
+    data: bytearray,
+    secs: list[tuple[int, int, int, str]],
+    syms: dict[str, list[tuple[int, str]]],
+) -> int:
+    """
+    w1026: dual strong T without `_impl` — earliest tip fat → later Cap twin.
+    Opposite of bake_array fold (which keeps earliest). PLATFORM: WINDOWS.
+    """
+    patched = 0
+    for name in _TIP_FAT_EARLIEST_TO_LATER:
+        strong = sorted({a for a, k in syms.get(name, []) if k == "T"})
+        if len(strong) < 2:
+            print(f"win_patch_body_sync_jmp: skip {name} (need dual T)")
+            continue
+        patched += _patch_jmp(data, secs, name, strong[0], strong[1])
     return patched
 
 
@@ -155,6 +243,10 @@ def main() -> int:
         "glue_emit_fixed_array_type_let_init_elf_c",
     )
     patched = 0
+    # w1026: tip fat call / enc_label / reloc surface → Cap residual. Do this
+    # before bake W→T folds so call_dispatch tip bodies do not stay first-wins.
+    patched += _patch_tip_fat_to_impl(data, secs, syms)
+    patched += _patch_tip_fat_earliest_to_later(data, secs, syms)
     for name in names:
         entries = syms.get(name, [])
         strong = [a for a, k in entries if k == "T"]
