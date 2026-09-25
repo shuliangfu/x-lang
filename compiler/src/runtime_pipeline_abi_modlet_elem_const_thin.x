@@ -821,9 +821,14 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     unsafe {
       rv = pipe_load_i32_le(out_val as *u8, 0);
     }
-    result = 0;
-    if (lv != rv) {
-      result = 1;
+    // Invert equality. Do not write `lv != rv` here: the Windows
+    // compiler that builds this thin can miscompile that operator in
+    // this body, so equal words would still store 1. The EQ arm already
+    // uses `==`; this arm reuses that form and flips the result.
+    // PLATFORM: WINDOWS — `!=` in this folder body is unsafe to emit.
+    result = 1;
+    if (lv == rv) {
+      result = 0;
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, result);

@@ -854,9 +854,12 @@ function pipe_modlet_array_lit_elem_const_val(
         return 0;
       }
     }
-    result = 0;
-    if (llo != rv) {
-      result = 1;
+    // Invert equality. Keep the same `==` form the EQ arm uses so a
+    // host that miscompiles `!=` in this body still stores 0 when the
+    // words match. PLATFORM: LINUX|UBUNTU — match the Darwin folder.
+    result = 1;
+    if (llo == rv) {
+      result = 0;
     }
     unsafe { out_val[0] = result; }
     if (out_hi != (0 as *i32)) {
