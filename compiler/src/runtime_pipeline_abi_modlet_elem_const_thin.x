@@ -963,11 +963,19 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
         memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
       }
-      // Start at 1 (unequal) and clear when equal. Avoid else on the
-      // host `==` — that arm is dropped by the Windows host that
-      // compiles this thin (every pair became 0). PLATFORM: WINDOWS.
-      result = 1;
+      // Compute equality with the same host `==` shape as float EQ
+      // (result starts 0, set 1 when equal). Then flip with an integer
+      // start-1-clear, which the LE/GE arms already use. Do not put
+      // the float compare inside a start-1-clear or an else — tip
+      // dropped those shapes (Ubuntu pairs became 0000).
+      // PLATFORM: MACOS|DARWIN / WINDOWS.
+      result = 0;
       if (av == bv) {
+        result = 1;
+      }
+      got = result;
+      result = 1;
+      if (got == 1) {
         result = 0;
       }
       unsafe {

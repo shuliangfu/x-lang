@@ -897,11 +897,17 @@ function pipe_modlet_array_lit_elem_const_val(
           return 0;
         }
       }
-      // Start at 1 (unequal) and clear when equal. Avoid else on the
-      // host `==` — that arm is dropped when this thin is compiled by
-      // tip (every pair became 0 on Ubuntu). PLATFORM: LINUX|UBUNTU.
-      result = 1;
+      // Compute equality with the same host `==` shape as float EQ,
+      // then flip with an integer start-1-clear. Tip dropped float
+      // start-1-clear and else (Ubuntu pairs became 0000).
+      // PLATFORM: LINUX|UBUNTU.
+      result = 0;
       if (av == bv) {
+        result = 1;
+      }
+      llo = result;
+      result = 1;
+      if (llo == 1) {
         result = 0;
       }
       unsafe { out_val[0] = result; }
