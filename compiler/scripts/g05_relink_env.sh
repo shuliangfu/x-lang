@@ -371,7 +371,12 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
 fi
-if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+# bake_elems U-calls bake_struct. Orphan tip (no bake_struct.o and no
+# modlet.o) → pure-ld UNDEF. Skip alone; weak egg bake_array remains.
+# PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
+  && { [ -s build_asm/selfhost_pabi/bake_struct.o ] \
+    || [ -s build_asm/selfhost_pabi/modlet.o ]; }; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
 fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
