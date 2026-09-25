@@ -840,6 +840,12 @@ case "$UNAME_S" in
             pipeline_elf_ctx_append_reloc_absolute64 \
             pipe_modlet_bake_string_lit_elem_to_data \
             pipe_modlet_bake_ptr_addr_elem_to_data 2>/dev/null || true
+          # w1036: Cap-band prefer — historic low-VA stub + tip inject; keep
+          # Cap leftover in [0x40000,0xf0000). PLATFORM: WINDOWS.
+          python3 scripts/win_coff_keep_earliest_sym.py --prefer-cap-band \
+            build_asm/selfhost_pabi/pabi_weak.o \
+            glue_type_is_fixed_array \
+            glue_struct_lit_store_fixed_array_field_elf_c 2>/dev/null || true
         fi
         # w1034: when wave743 sidecar is linked, weaken egg typed so PE
         # first-wins PAGE21 owner-bind (matches Ubuntu single T). PLATFORM: WINDOWS.
