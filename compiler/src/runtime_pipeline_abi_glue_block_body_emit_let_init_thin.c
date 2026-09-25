@@ -235,6 +235,7 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
         }
       }
       rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, slot_off, ta);
+      fprintf(stderr, "ELI store_eax rc=%d ta=%d off=%d elf=%p\n", rc, ta, slot_off, (void *)elf_ctx);
       if (rc != 0) {
         fprintf(stderr, "ELI fail store_eax\n");
         return -1;
