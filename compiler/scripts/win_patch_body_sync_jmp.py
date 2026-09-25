@@ -31,12 +31,16 @@ PLATFORM: WINDOWS — no-op if not PE or symbols missing.
 """
 from __future__ import annotations
 
+import os
 import struct
 import subprocess
 import sys
 from pathlib import Path
 
-# w1026: tip fat public → Cap residual _impl (call / string / reloc surface).
+# w1026/w1027: tip fat public → Cap residual _impl (call / string surface).
+# w1027: on Windows, call_dispatch prefer skips full .x so thin trampolines
+# first-win in the .o; these patches become no-ops when publics already
+# forward to _impl. Kept as safety net if a fat public reappears. PLATFORM: WINDOWS.
 _TIP_FAT_TO_IMPL: tuple[str, ...] = (
     "pipeline_asm_emit_call_elf_c",
     "pipeline_asm_emit_call_args_elf_c",
@@ -143,7 +147,13 @@ def _patch_tip_fat_to_impl(
     """
     w1026: tip .x fat public first-wins over Cap residual `_impl`.
     Jump the earliest public T to `_impl`. PLATFORM: WINDOWS.
+
+    w1027: XLANG_WIN_SKIP_CALL_PATCH=1 skips this table (probe host-cc thin
+    trampoline first-wins without post-link jmp). enc_label dual-T stays on.
     """
+    if os.environ.get("XLANG_WIN_SKIP_CALL_PATCH", "") == "1":
+        print("win_patch_body_sync_jmp: skip call-surface fat→_impl (XLANG_WIN_SKIP_CALL_PATCH=1)")
+        return 0
     patched = 0
     for base in _TIP_FAT_TO_IMPL:
         impl = base + "_impl"
