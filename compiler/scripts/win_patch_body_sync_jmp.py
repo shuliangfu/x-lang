@@ -136,14 +136,14 @@ def main() -> int:
         # w1013 true-pack ARRAY i8 bake / INDEX load / assign. PLATFORM: WINDOWS.
         "pipe_modlet_bake_array_lit_elems_to_data",
         "glue_emit_assign_index_elf_c",
-        "glue_emit_index_load_arms_elf_c",
-        "pipeline_asm_emit_index_elf_c",
     )
     patched = 0
     for name in names:
         entries = syms.get(name, [])
         strong = [a for a, k in entries if k == "T"]
         weak = [a for a, k in entries if k == "W"]
+        if name == "glue_emit_assign_index_elf_c" and strong:
+            strong = sorted(strong)
         patched += _patch_w_to_t(data, secs, name, strong, weak)
         if name == "pipe_modlet_bake_array_lit_elems_to_data":
             patched += _patch_extra_t_to_primary(data, secs, name, strong)
@@ -163,12 +163,23 @@ def main() -> int:
                     print(
                         f"win_patch_body_sync_jmp: {cold_name} t={c_addr:#x} -> T={t_addr:#x}"
                     )
-        elif name in (
-            "glue_emit_assign_index_elf_c",
-            "glue_emit_index_load_arms_elf_c",
-            "pipeline_asm_emit_index_elf_c",
-        ):
-            patched += _patch_extra_t_to_primary(data, secs, name, strong)
+        elif name == "glue_emit_assign_index_elf_c":
+            # Prefer lowest-address T as tip (PE first-wins link order).
+            # Do not jmp other T into tip when multiple tips compete.
+            if len(strong) >= 2:
+                strong_sorted = sorted(strong)
+                t_addr = strong_sorted[0]
+                for extra in strong_sorted[1:]:
+                    off = _va_to_off(secs, extra)
+                    disp = t_addr - (extra + 5)
+                    want = bytes([0xE9]) + struct.pack("<i", disp)
+                    if data[off : off + 5] == want:
+                        continue
+                    data[off : off + 5] = want
+                    patched += 1
+                    print(
+                        f"win_patch_body_sync_jmp: {name} extraT={extra:#x} -> T={t_addr:#x}"
+                    )
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")
