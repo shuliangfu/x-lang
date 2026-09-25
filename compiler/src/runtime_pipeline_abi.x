@@ -35629,18 +35629,20 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
    * (spill >= 1024) keep the 2048 floor.
    * w1040: single-GP spill stride 8; small pad 256→64; leaf drops the
    * unconditional +64 trailer (was sub $0x68 on empty leaves).
-   * PLATFORM: SHARED. */
+   * w1042: spill < 256 → measured only (no pad / trailer); tip emit_call
+   * was sub $0xf8 from 64+64 cushions on a 48B spill. Medium 256..1023
+   * keep pad+trailer. PLATFORM: SHARED. */
   if (call_spill > 0) {
     if (call_spill >= 1024) {
       if (scratch < 2048) {
         scratch = 2048;
       }
-    } else {
+    } else if (call_spill >= 256) {
       scratch = call_spill + 64;
     }
   }
   size = size + scratch;
-  if (call_spill > 0) {
+  if (call_spill >= 256) {
     return size + 64;
   }
   return size;
