@@ -20,6 +20,11 @@ extern int32_t glue_store_retval_pair_to_rbp_elf_c(void *m, void *arena, void *e
                                                     int32_t slot_off, int32_t ta, int32_t init_ref,
                                                     void *ctx);
 extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len);
+extern int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len,
+                                                       int32_t ta);
 
 static int32_t win_assign_rhs_to_rax(void *arena, void *elf_ctx, int32_t assign_expr_ref, int32_t right_ref,
                                     void *ctx, int32_t ta) {
@@ -42,8 +47,22 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
   if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
     return -1;
   off = glue_var_expr_stack_off_elf_c(arena, ctx, left_ref);
-  if (off < 0)
-    return -1;
+  if (off < 0) {
+    /* PLATFORM: WINDOWS — a file-scope scalar has no frame slot.
+     * name_is_shared reads the egg table prepare filled. The egg store
+     * leas that cell and writes 8 bytes from rax. Same face as
+     * runtime_pipeline_abi_assign_thin.x. Locals stay on the rbp path. */
+    uint8_t vname[256];
+    int32_t vlen = pipeline_expr_var_name_len(arena, left_ref);
+    if (vlen <= 0 || vlen > 255)
+      return -1;
+    pipeline_expr_var_name_into(arena, left_ref, vname);
+    if (!pipeline_asm_modlet_name_is_shared(vname, vlen))
+      return -1;
+    if (win_assign_rhs_to_rax(arena, elf_ctx, expr_ref, right_ref, ctx, ta) != 0)
+      return -1;
+    return pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, vname, vlen, ta);
+  }
   if (win_assign_rhs_to_rax(arena, elf_ctx, expr_ref, right_ref, ctx, ta) != 0)
     return -1;
 
