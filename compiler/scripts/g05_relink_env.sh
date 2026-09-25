@@ -826,26 +826,13 @@ case "$UNAME_S" in
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done
         fi
-        # w1031/w1034/w1035: egg embeds dual/triple strong T for reloc + bake
-        # Cap leftovers (leftover Cap + historic tip elf_ctx inject; absolute64
-        # also has an early EXTERNAL-reloc stub). Same-TU already calls Cap
-        # (or reloc stub→typed); demote later EXTERNAL→STATIC so PE exports
-        # one T per name. bake_string/ptr Cap VA is earliest (unlike
-        # glue_type_is_fixed_array historic stub). PLATFORM: WINDOWS.
+        # w1037: egg dual/triple EXTERNAL T (Cap leftover + historic stub +
+        # tip inject). One-pass Cap-band demote replaces per-sym lists
+        # (w1031–w1036). Same-TU REL32 to demoted STATIC still binds; PE
+        # exports one T per name. PLATFORM: WINDOWS.
         if [ -f scripts/win_coff_keep_earliest_sym.py ]; then
-          python3 scripts/win_coff_keep_earliest_sym.py \
-            build_asm/selfhost_pabi/pabi_weak.o \
-            pipeline_elf_ctx_append_reloc \
-            pipeline_elf_ctx_append_reloc_typed \
-            pipeline_elf_ctx_append_reloc_absolute64 \
-            pipe_modlet_bake_string_lit_elem_to_data \
-            pipe_modlet_bake_ptr_addr_elem_to_data 2>/dev/null || true
-          # w1036: Cap-band prefer — historic low-VA stub + tip inject; keep
-          # Cap leftover in [0x40000,0xf0000). PLATFORM: WINDOWS.
-          python3 scripts/win_coff_keep_earliest_sym.py --prefer-cap-band \
-            build_asm/selfhost_pabi/pabi_weak.o \
-            glue_type_is_fixed_array \
-            glue_struct_lit_store_fixed_array_field_elf_c 2>/dev/null || true
+          python3 scripts/win_coff_keep_earliest_sym.py --demote-all-dual \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1034: when wave743 sidecar is linked, weaken egg typed so PE
         # first-wins PAGE21 owner-bind (matches Ubuntu single T). PLATFORM: WINDOWS.
