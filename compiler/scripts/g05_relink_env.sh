@@ -453,8 +453,11 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
-    # w1009: let-after-assign body_sync. First-wins. PLATFORM: WINDOWS.
-    # PE may keep same-.o local calls on leftover T; weaken egg pabi so thin wins.
+    # w1009/w1010: let-after-assign body_sync. First-wins. PLATFORM: WINDOWS.
+    # PE tip PREFER_ASM smash (~0x1db8 frame) corrupts deferred-let order even
+    # when the tip .x thin first-wins. Build this object with host gcc from
+    # runtime_pipeline_abi_block_body_sync_let_order_thin.c (not tip .x).
+    # PE may keep same-.o local calls on leftover T; weaken egg pabi so twin wins.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
