@@ -158,6 +158,14 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/cltd_cqo.o ]; then
       _USER_ASM_LINK="build_asm/selfhost_pabi/cltd_cqo.o $_USER_ASM_LINK"
     fi
+    # PLATFORM: LINUX | WINDOWS — bare sub rsp,imm32 > 1 page skips the
+    # Windows guard page (SEGV on deep AS/compare folds). This object
+    # replaces arch_x86_64_enc_enc_prologue with a probed allocator.
+    # PE first-wins: must precede backend_enc_dispatch.o /
+    # backend_x86_64_enc_c.o. Absent file keeps the unprobed prologue.
+    if [ -s build_asm/selfhost_pabi/prologue_chkstk.o ]; then
+      _USER_ASM_LINK="build_asm/selfhost_pabi/prologue_chkstk.o $_USER_ASM_LINK"
+    fi
     ;;
 esac
 
