@@ -457,6 +457,10 @@ case "$UNAME_S" in
     # Host-gcc twin from runtime_pipeline_abi_block_body_sync_let_order_thin.c.
     # mega_body same-TU REL32 keeps leftover even when weakened; g05_relink_xlang
     # post-link win_patch_body_sync_jmp.py redirects leftover entry to this twin.
+    # emit_let_init twin: BSS vn — tip stack u8[256] smash breaks f32 lets.
+    if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
+    fi
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
@@ -465,7 +469,7 @@ case "$UNAME_S" in
         _oc=objcopy
       fi
       if [ -n "$_oc" ] && [ -s src/runtime_pipeline_abi.o ]; then
-        for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf; do
+        for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf glue_block_body_emit_let_init; do
           "$_oc" --weaken-symbol="$_bsym" src/runtime_pipeline_abi.o 2>/dev/null || true
         done
       fi

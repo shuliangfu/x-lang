@@ -119,11 +119,15 @@ fi
 # w1010: PE mega same-TU leftover body_sync → jmp to host-gcc twin.
 # PLATFORM: WINDOWS only (script no-ops on Mach-O/ELF).
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*)
-    if [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "${OUT}.exe" ]; then
-      python3 scripts/win_patch_body_sync_jmp.py "${OUT}.exe" || true
-    elif [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "$OUT" ]; then
-      python3 scripts/win_patch_body_sync_jmp.py "$OUT" || true
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    _patch_bin=""
+    if [ -f "${OUT}.exe" ]; then
+      _patch_bin="${OUT}.exe"
+    elif [ -f "$OUT" ]; then
+      _patch_bin="$OUT"
+    fi
+    if [ -f scripts/win_patch_body_sync_jmp.py ] && [ -n "$_patch_bin" ]; then
+      python3 scripts/win_patch_body_sync_jmp.py "$_patch_bin" || true
     fi
     ;;
 esac
