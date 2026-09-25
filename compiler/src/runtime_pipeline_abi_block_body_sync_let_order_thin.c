@@ -8,80 +8,84 @@
  *   deferred at stmt_order k==1; k==2 emits RETURN).
  * Build: gcc -c -O2 → build_asm/selfhost_pabi/body_sync_let_order.o
  *   (Windows g05_relink_env first-wins after weaken egg pabi).
+ * ABI: XLANG_TIP_ABI (sysv_abi) on tip-facing entry/calls — see emit_let_init twin.
  * PLATFORM: WINDOWS — PE same-TU leftover bypass; LINUX/MACOS use .x tip object.
  */
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
-extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
-extern int32_t asm_ctx_block_slot_get(void *ctx, int32_t block_ref);
-extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
-extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
-extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
-extern int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
-extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
-extern int32_t ast_pipeline_block_let_init_ref(void *arena, int32_t block_ref, int32_t li);
-extern int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t li);
-extern void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t li, uint8_t *out);
-extern int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_ref, int32_t li,
+/* Tip PE objects use SysV; MinGW defaults to Win64 — mismatch made
+ * store_eax see offset as ta (rc=-1, code_len=17). PLATFORM: WINDOWS. */
+#define XLANG_TIP_ABI __attribute__((sysv_abi))
+
+extern XLANG_TIP_ABI void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t asm_ctx_block_slot_get(void *ctx, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern XLANG_TIP_ABI int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_pipeline_block_expr_stmt_ref(void *arena, int32_t block_ref, int32_t ei);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t ast_pipeline_block_let_init_ref(void *arena, int32_t block_ref, int32_t li);
+extern XLANG_TIP_ABI int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t li);
+extern XLANG_TIP_ABI void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t li, uint8_t *out);
+extern XLANG_TIP_ABI int32_t glue_lazy_append_block_let_local(void *arena, void *ctx, int32_t block_ref, int32_t li,
                                                uint8_t *nm, int32_t nlen);
-extern int32_t glue_block_body_emit_let_init(void *arena, void *elf_ctx, int32_t block_ref, int32_t idx,
+extern XLANG_TIP_ABI int32_t glue_block_body_emit_let_init(void *arena, void *elf_ctx, int32_t block_ref, int32_t idx,
                                              int32_t init_ref, int32_t slot, void *ctx, int32_t ta,
                                              uint8_t *lnb, int32_t llen);
-extern void glue_block_compute_pass1_deferred_lets(void *arena, void *ctx, int32_t block_ref,
+extern XLANG_TIP_ABI void glue_block_compute_pass1_deferred_lets(void *arena, void *ctx, int32_t block_ref,
                                                    int32_t slot_base, int32_t nconst, int32_t nlet,
                                                    uint8_t *deferred);
-extern int32_t ast_pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
-extern int32_t backend_asm_ctx_slot_offset(void *ctx, int32_t slot_idx);
-extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
-extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+extern XLANG_TIP_ABI int32_t ast_pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern XLANG_TIP_ABI int32_t backend_asm_ctx_slot_offset(void *ctx, int32_t slot_idx);
+extern XLANG_TIP_ABI int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern XLANG_TIP_ABI int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                            int32_t ta);
-extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref,
+extern XLANG_TIP_ABI int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref,
                                                int32_t wi, void *ctx, int32_t ta);
-extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
+extern XLANG_TIP_ABI int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
                                              void *ctx, int32_t ta);
-extern int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block,
+extern XLANG_TIP_ABI int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block,
                                                   int32_t if_idx, void *ctx, int32_t ta, int32_t stmt_i);
-extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
-extern int32_t pipeline_block_region_with_arena_cap_ref(void *arena, int32_t block_ref, int32_t i);
-extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
-extern int32_t glue_wa_scope_alloc_off_c(void *ctx);
-extern void glue_wa_scope_push_c(int32_t wa_off);
-extern void glue_wa_scope_pop_c(void);
-extern int32_t glue_emit_with_arena_init_elf(void *arena, void *elf_ctx, void *ctx, int32_t wa_off,
+extern XLANG_TIP_ABI int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern XLANG_TIP_ABI int32_t pipeline_block_region_with_arena_cap_ref(void *arena, int32_t block_ref, int32_t i);
+extern XLANG_TIP_ABI void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t glue_wa_scope_alloc_off_c(void *ctx);
+extern XLANG_TIP_ABI void glue_wa_scope_push_c(int32_t wa_off);
+extern XLANG_TIP_ABI void glue_wa_scope_pop_c(void);
+extern XLANG_TIP_ABI int32_t glue_emit_with_arena_init_elf(void *arena, void *elf_ctx, void *ctx, int32_t wa_off,
                                             int32_t cap_ref, int32_t ta);
-extern int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t ta);
-extern int32_t pipeline_block_num_labeled_stmts(void *arena, int32_t block_ref);
-extern int32_t pipeline_block_labeled_is_goto(void *arena, int32_t block_ref, int32_t li);
-extern int32_t pipeline_block_labeled_label_len(void *arena, int32_t block_ref, int32_t li);
-extern void pipeline_block_labeled_label_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
-extern int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block_ref, int32_t li);
-extern void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li,
+extern XLANG_TIP_ABI int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t ta);
+extern XLANG_TIP_ABI int32_t pipeline_block_num_labeled_stmts(void *arena, int32_t block_ref);
+extern XLANG_TIP_ABI int32_t pipeline_block_labeled_is_goto(void *arena, int32_t block_ref, int32_t li);
+extern XLANG_TIP_ABI int32_t pipeline_block_labeled_label_len(void *arena, int32_t block_ref, int32_t li);
+extern XLANG_TIP_ABI void pipeline_block_labeled_label_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
+extern XLANG_TIP_ABI int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block_ref, int32_t li);
+extern XLANG_TIP_ABI void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li,
                                                      uint8_t *dst);
-extern int32_t pipeline_block_labeled_return_expr_ref(void *arena, int32_t block_ref, int32_t li);
-extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
-extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global,
+extern XLANG_TIP_ABI int32_t pipeline_block_labeled_return_expr_ref(void *arena, int32_t block_ref, int32_t li);
+extern XLANG_TIP_ABI int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern XLANG_TIP_ABI int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global,
                                      int32_t ta);
-extern uint8_t *pipeline_asm_ctx_layout(void *ctx);
-extern void *pipeline_asm_emit_module_ref_c(void);
-extern int32_t pipeline_asm_emit_func_index_c(void);
-extern int32_t pipeline_module_func_return_type_at(void *module, int32_t func_index);
-extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
-extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty,
+extern XLANG_TIP_ABI uint8_t *pipeline_asm_ctx_layout(void *ctx);
+extern XLANG_TIP_ABI void *pipeline_asm_emit_module_ref_c(void);
+extern XLANG_TIP_ABI int32_t pipeline_asm_emit_func_index_c(void);
+extern XLANG_TIP_ABI int32_t pipeline_module_func_return_type_at(void *module, int32_t func_index);
+extern XLANG_TIP_ABI int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
+extern XLANG_TIP_ABI int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty,
                                                       int32_t src_ty, int32_t ta);
-extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
-extern int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+extern XLANG_TIP_ABI int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern XLANG_TIP_ABI int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
                                               int32_t ta);
-extern void glue_block_body_bind_module_dep_from_ctx(void *ctx);
-extern void glue_asm_block_diverged_set(int32_t v);
-extern int32_t pipe_load_i32_le(uint8_t *base, int32_t off);
+extern XLANG_TIP_ABI void glue_block_body_bind_module_dep_from_ctx(void *ctx);
+extern XLANG_TIP_ABI void glue_asm_block_diverged_set(int32_t v);
+extern XLANG_TIP_ABI int32_t pipe_load_i32_le(uint8_t *base, int32_t off);
 
 static uint8_t g_w1010_let_defer[512];
 static uint8_t g_w1010_name_buf[256];
@@ -111,13 +115,10 @@ static int32_t w1010_emit_let(void *arena, void *elf_ctx, int32_t block_ref, int
     rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, g_w1010_lnb, llen);
   }
   if (rc != 0) {
-    fprintf(stderr, "BS lazy_append fail idx=%d rc=%d\n", idx, rc);
     return -1;
   }
-  fprintf(stderr, "BS emit_let idx=%d init=%d slot=%d\n", idx, init_ref, slot);
   rc = glue_block_body_emit_let_init(arena, elf_ctx, block_ref, idx, init_ref, slot, ctx, ta,
                                      g_w1010_lnb, llen);
-  fprintf(stderr, "BS emit_let rc=%d\n", rc);
   return rc;
 }
 
@@ -126,7 +127,7 @@ static int32_t w1010_emit_let(void *arena, void *elf_ctx, int32_t block_ref, int
  * @return 0 ok; -1 fail
  * PLATFORM: WINDOWS — host-gcc twin of pipeline_asm_emit_block_body_sync_elf.
  */
-int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+XLANG_TIP_ABI int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
                                               int32_t ta) {
   int32_t slot_base;
   int32_t nconst;
@@ -341,7 +342,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  * @return body_sync rc
  * PLATFORM: WINDOWS — host-gcc twin of backend_emit_block_body_sync_elf.
  */
-int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+XLANG_TIP_ABI int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
                                          int32_t ta) {
   glue_asm_block_diverged_set(0);
   glue_block_body_bind_module_dep_from_ctx(ctx);
