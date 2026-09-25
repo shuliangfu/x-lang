@@ -1327,6 +1327,22 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
       }
       uint32_t uw = ((uint32_t)(ev));
       (void)((bi = 0));
+      while (((bi < esz) && (bi < 4))) {
+        (void)((rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, (((data_base + base_off) + (ei * esz)) + bi), ((int32_t)((uw & 255))))));
+        if ((rc !=0)) {
+          return -1;
+        }
+        (void)((uw = (uw / 256)));
+        (void)((bi = (bi + 1)));
+      }
+      /* High half is the sign fill of the i32 word. The 3-arg folder
+       * returns 0 when the value does not fit in that fill.
+       * PLATFORM: WINDOWS — Darwin bake_elems.o writes the same fill. */
+      if ((ev < 0)) {
+        (void)((uw = ((uint32_t)(0 - 1))));
+      } else {
+        (void)((uw = ((uint32_t)(0))));
+      }
       while ((bi < esz)) {
         (void)((rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, (((data_base + base_off) + (ei * esz)) + bi), ((int32_t)((uw & 255))))));
         if ((rc !=0)) {

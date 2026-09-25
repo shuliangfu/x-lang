@@ -53,7 +53,10 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * |x| >= 2^31 returns 0 except exactly -2^31. Inf and NaN return 0,
  * so (1.0 / 0.0) as i32 stays unfolded. Float MOD stays unfolded.
  * An f32-typed binop is not rounded back to f32 before the trunc.
- * A 64-bit target returns 0: this ABI has no high half.
+ * TYPE_U64, TYPE_I64, TYPE_USIZE, and TYPE_ISIZE (kinds 4..7) store
+ * this same i32 word. The baker sign-fills the high half. A value
+ * outside signed i32 stays unfolded, so 2147483648.0 as i64 returns 0.
+ * (0 - 1) as i64 is the sign fill of -1.
  * @param arena *u8 — AST arena; null returns 0
  * @param eref i32 — expression ref; <= 0 returns 0
  * @param out_val *i32 — one i32 slot; null returns 0; written only on success
@@ -236,7 +239,8 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     return 1;
   }
-  // AS. 32-bit targets only. An integer operand is already in out_val.
+  // AS. Kinds 0..3 are 32-bit cells. Kinds 4..7 are 64-bit cells:
+  // the word below is the low half, and the baker sign-fills the rest.
   // A float literal is truncated below. The baker peels the bytes.
   if (ek == 54) {
     unsafe {
@@ -251,7 +255,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     unsafe {
       tk = pipeline_type_kind_ord_at(arena, tgt);
     }
-    if (tk != 0 && tk != 1 && tk != 2 && tk != 3) {
+    // 0 i32, 1 bool, 2 u8, 3 u32, 4 u64, 5 i64, 6 usize, 7 isize.
+    // f32 (14) and f64 (15) stay unfolded: this word is an integer.
+    if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7) {
       return 0;
     }
     if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val) != 0) {
