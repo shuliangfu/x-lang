@@ -27,7 +27,8 @@ truncated at run. PLATFORM: WINDOWS tip bake stack.
 w1027/w1028: Windows product uses host-cc thin trampolines
 (seeds/backend_call_dispatch_win_thin_trampolines.c) so call-surface
 fat→_impl jmp is OFF by default. Re-enable with XLANG_WIN_FORCE_CALL_PATCH=1.
-enc_label / append_reloc dual-T patches remain. PLATFORM: WINDOWS.
+w1030: enc_label dual-T closed (authority only in enc_dispatch_thin; enc_c.x
+no longer exports). append_reloc dual-T patch remains. PLATFORM: WINDOWS.
 
 Usage (from compiler/ after g05 link):
   python3 scripts/win_patch_body_sync_jmp.py [xlang.exe]
@@ -46,7 +47,8 @@ from pathlib import Path
 # w1027: host-cc thin trampolines first-win on Windows (ensure_win_call_dispatch_host_thin).
 # w1028: call-surface jmp is OFF by default (trampoline already forwards to _impl).
 # Escape: XLANG_WIN_FORCE_CALL_PATCH=1 re-enables fat→_impl jmp if tip fat reappears.
-# enc_label / append_reloc dual-T patches stay on. PLATFORM: WINDOWS.
+# w1030: enc_label removed from dual-T list (single T from enc_dispatch_thin).
+# append_reloc dual-T patch stays on. PLATFORM: WINDOWS.
 _TIP_FAT_TO_IMPL: tuple[str, ...] = (
     "pipeline_asm_emit_call_elf_c",
     "pipeline_asm_emit_call_args_elf_c",
@@ -60,9 +62,9 @@ _TIP_FAT_TO_IMPL: tuple[str, ...] = (
     "glue_asm_build_call_export_sym_c",
 )
 
-# w1026: dual strong T — earliest tip fat → later Cap residual twin.
+# w1026/w1030: dual strong T — earliest tip fat → later Cap residual twin.
+# enc_label closed in w1030 (enc_c.x no longer emits). append_reloc remains.
 _TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = (
-    "arch_x86_64_enc_enc_label",
     "pipeline_elf_ctx_append_reloc",
 )
 
@@ -156,7 +158,7 @@ def _patch_tip_fat_to_impl(
 
     w1028: OFF by default — host-cc thin trampolines already call `_impl`
     (w1027). Set XLANG_WIN_FORCE_CALL_PATCH=1 to re-enable. Legacy
-    XLANG_WIN_SKIP_CALL_PATCH=1 still skips. enc_label dual-T stays on.
+    XLANG_WIN_SKIP_CALL_PATCH=1 still skips. w1030: enc_label dual-T closed.
     """
     force = os.environ.get("XLANG_WIN_FORCE_CALL_PATCH", "") == "1"
     skip = os.environ.get("XLANG_WIN_SKIP_CALL_PATCH", "") == "1"

@@ -133,12 +133,13 @@ static uint8_t *x86_enc_ctx_bytes(struct platform_elf_ElfCodegenCtx *elf_ctx) {
 
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X
-/* w927: arch_x86_64_enc_enc_label is defined in backend_enc_dispatch_thin.x.
+/* w927/w1030: arch_x86_64_enc_enc_label is defined in backend_enc_dispatch_thin.x.
  * Pad runs in its own block. The code length is read in a later block.
  * add_label uses that length. A function export may prepend one
  * underscore byte via memcpy, then calls add_sym.
  * A local label returns after add_label.
- * This file no longer emits this symbol.
+ * This file no longer emits this symbol (w1030 also removed the tip .x export
+ * that had reintroduced a second strong T on Windows PE).
  * The body does not compare elf_ctx with 0 and does not divide.
  * PLATFORM: SHARED. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
