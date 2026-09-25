@@ -86,7 +86,7 @@ let g_w157_walk_stack: i32[8192] = [];
 /**
  * Recursive sum of permanent call-arg spill bytes under one expression.
  * CALL(48)/METHOD_CALL(49): each reg-class arg (and method receiver) reserves
- * 32B without reclaim; nested calls counted in subtrees. Walks binop/ASSIGN
+ * 8B without reclaim (w1041; was 32/16); nested calls counted in subtrees. Walks binop/ASSIGN
  * (*ASSIGN 28..38 via binop left/right)/unary/AS/INDEX/FIELD/ARRAY_LIT/
  * STRUCT_LIT/EXPR_IF children. ASSIGN must be walked: body expr stmts are
  * often `x = call(...)`; omitting them under-sizes pure-asm frames.
@@ -134,7 +134,7 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
     // w1040: single-GP spill stride is 8; dual-GP still 16 home + 16 advance.
     // Count (n+1)*16 as the per-CALL budget (was *32 when stride was always 32).
     // Extra +1 home: ARM64 emit can use n+1 slots for an n-arg CALL.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 16;
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 8;
     return;
   }
   // EXPR_METHOD_CALL = 49
@@ -161,7 +161,7 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
       i = i + 1;
     }
     // Receiver + args.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 16;
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 8;
     return;
   }
   // P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind

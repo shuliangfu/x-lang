@@ -1229,8 +1229,8 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
     }
-    /* w1040: single-GP stride 8 / dual 16; budget (n+1)*16 (was *32). */
-    g_w157_spill_total += (n + 1) * 16;
+    /* w1041: single-GP stride 8; budget (n+1)*8 (was egg *32 / w1040 *16). */
+    g_w157_spill_total += (n + 1) * 8;
     return;
   }
   if (ko == 49) { /* EXPR_METHOD_CALL */
@@ -1243,7 +1243,7 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
       arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
     }
-    g_w157_spill_total += (n + 1) * 16;
+    g_w157_spill_total += (n + 1) * 8;
     return;
   }
   /*

@@ -324,6 +324,8 @@ export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, er: i32): i32;
 /** Resolve local VAR frame offset by name (scoped). PLATFORM: SHARED. */
 export extern "C" function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, nlen: i32): i32;
+/** Resolve local VAR frame offset by name (unscoped fallback). PLATFORM: SHARED. */
+export extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: i32): i32;
 export extern function pipeline_module_func_set_is_used(module: *u8, fi: i32, is_used: i32): void;
 export extern function backend_enc_call_stack_reserve_arch(elf: *u8, nbytes: i32, ta: i32): i32;
 export extern function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
@@ -2512,17 +2514,37 @@ export function pipeline_asm_emit_call_args_elf_c(
         i = i + 1;
       }
       // Emit + spill register-class args.
+      // w1041: single-GP EXPR_VAR reuses its stack home as spill_off so
+      // tip emit does not double-write (load home→rax→spill→reload). Host
+      // thin trampolines already avoid that path. PLATFORM: SHARED.
       i = 0;
       while (i < nargs) {
         if (gp_start[i] >= 0 || fp_slot[i] >= 0) {
           let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref != 0) {
-            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
-              return 0 - 1;
+            let home_off: i32 = 0 - 1;
+            if (fp_slot[i] < 0 && gp_units[i] == 1
+                && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+              let vlen_h: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+              if (vlen_h > 0 && vlen_h <= 255) {
+                let vname_h: u8[256] = [];
+                pipeline_expr_var_name_into(arena, arg_ref, &vname_h[0]);
+                home_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_h[0], vlen_h);
+                if (home_off < 0) {
+                  home_off = asm_ctx_local_find_offset(ctx, &vname_h[0], vlen_h);
+                }
+              }
             }
-            let so: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);
-            if (so < 0) { return 0 - 1; }
-            spill_off[i] = so;
+            if (home_off >= 0) {
+              spill_off[i] = home_off;
+            } else {
+              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              let so: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);
+              if (so < 0) { return 0 - 1; }
+              spill_off[i] = so;
+            }
           }
         }
         i = i + 1;
@@ -2640,17 +2662,36 @@ export function pipeline_asm_emit_call_args_elf_c(
         i = i + 1;
       }
       // Emit + spill every register-class arg (order free: values go to frame).
+      // w1041: single-GP EXPR_VAR reuses stack home (no emit+spill double-write).
+      // PLATFORM: SHARED — x86_64 SysV / Win64 (host_is_windows reg map).
       i = 0;
       while (i < nargs) {
         if (gp_start[i] >= 0) {
           let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref != 0) {
-            if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
-              return 0 - 1;
+            let home_off: i32 = 0 - 1;
+            if (is_sse[i] == 0 && gp_units[i] == 1
+                && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+              let vlen_h: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+              if (vlen_h > 0 && vlen_h <= 255) {
+                let vname_h: u8[256] = [];
+                pipeline_expr_var_name_into(arena, arg_ref, &vname_h[0]);
+                home_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_h[0], vlen_h);
+                if (home_off < 0) {
+                  home_off = asm_ctx_local_find_offset(ctx, &vname_h[0], vlen_h);
+                }
+              }
             }
-            let so: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);
-            if (so < 0) { return 0 - 1; }
-            spill_off[i] = so;
+            if (home_off >= 0) {
+              spill_off[i] = home_off;
+            } else {
+              if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              let so: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);
+              if (so < 0) { return 0 - 1; }
+              spill_off[i] = so;
+            }
           }
         }
         i = i + 1;

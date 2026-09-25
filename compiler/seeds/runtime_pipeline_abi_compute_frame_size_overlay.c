@@ -113,9 +113,10 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, in
     }
   }
   scratch = call_spill;
-  /* w1032/w1033/w1040: leaf=0; small spill→+64 pad; heavy (>=1024)→2048 floor.
+  /* w1032/w1033/w1040/w1041: leaf=0; small spill→+64 pad; heavy (>=1024)→2048 floor.
    * w1040 drops the unconditional +64 trailer (leaf was forced to sub $0x68)
-   * and shrinks small-spill pad 256→64 now that single-GP spill stride is 8. */
+   * and shrinks small-spill pad 256→64 now that single-GP spill stride is 8.
+   * w1041 call_spill overlay budgets (n+1)*8 so pad/trailer stay meaningful. */
   if (call_spill > 0) {
     if (call_spill >= 1024) {
       if (scratch < 2048) {

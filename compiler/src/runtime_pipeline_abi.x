@@ -58514,11 +58514,11 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
       i = i + 1;
     }
-    // 32B per reg-class arg (GLUE_ASM_CALL_SPILL_SLOT_BYTES) plus one
-    // extra 32B slot: ARM64 emit uses 5 homes for a 4-arg CALL
-    // (glue_sysv_spill_rax_rdx_to_frame_c stride 32, plus ADDR_OF/INDEX
-    // temp). METHOD already counted receiver as +1.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
+    // w1041: (n+1)*8 matches single-GP spill stride 8 (was *32; w1040
+    // cold/thin *16 never landed in product egg — HARD BAN tip reinject).
+    // Extra +1 covers ADDR_OF/INDEX temp / dual-GP high half slack.
+    // METHOD already counted receiver as +1 in the walk.
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 8;
     return;
   }
   // EXPR_METHOD_CALL = 49
@@ -58544,8 +58544,8 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
       i = i + 1;
     }
-    // Receiver + args.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
+    // Receiver + args (w1041 *8).
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 8;
     return;
   }
   // P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind

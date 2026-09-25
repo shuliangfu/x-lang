@@ -270,6 +270,8 @@ def main() -> int:
         "glue_emit_fixed_array_type_let_init_elf_c",
         # w1032: leaf scratch floor skip overlay. PLATFORM: WINDOWS.
         "pipeline_asm_compute_frame_size_c",
+        # w1041: call_spill (n+1)*8 overlay. PLATFORM: WINDOWS.
+        "glue_asm_sum_block_call_spill_bytes",
     )
     patched = 0
     # w1026: tip fat call / enc_label / reloc surface → Cap residual. Do this
