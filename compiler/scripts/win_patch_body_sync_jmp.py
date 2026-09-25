@@ -28,7 +28,10 @@ w1027/w1028: Windows product uses host-cc thin trampolines
 (seeds/backend_call_dispatch_win_thin_trampolines.c) so call-surface
 fat→_impl jmp is OFF by default. Re-enable with XLANG_WIN_FORCE_CALL_PATCH=1.
 w1030: enc_label dual-T closed (authority only in enc_dispatch_thin; enc_c.x
-no longer exports). append_reloc dual-T patch remains. PLATFORM: WINDOWS.
+no longer exports).
+w1031: append_reloc dual-T closed (pabi_weak keeps earliest Cap EXTERNAL;
+later tip-inject twin demoted STATIC via win_coff_keep_earliest_sym).
+PLATFORM: WINDOWS.
 
 Usage (from compiler/ after g05 link):
   python3 scripts/win_patch_body_sync_jmp.py [xlang.exe]
@@ -48,7 +51,8 @@ from pathlib import Path
 # w1028: call-surface jmp is OFF by default (trampoline already forwards to _impl).
 # Escape: XLANG_WIN_FORCE_CALL_PATCH=1 re-enables fat→_impl jmp if tip fat reappears.
 # w1030: enc_label removed from dual-T list (single T from enc_dispatch_thin).
-# append_reloc dual-T patch stays on. PLATFORM: WINDOWS.
+# w1031: append_reloc removed (pabi_weak demotes later tip-inject twin).
+# PLATFORM: WINDOWS.
 _TIP_FAT_TO_IMPL: tuple[str, ...] = (
     "pipeline_asm_emit_call_elf_c",
     "pipeline_asm_emit_call_args_elf_c",
@@ -62,11 +66,9 @@ _TIP_FAT_TO_IMPL: tuple[str, ...] = (
     "glue_asm_build_call_export_sym_c",
 )
 
-# w1026/w1030: dual strong T — earliest tip fat → later Cap residual twin.
-# enc_label closed in w1030 (enc_c.x no longer emits). append_reloc remains.
-_TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = (
-    "pipeline_elf_ctx_append_reloc",
-)
+# w1026 dual strong T table — enc_label (w1030) and append_reloc (w1031) closed.
+# Empty: keep the helper for escape / future twins. PLATFORM: WINDOWS.
+_TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = ()
 
 
 def _nm(exe: Path) -> dict[str, list[tuple[int, str]]]:

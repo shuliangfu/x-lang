@@ -813,6 +813,15 @@ case "$UNAME_S" in
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done
         fi
+        # w1031: egg embeds dual strong T for append_reloc (leftover Cap +
+        # historic tip elf_ctx inject). Same-TU already calls earliest;
+        # demote later EXTERNAL→STATIC so PE exports one T and win_patch
+        # dual-T jmp is unnecessary. PLATFORM: WINDOWS.
+        if [ -f scripts/win_coff_keep_earliest_sym.py ]; then
+          python3 scripts/win_coff_keep_earliest_sym.py \
+            build_asm/selfhost_pabi/pabi_weak.o \
+            pipeline_elf_ctx_append_reloc 2>/dev/null || true
+        fi
         _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
       fi
     fi
