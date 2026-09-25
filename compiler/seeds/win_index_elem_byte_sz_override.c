@@ -109,15 +109,20 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
       }
       if (kind_ord == 11)
         return 16;
-      /* ARRAY/SLICE: true-pack named i8 → 1; Cap residual i16/u16 → 4.
-       * PLATFORM: SHARED (WINDOWS leftover-PE first-wins + Darwin/Linux tip).
-       * w1013: Win bake tip + jmp makes INDEX esz=1 safe.
+      /* ARRAY/SLICE: true-pack named i8 → 1 on Darwin/Linux.
+       * PLATFORM: WINDOWS — Cap residual INDEX esz=4 until bake tip is
+       * stable with emit/assign (w1013 park). SHARED otherwise.
        */
       if (kind_ord == 8) {
         uint8_t sn[64];
         int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
-        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8') {
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
+          return 4;
+#else
           return 1;
+#endif
+        }
         if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
           return 4;
         if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')

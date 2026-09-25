@@ -143,6 +143,14 @@ def main() -> int:
         weak = [a for a, k in entries if k == "W"]
         patched += _patch_w_to_t(data, secs, name, strong, weak)
         if name == "pipe_modlet_bake_array_lit_elems_to_data":
+            # Only redirect leftovers when tip first-wins left W entries.
+            # Without tip, egg has two strong T — do NOT jmp them into each
+            # other (w1013 regression). PLATFORM: WINDOWS.
+            if not weak:
+                print(
+                    "win_patch_body_sync_jmp: skip bake_array extra/cold (no W tip)"
+                )
+                continue
             patched += _patch_extra_t_to_primary(data, secs, name, strong)
             # Local cold entry (lowercase t) — same-TU e8 targets.
             cold_name = "pipe_modlet_bake_array_lit_elems_to_data_cold"
