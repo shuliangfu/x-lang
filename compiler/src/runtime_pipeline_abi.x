@@ -35519,7 +35519,10 @@ export function pipeline_asm_var_is_emit_func_param_ptr_c(arena: *u8, mod: *u8, 
  * @return i32 - 16-aligned frame + scratch + 64 pad (min 64)
  * Scratch floor 2048 (was 512): emit next_offset can exceed the w157
  * sum; undersize smashes caller (Darwin invoke_cc_impl c_paths NULL).
- * wave141 pure: G.7 authority (was pipeline_asm_compute_frame_size_c).
+ * w1032: apply the 2048 floor only when call_spill > 0. Leaf / no-call
+ * bodies keep scratch 0 so tip-compiled leaves are not forced to
+ * `sub $0x888`. Call sites keep the historical floor (walker under-count
+ * safety). wave141 pure: G.7 authority (was pipeline_asm_compute_frame_size_c).
  * Cap residual: storage + local_reset/fill tree + home width + return size +
  *   hoist/top-level lets + array/wa/reent/call_spill temps + host_is_arm64.
  * PLATFORM: SHARED freestanding · host ISA polarity for param advancement.
@@ -35620,10 +35623,13 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
    * invoke_cc_append_argv_head_flags storing at x29+0x898 past a 0x6d0
    * frame (512 scratch) and smashing caller xlang_invoke_cc_impl's
    * c_paths context. 2048 covers the observed ~1032B high-water.
-   * PLATFORM: SHARED — ARM64 AAPCS64 smash is the first reporter; x86
-   * SysV has the same under-size, often hidden by red zone / padding. */
-  if (scratch < 2048) {
-    scratch = 2048;
+   * w1032: skip the floor when call_spill==0 (leaf / no CALL sites) so
+   * tip-compiled leaves are not forced to sub $0x888. Call-bearing
+   * bodies keep the floor. PLATFORM: SHARED. */
+  if (call_spill > 0) {
+    if (scratch < 2048) {
+      scratch = 2048;
+    }
   }
   size = size + scratch;
   return size + 64;
