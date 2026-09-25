@@ -357,10 +357,13 @@ if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/body_sync_let_order.
   _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
 fi
 # w1012: true-pack ARRAY i8 INDEX esz=1 + sext8 emit_index. First-wins.
-# bake_elems.o is the Darwin/Win baker twin; on Linux it first-wins the
-# bake face when modlet.o cannot rebuild (T001 in has_ptr_addr). Prefer
-# bake_elems ahead of modlet so named i8 packs at esz=1.
+# bake_elems + bake_struct are the Darwin/Win baker twins; on Linux they
+# first-win the bake face when modlet.o cannot rebuild (T001). They
+# cross-call; both must link. Prefer ahead of other pabi sidecars.
 # PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
+fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
 fi
