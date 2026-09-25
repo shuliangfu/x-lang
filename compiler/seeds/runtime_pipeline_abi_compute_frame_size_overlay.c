@@ -134,5 +134,15 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, in
   if (call_spill >= 256) {
     return size + 64;
   }
+  /*
+   * w1043: param-home-only forwarders land at next_off==56 (16+5*8) then
+   * 16-align to 64; with push rbx that becomes sub $0x48. Cap at 48 so
+   * the lean prologue (no rbx, pad ≡0) emits sub $0x30 like host thin.
+   * Homes at rbp-16..rbp-48 still fit. PLATFORM: SHARED.
+   */
+  if (call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 &&
+      size > 48 && size <= 64) {
+    return 48;
+  }
   return size;
 }

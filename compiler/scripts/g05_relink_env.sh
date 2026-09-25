@@ -160,9 +160,19 @@ case "$UNAME_S" in
     fi
     # PLATFORM: LINUX | WINDOWS — bare sub rsp,imm32 > 1 page skips the
     # Windows guard page (SEGV on deep AS/compare folds). This object
-    # replaces arch_x86_64_enc_enc_prologue with a probed allocator.
+    # replaces arch_x86_64_enc_enc_prologue (+ epilogue w1043) with a
+    # probed allocator and lean small-frame (no rbx when frame<=48).
     # PE first-wins: must precede backend_enc_dispatch.o /
-    # backend_x86_64_enc_c.o. Absent file keeps the unprobed prologue.
+    # backend_x86_64_enc_c.o. Rebuild from .c when present.
+    if [ -f src/asm/backend_x86_64_enc_prologue_chkstk.c ]; then
+      mkdir -p build_asm/selfhost_pabi
+      # shellcheck disable=SC2086
+      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -c -o \
+          build_asm/selfhost_pabi/prologue_chkstk.o \
+          src/asm/backend_x86_64_enc_prologue_chkstk.c 2>/dev/null; then
+        :
+      fi
+    fi
     if [ -s build_asm/selfhost_pabi/prologue_chkstk.o ]; then
       _USER_ASM_LINK="build_asm/selfhost_pabi/prologue_chkstk.o $_USER_ASM_LINK"
     fi

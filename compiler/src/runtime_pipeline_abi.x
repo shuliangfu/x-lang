@@ -35645,6 +35645,13 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   if (call_spill >= 256) {
     return size + 64;
   }
+  /* w1043: param-home-only forwarders (next_off≈56→align 64) cap at 48 so
+   * lean prologue (no rbx) emits sub $0x30 like host thin. PLATFORM: SHARED. */
+  if (call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0) {
+    if (size > 48 && size <= 64) {
+      return 48;
+    }
+  }
   return size;
 }
 
