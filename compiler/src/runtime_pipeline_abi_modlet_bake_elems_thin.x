@@ -23,6 +23,9 @@ export extern "C" function pipe_modlet_bake_ptr_addr_elem_to_data(
 export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
   arena: *u8, elf_ctx: *u8, eref: i32, slot_off: i32
 ): i32;
+export extern "C" function pipe_modlet_bake_struct_lit_to_data(
+  arena: *u8, elf_ctx: *u8, lit_ref: i32, elem_base: i32, m: *u8
+): i32;
 
 /**
  * Bake one module ARRAY_LIT into an already-reserved data span.
@@ -135,8 +138,13 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   unsafe {
     esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
   }
+  // A TYPE_NAMED element (kind 8) keeps its real size. One f64
+  // field is 8. A wider struct must not be forced down to 4, or the
+  // next element would overlap the first. PLATFORM: MACOS|DARWIN.
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
-    esz = 4;
+    if (etk != 8 || esz <= 0) {
+      esz = 4;
+    }
   }
   unsafe {
     ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
@@ -162,6 +170,20 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         slot = data_base + base_off + ei * esz;
         unsafe {
           rc = pipe_modlet_bake_string_lit_elem_to_data(arena, elf_ctx, eref, slot);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        skip = 1;
+      }
+      // STRUCT_LIT. Field offsets come from the module layout. The
+      // scalar folder does not know those offsets, so a struct element
+      // goes to the struct baker. S { v: 1.0 } for f64 is
+      // 000000000000f03f. PLATFORM: MACOS|DARWIN.
+      if (skip == 0 && ek == 45) {
+        slot = data_base + base_off + ei * esz;
+        unsafe {
+          rc = pipe_modlet_bake_struct_lit_to_data(arena, elf_ctx, eref, slot, m);
         }
         if (rc != 0) {
           return 0 - 1;

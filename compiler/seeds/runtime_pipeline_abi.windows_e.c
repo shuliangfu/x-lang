@@ -1711,6 +1711,7 @@ extern int32_t pipe_modlet_array_lit_string_pool_bytes(uint8_t * arena, int32_t 
 extern int32_t pipe_modlet_bake_string_lit_elem_to_data(uint8_t * arena, uint8_t * elf_ctx, int32_t eref, int32_t slot_off);
 extern int32_t pipe_modlet_bake_ptr_addr_elem_to_data(uint8_t * arena, uint8_t * elf_ctx, uint8_t * m, int32_t eref, int32_t esz, int32_t slot_off);
 extern int32_t pipe_modlet_array_lit_elem_const_val(uint8_t * arena, int32_t eref, int32_t * out_val, int32_t * out_hi);
+extern int32_t pipe_modlet_bake_struct_lit_to_data(uint8_t * arena, uint8_t * elf_ctx, int32_t lit_ref, int32_t elem_base, uint8_t * m);
 extern int32_t pipe_modlet_scalar_init_common_imm(uint8_t * arena, int32_t init_ref, int32_t tk, int32_t is_const, int32_t * out_imm);
 extern int32_t pipe_modlet_scalar_init_is_ptr_addr(uint8_t * arena, uint8_t * m, int32_t init_ref);
 extern int32_t pipe_modlet_array_lit_has_ptr_addr_elem(uint8_t * arena, int32_t init_ref, int32_t elem_ty);
@@ -22886,8 +22887,12 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
     return 0;
   }
   (void)((esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty)));
+  /* TYPE_NAMED (kind 8) keeps its real size. One f64 field is 8.
+   * A wider struct must not be forced down to 4. PLATFORM: WINDOWS. */
   if (((((esz !=1) && (esz !=2)) && (esz !=4)) && (esz !=8))) {
-    (void)((esz = 4));
+    if (((etk !=8) || (esz <=0))) {
+      (void)((esz = 4));
+    }
   }
   (void)((ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref)));
   if ((ne <=0)) {
@@ -22905,6 +22910,17 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
         (void)((rc = pipe_modlet_bake_string_lit_elem_to_data(arena, elf_ctx, eref, ((data_base + base_off) + (ei * esz)))));
         if ((rc !=0)) {
           return rc;
+        }
+        (void)((ei = (ei + 1)));
+        continue;
+      }
+      /* STRUCT_LIT. Field offsets live in the module layout. The
+       * scalar folder does not know them. S { v: 1.0 } for f64 is
+       * 000000000000f03f. PLATFORM: WINDOWS. */
+      if ((ek ==45)) {
+        (void)((rc = pipe_modlet_bake_struct_lit_to_data(arena, elf_ctx, eref, ((data_base + base_off) + (ei * esz)), m)));
+        if ((rc !=0)) {
+          return -1;
         }
         (void)((ei = (ei + 1)));
         continue;

@@ -368,6 +368,13 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
   fi
+  # STRUCT_LIT elements. The array baker calls this object. A missing
+  # file leaves struct elements unfolded. Do not link it on Linux:
+  # Ubuntu's modlet.o already bakes struct fields.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
+    _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -384,6 +391,12 @@ case "$UNAME_S" in
     fi
     if [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
+    fi
+    # STRUCT_LIT elements. The egg baker calls this object. Do not
+    # link bake_elems.o here: the egg is the Windows array baker.
+    # PLATFORM: WINDOWS.
+    if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
     fi
     ;;
 esac
