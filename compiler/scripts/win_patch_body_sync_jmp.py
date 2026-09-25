@@ -186,8 +186,13 @@ def main() -> int:
                     print(
                         f"win_patch_body_sync_jmp: {cold_name} t={c_addr:#x} -> T={t_addr:#x}"
                     )
-        elif weak and len(strong) > 1:
-            # Tip + leftover T duplicates: fold extras to first T.
+        elif len(strong) > 1 and (
+            weak or name == "glue_emit_fixed_array_type_let_init_elf_c"
+        ):
+            # Tip + leftover T duplicates: fold extras to earliest T.
+            # w1024: let_init tip may leave dual egg T with no W when
+            # weaken misses one COMDAT — still jmp extras to tip.
+            # PLATFORM: WINDOWS. bake_array keeps the no-W skip above.
             patched += _patch_extra_t_to_primary(data, secs, name, strong)
     if patched:
         exe.write_bytes(data)

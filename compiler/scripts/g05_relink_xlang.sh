@@ -134,7 +134,15 @@ cp -f "$OUT" "$XLANG_C"
 cp -f "$OUT" "$BOOTSTRAP"
 echo "g05_relink_xlang OK ($OUT → $XLANG_C + $BOOTSTRAP)"
 
-if [ "${G05_SYNC_ASM:-}" = "1" ]; then
-  cp -f "$OUT" xlang_asm
-  echo "g05_relink_xlang: synced xlang_asm"
-fi
+# Always sync product asm name after g05. On Windows MinGW, L2 defaults to
+# ./compiler/xlang_asm (no .exe) while -o xlang materializes as xlang.exe —
+# a stale bare xlang_asm silently fails hello/si while xlang_asm.exe is green.
+# PLATFORM: WINDOWS sync both names; SHARED sync bare xlang_asm.
+cp -f "$OUT" xlang_asm
+echo "g05_relink_xlang: synced xlang_asm"
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    cp -f "$OUT" xlang_asm.exe
+    echo "g05_relink_xlang: synced xlang_asm.exe"
+    ;;
+esac
