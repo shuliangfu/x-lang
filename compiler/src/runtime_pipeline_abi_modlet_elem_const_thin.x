@@ -907,10 +907,13 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     if (ok == 4 || ok == 5) {
       got = ok;
       if (ok == 4) {
+        // Keep the f32 word as-is. Do not widen through glue here —
+        // the Windows host that runs this folder has segfaulted on
+        // the widen path inside NE (EQ widen still works). Compare
+        // the raw f32 words below. PLATFORM: WINDOWS.
         unsafe {
-          lv = pipe_load_i32_le(out_val as *u8, 0);
-          llo = glue_ieee_f32_bits_to_f64_lo(lv);
-          lhi = glue_ieee_f32_bits_to_f64_hi(lv);
+          llo = pipe_load_i32_le(out_val as *u8, 0);
+          lhi = 0;
         }
       } else {
         if (out_hi == 0 as *i32) {
@@ -927,9 +930,8 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       }
       if (ok == 4) {
         unsafe {
-          rv = pipe_load_i32_le(out_val as *u8, 0);
-          rlo = glue_ieee_f32_bits_to_f64_lo(rv);
-          rhi = glue_ieee_f32_bits_to_f64_hi(rv);
+          rlo = pipe_load_i32_le(out_val as *u8, 0);
+          rhi = 0;
         }
       } else {
         if (out_hi == 0 as *i32) {
@@ -955,17 +957,12 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
           return 0;
         }
       }
-      lp[0] = llo;
-      lp[1] = lhi;
-      rp[0] = rlo;
-      rp[1] = rhi;
-      // Integer word compare of both halves. Start at 1, clear when
-      // both words match — same shape as LE/GE. Avoid host float `!=`
-      // and avoid else on float `==`. -0.0 and +0.0 differ in bit 63.
+      // Integer word compare. f32 uses one word (rhi/lhi stay 0).
+      // f64 uses both. Start at 1, clear when both match.
       // PLATFORM: MACOS|DARWIN / WINDOWS.
       result = 1;
-      if (lp[0] == rp[0]) {
-        if (lp[1] == rp[1]) {
+      if (llo == rlo) {
+        if (lhi == rhi) {
           result = 0;
         }
       }
