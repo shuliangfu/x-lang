@@ -26,10 +26,14 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * and false is 0. EXPR_NEG (ek 22) folds its operand with this function,
  * then negates that 32-bit word. ADD, SUB, MUL, shifts, and bitwise
  * ops (ek 4, 5, 6, 9..13) fold both children the same way.
- * DIV (7) and MOD (8) return 0. This file is compiled by the Windows
- * product compiler, whose idiv does not sign-extend into edx, so a
- * negative dividend traps that process. The Ubuntu 4-arg thin still
- * folds those two kinds. A shift count outside 0..31 returns 0.
+ * DIV (7) and MOD (8) use the language operators. A zero divisor and
+ * INT_MIN divided by -1 return 0, so the baker loud-fails.
+ * lv + 2147483647 == -1 only for the most-negative i32.
+ * Compile this file with XLANG_PREFER_ASM_O=1 so those operators do
+ * not emit an xlang_panic_ reloc. The Windows compiler that compiles
+ * it must already emit cqo before idiv. cltd leaves rdx wrong, and a
+ * negative dividend then traps that process. A shift count outside
+ * 0..31 returns 0.
  * EXPR_AS (ek 54) accepts TYPE_I32 (0), TYPE_BOOL (1), TYPE_U8 (2),
  * and TYPE_U32 (3). The baker peels esz bytes of this word, so a u8
  * cell keeps the low byte: (0 - 1) as u8 stores 255, 256 as u8 stores 0,
@@ -130,7 +134,26 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       result = lv * rv;
       ok = 1;
     }
-    // EXPR_DIV=7 and EXPR_MOD=8 stay unfolded (ok stays 0).
+    // EXPR_DIV=7 and EXPR_MOD=8. Zero and INT_MIN/-1 are not constants.
+    // The language operators are compiled into this function, so the
+    // Windows compiler must emit cqo before the 64-bit idiv.
+    if (ek == 7 || ek == 8) {
+      if (rv == 0) {
+        return 0;
+      }
+      if (rv == (0 - 1)) {
+        if (lv + 2147483647 == (0 - 1)) {
+          return 0;
+        }
+      }
+      if (ek == 7) {
+        result = lv / rv;
+      }
+      if (ek == 8) {
+        result = lv % rv;
+      }
+      ok = 1;
+    }
     if (ek == 9 || ek == 10) {
       if (rv < 0 || rv >= 32) {
         return 0;
