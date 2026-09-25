@@ -367,19 +367,23 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
                       memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
                       memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
                     }
+                    // Separate ifs, not an else chain. The compiler that
+                    // emits this function clobbers the divisor register in
+                    // the compare and then drops the reload on an else
+                    // arm, so fdiv would use the kind code as the divisor.
+                    // Each arm below reloads both halves after its compare.
+                    // EXPR_DIV of zero stays IEEE infinity.
                     if (sek == 4) {
                       fr = av + bv;
-                    } else {
-                      if (sek == 5) {
-                        fr = av - bv;
-                      } else {
-                        if (sek == 6) {
-                          fr = av * bv;
-                        } else {
-                          // EXPR_DIV. A zero divisor stays IEEE infinity.
-                          fr = av / bv;
-                        }
-                      }
+                    }
+                    if (sek == 5) {
+                      fr = av - bv;
+                    }
+                    if (sek == 6) {
+                      fr = av * bv;
+                    }
+                    if (sek == 7) {
+                      fr = av / bv;
                     }
                     unsafe {
                       memcpy((&(oparts[0])) as *u8, (&fr) as *u8, 8 as usize);
