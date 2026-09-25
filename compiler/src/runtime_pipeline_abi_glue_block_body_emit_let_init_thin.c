@@ -222,7 +222,6 @@ XLANG_TIP_ABI int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf
   }
 
   let_ty2 = pipeline_block_let_type_ref(arena, block_ref, idx);
-          let_ty2 > 0 ? pipeline_type_kind_ord_at(arena, let_ty2) : -1, init_f32_lit);
   if (let_ty2 > 0) {
     if (pipeline_type_kind_ord_at(arena, let_ty2) == 14) {
       if (ix_init == 0 && init_f32_lit == 0) {
