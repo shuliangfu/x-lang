@@ -29,6 +29,542 @@ export extern "C" function glue_i64_to_f64_bits(v: i64, lo: *i32, hi: *i32): voi
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 
+
+/**
+ * Float-tree walker for an AS or an f32/f64 ADD/SUB/MUL/DIV whose
+ * children did not fold as integers. Owns the iterative walk stack
+ * arrays (stk_ref/step/ek/aux) so the recursive folder frame stays
+ * small enough for Windows global array baking (AS-of-compare /
+ * f32 compare nest). stk_lo/stk_hi for 64-bit integer multiply stay
+ * in the folder. Returns the same codes as the folder (1/4/5 or 0).
+ * @param arena *u8 - AST arena
+ * @param op i32 - walk root expr ref (cast operand or binop)
+ * @param tk i32 - outer target kind (14 f32, 15 f64, or integer)
+ * @param out_val *i32 - low half / f32 bits
+ * @param out_hi *i32 - high half when needed; null for 32-bit-only
+ * @return i32 - 1/4/5 folded, 0 unfolded
+ * PLATFORM: MACOS|DARWIN / WINDOWS.
+ */
+function pipe_modlet_array_lit_elem_const_walk(
+  arena: *u8, op: i32, tk: i32, out_val: *i32, out_hi: *i32
+): i32 {
+  let v: i32 = 0;
+  let left: i32 = 0;
+  let right: i32 = 0;
+  let lv: i32 = 0;
+  let result: i32 = 0;
+  let ok: i32 = 0;
+  let flo: i32 = 0;
+  let fhi: i32 = 0;
+  let exp: i32 = 0;
+  let e: i32 = 0;
+  let hi_sig: i32 = 0;
+  let sh: i32 = 0;
+  let rsh: i32 = 0;
+  let top: i32 = 0;
+  let mag: i32 = 0;
+  let got: i32 = 0;
+  let sp: i32 = 0;
+  let guard: i32 = 0;
+  let si: i32 = 0;
+  let pi: i32 = 0;
+  let step: i32 = 0;
+  let pstep: i32 = 0;
+  let sek: i32 = 0;
+  let sref: i32 = 0;
+  let child: i32 = 0;
+  let llo: i32 = 0;
+  let lhi: i32 = 0;
+  let rlo: i32 = 0;
+  let rhi: i32 = 0;
+  let stk_ref: i32[8] = [];
+  let stk_step: i32[8] = [];
+  let stk_ek: i32[8] = [];
+  let stk_aux: i32[8] = [];
+  let stk_lo: i32[8] = [];
+  let stk_hi: i32[8] = [];
+  let lp: i32[2] = [];
+  let rp: i32[2] = [];
+  let oparts: i32[2] = [];
+  let av: f64 = 0.0;
+  let bv: f64 = 0.0;
+  let fr: f64 = 0.0;
+  let rty: i32 = 0;
+  let rtk: i32 = 0;
+  let wlo: i32 = 0;
+  let whi: i32 = 0;
+  let k: i32 = 0;
+  let src: i32 = 0;
+  let bit: i32 = 0;
+  // Frames: 0 enter, 1 the unary child, the cast operand, or the
+  // binop left child is on the stack, 2 value is ready, 3 binop
+  // left bits sit in this frame and the right child is on the stack.
+  // For a cast, stk_aux holds 14 (f32) or 15 (f64). For a binop it
+  // holds the right child ref. Eight frames cover the probe trees.
+  // A deeper tree, a float MOD, or a non-float node returns 0.
+  // Host f64 is the operator. An f32 node then calls the existing
+  // glue_ieee helpers.
+  got = 0;
+  sp = 0;
+  guard = 0;
+  stk_ref[0] = op;
+  stk_step[0] = 0;
+  sp = 1;
+  while (sp > 0) {
+    guard = guard + 1;
+    if (guard > 48) {
+      sp = 0;
+    }
+    if (sp > 0) {
+      si = sp - 1;
+      step = stk_step[si];
+      if (step == 0) {
+        sref = stk_ref[si];
+        unsafe {
+          sek = pipeline_expr_kind_ord_at(arena, sref);
+        }
+        stk_ek[si] = sek;
+        if (sek == 1) {
+          unsafe {
+            stk_lo[si] = pipeline_expr_float_bits_lo_at(arena, sref);
+            stk_hi[si] = pipeline_expr_float_bits_hi_at(arena, sref);
+          }
+          stk_step[si] = 2;
+        } else {
+          if (sek == 22) {
+            unsafe {
+              child = pipeline_expr_unary_operand_ref_at(arena, sref);
+            }
+            if (child <= 0 || sp >= 8) {
+              sp = 0;
+            } else {
+              stk_step[si] = 1;
+              stk_ref[sp] = child;
+              stk_step[sp] = 0;
+              sp = sp + 1;
+            }
+          } else {
+            if (sek == 4 || sek == 5 || sek == 6 || sek == 7) {
+              unsafe {
+                left = pipeline_expr_binop_left_ref_at(arena, sref);
+                right = pipeline_expr_binop_right_ref_at(arena, sref);
+              }
+              if (left <= 0 || right <= 0 || sp >= 8) {
+                sp = 0;
+              } else {
+                stk_aux[si] = right;
+                stk_step[si] = 1;
+                stk_ref[sp] = left;
+                stk_step[sp] = 0;
+                sp = sp + 1;
+              }
+            } else {
+              if (sek == 54) {
+                // AS to f32 or f64 inside the float tree. Other targets
+                // are not part of this walk. stk_aux keeps 14 or 15.
+                unsafe {
+                  child = pipeline_expr_as_operand_ref_at(arena, sref);
+                  left = pipeline_expr_as_target_type_ref_at(arena, sref);
+                }
+                rtk = 0;
+                if (left > 0) {
+                  unsafe {
+                    rtk = pipeline_type_kind_ord_at(arena, left);
+                  }
+                }
+                if (child <= 0 || (rtk != 14 && rtk != 15)) {
+                  sp = 0;
+                } else {
+                  stk_aux[si] = rtk;
+                  unsafe {
+                    sek = pipeline_expr_kind_ord_at(arena, child);
+                  }
+                  // A nested cast stays here only when its target is
+                  // also f32 or f64. An integer child is one signed
+                  // i32. Return 2 is a zero high half, and
+                  // glue_i32_to_f32_bits would read that word as a
+                  // negative i32, so it stays unfolded.
+                  rty = 0;
+                  if (sek == 54) {
+                    unsafe {
+                      rty = pipeline_expr_as_target_type_ref_at(arena, child);
+                    }
+                    if (rty > 0) {
+                      unsafe {
+                        rty = pipeline_type_kind_ord_at(arena, rty);
+                      }
+                    }
+                  }
+                  if (sek == 1 || sek == 22 || sek == 4 || sek == 5 || sek == 6 || sek == 7 || rty == 14 || rty == 15) {
+                    if (sp >= 8) {
+                      sp = 0;
+                    } else {
+                      stk_step[si] = 1;
+                      stk_ref[sp] = child;
+                      stk_step[sp] = 0;
+                      sp = sp + 1;
+                    }
+                  } else {
+                    // Bare LIT/BOOL_LIT only — keeps this helper free of a
+                    // callback into the recursive folder (frame owner split).
+                    // PLATFORM: MACOS|DARWIN / WINDOWS.
+                    unsafe {
+                      sek = pipeline_expr_kind_ord_at(arena, child);
+                    }
+                    if (sek != 0 && sek != 2) {
+                      sp = 0;
+                    } else {
+                      unsafe {
+                        lv = pipeline_expr_int_val_at(arena, child);
+                      }
+                      if (rtk == 14) {
+                        unsafe {
+                          result = glue_i32_to_f32_bits(lv);
+                          stk_lo[si] = glue_ieee_f32_bits_to_f64_lo(result);
+                          stk_hi[si] = glue_ieee_f32_bits_to_f64_hi(result);
+                        }
+                      } else {
+                        unsafe {
+                          glue_i64_to_f64_bits(lv as i64, &(lp[0]), &(lp[1]));
+                        }
+                        stk_lo[si] = lp[0];
+                        stk_hi[si] = lp[1];
+                      }
+                      stk_step[si] = 2;
+                    }
+                  }
+                }
+              } else {
+                sp = 0;
+              }
+            }
+          }
+        }
+      } else {
+        if (step == 2) {
+          if (si == 0) {
+            flo = stk_lo[0];
+            fhi = stk_hi[0];
+            got = 1;
+            sp = 0;
+          } else {
+            pi = si - 1;
+            pstep = stk_step[pi];
+            sek = stk_ek[pi];
+            // Cast completion is its own if. The f64 operators stay
+            // out of this compare's else, so the divisor reload is
+            // not dropped.
+            v = 0;
+            if (pstep == 1 && sek == 54) {
+              stk_lo[pi] = stk_lo[si];
+              stk_hi[pi] = stk_hi[si];
+              if (stk_aux[pi] == 14) {
+                unsafe {
+                  result = glue_ieee_f64_bits_to_f32_bits(stk_lo[pi], stk_hi[pi]);
+                  stk_lo[pi] = glue_ieee_f32_bits_to_f64_lo(result);
+                  stk_hi[pi] = glue_ieee_f32_bits_to_f64_hi(result);
+                }
+              }
+              stk_step[pi] = 2;
+              sp = si;
+              v = 1;
+            }
+            if (v == 0 && pstep == 1 && sek == 22) {
+              // NEG flips only the IEEE sign bit.
+              stk_lo[pi] = stk_lo[si];
+              if (stk_hi[si] < 0) {
+                stk_hi[pi] = stk_hi[si] & 2147483647;
+              } else {
+                stk_hi[pi] = stk_hi[si] | (0 - 2147483647 - 1);
+              }
+              stk_step[pi] = 2;
+              sp = si;
+            } else {
+              if (pstep == 1 && (sek == 4 || sek == 5 || sek == 6 || sek == 7)) {
+                stk_lo[pi] = stk_lo[si];
+                stk_hi[pi] = stk_hi[si];
+                stk_step[pi] = 3;
+                sp = si;
+                stk_ref[sp] = stk_aux[pi];
+                stk_step[sp] = 0;
+                sp = sp + 1;
+              } else {
+                if (pstep == 3 && (sek == 4 || sek == 5 || sek == 6 || sek == 7)) {
+                  llo = stk_lo[pi];
+                  lhi = stk_hi[pi];
+                  rlo = stk_lo[si];
+                  rhi = stk_hi[si];
+                  lp[0] = llo;
+                  lp[1] = lhi;
+                  rp[0] = rlo;
+                  rp[1] = rhi;
+                  // Same bit copy as glue_ieee_f64_bits_to_f32_bits.
+                  unsafe {
+                    memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
+                    memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
+                  }
+                  // Separate ifs, not an else chain. The compiler that
+                  // emits this function clobbers the divisor register in
+                  // the compare and then drops the reload on an else
+                  // arm, so fdiv would use the kind code as the divisor.
+                  // Each arm below reloads both halves after its compare.
+                  // EXPR_DIV of zero stays IEEE infinity.
+                  if (sek == 4) {
+                    fr = av + bv;
+                  }
+                  if (sek == 5) {
+                    fr = av - bv;
+                  }
+                  if (sek == 6) {
+                    fr = av * bv;
+                  }
+                  if (sek == 7) {
+                    fr = av / bv;
+                  }
+                  unsafe {
+                    memcpy((&(oparts[0])) as *u8, (&fr) as *u8, 8 as usize);
+                  }
+                  stk_lo[pi] = oparts[0];
+                  stk_hi[pi] = oparts[1];
+                  // TYPE_F32 binop: the host operator ran in f64.
+                  // Round back to f32 and widen so the trunc matches
+                  // an f32 operation. 16777216.0 + 1.0 is 16777217.0
+                  // in f64 and 16777216.0 in f32. An unset or f64
+                  // type stays f64, so 16777217.0 as i32 is unchanged.
+                  rty = 0;
+                  unsafe {
+                    rty = pipeline_expr_resolved_type_ref(arena, stk_ref[pi]);
+                  }
+                  if (rty > 0) {
+                    unsafe {
+                      rtk = pipeline_type_kind_ord_at(arena, rty);
+                    }
+                    if (rtk == 14) {
+                      unsafe {
+                        result = glue_ieee_f64_bits_to_f32_bits(stk_lo[pi], stk_hi[pi]);
+                        stk_lo[pi] = glue_ieee_f32_bits_to_f64_lo(result);
+                        stk_hi[pi] = glue_ieee_f32_bits_to_f64_hi(result);
+                      }
+                    }
+                  }
+                  stk_step[pi] = 2;
+                  sp = si;
+                } else {
+                  // v == 1 means the cast arm already finished this
+                  // frame. Zeroing sp here would throw that value away.
+                  if (v == 0) {
+                    sp = 0;
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          sp = 0;
+        }
+      }
+    }
+  }
+  if (got == 0) {
+    return 0;
+  }
+  // Outer target is f64. The walker left both IEEE halves in flo/fhi.
+  // Store them and return 5. Do not truncate and do not pack to f32.
+  // 1.0 / 0.0 as an f64 element is +inf (000000000000f07f). The same
+  // div as an i32 still hits the exponent check below and returns 0.
+  // A null out_hi cannot carry the high half.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (tk == 15) {
+    if (out_hi == 0 as *i32) {
+      return 0;
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, flo);
+      pipe_store_i32_le(out_hi as *u8, 0, fhi);
+    }
+    return 5;
+  }
+  // Outer target is f32. The walker left f64 bits in flo/fhi.
+  // Pack them with the existing helper. Do not truncate: 1.0f is
+  // 0x3f800000, and 16777217.0 as f32 rounds to 16777216
+  // (0000804b). Return 4. An integer parent of this cast still
+  // walks the tree, so (1 as f32) as i32 stays 1.
+  if (tk == 14) {
+    unsafe {
+      result = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+      pipe_store_i32_le(out_val as *u8, 0, result);
+    }
+    return 4;
+  }
+  // Biased exponent is bits 20..30. An arithmetic shift of a negative
+  // high half still leaves those 11 bits after the mask.
+  exp = (fhi >> 20) & 2047;
+  // Inf / NaN. cvttsd2si would yield the indefinite integer.
+  if (exp == 2047) {
+    return 0;
+  }
+  // |x| < 1, including zero and subnormals, truncates to 0.
+  if (exp < 1023) {
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, 0);
+    }
+    return 1;
+  }
+  e = exp - 1023;
+  // |x| >= 2^32. The low word goes to out_val and the high word to
+  // out_hi. Return 3 tells the baker to store that high word.
+  // Sign-fill and a zero high half are both the wrong pattern:
+  // 4294967296.0 is low 0 and high 1.
+  // Integer bit k is significand bit (k + 52 - e). Significand bit 52
+  // is the implicit 1, bits 32..51 are the low 20 bits of fhi, and
+  // bits 0..31 are flo. A logical bit of a negative word is an
+  // arithmetic shift masked with 1. Bit 31 and bit 63 are ORed in as
+  // INT_MIN so a left shift never has to set the sign bit itself.
+  if (e > 31) {
+    if (out_hi == 0 as *i32) {
+      return 0;
+    }
+    if (tk != 4 && tk != 5 && tk != 6 && tk != 7) {
+      return 0;
+    }
+    // |x| >= 2^64 does not fit in any 64-bit cell.
+    if (e >= 64) {
+      return 0;
+    }
+    // Binade [2^63, 2^64). Exact ±2^63 both store low 0 and high
+    // 0x80000000: the same bits as 9223372036854775808.0 as i64 /
+    // as u64. Positive exact falls through the bit loop with no
+    // negate; negative exact negates 2^63 and lands on the same
+    // pattern. A non-exact value in this binade stays unfolded.
+    // PLATFORM: MACOS|DARWIN / WINDOWS.
+    if (e == 63) {
+      if ((fhi & 1048575) != 0 || flo != 0) {
+        return 0;
+      }
+    }
+    wlo = 0;
+    whi = 0;
+    k = 0;
+    while (k < 64) {
+      src = k + 52 - e;
+      bit = 0;
+      if (src == 52) {
+        bit = 1;
+      }
+      if (src >= 0 && src <= 31) {
+        bit = (flo >> src) & 1;
+      }
+      if (src >= 32 && src <= 51) {
+        bit = (fhi >> (src - 32)) & 1;
+      }
+      if (bit != 0) {
+        if (k < 31) {
+          wlo = wlo | (1 << k);
+        }
+        if (k == 31) {
+          wlo = wlo | (0 - 2147483647 - 1);
+        }
+        if (k > 31 && k < 63) {
+          whi = whi | (1 << (k - 32));
+        }
+        if (k == 63) {
+          whi = whi | (0 - 2147483647 - 1);
+        }
+      }
+      k = k + 1;
+    }
+    // Two's complement of the magnitude. Carry into the high word
+    // only when the low word is 0.
+    if (fhi < 0) {
+      if (wlo == 0) {
+        whi = (whi ^ (0 - 1)) + 1;
+      }
+      if (wlo != 0) {
+        wlo = 0 - wlo;
+        whi = whi ^ (0 - 1);
+      }
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, wlo);
+      pipe_store_i32_le(out_hi as *u8, 0, whi);
+    }
+    return 3;
+  }
+  // Negative binade (-2^32, -2^31]. Only exact -2^31 is the sign
+  // fill of i32 0x80000000. Anything more negative has a low word
+  // that is not that fill.
+  if (e == 31 && fhi < 0) {
+    if ((fhi & 1048575) != 0 || flo != 0) {
+      return 0;
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, 0 - 2147483647 - 1);
+    }
+    return 1;
+  }
+  // Positive [2^31, 2^32). The low word has bit 31 set and the high
+  // half is 0. i64/u64/isize/usize return 2 (zero high half).
+  // i32 and u32 return 1 with the same low word: 2147483648.0 as i32
+  // and as u32 both store 0x80000000, matching
+  // (2147483648.0 as i64) as i32. Bool and u8 stay unfolded.
+  // Each shift stays inside a positive i32. Bit 31 is ORed in last.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (e == 31) {
+    hi_sig = (1 << 20) | (fhi & 1048575);
+    rsh = 21;
+    top = 0;
+    mag = flo;
+    if (mag < 0) {
+      mag = mag & 2147483647;
+      top = 1 << 10;
+    }
+    mag = (mag >> rsh) | top;
+    mag = mag | ((hi_sig & 2047) << 11);
+    mag = mag | (((hi_sig >> 11) & 511) << 22);
+    mag = mag | (0 - 2147483647 - 1);
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, mag);
+    }
+    if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
+      return 2;
+    }
+    if (tk == 0 || tk == 3) {
+      return 1;
+    }
+    return 0;
+  }
+  // Implicit 1 plus the top 20 fraction bits. This word is positive
+  // and at most 0x1fffff.
+  hi_sig = (1 << 20) | (fhi & 1048575);
+  if (e <= 20) {
+    // Fraction below 2^0 lives in the low word and in the bits this
+    // shift drops. 1.9 has unbiased exponent 0, so the result is 1.
+    mag = hi_sig >> (20 - e);
+  } else {
+    // Unbiased 21..30. Left-shift the high significand, then OR the
+    // top (e-20) bits of the low word. Those low bits are a logical
+    // shift: an arithmetic >> of a negative low word would sign-extend.
+    sh = e - 20;
+    rsh = 32 - sh;
+    top = 0;
+    mag = flo;
+    if (mag < 0) {
+      mag = mag & 2147483647;
+      top = 1 << (31 - rsh);
+    }
+    mag = (mag >> rsh) | top;
+    mag = (hi_sig << sh) | mag;
+  }
+  if (fhi < 0) {
+    mag = 0 - mag;
+  }
+  unsafe {
+    pipe_store_i32_le(out_val as *u8, 0, mag);
+  }
+  return 1;
+  return 0;
+}
+
 /**
  * Fold one module-array element into a single i32 word.
  * EXPR_LIT (ek 0) and EXPR_BOOL_LIT (ek 2) share int_val: true is 1
@@ -225,28 +761,16 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let top: i32 = 0;
   let mag: i32 = 0;
   let got: i32 = 0;
-  let sp: i32 = 0;
   let guard: i32 = 0;
-  let si: i32 = 0;
-  let pi: i32 = 0;
   let step: i32 = 0;
-  let pstep: i32 = 0;
-  let sek: i32 = 0;
-  let sref: i32 = 0;
-  let child: i32 = 0;
   let llo: i32 = 0;
   let lhi: i32 = 0;
   let rlo: i32 = 0;
   let rhi: i32 = 0;
-  let stk_ref: i32[8] = [];
-  let stk_step: i32[8] = [];
-  let stk_ek: i32[8] = [];
-  let stk_aux: i32[8] = [];
   let stk_lo: i32[8] = [];
   let stk_hi: i32[8] = [];
   let lp: i32[2] = [];
   let rp: i32[2] = [];
-  let oparts: i32[2] = [];
   let av: f64 = 0.0;
   let bv: f64 = 0.0;
   let fr: f64 = 0.0;
@@ -2449,466 +2973,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // no second float folder.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (enter_walk == 1) {
-    // Frames: 0 enter, 1 the unary child, the cast operand, or the
-    // binop left child is on the stack, 2 value is ready, 3 binop
-    // left bits sit in this frame and the right child is on the stack.
-    // For a cast, stk_aux holds 14 (f32) or 15 (f64). For a binop it
-    // holds the right child ref. Eight frames cover the probe trees.
-    // A deeper tree, a float MOD, or a non-float node returns 0.
-    // Host f64 is the operator. An f32 node then calls the existing
-    // glue_ieee helpers.
-    got = 0;
-    sp = 0;
-    guard = 0;
-    stk_ref[0] = op;
-    stk_step[0] = 0;
-    sp = 1;
-    while (sp > 0) {
-      guard = guard + 1;
-      if (guard > 48) {
-        sp = 0;
-      }
-      if (sp > 0) {
-        si = sp - 1;
-        step = stk_step[si];
-        if (step == 0) {
-          sref = stk_ref[si];
-          unsafe {
-            sek = pipeline_expr_kind_ord_at(arena, sref);
-          }
-          stk_ek[si] = sek;
-          if (sek == 1) {
-            unsafe {
-              stk_lo[si] = pipeline_expr_float_bits_lo_at(arena, sref);
-              stk_hi[si] = pipeline_expr_float_bits_hi_at(arena, sref);
-            }
-            stk_step[si] = 2;
-          } else {
-            if (sek == 22) {
-              unsafe {
-                child = pipeline_expr_unary_operand_ref_at(arena, sref);
-              }
-              if (child <= 0 || sp >= 8) {
-                sp = 0;
-              } else {
-                stk_step[si] = 1;
-                stk_ref[sp] = child;
-                stk_step[sp] = 0;
-                sp = sp + 1;
-              }
-            } else {
-              if (sek == 4 || sek == 5 || sek == 6 || sek == 7) {
-                unsafe {
-                  left = pipeline_expr_binop_left_ref_at(arena, sref);
-                  right = pipeline_expr_binop_right_ref_at(arena, sref);
-                }
-                if (left <= 0 || right <= 0 || sp >= 8) {
-                  sp = 0;
-                } else {
-                  stk_aux[si] = right;
-                  stk_step[si] = 1;
-                  stk_ref[sp] = left;
-                  stk_step[sp] = 0;
-                  sp = sp + 1;
-                }
-              } else {
-                if (sek == 54) {
-                  // AS to f32 or f64 inside the float tree. Other targets
-                  // are not part of this walk. stk_aux keeps 14 or 15.
-                  unsafe {
-                    child = pipeline_expr_as_operand_ref_at(arena, sref);
-                    left = pipeline_expr_as_target_type_ref_at(arena, sref);
-                  }
-                  rtk = 0;
-                  if (left > 0) {
-                    unsafe {
-                      rtk = pipeline_type_kind_ord_at(arena, left);
-                    }
-                  }
-                  if (child <= 0 || (rtk != 14 && rtk != 15)) {
-                    sp = 0;
-                  } else {
-                    stk_aux[si] = rtk;
-                    unsafe {
-                      sek = pipeline_expr_kind_ord_at(arena, child);
-                    }
-                    // A nested cast stays here only when its target is
-                    // also f32 or f64. An integer child is one signed
-                    // i32. Return 2 is a zero high half, and
-                    // glue_i32_to_f32_bits would read that word as a
-                    // negative i32, so it stays unfolded.
-                    rty = 0;
-                    if (sek == 54) {
-                      unsafe {
-                        rty = pipeline_expr_as_target_type_ref_at(arena, child);
-                      }
-                      if (rty > 0) {
-                        unsafe {
-                          rty = pipeline_type_kind_ord_at(arena, rty);
-                        }
-                      }
-                    }
-                    if (sek == 1 || sek == 22 || sek == 4 || sek == 5 || sek == 6 || sek == 7 || rty == 14 || rty == 15) {
-                      if (sp >= 8) {
-                        sp = 0;
-                      } else {
-                        stk_step[si] = 1;
-                        stk_ref[sp] = child;
-                        stk_step[sp] = 0;
-                        sp = sp + 1;
-                      }
-                    } else {
-                      oparts[0] = 0;
-                      ok = pipe_modlet_array_lit_elem_const_val(arena, child, &(oparts[0]), &(oparts[1]));
-                      if (ok != 1) {
-                        sp = 0;
-                      } else {
-                        lv = oparts[0];
-                        if (rtk == 14) {
-                          unsafe {
-                            result = glue_i32_to_f32_bits(lv);
-                            stk_lo[si] = glue_ieee_f32_bits_to_f64_lo(result);
-                            stk_hi[si] = glue_ieee_f32_bits_to_f64_hi(result);
-                          }
-                        } else {
-                          unsafe {
-                            glue_i64_to_f64_bits(lv as i64, &(lp[0]), &(lp[1]));
-                          }
-                          stk_lo[si] = lp[0];
-                          stk_hi[si] = lp[1];
-                        }
-                        stk_step[si] = 2;
-                      }
-                    }
-                  }
-                } else {
-                  sp = 0;
-                }
-              }
-            }
-          }
-        } else {
-          if (step == 2) {
-            if (si == 0) {
-              flo = stk_lo[0];
-              fhi = stk_hi[0];
-              got = 1;
-              sp = 0;
-            } else {
-              pi = si - 1;
-              pstep = stk_step[pi];
-              sek = stk_ek[pi];
-              // Cast completion is its own if. The f64 operators stay
-              // out of this compare's else, so the divisor reload is
-              // not dropped.
-              v = 0;
-              if (pstep == 1 && sek == 54) {
-                stk_lo[pi] = stk_lo[si];
-                stk_hi[pi] = stk_hi[si];
-                if (stk_aux[pi] == 14) {
-                  unsafe {
-                    result = glue_ieee_f64_bits_to_f32_bits(stk_lo[pi], stk_hi[pi]);
-                    stk_lo[pi] = glue_ieee_f32_bits_to_f64_lo(result);
-                    stk_hi[pi] = glue_ieee_f32_bits_to_f64_hi(result);
-                  }
-                }
-                stk_step[pi] = 2;
-                sp = si;
-                v = 1;
-              }
-              if (v == 0 && pstep == 1 && sek == 22) {
-                // NEG flips only the IEEE sign bit.
-                stk_lo[pi] = stk_lo[si];
-                if (stk_hi[si] < 0) {
-                  stk_hi[pi] = stk_hi[si] & 2147483647;
-                } else {
-                  stk_hi[pi] = stk_hi[si] | (0 - 2147483647 - 1);
-                }
-                stk_step[pi] = 2;
-                sp = si;
-              } else {
-                if (pstep == 1 && (sek == 4 || sek == 5 || sek == 6 || sek == 7)) {
-                  stk_lo[pi] = stk_lo[si];
-                  stk_hi[pi] = stk_hi[si];
-                  stk_step[pi] = 3;
-                  sp = si;
-                  stk_ref[sp] = stk_aux[pi];
-                  stk_step[sp] = 0;
-                  sp = sp + 1;
-                } else {
-                  if (pstep == 3 && (sek == 4 || sek == 5 || sek == 6 || sek == 7)) {
-                    llo = stk_lo[pi];
-                    lhi = stk_hi[pi];
-                    rlo = stk_lo[si];
-                    rhi = stk_hi[si];
-                    lp[0] = llo;
-                    lp[1] = lhi;
-                    rp[0] = rlo;
-                    rp[1] = rhi;
-                    // Same bit copy as glue_ieee_f64_bits_to_f32_bits.
-                    unsafe {
-                      memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
-                      memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
-                    }
-                    // Separate ifs, not an else chain. The compiler that
-                    // emits this function clobbers the divisor register in
-                    // the compare and then drops the reload on an else
-                    // arm, so fdiv would use the kind code as the divisor.
-                    // Each arm below reloads both halves after its compare.
-                    // EXPR_DIV of zero stays IEEE infinity.
-                    if (sek == 4) {
-                      fr = av + bv;
-                    }
-                    if (sek == 5) {
-                      fr = av - bv;
-                    }
-                    if (sek == 6) {
-                      fr = av * bv;
-                    }
-                    if (sek == 7) {
-                      fr = av / bv;
-                    }
-                    unsafe {
-                      memcpy((&(oparts[0])) as *u8, (&fr) as *u8, 8 as usize);
-                    }
-                    stk_lo[pi] = oparts[0];
-                    stk_hi[pi] = oparts[1];
-                    // TYPE_F32 binop: the host operator ran in f64.
-                    // Round back to f32 and widen so the trunc matches
-                    // an f32 operation. 16777216.0 + 1.0 is 16777217.0
-                    // in f64 and 16777216.0 in f32. An unset or f64
-                    // type stays f64, so 16777217.0 as i32 is unchanged.
-                    rty = 0;
-                    unsafe {
-                      rty = pipeline_expr_resolved_type_ref(arena, stk_ref[pi]);
-                    }
-                    if (rty > 0) {
-                      unsafe {
-                        rtk = pipeline_type_kind_ord_at(arena, rty);
-                      }
-                      if (rtk == 14) {
-                        unsafe {
-                          result = glue_ieee_f64_bits_to_f32_bits(stk_lo[pi], stk_hi[pi]);
-                          stk_lo[pi] = glue_ieee_f32_bits_to_f64_lo(result);
-                          stk_hi[pi] = glue_ieee_f32_bits_to_f64_hi(result);
-                        }
-                      }
-                    }
-                    stk_step[pi] = 2;
-                    sp = si;
-                  } else {
-                    // v == 1 means the cast arm already finished this
-                    // frame. Zeroing sp here would throw that value away.
-                    if (v == 0) {
-                      sp = 0;
-                    }
-                  }
-                }
-              }
-            }
-          } else {
-            sp = 0;
-          }
-        }
-      }
-    }
-    if (got == 0) {
-      return 0;
-    }
-    // Outer target is f64. The walker left both IEEE halves in flo/fhi.
-    // Store them and return 5. Do not truncate and do not pack to f32.
-    // 1.0 / 0.0 as an f64 element is +inf (000000000000f07f). The same
-    // div as an i32 still hits the exponent check below and returns 0.
-    // A null out_hi cannot carry the high half.
-    // PLATFORM: MACOS|DARWIN / WINDOWS.
-    if (tk == 15) {
-      if (out_hi == 0 as *i32) {
-        return 0;
-      }
-      unsafe {
-        pipe_store_i32_le(out_val as *u8, 0, flo);
-        pipe_store_i32_le(out_hi as *u8, 0, fhi);
-      }
-      return 5;
-    }
-    // Outer target is f32. The walker left f64 bits in flo/fhi.
-    // Pack them with the existing helper. Do not truncate: 1.0f is
-    // 0x3f800000, and 16777217.0 as f32 rounds to 16777216
-    // (0000804b). Return 4. An integer parent of this cast still
-    // walks the tree, so (1 as f32) as i32 stays 1.
-    if (tk == 14) {
-      unsafe {
-        result = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
-        pipe_store_i32_le(out_val as *u8, 0, result);
-      }
-      return 4;
-    }
-    // Biased exponent is bits 20..30. An arithmetic shift of a negative
-    // high half still leaves those 11 bits after the mask.
-    exp = (fhi >> 20) & 2047;
-    // Inf / NaN. cvttsd2si would yield the indefinite integer.
-    if (exp == 2047) {
-      return 0;
-    }
-    // |x| < 1, including zero and subnormals, truncates to 0.
-    if (exp < 1023) {
-      unsafe {
-        pipe_store_i32_le(out_val as *u8, 0, 0);
-      }
-      return 1;
-    }
-    e = exp - 1023;
-    // |x| >= 2^32. The low word goes to out_val and the high word to
-    // out_hi. Return 3 tells the baker to store that high word.
-    // Sign-fill and a zero high half are both the wrong pattern:
-    // 4294967296.0 is low 0 and high 1.
-    // Integer bit k is significand bit (k + 52 - e). Significand bit 52
-    // is the implicit 1, bits 32..51 are the low 20 bits of fhi, and
-    // bits 0..31 are flo. A logical bit of a negative word is an
-    // arithmetic shift masked with 1. Bit 31 and bit 63 are ORed in as
-    // INT_MIN so a left shift never has to set the sign bit itself.
-    if (e > 31) {
-      if (out_hi == 0 as *i32) {
-        return 0;
-      }
-      if (tk != 4 && tk != 5 && tk != 6 && tk != 7) {
-        return 0;
-      }
-      // |x| >= 2^64 does not fit in any 64-bit cell.
-      if (e >= 64) {
-        return 0;
-      }
-      // Binade [2^63, 2^64). Exact ±2^63 both store low 0 and high
-      // 0x80000000: the same bits as 9223372036854775808.0 as i64 /
-      // as u64. Positive exact falls through the bit loop with no
-      // negate; negative exact negates 2^63 and lands on the same
-      // pattern. A non-exact value in this binade stays unfolded.
-      // PLATFORM: MACOS|DARWIN / WINDOWS.
-      if (e == 63) {
-        if ((fhi & 1048575) != 0 || flo != 0) {
-          return 0;
-        }
-      }
-      wlo = 0;
-      whi = 0;
-      k = 0;
-      while (k < 64) {
-        src = k + 52 - e;
-        bit = 0;
-        if (src == 52) {
-          bit = 1;
-        }
-        if (src >= 0 && src <= 31) {
-          bit = (flo >> src) & 1;
-        }
-        if (src >= 32 && src <= 51) {
-          bit = (fhi >> (src - 32)) & 1;
-        }
-        if (bit != 0) {
-          if (k < 31) {
-            wlo = wlo | (1 << k);
-          }
-          if (k == 31) {
-            wlo = wlo | (0 - 2147483647 - 1);
-          }
-          if (k > 31 && k < 63) {
-            whi = whi | (1 << (k - 32));
-          }
-          if (k == 63) {
-            whi = whi | (0 - 2147483647 - 1);
-          }
-        }
-        k = k + 1;
-      }
-      // Two's complement of the magnitude. Carry into the high word
-      // only when the low word is 0.
-      if (fhi < 0) {
-        if (wlo == 0) {
-          whi = (whi ^ (0 - 1)) + 1;
-        }
-        if (wlo != 0) {
-          wlo = 0 - wlo;
-          whi = whi ^ (0 - 1);
-        }
-      }
-      unsafe {
-        pipe_store_i32_le(out_val as *u8, 0, wlo);
-        pipe_store_i32_le(out_hi as *u8, 0, whi);
-      }
-      return 3;
-    }
-    // Negative binade (-2^32, -2^31]. Only exact -2^31 is the sign
-    // fill of i32 0x80000000. Anything more negative has a low word
-    // that is not that fill.
-    if (e == 31 && fhi < 0) {
-      if ((fhi & 1048575) != 0 || flo != 0) {
-        return 0;
-      }
-      unsafe {
-        pipe_store_i32_le(out_val as *u8, 0, 0 - 2147483647 - 1);
-      }
-      return 1;
-    }
-    // Positive [2^31, 2^32). The low word has bit 31 set and the high
-    // half is 0. i64/u64/isize/usize return 2 (zero high half).
-    // i32 and u32 return 1 with the same low word: 2147483648.0 as i32
-    // and as u32 both store 0x80000000, matching
-    // (2147483648.0 as i64) as i32. Bool and u8 stay unfolded.
-    // Each shift stays inside a positive i32. Bit 31 is ORed in last.
-    // PLATFORM: MACOS|DARWIN / WINDOWS.
-    if (e == 31) {
-      hi_sig = (1 << 20) | (fhi & 1048575);
-      rsh = 21;
-      top = 0;
-      mag = flo;
-      if (mag < 0) {
-        mag = mag & 2147483647;
-        top = 1 << 10;
-      }
-      mag = (mag >> rsh) | top;
-      mag = mag | ((hi_sig & 2047) << 11);
-      mag = mag | (((hi_sig >> 11) & 511) << 22);
-      mag = mag | (0 - 2147483647 - 1);
-      unsafe {
-        pipe_store_i32_le(out_val as *u8, 0, mag);
-      }
-      if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
-        return 2;
-      }
-      if (tk == 0 || tk == 3) {
-        return 1;
-      }
-      return 0;
-    }
-    // Implicit 1 plus the top 20 fraction bits. This word is positive
-    // and at most 0x1fffff.
-    hi_sig = (1 << 20) | (fhi & 1048575);
-    if (e <= 20) {
-      // Fraction below 2^0 lives in the low word and in the bits this
-      // shift drops. 1.9 has unbiased exponent 0, so the result is 1.
-      mag = hi_sig >> (20 - e);
-    } else {
-      // Unbiased 21..30. Left-shift the high significand, then OR the
-      // top (e-20) bits of the low word. Those low bits are a logical
-      // shift: an arithmetic >> of a negative low word would sign-extend.
-      sh = e - 20;
-      rsh = 32 - sh;
-      top = 0;
-      mag = flo;
-      if (mag < 0) {
-        mag = mag & 2147483647;
-        top = 1 << (31 - rsh);
-      }
-      mag = (mag >> rsh) | top;
-      mag = (hi_sig << sh) | mag;
-    }
-    if (fhi < 0) {
-      mag = 0 - mag;
-    }
-    unsafe {
-      pipe_store_i32_le(out_val as *u8, 0, mag);
-    }
-    return 1;
+    // Walk stack arrays live here so recursive AS/compare frames stay
+    // small. PLATFORM: WINDOWS — global array bake.
+    return pipe_modlet_array_lit_elem_const_walk(arena, op, tk, out_val, out_hi);
   }
   return 0;
 }
