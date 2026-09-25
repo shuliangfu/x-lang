@@ -3415,7 +3415,7 @@ int32_t glue_asm_build_call_export_sym_c_impl(struct ast_ASTArena *arena, int32_
       }
     }
     if (!skip_heap_redirect && !has_local) {
-      rlen = glue_try_std_heap_redirect_sym_local(cname, clen, out, out_cap);
+      rlen = glue_try_std_heap_redirect_sym_local_impl(cname, clen, out, out_cap);
       if (rlen > 0)
         return rlen;
     }
@@ -3615,11 +3615,11 @@ int32_t glue_asm_enc_call_redirected_impl(struct platform_elf_ElfCodegenCtx *elf
   int32_t rc;
   if (!name || name_len <= 0)
     return -1;
-  rlen = glue_try_std_heap_redirect_sym_local(name, name_len, redir, 64);
+  rlen = glue_try_std_heap_redirect_sym_local_impl(name, name_len, redir, 64);
   if (rlen <= 0)
-    rlen = glue_try_std_string_xlang_redirect_sym_local(name, name_len, redir, 64);
+    rlen = glue_try_std_string_xlang_redirect_sym_local_impl(name, name_len, redir, 64);
   if (rlen <= 0)
-    rlen = glue_try_std_encoding_redirect_sym_local(name, name_len, redir, 64);
+    rlen = glue_try_std_encoding_redirect_sym_local_impl(name, name_len, redir, 64);
   if (rlen <= 0)
     rlen = pipeline_asm_redirect_std_c_wrapper_sym(name, name_len, redir, 64);
   if (rlen > 0) {
