@@ -256,7 +256,9 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * Inf/NaN, and a float magnitude outside the signed destination, return 0
  * so the baker loud-fails instead of storing the indefinite sign bit.
  * |x| < 1 truncates to 0 and is a successful fold. Exactly -2^31 fits in
- * i32. Exactly -2^63 fits in i64.
+ * i32. Positive [2^31, 2^32) as i32 and as u32 stores the low word
+ * 0x80000000 (same bits as (2147483648.0 as i64) as i32). Exactly
+ * -2^63 fits in i64.
  * FLOAT_LIT with no cast is not an integer; the array baker pokes IEEE
  * bits from the element size. VAR and any other kind are not compile-time
  * constants; callers must loud-fail (return -1) instead of silently
@@ -1586,20 +1588,46 @@ function pipe_modlet_array_lit_elem_const_val(
       }
       return 1;
     }
-    // |x| >= 2^31 does not fit in signed i32, except exactly -2^31.
+    // |x| >= 2^32 stays unfolded. Binade [2^31, 2^32): exact ±2^31
+    // and positive values in the binade store the wrapped 32-bit word
+    // (bit 31 set). Negative non-exact stays 0. Matches Darwin
+    // elem_const e==31 for i32/u32. PLATFORM: LINUX|UBUNTU.
     if (exp > 1054) {
       return 0;
     }
     if (exp == 1054) {
-      if (fhi >= 0) {
-        return 0;
+      if (fhi < 0) {
+        if ((fhi & 1048575) != 0 || flo != 0) {
+          return 0;
+        }
+        unsafe { out_val[0] = 0 - 2147483647 - 1; }
+        if (out_hi != (0 as *i32)) {
+          unsafe { out_hi[0] = 0 - 1; }
+        }
+        return 1;
       }
-      if ((fhi & 1048575) != 0 || flo != 0) {
-        return 0;
+      // Positive [2^31, 2^32). Build the low word like Darwin e==31:
+      // exact 2^31 is 0x80000000; other values keep bit 31 set.
+      // Each shift stays inside a positive i32. Bit 31 is ORed last.
+      mag = flo;
+      top = 0;
+      sh = 21;
+      if (mag < 0) {
+        mag = mag & 2147483647;
+        top = 1 << 10;
       }
-      unsafe { out_val[0] = 0 - 2147483647 - 1; }
+      mag = (mag >> sh) | top;
+      step = (1 << 20) | (fhi & 1048575);
+      mag = mag | ((step & 2047) << 11);
+      mag = mag | (((step >> 11) & 511) << 22);
+      mag = mag | (0 - 2147483647 - 1);
+      unsafe { out_val[0] = mag; }
       if (out_hi != (0 as *i32)) {
-        unsafe { out_hi[0] = 0 - 1; }
+        if (mag < 0) {
+          unsafe { out_hi[0] = 0 - 1; }
+        } else {
+          unsafe { out_hi[0] = 0; }
+        }
       }
       return 1;
     }
