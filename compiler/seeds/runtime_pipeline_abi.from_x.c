@@ -10272,12 +10272,14 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (kind_ord == GLUE_TYPE_KIND_SLICE)
       return 16;
     if (kind_ord == 8) {
-      /* True-pack ARRAY_LIT named i8 (w1014 local flat). PLATFORM: SHARED. */
+      /* True-pack ARRAY_LIT named i8/i16 (w1014/w1015 local flat). PLATFORM: SHARED. */
       {
         uint8_t sn[64];
         int32_t sl = pipeline_type_named_name_into(arena, elem_ty, sn);
         if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
           return 1;
+        if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 2;
       }
       void *mod = pipeline_asm_emit_module_ref_c();
       if (mod) {
@@ -19301,7 +19303,7 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
         if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
           return 1;
         if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
-          return 4;
+          return 2;
         if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
           return 4;
         mod = pipeline_asm_emit_module_ref_c();
@@ -19330,7 +19332,7 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
     if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
       return 1;
     if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
-      return 4;
+      return 2;
     if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
       return 4;
     mod = pipeline_asm_emit_module_ref_c();

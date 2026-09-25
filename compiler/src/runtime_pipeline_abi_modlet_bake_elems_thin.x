@@ -143,10 +143,10 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   unsafe {
     esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
   }
-  // Cap residual i16/u16 stay on glue_type_size_simple (4). True-pack
-  // named i8 ARRAY elems: bake stride 1 to match INDEX esz=1 (w1012).
-  // i16/u16 stay 4 (need scale2 + sext16). Struct fields keep Cap
-  // residual 4 via named_builtin. PLATFORM: MACOS|DARWIN / WINDOWS.
+  // Cap residual u16 stay on glue_type_size_simple (4). True-pack
+  // named i8 ARRAY elems: bake stride 1; named i16: bake stride 2
+  // (w1012/w1015). Struct fields keep Cap residual 4 via named_builtin.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (etk == 8 && esz == 4) {
     let sn: u8[64] = [];
     let sl: i32 = 0;
@@ -155,6 +155,9 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
     }
     if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
       esz = 1;
+    }
+    if (sl == 3 && sn[0] == 105 && sn[1] == 49 && sn[2] == 54) {
+      esz = 2;
     }
   }
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {

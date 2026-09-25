@@ -127,8 +127,8 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
       return 16;
     }
     if (kind_ord == 8) {
-      // True-pack ARRAY_LIT named i8 (w1014): local flat stores must use
-      // esz=1 to match INDEX tip. Other named keep glue_type_size_simple
+      // True-pack ARRAY_LIT named i8→1 / i16→2 (w1014/w1015): local flat
+      // stores must match INDEX tip. Other named keep glue_type_size_simple
       // (struct Cap residual 4). PLATFORM: SHARED.
       let sn: u8[64] = [];
       let sl: i32 = 0;
@@ -137,6 +137,9 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
       }
       if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
         return 1;
+      }
+      if (sl == 3 && sn[0] == 105 && sn[1] == 49 && sn[2] == 54) {
+        return 2;
       }
       unsafe {
         pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
@@ -214,8 +217,9 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
     return 8;
   }
   if (ek == 8) {
-    // True-pack ARRAY_LIT named i8 (w1012). Struct Cap residual stays 4
-    // via glue_type_size_simple for other named. PLATFORM: SHARED.
+    // True-pack ARRAY_LIT named i8→1 / i16→2 (w1012/w1015). Struct Cap
+    // residual stays 4 via glue_type_size_simple for other named.
+    // PLATFORM: SHARED.
     let sn: u8[64] = [];
     let sl: i32 = 0;
     unsafe {
@@ -223,6 +227,9 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
     }
     if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
       return 1;
+    }
+    if (sl == 3 && sn[0] == 105 && sn[1] == 49 && sn[2] == 54) {
+      return 2;
     }
     unsafe {
       pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());

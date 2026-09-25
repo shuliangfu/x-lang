@@ -58,15 +58,73 @@ function emit_index_enc_sext8_from_rax(elf_ctx: *u8, ta: i32): i32 {
 }
 
 /**
+ * Emit zero-extend halfword load (movzwl / LDRH).
+ * @param elf_ctx *u8 — emit context
+ * @param ta i32
+ * @return i32 — 0 ok
+ * PLATFORM: SHARED — w1015 esz=2 default.
+ */
+function emit_index_enc_zext16_from_rax(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe {
+      return backend_enc_append_u32_le_c(elf_ctx, 2034237440 as u32); /* 0x79400000 LDRH */
+    }
+  }
+  if (ta == 2) {
+    unsafe {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+  }
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 183) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, 0);
+  }
+}
+
+/**
+ * Emit signed halfword load from [rax/x0] into eax/w0 (movswl / LDRSH).
+ * @param elf_ctx *u8 — emit context
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv (zext16 fallback)
+ * @return i32 — 0 ok; encoder rc
+ * PLATFORM: SHARED — w1015 true-pack i16.
+ */
+function emit_index_enc_sext16_from_rax(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe {
+      return backend_enc_append_u32_le_c(elf_ctx, 2044723200 as u32); /* 0x79C00000 LDRSH */
+    }
+  }
+  if (ta == 2) {
+    unsafe {
+      return emit_index_enc_zext16_from_rax(elf_ctx, ta);
+    }
+  }
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 191) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, 0);
+  }
+}
+
+/**
  * Peer-flat: post-eff-addr INDEX load arms (wave516 Ubuntu tip BB budget).
- * Owns type_kind / deref_struct16 / zext8 / sext8(i8) / i32 / i64 load U.
+ * Owns type_kind / deref_struct16 / zext8 / sext8(i8) / sext16(i16) / i32 / i64.
  * @param arena *u8
  * @param elf_ctx *u8
  * @param expr_ref i32
  * @param ta i32
  * @param esz i32 — element byte size
  * @return i32 - 0 ok; encoder rc
- * PLATFORM: SHARED Cap A wave516 / w1012 true-pack i8.
+ * PLATFORM: SHARED Cap A wave516 / w1012 true-pack i8 / w1015 i16.
  */
 #[no_mangle]
 export function glue_emit_index_load_arms_elf_c(
@@ -110,6 +168,17 @@ export function glue_emit_index_load_arms_elf_c(
         }
       }
       return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (pipe_load_i32_le(&ecell[0], 0) == 2) {
+      // True-pack named i16: sext16. Other esz=2 keep zext16.
+      if (pipe_load_i32_le(&rtycell[0], 0) > 0
+        && pipe_load_i32_le(&rtkcell[0], 0) == 8) {
+        sl = pipeline_type_named_name_into(arena, pipe_load_i32_le(&rtycell[0], 0), &sn[0]);
+        if (sl == 3 && sn[0] == 105 && sn[1] == 49 && sn[2] == 54) {
+          return emit_index_enc_sext16_from_rax(elf_ctx, ta);
+        }
+      }
+      return emit_index_enc_zext16_from_rax(elf_ctx, ta);
     }
     if (pipe_load_i32_le(&ecell[0], 0) == 4) {
       return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
