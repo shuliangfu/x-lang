@@ -40,6 +40,9 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * Return 3 stores the four little-endian bytes of out_hi.
  * 4294967296.0 as i64 is 0000000001000000. An arithmetic shift of a
  * negative high word still yields each byte after the mask 255.
+ * Return 4 is one f32 bit pattern in the low word. The high half
+ * stays 0, including when that word is negative. (1 as i32) as f32
+ * is 0000803f. -1.0 as f32 is 000080bf. esz 4 pokes only the low word.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — object writer; null returns 0
  * @param init_ref i32 — ARRAY_LIT expr; <= 0 returns 0
@@ -185,6 +188,8 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         // bytes. Return 1 sign-fills a negative word. Return 2 keeps a
         // zero high half, which is 2147483648.0 as i64. Return 3 is
         // the real high word: 4294967296.0 as i64 stores high 1.
+        // Return 4 is f32 bits. A negative pattern is the sign bit,
+        // not a sign-filled i64. (1 as i32) as f32 is 0000803f.
         b0 = ev & 255;
         b1 = (ev >> 8) & 255;
         b2 = (ev >> 16) & 255;
@@ -192,7 +197,9 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         hi = 0;
         if (ev < 0) {
           if (rc != 2) {
-            hi = 255;
+            if (rc != 4) {
+              hi = 255;
+            }
           }
         }
         h0 = hi;

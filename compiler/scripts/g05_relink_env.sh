@@ -350,6 +350,7 @@ if [ "$UNAME_S" = "Darwin" ] \
   _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
   # Folder. Strong beats the weak gcc body in pabi_weak.o.
   # Return 3 writes a real high half through out_hi.
+  # Return 4 stores one f32 bit pattern in the low word.
   # Missing file keeps the weak body (u8/bool stay unfolded).
   # PLATFORM: MACOS|DARWIN — do not add this object on Linux.
   if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
@@ -357,6 +358,7 @@ if [ "$UNAME_S" = "Darwin" ] \
   fi
   # w971/w972/w974: 8-byte elems. Return 1 sign-fills. Return 2 writes
   # a zero high half for [2^31, 2^32). Return 3 stores out_hi.
+  # Return 4 is an f32 word and does not sign-fill.
   # A missing file keeps the weak baker.
   # PLATFORM: MACOS|DARWIN — do not add this object on Linux or Windows.
   if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
@@ -367,6 +369,7 @@ fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
 # elem_const.o is the folder. The egg no longer defines it.
 # Return 3 stores the high half the egg baker reads from out_hi.
+# Return 4 is the f32 word. The egg baker does not sign-fill it.
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
