@@ -7763,6 +7763,17 @@ static void pipeline_asm_modlet_reset_cold(void) {
 #endif
 
 XLANG_WEAK int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len) {
+#if defined(_WIN32) || defined(_WIN64)
+  /* PLATFORM: WINDOWS — prepare fills the egg table. The cold table
+   * stays empty, so a miss here would register the module let as a
+   * stack local beside the .data cell. */
+  {
+    extern int32_t pipeline_asm_modlet_find(uint8_t *name, int32_t name_len);
+    if (!name || name_len <= 0)
+      return 0;
+    return pipeline_asm_modlet_find(name, name_len) >= 0 ? 1 : 0;
+  }
+#else
   int32_t i, k;
   if (!name || name_len <= 0 || g_pipeline_asm_modlet_cold.n <= 0)
     return 0;
@@ -7777,6 +7788,7 @@ XLANG_WEAK int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t nam
       return 1;
   }
   return 0;
+#endif
 }
 
 static int32_t pipeline_asm_modlet_find_cold(uint8_t *name, int32_t name_len) {
@@ -7951,6 +7963,18 @@ static int32_t pipeline_asm_modlet_lea_rax_arch_cold(void *elf_ctx, int32_t idx,
   return -1;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
+/* PLATFORM: WINDOWS — do not emit these cold bodies.
+ * XLANG_WEAK is a real weak on MinGW, but the call in this TU is
+ * already bound, so a body here still searches g_pipeline_asm_modlet_cold.
+ * Prepare on Windows is the egg and writes g_pipeline_asm_modlet.
+ * Module `return g` and `g[0] = 7` then miss (CG002). The egg load
+ * and store are the authority. POSIX keeps the cold bodies so a
+ * strong thin can override them.
+ */
+extern int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+#else
 XLANG_WEAK int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
   int32_t idx;
   int32_t csz;
@@ -7992,6 +8016,7 @@ XLANG_WEAK int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8
     return -1;
   return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
 }
+#endif /* !Windows: cold load/store must not be a second modlet table */
 
 /* 9.4.2 cold twins of the pipe_modlet_lea_* resolver authorities
  * (runtime_pipeline_abi.x modlet cluster): the Mach-O '_' / ELF bare
@@ -12954,8 +12979,20 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
       if (vlen > 0 && vlen <= 255) {
         pipeline_expr_var_name_into(arena, lval_ref, vname);
         gmod = pipeline_asm_emit_module_ref_c();
+#if defined(_WIN32) || defined(_WIN64)
+        /* PLATFORM: WINDOWS — the static cold resolver reads the empty
+         * cold table. The egg resolver reads the table prepare filled. */
+        {
+          extern int32_t pipe_modlet_lea_named_binding_addr_to_rax(void *elf_ctx, void *m,
+                                                                   uint8_t *name, int32_t name_len,
+                                                                   int32_t ta);
+          if (gmod && pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx, gmod, vname, vlen, ta) == 0)
+            return 0;
+        }
+#else
         if (gmod && pipe_modlet_lea_named_binding_addr_to_rax_cold(elf_ctx, gmod, vname, vlen, ta) == 0)
           return 0;
+#endif
       }
       return -1;
     }
