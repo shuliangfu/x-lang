@@ -151,6 +151,8 @@ def main() -> int:
         # w1023 nested ARRAY_LIT local let-init. PLATFORM: WINDOWS.
         "pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32",
         "pipeline_asm_emit_vector_let_init_elf_c",
+        # w1024 module VAR → local fixed-array let-init. PLATFORM: WINDOWS.
+        "glue_emit_fixed_array_type_let_init_elf_c",
     )
     patched = 0
     for name in names:

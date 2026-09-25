@@ -14856,6 +14856,8 @@ extern int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref);
 extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                                       int32_t ta);
+extern int32_t glue_emit_bulk_mem_copy_spills_elf_c(void *elf_ctx, int32_t src_spill, int32_t dst_spill,
+                                                   int32_t nbytes, int32_t ta);
 extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t size,
                                                int32_t align);
 extern int32_t glue_asm_lea_rax_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len);
@@ -15454,12 +15456,47 @@ int32_t glue_struct_lit_store_fixed_array_field_elf_c(void *arena, void *elf_ctx
 int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref,
                                                  void *ctx, int32_t ta, int32_t type_ref,
                                                  int32_t stack_slot_off) {
+  int32_t st;
   if (!arena || !elf_ctx || !ctx || init_ref <= 0 || type_ref <= 0)
     return -2;
   if (!glue_type_is_fixed_array(arena, type_ref))
     return -2;
-  return glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
-                                                       stack_slot_off, 0, type_ref);
+  st = glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
+                                                    stack_slot_off, 0, type_ref);
+  if (st == 0 || st == -1)
+    return st;
+  /* w1024: module VAR has no stack home → store -2. Lea COMMON + bulk copy.
+   * PLATFORM: SHARED (leftover-PE / POSIX tip twin). */
+  if (pipeline_expr_kind_ord_at(arena, init_ref) == 3 &&
+      glue_var_expr_stack_off_elf_c(arena, ctx, init_ref) < 0 && stack_slot_off >= 0) {
+    int32_t nbytes;
+    int32_t next_off;
+    int32_t src_spill;
+    int32_t dst_spill;
+    nbytes = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+    if (nbytes <= 0 || nbytes > 4096)
+      return -1;
+    next_off = *(int32_t *)((uint8_t *)ctx + 4);
+    if (next_off + 32 < next_off)
+      return -1;
+    next_off = next_off + 16;
+    src_spill = next_off;
+    next_off = next_off + 16;
+    dst_spill = next_off;
+    *(int32_t *)((uint8_t *)ctx + 4) = next_off;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, src_spill, ta) != 0)
+      return -1;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, stack_slot_off, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, dst_spill, ta) != 0)
+      return -1;
+    if (glue_emit_bulk_mem_copy_spills_elf_c(elf_ctx, src_spill, dst_spill, nbytes, ta) != 0)
+      return -1;
+    return 0;
+  }
+  return st;
 }
 
 /*
