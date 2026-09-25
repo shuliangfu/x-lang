@@ -27,6 +27,7 @@
 // PLATFORM: SHARED freestanding sizing · LINUX gold · MACOS underscore.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function glue_type_size_simple(mod: *u8, arena: *u8, type_ref: i32, depth: i32): i32;
 export extern function glue_fixed_array_total_bytes_c(arena: *u8, type_ref: i32, depth: i32): i32;
@@ -202,6 +203,16 @@ export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): 
     return 8;
   }
   if (ek == 8) {
+    // True-pack ARRAY_LIT named i8 (w1012). Struct Cap residual stays 4
+    // via glue_type_size_simple for other named. PLATFORM: SHARED.
+    let sn: u8[64] = [];
+    let sl: i32 = 0;
+    unsafe {
+      sl = pipeline_type_named_name_into(arena, et, &sn[0]);
+    }
+    if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
+      return 1;
+    }
     unsafe {
       pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
     }

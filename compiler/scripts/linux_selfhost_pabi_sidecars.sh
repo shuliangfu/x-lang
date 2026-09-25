@@ -247,5 +247,15 @@ if ! nm "$OUT/pabi_alias.o" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_
   exit 1
 fi
 
+# w1012: true-pack ARRAY i8 (INDEX esz=1 + sext8 + assign tip + force_esz).
+# Host-gcc twins first-wins over pabi. Shared C seeds (same as Darwin tip /
+# Windows src/*_override.o). Do not PREFER into runtime_pipeline_abi.o.
+# PLATFORM: LINUX.
+echo "linux_selfhost_pabi_sidecars: w1012 true_i8 tips"
+gcc -c -O2 -o "$OUT/index_elem_true_i8.o" seeds/win_index_elem_byte_sz_override.c
+gcc -c -O2 -o "$OUT/emit_index_true_i8.o" seeds/emit_index_true_i8_override.c
+gcc -c -O2 -o "$OUT/assign_index_true_i8.o" seeds/assign_index_true_i8_override.c
+gcc -c -O2 -o "$OUT/force_esz_true_i8.o" seeds/force_esz_true_i8_override.c
+
 : > "$OUT/READY"
 echo "linux_selfhost_pabi_sidecars: OK $OUT"

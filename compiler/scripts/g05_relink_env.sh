@@ -291,7 +291,7 @@ fi
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o src/emit_index_true_i8_override.o src/assign_index_true_i8_override.o src/force_esz_true_i8_override.o; do
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi
@@ -355,6 +355,20 @@ fi
 # PLATFORM: LINUX
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
+fi
+# w1012: true-pack ARRAY i8 INDEX esz=1 + sext8 emit_index. First-wins.
+# PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+fi
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
+fi
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
+fi
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
 fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
@@ -422,6 +436,74 @@ if [ "$UNAME_S" = "Darwin" ] \
       done
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
+  fi
+  # w1012: true-pack ARRAY i8 (INDEX esz=1 + sext8 load). Strong tip over
+  # weak pabi emit_index; weaken leftover strong index_elem_byte_sz_c.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _isym in _pipeline_asm_index_elem_byte_sz_c _glue_index_elem_byte_sz_from_type_ref_c \
+        _pipeline_asm_index_elem_byte_sz _pipeline_asm_emit_index_elf_c \
+        _glue_emit_index_load_arms_elf_c; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_isym" | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_isym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+  fi
+  if [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
+    _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
+  fi
+  if [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _asym in _glue_emit_assign_index_elf_c; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_asym" | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_asym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
+  fi
+  if [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _fsym in _glue_array_lit_force_esz_from_elem_type_c; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_fsym" | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_fsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
   fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi

@@ -8,9 +8,10 @@
  * stride-1 + movzbl while bake keeps 4-byte cells (sum==1, g[1]==0).
  *
  * This object first-wins BOTH symbols. Same-TU index_elem → glue_index so
- * Cap residual ARRAY/SLICE i8/i16/u16 stay esz=4; PTR *i8 stays 1.
- * Authority: seeds/runtime_pipeline_abi.from_x.c after wave1005.
- * Link FIRST via g05 _WIN_ASSIGN_OVERRIDES.
+ * w1012: ARRAY/SLICE named i8 → esz=1 (true pack). i16/u16 stay Cap
+ * residual 4 (need scale2+sext16). PTR *i8 stays 1.
+ * Authority: SHARED tip first-wins (also Darwin/Linux via g05 sidecar).
+ * Link FIRST via g05 _WIN_ASSIGN_OVERRIDES / selfhost_pabi.
  */
 #include <stdint.h>
 
@@ -36,7 +37,7 @@ extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t 
 
 /**
  * Peel INDEX element byte size from a type ref.
- * Cap residual ARRAY/SLICE named i8/i16/u16 → 4 (match bake); PTR *i8 → 1.
+ * ARRAY/SLICE named i8 → 1 (true pack); i16/u16 Cap residual → 4; PTR *i8 → 1.
  */
 int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   int32_t kind_ord;
@@ -108,14 +109,14 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
       }
       if (kind_ord == 11)
         return 16;
-      /* ARRAY/SLICE Cap residual: bake strides at 4. Force 4 for i8/i16/u16.
-       * PLATFORM: WINDOWS leftover-PE.
+      /* ARRAY/SLICE: true-pack i8 → 1; Cap residual i16/u16 → 4.
+       * PLATFORM: SHARED (WINDOWS leftover-PE first-wins + Darwin/Linux tip).
        */
       if (kind_ord == 8) {
         uint8_t sn[64];
         int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
         if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
-          return 4;
+          return 1;
         if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
           return 4;
         if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
@@ -138,10 +139,11 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   if (kind_ord == 11)
     return 16;
   if (kind_ord == 8) {
+    /* Bare named: true-pack i8 → 1; Cap residual i16/u16 → 4. */
     uint8_t sn[64];
     int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
     if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
-      return 4;
+      return 1;
     if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
       return 4;
     if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
@@ -293,7 +295,7 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
         uint8_t sn[64];
         int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
         if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
-          return 4;
+          return 1;
         if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
           return 4;
         if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
@@ -311,7 +313,7 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     uint8_t sn[64];
     int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
     if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
-      return 4;
+      return 1;
     if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
       return 4;
     if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')

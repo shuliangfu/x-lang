@@ -11,6 +11,8 @@
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, b: i32): i32;
+export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, w: u32): i32;
 export extern function glue_emit_index_eff_addr_scaled_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
 export extern function glue_index_assign_addr_cache_clear(): void;
 export extern function glue_index_assign_addr_cache_hit(arena: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32): i32;
@@ -21,20 +23,50 @@ export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): 
 export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 /** wave516: pipe-cell helpers (keep tip U across mid-call assign). */
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 
 /**
+ * Emit signed byte load from [rax/x0] into eax/w0 (movsbl / LDRSB).
+ * @param elf_ctx *u8 — emit context
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv (zext fallback)
+ * @return i32 — 0 ok; encoder rc
+ * PLATFORM: SHARED — w1012 true-pack i8.
+ */
+function emit_index_enc_sext8_from_rax(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe {
+      return backend_enc_append_u32_le_c(elf_ctx, 969932800 as u32);
+    }
+  }
+  if (ta == 2) {
+    unsafe {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+  }
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 190) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, 0);
+  }
+}
+
+/**
  * Peer-flat: post-eff-addr INDEX load arms (wave516 Ubuntu tip BB budget).
- * Owns type_kind / deref_struct16 / zext8 / i32 / i64 load U.
+ * Owns type_kind / deref_struct16 / zext8 / sext8(i8) / i32 / i64 load U.
  * @param arena *u8
  * @param elf_ctx *u8
  * @param expr_ref i32
  * @param ta i32
  * @param esz i32 — element byte size
  * @return i32 - 0 ok; encoder rc
- * PLATFORM: SHARED Cap A wave516.
+ * PLATFORM: SHARED Cap A wave516 / w1012 true-pack i8.
  */
 #[no_mangle]
 export function glue_emit_index_load_arms_elf_c(
@@ -43,6 +75,8 @@ export function glue_emit_index_load_arms_elf_c(
   let rtycell: u8[4] = [];
   let rtkcell: u8[4] = [];
   let ecell: u8[4] = [];
+  let sn: u8[64] = [];
+  let sl: i32 = 0;
   unsafe {
     pipe_store_i32_le(&ecell[0], 0, esz);
     pipe_store_i32_le(&rtycell[0], 0, pipeline_expr_resolved_type_ref(arena, expr_ref));
@@ -67,6 +101,14 @@ export function glue_emit_index_load_arms_elf_c(
       return 0;
     }
     if (pipe_load_i32_le(&ecell[0], 0) == 1) {
+      // True-pack named i8: sext8. u8/bool keep zext8.
+      if (pipe_load_i32_le(&rtycell[0], 0) > 0
+        && pipe_load_i32_le(&rtkcell[0], 0) == 8) {
+        sl = pipeline_type_named_name_into(arena, pipe_load_i32_le(&rtycell[0], 0), &sn[0]);
+        if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
+          return emit_index_enc_sext8_from_rax(elf_ctx, ta);
+        }
+      }
       return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
     }
     if (pipe_load_i32_le(&ecell[0], 0) == 4) {

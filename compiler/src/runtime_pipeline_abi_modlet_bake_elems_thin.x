@@ -142,13 +142,20 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   unsafe {
     esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
   }
-  // A TYPE_NAMED element (kind 8) keeps its real size. One f64
-  // field is 8. A wider struct must not be forced down to 4, or the
-  // next element would overlap the first. Cap residual i8/i16/u16
-  // stay on glue_type_size_simple (4 until that helper calls
-  // typeck_x_named_builtin_size). Do not override esz here — bake
-  // stride must match runtime index stride.
-  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  // Cap residual i16/u16 stay on glue_type_size_simple (4). True-pack
+  // named i8 ARRAY elems: bake stride 1 to match INDEX esz=1 (w1012).
+  // i16/u16 stay 4 (need scale2 + sext16). Struct fields keep Cap
+  // residual 4 via named_builtin. PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (etk == 8 && esz == 4) {
+    let sn: u8[64] = [];
+    let sl: i32 = 0;
+    unsafe {
+      sl = pipeline_type_named_name_into(arena, elem_ty, &sn[0]);
+    }
+    if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
+      esz = 1;
+    }
+  }
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
     if (etk != 8 || esz <= 0) {
       esz = 4;

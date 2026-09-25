@@ -3452,9 +3452,18 @@ function pipe_modlet_bake_array_lit_elems_to_data(
   unsafe { esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty); }
   // TYPE_NAMED keeps the struct stride. Clamping a 12-byte struct to 4
   // would overlap the next element. Scalar elems stay 1/2/4/8.
-  // Cap residual i8/i16/u16 use glue size (4 until glue calls
-  // typeck_x_named_builtin_size). Do not override esz — must match
-  // runtime index stride. PLATFORM: SHARED.
+  // Cap residual i16/u16 use glue size 4. True-pack named i8 ARRAY:
+  // bake esz=1 to match INDEX (w1012). PLATFORM: SHARED (Ubuntu tip).
+  if (etk == 8 && esz == 4) {
+    let sn: u8[64] = [];
+    let sl: i32 = 0;
+    unsafe {
+      sl = pipeline_type_named_name_into(arena, elem_ty, &sn[0]);
+    }
+    if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
+      esz = 1;
+    }
+  }
   if (etk != 8) {
     if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
       esz = 4;
