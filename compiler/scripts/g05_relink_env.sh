@@ -291,13 +291,13 @@ fi
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o src/emit_index_true_i8_override.o src/assign_index_true_i8_override.o src/force_esz_true_i8_override.o; do
+    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o src/emit_index_true_i8_override.o src/assign_index_true_i8_override.o; do
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi
     done
-    # w1013: true_i8 tips re-enabled with bake_elems tip + jmp patch.
-    # PLATFORM: WINDOWS.
+    # w1013: force_esz_true_i8 parked on WINDOWS (CG002 on named i8/bool
+    # when tip shrinks data span). bake tip packs without it. PLATFORM: WINDOWS.
     ;;
 esac
 # w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
@@ -551,9 +551,12 @@ case "$UNAME_S" in
     # Host-gcc / tip first-wins. mega same-TU REL32 or local e8 keeps leftover —
     # weaken a COPY (pabi_weak.o), never mutate egg runtime_pipeline_abi.o;
     # post-link win_patch_body_sync_jmp redirects leftover W→T.
+    # Also create pabi_weak when assign/emit true_i8 tips need weaken.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
       || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
-      || [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+      || [ -s build_asm/selfhost_pabi/bake_elems.o ] \
+      || [ -s src/assign_index_true_i8_override.o ] \
+      || [ -s src/emit_index_true_i8_override.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -573,10 +576,20 @@ case "$UNAME_S" in
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1013: true-pack bake tip. Weaken both egg T copies of bake_array.
+        # Also weaken assign_index so tip first-wins same-TU REL32 callers.
         # PLATFORM: WINDOWS.
         if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
           "$_oc" --weaken-symbol=pipe_modlet_bake_array_lit_elems_to_data \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        if [ -s src/assign_index_true_i8_override.o ]; then
+          "$_oc" --weaken-symbol=glue_emit_assign_index_elf_c \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        if [ -s src/emit_index_true_i8_override.o ]; then
+          for _esym in glue_emit_index_load_arms_elf_c pipeline_asm_emit_index_elf_c; do
+            "$_oc" --weaken-symbol="$_esym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          done
         fi
         _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
       fi

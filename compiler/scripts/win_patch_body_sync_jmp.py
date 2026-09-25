@@ -133,8 +133,11 @@ def main() -> int:
         "backend_emit_block_body_sync_elf",
         "pipeline_asm_emit_block_body_sync_elf",
         "glue_block_body_emit_let_init",
-        # w1013 true-pack ARRAY i8 bake tip. PLATFORM: WINDOWS.
+        # w1013 true-pack ARRAY i8 bake / INDEX load / assign. PLATFORM: WINDOWS.
         "pipe_modlet_bake_array_lit_elems_to_data",
+        "glue_emit_assign_index_elf_c",
+        "glue_emit_index_load_arms_elf_c",
+        "pipeline_asm_emit_index_elf_c",
     )
     patched = 0
     for name in names:
@@ -160,6 +163,12 @@ def main() -> int:
                     print(
                         f"win_patch_body_sync_jmp: {cold_name} t={c_addr:#x} -> T={t_addr:#x}"
                     )
+        elif name in (
+            "glue_emit_assign_index_elf_c",
+            "glue_emit_index_load_arms_elf_c",
+            "pipeline_asm_emit_index_elf_c",
+        ):
+            patched += _patch_extra_t_to_primary(data, secs, name, strong)
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")
