@@ -43,9 +43,8 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * low word. S { v: 1.0 } for an f64 field is 000000000000f03f.
  * 0.1 keeps high 0x3fb99999. Nested STRUCT_LIT recurses. STRING_LIT,
  * ARRAY_LIT, and pointer or function fields keep their bakers.
- * TYPE_NAMED Cap residual i8/i16/u16 are scalar fields: typeck sizes
- * them as 4 today (named_builtin_size falls through to 4), so this
- * baker peels four bytes. Other named spellings stay loud-fail.
+ * TYPE_NAMED Cap residual i8/i16/u16 are scalar fields with widths
+ * 1/2/2 (same as typeck_x_named_builtin). Other named stay loud-fail.
  * Padding stays the reserved zero. More than 64 fields loud-fails.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — object writer; null returns -1
@@ -184,8 +183,7 @@ export function pipe_modlet_bake_struct_lit_to_data(
         // 1 bool, 2 u8, 0 i32, 3 u32, 13 the 4-byte kind the Linux
         // width helper accepts, 14 f32. 4 u64, 5 i64, 6 usize,
         // 7 isize, 15 f64. TYPE_NAMED (8) Cap residual i8/i16/u16:
-        // typeck sizes them as 4 today, so peel four bytes. Other
-        // named spellings are not scalar fields.
+        // widths 1/2/2. Other named spellings are not scalar fields.
         // PLATFORM: SHARED — name bytes match typeck_int_family_id.
         fsz = 0;
         if (fk == 1 || fk == 2) {
@@ -207,6 +205,7 @@ export function pipe_modlet_bake_struct_lit_to_data(
             if (nm[0] == 105) {
               if (nm[1] == 56) {
                 named_ok = 1;
+                fsz = 1;
               }
             }
           }
@@ -216,6 +215,7 @@ export function pipe_modlet_bake_struct_lit_to_data(
               if (nm[1] == 49) {
                 if (nm[2] == 54) {
                   named_ok = 1;
+                  fsz = 2;
                 }
               }
             }
@@ -226,12 +226,13 @@ export function pipe_modlet_bake_struct_lit_to_data(
               if (nm[1] == 49) {
                 if (nm[2] == 54) {
                   named_ok = 1;
+                  fsz = 2;
                 }
               }
             }
           }
-          if (named_ok == 1) {
-            fsz = 4;
+          if (named_ok == 0) {
+            fsz = 0;
           }
         }
         if (fsz <= 0) {

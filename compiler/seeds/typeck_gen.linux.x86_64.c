@@ -2985,6 +2985,16 @@ int32_t typeck_x_named_builtin_align(uint8_t * nm, int32_t nlen) {
   if (((nm ==0) || (nlen <=0))) {
     return 0;
   }
+  /* Cap residual TYPE_NAMED i8/i16/u16 (no TypeKind). PLATFORM: SHARED. */
+  if ((((nlen ==2) && ((nm)[0] ==105)) && ((nm)[1] ==56))) {
+    return 1;
+  }
+  if (((((nlen ==3) && ((nm)[0] ==105)) && ((nm)[1] ==49)) && ((nm)[2] ==54))) {
+    return 2;
+  }
+  if (((((nlen ==3) && ((nm)[0] ==117)) && ((nm)[1] ==49)) && ((nm)[2] ==54))) {
+    return 2;
+  }
   if (((((nlen ==3) && ((nm)[0] ==105)) && ((nm)[1] ==51)) && ((nm)[2] ==50))) {
     return 4;
   }
@@ -3019,14 +3029,8 @@ int32_t typeck_x_named_builtin_align(uint8_t * nm, int32_t nlen) {
 }
 int32_t typeck_x_named_builtin_size(uint8_t * nm, int32_t nlen) {
   int32_t a = typeck_x_named_builtin_align(nm, nlen);
-  if (((((a ==1) && (nlen ==2)) && ((nm)[0] ==117)) && ((nm)[1] ==56))) {
-    return 1;
-  }
-  if ((a ==4)) {
-    return 4;
-  }
-  if ((a ==8)) {
-    return 8;
+  if (((((a ==1) || (a ==2)) || (a ==4)) || (a ==8))) {
+    return a;
   }
   return 0;
 }

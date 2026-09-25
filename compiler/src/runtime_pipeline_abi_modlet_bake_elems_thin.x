@@ -1,12 +1,11 @@
-// Module-array baker for Darwin. The weak gcc body in pabi_weak.o peels
-// one uint32, so an 8-byte slot's high half is always zero.
-// This strong definition is the same control flow. Return 1 sign-fills
-// the i32 word. Return 2 writes a zero high half for [2^31, 2^32).
-// Ubuntu's modlet.o already writes a real
-// high half through the 4-arg folder. Do not link this object on Linux
-// or Windows: Linux would hide that baker, and the Windows egg is the
-// Windows body.
-// PLATFORM: MACOS|DARWIN. Do not PREFER this into runtime_pipeline_abi.o.
+// Module-array baker for Darwin and Windows (PE first-wins over egg).
+// The weak gcc body in pabi_weak.o peels one uint32, so an 8-byte
+// slot's high half is always zero. This strong definition is the
+// same control flow. Return 1 sign-fills the i32 word. Return 2
+// writes a zero high half for [2^31, 2^32).
+// Ubuntu's modlet.o already writes a real high half through the
+// 4-arg folder. Do not link this object on Linux.
+// PLATFORM: MACOS|DARWIN / WINDOWS. Do not PREFER into runtime_pipeline_abi.o.
 
 export extern "C" function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern "C" function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
@@ -16,6 +15,11 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+/**
+ * Copy TYPE_NAMED spelling. Cap residual i8/i16/u16 size override.
+ * PLATFORM: SHARED.
+ */
+export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out: *u8): i32;
 export extern "C" function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32, out_hi: *i32): i32;
 export extern "C" function pipe_modlet_bake_ptr_addr_elem_to_data(
   arena: *u8, elf_ctx: *u8, m: *u8, eref: i32, esz: i32, slot_off: i32
@@ -33,6 +37,8 @@ export extern "C" function pipe_modlet_bake_struct_lit_to_data(
  * and pointer or function elems (kind 9 or 18) keep the existing bakers.
  * Every other elem goes through the 3-arg folder. esz is 1, 2, 4, or 8;
  * anything else is forced to 4, matching the weak gcc body.
+ * TYPE_NAMED Cap residual i8/i16/u16 override to 1/2/2 when typeck
+ * still falls through to 4 (until typeck_x.o picks up named_builtin).
  * Bytes 0..3 are the little-endian i32. An arithmetic shift by 8, 16,
  * or 24 stays inside those 32 bits, so masking 255 is the byte.
  * Bytes 4..7, only when esz is 8, are 0xff when the folder returns 1
@@ -88,6 +94,9 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   let h1: i32 = 0;
   let h2: i32 = 0;
   let h3: i32 = 0;
+  let nlen: i32 = 0;
+  let named_esz: i32 = 0;
+  let nm: u8[8] = [];
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || init_ref <= 0) {
     return 0;
   }
@@ -137,6 +146,42 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   }
   unsafe {
     esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+  }
+  // Cap residual TYPE_NAMED i8/i16/u16: real widths 1/2/2. typeck_x
+  // named_builtin may still return 4 until that .o is rebuilt; the
+  // baker must not wait on that. Other named (structs) keep ssz.
+  // PLATFORM: SHARED — name bytes match typeck_int_family_id.
+  if (etk == 8) {
+    named_esz = 0;
+    unsafe {
+      nlen = pipeline_type_named_name_into(arena, elem_ty, &(nm[0]));
+    }
+    if (nlen == 2) {
+      if (nm[0] == 105) {
+        if (nm[1] == 56) {
+          named_esz = 1;
+        }
+      }
+    }
+    if (nlen == 3) {
+      if (nm[0] == 105) {
+        if (nm[1] == 49) {
+          if (nm[2] == 54) {
+            named_esz = 2;
+          }
+        }
+      }
+      if (nm[0] == 117) {
+        if (nm[1] == 49) {
+          if (nm[2] == 54) {
+            named_esz = 2;
+          }
+        }
+      }
+    }
+    if (named_esz > 0) {
+      esz = named_esz;
+    }
   }
   // A TYPE_NAMED element (kind 8) keeps its real size. One f64
   // field is 8. A wider struct must not be forced down to 4, or the

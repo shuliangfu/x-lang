@@ -400,9 +400,12 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
-    # STRUCT_LIT elements. The egg baker calls this object. Do not
-    # link bake_elems.o here: the egg is the Windows array baker.
-    # PLATFORM: WINDOWS.
+    # STRUCT_LIT elements. The egg baker calls this object.
+    # bake_elems.o first-wins Cap residual i8/i16/u16 array packing
+    # (egg still returns esz 4 from typeck). PLATFORM: WINDOWS.
+    if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
+    fi
     if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
     fi

@@ -8835,11 +8835,11 @@ static int32_t pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(void *arena, uint8_t *
   return 0;
 }
 
-/* Width of one integer STRUCT_LIT field. 1/4/8, or -1.
- * TYPE_NAMED Cap residual i8/i16/u16 return 4 (typeck default size).
+/* Width of one integer STRUCT_LIT field. 1/2/4/8, or -1.
+ * TYPE_NAMED Cap residual i8→1, i16/u16→2.
  * PLATFORM: SHARED — twin of pipe_modlet_struct_field_int_width. */
 static int32_t pipe_modlet_struct_field_int_width_cold(void *arena, void *m, int32_t lit_ref, int32_t fi) {
-  int32_t fty, k, nlen, named_ok;
+  int32_t fty, k, nlen;
   uint8_t nm[8];
   extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
                                                             int32_t field_ix);
@@ -8857,19 +8857,16 @@ static int32_t pipe_modlet_struct_field_int_width_cold(void *arena, void *m, int
   if (k == 4 || k == 5 || k == 6 || k == 7 || k == 15)
     return 8;
   if (k == 8) {
-    named_ok = 0;
     nlen = pipeline_type_named_name_into(arena, fty, nm);
     /* "i8" */
     if (nlen == 2 && nm[0] == 105 && nm[1] == 56)
-      named_ok = 1;
+      return 1;
     /* "i16" */
     if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54)
-      named_ok = 1;
+      return 2;
     /* "u16" */
     if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54)
-      named_ok = 1;
-    if (named_ok)
-      return 4;
+      return 2;
   }
   return -1;
 }
