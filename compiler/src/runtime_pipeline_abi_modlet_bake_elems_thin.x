@@ -16,7 +16,7 @@ export extern "C" function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
-export extern "C" function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32): i32;
+export extern "C" function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32, out_hi: *i32): i32;
 export extern "C" function pipe_modlet_bake_ptr_addr_elem_to_data(
   arena: *u8, elf_ctx: *u8, m: *u8, eref: i32, esz: i32, slot_off: i32
 ): i32;
@@ -37,7 +37,9 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * binade [2^31, 2^32): the low word has bit 31 set and the high half
  * is 0, so those four bytes stay 0. 2147483648.0 as i64 stores
  * 0000008000000000. (0 - 1) as i64 still stores eight 0xff bytes.
- * |x| >= 2^32 still returns 0.
+ * Return 3 stores the four little-endian bytes of out_hi.
+ * 4294967296.0 as i64 is 0000000001000000. An arithmetic shift of a
+ * negative high word still yields each byte after the mask 255.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — object writer; null returns 0
  * @param init_ref i32 — ARRAY_LIT expr; <= 0 returns 0
@@ -72,6 +74,11 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   let b2: i32 = 0;
   let b3: i32 = 0;
   let hi: i32 = 0;
+  let ehi: i32 = 0;
+  let h0: i32 = 0;
+  let h1: i32 = 0;
+  let h2: i32 = 0;
+  let h3: i32 = 0;
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || init_ref <= 0) {
     return 0;
   }
@@ -169,14 +176,15 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
       }
       if (skip == 0) {
         unsafe {
-          rc = pipe_modlet_array_lit_elem_const_val(arena, eref, &ev);
+          rc = pipe_modlet_array_lit_elem_const_val(arena, eref, &ev, &ehi);
         }
         if (rc == 0) {
           return 0 - 1;
         }
-        // Low word, then the high half. esz <= 4 never reads hi.
-        // Return 1 sign-fills a negative word. Return 2 keeps a zero
-        // high half, which is 2147483648.0 as i64.
+        // Low word, then the high half. esz <= 4 never reads the high
+        // bytes. Return 1 sign-fills a negative word. Return 2 keeps a
+        // zero high half, which is 2147483648.0 as i64. Return 3 is
+        // the real high word: 4294967296.0 as i64 stores high 1.
         b0 = ev & 255;
         b1 = (ev >> 8) & 255;
         b2 = (ev >> 16) & 255;
@@ -186,6 +194,16 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
           if (rc != 2) {
             hi = 255;
           }
+        }
+        h0 = hi;
+        h1 = hi;
+        h2 = hi;
+        h3 = hi;
+        if (rc == 3) {
+          h0 = ehi & 255;
+          h1 = (ehi >> 8) & 255;
+          h2 = (ehi >> 16) & 255;
+          h3 = (ehi >> 24) & 255;
         }
         slot = data_base + base_off + ei * esz;
         if (esz > 0) {
@@ -222,7 +240,7 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         }
         if (esz > 4) {
           unsafe {
-            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 4, hi);
+            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 4, h0);
           }
           if (rc != 0) {
             return 0 - 1;
@@ -230,7 +248,7 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         }
         if (esz > 5) {
           unsafe {
-            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 5, hi);
+            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 5, h1);
           }
           if (rc != 0) {
             return 0 - 1;
@@ -238,7 +256,7 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         }
         if (esz > 6) {
           unsafe {
-            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 6, hi);
+            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 6, h2);
           }
           if (rc != 0) {
             return 0 - 1;
@@ -246,7 +264,7 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         }
         if (esz > 7) {
           unsafe {
-            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 7, hi);
+            rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, slot + 7, h3);
           }
           if (rc != 0) {
             return 0 - 1;

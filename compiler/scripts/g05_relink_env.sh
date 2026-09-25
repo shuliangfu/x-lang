@@ -348,14 +348,16 @@ if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
-  # 3-arg folder. Strong beats the weak gcc body in pabi_weak.o.
+  # Folder. Strong beats the weak gcc body in pabi_weak.o.
+  # Return 3 writes a real high half through out_hi.
   # Missing file keeps the weak body (u8/bool stay unfolded).
-  # PLATFORM: MACOS|DARWIN — do not add this object on Linux (4-arg ABI).
+  # PLATFORM: MACOS|DARWIN — do not add this object on Linux.
   if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
   fi
-  # w971/w972: 8-byte elems. Return 1 sign-fills. Return 2 writes a
-  # zero high half for [2^31, 2^32). A missing file keeps the weak baker.
+  # w971/w972/w974: 8-byte elems. Return 1 sign-fills. Return 2 writes
+  # a zero high half for [2^31, 2^32). Return 3 stores out_hi.
+  # A missing file keeps the weak baker.
   # PLATFORM: MACOS|DARWIN — do not add this object on Linux or Windows.
   if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
@@ -363,7 +365,8 @@ if [ "$UNAME_S" = "Darwin" ] \
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
-# elem_const.o is the only 3-arg folder. The egg no longer defines it.
+# elem_const.o is the folder. The egg no longer defines it.
+# Return 3 stores the high half the egg baker reads from out_hi.
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ -s build_asm/selfhost_pabi/elem_const.o ]; then

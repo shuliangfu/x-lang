@@ -1003,7 +1003,7 @@ struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_x
 struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double { struct xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_xlang_slice_double *data; size_t length; };
 #endif
 extern int32_t asm_module_top_level_let_name_exists(uint8_t * m, uint8_t * name, int32_t name_len);
-extern int32_t pipe_modlet_array_lit_elem_const_val(uint8_t * arena, int32_t eref, int32_t * out_val);
+extern int32_t pipe_modlet_array_lit_elem_const_val(uint8_t * arena, int32_t eref, int32_t * out_val, int32_t * out_hi);
 extern int32_t pipe_modlet_array_lit_has_ptr_addr_elem(uint8_t * arena, int32_t init_ref, int32_t elem_ty);
 extern int32_t pipe_modlet_array_lit_has_string_elem(uint8_t * arena, int32_t init_ref);
 extern int32_t pipe_modlet_array_lit_string_pool_bytes(uint8_t * arena, int32_t init_ref);
@@ -1257,6 +1257,7 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
   int32_t rc = 0;
   int32_t bi = 0;
   int32_t fr = 0;
+  int32_t ehi = 0;
   if ((((arena ==0) || (elf_ctx ==0)) || (init_ref <=0))) {
     return 0;
   }
@@ -1323,7 +1324,7 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
   continue;
  }) : 0);
       }
-      (void)((fr = pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev))));
+      (void)((fr = pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev), &(ehi))));
       if ((fr ==0)) {
         return -1;
       }
@@ -1338,12 +1339,17 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
         (void)((bi = (bi + 1)));
       }
       /* Return 1 sign-fills a negative word. Return 2 is the positive
-       * binade [2^31, 2^32): high half stays 0. PLATFORM: WINDOWS —
+       * binade [2^31, 2^32): high half stays 0. Return 3 is the high
+       * word in ehi. 4294967296.0 as i64 is high 1. PLATFORM: WINDOWS —
        * Darwin bake_elems.o writes the same bytes. */
       (void)((uw = ((uint32_t)(0))));
-      if ((ev < 0)) {
-        if ((fr !=2)) {
-          (void)((uw = ((uint32_t)(0 - 1))));
+      if ((fr ==3)) {
+        (void)((uw = ((uint32_t)(ehi))));
+      } else {
+        if ((ev < 0)) {
+          if ((fr !=2)) {
+            (void)((uw = ((uint32_t)(0 - 1))));
+          }
         }
       }
       while ((bi < esz)) {
@@ -1746,7 +1752,7 @@ int32_t pipe_modlet_scalar_init_common_imm(uint8_t * arena, int32_t init_ref, in
     (void)(((out_imm)[0] = v));
     return 1;
   }
-  if ((pipe_modlet_array_lit_elem_const_val(arena, init_ref, &((fold_buf)[0])) ==1)) {
+  if ((pipe_modlet_array_lit_elem_const_val(arena, init_ref, &((fold_buf)[0]), 0) ==1)) {
     (void)(((out_imm)[0] = (fold_buf)[0]));
     return 1;
   }
@@ -1875,6 +1881,7 @@ int32_t pipe_modlet_seed_array_lit_elems_to_rbx(uint8_t * arena, uint8_t * elf_c
   int32_t hi = 0;
   int32_t sa = 0;
   int32_t fr = 0;
+  int32_t ehi = 0;
   if ((((arena ==0) || (elf_ctx ==0)) || (init_ref <=0))) {
     return 0;
   }
@@ -1940,14 +1947,18 @@ int32_t pipe_modlet_seed_array_lit_elems_to_rbx(uint8_t * arena, uint8_t * elf_c
   continue;
  }) : 0);
   }
-  (void)((fr = pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev))));
+  (void)((fr = pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev), &(ehi))));
   if ((fr ==0)) {
     return -1;
   }
   (void)((hi = 0));
-  if ((ev < 0)) {
-    if ((fr !=2)) {
-      (void)((hi = -1));
+  if ((fr ==3)) {
+    (void)((hi = ehi));
+  } else {
+    if ((ev < 0)) {
+      if ((fr !=2)) {
+        (void)((hi = -1));
+      }
     }
   }
   (void)((rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta)));

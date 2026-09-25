@@ -1,7 +1,7 @@
-// 3-argument folder used by Darwin and Windows module-array bakers.
-// Ubuntu's runtime_pipeline_abi_modlet_thin.x keeps the 4-argument
-// folder (it also returns the high half). Do not link this object on
-// Linux: the symbol name matches, the ABI does not.
+// Folder used by Darwin and Windows module-array bakers.
+// Ubuntu's runtime_pipeline_abi_modlet_thin.x is a different body of
+// the same four-argument name: its success code is only 0 or 1.
+// This body also returns 2 and 3. Do not link this object on Linux.
 // PLATFORM: MACOS|DARWIN / WINDOWS. Do not PREFER this into
 // runtime_pipeline_abi.o. Do not modify that object in place.
 // Integer binops live in this function. Do not add a second
@@ -53,10 +53,9 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * stores -1. Each binop copies the IEEE halves into a host f64 with
  * memcpy, applies the language operator, and copies the bits back.
  * That is the same host-float operator the Ubuntu 4-arg folder uses.
- * It stays inside this function: this ABI has no high-half out
- * parameter, so there is no second float folder.
- * Do not add pipe_modlet_fold_f64_elem_bits.
- * |x| >= 2^32 returns 0. Exact -2^31 returns 1. Inf and NaN return 0,
+ * It stays inside this function. Do not add
+ * pipe_modlet_fold_f64_elem_bits.
+ * |x| >= 2^64 returns 0. Exact -2^31 returns 1. Inf and NaN return 0,
  * so (1.0 / 0.0) as i32 stays unfolded. Float MOD stays unfolded.
  * An f32 cast and an f32-typed binop round through the existing
  * glue_ieee_f64_bits_to_f32_bits, then widen with
@@ -70,18 +69,25 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * half. A positive trunc in [2^31, 2^32) does not fit that fill: the
  * low word has bit 31 set and the high half is 0, so this function
  * returns 2. 2147483648.0 as i64 is that case. (0 - 1) as i64 stays
- * return 1. Exactly -2^31 stays return 1. |x| >= 2^32 stays 0.
- * 2147483648.0 as i32 stays 0: it does not fit in signed i32.
+ * return 1. Exactly -2^31 stays return 1.
+ * |x| in [2^32, 2^63) writes the low word to out_val and the high
+ * word to out_hi, then returns 3. 4294967296.0 as i64 is low 0 and
+ * high 1. A negative value in (-2^63, -2^32) is the two's-complement
+ * of that magnitude. Exact -2^63 is low 0 and high 0x80000000.
+ * A null out_hi cannot carry that word, so the value stays unfolded.
+ * Positive 2^63 and |x| >= 2^64 stay 0. Unsigned targets reject a
+ * negative value. 2147483648.0 as i32 stays 0: it does not fit.
  * @param arena *u8 — AST arena; null returns 0
  * @param eref i32 — expression ref; <= 0 returns 0
- * @param out_val *i32 — one i32 slot; null returns 0; written only on success
- * @return i32 — 1 sign-fill, 2 zero high half, 0 not folded
+ * @param out_val *i32 — low i32 slot; null returns 0; written only on success
+ * @param out_hi *i32 — high i32 slot; null is legal; written only on return 3
+ * @return i32 — 1 sign-fill, 2 zero high half, 3 real high half, 0 not folded
  * PLATFORM: MACOS|DARWIN / WINDOWS — strong definition. Darwin prepare's
  * branch reloc binds here over the weak gcc body. Windows egg and the
  * modlet extra only declare this name.
  */
 #[no_mangle]
-export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32): i32 {
+export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32, out_hi: *i32): i32 {
   let ek: i32 = 0;
   let op: i32 = 0;
   let v: i32 = 0;
@@ -130,6 +136,11 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let fr: f64 = 0.0;
   let rty: i32 = 0;
   let rtk: i32 = 0;
+  let wlo: i32 = 0;
+  let whi: i32 = 0;
+  let k: i32 = 0;
+  let src: i32 = 0;
+  let bit: i32 = 0;
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
     return 0;
   }
@@ -156,7 +167,10 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     if (op <= 0) {
       return 0;
     }
-    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val) == 0) {
+    // A return of 3 is a real high half. Negate stays 32-bit, so that
+    // child is not a constant this arm can fold.
+    ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi);
+    if (ok == 0 || ok == 3) {
       return 0;
     }
     unsafe {
@@ -179,13 +193,16 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     if (left <= 0 || right <= 0) {
       return 0;
     }
-    if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val) == 0) {
+    // Return 3 carries a high half this 32-bit operator does not accept.
+    ok = pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi);
+    if (ok == 0 || ok == 3) {
       return 0;
     }
     unsafe {
       lv = pipe_load_i32_le(out_val as *u8, 0);
     }
-    if (pipe_modlet_array_lit_elem_const_val(arena, right, out_val) == 0) {
+    ok = pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi);
+    if (ok == 0 || ok == 3) {
       return 0;
     }
     unsafe {
@@ -282,7 +299,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     // A child return of 2 is a zero high half. A narrower cast of that
     // word is an i32, so the baker must sign-fill it. A 64-bit cast
     // keeps the zero high half.
-    ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val);
+    ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi);
     if (ok == 1) {
       return 1;
     }
@@ -291,6 +308,14 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         return 2;
       }
       return 1;
+    }
+    // The child already wrote both halves. A 32-bit target cannot keep
+    // a high word, so that cast stays unfolded.
+    if (ok == 3) {
+      if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
+        return 3;
+      }
+      return 0;
     }
     // Not an integer. Evaluate a float tree into flo/fhi, then truncate.
     // Frames: 0 enter, 1 the unary child, the cast operand, or the
@@ -403,7 +428,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
                       }
                     } else {
                       oparts[0] = 0;
-                      ok = pipe_modlet_array_lit_elem_const_val(arena, child, &(oparts[0]));
+                      ok = pipe_modlet_array_lit_elem_const_val(arena, child, &(oparts[0]), &(oparts[1]));
                       if (ok != 1) {
                         sp = 0;
                       } else {
@@ -574,9 +599,92 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       return 1;
     }
     e = exp - 1023;
-    // |x| >= 2^32 needs a high half this single word cannot carry.
+    // |x| >= 2^32. The low word goes to out_val and the high word to
+    // out_hi. Return 3 tells the baker to store that high word.
+    // Sign-fill and a zero high half are both the wrong pattern:
+    // 4294967296.0 is low 0 and high 1.
+    // Integer bit k is significand bit (k + 52 - e). Significand bit 52
+    // is the implicit 1, bits 32..51 are the low 20 bits of fhi, and
+    // bits 0..31 are flo. A logical bit of a negative word is an
+    // arithmetic shift masked with 1. Bit 31 and bit 63 are ORed in as
+    // INT_MIN so a left shift never has to set the sign bit itself.
     if (e > 31) {
-      return 0;
+      if (out_hi == 0 as *i32) {
+        return 0;
+      }
+      if (tk != 4 && tk != 5 && tk != 6 && tk != 7) {
+        return 0;
+      }
+      // |x| >= 2^64 does not fit in any 64-bit cell.
+      if (e >= 64) {
+        return 0;
+      }
+      // Binade [2^63, 2^64). Positive 2^63 is not a signed i64.
+      // Only exact -2^63 fits, and only in a signed 64-bit cell.
+      if (e == 63) {
+        if (fhi >= 0) {
+          return 0;
+        }
+        if ((fhi & 1048575) != 0 || flo != 0) {
+          return 0;
+        }
+        if (tk != 5 && tk != 7) {
+          return 0;
+        }
+      }
+      // u64 and usize reject a negative trunc.
+      if (fhi < 0) {
+        if (tk == 4 || tk == 6) {
+          return 0;
+        }
+      }
+      wlo = 0;
+      whi = 0;
+      k = 0;
+      while (k < 64) {
+        src = k + 52 - e;
+        bit = 0;
+        if (src == 52) {
+          bit = 1;
+        }
+        if (src >= 0 && src <= 31) {
+          bit = (flo >> src) & 1;
+        }
+        if (src >= 32 && src <= 51) {
+          bit = (fhi >> (src - 32)) & 1;
+        }
+        if (bit != 0) {
+          if (k < 31) {
+            wlo = wlo | (1 << k);
+          }
+          if (k == 31) {
+            wlo = wlo | (0 - 2147483647 - 1);
+          }
+          if (k > 31 && k < 63) {
+            whi = whi | (1 << (k - 32));
+          }
+          if (k == 63) {
+            whi = whi | (0 - 2147483647 - 1);
+          }
+        }
+        k = k + 1;
+      }
+      // Two's complement of the magnitude. Carry into the high word
+      // only when the low word is 0.
+      if (fhi < 0) {
+        if (wlo == 0) {
+          whi = (whi ^ (0 - 1)) + 1;
+        }
+        if (wlo != 0) {
+          wlo = 0 - wlo;
+          whi = whi ^ (0 - 1);
+        }
+      }
+      unsafe {
+        pipe_store_i32_le(out_val as *u8, 0, wlo);
+        pipe_store_i32_le(out_hi as *u8, 0, whi);
+      }
+      return 3;
     }
     // Negative binade (-2^32, -2^31]. Only exact -2^31 is the sign
     // fill of i32 0x80000000. Anything more negative has a low word
