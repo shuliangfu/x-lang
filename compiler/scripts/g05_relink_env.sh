@@ -145,14 +145,21 @@ case "$UNAME_S" in
   exit 1
   ;;
 esac
-# PLATFORM: LINUX — arch_x86_64_enc_enc_cltd in src/asm/backend_x86_64_enc_c.o
-# still emits cltd (99). idiv %rbx is 64-bit, so the live sign-extend has to
-# be cqo. This one-symbol object is compiled from that function and linked
-# first. Rebuilding the whole x86 encoder TU changes its other symbols.
-# Absent file keeps the previous sign-extend.
-if [ "$UNAME_S" = "Linux" ] && [ -s build_asm/selfhost_pabi/cltd_cqo.o ]; then
-  _USER_ASM_LINK="build_asm/selfhost_pabi/cltd_cqo.o $_USER_ASM_LINK"
-fi
+# PLATFORM: LINUX | WINDOWS — arch_x86_64_enc_enc_cltd still emits cltd
+# (99) in the linked encoder object. idiv %rbx is 64-bit (48 f7 fb), so
+# the live sign-extend has to be cqo (48 99). This one-symbol object is
+# linked first. Linux: ahead of backend_x86_64_enc_c.o. Windows: ahead of
+# backend_enc_dispatch.o (PE first strong definition wins). Darwin is
+# arm64 and must not link this COFF/ELF object. Rebuilding the whole x86
+# encoder TU changes its other symbols. Absent file keeps the previous
+# sign-extend.
+case "$UNAME_S" in
+  Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -s build_asm/selfhost_pabi/cltd_cqo.o ]; then
+      _USER_ASM_LINK="build_asm/selfhost_pabi/cltd_cqo.o $_USER_ASM_LINK"
+    fi
+    ;;
+esac
 
 # DRIVER_SEED layout: mirror Makefile LEGACY vs no_c default.
 # PLATFORM: SHARED — Makefile is the single authority (makefile L1843-1900).
