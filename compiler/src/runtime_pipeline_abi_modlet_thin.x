@@ -252,7 +252,9 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * An LT (ek 16) matches cmp and setl. A signed less-than stores 1
  * and any other pair stores 0. 1 < 2 stores 1 and 2 < 1 stores 0.
  * 1 < 1 stores 0. ((0 - 1) as i32) < 0 stores 1. The same sign-fill
- * and bool-result rules as EQ apply.
+ * and bool-result rules as EQ apply. A float LT also folds through
+ * pipe_modlet_fold_f64_elem_bits: host `bv > av` matches ucomis/setb.
+ * 1.0 < 2.0 stores 1 and 2.0 < 1.0 stores 0.
  * An LE (ek 17) matches cmp and setle. A signed less-or-equal stores
  * 1 and any other pair stores 0. 1 <= 2 stores 1 and 2 <= 1 stores 0.
  * 1 <= 1 stores 1. ((0 - 1) as i32) <= (0 - 1) stores 1. The same
@@ -976,12 +978,13 @@ function pipe_modlet_array_lit_elem_const_val(
   // 2 < 1 stores 0. 1 < 1 stores 0. ((0 - 1) as i32) < 0 stores 1.
   // The compare is signed on the folded i32 words. The baker pokes
   // the high word this arm writes, so that word is 0 and the return
-  // stays 1. Both children must fold. A child whose high half is not
-  // the sign fill of the low word stays unfolded. A resolved type
-  // other than bool stays unfolded. The left word is saved in llo
-  // before the right fold reuses out_val. An if on `rv > llo` writes
-  // 1 (same as llo < rv); otherwise the result stays 0. GT and
-  // GE are not this arm. A float compare stays unfolded.
+  // stays 1. Both integer children must fold. A child whose high half
+  // is not the sign fill of the low word stays unfolded. A resolved
+  // type other than bool stays unfolded. The left word is saved in
+  // llo before the right fold reuses out_val. An if on `rv > llo`
+  // writes 1 (same as llo < rv); otherwise the result stays 0. Float
+  // LT tries fold_f64 first; host `bv > av` matches ucomis/setb.
+  // 1.0 < 2.0 stores 1. GT and GE are not this arm.
   // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 16) {
     unsafe {
@@ -990,6 +993,41 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     if (left <= 0 || right <= 0) {
       return 0;
+    }
+    // Float less-than. fold_f64 then host `bv > av` (no bare `av < bv`).
+    // PLATFORM: LINUX|UBUNTU.
+    if (pipe_modlet_fold_f64_elem_bits(arena, left, &(lp[0]), &(lp[1])) == 1) {
+      if (pipe_modlet_fold_f64_elem_bits(arena, right, &(rp[0]), &(rp[1])) == 0) {
+        return 0;
+      }
+      unsafe {
+        unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
+        unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
+      }
+      rty = 0;
+      rtk = 0 - 1;
+      unsafe {
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+      }
+      if (rty > 0) {
+        unsafe {
+          unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+        }
+      }
+      if (rty > 0) {
+        if (rtk != 1) {
+          return 0;
+        }
+      }
+      result = 0;
+      if (bv > av) {
+        result = 1;
+      }
+      unsafe { out_val[0] = result; }
+      if (out_hi != (0 as *i32)) {
+        unsafe { out_hi[0] = 0; }
+      }
+      return 1;
     }
     if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi) == 0) {
       return 0;
