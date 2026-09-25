@@ -37,8 +37,6 @@ export extern "C" function pipe_modlet_bake_struct_lit_to_data(
  * and pointer or function elems (kind 9 or 18) keep the existing bakers.
  * Every other elem goes through the 3-arg folder. esz is 1, 2, 4, or 8;
  * anything else is forced to 4, matching the weak gcc body.
- * TYPE_NAMED Cap residual i8/i16/u16 override to 1/2/2 when typeck
- * still falls through to 4 (until typeck_x.o picks up named_builtin).
  * Bytes 0..3 are the little-endian i32. An arithmetic shift by 8, 16,
  * or 24 stays inside those 32 bits, so masking 255 is the byte.
  * Bytes 4..7, only when esz is 8, are 0xff when the folder returns 1
@@ -94,9 +92,6 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   let h1: i32 = 0;
   let h2: i32 = 0;
   let h3: i32 = 0;
-  let nlen: i32 = 0;
-  let named_esz: i32 = 0;
-  let nm: u8[8] = [];
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || init_ref <= 0) {
     return 0;
   }
@@ -147,45 +142,13 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
   unsafe {
     esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
   }
-  // Cap residual TYPE_NAMED i8/i16/u16: real widths 1/2/2. typeck_x
-  // named_builtin may still return 4 until that .o is rebuilt; the
-  // baker must not wait on that. Other named (structs) keep ssz.
-  // PLATFORM: SHARED — name bytes match typeck_int_family_id.
-  if (etk == 8) {
-    named_esz = 0;
-    unsafe {
-      nlen = pipeline_type_named_name_into(arena, elem_ty, &(nm[0]));
-    }
-    if (nlen == 2) {
-      if (nm[0] == 105) {
-        if (nm[1] == 56) {
-          named_esz = 1;
-        }
-      }
-    }
-    if (nlen == 3) {
-      if (nm[0] == 105) {
-        if (nm[1] == 49) {
-          if (nm[2] == 54) {
-            named_esz = 2;
-          }
-        }
-      }
-      if (nm[0] == 117) {
-        if (nm[1] == 49) {
-          if (nm[2] == 54) {
-            named_esz = 2;
-          }
-        }
-      }
-    }
-    if (named_esz > 0) {
-      esz = named_esz;
-    }
-  }
   // A TYPE_NAMED element (kind 8) keeps its real size. One f64
   // field is 8. A wider struct must not be forced down to 4, or the
-  // next element would overlap the first. PLATFORM: MACOS|DARWIN.
+  // next element would overlap the first. Cap residual i8/i16/u16
+  // stay on glue_type_size_simple (4 until that helper calls
+  // typeck_x_named_builtin_size). Do not override esz here — bake
+  // stride must match runtime index stride.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
     if (etk != 8 || esz <= 0) {
       esz = 4;

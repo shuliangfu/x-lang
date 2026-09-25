@@ -36093,6 +36093,14 @@ int32_t glue_type_size_simple(uint8_t * m, uint8_t * a, int32_t ty_ref, int32_t 
     if ((((glue_vector_type_lanes_esz_c(a, ty_ref, &(vl), &(ves)) ==0) && (vl > 0)) && (ves > 0))) {
       return (vl * ves);
     }
+    /* Cap residual i8/i16/u16: typeck_x_named_builtin_size (wave1004). */
+    {
+      extern int32_t typeck_x_named_builtin_size(uint8_t *nm, int32_t nlen);
+      int32_t bsz = typeck_x_named_builtin_size(&((name)[0]), nlen);
+      if (bsz > 0) {
+        return bsz;
+      }
+    }
     return 4;
   }
   return 0;

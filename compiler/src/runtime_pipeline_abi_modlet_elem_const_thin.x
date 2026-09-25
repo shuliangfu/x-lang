@@ -782,6 +782,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let bit: i32 = 0;
   let enter_walk: i32 = 0;
   let named_ok: i32 = 0;
+  let named_esz: i32 = 0;
   let nlen: i32 = 0;
   let nm: u8[8] = [];
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
@@ -2223,11 +2224,14 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     // 0 i32, 1 bool, 2 u8, 3 u32, 4 u64, 5 i64, 6 usize, 7 isize.
     // 8 TYPE_NAMED: only Cap residual i8/i16/u16 (no TypeKind; same
-    // 32-bit cell as 0..3). Other named spellings stay unfolded.
+    // 32-bit cell as 0..3 until glue_type_size_simple calls
+    // typeck_x_named_builtin_size). Truncate the folded word to the
+    // named width so 256 as i8 stores 0 with esz 4.
     // 14 is f32: the word below is the IEEE pattern, not a trunc.
     // 15 is f64: both halves below are the IEEE pattern, not a trunc.
     // PLATFORM: SHARED — name bytes match typeck_int_family_id.
     named_ok = 0;
+    named_esz = 0;
     if (tk == 8) {
       unsafe {
         nlen = pipeline_type_named_name_into(arena, tgt, &(nm[0]));
@@ -2237,6 +2241,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         if (nm[0] == 105) {
           if (nm[1] == 56) {
             named_ok = 1;
+            named_esz = 1;
           }
         }
       }
@@ -2246,6 +2251,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
           if (nm[1] == 49) {
             if (nm[2] == 54) {
               named_ok = 1;
+              named_esz = 2;
             }
           }
         }
@@ -2256,6 +2262,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
           if (nm[1] == 49) {
             if (nm[2] == 54) {
               named_ok = 1;
+              named_esz = 2;
             }
           }
         }
@@ -2343,11 +2350,37 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       }
     }
     if (ok == 1) {
+      // Cap residual named width: peel in the word so esz-4 bake stores
+      // 256 as i8 as 0, not 0x100. PLATFORM: SHARED.
+      if (named_esz == 1) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          pipe_store_i32_le(out_val as *u8, 0, v & 255);
+        }
+      }
+      if (named_esz == 2) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          pipe_store_i32_le(out_val as *u8, 0, v & 65535);
+        }
+      }
       return 1;
     }
     if (ok == 2) {
       if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
         return 2;
+      }
+      if (named_esz == 1) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          pipe_store_i32_le(out_val as *u8, 0, v & 255);
+        }
+      }
+      if (named_esz == 2) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          pipe_store_i32_le(out_val as *u8, 0, v & 65535);
+        }
       }
       return 1;
     }
@@ -2373,7 +2406,22 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   if (enter_walk == 1) {
     // Walk stack arrays live here so recursive AS/compare frames stay
     // small. PLATFORM: WINDOWS — global array bake.
-    return pipe_modlet_array_lit_elem_const_walk(arena, op, tk, out_val, out_hi);
+    ok = pipe_modlet_array_lit_elem_const_walk(arena, op, tk, out_val, out_hi);
+    if (ok == 1) {
+      if (named_esz == 1) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          pipe_store_i32_le(out_val as *u8, 0, v & 255);
+        }
+      }
+      if (named_esz == 2) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          pipe_store_i32_le(out_val as *u8, 0, v & 65535);
+        }
+      }
+    }
+    return ok;
   }
   return 0;
 }

@@ -2055,6 +2055,9 @@ function pipe_modlet_array_lit_elem_const_val(
     let ip: i32[2] = [];
     let iv64: i64 = 0;
     let ihi: i32 = 0;
+    // Cap residual TYPE_NAMED leaf width for AS trunc (i8=1, i16/u16=2).
+    // Glue still sizes named as 4; mask keeps .data trunc correct.
+    let named_esz: i32 = 0;
     unsafe {
       unsafe { op = pipeline_expr_as_operand_ref_at(arena, eref); }
       unsafe { tgt = pipeline_expr_as_target_type_ref_at(arena, eref); }
@@ -2195,6 +2198,11 @@ function pipe_modlet_array_lit_elem_const_val(
       if (named_ok == 0) {
         return 0;
       }
+      // w1004: peel named width for AS trunc (glue still returns 4).
+      named_esz = 1;
+      if (nlen == 3) {
+        named_esz = 2;
+      }
     }
     if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 8) {
       return 0;
@@ -2205,11 +2213,41 @@ function pipe_modlet_array_lit_elem_const_val(
         return 0;
       }
       unsafe { lv = out_val[0]; }
+      // Cap residual named: mask to i8/i16/u16 width (256 as i8 → 0).
+      if (tk == 8) {
+        if (named_esz == 1) {
+          lv = lv & 255;
+        }
+        if (named_esz == 2) {
+          lv = lv & 65535;
+        }
+        unsafe { out_val[0] = lv; }
+      }
       if (out_hi != (0 as *i32)) {
-        if (lv < 0) {
-          unsafe { out_hi[0] = 0 - 1; }
+        if (tk == 8) {
+          if (named_esz > 0) {
+            if (named_esz < 4) {
+              unsafe { out_hi[0] = 0; }
+            } else {
+              if (lv < 0) {
+                unsafe { out_hi[0] = 0 - 1; }
+              } else {
+                unsafe { out_hi[0] = 0; }
+              }
+            }
+          } else {
+            if (lv < 0) {
+              unsafe { out_hi[0] = 0 - 1; }
+            } else {
+              unsafe { out_hi[0] = 0; }
+            }
+          }
         } else {
-          unsafe { out_hi[0] = 0; }
+          if (lv < 0) {
+            unsafe { out_hi[0] = 0 - 1; }
+          } else {
+            unsafe { out_hi[0] = 0; }
+          }
         }
       }
       return 1;
@@ -2258,12 +2296,41 @@ function pipe_modlet_array_lit_elem_const_val(
       mag = mag | ((step & 2047) << 11);
       mag = mag | (((step >> 11) & 511) << 22);
       mag = mag | (0 - 2147483647 - 1);
+      // Cap residual named AS: mask wrapped word to leaf width.
+      if (tk == 8) {
+        if (named_esz == 1) {
+          mag = mag & 255;
+        }
+        if (named_esz == 2) {
+          mag = mag & 65535;
+        }
+      }
       unsafe { out_val[0] = mag; }
       if (out_hi != (0 as *i32)) {
-        if (mag < 0) {
-          unsafe { out_hi[0] = 0 - 1; }
+        if (tk == 8) {
+          if (named_esz > 0) {
+            if (named_esz < 4) {
+              unsafe { out_hi[0] = 0; }
+            } else {
+              if (mag < 0) {
+                unsafe { out_hi[0] = 0 - 1; }
+              } else {
+                unsafe { out_hi[0] = 0; }
+              }
+            }
+          } else {
+            if (mag < 0) {
+              unsafe { out_hi[0] = 0 - 1; }
+            } else {
+              unsafe { out_hi[0] = 0; }
+            }
+          }
         } else {
-          unsafe { out_hi[0] = 0; }
+          if (mag < 0) {
+            unsafe { out_hi[0] = 0 - 1; }
+          } else {
+            unsafe { out_hi[0] = 0; }
+          }
         }
       }
       return 1;
@@ -2274,12 +2341,41 @@ function pipe_modlet_array_lit_elem_const_val(
       unsafe { memcpy((&dv) as *u8, (&(parts[0])) as *u8, 8 as usize); }
     }
     iv = dv as i32;
+    // Cap residual named AS: float→int then mask (256.0 as i8 → 0).
+    if (tk == 8) {
+      if (named_esz == 1) {
+        iv = iv & 255;
+      }
+      if (named_esz == 2) {
+        iv = iv & 65535;
+      }
+    }
     unsafe { out_val[0] = iv; }
     if (out_hi != (0 as *i32)) {
-      if (iv < 0) {
-        unsafe { out_hi[0] = 0 - 1; }
+      if (tk == 8) {
+        if (named_esz > 0) {
+          if (named_esz < 4) {
+            unsafe { out_hi[0] = 0; }
+          } else {
+            if (iv < 0) {
+              unsafe { out_hi[0] = 0 - 1; }
+            } else {
+              unsafe { out_hi[0] = 0; }
+            }
+          }
+        } else {
+          if (iv < 0) {
+            unsafe { out_hi[0] = 0 - 1; }
+          } else {
+            unsafe { out_hi[0] = 0; }
+          }
+        }
       } else {
-        unsafe { out_hi[0] = 0; }
+        if (iv < 0) {
+          unsafe { out_hi[0] = 0 - 1; }
+        } else {
+          unsafe { out_hi[0] = 0; }
+        }
       }
     }
     return 1;
@@ -2501,7 +2597,7 @@ function pipe_modlet_assign_unique_label(idx: i32, module_fp: i64): void {
  * @param lit_ref i32 — STRUCT_LIT expr
  * @param fi i32 — field index
  * @return i32 — 1, 2, 4, or 8; -1 when the field is not an integer scalar
- *   (TYPE_NAMED Cap residual i8→1, i16/u16→2)
+ *   (TYPE_NAMED Cap residual i8→1, i16/u16→2; matches typeck_x.o)
  * PLATFORM: SHARED — same widths as a scalar ARRAY_LIT element.
  */
 function pipe_modlet_struct_field_int_width(
@@ -2522,7 +2618,7 @@ function pipe_modlet_struct_field_int_width(
     unsafe { k = pipeline_type_kind_ord_at(arena, fty); }
   }
   // u8 / bool, then the 4-byte integers, then the 8-byte integers.
-  // TYPE_NAMED Cap residual i8/i16/u16: widths 1/2/2.
+  // TYPE_NAMED Cap residual i8/i16/u16: widths 1/2/2 (typeck_x.o).
   // PLATFORM: SHARED — name bytes match typeck_int_family_id.
   if (k == 1 || k == 2) {
     return 1;
@@ -3330,45 +3426,11 @@ function pipe_modlet_bake_array_lit_elems_to_data(
     return 0;
   }
   unsafe { esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty); }
-  // Cap residual TYPE_NAMED i8/i16/u16 → 1/2/2 when typeck still
-  // returns 4. Other named keep the struct stride.
-  // PLATFORM: SHARED — name bytes match typeck_int_family_id.
-  if (etk == 8) {
-    let nm: u8[8] = [];
-    let nlen: i32 = 0;
-    let named_esz: i32 = 0;
-    unsafe {
-      nlen = pipeline_type_named_name_into(arena, elem_ty, &(nm[0]));
-    }
-    if (nlen == 2) {
-      if (nm[0] == 105) {
-        if (nm[1] == 56) {
-          named_esz = 1;
-        }
-      }
-    }
-    if (nlen == 3) {
-      if (nm[0] == 105) {
-        if (nm[1] == 49) {
-          if (nm[2] == 54) {
-            named_esz = 2;
-          }
-        }
-      }
-      if (nm[0] == 117) {
-        if (nm[1] == 49) {
-          if (nm[2] == 54) {
-            named_esz = 2;
-          }
-        }
-      }
-    }
-    if (named_esz > 0) {
-      esz = named_esz;
-    }
-  }
   // TYPE_NAMED keeps the struct stride. Clamping a 12-byte struct to 4
   // would overlap the next element. Scalar elems stay 1/2/4/8.
+  // Cap residual i8/i16/u16 use glue size (4 until glue calls
+  // typeck_x_named_builtin_size). Do not override esz — must match
+  // runtime index stride. PLATFORM: SHARED.
   if (etk != 8) {
     if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
       esz = 4;
@@ -4502,42 +4564,8 @@ function pipe_modlet_seed_array_lit_elems_to_rbx(
     return 0;
   }
   unsafe { esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty); }
-  // Cap residual TYPE_NAMED i8/i16/u16 → 1/2/2. PLATFORM: SHARED.
-  if (etk == 8) {
-    let nm2: u8[8] = [];
-    let nlen2: i32 = 0;
-    let named_esz2: i32 = 0;
-    unsafe {
-      nlen2 = pipeline_type_named_name_into(arena, elem_ty, &(nm2[0]));
-    }
-    if (nlen2 == 2) {
-      if (nm2[0] == 105) {
-        if (nm2[1] == 56) {
-          named_esz2 = 1;
-        }
-      }
-    }
-    if (nlen2 == 3) {
-      if (nm2[0] == 105) {
-        if (nm2[1] == 49) {
-          if (nm2[2] == 54) {
-            named_esz2 = 2;
-          }
-        }
-      }
-      if (nm2[0] == 117) {
-        if (nm2[1] == 49) {
-          if (nm2[2] == 54) {
-            named_esz2 = 2;
-          }
-        }
-      }
-    }
-    if (named_esz2 > 0) {
-      esz = named_esz2;
-    }
-  }
   // TYPE_NAMED keeps the struct stride. See the bake twin.
+  // Cap residual i8/i16/u16: do not override esz (runtime stride).
   if (etk != 8) {
     if (esz != 1 && esz != 2 && esz != 4 && esz != 8) {
       esz = 4;
