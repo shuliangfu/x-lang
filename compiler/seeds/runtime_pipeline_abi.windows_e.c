@@ -2760,6 +2760,11 @@ extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t * ctx_bytes);
 extern void pipeline_elf_ctx_reset_data(uint8_t * ctx_bytes);
 extern uint8_t * pipeline_elf_ctx_data_data_ptr(uint8_t * ctx_bytes);
 extern int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t * ctx_bytes, uint32_t word);
+/* PLATFORM: WINDOWS — declaration only.
+ * Body is runtime_pipeline_abi_elf_ctx.windows_e.c, the same TU as
+ * pipeline_elf_ctx_add_sym. That add_sym reads its own
+ * g_pipe_elf_shndx_override. A body in this file would store a second
+ * override and the module-data symbol would stay in .text. */
 extern void pipeline_elf_ctx_set_shndx_override(uint8_t * ctx_bytes, int32_t shndx);
 extern int32_t pipe_elf_current_shndx(uint8_t * ctx);
 extern uint8_t * pipe_elf_code_buf(uint8_t * ctx_bytes, int32_t shndx);
@@ -53968,9 +53973,8 @@ int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t * ctx_bytes, uint32_t word) 
   (void)((g_pipe_elf_data_len = (off + 4)));
   return 0;
 }
-void pipeline_elf_ctx_set_shndx_override(uint8_t * ctx_bytes, int32_t shndx) {
-  (void)((g_pipe_elf_shndx_override = shndx));
-}
+/* pipeline_elf_ctx_set_shndx_override is not defined in this file.
+ * See the extern above. PLATFORM: WINDOWS. */
 int32_t pipe_elf_current_shndx(uint8_t * ctx) {
   if ((ctx ==0)) {
     return pipe_elf_shnx_text();

@@ -23873,10 +23873,11 @@ void grow_vec_copy_append(GrowVec *dst, GrowVec *src) {
 static uint8_t g_pipeline_elf_data_buf[65536];
 static int32_t g_pipeline_elf_data_len;
 static uint8_t *g_pipeline_elf_data_owner;
-/* F7: shndx override (0 = no override; 4 = data section). When non-zero,
- * pipeline_elf_ctx_current_shndx returns this value, so new relocs/syms/labels
- * are tagged as data-section. Single-threaded compile; safe as a global mutable. */
-static int32_t g_pipeline_elf_shndx_override;
+/* F7 shndx override is not stored here.
+ * PLATFORM: WINDOWS — pipeline_elf_ctx_add_sym lives in
+ * runtime_pipeline_abi_elf_ctx.windows_e.c and reads that file's
+ * g_pipe_elf_shndx_override. A static here plus a body below would be
+ * the first strong set_shndx and would not tag the symbol as data. */
 
 /**
  * F7: Reset the data section buffer at module start.
@@ -23969,16 +23970,9 @@ int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b
   return 0;
 }
 
-/**
- * F7: Set/clear shndx override. When set to 4 (data section), subsequent
- * relocs/syms/labels are tagged as data-section. Set to 0 to restore default.
- * PLATFORM: SHARED freestanding ELF leave.
- * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
- */
-void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx_bytes, int32_t shndx) {
-  (void)ctx_bytes;
-  g_pipeline_elf_shndx_override = shndx;
-}
+/* pipeline_elf_ctx_set_shndx_override: not defined in this TU.
+ * Callers use the extern. The body is the elf_ctx windows extra,
+ * same TU as add_sym. PLATFORM: WINDOWS. */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave273 F7 */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after F7 */
