@@ -453,15 +453,13 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
-    # w1009/w1010: let-after-assign body_sync. First-wins. PLATFORM: WINDOWS.
-    # Host-gcc twin from runtime_pipeline_abi_block_body_sync_let_order_thin.c.
-    # mega_body same-TU REL32 keeps leftover even when weakened; g05_relink_xlang
-    # post-link win_patch_body_sync_jmp.py redirects leftover entry to this twin.
-    # emit_let_init twin: BSS vn — tip stack u8[256] smash breaks f32 lets.
-    if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
-      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
-    fi
-    if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+    # w1009/w1010: let-after-assign body_sync + emit_let_init. PLATFORM: WINDOWS.
+    # Host-gcc twins first-wins. mega same-TU REL32 keeps leftover — weaken a
+    # COPY (pabi_weak.o), never mutate egg runtime_pipeline_abi.o; post-link
+    # win_patch_body_sync_jmp redirects leftover W→T. emit_let_init BSS twin:
+    # tip stack u8[256] smash when C body_sync calls tip emit_let_init.
+    if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
+      || [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -469,10 +467,24 @@ case "$UNAME_S" in
         _oc=objcopy
       fi
       if [ -n "$_oc" ] && [ -s src/runtime_pipeline_abi.o ]; then
-        for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf glue_block_body_emit_let_init; do
-          "$_oc" --weaken-symbol="$_bsym" src/runtime_pipeline_abi.o 2>/dev/null || true
+        mkdir -p build_asm/selfhost_pabi
+        cp -f src/runtime_pipeline_abi.o build_asm/selfhost_pabi/pabi_weak.o
+        for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf; do
+          if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+            "$_oc" --weaken-symbol="$_bsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          fi
         done
+        if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+          "$_oc" --weaken-symbol=glue_block_body_emit_let_init \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
       fi
+    fi
+    if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
+    fi
+    if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
     fi
     # w1007 Cap residual named_builtin size→4 overlay (when typeck_x.o

@@ -73,8 +73,25 @@ export G05_SYNC_ASM=0
 bash scripts/g05_relink_xlang.sh
 
 if [ "$SYNC_ASM" = "1" ]; then
-  cp -f "${G05_OUT:-xlang}" xlang_asm
-  echo "g05_prepare_and_relink: xlang_asm OK (synced from ${G05_OUT:-xlang})"
+  _sync_src="${G05_OUT:-xlang}"
+  # MinGW -o xlang often materializes as xlang.exe. PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ -f "${_sync_src}.exe" ]; then
+        _sync_src="${_sync_src}.exe"
+      fi
+      ;;
+  esac
+  cp -f "$_sync_src" xlang_asm
+  # Keep xlang_asm.exe for PE tools that expect the .exe suffix.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ -f "$_sync_src" ]; then
+        cp -f "$_sync_src" xlang_asm.exe 2>/dev/null || true
+      fi
+      ;;
+  esac
+  echo "g05_prepare_and_relink: xlang_asm OK (synced from $_sync_src)"
 fi
 
 # Stage-2: pin egg may have baked fmt_check_cmd_driver via host-C (auto-deny
@@ -112,7 +129,20 @@ if [ -n "$_stage2_xl" ] \
       export G05_SYNC_ASM=0
       bash scripts/g05_relink_xlang.sh
       if [ "$SYNC_ASM" = "1" ]; then
-        cp -f "${G05_OUT:-xlang}" xlang_asm
+        _sync_src="${G05_OUT:-xlang}"
+        case "$(uname -s 2>/dev/null)" in
+          MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+            if [ -f "${_sync_src}.exe" ]; then
+              _sync_src="${_sync_src}.exe"
+            fi
+            ;;
+        esac
+        cp -f "$_sync_src" xlang_asm
+        case "$(uname -s 2>/dev/null)" in
+          MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+            cp -f "$_sync_src" xlang_asm.exe 2>/dev/null || true
+            ;;
+        esac
         echo "g05_prepare_and_relink: stage2 xlang_asm re-synced"
       fi
     else
