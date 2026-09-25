@@ -322,6 +322,13 @@ int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
 extern void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx);
 extern int32_t pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx);
+/* F7 data section. The modlet baker calls these same two faces.
+ * First strong definition inside runtime_pipeline_abi.o (Windows from_x
+ * leftover-PE static g_pipeline_elf_data_*) is the buffer that was written.
+ * Do not allocate a second buffer here.
+ * PLATFORM: WINDOWS — COFF has no ELF shndx; the writer maps shndx 4. */
+extern int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes);
+extern uint8_t *pipeline_elf_ctx_data_data_ptr(uint8_t *ctx_bytes);
 
 /**
  * Append n bytes into CodegenOutBuf (cap 9MiB product ABI).
@@ -364,6 +371,10 @@ static uint8_t *seed_elf_sym_name_ptr(struct platform_elf_ElfCodegenCtx *ctx, in
  * PLATFORM: SHARED — cross-emit from Darwin/Linux/Windows hosts; e_machine must
  * be EM_X86_64 (62). build_asm/coff.o remains a ci_text stub; this seed is the
  * product authority until coff.x pure-asm non-stub lands.
+ * ELF st_shndx 4 is the data section (pipe_elf_shnx_data). A one-section
+ * COFF object stored that symbol at .text+offset, so a module array lea
+ * targeted the function entry. When emit_data_len is non-zero, section 2
+ * is .data and those symbols use it. PLATFORM: WINDOWS.
  */
 int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   struct platform_elf_ElfCodegenCtx *ctx;
@@ -379,12 +390,18 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   int32_t ptr_raw;
   int32_t ptr_reloc;
   int32_t ptr_sym;
+  int32_t data_len;
+  int32_t align_data;
+  int32_t nsec;
+  int32_t ptr_data;
+  int32_t has_data;
   int32_t s;
   int32_t r;
   uint8_t fh[20];
   uint8_t sh[40];
   uint8_t zero[1];
   uint8_t *ctx_bytes;
+  uint8_t *data_ptr;
 
   if (!elf_ctx || !out_buf)
     return -1;
@@ -451,14 +468,43 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
       }
     }
   }
+  /* PLATFORM: WINDOWS — one data buffer, the baker's.
+   * shndx 4 without a payload still needs a .data section so the
+   * symbol is not placed at the start of .text. */
+  data_len = pipeline_elf_ctx_emit_data_len(ctx_bytes);
+  if (data_len < 0)
+    data_len = 0;
+  if (data_len > 65536)
+    data_len = 65536;
+  data_ptr = pipeline_elf_ctx_data_data_ptr(ctx_bytes);
+  if (data_len > 0 && data_ptr == NULL)
+    return -1;
+  has_data = (data_len > 0) ? 1 : 0;
+  if (has_data == 0) {
+    for (s = 0; s < num_syms; s++) {
+      if (ctx->syms[s].sym_shndx == 4) {
+        has_data = 1;
+        break;
+      }
+    }
+  }
+  align_data = 0;
+  if (has_data != 0)
+    align_data = (data_len + 3) & (-4);
+  nsec = (has_data != 0) ? 2 : 1;
   reloc_size = num_relocs * 10;
   num_coff_syms = 2 + num_syms;
   symtab_size = num_coff_syms * 18;
   strtab_used = 4;
   for (s = 0; s < num_syms; s++)
     strtab_used = strtab_used + ctx->syms[s].name_len + 1;
-  ptr_raw = 60;
-  ptr_reloc = ptr_raw + align4;
+  /* File header (20) + one 40-byte header per section. */
+  ptr_raw = 20 + 40 * nsec;
+  ptr_data = ptr_raw + align4;
+  if (has_data != 0)
+    ptr_reloc = ptr_data + align_data;
+  else
+    ptr_reloc = ptr_raw + align4;
   ptr_sym = ptr_reloc + reloc_size;
 
   out->length = 0;
@@ -466,7 +512,7 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   /* Machine 0x8664 little-endian: 0x64, 0x86 */
   fh[0] = 100;
   fh[1] = 134;
-  fh[2] = 1; /* NumberOfSections = 1 */
+  fh[2] = (uint8_t)nsec; /* NumberOfSections */
   fh[3] = 0;
   fh[8] = (uint8_t)(ptr_sym);
   fh[9] = (uint8_t)(ptr_sym >> 8);
@@ -506,12 +552,51 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   if (seed_coff_append(out, sh, 40) != 0)
     return -1;
 
+  /* PLATFORM: WINDOWS — ELF shndx 4. Characteristics
+   * CNT_INITIALIZED_DATA | ALIGN_4BYTES | MEM_READ | MEM_WRITE = 0xC0300040.
+   * Writable because a module array is assigned (g[0] = …). */
+  if (has_data != 0) {
+    uint8_t dh[40];
+    memset(dh, 0, sizeof(dh));
+    dh[0] = 46;
+    dh[1] = 100;
+    dh[2] = 97;
+    dh[3] = 116;
+    dh[4] = 97;
+    dh[8] = (uint8_t)(data_len);
+    dh[9] = (uint8_t)(data_len >> 8);
+    dh[10] = (uint8_t)(data_len >> 16);
+    dh[11] = (uint8_t)(data_len >> 24);
+    dh[16] = (uint8_t)(align_data);
+    dh[17] = (uint8_t)(align_data >> 8);
+    dh[18] = (uint8_t)(align_data >> 16);
+    dh[19] = (uint8_t)(align_data >> 24);
+    dh[20] = (uint8_t)(ptr_data);
+    dh[21] = (uint8_t)(ptr_data >> 8);
+    dh[22] = (uint8_t)(ptr_data >> 16);
+    dh[23] = (uint8_t)(ptr_data >> 24);
+    dh[36] = 0x40;
+    dh[37] = 0x00;
+    dh[38] = 0x30;
+    dh[39] = 0xC0;
+    if (seed_coff_append(out, dh, 40) != 0)
+      return -1;
+  }
+
   if (code_len > 0 && seed_coff_append(out, ctx->code_data, code_len) != 0)
     return -1;
   zero[0] = 0;
   for (s = 0; s < align4 - code_len; s++) {
     if (seed_coff_append(out, zero, 1) != 0)
       return -1;
+  }
+  if (has_data != 0) {
+    if (data_len > 0 && seed_coff_append(out, data_ptr, data_len) != 0)
+      return -1;
+    for (s = 0; s < align_data - data_len; s++) {
+      if (seed_coff_append(out, zero, 1) != 0)
+        return -1;
+    }
   }
 
   for (r = 0; r < num_relocs; r++) {
@@ -619,6 +704,15 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
           ent[14] = 32;
           ent[15] = 0;
         }
+        ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
+        ent[17] = 0;
+      } else if (has_data != 0 && ctx->syms[s].sym_shndx == 4) {
+        /* ELF st_shndx 4 → COFF section 2 (.data). Value is the
+         * data-buffer offset. Not a function. PLATFORM: WINDOWS. */
+        ent[12] = 2;
+        ent[13] = 0;
+        ent[14] = 0;
+        ent[15] = 0;
         ent[16] = 2; /* IMAGE_SYM_CLASS_EXTERNAL */
         ent[17] = 0;
       } else {
