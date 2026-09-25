@@ -780,8 +780,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // sign fill. A 64-bit child whose high half is not that fill stays
   // unfolded. A resolved type that is not bool stays unfolded. The
   // left word is copied into lv before the right fold reuses out_val.
-  // The zero result is written before the unequal test, so there is
-  // no else. LT, LE, GT, and GE are not this arm. A float compare
+  // An if/else on `==` writes 0 or 1. Do not use `!=` or a flip of a
+  // preset 1 in this arm on the Windows host that compiles this thin.
+  // LT, LE, GT, and GE are not this arm. A float compare
   // stays unfolded.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek == 15) {
@@ -821,14 +822,16 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     unsafe {
       rv = pipe_load_i32_le(out_val as *u8, 0);
     }
-    // Invert equality. Do not write `lv != rv` here: the Windows
-    // compiler that builds this thin can miscompile that operator in
-    // this body, so equal words would still store 1. The EQ arm already
-    // uses `==`; this arm reuses that form and flips the result.
-    // PLATFORM: WINDOWS — `!=` in this folder body is unsafe to emit.
-    result = 1;
+    // Build inequality without `!=` and without a bare `result = 1`
+    // then `if (lv == rv)` flip. The Windows host that compiles this
+    // thin has miscompiled both of those shapes in this arm (equal
+    // words became 1, then unequal words became 0). An if/else on
+    // `==` matches the EQ arm's compare and writes both outcomes
+    // explicitly. PLATFORM: WINDOWS.
     if (lv == rv) {
       result = 0;
+    } else {
+      result = 1;
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, result);
