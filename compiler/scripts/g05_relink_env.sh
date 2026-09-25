@@ -292,21 +292,12 @@ _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
-      # w1013: true_i8 assign supersedes win_assign_index (PE first-wins).
-      # emit_index / force_esz tips parked on WINDOWS this wave.
-      # PLATFORM: WINDOWS.
-      if [ "$_wov" = "src/win_assign_index_override.o" ] \
-        && [ -s src/assign_index_true_i8_override.o ]; then
-        continue
-      fi
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi
     done
-    # True-pack assign tip first in the PE first-wins list.
-    if [ -s src/assign_index_true_i8_override.o ]; then
-      _WIN_ASSIGN_OVERRIDES="src/assign_index_true_i8_override.o $_WIN_ASSIGN_OVERRIDES"
-    fi
+    # w1013: bake tip packs module i8; INDEX tip esz=1 (win_index). assign /
+    # emit / force_esz true_i8 tips parked on WINDOWS (jmp/CG002). PLATFORM: WINDOWS.
     ;;
 esac
 # w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
@@ -563,8 +554,7 @@ case "$UNAME_S" in
     # Also create pabi_weak when assign/emit true_i8 tips need weaken.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
       || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
-      || [ -s build_asm/selfhost_pabi/bake_elems.o ] \
-      || [ -s src/assign_index_true_i8_override.o ]; then
+      || [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -583,19 +573,11 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=glue_block_body_emit_let_init \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
-        # w1013: true-pack bake tip. Weaken both egg T copies of bake_array.
-        # Also weaken assign_index so tip first-wins same-TU REL32 callers.
-        # PLATFORM: WINDOWS.
+        # w1013: true-pack bake tip. Weaken egg bake_array. PLATFORM: WINDOWS.
         if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
           "$_oc" --weaken-symbol=pipe_modlet_bake_array_lit_elems_to_data \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
-        if [ -s src/assign_index_true_i8_override.o ]; then
-          "$_oc" --weaken-symbol=glue_emit_assign_index_elf_c \
-            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
-        fi
-        # emit_index tip parked on WINDOWS (w1013): jmp to tip broke module
-        # array prepare. Positive i8 uses leftover zext at esz=1.
         _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
       fi
     fi
