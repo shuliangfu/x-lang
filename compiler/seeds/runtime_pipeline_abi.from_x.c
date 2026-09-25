@@ -19275,12 +19275,20 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
       }
       if (kind_ord == 11)
         return 16;
-      /* Cap residual named array/slice elems: use glue_type_size_simple
-       * (still 4 for i8/i16/u16 while product bake strides at 4). Do not
-       * hardcode i8→1 here — that broke i8[N] INDEX vs bake (sum=1).
-       * PTR *i8 keeps the hardcode above. PLATFORM: WINDOWS leftover-PE.
+      /* Cap residual named array/slice elems: bake strides at 4 while
+       * some Win glue_type_size_simple copies report 1 for i8. Force 4
+       * for i8/i16/u16 so INDEX matches bake. PTR *i8 keeps hardcode 1
+       * above. PLATFORM: WINDOWS leftover-PE.
        */
       if (kind_ord == 8) {
+        uint8_t sn[64];
+        int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+          return 4;
+        if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 4;
+        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 4;
         mod = pipeline_asm_emit_module_ref_c();
         if (mod) {
           ssz = glue_type_size_simple(mod, arena, pointee, 0);
@@ -19299,10 +19307,17 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   if (kind_ord == 11)
     return 16;
   if (kind_ord == 8) {
-    /* Bare named: prefer glue size (i8/i16/u16 still 4 in product pabi).
-     * Do not hardcode i8→1 — conflicts with i8[N] bake stride.
-     * PLATFORM: WINDOWS leftover-PE.
+    /* Bare named: Cap residual i8/i16/u16 → 4 (match bake). Other named
+     * use glue_type_size_simple. PLATFORM: WINDOWS leftover-PE.
      */
+    uint8_t sn[64];
+    int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
+    if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+      return 4;
+    if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+      return 4;
+    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+      return 4;
     mod = pipeline_asm_emit_module_ref_c();
     if (mod) {
       ssz = glue_type_size_simple(mod, arena, tr, 0);

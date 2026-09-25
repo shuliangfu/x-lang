@@ -89,8 +89,20 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
       }
       if (kind_ord == 11)
         return 16;
-      /* ARRAY/SLICE Cap residual: glue size (4), match bake stride. */
+      /* ARRAY/SLICE Cap residual: bake strides at 4 (product glue/typeck
+       * disagree on named size). Force 4 for i8/i16/u16 so INDEX matches
+       * bake; other named use glue_type_size_simple.
+       * PLATFORM: WINDOWS leftover-PE.
+       */
       if (kind_ord == 8) {
+        uint8_t sn[64];
+        int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+          return 4;
+        if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 4;
+        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 4;
         mod = pipeline_asm_emit_module_ref_c();
         if (mod) {
           ssz = glue_type_size_simple(mod, arena, pointee, 0);
@@ -109,6 +121,14 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   if (kind_ord == 11)
     return 16;
   if (kind_ord == 8) {
+    uint8_t sn[64];
+    int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
+    if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+      return 4;
+    if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+      return 4;
+    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+      return 4;
     mod = pipeline_asm_emit_module_ref_c();
     if (mod) {
       ssz = glue_type_size_simple(mod, arena, tr, 0);
