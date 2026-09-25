@@ -1128,34 +1128,9 @@ int32_t asm_module_top_level_let_name_exists(uint8_t * m, uint8_t * name, int32_
     return 0;
   }
 }
-int32_t pipe_modlet_array_lit_elem_const_val(uint8_t * arena, int32_t eref, int32_t * out_val) {
-  int32_t ek = 0;
-  int32_t op = 0;
-  int32_t v = 0;
-  if ((((arena ==0) || (eref <=0)) || (out_val ==0))) {
-    return 0;
-  }
-  (void)((ek = pipeline_expr_kind_ord_at(arena, eref)));
-  if ((ek ==0)) {
-    (void)((v = pipeline_expr_int_val_at(arena, eref)));
-    (void)(((out_val)[0] = v));
-    return 1;
-  }
-  if ((ek ==22)) {
-    (void)((op = pipeline_expr_unary_operand_ref_at(arena, eref)));
-    if ((op <=0)) {
-      return 0;
-    }
-    (void)((ek = pipeline_expr_kind_ord_at(arena, op)));
-    if ((ek !=0)) {
-      return 0;
-    }
-    (void)((v = pipeline_expr_int_val_at(arena, op)));
-    (void)(((out_val)[0] = (0 - v)));
-    return 1;
-  }
-  return 0;
-}
+/* PLATFORM: WINDOWS — no second body. The 3-arg folder is
+ * src/runtime_pipeline_abi_modlet_elem_const_thin.x. Defining it here
+ * would satisfy the egg's undef at gcc -r. The extern above stays. */
 int32_t pipe_modlet_array_lit_has_ptr_addr_elem(uint8_t * arena, int32_t init_ref, int32_t elem_ty) {
   int32_t ne = 0;
   int32_t ei = 0;

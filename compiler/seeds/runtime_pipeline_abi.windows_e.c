@@ -23191,58 +23191,10 @@ int32_t pipe_modlet_bake_ptr_addr_elem_to_data(uint8_t * arena, uint8_t * elf_ct
   }
   return 0;
 }
-int32_t pipe_modlet_array_lit_elem_const_val(uint8_t * arena, int32_t eref, int32_t * out_val) {
-  int32_t ek = 0;
-  int32_t op = 0;
-  int32_t v = 0;
-  int32_t tgt = 0;
-  int32_t tk = 0;
-  if ((((arena ==0) || (eref <=0)) || (out_val ==0))) {
-    return 0;
-  }
-  (void)((ek = pipeline_expr_kind_ord_at(arena, eref)));
-  /* EXPR_LIT (ek 0) and EXPR_BOOL_LIT (ek 2). true is 1, false is 0.
-   * PLATFORM: WINDOWS — this egg body is the one prepare calls. */
-  if (((ek ==0) || (ek ==2))) {
-    (void)((v = pipeline_expr_int_val_at(arena, eref)));
-    (void)(((out_val)[0] = v));
-    return 1;
-  }
-  if ((ek ==22)) {
-    (void)((op = pipeline_expr_unary_operand_ref_at(arena, eref)));
-    if ((op <=0)) {
-      return 0;
-    }
-    (void)((ek = pipeline_expr_kind_ord_at(arena, op)));
-    if ((ek !=0)) {
-      return 0;
-    }
-    (void)((v = pipeline_expr_int_val_at(arena, op)));
-    (void)(((out_val)[0] = (0 - v)));
-    return 1;
-  }
-  /* EXPR_AS. 32-bit targets only: TYPE_I32=0, TYPE_BOOL=1, TYPE_U8=2,
-   * TYPE_U32=3. The baker peels esz bytes of this word, so a u8 cell
-   * keeps the low byte and 2 as bool stays 2. The operand has to fold
-   * with this function (LIT, BOOL_LIT, NEG of a LIT). This TU has no
-   * float folder, so a float operand stays 0. PLATFORM: WINDOWS. */
-  if ((ek ==54)) {
-    (void)((op = pipeline_expr_as_operand_ref_at(arena, eref)));
-    (void)((tgt = pipeline_expr_as_target_type_ref_at(arena, eref)));
-    if (((op <=0) || (tgt <=0))) {
-      return 0;
-    }
-    (void)((tk = pipeline_type_kind_ord_at(arena, tgt)));
-    if (((((tk !=0) && (tk !=1)) && (tk !=2)) && (tk !=3))) {
-      return 0;
-    }
-    if ((pipe_modlet_array_lit_elem_const_val(arena, op, out_val) ==0)) {
-      return 0;
-    }
-    return 1;
-  }
-  return 0;
-}
+/* PLATFORM: WINDOWS — body moved to
+ * src/runtime_pipeline_abi_modlet_elem_const_thin.x. A definition in this
+ * TU would bind prepare's call at gcc -r and hide that .x object.
+ * The extern above is the only declaration in this file. */
 int32_t pipe_modlet_scalar_init_common_imm(uint8_t * arena, int32_t init_ref, int32_t tk, int32_t is_const, int32_t * out_imm) {
   int32_t ik = 0;
   int32_t fold_buf[1] = {};

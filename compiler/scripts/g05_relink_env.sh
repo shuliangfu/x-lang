@@ -341,11 +341,21 @@ if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
+  # 3-arg folder. Strong beats the weak gcc body in pabi_weak.o.
+  # Missing file keeps the weak body (u8/bool stay unfolded).
+  # PLATFORM: MACOS|DARWIN — do not add this object on Linux (4-arg ABI).
+  if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
+    _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
+# elem_const.o is the only 3-arg folder. The egg no longer defines it.
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
+    fi
     if [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
