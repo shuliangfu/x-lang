@@ -1,7 +1,9 @@
-// Thin overlay: Cap residual struct field load width (wave1007).
+// Thin overlay: Cap residual struct field load width + signed load (wave1007/1008).
 // G.7: body matches glue_field_access_load_bytes_for_type_ref +
 //   pipeline_expr_field_access_load_byte_sz in runtime_pipeline_abi.x /
 //   field_load_sz_thin (Cap residual TYPE_NAMED → 4-byte cells).
+// wave1008: FIELD_ACCESS load_sz==4 uses LDRSW / movslq (align INDEX/SoA);
+//   overrides VAR-base emit so local `s.v = (0-1) as i8` reads -1 on ARM64.
 // Strong first-wins over pabi_weak weak faces on Darwin/Windows.
 // PLATFORM: SHARED freestanding · MACOS|DARWIN / WINDOWS overlay ·
 //   LINUX via modlet + field_load layout/main PREFER.
@@ -14,6 +16,9 @@ export extern function pipeline_expr_field_access_base_ref(a: *u8, expr_ref: i32
 export extern function pipeline_expr_field_access_name_len(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_into(a: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_resolved_type_ref(a: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_kind_ord_at(a: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_var_name_len(a: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_var_name_into(a: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_module_num_struct_layouts_at(m: *u8): i32;
 export extern function pipeline_module_struct_layout_name_len(m: *u8, k: i32): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(m: *u8, k: i32, j: i32): i32;
@@ -22,6 +27,21 @@ export extern function pipeline_module_struct_layout_field_name_len(m: *u8, k: i
 export extern function pipeline_module_struct_layout_field_name_into(m: *u8, k: i32, j: i32, out: *u8): void;
 export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, k: i32, j: i32): i32;
 export extern function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32;
+export extern function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, name_len: i32): i32;
+export extern function asm_ctx_local_find_offset(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, base_ref: i32): i32;
+export extern function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, base_ref: i32, var_off: i32, ctx: *u8): i32;
+export extern function glue_slice_dual_gp_length_off_c(var_off: i32, ta: i32): i32;
+export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function glue_field_access_effective_offset_c(arena: *u8, mod: *u8, expr_ref: i32): i32;
+export extern function glue_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, var_off: i32, ctx: *u8, ta: i32): i32;
+export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function glue_field_access_call_arg_struct_by_addr_elf_c(arena: *u8, expr_ref: i32): i32;
+export extern function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32;
+export extern function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * Compare n bytes at a and b; 1 if equal, else 0.
@@ -261,4 +281,140 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     return 1;
   }
   return 8;
+}
+
+/**
+ * FIELD_ACCESS scalar load from [rax/x0]. Cap residual / i32 4-byte cells
+ * use signed load (LDRSW / movslq), same as INDEX esz==4.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param load_sz i32 - 1 / 4 / 8
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; encoder rc
+ * PLATFORM: SHARED — wave1008 G.7 twin of mega.
+ */
+#[no_mangle]
+export function glue_field_access_emit_scalar_load_from_rax_elf_c(
+  elf_ctx: *u8, load_sz: i32, ta: i32
+): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (load_sz == 1) {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 8) {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * Compare n bytes at a and b; 1 if equal, else 0.
+ * Twin of mega wave151_bytes_eq for slice dual-GP name match.
+ * @param a *u8 — left
+ * @param b *u8 — right
+ * @param n i32 — length
+ * @return i32 — 1 equal, 0 mismatch
+ * PLATFORM: SHARED thin-local.
+ */
+function field_cap_emit_bytes_eq(a: *u8, b: *u8, n: i32): i32 {
+  let i: i32 = 0;
+  if (n <= 0) {
+    return 1;
+  }
+  if (a == (0 as *u8) || b == (0 as *u8)) {
+    return 0;
+  }
+  while (i < n) {
+    if (a[i] != b[i]) {
+      return 0;
+    }
+    i = i + 1;
+  }
+  return 1;
+}
+
+/**
+ * VAR-base FIELD_ACCESS with Cap residual signed load (wave1008).
+ * Strong first-wins over pabi_weak `ldr w` tail on Darwin/Windows.
+ * @param arena *u8 - ASTArena*
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param expr_ref i32 - FIELD_ACCESS
+ * @param ctx *u8 - AsmFuncCtx*
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; -1 error; -99 UNHANDLED
+ * PLATFORM: SHARED — G.7 twin of mega pipeline_asm_emit_var_field_access_elf_c.
+ */
+#[no_mangle]
+export function pipeline_asm_emit_var_field_access_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let base_ref: i32 = 0;
+  let vlen: i32 = 0;
+  let var_off: i32 = 0;
+  let field_off: i32 = 0;
+  let load_sz: i32 = 0;
+  let vname: u8[256] = [];
+  let base_ty_sl: i32 = 0;
+  let flen_sl: i32 = 0;
+  let fn_sl: u8[256] = [];
+  let nm_length: u8[6] = [108, 101, 110, 103, 116, 104];
+  let nm_data: u8[4] = [100, 97, 116, 97];
+  let agg: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let kord: i32 = 0;
+  unsafe {
+    base_ref = pipeline_expr_field_access_base_ref(arena, expr_ref);
+    if (base_ref <= 0 || pipeline_expr_kind_ord_at(arena, base_ref) != 3) {
+      return 0 - 99;
+    }
+    vlen = pipeline_expr_var_name_len(arena, base_ref);
+    if (vlen <= 0 || vlen > 255) {
+      return 0 - 99;
+    }
+    pipeline_expr_var_name_into(arena, base_ref, &vname[0]);
+    var_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname[0], vlen);
+    if (var_off < 0) {
+      var_off = asm_ctx_local_find_offset(ctx, &vname[0], vlen);
+    }
+    if (var_off < 0) {
+      return 0 - 99;
+    }
+    base_ty_sl = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+    flen_sl = pipeline_expr_field_access_name_len(arena, expr_ref);
+    if (base_ty_sl > 0 && flen_sl > 0 && flen_sl <= 63) {
+      kord = pipeline_type_kind_ord_at(arena, base_ty_sl);
+      if (kord == 11 && glue_local_var_slot_needs_ptr_load_elf_c(arena, base_ref, var_off, ctx) == 0) {
+        pipeline_expr_field_access_name_into(arena, expr_ref, &fn_sl[0]);
+        if (flen_sl == 6 && field_cap_emit_bytes_eq(&fn_sl[0], &nm_length[0], 6) != 0) {
+          return backend_enc_load_rbp_to_rax_arch(
+            elf_ctx, glue_slice_dual_gp_length_off_c(var_off, ta), ta
+          );
+        }
+        if (flen_sl == 4 && field_cap_emit_bytes_eq(&fn_sl[0], &nm_data[0], 4) != 0) {
+          return backend_enc_load_rbp_to_rax_arch(elf_ctx, var_off, ta);
+        }
+      }
+    }
+    mod = pipeline_asm_emit_module_ref_c();
+    field_off = glue_field_access_effective_offset_c(arena, mod, expr_ref);
+    if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, base_ref, var_off, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
+      return 0;
+    }
+    agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+    if (agg < 0) {
+      return 0 - 1;
+    }
+    if (agg > 0) {
+      return 0;
+    }
+    load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
+  }
 }

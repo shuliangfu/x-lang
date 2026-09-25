@@ -52192,6 +52192,34 @@ export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i
 }
 
 /**
+ * FIELD_ACCESS scalar load from [rax/x0] after address materialisation.
+ * Cap residual / i32 4-byte cells use signed load (LDRSW / movslq), same as
+ * INDEX esz==4 and SoA field path. ARM64 `ldr w0` zero-extends and turns
+ * local `s.v = (0-1) as i8` into 4294967295 when compared as i64.
+ * @param elf_ctx *u8 - ElfCodegenCtx*
+ * @param load_sz i32 - 1 / 4 / 8 (other → signed 32)
+ * @param ta i32 - target arch
+ * @return i32 - 0 ok; encoder rc
+ * PLATFORM: SHARED — wave1008; do not use load_32_from_rax for sz==4 here
+ *   (f32 bits still share LDRSW; only w0/eax bits are consumed as float).
+ */
+#[no_mangle]
+export function glue_field_access_emit_scalar_load_from_rax_elf_c(
+  elf_ctx: *u8, load_sz: i32, ta: i32
+): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (load_sz == 1) {
+      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 8) {
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  }
+}
+
+/**
  * VAR-base field access: stack slot + field offset load (lex.pos etc.).
  * @param arena *u8 - ASTArena*
  * @param elf_ctx *u8 - ElfCodegenCtx*
@@ -52268,13 +52296,8 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
-    if (load_sz == 1) {
-      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
-    }
-    if (load_sz == 8) {
-      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-    }
-    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+    // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX/SoA.
+    return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
 }
 
@@ -52561,13 +52584,8 @@ export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
-    if (load_sz == 1) {
-      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
-    }
-    if (load_sz == 8) {
-      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-    }
-    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+    // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX/SoA.
+    return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
 }
 
@@ -52662,13 +52680,8 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
         }
       }
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
-      if (load_sz == 1) {
-        return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
-      }
-      if (load_sz == 8) {
-        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-      }
-      return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+      // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX.
+      return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
     }
     call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, expr_ref, ctx, ta, 0);
     if (call_fa != (0 - 99)) {
@@ -52740,13 +52753,8 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
-    if (load_sz == 1) {
-      return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
-    }
-    if (load_sz == 8) {
-      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
-    }
-    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+    // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX/SoA.
+    return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
 }
 
@@ -52912,7 +52920,8 @@ export function glue_try_emit_match_subject_field_var_elf_c(arena: *u8, elf_ctx:
     if (load_sz == 8) {
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
     }
-    return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+    // Cap residual / i32 match subject field: LDRSW (wave1008).
+    return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
 }
 
