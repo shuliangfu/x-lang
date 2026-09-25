@@ -508,7 +508,9 @@ if [ "$UNAME_S" = "Darwin" ] \
       _oc=objcopy
     fi
     if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-      for _fsym in _glue_array_lit_force_esz_from_elem_type_c; do
+      # w1014: also weaken array_lit_elem_byte_sz (force_esz=0 local path).
+      for _fsym in _glue_array_lit_force_esz_from_elem_type_c \
+                   _pipeline_asm_array_lit_elem_byte_sz_c; do
         if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_fsym" | grep -qv weak; then
           "$_oc" --weaken-symbol="$_fsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi

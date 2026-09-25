@@ -127,6 +127,17 @@ export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32)
       return 16;
     }
     if (kind_ord == 8) {
+      // True-pack ARRAY_LIT named i8 (w1014): local flat stores must use
+      // esz=1 to match INDEX tip. Other named keep glue_type_size_simple
+      // (struct Cap residual 4). PLATFORM: SHARED.
+      let sn: u8[64] = [];
+      let sl: i32 = 0;
+      unsafe {
+        sl = pipeline_type_named_name_into(arena, elem_ty, &sn[0]);
+      }
+      if (sl == 2 && sn[0] == 105 && sn[1] == 56) {
+        return 1;
+      }
       unsafe {
         pipe_store_ptr_slot(&cell_m[0], 0, pipeline_asm_emit_module_ref_c());
       }

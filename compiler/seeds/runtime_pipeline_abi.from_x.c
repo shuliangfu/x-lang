@@ -10227,6 +10227,7 @@ extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
 extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
 extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
 extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
 
 int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref);
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
@@ -10271,6 +10272,13 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (kind_ord == GLUE_TYPE_KIND_SLICE)
       return 16;
     if (kind_ord == 8) {
+      /* True-pack ARRAY_LIT named i8 (w1014 local flat). PLATFORM: SHARED. */
+      {
+        uint8_t sn[64];
+        int32_t sl = pipeline_type_named_name_into(arena, elem_ty, sn);
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+          return 1;
+      }
       void *mod = pipeline_asm_emit_module_ref_c();
       if (mod) {
         int32_t ssz = glue_type_size_simple(mod, arena, elem_ty, 0);

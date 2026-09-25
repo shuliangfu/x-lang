@@ -1,10 +1,12 @@
 /**
- * PLATFORM: SHARED tip — ARRAY_LIT force_esz true-pack named i8 → 1.
+ * PLATFORM: SHARED tip — ARRAY_LIT true-pack named i8 → 1.
  *
  * Cap residual named_builtin / glue_type_size_simple still report 4 for i8
- * (struct fields). Local ARRAY_LIT flat stores used that 4 while INDEX
- * reads esz=1 → [1,2] local sum=1. Tip first-wins this face so local lit
- * stores pack like module bake. i16/u16 stay Cap residual 4.
+ * (struct fields). Local ARRAY_LIT flat stores used force_esz=0 →
+ * pipeline_asm_array_lit_elem_byte_sz_c → 4 while INDEX tip reads esz=1
+ * → [1,2] local sum=1. Tip first-wins both faces so local lit stores pack
+ * like module bake. i16/u16 stay Cap residual 4.
+ * w1014: also override array_lit_elem_byte_sz (force_esz=0 path).
  */
 #include <stdint.h>
 
@@ -13,7 +15,15 @@ extern int32_t pipeline_type_named_name_into(void *arena, int32_t et, uint8_t *o
 extern void *pipeline_asm_emit_module_ref_c(void);
 extern int32_t glue_type_size_simple(void *mod, void *arena, int32_t et, int32_t depth);
 extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t et, int32_t depth);
+extern int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
 
+/**
+ * Force ARRAY_LIT element store/INDEX stride from dest elem type kind.
+ * True-pack named i8 → 1. PLATFORM: SHARED.
+ */
 int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
   int32_t ek;
   int32_t ssz;
@@ -48,4 +58,59 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
   if (ek == 11)
     return 16;
   return 0;
+}
+
+/**
+ * Infer ARRAY_LIT element byte width (force_esz=0 local flat path).
+ * True-pack named i8 → 1 so local stores match INDEX tip.
+ * PLATFORM: SHARED — twin of fnptr_array_esz_thin.x (w1014).
+ */
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
+  int32_t elem_ty;
+  int32_t kind_ord;
+  int32_t nested;
+  int32_t first_ref;
+  int32_t ssz;
+  int32_t n_inner;
+  int32_t iesz;
+  void *mod;
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  if (elem_ty > 0) {
+    kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
+    if (kind_ord == 10) {
+      nested = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+      if (nested > 0)
+        return nested;
+    }
+    if (kind_ord == 2 || kind_ord == 1)
+      return 1;
+    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+      return 4;
+    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 ||
+        kind_ord == 7 || kind_ord == 9 || kind_ord == 18)
+      return 8;
+    if (kind_ord == 11)
+      return 16;
+    if (kind_ord == 8) {
+      uint8_t sn[64];
+      int32_t sl = pipeline_type_named_name_into(arena, elem_ty, sn);
+      /* True-pack named i8 (w1014 local flat). PLATFORM: SHARED. */
+      if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+        return 1;
+      mod = pipeline_asm_emit_module_ref_c();
+      if (mod) {
+        ssz = glue_type_size_simple(mod, arena, elem_ty, 0);
+        if (ssz > 0)
+          return ssz;
+      }
+    }
+  }
+  first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+  if (first_ref > 0 && pipeline_expr_kind_ord_at(arena, first_ref) == 46) {
+    n_inner = pipeline_expr_array_lit_num_elems_at(arena, first_ref);
+    iesz = pipeline_asm_array_lit_elem_byte_sz_c(arena, first_ref);
+    if (n_inner > 0 && iesz > 0)
+      return n_inner * iesz;
+  }
+  return 4;
 }
