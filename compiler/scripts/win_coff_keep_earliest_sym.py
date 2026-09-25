@@ -7,7 +7,13 @@ pipeline_elf_ctx_append_reloc (leftover Cap cluster + historic tip elf_ctx
 inject). Same-TU REL32 already calls the earliest body. PE first-wins +
 win_patch earliest→later forced the tip twin. Demoting later EXTERNAL→STATIC
 leaves a single exported T at the Cap leftover (matches Ubuntu W authority /
-HARD BAN on whole-thin PREFER). PLATFORM: WINDOWS — no-op on non-COFF.
+HARD BAN on whole-thin PREFER).
+
+w1034: same egg dual/triple T for append_reloc_typed and
+append_reloc_absolute64. typed Cap twin stays EXTERNAL then g05 weakens it
+when the wave743 sidecar is present (sidecar first-wins PAGE21 owner bind).
+absolute64 earliest is a historic EXTERNAL-reloc stub; Cap/tip twins become
+STATIC (same-TU Cap callers unchanged). PLATFORM: WINDOWS — no-op on non-COFF.
 """
 from __future__ import annotations
 

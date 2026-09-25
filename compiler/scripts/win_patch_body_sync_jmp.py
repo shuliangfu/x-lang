@@ -31,6 +31,7 @@ w1030: enc_label dual-T closed (authority only in enc_dispatch_thin; enc_c.x
 no longer exports).
 w1031: append_reloc dual-T closed (pabi_weak keeps earliest Cap EXTERNAL;
 later tip-inject twin demoted STATIC via win_coff_keep_earliest_sym).
+w1034: typed + absolute64 same demote; egg typed weakened when sidecar present.
 PLATFORM: WINDOWS.
 
 Usage (from compiler/ after g05 link):
