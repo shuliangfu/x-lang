@@ -72,11 +72,15 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * return 1. Exactly -2^31 stays return 1.
  * |x| in [2^32, 2^63) writes the low word to out_val and the high
  * word to out_hi, then returns 3. 4294967296.0 as i64 is low 0 and
- * high 1. A negative value in (-2^63, -2^32) is the two's-complement
- * of that magnitude. Exact -2^63 is low 0 and high 0x80000000.
+ * high 1. A negative value in [-2^63, -2^32) is the two's-complement
+ * of that magnitude. u64 and usize store those same bits: 
+ * (0.0 - 4294967296.0) as u64 is low 0 and high 0xffffffff
+ * (00000000ffffffff). Exact -2^63 is low 0 and high 0x80000000
+ * for every 64-bit target, including u64.
  * A null out_hi cannot carry that word, so the value stays unfolded.
- * Positive 2^63 and |x| >= 2^64 stay 0. Unsigned targets reject a
- * negative value. 2147483648.0 as i32 stays 0: it does not fit.
+ * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
+ * and the same literal as u32 stays 0: neither 32-bit cell holds it.
+ * Exactly -2^31 stays return 1 for both i32 and u32.
  * Return 4 stores one f32 bit pattern in out_val and does not write
  * out_hi. (1 as i32) as f32 is 0x3f800000, which the baker pokes as
  * 0000803f. A FLOAT_LIT whose resolved type is f32 packs through
@@ -869,22 +873,15 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       if (e >= 64) {
         return 0;
       }
-      // Binade [2^63, 2^64). Positive 2^63 is not a signed i64.
-      // Only exact -2^63 fits, and only in a signed 64-bit cell.
+      // Binade [2^63, 2^64). Positive 2^63 stays unfolded for every
+      // 64-bit target, including u64. Exact -2^63 falls through to
+      // the bit loop: low 0 and high 0x80000000. A non-exact value
+      // in this binade does not fit. PLATFORM: MACOS|DARWIN / WINDOWS.
       if (e == 63) {
         if (fhi >= 0) {
           return 0;
         }
         if ((fhi & 1048575) != 0 || flo != 0) {
-          return 0;
-        }
-        if (tk != 5 && tk != 7) {
-          return 0;
-        }
-      }
-      // u64 and usize reject a negative trunc.
-      if (fhi < 0) {
-        if (tk == 4 || tk == 6) {
           return 0;
         }
       }
@@ -949,9 +946,10 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       return 1;
     }
     // Positive [2^31, 2^32). The low word has bit 31 set and the high
-    // half is 0. i32, bool, and u8 do not accept that magnitude.
-    // u32 would fit, but this wave only claims the 64-bit targets.
-    // Each shift stays inside a positive i32. Bit 31 is ORed in last.
+    // half is 0. Only the 64-bit targets accept it. i32 and u32 both
+    // stay unfolded: 2147483648.0 as u32 is not a 32-bit cell on the
+    // Ubuntu folder either. Each shift stays inside a positive i32.
+    // Bit 31 is ORed in last.
     if (e == 31) {
       if (tk != 4 && tk != 5 && tk != 6 && tk != 7) {
         return 0;
