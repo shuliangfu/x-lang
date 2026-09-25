@@ -427,6 +427,16 @@ if [ -n "$_PABI_SELFHOST" ] \
   && [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
 fi
+# w1023: nested ARRAY_LIT local let-init → array_lit_flat. PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/vector_let_init_nested_override.c ]; then
+  mkdir -p build_asm/selfhost_pabi
+  gcc -c -O2 -o build_asm/selfhost_pabi/vector_let_init_nested.o \
+    seeds/vector_let_init_nested_override.c || true
+fi
+if [ -n "$_PABI_SELFHOST" ] \
+  && [ -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_nested.o $_PABI_SELFHOST"
+fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
 # live function. Darwin ld has no multidef, so the cold symbol in a copy
@@ -590,6 +600,38 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
   fi
+  # w1023: nested ARRAY_LIT → array_lit_flat (Darwin store calls mangled Cap
+  # residual that used to -1). Weaken pabi mangled; tip first-wins.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -f seeds/vector_let_init_nested_override.c ]; then
+    gcc -c -O2 -o build_asm/selfhost_pabi/vector_let_init_nested.o \
+      seeds/vector_let_init_nested_override.c 2>/dev/null || true
+  fi
+  if [ -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _vsym in \
+        _pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32 \
+        _pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32_pabi_stubdead \
+        _pipeline_asm_emit_vector_let_init_elf_c; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -F "$_vsym" | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_vsym" \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_nested.o $_PABI_SELFHOST"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -647,6 +689,11 @@ case "$UNAME_S" in
         gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
           seeds/fixed_array_total_bytes_true_pack_override.c || true
       fi
+      # w1023: nested ARRAY_LIT → array_lit_flat. PLATFORM: WINDOWS.
+      if [ -f seeds/vector_let_init_nested_override.c ]; then
+        gcc -c -O2 -o build_asm/selfhost_pabi/vector_let_init_nested.o \
+          seeds/vector_let_init_nested_override.c || true
+      fi
     fi
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
       && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
@@ -668,6 +715,9 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/array_lit_esz_true_i8.o $_PABI_SELFHOST"
       if [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
         _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
+      fi
+      if [ -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
+        _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_nested.o $_PABI_SELFHOST"
       fi
     elif [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
@@ -711,7 +761,9 @@ case "$UNAME_S" in
             glue_emit_assign_index_elf_c \
             glue_array_lit_force_esz_from_elem_type_c \
             pipeline_asm_array_lit_elem_byte_sz_c \
-            glue_fixed_array_total_bytes_c; do
+            glue_fixed_array_total_bytes_c \
+            pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32 \
+            pipeline_asm_emit_vector_let_init_elf_c; do
             "$_oc" --weaken-symbol="$_wsym" \
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done

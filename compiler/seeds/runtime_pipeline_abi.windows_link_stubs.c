@@ -1042,11 +1042,28 @@ int32_t pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32
   n_arr = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
   if (n_arr <= 0 || n_arr > 1024)
     return -1;
-  /* Nested ARRAY_LIT: leave unhandled (-1) until a product probe needs it. */
-  for (ai = 0; ai < n_arr; ai++) {
-    elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
-    if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46)
-      return -1;
+  /* w1023: nested ARRAY_LIT → array_lit_flat (cold_L20500 twin). Was -1. */
+  {
+    int32_t has_nested = 0;
+    int32_t flat_i = 0;
+    for (ai = 0; ai < n_arr; ai++) {
+      elem_ref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ai);
+      if (elem_ref > 0 && pipeline_expr_kind_ord_at(arena, elem_ref) == 46) {
+        has_nested = 1;
+        break;
+      }
+    }
+    if (has_nested != 0) {
+      extern int32_t pipeline_asm_array_lit_leaf_elem_byte_sz_c(void *a, int32_t expr_ref);
+      extern int32_t pipeline_asm_emit_array_lit_flat_elf_c(void *a, void *elf, int32_t init,
+                                                           void *ctx, int32_t ta, int32_t off,
+                                                           int32_t leaf_esz, int32_t *flat_i);
+      esz = pipeline_asm_array_lit_leaf_elem_byte_sz_c(arena, init_ref);
+      if (esz <= 0)
+        esz = 4;
+      return pipeline_asm_emit_array_lit_flat_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                   stack_slot_off, esz, &flat_i);
+    }
   }
   esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, init_ref);
   if (esz <= 0)

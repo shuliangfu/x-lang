@@ -148,6 +148,9 @@ def main() -> int:
         "glue_array_lit_force_esz_from_elem_type_c",
         "pipeline_asm_array_lit_elem_byte_sz_c",
         "glue_fixed_array_total_bytes_c",
+        # w1023 nested ARRAY_LIT local let-init. PLATFORM: WINDOWS.
+        "pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32",
+        "pipeline_asm_emit_vector_let_init_elf_c",
     )
     patched = 0
     for name in names:
