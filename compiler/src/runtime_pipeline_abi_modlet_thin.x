@@ -213,7 +213,11 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * runtime emitter. (2147483647 as i64) + (1 as i64) is low 0x80000000
  * and high 0. A 64-bit NEG negates both halves the same way.
  * -(2147483649.0 as i64) is low 0x7fffffff and high 0xffffffff.
- * A 32-bit NEG still negates one word and sign-fills. An i32 add
+ * A 32-bit NEG still negates one word and sign-fills. A BITNOT (ek 23)
+ * inverts bits and does not add one. A 64-bit BITNOT inverts both
+ * halves: ~(1 as i64) is low 0xfffffffe and high 0xffffffff. A 32-bit
+ * BITNOT inverts one word and sign-fills. Kind 9 stays unfolded.
+ * An i32 add
  * inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
  * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
  * peels the low byte, so `256 as u8` stores 0 and `2 as bool` stores 2
@@ -380,6 +384,64 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     unsafe {
       out_val[0] = 0 - out_val[0];
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lv = out_val[0]; }
+      if (lv < 0) {
+        unsafe { out_hi[0] = 0 - 1; }
+      } else {
+        unsafe { out_hi[0] = 0; }
+      }
+    }
+    return 1;
+  }
+  // BITNOT. Invert both halves when the resolved kind is 4..7, and
+  // invert one word otherwise. No +1: this is not unary minus.
+  // ~(1 as i64) is fffffffffffffffe. The baker pokes the high word
+  // this arm writes, so the return stays 1. Kind 9 stays unfolded.
+  // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
+  if (ek == 23) {
+    unsafe {
+      unsafe { op = pipeline_expr_unary_operand_ref_at(arena, eref); }
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi) == 0) {
+      return 0;
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lhi = out_hi[0]; }
+      unsafe { lv = out_val[0]; }
+      rty = 0;
+      rtk = 0;
+      unsafe {
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+      }
+      if (rty > 0) {
+        unsafe {
+          unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+        }
+      }
+      if (rtk == 4 || rtk == 5 || rtk == 6 || rtk == 7) {
+        lv = lv ^ (0 - 1);
+        lhi = lhi ^ (0 - 1);
+        unsafe { out_val[0] = lv; }
+        unsafe { out_hi[0] = lhi; }
+        return 1;
+      }
+      if (lv < 0) {
+        if (lhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (lhi != 0) {
+          return 0;
+        }
+      }
+    }
+    unsafe {
+      out_val[0] = out_val[0] ^ (0 - 1);
     }
     if (out_hi != (0 as *i32)) {
       unsafe { lv = out_val[0]; }

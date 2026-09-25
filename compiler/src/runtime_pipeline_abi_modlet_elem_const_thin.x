@@ -90,6 +90,12 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * (-(1 as i64)) as i32 stays ffffffff and (-(1 as i64)) as f32 stays
  * 000080bf. A zero high half with bit 31 set returns 2. A 32-bit NEG
  * stays on the one-word path.
+ * A BITNOT (ek 23) inverts bits and does not add one. A 64-bit BITNOT
+ * inverts both halves: ~(1 as i64) is low 0xfffffffe and high
+ * 0xffffffff (fffffffffffffffe). A sign-filled result still returns 1,
+ * so (~(1 as i64)) as i32 keeps the low word. A zero high half with
+ * bit 31 set returns 2. A 32-bit BITNOT inverts one word. Kind 9 stays
+ * unfolded, and float bits are not inverted.
  * A null out_hi cannot carry that word, so the value stays unfolded.
  * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
  * and the same literal as u32 stays 0: neither 32-bit cell holds it.
@@ -392,6 +398,93 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, 0 - v);
+    }
+    return 1;
+  }
+  // BITNOT. Invert, do not add one. A 32-bit complement inverts one
+  // word. A 64-bit complement (kinds 4..7) inverts both halves.
+  // ~(1 as i64) is fffffffffffffffe. Returning 3 for that sign fill
+  // makes a later i32 or f32 cast reject the value. Kind 9 stays
+  // unfolded. Float bits (return 4 and 5) are not inverted.
+  // A null out_hi keeps the 32-bit path.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (ek == 23) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, eref);
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi);
+    if (ok == 4 || ok == 5) {
+      return 0;
+    }
+    if (out_hi != 0 as *i32) {
+      rty = 0;
+      rtk = 0;
+      unsafe {
+        rty = pipeline_expr_resolved_type_ref(arena, eref);
+      }
+      if (rty > 0) {
+        unsafe {
+          rtk = pipeline_type_kind_ord_at(arena, rty);
+        }
+      }
+      if ((rtk == 4 || rtk == 5 || rtk == 6 || rtk == 7) && ok != 0) {
+        if (ok == 1 || ok == 2 || ok == 3) {
+          unsafe {
+            llo = pipe_load_i32_le(out_val as *u8, 0);
+          }
+          lhi = 0;
+          if (ok == 1 && llo < 0) {
+            lhi = 0 - 1;
+          }
+          if (ok == 3) {
+            unsafe {
+              lhi = pipe_load_i32_le(out_hi as *u8, 0);
+            }
+          }
+          // XOR with (0 - 1) inverts the low 32 bits. The limb or in
+          // the NEG arm is not used here, so there is no +1.
+          llo = llo ^ (0 - 1);
+          lhi = lhi ^ (0 - 1);
+          wlo = llo;
+          whi = lhi;
+          unsafe {
+            pipe_store_i32_le(out_val as *u8, 0, wlo);
+            pipe_store_i32_le(out_hi as *u8, 0, whi);
+          }
+          if (whi == 0 && wlo < 0) {
+            return 2;
+          }
+          // Same limb test as NEG. A compare with (0 - 1) is a 64-bit
+          // all-ones test, and a stored high word of 0xffffffff can sit
+          // in the register with the upper 32 bits clear.
+          if (wlo < 0) {
+            step = whi & 65535;
+            v = (whi >> 16) & 65535;
+            if (step == 65535) {
+              if (v == 65535) {
+                return 1;
+              }
+            }
+          }
+          if (whi == 0) {
+            return 1;
+          }
+          return 3;
+        }
+        return 0;
+      }
+    }
+    if (ok == 0 || ok == 3) {
+      return 0;
+    }
+    unsafe {
+      v = pipe_load_i32_le(out_val as *u8, 0);
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, v ^ (0 - 1));
     }
     return 1;
   }
