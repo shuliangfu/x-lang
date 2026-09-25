@@ -211,7 +211,10 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * the low word, so a wider child truncates. A 64-bit ADD, SUB, MUL,
  * DIV, MOD, shift, or bitwise operator uses both halves, matching the
  * runtime emitter. (2147483647 as i64) + (1 as i64) is low 0x80000000
- * and high 0. An i32 add inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
+ * and high 0. A 64-bit NEG negates both halves the same way.
+ * -(2147483649.0 as i64) is low 0x7fffffff and high 0xffffffff.
+ * A 32-bit NEG still negates one word and sign-fills. An i32 add
+ * inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
  * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
  * peels the low byte, so `256 as u8` stores 0 and `2 as bool` stores 2
  * (the runtime emitter does not force a bool to 0 or 1). 64-bit targets
@@ -299,8 +302,10 @@ function pipe_modlet_array_lit_elem_const_val(
     return 1;
   }
   // NEG of a folded constant, not only a bare LIT. Recurses once per unary.
-  // The negate stays 32-bit. A high half that is not the sign fill of the
-  // low half is a wider i64; negating only the low word would be wrong.
+  // A 32-bit NEG negates one word and sign-fills. A 64-bit NEG (kinds
+  // 4..7) negates both halves. -(2147483649.0 as i64) is
+  // ffffff7fffffffff. Negating only the low word sign-fills a lie.
+  // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 22) {
     unsafe {
       unsafe { op = pipeline_expr_unary_operand_ref_at(arena, eref); }
@@ -314,6 +319,55 @@ function pipe_modlet_array_lit_elem_const_val(
     if (out_hi != (0 as *i32)) {
       unsafe { lhi = out_hi[0]; }
       unsafe { lv = out_val[0]; }
+      rty = 0;
+      rtk = 0;
+      unsafe {
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+      }
+      if (rty > 0) {
+        unsafe {
+          unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+        }
+      }
+      // ~x + 1 in 16-bit limbs. Carry starts at 1. The baker pokes the
+      // high word this arm writes, so the return stays 1.
+      // PLATFORM: LINUX|UBUNTU.
+      if (rtk == 4 || rtk == 5 || rtk == 6 || rtk == 7) {
+        lv = lv ^ (0 - 1);
+        lhi = lhi ^ (0 - 1);
+        step = 1;
+        result = lv & 65535;
+        v = (lv >> 16) & 65535;
+        top = result + step;
+        step = 0;
+        if (top >= 65536) {
+          step = 1;
+          top = top - 65536;
+        }
+        guard = v + step;
+        step = 0;
+        if (guard >= 65536) {
+          step = 1;
+          guard = guard - 65536;
+        }
+        wlo = top | (guard << 16);
+        result = lhi & 65535;
+        v = (lhi >> 16) & 65535;
+        top = result + step;
+        step = 0;
+        if (top >= 65536) {
+          step = 1;
+          top = top - 65536;
+        }
+        guard = v + step;
+        if (guard >= 65536) {
+          guard = guard - 65536;
+        }
+        whi = top | (guard << 16);
+        unsafe { out_val[0] = wlo; }
+        unsafe { out_hi[0] = whi; }
+        return 1;
+      }
       if (lv < 0) {
         if (lhi != (0 - 1)) {
           return 0;

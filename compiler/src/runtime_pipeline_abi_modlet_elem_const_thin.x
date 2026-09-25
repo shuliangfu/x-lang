@@ -32,8 +32,9 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 /**
  * Fold one module-array element into a single i32 word.
  * EXPR_LIT (ek 0) and EXPR_BOOL_LIT (ek 2) share int_val: true is 1
- * and false is 0. EXPR_NEG (ek 22) folds its operand with this function,
- * then negates that 32-bit word. ADD, SUB, MUL, shifts, and bitwise
+ * and false is 0. EXPR_NEG (ek 22) folds its operand with this function.
+ * A 32-bit NEG negates that one word. A 64-bit NEG negates both halves.
+ * ADD, SUB, MUL, shifts, and bitwise
  * ops (ek 4, 5, 6, 9..13) fold both children the same way.
  * DIV (7) and MOD (8) use the language operators. A zero divisor and
  * INT_MIN divided by -1 return 0, so the baker loud-fails.
@@ -82,6 +83,13 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * (2147483647 as i64) + (1 as i64) is 2147483648: low 0x80000000
  * and high 0 (0000008000000000). An i32 add inside `as i64` still
  * wraps in 32 bits and then sign-fills.
+ * A 64-bit NEG uses the same two halves. -(2147483649.0 as i64) is
+ * low 0x7fffffff and high 0xffffffff (ffffff7fffffffff). The runtime
+ * neg wraps, so i64::MIN stays 0000000000000080. A result whose high
+ * half is the sign fill of the low word still returns 1, so
+ * (-(1 as i64)) as i32 stays ffffffff and (-(1 as i64)) as f32 stays
+ * 000080bf. A zero high half with bit 31 set returns 2. A 32-bit NEG
+ * stays on the one-word path.
  * A null out_hi cannot carry that word, so the value stays unfolded.
  * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
  * and the same literal as u32 stays 0: neither 32-bit cell holds it.
@@ -229,7 +237,8 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     return 0;
   }
-  // NEG of any child this function can fold. The negate stays 32-bit.
+  // NEG of any child this function can fold. A 32-bit NEG negates one
+  // word. A 64-bit NEG (kinds 4..7) negates both halves.
   if (ek == 22) {
     unsafe {
       op = pipeline_expr_unary_operand_ref_at(arena, eref);
@@ -237,8 +246,6 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     if (op <= 0) {
       return 0;
     }
-    // A return of 3 is a real high half. Negate stays 32-bit, so that
-    // child is not a constant this arm can fold.
     // Return 4 is an f32 bit pattern. Unary minus flips the sign bit
     // when this NEG is itself f32. [-1.0] in an f32 cell is 000080bf.
     // Any other parent must not two's-complement those bits.
@@ -286,6 +293,96 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         pipe_store_i32_le(out_hi as *u8, 0, v ^ (0 - 2147483647 - 1));
       }
       return 5;
+    }
+    // Kinds 4..7. ~x + 1 in 16-bit limbs, carry starting at 1.
+    // -(2147483649.0 as i64) is ffffff7fffffffff. Returning 1 for that
+    // word would sign-fill the low half into ffffff7f00000000.
+    // Sign-filled results still return 1 so a later i32 or f32 cast
+    // keeps the low word. Bit 31 with a zero high half returns 2.
+    // i64::MIN wraps to itself. A null out_hi keeps the 32-bit path.
+    // PLATFORM: MACOS|DARWIN / WINDOWS.
+    if (out_hi != 0 as *i32) {
+      rty = 0;
+      rtk = 0;
+      unsafe {
+        rty = pipeline_expr_resolved_type_ref(arena, eref);
+      }
+      if (rty > 0) {
+        unsafe {
+          rtk = pipeline_type_kind_ord_at(arena, rty);
+        }
+      }
+      if ((rtk == 4 || rtk == 5 || rtk == 6 || rtk == 7) && ok != 0) {
+        if (ok == 1 || ok == 2 || ok == 3) {
+          unsafe {
+            llo = pipe_load_i32_le(out_val as *u8, 0);
+          }
+          lhi = 0;
+          if (ok == 1 && llo < 0) {
+            lhi = 0 - 1;
+          }
+          if (ok == 3) {
+            unsafe {
+              lhi = pipe_load_i32_le(out_hi as *u8, 0);
+            }
+          }
+          llo = llo ^ (0 - 1);
+          lhi = lhi ^ (0 - 1);
+          step = 1;
+          result = llo & 65535;
+          v = (llo >> 16) & 65535;
+          top = result + step;
+          step = 0;
+          if (top >= 65536) {
+            step = 1;
+            top = top - 65536;
+          }
+          guard = v + step;
+          step = 0;
+          if (guard >= 65536) {
+            step = 1;
+            guard = guard - 65536;
+          }
+          wlo = top | (guard << 16);
+          result = lhi & 65535;
+          v = (lhi >> 16) & 65535;
+          top = result + step;
+          step = 0;
+          if (top >= 65536) {
+            step = 1;
+            top = top - 65536;
+          }
+          guard = v + step;
+          if (guard >= 65536) {
+            guard = guard - 65536;
+          }
+          whi = top | (guard << 16);
+          unsafe {
+            pipe_store_i32_le(out_val as *u8, 0, wlo);
+            pipe_store_i32_le(out_hi as *u8, 0, whi);
+          }
+          if (whi == 0 && wlo < 0) {
+            return 2;
+          }
+          // A compare with (0 - 1) is a 64-bit all-ones test, and the
+          // limb or above leaves the upper 32 bits clear. The two
+          // 16-bit limbs are both 65535 exactly when the low word is -1.
+          if (wlo < 0) {
+            step = whi & 65535;
+            v = (whi >> 16) & 65535;
+            if (step == 65535) {
+              if (v == 65535) {
+                return 1;
+              }
+            }
+          }
+          if (whi == 0) {
+            return 1;
+          }
+          return 3;
+        }
+        return 0;
+      }
     }
     if (ok == 0 || ok == 3) {
       return 0;
