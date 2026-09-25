@@ -22936,10 +22936,12 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
        * binade [2^31, 2^32): high half stays 0. Return 3 is the high
        * word in ehi. 4294967296.0 as i64 is high 1. Return 4 is an f32
        * bit pattern: the high half stays 0. (1 as i32) as f32 is
-       * 0000803f in the low word. PLATFORM: WINDOWS —
+       * 0000803f in the low word. Return 5 is an f64 value: both
+       * halves are the IEEE words. 1.0 is 000000000000f03f. A negative
+       * low word is not a sign fill. PLATFORM: WINDOWS —
        * Darwin bake_elems.o writes the same bytes. */
       (void)((uw = ((uint32_t)(0))));
-      if ((fr ==3)) {
+      if (((fr ==3) || (fr ==5))) {
         (void)((uw = ((uint32_t)(ehi))));
       } else {
         if ((ev < 0)) {
@@ -23528,7 +23530,7 @@ int32_t pipe_modlet_seed_array_lit_elems_to_rbx(uint8_t * arena, uint8_t * elf_c
     return -1;
   }
   (void)((hi = 0));
-  if ((fr ==3)) {
+  if (((fr ==3) || (fr ==5))) {
     (void)((hi = ehi));
   } else {
     if ((ev < 0)) {

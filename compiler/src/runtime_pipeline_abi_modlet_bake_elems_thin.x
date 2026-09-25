@@ -43,6 +43,9 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * Return 4 is one f32 bit pattern in the low word. The high half
  * stays 0, including when that word is negative. (1 as i32) as f32
  * is 0000803f. -1.0 as f32 is 000080bf. esz 4 pokes only the low word.
+ * Return 5 is one f64 value. Both halves are the IEEE words. The
+ * high half is out_hi, including when the low word is negative.
+ * 1.0 is 000000000000f03f. 0.1 keeps high 0x3fb99999, not a sign fill.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — object writer; null returns 0
  * @param init_ref i32 — ARRAY_LIT expr; <= 0 returns 0
@@ -190,6 +193,8 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         // the real high word: 4294967296.0 as i64 stores high 1.
         // Return 4 is f32 bits. A negative pattern is the sign bit,
         // not a sign-filled i64. (1 as i32) as f32 is 0000803f.
+        // Return 5 is f64 bits. A negative low word is a mantissa
+        // bit, not a sign fill. 0.1 stores high 0x3fb99999.
         b0 = ev & 255;
         b1 = (ev >> 8) & 255;
         b2 = (ev >> 16) & 255;
@@ -198,7 +203,9 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         if (ev < 0) {
           if (rc != 2) {
             if (rc != 4) {
-              hi = 255;
+              if (rc != 5) {
+                hi = 255;
+              }
             }
           }
         }
@@ -207,6 +214,12 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         h2 = hi;
         h3 = hi;
         if (rc == 3) {
+          h0 = ehi & 255;
+          h1 = (ehi >> 8) & 255;
+          h2 = (ehi >> 16) & 255;
+          h3 = (ehi >> 24) & 255;
+        }
+        if (rc == 5) {
           h0 = ehi & 255;
           h1 = (ehi >> 8) & 255;
           h2 = (ehi >> 16) & 255;

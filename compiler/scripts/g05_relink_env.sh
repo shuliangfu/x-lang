@@ -352,7 +352,8 @@ if [ "$UNAME_S" = "Darwin" ] \
   # Return 3 writes a real high half through out_hi.
   # Return 4 stores one f32 bit pattern in the low word.
   # An f32 ADD, SUB, MUL, or DIV is that same word. 1.0f + 2.0f is
-  # 00004040. Missing file keeps the weak body (u8/bool stay unfolded).
+  # 00004040. Return 5 stores both f64 halves. 1.0 is
+  # 000000000000f03f. Missing file keeps the weak body (u8/bool stay unfolded).
   # PLATFORM: MACOS|DARWIN — do not add this object on Linux.
   if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
@@ -360,6 +361,8 @@ if [ "$UNAME_S" = "Darwin" ] \
   # w971/w972/w974: 8-byte elems. Return 1 sign-fills. Return 2 writes
   # a zero high half for [2^31, 2^32). Return 3 stores out_hi.
   # Return 4 is an f32 word and does not sign-fill.
+  # Return 5 stores both f64 halves and does not sign-fill.
+  # 1.0 is 000000000000f03f. 0.1 keeps its real high word.
   # A missing file keeps the weak baker.
   # PLATFORM: MACOS|DARWIN — do not add this object on Linux or Windows.
   if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
@@ -372,6 +375,8 @@ fi
 # Return 3 stores the high half the egg baker reads from out_hi.
 # Return 4 is the f32 word, including an f32 ADD, SUB, MUL, or DIV.
 # The egg baker does not sign-fill it. 1.0f + 2.0f is 00004040.
+# Return 5 is both f64 halves. The egg baker copies out_hi and does
+# not sign-fill a negative low word. 1.0 is 000000000000f03f.
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ -s build_asm/selfhost_pabi/elem_const.o ]; then

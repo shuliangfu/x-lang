@@ -86,13 +86,22 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * (00004040). (16777216.0 as f32) + (1.0 as f32) is 0x4b800000.
  * An integer parent treats return 4 as not folded, so
  * (1 as f32) as i32 still truncates to 1 and that sum as i32 stays
- * 16777216. f64 (kind 15) stays 0. An f64 binop stays 0.
+ * 16777216.
+ * Return 5 stores one f64 value: the low IEEE word in out_val and
+ * the high IEEE word in out_hi. 1.0 is low 0 and high 0x3ff00000
+ * (000000000000f03f). A FLOAT_LIT whose resolved type is f64 copies
+ * the literal halves. NEG of that value flips bit 31 of the high
+ * word. An f64-typed ADD, SUB, MUL, or DIV reuses the same walker
+ * and returns 5 without rounding to f32. 16777217.0 stays exact
+ * (0000001000007041). An integer parent does not keep return 5, so
+ * 1.0 as i64 still truncates to 1 and 16777217.0 as i32 stays
+ * 16777217. Return 3 is an integer high half, not these bits.
  * Return 2 and return 3 are not passed to glue_i32_to_f32_bits.
  * @param arena *u8 — AST arena; null returns 0
  * @param eref i32 — expression ref; <= 0 returns 0
  * @param out_val *i32 — low i32 slot; null returns 0; written only on success
- * @param out_hi *i32 — high i32 slot; null is legal; written only on return 3
- * @return i32 — 1 sign-fill, 2 zero high half, 3 real high half, 4 f32 bits, 0 not folded
+ * @param out_hi *i32 — high i32 slot; null is legal; written on return 3 and return 5
+ * @return i32 — 1 sign-fill, 2 zero high half, 3 real high half, 4 f32 bits, 5 f64 bits, 0 not folded
  * PLATFORM: MACOS|DARWIN / WINDOWS — strong definition. Darwin prepare's
  * branch reloc binds here over the weak gcc body. Windows egg and the
  * modlet extra only declare this name.
@@ -171,10 +180,12 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     return 1;
   }
-  // FLOAT_LIT stamped f32 by the array coerce. Pack the f64 literal
-  // through the existing glue helper and store that one word.
-  // [1.0] in an f32 cell is 0000803f. An f64 literal is not this
-  // 4-byte word, so it stays unfolded. PLATFORM: MACOS|DARWIN / WINDOWS.
+  // FLOAT_LIT stamped by the array coerce. Kind 14 packs one f32
+  // word through the existing glue helper. [1.0] in an f32 cell is
+  // 0000803f. Kind 15 copies both literal halves: [1.0] in an f64
+  // cell is 000000000000f03f. Any other resolved type stays unfolded
+  // so 16777217.0 as i32 still walks and truncates.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek == 1) {
     rty = 0;
     rtk = 0;
@@ -186,16 +197,28 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         rtk = pipeline_type_kind_ord_at(arena, rty);
       }
     }
-    if (rtk != 14) {
-      return 0;
+    if (rtk == 14) {
+      unsafe {
+        flo = pipeline_expr_float_bits_lo_at(arena, eref);
+        fhi = pipeline_expr_float_bits_hi_at(arena, eref);
+        result = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+        pipe_store_i32_le(out_val as *u8, 0, result);
+      }
+      return 4;
     }
-    unsafe {
-      flo = pipeline_expr_float_bits_lo_at(arena, eref);
-      fhi = pipeline_expr_float_bits_hi_at(arena, eref);
-      result = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
-      pipe_store_i32_le(out_val as *u8, 0, result);
+    if (rtk == 15) {
+      if (out_hi == 0 as *i32) {
+        return 0;
+      }
+      unsafe {
+        flo = pipeline_expr_float_bits_lo_at(arena, eref);
+        fhi = pipeline_expr_float_bits_hi_at(arena, eref);
+        pipe_store_i32_le(out_val as *u8, 0, flo);
+        pipe_store_i32_le(out_hi as *u8, 0, fhi);
+      }
+      return 5;
     }
-    return 4;
+    return 0;
   }
   // NEG of any child this function can fold. The negate stays 32-bit.
   if (ek == 22) {
@@ -231,6 +254,30 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       }
       return 4;
     }
+    // Return 5 is an f64 value. Unary minus flips bit 31 of the high
+    // word when this NEG is itself f64. [-1.0] in an f64 cell is
+    // 000000000000f0bf. Any other parent must not two's-complement
+    // those bits. PLATFORM: MACOS|DARWIN / WINDOWS.
+    if (ok == 5) {
+      rty = 0;
+      rtk = 0;
+      unsafe {
+        rty = pipeline_expr_resolved_type_ref(arena, eref);
+      }
+      if (rty > 0) {
+        unsafe {
+          rtk = pipeline_type_kind_ord_at(arena, rty);
+        }
+      }
+      if (rtk != 15 || out_hi == 0 as *i32) {
+        return 0;
+      }
+      unsafe {
+        v = pipe_load_i32_le(out_hi as *u8, 0);
+        pipe_store_i32_le(out_hi as *u8, 0, v ^ (0 - 2147483647 - 1));
+      }
+      return 5;
+    }
     if (ok == 0 || ok == 3) {
       return 0;
     }
@@ -249,7 +296,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // An f32-typed ADD, SUB, MUL, or DIV is not this integer operator.
   // (1.0 as f32) + (2.0 as f32) is 3.0f (00004040). The walker below
   // already evaluates that tree and rounds when the resolved type is
-  // f32. MOD, shifts, and bitwise ops stay here. An f64 binop stays 0.
+  // f32. Kind 15 is the same walk and stores both f64 halves.
+  // (1.0 as f64) + (2.0 as f64) is 3.0 (0000000000000840).
+  // MOD, shifts, and bitwise ops stay here.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek >= 4 && ek <= 13) {
     if (ek <= 7) {
@@ -268,6 +317,11 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         tk = 14;
         enter_walk = 1;
       }
+      if (rtk == 15) {
+        op = eref;
+        tk = 15;
+        enter_walk = 1;
+      }
     }
     if (enter_walk == 0) {
     unsafe {
@@ -278,16 +332,17 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       return 0;
     }
     // Return 3 carries a high half this 32-bit operator does not accept.
-    // Return 4 is f32 bits. Adding those bits is not a float add.
+    // Return 4 is f32 bits. Return 5 is f64 bits. Adding those bits
+    // is not a float add.
     ok = pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi);
-    if (ok == 0 || ok == 3 || ok == 4) {
+    if (ok == 0 || ok == 3 || ok == 4 || ok == 5) {
       return 0;
     }
     unsafe {
       lv = pipe_load_i32_le(out_val as *u8, 0);
     }
     ok = pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi);
-    if (ok == 0 || ok == 3 || ok == 4) {
+    if (ok == 0 || ok == 3 || ok == 4 || ok == 5) {
       return 0;
     }
     unsafe {
@@ -377,16 +432,54 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     // 0 i32, 1 bool, 2 u8, 3 u32, 4 u64, 5 i64, 6 usize, 7 isize.
     // 14 is f32: the word below is the IEEE pattern, not a trunc.
-    // f64 (15) is still not stored in this word.
-    if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7 && tk != 14) {
+    // 15 is f64: both halves below are the IEEE pattern, not a trunc.
+    if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7 && tk != 14 && tk != 15) {
       return 0;
     }
     // A child return of 2 is a zero high half. A narrower cast of that
     // word is an i32, so the baker must sign-fill it. A 64-bit cast
     // keeps the zero high half.
     ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi);
+    // TYPE_F64. Return 1 is a signed i32; glue_i64_to_f64_bits is the
+    // host cast. Return 5 is already both f64 halves. Return 4 is an
+    // f32 word widened by the existing glue helpers. Return 2 and
+    // return 3 must not be read as a signed i32. Return 0 is a float
+    // tree, stored after the walker. 1 as f64 is 000000000000f03f.
+    // (1.0 as f32) as f64 is the same eight bytes.
+    // PLATFORM: MACOS|DARWIN / WINDOWS.
+    if (tk == 15) {
+      if (out_hi == 0 as *i32) {
+        return 0;
+      }
+      if (ok == 1) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          glue_i64_to_f64_bits(v as i64, &(lp[0]), &(lp[1]));
+          pipe_store_i32_le(out_val as *u8, 0, lp[0]);
+          pipe_store_i32_le(out_hi as *u8, 0, lp[1]);
+        }
+        return 5;
+      }
+      if (ok == 5) {
+        return 5;
+      }
+      if (ok == 4) {
+        unsafe {
+          v = pipe_load_i32_le(out_val as *u8, 0);
+          flo = glue_ieee_f32_bits_to_f64_lo(v);
+          fhi = glue_ieee_f32_bits_to_f64_hi(v);
+          pipe_store_i32_le(out_val as *u8, 0, flo);
+          pipe_store_i32_le(out_hi as *u8, 0, fhi);
+        }
+        return 5;
+      }
+      if (ok != 0) {
+        return 0;
+      }
+    }
     // TYPE_F32. Return 1 is a signed i32; glue_i32_to_f32_bits is the
     // host cast. Return 4 is already the f32 word (nested as f32).
+    // Return 5 is an f64 value; pack it with the existing helper.
     // Return 2 and return 3 must not be read as a signed i32.
     // Return 0 is a float tree, packed after the walker.
     // (1 as i32) as f32 stores 0x3f800000 and returns 4.
@@ -400,6 +493,18 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         return 4;
       }
       if (ok == 4) {
+        return 4;
+      }
+      if (ok == 5) {
+        if (out_hi == 0 as *i32) {
+          return 0;
+        }
+        unsafe {
+          flo = pipe_load_i32_le(out_val as *u8, 0);
+          fhi = pipe_load_i32_le(out_hi as *u8, 0);
+          result = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          pipe_store_i32_le(out_val as *u8, 0, result);
+        }
         return 4;
       }
       if (ok != 0) {
@@ -428,10 +533,11 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     enter_walk = 1;
   }
   // Walker shared by an AS whose child did not fold as an integer and
-  // by an f32-typed ADD, SUB, MUL, or DIV. op is the walk root. tk is
-  // the outer target: 14 packs one f32 word and returns 4. Any other
-  // accepted tk truncates to an integer. The four host f64 operators
-  // stay separate ifs. There is no second float folder.
+  // by an f32-typed or f64-typed ADD, SUB, MUL, or DIV. op is the walk
+  // root. tk 14 packs one f32 word and returns 4. tk 15 stores both
+  // f64 halves and returns 5. Any other accepted tk truncates to an
+  // integer. The four host f64 operators stay separate ifs. There is
+  // no second float folder.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (enter_walk == 1) {
     // Frames: 0 enter, 1 the unary child, the cast operand, or the
@@ -699,6 +805,22 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     if (got == 0) {
       return 0;
+    }
+    // Outer target is f64. The walker left both IEEE halves in flo/fhi.
+    // Store them and return 5. Do not truncate and do not pack to f32.
+    // 1.0 / 0.0 as an f64 element is +inf (000000000000f07f). The same
+    // div as an i32 still hits the exponent check below and returns 0.
+    // A null out_hi cannot carry the high half.
+    // PLATFORM: MACOS|DARWIN / WINDOWS.
+    if (tk == 15) {
+      if (out_hi == 0 as *i32) {
+        return 0;
+      }
+      unsafe {
+        pipe_store_i32_le(out_val as *u8, 0, flo);
+        pipe_store_i32_le(out_hi as *u8, 0, fhi);
+      }
+      return 5;
     }
     // Outer target is f32. The walker left f64 bits in flo/fhi.
     // Pack them with the existing helper. Do not truncate: 1.0f is
