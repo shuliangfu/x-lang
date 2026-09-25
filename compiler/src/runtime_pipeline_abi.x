@@ -727,6 +727,8 @@ export extern "C" function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta
 export extern "C" function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+/* Cap residual field load width — G.7 reuse typeck named_builtin (wave1007). */
+export extern function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32;
 
 // wave141 Cap residual: context pure leave callees (storage + frame/param helpers).
 // PLATFORM: SHARED freestanding emit — pure owns public context faces; Cap residual
@@ -51135,6 +51137,7 @@ export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_
 
 /**
  * Load width for a type_ref (bool/u8=1, i32/u32/f32=4, i64/ptr/TYPE_FN=8).
+ * Cap residual TYPE_NAMED i8/i16/u16 → 4 (wave1007; INDEX esz-4 cells).
  * @param a *u8 - ASTArena*
  * @param ty_ref i32 - type ref
  * @return i32 - byte size
@@ -51147,6 +51150,9 @@ export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_
 export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): i32 {
   let kind_ord: i32 = 0;
   let ntypes: i32 = 0;
+  let nlen: i32 = 0;
+  let bsz: i32 = 0;
+  let nm: u8[16] = [];
   if (a == (0 as *u8) || ty_ref <= 0) {
     return 8;
   }
@@ -51171,6 +51177,22 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
     return 8;
   }
   if (kind_ord == 8) {
+    /*
+     * Cap residual i8/i16/u16: named_builtin_size → 4. Free type-param
+     * names and product structs stay 8 (historical default).
+     * PLATFORM: SHARED — G.7 reuse typeck_x_named_builtin_size.
+     */
+    unsafe {
+      nlen = pipeline_type_named_name_into(a, ty_ref, &nm[0]);
+    }
+    if (nlen > 0 && nlen < 16) {
+      unsafe {
+        bsz = typeck_x_named_builtin_size(&nm[0], nlen);
+      }
+      if (bsz == 1 || bsz == 2 || bsz == 4 || bsz == 8) {
+        return bsz;
+      }
+    }
     return 8;
   }
   return 4;
@@ -51861,8 +51883,18 @@ export function field_load_sz_layout_match(a: *u8, m: *u8, base_tr: i32, field_n
                   ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
                   ftr_kind = pipeline_type_kind_ord_at(a, ftr);
                 }
-                if (ftr_kind != 8) {
-                  hit = glue_field_access_load_bytes_for_type_ref(a, ftr);
+                /*
+                 * Cap residual TYPE_NAMED i8/i16/u16 → glue returns 4.
+                 * Free type-param TYPE_NAMED → glue returns 8; skip so
+                 * CORE-016 mono stamp / later paths can win.
+                 * PLATFORM: SHARED.
+                 */
+                hit = glue_field_access_load_bytes_for_type_ref(a, ftr);
+                if (ftr_kind == 8) {
+                  if (hit == 1 || hit == 2 || hit == 4) {
+                    return hit;
+                  }
+                } else {
                   return hit;
                 }
               }
@@ -51903,10 +51935,9 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   }
   /*
    * CORE-016: prefer typeck-resolved scalar (mono stamp) before generic layout
-   * field TYPE_NAMED T/U. glue_field_access_load_bytes_for_type_ref maps any
-   * TYPE_NAMED → 8, which made Option<i32>.value / Wrap<i32>.v load 64-bit and
-   * fail compares when high bytes were dirty (multi-let same frame).
-   * Skip NAMED/ARRAY/SLICE/VECTOR — those stay on layout / default paths.
+   * field TYPE_NAMED T/U. Cap residual i8/i16/u16 are also TYPE_NAMED — probe
+   * named_builtin via glue (wave1007 → 4) before falling through to layout.
+   * Skip free type-param names (glue returns 8) and ARRAY/SLICE/VECTOR.
    * PLATFORM: SHARED.
    */
   unsafe {
@@ -51916,7 +51947,13 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     unsafe {
       kind_ord = pipeline_type_kind_ord_at(a, tr);
     }
-    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
+    if (kind_ord == 8) {
+      hit = glue_field_access_load_bytes_for_type_ref(a, tr);
+      /* Cap residual 1/2/4; type-param/struct stay 8 → fall through. */
+      if (hit == 1 || hit == 2 || hit == 4) {
+        return hit;
+      }
+    } else if (kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
       return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
   }

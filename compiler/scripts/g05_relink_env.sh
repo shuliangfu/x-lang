@@ -346,6 +346,11 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/modlet.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/modlet.o $_PABI_SELFHOST"
 fi
+# w1007: Cap residual struct field load_sz → 4. First-wins over pabi.
+# PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
+fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
 # live function. Darwin ld has no multidef, so the cold symbol in a copy
@@ -383,6 +388,11 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
   fi
+  # w1007: Cap residual struct field load_sz → 4 (LDRSW / esz-4 cells).
+  # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
+    _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -408,6 +418,10 @@ case "$UNAME_S" in
     fi
     if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
+    fi
+    # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
+    if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
     ;;
 esac

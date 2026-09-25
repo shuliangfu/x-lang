@@ -2643,7 +2643,8 @@ function pipe_modlet_struct_field_int_width(
     unsafe { k = pipeline_type_kind_ord_at(arena, fty); }
   }
   // u8 / bool, then the 4-byte integers, then the 8-byte integers.
-  // TYPE_NAMED Cap residual i8/i16/u16: widths 1/2/2 (typeck_x.o).
+  // TYPE_NAMED Cap residual i8/i16/u16: 4-byte cells (wave1007;
+  // matches INDEX esz-4 / typeck_x_named_builtin_size).
   // PLATFORM: SHARED — name bytes match typeck_int_family_id.
   if (k == 1 || k == 2) {
     return 1;
@@ -2660,30 +2661,28 @@ function pipe_modlet_struct_field_int_width(
     unsafe {
       nlen = pipeline_type_named_name_into(arena, fty, &(nm[0]));
     }
-    // "i8"
+    // "i8" / "i16" / "u16" → 4
     if (nlen == 2) {
       if (nm[0] == 105) {
         if (nm[1] == 56) {
-          return 1;
+          return 4;
         }
       }
     }
-    // "i16"
     if (nlen == 3) {
       if (nm[0] == 105) {
         if (nm[1] == 49) {
           if (nm[2] == 54) {
-            return 2;
+            return 4;
           }
         }
       }
     }
-    // "u16"
     if (nlen == 3) {
       if (nm[0] == 117) {
         if (nm[1] == 49) {
           if (nm[2] == 54) {
-            return 2;
+            return 4;
           }
         }
       }

@@ -1,23 +1,19 @@
-// Thin pure: field_load_sz FULL leaf (helpers + load_byte_sz export).
-// G.7: body MUST match pipeline_expr_field_access_load_byte_sz in
-// runtime_pipeline_abi.x (same exported symbol). Prefer typeck-resolved
-// scalar (mono stamp) before generic-layout free TYPE_NAMED T/U so
-// Option<i32>.value / Wrap<i32>.v emit ldr w not ldr x0 with garbage
-// high bits (multi-let / multi-mono compare false-red).
-// ensure: inject_field_load_sz_thin injects THIS on MACOS; LINUX injects
-//   field_load_sz_helpers_thin only (see wave414).
-// wave401/414: MACOS PREFER full; LINUX PREFER helpers-only.
-//   Ubuntu full tip XT001@bytes_eq MISATTRIBUTED; helpers -c green;
-//   main export tip reinject still BAN on LINUX.
-// PLATFORM: SHARED freestanding field load · LINUX gold · MACOS co-path.
+// Thin overlay: Cap residual struct field load width (wave1007).
+// G.7: body matches glue_field_access_load_bytes_for_type_ref +
+//   pipeline_expr_field_access_load_byte_sz in runtime_pipeline_abi.x /
+//   field_load_sz_thin (Cap residual TYPE_NAMED → 4-byte cells).
+// Strong first-wins over pabi_weak weak faces on Darwin/Windows.
+// PLATFORM: SHARED freestanding · MACOS|DARWIN / WINDOWS overlay ·
+//   LINUX via modlet + field_load layout/main PREFER.
 
+export extern function pipeline_arena_num_types(a: *u8): i32;
+export extern function pipeline_type_kind_ord_at(a: *u8, ty_ref: i32): i32;
+export extern function pipeline_type_named_name_into(a: *u8, ty_ref: i32, out: *u8): i32;
+export extern function pipeline_type_elem_ref_at(a: *u8, ref: i32): i32;
 export extern function pipeline_expr_field_access_base_ref(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_len(a: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_into(a: *u8, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_resolved_type_ref(a: *u8, expr_ref: i32): i32;
-export extern function pipeline_type_kind_ord_at(a: *u8, ty_ref: i32): i32;
-export extern function pipeline_type_elem_ref_at(a: *u8, ref: i32): i32;
-export extern function pipeline_type_named_name_into(a: *u8, ty_ref: i32, out: *u8): i32;
 export extern function pipeline_module_num_struct_layouts_at(m: *u8): i32;
 export extern function pipeline_module_struct_layout_name_len(m: *u8, k: i32): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(m: *u8, k: i32, j: i32): i32;
@@ -25,7 +21,7 @@ export extern function pipeline_module_struct_layout_num_fields(m: *u8, k: i32):
 export extern function pipeline_module_struct_layout_field_name_len(m: *u8, k: i32, j: i32): i32;
 export extern function pipeline_module_struct_layout_field_name_into(m: *u8, k: i32, j: i32, out: *u8): void;
 export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, k: i32, j: i32): i32;
-export extern function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): i32;
+export extern function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32;
 
 /**
  * Compare n bytes at a and b; 1 if equal, else 0.
@@ -33,9 +29,9 @@ export extern function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref:
  * @param b *u8 — right bytes
  * @param n i32 — length; n<=0 → 1
  * @return i32 — 1 equal, 0 mismatch
- * PLATFORM: SHARED — thin-local twin of wave151_bytes_eq (no mega link).
+ * PLATFORM: SHARED — thin-local twin of wave151_bytes_eq.
  */
-function field_load_sz_bytes_eq(a: *u8, b: *u8, n: i32): i32 {
+function field_cap_bytes_eq(a: *u8, b: *u8, n: i32): i32 {
   let i: i32 = 0;
   if (n <= 0) {
     return 1;
@@ -53,30 +49,74 @@ function field_load_sz_bytes_eq(a: *u8, b: *u8, n: i32): i32 {
 }
 
 /**
- * FIELD_ACCESS load width (base-layout / resolved / is_some|is_none heuristic).
- *
- * Order (G.7 typed-first — do not scan all layouts by bare field name):
- *  1. Field expr resolved scalar type width (typeck mono stamp). CORE-016.
- *  2. Base TYPE_NAMED layout match then field type width; skip free TYPE_NAMED.
- *  3. is_some / is_none name → 1.
- *  4. Default 8.
- *
+ * Load width for a type_ref. Cap residual TYPE_NAMED i8/i16/u16 → 4.
+ * @param a *u8 - ASTArena*
+ * @param ty_ref i32 - type ref
+ * @return i32 - byte size
+ * PLATFORM: SHARED — G.7 twin of mega glue_field_access_load_bytes_for_type_ref.
+ */
+#[no_mangle]
+export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): i32 {
+  let kind_ord: i32 = 0;
+  let ntypes: i32 = 0;
+  let nlen: i32 = 0;
+  let bsz: i32 = 0;
+  let nm: u8[16] = [];
+  if (a == (0 as *u8) || ty_ref <= 0) {
+    return 8;
+  }
+  unsafe {
+    ntypes = pipeline_arena_num_types(a);
+  }
+  if (ty_ref > ntypes) {
+    return 8;
+  }
+  unsafe {
+    kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  }
+  if (kind_ord == 2 || kind_ord == 1) {
+    return 1;
+  }
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+    return 4;
+  }
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
+      || kind_ord == 9 || kind_ord == 18) {
+    return 8;
+  }
+  if (kind_ord == 8) {
+    unsafe {
+      nlen = pipeline_type_named_name_into(a, ty_ref, &nm[0]);
+    }
+    if (nlen > 0 && nlen < 16) {
+      unsafe {
+        bsz = typeck_x_named_builtin_size(&nm[0], nlen);
+      }
+      if (bsz == 1 || bsz == 2 || bsz == 4 || bsz == 8) {
+        return bsz;
+      }
+    }
+    return 8;
+  }
+  return 4;
+}
+
+/**
+ * FIELD_ACCESS load width with Cap residual TYPE_NAMED → 4 (wave1007).
  * @param a *u8 - ASTArena*
  * @param m *u8 - Module*
  * @param expr_ref i32 - FIELD_ACCESS expr ref
  * @return i32 - load byte size
- * PLATFORM: SHARED — G.7 thin twin of runtime_pipeline_abi.x authority.
+ * PLATFORM: SHARED — G.7 twin of field_load_sz_thin / mega.
  */
 #[no_mangle]
 export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref: i32): i32 {
   let tr: i32 = 0;
   let base_tr: i32 = 0;
   let base_ref: i32 = 0;
-  /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
   let struct_name: u8[256] = [];
   let nlen: i32 = 0;
   let flen: i32 = 0;
-  /* Cap 4.2.8: field_access_name_into / layout_field_name_into write 256. */
   let field_name: u8[256] = [];
   let k: i32 = 0;
   let j: i32 = 0;
@@ -91,6 +131,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   let fb: u8[256] = [];
   let ln: i32 = 0;
   let eq: i32 = 0;
+  let hit: i32 = 0;
   let nm_is_some: u8[7] = [105, 115, 95, 115, 111, 109, 101];
   let nm_is_none: u8[7] = [105, 115, 95, 110, 111, 110, 101];
   if (a == (0 as *u8) || expr_ref <= 0) {
@@ -106,7 +147,6 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
   }
-  /* CORE-016 + wave1007 Cap residual: TYPE_NAMED i8/i16/u16 via glue. */
   unsafe {
     tr = pipeline_expr_resolved_type_ref(a, expr_ref);
   }
@@ -115,11 +155,9 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       kind_ord = pipeline_type_kind_ord_at(a, tr);
     }
     if (kind_ord == 8) {
-      unsafe {
-        let cap_hit: i32 = glue_field_access_load_bytes_for_type_ref(a, tr);
-        if (cap_hit == 1 || cap_hit == 2 || cap_hit == 4) {
-          return cap_hit;
-        }
+      hit = glue_field_access_load_bytes_for_type_ref(a, tr);
+      if (hit == 1 || hit == 2 || hit == 4) {
+        return hit;
       }
     } else if (kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
       return glue_field_access_load_bytes_for_type_ref(a, tr);
@@ -132,11 +170,6 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     unsafe {
       kind_ord = pipeline_type_kind_ord_at(a, base_tr);
     }
-    /* PLATFORM: SHARED — dep parse-only bases are POINTER params (`s: *S`,
-     * stamped by the block_ref backfill); peel TYPE_PTR (9) to the element
-     * so the layout match runs (else i32 field loads fall to the 8-byte
-     * default and drag padding garbage into address math — std.string
-     * append_char SEGV). Must match the runtime_pipeline_abi.x twin. */
     if (kind_ord == 9) {
       unsafe {
         let elem_tr_lbs: i32 = pipeline_type_elem_ref_at(a, base_tr);
@@ -204,16 +237,13 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
                   ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
                   ftr_kind = pipeline_type_kind_ord_at(a, ftr);
                 }
-                /* wave1007: Cap residual TYPE_NAMED → 4; type-param → skip. */
-                unsafe {
-                  let lay_hit: i32 = glue_field_access_load_bytes_for_type_ref(a, ftr);
-                  if (ftr_kind == 8) {
-                    if (lay_hit == 1 || lay_hit == 2 || lay_hit == 4) {
-                      return lay_hit;
-                    }
-                  } else {
-                    return lay_hit;
+                hit = glue_field_access_load_bytes_for_type_ref(a, ftr);
+                if (ftr_kind == 8) {
+                  if (hit == 1 || hit == 2 || hit == 4) {
+                    return hit;
                   }
+                } else {
+                  return hit;
                 }
               }
               j = j + 1;
@@ -224,10 +254,10 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       }
     }
   }
-  if (flen == 7 && field_load_sz_bytes_eq(&field_name[0], &nm_is_some[0], 7) != 0) {
+  if (flen == 7 && field_cap_bytes_eq(&field_name[0], &nm_is_some[0], 7) != 0) {
     return 1;
   }
-  if (flen == 7 && field_load_sz_bytes_eq(&field_name[0], &nm_is_none[0], 7) != 0) {
+  if (flen == 7 && field_cap_bytes_eq(&field_name[0], &nm_is_none[0], 7) != 0) {
     return 1;
   }
   return 8;

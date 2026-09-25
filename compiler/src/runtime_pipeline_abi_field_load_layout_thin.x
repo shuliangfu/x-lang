@@ -88,8 +88,16 @@ export function field_load_sz_layout_match(a: *u8, m: *u8, base_tr: i32, field_n
             if (pipeline_module_struct_layout_field_name_len(m, k, j) == flen) {
               pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
               if (field_load_sz_bytes_eq(&fb[0], field_name, flen) != 0) {
-                if (pipeline_type_kind_ord_at(a, pipeline_module_struct_layout_field_type_ref(m, k, j)) != 8) {
-                  return glue_field_access_load_bytes_for_type_ref(a, pipeline_module_struct_layout_field_type_ref(m, k, j));
+                /* wave1007: Cap residual TYPE_NAMED → 4; type-param → skip. */
+                let ftr_lr: i32 = pipeline_module_struct_layout_field_type_ref(m, k, j);
+                let ftr_k_lr: i32 = pipeline_type_kind_ord_at(a, ftr_lr);
+                let lay_hit_lr: i32 = glue_field_access_load_bytes_for_type_ref(a, ftr_lr);
+                if (ftr_k_lr == 8) {
+                  if (lay_hit_lr == 1 || lay_hit_lr == 2 || lay_hit_lr == 4) {
+                    return lay_hit_lr;
+                  }
+                } else {
+                  return lay_hit_lr;
                 }
               }
             }

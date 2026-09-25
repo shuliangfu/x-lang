@@ -2055,10 +2055,17 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   if (nm == 0 as *u8 || nlen <= 0) {
     return 0;
   }
-  /* Cap residual TYPE_NAMED integers (no TypeKind). PLATFORM: SHARED. */
-  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 1; }
-  if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) { return 2; }
-  if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) { return 2; }
+  /*
+   * Cap residual TYPE_NAMED integers (no TypeKind).
+   * Cell width is 4 — same as Cap residual array INDEX esz-4 — so
+   * bake cells hold folder mask/sext and field loads can use LDRSW /
+   * movslq. True 1/2-byte pack waits on signed byte/halfword load
+   * encoders in the field emit path.
+   * PLATFORM: SHARED.
+   */
+  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 4; }
+  if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) { return 4; }
+  if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) { return 4; }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50) { return 4; }
   if (nlen == 3 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50) { return 4; }
   if (nlen == 4 && nm[0] == 98 && nm[1] == 111 && nm[2] == 111 && nm[3] == 108) { return 4; }
@@ -2076,7 +2083,7 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
 
 /**
  * Size of a named builtin spelling. Align equals size for these scalars.
- * Cap residual i8/i16/u16 included (wave1004).
+ * Cap residual i8/i16/u16 use 4-byte cells (wave1007; matches INDEX esz-4).
  * @param nm *u8 — type name bytes
  * @param nlen i32 — name length
  * @return i32 — 1, 2, 4, or 8; 0 if unknown

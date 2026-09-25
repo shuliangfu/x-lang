@@ -48,7 +48,19 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
 
     if (pipeline_expr_resolved_type_ref(a, expr_ref) > 0) {
-      if (pipeline_type_kind_ord_at(a, pipeline_expr_resolved_type_ref(a, expr_ref)) != 8) {
+      /* wave1007: Cap residual TYPE_NAMED via glue; type-param falls through. */
+      if (pipeline_type_kind_ord_at(a, pipeline_expr_resolved_type_ref(a, expr_ref)) == 8) {
+        pipe_store_i32_le(&cell[0], 0, glue_field_access_load_bytes_for_type_ref(a, pipeline_expr_resolved_type_ref(a, expr_ref)));
+        if (pipe_load_i32_le(&cell[0], 0) == 1) {
+          return 1;
+        }
+        if (pipe_load_i32_le(&cell[0], 0) == 2) {
+          return 2;
+        }
+        if (pipe_load_i32_le(&cell[0], 0) == 4) {
+          return 4;
+        }
+      } else {
         if (pipeline_type_kind_ord_at(a, pipeline_expr_resolved_type_ref(a, expr_ref)) != 10) {
           if (pipeline_type_kind_ord_at(a, pipeline_expr_resolved_type_ref(a, expr_ref)) != 11) {
             if (pipeline_type_kind_ord_at(a, pipeline_expr_resolved_type_ref(a, expr_ref)) != 12) {

@@ -200,12 +200,18 @@ export function pipe_modlet_bake_struct_lit_to_data(
           unsafe {
             nlen = pipeline_type_named_name_into(arena, fty, &(nm[0]));
           }
+          /*
+           * Cap residual i8/i16/u16: 4-byte cells (wave1007). Matches
+           * typeck_x_named_builtin_size and array INDEX esz-4 so folder
+           * mask/sext survives into .data and LDRSW field loads see -1.
+           * PLATFORM: SHARED — name bytes match typeck_int_family_id.
+           */
           // "i8"
           if (nlen == 2) {
             if (nm[0] == 105) {
               if (nm[1] == 56) {
                 named_ok = 1;
-                fsz = 1;
+                fsz = 4;
               }
             }
           }
@@ -215,7 +221,7 @@ export function pipe_modlet_bake_struct_lit_to_data(
               if (nm[1] == 49) {
                 if (nm[2] == 54) {
                   named_ok = 1;
-                  fsz = 2;
+                  fsz = 4;
                 }
               }
             }
@@ -226,7 +232,7 @@ export function pipe_modlet_bake_struct_lit_to_data(
               if (nm[1] == 49) {
                 if (nm[2] == 54) {
                   named_ok = 1;
-                  fsz = 2;
+                  fsz = 4;
                 }
               }
             }

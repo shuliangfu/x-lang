@@ -2985,15 +2985,15 @@ int32_t typeck_x_named_builtin_align(uint8_t * nm, int32_t nlen) {
   if (((nm ==0) || (nlen <=0))) {
     return 0;
   }
-  /* Cap residual TYPE_NAMED i8/i16/u16 (no TypeKind). PLATFORM: SHARED. */
+  /* Cap residual TYPE_NAMED i8/i16/u16: 4-byte cells (wave1007). PLATFORM: SHARED. */
   if ((((nlen ==2) && ((nm)[0] ==105)) && ((nm)[1] ==56))) {
-    return 1;
+    return 4;
   }
   if (((((nlen ==3) && ((nm)[0] ==105)) && ((nm)[1] ==49)) && ((nm)[2] ==54))) {
-    return 2;
+    return 4;
   }
   if (((((nlen ==3) && ((nm)[0] ==117)) && ((nm)[1] ==49)) && ((nm)[2] ==54))) {
-    return 2;
+    return 4;
   }
   if (((((nlen ==3) && ((nm)[0] ==105)) && ((nm)[1] ==51)) && ((nm)[2] ==50))) {
     return 4;
