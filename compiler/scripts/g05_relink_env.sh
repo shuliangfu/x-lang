@@ -351,6 +351,11 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
 fi
+# w1009: let-after-assign stmt_order (pass1 deferred lets). First-wins.
+# PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
+fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
 # live function. Darwin ld has no multidef, so the cold symbol in a copy
@@ -393,6 +398,31 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
   fi
+  # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
+  # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
+  # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only
+  # if still strong (redefine keeps same-TU bl on the dead body — wrong).
+  # PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _bsym in _pipeline_asm_emit_block_body_sync_elf _backend_emit_block_body_sync_elf; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_bsym" | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_bsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -422,6 +452,10 @@ case "$UNAME_S" in
     # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
+    fi
+    # w1009: let-after-assign body_sync. First-wins. PLATFORM: WINDOWS.
+    if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
     fi
     # w1007 Cap residual named_builtin size→4 overlay (when typeck_x.o
     # still has 1/2). First-wins. PLATFORM: WINDOWS.

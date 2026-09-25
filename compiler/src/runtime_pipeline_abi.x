@@ -40394,6 +40394,9 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
   let is_f64: i32 = 0;
   let is_f32: i32 = 0;
   let done: i32 = 0;
+  let let_defer: u8[512] = [];
+  let use_defer: i32 = 0;
+  let defer_bit: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0) {
     return 0 - 1;
   }
@@ -40405,6 +40408,14 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
   unsafe {
     nconst = ast_ast_block_num_consts(arena, block_ref);
     nlet = ast_ast_block_num_lets(arena, block_ref);
+  }
+  // wave1009: pass1-deferred lets stay for stmt_order (body_sync k==1).
+  use_defer = 0;
+  if (nlet > 0 && nlet <= glue_block_let_defer_max()) {
+    use_defer = 1;
+    glue_block_compute_pass1_deferred_lets(
+      arena, ctx, block_ref, slot_base, nconst, nlet, &let_defer[0]
+    );
   }
   idx = 0;
   i = 0;
@@ -40463,6 +40474,21 @@ export function pipeline_asm_emit_block_inits_elf_c(arena: *u8, elf_ctx: *u8, bl
   i = 0;
   while (i < nlet && (slot_base + idx) < num_locals) {
     done = 0;
+    // wave1009: skip pass1-deferred lets here; body_sync k==1 emits them.
+    defer_bit = 0;
+    if (use_defer != 0) {
+      unsafe {
+        if (let_defer[i] != (0 as u8)) {
+          defer_bit = 1;
+        }
+      }
+    }
+    if (defer_bit != 0) {
+      // Still reserve the slot index; init emit deferred to stmt_order.
+      idx = idx + 1;
+      i = i + 1;
+      continue;
+    }
     unsafe {
       init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
     }
