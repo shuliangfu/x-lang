@@ -634,6 +634,39 @@ int32_t std_fmt_println_u8_ptr_i32(uint8_t *ptr, int32_t len) {
   return std_fmt_println(ptr, (size_t)len);
 }
 
+/**
+ * PLATFORM: SHARED — println(*u8) / print(*u8) NUL-terminated C-string overloads.
+ *
+ * Why: without these, typeck first_idx binds println(u8[]) → std_fmt_println_u8_slc
+ * when the only 1-arg string-ish candidate is the slice mid. Passing a raw *u8 as a
+ * fat `{data,len}` pointer → empty stdout (Linux) or SEGV (Windows). Exact *u8 mid
+ * (mangle println_u8_ptr) scores 1000 and wins. Mirrors std/fmt/mod.x (same commit).
+ * Cap strlen at 1MiB so a non-NUL buffer cannot hang.
+ */
+int32_t std_fmt_println_u8_ptr(uint8_t *s) {
+  size_t len = 0;
+  if (s == NULL)
+    return -1;
+  while (s[len] != 0) {
+    len++;
+    if (len > 1048576u)
+      return -1;
+  }
+  return std_fmt_println(s, len);
+}
+
+int32_t std_fmt_print_u8_ptr(uint8_t *s) {
+  size_t len = 0;
+  if (s == NULL)
+    return -1;
+  while (s[len] != 0) {
+    len++;
+    if (len > 1048576u)
+      return -1;
+  }
+  return std_fmt_print(s, len);
+}
+
 /** M-5：u8[] slice ABI（与 mod.x / read_ptr.x XlangSliceU8 一致）。
  * Hoisted above fmt println_u8_slc so the overload mid can use the typedef.
  * PLATFORM: SHARED.

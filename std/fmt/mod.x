@@ -214,6 +214,76 @@ export function println(ptr: *u8, len: i32): i32 {
   if (rn < 0) { return -1; }
   return 0;
 }
+
+/**
+ * Print a NUL-terminated C string and a newline.
+ *
+ * Why: without this 1-arg `*u8` overload, typeck first_idx falls through to
+ * `println(u8[])` / `std_fmt_println_u8_slc`, which treats the raw pointer as a
+ * fat `{data,len}` slice → empty stdout (Linux) or SEGV (Windows). String-lit
+ * `println("…")` already specializes to `(ptr,len)`; `*u8` variables need this
+ * exact match (score 1000). PLATFORM: SHARED.
+ *
+ * @param s *u8 — NUL-terminated bytes; null → -1
+ * @return i32 — 0 on success, -1 on write/null/overlong
+ */
+export function println(s: *u8): i32 {
+  let len: i32 = 0;
+  let r: i32 = 0;
+  let rn: i32 = 0;
+  let nl: u8[1] = [10];
+  if (s == (0 as *u8)) {
+    return 0 - 1;
+  }
+  /* Cap residual: bound strlen so a non-NUL buffer cannot hang the product. */
+  unsafe {
+    while (s[len] != 0) {
+      len = len + 1;
+      if (len > 1048576) {
+        return 0 - 1;
+      }
+    }
+  }
+  r = io.write_stdout(s, len as usize);
+  if (r < 0) {
+    return 0 - 1;
+  }
+  rn = io.write_stdout(&nl[0], 1);
+  if (rn < 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
+ * Print a NUL-terminated C string (no newline).
+ * Same first_idx / u8_slc trap as `println(*u8)` — exact `*u8` match required.
+ * PLATFORM: SHARED.
+ *
+ * @param s *u8 — NUL-terminated bytes; null → -1
+ * @return i32 — 0 on success, -1 on write/null/overlong
+ */
+export function print(s: *u8): i32 {
+  let len: i32 = 0;
+  let r: i32 = 0;
+  if (s == (0 as *u8)) {
+    return 0 - 1;
+  }
+  unsafe {
+    while (s[len] != 0) {
+      len = len + 1;
+      if (len > 1048576) {
+        return 0 - 1;
+      }
+    }
+  }
+  r = io.write_stdout(s, len as usize);
+  if (r < 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
 /** Exported function `println`.
  * Implements `println`.
  * @param s u8[]
