@@ -81,8 +81,12 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * out_hi. (1 as i32) as f32 is 0x3f800000, which the baker pokes as
  * 0000803f. A FLOAT_LIT whose resolved type is f32 packs through
  * glue_ieee_f64_bits_to_f32_bits. NEG of that word flips the IEEE
- * sign bit. An integer parent treats return 4 as not folded, so
- * (1 as f32) as i32 still truncates to 1. f64 (kind 15) stays 0.
+ * sign bit. An f32-typed ADD, SUB, MUL, or DIV reuses the walker
+ * below and returns 4. (1.0 as f32) + (2.0 as f32) is 0x40400000
+ * (00004040). (16777216.0 as f32) + (1.0 as f32) is 0x4b800000.
+ * An integer parent treats return 4 as not folded, so
+ * (1 as f32) as i32 still truncates to 1 and that sum as i32 stays
+ * 16777216. f64 (kind 15) stays 0. An f64 binop stays 0.
  * Return 2 and return 3 are not passed to glue_i32_to_f32_bits.
  * @param arena *u8 — AST arena; null returns 0
  * @param eref i32 — expression ref; <= 0 returns 0
@@ -148,6 +152,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let k: i32 = 0;
   let src: i32 = 0;
   let bit: i32 = 0;
+  let enter_walk: i32 = 0;
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
     return 0;
   }
@@ -241,7 +246,30 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // Read with pipe_load_i32_le: an index load of *i32 is not a dereference
   // on this Darwin compiler. DIV, MOD, and a shift count outside
   // 0..31 return 0 without storing, so the baker loud-fails.
+  // An f32-typed ADD, SUB, MUL, or DIV is not this integer operator.
+  // (1.0 as f32) + (2.0 as f32) is 3.0f (00004040). The walker below
+  // already evaluates that tree and rounds when the resolved type is
+  // f32. MOD, shifts, and bitwise ops stay here. An f64 binop stays 0.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek >= 4 && ek <= 13) {
+    if (ek <= 7) {
+      rty = 0;
+      rtk = 0;
+      unsafe {
+        rty = pipeline_expr_resolved_type_ref(arena, eref);
+      }
+      if (rty > 0) {
+        unsafe {
+          rtk = pipeline_type_kind_ord_at(arena, rty);
+        }
+      }
+      if (rtk == 14) {
+        op = eref;
+        tk = 14;
+        enter_walk = 1;
+      }
+    }
+    if (enter_walk == 0) {
     unsafe {
       left = pipeline_expr_binop_left_ref_at(arena, eref);
       right = pipeline_expr_binop_right_ref_at(arena, eref);
@@ -329,6 +357,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       pipe_store_i32_le(out_val as *u8, 0, result);
     }
     return 1;
+    }
   }
   // AS. Kinds 0..3 are 32-bit cells. Kinds 4..7 are 64-bit cells:
   // the word below is the low half, and the baker sign-fills the rest.
@@ -394,7 +423,17 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       }
       return 0;
     }
-    // Not an integer. Evaluate a float tree into flo/fhi, then truncate.
+    // Not an integer. The walker below evaluates the float tree.
+    // op is already the cast operand. tk is the cast target.
+    enter_walk = 1;
+  }
+  // Walker shared by an AS whose child did not fold as an integer and
+  // by an f32-typed ADD, SUB, MUL, or DIV. op is the walk root. tk is
+  // the outer target: 14 packs one f32 word and returns 4. Any other
+  // accepted tk truncates to an integer. The four host f64 operators
+  // stay separate ifs. There is no second float folder.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (enter_walk == 1) {
     // Frames: 0 enter, 1 the unary child, the cast operand, or the
     // binop left child is on the stack, 2 value is ready, 3 binop
     // left bits sit in this frame and the right child is on the stack.
@@ -402,7 +441,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     // holds the right child ref. Eight frames cover the probe trees.
     // A deeper tree, a float MOD, or a non-float node returns 0.
     // Host f64 is the operator. An f32 node then calls the existing
-    // glue_ieee helpers. There is no second float folder.
+    // glue_ieee helpers.
     got = 0;
     sp = 0;
     guard = 0;
