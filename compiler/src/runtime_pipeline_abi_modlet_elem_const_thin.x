@@ -24,10 +24,12 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * Fold one module-array element into a single i32 word.
  * EXPR_LIT (ek 0) and EXPR_BOOL_LIT (ek 2) share int_val: true is 1
  * and false is 0. EXPR_NEG (ek 22) folds its operand with this function,
- * then negates that 32-bit word. EXPR_ADD through EXPR_BITXOR (ek 4..13)
- * fold both children the same way. DIV (7) and MOD (8) return 0 when the
- * divisor is 0 or the pair is INT_MIN and -1, so the baker loud-fails
- * instead of trapping. A shift count outside 0..31 returns 0.
+ * then negates that 32-bit word. ADD, SUB, MUL, shifts, and bitwise
+ * ops (ek 4, 5, 6, 9..13) fold both children the same way.
+ * DIV (7) and MOD (8) return 0. This file is compiled by the Windows
+ * product compiler, whose idiv does not sign-extend into edx, so a
+ * negative dividend traps that process. The Ubuntu 4-arg thin still
+ * folds those two kinds. A shift count outside 0..31 returns 0.
  * EXPR_AS (ek 54) accepts TYPE_I32 (0), TYPE_BOOL (1), TYPE_U8 (2),
  * and TYPE_U32 (3). The baker peels esz bytes of this word, so a u8
  * cell keeps the low byte: (0 - 1) as u8 stores 255, 256 as u8 stores 0,
@@ -40,8 +42,6 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * PLATFORM: MACOS|DARWIN / WINDOWS — strong definition. Darwin prepare's
  * branch reloc binds here over the weak gcc body. Windows egg and the
  * modlet extra only declare this name.
- * Compile this file with XLANG_PREFER_ASM_O=1. DIV and MOD must not
- * emit a call to xlang_panic_.
  */
 #[no_mangle]
 export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32): i32 {
@@ -95,8 +95,8 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   }
   // Integer binop. Save the left word before the right fold reuses out_val.
   // Read with pipe_load_i32_le: an index load of *i32 is not a dereference
-  // on this Darwin compiler. Undefined DIV, MOD, and shifts return 0
-  // without storing, so the baker loud-fails.
+  // on this Darwin compiler. DIV, MOD, and a shift count outside
+  // 0..31 return 0 without storing, so the baker loud-fails.
   if (ek >= 4 && ek <= 13) {
     unsafe {
       left = pipeline_expr_binop_left_ref_at(arena, eref);
@@ -130,25 +130,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       result = lv * rv;
       ok = 1;
     }
-    // EXPR_DIV=7 and EXPR_MOD=8. Zero and INT_MIN with -1 are not constants.
-    // lv + 2147483647 == -1 only for the most-negative i32.
-    if (ek == 7 || ek == 8) {
-      if (rv == 0) {
-        return 0;
-      }
-      if (rv == (0 - 1)) {
-        if (lv + 2147483647 == (0 - 1)) {
-          return 0;
-        }
-      }
-      if (ek == 7) {
-        result = lv / rv;
-      }
-      if (ek == 8) {
-        result = lv % rv;
-      }
-      ok = 1;
-    }
+    // EXPR_DIV=7 and EXPR_MOD=8 stay unfolded (ok stays 0).
     if (ek == 9 || ek == 10) {
       if (rv < 0 || rv >= 32) {
         return 0;
