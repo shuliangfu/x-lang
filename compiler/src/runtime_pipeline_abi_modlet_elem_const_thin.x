@@ -18,6 +18,7 @@ export extern "C" function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref:
 export extern "C" function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -39,12 +40,20 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * EXPR_AS (ek 54) accepts TYPE_I32 (0), TYPE_BOOL (1), TYPE_U8 (2),
  * and TYPE_U32 (3). The baker peels esz bytes of this word, so a u8
  * cell keeps the low byte: (0 - 1) as u8 stores 255, 256 as u8 stores 0,
- * and 2 as bool stays 2. A FLOAT_LIT operand, or NEG of one FLOAT_LIT,
- * truncates toward zero into this i32 word: 1.9 as u8 stores 1,
- * 0.9 as u8 stores 0, and -1.9 as u8 stores 255. |x| >= 2^31 returns 0
- * except exactly -2^31. Inf and NaN return 0. Float binops stay
- * unfolded. A 64-bit target returns 0: this ABI has no high half.
- * Do not add pipe_modlet_fold_f64_elem_bits here.
+ * and 2 as bool stays 2. A float operand truncates toward zero into
+ * this i32 word. The float tree may be a FLOAT_LIT, NEG, or
+ * ADD/SUB/MUL/DIV of those, up to 8 stack frames. 1.9 as u8 stores 1,
+ * 0.9 as u8 stores 0, -1.9 as u8 stores 255, and (0.0 - 1.9) as i32
+ * stores -1. Each binop copies the IEEE halves into a host f64 with
+ * memcpy, applies the language operator, and copies the bits back.
+ * That is the same host-float operator the Ubuntu 4-arg folder uses.
+ * It stays inside this function: this ABI has no high-half out
+ * parameter, so there is no second float folder.
+ * Do not add pipe_modlet_fold_f64_elem_bits.
+ * |x| >= 2^31 returns 0 except exactly -2^31. Inf and NaN return 0,
+ * so (1.0 / 0.0) as i32 stays unfolded. Float MOD stays unfolded.
+ * An f32-typed binop is not rounded back to f32 before the trunc.
+ * A 64-bit target returns 0: this ABI has no high half.
  * @param arena *u8 — AST arena; null returns 0
  * @param eref i32 — expression ref; <= 0 returns 0
  * @param out_val *i32 — one i32 slot; null returns 0; written only on success
@@ -74,10 +83,33 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let sh: i32 = 0;
   let rsh: i32 = 0;
   let top: i32 = 0;
-  let neg: i32 = 0;
-  let opek: i32 = 0;
   let mag: i32 = 0;
-  let fref: i32 = 0;
+  let got: i32 = 0;
+  let sp: i32 = 0;
+  let guard: i32 = 0;
+  let si: i32 = 0;
+  let pi: i32 = 0;
+  let step: i32 = 0;
+  let pstep: i32 = 0;
+  let sek: i32 = 0;
+  let sref: i32 = 0;
+  let child: i32 = 0;
+  let llo: i32 = 0;
+  let lhi: i32 = 0;
+  let rlo: i32 = 0;
+  let rhi: i32 = 0;
+  let stk_ref: i32[8] = [];
+  let stk_step: i32[8] = [];
+  let stk_ek: i32[8] = [];
+  let stk_aux: i32[8] = [];
+  let stk_lo: i32[8] = [];
+  let stk_hi: i32[8] = [];
+  let lp: i32[2] = [];
+  let rp: i32[2] = [];
+  let oparts: i32[2] = [];
+  let av: f64 = 0.0;
+  let bv: f64 = 0.0;
+  let fr: f64 = 0.0;
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
     return 0;
   }
@@ -225,42 +257,151 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val) != 0) {
       return 1;
     }
-    // Not an integer. A bare FLOAT_LIT, or NEG of one FLOAT_LIT,
-    // truncates toward zero. The bit readers are the existing AST
-    // accessors. Float ADD/SUB/MUL/DIV stay 0: this function does not
-    // grow a second float folder. 64-bit targets already returned 0.
-    unsafe {
-      opek = pipeline_expr_kind_ord_at(arena, op);
+    // Not an integer. Evaluate a float tree into flo/fhi, then truncate.
+    // Frames: 0 enter, 1 left or unary child is on the stack, 2 value
+    // is ready, 3 binop left bits sit in this frame and the right child
+    // is on the stack. Eight frames cover the probe trees. A deeper
+    // tree, a float MOD, or a non-float node returns 0. Host f64 is the
+    // operator. The bits never go through a second function.
+    got = 0;
+    sp = 0;
+    guard = 0;
+    stk_ref[0] = op;
+    stk_step[0] = 0;
+    sp = 1;
+    while (sp > 0) {
+      guard = guard + 1;
+      if (guard > 48) {
+        sp = 0;
+      }
+      if (sp > 0) {
+        si = sp - 1;
+        step = stk_step[si];
+        if (step == 0) {
+          sref = stk_ref[si];
+          unsafe {
+            sek = pipeline_expr_kind_ord_at(arena, sref);
+          }
+          stk_ek[si] = sek;
+          if (sek == 1) {
+            unsafe {
+              stk_lo[si] = pipeline_expr_float_bits_lo_at(arena, sref);
+              stk_hi[si] = pipeline_expr_float_bits_hi_at(arena, sref);
+            }
+            stk_step[si] = 2;
+          } else {
+            if (sek == 22) {
+              unsafe {
+                child = pipeline_expr_unary_operand_ref_at(arena, sref);
+              }
+              if (child <= 0 || sp >= 8) {
+                sp = 0;
+              } else {
+                stk_step[si] = 1;
+                stk_ref[sp] = child;
+                stk_step[sp] = 0;
+                sp = sp + 1;
+              }
+            } else {
+              if (sek == 4 || sek == 5 || sek == 6 || sek == 7) {
+                unsafe {
+                  left = pipeline_expr_binop_left_ref_at(arena, sref);
+                  right = pipeline_expr_binop_right_ref_at(arena, sref);
+                }
+                if (left <= 0 || right <= 0 || sp >= 8) {
+                  sp = 0;
+                } else {
+                  stk_aux[si] = right;
+                  stk_step[si] = 1;
+                  stk_ref[sp] = left;
+                  stk_step[sp] = 0;
+                  sp = sp + 1;
+                }
+              } else {
+                sp = 0;
+              }
+            }
+          }
+        } else {
+          if (step == 2) {
+            if (si == 0) {
+              flo = stk_lo[0];
+              fhi = stk_hi[0];
+              got = 1;
+              sp = 0;
+            } else {
+              pi = si - 1;
+              pstep = stk_step[pi];
+              sek = stk_ek[pi];
+              if (pstep == 1 && sek == 22) {
+                // NEG flips only the IEEE sign bit.
+                stk_lo[pi] = stk_lo[si];
+                if (stk_hi[si] < 0) {
+                  stk_hi[pi] = stk_hi[si] & 2147483647;
+                } else {
+                  stk_hi[pi] = stk_hi[si] | (0 - 2147483647 - 1);
+                }
+                stk_step[pi] = 2;
+                sp = si;
+              } else {
+                if (pstep == 1 && (sek == 4 || sek == 5 || sek == 6 || sek == 7)) {
+                  stk_lo[pi] = stk_lo[si];
+                  stk_hi[pi] = stk_hi[si];
+                  stk_step[pi] = 3;
+                  sp = si;
+                  stk_ref[sp] = stk_aux[pi];
+                  stk_step[sp] = 0;
+                  sp = sp + 1;
+                } else {
+                  if (pstep == 3 && (sek == 4 || sek == 5 || sek == 6 || sek == 7)) {
+                    llo = stk_lo[pi];
+                    lhi = stk_hi[pi];
+                    rlo = stk_lo[si];
+                    rhi = stk_hi[si];
+                    lp[0] = llo;
+                    lp[1] = lhi;
+                    rp[0] = rlo;
+                    rp[1] = rhi;
+                    // Same bit copy as glue_ieee_f64_bits_to_f32_bits.
+                    unsafe {
+                      memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
+                      memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
+                    }
+                    if (sek == 4) {
+                      fr = av + bv;
+                    } else {
+                      if (sek == 5) {
+                        fr = av - bv;
+                      } else {
+                        if (sek == 6) {
+                          fr = av * bv;
+                        } else {
+                          // EXPR_DIV. A zero divisor stays IEEE infinity.
+                          fr = av / bv;
+                        }
+                      }
+                    }
+                    unsafe {
+                      memcpy((&(oparts[0])) as *u8, (&fr) as *u8, 8 as usize);
+                    }
+                    stk_lo[pi] = oparts[0];
+                    stk_hi[pi] = oparts[1];
+                    stk_step[pi] = 2;
+                    sp = si;
+                  } else {
+                    sp = 0;
+                  }
+                }
+              }
+            }
+          } else {
+            sp = 0;
+          }
+        }
+      }
     }
-    fref = op;
-    neg = 0;
-    if (opek == 22) {
-      unsafe {
-        fref = pipeline_expr_unary_operand_ref_at(arena, op);
-      }
-      if (fref <= 0) {
-        return 0;
-      }
-      unsafe {
-        opek = pipeline_expr_kind_ord_at(arena, fref);
-      }
-      neg = 1;
-    }
-    if (opek != 1) {
+    if (got == 0) {
       return 0;
-    }
-    unsafe {
-      flo = pipeline_expr_float_bits_lo_at(arena, fref);
-      fhi = pipeline_expr_float_bits_hi_at(arena, fref);
-    }
-    // NEG flips only the IEEE sign bit. Clearing it is a mask. Setting
-    // it is OR with the sign bit. That is XOR of bit 31, with no add.
-    if (neg != 0) {
-      if (fhi < 0) {
-        fhi = fhi & 2147483647;
-      } else {
-        fhi = fhi | (0 - 2147483647 - 1);
-      }
     }
     // Biased exponent is bits 20..30. An arithmetic shift of a negative
     // high half still leaves those 11 bits after the mask.
