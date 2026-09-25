@@ -579,7 +579,8 @@ function pipe_modlet_array_lit_elem_const_walk(
  * ADD, SUB, MUL, shifts, and bitwise
  * ops (ek 4, 5, 6, 9..13) fold both children the same way.
  * DIV (7) and MOD (8) use the language operators. A zero divisor and
- * INT_MIN divided by -1 return 0, so the baker loud-fails.
+ * INT_MIN/-1 fold to 0 so the baker can emit .data (w1017; was loud-fail
+ * CG002 on `[8 / 0, 1]`). Runtime `let x = 8 / 0` still panics via emit.
  * lv + 2147483647 == -1 only for the most-negative i32.
  * Compile this file with XLANG_PREFER_ASM_O=1 so those operators do
  * not emit an xlang_panic_ reloc. The Windows compiler that compiles
@@ -2807,14 +2808,22 @@ function pipe_modlet_array_lit_elem_const_iops(
         }
       }
       // DIV and MOD. Toward zero. Remainder sign follows the dividend.
-      // Unsigned kinds 4 and 6 do not look at the sign bit. Zero and
-      // signed INT_MIN / -1 stay unfolded. PLATFORM: MACOS|DARWIN / WINDOWS.
+      // Unsigned kinds 4 and 6 do not look at the sign bit. Zero divisor
+      // and signed INT_MIN / -1 fold to 0 (w1017). PLATFORM: SHARED.
       if (ek == 7 || ek == 8) {
         if (rlo == 0 && rhi == 0) {
-          return 0;
+          unsafe {
+            pipe_store_i32_le(out_val as *u8, 0, 0);
+            pipe_store_i32_le(out_hi as *u8, 0, 0);
+          }
+          return 3;
         }
         if ((rtk == 5 || rtk == 7) && llo == 0 && lhi == (0 - 2147483647 - 1) && rlo == (0 - 1) && rhi == (0 - 1)) {
-          return 0;
+          unsafe {
+            pipe_store_i32_le(out_val as *u8, 0, 0);
+            pipe_store_i32_le(out_hi as *u8, 0, 0);
+          }
+          return 3;
         }
         lp[0] = llo;
         lp[1] = lhi;
@@ -3091,25 +3100,31 @@ function pipe_modlet_array_lit_elem_const_iops(
     result = lv * rv;
     ok = 1;
   }
-  // EXPR_DIV=7 and EXPR_MOD=8. Zero and INT_MIN/-1 are not constants.
+  // EXPR_DIV=7 and EXPR_MOD=8. Zero divisor and INT_MIN/-1 → 0 (w1017).
   // The language operators are compiled into this function, so the
   // Windows compiler must emit cqo before the 64-bit idiv.
   if (ek == 7 || ek == 8) {
     if (rv == 0) {
-      return 0;
+      result = 0;
+      ok = 1;
     }
-    if (rv == (0 - 1)) {
-      if (lv + 2147483647 == (0 - 1)) {
-        return 0;
+    if (ok == 0) {
+      if (rv == (0 - 1)) {
+        if (lv + 2147483647 == (0 - 1)) {
+          result = 0;
+          ok = 1;
+        }
       }
     }
-    if (ek == 7) {
-      result = lv / rv;
+    if (ok == 0) {
+      if (ek == 7) {
+        result = lv / rv;
+      }
+      if (ek == 8) {
+        result = lv % rv;
+      }
+      ok = 1;
     }
-    if (ek == 8) {
-      result = lv % rv;
-    }
-    ok = 1;
   }
   if (ek == 9 || ek == 10) {
     if (rv < 0 || rv >= 32) {

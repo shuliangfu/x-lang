@@ -127,11 +127,11 @@ export function asm_module_top_level_let_name_exists(m: *u8, name: *u8, name_len
  * Kinds are the parser pins: EXPR_ADD=4 through EXPR_BITXOR=13.
  * A shift count outside 0..31 is not a constant: the caller loud-fails.
  * EXPR_DIV (7) and EXPR_MOD (8) use the language operators. A zero divisor
- * is not a constant. The most-negative i32 divided or remaindered by -1
- * is not a constant either: x86 idiv traps on that pair, so this helper
- * returns 0 and the baker loud-fails. This thin is compiled as a compiler
- * leaf (XLANG_PREFER_ASM_O=1). That gate makes pipeline_asm_emit_divisor_zero_check_rbx_elf_c
- * a no-op, so these operators do not emit xlang_panic_. Comparisons
+ * or INT_MIN/-1 folds to 0 (const bake needs a word; runtime `8/0` still
+ * panics via emit). w1017: was loud-fail → CG002 on `[8 / 0, 1]`.
+ * This thin is compiled as a compiler leaf (XLANG_PREFER_ASM_O=1). That gate
+ * makes pipeline_asm_emit_divisor_zero_check_rbx_elf_c a no-op, so these
+ * operators do not emit xlang_panic_ in the folder itself. Comparisons
  * (14..21) and float binops are not this helper. FLOAT_LIT stays on the
  * array baker, which has the element size.
  * @param ek i32 - expr kind ordinal
@@ -158,15 +158,17 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
     unsafe { out_val[0] = lv * rv; }
     return 1;
   }
-  // EXPR_DIV=7 and EXPR_MOD=8. Zero and INT_MIN with -1 are not constants.
+  // EXPR_DIV=7 and EXPR_MOD=8. Zero divisor and INT_MIN/-1 → 0 (w1017).
   // lv + 2147483647 == -1 only for the most-negative i32.
   if (ek == 7 || ek == 8) {
     if (rv == 0) {
-      return 0;
+      unsafe { out_val[0] = 0; }
+      return 1;
     }
     if (rv == (0 - 1)) {
       if (lv + 2147483647 == (0 - 1)) {
-        return 0;
+        unsafe { out_val[0] = 0; }
+        return 1;
       }
     }
     if (ek == 7) {
@@ -1798,14 +1800,23 @@ function pipe_modlet_array_lit_elem_const_val(
           }
         }
         // DIV and MOD. Toward zero. Remainder sign follows the dividend.
-        // Unsigned kinds 4 and 6 do not look at the sign bit. Zero and
-        // signed INT_MIN / -1 stay unfolded. PLATFORM: MACOS|DARWIN / WINDOWS.
+        // Unsigned kinds 4 and 6 do not look at the sign bit. Zero divisor
+        // and signed INT_MIN / -1 fold to 0 (w1017; was loud-fail CG002).
+        // PLATFORM: MACOS|DARWIN / WINDOWS / LINUX.
         if (ek == 7 || ek == 8) {
           if (rlo == 0 && rhi == 0) {
-            return 0;
+            unsafe {
+              pipe_store_i32_le(out_val as *u8, 0, 0);
+              pipe_store_i32_le(out_hi as *u8, 0, 0);
+            }
+            return 3;
           }
           if ((rtk == 5 || rtk == 7) && llo == 0 && lhi == (0 - 2147483647 - 1) && rlo == (0 - 1) && rhi == (0 - 1)) {
-            return 0;
+            unsafe {
+              pipe_store_i32_le(out_val as *u8, 0, 0);
+              pipe_store_i32_le(out_hi as *u8, 0, 0);
+            }
+            return 3;
           }
           lp[0] = llo;
           lp[1] = lhi;
