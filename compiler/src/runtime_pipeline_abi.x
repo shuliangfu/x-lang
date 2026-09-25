@@ -35623,12 +35623,18 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
    * invoke_cc_append_argv_head_flags storing at x29+0x898 past a 0x6d0
    * frame (512 scratch) and smashing caller xlang_invoke_cc_impl's
    * c_paths context. 2048 covers the observed ~1032B high-water.
-   * w1032: skip the floor when call_spill==0 (leaf / no CALL sites) so
-   * tip-compiled leaves are not forced to sub $0x888. Call-bearing
-   * bodies keep the floor. PLATFORM: SHARED. */
+   * w1032: skip the floor when call_spill==0 (leaf / no CALL sites).
+   * w1033: small call graphs (spill < 1024) use measured + 256 pad so
+   * one-call tip trampolines are not forced to sub $0x858/$0x888; heavy
+   * graphs (spill >= 1024, near historical high-water) keep the 2048
+   * floor. PLATFORM: SHARED. */
   if (call_spill > 0) {
-    if (scratch < 2048) {
-      scratch = 2048;
+    if (call_spill >= 1024) {
+      if (scratch < 2048) {
+        scratch = 2048;
+      }
+    } else {
+      scratch = call_spill + 256;
     }
   }
   size = size + scratch;

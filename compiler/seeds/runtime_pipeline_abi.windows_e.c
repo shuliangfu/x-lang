@@ -24165,10 +24165,14 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t * arena, i
  }) : 0);
   }
   (void)((scratch = call_spill));
-  /* w1032: 2048 floor only when call_spill > 0 (leaf keeps 0). */
+  /* w1032/w1033: leaf=0; small spill→+256; heavy (>=1024)→2048 floor. */
   if ((call_spill > 0)) {
-    if ((scratch < 2048)) {
-      (void)((scratch = 2048));
+    if ((call_spill >= 1024)) {
+      if ((scratch < 2048)) {
+        (void)((scratch = 2048));
+      }
+    } else {
+      (void)((scratch = (call_spill + 256)));
     }
   }
   (void)((size = (size + scratch)));
