@@ -206,6 +206,40 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
 }
 
 /**
+ * Truncate a folded i32 word to Cap residual named width, then
+ * sign-extend signed i8/i16 back into the 32-bit bake cell.
+ * Unsigned u16 stays zero-extended. esz-4 INDEX movl then reads
+ * signed negatives correctly ((0-1) as i8 → 0xffffffff, not 0xff).
+ * @param v i32 — folded word before leaf mask
+ * @param named_esz i32 — 1 (i8) or 2 (i16/u16); other → unchanged
+ * @param named_signed i32 — 1 for i8/i16, 0 for u16
+ * @return i32 — cell word for bake / folder out_val
+ * PLATFORM: SHARED Cap residual AS bake cell (Ubuntu modlet thin).
+ */
+function pipe_modlet_cap_residual_mask_sext(v: i32, named_esz: i32, named_signed: i32): i32 {
+  let w: i32 = v;
+  if (named_esz == 1) {
+    w = w & 255;
+    if (named_signed != 0) {
+      if (w > 127) {
+        w = w - 256;
+      }
+    }
+    return w;
+  }
+  if (named_esz == 2) {
+    w = w & 65535;
+    if (named_signed != 0) {
+      if (w > 32767) {
+        w = w - 65536;
+      }
+    }
+    return w;
+  }
+  return v;
+}
+
+/**
  * Fold one ARRAY_LIT element to its constant i32 value.
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * the parser's NEG-over-LIT form `[-600, 2]`), integer binops
@@ -2056,8 +2090,10 @@ function pipe_modlet_array_lit_elem_const_val(
     let iv64: i64 = 0;
     let ihi: i32 = 0;
     // Cap residual TYPE_NAMED leaf width for AS trunc (i8=1, i16/u16=2).
-    // Glue still sizes named as 4; mask keeps .data trunc correct.
+    // Glue still sizes named as 4; mask+sext keeps .data trunc and
+    // signed INDEX reads correct.
     let named_esz: i32 = 0;
+    let named_signed: i32 = 0;
     unsafe {
       unsafe { op = pipeline_expr_as_operand_ref_at(arena, eref); }
       unsafe { tgt = pipeline_expr_as_target_type_ref_at(arena, eref); }
@@ -2172,6 +2208,7 @@ function pipe_modlet_array_lit_elem_const_val(
         if (nm[0] == 105) {
           if (nm[1] == 56) {
             named_ok = 1;
+            named_signed = 1;
           }
         }
       }
@@ -2181,6 +2218,7 @@ function pipe_modlet_array_lit_elem_const_val(
           if (nm[1] == 49) {
             if (nm[2] == 54) {
               named_ok = 1;
+              named_signed = 1;
             }
           }
         }
@@ -2191,6 +2229,7 @@ function pipe_modlet_array_lit_elem_const_val(
           if (nm[1] == 49) {
             if (nm[2] == 54) {
               named_ok = 1;
+              named_signed = 0;
             }
           }
         }
@@ -2198,7 +2237,7 @@ function pipe_modlet_array_lit_elem_const_val(
       if (named_ok == 0) {
         return 0;
       }
-      // w1004: peel named width for AS trunc (glue still returns 4).
+      // w1004/w1006: peel named width; signed leaves sext into esz-4 cell.
       named_esz = 1;
       if (nlen == 3) {
         named_esz = 2;
@@ -2213,14 +2252,10 @@ function pipe_modlet_array_lit_elem_const_val(
         return 0;
       }
       unsafe { lv = out_val[0]; }
-      // Cap residual named: mask to i8/i16/u16 width (256 as i8 → 0).
+      // Cap residual named: mask+sext to i8/i16/u16 width
+      // (256 as i8 → 0; (0-1) as i8 → -1 in esz-4 cell).
       if (tk == 8) {
-        if (named_esz == 1) {
-          lv = lv & 255;
-        }
-        if (named_esz == 2) {
-          lv = lv & 65535;
-        }
+        lv = pipe_modlet_cap_residual_mask_sext(lv, named_esz, named_signed);
         unsafe { out_val[0] = lv; }
       }
       if (out_hi != (0 as *i32)) {
@@ -2296,14 +2331,9 @@ function pipe_modlet_array_lit_elem_const_val(
       mag = mag | ((step & 2047) << 11);
       mag = mag | (((step >> 11) & 511) << 22);
       mag = mag | (0 - 2147483647 - 1);
-      // Cap residual named AS: mask wrapped word to leaf width.
+      // Cap residual named AS: mask+sext wrapped word to leaf width.
       if (tk == 8) {
-        if (named_esz == 1) {
-          mag = mag & 255;
-        }
-        if (named_esz == 2) {
-          mag = mag & 65535;
-        }
+        mag = pipe_modlet_cap_residual_mask_sext(mag, named_esz, named_signed);
       }
       unsafe { out_val[0] = mag; }
       if (out_hi != (0 as *i32)) {
@@ -2341,14 +2371,9 @@ function pipe_modlet_array_lit_elem_const_val(
       unsafe { memcpy((&dv) as *u8, (&(parts[0])) as *u8, 8 as usize); }
     }
     iv = dv as i32;
-    // Cap residual named AS: float→int then mask (256.0 as i8 → 0).
+    // Cap residual named AS: float→int then mask+sext (256.0 as i8 → 0).
     if (tk == 8) {
-      if (named_esz == 1) {
-        iv = iv & 255;
-      }
-      if (named_esz == 2) {
-        iv = iv & 65535;
-      }
+      iv = pipe_modlet_cap_residual_mask_sext(iv, named_esz, named_signed);
     }
     unsafe { out_val[0] = iv; }
     if (out_hi != (0 as *i32)) {

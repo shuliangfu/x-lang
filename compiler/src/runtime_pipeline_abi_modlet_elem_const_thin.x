@@ -748,6 +748,41 @@ function pipe_modlet_array_lit_elem_const_walk(
  * branch reloc binds here over the weak gcc body. Windows egg and the
  * modlet extra only declare this name.
  */
+
+/**
+ * Truncate a folded i32 word to Cap residual named width, then
+ * sign-extend signed i8/i16 back into the 32-bit bake cell.
+ * Unsigned u16 stays zero-extended. esz-4 INDEX movl then reads
+ * signed negatives correctly ((0-1) as i8 → 0xffffffff, not 0xff).
+ * @param v i32 — folded word before leaf mask
+ * @param named_esz i32 — 1 (i8) or 2 (i16/u16); other → unchanged
+ * @param named_signed i32 — 1 for i8/i16, 0 for u16
+ * @return i32 — cell word for bake / folder out_val
+ * PLATFORM: SHARED Cap residual AS bake cell (Darwin/Windows folder).
+ */
+function pipe_modlet_cap_residual_mask_sext(v: i32, named_esz: i32, named_signed: i32): i32 {
+  let w: i32 = v;
+  if (named_esz == 1) {
+    w = w & 255;
+    if (named_signed != 0) {
+      if (w > 127) {
+        w = w - 256;
+      }
+    }
+    return w;
+  }
+  if (named_esz == 2) {
+    w = w & 65535;
+    if (named_signed != 0) {
+      if (w > 32767) {
+        w = w - 65536;
+      }
+    }
+    return w;
+  }
+  return v;
+}
+
 #[no_mangle]
 export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32, out_hi: *i32): i32 {
   let ek: i32 = 0;
@@ -783,6 +818,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let enter_walk: i32 = 0;
   let named_ok: i32 = 0;
   let named_esz: i32 = 0;
+  let named_signed: i32 = 0;
   let nlen: i32 = 0;
   let nm: u8[8] = [];
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
@@ -2232,37 +2268,41 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     // PLATFORM: SHARED — name bytes match typeck_int_family_id.
     named_ok = 0;
     named_esz = 0;
+    named_signed = 0;
     if (tk == 8) {
       unsafe {
         nlen = pipeline_type_named_name_into(arena, tgt, &(nm[0]));
       }
-      // "i8"
+      // "i8" — signed leaf
       if (nlen == 2) {
         if (nm[0] == 105) {
           if (nm[1] == 56) {
             named_ok = 1;
             named_esz = 1;
+            named_signed = 1;
           }
         }
       }
-      // "i16"
+      // "i16" — signed leaf
       if (nlen == 3) {
         if (nm[0] == 105) {
           if (nm[1] == 49) {
             if (nm[2] == 54) {
               named_ok = 1;
               named_esz = 2;
+              named_signed = 1;
             }
           }
         }
       }
-      // "u16"
+      // "u16" — unsigned leaf (zero-extend into bake cell)
       if (nlen == 3) {
         if (nm[0] == 117) {
           if (nm[1] == 49) {
             if (nm[2] == 54) {
               named_ok = 1;
               named_esz = 2;
+              named_signed = 0;
             }
           }
         }
@@ -2350,18 +2390,13 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       }
     }
     if (ok == 1) {
-      // Cap residual named width: peel in the word so esz-4 bake stores
-      // 256 as i8 as 0, not 0x100. PLATFORM: SHARED.
-      if (named_esz == 1) {
+      // Cap residual: mask to leaf width then sign-extend signed i8/i16
+      // into the esz-4 bake cell (256 as i8 → 0; (0-1) as i8 → -1).
+      // PLATFORM: SHARED.
+      if (named_esz == 1 || named_esz == 2) {
         unsafe {
           v = pipe_load_i32_le(out_val as *u8, 0);
-          pipe_store_i32_le(out_val as *u8, 0, v & 255);
-        }
-      }
-      if (named_esz == 2) {
-        unsafe {
-          v = pipe_load_i32_le(out_val as *u8, 0);
-          pipe_store_i32_le(out_val as *u8, 0, v & 65535);
+          pipe_store_i32_le(out_val as *u8, 0, pipe_modlet_cap_residual_mask_sext(v, named_esz, named_signed));
         }
       }
       return 1;
@@ -2370,16 +2405,10 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
         return 2;
       }
-      if (named_esz == 1) {
+      if (named_esz == 1 || named_esz == 2) {
         unsafe {
           v = pipe_load_i32_le(out_val as *u8, 0);
-          pipe_store_i32_le(out_val as *u8, 0, v & 255);
-        }
-      }
-      if (named_esz == 2) {
-        unsafe {
-          v = pipe_load_i32_le(out_val as *u8, 0);
-          pipe_store_i32_le(out_val as *u8, 0, v & 65535);
+          pipe_store_i32_le(out_val as *u8, 0, pipe_modlet_cap_residual_mask_sext(v, named_esz, named_signed));
         }
       }
       return 1;
@@ -2408,16 +2437,10 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     // small. PLATFORM: WINDOWS — global array bake.
     ok = pipe_modlet_array_lit_elem_const_walk(arena, op, tk, out_val, out_hi);
     if (ok == 1) {
-      if (named_esz == 1) {
+      if (named_esz == 1 || named_esz == 2) {
         unsafe {
           v = pipe_load_i32_le(out_val as *u8, 0);
-          pipe_store_i32_le(out_val as *u8, 0, v & 255);
-        }
-      }
-      if (named_esz == 2) {
-        unsafe {
-          v = pipe_load_i32_le(out_val as *u8, 0);
-          pipe_store_i32_le(out_val as *u8, 0, v & 65535);
+          pipe_store_i32_le(out_val as *u8, 0, pipe_modlet_cap_residual_mask_sext(v, named_esz, named_signed));
         }
       }
     }
