@@ -77,6 +77,11 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * (0.0 - 4294967296.0) as u64 is low 0 and high 0xffffffff
  * (00000000ffffffff). Exact -2^63 is low 0 and high 0x80000000
  * for every 64-bit target, including u64.
+ * A 64-bit ADD, SUB, MUL, DIV, MOD, shift, or bitwise operator
+ * uses both halves, the same bits the runtime emitter writes.
+ * (2147483647 as i64) + (1 as i64) is 2147483648: low 0x80000000
+ * and high 0 (0000008000000000). An i32 add inside `as i64` still
+ * wraps in 32 bits and then sign-fills.
  * A null out_hi cannot carry that word, so the value stays unfolded.
  * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
  * and the same literal as u32 stays 0: neither 32-bit cell holds it.
@@ -295,8 +300,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   }
   // Integer binop. Save the left word before the right fold reuses out_val.
   // Read with pipe_load_i32_le: an index load of *i32 is not a dereference
-  // on this Darwin compiler. DIV, MOD, and a shift count outside
-  // 0..31 return 0 without storing, so the baker loud-fails.
+  // on this Darwin compiler. A 32-bit DIV, MOD, or a shift count outside
+  // 0..31 returns 0. A 64-bit operator below uses both halves: a shift
+  // count outside 0..63 returns 0, and a zero divisor returns 0.
   // An f32-typed ADD, SUB, MUL, or DIV is not this integer operator.
   // (1.0 as f32) + (2.0 as f32) is 3.0f (00004040). The walker below
   // already evaluates that tree and rounds when the resolved type is
@@ -328,6 +334,565 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       }
     }
     if (enter_walk == 0) {
+      // Kinds 4..7 are the 64-bit cell. Shifts are ek 9 and 10, so the
+      // float gate above did not load the type. i32 operators fall through.
+      // PLATFORM: MACOS|DARWIN / WINDOWS.
+      if (ek >= 8) {
+        rty = 0;
+        rtk = 0;
+        unsafe {
+          rty = pipeline_expr_resolved_type_ref(arena, eref);
+        }
+        if (rty > 0) {
+          unsafe {
+            rtk = pipeline_type_kind_ord_at(arena, rty);
+          }
+        }
+      }
+      if ((rtk == 4 || rtk == 5 || rtk == 6 || rtk == 7) && out_hi != 0 as *i32) {
+        unsafe {
+          left = pipeline_expr_binop_left_ref_at(arena, eref);
+          right = pipeline_expr_binop_right_ref_at(arena, eref);
+        }
+        if (left <= 0 || right <= 0) {
+          return 0;
+        }
+        ok = pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi);
+        if (ok == 0 || ok == 4 || ok == 5) {
+          return 0;
+        }
+        unsafe {
+          llo = pipe_load_i32_le(out_val as *u8, 0);
+        }
+        lhi = 0;
+        if (ok == 1 && llo < 0) {
+          lhi = 0 - 1;
+        }
+        if (ok == 3) {
+          unsafe {
+            lhi = pipe_load_i32_le(out_hi as *u8, 0);
+          }
+        }
+        ok = pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi);
+        if (ok == 0 || ok == 4 || ok == 5) {
+          return 0;
+        }
+        unsafe {
+          rlo = pipe_load_i32_le(out_val as *u8, 0);
+        }
+        rhi = 0;
+        if (ok == 1 && rlo < 0) {
+          rhi = 0 - 1;
+        }
+        if (ok == 3) {
+          unsafe {
+            rhi = pipe_load_i32_le(out_hi as *u8, 0);
+          }
+        }
+        wlo = 0;
+        whi = 0;
+        // ADD, and SUB as add of the two's complement. Carry lives in step.
+        // 16-bit limbs stay inside a signed i32. (2147483647 as i64) + 1
+        // is low 0x80000000 and high 0.
+        if (ek == 4 || ek == 5) {
+          step = 0;
+          if (ek == 5) {
+            rlo = rlo ^ (0 - 1);
+            rhi = rhi ^ (0 - 1);
+            step = 1;
+          }
+          result = llo & 65535;
+          v = (llo >> 16) & 65535;
+          sh = rlo & 65535;
+          mag = (rlo >> 16) & 65535;
+          top = result + sh + step;
+          step = 0;
+          if (top >= 65536) {
+            step = 1;
+            top = top - 65536;
+          }
+          guard = v + mag + step;
+          step = 0;
+          if (guard >= 65536) {
+            step = 1;
+            guard = guard - 65536;
+          }
+          wlo = top | (guard << 16);
+          result = lhi & 65535;
+          v = (lhi >> 16) & 65535;
+          sh = rhi & 65535;
+          mag = (rhi >> 16) & 65535;
+          top = result + sh + step;
+          step = 0;
+          if (top >= 65536) {
+            step = 1;
+            top = top - 65536;
+          }
+          guard = v + mag + step;
+          if (guard >= 65536) {
+            guard = guard - 65536;
+          }
+          whi = top | (guard << 16);
+        }
+        // MUL. Eight-bit limbs: 255*255 fits in a signed i32. The cross
+        // terms llo*rhi and lhi*rlo only contribute their low 32 bits.
+        if (ek == 6) {
+          exp = 0;
+          flo = 0;
+          fhi = 0;
+          sh = 0;
+          while (sh < 3) {
+            result = llo;
+            v = rlo;
+            if (sh == 1) {
+              v = rhi;
+            }
+            if (sh == 2) {
+              result = lhi;
+              v = rlo;
+            }
+            stk_hi[0] = result & 255;
+            stk_hi[1] = (result >> 8) & 255;
+            stk_hi[2] = (result >> 16) & 255;
+            stk_hi[3] = (result >> 24) & 255;
+            stk_hi[4] = v & 255;
+            stk_hi[5] = (v >> 8) & 255;
+            stk_hi[6] = (v >> 16) & 255;
+            stk_hi[7] = (v >> 24) & 255;
+            stk_lo[0] = stk_hi[0] * stk_hi[4];
+            stk_lo[1] = stk_hi[0] * stk_hi[5] + stk_hi[1] * stk_hi[4];
+            stk_lo[2] = stk_hi[0] * stk_hi[6] + stk_hi[1] * stk_hi[5] + stk_hi[2] * stk_hi[4];
+            stk_lo[3] = stk_hi[0] * stk_hi[7] + stk_hi[1] * stk_hi[6] + stk_hi[2] * stk_hi[5] + stk_hi[3] * stk_hi[4];
+            stk_lo[4] = stk_hi[1] * stk_hi[7] + stk_hi[2] * stk_hi[6] + stk_hi[3] * stk_hi[5];
+            stk_lo[5] = stk_hi[2] * stk_hi[7] + stk_hi[3] * stk_hi[6];
+            stk_lo[6] = stk_hi[3] * stk_hi[7];
+            stk_lo[7] = 0;
+            step = 0;
+            top = 0;
+            while (top < 8) {
+              mag = stk_lo[top] + step;
+              step = 0;
+              while (mag >= 256) {
+                mag = mag - 256;
+                step = step + 1;
+              }
+              stk_lo[top] = mag;
+              top = top + 1;
+            }
+            mag = stk_lo[0] | (stk_lo[1] << 8) | (stk_lo[2] << 16) | (stk_lo[3] << 24);
+            if (sh == 0) {
+              wlo = mag;
+              exp = stk_lo[4] | (stk_lo[5] << 8) | (stk_lo[6] << 16) | (stk_lo[7] << 24);
+            }
+            if (sh == 1) {
+              flo = mag;
+            }
+            if (sh == 2) {
+              fhi = mag;
+            }
+            sh = sh + 1;
+          }
+          result = exp & 65535;
+          v = (exp >> 16) & 65535;
+          sh = flo & 65535;
+          mag = (flo >> 16) & 65535;
+          top = result + sh;
+          step = 0;
+          if (top >= 65536) {
+            step = 1;
+            top = top - 65536;
+          }
+          guard = v + mag + step;
+          step = 0;
+          if (guard >= 65536) {
+            step = 1;
+            guard = guard - 65536;
+          }
+          result = top | (guard << 16);
+          v = (result >> 16) & 65535;
+          top = (result & 65535) + (fhi & 65535) + step;
+          step = 0;
+          if (top >= 65536) {
+            step = 1;
+            top = top - 65536;
+          }
+          guard = v + ((fhi >> 16) & 65535) + step;
+          if (guard >= 65536) {
+            guard = guard - 65536;
+          }
+          whi = top | (guard << 16);
+        }
+        if (ek == 11) {
+          wlo = llo & rlo;
+          whi = lhi & rhi;
+        }
+        if (ek == 12) {
+          wlo = llo | rlo;
+          whi = lhi | rhi;
+        }
+        if (ek == 13) {
+          wlo = llo ^ rlo;
+          whi = lhi ^ rhi;
+        }
+        // SHL is logical. SHR is arithmetic for i64 and isize, logical
+        // for u64 and usize. A count outside 0..63 is not a constant.
+        if (ek == 9 || ek == 10) {
+          if (rhi != 0 || rlo < 0 || rlo >= 64) {
+            return 0;
+          }
+          if (rlo == 0) {
+            wlo = llo;
+            whi = lhi;
+          }
+          if (rlo >= 32) {
+            sh = rlo - 32;
+            wlo = 0;
+            whi = 0;
+            if (ek == 9) {
+              if (sh == 0) {
+                whi = llo;
+              }
+              if (sh > 0) {
+                whi = llo << sh;
+              }
+            }
+            if (ek == 10) {
+              if (sh == 0) {
+                wlo = lhi;
+              }
+              if (sh > 0 && sh < 31) {
+                if (rtk == 5 || rtk == 7) {
+                  wlo = lhi >> sh;
+                }
+                if (rtk == 4 || rtk == 6) {
+                  if (lhi >= 0) {
+                    wlo = lhi >> sh;
+                  }
+                  if (lhi < 0) {
+                    top = 32 - sh;
+                    guard = 2147483647;
+                    if (top < 31) {
+                      guard = (1 << top) - 1;
+                    }
+                    wlo = (lhi >> sh) & guard;
+                  }
+                }
+              }
+              if (sh == 31) {
+                wlo = 0;
+                if (lhi < 0) {
+                  wlo = 1;
+                  if (rtk == 5 || rtk == 7) {
+                    wlo = 0 - 1;
+                  }
+                }
+              }
+              if (rtk == 5 || rtk == 7) {
+                if (lhi < 0) {
+                  whi = 0 - 1;
+                }
+              }
+            }
+          }
+          if (rlo > 0 && rlo < 32) {
+            sh = rlo;
+            if (ek == 9) {
+              wlo = llo << sh;
+              mag = 0;
+              top = 32 - sh;
+              if (llo >= 0) {
+                mag = llo >> top;
+              }
+              if (llo < 0) {
+                guard = 2147483647;
+                if (sh < 31) {
+                  guard = (1 << sh) - 1;
+                }
+                mag = (llo >> top) & guard;
+              }
+              whi = (lhi << sh) | mag;
+            }
+            if (ek == 10) {
+              mag = 0;
+              if (llo >= 0) {
+                mag = llo >> sh;
+              }
+              if (llo < 0) {
+                top = 32 - sh;
+                guard = 2147483647;
+                if (top < 31) {
+                  guard = (1 << top) - 1;
+                }
+                mag = (llo >> sh) & guard;
+              }
+              wlo = mag | (lhi << (32 - sh));
+              if (rtk == 5 || rtk == 7) {
+                whi = lhi >> sh;
+              }
+              if (rtk == 4 || rtk == 6) {
+                if (lhi >= 0) {
+                  whi = lhi >> sh;
+                }
+                if (lhi < 0) {
+                  top = 32 - sh;
+                  guard = 2147483647;
+                  if (top < 31) {
+                    guard = (1 << top) - 1;
+                  }
+                  whi = (lhi >> sh) & guard;
+                }
+              }
+            }
+          }
+        }
+        // DIV and MOD. Toward zero. Remainder sign follows the dividend.
+        // Unsigned kinds 4 and 6 do not look at the sign bit. Zero and
+        // signed INT_MIN / -1 stay unfolded. PLATFORM: MACOS|DARWIN / WINDOWS.
+        if (ek == 7 || ek == 8) {
+          if (rlo == 0 && rhi == 0) {
+            return 0;
+          }
+          if ((rtk == 5 || rtk == 7) && llo == 0 && lhi == (0 - 2147483647 - 1) && rlo == (0 - 1) && rhi == (0 - 1)) {
+            return 0;
+          }
+          lp[0] = llo;
+          lp[1] = lhi;
+          rp[0] = rlo;
+          rp[1] = rhi;
+          exp = 0;
+          src = 0;
+          if (rtk == 5 || rtk == 7) {
+            if (lp[1] < 0) {
+              src = 1;
+              exp = 1;
+              flo = lp[0] ^ (0 - 1);
+              fhi = lp[1] ^ (0 - 1);
+              step = 1;
+              sh = 0;
+              while (sh < 2) {
+                result = flo;
+                if (sh == 1) {
+                  result = fhi;
+                }
+                mag = result & 65535;
+                top = (result >> 16) & 65535;
+                mag = mag + step;
+                step = 0;
+                if (mag >= 65536) {
+                  step = 1;
+                  mag = mag - 65536;
+                }
+                top = top + step;
+                step = 0;
+                if (top >= 65536) {
+                  step = 1;
+                  top = top - 65536;
+                }
+                result = mag | (top << 16);
+                if (sh == 0) {
+                  flo = result;
+                }
+                if (sh == 1) {
+                  fhi = result;
+                }
+                sh = sh + 1;
+              }
+              lp[0] = flo;
+              lp[1] = fhi;
+            }
+            if (rp[1] < 0) {
+              guard = exp;
+              exp = 0;
+              if (guard == 0) {
+                exp = 1;
+              }
+              flo = rp[0] ^ (0 - 1);
+              fhi = rp[1] ^ (0 - 1);
+              step = 1;
+              sh = 0;
+              while (sh < 2) {
+                result = flo;
+                if (sh == 1) {
+                  result = fhi;
+                }
+                mag = result & 65535;
+                top = (result >> 16) & 65535;
+                mag = mag + step;
+                step = 0;
+                if (mag >= 65536) {
+                  step = 1;
+                  mag = mag - 65536;
+                }
+                top = top + step;
+                step = 0;
+                if (top >= 65536) {
+                  step = 1;
+                  top = top - 65536;
+                }
+                result = mag | (top << 16);
+                if (sh == 0) {
+                  flo = result;
+                }
+                if (sh == 1) {
+                  fhi = result;
+                }
+                sh = sh + 1;
+              }
+              rp[0] = flo;
+              rp[1] = fhi;
+            }
+          }
+          flo = 0;
+          fhi = 0;
+          wlo = 0;
+          whi = 0;
+          k = 63;
+          while (k >= 0) {
+            bit = 0;
+            if (k >= 32) {
+              bit = (lp[1] >> (k - 32)) & 1;
+            }
+            if (k < 32) {
+              bit = (lp[0] >> k) & 1;
+            }
+            step = 0;
+            if (flo < 0) {
+              step = 1;
+            }
+            flo = (flo << 1) | bit;
+            fhi = (fhi << 1) | step;
+            guard = 0;
+            if (fhi >= 0 && rp[1] >= 0) {
+              if (fhi > rp[1]) {
+                guard = 1;
+              }
+              if (fhi == rp[1]) {
+                if (flo >= 0 && rp[0] >= 0 && flo >= rp[0]) {
+                  guard = 1;
+                }
+                if (flo < 0 && rp[0] < 0 && flo >= rp[0]) {
+                  guard = 1;
+                }
+                if (flo < 0 && rp[0] >= 0) {
+                  guard = 1;
+                }
+              }
+            }
+            if (fhi < 0 && rp[1] >= 0) {
+              guard = 1;
+            }
+            if (fhi < 0 && rp[1] < 0) {
+              if (fhi > rp[1]) {
+                guard = 1;
+              }
+              if (fhi == rp[1]) {
+                if (flo >= 0 && rp[0] >= 0 && flo >= rp[0]) {
+                  guard = 1;
+                }
+                if (flo < 0 && rp[0] < 0 && flo >= rp[0]) {
+                  guard = 1;
+                }
+                if (flo < 0 && rp[0] >= 0) {
+                  guard = 1;
+                }
+              }
+            }
+            if (guard == 1) {
+              result = rp[0] ^ (0 - 1);
+              v = rp[1] ^ (0 - 1);
+              step = 1;
+              mag = (flo & 65535) + (result & 65535) + step;
+              step = 0;
+              if (mag >= 65536) {
+                step = 1;
+                mag = mag - 65536;
+              }
+              top = ((flo >> 16) & 65535) + ((result >> 16) & 65535) + step;
+              step = 0;
+              if (top >= 65536) {
+                step = 1;
+                top = top - 65536;
+              }
+              flo = mag | (top << 16);
+              mag = (fhi & 65535) + (v & 65535) + step;
+              step = 0;
+              if (mag >= 65536) {
+                step = 1;
+                mag = mag - 65536;
+              }
+              top = ((fhi >> 16) & 65535) + ((v >> 16) & 65535) + step;
+              if (top >= 65536) {
+                top = top - 65536;
+              }
+              fhi = mag | (top << 16);
+              if (k >= 32) {
+                sh = k - 32;
+                if (sh == 31) {
+                  whi = whi | (0 - 2147483647 - 1);
+                }
+                if (sh < 31) {
+                  whi = whi | (1 << sh);
+                }
+              }
+              if (k < 32) {
+                if (k == 31) {
+                  wlo = wlo | (0 - 2147483647 - 1);
+                }
+                if (k < 31) {
+                  wlo = wlo | (1 << k);
+                }
+              }
+            }
+            k = k - 1;
+          }
+          if (ek == 8) {
+            wlo = flo;
+            whi = fhi;
+            exp = src;
+          }
+          if (exp == 1) {
+            flo = wlo ^ (0 - 1);
+            fhi = whi ^ (0 - 1);
+            step = 1;
+            sh = 0;
+            while (sh < 2) {
+              result = flo;
+              if (sh == 1) {
+                result = fhi;
+              }
+              mag = result & 65535;
+              top = (result >> 16) & 65535;
+              mag = mag + step;
+              step = 0;
+              if (mag >= 65536) {
+                step = 1;
+                mag = mag - 65536;
+              }
+              top = top + step;
+              step = 0;
+              if (top >= 65536) {
+                step = 1;
+                top = top - 65536;
+              }
+              result = mag | (top << 16);
+              if (sh == 0) {
+                flo = result;
+              }
+              if (sh == 1) {
+                fhi = result;
+              }
+              sh = sh + 1;
+            }
+            wlo = flo;
+            whi = fhi;
+          }
+        }
+        unsafe {
+          pipe_store_i32_le(out_val as *u8, 0, wlo);
+          pipe_store_i32_le(out_hi as *u8, 0, whi);
+        }
+        return 3;
+      }
     unsafe {
       left = pipeline_expr_binop_left_ref_at(arena, eref);
       right = pipeline_expr_binop_right_ref_at(arena, eref);
