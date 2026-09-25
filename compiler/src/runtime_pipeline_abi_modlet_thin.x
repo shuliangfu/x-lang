@@ -273,8 +273,11 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * An GE (ek 19) matches cmp and setge. A signed greater-or-equal stores
  * 1 and any other pair stores 0. 2 >= 1 stores 1 and 1 >= 2 stores 0.
  * 1 >= 1 stores 1. ((0 - 1) as i32) >= (0 - 1) stores 1. The same
- * sign-fill and bool-result rules as EQ apply. A float compare stays
- * unfolded.
+ * sign-fill and bool-result rules as EQ apply. A float GE also folds
+ * through pipe_modlet_fold_f64_elem_bits: start at 1 and clear when
+ * host `bv > av` (no bare `av >= bv`), matching ucomis/setae. Keep 1
+ * when equal. 2.0 >= 1.0 stores 1 and 1.0 >= 2.0 stores 0.
+ * 1.0 >= 1.0 stores 1.
  * An i32 add
  * inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
  * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
@@ -1349,7 +1352,8 @@ function pipe_modlet_array_lit_elem_const_val(
   // A resolved type other than bool stays unfolded. The left word is
   // saved in llo before the right fold reuses out_val. Start at 1 and
   // clear when `rv > llo` only (same as llo < rv). Keep 1 when equal.
-  // A float compare stays unfolded.
+  // Float GE tries fold_f64 first; start at 1 and clear when `bv > av`.
+  // 2.0 >= 1.0 stores 1.
   // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 19) {
     unsafe {
@@ -1358,6 +1362,41 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     if (left <= 0 || right <= 0) {
       return 0;
+    }
+    // Float greater-or-equal. fold_f64 then start-1 clear on `bv > av`.
+    // Keep 1 when equal. PLATFORM: LINUX|UBUNTU.
+    if (pipe_modlet_fold_f64_elem_bits(arena, left, &(lp[0]), &(lp[1])) == 1) {
+      if (pipe_modlet_fold_f64_elem_bits(arena, right, &(rp[0]), &(rp[1])) == 0) {
+        return 0;
+      }
+      unsafe {
+        unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
+        unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
+      }
+      rty = 0;
+      rtk = 0 - 1;
+      unsafe {
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+      }
+      if (rty > 0) {
+        unsafe {
+          unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+        }
+      }
+      if (rty > 0) {
+        if (rtk != 1) {
+          return 0;
+        }
+      }
+      result = 1;
+      if (bv > av) {
+        result = 0;
+      }
+      unsafe { out_val[0] = result; }
+      if (out_hi != (0 as *i32)) {
+        unsafe { out_hi[0] = 0; }
+      }
+      return 1;
     }
     if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi) == 0) {
       return 0;
