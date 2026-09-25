@@ -1800,11 +1800,10 @@ export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32
 
 /** mov incoming arg k into rax.
  * SysV k=0..5 is rdi, rsi, rdx, rcx, r8, r9.
- * Win64 k=0..3 is rcx, rdx, r8, r9. k=4 is `mov rax, 0x30(%rbp)` and
- * k=5 is `mov rax, 0x38(%rbp)` (the stack args after `push %rbp`).
- * Reusing r8 for k=4 copied argument 3 into the 5th home.
+ * Win64 k=0..3 is rcx, rdx, r8, r9. k>=4 is `mov rax, (0x30+8*(k-4))(%rbp)`
+ * (stack args after `push %rbp`; w1045 extends past k=5).
  * @param elf_ctx opaque ElfCodegenCtx*; null returns -1
- * @param k argument index, clamped to 0..5
+ * @param k argument index, Win clamped to 0..15; SysV to 0..5
  * @return 0 on success, -1 on null
  * PLATFORM: SHARED encode; WINDOWS stack homes for k>=4.
  */
@@ -1814,7 +1813,7 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
   if (elf_ctx == 0) { return 0 - 1; }
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
-  if (idx > 5) { idx = 5; }
+  if (idx > 15) { idx = 15; }
   if (idx == 0) {
     let b0: u8[3] = [72, 137, 200];
     return x86_enc_bytes(elf_ctx, b0, 3);
@@ -1831,12 +1830,11 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
     let b3: u8[3] = [76, 137, 200];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
-  if (idx == 4) {
-    let b4: u8[4] = [72, 139, 69, 48];
-    return x86_enc_bytes(elf_ctx, b4, 4);
-  }
-  let b5: u8[4] = [72, 139, 69, 56];
-  return x86_enc_bytes(elf_ctx, b5, 4);
+  /* k>=4: mov rax, disp8(%rbp); disp = 0x30 + 8*(k-4) fits disp8 through k=15. */
+  let slot: i32 = idx - 4;
+  let off: i32 = 48 + slot * 8;
+  let b4: u8[4] = [72, 139, 69, off as u8];
+  return x86_enc_bytes(elf_ctx, b4, 4);
 }
 
 /** SysV incoming arg k into rax. See the Windows twin. PLATFORM: SHARED non-Windows. */
@@ -1872,10 +1870,10 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
 }
 
 /** mov rax -> outgoing arg k.
- * Win64 k>=4 stores `[rsp+0x20]` / `[rsp+0x28]` instead of r8/r9,
+ * Win64 k>=4 stores `[rsp+0x20+8*(k-4)]` (shadow + stack slots; w1045).
  * which would clobber argument 3. PLATFORM: SHARED; WINDOWS stack for k>=4.
  * @param elf_ctx opaque ElfCodegenCtx*; null returns -1
- * @param k argument index, clamped to 0..5
+ * @param k argument index, Win clamped to 0..15; SysV to 0..5
  * @return 0 on success, -1 on null
  */
 #[cfg(target_os = "windows")]
@@ -1884,7 +1882,7 @@ export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i3
   if (elf_ctx == 0) { return 0 - 1; }
   let idx: i32 = k;
   if (idx < 0) { idx = 0; }
-  if (idx > 5) { idx = 5; }
+  if (idx > 15) { idx = 15; }
   if (idx == 0) {
     let b0: u8[3] = [72, 137, 193];
     return x86_enc_bytes(elf_ctx, b0, 3);
@@ -1901,12 +1899,11 @@ export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i3
     let b3: u8[3] = [73, 137, 193];
     return x86_enc_bytes(elf_ctx, b3, 3);
   }
-  if (idx == 4) {
-    let b4: u8[5] = [72, 137, 68, 36, 32];
-    return x86_enc_bytes(elf_ctx, b4, 5);
-  }
-  let b5: u8[5] = [72, 137, 68, 36, 40];
-  return x86_enc_bytes(elf_ctx, b5, 5);
+  /* k>=4: mov [rsp+disp8], rax; disp = 0x20 + 8*(k-4). */
+  let slot: i32 = idx - 4;
+  let off: i32 = 32 + slot * 8;
+  let b4: u8[5] = [72, 137, 68, 36, off as u8];
+  return x86_enc_bytes(elf_ctx, b4, 5);
 }
 
 /** SysV outgoing arg k. See the Windows twin. PLATFORM: SHARED non-Windows. */

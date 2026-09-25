@@ -980,9 +980,11 @@ static int32_t glue_sysv_load_spill_to_arg_regs_elf_c(struct platform_elf_ElfCod
 }
 
 /** SysV x86_64：第 arg_index 个实参的寄存器/栈归属（0=gp 1=xmm 2=stack）。
- * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B INTEGER aggregates consume 2 GP slots. */
+ * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B INTEGER aggregates consume 2 GP slots.
+ * w1045: GP file size from glue_asm_call_reg_max (SysV=6; Win=16 virtual). */
 /* G-02f-141：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-380 call：_impl 返回 i32（供 thin -E）；public void 仍 seed-only 非 PREFER */
+extern int32_t glue_asm_call_reg_max(int32_t ta);
 int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs,
                                           int32_t arg_index, int32_t *out_kind, int32_t *out_reg_k,
                                           int32_t *out_stack_k) {
@@ -995,11 +997,15 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
   int32_t units;
   int32_t sz;
   int32_t words;
+  int32_t reg_max;
   if (!out_kind || !out_reg_k || !out_stack_k)
     return 0;
   gp = 0;
   xmm = 0;
   stk = 0;
+  reg_max = glue_asm_call_reg_max(0);
+  if (reg_max < 1)
+    reg_max = 6;
   for (j = 0; j <= arg_index && j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
@@ -1019,7 +1025,7 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
         /* wave601: MEMORY by-value — stack only, never a GP pointer. */
         *out_kind = 2;
         *out_stack_k = stk;
-      } else if (units > 0 && gp + units <= 6) {
+      } else if (units > 0 && gp + units <= reg_max) {
         *out_kind = 0;
         *out_reg_k = gp;
       } else {
@@ -1035,7 +1041,7 @@ int32_t glue_sysv_x86_call_arg_slot_c_impl(struct ast_ASTArena *arena, int32_t c
         stk++;
     } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
       stk += words;
-    } else if (units > 0 && gp + units <= 6) {
+    } else if (units > 0 && gp + units <= reg_max) {
       gp += units;
     } else {
       stk += words;
@@ -1056,7 +1062,8 @@ void glue_sysv_x86_call_arg_slot_c(struct ast_ASTArena *arena, int32_t call_expr
 #endif
 
 
-/** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。 */
+/** SysV x86_64：统计走栈的实参个数（gp/xmm 寄存器用尽后的余量）。
+ * w1045: GP file size from glue_asm_call_reg_max (SysV=6; Win=16 virtual). */
 /* G-02f-121：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-373 call：实现体始终 seed；public PREFER 时 thin forward */
 int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t call_expr_ref, int32_t nargs) {
@@ -1069,9 +1076,13 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
   int32_t units;
   int32_t sz;
   int32_t words;
+  int32_t reg_max;
   gp = 0;
   xmm = 0;
   stk = 0;
+  reg_max = glue_asm_call_reg_max(0);
+  if (reg_max < 1)
+    reg_max = 6;
   for (j = 0; j < nargs; j++) {
     pty = glue_call_param_type_ref_at(arena, call_expr_ref, j);
     arg_ref = pipeline_expr_call_arg_ref(arena, call_expr_ref, j);
@@ -1086,7 +1097,7 @@ int32_t glue_sysv_x86_call_n_stack_c_impl(struct ast_ASTArena *arena, int32_t ca
     } else if (glue_sysv_arg_is_memory_by_value_c(sz)) {
       /* wave601: MEMORY multi-word on stack (not 1 GP). */
       stk += words;
-    } else if (units > 0 && gp + units <= 6) {
+    } else if (units > 0 && gp + units <= reg_max) {
       gp += units;
     } else {
       stk += words;

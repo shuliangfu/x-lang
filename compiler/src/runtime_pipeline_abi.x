@@ -35827,8 +35827,9 @@ export function glue_arm64_stack_arg_advance_pos(stack_pos: i32, nbytes: i32, ap
  * @return i32 - 0 ok; -1 fail
  * wave141 pure: G.7 authority (was pipeline_asm_emit_param_home_elf_c).
  * Cap residual: storage/sret + enc + home widths + f32 xmm path + set_func_index.
- * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 · WINDOWS leftover twin.
  */
+export extern function glue_asm_call_reg_max(ta: i32): i32;
 #[no_mangle]
 export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, ta: i32): i32 {
   let np: i32 = 0;
@@ -35911,6 +35912,15 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
     } else {
       gp = 0;
     }
+    /* w1045: x86 GP file size from glue_asm_call_reg_max (SysV=6; Win=16
+     * virtual slots via enc k>=4 at rbp+0x30…). Hardcoded 6 left 7th+ Win
+     * formals unhomed → tip thin 8-arg forwarder garbage / CG002. */
+    unsafe {
+      reg_max = glue_asm_call_reg_max(0);
+    }
+    if (reg_max < 1) {
+      reg_max = 6;
+    }
     stack_pos = 16;
     cur = 16;
     i = 0;
@@ -35945,7 +35955,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
         stack_pos = stack_pos + nbytes;
       } else {
         if (psz > 8) {
-          if (gp + 2 <= 6) {
+          if (gp + 2 <= reg_max) {
             unsafe {
               rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0);
             }
@@ -35999,7 +36009,7 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
             stack_pos = stack_pos + 16;
           }
         } else {
-          if (gp < 6) {
+          if (gp < reg_max) {
             unsafe {
               rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, 0);
             }

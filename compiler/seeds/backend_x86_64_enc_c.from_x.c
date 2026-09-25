@@ -956,10 +956,12 @@ int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx
   int32_t idx;
   int32_t is_win;
   if (!elf_ctx) return -1;
-  idx = k; if (idx < 0) idx = 0; if (idx > 5) idx = 5;
+  idx = k; if (idx < 0) idx = 0;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+  if (idx > 15) idx = 15;
   is_win = 1;
 #else
+  if (idx > 5) idx = 5;
   is_win = 0;
 #endif
   if (is_win != 0) {
@@ -967,20 +969,20 @@ int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx
     if (idx == 1) return x86_enc_bytes(elf_ctx, win1, 3);
     if (idx == 2) return x86_enc_bytes(elf_ctx, win2, 3);
     if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
-    /* Win64 has four GP argument registers. Argument 5 is 0x30(%rbp)
-     * and argument 6 is 0x38(%rbp) after push %rbp; mov %rbp, %rsp.
-     * Homing runs after that prologue. Copying r8/r9 here reused arg2
-     * as the 5th formal, so backend_enc_label_arch treated name_len as
-     * ta and a later define did not update the forward label.
-     * stdlib-import then reported CG002 with .Lf0_2 offset -1.
+    /* Win64: k>=4 loads from 0x30+8*(k-4)(%rbp). w1045: do not clamp to k=5.
      * PLATFORM: WINDOWS. */
-    if (idx == 4) {
-      static const uint8_t win4[] = {0x48, 0x8B, 0x45, 0x30};
-      return x86_enc_bytes(elf_ctx, win4, 4);
-    }
     {
-      static const uint8_t win5[] = {0x48, 0x8B, 0x45, 0x38};
-      return x86_enc_bytes(elf_ctx, win5, 4);
+      uint8_t win_stk[4];
+      int32_t slot = idx - 4;
+      int32_t off;
+      if (slot < 0) slot = 0;
+      if (slot > 11) slot = 11;
+      off = 0x30 + slot * 8;
+      win_stk[0] = 0x48;
+      win_stk[1] = 0x8B;
+      win_stk[2] = 0x45;
+      win_stk[3] = (uint8_t)off;
+      return x86_enc_bytes(elf_ctx, win_stk, 4);
     }
   }
   if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);
@@ -1009,10 +1011,12 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
   int32_t idx;
   int32_t is_win;
   if (!elf_ctx) return -1;
-  idx = k; if (idx < 0) idx = 0; if (idx > 5) idx = 5;
+  idx = k; if (idx < 0) idx = 0;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+  if (idx > 15) idx = 15;
   is_win = 1;
 #else
+  if (idx > 5) idx = 5;
   is_win = 0;
 #endif
   if (is_win != 0) {
@@ -1020,17 +1024,21 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
     if (idx == 1) return x86_enc_bytes(elf_ctx, win1, 3);
     if (idx == 2) return x86_enc_bytes(elf_ctx, win2, 3);
     if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
-    /* Outgoing Win64 argument 5 is [rsp+0x20] (32-byte shadow plus the
-     * slot) and argument 6 is [rsp+0x28]. The call sequence emits this
-     * after the frame subtract, so rsp is the outgoing area. Writing
-     * r8/r9 here clobbered argument 3. PLATFORM: WINDOWS. */
-    if (idx == 4) {
-      static const uint8_t win4[] = {0x48, 0x89, 0x44, 0x24, 0x20};
-      return x86_enc_bytes(elf_ctx, win4, 5);
-    }
+    /* Outgoing Win64 k>=4: [rsp+0x20+8*(k-4)]. w1045 extends past k=5.
+     * PLATFORM: WINDOWS. */
     {
-      static const uint8_t win5[] = {0x48, 0x89, 0x44, 0x24, 0x28};
-      return x86_enc_bytes(elf_ctx, win5, 5);
+      uint8_t win_stk[5];
+      int32_t slot = idx - 4;
+      int32_t off;
+      if (slot < 0) slot = 0;
+      if (slot > 11) slot = 11;
+      off = 0x20 + slot * 8;
+      win_stk[0] = 0x48;
+      win_stk[1] = 0x89;
+      win_stk[2] = 0x44;
+      win_stk[3] = 0x24;
+      win_stk[4] = (uint8_t)off;
+      return x86_enc_bytes(elf_ctx, win_stk, 5);
     }
   }
   if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);

@@ -9957,6 +9957,7 @@ void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
 extern void *pipeline_asm_emit_ctx_arena_get(void);
 extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
 extern int32_t pipeline_module_func_param_type_ref_at(void *mod, int32_t func_index, int32_t param_index);
+extern int32_t glue_asm_call_reg_max(int32_t ta);
 int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, int32_t func_index, int32_t ta) {
   int32_t np;
   int32_t i;
@@ -9964,6 +9965,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
   int32_t sret_act;
   int32_t sret_off;
   int32_t gp;
+  int32_t reg_max;
   (void)ctx;
   if (!elf_ctx || !mod || func_index < 0)
     return -1;
@@ -9971,12 +9973,15 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
    * Do not call SAT-local-t f32 xmm / canonicalize (leftover rest UNDEF). */
   if (ta != 0)
     return 0;
-  /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — hidden dest@rdi.
+  /* PLATFORM: WINDOWS leftover-PE x86_64 — hidden dest@rcx (sret).
    * leftover rest mega_body already sets leftover rest sret BSS when
    * fn_ret_sz>16, but previously np<=0 returned before saving rdi, so
    * SAT emit_struct_lit wrote a local dest (sret24a/sret24f RED).
    * G.7 complete leftover rest param_home: save arg0 to sret_home, then
-   * user GP starts at 1. POSIX .x authority @35063. */
+   * user GP starts at 1. POSIX .x authority @35063.
+   * w1045: home via glue_asm_call_reg_max (Win=16 virtual slots through
+   * enc k>=4 at rbp+0x30…); was gp<6 so 7th+ formals never saved → tip
+   * thin 8-arg forwarders read garbage / CG002. */
   sret_act = pipeline_asm_emit_ctx_sret_active_get();
   sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
   if (sret_act != 0 && sret_off >= 0) {
@@ -9990,10 +9995,13 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
     return 0;
   gp = (sret_act != 0) ? 1 : 0;
   home = 16;
+  reg_max = glue_asm_call_reg_max(ta);
+  if (reg_max < 1)
+    reg_max = 6;
   /* 9–16B: high-end mag home=cur+width (low@home, high@home-8). Never park
    * high at magnitude 8 — that is saved rbx after push. Matches windows_e +
    * fill_param_slots. PLATFORM: WINDOWS leftover-PE. */
-  for (i = 0; i < np && gp < 6; i++) {
+  for (i = 0; i < np && gp < reg_max; i++) {
     int32_t w;
     int32_t wide_home;
     void *arena_ph;
@@ -10008,7 +10016,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, wide_home, ta) != 0)
         return -1;
       gp = gp + 1;
-      if (gp >= 6)
+      if (gp >= reg_max)
         return -1;
       if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
         return -1;

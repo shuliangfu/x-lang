@@ -99,23 +99,34 @@ extern int32_t glue_f32_xmm_flag_get_body(void);
 extern int32_t pipeline_expr_kind_ord_at(uint8_t * arena, int32_t er);
 extern int32_t pipeline_expr_var_name_len_for_string_lit_c(uint8_t * arena, int32_t er);
 int32_t glue_asm_call_reg_max(int32_t ta) {
-  if ((ta ==0)) {
+  /* w1045 PLATFORM: WINDOWS — 4 GP + virtual stack slots (enc k>=4); was 6
+   * SysV-shaped and tip thin 8-arg forwarders pushed garbage for args 7+. */
+  if (ta == 0) {
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    return 16;
+#else
     return 6;
+#endif
   }
   return 8;
 }
 int32_t glue_asm_call_stack_cleanup_bytes(int32_t ta, int32_t nargs) {
+  /* w1045: derive from glue_asm_call_reg_max (Win virtual=16 → no push cleanup). */
+  int32_t reg_max;
+  int32_t n_stack;
   if ((nargs <=0)) {
     return 0;
   }
+  reg_max = glue_asm_call_reg_max(ta);
+  n_stack = nargs - reg_max;
+  if (n_stack <= 0) {
+    return 0;
+  }
   if ((ta ==0)) {
-    if ((nargs <=6)) {
-      return 0;
+    if ((n_stack & 1) != 0) {
+      return ((n_stack * 8) + 8);
     }
-    if ((((nargs - 6) & 1) !=0)) {
-      return (((nargs - 6) * 8) + 8);
-    }
-    return ((nargs - 6) * 8);
+    return (n_stack * 8);
   }
   if ((ta ==2)) {
     return -1;

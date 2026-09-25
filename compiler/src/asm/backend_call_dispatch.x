@@ -719,12 +719,21 @@ export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
 // glue_asm_call_reg_max: see function docblock below.
 /** Exported function `glue_asm_call_reg_max`.
  * Implements `glue_asm_call_reg_max`.
+ * Win64: 4 GP + virtual stack slots via enc k>=4 (w1045).
  * @param ta i32
  * @return i32
  */
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
-  if (ta == 0) { return 6; }
+  if (ta == 0) {
+    /* T001: extern host query requires unsafe. */
+    unsafe {
+      if (link_abi_host_is_windows() != 0) {
+        return 16;
+      }
+    }
+    return 6;
+  }
   return 8;
 }
 
@@ -817,10 +826,13 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
     // Runtime host gate (not compile-time _WIN32): leftover-PE product may
     // carry .x-lowered body that must match Win64 println(rcx,rdx).
     if (reg_k == 0) {
-      if (link_abi_host_is_windows() != 0) {
-        lea7[2] = 13; // 0x0d rcx
-      } else {
-        lea7[2] = 61; // 0x3d rdi
+      /* T001: extern host query requires unsafe. */
+      unsafe {
+        if (link_abi_host_is_windows() != 0) {
+          lea7[2] = 13; // 0x0d rcx
+        } else {
+          lea7[2] = 61; // 0x3d rdi
+        }
       }
     } else {
       lea7[2] = 5; // 0x05 rax
@@ -1072,6 +1084,7 @@ function glue_sysv_load_spill_to_arg_regs_elf_c(elf: *u8, ta: i32, spill_off: i3
  * @param out_reg_k *i32 — GP or XMM index when kind is 0/1
  * @param out_stack_k *i32 — stack word index when kind is 2
  * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B INTEGER aggregates consume 2 GP slots.
+ * w1045: GP file from glue_asm_call_reg_max (SysV=6; Win=16 virtual via enc k>=4).
  */
 #[no_mangle]
 export function glue_sysv_x86_call_arg_slot_c(
@@ -1084,6 +1097,8 @@ export function glue_sysv_x86_call_arg_slot_c(
   let xmm: i32 = 0;
   let stk: i32 = 0;
   let j: i32 = 0;
+  let reg_max: i32 = glue_asm_call_reg_max(0);
+  if (reg_max < 1) { reg_max = 6; }
   while (j <= arg_index) {
     if (j >= nargs) { break; }
     let pty: i32 = glue_call_param_type_ref_at(arena, call_expr_ref, j);
@@ -1108,7 +1123,7 @@ export function glue_sysv_x86_call_arg_slot_c(
           out_stack_k[0] = stk;
         } else {
           if (units > 0) {
-            if (gp + units <= 6) {
+            if (gp + units <= reg_max) {
               out_kind[0] = 0;
               out_reg_k[0] = gp;
             } else {
@@ -1131,7 +1146,7 @@ export function glue_sysv_x86_call_arg_slot_c(
         stk = stk + words;
       } else {
         if (units > 0) {
-          if (gp + units <= 6) { gp = gp + units; }
+          if (gp + units <= reg_max) { gp = gp + units; }
           else { stk = stk + words; }
         } else {
           stk = stk + words;
@@ -1285,7 +1300,10 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
           gp_start_f[i] = gp_cur_f;
           gp_units_f[i] = u_f;
           if (u_f > 0) {
-            if (gp_cur_f + u_f <= 6) {
+            /* w1045: use glue_asm_call_reg_max (Win virtual=16); was hardcoded 6. */
+            let rm_f: i32 = glue_asm_call_reg_max(0);
+            if (rm_f < 1) { rm_f = 6; }
+            if (gp_cur_f + u_f <= rm_f) {
               gp_cur_f = gp_cur_f + u_f;
             } else {
               gp_start_f[i] = 0 - 1;
@@ -6785,6 +6803,7 @@ export function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, n
  * @param nargs i32 — argument count
  * @return i32 — stack word count
  * PLATFORM: LINUX+MACOS x86_64 SysV.
+ * w1045: GP file from glue_asm_call_reg_max (SysV=6; Win=16 virtual).
  */
 #[no_mangle]
 export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 {
@@ -6792,6 +6811,8 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
   let xmm: i32 = 0;
   let stk: i32 = 0;
   let j: i32 = 0;
+  let reg_max: i32 = glue_asm_call_reg_max(0);
+  if (reg_max < 1) { reg_max = 6; }
   while (j < nargs) {
     let pty: i32 = glue_call_param_type_ref_at(arena, call, j);
     let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, call, j);
@@ -6806,7 +6827,7 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
         stk = stk + words;
       } else {
         if (units > 0) {
-          if (gp + units <= 6) { gp = gp + units; }
+          if (gp + units <= reg_max) { gp = gp + units; }
           else { stk = stk + words; }
         } else {
           stk = stk + words;

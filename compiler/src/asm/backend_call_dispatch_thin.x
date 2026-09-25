@@ -9,14 +9,24 @@
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
 
+export extern "C" function link_abi_host_is_windows(): i32;
+
 /** Exported function `glue_asm_call_reg_max`.
  * Implements `glue_asm_call_reg_max`.
+ * Win64: 4 real GP + virtual stack slots via enc k>=4 (w1045; was SysV 6 and
+ * clamped enc k>5 → push garbage for 7th+ args / tip thin CG002).
  * @param ta i32
  * @return i32
  */
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
   if (ta == 0) {
+    /* T001: extern host query requires unsafe. */
+    unsafe {
+      if (link_abi_host_is_windows() != 0) {
+        return 16;
+      }
+    }
     return 6;
   }
   return 8;
@@ -24,6 +34,9 @@ export function glue_asm_call_reg_max(ta: i32): i32 {
 
 /** Exported function `glue_asm_call_stack_cleanup_bytes`.
  * Implements `glue_asm_call_stack_cleanup_bytes`.
+ * Bytes to `add rsp` after a CALL. Uses glue_asm_call_reg_max so Win64
+ * virtual slots (reg_max=16, enc k>=4 → [rsp+0x20…]) need no push cleanup
+ * (w1045; was hardcoded SysV 6 → false add $0x10 after 8-arg calls).
  * @param ta i32
  * @param nargs i32
  * @return i32
@@ -33,22 +46,22 @@ export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
   if (nargs <= 0) {
     return 0;
   }
+  let reg_max: i32 = glue_asm_call_reg_max(ta);
+  let n_stack: i32 = nargs - reg_max;
+  if (n_stack <= 0) {
+    return 0;
+  }
   if (ta == 0) {
-    if (nargs <= 6) {
-      return 0;
+    let bytes: i32 = n_stack * 8;
+    if ((n_stack & 1) != 0) {
+      bytes = bytes + 8;
     }
-    if (((nargs - 6) & 1) != 0) {
-      return (nargs - 6) * 8 + 8;
-    }
-    return (nargs - 6) * 8;
+    return bytes;
   }
   if (ta == 2) {
     return 0 - 1;
   }
-  if (nargs <= 8) {
-    return 0;
-  }
-  return (((nargs - 8) * 8 + 15) & (0 - 16));
+  return (n_stack * 8 + 15) & (0 - 16);
 }
 
 /** Exported function `glue_asm_append_export_c_suffix`.
