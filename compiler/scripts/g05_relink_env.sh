@@ -534,10 +534,10 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
     # STRUCT_LIT elements. The egg baker calls this object.
-    # bake_elems.o first-wins true-pack named i8 ARRAY (w1012/w1013).
-    # Egg same-TU local e8 stays on leftover — weaken pabi_weak + post-link
-    # jmp (win_patch_body_sync_jmp). PLATFORM: WINDOWS.
-    if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+    # bake_elems tip: true-pack named i8 (w1013). Default OFF on WINDOWS —
+    # set XLANG_WIN_BAKE_TIP=1 after emit/assign tips are stable. PLATFORM: WINDOWS.
+    if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
+      && [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
     fi
     if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
@@ -547,14 +547,14 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
-    # w1009/w1010/w1013: body_sync + emit_let_init + bake_elems. PLATFORM: WINDOWS.
+    # w1009/w1010/w1013: body_sync + emit_let_init + optional bake tip.
     # Host-gcc / tip first-wins. mega same-TU REL32 or local e8 keeps leftover —
     # weaken a COPY (pabi_weak.o), never mutate egg runtime_pipeline_abi.o;
     # post-link win_patch_body_sync_jmp redirects leftover W→T.
-    # Also create pabi_weak when assign/emit true_i8 tips need weaken.
+    # PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
       || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
-      || [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+      || { [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ]; }; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -573,8 +573,9 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=glue_block_body_emit_let_init \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
-        # w1013: true-pack bake tip. Weaken egg bake_array. PLATFORM: WINDOWS.
-        if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+        # w1013: true-pack bake tip (opt-in). PLATFORM: WINDOWS.
+        if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
+          && [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
           "$_oc" --weaken-symbol=pipe_modlet_bake_array_lit_elems_to_data \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
