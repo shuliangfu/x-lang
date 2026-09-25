@@ -324,13 +324,21 @@ extern void preprocess_define_add(const char *name);
 int32_t pipeline_typeck_module_for_ctx_impl(void *module, void *arena, void *ctx_void);
 void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all);
 
-/* G-02f-62 helper protos */
+/* G-02f-62 helper protos.
+ * PLATFORM: POSIX — FROM_X rest keeps the retired no-op (Class AX).
+ * PLATFORM: WINDOWS — do not emit it. The egg
+ * (runtime_pipeline_abi.windows_e.c, from runtime_pipeline_abi.x) is the
+ * one body. This stub plus the cold twin below is a redefinition, and a
+ * strong stub here would be the one the mega calls. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
   /* Class AX: Cap XLANG_DEBUG_BODY_FUNC body retired (gate already NULL @ AV). */
   (void)phase;
   (void)module;
   (void)arena;
 }
+#endif /* POSIX FROM_X: retired trace stub. Windows uses the egg. */
 
 int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
     int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
@@ -742,11 +750,12 @@ extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
  * xlang_driver_asm_prepare_entry_elf_emit is a separate leftover unique
  * (calls this wrapper; converted after this cluster).
  *
- * PLATFORM: WINDOWS leftover PE cannot -E the .x thin; OR
- * WIN_LEFTOVER_GROW_VEC so leftover-PE FROM_X rest compiles the cluster.
+ * PLATFORM: WINDOWS — the egg already has match, impl, and the wrapper
+ * (windows_e.c is the .x). Compiling them here redefined the retired
+ * stub and would be a second body. Cold (!FROM_X) still has this cluster.
+ * Windows callers stay extern and the rest+egg merge binds them to the egg.
  */
-#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 int pipeline_debug_body_func_match(const char *filter, const char *name) {
     const char *p;
     size_t name_len;
@@ -774,15 +783,14 @@ int pipeline_debug_body_func_match(const char *filter, const char *name) {
     }
     return 0;
 }
-#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE debug_trace unique helper */
+#endif /* !FROM_X — cold debug_trace match. Windows egg owns the body. */
 
 
 /* wave82: pure owns pipeline_debug_trace_named_func_bodies_impl under PREFER FROM_X
  * (append+diag_report, no reportf). Cold twin keeps historical reportf format.
  * wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
- * Leftover unique cluster: convert impl with the wrapper (see match cluster-head). */
-#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+ * Cold only. Windows FROM_X uses the egg body (see match cluster-head). */
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
     /* Class AV: Cap XLANG_DEBUG_BODY_FUNC retired. */
     const char *filter = NULL; (void)phase;
@@ -818,10 +826,9 @@ void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module
                      body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
     }
 }
-#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE debug_trace unique impl */
+#endif /* !FROM_X — cold debug_trace impl. Windows egg owns the body. */
 
-#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+#ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
   if (module == NULL) {
     return;
@@ -833,7 +840,15 @@ void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, voi
     pipeline_debug_trace_named_func_bodies_impl(phase, module, arena);
   }
 }
-#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE debug_trace unique wrapper */
+#endif /* !FROM_X — cold debug_trace wrapper. Windows egg owns the body. */
+
+/* PLATFORM: WINDOWS — declaration only. The egg defines
+ * pipeline_debug_trace_named_func_bodies. prepare_entry below calls it.
+ * Do not emit a second body in this TU. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena);
+#endif
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
 void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
@@ -1960,11 +1975,16 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
  * ast_pipeline_dep_ctx_set_* typed externs already used by OR'd wave67
  * pctx_update_dep_slots (header/seed prototype+definition, not dual).
  * parser_parse_into / parser_parse_into_init / parser_get_module_num_imports
- * already always-compiled externs. pipe_release_tmp_arena_module already
- * always-compiled static.
+ * already always-compiled externs. pipe_release_tmp_arena_module body is
+ * runtime_pipeline_abi.x (Windows egg). This TU only declares it.
  * pipeline_debug_trace_named_func_bodies leftover unique is a separate
  * independent ifndef (match+impl+wrapper; leftover rest FROM_X proto is
  * void* — the struct* extern later is inside FALSE #ifndef FROM_X). */
+/* PLATFORM: SHARED — declaration only.
+ * Body: runtime_pipeline_abi.x pipe_release_tmp_arena_module
+ * (Windows egg seeds/runtime_pipeline_abi.windows_e.c).
+ * WIN_LEFTOVER collect/prerun below calls it. Do not copy the body. */
+extern void pipe_release_tmp_arena_module(void *arena, void *module);
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 int xlang_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
