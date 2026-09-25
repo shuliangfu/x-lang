@@ -3313,8 +3313,13 @@ int32_t pipeline_asm_emit_call_args_elf_c(struct ast_ASTArena *arena, struct pla
 
 
 #ifndef XLANG_L2_CALL_DISPATCH_THIN_FROM_X
-/* Class BM: glue_try_std_heap_redirect_sym_local → call_dispatch_std_redirect_tables.c */
-
+/* Class BM: cold-full path needs the public wrapper (thin.x owns it under
+ * THIN_FROM_X). Forward to the table body — never call the public name from
+ * _impl (wrapper→impl→wrapper recursion). */
+int32_t glue_try_std_heap_redirect_sym_local(const uint8_t *name, int32_t name_len, uint8_t *sym_out,
+                                             int32_t out_cap) {
+  return glue_try_std_heap_redirect_sym_local_impl(name, name_len, sym_out, out_cap);
+}
 #endif
 
 
