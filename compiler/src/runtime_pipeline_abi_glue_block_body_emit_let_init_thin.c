@@ -7,6 +7,7 @@
  * PLATFORM: WINDOWS — first-wins + win_patch jmp leftover W→T.
  */
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 static uint8_t g_w1010_emit_let_vn[256];
@@ -89,6 +90,8 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
   (void)llen;
 
   slot_off = backend_asm_ctx_slot_offset(ctx, slot);
+  /* w1010 debug: remove after PE f32 root found */
+  fprintf(stderr, "ELI enter idx=%d init=%d slot=%d off=%d\n", idx, init_ref, slot, slot_off);
   rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);
   if (rc == 1) {
     return 0;
@@ -171,10 +174,12 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
 
   st = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta,
                                            pipeline_block_let_type_ref(arena, block_ref, idx), slot_off);
+  fprintf(stderr, "ELI struct_st=%d\n", st);
   if (st == 0) {
     return 0;
   }
   if (st == -1) {
+    fprintf(stderr, "ELI fail struct\n");
     return -1;
   }
 
@@ -206,29 +211,37 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
     if (let_ty > 0 && pipeline_type_kind_ord_at(arena, let_ty) == 14 && init_ko == 1) {
       init_f32_lit = 1;
       rc = glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, init_ref, ta, let_ty, 0);
+      fprintf(stderr, "ELI f32lit rc=%d ty=%d\n", rc, let_ty);
     } else {
       rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, init_ref, ctx, ta);
+      fprintf(stderr, "ELI expr rc=%d ko=%d ty=%d\n", rc, init_ko, let_ty);
     }
     if (rc != 0) {
+      fprintf(stderr, "ELI fail emit\n");
       return -1;
     }
   }
 
   let_ty2 = pipeline_block_let_type_ref(arena, block_ref, idx);
+  fprintf(stderr, "ELI let_ty2=%d kind=%d f32lit=%d\n", let_ty2,
+          let_ty2 > 0 ? pipeline_type_kind_ord_at(arena, let_ty2) : -1, init_f32_lit);
   if (let_ty2 > 0) {
     if (pipeline_type_kind_ord_at(arena, let_ty2) == 14) {
       if (ix_init == 0 && init_f32_lit == 0) {
         rc = glue_maybe_demote_f64_to_f32_eax_elf_c(arena, elf_ctx, ctx, let_ty2, init_ref, ta);
         if (rc != 0) {
+          fprintf(stderr, "ELI fail demote\n");
           return -1;
         }
       }
       rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, slot_off, ta);
       if (rc != 0) {
+        fprintf(stderr, "ELI fail store_eax\n");
         return -1;
       }
       glue_binop_var_slot_cache_kill_def_at_slot(slot_off);
       glue_live_fwd_forward_after_def(arena, ctx, slot_off, init_ref);
+      fprintf(stderr, "ELI f32 ok\n");
       return 0;
     }
   }

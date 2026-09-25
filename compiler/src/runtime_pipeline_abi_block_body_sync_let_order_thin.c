@@ -11,6 +11,7 @@
  * PLATFORM: WINDOWS — PE same-TU leftover bypass; LINUX/MACOS use .x tip object.
  */
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
@@ -110,10 +111,14 @@ static int32_t w1010_emit_let(void *arena, void *elf_ctx, int32_t block_ref, int
     rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, g_w1010_lnb, llen);
   }
   if (rc != 0) {
+    fprintf(stderr, "BS lazy_append fail idx=%d rc=%d\n", idx, rc);
     return -1;
   }
-  return glue_block_body_emit_let_init(arena, elf_ctx, block_ref, idx, init_ref, slot, ctx, ta,
-                                       g_w1010_lnb, llen);
+  fprintf(stderr, "BS emit_let idx=%d init=%d slot=%d\n", idx, init_ref, slot);
+  rc = glue_block_body_emit_let_init(arena, elf_ctx, block_ref, idx, init_ref, slot, ctx, ta,
+                                     g_w1010_lnb, llen);
+  fprintf(stderr, "BS emit_let rc=%d\n", rc);
+  return rc;
 }
 
 /**
