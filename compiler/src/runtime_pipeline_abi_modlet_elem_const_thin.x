@@ -96,6 +96,12 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * so (~(1 as i64)) as i32 keeps the low word. A zero high half with
  * bit 31 set returns 2. A 32-bit BITNOT inverts one word. Kind 9 stays
  * unfolded, and float bits are not inverted.
+ * A LOGNOT (ek 24) matches the runtime test+setz. Zero becomes 1 and
+ * any other folded word becomes 0. !false stores 1 and !true stores 0.
+ * The result is a bool, so the high half is 0 and the return is 1.
+ * !!false is this arm twice. A child that is not a sign-fill fold,
+ * and a resolved type that is not bool, stay unfolded. LOGAND, LOGOR,
+ * and EQ are not this arm.
  * A null out_hi cannot carry that word, so the value stays unfolded.
  * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
  * and the same literal as u32 stays 0: neither 32-bit cell holds it.
@@ -485,6 +491,57 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, v ^ (0 - 1));
+    }
+    return 1;
+  }
+  // LOGNOT. The runtime emitter tests eax and setz: zero becomes 1 and
+  // any other word becomes 0. !false stores 1. !true stores 0. The
+  // result is a bool, so the high half is 0 and the return stays 1.
+  // A later i32 cast then keeps that 0 or 1. A child that did not
+  // fold as a sign fill stays unfolded, and so does a resolved type
+  // that is not bool. !!false walks this arm twice. There is no else:
+  // the zero result is written before the test.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (ek == 24) {
+    unsafe {
+      op = pipeline_expr_unary_operand_ref_at(arena, eref);
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi);
+    if (ok != 1) {
+      return 0;
+    }
+    rty = 0;
+    rtk = 0 - 1;
+    unsafe {
+      rty = pipeline_expr_resolved_type_ref(arena, eref);
+    }
+    if (rty > 0) {
+      unsafe {
+        rtk = pipeline_type_kind_ord_at(arena, rty);
+      }
+    }
+    if (rty > 0) {
+      if (rtk != 1) {
+        return 0;
+      }
+    }
+    unsafe {
+      v = pipe_load_i32_le(out_val as *u8, 0);
+    }
+    result = 0;
+    if (v == 0) {
+      result = 1;
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, result);
+    }
+    if (out_hi != 0 as *i32) {
+      unsafe {
+        pipe_store_i32_le(out_hi as *u8, 0, 0);
+      }
     }
     return 1;
   }

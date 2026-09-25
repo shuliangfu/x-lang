@@ -217,6 +217,11 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * inverts bits and does not add one. A 64-bit BITNOT inverts both
  * halves: ~(1 as i64) is low 0xfffffffe and high 0xffffffff. A 32-bit
  * BITNOT inverts one word and sign-fills. Kind 9 stays unfolded.
+ * A LOGNOT (ek 24) matches test+setz. Zero becomes 1 and any other
+ * folded word becomes 0. !false stores 1 and !true stores 0. The
+ * result is a bool, so the high half written here is 0 and the return
+ * stays 1. A child whose high half is not the sign fill stays
+ * unfolded. LOGAND, LOGOR, and EQ are not this arm.
  * An i32 add
  * inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
  * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
@@ -450,6 +455,63 @@ function pipe_modlet_array_lit_elem_const_val(
       } else {
         unsafe { out_hi[0] = 0; }
       }
+    }
+    return 1;
+  }
+  // LOGNOT. test+setz: zero becomes 1, any other word becomes 0.
+  // !false stores 1. !true stores 0. The baker pokes the high word
+  // this arm writes, so that word is 0 and the return stays 1.
+  // A child whose high half is not the sign fill of the low word is
+  // not a bool constant. A resolved type other than bool stays
+  // unfolded. !!false is this arm twice. The zero result is written
+  // before the test, so there is no else arm.
+  // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
+  if (ek == 24) {
+    unsafe {
+      unsafe { op = pipeline_expr_unary_operand_ref_at(arena, eref); }
+    }
+    if (op <= 0) {
+      return 0;
+    }
+    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val, out_hi) == 0) {
+      return 0;
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lhi = out_hi[0]; }
+      unsafe { lv = out_val[0]; }
+      if (lv < 0) {
+        if (lhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (lhi != 0) {
+          return 0;
+        }
+      }
+    }
+    unsafe { lv = out_val[0]; }
+    rty = 0;
+    rtk = 0 - 1;
+    unsafe {
+      unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+    }
+    if (rty > 0) {
+      unsafe {
+        unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+      }
+    }
+    if (rty > 0) {
+      if (rtk != 1) {
+        return 0;
+      }
+    }
+    result = 0;
+    if (lv == 0) {
+      result = 1;
+    }
+    unsafe { out_val[0] = result; }
+    if (out_hi != (0 as *i32)) {
+      unsafe { out_hi[0] = 0; }
     }
     return 1;
   }
