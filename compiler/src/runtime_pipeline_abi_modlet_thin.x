@@ -256,7 +256,6 @@ function pipe_modlet_array_lit_elem_const_val(
   let wlo: i32 = 0;
   let whi: i32 = 0;
   let result: i32 = 0;
-  let v: i32 = 0;
   let sh: i32 = 0;
   let mag: i32 = 0;
   let top: i32 = 0;
