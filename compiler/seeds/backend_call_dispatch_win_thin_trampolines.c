@@ -2,8 +2,10 @@
  * Logic source: src/asm/backend_call_dispatch_thin.x (same forwarders).
  * Product: this .c + seeds/backend_call_dispatch.from_x.c
  *   (-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X) → ld -r backend_call_dispatch.o
- * Why: tip pure-asm of thin.x emits fat Win64 frames (sub $0x888); Win -E SEGV.
- * Do not tip-compile thin.x on Windows. Keep in sync with thin.x. w1027.
+ * Why: tip pure-asm of thin.x emits fat Win64 frames (was sub $0x888; after
+ * w1033 overlay tip emit_call trampoline is still sub $0x248 vs host $0x30).
+ * w1039: tip-FWD + host-BODY hybrid still SEGV on f(); keep host-cc only.
+ * Do not tip-compile thin.x on Windows. Keep in sync with thin.x. w1027/w1039.
  */
 #include <stdint.h>
 #include <stddef.h>

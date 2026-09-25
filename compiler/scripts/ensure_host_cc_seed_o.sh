@@ -2626,6 +2626,10 @@ ensure_enc_dispatch_pure() {
 # (sub $0x888); Win xlang -E SEGV. Product: seeds/…_win_thin_trampolines.c
 # (mirrors thin.x forwarders) + from_x.c -DXLANG_L2_CALL_DISPATCH_THIN_FROM_X
 # → ld -r. Ban tip-compile thin.x / full.x on Windows. Ban bak 175735 swap.
+# w1039 map (post w1033 frame overlay): tip thin leaf still sub $0x68;
+# tip emit_call*_elf_c trampoline still sub $0x248 (host $0x30). Hybrid
+# tip-FWD + host-BODY helpers: f(7) OK, f() SEGV in compiler. Full tip thin
+# still option CG002. Keep host-cc until tip scalar slot/frame is lean.
 ensure_win_call_dispatch_host_thin() {
   local o="src/asm/backend_call_dispatch.o"
   local tramp="seeds/backend_call_dispatch_win_thin_trampolines.c"
