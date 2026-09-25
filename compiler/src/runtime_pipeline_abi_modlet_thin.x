@@ -204,18 +204,20 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * Accepts EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
  * the parser's NEG-over-LIT form `[-600, 2]`), integer binops
  * EXPR_ADD..EXPR_BITXOR (ek 4..13, including DIV and MOD) whose operands fold,
- * and EXPR_AS (ek 54) to a 32-bit or 64-bit integer. A float operand
- * truncates toward zero (cvttsd2si). An integer operand is folded by this
- * same function: a 64-bit target keeps both halves, so an i32 child
- * sign-extends, and a 32-bit target keeps the low word, so a wider child
- * truncates. 32-bit targets are TYPE_I32 (0) and TYPE_U32 (3), the same
- * kinds as glue_emit_as_f2i32_elf_c. 64-bit targets are TYPE_U64 (4),
- * TYPE_I64 (5), TYPE_USIZE (6), and TYPE_ISIZE (7), the same kinds as
- * glue_emit_as_f2i64_elf_c.
+ * EXPR_BOOL_LIT (ek 2, true is 1 and false is 0), and EXPR_AS (ek 54)
+ * to an integer. A float operand truncates toward zero (cvttsd2si). An
+ * integer operand is folded by this same function: a 64-bit target keeps
+ * both halves, so an i32 child sign-extends, and a 32-bit target keeps
+ * the low word, so a wider child truncates. 32-bit targets are TYPE_I32
+ * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
+ * peels the low byte, so `256 as u8` stores 0 and `2 as bool` stores 2
+ * (the runtime emitter does not force a bool to 0 or 1). 64-bit targets
+ * are TYPE_U64 (4), TYPE_I64 (5), TYPE_USIZE (6), and TYPE_ISIZE (7),
+ * the same kinds as glue_emit_as_f2i64_elf_c.
  * Inf/NaN, and a float magnitude outside the signed destination, return 0
  * so the baker loud-fails instead of storing the indefinite sign bit.
  * |x| < 1 truncates to 0 and is a successful fold. Exactly -2^31 fits in
- * i32. Exactly -2^63 fits in i64. BOOL and U8 targets stay 0.
+ * i32. Exactly -2^63 fits in i64.
  * FLOAT_LIT with no cast is not an integer; the array baker pokes IEEE
  * bits from the element size. VAR and any other kind are not compile-time
  * constants; callers must loud-fail (return -1) instead of silently
@@ -251,14 +253,16 @@ function pipe_modlet_array_lit_elem_const_val(
   unsafe {
     unsafe { ek = pipeline_expr_kind_ord_at(arena, eref); }
   }
-  if (ek == 0) {
+  // EXPR_LIT (ek 0) and EXPR_BOOL_LIT (ek 2) share int_val.
+  // true is 1 and false is 0. Both are i32-wide in this AST.
+  if (ek == 0 || ek == 2) {
     unsafe {
       unsafe { v = pipeline_expr_int_val_at(arena, eref); }
     }
     unsafe {
       out_val[0] = v;
     }
-    // Integer literals in this AST are i32. The high half is the sign fill.
+    // The high half is the sign fill of that low word.
     if (out_hi != (0 as *i32)) {
       if (v < 0) {
         unsafe { out_hi[0] = 0 - 1; }
@@ -364,7 +368,8 @@ function pipe_modlet_array_lit_elem_const_val(
   }
   // EXPR_AS. A folded float truncates toward zero. An integer operand
   // is this same function: 64-bit keeps both halves, 32-bit keeps the
-  // low word. BOOL and U8 stay 0.
+  // low word. TYPE_U8 and TYPE_BOOL use that 32-bit word; the baker
+  // peels one byte. 2 as bool stays 2.
   if (ek == 54) {
     let tgt: i32 = 0;
     let tk: i32 = 0;
@@ -478,8 +483,9 @@ function pipe_modlet_array_lit_elem_const_val(
       unsafe { out_hi[0] = whi; }
       return 1;
     }
-    // TYPE_I32 = 0, TYPE_U32 = 3. Same 32-bit gate as before.
-    if (tk != 0 && tk != 3) {
+    // TYPE_I32 = 0, TYPE_BOOL = 1, TYPE_U8 = 2, TYPE_U32 = 3.
+    // A 1-byte cell peels the low byte of this word.
+    if (tk != 0 && tk != 1 && tk != 2 && tk != 3) {
       return 0;
     }
     if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {
