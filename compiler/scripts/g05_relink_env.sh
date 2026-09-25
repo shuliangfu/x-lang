@@ -454,7 +454,19 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
     # w1009: let-after-assign body_sync. First-wins. PLATFORM: WINDOWS.
+    # PE may keep same-.o local calls on leftover T; weaken egg pabi so thin wins.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then
+        _oc=llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then
+        _oc=objcopy
+      fi
+      if [ -n "$_oc" ] && [ -s src/runtime_pipeline_abi.o ]; then
+        for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf; do
+          "$_oc" --weaken-symbol="$_bsym" src/runtime_pipeline_abi.o 2>/dev/null || true
+        done
+      fi
       _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
     fi
     # w1007 Cap residual named_builtin size→4 overlay (when typeck_x.o
