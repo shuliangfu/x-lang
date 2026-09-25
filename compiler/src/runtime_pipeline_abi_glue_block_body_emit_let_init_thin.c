@@ -4,75 +4,103 @@
  *   emit_let_init (f32_f64 L2 regresses to CG002 code_len=17). BSS vn +
  *   plain if/else (no GNU statement-expressions — MinGW mishandled them).
  * Semantics mirror runtime_pipeline_abi.x glue_block_body_emit_let_init.
- * ABI: XLANG_TIP_ABI (sysv_abi) — tip PE is SysV; MinGW Win64 mismatch
- *   made store_eax treat offset as ta (f32 CG002 code_len=17).
+ * f32 store: inline mov [rbp],eax — tip store_eax returns -1 after
+ *   host-gcc→tip float-lit on PE (observed code_len=17).
  * PLATFORM: WINDOWS — first-wins + win_patch jmp leftover W→T.
  */
 #include <stdint.h>
 #include <string.h>
 
-/* Tip PE objects use SysV; MinGW defaults to Win64 — mismatch made
- * store_eax see offset as ta (rc=-1, code_len=17). PLATFORM: WINDOWS. */
-#define XLANG_TIP_ABI __attribute__((sysv_abi))
-
 static uint8_t g_w1010_emit_let_vn[256];
 
-extern XLANG_TIP_ABI int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
-extern XLANG_TIP_ABI int32_t backend_enc_store_eax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
-extern XLANG_TIP_ABI int32_t backend_enc_store_rax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
-extern XLANG_TIP_ABI int32_t glue_array_temp_bytes_for_let_init(uint8_t *arena, int32_t let_type_ref, int32_t init_ref);
-extern XLANG_TIP_ABI void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off);
-extern XLANG_TIP_ABI int32_t glue_block_let_is_fixed_array_type(uint8_t *arena, int32_t block_ref, int32_t let_idx);
-extern XLANG_TIP_ABI int32_t glue_block_let_is_simd_vector_type(uint8_t *arena, int32_t block_ref, int32_t let_idx);
-extern XLANG_TIP_ABI int32_t glue_emit_array_let_empty_init(uint8_t *arena, uint8_t *elf_ctx, uint8_t *ctx, int32_t ta,
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *elf_ctx, uint8_t *bytes, int32_t len);
+
+/**
+ * Encode mov [rbp+disp], eax (x86_64). Bypasses tip store_eax which
+ * returns -1 after host-gcc float-lit emit on PE (code_len=17).
+ * Same bytes as backend_enc_dispatch store_eax short/disp32 forms.
+ * PLATFORM: WINDOWS.
+ */
+static int32_t w1010_store_eax_rbp(uint8_t *elf_ctx, int32_t offset) {
+  int32_t disp;
+  uint32_t u;
+  uint8_t b[6];
+  if (elf_ctx == 0) {
+    return -1;
+  }
+  disp = 0 - offset;
+  u = (uint32_t)disp;
+  if (disp >= (0 - 128) && disp <= (0 - 1)) {
+    b[0] = 137;
+    b[1] = 69;
+    b[2] = (uint8_t)(u & 255u);
+    return pipeline_elf_ctx_append_bytes(elf_ctx, b, 3);
+  }
+  b[0] = 137;
+  b[1] = 133;
+  b[2] = (uint8_t)(u & 255u);
+  b[3] = (uint8_t)((u / 256u) & 255u);
+  b[4] = (uint8_t)((u / 65536u) & 255u);
+  b[5] = (uint8_t)((u / 16777216u) & 255u);
+  return pipeline_elf_ctx_append_bytes(elf_ctx, b, 6);
+}
+
+extern int32_t backend_asm_ctx_slot_offset(uint8_t *ctx, int32_t slot_idx);
+extern int32_t backend_enc_store_eax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(uint8_t *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t glue_array_temp_bytes_for_let_init(uint8_t *arena, int32_t let_type_ref, int32_t init_ref);
+extern void glue_binop_var_slot_cache_kill_def_at_slot(int32_t off);
+extern int32_t glue_block_let_is_fixed_array_type(uint8_t *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t glue_block_let_is_simd_vector_type(uint8_t *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t glue_emit_array_let_empty_init(uint8_t *arena, uint8_t *elf_ctx, uint8_t *ctx, int32_t ta,
                                              int32_t stack_slot_off);
-extern XLANG_TIP_ABI int32_t glue_emit_fixed_array_type_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t init_ref,
+extern int32_t glue_emit_fixed_array_type_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t init_ref,
                                                         uint8_t *ctx, int32_t ta, int32_t type_ref,
                                                         int32_t stack_slot_off);
-extern XLANG_TIP_ABI int32_t glue_emit_float_lit_to_rax_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t expr_ref, int32_t ta,
+extern int32_t glue_emit_float_lit_to_rax_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t expr_ref, int32_t ta,
                                                int32_t force_ty_ref, int32_t call_abi_widen_f64);
-extern XLANG_TIP_ABI uint8_t *glue_emit_module_from_ctx(uint8_t *ctx);
-extern XLANG_TIP_ABI int32_t glue_emit_slice_from_array_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t block_ref,
+extern uint8_t *glue_emit_module_from_ctx(uint8_t *ctx);
+extern int32_t glue_emit_slice_from_array_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t block_ref,
                                                         int32_t let_idx, int32_t init_ref, int32_t let_type_ref,
                                                         uint8_t *ctx, int32_t ta, int32_t slice_slot_off);
-extern XLANG_TIP_ABI int32_t glue_emit_struct_type_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t init_ref,
+extern int32_t glue_emit_struct_type_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t init_ref,
                                                     uint8_t *ctx, int32_t ta, int32_t let_ty_ref,
                                                     int32_t stack_slot_off);
-extern XLANG_TIP_ABI int32_t glue_emit_vector_type_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t init_ref,
+extern int32_t glue_emit_vector_type_let_init_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t init_ref,
                                                     uint8_t *ctx, int32_t ta, int32_t stack_slot_off,
                                                     int32_t type_ref);
-extern XLANG_TIP_ABI int32_t glue_float_promote_src_ty_ref_c(uint8_t *arena, int32_t expr_ref);
-extern XLANG_TIP_ABI void glue_index_assign_addr_cache_clear(void);
-extern XLANG_TIP_ABI int32_t glue_init_is_empty_array_lit(uint8_t *arena, int32_t init_ref);
-extern XLANG_TIP_ABI void glue_live_fwd_forward_after_def(uint8_t *arena, uint8_t *ctx, int32_t def_off, int32_t gen_expr);
-extern XLANG_TIP_ABI int32_t glue_maybe_demote_f64_to_f32_eax_elf_c(uint8_t *arena, uint8_t *elf_ctx, uint8_t *ctx,
+extern int32_t glue_float_promote_src_ty_ref_c(uint8_t *arena, int32_t expr_ref);
+extern void glue_index_assign_addr_cache_clear(void);
+extern int32_t glue_init_is_empty_array_lit(uint8_t *arena, int32_t init_ref);
+extern void glue_live_fwd_forward_after_def(uint8_t *arena, uint8_t *ctx, int32_t def_off, int32_t gen_expr);
+extern int32_t glue_maybe_demote_f64_to_f32_eax_elf_c(uint8_t *arena, uint8_t *elf_ctx, uint8_t *ctx,
                                                      int32_t dest_ty_ref, int32_t src_expr_ref, int32_t ta);
-extern XLANG_TIP_ABI int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t dest_ty_ref,
+extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(uint8_t *arena, uint8_t *elf_ctx, int32_t dest_ty_ref,
                                                       int32_t src_ty_ref, int32_t ta);
-extern XLANG_TIP_ABI int32_t glue_store_retval_pair_to_rbp_elf_c(uint8_t *m, uint8_t *arena, uint8_t *elf_ctx, int32_t ty_ref,
+extern int32_t glue_store_retval_pair_to_rbp_elf_c(uint8_t *m, uint8_t *arena, uint8_t *elf_ctx, int32_t ty_ref,
                                                   int32_t slot_off, int32_t ta, int32_t init_ref, uint8_t *ctx);
-extern XLANG_TIP_ABI int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(uint8_t *arena, uint8_t *elf_ctx,
+extern int32_t glue_try_block_let_index_init_from_assign_cache_elf_c(uint8_t *arena, uint8_t *elf_ctx,
                                                                     uint8_t *ctx, int32_t init_ref, int32_t ta);
-extern XLANG_TIP_ABI void pipeline_asm_bump_next_offset_after_let_init(uint8_t *arena, int32_t block_ref, int32_t let_idx,
+extern void pipeline_asm_bump_next_offset_after_let_init(uint8_t *arena, int32_t block_ref, int32_t let_idx,
                                                         int32_t init_ref, uint8_t *ctx);
-extern XLANG_TIP_ABI int32_t pipeline_asm_emit_expr_elf_rec(uint8_t *arena, uint8_t *elf_ctx, int32_t expr_ref, uint8_t *ctx,
+extern int32_t pipeline_asm_emit_expr_elf_rec(uint8_t *arena, uint8_t *elf_ctx, int32_t expr_ref, uint8_t *ctx,
                                               int32_t ta);
-extern XLANG_TIP_ABI int32_t pipeline_asm_try_emit_dyn_coerce_let(uint8_t *arena, uint8_t *elf_ctx, int32_t block_ref,
+extern int32_t pipeline_asm_try_emit_dyn_coerce_let(uint8_t *arena, uint8_t *elf_ctx, int32_t block_ref,
                                                     int32_t idx, int32_t init_ref, int32_t slot_off, uint8_t *ctx,
                                                     int32_t ta);
-extern XLANG_TIP_ABI int32_t pipeline_block_let_type_ref(uint8_t *arena, int32_t block_ref, int32_t let_idx);
-extern XLANG_TIP_ABI int32_t pipeline_block_resolve_var_type_ref(uint8_t *arena, int32_t block_ref, uint8_t *vname, int32_t vlen);
-extern XLANG_TIP_ABI int32_t pipeline_expr_kind_ord_at(uint8_t *arena, int32_t expr_ref);
-extern XLANG_TIP_ABI void pipeline_expr_var_name_into(uint8_t *arena, int32_t expr_ref, uint8_t *out64);
-extern XLANG_TIP_ABI int32_t pipeline_expr_var_name_len(uint8_t *arena, int32_t expr_ref);
-extern XLANG_TIP_ABI int32_t pipeline_type_kind_ord_at(uint8_t *arena, int32_t ref);
+extern int32_t pipeline_block_let_type_ref(uint8_t *arena, int32_t block_ref, int32_t let_idx);
+extern int32_t pipeline_block_resolve_var_type_ref(uint8_t *arena, int32_t block_ref, uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_expr_kind_ord_at(uint8_t *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(uint8_t *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_expr_var_name_len(uint8_t *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(uint8_t *arena, int32_t ref);
 
 /**
  * Emit one block-let initializer into ELF (float-lit fast path + f32 store).
  * @return 0 ok; -1 fail
  * PLATFORM: WINDOWS — host-gcc twin; BSS vn avoids tip stack smash.
  */
-XLANG_TIP_ABI int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t block_ref, int32_t idx,
+int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t block_ref, int32_t idx,
                                       int32_t init_ref, int32_t slot, uint8_t *ctx, int32_t ta, uint8_t *lnb,
                                       int32_t llen) {
   int32_t tref_empty = 0;
@@ -95,7 +123,6 @@ XLANG_TIP_ABI int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf
   (void)llen;
 
   slot_off = backend_asm_ctx_slot_offset(ctx, slot);
-  /* w1010 debug: remove after PE f32 root found */
   rc = pipeline_asm_try_emit_dyn_coerce_let(arena, elf_ctx, block_ref, idx, init_ref, slot_off, ctx, ta);
   if (rc == 1) {
     return 0;
@@ -230,7 +257,9 @@ XLANG_TIP_ABI int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf
           return -1;
         }
       }
-      rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, slot_off, ta);
+      /* PE: tip store_eax fails after host-gcc float lit; inline encode. */
+      rc = w1010_store_eax_rbp(elf_ctx, slot_off);
+      (void)ta;
       if (rc != 0) {
         return -1;
       }
