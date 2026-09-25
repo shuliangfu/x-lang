@@ -265,7 +265,11 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * An GT (ek 18) matches cmp and setg. A signed greater-than stores 1
  * and any other pair stores 0. 2 > 1 stores 1 and 1 > 2 stores 0.
  * 1 > 1 stores 0. 0 > ((0 - 1) as i32) stores 1. The same sign-fill
- * and bool-result rules as EQ apply.
+ * and bool-result rules as EQ apply. A float GT also folds through
+ * pipe_modlet_fold_f64_elem_bits: start at 1 and clear when host
+ * `bv > av` or when `av == bv` (no start-0-then-set on `av > bv`),
+ * matching ucomis/seta. 2.0 > 1.0 stores 1 and 1.0 > 2.0 stores 0.
+ * 1.0 > 1.0 stores 0.
  * An GE (ek 19) matches cmp and setge. A signed greater-or-equal stores
  * 1 and any other pair stores 0. 2 >= 1 stores 1 and 1 >= 2 stores 0.
  * 1 >= 1 stores 1. ((0 - 1) as i32) >= (0 - 1) stores 1. The same
@@ -1220,8 +1224,9 @@ function pipe_modlet_array_lit_elem_const_val(
   // the sign fill of the low word stays unfolded. A resolved type
   // other than bool stays unfolded. The left word is saved in llo
   // before the right fold reuses out_val. Start at 1 and clear when
-  // `rv > llo` or when equal (same as llo > rv). GE is not this arm.
-  // A float compare stays unfolded.
+  // `rv > llo` or when equal (same as llo > rv). Float GT tries
+  // fold_f64 first; start at 1 and clear when `bv > av` or when
+  // `av == bv`. 2.0 > 1.0 stores 1. GE is not this arm.
   // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 18) {
     unsafe {
@@ -1230,6 +1235,44 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     if (left <= 0 || right <= 0) {
       return 0;
+    }
+    // Float greater-than. fold_f64 then start-1 clear on `bv > av`
+    // or `av == bv`. PLATFORM: LINUX|UBUNTU.
+    if (pipe_modlet_fold_f64_elem_bits(arena, left, &(lp[0]), &(lp[1])) == 1) {
+      if (pipe_modlet_fold_f64_elem_bits(arena, right, &(rp[0]), &(rp[1])) == 0) {
+        return 0;
+      }
+      unsafe {
+        unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
+        unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
+      }
+      rty = 0;
+      rtk = 0 - 1;
+      unsafe {
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+      }
+      if (rty > 0) {
+        unsafe {
+          unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+        }
+      }
+      if (rty > 0) {
+        if (rtk != 1) {
+          return 0;
+        }
+      }
+      result = 1;
+      if (bv > av) {
+        result = 0;
+      }
+      if (av == bv) {
+        result = 0;
+      }
+      unsafe { out_val[0] = result; }
+      if (out_hi != (0 as *i32)) {
+        unsafe { out_hi[0] = 0; }
+      }
+      return 1;
     }
     if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi) == 0) {
       return 0;
