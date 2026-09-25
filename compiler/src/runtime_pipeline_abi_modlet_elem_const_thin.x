@@ -116,7 +116,16 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * (2 as bool) || false stores 1: a nonzero bool word is truthy, and
  * the result is 0 or 1, not the raw word. Both children must be
  * sign-fill folds. The high half is 0 and the return is 1. A zero
- * left does not skip an unfolded right child. EQ is not this arm.
+ * left does not skip an unfolded right child.
+ * An EQ (ek 14) matches the runtime cmp and sete. The left word is
+ * saved before the right child reuses the slot. Equal words store 1
+ * and any other pair stores 0. true == true stores 1 and
+ * true == false stores 0. (2 as bool) == true stores 0: equality
+ * compares the words, and 2 is not 1. (2 as bool) == (2 as bool)
+ * stores 1. Both children must be sign-fill folds, so a 64-bit
+ * value whose high half is not that fill stays unfolded. The result
+ * is a bool, so the high half is 0 and the return is 1. NE, LT, LE,
+ * GT, and GE are not this arm. A float compare stays unfolded.
  * A null out_hi cannot carry that word, so the value stays unfolded.
  * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
  * and the same literal as u32 stays 0: neither 32-bit cell holds it.
@@ -636,8 +645,7 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // A resolved type that is not bool stays unfolded. The left word
   // is copied into lv before the right fold reuses out_val. A zero
   // left does not skip an unfolded right child. The zero result is
-  // written before the two tests, so there is no else. EQ is not
-  // this arm.
+  // written before the two tests, so there is no else.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek == 21) {
     unsafe {
@@ -684,6 +692,70 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       if (rv != 0) {
         result = 1;
       }
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, result);
+    }
+    if (out_hi != 0 as *i32) {
+      unsafe {
+        pipe_store_i32_le(out_hi as *u8, 0, 0);
+      }
+    }
+    return 1;
+  }
+  // EQ. The runtime emitter compares the two words and sete writes 1
+  // when they are equal. true == true stores 1. true == false stores
+  // 0. false == false stores 1. (2 as bool) == true stores 0 because
+  // the words are 2 and 1. (2 as bool) == (2 as bool) stores 1.
+  // Equality compares the words. It does not treat a nonzero word as
+  // true. The result is a bool, so the high half is 0 and the return
+  // stays 1. Both children must fold as a sign fill. A 64-bit child
+  // whose high half is not that fill stays unfolded. A resolved type
+  // that is not bool stays unfolded. The left word is copied into lv
+  // before the right fold reuses out_val. The zero result is written
+  // before the equal test, so there is no else. NE, LT, LE, GT, and
+  // GE are not this arm. A float compare stays unfolded.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (ek == 14) {
+    unsafe {
+      left = pipeline_expr_binop_left_ref_at(arena, eref);
+      right = pipeline_expr_binop_right_ref_at(arena, eref);
+    }
+    if (left <= 0 || right <= 0) {
+      return 0;
+    }
+    ok = pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi);
+    if (ok != 1) {
+      return 0;
+    }
+    unsafe {
+      lv = pipe_load_i32_le(out_val as *u8, 0);
+    }
+    ok = pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi);
+    if (ok != 1) {
+      return 0;
+    }
+    rty = 0;
+    rtk = 0 - 1;
+    unsafe {
+      rty = pipeline_expr_resolved_type_ref(arena, eref);
+    }
+    if (rty > 0) {
+      unsafe {
+        rtk = pipeline_type_kind_ord_at(arena, rty);
+      }
+    }
+    if (rty > 0) {
+      if (rtk != 1) {
+        return 0;
+      }
+    }
+    unsafe {
+      rv = pipe_load_i32_le(out_val as *u8, 0);
+    }
+    result = 0;
+    if (lv == rv) {
+      result = 1;
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, result);
