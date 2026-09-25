@@ -221,9 +221,12 @@ fi
 # scalar constant and returned -1, so prepare aborted with code_len 0.
 # This object is the whole modlet family and its one table. Do not weaken
 # a member of that family. Do not PREFER this into runtime_pipeline_abi.o.
+# w987: PREFER_ASM_O so DIV/MOD in the folder do not emit xlang_panic_
+# relocs (nop_panic expected 2, tip now emits 4 without PREFER).
 # PLATFORM: LINUX.
-compile_one src/runtime_pipeline_abi_modlet_thin.x "$WORK/modlet_raw.o"
-python3 "$WORK/nop_panic.py" "$WORK/modlet_raw.o" "$OUT/modlet.o"
+echo "linux_selfhost_pabi_sidecars: src/runtime_pipeline_abi_modlet_thin.x"
+timeout 240 env XLANG_PREFER_ASM_O=1 ./xlang -c -backend asm \
+  -o "$OUT/modlet.o" src/runtime_pipeline_abi_modlet_thin.x
 if objdump -r "$OUT/modlet.o" | grep -q 'xlang_panic_'; then
   echo "linux_selfhost_pabi_sidecars: modlet panic reloc survived" >&2
   exit 1
