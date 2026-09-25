@@ -1302,16 +1302,44 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
       if (gp_start_f[i] >= 0) {
         let arg_ref_f: i32 = pipeline_expr_call_arg_ref(arena, er, i);
         if (arg_ref_f != 0) {
-          if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref_f, i, ctx, ta) != 0) {
-            pipeline_asm_emit_set_call_f32_xmm(0);
-            return 0 - 1;
+          // w1044/w1041: single-GP EXPR_VAR reuses stack home on the default
+          // f32_xmm packer. Skip TYPE_ARRAY/SLICE — emit LEAs those homes.
+          // PLATFORM: SHARED x86_64 SysV.
+          let home_off_f: i32 = 0 - 1;
+          if (is_sse_f[i] == 0 && gp_units_f[i] == 1
+              && pipeline_expr_kind_ord_at(arena, arg_ref_f) == 3) {
+            let arg_ty_f: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref_f);
+            let arg_tk_f: i32 = 0;
+            if (arg_ty_f > 0) {
+              arg_tk_f = pipeline_type_kind_ord_at(arena, arg_ty_f);
+            }
+            /* TYPE_ARRAY=10 TYPE_SLICE=11: home holds payload; call needs LEA. */
+            if (arg_tk_f != 10 && arg_tk_f != 11) {
+              let vlen_f: i32 = pipeline_expr_var_name_len(arena, arg_ref_f);
+              if (vlen_f > 0 && vlen_f <= 255) {
+                let vname_f: u8[256] = [];
+                pipeline_expr_var_name_into(arena, arg_ref_f, &vname_f[0]);
+                home_off_f = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_f[0], vlen_f);
+                if (home_off_f < 0) {
+                  home_off_f = asm_ctx_local_find_offset(ctx, &vname_f[0], vlen_f);
+                }
+              }
+            }
           }
-          let so_f: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf, ctx, ta, gp_units_f[i]);
-          if (so_f < 0) {
-            pipeline_asm_emit_set_call_f32_xmm(0);
-            return 0 - 1;
+          if (home_off_f >= 0) {
+            spill_off_f[i] = home_off_f;
+          } else {
+            if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref_f, i, ctx, ta) != 0) {
+              pipeline_asm_emit_set_call_f32_xmm(0);
+              return 0 - 1;
+            }
+            let so_f: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf, ctx, ta, gp_units_f[i]);
+            if (so_f < 0) {
+              pipeline_asm_emit_set_call_f32_xmm(0);
+              return 0 - 1;
+            }
+            spill_off_f[i] = so_f;
           }
-          spill_off_f[i] = so_f;
         }
       }
       i = i + 1;
@@ -2525,13 +2553,21 @@ export function pipeline_asm_emit_call_args_elf_c(
             let home_off: i32 = 0 - 1;
             if (fp_slot[i] < 0 && gp_units[i] == 1
                 && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
-              let vlen_h: i32 = pipeline_expr_var_name_len(arena, arg_ref);
-              if (vlen_h > 0 && vlen_h <= 255) {
-                let vname_h: u8[256] = [];
-                pipeline_expr_var_name_into(arena, arg_ref, &vname_h[0]);
-                home_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_h[0], vlen_h);
-                if (home_off < 0) {
-                  home_off = asm_ctx_local_find_offset(ctx, &vname_h[0], vlen_h);
+              let arg_ty_h: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
+              let arg_tk_h: i32 = 0;
+              if (arg_ty_h > 0) {
+                arg_tk_h = pipeline_type_kind_ord_at(arena, arg_ty_h);
+              }
+              /* TYPE_ARRAY=10 TYPE_SLICE=11: home=payload; call needs LEA. */
+              if (arg_tk_h != 10 && arg_tk_h != 11) {
+                let vlen_h: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+                if (vlen_h > 0 && vlen_h <= 255) {
+                  let vname_h: u8[256] = [];
+                  pipeline_expr_var_name_into(arena, arg_ref, &vname_h[0]);
+                  home_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_h[0], vlen_h);
+                  if (home_off < 0) {
+                    home_off = asm_ctx_local_find_offset(ctx, &vname_h[0], vlen_h);
+                  }
                 }
               }
             }
@@ -2672,13 +2708,21 @@ export function pipeline_asm_emit_call_args_elf_c(
             let home_off: i32 = 0 - 1;
             if (is_sse[i] == 0 && gp_units[i] == 1
                 && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
-              let vlen_h: i32 = pipeline_expr_var_name_len(arena, arg_ref);
-              if (vlen_h > 0 && vlen_h <= 255) {
-                let vname_h: u8[256] = [];
-                pipeline_expr_var_name_into(arena, arg_ref, &vname_h[0]);
-                home_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_h[0], vlen_h);
-                if (home_off < 0) {
-                  home_off = asm_ctx_local_find_offset(ctx, &vname_h[0], vlen_h);
+              let arg_ty_h: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
+              let arg_tk_h: i32 = 0;
+              if (arg_ty_h > 0) {
+                arg_tk_h = pipeline_type_kind_ord_at(arena, arg_ty_h);
+              }
+              /* TYPE_ARRAY=10 TYPE_SLICE=11: home=payload; call needs LEA. */
+              if (arg_tk_h != 10 && arg_tk_h != 11) {
+                let vlen_h: i32 = pipeline_expr_var_name_len(arena, arg_ref);
+                if (vlen_h > 0 && vlen_h <= 255) {
+                  let vname_h: u8[256] = [];
+                  pipeline_expr_var_name_into(arena, arg_ref, &vname_h[0]);
+                  home_off = asm_ctx_local_find_offset_scoped(ctx, arena, &vname_h[0], vlen_h);
+                  if (home_off < 0) {
+                    home_off = asm_ctx_local_find_offset(ctx, &vname_h[0], vlen_h);
+                  }
                 }
               }
             }

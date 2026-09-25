@@ -133,6 +133,9 @@ extern int32_t pipeline_block_resolve_var_type_ref(struct ast_ASTArena *arena, i
 extern int32_t asm_ctx_scope_block_ref_at(uint8_t *ctx);
 extern int32_t pipeline_expr_var_name_len(struct ast_ASTArena *a, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref, uint8_t *out64);
+/* w1044: VAR-home elide twin of backend_call_dispatch.x (w1041). PLATFORM: SHARED. */
+extern int32_t asm_ctx_local_find_offset_scoped(void *ctx, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t asm_ctx_local_find_offset(void *ctx, uint8_t *name, int32_t name_len);
 extern int32_t pipeline_dep_ctx_import_path_len(struct ast_PipelineDepCtx *ctx, int32_t idx);
 extern int32_t pipeline_module_import_path_len(struct ast_Module *m, int32_t idx);
 extern uint8_t pipeline_module_import_path_byte_at(struct ast_Module *m, int32_t idx, int32_t off);
@@ -1220,22 +1223,51 @@ int32_t glue_emit_call_args_elf_sysv_f32_xmm_c_impl(struct ast_ASTArena *arena,
       int32_t arg_ko;
       int32_t use_xmm;
       int32_t units;
+      int32_t home_off;
       arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
       if (arg_ref == 0)
         continue;
       glue_sysv_x86_call_arg_slot_c(arena, expr_ref, nargs, i, &kind, &reg_k, &stack_k);
       if (kind == 2)
         continue;
-      if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
-        pipeline_asm_emit_set_call_f32_xmm(0);
-        return -1;
-      }
+      /* w1044/w1041: single-GP EXPR_VAR reuses stack home on default f32_xmm
+       * packer. Tip thin $0x30 smash was -0x40..-0x80 from this loop.
+       * PLATFORM: SHARED x86_64 SysV. */
+      home_off = -1;
       pty = glue_call_param_type_ref_at(arena, expr_ref, i);
       arg_ko = pipeline_expr_kind_ord_at(arena, arg_ref);
       use_xmm = (kind == 1) || glue_call_arg_is_sse_float_c(arena, expr_ref, i, pty);
       units = glue_sysv_arg_gp_units_from_size_c(glue_sysv_arg_byte_size_c(arena, ctx, pty, arg_ref));
       if (use_xmm)
         units = 1;
+      if (!use_xmm && units == 1 && arg_ko == GLUE_EXPR_VAR_ORD) {
+        int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        int32_t arg_tk = (arg_ty > 0) ? pipeline_type_kind_ord_at(arena, arg_ty) : 0;
+        /* TYPE_ARRAY/SLICE homes hold payload; emit LEAs — do not elide. */
+        if (arg_tk != GLUE_TYPE_ARRAY_ORD && arg_tk != GLUE_TYPE_SLICE_ORD) {
+          int32_t vlen_h = pipeline_expr_var_name_len(arena, arg_ref);
+          if (vlen_h > 0 && vlen_h <= 255) {
+            uint8_t vname_h[256];
+            pipeline_expr_var_name_into(arena, arg_ref, vname_h);
+            home_off = asm_ctx_local_find_offset_scoped(ctx, arena, vname_h, vlen_h);
+            if (home_off < 0)
+              home_off = asm_ctx_local_find_offset(ctx, vname_h, vlen_h);
+          }
+        }
+      }
+      if (home_off >= 0) {
+        spill_off[i] = home_off;
+        spill_kind[i] = 0;
+        spill_reg[i] = reg_k;
+        spill_units[i] = units;
+        spill_is_f64[i] = glue_call_arg_is_f64_width_c(arena, ctx, expr_ref, i, pty) || arg_ko == 1 ||
+                         (pty > 0 && pipeline_type_kind_ord_at(arena, pty) == 15);
+        continue;
+      }
+      if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0) {
+        pipeline_asm_emit_set_call_f32_xmm(0);
+        return -1;
+      }
       spill_off[i] = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, units);
       if (spill_off[i] < 0) {
         pipeline_asm_emit_set_call_f32_xmm(0);
@@ -3117,11 +3149,35 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       }
       for (i = 0; i < nargs; i++) {
         int32_t so;
+        int32_t home_off;
         if (gp_start_a64[i] < 0 && fp_slot_a64[i] < 0)
           continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
+        /* w1044/w1041: single-GP EXPR_VAR reuses stack home — no emit+spill
+         * double-write (tip thin forwarder was sub $0x30 then store -0x40..-0x80).
+         * PLATFORM: SHARED. */
+        home_off = -1;
+        if (is_mem_a64[i] == 0 && fp_slot_a64[i] < 0 && gp_units_a64[i] == 1
+            && pipeline_expr_kind_ord_at(arena, arg_ref) == GLUE_EXPR_VAR_ORD) {
+          int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+          int32_t arg_tk = (arg_ty > 0) ? pipeline_type_kind_ord_at(arena, arg_ty) : 0;
+          if (arg_tk != GLUE_TYPE_ARRAY_ORD && arg_tk != GLUE_TYPE_SLICE_ORD) {
+            int32_t vlen_h = pipeline_expr_var_name_len(arena, arg_ref);
+            if (vlen_h > 0 && vlen_h <= 255) {
+              uint8_t vname_h[256];
+              pipeline_expr_var_name_into(arena, arg_ref, vname_h);
+              home_off = asm_ctx_local_find_offset_scoped(ctx, arena, vname_h, vlen_h);
+              if (home_off < 0)
+                home_off = asm_ctx_local_find_offset(ctx, vname_h, vlen_h);
+            }
+          }
+        }
+        if (home_off >= 0) {
+          spill_off_a64[i] = home_off;
+          continue;
+        }
         if (is_mem_a64[i] == 2) {
           /* PLATFORM: MACOS|ARM64 — host export large POD addr into GP. */
           if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(arena, elf_ctx, ctx, arg_ref, arg_sz_a64[i],
@@ -3256,11 +3312,34 @@ int32_t pipeline_asm_emit_call_args_elf_c_impl(struct ast_ASTArena *arena, struc
       }
       for (i = 0; i < nargs; i++) {
         int32_t so;
+        int32_t home_off;
         if (gp_start[i] < 0)
           continue;
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
         if (arg_ref == 0)
           continue;
+        /* w1044/w1041: single-GP EXPR_VAR reuses stack home (tip thin $0x30).
+         * PLATFORM: SHARED — x86_64 SysV / Win64. */
+        home_off = -1;
+        if (is_sse[i] == 0 && gp_units[i] == 1
+            && pipeline_expr_kind_ord_at(arena, arg_ref) == GLUE_EXPR_VAR_ORD) {
+          int32_t arg_ty = pipeline_expr_resolved_type_ref(arena, arg_ref);
+          int32_t arg_tk = (arg_ty > 0) ? pipeline_type_kind_ord_at(arena, arg_ty) : 0;
+          if (arg_tk != GLUE_TYPE_ARRAY_ORD && arg_tk != GLUE_TYPE_SLICE_ORD) {
+            int32_t vlen_h = pipeline_expr_var_name_len(arena, arg_ref);
+            if (vlen_h > 0 && vlen_h <= 255) {
+              uint8_t vname_h[256];
+              pipeline_expr_var_name_into(arena, arg_ref, vname_h);
+              home_off = asm_ctx_local_find_offset_scoped(ctx, arena, vname_h, vlen_h);
+              if (home_off < 0)
+                home_off = asm_ctx_local_find_offset(ctx, vname_h, vlen_h);
+            }
+          }
+        }
+        if (home_off >= 0) {
+          spill_off[i] = home_off;
+          continue;
+        }
         if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref, i, ctx, ta) != 0)
           return -1;
         so = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, gp_units[i]);

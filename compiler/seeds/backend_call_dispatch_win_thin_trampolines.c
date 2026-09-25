@@ -1,11 +1,10 @@
 /* PLATFORM: WINDOWS — host-cc thin trampolines for backend_call_dispatch.
  * Logic source: src/asm/backend_call_dispatch_thin.x (same forwarders).
- * Product: this .c + seeds/backend_call_dispatch.from_x.c
+ * Product (default): this .c + seeds/backend_call_dispatch.from_x.c
  *   (-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X) → ld -r backend_call_dispatch.o
- * Why: tip pure-asm of thin.x emits fat Win64 frames (was sub $0x888; after
- * w1033 overlay tip emit_call trampoline is still sub $0x248 vs host $0x30).
- * w1039: tip-FWD + host-BODY hybrid still SEGV on f(); keep host-cc only.
- * Do not tip-compile thin.x on Windows. Keep in sync with thin.x. w1027/w1039.
+ * w1044: Linux/Darwin tip thin green ($0x30 + f32 VAR-home elide; skip
+ * TYPE_ARRAY/SLICE). Win64 tip thin still CG002 — keep host tramp product;
+ * tip probe via XLANG_WIN_TIP_CALL_DISPATCH=1. Keep in sync with thin.x.
  */
 #include <stdint.h>
 #include <stddef.h>

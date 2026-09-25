@@ -2621,35 +2621,35 @@ ensure_enc_dispatch_pure() {
   return 0
 }
 
-# w1027 PLATFORM: WINDOWS — host-cc thin trampolines + Cap residual _impl.
-# tip pure-asm of backend_call_dispatch_thin.x emits fat Win64 frames
-# (sub $0x888); Win xlang -E SEGV. Product: seeds/…_win_thin_trampolines.c
-# (mirrors thin.x forwarders) + from_x.c -DXLANG_L2_CALL_DISPATCH_THIN_FROM_X
-# → ld -r. Ban tip-compile thin.x / full.x on Windows. Ban bak 175735 swap.
-# w1039 map (post w1033 frame overlay): tip thin leaf still sub $0x68;
-# tip emit_call*_elf_c trampoline still sub $0x248 (host $0x30). Hybrid
-# tip-FWD + host-BODY helpers: f(7) OK, f() SEGV in compiler. Full tip thin
-# still option CG002. Keep host-cc until tip scalar slot/frame is lean.
+# w1044 PLATFORM: WINDOWS — host-cc trampolines + THIN_FROM_X rest (elide in
+# rest). Tip thin is green on Linux SysV after f32 VAR-home elide; Win64 tip
+# thin still CG002 (hello/option). Keep host tramp product; tip via
+# XLANG_WIN_TIP_CALL_DISPATCH=1 for probes. Ban bak 175735.
 ensure_win_call_dispatch_host_thin() {
   local o="src/asm/backend_call_dispatch.o"
+  local thin_x="src/asm/backend_call_dispatch_thin.x"
   local tramp="seeds/backend_call_dispatch_win_thin_trampolines.c"
   local seed="seeds/backend_call_dispatch.from_x.c"
   local thin_o rest_o merged
   local stale=0
   local ld_flags
+  local xlang_bin="./xlang"
+  local tip_ok=0
+  local want_tip="${XLANG_WIN_TIP_CALL_DISPATCH:-0}"
 
-  if [ ! -f "$tramp" ] || [ ! -f "$seed" ]; then
-    echo "ensure: win call_dispatch missing $tramp or $seed" >&2
+  if [ ! -f "$seed" ]; then
+    echo "ensure: win call_dispatch missing $seed" >&2
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
-    [ "$tramp" -nt "$o" ] && stale=1
+    [ -f "$thin_x" ] && [ "$thin_x" -nt "$o" ] && stale=1
+    [ -f "$tramp" ] && [ "$tramp" -nt "$o" ] && stale=1
     [ "$seed" -nt "$o" ] && stale=1
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (win host-cc thin w1027)"
+      log "skip up-to-date $o (win host/tip thin w1044)"
       return 0
     fi
   fi
@@ -2658,12 +2658,28 @@ ensure_win_call_dispatch_host_thin() {
   thin_o="${o%.o}_win_thin.o"
   rest_o="${o%.o}_win_rest.o"
   merged="${o%.o}_win_merged.o"
-  # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
-    -c "$tramp" -o "$thin_o"; then
-    echo "ensure: win call_dispatch trampoline cc failed" >&2
-    rm -f "$thin_o" "$rest_o" "$merged"
-    return 1
+  ld_flags="$(r3_prefer_ld_r_flags)"
+
+  if [ "$want_tip" = "1" ] && [ -x "$xlang_bin" ] && [ -f "$thin_x" ]; then
+    if "$xlang_bin" -backend asm -c -o "$thin_o" "$thin_x" 2>/dev/null; then
+      tip_ok=1
+    else
+      rm -f "$thin_o"
+      tip_ok=0
+    fi
+  fi
+  if [ "$tip_ok" != "1" ]; then
+    if [ ! -f "$tramp" ]; then
+      echo "ensure: win call_dispatch missing $tramp" >&2
+      return 1
+    fi
+    # shellcheck disable=SC2086
+    if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+      -c "$tramp" -o "$thin_o"; then
+      echo "ensure: win call_dispatch trampoline cc failed" >&2
+      rm -f "$thin_o" "$rest_o" "$merged"
+      return 1
+    fi
   fi
   # shellcheck disable=SC2086
   if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
@@ -2672,7 +2688,6 @@ ensure_win_call_dispatch_host_thin() {
     rm -f "$thin_o" "$rest_o" "$merged"
     return 1
   fi
-  ld_flags="$(r3_prefer_ld_r_flags)"
   # shellcheck disable=SC2086
   if ! ld $ld_flags -o "$merged" "$thin_o" "$rest_o"; then
     echo "ensure: win call_dispatch ld -r failed" >&2
@@ -2687,7 +2702,11 @@ ensure_win_call_dispatch_host_thin() {
   fi
   mv -f "$merged" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "prefer win host-cc thin+rest $o <- $tramp + $seed (w1027)"
+  if [ "$tip_ok" = "1" ]; then
+    log "prefer win tip thin+rest $o <- $thin_x + $seed (w1044 probe)"
+  else
+    log "prefer win host-cc thin+rest $o <- $tramp + $seed (w1044)"
+  fi
   return 0
 }
 
@@ -2716,9 +2735,9 @@ ensure_r3_prefer_one() {
     ensure_enc_dispatch_pure || return 1
     return 0
   fi
-  # w1027 PLATFORM: WINDOWS — tip pure-asm of thin.x still emits fat Win64
-  # frames (sub $0x888); Win -E SEGV. Host-cc trampoline seed + Cap residual
-  # _impl rest. POSIX keeps the full→thin tip-migration ladder.
+  # w1044 PLATFORM: WINDOWS — tip thin prefer (lean $0x30 + f32 VAR elide);
+  # host trampoline fallback inside ensure_win_call_dispatch_host_thin.
+  # POSIX keeps the full→thin tip-migration ladder.
   if [ "$o" = "src/asm/backend_call_dispatch.o" ]; then
     case "$(uname -s 2>/dev/null || echo Unknown)" in
       MINGW*|MSYS*|CYGWIN*|Windows_NT*)
