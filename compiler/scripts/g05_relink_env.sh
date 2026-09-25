@@ -423,6 +423,11 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
+    # w1007 Cap residual named_builtin size→4 overlay (when typeck_x.o
+    # still has 1/2). First-wins. PLATFORM: WINDOWS.
+    if [ -s build_asm/selfhost_pabi/named_builtin_cap.o ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/named_builtin_cap.o $_PABI_SELFHOST"
+    fi
     ;;
 esac
 _DRIVER_SEED_OBJS="$_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o src/token_typekind_tag_tables.o"
