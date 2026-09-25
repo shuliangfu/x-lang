@@ -291,11 +291,11 @@ fi
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    # w1019: when true-pack tip stack is ON (XLANG_WIN_BAKE_TIP=1), skip
-    # src/win_index Cap residual twin to avoid dual T. Tip INDEX .o must
-    # be built with -DXLANG_WIN_TRUE_PACK. Default Cap residual. PLATFORM: WINDOWS.
+    # w1020: when true-pack tip stack is ON (default; XLANG_WIN_BAKE_TIP=0
+    # forces Cap residual), skip src/win_index Cap residual twin.
+    # Tip INDEX .o built with -DXLANG_WIN_TRUE_PACK. PLATFORM: WINDOWS.
     _skip_src_win_index=0
-    if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
+    if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
@@ -557,19 +557,50 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
     # STRUCT_LIT elements. The egg baker calls this object.
-    # w1019: true-pack tip stack (bake + INDEX esz + emit sext + assign +
-    # force_esz) remains opt-in via XLANG_WIN_BAKE_TIP=1. Tip ON is
-    # non-deterministic CG002 on PE (same .x, elf_ec=-1/out_len=0).
-    # INDEX tip must be built with -DXLANG_WIN_TRUE_PACK. Default Cap
-    # residual. PLATFORM: WINDOWS.
+    # w1020: PE tip from bake_elems_thin.x is non-deterministic CG002;
+    # host-gcc seeds/win_bake_elems_override.c through the same weaken+jmp
+    # is stable. Default ON (auto-build tip .o from seeds); set
+    # XLANG_WIN_BAKE_TIP=0 for Cap residual. INDEX tip uses
+    # -DXLANG_WIN_TRUE_PACK. force_esz / elem_byte_sz split into two .o.
+    # PLATFORM: WINDOWS.
     _WIN_TRUE_PACK=0
-    if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
+    if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      if [ -f seeds/win_bake_elems_override.c ]; then
+        gcc -c -O2 -o build_asm/selfhost_pabi/bake_elems.o \
+          seeds/win_bake_elems_override.c || true
+      fi
+      if [ -f seeds/win_index_elem_byte_sz_override.c ]; then
+        gcc -c -O2 -DXLANG_WIN_TRUE_PACK \
+          -o build_asm/selfhost_pabi/index_elem_true_i8.o \
+          seeds/win_index_elem_byte_sz_override.c || true
+      fi
+      if [ -f seeds/force_esz_true_i8_override.c ]; then
+        # Split force_esz / elem_byte_sz into two .o (w1020 PE). PLATFORM: WINDOWS.
+        gcc -c -O2 -DXLANG_WIN_FORCE_ESZ_ONLY \
+          -o build_asm/selfhost_pabi/force_esz_true_i8.o \
+          seeds/force_esz_true_i8_override.c || true
+        gcc -c -O2 -DXLANG_WIN_ELEM_BYTE_SZ_ONLY \
+          -o build_asm/selfhost_pabi/array_lit_esz_true_i8.o \
+          seeds/force_esz_true_i8_override.c || true
+      fi
+      if [ -f seeds/emit_index_true_i8_override.c ]; then
+        gcc -c -O2 -o build_asm/selfhost_pabi/emit_index_true_i8.o \
+          seeds/emit_index_true_i8_override.c || true
+      fi
+      if [ -f seeds/assign_index_true_i8_override.c ]; then
+        gcc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
+          seeds/assign_index_true_i8_override.c || true
+      fi
+    fi
+    if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
       && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
       && [ -s build_asm/selfhost_pabi/bake_struct.o ] \
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ] \
       && [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ] \
       && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ] \
-      && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+      && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ] \
+      && [ -s build_asm/selfhost_pabi/array_lit_esz_true_i8.o ]; then
       _WIN_TRUE_PACK=1
     fi
     if [ "$_WIN_TRUE_PACK" = "1" ]; then
@@ -579,6 +610,7 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/array_lit_esz_true_i8.o $_PABI_SELFHOST"
     elif [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
     fi

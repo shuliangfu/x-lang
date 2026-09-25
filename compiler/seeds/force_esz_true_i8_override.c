@@ -20,7 +20,10 @@ extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_re
 /**
  * Force ARRAY_LIT element store/INDEX stride from dest elem type kind.
  * True-pack named i8 → 1. PLATFORM: SHARED.
+ * w1020: compile with -DXLANG_WIN_ELEM_BYTE_SZ_ONLY to omit this and
+ * keep only pipeline_asm_array_lit_elem_byte_sz_c in a separate .o.
  */
+#if !defined(XLANG_WIN_ELEM_BYTE_SZ_ONLY)
 int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
   int32_t ek;
   int32_t ssz;
@@ -60,12 +63,17 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
     return 16;
   return 0;
 }
+#endif /* !XLANG_WIN_ELEM_BYTE_SZ_ONLY */
 
 /**
  * Infer ARRAY_LIT element byte width (force_esz=0 local flat path).
  * True-pack named i8 → 1 so local stores match INDEX tip.
  * PLATFORM: SHARED — twin of fnptr_array_esz_thin.x (w1014).
+ * w1020: on Windows tip stack, compile with -DXLANG_WIN_FORCE_ESZ_ONLY so
+ * this twin is omitted from the force .o (same-.o dual T PE footgun);
+ * build a second .o with -DXLANG_WIN_ELEM_BYTE_SZ_ONLY for local lit.
  */
+#if !defined(XLANG_WIN_FORCE_ESZ_ONLY)
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
   int32_t elem_ty;
   int32_t kind_ord;
@@ -119,3 +127,4 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
   }
   return 4;
 }
+#endif /* !XLANG_WIN_FORCE_ESZ_ONLY */
