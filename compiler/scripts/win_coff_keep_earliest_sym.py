@@ -13,7 +13,11 @@ w1034: same egg dual/triple T for append_reloc_typed and
 append_reloc_absolute64. typed Cap twin stays EXTERNAL then g05 weakens it
 when the wave743 sidecar is present (sidecar first-wins PAGE21 owner bind).
 absolute64 earliest is a historic EXTERNAL-reloc stub; Cap/tip twins become
-STATIC (same-TU Cap callers unchanged). PLATFORM: WINDOWS — no-op on non-COFF.
+STATIC (same-TU Cap callers unchanged).
+
+w1035: pipe_modlet_bake_string_lit_elem_to_data and
+pipe_modlet_bake_ptr_addr_elem_to_data (Cap earliest VA, tip inject later).
+PLATFORM: WINDOWS — no-op on non-COFF.
 """
 from __future__ import annotations
 

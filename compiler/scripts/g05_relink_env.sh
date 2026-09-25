@@ -826,18 +826,20 @@ case "$UNAME_S" in
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done
         fi
-        # w1031/w1034: egg embeds dual/triple strong T for append_reloc,
-        # append_reloc_typed, append_reloc_absolute64 (leftover Cap + historic
-        # tip elf_ctx inject; absolute64 also has an early EXTERNAL-reloc
-        # stub). Same-TU already calls Cap (or reloc stub→typed); demote later
-        # EXTERNAL→STATIC so PE exports one T per name and win_patch dual-T
-        # jmp is unnecessary. PLATFORM: WINDOWS.
+        # w1031/w1034/w1035: egg embeds dual/triple strong T for reloc + bake
+        # Cap leftovers (leftover Cap + historic tip elf_ctx inject; absolute64
+        # also has an early EXTERNAL-reloc stub). Same-TU already calls Cap
+        # (or reloc stub→typed); demote later EXTERNAL→STATIC so PE exports
+        # one T per name. bake_string/ptr Cap VA is earliest (unlike
+        # glue_type_is_fixed_array historic stub). PLATFORM: WINDOWS.
         if [ -f scripts/win_coff_keep_earliest_sym.py ]; then
           python3 scripts/win_coff_keep_earliest_sym.py \
             build_asm/selfhost_pabi/pabi_weak.o \
             pipeline_elf_ctx_append_reloc \
             pipeline_elf_ctx_append_reloc_typed \
-            pipeline_elf_ctx_append_reloc_absolute64 2>/dev/null || true
+            pipeline_elf_ctx_append_reloc_absolute64 \
+            pipe_modlet_bake_string_lit_elem_to_data \
+            pipe_modlet_bake_ptr_addr_elem_to_data 2>/dev/null || true
         fi
         # w1034: when wave743 sidecar is linked, weaken egg typed so PE
         # first-wins PAGE21 owner-bind (matches Ubuntu single T). PLATFORM: WINDOWS.
