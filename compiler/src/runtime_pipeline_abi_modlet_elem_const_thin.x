@@ -959,24 +959,15 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       lp[1] = lhi;
       rp[0] = rlo;
       rp[1] = rhi;
-      unsafe {
-        memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
-        memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
-      }
-      // Compute equality with the same host `==` shape as float EQ
-      // (result starts 0, set 1 when equal). Then flip with an integer
-      // start-1-clear, which the LE/GE arms already use. Do not put
-      // the float compare inside a start-1-clear or an else — tip
-      // dropped those shapes (Ubuntu pairs became 0000).
+      // Integer word compare of both halves. Start at 1, clear when
+      // both words match — same shape as LE/GE. Avoid host float `!=`
+      // and avoid else on float `==`. -0.0 and +0.0 differ in bit 63.
       // PLATFORM: MACOS|DARWIN / WINDOWS.
-      result = 0;
-      if (av == bv) {
-        result = 1;
-      }
-      got = result;
       result = 1;
-      if (got == 1) {
-        result = 0;
+      if (lp[0] == rp[0]) {
+        if (lp[1] == rp[1]) {
+          result = 0;
+        }
       }
       unsafe {
         pipe_store_i32_le(out_val as *u8, 0, result);

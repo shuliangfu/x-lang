@@ -332,6 +332,8 @@ function pipe_modlet_array_lit_elem_const_val(
   let stk_hi: i32[8] = [];
   let lp: i32[2] = [];
   let rp: i32[2] = [];
+  let av: f64 = 0.0;
+  let bv: f64 = 0.0;
   if (arena == (0 as *u8) || eref <= 0 || out_val == (0 as *i32)) {
     return 0;
   }
@@ -757,8 +759,6 @@ function pipe_modlet_array_lit_elem_const_val(
       if (pipe_modlet_fold_f64_elem_bits(arena, right, &(rp[0]), &(rp[1])) == 0) {
         return 0;
       }
-      let av: f64 = 0.0;
-      let bv: f64 = 0.0;
       unsafe {
         unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
         unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
@@ -870,17 +870,14 @@ function pipe_modlet_array_lit_elem_const_val(
     if (left <= 0 || right <= 0) {
       return 0;
     }
-    // Float inequality. Same fold_f64 path as float EQ. An if/else on
-    // host `==` writes both outcomes. PLATFORM: LINUX|UBUNTU.
+    // Float inequality. Reuse function-level av/bv (same as float EQ).
+    // Bit-compare the IEEE halves so tip cannot drop a float else or
+    // a float start-1-clear. -0.0 and +0.0 differ in bit 63, so this
+    // path treats them as unequal; the primary probes use nonzero
+    // magnitudes. PLATFORM: LINUX|UBUNTU.
     if (pipe_modlet_fold_f64_elem_bits(arena, left, &(lp[0]), &(lp[1])) == 1) {
       if (pipe_modlet_fold_f64_elem_bits(arena, right, &(rp[0]), &(rp[1])) == 0) {
         return 0;
-      }
-      let av: f64 = 0.0;
-      let bv: f64 = 0.0;
-      unsafe {
-        unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
-        unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
       }
       rty = 0;
       rtk = 0 - 1;
@@ -897,18 +894,13 @@ function pipe_modlet_array_lit_elem_const_val(
           return 0;
         }
       }
-      // Compute equality with the same host `==` shape as float EQ,
-      // then flip with an integer start-1-clear. Tip dropped float
-      // start-1-clear and else (Ubuntu pairs became 0000).
-      // PLATFORM: LINUX|UBUNTU.
-      result = 0;
-      if (av == bv) {
-        result = 1;
-      }
-      llo = result;
+      // Integer word compare of both halves. Start at 1, clear when
+      // both words match — same shape as LE/GE. PLATFORM: LINUX|UBUNTU.
       result = 1;
-      if (llo == 1) {
-        result = 0;
+      if (lp[0] == rp[0]) {
+        if (lp[1] == rp[1]) {
+          result = 0;
+        }
       }
       unsafe { out_val[0] = result; }
       if (out_hi != (0 as *i32)) {
