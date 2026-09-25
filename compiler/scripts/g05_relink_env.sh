@@ -374,6 +374,21 @@ fi
 # first-win the bake face when modlet.o cannot rebuild (T001). They
 # cross-call; both must link. Prefer ahead of other pabi sidecars.
 # PLATFORM: LINUX
+# w1021: module STRUCT_LIT-in-ARRAY CG002 when bake_struct was parked
+# (.o.off) and bake_elems orphan-gated. Restore bake_struct; rebuild
+# bake_elems from SHARED host-gcc seed (same as Win). PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ]; then
+  if [ ! -s build_asm/selfhost_pabi/bake_struct.o ] \
+    && [ -s build_asm/selfhost_pabi/bake_struct.o.off ]; then
+    cp -f build_asm/selfhost_pabi/bake_struct.o.off \
+      build_asm/selfhost_pabi/bake_struct.o
+  fi
+  if [ -s build_asm/selfhost_pabi/bake_struct.o ] \
+    && [ -f seeds/win_bake_elems_override.c ]; then
+    gcc -c -O2 -o build_asm/selfhost_pabi/bake_elems.o \
+      seeds/win_bake_elems_override.c || true
+  fi
+fi
 # w1017: elem_const tip first-wins folder when modlet.o is stale (T001 on
 # full modlet_thin). PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/elem_const.o ]; then

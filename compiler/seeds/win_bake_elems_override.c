@@ -1,10 +1,9 @@
 /**
- * PLATFORM: WINDOWS — host-gcc twin of pipe_modlet_bake_array_lit_elems_to_data.
+ * PLATFORM: SHARED — host-gcc twin of pipe_modlet_bake_array_lit_elems_to_data.
  *
- * w1020 root: PE tip built from bake_elems_thin.x is non-deterministic
- * CG002 (elf_ec=-1). Same PE weaken+jmp path with this host-gcc body is
- * stable. Darwin/Linux keep the .x tip; Win true-pack opt-in
- * (XLANG_WIN_BAKE_TIP=1) must link this .o as bake_elems.o.
+ * w1020/w1021: PE tip built from bake_elems_thin.x is non-deterministic
+ * CG002. Same body via host-gcc is stable on Windows (weaken+jmp) and on
+ * Linux (first-wins with bake_struct). Darwin keeps the .x tip.
  *
  * True-pack: named i8 → esz 1; named i16/u16 → esz 2 (w1012/w1015/w1016).
  * Cap residual other named stay on force_esz / glue (typically 4).
