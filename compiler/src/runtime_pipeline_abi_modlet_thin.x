@@ -238,9 +238,11 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * 1 and any other pair stores 0. true == true stores 1 and
  * true == false stores 0. (2 as bool) == true stores 0 because the
  * words are 2 and 1. (2 as bool) == (2 as bool) stores 1. The high
- * half written here is 0 and the return stays 1. Both children must
- * fold, and a child whose high half is not the sign fill stays
- * unfolded.
+ * half written here is 0 and the return stays 1. Both integer children
+ * must fold, and a child whose high half is not the sign fill stays
+ * unfolded. A float EQ also folds through pipe_modlet_fold_f64_elem_bits:
+ * host f64 `==` matches ucomis/sete (-0.0 == +0.0, NaN != NaN).
+ * 1.0 == 1.0 stores 1 and 1.0 == 2.0 stores 0.
  * An NE (ek 15) matches cmp and setne. Unequal words store 1 and
  * equal words store 0. true != false stores 1 and true != true
  * stores 0. (2 as bool) != true stores 1. The same sign-fill and
@@ -728,13 +730,14 @@ function pipe_modlet_array_lit_elem_const_val(
   // the words are 2 and 1. (2 as bool) == (2 as bool) stores 1.
   // Equality compares the words. It does not treat a nonzero word as
   // true. The baker pokes the high word this arm writes, so that word
-  // is 0 and the return stays 1. Both children must fold. A child
-  // whose high half is not the sign fill of the low word stays
+  // is 0 and the return stays 1. Both integer children must fold. A
+  // child whose high half is not the sign fill of the low word stays
   // unfolded. A resolved type other than bool stays unfolded. The
   // left word is saved in llo before the right fold reuses out_val.
   // The zero result is written before the equal test, so there is no
-  // else arm. LT, LE, GT, and GE are not this arm. A float compare
-  // stays unfolded.
+  // else arm. Float EQ tries pipe_modlet_fold_f64_elem_bits first;
+  // host f64 `==` matches ucomis/sete. 1.0 == 1.0 stores 1.
+  // LT, LE, GT, and GE are not this arm.
   // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 14) {
     unsafe {
@@ -743,6 +746,45 @@ function pipe_modlet_array_lit_elem_const_val(
     }
     if (left <= 0 || right <= 0) {
       return 0;
+    }
+    // Float equality. fold_f64 accepts FLOAT_LIT, float NEG/binop, and
+    // AS to f32/f64. Host `==` matches ucomis/sete. When the left is
+    // not a float constant, fall through to the integer path.
+    // PLATFORM: LINUX|UBUNTU.
+    if (pipe_modlet_fold_f64_elem_bits(arena, left, &(lp[0]), &(lp[1])) == 1) {
+      if (pipe_modlet_fold_f64_elem_bits(arena, right, &(rp[0]), &(rp[1])) == 0) {
+        return 0;
+      }
+      let av: f64 = 0.0;
+      let bv: f64 = 0.0;
+      unsafe {
+        unsafe { memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize); }
+        unsafe { memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize); }
+      }
+      rty = 0;
+      rtk = 0 - 1;
+      unsafe {
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+      }
+      if (rty > 0) {
+        unsafe {
+          unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+        }
+      }
+      if (rty > 0) {
+        if (rtk != 1) {
+          return 0;
+        }
+      }
+      result = 0;
+      if (av == bv) {
+        result = 1;
+      }
+      unsafe { out_val[0] = result; }
+      if (out_hi != (0 as *i32)) {
+        unsafe { out_hi[0] = 0; }
+      }
+      return 1;
     }
     if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi) == 0) {
       return 0;
