@@ -10,7 +10,8 @@
  * This object first-wins BOTH symbols. Same-TU index_elem → glue_index so
  * w1012: ARRAY/SLICE named i8 → esz=1 (true pack).
  * w1015: ARRAY/SLICE named i16 → esz=2 (true pack + sext16).
- * u16 stays Cap residual 4. PTR *i8 stays 1.
+ * w1016: ARRAY/SLICE named u16 → esz=2 (true pack + zext16).
+ * PTR *i8 stays 1.
  * Authority: SHARED tip first-wins (also Darwin/Linux via g05 sidecar).
  * Link FIRST via g05 _WIN_ASSIGN_OVERRIDES / selfhost_pabi.
  */
@@ -38,7 +39,7 @@ extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t 
 
 /**
  * Peel INDEX element byte size from a type ref.
- * ARRAY/SLICE named i8 → 1, i16 → 2 (true pack); u16 Cap residual → 4; PTR *i8 → 1.
+ * ARRAY/SLICE named i8 → 1, i16/u16 → 2 (true pack); PTR *i8 → 1.
  */
 int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   int32_t kind_ord;
@@ -131,8 +132,13 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
           return 2;
 #endif
         }
-        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6') {
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
           return 4;
+#else
+          return 2;
+#endif
+        }
         mod = pipeline_asm_emit_module_ref_c();
         if (mod) {
           ssz = glue_type_size_simple(mod, arena, pointee, 0);
@@ -151,7 +157,7 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   if (kind_ord == 11)
     return 16;
   if (kind_ord == 8) {
-    /* Bare named: true-pack i8 → 1, i16 → 2; Cap residual u16 → 4. */
+    /* Bare named: true-pack i8 → 1, i16/u16 → 2. */
     uint8_t sn[64];
     int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
     if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8') {
@@ -168,8 +174,13 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
       return 2;
     #endif
     }
-    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6') {
+    #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
       return 4;
+    #else
+      return 2;
+    #endif
+    }
     mod = pipeline_asm_emit_module_ref_c();
     if (mod) {
       ssz = glue_type_size_simple(mod, arena, tr, 0);
@@ -330,8 +341,13 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
           return 2;
         #endif
         }
-        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6') {
+#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
           return 4;
+#else
+          return 2;
+#endif
+        }
         mod = pipeline_asm_emit_module_ref_c();
         if (mod) {
           int32_t esz = glue_type_size_simple(mod, arena, pointee, 0);
@@ -358,8 +374,13 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
       return 2;
     #endif
     }
-    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6') {
+    #if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
       return 4;
+    #else
+      return 2;
+    #endif
+    }
     mod = pipeline_asm_emit_module_ref_c();
     if (mod) {
       int32_t esz = glue_type_size_simple(mod, arena, tr, 0);

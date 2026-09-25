@@ -3452,8 +3452,8 @@ function pipe_modlet_bake_array_lit_elems_to_data(
   unsafe { esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty); }
   // TYPE_NAMED keeps the struct stride. Clamping a 12-byte struct to 4
   // would overlap the next element. Scalar elems stay 1/2/4/8.
-  // Cap residual u16 use glue size 4. True-pack named i8 ARRAY:
-  // bake esz=1; named i16: bake esz=2 (w1012/w1015). PLATFORM: SHARED.
+  // True-pack named i8 ARRAY: bake esz=1; named i16/u16: bake esz=2
+  // (w1012/w1015/w1016). PLATFORM: SHARED.
   if (etk == 8 && esz == 4) {
     let sn: u8[64] = [];
     let sl: i32 = 0;
@@ -3464,6 +3464,9 @@ function pipe_modlet_bake_array_lit_elems_to_data(
       esz = 1;
     }
     if (sl == 3 && sn[0] == 105 && sn[1] == 49 && sn[2] == 54) {
+      esz = 2;
+    }
+    if (sl == 3 && sn[0] == 117 && sn[1] == 49 && sn[2] == 54) {
       esz = 2;
     }
   }

@@ -1,13 +1,9 @@
 /**
- * PLATFORM: SHARED tip — ARRAY_LIT true-pack named i8 → 1, i16 → 2.
+ * PLATFORM: SHARED tip — ARRAY_LIT true-pack named i8 → 1, i16/u16 → 2.
  *
  * Cap residual named_builtin / glue_type_size_simple still report 4 for
- * i8/i16 (struct fields). Local ARRAY_LIT flat stores used force_esz=0 →
- * pipeline_asm_array_lit_elem_byte_sz_c → 4 while INDEX tip reads esz=1/2.
- * Tip first-wins both faces so local lit stores pack like module bake.
- * u16 stays Cap residual 4 this wave (needs zext16 bake/INDEX together).
- * w1014: also override array_lit_elem_byte_sz (force_esz=0 path).
- * w1015: named i16 → 2.
+ * i8/i16/u16 (struct fields). Tip first-wins force_esz + elem_byte_sz so
+ * local lit stores pack like module bake. w1014 i8; w1015 i16; w1016 u16.
  */
 #include <stdint.h>
 
@@ -41,10 +37,12 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
   if (ek == 8) {
     uint8_t sn[64];
     int32_t sl = pipeline_type_named_name_into(arena, et, sn);
-    /* True-pack ARRAY_LIT named i8 / i16. PLATFORM: SHARED. */
+    /* True-pack ARRAY_LIT named i8 / i16 / u16. PLATFORM: SHARED. */
     if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
       return 1;
     if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+      return 2;
+    if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
       return 2;
     mod = pipeline_asm_emit_module_ref_c();
     if (mod) {
@@ -97,10 +95,12 @@ int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
     if (kind_ord == 8) {
       uint8_t sn[64];
       int32_t sl = pipeline_type_named_name_into(arena, elem_ty, sn);
-      /* True-pack named i8 / i16 (w1014/w1015 local flat). PLATFORM: SHARED. */
+      /* True-pack named i8 / i16 / u16 (w1014–w1016 local flat). PLATFORM: SHARED. */
       if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
         return 1;
       if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+        return 2;
+      if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
         return 2;
       mod = pipeline_asm_emit_module_ref_c();
       if (mod) {
