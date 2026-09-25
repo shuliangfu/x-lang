@@ -417,6 +417,16 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
 fi
+# w1022: true-pack [N]i8 row stride for nested INDEX/bake. PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
+  mkdir -p build_asm/selfhost_pabi
+  gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
+    seeds/fixed_array_total_bytes_true_pack_override.c || true
+fi
+if [ -n "$_PABI_SELFHOST" ] \
+  && [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
+fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
 # live function. Darwin ld has no multidef, so the cold symbol in a copy
@@ -554,6 +564,32 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
   fi
+  # w1022: true-pack [N]i8 row stride (named i8→1). Nested local INDEX.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
+    gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
+      seeds/fixed_array_total_bytes_true_pack_override.c 2>/dev/null || true
+  fi
+  if [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep -F "_glue_fixed_array_total_bytes_c" | grep -qv weak; then
+        "$_oc" --weaken-symbol=_glue_fixed_array_total_bytes_c \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      fi
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -607,6 +643,10 @@ case "$UNAME_S" in
         gcc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
           seeds/assign_index_true_i8_override.c || true
       fi
+      if [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
+        gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
+          seeds/fixed_array_total_bytes_true_pack_override.c || true
+      fi
     fi
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
       && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
@@ -626,6 +666,9 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/array_lit_esz_true_i8.o $_PABI_SELFHOST"
+      if [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+        _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
+      fi
     elif [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
     fi
@@ -667,7 +710,8 @@ case "$UNAME_S" in
             pipeline_asm_emit_index_elf_c glue_emit_index_load_arms_elf_c \
             glue_emit_assign_index_elf_c \
             glue_array_lit_force_esz_from_elem_type_c \
-            pipeline_asm_array_lit_elem_byte_sz_c; do
+            pipeline_asm_array_lit_elem_byte_sz_c \
+            glue_fixed_array_total_bytes_c; do
             "$_oc" --weaken-symbol="$_wsym" \
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done

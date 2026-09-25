@@ -147,6 +147,7 @@ def main() -> int:
         "glue_emit_assign_index_elf_c",
         "glue_array_lit_force_esz_from_elem_type_c",
         "pipeline_asm_array_lit_elem_byte_sz_c",
+        "glue_fixed_array_total_bytes_c",
     )
     patched = 0
     for name in names:
