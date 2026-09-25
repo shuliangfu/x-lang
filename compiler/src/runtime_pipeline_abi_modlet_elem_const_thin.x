@@ -146,7 +146,11 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * An LE (ek 17) matches cmp and setle. A signed less-or-equal stores
  * 1 and any other pair stores 0. 1 <= 2 stores 1 and 2 <= 1 stores 0.
  * 1 <= 1 stores 1. ((0 - 1) as i32) <= (0 - 1) stores 1. The same
- * sign-fill and bool-result rules as EQ apply.
+ * sign-fill and bool-result rules as EQ apply. A float LE also folds:
+ * return 4 (f32, widened) and return 5 (f64) start at 1 and clear
+ * when host `av > bv` (no bare `av <= bv`), matching ucomis/setbe
+ * for ordered values. 1.0 <= 2.0 stores 1 and 2.0 <= 1.0 stores 0.
+ * 1.0 <= 1.0 stores 1.
  * An GT (ek 18) matches cmp and setg. A signed greater-than stores 1
  * and any other pair stores 0. 2 > 1 stores 1 and 1 > 2 stores 0.
  * 1 > 1 stores 0. 0 > ((0 - 1) as i32) stores 1. The same sign-fill
@@ -1185,8 +1189,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // unfolded. The left word is copied into lv before the right fold
   // reuses out_val. Start at 1 and clear when `lv > rv` (same as
   // lv <= rv). Do not use a bare `lv <= rv` in this arm on the Windows
-  // host that compiles this thin. GE is not this arm. A float
-  // compare stays unfolded.
+  // host that compiles this thin. Float LE: return 4/5 widen to host
+  // f64; start at 1 and clear when `av > bv` (no bare `av <= bv`).
+  // 1.0 <= 2.0 stores 1. GE is not this arm.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek == 17) {
     unsafe {
@@ -1197,6 +1202,85 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       return 0;
     }
     ok = pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi);
+    // Float less-or-equal. Widen f32 through glue (same as float LT).
+    // Start at 1 and clear on `av > bv` — same Win-safe shape as the
+    // integer LE arm. Do not use a bare `av <= bv`.
+    // PLATFORM: MACOS|DARWIN / WINDOWS.
+    if (ok == 4 || ok == 5) {
+      got = ok;
+      if (ok == 4) {
+        unsafe {
+          lv = pipe_load_i32_le(out_val as *u8, 0);
+          llo = glue_ieee_f32_bits_to_f64_lo(lv);
+          lhi = glue_ieee_f32_bits_to_f64_hi(lv);
+        }
+      } else {
+        if (out_hi == 0 as *i32) {
+          return 0;
+        }
+        unsafe {
+          llo = pipe_load_i32_le(out_val as *u8, 0);
+          lhi = pipe_load_i32_le(out_hi as *u8, 0);
+        }
+      }
+      ok = pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi);
+      if (ok != got) {
+        return 0;
+      }
+      if (ok == 4) {
+        unsafe {
+          rv = pipe_load_i32_le(out_val as *u8, 0);
+          rlo = glue_ieee_f32_bits_to_f64_lo(rv);
+          rhi = glue_ieee_f32_bits_to_f64_hi(rv);
+        }
+      } else {
+        if (out_hi == 0 as *i32) {
+          return 0;
+        }
+        unsafe {
+          rlo = pipe_load_i32_le(out_val as *u8, 0);
+          rhi = pipe_load_i32_le(out_hi as *u8, 0);
+        }
+      }
+      rty = 0;
+      rtk = 0 - 1;
+      unsafe {
+        rty = pipeline_expr_resolved_type_ref(arena, eref);
+      }
+      if (rty > 0) {
+        unsafe {
+          rtk = pipeline_type_kind_ord_at(arena, rty);
+        }
+      }
+      if (rty > 0) {
+        if (rtk != 1) {
+          return 0;
+        }
+      }
+      lp[0] = llo;
+      lp[1] = lhi;
+      rp[0] = rlo;
+      rp[1] = rhi;
+      unsafe {
+        memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
+        memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
+      }
+      // Start-1 then clear on `av > bv` — same Win-safe shape as
+      // integer LE. PLATFORM: WINDOWS.
+      result = 1;
+      if (av > bv) {
+        result = 0;
+      }
+      unsafe {
+        pipe_store_i32_le(out_val as *u8, 0, result);
+      }
+      if (out_hi != 0 as *i32) {
+        unsafe {
+          pipe_store_i32_le(out_hi as *u8, 0, 0);
+        }
+      }
+      return 1;
+    }
     if (ok != 1) {
       return 0;
     }
