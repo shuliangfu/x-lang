@@ -860,9 +860,45 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/named_builtin_cap.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/named_builtin_cap.o $_PABI_SELFHOST"
     fi
+    # w1038: PE has no true weak (XLANG_WEAK empty). seed_link_compat
+    # arch_*_enc_enc_label stubs and asm_full_link_stubs arch_*_emit_call
+    # become strong T and first-wins over enc_dispatch / text authority.
+    # Weaken copies so real T is unique. PLATFORM: WINDOWS.
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      if [ -s src/seed_link_compat.o ]; then
+        cp -f src/seed_link_compat.o build_asm/selfhost_pabi/seed_link_compat_weak.o
+        for _wsym in arch_arm64_enc_enc_label arch_riscv64_enc_enc_label; do
+          "$_oc" --weaken-symbol="$_wsym" \
+            build_asm/selfhost_pabi/seed_link_compat_weak.o 2>/dev/null || true
+        done
+        _SEED_LINK_COMPAT="build_asm/selfhost_pabi/seed_link_compat_weak.o"
+      fi
+      if [ -s build_asm/seed_host/asm_full_link_stubs.o ]; then
+        cp -f build_asm/seed_host/asm_full_link_stubs.o \
+          build_asm/selfhost_pabi/asm_full_link_stubs_weak.o
+        for _wsym in arch_x86_64_emit_call arch_arm64_emit_call \
+          arch_riscv64_emit_call arch_arm64_enc_enc_label \
+          arch_riscv64_enc_enc_label; do
+          "$_oc" --weaken-symbol="$_wsym" \
+            build_asm/selfhost_pabi/asm_full_link_stubs_weak.o 2>/dev/null || true
+        done
+        # shellcheck disable=SC2001
+        _USER_ASM_LINK="$(printf '%s' "$_USER_ASM_LINK" | sed \
+          's|build_asm/seed_host/asm_full_link_stubs\.o|build_asm/selfhost_pabi/asm_full_link_stubs_weak.o|g')"
+      fi
+    fi
     ;;
 esac
-_DRIVER_SEED_OBJS="$_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_FRAME_SIZE $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o src/seed_link_compat.o src/token_typekind_tag_tables.o"
+# Default seed_link_compat path (POSIX keeps src/; Win may override above).
+: "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
+_DRIVER_SEED_OBJS="$_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_FRAME_SIZE $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
