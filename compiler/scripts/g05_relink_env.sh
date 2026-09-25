@@ -291,8 +291,9 @@ fi
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    # w1018: when true-pack tip stack is ON, skip src/win_index twin
-    # (same seed) to avoid dual T + wrong extraT jmp. PLATFORM: WINDOWS.
+    # w1019: when true-pack tip stack is ON (XLANG_WIN_BAKE_TIP=1), skip
+    # src/win_index Cap residual twin to avoid dual T. Tip INDEX .o must
+    # be built with -DXLANG_WIN_TRUE_PACK. Default Cap residual. PLATFORM: WINDOWS.
     _skip_src_win_index=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
@@ -556,10 +557,11 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
     # STRUCT_LIT elements. The egg baker calls this object.
-    # w1018: true-pack tip stack (bake + INDEX esz + emit sext + assign +
-    # force_esz) is opt-in via XLANG_WIN_BAKE_TIP=1. Default Cap residual —
-    # force_esz / elem_byte_sz tip still CG002 on some PE module lits
-    # (i32 plain lit vs DIV path). PLATFORM: WINDOWS.
+    # w1019: true-pack tip stack (bake + INDEX esz + emit sext + assign +
+    # force_esz) remains opt-in via XLANG_WIN_BAKE_TIP=1. Tip ON is
+    # non-deterministic CG002 on PE (same .x, elf_ec=-1/out_len=0).
+    # INDEX tip must be built with -DXLANG_WIN_TRUE_PACK. Default Cap
+    # residual. PLATFORM: WINDOWS.
     _WIN_TRUE_PACK=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
       && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
