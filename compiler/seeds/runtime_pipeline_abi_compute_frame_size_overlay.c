@@ -4,9 +4,10 @@
  * Root: the mega/egg body always raised scratch to 2048, so tip-compiled
  * leaf functions got `sub $0x888` even with call_spill==0 (w1028 map).
  * Authority .x + windows_e now skip the floor when call_spill==0, and
- * w1033 uses measured+256 for small call graphs (spill < 1024) while
- * keeping the 2048 floor for heavy graphs. This sidecar ships the same
- * body without waiting for a full egg rebuild (no g05_prepare / L4).
+ * w1033/w1040 use measured+64 for small call graphs (spill < 1024) while
+ * keeping the 2048 floor for heavy graphs. Leaf drops the +64 trailer.
+ * This sidecar ships the same body without waiting for a full egg rebuild
+ * (no g05_prepare / L4).
  *
  * Link ahead of runtime_pipeline_abi.o / pabi_weak. On Windows weaken the
  * egg T in pabi_weak so PE first-wins this strong T. Darwin/Ubuntu egg
@@ -112,16 +113,21 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, in
     }
   }
   scratch = call_spill;
-  /* w1032/w1033: leaf=0; small spill→+256; heavy (>=1024)→2048 floor. */
+  /* w1032/w1033/w1040: leaf=0; small spill→+64 pad; heavy (>=1024)→2048 floor.
+   * w1040 drops the unconditional +64 trailer (leaf was forced to sub $0x68)
+   * and shrinks small-spill pad 256→64 now that single-GP spill stride is 8. */
   if (call_spill > 0) {
     if (call_spill >= 1024) {
       if (scratch < 2048) {
         scratch = 2048;
       }
     } else {
-      scratch = call_spill + 256;
+      scratch = call_spill + 64;
     }
   }
   size = size + scratch;
-  return size + 64;
+  if (call_spill > 0) {
+    return size + 64;
+  }
+  return size;
 }

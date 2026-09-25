@@ -131,11 +131,10 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
       i = i + 1;
     }
-    // 32B per reg-class arg (GLUE_ASM_CALL_SPILL_SLOT_BYTES) plus one
-    // extra 32B slot: ARM64 emit uses 5 homes for a 4-arg CALL
-    // (glue_sysv_spill_rax_rdx_to_frame_c stride 32, plus ADDR_OF/INDEX
-    // temp). METHOD already counted receiver as +1.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
+    // w1040: single-GP spill stride is 8; dual-GP still 16 home + 16 advance.
+    // Count (n+1)*16 as the per-CALL budget (was *32 when stride was always 32).
+    // Extra +1 home: ARM64 emit can use n+1 slots for an n-arg CALL.
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 16;
     return;
   }
   // EXPR_METHOD_CALL = 49
@@ -162,7 +161,7 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
       i = i + 1;
     }
     // Receiver + args.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 32;
+    g_w157_spill_total = g_w157_spill_total + (n + 1) * 16;
     return;
   }
   // P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind

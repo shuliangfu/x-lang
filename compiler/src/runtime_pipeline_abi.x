@@ -35618,27 +35618,32 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   }
   scratch = call_spill;
   /* Min scratch is a safety net when the expr walker under-counts emit
-   * next_offset (void CALL expr_stmts, ADDR_OF/INDEX temps, extra 32B
-   * slot per CALL). wave157 used 512; Darwin `-backend c -o` SEGV showed
-   * invoke_cc_append_argv_head_flags storing at x29+0x898 past a 0x6d0
-   * frame (512 scratch) and smashing caller xlang_invoke_cc_impl's
-   * c_paths context. 2048 covers the observed ~1032B high-water.
+   * next_offset (void CALL expr_stmts, ADDR_OF/INDEX temps). wave157 used
+   * 512; Darwin `-backend c -o` SEGV showed invoke_cc_append_argv_head_flags
+   * storing at x29+0x898 past a 0x6d0 frame (512 scratch) and smashing
+   * caller xlang_invoke_cc_impl's c_paths context. 2048 covers the observed
+   * ~1032B high-water.
    * w1032: skip the floor when call_spill==0 (leaf / no CALL sites).
-   * w1033: small call graphs (spill < 1024) use measured + 256 pad so
-   * one-call tip trampolines are not forced to sub $0x858/$0x888; heavy
-   * graphs (spill >= 1024, near historical high-water) keep the 2048
-   * floor. PLATFORM: SHARED. */
+   * w1033: small call graphs (spill < 1024) use measured + pad so one-call
+   * tip trampolines are not forced to sub $0x858/$0x888; heavy graphs
+   * (spill >= 1024) keep the 2048 floor.
+   * w1040: single-GP spill stride 8; small pad 256→64; leaf drops the
+   * unconditional +64 trailer (was sub $0x68 on empty leaves).
+   * PLATFORM: SHARED. */
   if (call_spill > 0) {
     if (call_spill >= 1024) {
       if (scratch < 2048) {
         scratch = 2048;
       }
     } else {
-      scratch = call_spill + 256;
+      scratch = call_spill + 64;
     }
   }
   size = size + scratch;
-  return size + 64;
+  if (call_spill > 0) {
+    return size + 64;
+  }
+  return size;
 }
 
 /**

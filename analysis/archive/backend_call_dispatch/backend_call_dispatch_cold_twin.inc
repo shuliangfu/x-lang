@@ -910,10 +910,13 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
                                                    struct backend_AsmFuncCtx *ctx, int32_t ta, int32_t gp_units) {
   struct glue_AsmFuncCtxCall *ly;
   int32_t off;
+  int32_t step;
   if (!elf_ctx || !ctx || (ta != 0 && ta != 1))
     return -1;
   ly = (struct glue_AsmFuncCtxCall *)ctx;
-  off = ly->next_offset + 16;
+  /* w1040: single-GP stride 8 (was always 32). Dual-GP keeps 16-byte home. */
+  step = (gp_units >= 2) ? 16 : 8;
+  off = ly->next_offset + step;
   if (off < 16)
     off = 16;
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
@@ -929,7 +932,7 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
         return -1;
     }
   }
-  ly->next_offset = off + 16;
+  ly->next_offset = off + step;
   return off;
 }
 

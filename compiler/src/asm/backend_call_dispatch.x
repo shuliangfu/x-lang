@@ -999,6 +999,9 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
  * PLATFORM: LINUX+MACOS x86_64 SysV — multi-arg packing must materialize all values to memory
  * before loading GPs so dual-load (uses rdx) does not clobber already-placed higher arg regs.
  * PLATFORM: MACOS|ARM64 AAPCS64 — dual high half @ home+8 via x1 (wave600 seed twin).
+ * w1040: single-GP stride is 8 (was always 32 via cur+16 / off+16). Dual-GP keeps
+ * the 16-byte home so high half @ home-8 / home+8 stays valid. Tip thin trampolines
+ * were forced to sub $0x248 largely by the 32B-per-arg cursor.
  * @return i32 — spill offset (low half), or -1
  */
 function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_units: i32): i32 {
@@ -1009,7 +1012,12 @@ function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_unit
   }
   // AsmFuncCtx.next_offset is the second i32 (offset 4).
   let cur: i32 = call_dispatch_load_i32_le(ctx, 4);
-  let off: i32 = cur + 16;
+  let off: i32 = 0;
+  let step: i32 = 8;
+  if (gp_units >= 2) {
+    step = 16;
+  }
+  off = cur + step;
   if (off < 16) { off = 16; }
   if (backend_enc_store_rax_to_rbp_arch(elf, off, ta) != 0) { return 0 - 1; }
   if (gp_units >= 2) {
@@ -1021,7 +1029,7 @@ function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_unit
       if (backend_enc_store_x_reg_to_rbp_arch(elf, 1, off + 8, ta) != 0) { return 0 - 1; }
     }
   }
-  call_dispatch_store_i32_le(ctx, 4, off + 16);
+  call_dispatch_store_i32_le(ctx, 4, off + step);
   return off;
 }
 
