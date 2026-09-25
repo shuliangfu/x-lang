@@ -1054,9 +1054,9 @@ function pipe_modlet_array_lit_elem_const_val(
   // stays 1. Both children must fold. A child whose high half is not
   // the sign fill of the low word stays unfolded. A resolved type
   // other than bool stays unfolded. The left word is saved in llo
-  // before the right fold reuses out_val. An if on `llo > rv` writes
-  // 1; otherwise the result stays 0. GE is not this arm. A float
-  // compare stays unfolded.
+  // before the right fold reuses out_val. Start at 1 and clear when
+  // `rv > llo` or when equal (same as llo > rv). GE is not this arm.
+  // A float compare stays unfolded.
   // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 18) {
     unsafe {
@@ -1115,10 +1115,15 @@ function pipe_modlet_array_lit_elem_const_val(
         return 0;
       }
     }
-    // Same `llo > rv` as the LE clear. PLATFORM: LINUX|UBUNTU.
-    result = 0;
-    if (llo > rv) {
-      result = 1;
+    // Same start-1-then-clear as Darwin/Windows: clear when `rv > llo`
+    // or when equal. Avoid start-0-then-set-on-`>`, which that host
+    // miscompiled. PLATFORM: LINUX|UBUNTU.
+    result = 1;
+    if (rv > llo) {
+      result = 0;
+    }
+    if (llo == rv) {
+      result = 0;
     }
     unsafe { out_val[0] = result; }
     if (out_hi != (0 as *i32)) {

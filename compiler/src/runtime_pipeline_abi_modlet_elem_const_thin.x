@@ -1001,9 +1001,10 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // must fold as a sign fill. A 64-bit child whose high half is not
   // that fill stays unfolded. A resolved type that is not bool stays
   // unfolded. The left word is copied into lv before the right fold
-  // reuses out_val. An if on `lv > rv` writes 1; otherwise the result
-  // stays 0. That `>` shape already works in the LE arm on the Windows
-  // host. GE is not this arm. A float compare stays unfolded.
+  // reuses out_val. Start at 1 and clear when `rv > lv` or when the
+  // words are equal (same as lv > rv). Do not use start-0-then-set
+  // on `lv > rv` in this arm on the Windows host. GE is not this arm.
+  // A float compare stays unfolded.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek == 18) {
     unsafe {
@@ -1042,10 +1043,17 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     unsafe {
       rv = pipe_load_i32_le(out_val as *u8, 0);
     }
-    // Same `lv > rv` test the LE arm uses to clear. PLATFORM: WINDOWS.
-    result = 0;
-    if (lv > rv) {
-      result = 1;
+    // Build greater-than without start-0-then-set-on-`>`. That shape
+    // miscompiled on the Windows host (pairs became 1/1 or flipped).
+    // Start at 1 and clear when `rv > lv` or when equal — the same
+    // `>` / `==` tests the LE and EQ arms already use.
+    // PLATFORM: WINDOWS.
+    result = 1;
+    if (rv > lv) {
+      result = 0;
+    }
+    if (lv == rv) {
+      result = 0;
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, result);
