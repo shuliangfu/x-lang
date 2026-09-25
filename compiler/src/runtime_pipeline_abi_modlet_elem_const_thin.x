@@ -20,6 +20,12 @@ export extern "C" function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: 
 export extern "C" function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern "C" function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
+export extern "C" function glue_ieee_f32_bits_to_f64_lo(fb: i32): i32;
+export extern "C" function glue_ieee_f32_bits_to_f64_hi(fb: i32): i32;
+export extern "C" function glue_i32_to_f32_bits(v: i32): i32;
+export extern "C" function glue_i64_to_f64_bits(v: i64, lo: *i32, hi: *i32): void;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 
@@ -52,7 +58,13 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * Do not add pipe_modlet_fold_f64_elem_bits.
  * |x| >= 2^32 returns 0. Exact -2^31 returns 1. Inf and NaN return 0,
  * so (1.0 / 0.0) as i32 stays unfolded. Float MOD stays unfolded.
- * An f32-typed binop is not rounded back to f32 before the trunc.
+ * An f32 cast and an f32-typed binop round through the existing
+ * glue_ieee_f64_bits_to_f32_bits, then widen with
+ * glue_ieee_f32_bits_to_f64_lo / hi, before this trunc.
+ * (16777217.0 as f32) as i32 stores 16777216. A plain f64 value is
+ * not rounded: 16777217.0 as i32 stores 16777217. An integer cast
+ * to f32 uses glue_i32_to_f32_bits. Return 2 is not a signed i32,
+ * so that child stays unfolded.
  * TYPE_U64, TYPE_I64, TYPE_USIZE, and TYPE_ISIZE (kinds 4..7) store
  * this same i32 word. Return 1 means the baker sign-fills the high
  * half. A positive trunc in [2^31, 2^32) does not fit that fill: the
@@ -116,6 +128,8 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let av: f64 = 0.0;
   let bv: f64 = 0.0;
   let fr: f64 = 0.0;
+  let rty: i32 = 0;
+  let rtk: i32 = 0;
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
     return 0;
   }
@@ -259,7 +273,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       tk = pipeline_type_kind_ord_at(arena, tgt);
     }
     // 0 i32, 1 bool, 2 u8, 3 u32, 4 u64, 5 i64, 6 usize, 7 isize.
-    // f32 (14) and f64 (15) stay unfolded: this word is an integer.
+    // The outer target stays an integer. f32 (14) and f64 (15) are
+    // not stored in this word. An f32 cast inside the operand is
+    // rounded by the walker below before this trunc.
     if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7) {
       return 0;
     }
@@ -277,11 +293,14 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       return 1;
     }
     // Not an integer. Evaluate a float tree into flo/fhi, then truncate.
-    // Frames: 0 enter, 1 left or unary child is on the stack, 2 value
-    // is ready, 3 binop left bits sit in this frame and the right child
-    // is on the stack. Eight frames cover the probe trees. A deeper
-    // tree, a float MOD, or a non-float node returns 0. Host f64 is the
-    // operator. The bits never go through a second function.
+    // Frames: 0 enter, 1 the unary child, the cast operand, or the
+    // binop left child is on the stack, 2 value is ready, 3 binop
+    // left bits sit in this frame and the right child is on the stack.
+    // For a cast, stk_aux holds 14 (f32) or 15 (f64). For a binop it
+    // holds the right child ref. Eight frames cover the probe trees.
+    // A deeper tree, a float MOD, or a non-float node returns 0.
+    // Host f64 is the operator. An f32 node then calls the existing
+    // glue_ieee helpers. There is no second float folder.
     got = 0;
     sp = 0;
     guard = 0;
@@ -337,7 +356,78 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
                   sp = sp + 1;
                 }
               } else {
-                sp = 0;
+                if (sek == 54) {
+                  // AS to f32 or f64 inside the float tree. Other targets
+                  // are not part of this walk. stk_aux keeps 14 or 15.
+                  unsafe {
+                    child = pipeline_expr_as_operand_ref_at(arena, sref);
+                    left = pipeline_expr_as_target_type_ref_at(arena, sref);
+                  }
+                  rtk = 0;
+                  if (left > 0) {
+                    unsafe {
+                      rtk = pipeline_type_kind_ord_at(arena, left);
+                    }
+                  }
+                  if (child <= 0 || (rtk != 14 && rtk != 15)) {
+                    sp = 0;
+                  } else {
+                    stk_aux[si] = rtk;
+                    unsafe {
+                      sek = pipeline_expr_kind_ord_at(arena, child);
+                    }
+                    // A nested cast stays here only when its target is
+                    // also f32 or f64. An integer child is one signed
+                    // i32. Return 2 is a zero high half, and
+                    // glue_i32_to_f32_bits would read that word as a
+                    // negative i32, so it stays unfolded.
+                    rty = 0;
+                    if (sek == 54) {
+                      unsafe {
+                        rty = pipeline_expr_as_target_type_ref_at(arena, child);
+                      }
+                      if (rty > 0) {
+                        unsafe {
+                          rty = pipeline_type_kind_ord_at(arena, rty);
+                        }
+                      }
+                    }
+                    if (sek == 1 || sek == 22 || sek == 4 || sek == 5 || sek == 6 || sek == 7 || rty == 14 || rty == 15) {
+                      if (sp >= 8) {
+                        sp = 0;
+                      } else {
+                        stk_step[si] = 1;
+                        stk_ref[sp] = child;
+                        stk_step[sp] = 0;
+                        sp = sp + 1;
+                      }
+                    } else {
+                      oparts[0] = 0;
+                      ok = pipe_modlet_array_lit_elem_const_val(arena, child, &(oparts[0]));
+                      if (ok != 1) {
+                        sp = 0;
+                      } else {
+                        lv = oparts[0];
+                        if (rtk == 14) {
+                          unsafe {
+                            result = glue_i32_to_f32_bits(lv);
+                            stk_lo[si] = glue_ieee_f32_bits_to_f64_lo(result);
+                            stk_hi[si] = glue_ieee_f32_bits_to_f64_hi(result);
+                          }
+                        } else {
+                          unsafe {
+                            glue_i64_to_f64_bits(lv as i64, &(lp[0]), &(lp[1]));
+                          }
+                          stk_lo[si] = lp[0];
+                          stk_hi[si] = lp[1];
+                        }
+                        stk_step[si] = 2;
+                      }
+                    }
+                  }
+                } else {
+                  sp = 0;
+                }
               }
             }
           }
@@ -352,7 +442,25 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
               pi = si - 1;
               pstep = stk_step[pi];
               sek = stk_ek[pi];
-              if (pstep == 1 && sek == 22) {
+              // Cast completion is its own if. The f64 operators stay
+              // out of this compare's else, so the divisor reload is
+              // not dropped.
+              v = 0;
+              if (pstep == 1 && sek == 54) {
+                stk_lo[pi] = stk_lo[si];
+                stk_hi[pi] = stk_hi[si];
+                if (stk_aux[pi] == 14) {
+                  unsafe {
+                    result = glue_ieee_f64_bits_to_f32_bits(stk_lo[pi], stk_hi[pi]);
+                    stk_lo[pi] = glue_ieee_f32_bits_to_f64_lo(result);
+                    stk_hi[pi] = glue_ieee_f32_bits_to_f64_hi(result);
+                  }
+                }
+                stk_step[pi] = 2;
+                sp = si;
+                v = 1;
+              }
+              if (v == 0 && pstep == 1 && sek == 22) {
                 // NEG flips only the IEEE sign bit.
                 stk_lo[pi] = stk_lo[si];
                 if (stk_hi[si] < 0) {
@@ -409,10 +517,35 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
                     }
                     stk_lo[pi] = oparts[0];
                     stk_hi[pi] = oparts[1];
+                    // TYPE_F32 binop: the host operator ran in f64.
+                    // Round back to f32 and widen so the trunc matches
+                    // an f32 operation. 16777216.0 + 1.0 is 16777217.0
+                    // in f64 and 16777216.0 in f32. An unset or f64
+                    // type stays f64, so 16777217.0 as i32 is unchanged.
+                    rty = 0;
+                    unsafe {
+                      rty = pipeline_expr_resolved_type_ref(arena, stk_ref[pi]);
+                    }
+                    if (rty > 0) {
+                      unsafe {
+                        rtk = pipeline_type_kind_ord_at(arena, rty);
+                      }
+                      if (rtk == 14) {
+                        unsafe {
+                          result = glue_ieee_f64_bits_to_f32_bits(stk_lo[pi], stk_hi[pi]);
+                          stk_lo[pi] = glue_ieee_f32_bits_to_f64_lo(result);
+                          stk_hi[pi] = glue_ieee_f32_bits_to_f64_hi(result);
+                        }
+                      }
+                    }
                     stk_step[pi] = 2;
                     sp = si;
                   } else {
-                    sp = 0;
+                    // v == 1 means the cast arm already finished this
+                    // frame. Zeroing sp here would throw that value away.
+                    if (v == 0) {
+                      sp = 0;
+                    }
                   }
                 }
               }
