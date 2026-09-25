@@ -68,11 +68,11 @@ def _patch_w_to_t(
     strong: list[int],
     weak: list[int],
 ) -> int:
-    """Patch every weak entry to jmp the first strong T. Returns patch count."""
+    """Patch every weak entry to jmp the earliest strong T. Returns patch count."""
     if not strong or not weak:
         print(f"win_patch_body_sync_jmp: skip {name} (T/W missing)")
         return 0
-    t_addr = strong[0]
+    t_addr = min(strong)
     patched = 0
     for w_addr in weak:
         off = _va_to_off(secs, w_addr)
@@ -94,14 +94,17 @@ def _patch_extra_t_to_primary(
     strong: list[int],
 ) -> int:
     """
-    When weaken left multiple T (objcopy miss), keep the first T as tip and
-    jmp remaining T entries to it. PLATFORM: WINDOWS bake_array duplicates.
+    When weaken left multiple T (objcopy miss), keep the earliest-VA T as tip
+    (PE first-wins → tip linked first → usually lowest address) and jmp remaining
+    T entries to it. PLATFORM: WINDOWS bake_array / INDEX tip duplicates.
     """
     if len(strong) < 2:
         return 0
-    t_addr = strong[0]
+    t_addr = min(strong)
     patched = 0
-    for extra in strong[1:]:
+    for extra in strong:
+        if extra == t_addr:
+            continue
         off = _va_to_off(secs, extra)
         disp = t_addr - (extra + 5)
         want = bytes([0xE9]) + struct.pack("<i", disp)
@@ -133,8 +136,17 @@ def main() -> int:
         "backend_emit_block_body_sync_elf",
         "pipeline_asm_emit_block_body_sync_elf",
         "glue_block_body_emit_let_init",
-        # w1013 true-pack ARRAY i8 bake / INDEX load / assign. PLATFORM: WINDOWS.
+        # w1013/w1018 true-pack ARRAY i8 bake / INDEX load / assign / force_esz.
+        # PLATFORM: WINDOWS.
         "pipe_modlet_bake_array_lit_elems_to_data",
+        "pipeline_asm_index_elem_byte_sz_c",
+        "glue_index_elem_byte_sz_from_type_ref_c",
+        "pipeline_asm_index_elem_byte_sz",
+        "pipeline_asm_emit_index_elf_c",
+        "glue_emit_index_load_arms_elf_c",
+        "glue_emit_assign_index_elf_c",
+        "glue_array_lit_force_esz_from_elem_type_c",
+        "pipeline_asm_array_lit_elem_byte_sz_c",
     )
     patched = 0
     for name in names:
@@ -156,7 +168,7 @@ def main() -> int:
             cold_name = "pipe_modlet_bake_array_lit_elems_to_data_cold"
             cold = [a for a, k in syms.get(cold_name, []) if k in "Tt"]
             if strong and cold:
-                t_addr = strong[0]
+                t_addr = min(strong)
                 for c_addr in cold:
                     off = _va_to_off(secs, c_addr)
                     disp = t_addr - (c_addr + 5)
@@ -168,6 +180,9 @@ def main() -> int:
                     print(
                         f"win_patch_body_sync_jmp: {cold_name} t={c_addr:#x} -> T={t_addr:#x}"
                     )
+        elif weak and len(strong) > 1:
+            # Tip + leftover T duplicates: fold extras to first T.
+            patched += _patch_extra_t_to_primary(data, secs, name, strong)
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")

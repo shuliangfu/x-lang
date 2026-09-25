@@ -291,13 +291,23 @@ fi
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    # w1018: when true-pack tip stack is ON, skip src/win_index twin
+    # (same seed) to avoid dual T + wrong extraT jmp. PLATFORM: WINDOWS.
+    _skip_src_win_index=0
+    if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
+      && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+      _skip_src_win_index=1
+    fi
     for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+      if [ "$_skip_src_win_index" = "1" ] \
+        && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
+        continue
+      fi
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi
     done
-    # w1013: bake tip packs module i8; INDEX tip esz=1 (win_index). assign /
-    # emit / force_esz true_i8 tips parked on WINDOWS (jmp/CG002). PLATFORM: WINDOWS.
+    # w1018: true-pack tip stack opt-in (XLANG_WIN_BAKE_TIP=1). PLATFORM: WINDOWS.
     ;;
 esac
 # w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
@@ -546,27 +556,42 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
     # STRUCT_LIT elements. The egg baker calls this object.
-    # bake_elems tip: true-pack named i8 (w1013). Default OFF on WINDOWS —
-    # set XLANG_WIN_BAKE_TIP=1 after emit/assign tips are stable. PLATFORM: WINDOWS.
+    # w1018: true-pack tip stack (bake + INDEX esz + emit sext + assign +
+    # force_esz) is opt-in via XLANG_WIN_BAKE_TIP=1. Default Cap residual —
+    # force_esz / elem_byte_sz tip still CG002 on some PE module lits
+    # (i32 plain lit vs DIV path). PLATFORM: WINDOWS.
+    _WIN_TRUE_PACK=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
-      && [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
-      _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
+      && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
+      && [ -s build_asm/selfhost_pabi/bake_struct.o ] \
+      && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ] \
+      && [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ] \
+      && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ] \
+      && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+      _WIN_TRUE_PACK=1
     fi
-    if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
+    if [ "$_WIN_TRUE_PACK" = "1" ]; then
+      _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
+    elif [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
     fi
     # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
-    # w1009/w1010/w1013: body_sync + emit_let_init + optional bake tip.
+    # w1009/w1010/w1013/w1018: body_sync + emit_let_init + optional true-pack.
     # Host-gcc / tip first-wins. mega same-TU REL32 or local e8 keeps leftover —
     # weaken a COPY (pabi_weak.o), never mutate egg runtime_pipeline_abi.o;
-    # post-link win_patch_body_sync_jmp redirects leftover W→T.
+    # post-link win_patch_body_sync_jmp redirects leftover W→T (earliest VA).
     # PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
       || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
-      || { [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ]; }; then
+      || [ "$_WIN_TRUE_PACK" = "1" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -585,11 +610,18 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=glue_block_body_emit_let_init \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
-        # w1013: true-pack bake tip (opt-in). PLATFORM: WINDOWS.
-        if [ "${XLANG_WIN_BAKE_TIP:-}" = "1" ] \
-          && [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
-          "$_oc" --weaken-symbol=pipe_modlet_bake_array_lit_elems_to_data \
-            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        # w1018: true-pack tip stack weaken leftovers. PLATFORM: WINDOWS.
+        if [ "$_WIN_TRUE_PACK" = "1" ]; then
+          for _wsym in pipe_modlet_bake_array_lit_elems_to_data \
+            pipeline_asm_index_elem_byte_sz_c glue_index_elem_byte_sz_from_type_ref_c \
+            pipeline_asm_index_elem_byte_sz \
+            pipeline_asm_emit_index_elf_c glue_emit_index_load_arms_elf_c \
+            glue_emit_assign_index_elf_c \
+            glue_array_lit_force_esz_from_elem_type_c \
+            pipeline_asm_array_lit_elem_byte_sz_c; do
+            "$_oc" --weaken-symbol="$_wsym" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          done
         fi
         _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
       fi
