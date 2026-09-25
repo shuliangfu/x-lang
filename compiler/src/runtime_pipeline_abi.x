@@ -58499,6 +58499,8 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
   }
   // EXPR_CALL = 48
   if (ko == 48) {
+    let need: i32 = 0;
+    let ako: i32 = 0;
     unsafe {
       n = pipeline_expr_call_num_args_at(arena, expr_ref);
     }
@@ -58514,21 +58516,35 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
       }
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      // w1042: EXPR_VAR reuses stack home — no fresh spill slot.
+      unsafe {
+        ako = pipeline_expr_kind_ord_at(arena, arg_ref);
+      }
+      if (arg_ref > 0 && ako != 3) {
+        need = need + 1;
+      }
       i = i + 1;
     }
-    // w1041: (n+1)*8 matches single-GP spill stride 8 (was *32; w1040
-    // cold/thin *16 never landed in product egg — HARD BAN tip reinject).
-    // Extra +1 covers ADDR_OF/INDEX temp / dual-GP high half slack.
-    // METHOD already counted receiver as +1 in the walk.
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 8;
+    if (need > 0 || n == 0) {
+      need = need + 1;
+    }
+    g_w157_spill_total = g_w157_spill_total + need * 8;
     return;
   }
   // EXPR_METHOD_CALL = 49
   if (ko == 49) {
+    let need_m: i32 = 0;
+    let ako_m: i32 = 0;
     unsafe {
       arg_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
     }
     w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    unsafe {
+      ako_m = pipeline_expr_kind_ord_at(arena, arg_ref);
+    }
+    if (arg_ref > 0 && ako_m != 3) {
+      need_m = need_m + 1;
+    }
     unsafe {
       n = pipeline_expr_method_call_num_args_at(arena, expr_ref);
     }
@@ -58544,10 +58560,18 @@ function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
         arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
       }
       w157_sum_expr_call_spill_bytes(arena, arg_ref);
+      unsafe {
+        ako_m = pipeline_expr_kind_ord_at(arena, arg_ref);
+      }
+      if (arg_ref > 0 && ako_m != 3) {
+        need_m = need_m + 1;
+      }
       i = i + 1;
     }
-    // Receiver + args (w1041 *8).
-    g_w157_spill_total = g_w157_spill_total + (n + 1) * 8;
+    if (need_m > 0) {
+      need_m = need_m + 1;
+    }
+    g_w157_spill_total = g_w157_spill_total + need_m * 8;
     return;
   }
   // P12g root fix (2026-09-15): EXPR_IF(25)/EXPR_BLOCK(26) share kind

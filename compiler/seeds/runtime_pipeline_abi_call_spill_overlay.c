@@ -94,12 +94,23 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
     if (n > 64) {
       n = 64;
     }
-    for (i = 0; i < n; i++) {
-      arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
-      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    {
+      int32_t need = 0;
+      for (i = 0; i < n; i++) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        w157_sum_expr_call_spill_bytes(arena, arg_ref);
+        /* w1042: EXPR_VAR args reuse stack homes (call_dispatch elide) —
+         * do not reserve a fresh spill slot for them. */
+        if (arg_ref > 0 && pipeline_expr_kind_ord_at(arena, arg_ref) != 3) {
+          need = need + 1;
+        }
+      }
+      /* One temp slot when any non-VAR arg / empty call still needs scratch. */
+      if (need > 0 || n == 0) {
+        need = need + 1;
+      }
+      g_w157_spill_total += need * 8;
     }
-    /* w1041: match single-GP spill stride 8 (was egg *32 / cold *16). */
-    g_w157_spill_total += (n + 1) * 8;
     return;
   }
   if (ko == 49) { /* EXPR_METHOD_CALL */
@@ -112,11 +123,24 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
     if (n > 64) {
       n = 64;
     }
-    for (i = 0; i < n; i++) {
-      arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
-      w157_sum_expr_call_spill_bytes(arena, arg_ref);
+    {
+      int32_t need = 0;
+      /* Receiver: count unless it is EXPR_VAR (home reuse). */
+      if (arg_ref > 0 && pipeline_expr_kind_ord_at(arena, arg_ref) != 3) {
+        need = need + 1;
+      }
+      for (i = 0; i < n; i++) {
+        arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
+        w157_sum_expr_call_spill_bytes(arena, arg_ref);
+        if (arg_ref > 0 && pipeline_expr_kind_ord_at(arena, arg_ref) != 3) {
+          need = need + 1;
+        }
+      }
+      if (need > 0) {
+        need = need + 1;
+      }
+      g_w157_spill_total += need * 8;
     }
-    g_w157_spill_total += (n + 1) * 8;
     return;
   }
   /*
