@@ -69,6 +69,12 @@ export extern function pipeline_module_top_level_let_name_len(module: *u8, idx: 
 export extern function pipeline_module_top_level_let_type_ref(module: *u8, idx: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+/**
+ * Copy a TYPE_NAMED spelling into out. Cap residual i8/i16/u16 use this
+ * because they have no first-class TypeKind (wave313).
+ * PLATFORM: SHARED — same bytes as typeck_int_family_id.
+ */
+export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out: *u8): i32;
 export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, field_ix: i32): i32;
 export extern function pipeline_expr_struct_lit_field_offset_at(arena: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32;
@@ -280,7 +286,9 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * 1.0 >= 1.0 stores 1.
  * An i32 add
  * inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
- * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
+ * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). TYPE_NAMED (8)
+ * i8/i16/u16 are Cap residual spellings (no TypeKind); same 32-bit cell.
+ * The 1-byte baker
  * peels the low byte, so `256 as u8` stores 0 and `2 as bool` stores 2
  * (the runtime emitter does not force a bool to 0 or 1). 64-bit targets
  * are TYPE_U64 (4), TYPE_I64 (5), TYPE_USIZE (6), and TYPE_ISIZE (7),
@@ -2146,8 +2154,49 @@ function pipe_modlet_array_lit_elem_const_val(
       return 1;
     }
     // TYPE_I32 = 0, TYPE_BOOL = 1, TYPE_U8 = 2, TYPE_U32 = 3.
-    // A 1-byte cell peels the low byte of this word.
-    if (tk != 0 && tk != 1 && tk != 2 && tk != 3) {
+    // TYPE_NAMED = 8: only Cap residual i8/i16/u16 (no TypeKind).
+    // Same 32-bit cell; baker peels esz. Other named stay unfolded.
+    // PLATFORM: SHARED — name bytes match typeck_int_family_id.
+    if (tk == 8) {
+      let nm: u8[8] = [];
+      let nlen: i32 = 0;
+      let named_ok: i32 = 0;
+      unsafe {
+        nlen = pipeline_type_named_name_into(arena, tgt, &(nm[0]));
+      }
+      // "i8"
+      if (nlen == 2) {
+        if (nm[0] == 105) {
+          if (nm[1] == 56) {
+            named_ok = 1;
+          }
+        }
+      }
+      // "i16"
+      if (nlen == 3) {
+        if (nm[0] == 105) {
+          if (nm[1] == 49) {
+            if (nm[2] == 54) {
+              named_ok = 1;
+            }
+          }
+        }
+      }
+      // "u16"
+      if (nlen == 3) {
+        if (nm[0] == 117) {
+          if (nm[1] == 49) {
+            if (nm[2] == 54) {
+              named_ok = 1;
+            }
+          }
+        }
+      }
+      if (named_ok == 0) {
+        return 0;
+      }
+    }
+    if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 8) {
       return 0;
     }
     if (pipe_modlet_fold_f64_elem_bits(arena, op, &flo, &fhi) == 0) {

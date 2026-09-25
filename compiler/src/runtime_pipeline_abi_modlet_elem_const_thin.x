@@ -20,6 +20,12 @@ export extern "C" function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: 
 export extern "C" function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+/**
+ * Copy a TYPE_NAMED spelling into out (cap 64). Used to recognize
+ * Cap residual i8/i16/u16, which have no first-class TypeKind.
+ * PLATFORM: SHARED — same bytes as typeck_int_family_id.
+ */
+export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out: *u8): i32;
 export extern "C" function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern "C" function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
 export extern "C" function glue_ieee_f32_bits_to_f64_lo(fb: i32): i32;
@@ -581,7 +587,11 @@ function pipe_modlet_array_lit_elem_const_walk(
  * negative dividend then traps that process. A shift count outside
  * 0..31 returns 0.
  * EXPR_AS (ek 54) accepts TYPE_I32 (0), TYPE_BOOL (1), TYPE_U8 (2),
- * and TYPE_U32 (3). The baker peels esz bytes of this word, so a u8
+ * and TYPE_U32 (3). TYPE_NAMED (8) i8 / i16 / u16 are Cap residual
+ * spellings with no first-class TypeKind; this folder treats them as
+ * the same 32-bit cell (baker peels esz bytes; current named leaf
+ * size is still 4). Other TYPE_NAMED spellings stay unfolded. The baker
+ * peels esz bytes of this word, so a u8
  * cell keeps the low byte: (0 - 1) as u8 stores 255, 256 as u8 stores 0,
  * and 2 as bool stays 2. A float operand truncates toward zero into
  * this i32 word. The float tree may be a FLOAT_LIT, NEG, or
@@ -771,6 +781,9 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   let whi: i32 = 0;
   let bit: i32 = 0;
   let enter_walk: i32 = 0;
+  let named_ok: i32 = 0;
+  let nlen: i32 = 0;
+  let nm: u8[8] = [];
   if (arena == 0 as *u8 || eref <= 0 || out_val == 0 as *i32) {
     return 0;
   }
@@ -2209,9 +2222,49 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       tk = pipeline_type_kind_ord_at(arena, tgt);
     }
     // 0 i32, 1 bool, 2 u8, 3 u32, 4 u64, 5 i64, 6 usize, 7 isize.
+    // 8 TYPE_NAMED: only Cap residual i8/i16/u16 (no TypeKind; same
+    // 32-bit cell as 0..3). Other named spellings stay unfolded.
     // 14 is f32: the word below is the IEEE pattern, not a trunc.
     // 15 is f64: both halves below are the IEEE pattern, not a trunc.
-    if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7 && tk != 14 && tk != 15) {
+    // PLATFORM: SHARED — name bytes match typeck_int_family_id.
+    named_ok = 0;
+    if (tk == 8) {
+      unsafe {
+        nlen = pipeline_type_named_name_into(arena, tgt, &(nm[0]));
+      }
+      // "i8"
+      if (nlen == 2) {
+        if (nm[0] == 105) {
+          if (nm[1] == 56) {
+            named_ok = 1;
+          }
+        }
+      }
+      // "i16"
+      if (nlen == 3) {
+        if (nm[0] == 105) {
+          if (nm[1] == 49) {
+            if (nm[2] == 54) {
+              named_ok = 1;
+            }
+          }
+        }
+      }
+      // "u16"
+      if (nlen == 3) {
+        if (nm[0] == 117) {
+          if (nm[1] == 49) {
+            if (nm[2] == 54) {
+              named_ok = 1;
+            }
+          }
+        }
+      }
+      if (named_ok == 0) {
+        return 0;
+      }
+    }
+    if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7 && tk != 8 && tk != 14 && tk != 15) {
       return 0;
     }
     // A child return of 2 is a zero high half. A narrower cast of that
