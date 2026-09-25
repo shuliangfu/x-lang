@@ -3,9 +3,10 @@
 // slot's high half is always zero. This strong definition is the
 // same control flow. Return 1 sign-fills the i32 word. Return 2
 // writes a zero high half for [2^31, 2^32).
-// Ubuntu's modlet.o already writes a real high half through the
-// 4-arg folder. Do not link this object on Linux.
-// PLATFORM: MACOS|DARWIN / WINDOWS. Do not PREFER into runtime_pipeline_abi.o.
+// Ubuntu prefers modlet.o for the full family; when modlet cannot
+// rebuild (T001), this tip first-wins pipe_modlet_bake_array_lit_elems
+// alone (w1012 named i8 esz=1). PLATFORM: MACOS|DARWIN / WINDOWS /
+// LINUX (bake face only). Do not PREFER into runtime_pipeline_abi.o.
 
 export extern "C" function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern "C" function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
