@@ -12918,6 +12918,8 @@ int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_re
 extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
+/* Forward: INDEX esz authority (defined later in WIN leftover emit_binop cluster). */
+extern int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t expr_ref);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
@@ -13097,7 +13099,14 @@ int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int3
     }
     modp = glue_emit_module_from_ctx(ctx);
     rtr = pipeline_expr_resolved_type_ref(arena, lval_ref);
-    esz = glue_type_size_simple(modp, arena, rtr, 0);
+    /* Cap residual: INDEX result type size (named i8→1) ≠ bake stride (4).
+     * G.7: same authority as emit_index — pipeline_asm_index_elem_byte_sz_c
+     * (ARRAY peel / Cap residual force-4). Do not use glue_type_size_simple
+     * on the INDEX result type alone.
+     * PLATFORM: WINDOWS leftover-PE. */
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    if (esz <= 0)
+      esz = glue_type_size_simple(modp, arena, rtr, 0);
     if (esz <= 0)
       esz = 4;
     idx_ko = pipeline_expr_kind_ord_at(arena, idx_ref);
