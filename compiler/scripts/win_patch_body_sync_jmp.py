@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Post-link PE patch: leftover body_sync entries jmp to the strong twin.
+Post-link PE patch: leftover body_sync / emit_let_init entries jmp to strong twin.
 
 Root (w1010): Windows mega_body lives in the same egg runtime_pipeline_abi.o as
-leftover body_sync. Same-TU REL32 keeps calling the leftover even when a strong
-host-gcc twin is first-wins and leftover symbols are weakened. Strip-symbol is
-refused while relocs name the symbol. Patching the leftover entry to
-`jmp rel32` toward the strong T redirects mega without rewriting the egg TU.
+leftover body_sync (and tip emit_let_init). Same-TU REL32 keeps calling the
+leftover even when a strong host-gcc twin is first-wins and leftover symbols are
+weakened. Strip-symbol is refused while relocs name the symbol. Patching the
+leftover entry to `jmp rel32` toward the strong T redirects mega without
+rewriting the egg TU.
+
+Also patches glue_block_body_emit_let_init: tip stack u8[256] vn smash breaks
+f32 lets; host-gcc BSS twin is first-wins T but same-TU callers still hit W.
 
 Usage (from compiler/ after g05 link):
   python3 scripts/win_patch_body_sync_jmp.py [xlang.exe]
@@ -72,6 +76,7 @@ def main() -> int:
     names = (
         "backend_emit_block_body_sync_elf",
         "pipeline_asm_emit_block_body_sync_elf",
+        "glue_block_body_emit_let_init",
     )
     patched = 0
     for name in names:
