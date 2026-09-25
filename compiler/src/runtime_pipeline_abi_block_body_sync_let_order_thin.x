@@ -4,9 +4,10 @@
 // G.7: pass0 consts + pure lets; pass1 deferred at stmt_order.
 // BSS buffers avoid tip asm smash on u8[512] stack frames (wave703 class).
 // Darwin/Linux: tip-compile this .x → body_sync_let_order.o (first-wins).
-// Windows (w1010): tip PREFER_ASM PE smash still corrupts defer → host-gcc
-//   twin runtime_pipeline_abi_block_body_sync_let_order_thin.c instead.
-// PLATFORM: SHARED freestanding · LINUX gold · MACOS|DARWIN · WINDOWS host-C.
+// Windows (w1010): host-gcc twin .c first-wins; mega same-TU still calls
+//   leftover — g05 post-link win_patch_body_sync_jmp redirects leftover
+//   entry to the twin (`jmp` rel32).
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS|DARWIN · WINDOWS.
 
 export extern function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
 export extern function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32;

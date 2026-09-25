@@ -116,6 +116,18 @@ else
   run_g05_pure_ld_required
 fi
 
+# w1010: PE mega same-TU leftover body_sync → jmp to host-gcc twin.
+# PLATFORM: WINDOWS only (script no-ops on Mach-O/ELF).
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*)
+    if [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "${OUT}.exe" ]; then
+      python3 scripts/win_patch_body_sync_jmp.py "${OUT}.exe" || true
+    elif [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "$OUT" ]; then
+      python3 scripts/win_patch_body_sync_jmp.py "$OUT" || true
+    fi
+    ;;
+esac
+
 cp -f "$OUT" "$XLANG_C"
 cp -f "$OUT" "$BOOTSTRAP"
 echo "g05_relink_xlang OK ($OUT → $XLANG_C + $BOOTSTRAP)"

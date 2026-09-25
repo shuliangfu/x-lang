@@ -1,14 +1,14 @@
 /*
  * Host-gcc twin of runtime_pipeline_abi_block_body_sync_let_order_thin.x.
- * Root (w1009/w1010): tip PREFER_ASM on PE produces smash frames (~0x1db8 +
- *   cltq) that corrupt deferred-let order so hoist2/hoist3 stay 1/0 even
- *   when the thin T first-wins. Host gcc emits correct stack; Darwin/Linux
- *   keep the .x tip object.
+ * Root (w1009/w1010): tip PREFER_ASM on PE produces large frames; more
+ *   importantly mega_body same-TU REL32 keeps leftover body_sync even when
+ *   this twin first-wins. g05 post-link win_patch_body_sync_jmp.py patches
+ *   leftover entry to jmp here. Darwin/Linux keep the tip .x object.
  * G.7: same two-pass semantics as the .x thin (pass0 pure lets; pass1
  *   deferred at stmt_order k==1; k==2 emits RETURN).
  * Build: gcc -c -O2 → build_asm/selfhost_pabi/body_sync_let_order.o
  *   (Windows g05_relink_env first-wins after weaken egg pabi).
- * PLATFORM: WINDOWS — PE tip smash bypass; LINUX/MACOS use .x tip object.
+ * PLATFORM: WINDOWS — PE same-TU leftover bypass; LINUX/MACOS use .x tip object.
  */
 #include <stdint.h>
 #include <string.h>
