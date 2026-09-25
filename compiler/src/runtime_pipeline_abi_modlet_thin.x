@@ -2501,6 +2501,7 @@ function pipe_modlet_assign_unique_label(idx: i32, module_fp: i64): void {
  * @param lit_ref i32 — STRUCT_LIT expr
  * @param fi i32 — field index
  * @return i32 — 1, 4, or 8; -1 when the field is not an integer scalar
+ *   (TYPE_NAMED Cap residual i8/i16/u16 return 4 — typeck default size)
  * PLATFORM: SHARED — same widths as a scalar ARRAY_LIT element.
  */
 function pipe_modlet_struct_field_int_width(
@@ -2521,7 +2522,10 @@ function pipe_modlet_struct_field_int_width(
     unsafe { k = pipeline_type_kind_ord_at(arena, fty); }
   }
   // u8 / bool, then the 4-byte integers, then the 8-byte integers.
-  // A named or aggregate field is not an integer scalar.
+  // TYPE_NAMED Cap residual i8/i16/u16: typeck sizes them as 4 today
+  // (named_builtin_size falls through to 4). Other named / aggregates
+  // are not integer scalars.
+  // PLATFORM: SHARED — name bytes match typeck_int_family_id.
   if (k == 1 || k == 2) {
     return 1;
   }
@@ -2530,6 +2534,45 @@ function pipe_modlet_struct_field_int_width(
   }
   if (k == 4 || k == 5 || k == 6 || k == 7 || k == 15) {
     return 8;
+  }
+  if (k == 8) {
+    let nm: u8[8] = [];
+    let nlen: i32 = 0;
+    let named_ok: i32 = 0;
+    unsafe {
+      nlen = pipeline_type_named_name_into(arena, fty, &(nm[0]));
+    }
+    // "i8"
+    if (nlen == 2) {
+      if (nm[0] == 105) {
+        if (nm[1] == 56) {
+          named_ok = 1;
+        }
+      }
+    }
+    // "i16"
+    if (nlen == 3) {
+      if (nm[0] == 105) {
+        if (nm[1] == 49) {
+          if (nm[2] == 54) {
+            named_ok = 1;
+          }
+        }
+      }
+    }
+    // "u16"
+    if (nlen == 3) {
+      if (nm[0] == 117) {
+        if (nm[1] == 49) {
+          if (nm[2] == 54) {
+            named_ok = 1;
+          }
+        }
+      }
+    }
+    if (named_ok == 1) {
+      return 4;
+    }
   }
   return 0 - 1;
 }

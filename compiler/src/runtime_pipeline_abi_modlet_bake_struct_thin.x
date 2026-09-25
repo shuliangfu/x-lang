@@ -15,6 +15,12 @@ export extern "C" function pipeline_expr_struct_lit_field_offset_at(arena: *u8, 
 export extern "C" function pipeline_expr_struct_lit_field_type_ref_at(arena: *u8, m: *u8, expr_ref: i32, field_ix: i32): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, ref: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+/**
+ * Copy a TYPE_NAMED spelling into out. Cap residual i8/i16/u16 have no
+ * TypeKind; the baker uses the same name bytes as typeck_int_family_id.
+ * PLATFORM: SHARED.
+ */
+export extern "C" function pipeline_type_named_name_into(arena: *u8, ref: i32, out: *u8): i32;
 export extern "C" function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_val: *i32, out_hi: *i32): i32;
 export extern "C" function pipe_modlet_bake_array_lit_elems_to_data(
   arena: *u8, elf_ctx: *u8, init_ref: i32, elem_ty: i32,
@@ -37,6 +43,9 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * low word. S { v: 1.0 } for an f64 field is 000000000000f03f.
  * 0.1 keeps high 0x3fb99999. Nested STRUCT_LIT recurses. STRING_LIT,
  * ARRAY_LIT, and pointer or function fields keep their bakers.
+ * TYPE_NAMED Cap residual i8/i16/u16 are scalar fields: typeck sizes
+ * them as 4 today (named_builtin_size falls through to 4), so this
+ * baker peels four bytes. Other named spellings stay loud-fail.
  * Padding stays the reserved zero. More than 64 fields loud-fails.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — object writer; null returns -1
@@ -74,6 +83,9 @@ export function pipe_modlet_bake_struct_lit_to_data(
   let h2: i32 = 0;
   let h3: i32 = 0;
   let slot: i32 = 0;
+  let nlen: i32 = 0;
+  let named_ok: i32 = 0;
+  let nm: u8[8] = [];
   if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || m == 0 as *u8 || lit_ref <= 0 || elem_base < 0) {
     return 0 - 1;
   }
@@ -171,7 +183,10 @@ export function pipe_modlet_bake_struct_lit_to_data(
       if (done == 0) {
         // 1 bool, 2 u8, 0 i32, 3 u32, 13 the 4-byte kind the Linux
         // width helper accepts, 14 f32. 4 u64, 5 i64, 6 usize,
-        // 7 isize, 15 f64. Anything else is not a scalar field.
+        // 7 isize, 15 f64. TYPE_NAMED (8) Cap residual i8/i16/u16:
+        // typeck sizes them as 4 today, so peel four bytes. Other
+        // named spellings are not scalar fields.
+        // PLATFORM: SHARED — name bytes match typeck_int_family_id.
         fsz = 0;
         if (fk == 1 || fk == 2) {
           fsz = 1;
@@ -181,6 +196,43 @@ export function pipe_modlet_bake_struct_lit_to_data(
         }
         if (fk == 4 || fk == 5 || fk == 6 || fk == 7 || fk == 15) {
           fsz = 8;
+        }
+        if (fk == 8) {
+          named_ok = 0;
+          unsafe {
+            nlen = pipeline_type_named_name_into(arena, fty, &(nm[0]));
+          }
+          // "i8"
+          if (nlen == 2) {
+            if (nm[0] == 105) {
+              if (nm[1] == 56) {
+                named_ok = 1;
+              }
+            }
+          }
+          // "i16"
+          if (nlen == 3) {
+            if (nm[0] == 105) {
+              if (nm[1] == 49) {
+                if (nm[2] == 54) {
+                  named_ok = 1;
+                }
+              }
+            }
+          }
+          // "u16"
+          if (nlen == 3) {
+            if (nm[0] == 117) {
+              if (nm[1] == 49) {
+                if (nm[2] == 54) {
+                  named_ok = 1;
+                }
+              }
+            }
+          }
+          if (named_ok == 1) {
+            fsz = 4;
+          }
         }
         if (fsz <= 0) {
           return 0 - 1;
