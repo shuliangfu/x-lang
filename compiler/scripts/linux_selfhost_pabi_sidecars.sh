@@ -257,5 +257,18 @@ gcc -c -O2 -o "$OUT/emit_index_true_i8.o" seeds/emit_index_true_i8_override.c
 gcc -c -O2 -o "$OUT/assign_index_true_i8.o" seeds/assign_index_true_i8_override.c
 gcc -c -O2 -o "$OUT/force_esz_true_i8.o" seeds/force_esz_true_i8_override.c
 
+# w1017: elem_const tip (DIV/MOD by zero → 0). First-wins over stale
+# modlet folder when full modlet_thin T001. PLATFORM: LINUX.
+echo "linux_selfhost_pabi_sidecars: w1017 elem_const tip"
+if ! timeout 240 env XLANG_PREFER_ASM_O=1 ./xlang -c -backend asm \
+    -o "$OUT/elem_const.o" src/runtime_pipeline_abi_modlet_elem_const_thin.x; then
+  echo "linux_selfhost_pabi_sidecars: elem_const tip failed" >&2
+  exit 1
+fi
+if objdump -r "$OUT/elem_const.o" | grep -q 'xlang_panic_'; then
+  echo "linux_selfhost_pabi_sidecars: elem_const panic reloc" >&2
+  exit 1
+fi
+
 : > "$OUT/READY"
 echo "linux_selfhost_pabi_sidecars: OK $OUT"

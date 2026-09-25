@@ -363,6 +363,11 @@ fi
 # first-win the bake face when modlet.o cannot rebuild (T001). They
 # cross-call; both must link. Prefer ahead of other pabi sidecars.
 # PLATFORM: LINUX
+# w1017: elem_const tip first-wins folder when modlet.o is stale (T001 on
+# full modlet_thin). PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/elem_const.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
+fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
 fi
