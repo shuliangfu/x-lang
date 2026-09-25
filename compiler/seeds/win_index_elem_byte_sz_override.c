@@ -109,21 +109,15 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
       }
       if (kind_ord == 11)
         return 16;
-      /* ARRAY/SLICE: true-pack named i8 → 1 on Darwin/Linux tip.
-       * PLATFORM: WINDOWS — PE egg bake is same-TU Cap residual 4 until
-       * bake tip first-wins; keep INDEX esz=4 so sum stays 3 (not 1).
-       * PLATFORM: SHARED otherwise (MACOS|LINUX tip).
+      /* ARRAY/SLICE: true-pack named i8 → 1; Cap residual i16/u16 → 4.
+       * PLATFORM: SHARED (WINDOWS leftover-PE first-wins + Darwin/Linux tip).
+       * w1013: Win bake tip + jmp makes INDEX esz=1 safe.
        */
       if (kind_ord == 8) {
         uint8_t sn[64];
         int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
-        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8') {
-#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
-          return 4;
-#else
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
           return 1;
-#endif
-        }
         if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
           return 4;
         if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
@@ -146,18 +140,11 @@ int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr) {
   if (kind_ord == 11)
     return 16;
   if (kind_ord == 8) {
-    /* Bare named: true-pack i8 → 1 (non-Win); Cap residual i16/u16 → 4.
-     * PLATFORM: WINDOWS Cap residual i8→4 until PE bake tip wins.
-     */
+    /* Bare named: true-pack i8 → 1; Cap residual i16/u16 → 4. */
     uint8_t sn[64];
     int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
-    if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8') {
-#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
-      return 4;
-#else
+    if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
       return 1;
-#endif
-    }
     if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
       return 4;
     if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
@@ -308,13 +295,8 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
       if (kind_ord == 8) {
         uint8_t sn[64];
         int32_t sl = pipeline_type_named_name_into(arena, pointee, sn);
-        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8') {
-#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
-          return 4;
-#else
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
           return 1;
-#endif
-        }
         if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
           return 4;
         if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
@@ -331,13 +313,8 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
   if (kind_ord == 8) {
     uint8_t sn[64];
     int32_t sl = pipeline_type_named_name_into(arena, tr, sn);
-    if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8') {
-#if defined(_WIN32) || defined(__CYGWIN__) || defined(__MINGW32__) || defined(__MINGW64__)
-      return 4;
-#else
+    if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
       return 1;
-#endif
-    }
     if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
       return 4;
     if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')

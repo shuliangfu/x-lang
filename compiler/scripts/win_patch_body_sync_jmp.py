@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Post-link PE patch: leftover body_sync / emit_let_init entries jmp to strong twin.
+Post-link PE patch: leftover body_sync / emit_let_init / bake_array jmp to tip.
 
 Root (w1010): Windows mega_body lives in the same egg runtime_pipeline_abi.o as
 leftover body_sync (and tip emit_let_init). Same-TU REL32 keeps calling the
@@ -11,6 +11,10 @@ rewriting the egg TU.
 
 Also patches glue_block_body_emit_let_init: tip stack u8[256] vn smash breaks
 f32 lets; host-gcc BSS twin is first-wins T but same-TU callers still hit W.
+
+w1013: pipe_modlet_bake_array_lit_elems_to_data — egg has local e8 to Cap
+residual bake; tip bake_elems first-wins T + weaken leftover; jmp W→T so
+named i8 ARRAY packs at esz=1. Also patches *_cold local entry if present.
 
 Usage (from compiler/ after g05 link):
   python3 scripts/win_patch_body_sync_jmp.py [xlang.exe]
@@ -57,6 +61,58 @@ def _va_to_off(secs: list[tuple[int, int, int, str]], va: int) -> int:
     raise SystemExit(f"win_patch_body_sync_jmp: VA {va:#x} not in sections")
 
 
+def _patch_w_to_t(
+    data: bytearray,
+    secs: list[tuple[int, int, int, str]],
+    name: str,
+    strong: list[int],
+    weak: list[int],
+) -> int:
+    """Patch every weak entry to jmp the first strong T. Returns patch count."""
+    if not strong or not weak:
+        print(f"win_patch_body_sync_jmp: skip {name} (T/W missing)")
+        return 0
+    t_addr = strong[0]
+    patched = 0
+    for w_addr in weak:
+        off = _va_to_off(secs, w_addr)
+        disp = t_addr - (w_addr + 5)
+        want = bytes([0xE9]) + struct.pack("<i", disp)
+        if data[off : off + 5] == want:
+            print(f"win_patch_body_sync_jmp: {name} already patched @{w_addr:#x}")
+            continue
+        data[off : off + 5] = want
+        patched += 1
+        print(f"win_patch_body_sync_jmp: {name} W={w_addr:#x} -> T={t_addr:#x}")
+    return patched
+
+
+def _patch_extra_t_to_primary(
+    data: bytearray,
+    secs: list[tuple[int, int, int, str]],
+    name: str,
+    strong: list[int],
+) -> int:
+    """
+    When weaken left multiple T (objcopy miss), keep the first T as tip and
+    jmp remaining T entries to it. PLATFORM: WINDOWS bake_array duplicates.
+    """
+    if len(strong) < 2:
+        return 0
+    t_addr = strong[0]
+    patched = 0
+    for extra in strong[1:]:
+        off = _va_to_off(secs, extra)
+        disp = t_addr - (extra + 5)
+        want = bytes([0xE9]) + struct.pack("<i", disp)
+        if data[off : off + 5] == want:
+            continue
+        data[off : off + 5] = want
+        patched += 1
+        print(f"win_patch_body_sync_jmp: {name} extraT={extra:#x} -> T={t_addr:#x}")
+    return patched
+
+
 def main() -> int:
     exe = Path(sys.argv[1] if len(sys.argv) > 1 else "xlang.exe")
     if not exe.is_file():
@@ -77,27 +133,33 @@ def main() -> int:
         "backend_emit_block_body_sync_elf",
         "pipeline_asm_emit_block_body_sync_elf",
         "glue_block_body_emit_let_init",
+        # w1013 true-pack ARRAY i8 bake tip. PLATFORM: WINDOWS.
+        "pipe_modlet_bake_array_lit_elems_to_data",
     )
     patched = 0
     for name in names:
         entries = syms.get(name, [])
         strong = [a for a, k in entries if k == "T"]
         weak = [a for a, k in entries if k == "W"]
-        if not strong or not weak:
-            print(f"win_patch_body_sync_jmp: skip {name} (T/W missing)")
-            continue
-        t_addr = strong[0]
-        w_addr = weak[0]
-        # Already a jmp to strong?
-        off = _va_to_off(secs, w_addr)
-        disp = t_addr - (w_addr + 5)
-        want = bytes([0xE9]) + struct.pack("<i", disp)
-        if data[off : off + 5] == want:
-            print(f"win_patch_body_sync_jmp: {name} already patched")
-            continue
-        data[off : off + 5] = want
-        patched += 1
-        print(f"win_patch_body_sync_jmp: {name} W={w_addr:#x} -> T={t_addr:#x}")
+        patched += _patch_w_to_t(data, secs, name, strong, weak)
+        if name == "pipe_modlet_bake_array_lit_elems_to_data":
+            patched += _patch_extra_t_to_primary(data, secs, name, strong)
+            # Local cold entry (lowercase t) — same-TU e8 targets.
+            cold_name = "pipe_modlet_bake_array_lit_elems_to_data_cold"
+            cold = [a for a, k in syms.get(cold_name, []) if k in "Tt"]
+            if strong and cold:
+                t_addr = strong[0]
+                for c_addr in cold:
+                    off = _va_to_off(secs, c_addr)
+                    disp = t_addr - (c_addr + 5)
+                    want = bytes([0xE9]) + struct.pack("<i", disp)
+                    if data[off : off + 5] == want:
+                        continue
+                    data[off : off + 5] = want
+                    patched += 1
+                    print(
+                        f"win_patch_body_sync_jmp: {cold_name} t={c_addr:#x} -> T={t_addr:#x}"
+                    )
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")

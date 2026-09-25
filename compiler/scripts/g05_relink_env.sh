@@ -291,14 +291,13 @@ fi
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o src/emit_index_true_i8_override.o src/assign_index_true_i8_override.o src/force_esz_true_i8_override.o; do
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi
     done
-    # w1012 true_i8 emit/assign/force_esz: parked on WINDOWS until PE bake
-    # tip first-wins (egg same-TU Cap residual). Index seed keeps Cap
-    # residual i8→4 under _WIN32. PLATFORM: WINDOWS park.
+    # w1013: true_i8 tips re-enabled with bake_elems tip + jmp patch.
+    # PLATFORM: WINDOWS.
     ;;
 esac
 # w943: self-hosted pabi bodies ahead of src/runtime_pipeline_abi.o.
@@ -535,8 +534,9 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
     # STRUCT_LIT elements. The egg baker calls this object.
-    # bake_elems.o first-wins Cap residual i8/i16/u16 array packing
-    # (egg still returns esz 4 from typeck). PLATFORM: WINDOWS.
+    # bake_elems.o first-wins true-pack named i8 ARRAY (w1012/w1013).
+    # Egg same-TU local e8 stays on leftover — weaken pabi_weak + post-link
+    # jmp (win_patch_body_sync_jmp). PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
     fi
@@ -547,13 +547,13 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
-    # w1009/w1010: let-after-assign body_sync + emit_let_init. PLATFORM: WINDOWS.
-    # Host-gcc twins first-wins. mega same-TU REL32 keeps leftover — weaken a
-    # COPY (pabi_weak.o), never mutate egg runtime_pipeline_abi.o; post-link
-    # win_patch_body_sync_jmp redirects leftover W→T. emit_let_init BSS twin:
-    # tip stack u8[256] smash when C body_sync calls tip emit_let_init.
+    # w1009/w1010/w1013: body_sync + emit_let_init + bake_elems. PLATFORM: WINDOWS.
+    # Host-gcc / tip first-wins. mega same-TU REL32 or local e8 keeps leftover —
+    # weaken a COPY (pabi_weak.o), never mutate egg runtime_pipeline_abi.o;
+    # post-link win_patch_body_sync_jmp redirects leftover W→T.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
-      || [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+      || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
+      || [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -570,6 +570,12 @@ case "$UNAME_S" in
         done
         if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
           "$_oc" --weaken-symbol=glue_block_body_emit_let_init \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        # w1013: true-pack bake tip. Weaken both egg T copies of bake_array.
+        # PLATFORM: WINDOWS.
+        if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
+          "$_oc" --weaken-symbol=pipe_modlet_bake_array_lit_elems_to_data \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
