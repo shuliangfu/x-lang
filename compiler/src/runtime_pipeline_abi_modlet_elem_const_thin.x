@@ -963,11 +963,12 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         memcpy((&av) as *u8, (&(lp[0])) as *u8, 8 as usize);
         memcpy((&bv) as *u8, (&(rp[0])) as *u8, 8 as usize);
       }
-      // Same if/else on `==` as the integer NE arm. PLATFORM: WINDOWS.
+      // Start at 1 (unequal) and clear when equal. Avoid else on the
+      // host `==` — that arm is dropped by the Windows host that
+      // compiles this thin (every pair became 0). PLATFORM: WINDOWS.
+      result = 1;
       if (av == bv) {
         result = 0;
-      } else {
-        result = 1;
       }
       unsafe {
         pipe_store_i32_le(out_val as *u8, 0, result);

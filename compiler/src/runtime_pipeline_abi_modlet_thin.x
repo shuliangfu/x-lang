@@ -897,12 +897,12 @@ function pipe_modlet_array_lit_elem_const_val(
           return 0;
         }
       }
-      // Same if/else on `==` as Darwin/Windows. Avoid bare `!=`.
-      // PLATFORM: LINUX|UBUNTU.
+      // Start at 1 (unequal) and clear when equal. Avoid else on the
+      // host `==` — that arm is dropped when this thin is compiled by
+      // tip (every pair became 0 on Ubuntu). PLATFORM: LINUX|UBUNTU.
+      result = 1;
       if (av == bv) {
         result = 0;
-      } else {
-        result = 1;
       }
       unsafe { out_val[0] = result; }
       if (out_hi != (0 as *i32)) {
