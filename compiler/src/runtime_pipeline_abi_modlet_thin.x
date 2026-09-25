@@ -883,9 +883,9 @@ function pipe_modlet_array_lit_elem_const_val(
   // stays 1. Both children must fold. A child whose high half is not
   // the sign fill of the low word stays unfolded. A resolved type
   // other than bool stays unfolded. The left word is saved in llo
-  // before the right fold reuses out_val. An if on `<` writes 1;
-  // otherwise the result stays 0. LE, GT, and GE are not this arm.
-  // A float compare stays unfolded.
+  // before the right fold reuses out_val. An if on `rv > llo` writes
+  // 1 (same as llo < rv); otherwise the result stays 0. LE, GT, and
+  // GE are not this arm. A float compare stays unfolded.
   // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
   if (ek == 16) {
     unsafe {
@@ -944,8 +944,11 @@ function pipe_modlet_array_lit_elem_const_val(
         return 0;
       }
     }
+    // Same operand-swapped `>` as the Darwin/Windows folder. Avoid a
+    // bare `llo < rv`, which that host miscompiled to always-0.
+    // PLATFORM: LINUX|UBUNTU — keep the three folders aligned.
     result = 0;
-    if (llo < rv) {
+    if (rv > llo) {
       result = 1;
     }
     unsafe { out_val[0] = result; }

@@ -857,9 +857,10 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
   // must fold as a sign fill. A 64-bit child whose high half is not
   // that fill stays unfolded. A resolved type that is not bool stays
   // unfolded. The left word is copied into lv before the right fold
-  // reuses out_val. An if on `<` writes 1; otherwise the result stays
-  // 0. LE, GT, and GE are not this arm. A float compare stays
-  // unfolded.
+  // reuses out_val. An if on `rv > lv` writes 1 (same as lv < rv);
+  // otherwise the result stays 0. Do not use a bare `lv < rv` in this
+  // arm on the Windows host that compiles this thin. LE, GT, and GE
+  // are not this arm. A float compare stays unfolded.
   // PLATFORM: MACOS|DARWIN / WINDOWS.
   if (ek == 16) {
     unsafe {
@@ -898,8 +899,12 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     unsafe {
       rv = pipe_load_i32_le(out_val as *u8, 0);
     }
+    // Build less-than without a bare `lv < rv`. The Windows host that
+    // compiles this thin has miscompiled that shape in this arm (every
+    // pair became 0). `rv > lv` is the same signed test with the
+    // operands swapped. PLATFORM: WINDOWS.
     result = 0;
-    if (lv < rv) {
+    if (rv > lv) {
       result = 1;
     }
     unsafe {
