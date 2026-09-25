@@ -454,10 +454,9 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
     fi
     # w1009/w1010: let-after-assign body_sync. First-wins. PLATFORM: WINDOWS.
-    # PE tip PREFER_ASM smash (~0x1db8 frame) corrupts deferred-let order even
-    # when the tip .x thin first-wins. Build this object with host gcc from
-    # runtime_pipeline_abi_block_body_sync_let_order_thin.c (not tip .x).
-    # PE may keep same-.o local calls on leftover T; weaken egg pabi so twin wins.
+    # Host-gcc twin from runtime_pipeline_abi_block_body_sync_let_order_thin.c
+    # (tip .x PE smash). mega_body same-TU REL32 stays on leftover even after
+    # --weaken-symbol; strip leftover defs so relocs become undef → this twin.
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
@@ -467,7 +466,8 @@ case "$UNAME_S" in
       fi
       if [ -n "$_oc" ] && [ -s src/runtime_pipeline_abi.o ]; then
         for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf; do
-          "$_oc" --weaken-symbol="$_bsym" src/runtime_pipeline_abi.o 2>/dev/null || true
+          "$_oc" --strip-symbol="$_bsym" src/runtime_pipeline_abi.o 2>/dev/null || \
+            "$_oc" --weaken-symbol="$_bsym" src/runtime_pipeline_abi.o 2>/dev/null || true
         done
       fi
       _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
