@@ -131,7 +131,8 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * bool-result rules as EQ apply. LT, LE, GT, and GE are not this
  * arm. A float compare stays unfolded.
  * A null out_hi cannot carry that word, so the value stays unfolded.
- * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 and
+ * Exact ±2^63 store low 0 and high 0x80000000 (return 3). |x| >= 2^64
+ * stays 0. 2147483648.0 as i32 and
  * as u32 store the low word 0x80000000 (return 1): the same bits as
  * (2147483648.0 as i64) as i32. Exactly -2^31 stays return 1 for
  * both i32 and u32. 2147483648.0 as i64 still returns 2.
@@ -1984,14 +1985,13 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       if (e >= 64) {
         return 0;
       }
-      // Binade [2^63, 2^64). Positive 2^63 stays unfolded for every
-      // 64-bit target, including u64. Exact -2^63 falls through to
-      // the bit loop: low 0 and high 0x80000000. A non-exact value
-      // in this binade does not fit. PLATFORM: MACOS|DARWIN / WINDOWS.
+      // Binade [2^63, 2^64). Exact ±2^63 both store low 0 and high
+      // 0x80000000: the same bits as 9223372036854775808.0 as i64 /
+      // as u64. Positive exact falls through the bit loop with no
+      // negate; negative exact negates 2^63 and lands on the same
+      // pattern. A non-exact value in this binade stays unfolded.
+      // PLATFORM: MACOS|DARWIN / WINDOWS.
       if (e == 63) {
-        if (fhi >= 0) {
-          return 0;
-        }
         if ((fhi & 1048575) != 0 || flo != 0) {
           return 0;
         }

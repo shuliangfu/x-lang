@@ -258,7 +258,8 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * |x| < 1 truncates to 0 and is a successful fold. Exactly -2^31 fits in
  * i32. Positive [2^31, 2^32) as i32 and as u32 stores the low word
  * 0x80000000 (same bits as (2147483648.0 as i64) as i32). Exactly
- * -2^63 fits in i64.
+ * -2^63 fits in i64. Exact +2^63 as i64/u64/isize/usize stores the
+ * same bits (low 0, high 0x80000000).
  * FLOAT_LIT with no cast is not an integer; the array baker pokes IEEE
  * bits from the element size. VAR and any other kind are not compile-time
  * constants; callers must loud-fail (return -1) instead of silently
@@ -1511,13 +1512,12 @@ function pipe_modlet_array_lit_elem_const_val(
       if (exp > 1086) {
         return 0;
       }
-      // Binade [2^63, 2^64). Only exactly -2^63 fits in signed i64.
-      // Do not host-cast this boundary: the positive power is the
-      // indefinite 0x8000000000000000.
+      // Binade [2^63, 2^64). Exact ±2^63 both store low 0 and high
+      // 0x80000000 (same bits as 9223372036854775808.0 as i64 / u64).
+      // Do not host-cast this boundary: a positive cast is the
+      // indefinite integer on some hosts. Non-exact stays unfolded.
+      // PLATFORM: LINUX|UBUNTU.
       if (exp == 1086) {
-        if (fhi >= 0) {
-          return 0;
-        }
         if ((fhi & 1048575) != 0 || flo != 0) {
           return 0;
         }
