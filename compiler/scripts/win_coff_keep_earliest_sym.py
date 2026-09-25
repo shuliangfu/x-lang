@@ -42,7 +42,10 @@ def keep_earliest_external(path: Path, sym_name: str) -> int:
     )
     # IMAGE_FILE_MACHINE_AMD64
     if machine != 0x8664:
-        print(f"win_coff_keep_earliest_sym: skip non-AMD64 COFF {path}", file=sys.stderr)
+        print(
+            f"win_coff_keep_earliest_sym: skip non-AMD64 COFF {path}",
+            file=sys.stderr,
+        )
         return 0
     if symptr == 0 or nsyms == 0:
         return 0
@@ -61,7 +64,10 @@ def keep_earliest_external(path: Path, sym_name: str) -> int:
         i += 1 + naux
 
     if len(hits) < 2:
-        print(f"win_coff_keep_earliest_sym: {sym_name} defs={len(hits)} (noop)")
+        print(
+            f"win_coff_keep_earliest_sym: {sym_name} defs={len(hits)} (noop)",
+            file=sys.stderr,
+        )
         return 0
 
     hits.sort(key=lambda t: t[0])
@@ -73,7 +79,9 @@ def keep_earliest_external(path: Path, sym_name: str) -> int:
         demoted += 1
         print(
             f"win_coff_keep_earliest_sym: {sym_name} demote "
-            f"sym[{idx}]@{value:#x} EXTERNAL→STATIC (keep @{keep_val:#x} sym[{keep_idx}])"
+            f"sym[{idx}]@{value:#x} EXTERNAL->STATIC "
+            f"(keep @{keep_val:#x} sym[{keep_idx}])",
+            file=sys.stderr,
         )
     path.write_bytes(data)
     return demoted
@@ -93,7 +101,7 @@ def main() -> int:
     total = 0
     for sym in sys.argv[2:]:
         total += keep_earliest_external(path, sym)
-    print(f"win_coff_keep_earliest_sym: demoted={total}")
+    print(f"win_coff_keep_earliest_sym: demoted={total}", file=sys.stderr)
     return 0
 
 
