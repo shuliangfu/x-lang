@@ -22850,6 +22850,7 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
   int32_t row_sz = 0;
   int32_t rc = 0;
   int32_t bi = 0;
+  int32_t fr = 0;
   if ((((arena ==0) || (elf_ctx ==0)) || (init_ref <=0))) {
     return 0;
   }
@@ -22916,7 +22917,8 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
   continue;
  }) : 0);
       }
-      if ((pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev)) ==0)) {
+      (void)((fr = pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev))));
+      if ((fr ==0)) {
         return -1;
       }
       uint32_t uw = ((uint32_t)(ev));
@@ -22929,13 +22931,14 @@ int32_t pipe_modlet_bake_array_lit_elems_to_data(uint8_t * arena, uint8_t * elf_
         (void)((uw = (uw / 256)));
         (void)((bi = (bi + 1)));
       }
-      /* High half is the sign fill of the i32 word. The 3-arg folder
-       * returns 0 when the value does not fit in that fill.
-       * PLATFORM: WINDOWS — Darwin bake_elems.o writes the same fill. */
+      /* Return 1 sign-fills a negative word. Return 2 is the positive
+       * binade [2^31, 2^32): high half stays 0. PLATFORM: WINDOWS —
+       * Darwin bake_elems.o writes the same bytes. */
+      (void)((uw = ((uint32_t)(0))));
       if ((ev < 0)) {
-        (void)((uw = ((uint32_t)(0 - 1))));
-      } else {
-        (void)((uw = ((uint32_t)(0))));
+        if ((fr !=2)) {
+          (void)((uw = ((uint32_t)(0 - 1))));
+        }
       }
       while ((bi < esz)) {
         (void)((rc = pipeline_elf_ctx_data_poke_u8(elf_ctx, (((data_base + base_off) + (ei * esz)) + bi), ((int32_t)((uw & 255))))));
@@ -23445,6 +23448,7 @@ int32_t pipe_modlet_seed_array_lit_elems_to_rbx(uint8_t * arena, uint8_t * elf_c
   int32_t rc = 0;
   int32_t hi = 0;
   int32_t sa = 0;
+  int32_t fr = 0;
   if ((((arena ==0) || (elf_ctx ==0)) || (init_ref <=0))) {
     return 0;
   }
@@ -23510,12 +23514,15 @@ int32_t pipe_modlet_seed_array_lit_elems_to_rbx(uint8_t * arena, uint8_t * elf_c
   continue;
  }) : 0);
   }
-  if ((pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev)) ==0)) {
+  (void)((fr = pipe_modlet_array_lit_elem_const_val(arena, eref, &(ev))));
+  if ((fr ==0)) {
     return -1;
   }
   (void)((hi = 0));
   if ((ev < 0)) {
-    (void)((hi = -1));
+    if ((fr !=2)) {
+      (void)((hi = -1));
+    }
   }
   (void)((rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta)));
   if ((rc !=0)) {

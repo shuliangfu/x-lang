@@ -50,17 +50,20 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * It stays inside this function: this ABI has no high-half out
  * parameter, so there is no second float folder.
  * Do not add pipe_modlet_fold_f64_elem_bits.
- * |x| >= 2^31 returns 0 except exactly -2^31. Inf and NaN return 0,
+ * |x| >= 2^32 returns 0. Exact -2^31 returns 1. Inf and NaN return 0,
  * so (1.0 / 0.0) as i32 stays unfolded. Float MOD stays unfolded.
  * An f32-typed binop is not rounded back to f32 before the trunc.
  * TYPE_U64, TYPE_I64, TYPE_USIZE, and TYPE_ISIZE (kinds 4..7) store
- * this same i32 word. The baker sign-fills the high half. A value
- * outside signed i32 stays unfolded, so 2147483648.0 as i64 returns 0.
- * (0 - 1) as i64 is the sign fill of -1.
+ * this same i32 word. Return 1 means the baker sign-fills the high
+ * half. A positive trunc in [2^31, 2^32) does not fit that fill: the
+ * low word has bit 31 set and the high half is 0, so this function
+ * returns 2. 2147483648.0 as i64 is that case. (0 - 1) as i64 stays
+ * return 1. Exactly -2^31 stays return 1. |x| >= 2^32 stays 0.
+ * 2147483648.0 as i32 stays 0: it does not fit in signed i32.
  * @param arena *u8 — AST arena; null returns 0
  * @param eref i32 — expression ref; <= 0 returns 0
  * @param out_val *i32 — one i32 slot; null returns 0; written only on success
- * @return i32 — 1 when out_val holds the folded word, 0 when the expr is not folded
+ * @return i32 — 1 sign-fill, 2 zero high half, 0 not folded
  * PLATFORM: MACOS|DARWIN / WINDOWS — strong definition. Darwin prepare's
  * branch reloc binds here over the weak gcc body. Windows egg and the
  * modlet extra only declare this name.
@@ -260,7 +263,17 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     if (tk != 0 && tk != 1 && tk != 2 && tk != 3 && tk != 4 && tk != 5 && tk != 6 && tk != 7) {
       return 0;
     }
-    if (pipe_modlet_array_lit_elem_const_val(arena, op, out_val) != 0) {
+    // A child return of 2 is a zero high half. A narrower cast of that
+    // word is an i32, so the baker must sign-fill it. A 64-bit cast
+    // keeps the zero high half.
+    ok = pipe_modlet_array_lit_elem_const_val(arena, op, out_val);
+    if (ok == 1) {
+      return 1;
+    }
+    if (ok == 2) {
+      if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
+        return 2;
+      }
       return 1;
     }
     // Not an integer. Evaluate a float tree into flo/fhi, then truncate.
@@ -428,15 +441,14 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
       return 1;
     }
     e = exp - 1023;
-    // |x| >= 2^32 does not fit in i32.
+    // |x| >= 2^32 needs a high half this single word cannot carry.
     if (e > 31) {
       return 0;
     }
-    // Binade [2^31, 2^32). Only exactly -2^31 fits in signed i32.
-    if (e == 31) {
-      if (fhi >= 0) {
-        return 0;
-      }
+    // Negative binade (-2^32, -2^31]. Only exact -2^31 is the sign
+    // fill of i32 0x80000000. Anything more negative has a low word
+    // that is not that fill.
+    if (e == 31 && fhi < 0) {
       if ((fhi & 1048575) != 0 || flo != 0) {
         return 0;
       }
@@ -444,6 +456,31 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
         pipe_store_i32_le(out_val as *u8, 0, 0 - 2147483647 - 1);
       }
       return 1;
+    }
+    // Positive [2^31, 2^32). The low word has bit 31 set and the high
+    // half is 0. i32, bool, and u8 do not accept that magnitude.
+    // u32 would fit, but this wave only claims the 64-bit targets.
+    // Each shift stays inside a positive i32. Bit 31 is ORed in last.
+    if (e == 31) {
+      if (tk != 4 && tk != 5 && tk != 6 && tk != 7) {
+        return 0;
+      }
+      hi_sig = (1 << 20) | (fhi & 1048575);
+      rsh = 21;
+      top = 0;
+      mag = flo;
+      if (mag < 0) {
+        mag = mag & 2147483647;
+        top = 1 << 10;
+      }
+      mag = (mag >> rsh) | top;
+      mag = mag | ((hi_sig & 2047) << 11);
+      mag = mag | (((hi_sig >> 11) & 511) << 22);
+      mag = mag | (0 - 2147483647 - 1);
+      unsafe {
+        pipe_store_i32_le(out_val as *u8, 0, mag);
+      }
+      return 2;
     }
     // Implicit 1 plus the top 20 fraction bits. This word is positive
     // and at most 0x1fffff.

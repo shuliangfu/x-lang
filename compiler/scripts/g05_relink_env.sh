@@ -354,8 +354,8 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
   fi
-  # w971: 8-byte elems. The weak baker zero-fills the high half. This
-  # body sign-fills the i32 word. A missing file keeps the weak baker.
+  # w971/w972: 8-byte elems. Return 1 sign-fills. Return 2 writes a
+  # zero high half for [2^31, 2^32). A missing file keeps the weak baker.
   # PLATFORM: MACOS|DARWIN — do not add this object on Linux or Windows.
   if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"

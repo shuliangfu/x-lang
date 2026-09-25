@@ -1,7 +1,8 @@
 // Module-array baker for Darwin. The weak gcc body in pabi_weak.o peels
 // one uint32, so an 8-byte slot's high half is always zero.
-// This strong definition is the same control flow, and the high half is
-// the sign fill of that i32 word. Ubuntu's modlet.o already writes a real
+// This strong definition is the same control flow. Return 1 sign-fills
+// the i32 word. Return 2 writes a zero high half for [2^31, 2^32).
+// Ubuntu's modlet.o already writes a real
 // high half through the 4-arg folder. Do not link this object on Linux
 // or Windows: Linux would hide that baker, and the Windows egg is the
 // Windows body.
@@ -31,10 +32,12 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * anything else is forced to 4, matching the weak gcc body.
  * Bytes 0..3 are the little-endian i32. An arithmetic shift by 8, 16,
  * or 24 stays inside those 32 bits, so masking 255 is the byte.
- * Bytes 4..7, only when esz is 8, are 0xff when the word is negative
- * and 0 otherwise. That is the sign fill. The folder returns 0 when the
- * true 64-bit value is wider than that fill, so 2147483648.0 as i64
- * stays unfolded. (0 - 1) as i64 stores eight 0xff bytes.
+ * Bytes 4..7, only when esz is 8, are 0xff when the folder returns 1
+ * and the word is negative, and 0 otherwise. Return 2 is the positive
+ * binade [2^31, 2^32): the low word has bit 31 set and the high half
+ * is 0, so those four bytes stay 0. 2147483648.0 as i64 stores
+ * 0000008000000000. (0 - 1) as i64 still stores eight 0xff bytes.
+ * |x| >= 2^32 still returns 0.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — object writer; null returns 0
  * @param init_ref i32 — ARRAY_LIT expr; <= 0 returns 0
@@ -171,14 +174,18 @@ export function pipe_modlet_bake_array_lit_elems_to_data(
         if (rc == 0) {
           return 0 - 1;
         }
-        // Low word, then the sign fill. esz <= 4 never reads hi.
+        // Low word, then the high half. esz <= 4 never reads hi.
+        // Return 1 sign-fills a negative word. Return 2 keeps a zero
+        // high half, which is 2147483648.0 as i64.
         b0 = ev & 255;
         b1 = (ev >> 8) & 255;
         b2 = (ev >> 16) & 255;
         b3 = (ev >> 24) & 255;
         hi = 0;
         if (ev < 0) {
-          hi = 255;
+          if (rc != 2) {
+            hi = 255;
+          }
         }
         slot = data_base + base_off + ei * esz;
         if (esz > 0) {
