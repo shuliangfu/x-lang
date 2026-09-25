@@ -100,7 +100,14 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
  * any other folded word becomes 0. !false stores 1 and !true stores 0.
  * The result is a bool, so the high half is 0 and the return is 1.
  * !!false is this arm twice. A child that is not a sign-fill fold,
- * and a resolved type that is not bool, stay unfolded. LOGAND, LOGOR,
+ * and a resolved type that is not bool, stay unfolded.
+ * A LOGAND (ek 20) matches the runtime test/jz. The left word is
+ * saved before the right child reuses the slot. A zero left word
+ * stores 0. A nonzero left word stores 1 only when the right word
+ * is also nonzero. true && false stores 0 and true && true stores 1.
+ * (2 as bool) && true stores 1: a nonzero bool word is truthy, and
+ * the result is 0 or 1, not the raw word. Both children must be
+ * sign-fill folds. The high half is 0 and the return is 1. LOGOR
  * and EQ are not this arm.
  * A null out_hi cannot carry that word, so the value stays unfolded.
  * Positive 2^63 and |x| >= 2^64 stay 0. 2147483648.0 as i32 stays 0,
@@ -534,6 +541,71 @@ export function pipe_modlet_array_lit_elem_const_val(arena: *u8, eref: i32, out_
     result = 0;
     if (v == 0) {
       result = 1;
+    }
+    unsafe {
+      pipe_store_i32_le(out_val as *u8, 0, result);
+    }
+    if (out_hi != 0 as *i32) {
+      unsafe {
+        pipe_store_i32_le(out_hi as *u8, 0, 0);
+      }
+    }
+    return 1;
+  }
+  // LOGAND. The runtime emitter tests the left word and writes 0 when
+  // that word is zero. Otherwise it tests the right word and writes 1
+  // only when that word is also nonzero. true && false stores 0.
+  // true && true stores 1. false && true stores 0. The result is a
+  // bool, so the high half is 0 and the return stays 1. (2 as bool)
+  // && true stores 1: truthiness is any nonzero word, and the stored
+  // result is not that raw word. Both children must fold as a sign
+  // fill. A resolved type that is not bool stays unfolded. The left
+  // word is copied into lv before the right fold reuses out_val.
+  // The zero result is written before the two tests, so there is no
+  // else. LOGOR and EQ are not this arm.
+  // PLATFORM: MACOS|DARWIN / WINDOWS.
+  if (ek == 20) {
+    unsafe {
+      left = pipeline_expr_binop_left_ref_at(arena, eref);
+      right = pipeline_expr_binop_right_ref_at(arena, eref);
+    }
+    if (left <= 0 || right <= 0) {
+      return 0;
+    }
+    ok = pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi);
+    if (ok != 1) {
+      return 0;
+    }
+    unsafe {
+      lv = pipe_load_i32_le(out_val as *u8, 0);
+    }
+    ok = pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi);
+    if (ok != 1) {
+      return 0;
+    }
+    rty = 0;
+    rtk = 0 - 1;
+    unsafe {
+      rty = pipeline_expr_resolved_type_ref(arena, eref);
+    }
+    if (rty > 0) {
+      unsafe {
+        rtk = pipeline_type_kind_ord_at(arena, rty);
+      }
+    }
+    if (rty > 0) {
+      if (rtk != 1) {
+        return 0;
+      }
+    }
+    unsafe {
+      rv = pipe_load_i32_le(out_val as *u8, 0);
+    }
+    result = 0;
+    if (lv != 0) {
+      if (rv != 0) {
+        result = 1;
+      }
     }
     unsafe {
       pipe_store_i32_le(out_val as *u8, 0, result);

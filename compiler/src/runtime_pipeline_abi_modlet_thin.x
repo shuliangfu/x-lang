@@ -221,7 +221,13 @@ function pipe_modlet_fold_i32_binop(ek: i32, lv: i32, rv: i32, out_val: *i32): i
  * folded word becomes 0. !false stores 1 and !true stores 0. The
  * result is a bool, so the high half written here is 0 and the return
  * stays 1. A child whose high half is not the sign fill stays
- * unfolded. LOGAND, LOGOR, and EQ are not this arm.
+ * unfolded. A LOGAND (ek 20) matches the runtime test/jz. A zero
+ * left word stores 0. A nonzero left word stores 1 only when the
+ * right word is also nonzero. true && false stores 0 and
+ * true && true stores 1. The high half written here is 0 and the
+ * return stays 1. Both children must fold, and a child whose high
+ * half is not the sign fill stays unfolded. LOGOR and EQ are not
+ * this arm.
  * An i32 add
  * inside `as i64` still wraps, then sign-fills. 32-bit targets are TYPE_I32
  * (0), TYPE_BOOL (1), TYPE_U8 (2), and TYPE_U32 (3). The 1-byte baker
@@ -508,6 +514,86 @@ function pipe_modlet_array_lit_elem_const_val(
     result = 0;
     if (lv == 0) {
       result = 1;
+    }
+    unsafe { out_val[0] = result; }
+    if (out_hi != (0 as *i32)) {
+      unsafe { out_hi[0] = 0; }
+    }
+    return 1;
+  }
+  // LOGAND. The runtime emitter writes 0 when the left word is zero,
+  // and writes 1 only when the right word is also nonzero.
+  // true && false stores 0. true && true stores 1. The baker pokes
+  // the high word this arm writes, so that word is 0 and the return
+  // stays 1. Both children must fold. A child whose high half is not
+  // the sign fill of the low word is not a bool constant. A resolved
+  // type other than bool stays unfolded. The left word is saved in
+  // llo before the right fold reuses out_val. The zero result is
+  // written before the two tests, so there is no else arm. LOGOR
+  // and EQ are not this arm.
+  // PLATFORM: LINUX|UBUNTU — this body is not the Darwin folder.
+  if (ek == 20) {
+    unsafe {
+      unsafe { left = pipeline_expr_binop_left_ref_at(arena, eref); }
+      unsafe { right = pipeline_expr_binop_right_ref_at(arena, eref); }
+    }
+    if (left <= 0 || right <= 0) {
+      return 0;
+    }
+    if (pipe_modlet_array_lit_elem_const_val(arena, left, out_val, out_hi) == 0) {
+      return 0;
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { lhi = out_hi[0]; }
+      unsafe { lv = out_val[0]; }
+      if (lv < 0) {
+        if (lhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (lhi != 0) {
+          return 0;
+        }
+      }
+    }
+    unsafe { llo = out_val[0]; }
+    if (pipe_modlet_array_lit_elem_const_val(arena, right, out_val, out_hi) == 0) {
+      return 0;
+    }
+    if (out_hi != (0 as *i32)) {
+      unsafe { rhi = out_hi[0]; }
+      unsafe { rv = out_val[0]; }
+      if (rv < 0) {
+        if (rhi != (0 - 1)) {
+          return 0;
+        }
+      } else {
+        if (rhi != 0) {
+          return 0;
+        }
+      }
+    }
+    unsafe { rv = out_val[0]; }
+    rty = 0;
+    rtk = 0 - 1;
+    unsafe {
+      unsafe { rty = pipeline_expr_resolved_type_ref(arena, eref); }
+    }
+    if (rty > 0) {
+      unsafe {
+        unsafe { rtk = pipeline_type_kind_ord_at(arena, rty); }
+      }
+    }
+    if (rty > 0) {
+      if (rtk != 1) {
+        return 0;
+      }
+    }
+    result = 0;
+    if (llo != 0) {
+      if (rv != 0) {
+        result = 1;
+      }
     }
     unsafe { out_val[0] = result; }
     if (out_hi != (0 as *i32)) {
