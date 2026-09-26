@@ -5543,6 +5543,112 @@ ensure_rt_parse_diag_prefer() {
 # A while plus a 512-byte stack buffer in one TU exits 139.
 # $1 = merged thin object. The marker stays in the C rest.
 # PLATFORM: SHARED — Darwin CREAT/TRUNC are 512/1024 via cfg. Linux uses 64/512.
+# w1146: src/asm/pthin_imports.x exits 139 as one translation unit.
+# Compile the seven functions separately and ld -r. Direct xlang_asm,
+# not pure_asm_x_to_o. Helper calls already sit in unsafe.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_imports_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_imports.x"
+  local dir c try src obj objs n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinimp.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+starts = []
+for i, l in enumerate(lines):
+    if l.startswith("export function ") or l.startswith("function "):
+        s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
+        starts.append(s)
+starts.append(len(lines))
+if len(starts) != 8:
+    sys.exit(1)
+header = "".join(lines[: starts[0]])
+sigs = []
+bodies = []
+for a, b in zip(starts, starts[1:]):
+    chunk = "".join(lines[a:b])
+    grab = False
+    acc = []
+    for line in chunk.splitlines():
+        if line.startswith("export function ") or line.startswith("function ") or grab:
+            grab = True
+            acc.append(line)
+            if "{" in line:
+                break
+    if not acc or "{" not in acc[-1]:
+        sys.exit(1)
+    sig = " ".join(x.strip() for x in acc)
+    sig = sig[: sig.rfind("{")].strip()
+    if not sig.startswith("export "):
+        sig = "export " + sig
+    sigs.append("export extern " + sig[len("export "):] + ";")
+    bodies.append(chunk)
+externs = "\n".join(sigs) + "\n"
+for i, body in enumerate(bodies):
+    Path(out, "t%d.x" % i).write_text(
+        "// w1146 split piece. PLATFORM: SHARED.\n" + header + externs + body
+    )
+PY
+  then
+    rm -rf "$dir"
+    return 1
+  fi
+  objs=""
+  for c in 0 1 2 3 4 5 6; do
+    src="$dir/t$c.x"
+    obj="$dir/t$c.o"
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "7" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _parser_asm_imports_restore_lex _parser_asm_imports_expect_kind \
+    _parser_asm_imports_copy_quoted_path _parser_asm_collect_imports_consume_path_into_c \
+    _parser_asm_try_skip_const_import_into_c _parser_asm_skip_imports_into_c \
+    _parser_asm_collect_imports_into_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1145: src/asm/pthin_library.x exits 139 as one translation unit.
 # Compile the five functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Helper calls already sit in unsafe.
@@ -23409,6 +23515,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  pthin-imports-pure|pthin_imports_darwin_pure)
+    # w1146: seven pure-asm pieces of src/asm/pthin_imports.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-imports-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_imports_darwin_pure "$1"
+    exit $?
+    ;;
   pthin-library-pure|pthin_library_darwin_pure)
     # w1145: five pure-asm pieces of src/asm/pthin_library.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.

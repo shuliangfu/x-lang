@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1146: one translation unit exits 139. Darwin compiles each function
+// and links the seven pieces. Helper calls already sit in unsafe.
+// PLATFORM: SHARED.
+
 // pthin_imports.x — G-02f-320 P11 parser thin imports product bodies.
 //
 // 7.2.1 P11b B-minus productize (2026-09-13): skip_imports peek loop
