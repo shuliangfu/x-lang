@@ -1539,11 +1539,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # (pthin_skip_tl.x) → peek_kind. Re-enable P9b try (peer of other
         # P*b; WEAK). Darwin PREFER_ASM g05 of skip_tl stays leftover.
         # token.h stays classify-enum authority via P9 C _Static_assert.
+        _pthin_p9b_pure=0
+        # w1148: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p9b_thin_o" ] && [ -f "$_pthin_p9b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9b_x" "$_pthin_p9b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-stretch-pure "$_pthin_p9b_thin_o"; then
+            _pthin_p9b_pure=1
+          fi
+          if [ "$_pthin_p9b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p9b_x" "$_pthin_p9b_thin_o"; then
             _pthin_p9b_ok=1
             _pthin_p9_extra="$_pthin_p9_extra -DXLANG_PTHIN_STRETCH_LITE_FROM_X"
-            echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
+            if [ "$_pthin_p9b_pure" = "1" ]; then
+              echo "g05_ensure: P9b stretch ← pure-asm fifteen pieces (w1148)"
+            else
+              echo "g05_ensure: P9b stretch lite ← $_pthin_p9b_x (7.2.1 Route C productize)"
+            fi
           else
             echo "g05_ensure: P9b stretch .x thin failed; P9 C twin stays full" >&2
           fi

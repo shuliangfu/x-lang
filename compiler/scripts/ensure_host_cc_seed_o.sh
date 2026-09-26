@@ -5547,6 +5547,152 @@ ensure_rt_parse_diag_prefer() {
 # Compile the seven functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Helper calls already sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1148: src/asm/pthin_stretch.x exits 139 as one translation unit.
+# Compile the fifteen functions separately and ld -r. File-level tables
+# are duplicated per piece, then localized so ld -r keeps one copy each
+# function still uses. Direct xlang_asm, not pure_asm_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_stretch_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_stretch.x"
+  local dir c try src obj objs n ocopy
+  ocopy="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ] || [ ! -x "$ocopy" ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinstr.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+fn_at = []
+for i, l in enumerate(lines):
+    if l.startswith("export function ") or l.startswith("function "):
+        s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
+        fn_at.append(s)
+if len(fn_at) != 15:
+    sys.exit(1)
+def split_tail(chunk):
+    depth = 0
+    started = False
+    for idx, line in enumerate(chunk):
+        if "{" in line:
+            started = True
+        depth += line.count("{") - line.count("}")
+        if started and depth == 0:
+            return chunk[:idx + 1], chunk[idx + 1:]
+    sys.exit(1)
+pre = []
+bodies = []
+i = 0
+for n, start in enumerate(fn_at):
+    end = fn_at[n + 1] if n + 1 < len(fn_at) else len(lines)
+    if start > i:
+        pre.append("".join(lines[i:start]))
+    body, tail = split_tail(lines[start:end])
+    bodies.append("".join(body))
+    pre.append("".join(tail))
+    i = end
+if i < len(lines):
+    pre.append("".join(lines[i:]))
+header = "".join(pre)
+sigs = []
+for body in bodies:
+    grab = False
+    acc = []
+    for line in body.splitlines():
+        if line.startswith("export function ") or line.startswith("function ") or grab:
+            grab = True
+            acc.append(line)
+            if "{" in line:
+                break
+    if not acc or "{" not in acc[-1]:
+        sys.exit(1)
+    sig = " ".join(x.strip() for x in acc)
+    sig = sig[: sig.rfind("{")].strip()
+    if not sig.startswith("export "):
+        sig = "export " + sig
+    sigs.append("export extern " + sig[len("export "):] + ";")
+externs = "\n".join(sigs) + "\n"
+for i, body in enumerate(bodies):
+    Path(out, "t%d.x" % i).write_text(
+        "// w1148 split piece. PLATFORM: SHARED.\n" + header + externs + body
+    )
+PY
+  then
+    rm -rf "$dir"
+    return 1
+  fi
+  objs=""
+  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do
+    src="$dir/t$c.x"
+    obj="$dir/t$c.o"
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+    nm "$obj" | awk '$2=="D" && $3 ~ /^_Lxml_/ {print $3}' > "$dir/loc"
+    if [ -s "$dir/loc" ]; then
+      if ! "$ocopy" --localize-symbols="$dir/loc" "$obj"; then
+        rm -rf "$dir"
+        rm -f "$o"
+        return 1
+      fi
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "15" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _parser_asm_stretch_token_run_len_c \
+    _parser_asm_stretch_import_path_validate_c \
+    _parser_asm_stretch_struct_field_name_kind_c \
+    _parser_asm_stretch_struct_field_continues_kind_c \
+    _parser_asm_stretch_token_is_label_start_c \
+    _parser_asm_stretch_diag_after_imports_kind_c \
+    _parser_asm_stretch_import_path_normalize_c \
+    _parser_asm_stretch_skip_comment_at_c \
+    _parser_asm_stretch_skip_ws_and_comments_c \
+    _parser_asm_stretch_verify_kw_spelling_c \
+    _parser_asm_stretch_import_path_finalize_c \
+    _parser_asm_stretch_ident_byte_ok_c \
+    _parser_asm_stretch_bind_name_validate_c \
+    _parser_asm_stretch_classify_toplevel_c \
+    _parser_asm_stretch_import_path_score_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1147: src/asm/pthin_helpers.x exits 139 as one translation unit.
 # Compile the thirteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
@@ -23630,6 +23776,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  pthin-stretch-pure|pthin_stretch_darwin_pure)
+    # w1148: fifteen pure-asm pieces of src/asm/pthin_stretch.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-stretch-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_stretch_darwin_pure "$1"
+    exit $?
+    ;;
   pthin-helpers-pure|pthin_helpers_darwin_pure)
     # w1147: thirteen pure-asm pieces of src/asm/pthin_helpers.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.
