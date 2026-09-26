@@ -1,11 +1,15 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// Sixteen path helpers. This file is the authority.
+// PLATFORM: MACOS|DARWIN arm64 — ensure_host_cc_seed_o.sh pure-asm
+// compiles this file with the current compiler into std/path/path.o.
+// That step does not pass seeds/runtime_path_fast.from_x.c to host cc.
+// Symbols stay strong. The helpers call only each other.
+// PLATFORM: LINUX|WINDOWS — the same shell still host-cc's the C seed.
+// A Darwin pure-asm fault with no object falls back to that seed.
+// Byte compares use `as u8`. This compiler rejects a bare integer
+// against u8. The values are the same bytes as the C seed.
 // runtime_path_fast_x_doc_anchor: see function docblock below.
 
 
@@ -39,15 +43,16 @@ export function path_sep_c(): u8 {
   return 47 as u8;
 }
 
-/** Exported function `path_is_sep_c`.
- * Implements `path_is_sep_c`.
- * @param c u8
- * @return i32
+/**
+ * Return 1 when the byte is a path separator.
+ * @param c u8 — candidate byte; '/' and '\\' are separators
+ * @return i32 — 1 if c is a separator, otherwise 0
+ * PLATFORM: SHARED — both separators. path_sep_c still returns '/'.
  */
 #[no_mangle]
 export function path_is_sep_c(c: u8): i32 {
-  if (c == 47) { return 1; }
-  if (c == 92) { return 1; }
+  if (c == 47 as u8) { return 1; }
+  if (c == 92 as u8) { return 1; }
   return 0;
 }
 
@@ -80,7 +85,7 @@ export function path_last_sep_c(path: *u8, path_len: i32): i32 {
 export function path_last_dot_c(path: *u8, start: i32, len: i32): i32 {
   let i: i32 = start + len - 1;
   while (i >= start) {
-    if (path[i] == 46) { return i - start; }
+    if (path[i] == 46 as u8) { return i - start; }
     i = i - 1;
   }
   return 0 - 1;
@@ -197,30 +202,30 @@ export function std_path_basename(path: *u8, path_len: i32, out: *u8, out_max: i
  */
 #[no_mangle]
 export function std_path_is_absolute(path: *u8, path_len: i32): i32 {
-  let c0: u8 = 0;
+  let c0: u8 = 0 as u8;
   let is_alpha: i32 = 0;
   if (path_len <= 0) { return 0; }
-  if (path[0] == 47) { return 1; }
+  if (path[0] == 47 as u8) { return 1; }
   if (path_len >= 2) {
-    if (path[0] == 92) {
-      if (path[1] == 92) { return 1; }
+    if (path[0] == 92 as u8) {
+      if (path[1] == 92 as u8) { return 1; }
     }
   }
   if (path_len >= 3) {
-    if (path[1] == 58) {
+    if (path[1] == 58 as u8) {
       c0 = path[0];
       is_alpha = 0;
-      if (c0 >= 65) {
-        if (c0 <= 90) { is_alpha = 1; }
+      if (c0 >= 65 as u8) {
+        if (c0 <= 90 as u8) { is_alpha = 1; }
       }
       if (is_alpha == 0) {
-        if (c0 >= 97) {
-          if (c0 <= 122) { is_alpha = 1; }
+        if (c0 >= 97 as u8) {
+          if (c0 <= 122 as u8) { is_alpha = 1; }
         }
       }
       if (is_alpha != 0) {
-        if (path[2] == 92) { return 1; }
-        if (path[2] == 47) { return 1; }
+        if (path[2] == 92 as u8) { return 1; }
+        if (path[2] == 47 as u8) { return 1; }
       }
     }
   }
@@ -340,13 +345,72 @@ export function std_path_extension_and_stem(path: *u8, path_len: i32, ext_out: *
   return (stem_len << 16) | (ext_len & 65535);
 }
 
-/** Exported function `std_path_clean`.
- * Implements `std_path_clean`.
- * @param path *u8
- * @param path_len i32
- * @param out *u8
- * @param out_max i32
- * @return i32
+/**
+ * Advance i while path[i] is a separator.
+ * @param path *u8 — path bytes; not read when i is past path_len
+ * @param path_len i32 — byte count
+ * @param i i32 — start index
+ * @return i32 — index of the next non-separator, or path_len
+ * A nested while in the caller drops the length register on this compiler.
+ * PLATFORM: MACOS|DARWIN arm64 — called by std_path_clean.
+ */
+#[no_mangle]
+export function path_skip_seps_c(path: *u8, path_len: i32, i: i32): i32 {
+  while (i < path_len) {
+    if (path_is_sep_c(path[i]) == 0) { break; }
+    i = i + 1;
+  }
+  return i;
+}
+
+/**
+ * Advance i until path[i] is a separator or the path ends.
+ * @param path *u8 — path bytes
+ * @param path_len i32 — byte count
+ * @param i i32 — start index of a segment
+ * @return i32 — index just past the segment
+ * PLATFORM: MACOS|DARWIN arm64 — called by std_path_clean.
+ */
+#[no_mangle]
+export function path_scan_seg_c(path: *u8, path_len: i32, i: i32): i32 {
+  while (i < path_len) {
+    if (path_is_sep_c(path[i]) != 0) { break; }
+    i = i + 1;
+  }
+  return i;
+}
+
+/**
+ * Copy n bytes from path[src] onto the end of out.
+ * @param path *u8 — source bytes
+ * @param src i32 — source index
+ * @param n i32 — byte count; n <= 0 copies nothing
+ * @param out *u8 — destination buffer
+ * @param out_len i32 — current destination length
+ * @param out_max i32 — destination capacity
+ * @return i32 — new length, or -1 when the copy would pass out_max
+ * PLATFORM: MACOS|DARWIN arm64 — called by std_path_clean.
+ */
+#[no_mangle]
+export function path_copy_span_c(path: *u8, src: i32, n: i32, out: *u8, out_len: i32, out_max: i32): i32 {
+  let k: i32 = 0;
+  while (k < n) {
+    if (out_len >= out_max) { return 0 - 1; }
+    out[out_len] = path[src + k];
+    out_len = out_len + 1;
+    k = k + 1;
+  }
+  return out_len;
+}
+
+/**
+ * Collapse ".", "..", and repeated separators. Same bytes as the C seed.
+ * @param path *u8 — input path bytes
+ * @param path_len i32 — input byte count; <= 0 returns 0
+ * @param out *u8 — destination buffer
+ * @param out_max i32 — destination capacity; <= 0 returns 0
+ * @return i32 — written length, or -1 when out is too small
+ * PLATFORM: MACOS|DARWIN — pure-asm body. Linux and Windows use the C seed.
  */
 #[no_mangle]
 export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
@@ -359,36 +423,29 @@ export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32)
   let main_sep: u8 = path_sep_c();
   let seg_begin: i32 = 0;
   let seg_len: i32 = 0;
-  let k: i32 = 0;
+  let skip_seg: i32 = 0;
   if (path_len <= 0) { return 0; }
   if (out_max <= 0) { return 0; }
   if (path_is_sep_c(path[0]) != 0) {
     started_with_sep = 1;
     out[0] = main_sep;
     out_len = 1;
-    while (i < path_len) {
-      if (path_is_sep_c(path[i]) == 0) { break; }
-      i = i + 1;
-    }
+    i = path_skip_seps_c(path, path_len, i);
   }
   while (i < path_len) {
-    while (i < path_len) {
-      if (path_is_sep_c(path[i]) == 0) { break; }
-      i = i + 1;
-    }
+    i = path_skip_seps_c(path, path_len, i);
     if (i >= path_len) { break; }
     seg_begin = i;
-    while (i < path_len) {
-      if (path_is_sep_c(path[i]) != 0) { break; }
-      i = i + 1;
-    }
+    i = path_scan_seg_c(path, path_len, i);
     seg_len = i - seg_begin;
+    // "." and ".." are not emitted. Same contract as the C seed.
+    skip_seg = 0;
     if (seg_len == 1) {
-      if (path[seg_begin] == 46) { continue; }
+      if (path[seg_begin] == 46 as u8) { skip_seg = 1; }
     }
     if (seg_len == 2) {
-      if (path[seg_begin] == 46) {
-        if (path[seg_begin + 1] == 46) {
+      if (path[seg_begin] == 46 as u8) {
+        if (path[seg_begin + 1] == 46 as u8) {
           if (nseg > 0) {
             out_len = seg_starts[nseg - 1];
             nseg = nseg - 1;
@@ -396,10 +453,11 @@ export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32)
               if (out_len > 0) { emit_double_sep_next = 1; }
             }
           }
-          continue;
+          skip_seg = 1;
         }
       }
     }
+    if (skip_seg == 0) {
     if (out_len > 0) {
       if (out[out_len - 1] != main_sep) {
         if (out_len >= out_max) { return 0 - 1; }
@@ -418,12 +476,8 @@ export function std_path_clean(path: *u8, path_len: i32, out: *u8, out_max: i32)
       seg_starts[nseg] = out_len;
       nseg = nseg + 1;
     }
-    k = 0;
-    while (k < seg_len) {
-      if (out_len >= out_max) { return 0 - 1; }
-      out[out_len] = path[seg_begin + k];
-      out_len = out_len + 1;
-      k = k + 1;
+    out_len = path_copy_span_c(path, seg_begin, seg_len, out, out_len, out_max);
+    if (out_len < 0) { return 0 - 1; }
     }
   }
   if (out_len > 1) {

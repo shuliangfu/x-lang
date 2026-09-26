@@ -675,6 +675,49 @@ ensure_kv_mmap_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for std/path/path.o.
+# The whole TU is src/asm/runtime_path_fast.x. Public names stay strong.
+# The current compiler can SIGSEGV once; retry before the C backup.
+# A missing object after three pure-asm faults falls back to the C seed.
+# An object already on disk is left as-is when the .x is not newer.
+# No gcc -E. Linux and Windows do not call this; they host-cc the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default ../std/path/path.o, cwd is compiler/).
+ensure_path_fast_darwin_pure() {
+  local o="${1:-../std/path/path.o}"
+  local xsrc="src/asm/runtime_path_fast.x"
+  local seed="seeds/runtime_path_fast.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o path-fast: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ); then
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o path-fast: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -765,6 +808,20 @@ ensure_one() {
     if [ "$kv_s" = "Darwin" ] && [ "$kv_m" = "arm64" ] \
       && [ -f src/asm/runtime_kv_mmap_glue_darwin.x ]; then
       ensure_kv_mmap_darwin_pure || return 1
+      return 0
+    fi
+  fi
+
+  # w1081: Darwin arm64 path helpers are the .x, not this seed.
+  # Linux and Windows keep host-cc (Windows path_sep_c is '\\').
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_path_fast.from_x.c" ]; then
+    local pf_s pf_m
+    pf_s="$(uname -s 2>/dev/null || echo Unknown)"
+    pf_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$pf_s" = "Darwin" ] && [ "$pf_m" = "arm64" ] \
+      && [ -f src/asm/runtime_path_fast.x ]; then
+      ensure_path_fast_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -14520,6 +14577,19 @@ ensure_std_core_prefer_one() {
       if [ ! -f "$seed" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
         return 1
+      fi
+      # w1081: Darwin arm64 path.o is one TU. Pure-asm the .x first.
+      # xlang-c still emits C and host-cc's it, so it is not the first path.
+      # Linux and Windows keep the branches below. No gcc -E of this seed.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if [ "$x_src" = "src/asm/runtime_path_fast.x" ]; then
+        local pf_s pf_m
+        pf_s="$(uname -s 2>/dev/null || echo Unknown)"
+        pf_m="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$pf_s" = "Darwin" ] && [ "$pf_m" = "arm64" ]; then
+          ensure_path_fast_darwin_pure "$o" || return 1
+          return 0
+        fi
       fi
       if [ "$prefer" = "1" ] && [ -f "$x_src" ]; then
         if _std_core_try_xlang_c_direct "$x_src" "$o"; then
