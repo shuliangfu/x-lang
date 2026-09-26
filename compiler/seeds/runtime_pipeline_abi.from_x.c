@@ -35599,7 +35599,7 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
  *     frame_size@0 next_offset@4 num_locals@8 label_counter@12 module_ref@16
  *     break_len@1240 continue_len@1372 loop_label_depth@1376 dep_pipe@1384
  *     tail_join_label@1392 tail_join_label_len@1520 (sizeof 1528 w/ trailing pad)
- *   Elf e_machine@17432599 (0x10a0018) reloc_type_r_pc32@17432603 — product egg
+ *   Elf e_machine@17432600 (0x10a0018) reloc_type_r_pc32@17432604 — product egg
  *   DepCtx.target_arch via pipeline_dep_ctx_target_arch pure/seed face
  *   TypeKind f32=14 f64=15 (GLUE_TYPE_KIND_*_ORD)
  *
