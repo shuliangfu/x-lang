@@ -11,6 +11,15 @@
  * Cold path (no guard): this file provides both the public _c wrapper + _impl.
  * R2 path: this file provides only the _impl bridge; the _c wrapper comes
  * from .x. The thread body and _impl bridge are always compiled.
+ *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_net_workers_darwin.x, pure-asm by the current compiler.
+ * A function name used as a pointer makes that compiler exit 139, so the
+ * Darwin entry uses dlsym. The 64-wide stack array does not fit the
+ * compiler frame, so the Darwin loop mallocs the same 256 bytes.
+ * This C file is the Linux/Windows body and the Darwin backup when
+ * pure-asm faults and the staged object is missing. Do not delete these
+ * bodies. Do not gcc -E this seed as the repair.
  */
 /**
  * runtime_net_workers.c — accept worker 线程入口胶层（F-ZC：自 std/net/workers_glue.c 迁入）

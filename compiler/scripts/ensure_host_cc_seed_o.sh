@@ -838,6 +838,95 @@ ensure_dynlib_os_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_net_workers.o.
+# The whole TU is src/asm/runtime_net_workers_darwin.x. The accept loop
+# and the entry that publishes its address both live there. The affinity
+# stub is weakened so the thread object's strong definition wins.
+# The current compiler can SIGSEGV once; retry before the C backup.
+# A missing object after eight pure-asm faults falls back to the C seed.
+# An object already on disk is left as-is when the .x is not newer.
+# No gcc -E. Linux and Windows do not call this; they host-cc the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_net_workers.o, cwd is compiler/).
+ensure_net_workers_darwin_pure() {
+  local o="${1:-runtime_net_workers.o}"
+  local xsrc="src/asm/runtime_net_workers_darwin.x"
+  local seed="seeds/runtime_net_workers.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o net-workers: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      export G05_X_O_WEAK_FUNCS=thread_set_affinity_self_c
+      unset G05_X_O_WEAK
+      pure_asm_x_to_o "$o" "$xsrc"
+    ); then
+      # This compiler defines the five helpers with a type suffix and
+      # calls them without that suffix. Rename the definitions onto the
+      # call names. Do not rebuild the compiler to change the mangler.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if nm "$o" 2>/dev/null | grep -q '_net_worker_load_fdfa'; then
+        local oc
+        oc="$(pure_asm_find_objcopy)" || return 1
+        if ! "$oc" \
+          --redefine-sym '_net_worker_rtld_defaultf_'='_net_worker_rtld_default' \
+          --redefine-sym '_net_worker_load_fdfa'='_net_worker_load_fd' \
+          --redefine-sym '_net_worker_close_nfa'='_net_worker_close_n' \
+          --redefine-sym '_net_worker_alloc_fdsul'='_net_worker_alloc_fds' \
+          --redefine-sym '_net_worker_call_accepttf'='_net_worker_call_accept' \
+          "$o"; then
+          echo "ensure_host_cc_seed_o net-workers: helper rename failed" >&2
+          rm -f "$o"
+          continue
+        fi
+      fi
+      # A renamed helper still has an undefined nlist entry beside
+      # the definition. The link uses the definition. Require each
+      # short name to be a defined text symbol.
+      local _nw_short _nw_ok
+      _nw_ok=1
+      for _nw_short in \
+        _net_worker_rtld_default \
+        _net_worker_load_fd \
+        _net_worker_close_n \
+        _net_worker_alloc_fds \
+        _net_worker_call_accept \
+        _xlang_net_worker_accept_loop \
+        _runtime_net_workers_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_nw_short" '$2=="T" && $3==s { ok=1 } END { exit ok?0:1 }'; then
+          _nw_ok=0
+          break
+        fi
+      done
+      if [ "$_nw_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o net-workers: helper text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o net-workers: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -972,6 +1061,21 @@ ensure_one() {
     if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
       && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
       ensure_dynlib_os_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1084: Darwin arm64 accept worker is the .x, not this seed.
+  # Linux and Windows keep host-cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_net_workers.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_net_workers.o" ]; then
+    local nw_s nw_m
+    nw_s="$(uname -s 2>/dev/null || echo Unknown)"
+    nw_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$nw_s" = "Darwin" ] && [ "$nw_m" = "arm64" ] \
+      && [ -f src/asm/runtime_net_workers_darwin.x ]; then
+      ensure_net_workers_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -14334,6 +14438,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
       && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
       ensure_dynlib_os_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1084: Darwin arm64 whole TU is the .x. Do not thin+rest host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_net_workers.o" ]; then
+    local nw_s nw_m
+    nw_s="$(uname -s 2>/dev/null || echo Unknown)"
+    nw_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$nw_s" = "Darwin" ] && [ "$nw_m" = "arm64" ] \
+      && [ -f src/asm/runtime_net_workers_darwin.x ]; then
+      ensure_net_workers_darwin_pure "$o" || return 1
       return 0
     fi
   fi
