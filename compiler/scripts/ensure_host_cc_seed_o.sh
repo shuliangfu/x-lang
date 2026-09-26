@@ -1262,6 +1262,67 @@ ensure_std_async_formal_darwin_pure() {
   return 0
 }
 
+# w1108: Darwin arm64 std/io/io.o maps a context handle to a timeout.
+# The handle is one i64. Linux and Windows keep the C face.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_std_io_formal_darwin_pure() {
+  local o="${1:-../std/io/io.o}"
+  local xsrc="src/asm/std_io_formal_darwin.x"
+  local csrc="../std/io/formal_surface.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o io-formal: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _io_short _io_ok
+      _io_ok=1
+      for _io_short in \
+        _std_io_timeout_from_ctx \
+        _std_io_read_ctx \
+        _std_io_write_ctx \
+        _std_io_formal_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_io_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _io_ok=0
+          break
+        fi
+      done
+      if [ "$_io_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o io-formal: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_std_io_read" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o io-formal: std_io_read is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o io-formal: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $csrc → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -fPIE -I.. -I. -c "$csrc" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -20712,6 +20773,21 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  io-formal-pure|io_formal_pure)
+    # w1108: Darwin arm64 std/io context face from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # Match std/io/io.o only. Do not match std/io/driver.o.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o io-formal-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_std_io_formal_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   async-formal-pure|async_formal_pure)
     # w1107: Darwin arm64 std/async formal face from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

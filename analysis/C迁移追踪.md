@@ -609,6 +609,7 @@
 - 2026-09-27 Darwin arm64 `runtime_process_import_alias.o` 的产品体是 `src/asm/runtime_process_import_alias_darwin.x`，纯 asm。`std_process_*` 转发到已有的 `process_*_c`。退出调用 libSystem `___exit`，不跑 atexit。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_process_import_alias.from_x.c`。
 - 2026-09-27 Darwin arm64 `std/debug/debug.o` 的产品体是 `src/asm/std_debug_formal_darwin.x`，纯 asm。stderr 调用 libSystem `write`。换行是字节 10。`assert` 假值返回 -1。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `std/debug/formal_surface.c`。
 - 2026-09-27 Darwin arm64 `std/async/async.o` 的产品体是 `src/asm/std_async_formal_darwin.x`，纯 asm。`placeholder` 返回 0。drain、reset、net/fs smoke 转发到调度 glue。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `std/async/formal_surface.c`。
+- 2026-09-27 Darwin arm64 `std/io/io.o` 的产品体是 `src/asm/std_io_formal_darwin.x`，纯 asm。上下文句柄是一个 i64。取消 -1，过期 -2，其余按毫秒转发到 `std_io_read` 和 `std_io_write`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `std/io/formal_surface.c`。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
