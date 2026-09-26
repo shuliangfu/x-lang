@@ -1691,6 +1691,114 @@ ensure_process_os_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_sync_lock_diag_tls.o.
+# Thin runtime_sync_lock_diag_tls.x owns the append helpers.
+# runtime_sync_lock_diag_tls_darwin.x owns the meta table, the
+# pthread_key held stack, and the lock hooks. __thread stays in the
+# C seed for Linux and Windows.
+# Fallback: host-cc the seed only when pure-asm leaves no object.
+# PLATFORM: MACOS|DARWIN arm64. Linux and Windows stay on the C seed.
+# $1 = output object (default runtime_sync_lock_diag_tls.o, cwd is compiler/).
+ensure_sync_lock_diag_tls_darwin_pure() {
+  local o="${1:-runtime_sync_lock_diag_tls.o}"
+  local x_thin="src/asm/runtime_sync_lock_diag_tls.x"
+  local x_os="src/asm/runtime_sync_lock_diag_tls_darwin.x"
+  local seed="seeds/runtime_sync_lock_diag_tls.from_x.c"
+  local try=0
+  local thin_o os_o
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o lock_diag: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/lockdiag_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/lockdiag_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o lock_diag: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o lock_diag: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+      local _ld_short _ld_ok
+      _ld_ok=1
+      for _ld_short in \
+        _sync_lock_diag_find_meta_idx \
+        _sync_lock_diag_get_order \
+        _sync_lock_diag_find_meta_idx_impl \
+        _sync_lock_diag_get_order_impl \
+        _sync_lock_diag_tls_push_c \
+        _sync_lock_diag_tls_pop_c \
+        _sync_lock_diag_tls_has_c \
+        _sync_lock_diag_tls_max_order_c \
+        _sync_lock_diag_tls_count_c \
+        _sync_lock_diag_tls_clear_c \
+        _sync_lock_diag_before_lock \
+        _sync_lock_diag_after_lock \
+        _sync_lock_diag_before_unlock \
+        _sync_lock_diag_after_unlock \
+        _sync_lock_diag_set_enabled_c \
+        _sync_lock_diag_is_enabled_c \
+        _sync_lock_diag_mutex_set_id_c \
+        _sync_lock_diag_last_err_c \
+        _sync_lock_diag_clear_c \
+        _sync_lock_diag_snapshot_c \
+        _sync_lock_diag_smoke_c \
+        _sync_lock_diag_append_byte \
+        _sync_lock_diag_append_lit \
+        _sync_lock_diag_append_i32; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_ld_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ld_ok=0
+          break
+        fi
+      done
+      if [ "$_ld_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o lock_diag: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -f "$thin_o" "$os_o"
+      log "pure-asm $x_thin + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -1901,6 +2009,21 @@ ensure_one() {
     if [ "$po_s" = "Darwin" ] && [ "$po_m" = "arm64" ] \
       && [ -f src/asm/runtime_process_os_darwin.x ]; then
       ensure_process_os_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1092: Darwin arm64 lock-diag held stack is the .x, not this seed.
+  # __thread stays in the C seed on Linux and Windows.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_sync_lock_diag_tls.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_sync_lock_diag_tls.o" ]; then
+    local ld_s ld_m
+    ld_s="$(uname -s 2>/dev/null || echo Unknown)"
+    ld_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$ld_s" = "Darwin" ] && [ "$ld_m" = "arm64" ] \
+      && [ -f src/asm/runtime_sync_lock_diag_tls_darwin.x ]; then
+      ensure_sync_lock_diag_tls_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -15373,6 +15496,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$po_s" = "Darwin" ] && [ "$po_m" = "arm64" ] \
       && [ -f src/asm/runtime_process_os_darwin.x ]; then
       ensure_process_os_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1092: Darwin arm64 whole object is thin .x plus lock-diag .x. Do not host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_sync_lock_diag_tls.o" ]; then
+    local ld_s ld_m
+    ld_s="$(uname -s 2>/dev/null || echo Unknown)"
+    ld_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$ld_s" = "Darwin" ] && [ "$ld_m" = "arm64" ] \
+      && [ -f src/asm/runtime_sync_lock_diag_tls_darwin.x ]; then
+      ensure_sync_lock_diag_tls_darwin_pure "$o" || return 1
       return 0
     fi
   fi
