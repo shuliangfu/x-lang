@@ -16,8 +16,10 @@
 //     as zlib.h deflateInit2). Without the define, rest is a stub that
 //     returns DB_NOT_IMPL (-9) so Ubuntu gold still links when
 //     libsqlite3-dev is absent. Darwin arm64 builds that stub object
-//     from src/asm/runtime_sqlite_glue_stub_darwin.x. The real forwards
-//     under XLANG_DB_USE_SQLITE3 stay in this seed.
+//     from src/asm/runtime_sqlite_glue_stub_darwin.x. Darwin arm64 builds
+//     the real forwards from src/asm/runtime_sqlite_glue_darwin.x.
+//     SQLITE_TRANSIENT is passed as the pointer value -1. Linux and
+//     Windows keep the C seed.
 //
 // Why rest stays C (G.7): sqlite3 is an extern system library, not an
 // in-tree port. .x cannot expand SQLITE_TRANSIENT or see sqlite3 /

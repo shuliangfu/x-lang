@@ -720,9 +720,8 @@ ensure_path_fast_darwin_pure() {
 
 # w1101: Darwin arm64 runtime_sqlite_glue_stub.o is the no-libsqlite3 face.
 # Every call returns -9, or 0 for the column and handle readers.
-# The real sqlite3 forwards stay in the C seed under XLANG_DB_USE_SQLITE3.
-# This hook matches the stub object name only. The shared seed still
-# host-cc's runtime_sqlite_glue.o. Linux and Windows keep the C seed.
+# The real sqlite3 forwards are ensure_sqlite_glue_darwin_pure.
+# This hook matches the stub object name only. Linux and Windows keep the C seed.
 # No gcc -E. PLATFORM: MACOS|DARWIN arm64.
 # $1 = output object (default runtime_sqlite_glue_stub.o, cwd is compiler/).
 ensure_sqlite_glue_stub_darwin_pure() {
@@ -795,6 +794,94 @@ ensure_sqlite_glue_stub_darwin_pure() {
     log "cc -c $seed → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
     $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
+# w1102: Darwin arm64 runtime_sqlite_glue.o calls libsqlite3.
+# SQLITE_TRANSIENT is the pointer value -1. The row counter is dlsym'd.
+# The stub object is a different file. Linux and Windows keep the C seed.
+# A missing object falls back to cc with -DXLANG_DB_USE_SQLITE3 when
+# sqlite3.h is visible, matching extras_for_extra_cflags. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_sqlite_glue.o, cwd is compiler/).
+ensure_sqlite_glue_darwin_pure() {
+  local o="${1:-runtime_sqlite_glue.o}"
+  local xsrc="src/asm/runtime_sqlite_glue_darwin.x"
+  local seed="seeds/runtime_sqlite_glue.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o sqlite-glue: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _qg_short _qg_ok
+      _qg_ok=1
+      for _qg_short in \
+        _xlang_db_use_sqlite3_c \
+        _xlang_sqlite3_count_cb \
+        _xlang_sqlite3_open_c \
+        _xlang_sqlite3_close_c \
+        _xlang_sqlite3_exec_c \
+        _xlang_sqlite3_exec_count_c \
+        _xlang_sqlite3_prepare_v2_c \
+        _xlang_sqlite3_step_c \
+        _xlang_sqlite3_finalize_c \
+        _xlang_sqlite3_reset_c \
+        _xlang_sqlite3_clear_bindings_c \
+        _xlang_sqlite3_column_count_c \
+        _xlang_sqlite3_column_int_c \
+        _xlang_sqlite3_column_text_c \
+        _xlang_sqlite3_column_blob_c \
+        _xlang_sqlite3_column_bytes_c \
+        _xlang_sqlite3_bind_int_c \
+        _xlang_sqlite3_bind_text_c \
+        _xlang_sqlite3_errmsg_c \
+        _xlang_sqlite3_db_handle_c \
+        _xlang_sqlite3_changes_c \
+        _xlang_sqlite3_free_c; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_qg_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _qg_ok=0
+          break
+        fi
+      done
+      if [ "$_qg_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o sqlite-glue: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_sqlite3_open" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o sqlite-glue: sqlite3_open is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o sqlite-glue: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    if echo '#include <sqlite3.h>' | ${CC:-cc} -E - >/dev/null 2>&1; then
+      log "cc -c $seed → $o (pure-asm missing object, sqlite3.h)"
+      # shellcheck disable=SC2086
+      $CC ${CFLAGS:-} -I. -Iinclude -Isrc -DXLANG_DB_USE_SQLITE3 -c "$seed" -o "$o" || return 1
+    else
+      log "cc -c $seed → $o (pure-asm missing object)"
+      # shellcheck disable=SC2086
+      $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+    fi
   fi
   return 0
 }
@@ -2334,8 +2421,8 @@ ensure_one() {
   fi
 
   # w1101: Darwin arm64 sqlite stub is the .x, not this seed.
-  # Match the stub object only. runtime_sqlite_glue.o shares the seed and
-  # still host-cc's the real sqlite3 forwards. Linux and Windows keep the seed.
+  # Match the stub object only. The real object is w1102.
+  # Linux and Windows keep the seed.
   # PLATFORM: MACOS|DARWIN arm64.
   if [ "$(basename "$out")" = "runtime_sqlite_glue_stub.o" ]; then
     local sq_s sq_m
@@ -2344,6 +2431,20 @@ ensure_one() {
     if [ "$sq_s" = "Darwin" ] && [ "$sq_m" = "arm64" ] \
       && [ -f src/asm/runtime_sqlite_glue_stub_darwin.x ]; then
       ensure_sqlite_glue_stub_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1102: Darwin arm64 real sqlite forwards are the .x, not this seed.
+  # The stub object name does not match. Linux and Windows keep the seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$out")" = "runtime_sqlite_glue.o" ]; then
+    local qg_s qg_m
+    qg_s="$(uname -s 2>/dev/null || echo Unknown)"
+    qg_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$qg_s" = "Darwin" ] && [ "$qg_m" = "arm64" ] \
+      && [ -f src/asm/runtime_sqlite_glue_darwin.x ]; then
+      ensure_sqlite_glue_darwin_pure "$out" || return 1
       return 0
     fi
   fi

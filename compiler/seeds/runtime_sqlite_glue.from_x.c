@@ -1,8 +1,10 @@
 /* seeds/runtime_sqlite_glue.from_x.c — G-02f-21 product TU
  * w1101: Darwin arm64 runtime_sqlite_glue_stub.o is
  * src/asm/runtime_sqlite_glue_stub_darwin.x (pure asm, the #else face).
- * runtime_sqlite_glue.o and Linux/Windows stubs stay this seed.
- * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the stub .x.
+ * w1102: Darwin arm64 runtime_sqlite_glue.o is
+ * src/asm/runtime_sqlite_glue_darwin.x (pure asm, libsqlite3 forwards).
+ * Linux and Windows stay this seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x faces.
  */
 /**
  * runtime_sqlite_glue.c — F-ZC：自 std/db 胶层迁入
