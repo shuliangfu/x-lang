@@ -804,11 +804,17 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
  * mov_rax_to_rbx writes the address into x1 and drops the high half.
  * That path saves x1 first, parks the address in x19 (mov_rax_to_rbx
  * already copies it there), restores both halves, and stores them through
- * x19. Size <= 8 and size > 16 stay on the scalar store. A field larger
- * than 16 bytes is an address, not a pair; do not send it through the
- * 16-byte store.
- * PLATFORM: MACOS|ARM64 for the pair. The one-GPR store stays for ta != 1
- * (WINDOWS leftover-PE and LINUX x86_64). */
+ * x19. Do not send a field larger than 16 bytes through that 16-byte store.
+ * AAPCS64 named fields larger than 16 bytes are an address in rax when the
+ * RHS kind is VAR (3), FIELD (44), STRUCT_LIT (45), INDEX (47), CALL (48),
+ * or METHOD (49). Same contract as glue_store_retval_pair_to_rbp_elf_c:
+ * push the source address, park the lvalue in x19, pop the source, and
+ * memcpy via glue_copy_large_struct_from_rax_ptr_elf_c slot -3 (dest in
+ * x19, source in rax, length = the field layout size). ARRAY_LIT (46) and
+ * every other kind stay on the scalar store. A qword in rax must not enter
+ * the memcpy. Size <= 8 stays on the scalar store.
+ * PLATFORM: MACOS|ARM64 for the pair and the >16 memcpy. The one-GPR store
+ * stays for ta != 1 (WINDOWS leftover-PE and LINUX x86_64). */
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                        void *ctx, int32_t ta);
 extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
@@ -821,6 +827,8 @@ extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf, int32_t off, 
 extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
 extern int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref);
 extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
+                                                        int32_t sz, int32_t ta);
 extern void *pipeline_asm_emit_module_ref_c(void);
 
 int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
@@ -832,12 +840,26 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
     return -1;
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
     return -1;
-  /* PLATFORM: MACOS|ARM64 — x1 still holds the high half. Save it before
-   * the lvalue address overwrites x1. x19 keeps the address. */
+  /* PLATFORM: MACOS|ARM64. 9..16 saves x1 before the lvalue overwrites
+   * it. Above 16, rax is the source address for the kinds listed above;
+   * x19 keeps the destination. */
   if (ta == 1) {
     void *mod = pipeline_asm_emit_module_ref_c();
     int32_t fty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
     int32_t wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+    int32_t rko = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (wide > 16 &&
+        (rko == 3 || rko == 44 || rko == 45 || rko == 47 || rko == 48 || rko == 49)) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, wide, ta);
+    }
     if (wide > 8 && wide <= 16) {
       if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
         return -1;
