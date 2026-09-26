@@ -642,6 +642,39 @@ ensure_time_os_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_kv_mmap_glue.o.
+# The whole TU is src/asm/runtime_kv_mmap_glue_darwin.x. Public names stay strong.
+# A missing object after a pure-asm fault falls back to the C seed.
+# An object already on disk is left as-is. No gcc -E.
+# Linux and Windows do not call this; they host-cc the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+ensure_kv_mmap_darwin_pure() {
+  local o="runtime_kv_mmap_glue.o"
+  local xsrc="src/asm/runtime_kv_mmap_glue_darwin.x"
+  local seed="seeds/runtime_kv_mmap_glue.from_x.c"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o kv-mmap: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  log "pure-asm $xsrc → $o"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    pure_asm_x_to_o "$o" "$xsrc"
+  ); then
+    echo "ensure_host_cc_seed_o kv-mmap: pure-asm failed for $xsrc" >&2
+    if [ ! -s "$o" ]; then
+      log "cc -c $seed → $o (pure-asm missing object)"
+      # shellcheck disable=SC2086
+      $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+    fi
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -718,6 +751,20 @@ ensure_one() {
     if [ "$to_s" = "Darwin" ] && [ "$to_m" = "arm64" ] \
       && [ -f src/asm/runtime_time_os_darwin.x ]; then
       ensure_time_os_darwin_pure || return 1
+      return 0
+    fi
+  fi
+
+  # w1079: Darwin arm64 user-domain kv mmap glue is the .x, not this seed.
+  # Linux and Windows keep host-cc of the C seed (open and mmap flags differ).
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$out" = "runtime_kv_mmap_glue.o" ]; then
+    local kv_s kv_m
+    kv_s="$(uname -s 2>/dev/null || echo Unknown)"
+    kv_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$kv_s" = "Darwin" ] && [ "$kv_m" = "arm64" ] \
+      && [ -f src/asm/runtime_kv_mmap_glue_darwin.x ]; then
+      ensure_kv_mmap_darwin_pure || return 1
       return 0
     fi
   fi

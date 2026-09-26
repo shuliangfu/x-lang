@@ -1,5 +1,11 @@
 /* seeds/runtime_kv_mmap_glue.from_x.c — G-02f-21 product TU
  * Logic still C until full .x port.
+ *
+ * PLATFORM: LINUX|WINDOWS — host-cc authority for this TU.
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_kv_mmap_glue_darwin.x. This C file remains the backup
+ * when pure-asm faults and the object is missing. Do not delete these
+ * bodies: Linux and Windows still compile them.
  */
 /**
  * runtime_kv_mmap_glue.c — F-ZC：自 std/db 胶层迁入
