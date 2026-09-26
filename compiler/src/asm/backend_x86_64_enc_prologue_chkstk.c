@@ -1,17 +1,15 @@
 /*
  * Override arch_x86_64_enc_enc_prologue (+ epilogue) with a Windows-safe
- * stack probe and w1043 lean small-frame path.
+ * stack probe. Linked first on LINUX|WINDOWS like cltd_cqo.o (PE first-wins).
  *
  * A bare sub rsp,imm32 larger than one page skips the guard page and
  * SEGVs on Windows (deep AS/compare array folds).
  *
- * w1043: host thin trampolines use push rbp; sub $0x30 (no push rbx).
- * Tip always pushed rbx and padded sub to ≡8 (mod 16), so a 48B
- * param-home frame became sub $0x48. For frame_sz <= 48 skip rbx and
- * pad to ≡0 (mod 16) so compute_frame 48 → sub $0x30 matching host.
- * Epilogue mirrors the flag (mov rsp,rbp; pop rbp when rbx omitted).
- *
- * Linked first on LINUX|WINDOWS like cltd_cqo.o (PE first-wins).
+ * w1043 tried lean small-frame (frame_sz<=48 skip push rbx) to match host
+ * trampolines `sub $0x30`. Tip codegen still parks i32 cmp temps in rbx,
+ * so lean leaves smashed the caller's rbx → Win tip thin product option
+ * CG002 (elf_ec=-1 after code_len>0) and si SEGV (w1046). Always save rbx.
+ * Epilogue mirrors g_x86_prologue_saved_rbx.
  * PLATFORM: LINUX|UBUNTU / WINDOWS — x86_64 only.
  */
 #include <stdint.h>
@@ -20,14 +18,14 @@
 extern int x86_enc_u8(void *elf_ctx, int b);
 extern int x86_enc_bytes(void *elf_ctx, unsigned char *p, int n);
 
-/* 1 = prologue saved rbx (lea/[rbp-8] epilogue); 0 = lean host-like. */
+/* 1 = prologue saved rbx (lea/[rbp-8] epilogue). Always 1 since w1046. */
 static int g_x86_prologue_saved_rbx = 1;
 
 /**
- * Emit push rbp; mov rbp,rsp; [push rbx]; then allocate frame_sz bytes.
+ * Emit push rbp; mov rbp,rsp; push rbx; then allocate frame_sz bytes.
  * Frames larger than 4096 probe in 4096-byte steps so Windows commits
  * guard pages before RSP crosses them.
- * w1043: frame_sz <= 48 skips rbx (host trampoline class).
+ * w1046: always push rbx — tip i32 cmp uses rbx even on tiny leaves.
  */
 int arch_x86_64_enc_enc_prologue(void *elf_ctx, int frame_sz) {
   int fs;
@@ -67,12 +65,12 @@ int arch_x86_64_enc_enc_prologue(void *elf_ctx, int frame_sz) {
     fs = 0;
   }
   /*
-   * w1043: small frames (param-home trampolines / tiny leaves) match host
-   * thin — no push rbx. After push rbp only, RSP ≡ 0 (mod 16), so sub
-   * must be ≡ 0 (mod 16). Larger frames keep rbx (array/const base) and
-   * the historic ≡ 8 (mod 16) pad.
+   * Always save rbx. Tip parks compare temps in rbx; skipping the push
+   * (w1043 lean) smashed callee-saved state inside the compiler when tip
+   * thin helpers ran (w1046 Win option CG002 / si SEGV).
+   * After push rbp+rbx, RSP ≡ 8 (mod 16); pad sub to ≡ 8 (mod 16).
    */
-  save_rbx = (fs > 48) ? 1 : 0;
+  save_rbx = 1;
   g_x86_prologue_saved_rbx = save_rbx;
   if (save_rbx != 0) {
     if (x86_enc_u8(elf_ctx, 83) != 0) {

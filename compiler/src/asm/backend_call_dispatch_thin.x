@@ -4,29 +4,38 @@
 // See implementation.
 // PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
+// PLATFORM: WINDOWS product (w1046): tip-compile leaf bodies below
+//   (reg_max / cleanup / append_export / string_lit_len / is_f32 / c_prefix);
+//   host trampoline keeps 5-byte jmp forwarders to *_impl. Full tip
+//   `return *_impl(...)` fat forwarders still option CG002 / si SEGV.
 //
 
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
 
-export extern "C" function link_abi_host_is_windows(): i32;
-
 /** Exported function `glue_asm_call_reg_max`.
  * Implements `glue_asm_call_reg_max`.
- * Win64: 4 real GP + virtual stack slots via enc k>=4 (w1045; was SysV 6 and
- * clamped enc k>5 → push garbage for 7th+ args / tip thin CG002).
+ * Win64: 4 real GP + virtual stack slots via enc k>=4 (w1045).
+ * w1046: compile-time cfg (not runtime link_abi_host_is_windows). Tip thin
+ * lean `$0x30` prologue does not save rbx; a runtime host query used rbx and
+ * smashed the compiler → option CG002 / si SEGV. PLATFORM: WINDOWS.
  * @param ta i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
   if (ta == 0) {
-    /* T001: extern host query requires unsafe. */
-    unsafe {
-      if (link_abi_host_is_windows() != 0) {
-        return 16;
-      }
-    }
+    return 16;
+  }
+  return 8;
+}
+
+/** SysV / non-Windows twin of glue_asm_call_reg_max. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
+#[no_mangle]
+export function glue_asm_call_reg_max(ta: i32): i32 {
+  if (ta == 0) {
     return 6;
   }
   return 8;

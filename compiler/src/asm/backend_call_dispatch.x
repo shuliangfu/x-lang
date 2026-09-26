@@ -720,18 +720,25 @@ export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
 /** Exported function `glue_asm_call_reg_max`.
  * Implements `glue_asm_call_reg_max`.
  * Win64: 4 GP + virtual stack slots via enc k>=4 (w1045).
+ * w1046: compile-time cfg — tip lean frames must not call link_abi (rbx smash).
+ * PLATFORM: WINDOWS.
  * @param ta i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
   if (ta == 0) {
-    /* T001: extern host query requires unsafe. */
-    unsafe {
-      if (link_abi_host_is_windows() != 0) {
-        return 16;
-      }
-    }
+    return 16;
+  }
+  return 8;
+}
+
+/** SysV twin. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
+#[no_mangle]
+export function glue_asm_call_reg_max(ta: i32): i32 {
+  if (ta == 0) {
     return 6;
   }
   return 8;
