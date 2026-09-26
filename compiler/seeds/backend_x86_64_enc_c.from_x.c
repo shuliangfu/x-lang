@@ -1097,6 +1097,8 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
  * The Win64 argument moves stay here.
  * PLATFORM: SHARED.
  * The body does not compare elf_ctx with 0 and does not divide. */
+/* w1048: arch_x86_64_enc_enc_jmp_sym (E9+reloc) also lives in
+ * backend_enc_dispatch_thin.x — same reloc contract as enc_call. */
 #endif /* !XLANG_BACKEND_X86_64_ENC_C_FROM_X */
 
 #ifndef XLANG_BACKEND_X86_64_ENC_C_FROM_X

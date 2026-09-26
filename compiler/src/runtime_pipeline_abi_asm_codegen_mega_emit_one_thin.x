@@ -31,6 +31,7 @@ export extern function pipeline_asm_module_func_body_ref_at(m: *u8, fi: i32): i3
 export extern function pipeline_asm_block_num_stmt_order_at(a: *u8, br: i32): i32;
 export extern function pipeline_asm_ctx_reset_for_func_c(ctx: *u8, mod: *u8): void;
 export extern function w499_mega_emit_skip_heavy(elf_ctx: *u8, ta: i32, m: *u8, i: i32): i32;
+export extern function w499_mega_try_tail_jmp(m: *u8, a: *u8, elf_ctx: *u8, bctx: *u8, ta: i32, i: i32, body_ref: i32): i32;
 export extern function w499_mega_emit_frame(m: *u8, a: *u8, elf_ctx: *u8, bctx: *u8, ta: i32, i: i32, body_ref: i32): i32;
 export extern function w499_mega_emit_body_sync(m: *u8, a: *u8, elf_ctx: *u8, bctx: *u8, ta: i32, body_ref: i32): i32;
 export extern function w499_mega_emit_body_inits(m: *u8, a: *u8, elf_ctx: *u8, bctx: *u8, ta: i32, i: i32, body_ref: i32): i32;
@@ -53,8 +54,8 @@ const W328_CTX_NEXT_OFFSET: i32 = 4;
 const W328_CTX_DEP_PIPE: i32 = 1384;
 
 /**
- * wave393d/499: one emit-order iteration of mega LOOP (head dispatcher).
- * Peers: skip_heavy / frame / body_sync / body_inits / ret_expr / epilogue.
+ * wave393d/499/w1048: one emit-order iteration of mega LOOP (head dispatcher).
+ * Peers: skip_heavy / try_tail_jmp / frame / body_sync / body_inits / ret_expr / epilogue.
  * @return 0 ok (caller advances k), -1 on emit failure
  * PLATFORM: SHARED. Invoked under mega_body_c unsafe.
  */
@@ -69,6 +70,7 @@ export function w393_mega_emit_one(
     let v: i32 = 0;
     let body_ref: i32 = 0;
     let nso: i32 = 0;
+    let tail: i32 = 0;
     if (i < 0) { return 0; }
     if (i < start_skip) { return 0; }
     /* tip drops mid `x=export_extern()`; pipe cell + local cell load. */
@@ -121,6 +123,14 @@ export function w393_mega_emit_one(
     }
     pipe_store_i32_le(&cell[0], 0, pipeline_asm_module_func_body_ref_at(m, i));
     body_ref = w499h_c32(&cell[0]);
+    /*
+     * w1048: pure `return callee(params)` → host-like 5-byte jmp stub.
+     * Must run after label, before prologue (frame). Returns 1 = done.
+     */
+    pipe_store_i32_le(&cell[0], 0, w499_mega_try_tail_jmp(m, a, elf_ctx, bctx, ta, i, body_ref));
+    tail = w499h_c32(&cell[0]);
+    if (tail == 1) { return 0; }
+    if (tail != 0) { return neg1; }
     pipe_store_i32_le(&cell[0], 0, w499_mega_emit_frame(m, a, elf_ctx, bctx, ta, i, body_ref));
     if (w499h_c32(&cell[0]) != 0) { return neg1; }
     if (body_ref != 0) {

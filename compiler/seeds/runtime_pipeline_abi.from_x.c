@@ -35695,6 +35695,8 @@ extern int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t fun
 extern int32_t backend_enc_prologue_arch(void *elf_ctx, int32_t frame_sz, int32_t ta);
 extern int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(void *elf_ctx, int32_t ta, void *mod, int32_t func_index);
 extern int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t fi);
+/* w1048: tip peer leaf — pure forwarder → jmp stub (see mega_emit_tail_jmp_thin.x). */
+extern int32_t w499_mega_try_tail_jmp(void *m, void *a, void *elf_ctx, void *bctx, int32_t ta, int32_t i, int32_t body_ref);
 extern int32_t pipeline_asm_module_func_num_params_at(void *m, int32_t fi);
 extern int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, void *arena, int32_t block_ref, void *mod, int32_t func_index);
 extern int32_t pipeline_asm_block_num_stmt_order_at(void *a, int32_t br);
@@ -35870,6 +35872,19 @@ int32_t pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(void *m, void *a, vo
       continue;
     }
     body_ref = pipeline_asm_module_func_body_ref_at(m, i);
+    /*
+     * w1048: pure `return callee(params)` → host-like 5-byte jmp stub.
+     * G.7 twin of tip w499_mega_try_tail_jmp (emit_one peer). Must run after
+     * label, before prologue. Returns 1 = done (skip frame/body/epilogue).
+     * PLATFORM: SHARED — x86_64; ARM64 leaf returns 0 (fat path).
+     */
+    {
+      int32_t tail = w499_mega_try_tail_jmp(m, a, elf_ctx, bctx, ta, i, body_ref);
+      if (tail == 1)
+        continue;
+      if (tail != 0)
+        return -1;
+    }
     frame_sz = 0;
     if (body_ref != 0) {
       frame_sz = pipeline_asm_compute_frame_size_c(pipeline_asm_module_func_num_params_at(m, i), a, body_ref, m, i);

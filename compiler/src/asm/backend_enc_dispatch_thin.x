@@ -2154,6 +2154,7 @@ export extern "C" function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+export extern "C" function arch_x86_64_enc_enc_jmp_sym(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
@@ -2341,6 +2342,26 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
     unsafe { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
   }
   unsafe { return arch_x86_64_enc_enc_call(elf_ctx, name, name_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an unconditional jump to an external/link symbol (E9 + reloc).
+ * Same reloc contract as backend_enc_call_arch; opcode is jmp not call.
+ * Used for pure param-forwarder tail stubs (host-cc sibling-call shape).
+ * @param elf_ctx *u8 — emit context
+ * @param name *u8 — callee link name bytes
+ * @param name_len i32 — byte count
+ * @param ta i32 — 0 = x86_64; other arches return -1 (caller keeps fat path)
+ * @return i32 — 0 ok, -1 on failure / unsupported arch
+ * PLATFORM: SHARED — x86_64 product; ARM64/RISCV fall through to fat emit.
+ */
+#[no_mangle]
+export function backend_enc_jmp_sym_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  unsafe { return arch_x86_64_enc_enc_jmp_sym(elf_ctx, name, name_len); }
   return 0 - 1;
 }
 
@@ -10613,6 +10634,59 @@ export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32)
     let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
     let rel32_at: i32 = nlen - 4;
     /* Sign of (name_len - 255): 1 keeps name_len, 0 selects 255. */
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let rn: u8[256] = [];
+    rn[0] = 95;
+    let copied: *u8 = memcpy(&rn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len > 0) {
+        if (name_len <= 255) {
+          return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &rn[0], name_len + 1);
+        }
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit jmp rel32 to a link symbol (E9 + reloc), twin of enc_call with opcode 233.
+ * Host-cc turns pure `return f(params)` forwarders into a 5-byte stub; tip
+ * mega emit uses this before prologue so the same shape lands in product.
+ * Reloc / Mach-O underscore rules match arch_x86_64_enc_enc_call.
+ * @param elf_ctx *u8 — emit context
+ * @param name *u8 — callee name bytes
+ * @param name_len i32 — byte count; non-positive returns -1
+ * @return i32 — 0 when jmp+reloc recorded, -1 on failure
+ * PLATFORM: SHARED — x86_64 ELF/PE/Mach-O product asm.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jmp_sym(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  /* 233 = 0xE9 jmp rel32 (call uses 232 = 0xE8). */
+  if (x86_enc_u8(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
     let diff: i32 = name_len - 255;
     let diff_u: u32 = diff as u32;
     let diff_sign: u32 = diff_u >> 31;

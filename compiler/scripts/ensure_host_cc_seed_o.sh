@@ -2591,9 +2591,11 @@ ensure_enc_dispatch_pure() {
     fi
   done
   # w928: x86 call. The last name has no continuation backslash.
+  # w1048: jmp_sym (E9+reloc) for tip pure-forwarder stubs.
   local w928_sym
   for w928_sym in \
-    arch_x86_64_enc_enc_call
+    arch_x86_64_enc_enc_call \
+    arch_x86_64_enc_enc_jmp_sym
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w928_sym"; then
       echo "ensure: enc dispatch missing $w928_sym; C bodies are gone, no fallback" >&2
@@ -2601,6 +2603,12 @@ ensure_enc_dispatch_pure() {
       return 1
     fi
   done
+  # Also require the arch dispatcher used by mega try_tail_jmp.
+  if ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_jmp_sym_arch"; then
+    echo "ensure: enc dispatch missing backend_enc_jmp_sym_arch; C bodies are gone, no fallback" >&2
+    rm -f "$thin_o" "$rest_o" "$merged_o"
+    return 1
+  fi
   # w929: ARM64 prologue, epilogue, and ret_imm32.
   # The last name has no continuation backslash.
   local w929_sym
@@ -2617,7 +2625,7 @@ ensure_enc_dispatch_pure() {
   done
   mv -f "$merged_o" "$o"
   rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w929; arm64 prologue epilogue ret_imm32, w928; x86 call, w927; x86 label, w926; arm64 label, w925; arm64 rbp leas, w924; arm64 branch patch, w923; x86 jcc and jmp, w922; mov_imm32_to_w0, w920; x86 cmp_setcc, the w919 ARM64 cmp_setcc, the w918 ARM64 jmp jz jne jnz jeq jge, the w917 x86 jz jeq jge jnz, the w916 prologue and epilogue, the w915 3 x86 append helpers, the w914 2, the w913 7, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w1048 jmp_sym; w929; arm64 prologue epilogue ret_imm32, w928; x86 call, w927; x86 label, w926; arm64 label, w925; arm64 rbp leas, w924; arm64 branch patch, w923; x86 jcc and jmp, w922; mov_imm32_to_w0, w920; x86 cmp_setcc, the w919 ARM64 cmp_setcc, the w918 ARM64 jmp jz jne jnz jeq jge, the w917 x86 jz jeq jge jnz, the w916 prologue and epilogue, the w915 3 x86 append helpers, the w914 2, the w913 7, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 
@@ -12735,6 +12743,7 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local thin_loop="src/runtime_pipeline_abi_asm_codegen_mega_loop_thin.x"
   # wave499 peers (inject before head so first-wins overlays land under head U).
   local thin_skip="src/runtime_pipeline_abi_asm_codegen_mega_emit_skip_heavy_thin.x"
+  local thin_tail="src/runtime_pipeline_abi_asm_codegen_mega_emit_tail_jmp_thin.x"
   local thin_frame="src/runtime_pipeline_abi_asm_codegen_mega_emit_frame_thin.x"
   local thin_bsync="src/runtime_pipeline_abi_asm_codegen_mega_emit_body_sync_thin.x"
   local thin_binits="src/runtime_pipeline_abi_asm_codegen_mega_emit_body_inits_thin.x"
@@ -12745,14 +12754,18 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
   local had_newer=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_helpers" ] && [ -f "$thin_emit" ] && [ -f "$thin_loop" ] || return 0
-  [ -f "$thin_skip" ] && [ -f "$thin_frame" ] && [ -f "$thin_bsync" ] \
+  [ -f "$thin_skip" ] && [ -f "$thin_tail" ] && [ -f "$thin_frame" ] && [ -f "$thin_bsync" ] \
     && [ -f "$thin_binits" ] && [ -f "$thin_retex" ] && [ -f "$thin_epi" ] || return 0
   # Inject emit_one peer pack (PREFER); caller sets PREFER/ALLOW_E.
   # PLATFORM: SHARED shell · LINUX gold peers · MACOS co-path.
+  # w1048: try_tail_jmp before frame (host-like 5-byte forwarder stub).
   _w499_inject_emit_peers() {
     local _o="$1"
     local _rc=0
     pipeline_abi_inject_thin_leaf "$_o" "$thin_skip" "w499-mega-emit-skip" || _rc=$?
+    if [ "$_rc" -eq 0 ]; then
+      pipeline_abi_inject_thin_leaf "$_o" "$thin_tail" "w1048-mega-emit-tail-jmp" || _rc=$?
+    fi
     if [ "$_rc" -eq 0 ]; then
       pipeline_abi_inject_thin_leaf "$_o" "$thin_frame" "w499-mega-emit-frame" || _rc=$?
     fi
@@ -12790,7 +12803,8 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
         need_h=1
       fi
       if [ ! -f "$stamp_l" ] || [ "$thin_emit" -nt "$stamp_l" ] \
-        || [ "$thin_skip" -nt "$stamp_l" ] || [ "$thin_frame" -nt "$stamp_l" ] \
+        || [ "$thin_skip" -nt "$stamp_l" ] || [ "$thin_tail" -nt "$stamp_l" ] \
+        || [ "$thin_frame" -nt "$stamp_l" ] \
         || [ "$thin_bsync" -nt "$stamp_l" ] || [ "$thin_binits" -nt "$stamp_l" ] \
         || [ "$thin_retex" -nt "$stamp_l" ] || [ "$thin_epi" -nt "$stamp_l" ]; then
         need_e=1
@@ -12837,6 +12851,7 @@ pipeline_abi_inject_asm_codegen_mega_body_thin() {
     && [ ! "$thin_emit" -nt "$stamp" ] \
     && [ ! "$thin_loop" -nt "$stamp" ] \
     && [ ! "$thin_skip" -nt "$stamp" ] \
+    && [ ! "$thin_tail" -nt "$stamp" ] \
     && [ ! "$thin_frame" -nt "$stamp" ] \
     && [ ! "$thin_bsync" -nt "$stamp" ] \
     && [ ! "$thin_binits" -nt "$stamp" ] \
