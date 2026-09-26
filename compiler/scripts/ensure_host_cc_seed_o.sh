@@ -1388,6 +1388,69 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1114: Darwin arm64 src/lsp/lsp_diag_pipeline_sizes.o returns fixed sizes.
+# arena is 16, module is 40, dep context is 1560. Alloc returns 0.
+# Linux and Windows keep the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_lsp_sizes_weak_darwin_pure() {
+  local o="${1:-src/lsp/lsp_diag_pipeline_sizes.o}"
+  local xsrc="src/asm/lsp_diag_pipeline_sizes_weak_darwin.x"
+  local csrc="seeds/lsp_diag_pipeline_sizes_weak.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o lsp-sizes-weak: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _sz_short _sz_ok
+      _sz_ok=1
+      for _sz_short in \
+        _lsp_diag_pipeline_sizeof_arena \
+        _lsp_diag_pipeline_sizeof_module \
+        _lsp_diag_pipeline_sizeof_dep_ctx \
+        _lsp_diag_x_alloc_dep_ctx_size \
+        _lsp_diag_pipeline_ctx_fill_paths \
+        _lsp_diag_sizes_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_sz_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _sz_ok=0
+          break
+        fi
+      done
+      if [ "$_sz_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o lsp-sizes-weak: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if [ -n "$(nm -u "$o" 2>/dev/null | awk '{ print $NF }')" ]; then
+        echo "ensure_host_cc_seed_o lsp-sizes-weak: unexpected undefined symbol" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o lsp-sizes-weak: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc_inc_tu $csrc → $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh "$csrc" "$o" -I. -Iinclude -Isrc || return 1
+  fi
+  return 0
+}
+
 # w1113: Darwin arm64 asm_xlang_lsp_diag_stub.o writes an empty JSON array.
 # Invalidation forwards to lsp_diag_invalidate_cache.
 # Linux and Windows keep the C seed.
@@ -21160,6 +21223,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lsp-sizes-weak-pure|lsp_sizes_weak_pure)
+    # w1114: Darwin arm64 pipeline size stub from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lsp-sizes-weak-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_lsp_sizes_weak_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   lsp-diag-stub-pure|lsp_diag_stub_pure)
     # w1113: Darwin arm64 LSP diagnostic stub from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

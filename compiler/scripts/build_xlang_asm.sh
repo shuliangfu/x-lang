@@ -5066,7 +5066,17 @@ GEN_DRIVER_TYPECK_COMPANIONS="typeck_x.o x_frontend_link_alias.o"
 
 # lsp_diag.c 依赖 pipeline 结构体 sizeof（与 Makefile bootstrap-driver-seed 一致）
 ensure_lsp_diag_pipeline_sizes_obj() {
-  if [ ! -f src/lsp/lsp_diag_pipeline_sizes.o ]; then
+  # w1114: Darwin arm64 sizes are the .x. Linux and Windows stay on cc_inc_tu.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _sz_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _sz_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_sz_os" = "Darwin" ] && [ "$_sz_mach" = "arm64" ] \
+    && [ -f src/asm/lsp_diag_pipeline_sizes_weak_darwin.x ]; then
+    if [ ! -f src/lsp/lsp_diag_pipeline_sizes.o ] \
+      || [ src/asm/lsp_diag_pipeline_sizes_weak_darwin.x -nt src/lsp/lsp_diag_pipeline_sizes.o ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-sizes-weak-pure src/lsp/lsp_diag_pipeline_sizes.o
+    fi
+  elif [ ! -f src/lsp/lsp_diag_pipeline_sizes.o ]; then
   echo " cc -c src/lsp/lsp_diag_pipeline_sizes.o"
   sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c src/lsp/lsp_diag_pipeline_sizes.o
   fi

@@ -615,6 +615,7 @@
 - 2026-09-27 Darwin arm64 `src/lexer/lexer.o` 的产品体是 `src/asm/runtime_lexer_glue_darwin.x`，纯 asm。块 536 字节，line 与 col 从 1 开始，end 为源加 strlen。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_lexer_glue.from_x.c`。
 - 2026-09-27 Darwin arm64 `build_tool_libc_bridge.o` 的产品体是 `src/asm/build_tool_libc_bridge_darwin.x`，纯 asm。空命令返回 -1，构建脚本名固定。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/build_tool_libc_bridge.from_x.c`。
 - 2026-09-27 Darwin arm64 `asm_xlang_lsp_diag_stub.o` 的产品体是 `src/asm/asm_xlang_lsp_diag_stub_darwin.x`，纯 asm。空数组是两个方括号，失效转发到已有诊断对象。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/asm_xlang_lsp_diag_stub.from_x.c`。
+- 2026-09-27 Darwin arm64 `src/lsp/lsp_diag_pipeline_sizes.o` 的产品体是 `src/asm/lsp_diag_pipeline_sizes_weak_darwin.x`，纯 asm。arena 16，module 40，依赖上下文 1560，分配返回 0。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/lsp_diag_pipeline_sizes_weak.from_x.c`。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

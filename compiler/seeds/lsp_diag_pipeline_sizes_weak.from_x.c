@@ -4,7 +4,10 @@
  * src/lsp/lsp_diag_pipeline_sizes.x. w848 deleted
  * seeds/lsp_diag_pipeline_sizes.from_x.c. This file is not that object.
  * Promoted from compiler/src/lsp/lsp_diag_pipeline_sizes.inc.
- * Size constants must match the .x: arena=16, module=40, dep_ctx=1368.
+ * Darwin arm64 product body is src/asm/lsp_diag_pipeline_sizes_weak_darwin.x.
+ * arena is 16, module is 40, dep context is 1560. Alloc returns 0.
+ * Linux and Windows keep this C seed.
+ * Size constants must match the .x: arena=16, module=40, dep_ctx=1560 on Darwin arm64.
  */
 #include <xlang_weak.h>
 #include <stddef.h>
