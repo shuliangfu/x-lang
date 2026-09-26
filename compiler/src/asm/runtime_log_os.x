@@ -95,10 +95,14 @@ export function log_get_min_level_c(): i32 {
   unsafe { return log_get_min_level_impl(); }
 }
 
-/** Emit bytes with null/len validation (convenience bridge). */
+/** Emit bytes with null/len validation (convenience bridge).
+ * A null pointer or a non-positive length returns -1.
+ * PLATFORM: SHARED — `== 0` and `||` so the current compiler emits this
+ * function. The `null` / `or` spelling was dropped and the symbol vanished.
+ */
 #[no_mangle]
 export function log_emit_bytes_c(buf: *u8, len: i32): i32 {
-  if (buf == null or len <= 0) { return -1; }
+  if (buf == 0 || len <= 0) { return 0 - 1; }
   return log_emit_bytes(buf, len as usize);
 }
 

@@ -11,6 +11,13 @@
  * wave252 G.7: XLANG_LOG_MIN_LEVEL via public face link_abi_getenv (not raw getenv).
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
  * Cap residual 10.7.2: rotate path format via xlang_snprintf (no libc snprintf).
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_log_os.x plus src/asm/runtime_log_os_darwin.x,
+ * pure-asm then ld -r. File slots are memcpy'd. Open uses ___open
+ * with Darwin flags because this compiler cannot emit svc.
+ * This C file is the Linux body, the Windows body, and the Darwin
+ * backup when pure-asm faults and the staged object is missing.
+ * Do not delete these bodies. Do not gcc -E this seed as the repair.
  * PLATFORM: SHARED
  */
 #include <stdint.h>
