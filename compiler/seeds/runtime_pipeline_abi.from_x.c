@@ -35624,14 +35624,14 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
 
 /*
  * LP64 SHARED — product egg mega / live pipe_elf_off_e_machine use
- * 0x10a0018 / 0x10a001c (17432599 / 17432603). Tip elf_ctx_thin still
+ * 0x10a0018 / 0x10a001c (17432600 / 17432604). Tip elf_ctx_thin still
  * lists 43581464 (0x2990018) but that weak loses to the egg face; writing
  * 0x2990018 from a freshly host-cc'd mega zeroes e_machine (EM:0).
  * PLATFORM: LINUX gold egg layout; WINDOWS has a separate 0x2790018 note.
  */
 enum {
-  W290_ELF_E_MACHINE_OFF = 17432599,
-  W290_ELF_RELOC_R_PC32_OFF = 17432603
+  W290_ELF_E_MACHINE_OFF = 17432600,
+  W290_ELF_RELOC_R_PC32_OFF = 17432604
 };
 
 #ifndef W290_GLUE_TYPE_KIND_F32_ORD
