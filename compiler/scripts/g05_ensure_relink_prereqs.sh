@@ -1309,11 +1309,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # not FORCE pabi mega; do not extend P4bc wrap with line/col).
         # Cold: no define, full .inc.
         _pthin_p4t_extra=""
+        _pthin_p4t_pure=0
+        # w1141: the four-function file exits 139. Darwin compiles each
+        # function and links them. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+        if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-ternary-pure "$_pthin_p4tb_thin_o"; then
+          _pthin_p4t_pure=1
+        fi
         if [ -n "$_pthin_p4tb_thin_o" ] && [ -f "$_pthin_p4tb_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4tb_x" "$_pthin_p4tb_thin_o"; then
+          if [ "$_pthin_p4t_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4tb_x" "$_pthin_p4tb_thin_o"; then
             _pthin_p4tb_ok=1
             _pthin_p4t_extra="-DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X"
-            echo "g05_ensure: P4tb/P4tc/P4td/P4te ternary wrap+parse ← $_pthin_p4tb_x (7.2.1 Route C)"
+            if [ "$_pthin_p4t_pure" = "1" ]; then
+              echo "g05_ensure: P4 ternary ← pure-asm four pieces (w1141)"
+            else
+              echo "g05_ensure: P4tb/P4tc/P4td/P4te ternary wrap+parse ← $_pthin_p4tb_x (7.2.1 Route C)"
+            fi
           else
             echo "g05_ensure: P4tb ternary .x thin failed; P4t C twin stays full" >&2
           fi

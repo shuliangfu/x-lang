@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1141: one translation unit exits 139. Darwin compiles each function
+// and links the four pieces. PLATFORM: SHARED.
 // pthin_expr_ternary.x — G-02f-285 P4 parser thin ternary/assign product bodies.
 //
 // 7.2.1 P4tb Route C (2026-09-15): first bodies in this P-lane file
