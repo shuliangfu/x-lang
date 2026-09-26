@@ -583,6 +583,7 @@
 - 2026-09-26 Darwin arm64 `runtime_kv_mmap_glue.o` 的产品体在 `src/asm/runtime_kv_mmap_glue_darwin.x`，创建、加长、映射和同步走 libSystem。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_kv_mmap_glue.from_x.c`。共享锚点 `runtime_kv_mmap_glue.x` 仍无业务。
 - 2026-09-26 Darwin arm64 `runtime_string_fast` 的产品体在 `src/asm/runtime_string_fast.x`，`xlang_compile_std_string_o.sh` 冷路径先纯 asm。Linux、Windows 与纯 asm 失败时的备份仍是 `seeds/runtime_string_fast.from_x.c`。`std/string/mod.x` 仍是另一份单元。
 - 2026-09-26 Darwin arm64 `std/path/path.o` 的产品体在 `src/asm/runtime_path_fast.x`，冷路径先纯 asm。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_path_fast.from_x.c`。
+- 2026-09-26 Darwin arm64 `runtime_sync_os.o` 的产品体在 `src/asm/runtime_sync_os_darwin.x`，互斥锁、读写锁和条件变量走 libSystem pthread。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_sync_os.from_x.c`。共享薄封装 `runtime_sync_os.x` 仍只转调 C `_impl`。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

@@ -8,6 +8,13 @@
  * smoke → Cap spawn (no libpthread on Linux sync_os leaf). Darwin/other POSIX:
  * pthread for mutex/cond/rwlock + pthread_create smoke.
  * PLATFORM: SHARED — LINUX Cap · POSIX pthread · WINDOWS Win32
+ *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_sync_os_darwin.x, pure-asm by the current compiler
+ * into runtime_sync_os.o. This C file is the Linux/Windows body and
+ * the Darwin backup when pure-asm faults and the staged object is
+ * missing. Do not delete these bodies. Do not gcc -E this seed
+ * as the repair.
  */
 /**
  * runtime_sync_os.c — Mutex/RwLock/Condvar OS 胶层（F-ZC：自 std/sync/sync_os_glue.c 迁入）
