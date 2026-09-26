@@ -35623,16 +35623,27 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
 #include <stdio.h>
 
 /*
- * LP64 SHARED — product egg mega / live pipe_elf_off_e_machine use
- * 0x10a0018 / 0x10a001c (17432600 / 17432604). Tip elf_ctx_thin still
- * lists 43581464 (0x2990018) but that weak loses to the egg face; writing
- * 0x2990018 from a freshly host-cc'd mega zeroes e_machine (EM:0).
- * PLATFORM: LINUX gold egg layout; WINDOWS has a separate 0x2790018 note.
+ * LP64 — e_machine / reloc_type immediates written by this mega.
+ * PLATFORM: LINUX — product egg is 0x10a0018 / 0x10a001c
+ * (17432600 / 17432604). Tip elf_ctx_thin still lists 43581464
+ * (0x2990018); that weak loses to the egg. Writing 0x2990018 from a
+ * freshly host-cc'd Linux mega zeroes e_machine (EM:0).
+ * PLATFORM: WINDOWS — the live PE mega (pabi 1662096) adds 0x2990018.
+ * coff.x stores e_machine at 0x2790018 and accepts code_len>0 when that
+ * field is not 62. Writing the Linux 0x10a0018 into the PE ctx hits a
+ * different slot. Keep the live PE immediate.
  */
+#if defined(_WIN32)
+enum {
+  W290_ELF_E_MACHINE_OFF = 43581464,
+  W290_ELF_RELOC_R_PC32_OFF = 43581468
+};
+#else
 enum {
   W290_ELF_E_MACHINE_OFF = 17432600,
   W290_ELF_RELOC_R_PC32_OFF = 17432604
 };
+#endif
 
 #ifndef W290_GLUE_TYPE_KIND_F32_ORD
 #define W290_GLUE_TYPE_KIND_F32_ORD 14
