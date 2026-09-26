@@ -730,11 +730,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # (R3_COLD catalog; G.7 single body; no second full/thin ladder here).
 
   # G-02f-10 / G-02f-333：parser_asm_parse_expr_link.o
-  # 默认整 seed（SKIP_X）；PREFER_X_O=1 时 .x thin（debug_enabled 门闩）+ seed-rest ld -r
+  # w1118: Darwin arm64 is one .x. Linux keeps thin .x plus the C rest.
+  # PLATFORM: MACOS|DARWIN arm64.
   _pel=seeds/parser_asm_parse_expr_link.from_x.c
   _pel_x=src/asm/parser_asm_parse_expr_link.x
   _pel_o=src/asm/parser_asm_parse_expr_link.o
-  if [ -f "$_pel" ]; then
+  _pe_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _pe_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
+    && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
+    if [ ! -f "$_pel_o" ] \
+      || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$_pel_o" ] \
+      || [ "$_pel" -nt "$_pel_o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$_pel_o"
+    fi
+  elif [ -f "$_pel" ]; then
     if [ ! -f "$_pel_o" ] || [ "$_pel" -nt "$_pel_o" ] \
       || { [ -f "$_pel_x" ] && [ "$_pel_x" -nt "$_pel_o" ]; }; then
       _pel_done=0

@@ -1388,6 +1388,66 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1118: Darwin arm64 src/asm/parser_asm_parse_expr_link.o forwards parse_expr.
+# The weak parse stubs stay out. Linux and Windows keep the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_parse_expr_link_darwin_pure() {
+  local o="${1:-src/asm/parser_asm_parse_expr_link.o}"
+  local xsrc="src/asm/parser_asm_parse_expr_link_darwin.x"
+  local csrc="seeds/parser_asm_parse_expr_link.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o parse-expr-link: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _pe_short _pe_ok
+      _pe_ok=1
+      for _pe_short in \
+        _parse_expr_into \
+        _parser_asm_parse_expr_debug_enabled \
+        _parser_asm_parse_expr_debug_snippet_c \
+        _parser_asm_parse_expr_link_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_pe_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _pe_ok=0
+          break
+        fi
+      done
+      if [ "$_pe_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o parse-expr-link: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_parser_parse_expr_into" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o parse-expr-link: parser forward is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o parse-expr-link: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc $csrc → $o (pure-asm missing object)"
+    ${CC:-cc} -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o "$o" "$csrc" || return 1
+  fi
+  return 0
+}
+
 # w1117: Darwin arm64 backend_asm_strict_fallback_alias.o forwards to pipeline.
 # Linux and Windows keep the generated C seed.
 # PLATFORM: MACOS|DARWIN arm64.
@@ -21414,6 +21474,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  parse-expr-link-pure|parse_expr_link_pure)
+    # w1118: Darwin arm64 parse_expr bridge from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o parse-expr-link-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_parse_expr_link_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   backend-fallback-alias-pure|backend_fallback_alias_pure)
     # w1117: Darwin arm64 non-WPO backend fallback from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

@@ -4656,7 +4656,18 @@ ensure_asm_strict_link_extra_objs() {
   echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
-  if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
+  # w1118: Darwin arm64 bridge is the .x. Linux and Windows stay on cc.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _pe_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _pe_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
+    && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
+    if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
+      || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt src/asm/parser_asm_parse_expr_link.o ] \
+      || [ seeds/parser_asm_parse_expr_link.from_x.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
+      bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure src/asm/parser_asm_parse_expr_link.o
+    fi
+  elif [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
   || [ seeds/parser_asm_parse_expr_link.from_x.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
   echo " cc -c seeds/parser_asm_parse_expr_link.from_x.c -> src/asm/parser_asm_parse_expr_link.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \

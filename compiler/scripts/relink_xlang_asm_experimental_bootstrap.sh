@@ -251,7 +251,18 @@ if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "seeds/parser_asm_thin_c.from_x.c" -nt "$P
 fi
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩（G-02e-7：原 parser_asm_link_alias 并入）
-if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
+# w1118: Darwin arm64 bridge is the .x. Linux and Windows stay on cc.
+# PLATFORM: MACOS|DARWIN arm64.
+_pe_os="$(uname -s 2>/dev/null || echo Unknown)"
+_pe_mach="$(uname -m 2>/dev/null || echo unknown)"
+if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
+  && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
+  if [ ! -f "$PARSER_EXPR_LINK_O" ] \
+    || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$PARSER_EXPR_LINK_O" ] \
+    || [ seeds/parser_asm_parse_expr_link.from_x.c -nt "$PARSER_EXPR_LINK_O" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$PARSER_EXPR_LINK_O"
+  fi
+elif [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
   experimental_bootstrap_info "cc parser_asm_parse_expr_link.o"
   sh scripts/cc_inc_tu.sh seeds/parser_asm_parse_expr_link.from_x.c "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
 fi

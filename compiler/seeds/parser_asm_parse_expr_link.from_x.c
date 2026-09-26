@@ -3,6 +3,8 @@
  * G-02f-102 helper gates.
  * G-02f-333：PREFER_X_O hybrid 时 debug_enabled 由 .x thin 提供，本文件出 rest。
  * Class AG: Cap IO debug (xlang_io / snprintf / getenv) retired from this TU.
+ * Darwin arm64 product body is src/asm/parser_asm_parse_expr_link_darwin.x.
+ * Linux and Windows keep this C seed. SKIP_X still omits the weak parse stubs.
  * Compile with -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS for product G05.
  * Product: → src/asm/parser_asm_parse_expr_link.o
  */
