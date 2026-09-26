@@ -1,6 +1,10 @@
 /* seeds/runtime_net_ipv6_fast.from_x.c — G-02f-20 product TU
  * G-02f-104 helper gates.
- * Product: ../std/net/net_ipv6_fast.o; logic still C until full .x port.
+ * Product: ../std/net/net_ipv6_fast.o.
+ * w1097: Darwin arm64 product body is src/asm/runtime_net_ipv6_fast.x
+ * plus src/asm/runtime_net_ipv6_fast_darwin.x (pure asm, then ld -r).
+ * Linux, Windows, and the pure-asm-fault backup stay this C seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x pair.
  *
  * Cap residual 9.1.7: socket/connect/poll/close via xlang_net_cap.h on Linux, Darwin, and Windows.
  * PLATFORM: SHARED Cap (LINUX raw syscall, MACOS|DARWIN raw syscall, WINDOWS Winsock Cap).

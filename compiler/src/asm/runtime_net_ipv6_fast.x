@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// runtime_net_ipv6_fast.x — Thin .x exports delegating to
-// seeds/runtime_net_ipv6_fast.from_x.c via xlang_net_cap.h (SHARED Cap 9.1.7).
-//
-// PLATFORM: SHARED — Linux & Darwin raw syscalls + Windows Winsock Cap.
+// runtime_net_ipv6_fast.x — Thin wrappers for the IPv6 socket faces.
+// Darwin arm64 bodies live in runtime_net_ipv6_fast_darwin.x.
+// Linux and Windows keep the C seed.
+// PLATFORM: SHARED wrappers. MACOS|DARWIN arm64 bodies are the other file.
 
 export extern "C" function net_ipv6_ensure_wsa_c_impl_c(): i32;
 export extern "C" function net_ipv6_close_socket_c_impl_c(fd: i32): i32;
