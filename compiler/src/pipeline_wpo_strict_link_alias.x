@@ -30,6 +30,13 @@
 // 7.2.1 seventh knife (2026-09-10): authority moved from the hand-written C
 // seed (seeds/pipeline_wpo_strict_link_alias.from_x.c, promoted from a
 // retired .inc) to this .x source. PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm.
+// pipeline_run_x_pipeline_impl forwards to run_x_pipeline_impl.
+// run_x_pipeline_typecheck_entry_emit forwards to
+// run_x_pipeline_typecheck_entry_emit_c.
+// This object is not pipeline_wpo_typecheck_emit_bridge.o.
+// Linux and Windows keep -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN for that object path.
 
 /** pipeline_wpo.o's WPO root orchestration (asm emit). */
 export extern function run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: usize, out_buf: *u8, ctx: *u8): i32;

@@ -1388,6 +1388,72 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1121: Darwin arm64 pipeline_wpo_strict_link_alias.o forwards two names.
+# Linux and Windows keep -x -E then host cc. The C seed is already gone.
+# Does not match pipeline_wpo_typecheck_emit_bridge.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_wpo_strict_alias_darwin_pure() {
+  local o="${1:-build_asm/pipeline_wpo_strict_link_alias.o}"
+  local xsrc="src/pipeline_wpo_strict_link_alias.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o wpo-strict-alias: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _wp_short _wp_ok
+      _wp_ok=1
+      for _wp_short in \
+        _pipeline_run_x_pipeline_impl \
+        _run_x_pipeline_typecheck_entry_emit; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_wp_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _wp_ok=0
+          break
+        fi
+      done
+      if [ "$_wp_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o wpo-strict-alias: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      for _wp_short in \
+        _run_x_pipeline_impl \
+        _run_x_pipeline_typecheck_entry_emit_c; do
+        if ! nm -u "$o" 2>/dev/null | awk -v s="$_wp_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+          echo "ensure_host_cc_seed_o wpo-strict-alias: $_wp_short is not undefined" >&2
+          rm -f "$o"
+          _wp_ok=0
+          break
+        fi
+      done
+      if [ "$_wp_ok" != "1" ]; then
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o wpo-strict-alias: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc_inc_tu --auto $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh --auto "$o" || return 1
+  fi
+  return 0
+}
+
 # w1120: Darwin arm64 src/asm/pipeline_run_x_link_alias.o forwards four bare names.
 # Linux and Windows keep -x -E then host cc. The C seed is already gone.
 # PLATFORM: MACOS|DARWIN arm64.
@@ -21612,6 +21678,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  wpo-strict-alias-pure|wpo_strict_alias_pure)
+    # w1121: Darwin arm64 WPO strict link alias from the existing .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o wpo-strict-alias-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_wpo_strict_alias_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   run-x-link-alias-pure|run_x_link_alias_pure)
     # w1120: Darwin arm64 run_x link alias from the existing .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
