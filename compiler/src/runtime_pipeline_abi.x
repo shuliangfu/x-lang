@@ -51125,12 +51125,15 @@ export function glue_field_access_layout_field_type_ref_by_name_c(arena: *u8, mo
 
 
 /**
- * CALL-arg FIELD_ACCESS: MEMORY class (>16B) leave address in rax.
+ * FIELD_ACCESS of a MEMORY-class value (>16B): leave the field address in rax.
+ * Call args use the formal type when it is set. A let or assign (`let t = w.b`,
+ * `t = w.b`) has no formal, so the field's own type is the gate. 9–16B stays
+ * by-value dual-GP (pass_addr is 0). A qword load kept eight bytes.
  * @param arena *u8 - ASTArena*
  * @param fa_ref i32 - FIELD_ACCESS expr ref
  * @return i32 - non-zero if by-addr; 0 otherwise
  * wave151 pure: G.7 authority (was static glue_field_access_call_arg_struct_by_addr_elf_c).
- * PLATFORM: SHARED LINUX+MACOS x86_64 SysV (9–16B dual-GP by-value).
+ * PLATFORM: SHARED LINUX+MACOS x86_64 SysV (9–16B dual-GP by-value) · MACOS|ARM64.
  */
 #[no_mangle]
 export function glue_field_access_call_arg_struct_by_addr_elf_c(arena: *u8, fa_ref: i32): i32 {
@@ -51138,12 +51141,14 @@ export function glue_field_access_call_arg_struct_by_addr_elf_c(arena: *u8, fa_r
   let mod: *u8 = 0 as *u8;
   let pty: i32 = 0;
   unsafe {
-    if (pipeline_asm_emit_call_arg_active_c() == 0) {
-      return 0;
-    }
-    pty = pipeline_asm_emit_ctx_call_param_ty_get();
-    if (pty > 0) {
-      return glue_call_param_named_struct_pass_addr_elf_c(arena, pty);
+    // Formal type only while a call arg is active. Outside a call the saved
+    // param type is stale and must not size `let t = w.b`.
+    // PLATFORM: SHARED.
+    if (pipeline_asm_emit_call_arg_active_c() != 0) {
+      pty = pipeline_asm_emit_ctx_call_param_ty_get();
+      if (pty > 0) {
+        return glue_call_param_named_struct_pass_addr_elf_c(arena, pty);
+      }
     }
     mod = pipeline_asm_emit_module_ref_c();
     fty = glue_field_access_field_type_ref_c(arena, mod, fa_ref);
@@ -52369,6 +52374,10 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
     if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0) {
       return 0 - 1;
     }
+    // Address is already in rax. Non-zero means MEMORY class (>16B): leave
+    // it for store_retval / the call-arg slot. A scalar load would keep
+    // eight bytes of `let t = w.b`. 9–16B falls through and loads.
+    // PLATFORM: SHARED.
     if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
       return 0;
     }
@@ -70784,10 +70793,12 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
 
 
 /**
- * Store CALL/METHOD/INDEX/STRUCT_LIT/VAR/expr result into a let stack slot
+ * Store CALL/METHOD/INDEX/STRUCT_LIT/VAR/FIELD/expr result into a let stack slot
  * (rax half first; 9–16B dual-GP adds rdx half; >16B via *rax memcpy;
  * TYPE_SLICE length + deep-copy). EXPR_VAR is in the memcpy gate only
  * because glue_load_var leaves the slot address when the source is >16B.
+ * EXPR_FIELD is in that gate only because the field emitter leaves the
+ * field address when the field itself is >16B (`let t = w.b`).
  * @param m *u8 — Module* (may be null for early gates; dual-GP non-SLICE needs m)
  * @param arena *u8 — ASTArena*; null skips dual-GP widen / SLICE / kind tests
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
@@ -70821,20 +70832,22 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       sz = nsz;
     }
   }
-  // >16B + CALL(48)/METHOD(49)/INDEX(47)/STRUCT_LIT(45)/VAR(3): memcpy from *rax.
-  // emit_index esz>16, CALL sret, STRUCT_LIT nbytes>16, and a VAR whose
-  // glue_load_var saw sz>16 all leave the object address in rax. Storing
-  // that pointer keeps 8 bytes and drops the payload, so a later field
-  // load reads the pointer slot plus the field offset. ARRAY_LIT (46)
-  // stays out: its let path stores rax and returns before this function.
-  // Kind VAR is safe only while glue_load_var LEAs for sz>16. A qword in
-  // rax must not enter this branch. Size class stays the frozen >16 test.
+  // >16B + CALL(48)/METHOD(49)/INDEX(47)/STRUCT_LIT(45)/VAR(3)/FIELD(44):
+  // memcpy from *rax. emit_index esz>16, CALL sret, STRUCT_LIT nbytes>16,
+  // a VAR whose glue_load_var saw sz>16, and a FIELD whose payload is >16B
+  // all leave the object address in rax. Storing that pointer keeps 8 bytes
+  // and drops the payload, so a later field load reads the pointer slot
+  // plus the field offset. ARRAY_LIT (46) stays out: its let path stores
+  // rax and returns before this function. Kind VAR is safe only while
+  // glue_load_var LEAs for sz>16. Kind FIELD is safe only while the field
+  // emitter leaves the address for sz>16. A qword in rax must not enter
+  // this branch. Size class stays the frozen >16 test.
   // PLATFORM: SHARED.
   if (sz > 16 && init_ref > 0 && arena != (0 as *u8)) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, init_ref);
     }
-    if (ko == 48 || ko == 49 || ko == 47 || ko == 45 || ko == 3) {
+    if (ko == 48 || ko == 49 || ko == 47 || ko == 45 || ko == 44 || ko == 3) {
       unsafe {
         return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
       }
