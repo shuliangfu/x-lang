@@ -761,6 +761,83 @@ ensure_sync_os_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_dynlib_os.o.
+# Two pure-asm halves joined by ld -r. A while and a dlopen call in one
+# translation unit make the current compiler exit 139, so the loops are
+# src/asm/runtime_dynlib_os_darwin_text.x and dlopen/dlsym/dlclose are
+# src/asm/runtime_dynlib_os_darwin.x. Public names stay strong.
+# The current compiler can SIGSEGV once; retry before the C backup.
+# A missing object after three pure-asm faults falls back to the C seed.
+# An object already on disk is left as-is when neither .x is newer.
+# No gcc -E. Linux and Windows do not call this; they host-cc the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_dynlib_os.o, cwd is compiler/).
+ensure_dynlib_os_darwin_pure() {
+  local o="${1:-runtime_dynlib_os.o}"
+  local x_text="src/asm/runtime_dynlib_os_darwin_text.x"
+  local x_os="src/asm/runtime_dynlib_os_darwin.x"
+  local seed="seeds/runtime_dynlib_os.from_x.c"
+  local try=0
+  local text_o os_o
+  if [ ! -f "$x_text" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o dynlib-os: missing $x_text or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_text" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_text and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  # Each half can SIGSEGV on its own. The text half failed three
+  # times in a row on this compiler, then compiled. Retry each half
+  # before giving up, and do not throw away a half that already compiled.
+  text_o="$(mktemp "${TMPDIR:-/tmp}/dynlib_text.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/dynlib_os.XXXXXX.o")"
+  rm -f "$text_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$text_o" ]; then
+      rm -f "$text_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$text_o" "$x_text"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o dynlib-os: text pure-asm try $try failed" >&2
+        rm -f "$text_o"
+      fi
+    fi
+    if [ -s "$text_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o dynlib-os: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$text_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$text_o" "$os_o"; then
+      rm -f "$text_o" "$os_o"
+      log "pure-asm $x_text + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$text_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -880,6 +957,21 @@ ensure_one() {
     if [ "$so_s" = "Darwin" ] && [ "$so_m" = "arm64" ] \
       && [ -f src/asm/runtime_sync_os_darwin.x ]; then
       ensure_sync_os_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1083: Darwin arm64 dlopen, dlsym, and dlclose are the .x, not this seed.
+  # Linux keeps the POSIX seed. Windows keeps the LoadLibrary seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_dynlib_os.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_dynlib_os.o" ]; then
+    local dy_s dy_m
+    dy_s="$(uname -s 2>/dev/null || echo Unknown)"
+    dy_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
+      && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
+      ensure_dynlib_os_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -14229,6 +14321,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$so_s" = "Darwin" ] && [ "$so_m" = "arm64" ] \
       && [ -f src/asm/runtime_sync_os_darwin.x ]; then
       ensure_sync_os_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1083: Darwin arm64 whole TU is the .x. Do not thin+rest host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_dynlib_os.o" ]; then
+    local dy_s dy_m
+    dy_s="$(uname -s 2>/dev/null || echo Unknown)"
+    dy_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
+      && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
+      ensure_dynlib_os_darwin_pure "$o" || return 1
       return 0
     fi
   fi

@@ -9,6 +9,16 @@
  *
  * PLATFORM: SHARED — Windows (LoadLibrary/GetProcAddress/FreeLibrary)
  *           POSIX (dlopen/dlsym/dlclose) with _WIN32 / _WIN64 branches.
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_dynlib_os_darwin_text.x plus
+ * src/asm/runtime_dynlib_os_darwin.x, pure-asm by the current compiler
+ * and joined with ld -r into runtime_dynlib_os.o. A while and dlopen
+ * in one translation unit make that compiler exit 139, so the loops
+ * and the dlopen calls stay in different files. This C file is the
+ * Linux/Windows body and
+ * the Darwin backup when pure-asm faults and the staged object is
+ * missing. Do not delete these bodies. Do not gcc -E this seed
+ * as the repair.
  */
 
 #include <stdint.h>
