@@ -1,10 +1,10 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// runtime_net_sock_fast.x — Thin .x exports delegating to
-// seeds/runtime_net_sock_fast.from_x.c via xlang_net_cap.h (SHARED Cap 9.1.7).
-//
-// PLATFORM: SHARED — Linux & Darwin raw syscalls + Windows Winsock Cap.
+// runtime_net_sock_fast.x — Thin wrappers for Winsock startup.
+// Darwin arm64 socket, bind, listen, and the errno _c faces live in
+// runtime_net_sock_fast_darwin.x. Linux and Windows keep the C seed.
+// PLATFORM: SHARED wrappers. MACOS|DARWIN arm64 bodies are the other file.
 
 export extern "C" function net_ensure_wsa_impl_c(): void;
 export extern "C" function net_wsa_ctor_impl_c(): void;

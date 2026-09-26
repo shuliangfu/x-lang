@@ -16176,6 +16176,120 @@ ensure_net_addr_fast_darwin_pure() {
   return 0
 }
 
+# w1096: Darwin arm64 net_sock_fast.o is the shared Winsock wrappers plus
+# the libSystem socket bridges. Linux and Windows keep the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+ensure_net_sock_fast_darwin_pure() {
+  local o="${1:-../std/net/net_sock_fast.o}"
+  local x_thin="src/asm/runtime_net_sock_fast.x"
+  local x_os="src/asm/runtime_net_sock_fast_darwin.x"
+  local seed="seeds/runtime_net_sock_fast.from_x.c"
+  local try=0
+  local thin_o os_o
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o net_sock: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/netsock_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/netsock_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o net_sock: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o net_sock: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+      # The thin defines net_ensure_wsa and net_wsa_ctor with a suffix.
+      # Callers use the short names. Rename the definitions.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if nm "$o" 2>/dev/null | grep -q '_net_ensure_wsack'; then
+        local oc
+        oc="$(pure_asm_find_objcopy)" || return 1
+        if ! "$oc" \
+          --redefine-sym '_net_ensure_wsack'='_net_ensure_wsa' \
+          --redefine-sym '_net_wsa_ctorsa'='_net_wsa_ctor' \
+          "$o"; then
+          echo "ensure_host_cc_seed_o net_sock: rename failed" >&2
+          rm -f "$o"
+          continue
+        fi
+      fi
+      local _ns_short _ns_ok
+      _ns_ok=1
+      for _ns_short in \
+        _net_ensure_wsa \
+        _net_wsa_ctor \
+        _net_ensure_wsa_impl_c \
+        _net_wsa_ctor_impl_c \
+        _xlang_sys_poll \
+        _xlang_sys_socket \
+        _xlang_sys_connect \
+        _xlang_sys_bind \
+        _xlang_sys_listen \
+        _xlang_sys_accept \
+        _xlang_sys_sendto \
+        _xlang_sys_recvfrom \
+        _net_set_blocking_c \
+        _net_close_socket_c \
+        _net_tcp_listen_c \
+        _net_udp_bind_c \
+        _net_tcp_errno_ptr_c \
+        _net_udp_errno_ptr_c \
+        _net_ipv6_errno_ptr_c \
+        _runtime_net_sock_fast_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_ns_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ns_ok=0
+          break
+        fi
+      done
+      if [ "$_ns_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o net_sock: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -f "$thin_o" "$os_o"
+      log "pure-asm $x_thin + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 _std_core_net_fast_one() {
   local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
@@ -16190,6 +16304,19 @@ _std_core_net_fast_one() {
     if [ "$na_s" = "Darwin" ] && [ "$na_m" = "arm64" ] \
       && [ -f src/asm/runtime_net_addr_fast_darwin.x ]; then
       ensure_net_addr_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
+  fi
+  # w1096: Darwin arm64 builds net_sock_fast.o from the two .x files.
+  # Linux and Windows keep the thin+rest path below.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$fast_o")" = "net_sock_fast.o" ]; then
+    local ns_s ns_m
+    ns_s="$(uname -s 2>/dev/null || echo Unknown)"
+    ns_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$ns_s" = "Darwin" ] && [ "$ns_m" = "arm64" ] \
+      && [ -f src/asm/runtime_net_sock_fast_darwin.x ]; then
+      ensure_net_sock_fast_darwin_pure "$fast_o" || return 1
       return 0
     fi
   fi
