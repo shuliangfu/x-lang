@@ -16,7 +16,6 @@ export extern function pipeline_block_labeled_return_expr_ref(arena: *u8, block_
 export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
 export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
-export extern function pipeline_asm_get_return_expr_ref_at(a: *u8, m: *u8, fi: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -230,13 +229,6 @@ export function w499_mega_try_tail_jmp(
         if (ret_ref > 0) { break; }
         ri = ri + 1;
       }
-    }
-    /* get_return peels labeled/final across the func — last resort. */
-    if (ret_ref <= 0) {
-      pipe_store_i32_le(&cell[0], 0, pipeline_asm_get_return_expr_ref_at(a, m, i));
-      ch = w499t_c32(&cell[0]);
-      pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, i, ch));
-      ret_ref = w499t_c32(&cell[0]);
     }
     if (ret_ref <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_call_callee_ref_at(a, ret_ref));
