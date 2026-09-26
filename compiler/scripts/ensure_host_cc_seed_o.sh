@@ -3689,7 +3689,8 @@ ensure_rt_prefer_one() {
     # Monofile may be absent after future 7.1.1 physical retire; escape still uses _rt.
     # PLATFORM: SHARED freestanding runtime product no_c.
     if [ -f "$_rt_content_seed" ] || [ -f "$_rt" ]; then
-      if [ ! -f "$_rt_o" ] \
+      # --force must rebuild even when every slice source is older than OUT.
+      if [ "${FORCE:-0}" = "1" ] || [ ! -f "$_rt_o" ] \
         || { [ -f "$_rt" ] && [ "$_rt" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_content_seed" ] && [ "$_rt_content_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_util_seed" ] && [ "$_rt_util_seed" -nt "$_rt_o" ]; } \
@@ -3837,7 +3838,10 @@ ensure_rt_prefer_one() {
           fi
           if [ -n "$_rt_a_o" ]; then
             # R2 full：PREFER_X_O=1 时 full .x + rest seed (-D FROM_X 业务 H=0) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_argv_x" ]; then
+            # XLANG_RT_ARGV_FORCE_SEED=1 keeps the host-cc seed when the running
+            # compiler's needs_ptr_load stub leas *u8 homes (buf[0] reads the
+            # pointer word). Default remains .x prefer. PLATFORM: SHARED.
+            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ "${XLANG_RT_ARGV_FORCE_SEED:-0}" != "1" ] && [ -f "$_rt_argv_x" ]; then
               _rt_argv_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv_thin.XXXXXX") || true
               _rt_argv_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv_rest.XXXXXX") || true
               if [ -n "$_rt_argv_thin_o" ] && [ -n "$_rt_argv_rest_o" ] \
@@ -8063,8 +8067,14 @@ pipeline_abi_inject_param_ptr_slot_thin() {
   local had_newer=0 had_prefer=0 had_e_repl=0
   local rc=0
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  # A later pabi rebuild drops the overlay and leaves the 8-byte
+  # `mov w0,#0; ret` stub. The Sept stamp then skips forever, and *u8
+  # index leas the parameter home. Re-inject when OUT is newer than the stamp.
+  # PLATFORM: SHARED — MACOS archive skip stays inside inject_thin_leaf.
   if [ -f "$stamp" ] && [ ! "$thin_x" -nt "$stamp" ] && [ -f "$stamp_prefer" ]; then
-    return 0
+    if [ ! "$o" -nt "$stamp" ]; then
+      return 0
+    fi
   fi
   if [ "${XLANG_PABI_THIN_INJECT_IF_NEWER+x}" = "x" ]; then
     had_newer=1
