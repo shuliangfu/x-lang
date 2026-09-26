@@ -636,6 +636,7 @@
 - 2026-09-27 Darwin arm64 `runtime_asm_build.o` 的产品体是 `src/asm/runtime_asm_build.x` 与 `src/asm/runtime_asm_build_main.x` 的纯 asm 合并。含 `main` 的翻译单元只发出 `main`。`skip` 读回 5，`main` 读回 17。Linux 与 Windows 仍编 `seeds/runtime_asm_build.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
 - 2026-09-27 Darwin arm64 独立 `rt_stack.o` 的产品体是 `src/runtime/rt_stack.x`，纯 asm。空参数返回空，源 11 长度 4 写回 21，大栈读回 7，留下 -99 时读回 3。切片标记留在大包 C。Linux 与 Windows 仍编 `seeds/rt_stack.from_x.c`。纯 asm 对象若带上切片标记则不收口。
 - 2026-09-27 lib root 三函数的产品体是 `src/runtime/rt_lib_root.x`，纯 asm。文件里只留一个 `while`。空指针和空串不可用，`XLANG_LIB` 为 `lib` 时读回 `lib`，两行时第一行 `abc`、第二行 `.`。切片标记留在大包 C。Linux 与 Windows 走同一份 `.x`。纯 asm 失败才退回 `-E` 或整份种子。
+- 2026-09-27 辅助函数的产品体仍是 `src/asm/pthin_helpers.x`。一份翻译单元纯 asm 退出 139，Darwin 按十三个函数拆开再链。标识符段长度 4。盘上 `parser_asm_thin_glue.o` 没有重编。纯 asm 失败才退回原来的优先路径。
 - 2026-09-27 import 收集的产品体仍是 `src/asm/pthin_imports.x`。一份翻译单元纯 asm 退出 139，Darwin 按七个函数拆开再链。成功收集路径长度 4。盘上 `parser_asm_thin_glue.o` 没有重编。纯 asm 失败才退回原来的优先路径。
 - 2026-09-27 库函数扫描的产品体仍是 `src/asm/pthin_library.x`。一份翻译单元纯 asm 退出 139，Darwin 按五个函数拆开再链。spawn 名字长度 5。盘上 `parser_asm_thin_glue.o` 没有重编。纯 asm 失败才退回原来的优先路径。
 - 2026-09-27 诊断后段的产品体仍是 `src/asm/pthin_diag_late.x`。一份翻译单元纯 asm 退出 139，Darwin 按四个函数拆开再链。空参数整数函数体返回 -1。盘上 `parser_asm_thin_glue.o` 没有重编。纯 asm 失败才退回原来的优先路径。
