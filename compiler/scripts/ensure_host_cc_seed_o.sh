@@ -1139,6 +1139,67 @@ ensure_process_import_alias_darwin_pure() {
   return 0
 }
 
+# w1106: Darwin arm64 std/debug/debug.o writes stderr with libSystem write.
+# The newline is the byte 10. Linux and Windows keep the C face.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_std_debug_formal_darwin_pure() {
+  local o="${1:-../std/debug/debug.o}"
+  local xsrc="src/asm/std_debug_formal_darwin.x"
+  local csrc="../std/debug/formal_surface.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o debug-formal: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _dg_short _dg_ok
+      _dg_ok=1
+      for _dg_short in \
+        _std_debug_assert \
+        _std_debug_print_u8_ptr_i32 \
+        _std_debug_println_u8_ptr_i32 \
+        _std_debug_formal_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_dg_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _dg_ok=0
+          break
+        fi
+      done
+      if [ "$_dg_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o debug-formal: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_write" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o debug-formal: write is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o debug-formal: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $csrc → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -fPIE -I.. -I. -c "$csrc" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -20589,6 +20650,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  debug-formal-pure|debug_formal_pure)
+    # w1106: Darwin arm64 std/debug formal face from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o debug-formal-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_std_debug_formal_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   process-alias-pure|process_alias_pure)
     # w1105: Darwin arm64 std_process_* face from .x. Does not run the
     # rest of ensure. Linux callers should not use this mode.

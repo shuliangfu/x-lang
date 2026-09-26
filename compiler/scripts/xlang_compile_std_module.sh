@@ -601,11 +601,43 @@ case "${1:-}" in
           exit 1
           ;;
       esac
+      # w1106: Darwin arm64 std/debug/debug.o is the .x. Other c_face keys
+      # stay cc -c. Do not match core/debug/debug.o.
+      # PLATFORM: MACOS|DARWIN arm64. Linux and Windows keep the C face.
+      _dbg_darwin=0
+      _dbg_x=""
+      if [ "$_key" = "std/debug/debug.o" ]; then
+        _dbg_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _dbg_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$_dbg_os" = "Darwin" ] && [ "$_dbg_mach" = "arm64" ]; then
+          _dbg_x="src/asm/std_debug_formal_darwin.x"
+          if [ ! -f "$_dbg_x" ]; then
+            _dbg_x="../compiler/src/asm/std_debug_formal_darwin.x"
+          fi
+          if [ -f "$_dbg_x" ]; then
+            _dbg_darwin=1
+          fi
+        fi
+      fi
       if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ] && [ -f "$_csrc" ] && [ ! "$_csrc" -nt "$out_o" ]; then
-        echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
-        exit 0
+        if [ "$_dbg_darwin" != "1" ] || [ ! -f "$_dbg_x" ] || [ ! "$_dbg_x" -nt "$out_o" ]; then
+          echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
+          exit 0
+        fi
       fi
       mkdir -p "$(dirname "$out_o")"
+      if [ "$_dbg_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" debug-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: debug formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
+        exit 0
+      fi
       # shellcheck disable=SC2086
       if ! cc -c -fPIE -I.. -I. $DARWIN_MINOS -o "$out_o" "$_csrc"; then
         echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
