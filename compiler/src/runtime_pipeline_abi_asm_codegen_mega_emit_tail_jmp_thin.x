@@ -2,9 +2,11 @@
 // G.7: part of w393_mega_emit_one (peer-flat; before frame/prologue).
 // Detects pure `return callee(params…)` forwarders and emits a 5-byte
 // x86 `jmp` stub (host-cc sibling-call shape) so tip thin matches host.
-// tipU: keep leaf small — callee VAR name as link sym; walk labeled
-// returns on body + unsafe region bodies (thin `unsafe { return _impl }`
-// then dead `return -1` would otherwise make get_return pick -1).
+// tipU: keep leaf small — callee VAR name as link sym. A return that
+// closes a block is Block.final_expr_ref (parser does not append
+// stmt_order). unsafe { return _impl } is a region; the CALL sits in
+// that inner block's final_expr. Do not call get_return: the later
+// dead `return -1` wins. final_expr load stays in its own leaf.
 // PRODUCT: LINUX+MACOS+WINDOWS PREFER with emit_one head. PLATFORM: SHARED.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -15,6 +17,7 @@ export extern function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i
 export extern function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
 export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -148,6 +151,31 @@ function w499t_fwd_call_ref(a: *u8, m: *u8, fi: i32, er: i32): i32 {
 }
 
 /**
+ * Forwarder CALL in the block's trailing return (final_expr_ref).
+ * Parser stores a return that is followed by `}` only in that slot and
+ * does not append stmt_order. stmt_order kind 6 is the unsafe region;
+ * the CALL is this slot on the region body, which the caller visits
+ * after the outer block. A dead outer `return -1` is not a forwarder.
+ * @param a *u8 — arena
+ * @param m *u8 — module
+ * @param fi i32 — function index
+ * @param br i32 — block ref; <=0 returns 0
+ * @return i32 — CALL expr ref, or 0 when the trailing expr is absent or not a pure forwarder
+ * PLATFORM: SHARED — own leaf so tipU does not compile this call inside the larger walker. Do not call pipeline_asm_get_return_expr_ref_at.
+ */
+function w499t_final_fwd(a: *u8, m: *u8, fi: i32, br: i32): i32 {
+  unsafe {
+    let cell: u8[8];
+    let er: i32 = 0;
+    if (br <= 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_final_expr_ref(a, br));
+    er = w499t_c32(&cell[0]);
+    pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, fi, er));
+    return w499t_c32(&cell[0]);
+  }
+}
+
+/**
  * First forwarder CALL among labeled returns and expr_stmt RETURNs in block br.
  * @return i32 — CALL expr ref (not RETURN wrapper) or 0
  * PLATFORM: SHARED — w1048 detect helper.
@@ -184,7 +212,10 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
       if (hit > 0) { return hit; }
       ei = ei + 1;
     }
-    return 0;
+    /* Closing `return` is final_expr, not stmt_order kind 2 or 7.
+     * Isolated leaf: inlining ast_ast_block_final_expr_ref here tipU-SEGV'd. */
+    pipe_store_i32_le(&cell[0], 0, w499t_final_fwd(a, m, fi, br));
+    return w499t_c32(&cell[0]);
   }
 }
 
