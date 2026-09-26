@@ -35599,7 +35599,7 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
  *     frame_size@0 next_offset@4 num_locals@8 label_counter@12 module_ref@16
  *     break_len@1240 continue_len@1372 loop_label_depth@1376 dep_pipe@1384
  *     tail_join_label@1392 tail_join_label_len@1520 (sizeof 1528 w/ trailing pad)
- *   Elf e_machine@43581464 reloc_type_r_pc32@43581468 (pure pipe_elf_off_*)
+ *   Elf e_machine@17432599 (0x10a0018) reloc_type_r_pc32@17432603 — product egg
  *   DepCtx.target_arch via pipeline_dep_ctx_target_arch pure/seed face
  *   TypeKind f32=14 f64=15 (GLUE_TYPE_KIND_*_ORD)
  *
@@ -35622,10 +35622,16 @@ int32_t pipeline_codegen_emit_expr_try_propagate_c(void *arena, void *out, int32
 #include <string.h>
 #include <stdio.h>
 
-/* LP64 SHARED — match pure pipe_elf_off_e_machine / reloc_type_r_pc32. */
+/*
+ * LP64 SHARED — product egg mega / live pipe_elf_off_e_machine use
+ * 0x10a0018 / 0x10a001c (17432599 / 17432603). Tip elf_ctx_thin still
+ * lists 43581464 (0x2990018) but that weak loses to the egg face; writing
+ * 0x2990018 from a freshly host-cc'd mega zeroes e_machine (EM:0).
+ * PLATFORM: LINUX gold egg layout; WINDOWS has a separate 0x2790018 note.
+ */
 enum {
-  W290_ELF_E_MACHINE_OFF = 43581464,
-  W290_ELF_RELOC_R_PC32_OFF = 43581468
+  W290_ELF_E_MACHINE_OFF = 17432599,
+  W290_ELF_RELOC_R_PC32_OFF = 17432603
 };
 
 #ifndef W290_GLUE_TYPE_KIND_F32_ORD
