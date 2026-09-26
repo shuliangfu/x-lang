@@ -25,6 +25,11 @@
 // to this .x source; build_xlang_asm's ensure regenerates via the product
 // -x -E. Note: the historical ptrdiff_t return maps to .x isize (emits
 // ssize_t — ABI-identical on LP64). PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm.
+// read_message returns -1. alloc returns null. is_null is 1 for null.
+// free does not write. This object is not asm_xlang_lsp_diag_stub.o.
+// Linux and Windows keep -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN for that object path.
 
 /**
  * lsp.x's typeck-mangled read_message: stub returns -1 (EOF/error).

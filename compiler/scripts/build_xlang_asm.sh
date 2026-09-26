@@ -5207,9 +5207,18 @@ ensure_asm_xlang_lsp_diag_stub_obj() {
   STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
-  # 7.2.1 sixth knife: .x authority (src/typeck_lsp_io_stub.x) via cc_inc_tu
-  # --auto prefer lane; seed fallback when no product binary (cold start).
-  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+  # w1126: Darwin arm64 IO stub is pure asm of the existing .x.
+  # The diag stub below stays on its own hook.
+  # Linux and Windows stay on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _io_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _io_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_io_os" = "Darwin" ] && [ "$_io_mach" = "arm64" ] \
+    && [ -f src/typeck_lsp_io_stub.x ]; then
+    if [ ! -f "$LSP_IO_O" ] || [ src/typeck_lsp_io_stub.x -nt "$LSP_IO_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-io-stub-pure "$LSP_IO_O"
+    fi
+  elif [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
     if [ ! -f "$LSP_IO_O" ] || [ src/typeck_lsp_io_stub.x -nt "$LSP_IO_O" ] \
        || { [ -f "$LSP_IO_STUB" ] && [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; }; then
       echo " cc_inc_tu --auto (src/typeck_lsp_io_stub.x) -> $LSP_IO_O"

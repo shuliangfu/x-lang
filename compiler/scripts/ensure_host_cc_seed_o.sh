@@ -1388,6 +1388,66 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1126: Darwin arm64 typeck_lsp_io_stub.o is four stubs from the existing .x.
+# Linux and Windows keep -x -E then host cc. The cold seed stays for strict.
+# Does not match asm_xlang_lsp_diag_stub.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_lsp_io_stub_darwin_pure() {
+  local o="${1:-build_asm/typeck_lsp_io_stub.o}"
+  local xsrc="src/typeck_lsp_io_stub.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o lsp-io-stub: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _io_short _io_ok
+      _io_ok=1
+      for _io_short in \
+        _typeck_read_message \
+        _typeck_lsp_alloc \
+        _typeck_lsp_free \
+        _typeck_lsp_is_null; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_io_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _io_ok=0
+          break
+        fi
+      done
+      if [ "$_io_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o lsp-io-stub: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if nm -u "$o" 2>/dev/null | grep -q .; then
+        echo "ensure_host_cc_seed_o lsp-io-stub: unexpected undefined symbol" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o lsp-io-stub: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc_inc_tu --auto $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh --auto "$o" || return 1
+  fi
+  return 0
+}
+
 # w1125: Darwin arm64 pipeline_glue_link.o forwards one pipeline entry.
 # Linux and Windows keep -x -E then host cc. The C seed is already gone.
 # Does not match pipeline_run_impl_alias.o.
@@ -21931,6 +21991,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lsp-io-stub-pure|lsp_io_stub_pure)
+    # w1126: Darwin arm64 typeck LSP IO stub from the existing .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lsp-io-stub-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_lsp_io_stub_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   glue-link-pure|glue_link_pure)
     # w1125: Darwin arm64 pipeline glue link from the existing .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
