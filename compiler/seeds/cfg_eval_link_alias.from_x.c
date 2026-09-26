@@ -1,6 +1,8 @@
 /* seeds/cfg_eval_link_alias.from_x.c — G-02f-79 product cold-start TU
  * Promoted from compiler/src/lexer/cfg_eval_link_alias.inc (alias/stub; retired .inc).
  * Compile: cc -c seeds/cfg_eval_link_alias.from_x.c  (or cc_inc_tu wrap).
+ * Darwin arm64 product body is src/lexer/cfg_eval_link_alias.x via -backend asm.
+ * Linux and Windows keep host cc of this seed.
  */
 /**
  * cfg_eval_link_alias.c — G-02-B1：cfg_eval.x -E-extern 符号前缀转发 + host lit residual

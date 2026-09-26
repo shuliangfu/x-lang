@@ -5467,7 +5467,17 @@ ensure_asm_bootstrap_support_extra_objs() {
   && [ -s src/lexer/cfg_eval_gen.c ]; then
   echo " $XLANG -E-extern -> cfg_eval_gen.c + link alias -> $o (G-02-B1 cfg_eval.x)"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c
-  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o
+  # w1131: Darwin arm64 alias is pure asm of the .x.
+  # Does not match cfg_eval.o. Linux and Windows stay on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _ce_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ce_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
+    && [ -f src/lexer/cfg_eval_link_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o
+  else
+    sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o
+  fi
   "$LD" $LD_RELFLAGS -r -o "$o" src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o
   elif [ -f src/lexer/cfg_eval.x ] && [ -x "$XLANG" ]; then
   build_xlang_asm_error "cfg_eval: need $XLANG -backend asm or -E-extern for cfg_eval.x (G-02a: no cfg_eval.c)"

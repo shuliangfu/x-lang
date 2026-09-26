@@ -1388,6 +1388,78 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1131: Darwin arm64 cfg_eval_link_alias.o is the six cfg faces.
+# Linux and Windows keep host cc of the C seed.
+# Does not match cfg_eval.o or cfg_eval_x.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_cfg_eval_alias_darwin_pure() {
+  local o="${1:-src/lexer/cfg_eval_link_alias.o}"
+  local xsrc="src/lexer/cfg_eval_link_alias.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o cfg-eval-alias: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _ce_short _ce_ok
+      _ce_ok=1
+      for _ce_short in \
+        _cfg_eval_expr_c \
+        _cfg_apply_compile_target_from_triple \
+        _cfg_reset_compile_target \
+        _cfg_set_freestanding \
+        _cfg_host_os_lit \
+        _cfg_host_arch_lit; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_ce_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ce_ok=0
+          break
+        fi
+      done
+      if [ "$_ce_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o cfg-eval-alias: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      for _ce_short in \
+        _lexer_cfg_eval_expr_c \
+        _lexer_cfg_apply_compile_target_from_triple \
+        _lexer_cfg_reset_compile_target \
+        _lexer_cfg_set_freestanding; do
+        if ! nm -u "$o" 2>/dev/null | awk -v s="$_ce_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ce_ok=0
+          break
+        fi
+      done
+      if [ "$_ce_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o cfg-eval-alias: required undefined symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o cfg-eval-alias: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc seed $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c "$o" || return 1
+  fi
+  return 0
+}
+
 # w1130: Darwin arm64 pipeline_phase_parse_only_alias.o is the two parse faces.
 # Linux and Windows keep host cc of the C seed.
 # Does not match pipeline_phase_parse_only_partial.o.
@@ -19702,7 +19774,17 @@ _cfg_eval_link_x_plus_alias() {
     echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing seeds/cfg_eval_link_alias.from_x.c" >&2
     return 1
   fi
-  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o || return 1
+  # w1131: Darwin arm64 alias is pure asm of the .x.
+  # Does not match cfg_eval.o. Linux and Windows stay on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _ce_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ce_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
+    && [ -f src/lexer/cfg_eval_link_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o || return 1
+  else
+    sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o || return 1
+  fi
   # shellcheck disable=SC2086
   $ld_bin $ld_rel -r -o "$out" "$x_o" src/lexer/cfg_eval_link_alias.o
 }
@@ -22227,6 +22309,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  cfg-eval-alias-pure|cfg_eval_alias_pure)
+    # w1131: Darwin arm64 cfg eval link alias from the .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o cfg-eval-alias-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_cfg_eval_alias_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   phase-parse-pure|phase_parse_pure)
     # w1130: Darwin arm64 phase-parse alias from the .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
