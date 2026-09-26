@@ -6,6 +6,17 @@
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
  * Weak user-domain twin; strong may come from runtime_panic C seed (wave251).
  * PLATFORM: SHARED — user/STD_AND_PANIC residual face; never g05 host bag.
+ *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_process_os_glue.x plus
+ * src/asm/runtime_process_os_darwin.x, pure-asm then ld -r.
+ * Darwin calls libSystem because this compiler cannot emit svc #0x80.
+ * setenv and unsetenv call env_setenv_c / env_unsetenv_c.
+ * getenv calls link_abi_getenv. This C file is the Linux body, the
+ * Windows body, and the Darwin backup when pure-asm faults and the
+ * staged object is missing. Do not delete these bodies. Do not gcc -E
+ * this seed as the repair. Do not put the 4096-byte caches on the stack.
+ * Do not pass a function name to signal. Do not call libc setenv.
  */
 /**
  * runtime_process_os_glue.c — 进程 OS 胶层（F-ZC：自 std/process/process_os_glue.c 迁入）

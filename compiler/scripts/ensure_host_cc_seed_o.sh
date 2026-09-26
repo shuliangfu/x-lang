@@ -1585,6 +1585,112 @@ ensure_crypto_inc_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_process_os_glue.o.
+# Two translation units, then ld -r: the shared wrappers in
+# src/asm/runtime_process_os_glue.x and the libSystem bridges in
+# src/asm/runtime_process_os_darwin.x. setenv and unsetenv call
+# env_setenv_c / env_unsetenv_c. Each half can SIGSEGV on its own.
+# Retry a missing half. A missing object after eight pure-asm faults
+# falls back to the C seed. An object already on disk is left as-is
+# when neither .x is newer. No gcc -E.
+# Linux and Windows keep the seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_process_os_glue.o, cwd is compiler/).
+ensure_process_os_darwin_pure() {
+  local o="${1:-runtime_process_os_glue.o}"
+  local x_thin="src/asm/runtime_process_os_glue.x"
+  local x_os="src/asm/runtime_process_os_darwin.x"
+  local seed="seeds/runtime_process_os_glue.from_x.c"
+  local try=0
+  local thin_o os_o
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o process_os: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/process_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/process_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o process_os: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o process_os: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+      local _po_short _po_ok
+      _po_ok=1
+      for _po_short in \
+        _process_getenv_c \
+        _process_setenv_c \
+        _process_unsetenv_c \
+        _process_getpid_c \
+        _process_getppid_c \
+        _process_getcwd_c \
+        _process_chdir_c \
+        _process_self_exe_path_c \
+        _process_spawn_c \
+        _process_spawn_simple_c \
+        _process_spawn_io_c \
+        _process_waitpid_c \
+        _process_pipe_c \
+        _process_exec_c \
+        _process_dup_stdio_posix \
+        _process_nop_sigchld \
+        _process_getpid_impl \
+        _process_spawn_impl \
+        _process_pipe_impl; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_po_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _po_ok=0
+          break
+        fi
+      done
+      if [ "$_po_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o process_os: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -f "$thin_o" "$os_o"
+      log "pure-asm $x_thin + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -1779,6 +1885,22 @@ ensure_one() {
     if [ "$cr_s" = "Darwin" ] && [ "$cr_m" = "arm64" ] \
       && [ -f src/asm/runtime_crypto_inc_glue_darwin.x ]; then
       ensure_crypto_inc_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1091: Darwin arm64 process bridges are the .x, not this seed.
+  # setenv and unsetenv stay on env_setenv_c / env_unsetenv_c.
+  # Linux and Windows keep the Cap seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_process_os_glue.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_process_os_glue.o" ]; then
+    local po_s po_m
+    po_s="$(uname -s 2>/dev/null || echo Unknown)"
+    po_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$po_s" = "Darwin" ] && [ "$po_m" = "arm64" ] \
+      && [ -f src/asm/runtime_process_os_darwin.x ]; then
+      ensure_process_os_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -15238,6 +15360,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$cr_s" = "Darwin" ] && [ "$cr_m" = "arm64" ] \
       && [ -f src/asm/runtime_crypto_inc_glue_darwin.x ]; then
       ensure_crypto_inc_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1091: Darwin arm64 whole object is thin .x plus process .x. Do not host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_process_os_glue.o" ]; then
+    local po_s po_m
+    po_s="$(uname -s 2>/dev/null || echo Unknown)"
+    po_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$po_s" = "Darwin" ] && [ "$po_m" = "arm64" ] \
+      && [ -f src/asm/runtime_process_os_darwin.x ]; then
+      ensure_process_os_darwin_pure "$o" || return 1
       return 0
     fi
   fi
