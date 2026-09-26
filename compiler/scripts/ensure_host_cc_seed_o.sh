@@ -1388,6 +1388,67 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1113: Darwin arm64 asm_xlang_lsp_diag_stub.o writes an empty JSON array.
+# Invalidation forwards to lsp_diag_invalidate_cache.
+# Linux and Windows keep the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_lsp_diag_stub_darwin_pure() {
+  local o="${1:-build_asm/asm_xlang_lsp_diag_stub.o}"
+  local xsrc="src/asm/asm_xlang_lsp_diag_stub_darwin.x"
+  local csrc="seeds/asm_xlang_lsp_diag_stub.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o lsp-diag-stub: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _lsp_short _lsp_ok
+      _lsp_ok=1
+      for _lsp_short in \
+        _lsp_build_diagnostics_response \
+        _lsp_build_semantic_tokens_response \
+        _lsp_io_lsp_diag_invalidate_cache \
+        _lsp_diag_stub_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_lsp_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _lsp_ok=0
+          break
+        fi
+      done
+      if [ "$_lsp_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o lsp-diag-stub: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_lsp_diag_invalidate_cache" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o lsp-diag-stub: invalidate is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o lsp-diag-stub: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc $csrc → $o (pure-asm missing object)"
+    ${CC:-cc} -c -o "$o" "$csrc" || return 1
+  fi
+  return 0
+}
+
 # w1112: Darwin arm64 build_tool_libc_bridge.o forwards shell commands.
 # argv copy is one loop. Linux and Windows keep the C seed.
 # PLATFORM: MACOS|DARWIN arm64.
@@ -21099,6 +21160,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lsp-diag-stub-pure|lsp_diag_stub_pure)
+    # w1113: Darwin arm64 LSP diagnostic stub from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lsp-diag-stub-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_lsp_diag_stub_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   build-tool-bridge-pure|build_tool_bridge_pure)
     # w1112: Darwin arm64 build_tool libc bridge from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

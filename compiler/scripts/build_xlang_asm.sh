@@ -5091,7 +5091,17 @@ ensure_asm_xlang_lsp_diag_stub_obj() {
   echo " cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
   sh scripts/cc_inc_tu.sh "$LSP_IO_STUB" "$LSP_IO_O"
   fi
-  if [ ! -f "$STUB_O" ] || [ "$STUB_C" -nt "$STUB_O" ]; then
+  # w1113: Darwin arm64 stub is the .x. Linux and Windows stay on cc.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _lsp_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _lsp_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_lsp_os" = "Darwin" ] && [ "$_lsp_mach" = "arm64" ] \
+    && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
+    if [ ! -f "$STUB_O" ] || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$STUB_O" ] \
+      || [ "$STUB_C" -nt "$STUB_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-diag-stub-pure "$STUB_O"
+    fi
+  elif [ ! -f "$STUB_O" ] || [ "$STUB_C" -nt "$STUB_O" ]; then
   echo " cc -c $STUB_O <- $STUB_C"
   "$CC" $CFLAGS -c -o "$STUB_O" "$STUB_C"
   fi
