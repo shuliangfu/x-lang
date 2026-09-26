@@ -1,6 +1,11 @@
 /* seeds/runtime_net_udp_batch.from_x.c — G-02f-20 product TU
  * G-02f-102 helper gates.
- * Product: runtime_net_udp_batch.o; logic still C until full .x port.
+ * Product: runtime_net_udp_batch.o.
+ * Darwin arm64 product body is src/asm/runtime_net_udp_batch.x
+ * plus src/asm/runtime_net_udp_batch_darwin.x (pure asm, then ld -r).
+ * That file calls libSystem sendto, recvfrom, and poll, matching the
+ * Darwin Cap loops. Linux, Windows, and the pure-asm-fault backup
+ * stay this C seed.
  *
  * Cap residual 9.1.7 slice1: mmsg + poll via xlang_net_cap.h (no libc recvmmsg/sendmmsg).
  * mmsghdr/iovec batch syscalls; product paths in udp_batch.x.
