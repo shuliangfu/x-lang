@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1142: one translation unit exits 139. Darwin compiles five pieces.
+// Ident helpers stay with pack. Prep calls sit in unsafe so the wrap
+// piece can declare the helper as an extern. PLATFORM: SHARED.
+
 // pthin_simd.x — G-02f-288 P7 parser thin simd product bodies.
 //
 // 7.2.1 P7b Route C productize (2026-09-13): after P3b type_ref, simd.inc
@@ -312,14 +316,21 @@ export function parser_asm_simd_call_wrap_into_c(arena: *u8, name: *u8, nlen: i3
   if (n < 0) {
     n = 0;
   }
-  callee_ref = skip_simd_wrap_prep(arena, EXPR_VAR);
+  // Same-file call is legal here. The Darwin splitter compiles this
+  // function alone and declares skip_simd_wrap_prep as an extern, and
+  // an extern call must sit in unsafe. Semantics match the direct call.
+  unsafe {
+    callee_ref = skip_simd_wrap_prep(arena, EXPR_VAR);
+  }
   if (callee_ref == 0) {
     return 0;
   }
   unsafe {
     pipeline_expr_set_var_name(arena, callee_ref, name, n);
   }
-  call_ref = skip_simd_wrap_prep(arena, EXPR_CALL);
+  unsafe {
+    call_ref = skip_simd_wrap_prep(arena, EXPR_CALL);
+  }
   if (call_ref == 0) {
     return 0;
   }

@@ -1411,12 +1411,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # region. P9a is linked later into the same thin_glue (same as
         # P4ud/P4bh). Cold: no define, full .inc.
         _pthin_p7_extra=""
+        _pthin_p7b_pure=0
+        # w1142: the file exits 139. Darwin compiles five pieces (ident
+        # helpers stay with pack). Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+        if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh pthin-simd-pure "$_pthin_p7b_thin_o"; then
+          _pthin_p7b_pure=1
+        fi
         if [ -n "$_pthin_p7b_thin_o" ] && [ -f "$_pthin_p7b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p7b_x" "$_pthin_p7b_thin_o" \
+          if { [ "$_pthin_p7b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p7b_x" "$_pthin_p7b_thin_o"; } \
             && g05_obj_defines "$_pthin_p7b_thin_o" "parser_asm_parse_at_simd_builtin_x_into_c"; then
             _pthin_p7b_ok=1
             _pthin_p7_extra="-DXLANG_PTHIN_SIMD_BODIES_FROM_X"
-            echo "g05_ensure: P7b/P7c/P7d simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
+            if [ "$_pthin_p7b_pure" = "1" ]; then
+              echo "g05_ensure: P7 simd ← pure-asm five pieces (w1142)"
+            else
+              echo "g05_ensure: P7b/P7c/P7d simd bodies ← $_pthin_p7b_x (7.2.1 Route C)"
+            fi
           else
             echo "g05_ensure: P7b simd .x thin failed or missing parse dest-buffer; P7 C twin stays full" >&2
           fi

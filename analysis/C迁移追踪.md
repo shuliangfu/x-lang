@@ -636,6 +636,7 @@
 - 2026-09-27 Darwin arm64 `runtime_asm_build.o` 的产品体是 `src/asm/runtime_asm_build.x` 与 `src/asm/runtime_asm_build_main.x` 的纯 asm 合并。含 `main` 的翻译单元只发出 `main`。`skip` 读回 5，`main` 读回 17。Linux 与 Windows 仍编 `seeds/runtime_asm_build.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
 - 2026-09-27 Darwin arm64 独立 `rt_stack.o` 的产品体是 `src/runtime/rt_stack.x`，纯 asm。空参数返回空，源 11 长度 4 写回 21，大栈读回 7，留下 -99 时读回 3。切片标记留在大包 C。Linux 与 Windows 仍编 `seeds/rt_stack.from_x.c`。纯 asm 对象若带上切片标记则不收口。
 - 2026-09-27 lib root 三函数的产品体是 `src/runtime/rt_lib_root.x`，纯 asm。文件里只留一个 `while`。空指针和空串不可用，`XLANG_LIB` 为 `lib` 时读回 `lib`，两行时第一行 `abc`、第二行 `.`。切片标记留在大包 C。Linux 与 Windows 走同一份 `.x`。纯 asm 失败才退回 `-E` 或整份种子。
+- 2026-09-27 simd 的产品体仍是 `src/asm/pthin_simd.x`。一份翻译单元纯 asm 退出 139，Darwin 拆成五片再链，标识符辅助函数留在 pack 同一片。shuffle 读出 258。select 读出 3。盘上 `parser_asm_thin_glue.o` 没有重编。纯 asm 失败才退回原来的优先路径。
 - 2026-09-27 三元表达式的产品体仍是 `src/asm/pthin_expr_ternary.x`。一份翻译单元纯 asm 退出 139，Darwin 按四个函数拆开再链。包装种类 27。问号加冒号包装引用是 11。盘上 `parser_asm_thin_glue.o` 没有重编。纯 asm 失败才退回原来的优先路径。
 - 2026-09-27 诊断薄层的产品体仍是 `src/diag_thin.x`。一份翻译单元纯 asm 退出 139，Darwin 拆成八份再链。行号 100 是 3 位。小端 `78 56 34 12` 读出 305419896。宿主实现留在 `seeds/diag.from_x.c`。盘上 `src/diag.o` 没有重编。纯 asm 失败才退回原来的优先路径。
 - 2026-09-27 整份 CPU 业务的产品体是 `src/driver/target_cpu_pure.x` 的纯 asm。`tcp_eq_at` 收字节指针。SSE2 读出 1。neon 读出 256。rvv 读出 65536。两边留空白的 neon 解析成 256。i32x4 是 4 路，i32x8 是 8 路，i32x16 是 16 路。宿主探测、打印和切片标记留在 `seeds/target_cpu_pure.from_x.c`。盘上 `target_cpu.o` 没有重编。纯 asm 失败才退回五个助手那条路径。
