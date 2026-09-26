@@ -15,7 +15,6 @@ export extern function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i
 export extern function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
 export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
-export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -149,7 +148,7 @@ function w499t_fwd_call_ref(a: *u8, m: *u8, fi: i32, er: i32): i32 {
 }
 
 /**
- * First forwarder CALL among labeled / expr_stmt / final_expr in block br.
+ * First forwarder CALL among labeled returns and expr_stmt RETURNs in block br.
  * @return i32 — CALL expr ref (not RETURN wrapper) or 0
  * PLATFORM: SHARED — w1048 detect helper.
  */
@@ -185,11 +184,7 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
       if (hit > 0) { return hit; }
       ei = ei + 1;
     }
-    /* Block.final_expr_ref — thin `return callee(...)` often lands here. */
-    pipe_store_i32_le(&cell[0], 0, ast_ast_block_final_expr_ref(a, br));
-    er = w499t_c32(&cell[0]);
-    pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, fi, er));
-    return w499t_c32(&cell[0]);
+    return 0;
   }
 }
 
