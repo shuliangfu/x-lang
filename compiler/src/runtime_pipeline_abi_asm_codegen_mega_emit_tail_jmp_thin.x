@@ -15,6 +15,8 @@ export extern function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i
 export extern function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
 export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
+export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_asm_get_return_expr_ref_at(a: *u8, m: *u8, fi: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -128,7 +130,27 @@ function w499t_is_fwd_call(a: *u8, m: *u8, fi: i32, er: i32): i32 {
 }
 
 /**
- * First forwarder CALL among labeled returns and expr_stmt RETURNs in block br.
+ * Normalize expr to CALL ref when it is a forwarder (peel RETURN).
+ * @return i32 — CALL expr ref or 0
+ * PLATFORM: SHARED — w1048 detect helper.
+ */
+function w499t_fwd_call_ref(a: *u8, m: *u8, fi: i32, er: i32): i32 {
+  unsafe {
+    let cell: u8[8];
+    if (er <= 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, w499t_is_fwd_call(a, m, fi, er));
+    if (w499t_c32(&cell[0]) == 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
+    if (w499t_c32(&cell[0]) == 41) {
+      pipe_store_i32_le(&cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
+      return w499t_c32(&cell[0]);
+    }
+    return er;
+  }
+}
+
+/**
+ * First forwarder CALL among labeled / expr_stmt / final_expr in block br.
  * @return i32 — CALL expr ref (not RETURN wrapper) or 0
  * PLATFORM: SHARED — w1048 detect helper.
  */
@@ -140,8 +162,7 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
     let er: i32 = 0;
     let nstmt: i32 = 0;
     let ei: i32 = 0;
-    let ko: i32 = 0;
-    let op: i32 = 0;
+    let hit: i32 = 0;
     if (br <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_block_num_labeled_stmts(a, br));
     nlab = w499t_c32(&cell[0]);
@@ -149,16 +170,9 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
     while (j < nlab) {
       pipe_store_i32_le(&cell[0], 0, pipeline_block_labeled_return_expr_ref(a, br, j));
       er = w499t_c32(&cell[0]);
-      pipe_store_i32_le(&cell[0], 0, w499t_is_fwd_call(a, m, fi, er));
-      if (w499t_c32(&cell[0]) != 0) {
-        /* Normalize to CALL node if RETURN-wrapped. */
-        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
-        if (w499t_c32(&cell[0]) == 41) {
-          pipe_store_i32_le(&cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
-          return w499t_c32(&cell[0]);
-        }
-        return er;
-      }
+      pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, fi, er));
+      hit = w499t_c32(&cell[0]);
+      if (hit > 0) { return hit; }
       j = j + 1;
     }
     pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_expr_stmts(a, br));
@@ -167,19 +181,16 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
     while (ei < nstmt) {
       pipe_store_i32_le(&cell[0], 0, ast_pipeline_block_expr_stmt_ref(a, br, ei));
       er = w499t_c32(&cell[0]);
-      pipe_store_i32_le(&cell[0], 0, w499t_is_fwd_call(a, m, fi, er));
-      if (w499t_c32(&cell[0]) != 0) {
-        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
-        ko = w499t_c32(&cell[0]);
-        if (ko == 41) {
-          pipe_store_i32_le(&cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
-          return w499t_c32(&cell[0]);
-        }
-        return er;
-      }
+      pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, fi, er));
+      hit = w499t_c32(&cell[0]);
+      if (hit > 0) { return hit; }
       ei = ei + 1;
     }
-    return 0;
+    /* Block.final_expr_ref — thin `return callee(...)` often lands here. */
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_final_expr_ref(a, br));
+    er = w499t_c32(&cell[0]);
+    pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, fi, er));
+    return w499t_c32(&cell[0]);
   }
 }
 
@@ -219,6 +230,13 @@ export function w499_mega_try_tail_jmp(
         if (ret_ref > 0) { break; }
         ri = ri + 1;
       }
+    }
+    /* get_return peels labeled/final across the func — last resort. */
+    if (ret_ref <= 0) {
+      pipe_store_i32_le(&cell[0], 0, pipeline_asm_get_return_expr_ref_at(a, m, i));
+      ch = w499t_c32(&cell[0]);
+      pipe_store_i32_le(&cell[0], 0, w499t_fwd_call_ref(a, m, i, ch));
+      ret_ref = w499t_c32(&cell[0]);
     }
     if (ret_ref <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_call_callee_ref_at(a, ret_ref));
