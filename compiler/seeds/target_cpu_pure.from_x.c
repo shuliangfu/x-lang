@@ -1,4 +1,7 @@
 /* seeds/target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * w1138: the five flag helpers in src/driver/target_cpu_flags.x are pure asm.
+ * The pending-feature word is a pointer slot. This seed stays the resolve
+ * body, host detect, and the marker rest under XLANG_L2_TARGET_CPU_FLAGS_FROM_X.
  * G-02f-132 true .x pure helpers.
  * G-02f-131 true .x pure helpers.
  * G-02f-111 helper gates.

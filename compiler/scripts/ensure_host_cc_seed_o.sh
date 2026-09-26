@@ -5543,6 +5543,48 @@ ensure_rt_parse_diag_prefer() {
 # A while plus a 512-byte stack buffer in one TU exits 139.
 # $1 = merged thin object. The marker stays in the C rest.
 # PLATFORM: SHARED — Darwin CREAT/TRUNC are 512/1024 via cfg. Linux uses 64/512.
+# w1138: pure asm of src/driver/target_cpu_flags.x, retried.
+# The pending-feature word is stored through a pointer slot. One emit try
+# often exits 139, so this loops. It does not compile the C rest.
+# PLATFORM: SHARED. cwd is compiler/.
+target_cpu_flags_pure() {
+  local o="${1:-}"
+  local xsrc="src/driver/target_cpu_flags.x"
+  local try=0
+  local s
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+    return 1
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  # The C seed defines host detect. A pure-asm flags object must not.
+  if nm "$o" | awk '$2=="T" && $3=="_xlang_target_cpu_detect_host" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  for s in _driver_set_pending_target_cpu_features _driver_get_pending_target_cpu_features \
+    _tcp_tolower _tcp_eq5 _tcp_eq6; do
+    if ! nm "$o" | awk -v s="$s" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 rt_elf_diag_pure_thin() {
   # w1137: four pure-asm files. The combined .x does not emit (while count
   # plus the message buffers). Marker stays in the C rest.
@@ -17560,6 +17602,8 @@ ensure_target_cpu_prefer_one() {
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
   local stale=0 done=0
   local thin_o rest_o
+  local _tc_via=0
+  local _tc_thin_ok=0
 
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o try-target-cpu-prefer: missing seed $seed" >&2
@@ -17599,12 +17643,26 @@ ensure_target_cpu_prefer_one() {
     && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/tcpu_flags.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/tcpu_rest.XXXXXX")"
+    # w1138: pure asm of the five flag helpers, retried. A single try often
+    # exits 139. The C rest still holds resolve and host detect.
+    _tc_via=0
+    _tc_thin_ok=0
+    if target_cpu_flags_pure "$thin_o"; then
+      _tc_thin_ok=1
+      _tc_via=1
+    elif rt_prefer_try_x_to_o "$flags_x" "$thin_o"; then
+      _tc_thin_ok=1
+    fi
     # shellcheck disable=SC2086
-    if rt_prefer_try_x_to_o "$flags_x" "$thin_o" \
+    if [ "$_tc_thin_ok" = "1" ] \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin+rest $o <- $flags_x + seed-rest (try-target-cpu-prefer)"
+      if [ "$_tc_via" = "1" ]; then
+        log "prefer pure-asm flags $o <- $flags_x (w1138) + seed rest"
+      else
+        log "prefer thin+rest $o <- $flags_x + seed-rest (try-target-cpu-prefer)"
+      fi
       done=1
     else
       log "target_cpu hybrid failed; fallback full seed"
@@ -22637,6 +22695,18 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  target-cpu-flags-pure|target_cpu_flags_pure)
+    # w1138: Darwin/shared flags object from target_cpu_flags.x.
+    # Does not merge the C rest and does not write src/driver/target_cpu.o
+    # unless that path is passed. cwd is compiler/.
+    # PLATFORM: SHARED.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o target-cpu-flags-pure: need <out.o>" >&2
+      exit 2
+    fi
+    target_cpu_flags_pure "$1"
+    exit $?
+    ;;
   rt-elf-diag-pure|rt_elf_diag_pure)
     # w1137: merge the four ELF diag .x files. Does not compile the C rest.
     # PLATFORM: SHARED. cwd is compiler/.
