@@ -23,6 +23,10 @@
 // 7.2.1 tenth knife (2026-09-10): authority moved from the hand-written C
 // seed (seeds/pipeline_run_x_link_alias.from_x.c, promoted from a retired
 // .inc) to this .x source. PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm. Each
+// run_x_pipeline_* name forwards once to pipeline_run_x_pipeline_*.
+// Linux and Windows keep -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN for that object path.
 
 /** pipeline_x.o module-prefixed exports. */
 export extern function pipeline_run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32;

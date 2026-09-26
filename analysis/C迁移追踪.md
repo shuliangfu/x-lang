@@ -621,6 +621,7 @@
 - 2026-09-27 Darwin arm64 `backend_asm_strict_fallback_alias.o` 的产品体是已有的 `backend_asm_strict_fallback_alias.x`，纯 asm。两个 `backend_*` 只转发到 `pipeline_backend_*_c`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/backend_asm_strict_fallback_alias.from_x.c`。
 - 2026-09-27 Darwin arm64 `src/asm/parser_asm_parse_expr_link.o` 的产品体是 `src/asm/parser_asm_parse_expr_link_darwin.x`，纯 asm。调试门闩关闭，parse_expr_into 转发到 `parser_parse_expr_into`，弱 parse 桩不导出。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/parser_asm_parse_expr_link.from_x.c`。
 - 2026-09-27 Darwin arm64 `driver_compile_asm_link_alias.o` 的产品体是已有的 `src/driver_compile_asm_link_alias.x`，纯 asm。四个 `driver_*` 只转发到裸名。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
+- 2026-09-27 Darwin arm64 `src/asm/pipeline_run_x_link_alias.o` 的产品体是已有的 `src/pipeline_run_x_link_alias.x`，纯 asm。四个 `run_x_pipeline_*` 只转发到 `pipeline_run_x_pipeline_*`。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
