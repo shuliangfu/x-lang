@@ -927,6 +927,159 @@ ensure_net_workers_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_process_argv.o.
+# The whole TU is src/asm/runtime_process_argv_darwin.x. File-level
+# stores do not emit on this compiler (Mach-O elf_ec=-1), so the
+# getters read _NSGetArgc / _NSGetArgv when the globals are still
+# clear and never write them. The globals are Lxml commons; the
+# first reloc inside process_xlang_argc_get names the count, and
+# the other Lxml common is the vector. Both are renamed onto the
+# C names. process_args_count_c and process_arg_c are weakened so
+# std/process strong faces win.
+# A missing object after three pure-asm faults falls back to the C seed.
+# An object already on disk is left as-is when the .x is not newer.
+# No gcc -E. Linux and Windows do not call this.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_process_argv.o, cwd is compiler/).
+ensure_process_argv_darwin_pure() {
+  local o="${1:-runtime_process_argv.o}"
+  local xsrc="src/asm/runtime_process_argv_darwin.x"
+  local seed="seeds/runtime_process_argv.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o process-argv: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ! (
+      export XLANG_PREFER_ASM_O=1
+      export G05_X_O_WEAK_FUNCS=process_args_count_c,process_arg_c
+      unset G05_X_O_WEAK
+      pure_asm_x_to_o "$o" "$xsrc"
+    ); then
+      echo "ensure_host_cc_seed_o process-argv: pure-asm try $try failed" >&2
+      rm -f "$o"
+      continue
+    fi
+    # Rename the two Lxml commons onto the C global names.
+    # nlist order matches `nm -p`. The first text reloc inside
+    # process_xlang_argc_get is the count (compared with > 0
+    # before the argv null check). The other Lxml is the vector.
+    # PLATFORM: MACOS|DARWIN arm64.
+    local _pa_names=() _pa_line _pa_argc_hex _pa_next_hex
+    local _pa_argc_dec _pa_next_dec _pa_addr _pa_rest _pa_dec
+    local _pa_idx _pa_argc_name _pa_argv_name _pa_n _pa_oc
+    while IFS= read -r _pa_line; do
+      _pa_names+=("$_pa_line")
+    done < <(nm -p "$o" 2>/dev/null | awk '{ print $NF }')
+    _pa_argc_hex="$(nm -p "$o" 2>/dev/null | awk '$NF=="_process_xlang_argc_get"{print $1}')"
+    _pa_next_hex="$(nm -p "$o" 2>/dev/null | awk '$NF=="_process_xlang_argv_get"{print $1}')"
+    if [ -z "$_pa_argc_hex" ] || [ -z "$_pa_next_hex" ]; then
+      echo "ensure_host_cc_seed_o process-argv: getter symbols missing" >&2
+      rm -f "$o"
+      continue
+    fi
+    _pa_argc_dec=$((16#$_pa_argc_hex))
+    _pa_next_dec=$((16#$_pa_next_hex))
+    _pa_idx=""
+    while read -r _pa_addr _pa_rest; do
+      case "$_pa_addr" in
+        *[!0-9a-fA-F]*) continue ;;
+      esac
+      [ -n "$_pa_addr" ] || continue
+      _pa_dec=$((16#$_pa_addr))
+      if [ "$_pa_dec" -ge "$_pa_argc_dec" ] && [ "$_pa_dec" -lt "$_pa_next_dec" ]; then
+        _pa_idx="${_pa_rest##* }"
+        break
+      fi
+    done < <(otool -r "$o" 2>/dev/null)
+    if [ -z "$_pa_idx" ]; then
+      echo "ensure_host_cc_seed_o process-argv: argc reloc missing" >&2
+      rm -f "$o"
+      continue
+    fi
+    _pa_argc_name="${_pa_names[$_pa_idx]}"
+    _pa_argv_name=""
+    for _pa_n in "${_pa_names[@]}"; do
+      case "$_pa_n" in
+        _Lxml_*)
+          if [ "$_pa_n" != "$_pa_argc_name" ]; then
+            _pa_argv_name="$_pa_n"
+          fi
+          ;;
+      esac
+    done
+    case "$_pa_argc_name" in
+      _Lxml_*) ;;
+      *)
+        echo "ensure_host_cc_seed_o process-argv: argc common is not Lxml" >&2
+        rm -f "$o"
+        continue
+        ;;
+    esac
+    if [ -z "$_pa_argv_name" ]; then
+      echo "ensure_host_cc_seed_o process-argv: argv common missing" >&2
+      rm -f "$o"
+      continue
+    fi
+    _pa_oc="$(pure_asm_find_objcopy)" || return 1
+    if ! "$_pa_oc" \
+      --redefine-sym "$_pa_argc_name"='_xlang_process_argc' \
+      --redefine-sym "$_pa_argv_name"='_xlang_process_argv' \
+      "$o"; then
+      echo "ensure_host_cc_seed_o process-argv: global rename failed" >&2
+      rm -f "$o"
+      continue
+    fi
+    local _pa_short _pa_ok
+    _pa_ok=1
+    for _pa_short in \
+      _xlang_process_argc \
+      _xlang_process_argv \
+      _xlang_process_argv_bind_from_crt \
+      _xlang_process_argv_bind_from_crt_impl \
+      _process_xlang_argc_get \
+      _process_xlang_argv_get \
+      _process_args_count_c \
+      _process_arg_c \
+      _runtime_process_argv_x_doc_anchor; do
+      if ! nm "$o" 2>/dev/null | awk -v s="$_pa_short" '$NF==s { ok=1 } END { exit ok?0:1 }'; then
+        _pa_ok=0
+        break
+      fi
+    done
+    if [ "$_pa_ok" != "1" ]; then
+      echo "ensure_host_cc_seed_o process-argv: renamed symbols missing" >&2
+      rm -f "$o"
+      continue
+    fi
+    # The two process faces must be weak. nm -m prints "weak".
+    if ! nm -m "$o" 2>/dev/null | awk '
+      $0 ~ /_process_args_count_c$/ && $0 ~ /weak/ { c=1 }
+      $0 ~ /_process_arg_c$/ && $0 ~ /weak/ { a=1 }
+      END { exit (c && a) ? 0 : 1 }'; then
+      echo "ensure_host_cc_seed_o process-argv: process faces are not weak" >&2
+      rm -f "$o"
+      continue
+    fi
+    log "pure-asm $xsrc → $o"
+    return 0
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -1061,6 +1214,21 @@ ensure_one() {
     if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
       && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
       ensure_dynlib_os_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1085: Darwin arm64 argc/argv getters are the .x, not this seed.
+  # Linux keeps the /proc seed. Windows keeps the Win32 seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_process_argv.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_process_argv.o" ]; then
+    local pa_s pa_m
+    pa_s="$(uname -s 2>/dev/null || echo Unknown)"
+    pa_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
+      && [ -f src/asm/runtime_process_argv_darwin.x ]; then
+      ensure_process_argv_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -14438,6 +14606,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
       && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
       ensure_dynlib_os_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1085: Darwin arm64 whole TU is the .x. Do not thin+rest host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_process_argv.o" ]; then
+    local pa_s pa_m
+    pa_s="$(uname -s 2>/dev/null || echo Unknown)"
+    pa_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
+      && [ -f src/asm/runtime_process_argv_darwin.x ]; then
+      ensure_process_argv_darwin_pure "$o" || return 1
       return 0
     fi
   fi

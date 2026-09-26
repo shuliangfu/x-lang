@@ -586,6 +586,7 @@
 - 2026-09-26 Darwin arm64 `runtime_sync_os.o` 的产品体在 `src/asm/runtime_sync_os_darwin.x`，互斥锁、读写锁和条件变量走 libSystem pthread。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_sync_os.from_x.c`。共享薄封装 `runtime_sync_os.x` 仍只转调 C `_impl`。
 - 2026-09-26 Darwin arm64 `runtime_dynlib_os.o` 的产品体是 `src/asm/runtime_dynlib_os_darwin_text.x` 与 `src/asm/runtime_dynlib_os_darwin.x`，纯 asm 后 ld -r 合成。循环和 dlopen 不能放进同一份翻译单元，现行编译器会退出 139。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_dynlib_os.from_x.c`。共享薄封装 `runtime_dynlib_os.x` 仍只转调 C `_impl`。
 - 2026-09-26 Darwin arm64 `runtime_net_workers.o` 的产品体是 `src/asm/runtime_net_workers_darwin.x`。接受循环在 .x 里，入口用 dlsym 取地址，因为函数名当指针时现行编译器退出 139。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_net_workers.from_x.c`。共享薄封装 `runtime_net_workers.x` 仍只转调 C `_impl`。
+- 2026-09-26 Darwin arm64 `runtime_process_argv.o` 的产品体是 `src/asm/runtime_process_argv_darwin.x`。文件级存储在现行编译器上写不出 Mach-O，getter 在全局仍空时直接读 `_NSGetArgc` 与 `_NSGetArgv`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_process_argv.from_x.c`。共享薄封装 `runtime_process_argv.x` 仍只转调 C `_impl`。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

@@ -1,6 +1,15 @@
 /* seeds/runtime_process_argv.from_x.c — G-02f-20 product TU
  * G-02f-106 helper gates.
  * Product: runtime_process_argv.o; logic still C until full .x port.
+ *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_process_argv_darwin.x, pure-asm by the current compiler.
+ * That compiler cannot store a file-level let (Mach-O elf_ec=-1) and
+ * cannot emit __mod_init_func. The Darwin getters read _NSGetArgc and
+ * _NSGetArgv when the globals are still clear, and they do not write
+ * the globals. This C file is the Linux /proc body, the Windows body,
+ * and the Darwin backup when pure-asm faults and the staged object is
+ * missing. Do not delete these bodies. Do not gcc -E this seed as the repair.
  */
 /**
  * runtime_process_argv.c — codegen 入口 argc/argv 全局（F-ZC：自 std/process/process_arg_glue.c 迁入）
