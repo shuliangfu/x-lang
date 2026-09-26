@@ -982,6 +982,76 @@ ensure_atomic_glue_darwin_pure() {
   return 0
 }
 
+# w1104: Darwin arm64 runtime_dir_cap.o walks directories with libSystem
+# __open and __getdirentries64. The .x names use three leading underscores
+# so the undefined symbols are ___open and ___getdirentries64.
+# O_RDONLY|O_DIRECTORY is 1048576. The stream is 1096 bytes.
+# Linux and Windows keep the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_dir_cap.o, cwd is compiler/).
+ensure_dir_cap_darwin_pure() {
+  local o="${1:-runtime_dir_cap.o}"
+  local xsrc="src/asm/runtime_dir_cap_darwin.x"
+  local seed="seeds/runtime_dir_cap.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o dir-cap: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _dc_short _dc_ok
+      _dc_ok=1
+      for _dc_short in \
+        _xlang_dir_opendir \
+        _xlang_dir_readdir \
+        _xlang_dir_closedir \
+        _xlang_dir_readdir_name_c \
+        _runtime_dir_cap_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_dc_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _dc_ok=0
+          break
+        fi
+      done
+      if [ "$_dc_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o dir-cap: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___getdirentries64" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o dir-cap: ___getdirentries64 is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___open" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o dir-cap: ___open is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o dir-cap: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -2541,6 +2611,20 @@ ensure_one() {
     if [ "$at_s" = "Darwin" ] && [ "$at_m" = "arm64" ] \
       && [ -f src/asm/runtime_atomic_glue_darwin.x ]; then
       ensure_atomic_glue_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1104: Darwin arm64 directory walk is the .x, not this seed.
+  # Match runtime_dir_cap.o only. Linux and Windows keep the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$out")" = "runtime_dir_cap.o" ]; then
+    local dc_s dc_m
+    dc_s="$(uname -s 2>/dev/null || echo Unknown)"
+    dc_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$dc_s" = "Darwin" ] && [ "$dc_m" = "arm64" ] \
+      && [ -f src/asm/runtime_dir_cap_darwin.x ]; then
+      ensure_dir_cap_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -16221,6 +16305,20 @@ ensure_runtime_os_prefer_one() {
     fi
   fi
 
+  # w1104: Darwin arm64 whole object is the directory .x. Do not host-cc it.
+  # Match runtime_dir_cap.o only. PLATFORM: MACOS|DARWIN arm64.
+  # Linux and Windows fall through.
+  if [ "$o" = "runtime_dir_cap.o" ]; then
+    local dc_s dc_m
+    dc_s="$(uname -s 2>/dev/null || echo Unknown)"
+    dc_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$dc_s" = "Darwin" ] && [ "$dc_m" = "arm64" ] \
+      && [ -f src/asm/runtime_dir_cap_darwin.x ]; then
+      ensure_dir_cap_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
   # w1094: Darwin arm64 whole object is thin .x plus UDP .x. Do not host-cc it.
   # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
   if [ "$o" = "runtime_net_udp_batch.o" ]; then
@@ -20361,6 +20459,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  dir-cap-pure|dir_cap_pure)
+    # w1104: Darwin arm64 directory object from .x. Does not run the
+    # rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o dir-cap-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_dir_cap_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   inject-macho-write|inject_macho_write)
     # Durable C-thin ingest of clang-aligned pipeline_macho_write_o_to_buf_c.
     # Does NOT run try-pipeline-abi-prefer (no mega -E, no other thins).

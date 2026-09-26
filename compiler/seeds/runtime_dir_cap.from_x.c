@@ -8,6 +8,10 @@
  * getdents64 here.
  *
  * PLATFORM: SHARED face; LINUX Cap / POSIX fallback inside the header.
+ * Darwin arm64 product body is src/asm/runtime_dir_cap_darwin.x
+ * (libSystem __open + __getdirentries64). This seed stays the
+ * Linux and Windows body, and the Darwin fallback when pure asm
+ * leaves no object.
  */
 
 #include <stdint.h>

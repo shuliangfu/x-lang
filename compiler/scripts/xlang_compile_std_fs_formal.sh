@@ -28,7 +28,9 @@ if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
   _fs_stale=0
   for _s in ../std/fs/mod.x ../std/fs/posix.x std/fs/mod.x std/fs/posix.x \
             seeds/runtime_dir_cap.from_x.c include/xlang_dir_cap.h \
-            ../compiler/seeds/runtime_dir_cap.from_x.c ../compiler/include/xlang_dir_cap.h; do
+            src/asm/runtime_dir_cap_darwin.x \
+            ../compiler/seeds/runtime_dir_cap.from_x.c ../compiler/include/xlang_dir_cap.h \
+            ../compiler/src/asm/runtime_dir_cap_darwin.x; do
     if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
       _fs_stale=1
       break
@@ -135,11 +137,30 @@ if [ ! -f "$_dir_cap_c" ]; then
 fi
 if [ -f "$_dir_cap_c" ]; then
   _dir_cap_o="$tmp_dir/runtime_dir_cap.o"
-  # shellcheck disable=SC2086
-  if ! cc -c $CFLAGS "$_dir_cap_c" -o "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
-    echo "xlang_compile_std_fs_formal.sh: cc -c dir Cap failed" >&2
-    tail -40 "$tmp_dir/dir_cap.err" >&2 || true
-    exit 1
+  # PLATFORM: MACOS|DARWIN arm64 — pure asm. Linux stays cc -c of the seed.
+  _dir_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _dir_mach="$(uname -m 2>/dev/null || echo unknown)"
+  _dir_x="src/asm/runtime_dir_cap_darwin.x"
+  if [ ! -f "$_dir_x" ]; then
+    _dir_x="../compiler/src/asm/runtime_dir_cap_darwin.x"
+  fi
+  if [ "$_dir_os" = "Darwin" ] && [ "$_dir_mach" = "arm64" ] && [ -f "$_dir_x" ]; then
+    _ensure="scripts/ensure_host_cc_seed_o.sh"
+    if [ ! -f "$_ensure" ]; then
+      _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+    fi
+    if ! bash "$_ensure" dir-cap-pure "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
+      echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm failed" >&2
+      tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+      exit 1
+    fi
+  else
+    # shellcheck disable=SC2086
+    if ! cc -c $CFLAGS "$_dir_cap_c" -o "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
+      echo "xlang_compile_std_fs_formal.sh: cc -c dir Cap failed" >&2
+      tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+      exit 1
+    fi
   fi
   _merged="$tmp_dir/fs_formal_merged.o"
   if ! ld -r -o "$_merged" "$raw_o" "$_dir_cap_o" 2>"$tmp_dir/dir_ld.err"; then
