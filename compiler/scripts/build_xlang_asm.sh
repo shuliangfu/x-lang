@@ -1849,7 +1849,18 @@ ensure_pipeline_phase_parse_only_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_phase_parse_only_partial.o"
   SYMS="$BUILD_DIR/pipeline_phase_parse_only_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_phase_parse_only_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_phase_parse_only_alias.from_x.c" -nt "$ALIAS_O" ]; then
+  # w1130: Darwin arm64 alias is pure asm of the .x.
+  # The partial export below stays. This hook does not match the partial.
+  # Linux and Windows stay on host cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _pp_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _pp_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_pp_os" = "Darwin" ] && [ "$_pp_mach" = "arm64" ] \
+    && [ -f src/pipeline_phase_parse_only_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_phase_parse_only_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh phase-parse-pure "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ "seeds/pipeline_phase_parse_only_alias.from_x.c" -nt "$ALIAS_O" ]; then
   echo " cc -c seeds/pipeline_phase_parse_only_alias.from_x.c -> $ALIAS_O"
   sh scripts/cc_inc_tu.sh seeds/pipeline_phase_parse_only_alias.from_x.c "$ALIAS_O"
   fi

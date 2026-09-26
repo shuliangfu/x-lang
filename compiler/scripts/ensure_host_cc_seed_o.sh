@@ -1388,6 +1388,78 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1130: Darwin arm64 pipeline_phase_parse_only_alias.o is the two parse faces.
+# Linux and Windows keep host cc of the C seed.
+# Does not match pipeline_phase_parse_only_partial.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_phase_parse_darwin_pure() {
+  local o="${1:-build_asm/pipeline_phase_parse_only_alias.o}"
+  local xsrc="src/pipeline_phase_parse_only_alias.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o phase-parse: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _pp_short _pp_ok
+      _pp_ok=1
+      for _pp_short in \
+        _pipeline_impl_phase_parse_only \
+        _pipeline_impl_phase_parse_load; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_pp_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _pp_ok=0
+          break
+        fi
+      done
+      if [ "$_pp_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o phase-parse: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      for _pp_short in \
+        _pipeline_strict_parse_into_init \
+        _parser_parse_into_buf \
+        _parser_parse_into_set_main_index \
+        _pipeline_module_num_funcs \
+        _driver_diagnostic_after_entry_parse \
+        _driver_diagnostic_after_entry_parse_module \
+        _driver_diagnostic_entry_module \
+        _pipeline_impl_phase_load_deps; do
+        if ! nm -u "$o" 2>/dev/null | awk -v s="$_pp_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+          _pp_ok=0
+          break
+        fi
+      done
+      if [ "$_pp_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o phase-parse: required undefined symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o phase-parse: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc seed $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh seeds/pipeline_phase_parse_only_alias.from_x.c "$o" || return 1
+  fi
+  return 0
+}
+
 # w1129: Darwin arm64 pipeline_run_bootstrap_trampoline.o forwards one entry.
 # Linux and Windows keep host cc of the C seed.
 # Does not match pipeline_run_impl_alias.o.
@@ -22155,6 +22227,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  phase-parse-pure|phase_parse_pure)
+    # w1130: Darwin arm64 phase-parse alias from the .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o phase-parse-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_phase_parse_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   trampoline-pure|trampoline_pure)
     # w1129: Darwin arm64 bootstrap trampoline from the .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
