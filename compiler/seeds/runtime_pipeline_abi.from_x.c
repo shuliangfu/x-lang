@@ -35711,6 +35711,7 @@ extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name
 extern int32_t asm_skip_heavy_module_func_body(void *m, void *arena, int32_t func_index);
 extern int32_t backend_enc_prologue_arch(void *elf_ctx, int32_t frame_sz, int32_t ta);
 extern int32_t pipeline_asm_emit_skip_heavy_or_thin_stub_elf_c(void *elf_ctx, int32_t ta, void *mod, int32_t func_index);
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t fi);
 extern int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t fi);
 /* w1048: tip peer leaf — pure forwarder → jmp stub (see mega_emit_tail_jmp_thin.x). */
 extern int32_t w499_mega_try_tail_jmp(void *m, void *a, void *elf_ctx, void *bctx, int32_t ta, int32_t i, int32_t body_ref);
