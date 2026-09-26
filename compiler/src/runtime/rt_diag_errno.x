@@ -14,6 +14,8 @@
 // cfg-extern poisons later global assigns (rt_diag_ensure_codes → XT001
 // check_block) on the host where the second attr is false. Typeck residual
 // tracked separately; leaf uses always-on decls so dual-host prove stays green.
+// w1136: stores to the file-level lets go through a pointer slot. A direct
+// store does not emit (elf_ec=-1).
 
 export extern "C" function __errno_location(): *i32;
 export extern "C" function __error(): *i32;
@@ -75,7 +77,8 @@ export function rt_diag_get_errno(): i32 {
 #[no_mangle]
 export function rt_diag_ensure_codes(): void {
   let p: *u8 = 0 as *u8;
-  if (g_rt_diag_codes_ready != 0) {
+  let ready_slot: *i32 = &g_rt_diag_codes_ready;
+  if (ready_slot[0] != 0) {
     return;
   }
   // "IO001" — I/O family diagnostic code.
@@ -89,7 +92,8 @@ export function rt_diag_ensure_codes(): void {
     p[3] = 48;
     p[4] = 49;
     p[5] = 0;
-    g_rt_diag_io001 = p;
+    let io_slot: **u8 = &g_rt_diag_io001;
+    io_slot[0] = p;
   }
   // "PRC001" — process family diagnostic code.
   unsafe {
@@ -103,7 +107,8 @@ export function rt_diag_ensure_codes(): void {
     p[4] = 48;
     p[5] = 49;
     p[6] = 0;
-    g_rt_diag_prc001 = p;
+    let prc_slot: **u8 = &g_rt_diag_prc001;
+    prc_slot[0] = p;
   }
   // "BLD001" — build family diagnostic code (default for unknown kinds).
   unsafe {
@@ -117,9 +122,79 @@ export function rt_diag_ensure_codes(): void {
     p[4] = 48;
     p[5] = 49;
     p[6] = 0;
-    g_rt_diag_bld001 = p;
+    let bld_slot: **u8 = &g_rt_diag_bld001;
+    bld_slot[0] = p;
   }
-  g_rt_diag_codes_ready = 1;
+  ready_slot[0] = 1;
+}
+
+/** Return the index of the first 0 in `dst`, or `cap` when none fits.
+ * The pointer and the index are copied to locals before the subscript.
+ * PLATFORM: SHARED. */
+function rt_diag_scan_nul(dst: *u8, cap: i32): i32 {
+  let d: *u8 = dst;
+  let i: i32 = 0;
+  while (i < cap) {
+    let k: i32 = i;
+    if (d[k] == 0) {
+      return i;
+    }
+    i = i + 1;
+  }
+  return cap;
+}
+
+/** Copy `src` onto `dst` starting at `i0`, leaving one byte for the NUL.
+ * Returns the new length excluding that NUL. Stops at a 0 in `src`.
+ * PLATFORM: SHARED. */
+function rt_diag_copy_src(dst: *u8, cap: i32, src: *u8, i0: i32): i32 {
+  let d: *u8 = dst;
+  let s: *u8 = src;
+  let i: i32 = i0;
+  let j: i32 = 0;
+  while (i + 1 < cap) {
+    let kj: i32 = j;
+    let c: u8 = s[kj];
+    if (c == 0) {
+      break;
+    }
+    let ki: i32 = i;
+    d[ki] = c;
+    i = i + 1;
+    j = j + 1;
+  }
+  let ke: i32 = i;
+  d[ke] = 0;
+  return i;
+}
+
+/** Force a NUL at the last byte of a full buffer and return `cap - 1`.
+ * PLATFORM: SHARED. */
+function rt_diag_force_nul(dst: *u8, cap: i32): i32 {
+  let d: *u8 = dst;
+  let last: i32 = cap - 1;
+  d[last] = 0;
+  return cap - 1;
+}
+
+/** Length of `dst` when `src` is null: 0 if no NUL fits in `cap`.
+ * PLATFORM: SHARED. */
+function rt_diag_len_or_zero(dst: *u8, cap: i32): i32 {
+  let n: i32 = rt_diag_scan_nul(dst, cap);
+  if (n == cap) {
+    return 0;
+  }
+  return n;
+}
+
+/** Append after the existing NUL, or clamp when the buffer is already full.
+ * PLATFORM: SHARED. */
+function rt_diag_append_body(dst: *u8, cap: i32, src: *u8): i32 {
+  let i: i32 = rt_diag_scan_nul(dst, cap);
+  if (i >= cap) {
+    return rt_diag_force_nul(dst, cap);
+  }
+  return rt_diag_copy_src(dst, cap, src, i);
 }
 
 /** Append NUL-terminated `src` onto `dst` within capacity `cap` (cap includes room for the trailing NUL).
@@ -129,49 +204,17 @@ export function rt_diag_ensure_codes(): void {
  * - if `dst` is already full (no room for a char + NUL), force-NUL at cap-1 and return cap-1
  * - copy stops at src NUL or when only one byte remains for the destination NUL
  * Track-L: #[no_mangle] keeps short surface name (not rt_diag_errno_rt_diag_append).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — link-name contract; dual-host prove.
+ * The scans live in helpers so this frame does not store into the saved x19 slot. */
 #[no_mangle]
 export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
-  let i: i32 = 0;
-  let j: i32 = 0;
   if (dst == 0 as *u8) {
     return 0;
   }
-  // Null src: report current string length only (scan for existing NUL).
   if (src == 0 as *u8) {
-    while (i < cap) {
-      if (dst[i as usize] == 0) {
-        return i;
-      }
-      i = i + 1;
-    }
-    return 0;
+    return rt_diag_len_or_zero(dst, cap);
   }
-  // Find end of existing dst content.
-  while (i < cap) {
-    if (dst[i as usize] == 0) {
-      break;
-    }
-    i = i + 1;
-  }
-  // Overflow: clamp with a forced NUL at the last index.
-  if (i >= cap) {
-    dst[(cap - 1) as usize] = 0;
-    return cap - 1;
-  }
-  // Copy src bytes while leaving space for the destination terminator.
-  j = 0;
-  while (i + 1 < cap) {
-    let c: u8 = src[j as usize];
-    if (c == 0) {
-      break;
-    }
-    dst[i as usize] = c;
-    i = i + 1;
-    j = j + 1;
-  }
-  dst[i as usize] = 0;
-  return i;
+  return rt_diag_append_body(dst, cap, src);
 }
 
 /** Exported function `runtime_diag_code_for_kind`.
@@ -181,19 +224,22 @@ export function rt_diag_append(dst: *u8, cap: i32, src: *u8): i32 {
  */
 #[no_mangle]
 export function runtime_diag_code_for_kind(kind: *u8): *u8 {
+  let io_slot: **u8 = &g_rt_diag_io001;
+  let prc_slot: **u8 = &g_rt_diag_prc001;
+  let bld_slot: **u8 = &g_rt_diag_bld001;
   rt_diag_ensure_codes();
   if (kind == 0 as *u8) {
-    return g_rt_diag_bld001;
+    return bld_slot[0];
   }
   unsafe {
     if (strcmp(kind, "io error") == 0) {
-      return g_rt_diag_io001;
+      return io_slot[0];
     }
     if (strcmp(kind, "process error") == 0) {
-      return g_rt_diag_prc001;
+      return prc_slot[0];
     }
     if (strcmp(kind, "build error") == 0) {
-      return g_rt_diag_bld001;
+      return bld_slot[0];
     }
   }
   return 0 as *u8;

@@ -1394,6 +1394,79 @@ ensure_std_io_driver_formal_darwin_pure() {
 # Does not match rt_emit_state.o.
 # PLATFORM: MACOS|DARWIN arm64.
 # $1 = output object. cwd is compiler/.
+# w1136: Darwin arm64 pure-asm of src/runtime/rt_diag_errno.x.
+# File-level diagnostic codes are stored through pointer slots (a direct
+# store does not emit). The compiler writes U __error; llvm-objcopy renames
+# that to ___error so the call reaches libc __error.
+# Does not compile the C rest and does not define the slice marker.
+# PLATFORM: MACOS|DARWIN arm64. Linux keeps the existing prefer.
+rt_diag_errno_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_diag_errno.x"
+  local xl="./xlang_asm"
+  local objcopy="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  local try=0
+  local miss=0
+  local s
+  local stage=""
+  if [ "$(uname -s)" != "Darwin" ] || [ "$(uname -m)" != "arm64" ]; then
+    return 1
+  fi
+  if [ ! -x "$objcopy" ] || [ ! -f "$xsrc" ] || [ -z "$o" ]; then
+    return 1
+  fi
+  mkdir -p "$(dirname "$o")"
+  # -backend asm only emits a relocatable object when the path ends in .o.
+  stage=$(mktemp "${TMPDIR:-/tmp}/rtdiag.XXXXXX") || return 1
+  rm -f "$stage"
+  stage="${stage}.o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$stage"
+    if "$xl" -backend asm -c "$xsrc" -o "$stage" >/dev/null 2>&1 && [ -s "$stage" ]; then
+      if "$objcopy" --redefine-sym '__error=___error' "$stage"; then
+        break
+      fi
+    fi
+    rm -f "$stage"
+  done
+  if [ ! -s "$stage" ]; then
+    rm -f "$stage"
+    return 1
+  fi
+  mv -f "$stage" "$o" || return 1
+  # Bare U __error is the unmangled name. The libc symbol is ___error.
+  if nm -u "$o" | awk '$NF=="__error" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="___error" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if nm "$o" | awk '$2=="T" && $3=="_labi_rt_diag_errno_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  for s in _rt_diag_get_errno _rt_diag_ensure_codes _rt_diag_append \
+    _runtime_diag_code_for_kind _runtime_diag_errno _runtime_diag_errno_path \
+    _runtime_diag_errno_path_pair _runtime_diag_cli_usage_note; do
+    if ! nm "$o" | awk -v s="$s" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      miss=1
+    fi
+  done
+  for s in ___error _malloc _strcmp _strerror _diag_report_with_code; do
+    if ! nm -u "$o" | awk -v s="$s" '$NF==s { found=1 } END { exit found ? 0 : 1 }'; then
+      miss=1
+    fi
+  done
+  if [ "$miss" != "0" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 ensure_rt_stack_darwin_pure() {
   local o="${1:-src/runtime/rt_stack.o}"
   local xsrc="src/runtime/rt_stack.x"
@@ -8272,13 +8345,28 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_diag_x" ]; then
               _rt_diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_diag_thin.XXXXXX") || true
               _rt_diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_diag_rest.XXXXXX") || true
+              # w1136: Darwin compiles the .x directly and renames U __error to
+              # ___error. pure_asm_x_to_o deletes a bare __error, so it cannot
+              # be the Darwin step. Linux still uses the existing prefer.
+              _rt_diag_thin_ok=0
+              if [ "$(uname -s)" = "Darwin" ]; then
+                if rt_diag_errno_darwin_pure "$_rt_diag_thin_o"; then
+                  _rt_diag_thin_ok=1
+                fi
+              elif rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o"; then
+                _rt_diag_thin_ok=1
+              fi
               if [ -n "$_rt_diag_thin_o" ] && [ -n "$_rt_diag_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o" \
+                && [ "$_rt_diag_thin_ok" = "1" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DIAG_ERRNO_FROM_X \
                      -c -o "$_rt_diag_rest_o" "$_rt_diag_seed" \
                 && pure_ld_partial_merge "$_rt_diag_o" "$_rt_diag_thin_o" "$_rt_diag_rest_o" 2>/dev/null; then
                 _rt_diag_ok=1
-                echo "rt-prefer: rest diag_errno ← full .x + rest marker (R2 full H=0)"
+                if [ "$(uname -s)" = "Darwin" ]; then
+                  echo "rt-prefer: rest diag_errno ← pure-asm .x (w1136) + marker rest"
+                else
+                  echo "rt-prefer: rest diag_errno ← full .x + rest marker (R2 full H=0)"
+                fi
               fi
               rm -f "$_rt_diag_thin_o" "$_rt_diag_rest_o"
             fi
@@ -22497,6 +22585,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-diag-errno-pure|rt_diag_errno_pure)
+    # w1136: Darwin arm64 diag/errno object from the .x, with __error renamed.
+    # Does not run the rest of ensure and does not merge the marker rest.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-diag-errno-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_diag_errno_darwin_pure "$1"
+    exit $?
+    ;;
   rt-stack-pure|rt_stack_pure)
     # w1133: Darwin arm64 standalone stack-escape object from the .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

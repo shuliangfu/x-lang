@@ -1,5 +1,8 @@
 /* seeds/rt_diag_errno.from_x.c — G-02f-302 P2 runtime rest (diag errno pure)
  * Logic source: src/runtime/rt_diag_errno.x
+ * w1136: Darwin standalone thin object is pure asm of that .x (errno symbol
+ * renamed to the libc ___error). This seed stays the Linux prefer body and
+ * the marker-only rest under XLANG_RT_DIAG_ERRNO_FROM_X.
  * Hybrid: XLANG_RT_DIAG_ERRNO_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full：code_for_kind + errno{,_path,_path_pair} + cli_usage_note 由 .x 提供；
