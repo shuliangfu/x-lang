@@ -26,8 +26,7 @@ export extern function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32, idx
 export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern function pipeline_asm_module_func_num_params_at(m: *u8, fi: i32): i32;
-export extern function pipeline_asm_module_func_param_name_len_at(m: *u8, fi: i32, pi: i32): i32;
-export extern function pipeline_asm_module_func_param_name_copy32(m: *u8, fi: i32, pi: i32, dst: *u8): void;
+export extern function glue_expr_is_func_param_at_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32;
 export extern function backend_enc_jmp_sym_arch(
     elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 
@@ -44,24 +43,6 @@ function w499t_c32(base: *u8): i32 {
 }
 
 /**
- * Compare two name buffers for equality over n bytes.
- * @param a *u8 — left name
- * @param b *u8 — right name
- * @param n i32 — byte count
- * @return i32 — 1 equal, 0 mismatch
- * PLATFORM: SHARED — tipU-safe byte walk (no libc).
- */
-function w499t_name_eq(a: *u8, b: *u8, n: i32): i32 {
-  let i: i32 = 0;
-  if (n <= 0) { return 1; }
-  while (i < n) {
-    if (a[i] != b[i]) { return 0; }
-    i = i + 1;
-  }
-  return 1;
-}
-
-/**
  * True when expr is CALL (or RETURN of CALL) whose args are formals in order.
  * @return i32 — 1 match, 0 no
  * PLATFORM: SHARED — w1048 detect helper.
@@ -75,11 +56,8 @@ function w499t_is_fwd_call(a: *u8, m: *u8, fi: i32, er: i32): i32 {
     let nargs: i32 = 0;
     let ai: i32 = 0;
     let arg_ref: i32 = 0;
-    let vlen: i32 = 0;
-    let plen: i32 = 0;
     let op: i32 = 0;
-    let vname: u8[32] = [];
-    let pname: u8[32] = [];
+    let same: i32 = 0;
     if (er <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
     ko = w499t_c32(&cell[0]);
@@ -112,18 +90,12 @@ function w499t_is_fwd_call(a: *u8, m: *u8, fi: i32, er: i32): i32 {
       pipe_store_i32_le(&cell[0], 0, pipeline_expr_call_arg_ref(a, er, ai));
       arg_ref = w499t_c32(&cell[0]);
       if (arg_ref <= 0) { return 0; }
-      pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, arg_ref));
-      if (w499t_c32(&cell[0]) != 3) { return 0; }
-      pipe_store_i32_le(&cell[0], 0, pipeline_expr_var_name_len(a, arg_ref));
-      vlen = w499t_c32(&cell[0]);
-      pipe_store_i32_le(&cell[0], 0, pipeline_asm_module_func_param_name_len_at(m, fi, ai));
-      plen = w499t_c32(&cell[0]);
-      if (vlen <= 0) { return 0; }
-      if (vlen != plen) { return 0; }
-      if (vlen > 31) { return 0; }
-      pipeline_expr_var_name_into(a, arg_ref, &vname[0]);
-      pipeline_asm_module_func_param_name_copy32(m, fi, ai, &pname[0]);
-      if (w499t_name_eq(&vname[0], &pname[0], vlen) == 0) { return 0; }
+      /* var_name_into / copy32 memset 256 bytes. A 32-byte slot
+       * smashes the frame (same class as the 2026-09-13 watchpoint).
+       * glue_expr_is_func_param_at_c compares through its own globals. */
+      pipe_store_i32_le(&cell[0], 0, glue_expr_is_func_param_at_c(a, m, fi, arg_ref, ai));
+      same = w499t_c32(&cell[0]);
+      if (same == 0) { return 0; }
       ai = ai + 1;
     }
     return 1;
@@ -236,7 +208,8 @@ export function w499_mega_try_tail_jmp(
     let nreg: i32 = 0;
     let ri: i32 = 0;
     let ch: i32 = 0;
-    let cname: u8[64] = [];
+    /* pipeline_expr_var_name_into zeros 256 bytes, not the name length. */
+    let cname: u8[256] = [];
     if (bctx == (0 as *u8)) { return 0; }
     if (ta != 0) { return 0; }
     if (body_ref <= 0) { return 0; }
@@ -263,7 +236,7 @@ export function w499_mega_try_tail_jmp(
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_var_name_len(a, callee_ref));
     clen = w499t_c32(&cell[0]);
     if (clen <= 0) { return 0; }
-    if (clen > 63) { return 0; }
+    if (clen > 255) { return 0; }
     pipeline_expr_var_name_into(a, callee_ref, &cname[0]);
     pipe_store_i32_le(&cell[0], 0, backend_enc_jmp_sym_arch(elf_ctx, &cname[0], clen, ta));
     if (w499t_c32(&cell[0]) != 0) { return neg1; }
