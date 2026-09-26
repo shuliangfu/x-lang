@@ -70803,15 +70803,17 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       sz = nsz;
     }
   }
-  // >16B + CALL(48)/METHOD(49)/INDEX(47): memcpy from *rax (x86 MEMORY class).
-  // emit_index esz>16 leaves the element address (same pointer contract as
-  // CALL sret). CALL-only stored 8B of rax (the hidden pointer) and dropped
-  // the payload. G.7: one memcpy gate — do not widen the frozen classifier.
+  // >16B + CALL(48)/METHOD(49)/INDEX(47)/STRUCT_LIT(45): memcpy from *rax.
+  // emit_index esz>16, CALL sret, and STRUCT_LIT nbytes>16 all leave the
+  // object address in rax. Storing that pointer keeps 8 bytes and drops the
+  // payload, so a later field load reads the pointer slot plus the field
+  // offset. ARRAY_LIT (46) is a different contract and stays out of this gate.
+  // Size class stays the frozen >16 test. PLATFORM: SHARED.
   if (sz > 16 && init_ref > 0 && arena != (0 as *u8)) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, init_ref);
     }
-    if (ko == 48 || ko == 49 || ko == 47) {
+    if (ko == 48 || ko == 49 || ko == 47 || ko == 45) {
       unsafe {
         return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
       }
