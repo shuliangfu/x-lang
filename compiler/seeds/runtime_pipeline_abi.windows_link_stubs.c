@@ -797,17 +797,30 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
   }
   return 0;
 }
-/* wave767 Class R: FIELD assign real scalar path (was return -1).
- * Twin of LINUX assign_field_scalar_thin: RHS→rax, push, lvalue→rbx, pop,
- * store indirect by field load_sz. Class T: INDEX/DEREF scalar too.
- * PLATFORM: WINDOWS leftover-PE. */
+/* wave767 Class R: FIELD assign. Scalar path pushes rax, takes the lvalue
+ * address into rbx, pops, and stores load_byte_sz bytes indirectly.
+ * AAPCS64 (ta==1) named fields of 9..16 bytes are a dual-GP value: x0 is
+ * the low half and x1 is the high half. push_rax keeps only x0, then
+ * mov_rax_to_rbx writes the address into x1 and drops the high half.
+ * That path saves x1 first, parks the address in x19 (mov_rax_to_rbx
+ * already copies it there), restores both halves, and stores them through
+ * x19. Size <= 8 and size > 16 stay on the scalar store. A field larger
+ * than 16 bytes is an address, not a pair; do not send it through the
+ * 16-byte store.
+ * PLATFORM: MACOS|ARM64 for the pair. The one-GPR store stays for ta != 1
+ * (WINDOWS leftover-PE and LINUX x86_64). */
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                        void *ctx, int32_t ta);
 extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbx_indirect_arch(void *elf_ctx, int32_t elem_sz, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf, int32_t off, int32_t sz, int32_t ta);
 extern int32_t pipeline_expr_field_access_load_byte_sz(void *arena, void *mod, int32_t expr_ref);
+extern int32_t glue_field_access_field_type_ref_c(void *arena, void *mod, int32_t fa_ref);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
 extern void *pipeline_asm_emit_module_ref_c(void);
 
 int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
@@ -819,6 +832,28 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
     return -1;
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
     return -1;
+  /* PLATFORM: MACOS|ARM64 — x1 still holds the high half. Save it before
+   * the lvalue address overwrites x1. x19 keeps the address. */
+  if (ta == 1) {
+    void *mod = pipeline_asm_emit_module_ref_c();
+    int32_t fty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+    int32_t wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+    if (wide > 8 && wide <= 16) {
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 16, ta);
+    }
+  }
   if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
     return -1;
   if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
