@@ -407,6 +407,8 @@ export function pipeline_asm_emit_var_field_access_elf_c(
     if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
       return 0;
     }
+    // Positive: 9–16B field already dereferenced into the return pair.
+    // Zero: scalar load below. PLATFORM: SHARED.
     agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
     if (agg < 0) {
       return 0 - 1;

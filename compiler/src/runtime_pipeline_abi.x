@@ -51163,14 +51163,24 @@ export function glue_field_access_call_arg_struct_by_addr_elf_c(arena: *u8, fa_r
 }
 
 /**
- * After field lvalue address in rax: load CALL-arg aggregate by SysV class.
- * @param arena *u8 - ASTArena*
- * @param elf_ctx *u8 - ElfCodegenCtx*
+ * After the field address is in rax: load a named aggregate into the
+ * SysV / AAPCS return pair, or leave it for the scalar load.
+ * Call args use the formal type when that formal is a named struct.
+ * A let or assign (`let t = w.m`, `t = w.m`) has no live formal, so the
+ * field's own type is the gate. 9–16B is INTEGER dual-GP: deref into
+ * x0 and x1 (rbx is x1 on ARM64; the high load samples x1 before it is
+ * written). The caller treats a positive return as done and must not
+ * scalar-load. >16B returns 0 so the by-addr path can leave the address
+ * for memcpy. A named field of at most 8B returns 0 outside a call so
+ * the scalar load keeps a 1-byte or 4-byte width; a call arg still loads
+ * the qword.
+ * @param arena *u8 - ASTArena*; null returns 0
+ * @param elf_ctx *u8 - ElfCodegenCtx*; null returns 0
  * @param fa_ref i32 - FIELD_ACCESS expr ref
- * @param ta i32 - target arch
- * @return i32 - 1 handled; 0 not aggregate; -1 emit error
+ * @param ta i32 - target arch; 0 x86_64 SysV, 1 AAPCS64
+ * @return i32 - 1 handled; 0 not an aggregate the caller should scalar-load; -1 emit error
  * wave151 pure: G.7 authority (was static glue_field_call_arg_try_load_agg_from_rax_elf_c).
- * PLATFORM: SHARED LINUX+MACOS x86_64 SysV.
+ * PLATFORM: SHARED LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64.
  */
 #[no_mangle]
 export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32 {
@@ -51180,15 +51190,20 @@ export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_
   let pty: i32 = 0;
   let kord: i32 = 0;
   unsafe {
-    if (pipeline_asm_emit_call_arg_active_c() == 0 || arena == (0 as *u8) || elf_ctx == (0 as *u8)) {
+    if (arena == (0 as *u8) || elf_ctx == (0 as *u8)) {
       return 0;
     }
     fty = 0;
-    pty = pipeline_asm_emit_ctx_call_param_ty_get();
-    if (pty > 0) {
-      kord = pipeline_type_kind_ord_at(arena, pty);
-      if (kord == 8) {
-        fty = pty;
+    // Formal type only while a call arg is active. Outside a call the
+    // saved param type is stale and must not size `let t = w.m`.
+    // PLATFORM: SHARED.
+    if (pipeline_asm_emit_call_arg_active_c() != 0) {
+      pty = pipeline_asm_emit_ctx_call_param_ty_get();
+      if (pty > 0) {
+        kord = pipeline_type_kind_ord_at(arena, pty);
+        if (kord == 8) {
+          fty = pty;
+        }
       }
     }
     mod = pipeline_asm_emit_module_ref_c();
@@ -51216,6 +51231,13 @@ export function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u8, elf_
         return 0 - 1;
       }
       return 1;
+    }
+    // At most 8 bytes. Call args keep the qword load. A let or assign
+    // returns 0 so the scalar emitter uses the real 1/4/8 width. A qword
+    // here would drop the sign/zero extend on i8 and i32 fields.
+    // PLATFORM: SHARED.
+    if (pipeline_asm_emit_call_arg_active_c() == 0) {
+      return 0;
     }
     if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
       return 0 - 1;
@@ -52381,6 +52403,8 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
     if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
       return 0;
     }
+    // Positive: 9–16B field already dereferenced into the return pair.
+    // Zero: scalar load below. PLATFORM: SHARED.
     agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
     if (agg < 0) {
       return 0 - 1;
@@ -52669,6 +52693,8 @@ export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u
     if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
       return 0;
     }
+    // Positive: 9–16B field already dereferenced into the return pair.
+    // Zero: scalar load below. PLATFORM: SHARED.
     agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
     if (agg < 0) {
       return 0 - 1;
@@ -52838,6 +52864,8 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
     if (glue_field_access_call_arg_struct_by_addr_elf_c(arena, expr_ref) != 0) {
       return 0;
     }
+    // Positive: 9–16B field already dereferenced into the return pair.
+    // Zero: scalar load below. PLATFORM: SHARED.
     agg = glue_field_call_arg_try_load_agg_from_rax_elf_c(arena, elf_ctx, expr_ref, ta);
     if (agg < 0) {
       return 0 - 1;
