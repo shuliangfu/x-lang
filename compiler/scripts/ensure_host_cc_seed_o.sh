@@ -1388,6 +1388,124 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1110: Darwin arm64 std/compress/compress.o forwards to the submodule symbols.
+# The 24-byte stream record arrives as a pointer. The brotli-lib extern is
+# renamed after asm emit. Linux and Windows keep the C face.
+# Match std/compress/compress.o only.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_std_compress_formal_darwin_pure() {
+  local o="${1:-../std/compress/compress.o}"
+  local xsrc="src/asm/std_compress_formal_darwin.x"
+  local csrc="../std/compress/formal_surface.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o compress-formal: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _cz_short _cz_ok _cz_oc
+      _cz_ok=1
+      for _cz_short in \
+        _std_compress_gzip_compress \
+        _std_compress_gzip_decompress \
+        _std_compress_brotli_compress \
+        _std_compress_brotli_decompress \
+        _std_compress_zstd_compress \
+        _std_compress_zstd_decompress \
+        _std_compress_format_gzip \
+        _std_compress_format_brotli \
+        _std_compress_format_zstd \
+        _std_compress_mode_compress \
+        _std_compress_mode_decompress \
+        _std_compress_compress_state_bytes_for \
+        _std_compress_compress_state_bytes \
+        _std_compress_compress_init \
+        _std_compress_compress_process \
+        _std_compress_compress_end \
+        _std_compress_gzip_stream_state_bytes \
+        _std_compress_brotli_stream_state_bytes \
+        _std_compress_zstd_stream_state_bytes \
+        _std_compress_gzip_stream_init_compress \
+        _std_compress_gzip_stream_init_decompress \
+        _std_compress_gzip_stream_compress \
+        _std_compress_gzip_stream_decompress \
+        _std_compress_gzip_stream_end \
+        _std_compress_brotli_stream_init_compress \
+        _std_compress_brotli_stream_init_decompress \
+        _std_compress_brotli_stream_compress \
+        _std_compress_brotli_stream_decompress \
+        _std_compress_brotli_stream_end \
+        _std_compress_zstd_stream_init_compress \
+        _std_compress_zstd_stream_init_decompress \
+        _std_compress_zstd_stream_compress \
+        _std_compress_zstd_stream_decompress \
+        _std_compress_zstd_stream_end \
+        _std_compress_brotli_lib_compress_brotli_stream_init_decompress_ \
+        _std_compress_formal_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_cz_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _cz_ok=0
+          break
+        fi
+      done
+      if [ "$_cz_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o compress-formal: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      _cz_oc=""
+      if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+        _cz_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v llvm-objcopy >/dev/null 2>&1; then
+        _cz_oc="$(command -v llvm-objcopy)"
+      fi
+      if [ -z "$_cz_oc" ]; then
+        echo "ensure_host_cc_seed_o compress-formal: llvm-objcopy missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! "$_cz_oc" --redefine-sym \
+        _cz_brotli_lib_init_d_c=_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c \
+        "$o"; then
+        echo "ensure_host_cc_seed_o compress-formal: undef rename failed" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_std_compress_gzip_gzip_compress" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o compress-formal: gzip compress is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o compress-formal: brotli-lib undef was not renamed" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o compress-formal: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $csrc → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -fPIE -I.. -I. -c "$csrc" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -20838,6 +20956,21 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  compress-formal-pure|compress_formal_pure)
+    # w1110: Darwin arm64 std/compress facade from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # Match std/compress/compress.o only.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o compress-formal-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_std_compress_formal_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   driver-formal-pure|driver_formal_pure)
     # w1109: Darwin arm64 std/io driver face from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
