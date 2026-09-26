@@ -3,6 +3,18 @@
  * G-02f-100 sha256_block gate.
  * G-02f-99 SHA-256 pure helper gates.
  * Product: runtime_crypto_inc_glue.o; logic still C until full .x port.
+ *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_crypto_inc_glue.x plus
+ * src/asm/runtime_crypto_inc_glue_darwin.x, pure-asm then ld -r.
+ * SHA-256, HMAC, and the lookup tables live in the Darwin file.
+ * SHA-512 still calls ed25519_ref10_sha512. This C file is the
+ * Linux body, the Windows body, and the Darwin backup when
+ * pure-asm faults and the staged object is missing. Do not delete
+ * these bodies. Do not gcc -E this seed as the repair.
+ * Do not turn the hex tables back into a 64-way if-return.
+ * Do not put the 256-byte schedule or the HMAC buffers on the stack.
+ * Do not reimplement SHA-512.
  */
 /**
  * crypto_inc_glue.c — F-04 v19 v1：std.crypto C 胶层
