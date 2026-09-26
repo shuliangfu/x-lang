@@ -84,6 +84,20 @@ export function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
   return queue_smoke_at_impl(q, i);
 }
 
+/** Store one i32 through a pointer parameter.
+ *  Indexing a pointer field (`q.data[i] = x`) on this compiler loads the
+ *  first word of the buffer and indexes that word. A local copied from
+ *  that field and then used only as an index destination is not stored
+ *  at all. A *i32 parameter is stored on entry and indexes the buffer.
+ *  @param buf *i32 — element buffer, not null
+ *  @param i i32 — element index
+ *  @param x i32 — value to store
+ *  PLATFORM: SHARED
+ */
+function queue_smoke_store_i32(buf: *i32, i: i32, x: i32): void {
+  buf[i] = x;
+}
+
 /** Push element to queue back; grows buffer when full. Returns 0 on success, -1 on failure. */
 #[no_mangle]
 export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
@@ -104,7 +118,12 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
     }
     let i: i32 = 0;
     while (i < q.length) {
-      p[i] = q.data[queue_smoke_at(q, i)];
+      /* Hoist the buffer pointer. Indexing the field q.data[i] on this
+       * compiler loads the first word of the buffer and indexes that
+       * word. A local *i32 indexes the buffer. PLATFORM: SHARED. */
+      let src: *i32 = q.data;
+      let at: i32 = queue_smoke_at(q, i);
+      p[i] = src[at];
       i = i + 1;
     }
     if (q.data != 0 as *i32) {
@@ -116,7 +135,11 @@ export function queue_smoke_push_back_impl(q: *QueueSmokeState, x: i32): i32 {
     q.cap = new_cap;
     q.head = 0;
   }
-  q.data[queue_smoke_at(q, q.length)] = x;
+  /* Pass the field into queue_smoke_store_i32. A local *i32 used only
+   * as the destination of an index store is never written on this
+   * compiler, so the store would use an uninitialized slot. */
+  let at_back: i32 = queue_smoke_at(q, q.length);
+  queue_smoke_store_i32(q.data, at_back, x);
   q.length = q.length + 1;
   return 0;
 }

@@ -1080,6 +1080,104 @@ ensure_process_argv_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_queue_contention.o.
+# Two translation units, then ld -r: the shared smoke in
+# src/asm/runtime_queue_contention.x and the pthread bridges in
+# src/asm/runtime_queue_contention_darwin.x. Do not copy the smoke
+# into the Darwin file. The start routine is dlsym(RTLD_DEFAULT);
+# a bare function name used as a pointer makes this compiler exit 139.
+# Each half can SIGSEGV on its own. Retry a missing half, and do not
+# throw away a half that already compiled. A missing object after
+# eight pure-asm faults falls back to the C seed. An object already
+# on disk is left as-is when neither .x is newer. No gcc -E.
+# Linux keeps the futex seed. Windows keeps the Win32 seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_queue_contention.o, cwd is compiler/).
+ensure_queue_contention_darwin_pure() {
+  local o="${1:-runtime_queue_contention.o}"
+  local x_thin="src/asm/runtime_queue_contention.x"
+  local x_os="src/asm/runtime_queue_contention_darwin.x"
+  local seed="seeds/runtime_queue_contention.from_x.c"
+  local try=0
+  local thin_o os_o
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o queue-contention: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/queue_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/queue_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o queue-contention: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o queue-contention: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+      local _qc_short _qc_ok
+      _qc_ok=1
+      for _qc_short in \
+        _queue_os_mutex_create_impl \
+        _queue_os_mutex_destroy_impl \
+        _queue_os_mutex_lock_impl \
+        _queue_os_mutex_unlock_impl \
+        _queue_os_run_two_workers_impl \
+        _sync_queue_contention_smoke_c \
+        _queue_smoke_push_back \
+        _queue_os_worker_trampoline \
+        _queue_smoke_store_i32; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_qc_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _qc_ok=0
+          break
+        fi
+      done
+      if [ "$_qc_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o queue-contention: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -f "$thin_o" "$os_o"
+      log "pure-asm $x_thin + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -1214,6 +1312,21 @@ ensure_one() {
     if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
       && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
       ensure_dynlib_os_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1086: Darwin arm64 queue mutex and two workers are the .x, not this seed.
+  # Linux keeps the futex seed. Windows keeps the Win32 seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_queue_contention.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_queue_contention.o" ]; then
+    local qc_s qc_m
+    qc_s="$(uname -s 2>/dev/null || echo Unknown)"
+    qc_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$qc_s" = "Darwin" ] && [ "$qc_m" = "arm64" ] \
+      && [ -f src/asm/runtime_queue_contention_darwin.x ]; then
+      ensure_queue_contention_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -14606,6 +14719,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$dy_s" = "Darwin" ] && [ "$dy_m" = "arm64" ] \
       && [ -f src/asm/runtime_dynlib_os_darwin.x ]; then
       ensure_dynlib_os_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1086: Darwin arm64 whole object is thin .x plus pthread .x. Do not host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_queue_contention.o" ]; then
+    local qc_s qc_m
+    qc_s="$(uname -s 2>/dev/null || echo Unknown)"
+    qc_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$qc_s" = "Darwin" ] && [ "$qc_m" = "arm64" ] \
+      && [ -f src/asm/runtime_queue_contention_darwin.x ]; then
+      ensure_queue_contention_darwin_pure "$o" || return 1
       return 0
     fi
   fi

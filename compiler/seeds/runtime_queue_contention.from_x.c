@@ -4,6 +4,13 @@
  * are provided by runtime_queue_contention.x when XLANG_RUNTIME_QUEUE_CONTENTION_FROM_X
  * is defined (R2 path); otherwise this seed provides both _impl and _c wrappers.
  *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_queue_contention.x (shared smoke) plus
+ * src/asm/runtime_queue_contention_darwin.x (pthread mutex and two
+ * workers), pure-asm then ld -r. This C file is the Linux futex body,
+ * the Windows Win32 body, and the Darwin backup when pure-asm faults
+ * and the staged object is missing. Do not delete these bodies.
+ * Do not gcc -E this seed as the repair.
  * PLATFORM: SHARED Cap (Linux futex / Darwin pthread / Windows Win32 sync_cap + thread_cap).
  */
 #include <stdint.h>
