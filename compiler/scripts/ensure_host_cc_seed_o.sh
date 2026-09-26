@@ -2989,9 +2989,11 @@ labi_prefer_try_x_to_o() {
 }
 
 # Compile one layer: prefer .x else seed → tmp .o. Sets ok via nameref-ish stdout.
-# $1=label $2=x $3=seed $4=out_tmp  → 0 if layer .o ready.
+# $1=label $2=x $3=seed $4=out_tmp $5=optional cc flags for the cold seed only.
+# Seed flags do not apply to a successful .x prefer. Returns 0 if the layer .o is ready.
 labi_prefer_layer() {
   local label="$1" x_src="$2" seed="$3" out_tmp="$4"
+  local seed_cflags="${5:-}"
   # wave326: XLANG_LINK_ABI_FROM_X is the new pin-close default;
   # XLANG_G05_PREFER_X_O remains as legacy g05-wide escape hatch.
   local prefer="${XLANG_LINK_ABI_FROM_X:-${XLANG_G05_PREFER_X_O:-0}}"
@@ -3003,7 +3005,7 @@ labi_prefer_layer() {
   fi
   if [ -f "$seed" ]; then
     # shellcheck disable=SC2086
-    if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$out_tmp" "$seed" 2>/dev/null; then
+    if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $seed_cflags -c -o "$out_tmp" "$seed" 2>/dev/null; then
       log "labi $label ← $seed (cold seed slice)"
       return 0
     fi
@@ -3104,13 +3106,30 @@ ensure_labi_prefer_one() {
     l8c_o="$(mktemp "${TMPDIR:-/tmp}/labi_l8c.XXXXXX")"
     l9_o="$(mktemp "${TMPDIR:-/tmp}/labi_l9.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/labi_rest.XXXXXX")"
+    # PLATFORM: SHARED — Class BG always links seeds/labi_od_needle_tables.c
+    # on a multi-slice merge. L5 (invoke_cc) and L8b (ondemand) cold seeds
+    # #include that file unless XLANG_LABI_NEEDLE_TABLES_EXTERNAL. Darwin
+    # pure_ld_partial_merge falls back to libtool -static, which keeps every
+    # slice as an archive member. An embedded copy plus labi_needle is then
+    # 53 duplicate strong *_at defs at the final ld. Pass EXTERNAL only when
+    # the needle object compiled. If it did not, the seeds keep the include
+    # so there is still one copy and no second member.
+    needle_o="$(mktemp "${TMPDIR:-/tmp}/labi_needle.XXXXXX")"
+    needle_defs=""
+    # shellcheck disable=SC2086
+    if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$needle_o" seeds/labi_od_needle_tables.c 2>/dev/null; then
+      needle_defs="-DXLANG_LABI_NEEDLE_TABLES_EXTERNAL"
+    else
+      rm -f "$needle_o"
+      needle_o=""
+    fi
 
     labi_prefer_layer L0 "$l0_x" "$l0_seed" "$l0_o" && l0_ok=1
     labi_prefer_layer L1 "$l1_x" "$l1_seed" "$l1_o" && l1_ok=1
     labi_prefer_layer L2 "$l2_x" "$l2_seed" "$l2_o" && l2_ok=1
     labi_prefer_layer L3 "$l3_x" "$l3_seed" "$l3_o" && l3_ok=1
     labi_prefer_layer L4 "$l4_x" "$l4_seed" "$l4_o" && l4_ok=1
-    labi_prefer_layer L5 "$l5_x" "$l5_seed" "$l5_o" && l5_ok=1
+    labi_prefer_layer L5 "$l5_x" "$l5_seed" "$l5_o" "$needle_defs" && l5_ok=1
     # Class AU: never prefer L6 .x — tip asm miscompiles append_std plan shell
     # (f[zi]=0 infinite loop) and prefer L6 OP_STD/ensure leaves miss std/fmt.
     # L6 stays host-cc via mega rest (no XLANG_LABI_INVOKE_LD_LIST_FROM_X).
@@ -3139,7 +3158,7 @@ ensure_labi_prefer_one() {
       # This seed then first-wins as the live L8b table. Counts/needles must
       # stay twin of labi_ondemand_list.x (g15 24 vs 28 was seed-count drift).
       # shellcheck disable=SC2086
-      if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$l8b_o" "$l8b_seed" 2>/dev/null; then
+      if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $needle_defs -c -o "$l8b_o" "$l8b_seed" 2>/dev/null; then
         l8b_ok=1
         l8c_ok=0
         log "labi L8b ← $l8b_seed (full seed; L8c unused)"
@@ -3184,15 +3203,8 @@ ensure_labi_prefer_one() {
         [ "$l8b_ok" = "1" ] && link_objs="$link_objs $l8b_o"
         [ "$l8c_ok" = "1" ] && link_objs="$link_objs $l8c_o"
         [ "$l9_ok" = "1" ] && link_objs="$link_objs $l9_o"
-        # Class BE: when L8b+L8c prefer .x, link host-cc needle tables (bodies omitted in .x).
-        # Full L8b seed already #includes tables unless NEEDLE_TABLES_EXTERNAL.
-        # Class BG: always link needle tables when prefer multi-slice (L5 icc + L8b/L8c od).
-        needle_o="$(mktemp "${TMPDIR:-/tmp}/labi_needle.XXXXXX")"
-        # shellcheck disable=SC2086
-        if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$needle_o" seeds/labi_od_needle_tables.c 2>/dev/null; then
-          rm -f "$needle_o"
-          needle_o=""
-        fi
+        # needle_o was compiled before the layer seeds. L5 and L8b cold
+        # seeds received NEEDLE_TABLES_EXTERNAL only when that compile worked.
         # shellcheck disable=SC2086
         # PLATFORM: SHARED — historic g05 used $CC -r -nostdlib (not ld Darwin flags).
         if [ -n "$needle_o" ]; then
@@ -3209,6 +3221,9 @@ ensure_labi_prefer_one() {
     fi
     rm -f "$l0_o" "$l1_o" "$l2_o" "$l3_o" "$l4_o" "$l5_o" "$l6_o" \
       "$l7_o" "$l8_o" "$l8b_o" "$l8c_o" "$l9_o" "$rest_o"
+    if [ -n "${needle_o:-}" ]; then
+      rm -f "$needle_o"
+    fi
     if [ "$done" = "0" ]; then
       log "labi multi-slice hybrid failed; fallback full seed"
     fi
