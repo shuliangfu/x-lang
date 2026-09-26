@@ -15106,7 +15106,8 @@ try_ensure_cfg_eval_ladder_one() {
 # Membership = catalog DRIVER_SEED_PANIC_OBJS only (lists = mk; currently
 # runtime_panic.o). Cold source selection mirrors Makefile / build_xlang_asm:
 #   PLATFORM: LINUX|x86_64 — cc -c src/asm/runtime_panic_x86_64.s when present
-#   PLATFORM: MACOS|arm64 / LINUX|aarch64 — seeds/runtime_panic_arm64.from_x.c
+#   PLATFORM: MACOS|arm64 — pure-asm src/asm/runtime_panic_arm64.x (no host cc)
+#   PLATFORM: LINUX|aarch64 — seeds/runtime_panic_arm64.from_x.c
 #   else — seeds/runtime_panic.from_x.c
 # Platform stamp: build_asm/runtime_panic.$(uname -s).$(uname -m).stamp
 # (create if missing; force rebuild when stamp was missing so platform switch
@@ -15128,6 +15129,13 @@ r2_panic_host_pick_src() {
   if [ "$uname_s" = "Linux" ] && [ "$uname_m" = "x86_64" ] \
     && [ -f src/asm/runtime_panic_x86_64.s ]; then
     printf '%s\n' "asm src/asm/runtime_panic_x86_64.s"
+    return 0
+  fi
+  # PLATFORM: MACOS|DARWIN arm64 — the whole TU is runtime_panic_arm64.x.
+  # Linux aarch64 keeps the C seed: its environ symbol is not _NSGetEnviron.
+  if [ "$uname_s" = "Darwin" ] && [ "$uname_m" = "arm64" ] \
+    && [ -f src/asm/runtime_panic_arm64.x ]; then
+    printf '%s\n' "xasm src/asm/runtime_panic_arm64.x"
     return 0
   fi
   case "$uname_m" in
@@ -15188,6 +15196,30 @@ ensure_r2_panic_one() {
       # Stage 12.2.3: pure_as_compile (as when XLANG_ZERO_CC_AS=1, else $CC -c).
       pure_as_compile "$o" "$src"
       ;;
+    xasm)
+      # PLATFORM: MACOS|DARWIN arm64 — pure-asm the whole panic TU.
+      # collect_c stays weak so a stronger evidence body can replace it.
+      # No host cc and no C-seed fallback on this path.
+      if [ "$FORCE" != "1" ] && [ "$need" = "0" ] && [ -f "$o" ] \
+        && [ ! "$src" -nt "$o" ]; then
+        log "skip $o (up-to-date vs $src)"
+        return 0
+      fi
+      log "pure-asm $src → $o"
+      if ! (
+        export XLANG_PREFER_ASM_O=1
+        export G05_X_O_WEAK_FUNCS=xlang_crash_evidence_collect_c
+        pure_asm_x_to_o "$o" "$src"
+      ); then
+        # The current compiler sometimes faults while emitting this TU.
+        # A missing object still has to link, so the C seed is the backup.
+        # An object already on disk is left as-is when the seed is older.
+        echo "ensure_host_cc_seed_o r2-panic: pure-asm failed for $src" >&2
+        if [ ! -s "$o" ]; then
+          ensure_one "$o" "seeds/runtime_panic_arm64.from_x.c" || return 1
+        fi
+      fi
+      ;;
     *)
       echo "ensure_host_cc_seed_o r2-panic: unknown kind $kind" >&2
       return 1
@@ -15210,7 +15242,7 @@ try_ensure_r2_one() {
   list="$(catalog_key_words "DRIVER_SEED_PANIC_OBJS")"
   if list_has_word "$o" "$list"; then
     case "$o" in
-      runtime_panic.o) ensure_r2_panic_one "$o"; return 0 ;;
+      runtime_panic.o) ensure_r2_panic_one "$o" || return 1; return 0 ;;
       *)
         echo "ensure_host_cc_seed_o try-r2: no cold map for panic member $o" >&2
         return 1
