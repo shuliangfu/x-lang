@@ -24,6 +24,9 @@
 // 7.2.1 eighth knife (2026-09-10): authority moved from the hand-written C
 // seed (seeds/driver_compile_asm_link_alias.from_x.c, promoted from a
 // retired .inc) to this .x source. PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm. Each driver_*
+// name forwards once to the existing bare name. Linux and Windows keep
+// -x -E and then host cc. PLATFORM: MACOS|DARWIN for that object path.
 
 /** compile.x EMIT_HEAVY thin wrappers (bare names). */
 export extern function run_compiler_full_x(argc: i32, argv: *u8): i32;
