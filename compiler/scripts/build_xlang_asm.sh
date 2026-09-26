@@ -5457,9 +5457,16 @@ ensure_runtime_user_link_objs() {
   echo " cc_inc_tu runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
   fi
-  if [ ! -f runtime_random_fill.o ] || [ seeds/runtime_random_fill.from_x.c -nt runtime_random_fill.o ]; then
-  echo " cc_inc_tu runtime_random_fill.o <- seeds/runtime_random_fill.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_random_fill.from_x.c -o runtime_random_fill.o
+  # w1077: user-domain CSPRNG fill.
+  # Darwin arm64 pure-asms src/asm/runtime_random_fill.x (strong faces).
+  # Linux and Windows still host-cc the C seed. One body: ensure_one.
+  # PLATFORM: MACOS|DARWIN arm64 pure-asm; LINUX|WINDOWS host-cc seed.
+  if [ ! -f runtime_random_fill.o ] \
+    || [ seeds/runtime_random_fill.from_x.c -nt runtime_random_fill.o ] \
+    || { [ -f src/asm/runtime_random_fill.x ] \
+      && [ src/asm/runtime_random_fill.x -nt runtime_random_fill.o ]; }; then
+  echo " ensure runtime_random_fill.o"
+  bash scripts/ensure_host_cc_seed_o.sh one runtime_random_fill.o seeds/runtime_random_fill.from_x.c
   fi
   if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ] || [ src/asm/runtime_time_os.x -nt runtime_time_os.o ]; then
   echo " cc_inc_tu runtime_time_os.o <- seeds/runtime_time_os.from_x.c"

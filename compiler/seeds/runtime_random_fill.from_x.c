@@ -3,6 +3,13 @@
  * Product: runtime_random_fill.o; OS bridge logic in rest C; public wrappers
  * provided by thin runtime_random_fill.x in R2 mode (XLANG_RUNTIME_RANDOM_FILL_FROM_X).
  *
+ * w1077: Darwin arm64 product body is src/asm/runtime_random_fill.x
+ * (libSystem getentropy, chunks of 256). This file stays the Linux and
+ * Windows body, and the Darwin backup when pure-asm fails and the object
+ * is missing. include/xlang_random_cap.h remains the C-seed authority
+ * (raw syscall / BCrypt). PLATFORM: MACOS|DARWIN product .x;
+ * LINUX|WINDOWS and Darwin fault backup: this file.
+ *
  * runtime_random_fill.c — CSPRNG OS glue (migrated from std/random/random_os_glue.c)
  *
  * [File role] random_fill_bytes_c: getrandom / getentropy / BCryptGenRandom.

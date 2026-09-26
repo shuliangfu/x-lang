@@ -576,6 +576,39 @@ ensure_user_env_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_random_fill.o.
+# The whole TU is src/asm/runtime_random_fill.x. Public names stay strong.
+# A missing object after a pure-asm fault falls back to the C seed.
+# An object already on disk is left as-is. No gcc -E.
+# Linux and Windows do not call this; they host-cc the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+ensure_random_fill_darwin_pure() {
+  local o="runtime_random_fill.o"
+  local xsrc="src/asm/runtime_random_fill.x"
+  local seed="seeds/runtime_random_fill.from_x.c"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o random-fill: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  log "pure-asm $xsrc → $o"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    pure_asm_x_to_o "$o" "$xsrc"
+  ); then
+    echo "ensure_host_cc_seed_o random-fill: pure-asm failed for $xsrc" >&2
+    if [ ! -s "$o" ]; then
+      log "cc -c $seed → $o (pure-asm missing object)"
+      # shellcheck disable=SC2086
+      $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+    fi
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -624,6 +657,20 @@ ensure_one() {
     if [ "$ue_s" = "Darwin" ] && [ "$ue_m" = "arm64" ] \
       && [ -f src/asm/runtime_link_abi_user_env.x ]; then
       ensure_user_env_darwin_pure || return 1
+      return 0
+    fi
+  fi
+
+  # w1077: Darwin arm64 user-domain CSPRNG fill is the .x, not this seed.
+  # Linux and Windows keep host-cc of the C seed (syscall / BCrypt differ).
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$out" = "runtime_random_fill.o" ]; then
+    local rf_s rf_m
+    rf_s="$(uname -s 2>/dev/null || echo Unknown)"
+    rf_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$rf_s" = "Darwin" ] && [ "$rf_m" = "arm64" ] \
+      && [ -f src/asm/runtime_random_fill.x ]; then
+      ensure_random_fill_darwin_pure || return 1
       return 0
     fi
   fi
@@ -13937,6 +13984,19 @@ ensure_runtime_os_prefer_one() {
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
   local stale=0 done=0
   local thin_o rest_o uname_s
+
+  # w1077: Darwin arm64 whole TU is the .x. Do not thin+rest host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_random_fill.o" ]; then
+    local rf_s rf_m
+    rf_s="$(uname -s 2>/dev/null || echo Unknown)"
+    rf_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$rf_s" = "Darwin" ] && [ "$rf_m" = "arm64" ] \
+      && [ -f src/asm/runtime_random_fill.x ]; then
+      ensure_random_fill_darwin_pure || return 1
+      return 0
+    fi
+  fi
 
   spec="$(runtime_os_prefer_spec_for_out "$o")"
   if [ -z "$spec" ]; then
