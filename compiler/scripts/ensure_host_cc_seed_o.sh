@@ -1388,6 +1388,74 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1128: Darwin arm64 pipeline_run_impl_alias.o is the three-symbol alias.
+# Linux and Windows keep host cc of the C seed.
+# Does not match pipeline_run_x_link_alias.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_run_impl_alias_darwin_pure() {
+  local o="${1:-build_asm/pipeline_run_impl_alias.o}"
+  local xsrc="src/pipeline_run_impl_alias.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o run-impl-alias: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _ia_short _ia_ok
+      _ia_ok=1
+      for _ia_short in \
+        _pipeline_run_x_pipeline_impl \
+        _parse_into_buf \
+        _parse_into_init; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_ia_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ia_ok=0
+          break
+        fi
+      done
+      if [ "$_ia_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o run-impl-alias: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      for _ia_short in \
+        _run_x_pipeline_impl \
+        _parser_parse_into_buf \
+        _parser_parse_into_init; do
+        if ! nm -u "$o" 2>/dev/null | awk -v s="$_ia_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ia_ok=0
+          break
+        fi
+      done
+      if [ "$_ia_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o run-impl-alias: required undefined symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o run-impl-alias: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc seed $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh seeds/pipeline_run_impl_alias.from_x.c "$o" || return 1
+  fi
+  return 0
+}
+
 # w1127: Darwin arm64 build_tool_main.o forwards main to entry.
 # Linux and Windows keep -x -E then host cc.
 # Does not match build_tool_libc_bridge.o.
@@ -22039,6 +22107,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  run-impl-alias-pure|run_impl_alias_pure)
+    # w1128: Darwin arm64 pipeline run-impl alias from the .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o run-impl-alias-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_run_impl_alias_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   build-tool-main-pure|build_tool_main_pure)
     # w1127: Darwin arm64 build tool main from the existing .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

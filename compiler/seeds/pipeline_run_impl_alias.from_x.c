@@ -1,6 +1,8 @@
 /* seeds/pipeline_run_impl_alias.from_x.c — G-02f-79 product cold-start TU
  * Promoted from compiler/src/asm/pipeline_run_impl_alias.inc (alias/stub; retired .inc).
  * Compile: cc -c seeds/pipeline_run_impl_alias.from_x.c  (or cc_inc_tu wrap).
+ * Darwin arm64 product body is src/pipeline_run_impl_alias.x via -backend asm.
+ * Linux and Windows keep host cc of this seed.
  */
 /**
  * pipeline_run_impl_alias.c — 实验 asm-only 链：build_asm/pipeline.o 导出 run_x_pipeline_impl，
