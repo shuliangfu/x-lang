@@ -3,6 +3,9 @@
 //
 // G-02f-317/449 / P2 runtime R8-lite: stack-escape gate on large-stack pthread.
 // R2 full: .x owns thread_fn + large_stack; FROM_X rest is marker-only (business H=0).
+// w1133: Darwin standalone src/runtime/rt_stack.o is pure asm of this file.
+// The slice marker stays in the C rest of the runtime_driver_no_c merge.
+// Linux and Windows keep host cc of seeds/rt_stack.from_x.c.
 // Cap-fn-ptr: .x cannot take function addresses → dedicated entry
 // driver_run_stack_esc_gate_on_large_stack (driver_abi platform layer binds thread_fn).
 

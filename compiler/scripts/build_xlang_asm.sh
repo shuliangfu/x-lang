@@ -5432,6 +5432,21 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_preamble prefer failed"; return 1; }
       continue
     fi
+    # w1133: Darwin arm64 standalone rt_stack.o is pure asm of the .x.
+    # The mega prefer merge still pairs that .x with the marker-only C rest.
+    # Does not match rt_emit_state.o. Linux and Windows stay on the C seed.
+    # PLATFORM: MACOS|DARWIN arm64.
+    if [ "$o" = "src/runtime/rt_stack.o" ]; then
+      case "$(uname -s)-$(uname -m 2>/dev/null)" in
+        Darwin-arm64|Darwin-aarch64)
+          if [ -f src/runtime/rt_stack.x ]; then
+            bash scripts/ensure_host_cc_seed_o.sh rt-stack-pure "$o" \
+              || { build_xlang_asm_error "rt_stack pure asm failed"; return 1; }
+            continue
+          fi
+          ;;
+      esac
+    fi
     if [ ! -f "$o" ] || [ "$seed" -nt "$o" ]; then
       echo " cc -c $o <- $seed (Cap residual / RT seed slice)"
       $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$o"

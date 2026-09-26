@@ -1388,6 +1388,66 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1133: Darwin arm64 standalone rt_stack.o is pure asm of src/runtime/rt_stack.x.
+# thread_fn and large_stack live in that .x. The slice marker stays in the C rest
+# of the runtime_driver_no_c prefer merge. Linux and Windows keep host cc of the seed.
+# Does not match rt_emit_state.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_rt_stack_darwin_pure() {
+  local o="${1:-src/runtime/rt_stack.o}"
+  local xsrc="src/runtime/rt_stack.x"
+  local try=0
+  local miss=0
+  local s
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o rt-stack: missing .x" >&2
+    return 1
+  fi
+  if [ "${FORCE:-0}" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    echo "ensure_host_cc_seed_o rt-stack: pure asm failed, host cc seed" >&2
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -I. -Iinclude -Isrc -c seeds/rt_stack.from_x.c -o "$o" || return 1
+  fi
+  # The C seed defines the slice marker. A pure-asm object must not.
+  if nm "$o" | awk '$2=="T" && $3=="_labi_rt_stack_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
+    echo "ensure_host_cc_seed_o rt-stack: object is the C seed, not the .x" >&2
+    return 1
+  fi
+  miss=0
+  for s in _driver_stack_esc_gate_thread_fn _driver_stack_esc_gate_large_stack; do
+    if ! nm "$o" | awk -v s="$s" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      miss=1
+    fi
+  done
+  for s in _driver_run_stack_esc_gate_on_large_stack _pipeline_typeck_x_stack_escape_gate_from_src_c; do
+    if ! nm -u "$o" | awk -v s="$s" '$NF==s { found=1 } END { exit found ? 0 : 1 }'; then
+      miss=1
+    fi
+  done
+  if [ "$miss" != "0" ]; then
+    echo "ensure_host_cc_seed_o rt-stack: symbol set mismatch" >&2
+    return 1
+  fi
+  return 0
+}
+
 # w1132: Darwin arm64 runtime_asm_build.o merges two pure-asm files.
 # A TU that defines main emits only main, so the entry is a second file.
 # Linux and Windows keep host cc of the C seed.
@@ -22382,6 +22442,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-stack-pure|rt_stack_pure)
+    # w1133: Darwin arm64 standalone stack-escape object from the .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-stack-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_rt_stack_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   asm-build-pure|asm_build_pure)
     # w1132: Darwin arm64 runtime asm-build object from two .x files.
     # Does not run the rest of ensure. Linux callers should not use this mode.

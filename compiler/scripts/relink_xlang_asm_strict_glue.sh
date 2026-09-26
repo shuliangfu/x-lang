@@ -2270,6 +2270,20 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
+  # w1133: Darwin arm64 standalone rt_stack.o is pure asm of the .x.
+  # Does not match rt_emit_state.o. Linux and Windows stay on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$o" = "src/runtime/rt_stack.o" ]; then
+    case "$(uname -s)-$(uname -m 2>/dev/null)" in
+      Darwin-arm64|Darwin-aarch64)
+        if [ -f src/runtime/rt_stack.x ]; then
+          bash scripts/ensure_host_cc_seed_o.sh rt-stack-pure "$o" \
+            || return 1
+          continue
+        fi
+        ;;
+    esac
+  fi
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- $src (RT seed slice)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"

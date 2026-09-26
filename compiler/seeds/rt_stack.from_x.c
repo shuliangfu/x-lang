@@ -1,4 +1,6 @@
 /* seeds/rt_stack.from_x.c — G-02f-317 P2 runtime R8-lite (stack esc pthread gate)
+ * w1133: Darwin standalone rt_stack.o is pure asm of src/runtime/rt_stack.x.
+ * This seed stays the Linux/Windows body and the marker-only rest under FROM_X.
  * Logic source: src/runtime/rt_stack.x
  * Hybrid: XLANG_RT_STACK_FROM_X + ld -r into runtime_driver_no_c.o
  *
