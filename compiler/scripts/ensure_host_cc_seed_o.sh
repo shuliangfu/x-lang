@@ -8289,6 +8289,10 @@ ensure_rt_prefer_one() {
             fi
           fi
           if [ -n "$_rt_lr_o" ]; then
+            # w1134: src/runtime/rt_lib_root.x keeps one while, so pure-asm
+            # of the thin file succeeds. from_key walks rows by recursion.
+            # The marker stays in the FROM_X rest. Do not rebuild no_c here.
+            # PLATFORM: SHARED — same .x on Linux and Windows.
             # G-02f-432：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_lib_root_x" ]; then
               _rt_lr_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_lr_thin.XXXXXX") || true
