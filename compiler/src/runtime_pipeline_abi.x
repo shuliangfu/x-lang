@@ -74928,6 +74928,8 @@ let g_pipeline_asm_emit_scope_block: i32 = 0;
 
 // wave221: host ISA polarity lit — 1 on aarch64 product .o, else 0.
 // Matches residual #if defined(__aarch64__) || defined(__arm64__).
+// The getter below does not load this cell. On the Darwin product the
+// initializer is a BSS zero, so a load reports x86 high-end homes.
 #[cfg(target_arch = "aarch64")]
 let g_pipeline_asm_host_is_arm64_lit: i32 = 1;
 #[cfg(not(target_arch = "aarch64"))]
@@ -75074,17 +75076,31 @@ export function pipeline_asm_emit_ctx_scope_block_set(block_ref: i32): void {
 }
 
 /**
- * Host compile-time ISA polarity for frame/param home layout.
- * Contract: 1 when this pure .o was built for aarch64; 0 otherwise.
- * Matches residual #if defined(__aarch64__) || defined(__arm64__).
- * Product freestanding path builds pure .o for host ISA (no cross-ISA hybrid).
- * @return i32 — 1 arm64 / 0 x86_64 (or other)
- * wave221 pure: G.7 authority (was Cap residual glue_statics host-cc #if).
+ * Host compile-time ISA polarity for frame and param-home layout.
+ * Returns an immediate. Loading g_pipeline_asm_host_is_arm64_lit is wrong
+ * on the Darwin product: that let is a BSS zero, so every caller took the
+ * x86 high-end home while ta==1 homing wrote the low end. A wide by-value
+ * struct was then read past the bytes the prologue stored.
+ * Matches seeds/runtime_pipeline_abi.from_x.c (#if __aarch64__ return 1).
+ * @return i32 — 1 on aarch64, 0 on x86_64 and any other arch
  * PLATFORM: SHARED — cfg(target_arch); MACOS|ARM64 + LINUX aarch64 → 1.
  */
+#[cfg(target_arch = "aarch64")]
 #[no_mangle]
 export function pipeline_asm_host_is_arm64_c(): i32 {
-  return g_pipeline_asm_host_is_arm64_lit;
+  return 1;
+}
+
+/**
+ * Host compile-time ISA polarity for frame and param-home layout.
+ * x86_64 (and any non-aarch64) product keeps high-end homes.
+ * @return i32 — 0
+ * PLATFORM: SHARED — x86_64 / riscv64 product image.
+ */
+#[cfg(not(target_arch = "aarch64"))]
+#[no_mangle]
+export function pipeline_asm_host_is_arm64_c(): i32 {
+  return 0;
 }
 
 // end wave221 pure-owned leave

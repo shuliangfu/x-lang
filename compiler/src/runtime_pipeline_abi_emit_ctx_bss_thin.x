@@ -24,7 +24,7 @@ let g_pipeline_asm_emit_elf_ctx: *u8 = 0 as *u8;
 let g_pipeline_asm_emit_scope_block: i32 = 0;
 
 // wave221: host ISA polarity lit — 1 on aarch64 product .o, else 0.
-// Matches residual #if defined(__aarch64__) || defined(__arm64__).
+// The getter does not load this cell. Darwin BSS drops the initializer.
 #[cfg(target_arch = "aarch64")]
 let g_pipeline_asm_host_is_arm64_lit: i32 = 1;
 #[cfg(not(target_arch = "aarch64"))]
@@ -193,12 +193,26 @@ export function pipeline_asm_emit_ctx_scope_block_set(block_ref: i32): void {
 }
 
 /**
- * Host compile-time ISA polarity for frame/param home layout.
- * @return i32 — 1 arm64 / 0 x86_64 (or other)
- * wave221 pure: G.7 authority (was Cap residual glue_statics host-cc #if).
- * PLATFORM: SHARED — cfg(target_arch); MACOS|ARM64 + LINUX aarch64 → 1.
+ * Host compile-time ISA polarity for frame and param-home layout.
+ * Immediate return. The file-level let is BSS-zero on the Darwin product,
+ * which made fill_param_slots use x86 high-end homes.
+ * Matches seeds/runtime_pipeline_abi.from_x.c.
+ * @return i32 — 1 on aarch64
+ * PLATFORM: MACOS|ARM64 and LINUX aarch64.
  */
+#[cfg(target_arch = "aarch64")]
 #[no_mangle]
 export function pipeline_asm_host_is_arm64_c(): i32 {
-  return g_pipeline_asm_host_is_arm64_lit;
+  return 1;
+}
+
+/**
+ * Host compile-time ISA polarity for frame and param-home layout.
+ * @return i32 — 0
+ * PLATFORM: x86_64 and other non-aarch64 product images.
+ */
+#[cfg(not(target_arch = "aarch64"))]
+#[no_mangle]
+export function pipeline_asm_host_is_arm64_c(): i32 {
+  return 0;
 }
