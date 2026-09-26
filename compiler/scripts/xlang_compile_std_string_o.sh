@@ -208,7 +208,35 @@ cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 # 权威裸实现：R2 路径下编译 runtime_string_fast.x（DIRECT 模式，无 ld -r，因无 OS bridge）；
 #   冷路径下用 seeds/runtime_string_fast.from_x.c（与 string.x 同语义）。
 # -lib-name 接线后可改回 xlang -lib-name "" string.x。
-if [ "$XLANG_G05_PREFER_X_O" = "1" ] && [ -x "$COMP/xlang-c" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
+# PLATFORM: MACOS|DARWIN arm64 — the eight-function seed is one TU.
+# Compile src/asm/runtime_string_fast.x with the current compiler.
+# Do not pass that seed to host cc on the first path. Symbols stay strong.
+# The current compiler can SIGSEGV once; retry before the C backup.
+# Linux and Windows keep the branches below. No gcc -E of this seed.
+sx_pure=0
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "$(uname -m 2>/dev/null)" = "arm64" ] \
+  && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
+  _sx_try=0
+  while [ "$_sx_try" -lt 3 ]; do
+    _sx_try=$((_sx_try + 1))
+    rm -f "$tmp/sx.o"
+    if (
+      cd "$COMP" &&
+      XLANG="$XLANG" XLANG_PREFER_ASM_O=1 bash -c '
+        # shellcheck disable=SC1091
+        source scripts/pure_ld_shared.sh
+        pure_asm_x_to_o "$1" "$2"
+      ' bash "$tmp/sx.o" "$COMP/src/asm/runtime_string_fast.x"
+    ); then
+      echo "xlang_compile_std_string_o: sx.o <- runtime_string_fast.x (Darwin arm64 pure-asm)"
+      sx_pure=1
+      break
+    fi
+    echo "xlang_compile_std_string_o: pure-asm try $_sx_try failed" >&2
+    rm -f "$tmp/sx.o"
+  done
+fi
+if [ "$sx_pure" != "1" ] && [ "$XLANG_G05_PREFER_X_O" = "1" ] && [ -x "$COMP/xlang-c" ] && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
   if XLANG_KEEP_C=1 "$COMP/xlang-c" -L "$ROOT" -L "$COMP/src" -L "$COMP/src/asm" -lib-name "" -o "$tmp/sx.o" "$COMP/src/asm/runtime_string_fast.x" >"$tmp/sx_xlangc.log" 2>&1; then
     echo "xlang_compile_std_string_o: sx.o <- runtime_string_fast.x (PREFER_X_O R2 DIRECT)"
     rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
@@ -217,9 +245,9 @@ if [ "$XLANG_G05_PREFER_X_O" = "1" ] && [ -x "$COMP/xlang-c" ] && [ -f "$COMP/sr
     rm -f /tmp/xlang_xlang_x.*.c 2>/dev/null || true
     cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
   fi
-elif [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
+elif [ "$sx_pure" != "1" ] && [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ]; then
   cc $CFLAGS -c "$COMP/seeds/runtime_string_fast.from_x.c" -o "$tmp/sx.o"
-else
+elif [ "$sx_pure" != "1" ]; then
   XLANG_KEEP_C=1 "$XLANG" build -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
   if [ ! -f "$tmp/sx.o" ]; then
     if "$XLANG" build -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
