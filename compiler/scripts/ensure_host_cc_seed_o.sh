@@ -1052,6 +1052,93 @@ ensure_dir_cap_darwin_pure() {
   return 0
 }
 
+# w1105: Darwin arm64 std_process_* import face is the .x.
+# Wrappers forward to process_*_c. Exit calls libSystem __exit
+# (Mach-O ___exit, three underscores in the .x). Linux and Windows
+# keep the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_process_import_alias_darwin_pure() {
+  local o="${1:-runtime_process_import_alias.o}"
+  local xsrc="src/asm/runtime_process_import_alias_darwin.x"
+  local seed="seeds/runtime_process_import_alias.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o process-alias: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _pa_short _pa_ok
+      _pa_ok=1
+      for _pa_short in \
+        _std_process_exit \
+        _std_process_args_count \
+        _std_process_arg \
+        _std_process_getenv \
+        _std_process_setenv \
+        _std_process_unsetenv \
+        _std_process_getpid \
+        _std_process_getppid \
+        _std_process_getcwd \
+        _std_process_getcwd_ptr \
+        _std_process_getcwd_cached_len \
+        _std_process_chdir \
+        _std_process_self_exe_path \
+        _std_process_self_exe_path_ptr \
+        _std_process_self_exe_path_cached_len \
+        _std_process_spawn \
+        _std_process_spawn_io \
+        _std_process_exec \
+        _std_process_waitpid \
+        _std_process_spawn_simple \
+        _std_process_exec_simple \
+        _std_process_pipe \
+        _runtime_process_import_alias_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_pa_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _pa_ok=0
+          break
+        fi
+      done
+      if [ "$_pa_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o process-alias: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___exit" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o process-alias: ___exit is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_process_args_count_c" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o process-alias: process_args_count_c is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o process-alias: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -2625,6 +2712,20 @@ ensure_one() {
     if [ "$dc_s" = "Darwin" ] && [ "$dc_m" = "arm64" ] \
       && [ -f src/asm/runtime_dir_cap_darwin.x ]; then
       ensure_dir_cap_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1105: Darwin arm64 std_process_* face is the .x, not this seed.
+  # Match runtime_process_import_alias.o only. Linux and Windows keep the seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$out")" = "runtime_process_import_alias.o" ]; then
+    local pa_s pa_m
+    pa_s="$(uname -s 2>/dev/null || echo Unknown)"
+    pa_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
+      && [ -f src/asm/runtime_process_import_alias_darwin.x ]; then
+      ensure_process_import_alias_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -16319,6 +16420,20 @@ ensure_runtime_os_prefer_one() {
     fi
   fi
 
+  # w1105: Darwin arm64 import face is the .x. Do not host-cc it.
+  # Match runtime_process_import_alias.o only. PLATFORM: MACOS|DARWIN arm64.
+  # Linux and Windows fall through.
+  if [ "$o" = "runtime_process_import_alias.o" ]; then
+    local pa_s pa_m
+    pa_s="$(uname -s 2>/dev/null || echo Unknown)"
+    pa_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
+      && [ -f src/asm/runtime_process_import_alias_darwin.x ]; then
+      ensure_process_import_alias_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
   # w1094: Darwin arm64 whole object is thin .x plus UDP .x. Do not host-cc it.
   # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
   if [ "$o" = "runtime_net_udp_batch.o" ]; then
@@ -17186,6 +17301,10 @@ ensure_std_core_prefer_one() {
          [ seeds/runtime_process_import_alias.from_x.c -nt "$o" ]; then
         stale=1
       fi
+      if [ -f src/asm/runtime_process_import_alias_darwin.x ] &&
+         [ src/asm/runtime_process_import_alias_darwin.x -nt "$o" ]; then
+        stale=1
+      fi
 
     fi
     # wave796: net multi-merge source mtime (FORCE thin; G.7 single body).
@@ -17326,10 +17445,10 @@ ensure_std_core_prefer_one() {
           || return 1
       fi
       _proc_alias_c="seeds/runtime_process_import_alias.from_x.c"
-      # 7.2.1 twelfth knife (reverted on Ubuntu red): std_process_exit needs
-      # the static-inline xlang_proc_exit Cap body (raw syscall; .x cannot
-      # express it as extern — no exported definer). Stays seed until the
-      # exit face gets an exported symbol or the Cap inline strategy lands.
+      # w1105: Darwin arm64 exit is libSystem __exit (Mach-O ___exit).
+      # The twelfth knife stayed on the seed because no exported definer
+      # existed. Linux and Windows still cc this seed.
+      # PLATFORM: MACOS|DARWIN arm64 pure asm; LINUX|WINDOWS seed.
       if [ ! -f "$_proc_alias_c" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing $_proc_alias_c for $o" >&2
         return 1
@@ -17341,10 +17460,21 @@ ensure_std_core_prefer_one() {
         rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
-      # shellcheck disable=SC2086
-      if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$_proc_alias_c" -o "$tmp_alias"; then
-        rm -f "$tmp_args" "$tmp_alias"
-        return 1
+      # PLATFORM: MACOS|DARWIN arm64 — pure asm. Linux stays cc -c of the seed.
+      _alias_os="$(uname -s 2>/dev/null || echo Unknown)"
+      _alias_mach="$(uname -m 2>/dev/null || echo unknown)"
+      if [ "$_alias_os" = "Darwin" ] && [ "$_alias_mach" = "arm64" ] \
+        && [ -f src/asm/runtime_process_import_alias_darwin.x ]; then
+        if ! bash scripts/ensure_host_cc_seed_o.sh process-alias-pure "$tmp_alias"; then
+          rm -f "$tmp_args" "$tmp_alias"
+          return 1
+        fi
+      else
+        # shellcheck disable=SC2086
+        if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$_proc_alias_c" -o "$tmp_alias"; then
+          rm -f "$tmp_args" "$tmp_alias"
+          return 1
+        fi
       fi
       if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
         rm -f "$tmp_args" "$tmp_alias"
@@ -20459,6 +20589,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  process-alias-pure|process_alias_pure)
+    # w1105: Darwin arm64 std_process_* face from .x. Does not run the
+    # rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o process-alias-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_process_import_alias_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   dir-cap-pure|dir_cap_pure)
     # w1104: Darwin arm64 directory object from .x. Does not run the
     # rest of ensure. Linux callers should not use this mode.

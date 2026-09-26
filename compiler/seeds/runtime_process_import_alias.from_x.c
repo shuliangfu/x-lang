@@ -15,6 +15,10 @@
  *
  * exit: mod.x stub returns 0; product tests need real terminate.
  * Cap residual 9.1.4: Linux exit_group via xlang_process_cap (no libc _exit).
+ * Darwin arm64 product body is src/asm/runtime_process_import_alias_darwin.x.
+ * That face calls libSystem __exit (Mach-O ___exit), which terminates
+ * with the status and does not run atexit. This seed stays the Linux
+ * and Windows body, and the Darwin fallback when pure asm leaves no object.
  */
 #include <stdint.h>
 #include <unistd.h>
