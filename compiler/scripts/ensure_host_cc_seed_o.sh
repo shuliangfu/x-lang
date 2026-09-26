@@ -718,6 +718,73 @@ ensure_path_fast_darwin_pure() {
   return 0
 }
 
+# w1099: Darwin arm64 std/runtime/runtime.o is the .x wrappers.
+# They forward to xlang_panic_ and xlang_crash_evidence_collect_c.
+# Linux and Windows keep the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64.
+ensure_std_runtime_fast_darwin_pure() {
+  local o="${1:-../std/runtime/runtime.o}"
+  local xsrc="src/asm/runtime_std_runtime_fast.x"
+  local seed="seeds/runtime_std_runtime_fast.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o std-runtime: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  # pure_asm_x_to_o rejects any undefined xlang_panic_. This TU's job is
+  # to call that symbol, so the emit goes straight to the product compiler.
+  # PLATFORM: MACOS|DARWIN arm64.
+  local xl
+  if [ -x ./xlang ]; then
+    xl=./xlang
+  elif [ -x ./xlang_asm ]; then
+    xl=./xlang_asm
+  else
+    echo "ensure_host_cc_seed_o std-runtime: no product compiler" >&2
+    return 1
+  fi
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if "$xl" -backend asm -c -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+      local _sr_short _sr_ok
+      _sr_ok=1
+      for _sr_short in \
+        _std_runtime_crash_evidence_collect \
+        _runtime_crash_evidence_collect_c \
+        _std_runtime_runtime_panic \
+        _runtime_panic \
+        _std_runtime_runtime_abort \
+        _runtime_abort; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_sr_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _sr_ok=0
+          break
+        fi
+      done
+      if [ "$_sr_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o std-runtime: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o std-runtime: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # Darwin arm64 cold body for runtime_sync_os.o.
 # The whole TU is src/asm/runtime_sync_os_darwin.x. Public names stay strong.
 # The current compiler can SIGSEGV once; retry before the C backup.
@@ -2091,6 +2158,20 @@ ensure_one() {
     if [ "$pf_s" = "Darwin" ] && [ "$pf_m" = "arm64" ] \
       && [ -f src/asm/runtime_path_fast.x ]; then
       ensure_path_fast_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1099: Darwin arm64 std.runtime wrappers are the .x, not this seed.
+  # Linux and Windows keep host-cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_std_runtime_fast.from_x.c" ]; then
+    local sr_s sr_m
+    sr_s="$(uname -s 2>/dev/null || echo Unknown)"
+    sr_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$sr_s" = "Darwin" ] && [ "$sr_m" = "arm64" ] \
+      && [ -f src/asm/runtime_std_runtime_fast.x ]; then
+      ensure_std_runtime_fast_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -16675,6 +16756,19 @@ ensure_std_core_prefer_one() {
         pf_m="$(uname -m 2>/dev/null || echo unknown)"
         if [ "$pf_s" = "Darwin" ] && [ "$pf_m" = "arm64" ]; then
           ensure_path_fast_darwin_pure "$o" || return 1
+          return 0
+        fi
+      fi
+      # w1099: Darwin arm64 runtime.o is the panic/abort wrappers.
+      # xlang-c still emits C and host-cc's it, so it is not the first path.
+      # Linux and Windows keep the branches below.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if [ "$x_src" = "src/asm/runtime_std_runtime_fast.x" ]; then
+        local sr_s sr_m
+        sr_s="$(uname -s 2>/dev/null || echo Unknown)"
+        sr_m="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$sr_s" = "Darwin" ] && [ "$sr_m" = "arm64" ]; then
+          ensure_std_runtime_fast_darwin_pure "$o" || return 1
           return 0
         fi
       fi

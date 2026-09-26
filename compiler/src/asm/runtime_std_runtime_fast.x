@@ -1,8 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
+// runtime_std_runtime_fast.x — std.runtime panic and crash-evidence face.
+//
+// Darwin arm64 product body for ../std/runtime/runtime.o. The six
+// wrappers forward to xlang_panic_ and xlang_crash_evidence_collect_c,
+// which live in the panic and backtrace objects. Linux and Windows
+// keep seeds/runtime_std_runtime_fast.from_x.c on the host-cc path.
+// PLATFORM: SHARED wrappers; MACOS|DARWIN arm64 prefers this .x.
 
 /* wave386: pointer-width payload (int or cstr). */
 export extern "C" function xlang_panic_(has_msg: i32, msg_val: isize): void;
