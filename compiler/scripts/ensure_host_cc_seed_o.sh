@@ -1323,6 +1323,71 @@ ensure_std_io_formal_darwin_pure() {
   return 0
 }
 
+# w1109: Darwin arm64 std/io/driver.o returns 0 for every driver face.
+# A 24-byte Buffer arrives as a pointer. Linux and Windows keep the C face.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_std_io_driver_formal_darwin_pure() {
+  local o="${1:-../std/io/driver.o}"
+  local xsrc="src/asm/std_io_driver_formal_darwin.x"
+  local csrc="../std/io/driver_formal_surface.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o driver-formal: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _drv_short _drv_ok
+      _drv_ok=1
+      for _drv_short in \
+        _std_io_driver_register \
+        _std_io_driver_submit_read \
+        _std_io_driver_submit_write \
+        _std_io_driver_submit_register_fixed_buffers_buf \
+        _std_io_driver_submit_write_batch \
+        _std_io_driver_submit_read_batch_buf \
+        _std_io_driver_submit_write_batch_buf \
+        _std_io_driver_formal_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_drv_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _drv_ok=0
+          break
+        fi
+      done
+      if [ "$_drv_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o driver-formal: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if nm -u "$o" 2>/dev/null | grep -q .; then
+        echo "ensure_host_cc_seed_o driver-formal: unexpected undefined symbol" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o driver-formal: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $csrc → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -fPIE -I.. -I. -c "$csrc" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -20773,6 +20838,21 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  driver-formal-pure|driver_formal_pure)
+    # w1109: Darwin arm64 std/io driver face from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # Match std/io/driver.o only. Do not match std/io/io.o.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o driver-formal-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_std_io_driver_formal_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   io-formal-pure|io_formal_pure)
     # w1108: Darwin arm64 std/io context face from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

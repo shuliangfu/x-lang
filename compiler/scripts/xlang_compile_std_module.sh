@@ -603,7 +603,8 @@ case "${1:-}" in
       esac
       # w1106: Darwin arm64 std/debug/debug.o is the .x.
       # w1107: Darwin arm64 std/async/async.o is the .x.
-      # w1108: Darwin arm64 std/io/io.o is the .x. Not std/io/driver.o.
+      # w1108: Darwin arm64 std/io/io.o is the .x.
+      # w1109: Darwin arm64 std/io/driver.o is the .x. Not std/io/io.o.
       # Other c_face keys stay cc -c. Do not match core/debug/debug.o.
       # PLATFORM: MACOS|DARWIN arm64. Linux and Windows keep the C face.
       _dbg_darwin=0
@@ -612,6 +613,8 @@ case "${1:-}" in
       _as_x=""
       _io_darwin=0
       _io_x=""
+      _drv_darwin=0
+      _drv_x=""
       if [ "$_key" = "std/debug/debug.o" ]; then
         _dbg_os="$(uname -s 2>/dev/null || echo Unknown)"
         _dbg_mach="$(uname -m 2>/dev/null || echo unknown)"
@@ -651,6 +654,19 @@ case "${1:-}" in
           fi
         fi
       fi
+      if [ "$_key" = "std/io/driver.o" ]; then
+        _drv_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _drv_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$_drv_os" = "Darwin" ] && [ "$_drv_mach" = "arm64" ]; then
+          _drv_x="src/asm/std_io_driver_formal_darwin.x"
+          if [ ! -f "$_drv_x" ]; then
+            _drv_x="../compiler/src/asm/std_io_driver_formal_darwin.x"
+          fi
+          if [ -f "$_drv_x" ]; then
+            _drv_darwin=1
+          fi
+        fi
+      fi
       if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ] && [ -f "$_csrc" ] && [ ! "$_csrc" -nt "$out_o" ]; then
         _pure_newer=0
         if [ "$_dbg_darwin" = "1" ] && [ -f "$_dbg_x" ] && [ "$_dbg_x" -nt "$out_o" ]; then
@@ -660,6 +676,9 @@ case "${1:-}" in
           _pure_newer=1
         fi
         if [ "$_io_darwin" = "1" ] && [ -f "$_io_x" ] && [ "$_io_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_drv_darwin" = "1" ] && [ -f "$_drv_x" ] && [ "$_drv_x" -nt "$out_o" ]; then
           _pure_newer=1
         fi
         if [ "$_pure_newer" != "1" ]; then
@@ -702,6 +721,18 @@ case "${1:-}" in
           exit 1
         fi
         echo "xlang_compile_std_module.sh: OK (io formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_drv_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" driver-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: driver formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
         exit 0
       fi
       # shellcheck disable=SC2086
