@@ -2628,7 +2628,18 @@ ensure_backend_asm_bare_link_alias_obj() {
 # strict 非 WPO backend fallback：给 user_asm_seed_bridge 提供 backend_* 强桥接，避免落到 seed weak return -1 桩。
 ensure_backend_asm_strict_fallback_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_strict_fallback_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$ALIAS_O" ]; then
+  # w1117: Darwin arm64 fallback is the .x. Linux and Windows stay on cc.
+  # Does not match backend_asm_bare_link_alias.o and does not rebuild encoders.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _bf_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _bf_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_bf_os" = "Darwin" ] && [ "$_bf_mach" = "arm64" ] \
+    && [ -f backend_asm_strict_fallback_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ backend_asm_strict_fallback_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-fallback-alias-pure "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$ALIAS_O" ]; then
   echo " cc -c seeds/backend_asm_strict_fallback_alias.from_x.c -> $ALIAS_O"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" seeds/backend_asm_strict_fallback_alias.from_x.c
   fi
@@ -4393,7 +4404,19 @@ GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_li
 
 # 与 Makefile bootstrap-driver-seed / relink-xlang 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
-  if [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
+  # w1117: Darwin arm64 fallback is the .x. Linux and Windows stay on cc.
+  # Does not match backend_asm_bare_link_alias.o and does not rebuild encoders.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _bf2_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _bf2_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_bf2_os" = "Darwin" ] && [ "$_bf2_mach" = "arm64" ] \
+    && [ -f backend_asm_strict_fallback_alias.x ]; then
+    if [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
+      || [ backend_asm_strict_fallback_alias.x -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
+      || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-fallback-alias-pure "$BUILD_DIR/backend_asm_strict_fallback_alias.o"
+    fi
+  elif [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
   || [ "seeds/backend_asm_strict_fallback_alias.from_x.c" -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ]; then
   echo " cc -c seeds/backend_asm_strict_fallback_alias.from_x.c -> $BUILD_DIR/backend_asm_strict_fallback_alias.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" seeds/backend_asm_strict_fallback_alias.from_x.c

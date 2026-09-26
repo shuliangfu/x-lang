@@ -1,4 +1,6 @@
 /* Generated from backend_asm_strict_fallback_alias.x (G-02f-24 true .x).
+ * Darwin arm64 product body is backend_asm_strict_fallback_alias.x, pure asm.
+ * Linux and Windows keep this generated C seed.
  * Regen: ./xlang-c -E -L .. backend_asm_strict_fallback_alias.x > seeds/backend_asm_strict_fallback_alias.from_x.c
  */
 #include <stdint.h>
