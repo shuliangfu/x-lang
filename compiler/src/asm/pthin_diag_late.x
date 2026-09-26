@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1144: one translation unit exits 139. Darwin compiles each function
+// and links the four pieces. The struct walk call sits in unsafe so the
+// fail piece can declare it as an extern. PLATFORM: SHARED.
+
 // pthin_diag_late.x — G-02f-326 P17 parser thin diag_late product bodies.
 //
 // 7.2.1 P17b B-minus productize (2026-09-13): after P15b library_scan,
@@ -219,7 +223,12 @@ export function parser_asm_diag_fail_at_token_kind_from_lex_c(lex_inout: *u8, so
   if (lex_inout == 0 as *u8 || source == 0 as *u8) {
     return TOKEN_EOF;
   }
-  parser_asm_diag_after_imports_then_structs_into_c(lex_inout, source);
+  // Same-file call is legal here. The Darwin splitter compiles this
+  // function alone and declares the struct walk as an extern, and an
+  // extern call must sit in unsafe. Semantics match the direct call.
+  unsafe {
+    parser_asm_diag_after_imports_then_structs_into_c(lex_inout, source);
+  }
   unsafe {
     kind = parser_asm_lex_peek_kind_c(lex_inout, source);
     if (kind != TOKEN_FUNCTION) {

@@ -1824,13 +1824,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # P18b so _pthin_p18b_ok is set before BODIES_FROM_X. Cold: no
         # define, full .inc. Do not reuse XLANG_PTHIN_DIAG_LATE_FROM_X.
         _pthin_p17_extra=""
+        _pthin_p17_pure=0
+        # w1144: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o. The dependency
+        # gate above this block stays: P9a, P1b, P12b, and P18b.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p18b_ok" = "1" ] \
           && [ -n "$_pthin_p17b_thin_o" ] && [ -f "$_pthin_p17b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p17b_x" "$_pthin_p17b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-diag-late-pure "$_pthin_p17b_thin_o"; then
+            _pthin_p17_pure=1
+          fi
+          if [ "$_pthin_p17_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p17b_x" "$_pthin_p17b_thin_o"; then
             _pthin_p17b_ok=1
             _pthin_p17_extra="-DXLANG_PTHIN_DIAG_LATE_BODIES_FROM_X"
-            echo "g05_ensure: P17b/P17c diag_late bodies ← $_pthin_p17b_x (7.2.1 B-minus after_structs/fail + G.7 buf trampoline)"
+            if [ "$_pthin_p17_pure" = "1" ]; then
+              echo "g05_ensure: P17 diag_late ← pure-asm four pieces (w1144)"
+            else
+              echo "g05_ensure: P17b/P17c diag_late bodies ← $_pthin_p17b_x (7.2.1 B-minus after_structs/fail + G.7 buf trampoline)"
+            fi
           else
             echo "g05_ensure: P17b diag_late .x thin failed; P17 C twin stays full" >&2
           fi
