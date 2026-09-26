@@ -280,6 +280,18 @@ ensure_pipeline_wpo_helpers_partial_obj() {
 ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   local BR_O="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
   local BR_SRC="seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c"
+  # w1122: Darwin arm64 bridge is pure asm of the existing .x.
+  # Linux and Windows stay on the C seed line.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _eb_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _eb_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_eb_os" = "Darwin" ] && [ "$_eb_mach" = "arm64" ] \
+    && [ -f src/pipeline_wpo_typecheck_emit_bridge.x ]; then
+    if [ ! -f "$BR_O" ] || [ src/pipeline_wpo_typecheck_emit_bridge.x -nt "$BR_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-emit-bridge-pure "$BR_O" || return 1
+    fi
+    return 0
+  fi
   [ -f "$BR_SRC" ] || return 1
   if [ ! -f "$BR_O" ] || [ "$BR_SRC" -nt "$BR_O" ]; then
   strict_glue_info "cc_inc_tu $BR_SRC -> $BR_O"
