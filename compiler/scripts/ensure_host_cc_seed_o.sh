@@ -1384,6 +1384,98 @@ ensure_log_os_darwin_pure() {
   return 0
 }
 
+# Darwin arm64 cold body for runtime_compress_zlib_glue.o.
+# Two translation units, then ld -r: the shared wrappers in
+# src/asm/runtime_compress_zlib_glue.x and the bridges in
+# src/asm/runtime_compress_zlib_glue_darwin.x. The bridges pass
+# ZLIB_VERSION 1.2.12 and sizeof(z_stream) 112 to deflateInit2_
+# and inflateInit2_. Each half can SIGSEGV on its own. Retry a
+# missing half. A missing object after eight pure-asm faults falls
+# back to the C seed. An object already on disk is left as-is when
+# neither .x is newer. No gcc -E.
+# Linux and Windows keep the seed, which includes that platform's zlib.h.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_compress_zlib_glue.o, cwd is compiler/).
+ensure_compress_zlib_darwin_pure() {
+  local o="${1:-runtime_compress_zlib_glue.o}"
+  local x_thin="src/asm/runtime_compress_zlib_glue.x"
+  local x_os="src/asm/runtime_compress_zlib_glue_darwin.x"
+  local seed="seeds/runtime_compress_zlib_glue.from_x.c"
+  local try=0
+  local thin_o os_o
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o zlib: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/zlib_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/zlib_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o zlib: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o zlib: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+      local _zz_short _zz_ok
+      _zz_ok=1
+      for _zz_short in \
+        _deflateInit2_impl_c \
+        _inflateInit2_impl_c \
+        _deflateInit2 \
+        _inflateInit2; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_zz_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _zz_ok=0
+          break
+        fi
+      done
+      if [ "$_zz_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o zlib: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -f "$thin_o" "$os_o"
+      log "pure-asm $x_thin + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -1548,6 +1640,21 @@ ensure_one() {
     if [ "$lo_s" = "Darwin" ] && [ "$lo_m" = "arm64" ] \
       && [ -f src/asm/runtime_log_os_darwin.x ]; then
       ensure_log_os_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1089: Darwin arm64 zlib macro bridges are the .x, not this seed.
+  # Linux and Windows keep the seed so they read their own zlib.h.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_compress_zlib_glue.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_compress_zlib_glue.o" ]; then
+    local zz_s zz_m
+    zz_s="$(uname -s 2>/dev/null || echo Unknown)"
+    zz_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$zz_s" = "Darwin" ] && [ "$zz_m" = "arm64" ] \
+      && [ -f src/asm/runtime_compress_zlib_glue_darwin.x ]; then
+      ensure_compress_zlib_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -14981,6 +15088,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$lo_s" = "Darwin" ] && [ "$lo_m" = "arm64" ] \
       && [ -f src/asm/runtime_log_os_darwin.x ]; then
       ensure_log_os_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1089: Darwin arm64 whole object is thin .x plus zlib .x. Do not host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_compress_zlib_glue.o" ]; then
+    local zz_s zz_m
+    zz_s="$(uname -s 2>/dev/null || echo Unknown)"
+    zz_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$zz_s" = "Darwin" ] && [ "$zz_m" = "arm64" ] \
+      && [ -f src/asm/runtime_compress_zlib_glue_darwin.x ]; then
+      ensure_compress_zlib_darwin_pure "$o" || return 1
       return 0
     fi
   fi
