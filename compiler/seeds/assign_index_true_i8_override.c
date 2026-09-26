@@ -22,6 +22,8 @@ extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
 extern int32_t backend_enc_store_rax_to_rbx_indirect_arch(void *elf_ctx, int32_t elem_sz, int32_t ta);
 extern int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
+                                                        int32_t sz, int32_t ta);
 
 int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
                                     int32_t right_ref, void *ctx, int32_t ta) {
@@ -53,5 +55,18 @@ int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_re
     return -1;
   if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
     return -1;
+  /* PLATFORM: MACOS|ARM64. An element larger than 16 bytes leaves its
+   * address in rax when the RHS kind is VAR (3), FIELD (44), STRUCT_LIT
+   * (45), INDEX (47), CALL (48), or METHOD (49). store_indirect writes one
+   * qword, so the slot received the source address. mov_rax_to_rbx already
+   * parked the element address in x19. Copy sz bytes via slot -3 (dest in
+   * x19, source in rax). ARRAY_LIT (46) stays on the indirect store. A
+   * qword in rax must not enter the memcpy. Size <= 16 stays on the
+   * indirect store, including true-pack i8. ta != 1 keeps that store. */
+  if (ta == 1 && sz > 16) {
+    int32_t rko = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (rko == 3 || rko == 44 || rko == 45 || rko == 47 || rko == 48 || rko == 49)
+      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, sz, ta);
+  }
   return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, sz, ta);
 }
