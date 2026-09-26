@@ -1388,6 +1388,54 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1127: Darwin arm64 build_tool_main.o forwards main to entry.
+# Linux and Windows keep -x -E then host cc.
+# Does not match build_tool_libc_bridge.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_build_tool_main_darwin_pure() {
+  local o="${1:-build_tool_main.o}"
+  local xsrc="src/build_tool_main.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o build-tool-main: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      if ! nm "$o" 2>/dev/null | awk '$2=="T" && $3=="_main" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o build-tool-main: _main missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '$NF=="_entry" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o build-tool-main: _entry missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o build-tool-main: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc_inc_tu --auto $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh --auto "$o" || return 1
+  fi
+  return 0
+}
+
 # w1126: Darwin arm64 typeck_lsp_io_stub.o is four stubs from the existing .x.
 # Linux and Windows keep -x -E then host cc. The cold seed stays for strict.
 # Does not match asm_xlang_lsp_diag_stub.o.
@@ -21991,6 +22039,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  build-tool-main-pure|build_tool_main_pure)
+    # w1127: Darwin arm64 build tool main from the existing .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o build-tool-main-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_build_tool_main_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   lsp-io-stub-pure|lsp_io_stub_pure)
     # w1126: Darwin arm64 typeck LSP IO stub from the existing .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
