@@ -5468,7 +5468,20 @@ ensure_runtime_user_link_objs() {
   echo " ensure runtime_random_fill.o"
   bash scripts/ensure_host_cc_seed_o.sh one runtime_random_fill.o seeds/runtime_random_fill.from_x.c
   fi
-  if [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ] || [ src/asm/runtime_time_os.x -nt runtime_time_os.o ]; then
+  # w1078: Darwin arm64 whole TU is src/asm/runtime_time_os_darwin.x.
+  # Linux and Windows keep the C seed, including the PREFER thin+rest below.
+  # One Darwin body: ensure_one. The brace group is required so a newer
+  # .x is not swallowed by the left-associative || test.
+  # PLATFORM: MACOS|DARWIN arm64 pure-asm; LINUX|WINDOWS host-cc seed.
+  if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "$(uname -m 2>/dev/null)" = "arm64" ]; then
+  if [ ! -f runtime_time_os.o ] \
+    || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ] \
+    || { [ -f src/asm/runtime_time_os_darwin.x ] \
+      && [ src/asm/runtime_time_os_darwin.x -nt runtime_time_os.o ]; }; then
+  echo " ensure runtime_time_os.o"
+  bash scripts/ensure_host_cc_seed_o.sh one runtime_time_os.o seeds/runtime_time_os.from_x.c
+  fi
+  elif [ ! -f runtime_time_os.o ] || [ seeds/runtime_time_os.from_x.c -nt runtime_time_os.o ] || [ src/asm/runtime_time_os.x -nt runtime_time_os.o ]; then
   echo " cc_inc_tu runtime_time_os.o <- seeds/runtime_time_os.from_x.c"
   if [ "${XLANG_G05_PREFER_X_O:-0}" = "1" ] && [ -x ./xlang-c ] && [ -f src/asm/runtime_time_os.x ]; then
     _rtos_tmp=$(mktemp "${TMPDIR:-/tmp}/rtos.XXXXXX") || _rtos_tmp=/tmp/rtos_tmp_$$

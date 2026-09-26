@@ -1,6 +1,14 @@
 /* seeds/runtime_time_os.from_x.c — G-02f-19 product TU
  * Product: runtime_time_os.o; logic migrating to .x (wave501 R2).
  *
+ * w1078: Darwin arm64 product body is src/asm/runtime_time_os_darwin.x
+ * (libSystem clock_gettime / nanosleep / localtime_r, civil RFC3339).
+ * This C file remains Linux, Windows, and the Darwin backup when pure-asm
+ * faults and the object is missing. xlang_time_cap.h stays the C-seed
+ * authority (raw syscall / Win32). Do not compile this file first on
+ * Darwin arm64.
+ * PLATFORM: LINUX|WINDOWS host-cc; MACOS|DARWIN backup only.
+ *
  * wave501 R2 migration pattern:
  *   - When XLANG_RUNTIME_TIME_OS_FROM_X is defined:
  *     This seed file provides ONLY the OS bridge _impl functions
