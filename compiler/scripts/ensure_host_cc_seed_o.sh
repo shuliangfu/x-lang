@@ -16091,10 +16091,108 @@ _std_core_keep_global_prefixes() {
 
 # One net_*_fast PREFER or cold seed piece.
 # $1=fast_o $2=seed $3=x_src $4=from_x_def $5=mode (thin_rest|direct) $6=xlang_bin
+# w1095: Darwin arm64 net_addr_fast.o is the shared pack plus the Darwin
+# setters and getsockname/getpeername bridges. Linux and Windows keep the
+# C seed. PLATFORM: MACOS|DARWIN arm64.
+ensure_net_addr_fast_darwin_pure() {
+  local o="${1:-../std/net/net_addr_fast.o}"
+  local x_thin="src/asm/runtime_net_addr_fast.x"
+  local x_os="src/asm/runtime_net_addr_fast_darwin.x"
+  local seed="seeds/runtime_net_addr_fast.from_x.c"
+  local try=0
+  local thin_o os_o
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o net_addr: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/netaddr_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/netaddr_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o net_addr: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o net_addr: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ] \
+      && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+      local _na_short _na_ok
+      _na_ok=1
+      for _na_short in \
+        _net_sockaddr_in_pack_addr_port_c \
+        _net_tcp_local_addr_c \
+        _net_tcp_peer_addr_c \
+        _net_tcp_set_addr_port_buf_c \
+        _net_udp_set_addr_port_buf_c \
+        _runtime_net_addr_fast_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_na_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _na_ok=0
+          break
+        fi
+      done
+      if [ "$_na_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o net_addr: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -f "$thin_o" "$os_o"
+      log "pure-asm $x_thin + $x_os → $o"
+      return 0
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 _std_core_net_fast_one() {
   local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
   local thin_o rest_o dir
+  # w1095: Darwin arm64 builds net_addr_fast.o from the two .x files.
+  # Linux and Windows keep the direct/host-cc path below.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$fast_o")" = "net_addr_fast.o" ]; then
+    local na_s na_m
+    na_s="$(uname -s 2>/dev/null || echo Unknown)"
+    na_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$na_s" = "Darwin" ] && [ "$na_m" = "arm64" ] \
+      && [ -f src/asm/runtime_net_addr_fast_darwin.x ]; then
+      ensure_net_addr_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
+  fi
   dir="$(dirname "$fast_o")"
   mkdir -p "$dir"
   if [ "$prefer" = "1" ] && [ -f "$x_src" ] && [ -n "$xbin" ] && [ -x "$xbin" ]; then

@@ -596,6 +596,7 @@
 - 2026-09-27 Darwin arm64 `runtime_sync_lock_diag_tls.o` 的产品体是 `src/asm/runtime_sync_lock_diag_tls.x` 与 `src/asm/runtime_sync_lock_diag_tls_darwin.x`，纯 asm 后 ld -r 合成。持有栈是 pthread_key 上的堆缓冲，元数据表也在堆上。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_sync_lock_diag_tls.from_x.c`。
 - 2026-09-27 Darwin arm64 `runtime_tls_mbedtls_bio.o` 的产品体是 `src/asm/runtime_tls_mbedtls_bio.x` 与 `src/asm/runtime_tls_mbedtls_bio_darwin.x`，纯 asm 后 ld -r 合成。send 与 recv 走 libSystem。bind 用 dlsym 取回调再交给 `mbedtls_ssl_set_bio`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_tls_mbedtls_bio.from_x.c`。
 - 2026-09-27 Darwin arm64 `runtime_net_udp_batch.o` 的产品体是 `src/asm/runtime_net_udp_batch.x` 与 `src/asm/runtime_net_udp_batch_darwin.x`，纯 asm 后 ld -r 合成。sendto、recvfrom 与 poll 走 libSystem，与 Darwin Cap 的循环同结果。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_net_udp_batch.from_x.c`。
+- 2026-09-27 Darwin arm64 `std/net/net_addr_fast.o` 的产品体是 `src/asm/runtime_net_addr_fast.x` 与 `src/asm/runtime_net_addr_fast_darwin.x`，纯 asm 后 ld -r 合成，再并进 `std/net/net.o`。getsockname 与 getpeername 走 libSystem。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_net_addr_fast.from_x.c`。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。
