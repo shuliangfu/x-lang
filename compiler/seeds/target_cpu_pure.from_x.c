@@ -1,4 +1,7 @@
 /* seeds/target_cpu_pure.from_x.c — G-02f-2/3/4/5 product pure half of target_cpu.o
+ * w1139: XLANG_L2_TARGET_CPU_PURE_FROM_X omits every business body that
+ * src/driver/target_cpu_pure.x emits. Host detect, print, and the slice
+ * marker stay here. The five-helper flag (w1138) is unchanged.
  * w1138: the five flag helpers in src/driver/target_cpu_flags.x are pure asm.
  * The pending-feature word is a pointer slot. This seed stays the resolve
  * body, host detect, and the marker rest under XLANG_L2_TARGET_CPU_FLAGS_FROM_X.
@@ -68,6 +71,9 @@ extern int32_t tcp_eq6(const uint8_t *name, uint8_t a0, uint8_t a1, uint8_t a2, 
                        uint8_t a5);
 #endif
 
+/* w1139: these bodies live in target_cpu_pure.x. The flag-only hybrid still
+ * compiles them. Host detect below this guard always stays. */
+#ifndef XLANG_L2_TARGET_CPU_PURE_FROM_X
 /** Compare name[base..base+n) case-insensitively to lowercase lit[0..n). */
 /* G-02f-131：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 int32_t tcp_eq_at(const uint8_t *name, size_t base, size_t n, const uint8_t *lit) {
@@ -286,6 +292,13 @@ int flags_has_token(const char *hay, const char *token) {
     }
     return 0;
 }
+#endif /* !XLANG_L2_TARGET_CPU_PURE_FROM_X */
+
+#ifdef XLANG_L2_TARGET_CPU_PURE_FROM_X
+/* Print and host detect stay in this file and call the .x bodies. */
+extern void append_feat_name(char *buf, size_t cap, size_t *pos, const char *name);
+extern int flags_has_token(const char *hay, const char *token);
+#endif
 
 /* slice_marker: indicates business funcs are provided by .x (R2 full) */
 int target_cpu_pure_slice_marker(void) {

@@ -1,12 +1,9 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// - pending（f-2）· SIMD（f-3）· resolve（f-4）· print（f-5）
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// w1139: the pending-feature word is stored through a pointer slot.
+// tcp_eq_at takes a byte pointer. A 12-argument call stores past the frame.
+// PLATFORM: SHARED.
 //
 // See implementation.
 // See implementation.
@@ -25,7 +22,8 @@ export extern function xlang_target_cpu_generic_for_host(): u32;
  */
 #[no_mangle]
 export function driver_set_pending_target_cpu_features(features: u32): void {
-  g_driver_pending_target_cpu_features = features;
+  let slot: *u32 = &g_driver_pending_target_cpu_features;
+  slot[0] = features;
 }
 
 /** Exported function `driver_get_pending_target_cpu_features`.
@@ -34,7 +32,8 @@ export function driver_set_pending_target_cpu_features(features: u32): void {
  */
 #[no_mangle]
 export function driver_get_pending_target_cpu_features(): u32 {
-  return g_driver_pending_target_cpu_features;
+  let slot: *u32 = &g_driver_pending_target_cpu_features;
+  return slot[0];
 }
 
 /* See implementation. */
@@ -62,21 +61,22 @@ export function tcp_tolower(c: u8): u8 {
  * @param lit8 u8
  * @return i32
  */
+/** Compare name[base, base+n) with lits[0, n) after ASCII tolower on the name.
+ * n is at most 9. The index is a local i32 before the subscript.
+ * PLATFORM: SHARED. */
 #[no_mangle]
-export function tcp_eq_at(name: *u8, base: usize, n: usize, lit0: u8, lit1: u8, lit2: u8, lit3: u8, lit4: u8, lit5: u8, lit6: u8, lit7: u8, lit8: u8): i32 {
-  let i: usize = 0;
-  let want: u8 = 0;
-  while (i < n) {
-    if (i == 0) { want = lit0; }
-    if (i == 1) { want = lit1; }
-    if (i == 2) { want = lit2; }
-    if (i == 3) { want = lit3; }
-    if (i == 4) { want = lit4; }
-    if (i == 5) { want = lit5; }
-    if (i == 6) { want = lit6; }
-    if (i == 7) { want = lit7; }
-    if (i == 8) { want = lit8; }
-    if (tcp_tolower(name[base + i]) != want) {
+export function tcp_eq_at(name: *u8, base: usize, n: usize, lits: *u8): i32 {
+  let s: *u8 = name;
+  let w: *u8 = lits;
+  let i: i32 = 0;
+  let lim: i32 = n as i32;
+  let b: i32 = base as i32;
+  while (i < lim) {
+    let k: i32 = i;
+    let bk: i32 = b + k;
+    let nb: u8 = tcp_tolower(s[bk]);
+    let wb: u8 = w[k];
+    if (nb != wb) {
       return 0;
     }
     i = i + 1;
@@ -112,75 +112,75 @@ export function tcp_parse_named(spec: *u8, base: usize, end: usize, out: *u32): 
   }
   n = end - base;
   /* native */
-  if (n == 6 && tcp_eq_at(spec, base, 6, 110, 97, 116, 105, 118, 101, 0, 0, 0) != 0) {
+  if (n == 6 && tcp_eq_at(spec, base, 6, "native" as *u8) != 0) {
     unsafe { f = xlang_target_cpu_detect_host(); }
     tcp_set_u32(out, f);
     return 0;
   }
   /* generic */
-  if (n == 7 && tcp_eq_at(spec, base, 7, 103, 101, 110, 101, 114, 105, 99, 0, 0) != 0) {
+  if (n == 7 && tcp_eq_at(spec, base, 7, "generic" as *u8) != 0) {
     unsafe { f = xlang_target_cpu_generic_for_host(); }
     tcp_set_u32(out, f);
     return 0;
   }
   /* sse2 */
-  if (n == 4 && tcp_eq_at(spec, base, 4, 115, 115, 101, 50, 0, 0, 0, 0, 0) != 0) {
+  if (n == 4 && tcp_eq_at(spec, base, 4, "sse2" as *u8) != 0) {
     tcp_set_u32(out, 1);
     return 0;
   }
   /* sse4.1 / sse4_1 */
-  if (n == 6 && (tcp_eq_at(spec, base, 6, 115, 115, 101, 52, 46, 49, 0, 0, 0) != 0 ||
-                 tcp_eq_at(spec, base, 6, 115, 115, 101, 52, 95, 49, 0, 0, 0) != 0)) {
+  if (n == 6 && (tcp_eq_at(spec, base, 6, "sse4.1" as *u8) != 0 ||
+                 tcp_eq_at(spec, base, 6, "sse4_1" as *u8) != 0)) {
     tcp_set_u32(out, 1 | 2);
     return 0;
   }
   /* avx */
-  if (n == 3 && tcp_eq_at(spec, base, 3, 97, 118, 120, 0, 0, 0, 0, 0, 0) != 0) {
+  if (n == 3 && tcp_eq_at(spec, base, 3, "avx" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 4);
     return 0;
   }
   /* avx2 */
-  if (n == 4 && tcp_eq_at(spec, base, 4, 97, 118, 120, 50, 0, 0, 0, 0, 0) != 0) {
+  if (n == 4 && tcp_eq_at(spec, base, 4, "avx2" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 4 | 8);
     return 0;
   }
   /* avx512 */
-  if (n == 6 && tcp_eq_at(spec, base, 6, 97, 118, 120, 53, 49, 50, 0, 0, 0) != 0) {
+  if (n == 6 && tcp_eq_at(spec, base, 6, "avx512" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 4 | 8 | 16);
     return 0;
   }
   /* avx512f */
-  if (n == 7 && tcp_eq_at(spec, base, 7, 97, 118, 120, 53, 49, 50, 102, 0, 0) != 0) {
+  if (n == 7 && tcp_eq_at(spec, base, 7, "avx512f" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 4 | 8 | 16);
     return 0;
   }
   /* x86-64-v2 */
-  if (n == 9 && tcp_eq_at(spec, base, 9, 120, 56, 54, 45, 54, 52, 45, 118, 50) != 0) {
+  if (n == 9 && tcp_eq_at(spec, base, 9, "x86-64-v2" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 32);
     return 0;
   }
   /* x86-64-v3 */
-  if (n == 9 && tcp_eq_at(spec, base, 9, 120, 56, 54, 45, 54, 52, 45, 118, 51) != 0) {
+  if (n == 9 && tcp_eq_at(spec, base, 9, "x86-64-v3" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 4 | 8 | 32 | 64);
     return 0;
   }
   /* x86-64-v4 */
-  if (n == 9 && tcp_eq_at(spec, base, 9, 120, 56, 54, 45, 54, 52, 45, 118, 52) != 0) {
+  if (n == 9 && tcp_eq_at(spec, base, 9, "x86-64-v4" as *u8) != 0) {
     tcp_set_u32(out, 1 | 2 | 4 | 8 | 16 | 32 | 64);
     return 0;
   }
   /* neon */
-  if (n == 4 && tcp_eq_at(spec, base, 4, 110, 101, 111, 110, 0, 0, 0, 0, 0) != 0) {
+  if (n == 4 && tcp_eq_at(spec, base, 4, "neon" as *u8) != 0) {
     tcp_set_u32(out, 256);
     return 0;
   }
   /* sve */
-  if (n == 3 && tcp_eq_at(spec, base, 3, 115, 118, 101, 0, 0, 0, 0, 0, 0) != 0) {
+  if (n == 3 && tcp_eq_at(spec, base, 3, "sve" as *u8) != 0) {
     tcp_set_u32(out, 256 | 512);
     return 0;
   }
   /* rvv */
-  if (n == 3 && tcp_eq_at(spec, base, 3, 114, 118, 118, 0, 0, 0, 0, 0, 0) != 0) {
+  if (n == 3 && tcp_eq_at(spec, base, 3, "rvv" as *u8) != 0) {
     tcp_set_u32(out, 65536);
     return 0;
   }
@@ -234,7 +234,14 @@ export function xlang_target_cpu_resolve(spec: *u8, spec_len: usize, out: *u32):
  */
 #[no_mangle]
 export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
-  return tcp_eq_at(name, 0, 5, a0, a1, a2, a3, a4, 0, 0, 0, 0);
+  let lit: u8[8] = [];
+  let p: *u8 = &lit[0];
+  p[0] = a0;
+  p[1] = a1;
+  p[2] = a2;
+  p[3] = a3;
+  p[4] = a4;
+  return tcp_eq_at(name, 0, 5, p);
 }
 
 /** Exported function `tcp_eq6`.
@@ -250,7 +257,49 @@ export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 
  */
 #[no_mangle]
 export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
-  return tcp_eq_at(name, 0, 6, a0, a1, a2, a3, a4, a5, 0, 0, 0);
+  let lit: u8[8] = [];
+  let p: *u8 = &lit[0];
+  p[0] = a0;
+  p[1] = a1;
+  p[2] = a2;
+  p[3] = a3;
+  p[4] = a4;
+  p[5] = a5;
+  return tcp_eq_at(name, 0, 6, p);
+}
+
+/** True when a 5-byte spelling is one of i32x4, i32x8, u32x4, u32x8.
+ * PLATFORM: SHARED. */
+function tcp_simd_len5_a(name: *u8): i32 {
+  let pad: u8[128] = [];
+  pad[0] = 0;
+  if (tcp_eq5(name, 105, 51, 50, 120, 52) != 0) { return 1; }
+  if (tcp_eq5(name, 105, 51, 50, 120, 56) != 0) { return 1; }
+  if (tcp_eq5(name, 117, 51, 50, 120, 52) != 0) { return 1; }
+  if (tcp_eq5(name, 117, 51, 50, 120, 56) != 0) { return 1; }
+  return 0;
+}
+
+/** True when a 5-byte spelling is one of f32x4, f32x8, vec4f, vec8i.
+ * PLATFORM: SHARED. */
+function tcp_simd_len5_b(name: *u8): i32 {
+  let pad: u8[128] = [];
+  pad[0] = 0;
+  if (tcp_eq5(name, 102, 51, 50, 120, 52) != 0) { return 1; }
+  if (tcp_eq5(name, 102, 51, 50, 120, 56) != 0) { return 1; }
+  if (tcp_eq5(name, 118, 101, 99, 52, 102) != 0) { return 1; }
+  if (tcp_eq5(name, 118, 101, 99, 56, 105) != 0) { return 1; }
+  return 0;
+}
+
+/** True when a 6-byte spelling is i32x16 or u32x16.
+ * PLATFORM: SHARED. */
+function tcp_simd_len6(name: *u8): i32 {
+  let pad: u8[96] = [];
+  pad[0] = 0;
+  if (tcp_eq6(name, 105, 51, 50, 120, 49, 54) != 0) { return 1; }
+  if (tcp_eq6(name, 117, 51, 50, 120, 49, 54) != 0) { return 1; }
+  return 0;
 }
 
 /** Exported function `xlang_simd_is_vector_type_spelling`.
@@ -265,19 +314,11 @@ export function xlang_simd_is_vector_type_spelling(name: *u8, name_len: usize): 
     return 0;
   }
   if (name_len == 5) {
-    if (tcp_eq5(name, 105, 51, 50, 120, 52) != 0) { return 1; }
-    if (tcp_eq5(name, 105, 51, 50, 120, 56) != 0) { return 1; }
-    if (tcp_eq5(name, 117, 51, 50, 120, 52) != 0) { return 1; }
-    if (tcp_eq5(name, 117, 51, 50, 120, 56) != 0) { return 1; }
-    if (tcp_eq5(name, 102, 51, 50, 120, 52) != 0) { return 1; }
-    /* f32x8 — 8-wide AVX ymm lang builtins (10.5.1 slice3). */
-    if (tcp_eq5(name, 102, 51, 50, 120, 56) != 0) { return 1; }
-    if (tcp_eq5(name, 118, 101, 99, 52, 102) != 0) { return 1; }
-    if (tcp_eq5(name, 118, 101, 99, 56, 105) != 0) { return 1; }
+    if (tcp_simd_len5_a(name) != 0) { return 1; }
+    if (tcp_simd_len5_b(name) != 0) { return 1; }
   }
   if (name_len == 6) {
-    if (tcp_eq6(name, 105, 51, 50, 120, 49, 54) != 0) { return 1; }
-    if (tcp_eq6(name, 117, 51, 50, 120, 49, 54) != 0) { return 1; }
+    if (tcp_simd_len6(name) != 0) { return 1; }
   }
   return 0;
 }
@@ -294,19 +335,22 @@ export function xlang_simd_is_vector_type_spelling(name: *u8, name_len: usize): 
 export function xlang_simd_vector_lanes_esz_from_spelling(name: *u8, name_len: usize, out_lanes: *i32, out_esz: *i32): i32 {
   let lanes: i32 = 4;
   let esz: i32 = 4;
+  let s: *u8 = name;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (out_lanes == 0 as *i32 || out_esz == 0 as *i32) {
     return -1;
   }
-  if (xlang_simd_is_vector_type_spelling(name, name_len) == 0) {
+  if (xlang_simd_is_vector_type_spelling(s, name_len) == 0) {
     return -1;
   }
-  if (name_len == 5 && name[4] == 56) {
+  if (name_len == 5 && s[4] == 56) {
     lanes = 8;
   }
-  if (name_len == 6 && name[4] == 49 && name[5] == 54) {
+  if (name_len == 6 && s[4] == 49 && s[5] == 54) {
     lanes = 16;
   }
-  if (name_len == 5 && tcp_eq5(name, 118, 101, 99, 56, 105) != 0) {
+  if (name_len == 5 && tcp_eq5(s, 118, 101, 99, 56, 105) != 0) {
     lanes = 8;
   }
   out_lanes[0] = lanes;
