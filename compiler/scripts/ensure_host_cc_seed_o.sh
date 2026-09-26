@@ -5543,6 +5543,58 @@ ensure_rt_parse_diag_prefer() {
 # A while plus a 512-byte stack buffer in one TU exits 139.
 # $1 = merged thin object. The marker stays in the C rest.
 # PLATFORM: SHARED — Darwin CREAT/TRUNC are 512/1024 via cfg. Linux uses 64/512.
+rt_elf_diag_pure_thin() {
+  # w1137: four pure-asm files. The combined .x does not emit (while count
+  # plus the message buffers). Marker stays in the C rest.
+  # PLATFORM: SHARED. cwd is compiler/. $1 is the merged object.
+  local o="$1"
+  local dir part src base try obj
+  local objs=""
+  if [ -z "$o" ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/rtelf.XXXXXX")" || return 1
+  for part in rt_pipeline_elf_diag rt_pipeline_elf_diag_find rt_pipeline_elf_diag_kind rt_pipeline_elf_diag_note; do
+    src="src/runtime/${part}.x"
+    obj="$dir/${part}.o"
+    if [ ! -f "$src" ]; then
+      rm -rf "$dir"
+      return 1
+    fi
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$obj" "$src"
+      ) && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      return 1
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    if nm "$o" | awk '$2=="T" && $3=="_labi_rt_pipeline_elf_diag_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+    if nm "$o" | awk '$2=="T" && $3=="_runtime_pipeline_elf_ctx_diag_note" { found=1 } END { exit found ? 0 : 1 }'; then
+      return 0
+    fi
+  fi
+  rm -rf "$dir"
+  rm -f "$o"
+  return 1
+}
+
 rt_fs_open_pure_thin() {
   local o="$1"
   local copy_x="src/runtime/rt_fs_open.x"
@@ -8407,12 +8459,12 @@ ensure_rt_prefer_one() {
               _rt_elfd_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_elf_diag_thin.XXXXXX") || true
               _rt_elfd_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_elf_diag_rest.XXXXXX") || true
               if [ -n "$_rt_elfd_thin_o" ] && [ -n "$_rt_elfd_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_elf_diag_x" "$_rt_elfd_thin_o" \
+                && rt_elf_diag_pure_thin "$_rt_elfd_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PIPELINE_ELF_DIAG_FROM_X \
                      -c -o "$_rt_elfd_rest_o" "$_rt_elf_diag_seed" \
                 && pure_ld_partial_merge "$_rt_elfd_o" "$_rt_elfd_thin_o" "$_rt_elfd_rest_o" 2>/dev/null; then
                 _rt_elfd_ok=1
-                echo "rt-prefer: rest pipeline elf diag ← full .x + rest marker (R2 full H=0)"
+                echo "rt-prefer: rest pipeline elf diag ← pure-asm four .x (w1137) + marker rest"
               fi
               rm -f "$_rt_elfd_thin_o" "$_rt_elfd_rest_o"
             fi
@@ -22585,6 +22637,16 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-elf-diag-pure|rt_elf_diag_pure)
+    # w1137: merge the four ELF diag .x files. Does not compile the C rest.
+    # PLATFORM: SHARED. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-elf-diag-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_elf_diag_pure_thin "$1"
+    exit $?
+    ;;
   rt-diag-errno-pure|rt_diag_errno_pure)
     # w1136: Darwin arm64 diag/errno object from the .x, with __error renamed.
     # Does not run the rest of ensure and does not merge the marker rest.

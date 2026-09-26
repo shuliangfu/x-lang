@@ -1,12 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// G-02f-304/445 / P2 runtime rest: ELF ctx diagnostic note (pure table read).
-// R2 full: .x owns runtime_pipeline_elf_ctx_diag_note;
-// product PREFER_X_O: full .x + FROM_X rest is marker only (business H=0).
+// G-02f-304/445 / P2 runtime rest: ELF ctx diagnostic helpers.
+// w1137: the label scan is rt_pipeline_elf_diag_find.x, the note kind is
+// rt_pipeline_elf_diag_kind.x, and the message buffers are
+// rt_pipeline_elf_diag_note.x. One translation unit that holds every while
+// and the message buffers does not emit.
 // Layout matches seeds RuntimePipelineElfCtxAccess; read i32/name via byte
 // offsets so .x need not expand labels/patches[16384] giant types.
-// Diagnostics use diag_report_with_code (no va / reportf).
 // PLATFORM: SHARED — surface short names are the link-name contract (Track L).
 // Comment rule: never put star-slash sequences inside block comments.
 
@@ -48,23 +49,29 @@ export const RT_ELF_PAT_OFF_NAME_LEN: i32 = 260;
  * Track-L: #[no_mangle] keeps surface short name (not pipeline_rt_elf_load_i32_le).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
 #[no_mangle]
+/** One byte at base+off as i32. Caller has already rejected a null base.
+ * PLATFORM: SHARED. */
+function rt_elf_byte_at(base: *u8, off: i32): i32 {
+  let p: *u8 = base + off;
+  return p[0] as i32;
+}
+
 export function rt_elf_load_i32_le(base: *u8, off: i32): i32 {
+  let a: i32 = 0;
   if (base == 0 as *u8) {
     return 0;
   }
   if (off < 0) {
     return 0;
   }
+  // Little-endian assemble. Each byte is loaded in its own frame.
   unsafe {
-    let q: *u8 = base + off;
-    let m: i32 = 256;
-    let a0: i32 = q[0] as i32;
-    let a1: i32 = a0 + (q[1] as i32) * m;
-    let a2: i32 = a1 + (q[2] as i32) * m * m;
-    let a3: i32 = a2 + (q[3] as i32) * m * m * m;
-    return a3;
+    a = rt_elf_byte_at(base, off);
+    a = a + rt_elf_byte_at(base, off + 1) * 256;
+    a = a + rt_elf_byte_at(base, off + 2) * 65536;
+    a = a + rt_elf_byte_at(base, off + 3) * 16777216;
   }
-  return 0;
+  return a;
 }
 
 /** Pointer to name bytes at base + entry_off + name_rel (or null on bad args).
@@ -160,6 +167,7 @@ export function rt_elf_append(dst: *u8, cap: i32, src: *u8): void {
   dst[dlen as usize] = 0;
 }
 
+
 /** Append decimal representation of v onto dst (handles 0 and negatives).
  * Digits built in a small local buffer then reverse-copied via rt_elf_append.
  *
@@ -225,139 +233,25 @@ export function rt_elf_append_i32(dst: *u8, cap: i32, v: i32): void {
   }
 }
 
-/** Write ASCII "note" + NUL into kind[0..4]. Caller must provide at least 5 bytes.
- * Track-L: #[no_mangle] keeps surface short name (not pipeline_rt_elf_note_kind).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
-#[no_mangle]
-export function rt_elf_note_kind(kind: *u8): void {
-  // ASCII: n o t e NUL
-  kind[0] = 110;
-  kind[1] = 111;
-  kind[2] = 116;
-  kind[3] = 101;
-  kind[4] = 0;
-}
 
-/** Emit a note-level diagnostic with msg (no file/line/code).
- * Builds kind via rt_elf_note_kind then calls diag_report_with_code.
- * Track-L: #[no_mangle] keeps surface short name (not pipeline_rt_elf_report_note).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+/** Copy n bytes from src into dst and write a trailing NUL at dst[n].
+ * A null src stores zeros. Index and pointer are locals before the subscript.
+ * PLATFORM: SHARED. */
 #[no_mangle]
-export function rt_elf_report_note(msg: *u8): void {
-  let kind: u8[8] = [];
-  rt_elf_note_kind(&kind[0]);
-  unsafe {
-    diag_report_with_code(0 as *u8, 0, 0, &kind[0], 0 as *u8, msg, 0 as *u8);
-  }
-}
-
-/** Emit ELF ctx diagnostic notes: code_len / labels / patches summary,
- * first patch name, and whether a matching label was found.
- * ctx_bytes is *ElfCodegenCtx (prefix layout via RT_ELF_* CAP constants).
- * Track-L: #[no_mangle] keeps surface short name for the public entry.
- * PLATFORM: SHARED — pure table read + diag_report_with_code. */
-#[no_mangle]
-export function runtime_pipeline_elf_ctx_diag_note(ctx_bytes: *u8): void {
-  let code_len: i32 = 0;
-  let num_labels: i32 = 0;
-  let num_patches: i32 = 0;
-  let msg: u8[192] = [];
-  let name_len: i32 = 0;
-  let l: i32 = 0;
-  let p_base: i32 = 0;
-  let p_name: *u8 = 0 as *u8;
-  let lbl_base: i32 = 0;
-  let lbl_name: *u8 = 0 as *u8;
-  let lbl_nl: i32 = 0;
-  let lbl_off: i32 = 0;
-  let same: i32 = 0;
+export function rt_elf_copy_name(dst: *u8, src: *u8, n: i32): void {
+  let d: *u8 = dst;
+  let s: *u8 = src;
   let i: i32 = 0;
-  let namebuf: u8[65] = [];
-
-  if (ctx_bytes == 0 as *u8) {
-    return;
-  }
-
-  code_len = rt_elf_load_i32_le(ctx_bytes, 0);
-  num_labels = rt_elf_load_i32_le(ctx_bytes, RT_ELF_NUM_LABELS_OFF);
-  num_patches = rt_elf_load_i32_le(ctx_bytes, RT_ELF_NUM_PATCHES_OFF);
-
-  msg[0] = 0;
-  // Summary line: code_len / num_labels / num_patches.
-  rt_elf_append(&msg[0], 192, "elf ctx code_len=" as *u8);
-  rt_elf_append_i32(&msg[0], 192, code_len);
-  rt_elf_append(&msg[0], 192, " num_labels=" as *u8);
-  rt_elf_append_i32(&msg[0], 192, num_labels);
-  rt_elf_append(&msg[0], 192, " num_patches=" as *u8);
-  rt_elf_append_i32(&msg[0], 192, num_patches);
-  rt_elf_report_note(&msg[0]);
-
-  if (num_patches <= 0) {
-    return;
-  }
-
-  p_base = RT_ELF_PATCHES_OFF;
-  // name_len @ +260 within PatchEntry (rel32@0 + name[256]@4); was +68 on dead name[64] layout.
-  name_len = rt_elf_load_i32_le(ctx_bytes, p_base + RT_ELF_PAT_OFF_NAME_LEN);
-  if (name_len > 64) {
-    name_len = 64;
-  }
-  if (name_len < 0) {
-    name_len = 0;
-  }
-  p_name = rt_elf_name_at(ctx_bytes, p_base, 4);
-  i = 0;
-  while (i < name_len) {
-    if (p_name != 0 as *u8) {
-      namebuf[i] = p_name[i as usize];
+  while (i < n) {
+    let k: i32 = i;
+    if (s != 0 as *u8) {
+      d[k] = s[k];
     } else {
-      namebuf[i] = 0;
+      d[k] = 0;
     }
     i = i + 1;
   }
-  namebuf[name_len] = 0;
-
-  msg[0] = 0;
-  rt_elf_append(&msg[0], 192, "elf first patch name_len=" as *u8);
-  rt_elf_append_i32(&msg[0], 192, name_len);
-  rt_elf_append(&msg[0], 192, " name='" as *u8);
-  rt_elf_append(&msg[0], 192, &namebuf[0]);
-  rt_elf_append(&msg[0], 192, "'" as *u8);
-  rt_elf_report_note(&msg[0]);
-
-  // Linear search labels for the first patch name; note match index/offset.
-  l = 0;
-  while (l < num_labels) {
-    if (l >= RT_ELF_CTX_TABLE_CAP) {
-      break;
-    }
-    lbl_base = RT_ELF_LABELS_OFF + l * RT_ELF_LABEL_ENTRY_SIZE;
-    // name_len @ +256, offset @ +260 (name[256] layout); was +64/+68 on dead name[64].
-    lbl_nl = rt_elf_load_i32_le(ctx_bytes, lbl_base + RT_ELF_LAB_OFF_NAME_LEN);
-    same = 0;
-    if (lbl_nl == name_len) {
-      same = 1;
-    }
-    if (same != 0) {
-      if (name_len > 0) {
-        lbl_name = rt_elf_name_at(ctx_bytes, lbl_base, 0);
-        same = rt_elf_names_eq(lbl_name, p_name, name_len);
-      }
-    }
-    if (same != 0) {
-      lbl_off = rt_elf_load_i32_le(ctx_bytes, lbl_base + RT_ELF_LAB_OFF_OFFSET);
-      msg[0] = 0;
-      rt_elf_append(&msg[0], 192, "elf label match at idx=" as *u8);
-      rt_elf_append_i32(&msg[0], 192, l);
-      rt_elf_append(&msg[0], 192, " offset=" as *u8);
-      rt_elf_append_i32(&msg[0], 192, lbl_off);
-      rt_elf_report_note(&msg[0]);
-      return;
-    }
-    l = l + 1;
-  }
-
-  msg[0] = 0;
-  rt_elf_append(&msg[0], 192, "elf no label match for first patch" as *u8);
-  rt_elf_report_note(&msg[0]);
+  let ke: i32 = n;
+  d[ke] = 0;
 }
+
