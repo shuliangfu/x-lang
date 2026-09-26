@@ -1,5 +1,7 @@
 /* seeds/runtime_slice_glue.from_x.c — G-02f-22 product TU
- * Logic still C until full .x port.
+ * w1100: Darwin arm64 product body is src/asm/runtime_slice_glue.x
+ * (pure asm). Linux, Windows, and the pure-asm-fault backup stay this seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x.
  */
 /* compiler/src/asm/runtime_slice_glue.c — slice 构造薄封装（语言限制 C 桩）
  *

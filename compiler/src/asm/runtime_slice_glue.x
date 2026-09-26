@@ -1,9 +1,13 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
+// runtime_slice_glue.x — 16-byte slice values for core.slice.
+//
+// Darwin arm64 product body for ../core/slice/slice.o. Each returned
+// value is { data, length }. A start past the end keeps the original
+// pointer and length 0. A request that runs past the end is cut to the
+// bytes or elements that remain. Linux and Windows keep the C seed.
+// PLATFORM: SHARED layout; MACOS|DARWIN arm64 prefers this .x.
 
 /* See implementation. */
 export struct XlangSliceI32 {
@@ -69,6 +73,23 @@ export function core_slice_u64_from_ptr_c(data: *u64, len: usize): XlangSliceU64
   return s;
 }
 
+/** How many elements of a subslice fit in [start, total).
+ * A start at or past total returns 0. A len past the end is cut
+ * to total - start. The caller still owns the pointer adjustment.
+ * @param total_len element count of the source
+ * @param start first element to keep
+ * @param len requested count
+ * @return the clamped count
+ * PLATFORM: SHARED
+ */
+function slice_glue_clamp_len(total_len: usize, start: usize, len: usize): usize {
+  let avail: usize = 0;
+  if (start >= total_len) { return 0; }
+  avail = total_len - start;
+  if (len > avail) { return avail; }
+  return len;
+}
+
 /** Exported function `core_subslice_i32_c`.
  * Implements `core_subslice_i32_c`.
  * @param data *i32
@@ -79,16 +100,11 @@ export function core_slice_u64_from_ptr_c(data: *u64, len: usize): XlangSliceU64
  */
 #[no_mangle]
 export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): XlangSliceI32 {
-  if (start >= total_len) {
-    let s: XlangSliceI32 = { data: data, length: 0 };
-    return s;
-  }
-  let avail: usize = total_len - start;
-  let actual_len: usize = len;
-  if (len > avail) {
-    actual_len = avail;
-  }
-  let s: XlangSliceI32 = { data: data + start, length: actual_len };
+  // Clamp in a usize function. Two slice literals in this function drop the call.
+  let n: usize = slice_glue_clamp_len(total_len, start, len);
+  let off: usize = start;
+  if (start >= total_len) { off = 0; }
+  let s: XlangSliceI32 = { data: data + off, length: n };
   return s;
 }
 
@@ -102,16 +118,11 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
  */
 #[no_mangle]
 export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): XlangSliceU8 {
-  if (start >= total_len) {
-    let s: XlangSliceU8 = { data: data, length: 0 };
-    return s;
-  }
-  let avail: usize = total_len - start;
-  let actual_len: usize = len;
-  if (len > avail) {
-    actual_len = avail;
-  }
-  let s: XlangSliceU8 = { data: data + start, length: actual_len };
+  // Same split as the i32 subslice. Pointer add scales by one byte.
+  let n: usize = slice_glue_clamp_len(total_len, start, len);
+  let off: usize = start;
+  if (start >= total_len) { off = 0; }
+  let s: XlangSliceU8 = { data: data + off, length: n };
   return s;
 }
 
@@ -125,15 +136,10 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
  */
 #[no_mangle]
 export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): XlangSliceU64 {
-  if (start >= total_len) {
-    let s: XlangSliceU64 = { data: data, length: 0 };
-    return s;
-  }
-  let avail: usize = total_len - start;
-  let actual_len: usize = len;
-  if (len > avail) {
-    actual_len = avail;
-  }
-  let s: XlangSliceU64 = { data: data + start, length: actual_len };
+  // Same split as the i32 subslice. Pointer add scales by eight bytes.
+  let n: usize = slice_glue_clamp_len(total_len, start, len);
+  let off: usize = start;
+  if (start >= total_len) { off = 0; }
+  let s: XlangSliceU64 = { data: data + off, length: n };
   return s;
 }

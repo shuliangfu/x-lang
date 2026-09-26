@@ -718,6 +718,68 @@ ensure_path_fast_darwin_pure() {
   return 0
 }
 
+# w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
+# from_ptr and subslice return a 16-byte { data, length }.
+# A start past the end keeps the original pointer and length 0.
+# Linux and Windows keep the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default ../core/slice/slice.o, cwd is compiler/).
+ensure_slice_glue_darwin_pure() {
+  local o="${1:-../core/slice/slice.o}"
+  local xsrc="src/asm/runtime_slice_glue.x"
+  local seed="seeds/runtime_slice_glue.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o slice-glue: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _sl_short _sl_ok
+      _sl_ok=1
+      for _sl_short in \
+        _core_slice_i32_from_ptr_c \
+        _core_slice_u8_from_ptr_c \
+        _core_slice_u64_from_ptr_c \
+        _core_subslice_i32_c \
+        _core_subslice_u8_c \
+        _core_subslice_u64_c \
+        _slice_glue_clamp_len \
+        _runtime_slice_glue_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_sl_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _sl_ok=0
+          break
+        fi
+      done
+      if [ "$_sl_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o slice-glue: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o slice-glue: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1099: Darwin arm64 std/runtime/runtime.o is the .x wrappers.
 # They forward to xlang_panic_ and xlang_crash_evidence_collect_c.
 # Linux and Windows keep the C seed. No gcc -E.
@@ -2172,6 +2234,20 @@ ensure_one() {
     if [ "$sr_s" = "Darwin" ] && [ "$sr_m" = "arm64" ] \
       && [ -f src/asm/runtime_std_runtime_fast.x ]; then
       ensure_std_runtime_fast_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1100: Darwin arm64 slice values are the .x, not this seed.
+  # Linux and Windows keep host-cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_slice_glue.from_x.c" ]; then
+    local sl_s sl_m
+    sl_s="$(uname -s 2>/dev/null || echo Unknown)"
+    sl_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$sl_s" = "Darwin" ] && [ "$sl_m" = "arm64" ] \
+      && [ -f src/asm/runtime_slice_glue.x ]; then
+      ensure_slice_glue_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -16769,6 +16845,19 @@ ensure_std_core_prefer_one() {
         sr_m="$(uname -m 2>/dev/null || echo unknown)"
         if [ "$sr_s" = "Darwin" ] && [ "$sr_m" = "arm64" ]; then
           ensure_std_runtime_fast_darwin_pure "$o" || return 1
+          return 0
+        fi
+      fi
+      # w1100: Darwin arm64 slice.o is the 16-byte slice values.
+      # xlang-c still emits C and host-cc's it, so it is not the first path.
+      # Linux and Windows keep the branches below.
+      # PLATFORM: MACOS|DARWIN arm64.
+      if [ "$x_src" = "src/asm/runtime_slice_glue.x" ]; then
+        local sl_s sl_m
+        sl_s="$(uname -s 2>/dev/null || echo Unknown)"
+        sl_m="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$sl_s" = "Darwin" ] && [ "$sl_m" = "arm64" ]; then
+          ensure_slice_glue_darwin_pure "$o" || return 1
           return 0
         fi
       fi
