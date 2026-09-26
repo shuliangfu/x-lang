@@ -13,7 +13,10 @@ export extern function ast_ast_block_num_regions(arena: *u8, block_ref: i32): i3
 export extern function pipeline_block_region_body_ref(arena: *u8, block_ref: i32, ri: i32): i32;
 export extern function pipeline_block_num_labeled_stmts(arena: *u8, block_ref: i32): i32;
 export extern function pipeline_block_labeled_return_expr_ref(arena: *u8, block_ref: i32, li: i32): i32;
+export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
+export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
@@ -56,7 +59,7 @@ function w499t_name_eq(a: *u8, b: *u8, n: i32): i32 {
 }
 
 /**
- * True when expr is CALL whose args are formals of func i in order.
+ * True when expr is CALL (or RETURN of CALL) whose args are formals in order.
  * @return i32 — 1 match, 0 no
  * PLATFORM: SHARED — w1048 detect helper.
  */
@@ -71,11 +74,21 @@ function w499t_is_fwd_call(a: *u8, m: *u8, fi: i32, er: i32): i32 {
     let arg_ref: i32 = 0;
     let vlen: i32 = 0;
     let plen: i32 = 0;
+    let op: i32 = 0;
     let vname: u8[32] = [];
     let pname: u8[32] = [];
     if (er <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
     ko = w499t_c32(&cell[0]);
+    /* EXPR_RETURN = 41 — peel to operand (labeled/expr_stmt may wrap). */
+    if (ko == 41) {
+      pipe_store_i32_le(&cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
+      op = w499t_c32(&cell[0]);
+      if (op <= 0) { return 0; }
+      er = op;
+      pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
+      ko = w499t_c32(&cell[0]);
+    }
     /* EXPR_CALL = 48 */
     if (ko != 48) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_call_callee_ref_at(a, er));
@@ -115,8 +128,8 @@ function w499t_is_fwd_call(a: *u8, m: *u8, fi: i32, er: i32): i32 {
 }
 
 /**
- * First labeled return expr that is a param-forwarder CALL in block br.
- * @return i32 — expr ref or 0
+ * First forwarder CALL among labeled returns and expr_stmt RETURNs in block br.
+ * @return i32 — CALL expr ref (not RETURN wrapper) or 0
  * PLATFORM: SHARED — w1048 detect helper.
  */
 function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
@@ -125,6 +138,10 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
     let nlab: i32 = 0;
     let j: i32 = 0;
     let er: i32 = 0;
+    let nstmt: i32 = 0;
+    let ei: i32 = 0;
+    let ko: i32 = 0;
+    let op: i32 = 0;
     if (br <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_block_num_labeled_stmts(a, br));
     nlab = w499t_c32(&cell[0]);
@@ -133,8 +150,34 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
       pipe_store_i32_le(&cell[0], 0, pipeline_block_labeled_return_expr_ref(a, br, j));
       er = w499t_c32(&cell[0]);
       pipe_store_i32_le(&cell[0], 0, w499t_is_fwd_call(a, m, fi, er));
-      if (w499t_c32(&cell[0]) != 0) { return er; }
+      if (w499t_c32(&cell[0]) != 0) {
+        /* Normalize to CALL node if RETURN-wrapped. */
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
+        if (w499t_c32(&cell[0]) == 41) {
+          pipe_store_i32_le(&cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
+          return w499t_c32(&cell[0]);
+        }
+        return er;
+      }
       j = j + 1;
+    }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_expr_stmts(a, br));
+    nstmt = w499t_c32(&cell[0]);
+    ei = 0;
+    while (ei < nstmt) {
+      pipe_store_i32_le(&cell[0], 0, ast_pipeline_block_expr_stmt_ref(a, br, ei));
+      er = w499t_c32(&cell[0]);
+      pipe_store_i32_le(&cell[0], 0, w499t_is_fwd_call(a, m, fi, er));
+      if (w499t_c32(&cell[0]) != 0) {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(a, er));
+        ko = w499t_c32(&cell[0]);
+        if (ko == 41) {
+          pipe_store_i32_le(&cell[0], 0, pipeline_expr_unary_operand_ref_at(a, er));
+          return w499t_c32(&cell[0]);
+        }
+        return er;
+      }
+      ei = ei + 1;
     }
     return 0;
   }
