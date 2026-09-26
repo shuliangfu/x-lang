@@ -2484,6 +2484,19 @@ ensure_pipeline_bootstrap_orchestration_strict_obj() {
 ensure_pipeline_run_bootstrap_trampoline_obj() {
   local TRAMP_O TRAMP_CFLAGS
   TRAMP_O="$BUILD_DIR/pipeline_run_bootstrap_trampoline.o"
+  # w1129: Darwin arm64 trampoline is pure asm of the .x.
+  # Does not match pipeline_run_impl_alias.o.
+  # Linux and Windows stay on host cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _tr_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _tr_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_tr_os" = "Darwin" ] && [ "$_tr_mach" = "arm64" ] \
+    && [ -f src/pipeline_run_bootstrap_trampoline.x ]; then
+    if [ ! -f "$TRAMP_O" ] || [ src/pipeline_run_bootstrap_trampoline.x -nt "$TRAMP_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh trampoline-pure "$TRAMP_O"
+    fi
+    return 0
+  fi
   TRAMP_CFLAGS="$CFLAGS"
   if [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ]; then
   TRAMP_CFLAGS="$CFLAGS -DSTRICT_LINK_BUILD_ASM_PIPELINE=1"

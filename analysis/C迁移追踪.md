@@ -630,6 +630,7 @@
 - 2026-09-27 Darwin arm64 `typeck_lsp_io_stub.o` 的产品体是已有的 `src/typeck_lsp_io_stub.x`，纯 asm。读消息返回 -1，分配返回空，空指针判断空为 1。Linux 构建仍走 `-x -E` 再交给 host cc。strict 链仍编 `seeds/typeck_lsp_io_stub.from_x.c`。纯 asm 失败且对象缺失时退回 `-x -E`。
 - 2026-09-27 Darwin arm64 `build_tool_main.o` 的产品体是已有的 `src/build_tool_main.x`，纯 asm。`main` 把 argc 和 argv 原样转给 `entry`。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
 - 2026-09-27 Darwin arm64 `pipeline_run_impl_alias.o` 的产品体是 `src/pipeline_run_impl_alias.x`，纯 asm。六个参数原样转发，8 字节解析结果 ok 为 7、main_idx 为 9，`parse_into_init` 交换两个指针。Linux 与 Windows 仍编 `seeds/pipeline_run_impl_alias.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
+- 2026-09-27 Darwin arm64 `pipeline_run_bootstrap_trampoline.o` 的产品体是 `src/pipeline_run_bootstrap_trampoline.x`，纯 asm。`pipeline_run_x_pipeline_impl` 把六个参数原样转给 `pipeline_impl_run_all`。Linux 与 Windows 仍编 `seeds/pipeline_run_bootstrap_trampoline.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

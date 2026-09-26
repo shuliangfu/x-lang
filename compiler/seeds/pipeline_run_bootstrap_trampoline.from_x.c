@@ -1,6 +1,8 @@
 /* seeds/pipeline_run_bootstrap_trampoline.from_x.c — G-02f-79 product cold-start TU
  * Promoted from compiler/src/asm/pipeline_run_bootstrap_trampoline.inc (alias/stub; retired .inc).
  * Compile: cc -c seeds/pipeline_run_bootstrap_trampoline.from_x.c  (or cc_inc_tu wrap).
+ * Darwin arm64 product body is src/pipeline_run_bootstrap_trampoline.x via -backend asm.
+ * Linux and Windows keep host cc of this seed.
  */
 /**
  * pipeline_run_bootstrap_trampoline.c — B-strict 链 runtime 入口薄壳
