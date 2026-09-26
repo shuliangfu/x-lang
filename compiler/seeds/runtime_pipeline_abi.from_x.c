@@ -17225,8 +17225,13 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
   if (ko == 3 && ctx) {
     off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
     if (off >= 0) {
-      /* TYPE_ARRAY == 10: 8B payload load_var; >8B local lea dest (E*).
-       * Formal T[N] >8B load the pointer home. TYPE_SLICE == 11:
+      /* TYPE_ARRAY == 10.
+       * PLATFORM: MACOS|DARWIN — any positive nbytes leas the local home
+       * unless the formal is an indirect slot. nbytes<=8 used to load the
+       * payload, so some_ptr_u8(buf) of u8[4]={1,2,3,4} passed 0x04030201.
+       * PLATFORM: WINDOWS|LINUX x86 leftover-PE — nbytes<=8 still loads
+       * the payload so SAT INDEX can lea that home. Formal T[N] >8B loads
+       * the pointer home on every host. TYPE_SLICE == 11:
        * formals are 1 GP fat* — leftover rest enc_local leas the
        * local dual-GP home (needs_ptr_load=0) or loads a TYPE_SLICE
        * formal E* (needs_ptr_load tk==11). load_var dual-GP left
@@ -17243,7 +17248,13 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
       if (tk == 10) {
         nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
         mod = glue_emit_module_from_ctx(ctx);
+#if defined(__APPLE__)
+        /* PLATFORM: MACOS|DARWIN — address of any positive-size local T[N]. */
+        if (nbytes > 0) {
+#else
+        /* PLATFORM: WINDOWS|LINUX x86 — ≤8B payload stays in the home. */
         if (nbytes > 8) {
+#endif
           if (mod && glue_emit_func_param_is_indirect_array_slot_c(arena, mod, expr_ref) != 0)
             return backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
           return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
