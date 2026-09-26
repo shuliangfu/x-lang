@@ -1388,6 +1388,71 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1111: Darwin arm64 src/lexer/lexer.o allocates a 536-byte lexer.
+# Linux and Windows keep the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_lexer_glue_darwin_pure() {
+  local o="${1:-src/lexer/lexer.o}"
+  local xsrc="src/asm/runtime_lexer_glue_darwin.x"
+  local csrc="seeds/runtime_lexer_glue.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o lexer-glue: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _lx_short _lx_ok
+      _lx_ok=1
+      for _lx_short in \
+        _lexer_new \
+        _lexer_free \
+        _lexer_glue_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_lx_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _lx_ok=0
+          break
+        fi
+      done
+      if [ "$_lx_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o lexer-glue: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_malloc" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o lexer-glue: malloc is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_strlen" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o lexer-glue: strlen is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o lexer-glue: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $csrc → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -I. -Iinclude -Isrc -c "$csrc" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1110: Darwin arm64 std/compress/compress.o forwards to the submodule symbols.
 # The 24-byte stream record arrives as a pointer. The brotli-lib extern is
 # renamed after asm emit. Linux and Windows keep the C face.
@@ -3303,6 +3368,21 @@ ensure_one() {
     if [ "$nw_s" = "Darwin" ] && [ "$nw_m" = "arm64" ] \
       && [ -f src/asm/runtime_net_workers_darwin.x ]; then
       ensure_net_workers_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1111: Darwin arm64 src/lexer/lexer.o is the .x.
+  # Match this seed only. Linux and Windows keep the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$seed")" = "runtime_lexer_glue.from_x.c" ] \
+    || [ "$out" = "src/lexer/lexer.o" ]; then
+    local lx_s lx_m
+    lx_s="$(uname -s 2>/dev/null || echo Unknown)"
+    lx_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$lx_s" = "Darwin" ] && [ "$lx_m" = "arm64" ] \
+      && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+      ensure_lexer_glue_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -20956,6 +21036,21 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lexer-glue-pure|lexer_glue_pure)
+    # w1111: Darwin arm64 lexer create/free from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # Match src/lexer/lexer.o only.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lexer-glue-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_lexer_glue_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   compress-formal-pure|compress_formal_pure)
     # w1110: Darwin arm64 std/compress facade from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
