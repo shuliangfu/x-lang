@@ -1,6 +1,10 @@
 /* seeds/runtime_tls_mbedtls_bio.from_x.c — G-02f-21 product TU
  * G-02f-105 helper gates.
- * Logic still C until full .x port.
+ * Darwin arm64 product body is src/asm/runtime_tls_mbedtls_bio.x
+ * plus src/asm/runtime_tls_mbedtls_bio_darwin.x (pure asm, then ld -r).
+ * Send and recv there call libSystem. The bind takes the callbacks
+ * with dlsym. Linux, Windows, and the pure-asm-fault backup stay
+ * this C seed.
  */
 /**
  * tls_mbedtls_bio.c — F-04 v9：mbedTLS BIO 胶层
