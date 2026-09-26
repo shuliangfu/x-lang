@@ -16,6 +16,9 @@
 // Why thin+rest (not DIRECT): the UDP batch functions need platform-specific
 // syscall calls (recvmmsg/sendmmsg) that cannot be expressed in .x. The _impl
 // bridge keeps the Linux-only code in C while exposing the public API from .x.
+// Darwin arm64 bodies for the two _impl bridges live in
+// runtime_net_io_batch_fast_darwin.x and return -1. Linux and Windows keep
+// the C seed. The three io_* defaults stay weak so std.io can override them.
 //
 // PLATFORM: SHARED net
 // Build: thin+rest ld -r (see Makefile net.o rule).

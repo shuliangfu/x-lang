@@ -16383,6 +16383,111 @@ ensure_net_ipv6_fast_darwin_pure() {
   return 0
 }
 
+# w1098: Darwin arm64 net_io_batch_fast.o is the shared wrappers plus
+# the two UDP bridges that return -1. The io_* defaults are weakened
+# so std.io's strong symbols win. Linux and Windows keep the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+ensure_net_io_batch_fast_darwin_pure() {
+  local o="${1:-../std/net/net_io_batch_fast.o}"
+  local x_thin="src/asm/runtime_net_io_batch_fast.x"
+  local x_os="src/asm/runtime_net_io_batch_fast_darwin.x"
+  local seed="seeds/runtime_net_io_batch_fast.from_x.c"
+  local try=0
+  local thin_o os_o oc
+  if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
+    echo "ensure_host_cc_seed_o net_io_batch: missing $x_thin or $x_os" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_thin" -nt "$o" ] && [ ! "$x_os" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x_thin and $x_os)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/netio_thin.XXXXXX.o")"
+  os_o="$(mktemp "${TMPDIR:-/tmp}/netio_os.XXXXXX.o")"
+  rm -f "$thin_o" "$os_o" "$o"
+  oc="$(pure_asm_find_objcopy)" || return 1
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    if [ ! -s "$thin_o" ]; then
+      rm -f "$thin_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$thin_o" "$x_thin"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o net_io_batch: thin pure-asm try $try failed" >&2
+        rm -f "$thin_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ ! -s "$os_o" ]; then
+      rm -f "$os_o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        pure_asm_x_to_o "$os_o" "$x_os"
+      ); then
+        :
+      else
+        echo "ensure_host_cc_seed_o net_io_batch: os pure-asm try $try failed" >&2
+        rm -f "$os_o"
+      fi
+    fi
+    if [ -s "$thin_o" ] && [ -s "$os_o" ]; then
+      "$oc" --weaken-symbol=_io_read_batch \
+        --weaken-symbol=_io_write_batch \
+        --weaken-symbol=_io_read_batch_provided \
+        "$thin_o" || true
+      if /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
+        local _ni_short _ni_ok
+        _ni_ok=1
+        for _ni_short in \
+          _io_read_batch \
+          _io_write_batch \
+          _io_read_batch_provided \
+          _net_stream_read_batch_c \
+          _net_stream_write_batch_c \
+          _net_stream_read_batch_provided_c \
+          _net_udp_recv_many_buf_c \
+          _net_udp_send_many_buf_c \
+          _net_udp_recv_many_buf_impl_c \
+          _net_udp_send_many_buf_impl_c \
+          _runtime_net_io_batch_fast_x_doc_anchor; do
+          if ! nm "$o" 2>/dev/null | awk -v s="$_ni_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+            _ni_ok=0
+            break
+          fi
+        done
+        if [ "$_ni_ok" = "1" ]; then
+          for _ni_short in _io_read_batch _io_write_batch _io_read_batch_provided; do
+            if ! nm -m "$o" 2>/dev/null | awk -v s="$_ni_short" '$NF==s && /weak/ { n++ } END { exit (n==1)?0:1 }'; then
+              _ni_ok=0
+              break
+            fi
+          done
+        fi
+        if [ "$_ni_ok" != "1" ]; then
+          echo "ensure_host_cc_seed_o net_io_batch: required text symbols missing" >&2
+          rm -f "$o" "$thin_o"
+          continue
+        fi
+        rm -f "$thin_o" "$os_o"
+        log "pure-asm $x_thin + $x_os → $o"
+        return 0
+      fi
+    fi
+    rm -f "$o"
+  done
+  rm -f "$thin_o" "$os_o"
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 _std_core_net_fast_one() {
   local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
@@ -16423,6 +16528,19 @@ _std_core_net_fast_one() {
     if [ "$nv_s" = "Darwin" ] && [ "$nv_m" = "arm64" ] \
       && [ -f src/asm/runtime_net_ipv6_fast_darwin.x ]; then
       ensure_net_ipv6_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
+  fi
+  # w1098: Darwin arm64 builds net_io_batch_fast.o from the two .x files.
+  # Linux and Windows keep the thin+rest path below.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$fast_o")" = "net_io_batch_fast.o" ]; then
+    local ni_s ni_m
+    ni_s="$(uname -s 2>/dev/null || echo Unknown)"
+    ni_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$ni_s" = "Darwin" ] && [ "$ni_m" = "arm64" ] \
+      && [ -f src/asm/runtime_net_io_batch_fast_darwin.x ]; then
+      ensure_net_io_batch_fast_darwin_pure "$fast_o" || return 1
       return 0
     fi
   fi
@@ -16511,9 +16629,13 @@ ensure_std_core_prefer_one() {
         seeds/runtime_net_sock_fast.from_x.c \
         src/asm/runtime_net_dns_fast.x \
         src/asm/runtime_net_io_batch_fast.x \
+        src/asm/runtime_net_io_batch_fast_darwin.x \
         src/asm/runtime_net_addr_fast.x \
+        src/asm/runtime_net_addr_fast_darwin.x \
         src/asm/runtime_net_ipv6_fast.x \
-        src/asm/runtime_net_sock_fast.x
+        src/asm/runtime_net_ipv6_fast_darwin.x \
+        src/asm/runtime_net_sock_fast.x \
+        src/asm/runtime_net_sock_fast_darwin.x
       do
         if [ -f "$_net_dep" ] && [ "$_net_dep" -nt "$o" ]; then
           stale=1
