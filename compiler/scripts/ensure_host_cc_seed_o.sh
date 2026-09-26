@@ -2621,30 +2621,24 @@ ensure_enc_dispatch_pure() {
   return 0
 }
 
-# w1046 PLATFORM: WINDOWS — tip thin leaf bodies + host jmp forwarders +
-# THIN_FROM_X rest. Full tip thin (incl. tip-compiled `return _impl(...)`
-# forwarders) still breaks option CG002 / si SEGV: tip Win64 fat forwarders
-# are wrong vs host 5-byte `jmp _impl`. Bisect: tip leaves alone green;
-# tip forwarders alone red. Keep tip-authored leaves (reg_max cfg, cleanup,
-# append_export, string_lit_len, is_f32, c_prefix); redefine tip forwarder
-# symbols so host tramp jmp stubs first-wins fill. XLANG_WIN_TIP_CALL_DISPATCH=0
-# forces host-only thin. Ban bak 175735.
+# w1047 PLATFORM: WINDOWS — full tip thin + THIN_FROM_X rest.
+# w1046 kept host jmp forwarders because tip fat `return _impl` overlapped
+# outgoing stack args with param homes (call_spill==0). w1047 compute_frame
+# reserves shadow+stack-arg room → full tip thin L2 green. Trampoline is
+# fallback when tip-compile fails. XLANG_WIN_TIP_CALL_DISPATCH=0 forces host.
+# Ban bak 175735.
 ensure_win_call_dispatch_host_thin() {
   local o="src/asm/backend_call_dispatch.o"
   local thin_x="src/asm/backend_call_dispatch_thin.x"
   local tramp="seeds/backend_call_dispatch_win_thin_trampolines.c"
   local seed="seeds/backend_call_dispatch.from_x.c"
-  local thin_o rest_o merged tramp_o tip_raw
+  local thin_o rest_o merged
   local stale=0
   local ld_flags
   local xlang_bin="./xlang"
   local tip_ok=0
-  # w1046: default tip leaves on (product). =0 → host tramp only.
+  # w1047: default full tip thin on. =0 → host tramp only.
   local want_tip="${XLANG_WIN_TIP_CALL_DISPATCH:-1}"
-  # Tip-authored leaf bodies in thin.x (not `return *_impl` forwarders).
-  local tip_leaf_syms="glue_asm_call_reg_max glue_asm_call_stack_cleanup_bytes glue_asm_append_export_c_suffix glue_asm_string_lit_len glue_call_param_is_f32_c glue_asm_c_prefix_redundant_with_name"
-  local sym redefine_args="" tip_syms
-  local is_leaf
 
   if [ ! -f "$seed" ]; then
     echo "ensure: win call_dispatch missing $seed" >&2
@@ -2658,7 +2652,7 @@ ensure_win_call_dispatch_host_thin() {
       stale=1
     fi
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (win tip-leaf/host-fwd thin w1046)"
+      log "skip up-to-date $o (win tip/host thin w1047)"
       return 0
     fi
   fi
@@ -2667,67 +2661,28 @@ ensure_win_call_dispatch_host_thin() {
   thin_o="${o%.o}_win_thin.o"
   rest_o="${o%.o}_win_rest.o"
   merged="${o%.o}_win_merged.o"
-  tramp_o="${o%.o}_win_tramp.o"
-  tip_raw="${o%.o}_win_tip_raw.o"
   ld_flags="$(r3_prefer_ld_r_flags)"
 
   if [ "$want_tip" = "1" ] && [ -x "$xlang_bin" ] && [ -f "$thin_x" ]; then
-    if "$xlang_bin" -backend asm -c -o "$tip_raw" "$thin_x" 2>/dev/null; then
+    if "$xlang_bin" -backend asm -c -o "$thin_o" "$thin_x" 2>/dev/null; then
       tip_ok=1
     else
-      rm -f "$tip_raw"
+      rm -f "$thin_o"
       tip_ok=0
     fi
   fi
-  if [ ! -f "$tramp" ]; then
-    echo "ensure: win call_dispatch missing $tramp" >&2
-    return 1
-  fi
-  # shellcheck disable=SC2086
-  if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
-    -c "$tramp" -o "$tramp_o"; then
-    echo "ensure: win call_dispatch trampoline cc failed" >&2
-    rm -f "$thin_o" "$rest_o" "$merged" "$tramp_o" "$tip_raw"
-    return 1
-  fi
-  if [ "$tip_ok" = "1" ]; then
-    # Keep tip leaf bodies; rename tip forwarders so tramp jmp stubs win.
-    # PLATFORM: WINDOWS — avoid awk (MinGW awk breaks on some nm lines);
-    # enumerate tip T symbols with sed and skip the six tip-authored leaves.
-    tip_syms="$(nm -g --defined-only "$tip_raw" 2>/dev/null | sed -n 's/^.* T //p' | grep -v '^\.text$' || true)"
-    redefine_args=""
-    for sym in $tip_syms; do
-      is_leaf=0
-      case " $tip_leaf_syms " in
-        *" $sym "*) is_leaf=1 ;;
-      esac
-      if [ "$is_leaf" = "0" ] && [ -n "$sym" ]; then
-        redefine_args="$redefine_args --redefine-sym=${sym}=tip_fwd_unused_${sym}"
-      fi
-    done
-    if [ -z "$redefine_args" ]; then
-      echo "ensure: win tip leaf redefine list empty (nm/sed failed)" >&2
-      rm -f "$thin_o" "$rest_o" "$merged" "$tramp_o" "$tip_raw"
+  if [ "$tip_ok" != "1" ]; then
+    if [ ! -f "$tramp" ]; then
+      echo "ensure: win call_dispatch missing $tramp" >&2
       return 1
     fi
     # shellcheck disable=SC2086
-    if ! objcopy $redefine_args "$tip_raw" "$thin_o" 2>/dev/null; then
-      echo "ensure: win tip leaf objcopy redefine failed" >&2
-      rm -f "$thin_o" "$rest_o" "$merged" "$tramp_o" "$tip_raw"
+    if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
+      -c "$tramp" -o "$thin_o"; then
+      echo "ensure: win call_dispatch trampoline cc failed" >&2
+      rm -f "$thin_o" "$rest_o" "$merged"
       return 1
     fi
-    # tip leaves first, tramp fills forwarders (PE first-wins + allow-multiple).
-    # shellcheck disable=SC2086
-    if ! ld $ld_flags -o "${thin_o}.merge" "$thin_o" "$tramp_o"; then
-      echo "ensure: win tip+tramp ld -r failed" >&2
-      rm -f "$thin_o" "$rest_o" "$merged" "$tramp_o" "$tip_raw" "${thin_o}.merge"
-      return 1
-    fi
-    mv -f "${thin_o}.merge" "$thin_o"
-    rm -f "$tip_raw" "$tramp_o"
-  else
-    mv -f "$tramp_o" "$thin_o"
-    tip_ok=0
   fi
   # shellcheck disable=SC2086
   if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
@@ -2751,9 +2706,9 @@ ensure_win_call_dispatch_host_thin() {
   mv -f "$merged" "$o"
   rm -f "$thin_o" "$rest_o"
   if [ "$tip_ok" = "1" ]; then
-    log "prefer win tip-leaf+host-fwd thin+rest $o <- $thin_x leaves + $tramp fwd + $seed (w1046)"
+    log "prefer win tip thin+rest $o <- $thin_x + $seed (w1047 full tip)"
   else
-    log "prefer win host-cc thin+rest $o <- $tramp + $seed (w1046 fallback)"
+    log "prefer win host-cc thin+rest $o <- $tramp + $seed (w1047 fallback)"
   fi
   return 0
 }
@@ -2783,8 +2738,8 @@ ensure_r3_prefer_one() {
     ensure_enc_dispatch_pure || return 1
     return 0
   fi
-  # w1046 PLATFORM: WINDOWS — tip leaf bodies + host jmp forwarders
-  # (ensure_win_call_dispatch_host_thin). POSIX keeps full→thin tip ladder.
+  # w1047 PLATFORM: WINDOWS — full tip thin (frame reserves outgoing stack
+  # args; w1046 leaf+host-fwd retired). POSIX keeps full→thin tip ladder.
   if [ "$o" = "src/asm/backend_call_dispatch.o" ]; then
     case "$(uname -s 2>/dev/null || echo Unknown)" in
       MINGW*|MSYS*|CYGWIN*|Windows_NT*)

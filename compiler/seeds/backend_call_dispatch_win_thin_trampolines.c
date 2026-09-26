@@ -1,10 +1,8 @@
 /* PLATFORM: WINDOWS — host-cc thin trampolines for backend_call_dispatch.
  * Logic source: src/asm/backend_call_dispatch_thin.x (same forwarders).
- * Product (default): this .c + seeds/backend_call_dispatch.from_x.c
- *   (-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X) → ld -r backend_call_dispatch.o
- * w1044: Linux/Darwin tip thin green ($0x30 + f32 VAR-home elide; skip
- * TYPE_ARRAY/SLICE). Win64 tip thin still CG002 — keep host tramp product;
- * tip probe via XLANG_WIN_TIP_CALL_DISPATCH=1. Keep in sync with thin.x.
+ * Product default (w1047): tip-compile thin.x + FROM_X rest. This .c is
+ * fallback when tip-compile fails (XLANG_WIN_TIP_CALL_DISPATCH=0 forces it).
+ * Keep in sync with thin.x.
  */
 #include <stdint.h>
 #include <stddef.h>

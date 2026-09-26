@@ -135,13 +135,35 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, in
     return size + 64;
   }
   /*
+   * w1047 PLATFORM: SHARED x86_64 — outgoing stack args at [rsp+0x20..]
+   * alias param homes at [rbp-0x10..] when the frame is only next_off-sized.
+   * Pure `return f(params)` forwarders have call_spill==0 (every arg is
+   * EXPR_VAR → w157 adds 0). With 7+ formals tip stores outgoing arg5..
+   * over homes → glue_emit_one_call_arg_elf_c / emit_call_with_cleanup fat
+   * forwarders smash (option CG002 / si SEGV). Reserve shadow(32) +
+   * 8*(num_params-4) below homes. Arm64 keeps AAPCS stack shape elsewhere.
+   */
+  if (is_arm == 0 && call_spill == 0 && num_params > 4) {
+    int32_t n_stack = num_params - 4;
+    int32_t out_need = 32 + n_stack * 8;
+    int32_t min_sz = next_off + out_need;
+    int32_t rem2 = min_sz % 16;
+    if (rem2 != 0) {
+      min_sz = min_sz + (16 - rem2);
+    }
+    if (size < min_sz) {
+      size = min_sz;
+    }
+  }
+  /*
    * w1043: param-home-only forwarders land at next_off==56 (16+5*8) then
    * 16-align to 64; with push rbx that becomes sub $0x48. Cap at 48 so
    * the lean prologue (no rbx, pad ≡0) emits sub $0x30 like host thin.
-   * Homes at rbp-16..rbp-48 still fit. PLATFORM: SHARED.
+   * Homes at rbp-16..rbp-48 still fit. w1047: only when num_params<=4 so
+   * no outgoing stack-arg stores can alias homes. PLATFORM: SHARED.
    */
   if (call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 &&
-      size > 48 && size <= 64) {
+      num_params <= 4 && size > 48 && size <= 64) {
     return 48;
   }
   return size;

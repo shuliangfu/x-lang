@@ -4,10 +4,9 @@
 // See implementation.
 // PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
-// PLATFORM: WINDOWS product (w1046): tip-compile leaf bodies below
-//   (reg_max / cleanup / append_export / string_lit_len / is_f32 / c_prefix);
-//   host trampoline keeps 5-byte jmp forwarders to *_impl. Full tip
-//   `return *_impl(...)` fat forwarders still option CG002 / si SEGV.
+// PLATFORM: WINDOWS product (w1047): full tip thin. w1046 parked host jmp
+//   forwarders because fat `return *_impl` overlapped outgoing stack args
+//   with param homes; compute_frame now reserves shadow+stack-arg room.
 //
 
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
