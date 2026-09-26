@@ -5,6 +5,10 @@
 // Regen: ./xlang-c -E → seeds/ast_asm_bare_link_alias.from_x.c → ast_asm_bare_link_alias.o
 // wave293: host wrapper ast_asm_bare_link_alias.c deleted; product cc seed only.
 
+// Darwin arm64 product body is this file, compiled with -backend asm.
+// Linux and Windows keep the generated C seed.
+// PLATFORM: MACOS|DARWIN for the pure-asm hook. The forwards themselves are SHARED.
+
 extern "C" function ast_ast_block_final_expr_ref(a: *u8, br: i32): i32;
 extern "C" function ast_ast_block_region_body_ref(a: *u8, br: i32, ri: i32): i32;
 extern "C" function ast_ast_block_const_init_ref(a: *u8, br: i32, ci: i32): i32;

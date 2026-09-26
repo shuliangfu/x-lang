@@ -292,7 +292,17 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
 # strict 链：ast.x 裸名 → pipeline_glue ast_ast_*（typeck_strict_link_partial 去重后缺 ast_block_if_*）。
 ensure_ast_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/ast_asm_bare_link_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+  # w1115: Darwin arm64 aliases are the .x. Linux and Windows stay on cc.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+    && [ -f ast_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ ast_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh ast-bare-alias-pure "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
   strict_glue_info "cc ast_asm_bare_link_alias.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -I"$BUILD_DIR" -c -o "$ALIAS_O" seeds/ast_asm_bare_link_alias.from_x.c
   fi
