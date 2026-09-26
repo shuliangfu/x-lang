@@ -1281,11 +1281,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # operand slot; do not FORCE pabi mega). set_as lives in this seed.
         # Cold: no define, full .inc.
         _pthin_p4as_extra=""
+        _pthin_p4as_pure=0
+        # w1143: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+        if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-as-suffix-pure "$_pthin_p4asb_thin_o"; then
+          _pthin_p4as_pure=1
+        fi
         if [ -n "$_pthin_p4asb_thin_o" ] && [ -f "$_pthin_p4as_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4as_x" "$_pthin_p4asb_thin_o"; then
+          if [ "$_pthin_p4as_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4as_x" "$_pthin_p4asb_thin_o"; then
             _pthin_p4asb_ok=1
             _pthin_p4as_extra="-DXLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X"
-            echo "g05_ensure: P4as/P4ad as_suffix wrap+parse ← $_pthin_p4as_x (7.2.1 Route C)"
+            if [ "$_pthin_p4as_pure" = "1" ]; then
+              echo "g05_ensure: P4 as_suffix ← pure-asm four pieces (w1143)"
+            else
+              echo "g05_ensure: P4as/P4ad as_suffix wrap+parse ← $_pthin_p4as_x (7.2.1 Route C)"
+            fi
           else
             echo "g05_ensure: P4as as_suffix .x thin failed; P4as C twin stays full" >&2
           fi

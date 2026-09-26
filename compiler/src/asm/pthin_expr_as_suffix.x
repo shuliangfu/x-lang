@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1143: one translation unit exits 139. Darwin compiles each function
+// and links the four pieces. PLATFORM: SHARED.
+
 // pthin_expr_as_suffix.x — G-02f-285 P4 parser thin as_suffix product bodies.
 //
 // 7.2.1 P4as Route C (2026-09-15): first bodies in this P-lane file.
