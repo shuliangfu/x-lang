@@ -571,6 +571,7 @@ extern int32_t backend_enc_pop_rbx_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rdx_arch(void *elf, int32_t off, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t pipe_load_i32_le(void *base, int32_t off);
 extern void pipe_store_i32_le(void *base, int32_t off, int32_t v);
 extern int32_t pipe_asm_ctx_off_next_offset(void);
@@ -704,16 +705,26 @@ int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, in
       }
     }
     /* ≤16B rvalue/return: materialize VALUE into GP regs (not lea pointer).
-     * Win64 ≤8B in RAX; 9–16B dual-GP. >16B keep lea (sret).
-     * PLATFORM: WINDOWS leftover-PE. */
+     * ta != 1: ≤8B in RAX; 9–16B RAX at home and RDX at home-8 (end polarity).
+     * ta == 1: home stays at the slot start. Low 8B load into x0 from home.
+     * High 8B load into x1 from home+8. rbx is x1, so load_rbp_to_rbx emits
+     * ldr x1, [x29, #(home+8)]. home-8 is the byte before this slot.
+     * backend_enc_load_rbp_to_rdx_arch returns -1 when ta is not 0; do not
+     * call it on ARM64 and do not turn that -1 into a successful return.
+     * >16B keeps lea (sret).
+     * PLATFORM: WINDOWS leftover-PE (ta != 1) / MACOS|ARM64 (ta == 1). */
     if (nbytes <= 8) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
     } else if (nbytes <= 16) {
       if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
-      if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, home - 8, ta) != 0)
+      if (ta == 1) {
+        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, home + 8, ta) != 0)
+          return -1;
+      } else if (backend_enc_load_rbp_to_rdx_arch(elf_ctx, home - 8, ta) != 0) {
         return -1;
+      }
     } else {
       if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0)
         return -1;
