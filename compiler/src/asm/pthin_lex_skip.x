@@ -24,6 +24,10 @@
 // stay as C trampolines in seeds/pthin_lex_skip.from_x.c (language has
 // no struct-by-value).
 //
+// w1149: one translation unit exits 139. Darwin compiles each function
+// and links the nineteen pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P1c B-minus (2026-09-13): 有则补全 this file with
 // skip_generic_angle_list_count. The walk is the into skip plus
 // top-level arg counting and IDENT capture at declaration position.
@@ -302,7 +306,11 @@ export function parser_asm_copy_slice_to_name64_at_end_buf_c(source: *u8, source
   if (source == 0 as *u8 || out == 0 as *u8 || nlen <= 0) {
     return;
   }
-  parser_asm_copy_slice_to_name64_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+  // Darwin compiles this function alone. The name64 copy is an extern,
+  // so the call sits in unsafe.
+  unsafe {
+    parser_asm_copy_slice_to_name64_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+  }
 }
 
 /**
@@ -356,7 +364,11 @@ export function parser_asm_copy_slice_to_param32_at_end_buf_c(source: *u8, sourc
   if (out == 0 as *u8) {
     return;
   }
-  parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+  // Darwin compiles this function alone. The param32 copy is an extern,
+  // so the call sits in unsafe.
+  unsafe {
+    parser_asm_copy_slice_to_param32_buf_c(source, source_len, end_pos - nlen as usize, nlen, out);
+  }
 }
 
 /**
@@ -713,9 +725,9 @@ export function parser_asm_skip_generic_angle_list_count_into_c(lex_inout: *u8, 
 
 /**
  * True when IDENT spelling at `token_start` is the six bytes `unsafe`.
- * File-local: ASI stmt-head only. Do not export (P4b buf remains the
- * primary-parse ident-spelling authority; helpers ident_is_unsafe_stmt
- * stays the by-value lexer_result wrapper).
+ * File-local spelling check for the ASI walker. Exported so that walker,
+ * compiled as its own piece, can call it. Still the only `unsafe` spelling
+ * check in this file.
  * @param data *u8 — source bytes; null is 0
  * @param length usize — source length
  * @param token_start usize — first IDENT byte
@@ -723,7 +735,11 @@ export function parser_asm_skip_generic_angle_list_count_into_c(lex_inout: *u8, 
  * @return i32 — 1 if the span is `unsafe`; 0 otherwise
  * PLATFORM: SHARED — ASI helper; not a second ident-probe table.
  */
-function parser_asm_lex_skip_ident_is_unsafe_stmt(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
+export function parser_asm_lex_skip_ident_is_unsafe_stmt(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
+  // The indexed loads spill past a 544-byte frame. This used pad keeps
+  // those stores inside the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (data == 0 as *u8 || ident_len != 6) {
     return 0;
   }
@@ -757,11 +773,12 @@ function parser_asm_lex_skip_ident_is_unsafe_stmt(data: *u8, length: usize, toke
  * True when `k` is a wave654 ASI following-stmt head (not `;`).
  * IDENT is included: expr parse already finished, so a following IDENT
  * cannot continue the prior expr.
+ * Exported so the semicolon walker, compiled as its own piece, can call it.
  * @param k i32 — lexer token kind
  * @return i32 — 1 if ASI-legal stmt head; 0 otherwise
  * PLATFORM: SHARED.
  */
-function parser_asm_lex_skip_is_asi_stmt_head_kind(k: i32): i32 {
+export function parser_asm_lex_skip_is_asi_stmt_head_kind(k: i32): i32 {
   if (k == TOKEN_LET || k == TOKEN_CONST || k == TOKEN_RETURN) {
     return 1;
   }

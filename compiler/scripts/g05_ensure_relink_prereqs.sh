@@ -1503,12 +1503,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # will be linked (otherwise skip_balanced/count/ASI/peek would UNDEF).
         # Cold: no define, full .inc. Do not add P9a as a hard gate to P19.
         _pthin_p1_extra=""
+        _pthin_p1_pure=0
+        # w1149: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o. The dependency
+        # gate stays: P9a.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ "$_pthin_p9a_ok" = "1" ] && [ -n "$_pthin_p1b_thin_o" ] && [ -f "$_pthin_p1b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_pthin_p1b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-lex-skip-pure "$_pthin_p1b_thin_o"; then
+            _pthin_p1_pure=1
+          fi
+          if [ "$_pthin_p1_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_pthin_p1b_thin_o"; then
             _pthin_p1b_ok=1
             _pthin_p1_extra="-DXLANG_PTHIN_LEX_SKIP_BODIES_FROM_X"
             if g05_obj_defines "$_pthin_p1b_thin_o" "xlang_generic_func_register_pending_type_params_x_into_c"; then
               _pthin_p1_extra="$_pthin_p1_extra -DXLANG_PTHIN_LEX_SKIP_PENDING_FROM_X"
+            fi
+            if [ "$_pthin_p1_pure" = "1" ]; then
+              echo "g05_ensure: P1 lex_skip ← pure-asm nineteen pieces (w1149)"
+            elif g05_obj_defines "$_pthin_p1b_thin_o" "xlang_generic_func_register_pending_type_params_x_into_c"; then
               echo "g05_ensure: P1b/P1c/P1d/P1e/P1f/P1g lex_skip bodies ← $_pthin_p1b_x (7.2.1 B-minus + register_pending)"
             else
               echo "g05_ensure: P1b/P1c/P1d/P1e/P1f lex_skip bodies ← $_pthin_p1b_x (P1g register_pending C twin)"
