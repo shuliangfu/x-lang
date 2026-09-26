@@ -5466,6 +5466,54 @@ ensure_rt_parse_diag_prefer() {
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
 # replace this .o.
+# w1135: path copy and the two libc open calls are separate translation units.
+# A while plus a 512-byte stack buffer in one TU exits 139.
+# $1 = merged thin object. The marker stays in the C rest.
+# PLATFORM: SHARED — Darwin CREAT/TRUNC are 512/1024 via cfg. Linux uses 64/512.
+rt_fs_open_pure_thin() {
+  local o="$1"
+  local copy_x="src/runtime/rt_fs_open.x"
+  local call_x="src/runtime/rt_fs_open_call.x"
+  local dir copy_o call_o try
+  if [ ! -f "$copy_x" ] || [ ! -f "$call_x" ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/rtfs.XXXXXX")" || return 1
+  copy_o="$dir/copy.o"
+  call_o="$dir/call.o"
+  try=0
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$copy_o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$copy_o" "$copy_x"
+    ) && [ -s "$copy_o" ]; then
+      break
+    fi
+    rm -f "$copy_o"
+  done
+  try=0
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$call_o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$call_o" "$call_x"
+    ) && [ -s "$call_o" ]; then
+      break
+    fi
+    rm -f "$call_o"
+  done
+  if [ -s "$copy_o" ] && [ -s "$call_o" ] && ld -r -o "$o" "$copy_o" "$call_o"; then
+    rm -rf "$dir"
+    return 0
+  fi
+  rm -rf "$dir"
+  rm -f "$o"
+  return 1
+}
+
 ensure_rt_preamble_prefer() {
   local o="src/runtime/rt_preamble.o"
   local seed="seeds/rt_preamble.from_x.c"
@@ -8344,17 +8392,20 @@ ensure_rt_prefer_one() {
             fi
           fi
           if [ -n "$_rt_fs_o" ] && [ -f "$_rt_fs_open_seed" ]; then
+            # w1135: pure-asm the copy TU and the open TU, then ld -r.
+            # Do not -E the copy file alone: the open calls are in the second file.
+            # Full-seed cc below remains the fallback. PLATFORM: SHARED.
             # G-02f-452：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_fs_open_x" ]; then
               _rt_fs_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fs_open_thin.XXXXXX") || true
               _rt_fs_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_fs_open_rest.XXXXXX") || true
               if [ -n "$_rt_fs_thin_o" ] && [ -n "$_rt_fs_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_fs_open_x" "$_rt_fs_thin_o" \
+                && rt_fs_open_pure_thin "$_rt_fs_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_FS_OPEN_FROM_X \
                      -c -o "$_rt_fs_rest_o" "$_rt_fs_open_seed" \
                 && pure_ld_partial_merge "$_rt_fs_o" "$_rt_fs_thin_o" "$_rt_fs_rest_o" 2>/dev/null; then
                 _rt_fs_ok=1
-                echo "rt-prefer: rest fs open ← thin .x + rest (R2 full H=0; G-02f-452 PREFER_X_O)"
+                echo "rt-prefer: rest fs open ← pure-asm copy + open (w1135) + marker rest"
               fi
               rm -f "$_rt_fs_thin_o" "$_rt_fs_rest_o"
             fi
