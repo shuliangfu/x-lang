@@ -13,8 +13,13 @@ w1034–w1036: typed/absolute64/bake + Cap-band for fixed_array stubs.
 
 w1037: --demote-all-dual scans the egg for every symbol with ≥2 EXTERNAL
 defs and applies Cap-band keep (historic low-VA stub + tip inject ≥0xf0000
-demoted). Replaces whack-a-mole symbol lists. PLATFORM: WINDOWS — no-op on
-non-COFF.
+demoted). Replaces whack-a-mole symbol lists.
+
+w1053: --undefine turns named EXTERNAL definitions into undefined externals
+on a copy of backend_x86_64_enc_c.o. objcopy -N refuses x86_enc_jcc_rel32
+because four relocs still name it. Section 0 keeps those relocs, so the
+linker binds backend_enc_dispatch.o (PE first-wins). The original .o is
+not edited. PLATFORM: WINDOWS — no-op on non-COFF.
 """
 from __future__ import annotations
 
@@ -189,15 +194,72 @@ def demote_all_dual_external(path: Path) -> tuple[int, int]:
     return touched, demoted_total
 
 
+def undefine_externals(path: Path, names: list[str]) -> int:
+    """Make each named EXTERNAL definition an undefined external.
+
+    Value and section become 0. Storage class stays EXTERNAL, and the
+    aux count stays put so relocation symbol indexes do not move.
+    Same-file relocs then resolve to whatever other object still defines
+    the name. Returns how many definitions were cleared. Does not write
+    the file unless every requested name was found exactly once.
+    """
+    loaded = _load_coff(path)
+    if loaded is None:
+        return 0
+    data, symptr, nsyms, strtab_off = loaded
+    want = list(names)
+    seen: dict[str, int] = {name: 0 for name in want}
+    i = 0
+    while i < nsyms:
+        off = symptr + i * 18
+        entry = bytes(data[off : off + 18])
+        name = _sym_name(data, strtab_off, entry)
+        value, sect, _typ, storage, naux = struct.unpack_from("<IHHBB", entry, 8)
+        if name in seen and storage == _EXTERNAL and sect != 0:
+            struct.pack_into("<IH", data, off + 8, 0, 0)
+            seen[name] += 1
+            print(
+                f"win_coff_keep_earliest_sym: undefine {name} "
+                f"sym[{i}]@{value:#x}",
+                file=sys.stderr,
+            )
+        i += 1 + naux
+    missing = [name for name, n in seen.items() if n != 1]
+    if missing:
+        print(
+            f"win_coff_keep_earliest_sym: undefine expected one def each, "
+            f"bad={missing}",
+            file=sys.stderr,
+        )
+        return 0
+    path.write_bytes(data)
+    return len(want)
+
+
 def main() -> int:
     usage = (
         "usage: win_coff_keep_earliest_sym.py "
-        "(--demote-all-dual <coff.o> | [--prefer-cap-band] <coff.o> <sym>...)"
+        "(--demote-all-dual <coff.o> | "
+        "--undefine <coff.o> <sym>... | "
+        "[--prefer-cap-band] <coff.o> <sym>...)"
     )
     if len(sys.argv) < 3:
         print(usage, file=sys.stderr)
         return 2
     args = sys.argv[1:]
+    if args[0] == "--undefine":
+        if len(args) < 3:
+            print(usage, file=sys.stderr)
+            return 2
+        path = Path(args[1])
+        if not path.is_file():
+            print(f"win_coff_keep_earliest_sym: missing {path}", file=sys.stderr)
+            return 1
+        n = undefine_externals(path, args[2:])
+        if n != len(args[2:]):
+            return 1
+        print(f"win_coff_keep_earliest_sym: undefined={n}", file=sys.stderr)
+        return 0
     if args[0] == "--demote-all-dual":
         if len(args) != 2:
             print(usage, file=sys.stderr)

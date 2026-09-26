@@ -925,6 +925,37 @@ case "$UNAME_S" in
           's|build_asm/seed_host/asm_full_link_stubs\.o|build_asm/selfhost_pabi/asm_full_link_stubs_weak.o|g')"
       fi
     fi
+    # w1053: PE first-wins. backend_x86_64_enc_c.o is linked ahead of
+    # backend_enc_dispatch.o, so its add/sub/store and x86_enc_jcc_rel32
+    # hide the dispatch bodies. enc_c jcc records the patch slot before
+    # the 6-byte branch is written (option illegal instruction, stdlib-import
+    # SEGV). enc_c store splits the byte template from disp32. objcopy -N
+    # cannot drop x86_enc_jcc_rel32: four relocs still name it. Undefine
+    # those four defs on a COPY; relocs stay and bind dispatch. Do not
+    # rebuild either encoder object. Do not edit the original .o.
+    # PLATFORM: WINDOWS.
+    if [ -s src/asm/backend_x86_64_enc_c.o ]; then
+      mkdir -p build_asm/selfhost_pabi
+      _enc_copy=build_asm/selfhost_pabi/enc_c_dispatch_wins.o
+      cp -f src/asm/backend_x86_64_enc_c.o "$_enc_copy"
+      if ! python3 scripts/win_coff_keep_earliest_sym.py --undefine "$_enc_copy" \
+          x86_enc_jcc_rel32 \
+          arch_x86_64_enc_enc_store_rax_to_rbx_offset \
+          arch_x86_64_enc_enc_add_rax_rbx \
+          arch_x86_64_enc_enc_sub_rax_rbx; then
+        echo "g05_relink_env: enc dispatch-wins undefine failed" >&2
+        exit 1
+      fi
+      # Bash replace, not sed: MSYS rewrites a sed script that contains a
+      # drive-letter path and the pattern stops matching.
+      _USER_ASM_LINK="${_USER_ASM_LINK//src\/asm\/backend_x86_64_enc_c.o/$_enc_copy}"
+      case "$_USER_ASM_LINK" in
+        *src/asm/backend_x86_64_enc_c.o*)
+          echo "g05_relink_env: enc_c path still in the Windows link" >&2
+          exit 1
+          ;;
+      esac
+    fi
     ;;
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
