@@ -7,6 +7,10 @@
 // *u8（ C struct* ABI ）。
 // ：./xlang-c -E → seeds/backend_asm_bare_link_alias.from_x.c
 
+// Darwin arm64 product body is this file, compiled with -backend asm.
+// Linux and Windows keep the generated C seed.
+// PLATFORM: MACOS|DARWIN for the pure-asm hook. The forwards themselves are SHARED.
+
 extern "C" function asm_codegen_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;
 extern "C" function asm_codegen_ast_to_elf(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;
 extern "C" function emit_expr_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;

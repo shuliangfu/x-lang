@@ -1388,6 +1388,66 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1116: Darwin arm64 backend_asm_bare_link_alias.o forwards bare asm names.
+# Linux and Windows keep the generated C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_backend_bare_alias_darwin_pure() {
+  local o="${1:-build_asm/backend_asm_bare_link_alias.o}"
+  local xsrc="backend_asm_bare_link_alias.x"
+  local csrc="seeds/backend_asm_bare_link_alias.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o backend-bare-alias: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _bb_short _bb_ok
+      _bb_ok=1
+      for _bb_short in \
+        _backend_asm_codegen_ast \
+        _backend_asm_codegen_ast_to_elf \
+        _backend_emit_expr_elf \
+        _backend_emit_block_body_elf; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_bb_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _bb_ok=0
+          break
+        fi
+      done
+      if [ "$_bb_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o backend-bare-alias: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_asm_codegen_ast" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o backend-bare-alias: asm_codegen_ast is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o backend-bare-alias: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc $csrc → $o (pure-asm missing object)"
+    ${CC:-cc} -I. -Iinclude -Isrc -c -o "$o" "$csrc" || return 1
+  fi
+  return 0
+}
+
 # w1115: Darwin arm64 ast_asm_bare_link_alias.o forwards bare ast_block_* names.
 # Linux and Windows keep the generated C seed.
 # PLATFORM: MACOS|DARWIN arm64.
@@ -21296,6 +21356,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  backend-bare-alias-pure|backend_bare_alias_pure)
+    # w1116: Darwin arm64 bare backend aliases from .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o backend-bare-alias-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_backend_bare_alias_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   ast-bare-alias-pure|ast_bare_alias_pure)
     # w1115: Darwin arm64 bare ast_block aliases from .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.
