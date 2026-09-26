@@ -1388,6 +1388,79 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1132: Darwin arm64 runtime_asm_build.o merges two pure-asm files.
+# A TU that defines main emits only main, so the entry is a second file.
+# Linux and Windows keep host cc of the C seed.
+# Does not match asm_experimental_symbol_bridge.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_asm_build_darwin_pure() {
+  local o="${1:-src/asm/runtime_asm_build.o}"
+  local xsrc="src/asm/runtime_asm_build.x"
+  local xmain="src/asm/runtime_asm_build_main.x"
+  local try=0
+  local tmp faces maino
+  if [ ! -f "$xsrc" ] || [ ! -f "$xmain" ]; then
+    echo "ensure_host_cc_seed_o asm-build: missing .x" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] && [ ! "$xmain" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/w_asm_build.XXXXXX")"
+  faces="$tmp/faces.o"
+  maino="$tmp/main.o"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o" "$faces" "$maino"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$faces" "$xsrc"
+    ) && [ -s "$faces" ] && (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$maino" "$xmain"
+    ) && [ -s "$maino" ] && ld -r -o "$o" "$faces" "$maino" && [ -s "$o" ]; then
+      local _ab_short _ab_ok
+      _ab_ok=1
+      for _ab_short in _main _asm_driver_skip_codegen_dep_0_get _asm_driver_set_current_dep_path_for_codegen; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_ab_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ab_ok=0
+          break
+        fi
+      done
+      if [ "$_ab_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o asm-build: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      for _ab_short in _xlang_forward_main_to_main_entry _driver_skip_codegen_dep_0_get _driver_set_current_dep_path_for_codegen; do
+        if ! nm -u "$o" 2>/dev/null | awk -v s="$_ab_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+          _ab_ok=0
+          break
+        fi
+      done
+      if [ "$_ab_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o asm-build: required undefined symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      rm -rf "$tmp"
+      log "pure-asm $xsrc + $xmain → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o asm-build: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  rm -rf "$tmp"
+  if [ ! -s "$o" ]; then
+    log "cc seed $o (pure-asm missing object)"
+    ${CC:-cc} ${CFLAGS:-} -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1131: Darwin arm64 cfg_eval_link_alias.o is the six cfg faces.
 # Linux and Windows keep host cc of the C seed.
 # Does not match cfg_eval.o or cfg_eval_x.o.
@@ -22309,6 +22382,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  asm-build-pure|asm_build_pure)
+    # w1132: Darwin arm64 runtime asm-build object from two .x files.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o asm-build-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_asm_build_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   cfg-eval-alias-pure|cfg_eval_alias_pure)
     # w1131: Darwin arm64 cfg eval link alias from the .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

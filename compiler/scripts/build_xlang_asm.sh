@@ -5293,8 +5293,19 @@ ensure_asm_lsp_codegen_extern_obj() {
 
 # 回退链接所需的 C 桩（不依赖 make）
 ensure_runtime_cc_stubs() {
+  # w1132: Darwin arm64 object is the merged pure-asm pair.
+  # Does not match asm_experimental_symbol_bridge.o.
+  # Linux and Windows stay on host cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+    && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh asm-build-pure src/asm/runtime_asm_build.o
+  else
   echo " cc -c src/asm/runtime_asm_build.o <- seeds/runtime_asm_build.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o src/asm/runtime_asm_build.o
+  fi
   # PLATFORM: SHARED — Do NOT clobber src/runtime_driver.o if it already exists.
   # make bootstrap-driver-seed / g05_ensure build src/runtime_driver.o with the
   # full RUNTIME_DRIVER_CFLAGS (-DXLANG_NO_C_FRONTEND -DXLANG_RT_*_FROM_X
