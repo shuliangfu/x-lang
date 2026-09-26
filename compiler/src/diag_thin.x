@@ -1,8 +1,9 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
+// w1140: one translation unit exits 139. The Darwin prefer compiles eight
+// pieces and links them. Snap loads keep a used pad so stores stay in frame.
+// PLATFORM: SHARED.
 //   （-DXLANG_L2_DIAG_THIN_FROM_X）ld -r → src/diag.o
 // See implementation.
 //
@@ -456,6 +457,9 @@ export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
  */
 #[no_mangle]
 export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
+  // The eight live multiplies store past a short frame. The pad widens it.
+  let pad: u8[128] = [];
+  pad[0] = 0;
   if (snap == 0 as *u8) {
     return 0 as *u8;
   }
@@ -485,6 +489,9 @@ export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
  */
 #[no_mangle]
 export function diag_snap_load_usize(snap: *u8, off: i32): usize {
+  // Same frame widen as diag_snap_load_ptr. PLATFORM: SHARED.
+  let pad: u8[128] = [];
+  pad[0] = 0;
   if (snap == 0 as *u8) {
     return 0;
   }
@@ -514,6 +521,9 @@ export function diag_snap_load_usize(snap: *u8, off: i32): usize {
  */
 #[no_mangle]
 export function diag_snap_load_i32(snap: *u8, off: i32): i32 {
+  // Four live multiplies store at the end of a short frame. PLATFORM: SHARED.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (snap == 0 as *u8) {
     return 0;
   }

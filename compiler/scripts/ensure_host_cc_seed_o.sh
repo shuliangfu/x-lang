@@ -5543,6 +5543,117 @@ ensure_rt_parse_diag_prefer() {
 # A while plus a 512-byte stack buffer in one TU exits 139.
 # $1 = merged thin object. The marker stays in the C rest.
 # PLATFORM: SHARED — Darwin CREAT/TRUNC are 512/1024 via cfg. Linux uses 64/512.
+# w1140: src/diag_thin.x is one translation unit that exits 139.
+# Split it into eight pieces, compile each with xlang_asm, then ld -r.
+# Do not use pure_asm_x_to_o: the pieces reference xlang_panic_ and that
+# helper deletes the object. Host impls stay in the C seed.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+diag_thin_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/diag_thin.x"
+  local dir c try src obj objs n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/diagthin.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import re, sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+externs = [l for l in lines if l.startswith("export extern")]
+starts = []
+for i, l in enumerate(lines):
+    if l.startswith("export function ") or l.startswith("function "):
+        s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
+        starts.append(s)
+starts.append(len(lines))
+sigs = []
+for a, b in zip(starts, starts[1:]):
+    chunk = "".join(lines[a:b])
+    m2 = re.search(r"function\s+.+?\)\s*:\s*[^{]+\{", chunk, re.S)
+    if not m2:
+        sys.exit(1)
+    sig = m2.group(0)
+    sig = sig[: sig.rfind("{")].strip()
+    name = re.search(r"function\s+([A-Za-z0-9_]+)", sig).group(1)
+    sigs.append((name, "export extern " + sig + ";", a, b))
+if len(sigs) != 78:
+    sys.exit(1)
+groups = 8
+chunk_n = (len(sigs) + groups - 1) // groups
+for c in range(groups):
+    a = c * chunk_n
+    b = min(len(sigs), (c + 1) * chunk_n)
+    names = {sigs[i][0] for i in range(a, b)}
+    cross = "\n".join(sig for name, sig, _, _ in sigs if name not in names) + "\n"
+    parts = []
+    for i in range(a, b):
+        part = "".join(lines[sigs[i][2] : sigs[i][3]])
+        part = "".join(l for l in part.splitlines(True) if not l.startswith("export extern"))
+        parts.append(part)
+    Path(out, "g%d.x" % c).write_text(
+        "// w1140 split piece. PLATFORM: SHARED.\n"
+        + "".join(externs)
+        + "\n"
+        + cross
+        + "\n"
+        + "".join(parts)
+    )
+PY
+  then
+    rm -rf "$dir"
+    return 1
+  fi
+  objs=""
+  for c in 0 1 2 3 4 5 6 7; do
+    src="$dir/g$c.x"
+    obj="$dir/g$c.o"
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "78" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_diag_line_digits" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if nm "$o" | awk '$2=="T" && $3=="_xlang_panic_" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1139: pure asm of src/driver/target_cpu_pure.x, retried.
 # tcp_eq_at takes a byte pointer. SIMD spelling checks are split so each
 # frame covers its stores. Host detect stays in the C seed.
@@ -22746,6 +22857,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  diag-thin-pure|diag_thin_darwin_pure)
+    # w1140: eight pure-asm pieces of src/diag_thin.x. Does not compile the
+    # C rest and does not write src/diag.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o diag-thin-pure: need <out.o>" >&2
+      exit 2
+    fi
+    diag_thin_darwin_pure "$1"
+    exit $?
+    ;;
   target-cpu-pure|target_cpu_pure_asm)
     # w1139: Darwin/shared business object from target_cpu_pure.x.
     # Does not merge the C rest and does not write src/driver/target_cpu.o

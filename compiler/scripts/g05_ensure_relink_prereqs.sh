@@ -2201,13 +2201,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
         _diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_rest.XXXXXX") || true
+        # w1140: Darwin arm64 compiles eight pure-asm pieces. Other hosts
+        # keep the single-file -E path. The on-disk src/diag.o is replaced
+        # only when this ensure actually runs.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path. SHARED fallback.
+        _diag_pure=0
+        if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh diag-thin-pure "$_diag_thin_o"; then
+          _diag_pure=1
+        fi
         # shellcheck disable=SC2086
         if [ -n "$_diag_thin_o" ] && [ -n "$_diag_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o" \
+          && { [ "$_diag_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o"; } \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
           && pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
+          if [ "$_diag_pure" = "1" ]; then
+            echo "g05_ensure: $_diag_o ← pure-asm eight .x pieces (w1140) + seed rest"
+          else
+            echo "g05_ensure: $_diag_o ← $_diag_thin_x + seed-rest (G-02f-347/420/421 L2 hybrid diag thin)"
+          fi
           _diag_done=1
         else
           echo "g05_ensure: L2 hybrid diag thin failed; fallback full seed" >&2
