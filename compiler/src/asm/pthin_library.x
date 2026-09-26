@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1145: one translation unit exits 139. Darwin compiles each function
+// and links the five pieces. Helper calls already sit in unsafe.
+// PLATFORM: SHARED.
+
 // pthin_library.x — G-02f-324 P15 parser thin library product bodies.
 //
 // 7.2.1 P15b B-minus productize (2026-09-13): after P5c scan_sync,

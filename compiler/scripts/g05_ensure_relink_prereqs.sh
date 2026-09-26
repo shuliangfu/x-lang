@@ -1754,12 +1754,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # region. Cold: no define, full .inc. Do not reuse
         # XLANG_PTHIN_LIBRARY_FROM_X.
         _pthin_p15_extra=""
+        _pthin_p15_pure=0
+        # w1145: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o. The dependency
+        # gate stays: P9a and P1b.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ -n "$_pthin_p15b_thin_o" ] && [ -f "$_pthin_p15b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p15b_x" "$_pthin_p15b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-library-pure "$_pthin_p15b_thin_o"; then
+            _pthin_p15_pure=1
+          fi
+          if [ "$_pthin_p15_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p15b_x" "$_pthin_p15b_thin_o"; then
             _pthin_p15b_ok=1
             _pthin_p15_extra="-DXLANG_PTHIN_LIBRARY_BODIES_FROM_X"
-            echo "g05_ensure: P15b library bodies ← $_pthin_p15b_x (7.2.1 B-minus scan)"
+            if [ "$_pthin_p15_pure" = "1" ]; then
+              echo "g05_ensure: P15 library ← pure-asm five pieces (w1145)"
+            else
+              echo "g05_ensure: P15b library bodies ← $_pthin_p15b_x (7.2.1 B-minus scan)"
+            fi
           else
             echo "g05_ensure: P15b library .x thin failed; P15 C twin stays full" >&2
           fi
