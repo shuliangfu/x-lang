@@ -602,6 +602,7 @@
 - 2026-09-27 Darwin arm64 `std/net/net_io_batch_fast.o` 的产品体是 `src/asm/runtime_net_io_batch_fast.x` 与 `src/asm/runtime_net_io_batch_fast_darwin.x`，纯 asm 后 ld -r 合成，再并进 `std/net/net.o`。Darwin 上两个 UDP 桥返回 -1。三个 `io_*` 默认实现保持弱符号。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_net_io_batch_fast.from_x.c`。
 - 2026-09-27 Darwin arm64 `std/runtime/runtime.o` 的产品体是 `src/asm/runtime_std_runtime_fast.x`，纯 asm。六个包装转发到 `xlang_panic_` 与 `xlang_crash_evidence_collect_c`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_std_runtime_fast.from_x.c`。
 - 2026-09-27 Darwin arm64 `core/slice/slice.o` 的产品体是 `src/asm/runtime_slice_glue.x`，纯 asm。返回值是 16 字节的 data 与 length。起点越过末尾时保留原指针且长度为 0。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_slice_glue.from_x.c`。
+- 2026-09-27 Darwin arm64 `runtime_sqlite_glue_stub.o` 的产品体是 `src/asm/runtime_sqlite_glue_stub_darwin.x`，纯 asm。不调用 sqlite3。`xlang_db_use_sqlite3_c` 返回 0，打开与执行返回 -9。带 `XLANG_DB_USE_SQLITE3` 的 `runtime_sqlite_glue.o` 仍是 C。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_sqlite_glue.from_x.c` 的 `#else` 分支。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

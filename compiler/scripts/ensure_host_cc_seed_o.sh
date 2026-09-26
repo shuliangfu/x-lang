@@ -718,6 +718,87 @@ ensure_path_fast_darwin_pure() {
   return 0
 }
 
+# w1101: Darwin arm64 runtime_sqlite_glue_stub.o is the no-libsqlite3 face.
+# Every call returns -9, or 0 for the column and handle readers.
+# The real sqlite3 forwards stay in the C seed under XLANG_DB_USE_SQLITE3.
+# This hook matches the stub object name only. The shared seed still
+# host-cc's runtime_sqlite_glue.o. Linux and Windows keep the C seed.
+# No gcc -E. PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_sqlite_glue_stub.o, cwd is compiler/).
+ensure_sqlite_glue_stub_darwin_pure() {
+  local o="${1:-runtime_sqlite_glue_stub.o}"
+  local xsrc="src/asm/runtime_sqlite_glue_stub_darwin.x"
+  local seed="seeds/runtime_sqlite_glue.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o sqlite-stub: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _sq_short _sq_ok
+      _sq_ok=1
+      for _sq_short in \
+        _xlang_db_use_sqlite3_c \
+        _xlang_sqlite3_open_c \
+        _xlang_sqlite3_close_c \
+        _xlang_sqlite3_exec_c \
+        _xlang_sqlite3_exec_count_c \
+        _xlang_sqlite3_prepare_v2_c \
+        _xlang_sqlite3_step_c \
+        _xlang_sqlite3_finalize_c \
+        _xlang_sqlite3_reset_c \
+        _xlang_sqlite3_clear_bindings_c \
+        _xlang_sqlite3_column_count_c \
+        _xlang_sqlite3_column_int_c \
+        _xlang_sqlite3_column_text_c \
+        _xlang_sqlite3_column_blob_c \
+        _xlang_sqlite3_column_bytes_c \
+        _xlang_sqlite3_bind_int_c \
+        _xlang_sqlite3_bind_text_c \
+        _xlang_sqlite3_errmsg_c \
+        _xlang_sqlite3_db_handle_c \
+        _xlang_sqlite3_changes_c \
+        _xlang_sqlite3_free_c; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_sq_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _sq_ok=0
+          break
+        fi
+      done
+      if [ "$_sq_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o sqlite-stub: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if nm -u "$o" 2>/dev/null | grep -q .; then
+        echo "ensure_host_cc_seed_o sqlite-stub: unexpected undefined symbol" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o sqlite-stub: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -2248,6 +2329,21 @@ ensure_one() {
     if [ "$sl_s" = "Darwin" ] && [ "$sl_m" = "arm64" ] \
       && [ -f src/asm/runtime_slice_glue.x ]; then
       ensure_slice_glue_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1101: Darwin arm64 sqlite stub is the .x, not this seed.
+  # Match the stub object only. runtime_sqlite_glue.o shares the seed and
+  # still host-cc's the real sqlite3 forwards. Linux and Windows keep the seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$out")" = "runtime_sqlite_glue_stub.o" ]; then
+    local sq_s sq_m
+    sq_s="$(uname -s 2>/dev/null || echo Unknown)"
+    sq_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$sq_s" = "Darwin" ] && [ "$sq_m" = "arm64" ] \
+      && [ -f src/asm/runtime_sqlite_glue_stub_darwin.x ]; then
+      ensure_sqlite_glue_stub_darwin_pure "$out" || return 1
       return 0
     fi
   fi

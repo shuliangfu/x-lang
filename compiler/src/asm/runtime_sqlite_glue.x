@@ -15,7 +15,9 @@
 //     SQLITE_TRANSIENT (a sqlite3.h function-pointer macro, same class
 //     as zlib.h deflateInit2). Without the define, rest is a stub that
 //     returns DB_NOT_IMPL (-9) so Ubuntu gold still links when
-//     libsqlite3-dev is absent.
+//     libsqlite3-dev is absent. Darwin arm64 builds that stub object
+//     from src/asm/runtime_sqlite_glue_stub_darwin.x. The real forwards
+//     under XLANG_DB_USE_SQLITE3 stay in this seed.
 //
 // Why rest stays C (G.7): sqlite3 is an extern system library, not an
 // in-tree port. .x cannot expand SQLITE_TRANSIENT or see sqlite3 /
