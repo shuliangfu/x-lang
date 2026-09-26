@@ -886,6 +886,102 @@ ensure_sqlite_glue_darwin_pure() {
   return 0
 }
 
+# w1103: Darwin arm64 runtime_atomic_glue.o calls libSystem atomic helpers.
+# Clang inlines __atomic_* on arm64. The .x names use three leading
+# underscores so the undefined symbol is ___atomic_load_4. Fences call
+# OSMemoryBarrier because __atomic_thread_fence is not exported.
+# Linux and Windows keep the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object (default runtime_atomic_glue.o, cwd is compiler/).
+ensure_atomic_glue_darwin_pure() {
+  local o="${1:-runtime_atomic_glue.o}"
+  local xsrc="src/asm/runtime_atomic_glue_darwin.x"
+  local seed="seeds/runtime_atomic_glue.from_x.c"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o atomic-glue: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _at_short _at_ok
+      _at_ok=1
+      for _at_short in \
+        _atomic_load_i32_c \
+        _atomic_store_i32_c \
+        _atomic_compare_exchange_i32_c \
+        _atomic_fetch_add_i32_c \
+        _atomic_fetch_sub_i32_c \
+        _atomic_load_u32_c \
+        _atomic_store_u32_c \
+        _atomic_compare_exchange_u32_c \
+        _atomic_fetch_add_u32_c \
+        _atomic_load_i64_c \
+        _atomic_store_i64_c \
+        _atomic_fetch_add_i64_c \
+        _atomic_fetch_sub_i64_c \
+        _atomic_compare_exchange_i64_c \
+        _atomic_load_u64_c \
+        _atomic_store_u64_c \
+        _atomic_fetch_add_u64_c \
+        _atomic_fetch_sub_u64_c \
+        _atomic_compare_exchange_u64_c \
+        _atomic_fence_seq_cst_c \
+        _atomic_fence_acquire_c \
+        _atomic_fence_release_c \
+        _atomic_load_i16_c \
+        _atomic_store_i16_c \
+        _atomic_fetch_add_i16_c \
+        _atomic_compare_exchange_i16_c \
+        _atomic_load_u16_c \
+        _atomic_store_u16_c \
+        _atomic_fetch_add_u16_c \
+        _atomic_compare_exchange_u16_c \
+        _runtime_atomic_glue_darwin_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | awk -v s="$_at_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          _at_ok=0
+          break
+        fi
+      done
+      if [ "$_at_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o atomic-glue: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___atomic_load_4" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o atomic-glue: ___atomic_load_4 is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_OSMemoryBarrier" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o atomic-glue: OSMemoryBarrier is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o atomic-glue: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc -c $seed → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
 # from_ptr and subslice return a 16-byte { data, length }.
 # A start past the end keeps the original pointer and length 0.
@@ -2431,6 +2527,20 @@ ensure_one() {
     if [ "$sq_s" = "Darwin" ] && [ "$sq_m" = "arm64" ] \
       && [ -f src/asm/runtime_sqlite_glue_stub_darwin.x ]; then
       ensure_sqlite_glue_stub_darwin_pure "$out" || return 1
+      return 0
+    fi
+  fi
+
+  # w1103: Darwin arm64 atomics are the .x, not this seed.
+  # Match the object name only. Linux and Windows keep the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$(basename "$out")" = "runtime_atomic_glue.o" ]; then
+    local at_s at_m
+    at_s="$(uname -s 2>/dev/null || echo Unknown)"
+    at_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$at_s" = "Darwin" ] && [ "$at_m" = "arm64" ] \
+      && [ -f src/asm/runtime_atomic_glue_darwin.x ]; then
+      ensure_atomic_glue_darwin_pure "$out" || return 1
       return 0
     fi
   fi
@@ -16094,6 +16204,19 @@ ensure_runtime_os_prefer_one() {
     if [ "$tb_s" = "Darwin" ] && [ "$tb_m" = "arm64" ] \
       && [ -f src/asm/runtime_tls_mbedtls_bio_darwin.x ]; then
       ensure_tls_mbedtls_bio_darwin_pure "$o" || return 1
+      return 0
+    fi
+  fi
+
+  # w1103: Darwin arm64 whole object is the atomic .x. Do not host-cc it.
+  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  if [ "$o" = "runtime_atomic_glue.o" ]; then
+    local at_s at_m
+    at_s="$(uname -s 2>/dev/null || echo Unknown)"
+    at_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$at_s" = "Darwin" ] && [ "$at_m" = "arm64" ] \
+      && [ -f src/asm/runtime_atomic_glue_darwin.x ]; then
+      ensure_atomic_glue_darwin_pure "$o" || return 1
       return 0
     fi
   fi

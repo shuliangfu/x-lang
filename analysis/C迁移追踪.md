@@ -604,6 +604,7 @@
 - 2026-09-27 Darwin arm64 `core/slice/slice.o` 的产品体是 `src/asm/runtime_slice_glue.x`，纯 asm。返回值是 16 字节的 data 与 length。起点越过末尾时保留原指针且长度为 0。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_slice_glue.from_x.c`。
 - 2026-09-27 Darwin arm64 `runtime_sqlite_glue_stub.o` 的产品体是 `src/asm/runtime_sqlite_glue_stub_darwin.x`，纯 asm。不调用 sqlite3。`xlang_db_use_sqlite3_c` 返回 0，打开与执行返回 -9。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_sqlite_glue.from_x.c` 的 `#else` 分支。
 - 2026-09-27 Darwin arm64 `runtime_sqlite_glue.o` 的产品体是 `src/asm/runtime_sqlite_glue_darwin.x`，纯 asm，转发到 libsqlite3。`SQLITE_TRANSIENT` 以指针值 -1 传入。行计数回调经 dlsym 取 `xlang_sqlite3_count_cb`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_sqlite_glue.from_x.c` 的 `XLANG_DB_USE_SQLITE3` 分支。
+- 2026-09-27 Darwin arm64 `runtime_atomic_glue.o` 的产品体是 `src/asm/runtime_atomic_glue_darwin.x`，纯 asm。调用 libSystem 的 `___atomic_load_4` 一族（2、4、8 字节）。比较交换 weak 为 0，内存序为 5。栅栏是 `OSMemoryBarrier`。Linux、Windows 与纯 asm 失败且对象缺失时的备份仍是 `seeds/runtime_atomic_glue.from_x.c`。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

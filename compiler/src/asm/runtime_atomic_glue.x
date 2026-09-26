@@ -4,6 +4,8 @@
 // runtime_atomic_glue.x — OS atomic glue public API
 // R2 migration: all public API functions defined here with #[no_mangle]
 // OS bridge implementations (_impl) are in seeds/runtime_atomic_glue.from_x.c
+// Darwin arm64 does not compile this thin file. The whole object is
+// runtime_atomic_glue_darwin.x. Linux and Windows keep thin plus this seed.
 
 export extern "C" function atomic_load_i32_impl(ptr: *i32): i32;
 export extern "C" function atomic_store_i32_impl(ptr: *i32, val: i32): void;
