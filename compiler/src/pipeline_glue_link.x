@@ -26,6 +26,11 @@
 // source_data as const uint8_t* and cast away const at the forwarding
 // call; the .x emits uint8_t* uniformly (const-buf face is the caller's
 // concern — same ABI, no cast needed). PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm.
+// pipeline_run_x_pipeline forwards once to pipeline_run_x_pipeline_impl.
+// This object is not pipeline_run_impl_alias.o.
+// Linux and Windows keep -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN for that object path.
 
 /** The real pipeline body (pipeline_x.o / alias lane). Opaque pointers. */
 export extern function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source_data: *u8, source_len: usize, out_buf: *u8, ctx: *u8): i32;

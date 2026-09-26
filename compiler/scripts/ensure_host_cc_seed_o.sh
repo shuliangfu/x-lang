@@ -1388,6 +1388,54 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
+# w1125: Darwin arm64 pipeline_glue_link.o forwards one pipeline entry.
+# Linux and Windows keep -x -E then host cc. The C seed is already gone.
+# Does not match pipeline_run_impl_alias.o.
+# PLATFORM: MACOS|DARWIN arm64.
+# $1 = output object. cwd is compiler/.
+ensure_glue_link_darwin_pure() {
+  local o="${1:-build_asm/pipeline_glue_link.o}"
+  local xsrc="src/pipeline_glue_link.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o glue-link: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      if ! nm "$o" 2>/dev/null | awk '$2=="T" && $3=="_pipeline_run_x_pipeline" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o glue-link: required text symbol missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '$NF=="_pipeline_run_x_pipeline_impl" { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o glue-link: impl forward is not undefined" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o glue-link: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    log "cc_inc_tu --auto $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh --auto "$o" || return 1
+  fi
+  return 0
+}
+
 # w1124: Darwin arm64 pipeline_asm_typecheck_alias.o keeps the typecheck gates.
 # Linux and Windows keep -x -E then host cc. The C seed is already gone.
 # Does not match pipeline_asm_run_all_alias.o.
@@ -21883,6 +21931,20 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  glue-link-pure|glue_link_pure)
+    # w1125: Darwin arm64 pipeline glue link from the existing .x.
+    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o glue-link-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_glue_link_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
   typecheck-alias-pure|typecheck_alias_pure)
     # w1124: Darwin arm64 typecheck alias from the existing .x.
     # Does not run the rest of ensure. Linux callers should not use this mode.

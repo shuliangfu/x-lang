@@ -626,6 +626,7 @@
 - 2026-09-27 Darwin arm64 `pipeline_wpo_typecheck_emit_bridge.o` 的产品体是已有的 `src/pipeline_wpo_typecheck_emit_bridge.x`，纯 asm。typecheck emit 转发到 `run_x_pipeline_typecheck_entry_emit_c`，路径解析转发到 `pipeline_resolve_path_try_one_lib_root`。对象不定义 `pipeline_run_x_pipeline_impl`。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
 - 2026-09-27 Darwin arm64 `pipeline_asm_run_all_alias.o` 的产品体是已有的 `src/pipeline_asm_run_all_alias.x`，纯 asm。解析或类型检查失败立刻返回，跳过代码生成时返回 0。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
 - 2026-09-27 Darwin arm64 `pipeline_asm_typecheck_alias.o` 的产品体是已有的 `src/pipeline_asm_typecheck_alias.x`，纯 asm。大入口或 asm 构建跳过返回 0，没有主函数走库路径，force_c 走 for_ctx，失败先记诊断。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
+- 2026-09-27 Darwin arm64 `pipeline_glue_link.o` 的产品体是已有的 `src/pipeline_glue_link.x`，纯 asm。`pipeline_run_x_pipeline` 只转发到 `pipeline_run_x_pipeline_impl`。Linux 与 Windows 仍走 `-x -E` 再交给 host cc。纯 asm 失败且对象缺失时走同一条备份。
 - 2026-09-23 backend_enc_dispatch：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。f64／Cap 尾仍 host-cc。没有整份冷种子回退，也不再尝试 full `.x`。
 - 2026-09-23 driver_diagnostic：薄层公共函数的冷路径 C 体已删除，权威在 thin `.x`。asm BSS 家族仍 host-cc。没有整份冷种子回退。
 - 2026-09-23 slot_bytes：Linux tip 坏帧的两枚符号由权威 `.x` thin 经 host cc 复现并跳进 tip ELF（`overlay_tip_slot_bytes_gcc.sh`，g05 仅对坏帧）。不再依赖本机 warm blob。残：tip asm 帧未治本，这两枚在 Linux tip 仍 host-cc。Win reloc BSS 新链已绿。

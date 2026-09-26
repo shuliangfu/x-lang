@@ -1576,6 +1576,18 @@ detect_pipeline_gen_cflags() {
 # Target B 实验链：编译 pipeline_run_x_pipeline 最小 C 桥（见 seeds/pipeline_glue_link.from_x.c）。
 ensure_asm_pipeline_glue_link_obj() {
   GLUE_LINK_OBJ="$BUILD_DIR/pipeline_glue_link.o"
+  # w1125: Darwin arm64 bridge is pure asm of the existing .x.
+  # Linux and Windows stay on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _gl_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _gl_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_gl_os" = "Darwin" ] && [ "$_gl_mach" = "arm64" ] \
+    && [ -f src/pipeline_glue_link.x ]; then
+    if [ ! -f "$GLUE_LINK_OBJ" ] || [ src/pipeline_glue_link.x -nt "$GLUE_LINK_OBJ" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh glue-link-pure "$GLUE_LINK_OBJ"
+    fi
+    return 0
+  fi
   # 7.2.1 third knife: .x authority (src/pipeline_glue_link.x) via cc_inc_tu
   # --auto prefer lane; seed fallback when no product binary (cold start).
   # Freshness covers .x AND the seed (whichever is newer wins the rebuild).
