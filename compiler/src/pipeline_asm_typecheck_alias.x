@@ -25,6 +25,13 @@
 // 7.2.1 eleventh knife (2026-09-10): authority moved from the hand-written
 // C seed (seeds/pipeline_asm_typecheck_alias.from_x.c, promoted from a
 // retired .inc) to this .x source. PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm.
+// Large-entry and asm-build skips return 0. A module with no main uses
+// the library face. force_c uses the for-ctx face. Failure records the
+// diagnostic before returning. This object is not
+// pipeline_asm_run_all_alias.o.
+// Linux and Windows keep -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN for that object path.
 
 /** Driver/typeck gate + diagnostic externs (C side). */
 export extern function driver_typeck_skip_large_entry(): i32;

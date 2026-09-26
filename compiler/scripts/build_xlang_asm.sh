@@ -1716,8 +1716,17 @@ EOF
 ensure_pipeline_asm_typecheck_alias_obj() {
   local ALIAS_O
   ALIAS_O="$BUILD_DIR/pipeline_asm_typecheck_alias.o"
-  # 7.2.1 eleventh knife: .x authority via cc_inc_tu --auto prefer lane.
-  if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
+  # w1124: Darwin arm64 alias is pure asm of the existing .x.
+  # Linux and Windows stay on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64.
+  _tc_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _tc_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_tc_os" = "Darwin" ] && [ "$_tc_mach" = "arm64" ] \
+    && [ -f src/pipeline_asm_typecheck_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_typecheck_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh typecheck-alias-pure "$ALIAS_O"
+    fi
+  elif [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
     if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_typecheck_alias.x -nt "$ALIAS_O" ] \
        || { [ -f seeds/pipeline_asm_typecheck_alias.from_x.c ] && [ seeds/pipeline_asm_typecheck_alias.from_x.c -nt "$ALIAS_O" ]; }; then
       echo " cc_inc_tu --auto (src/pipeline_asm_typecheck_alias.x) -> $ALIAS_O"
