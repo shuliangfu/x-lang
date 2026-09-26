@@ -541,6 +541,41 @@ force_thin_makefile_flags_newer() {
 # one OUT SEED [extra cflags...]
 # PLATFORM: SHARED — pure host-cc body; no make graph.
 # ---------------------------------------------------------------------------
+# Darwin arm64 cold body for runtime_link_abi_user_env.o.
+# The whole TU is src/asm/runtime_link_abi_user_env.x. Both getenv faces
+# are weakened so runtime_panic_arm64.x (strong) still wins when co-linked.
+# A missing object after a pure-asm fault falls back to the C seed.
+# An object already on disk is left as-is. No gcc -E.
+# Linux and Windows do not call this; they host-cc the C seed.
+# PLATFORM: MACOS|DARWIN arm64.
+ensure_user_env_darwin_pure() {
+  local o="runtime_link_abi_user_env.o"
+  local xsrc="src/asm/runtime_link_abi_user_env.x"
+  local seed="seeds/runtime_link_abi_user_env.from_x.c"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o user-env: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  log "pure-asm $xsrc → $o"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    export G05_X_O_WEAK_FUNCS=link_abi_getenv,link_abi_getenv_impl
+    pure_asm_x_to_o "$o" "$xsrc"
+  ); then
+    echo "ensure_host_cc_seed_o user-env: pure-asm failed for $xsrc" >&2
+    if [ ! -s "$o" ]; then
+      log "cc -c $seed → $o (pure-asm missing object)"
+      # shellcheck disable=SC2086
+      $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+    fi
+  fi
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -577,6 +612,20 @@ ensure_one() {
   if [ "$out" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
     return 0
+  fi
+
+  # w1076: Darwin arm64 user-domain getenv face is the .x, not this seed.
+  # Linux and Windows keep host-cc of the C seed (environ symbol differs).
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ "$out" = "runtime_link_abi_user_env.o" ]; then
+    local ue_s ue_m
+    ue_s="$(uname -s 2>/dev/null || echo Unknown)"
+    ue_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$ue_s" = "Darwin" ] && [ "$ue_m" = "arm64" ] \
+      && [ -f src/asm/runtime_link_abi_user_env.x ]; then
+      ensure_user_env_darwin_pure || return 1
+      return 0
+    fi
   fi
 
   mkdir -p "$(dirname "$out")"

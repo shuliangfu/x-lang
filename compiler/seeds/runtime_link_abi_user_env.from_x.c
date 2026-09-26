@@ -14,7 +14,13 @@
  * NEVER in g05 60/62-obj host bag (labi_diag_pure + mega link_abi_getenv_impl
  * remain product host authority). User / STD_AND_PANIC / test_c only.
  *
+ * Darwin arm64 product body is src/asm/runtime_link_abi_user_env.x
+ * (pure-asm, both faces weakened). This C file remains the Linux and
+ * Windows body, and the Darwin backup when that pure-asm emit faults and
+ * the object is missing. Do not delete these C bodies.
+ *
  * PLATFORM: SHARED — user-domain residual face; host residual via single face.
+ * PLATFORM: MACOS|DARWIN arm64 — product object is the .x, not this seed.
  */
 
 #include <stdlib.h>

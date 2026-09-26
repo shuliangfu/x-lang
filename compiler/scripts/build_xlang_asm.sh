@@ -5489,10 +5489,16 @@ ensure_runtime_user_link_objs() {
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_env_os.from_x.c -o runtime_env_os.o
   fi
 fi
-  # wave253: sole user-domain residual face body (weak; companion of PRIMARY_PANIC / residual).
-  if [ ! -f runtime_link_abi_user_env.o ] || [ seeds/runtime_link_abi_user_env.from_x.c -nt runtime_link_abi_user_env.o ]; then
-  echo " cc_inc_tu runtime_link_abi_user_env.o <- seeds/runtime_link_abi_user_env.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_link_abi_user_env.from_x.c -o runtime_link_abi_user_env.o
+  # wave253 / w1076: user-domain getenv face.
+  # Darwin arm64 pure-asms src/asm/runtime_link_abi_user_env.x (weak faces).
+  # Linux and Windows still host-cc the C seed. One body: ensure_one.
+  # PLATFORM: MACOS|DARWIN arm64 pure-asm; LINUX|WINDOWS host-cc seed.
+  if [ ! -f runtime_link_abi_user_env.o ] \
+    || [ seeds/runtime_link_abi_user_env.from_x.c -nt runtime_link_abi_user_env.o ] \
+    || { [ -f src/asm/runtime_link_abi_user_env.x ] \
+      && [ src/asm/runtime_link_abi_user_env.x -nt runtime_link_abi_user_env.o ]; }; then
+  echo " ensure runtime_link_abi_user_env.o"
+  bash scripts/ensure_host_cc_seed_o.sh one runtime_link_abi_user_env.o seeds/runtime_link_abi_user_env.from_x.c
   fi
 }
 
