@@ -601,11 +601,14 @@ case "${1:-}" in
           exit 1
           ;;
       esac
-      # w1106: Darwin arm64 std/debug/debug.o is the .x. Other c_face keys
-      # stay cc -c. Do not match core/debug/debug.o.
+      # w1106: Darwin arm64 std/debug/debug.o is the .x.
+      # w1107: Darwin arm64 std/async/async.o is the .x.
+      # Other c_face keys stay cc -c. Do not match core/debug/debug.o.
       # PLATFORM: MACOS|DARWIN arm64. Linux and Windows keep the C face.
       _dbg_darwin=0
       _dbg_x=""
+      _as_darwin=0
+      _as_x=""
       if [ "$_key" = "std/debug/debug.o" ]; then
         _dbg_os="$(uname -s 2>/dev/null || echo Unknown)"
         _dbg_mach="$(uname -m 2>/dev/null || echo unknown)"
@@ -619,8 +622,28 @@ case "${1:-}" in
           fi
         fi
       fi
+      if [ "$_key" = "std/async/async.o" ]; then
+        _as_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _as_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$_as_os" = "Darwin" ] && [ "$_as_mach" = "arm64" ]; then
+          _as_x="src/asm/std_async_formal_darwin.x"
+          if [ ! -f "$_as_x" ]; then
+            _as_x="../compiler/src/asm/std_async_formal_darwin.x"
+          fi
+          if [ -f "$_as_x" ]; then
+            _as_darwin=1
+          fi
+        fi
+      fi
       if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ] && [ -f "$_csrc" ] && [ ! "$_csrc" -nt "$out_o" ]; then
-        if [ "$_dbg_darwin" != "1" ] || [ ! -f "$_dbg_x" ] || [ ! "$_dbg_x" -nt "$out_o" ]; then
+        _pure_newer=0
+        if [ "$_dbg_darwin" = "1" ] && [ -f "$_dbg_x" ] && [ "$_dbg_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_as_darwin" = "1" ] && [ -f "$_as_x" ] && [ "$_as_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_pure_newer" != "1" ]; then
           echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
           exit 0
         fi
@@ -636,6 +659,18 @@ case "${1:-}" in
           exit 1
         fi
         echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_as_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" async-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: async formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (async formal pure-asm -> $out_o)"
         exit 0
       fi
       # shellcheck disable=SC2086
