@@ -68374,6 +68374,8 @@ export function glue_func_return_byte_size_c(mod: *u8, arena: *u8, func_index: i
  * 9–16B INTEGER dual-GP: x86 high-end (low@off, high@off-8 → rax+rdx);
  * arm64 low-end (low@off, high@off+8 → x0+x1). Pointer-home formals (*T /
  * T[N] / T[]) load the pointer then optionally deref 9–16B via residual.
+ * Aggregates larger than 16 bytes are MEMORY-class: rax is the slot
+ * address (lea), not the low qword. Callers memcpy from that address.
  * Scalar i32/u32/u8/bool: after 64-bit stack load, canonicalize high bits
  * (sxt/zxt) so index/add/cmp match AAPCS/SysV (clang uses ldrsw/str w).
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
@@ -68490,6 +68492,20 @@ export function glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx: *u8, arena: *u8
       }
       return 0;
     }
+  }
+  // Aggregates larger than 16 bytes are MEMORY-class. rax must be the slot
+  // address so store_retval can memcpy the payload (`let t = s`). A qword
+  // load kept eight bytes and dropped the rest. 9–16 byte values already
+  // returned as a GP pair above. Do not sign-extend this pointer.
+  // PLATFORM: SHARED — AAPCS64 and SysV both pass nbytes>16 by address.
+  if (sz > 16) {
+    unsafe {
+      rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+    }
+    if (rc != 0) {
+      return -1;
+    }
+    return 0;
   }
   unsafe {
     rc = backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
@@ -70768,8 +70784,10 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
 
 
 /**
- * Store CALL/METHOD/INDEX/expr result into a let stack slot (rax half first;
- * 9–16B dual-GP adds rdx half; >16B via *rax memcpy; TYPE_SLICE length + deep-copy).
+ * Store CALL/METHOD/INDEX/STRUCT_LIT/VAR/expr result into a let stack slot
+ * (rax half first; 9–16B dual-GP adds rdx half; >16B via *rax memcpy;
+ * TYPE_SLICE length + deep-copy). EXPR_VAR is in the memcpy gate only
+ * because glue_load_var leaves the slot address when the source is >16B.
  * @param m *u8 — Module* (may be null for early gates; dual-GP non-SLICE needs m)
  * @param arena *u8 — ASTArena*; null skips dual-GP widen / SLICE / kind tests
  * @param elf_ctx *u8 — ElfCodegenCtx*; null → -1
@@ -70803,17 +70821,20 @@ export function glue_store_retval_pair_to_rbp_elf_c(
       sz = nsz;
     }
   }
-  // >16B + CALL(48)/METHOD(49)/INDEX(47)/STRUCT_LIT(45): memcpy from *rax.
-  // emit_index esz>16, CALL sret, and STRUCT_LIT nbytes>16 all leave the
-  // object address in rax. Storing that pointer keeps 8 bytes and drops the
-  // payload, so a later field load reads the pointer slot plus the field
-  // offset. ARRAY_LIT (46) is a different contract and stays out of this gate.
-  // Size class stays the frozen >16 test. PLATFORM: SHARED.
+  // >16B + CALL(48)/METHOD(49)/INDEX(47)/STRUCT_LIT(45)/VAR(3): memcpy from *rax.
+  // emit_index esz>16, CALL sret, STRUCT_LIT nbytes>16, and a VAR whose
+  // glue_load_var saw sz>16 all leave the object address in rax. Storing
+  // that pointer keeps 8 bytes and drops the payload, so a later field
+  // load reads the pointer slot plus the field offset. ARRAY_LIT (46)
+  // stays out: its let path stores rax and returns before this function.
+  // Kind VAR is safe only while glue_load_var LEAs for sz>16. A qword in
+  // rax must not enter this branch. Size class stays the frozen >16 test.
+  // PLATFORM: SHARED.
   if (sz > 16 && init_ref > 0 && arena != (0 as *u8)) {
     unsafe {
       ko = pipeline_expr_kind_ord_at(arena, init_ref);
     }
-    if (ko == 48 || ko == 49 || ko == 47 || ko == 45) {
+    if (ko == 48 || ko == 49 || ko == 47 || ko == 45 || ko == 3) {
       unsafe {
         return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, sz, ta);
       }
