@@ -3419,7 +3419,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _xsb_x=src/x_seed_bridge.x
   _xsb_o=src/x_seed_bridge.o
     if [ ! -f "$_xsb_o" ] || { [ -f "$_xsb_x" ] && [ "$_xsb_x" -nt "$_xsb_o" ]; }; then
-      _xsb_done=0
       if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_xsb_x" ]; then
         _xsb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_thin.XXXXXX") || true
         # shellcheck disable=SC2086
