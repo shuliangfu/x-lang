@@ -11079,7 +11079,7 @@ PY
 pthin_helpers_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_helpers.x"
-  local dir c try src obj objs n
+  local dir c try src obj objs n limit
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -11139,7 +11139,15 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    while [ "$try" -lt 8 ]; do
+    # w1300: piece 0 is parser_asm_import_path_dot_segment_len_kind_c.
+    # Some pure-asm tries segfault. Twelve tries for that one piece.
+    # The other twelve pieces stay at eight. Symbols stay strong.
+    # PLATFORM: MACOS|DARWIN arm64.
+    limit=8
+    if [ "$c" = "0" ]; then
+      limit=12
+    fi
+    while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
       if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
