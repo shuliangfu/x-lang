@@ -10078,11 +10078,12 @@ PY
     # w1234: piece 26 is parser_asm_primary_asm_template_decode_x.
     # w1235: piece 27 is parser_asm_primary_asm_pack_reg_x.
     # w1236: piece 29 is parser_asm_primary_asm_parse_operand_x.
-    # Some pure-asm tries segfault. Twelve tries for those eight pieces.
-    # The other twenty-nine pieces stay at eight. Symbols stay strong.
+    # w1237: piece 34 is parser_asm_primary_empty_ident_braces_x_into_c.
+    # Some pure-asm tries segfault. Twelve tries for those nine pieces.
+    # The other twenty-eight pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "8" ] || [ "$c" = "13" ] || [ "$c" = "22" ] || [ "$c" = "24" ] || [ "$c" = "25" ] || [ "$c" = "26" ] || [ "$c" = "27" ] || [ "$c" = "29" ]; then
+    if [ "$c" = "8" ] || [ "$c" = "13" ] || [ "$c" = "22" ] || [ "$c" = "24" ] || [ "$c" = "25" ] || [ "$c" = "26" ] || [ "$c" = "27" ] || [ "$c" = "29" ] || [ "$c" = "34" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
