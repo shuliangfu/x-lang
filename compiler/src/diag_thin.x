@@ -35,7 +35,6 @@ export extern "C" function diag_json_enabled_impl(): i32;
 export extern "C" function diag_print_code_table_impl(out: *u8): void;
 export extern "C" function diag_print_known_codes_impl(out: *u8): void;
 export extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
-export extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 // ---- G-02f-335 pure helpers ----
 
 /** Exported function `diag_line_digits`.
@@ -279,7 +278,7 @@ export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
 export function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void {
   unsafe {
     let z: *u8 = 0;
-    diag_report_with_code_impl(file, line, col, kind, z, msg, detail);
+    diag_report_with_code(file, line, col, kind, z, msg, detail);
   }
 }
 
@@ -802,21 +801,34 @@ export function diag_print_code_explain(out: *u8, code: *u8): void {
   }
 }
 
-/** Exported function `diag_report_with_code`.
- * Implements `diag_report_with_code`.
- * @param file *u8
+/**
+ * Dispatch one diagnostic after the message text is already formatted.
+ * JSON mode prints actual_file (the argument, or the context path).
+ * Human mode receives the original file pointer, which may be null.
+ * va_list formatting stays in the seed and calls this function.
+ * @param file *u8 — path, or null to use the context path for JSON
  * @param line i32
  * @param col i32
  * @param kind *u8
- * @param code *u8
- * @param msg *u8
- * @param detail *u8
- * @return void
+ * @param code *u8 — diagnostic code, or null
+ * @param msg *u8 — already formatted message
+ * @param detail *u8 — caret note, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+  let actual_file: *u8 = file;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    diag_report_with_code_impl(file, line, col, kind, code, msg, detail);
+    if (actual_file == 0 as *u8) {
+      actual_file = diag_ctx_get_file();
+    }
+    if (diag_json_enabled() != 0) {
+      diag_report_json(actual_file, line, col, kind, code, msg);
+      return;
+    }
+    diag_report_human(file, line, col, kind, code, msg, detail);
   }
 }
 

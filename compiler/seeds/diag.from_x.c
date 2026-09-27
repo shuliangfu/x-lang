@@ -796,25 +796,18 @@ int diag_json_enabled_impl(void); /* defined later in this TU */
 #endif
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#else
-void diag_report_with_code_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#endif
 {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    if (diag_json_enabled_impl()) {
-        diag_report_json(actual_file, line, col, kind, code, msg);
-        return;
-    }
-    diag_report_human(file, line, col, kind, code, msg, detail);
-#else
     if (diag_json_enabled()) {
         diag_report_json(actual_file, line, col, kind, code, msg);
         return;
     }
     diag_report_human(file, line, col, kind, code, msg, detail);
-#endif
 }
+#else
+/* JSON / human dispatch lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail);
+#endif
 
 /* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-336：hybrid 时由 diag_thin.x 提供 */
