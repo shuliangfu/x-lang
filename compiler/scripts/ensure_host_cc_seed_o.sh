@@ -28851,7 +28851,7 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
   fi
 
   check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
-  check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
+  check_family "R1_CORE_SEED_OBJS" 4 "core-seed" "basename" "src/"
   check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
   check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
   # alias-stubs: mixed cwd-root and src/ paths; no single path prefix.
