@@ -2142,11 +2142,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         # Class AD P20b: zeros from pthin_foundation.x
         _pthin_p20_extra=""
+        _pthin_p20b_pure=0
+        # w1161: the first pure-asm tries segfault. Darwin retries the
+        # whole translation unit. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p20b_thin_o" ] && [ -f "$_pthin_p20b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p20b_x" "$_pthin_p20b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-foundation-pure "$_pthin_p20b_thin_o"; then
+            _pthin_p20b_pure=1
+          fi
+          if { [ "$_pthin_p20b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p20b_x" "$_pthin_p20b_thin_o"; }; then
             _pthin_p20b_ok=1
             _pthin_p20_extra="-DXLANG_PTHIN_FOUNDATION_BODIES_FROM_X"
-            echo "g05_ensure: P20b foundation zeros ← $_pthin_p20b_x (Class AD pure-asm)"
+            if [ "$_pthin_p20b_pure" = "1" ]; then
+              echo "g05_ensure: P20 foundation ← pure-asm two symbols (w1161)"
+            else
+              echo "g05_ensure: P20b foundation zeros ← $_pthin_p20b_x (Class AD pure-asm)"
+            fi
           else
             echo "g05_ensure: P20b foundation .x thin failed; zeros stay host-cc in seed" >&2
           fi

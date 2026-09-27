@@ -56,6 +56,9 @@ export function parser_asm_foundation_store_i32_le(p: *u8, off: i32, v: i32): vo
  */
 #[no_mangle]
 export function parser_asm_expr_set_common_zeros_c(e: *u8): void {
+  // Keep the last outgoing slot 16 bytes inside the frame. PLATFORM: SHARED.
+  let pad: u8[192] = [];
+  pad[0] = 0;
   if (e == 0 as *u8) {
     return;
   }
