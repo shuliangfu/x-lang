@@ -790,9 +790,6 @@ extern void diag_report_human(const char *file, int line, int col, const char *k
 
 /* G-02f-158：逻辑源 .x（JSON 分流真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl（可再调 thin public 或 _impl） */
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-int diag_json_enabled_impl(void); /* defined later in this TU */
-#endif
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
 {
@@ -1283,9 +1280,6 @@ void diag_json_set_state(int v) {
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_json_enabled(void)
-#else
-int diag_json_enabled_impl(void)
-#endif
 {
     if (g_diag_json == -2) {
         /* wave233 G.7: XLANG_DIAG_JSON via link_abi_getenv (not raw getenv). */
@@ -1294,6 +1288,10 @@ int diag_json_enabled_impl(void)
     }
     return g_diag_json == 1 ? 1 : 0;
 }
+#else
+/* JSON enable cache lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_json_enabled(void);
+#endif
 
 
 /**

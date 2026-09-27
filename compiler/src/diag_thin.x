@@ -31,8 +31,7 @@ export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, sou
 export extern "C" function diag_should_color_impl(): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
 export extern "C" function diag_set_json_mode_impl(enable: i32): void;
-export extern "C" function diag_json_enabled_impl(): i32;
-export extern "C" function diag_print_code_table_impl(out: *u8): void;
+export extern "C" function link_abi_getenv(name: *u8): *u8;export extern "C" function diag_print_code_table_impl(out: *u8): void;
 export extern "C" function diag_print_known_codes_impl(out: *u8): void;
 export extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
 // ---- G-02f-335 pure helpers ----
@@ -623,15 +622,41 @@ export function diag_set_json_mode(enable: i32): void {
   }
 }
 
-/** Exported function `diag_json_enabled`.
- * Implements `diag_json_enabled`.
- * @return i32
+/**
+ * Return 1 when JSON diagnostics are on.
+ * The cached state lives in the seed. -2 means not decided yet: read
+ * XLANG_DIAG_JSON once through link_abi_getenv. A non-empty value that
+ * does not start with '0' turns JSON on. An explicit diag_set_json_mode
+ * writes 0 or 1 first, and that value wins over the environment.
+ * @return i32 — 1 when JSON mode is on, otherwise 0
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_json_enabled(): i32 {
+  let s: i32 = 0;
+  let v: i32 = 0;
+  let e: *u8 = 0 as *u8;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    return diag_json_enabled_impl();
+    s = diag_json_get_state();
+    if (s == 0 - 2) {
+      e = link_abi_getenv("XLANG_DIAG_JSON");
+      if (e != 0 as *u8) {
+        if (e[0] != 0) {
+          if (e[0] != 48) {
+            v = 1;
+          }
+        }
+      }
+      diag_json_set_state(v);
+      s = v;
+    }
+    if (s == 1) {
+      return 1;
+    }
   }
+  return 0;
 }
 
 /**
