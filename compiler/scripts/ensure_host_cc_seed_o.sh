@@ -10683,9 +10683,10 @@ PY
     # w1279: piece 17 is parser_asm_library_maybe_layout_x.
     # w1280: piece 18 is parser_asm_library_register_x.
     # w1281: piece 22 is parser_asm_onefunc_buf_is_self_name_x.
-    # Pieces 5, 6, 9, 11, 14, 20, and 21 are eight across eight tries.
+    # Pieces 5, 6, 9, 11, 14, 20, 21, 23, and 24 are eight across eight tries.
     # Piece 8 stays at eight: nine integer args, stack arg tracks the frame.
     # Piece 19 stays at eight: thirteen integer args, stack arg tracks the frame.
+    # Fn-block screening is done.
     # Some pure-asm tries segfault. Twelve tries for those fourteen pieces.
     # The other eleven pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
@@ -10756,7 +10757,7 @@ PY
 pthin_lex_skip_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_lex_skip.x"
-  local dir c try src obj objs n
+  local dir c try src obj objs n limit
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -10835,7 +10836,16 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    while [ "$try" -lt 8 ]; do
+    # w1282: piece 3 is parser_asm_copy_slice_to_name64_buf_c.
+    # Pieces 0, 1, and 2 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for this one piece.
+    # The other eighteen pieces stay at eight. Symbols stay strong.
+    # PLATFORM: MACOS|DARWIN arm64.
+    limit=8
+    if [ "$c" = "3" ]; then
+      limit=12
+    fi
+    while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
       if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
