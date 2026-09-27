@@ -445,6 +445,10 @@ function log_os_async_ready(): i32 {
  * PLATFORM: MACOS|DARWIN
  */
 function log_os_load_i64_at(buf: *u8, off: i32): i64 {
+  // A live pad pulls the copy index inside this frame.
+  // The unpadded store sat eight bytes past the allocation.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let tmp: i64 = 0;
   let p: *u8 = &tmp as *u8;
   let i: i32 = 0;
@@ -498,6 +502,10 @@ function log_os_stat_size(path: *u8): i64 {
  * PLATFORM: MACOS|DARWIN
  */
 function log_os_atoi(s: *u8): i32 {
+  // A live pad pulls the digit accumulator inside this frame.
+  // The unpadded store sat eight bytes past the allocation.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let i: i32 = 0;
   let n: i32 = 0;
   let sign: i32 = 1;

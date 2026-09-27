@@ -3990,11 +3990,19 @@ ensure_log_os_darwin_pure() {
   rm -f "$thin_o" "$os_o" "$o"
   # w1216: the thin half segfaults on some pure-asm tries. Fill it
   # before the eight-try loop. A failed fill still falls back to that
-  # loop. The Darwin half stays on the loop. Symbols stay strong.
+  # loop. Symbols stay strong.
   # PLATFORM: MACOS|DARWIN arm64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh log-thin-retry "$thin_o"; then
     log "prefer log thin ← pure-asm eighteen symbols (w1216)"
+  fi
+  # w1217: the Darwin half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A failed fill still falls back to that
+  # loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh log-os-retry "$os_o"; then
+    log "prefer log os ← pure-asm thirty-four symbols (w1217)"
   fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
@@ -5802,6 +5810,57 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1217: src/asm/runtime_log_os_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. The edge stores in
+# log_os_load_i64_at and log_os_atoi sit inside the frame after
+# a live pad. Direct xlang_asm, not pure_asm_x_to_o.
+# Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+log_os_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_log_os_darwin.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "34" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _log_os_atoi _log_os_load_i64_at _log_apply_env_once_impl _log_write_sync_impl; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  for c in ___open _link_abi_getenv _malloc _stat; do
+    if ! nm -u "$o" | awk -v s="$c" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1216: src/asm/runtime_log_os.x segfaults on some pure-asm
 # tries and emits on a later try. Every frame is already closed.
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
@@ -28702,6 +28761,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  log-os-retry|log_os_retry_pure)
+    # w1217: thirty-four pure-asm symbols of runtime_log_os_darwin.x.
+    # Does not write runtime_log_os.o and does not compile the thin half.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o log-os-retry: need <out.o>" >&2
+      exit 2
+    fi
+    log_os_retry_pure "$1"
+    exit $?
+    ;;
   log-thin-retry|log_thin_retry_pure)
     # w1216: eighteen pure-asm symbols of runtime_log_os.x.
     # Does not write runtime_log_os.o and does not compile the Darwin half.
