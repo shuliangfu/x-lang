@@ -5565,6 +5565,50 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1176: src/asm/backend_arch_emit_dispatch.x segfaults on some
+# pure-asm tries and emits on a later try. Retry the whole translation
+# unit. Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+arch_emit_dispatch_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/backend_arch_emit_dispatch.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "49" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _backend_arch_emit_dispatch_x_doc_anchor _backend_arch_emit_ret_imm32 \
+    _backend_arch_emit_dispatch_slice_marker _backend_arch_emit_push_rax; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1175: src/seed_link_compat.x segfaults on some pure-asm tries and
 # emits on a later try. Retry the whole translation unit. Direct
 # xlang_asm, not rt_prefer_try_x_to_o. The six lsp stubs plus the
@@ -9566,7 +9610,17 @@ ensure_arch_emit_dispatch_pure() {
   thin_o="${thin_tmp}.o"
   mv "$thin_tmp" "$thin_o"
 
-  if ! (
+  # w1176: some pure-asm tries segfault. Darwin retries the whole
+  # translation unit. Other hosts keep the one-shot pure_asm path.
+  # Symbols stay strong. PLATFORM: MACOS|DARWIN arm64 for the retry.
+  _ae_pure=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh arch-emit-dispatch-pure "$thin_o"; then
+    _ae_pure=1
+  fi
+  if [ "$_ae_pure" != "1" ] && ! (
     export XLANG_PREFER_ASM_O=1
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin_o" "$x_src"
@@ -9583,7 +9637,11 @@ ensure_arch_emit_dispatch_pure() {
     return 1
   fi
   mv -f "$thin_o" "$o"
-  log "prefer pure-asm $o <- $x_src (w857; marker is in the .x, no host cc)"
+  if [ "$_ae_pure" = "1" ]; then
+    log "prefer pure-asm $o <- forty-nine symbols (w1176)"
+  else
+    log "prefer pure-asm $o <- $x_src (w857; marker is in the .x, no host cc)"
+  fi
   return 0
 }
 
@@ -26155,6 +26213,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  arch-emit-dispatch-pure|arch_emit_dispatch_darwin_pure)
+    # w1176: forty-nine pure-asm symbols of backend_arch_emit_dispatch.x.
+    # Does not write src/asm/backend_arch_emit_dispatch.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o arch-emit-dispatch-pure: need <out.o>" >&2
+      exit 2
+    fi
+    arch_emit_dispatch_darwin_pure "$1"
+    exit $?
+    ;;
   seed-link-compat-pure|seed_link_compat_darwin_pure)
     # w1175: nineteen pure-asm symbols of src/seed_link_compat.x.
     # Does not write src/seed_link_compat.o unless that path is passed.

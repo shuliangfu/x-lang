@@ -636,6 +636,7 @@
 - 2026-09-27 Darwin arm64 `runtime_asm_build.o` 的产品体是 `src/asm/runtime_asm_build.x` 与 `src/asm/runtime_asm_build_main.x` 的纯 asm 合并。含 `main` 的翻译单元只发出 `main`。`skip` 读回 5，`main` 读回 17。Linux 与 Windows 仍编 `seeds/runtime_asm_build.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
 - 2026-09-27 Darwin arm64 独立 `rt_stack.o` 的产品体是 `src/runtime/rt_stack.x`，纯 asm。空参数返回空，源 11 长度 4 写回 21，大栈读回 7，留下 -99 时读回 3。切片标记留在大包 C。Linux 与 Windows 仍编 `seeds/rt_stack.from_x.c`。纯 asm 对象若带上切片标记则不收口。
 - 2026-09-27 lib root 三函数的产品体是 `src/runtime/rt_lib_root.x`，纯 asm。文件里只留一个 `while`。空指针和空串不可用，`XLANG_LIB` 为 `lib` 时读回 `lib`，两行时第一行 `abc`、第二行 `.`。切片标记留在大包 C。Linux 与 Windows 走同一份 `.x`。纯 asm 失败才退回 `-E` 或整份种子。
+- 2026-09-27 架构发射分发四十九个符号改由 `.x` 纯 asm 编出。八次抽样里五次会段错误，再试才发出对象。锚点返回 0。盘上 `asm/backend_arch_emit_dispatch.o` 没有重编。纯 asm 失败才退回原来的一次尝试。
 - 2026-09-27 种子链接兼容十九个符号改由 `.x` 纯 asm 编出。前两次会段错误，第三次才发出对象。诊断桩返回 -1。七个桥保持弱。盘上 `seed_link_compat.o` 没有重编。纯 asm 失败才退回原来的一次尝试。
 - 2026-09-27 兼容桩四个符号改由 `.x` 纯 asm 编出。前三次会段错误，第四次才发出对象。小端追加的帧边存储垫进帧内。锚点返回 0。盘上 `asm/asm_backend_compat_stubs.o` 没有重编。纯 asm 失败才退回原来的一次尝试。
 - 2026-09-27 发射状态十四个符号改由 `.x` 纯 asm 编出。八次抽样里第八次会段错误，前七次发出对象。最大库根返回 16。盘上 `runtime/rt_emit_state.o` 没有重编。纯 asm 失败才退回原来的一次尝试。
