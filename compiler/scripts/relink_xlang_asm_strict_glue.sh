@@ -2050,11 +2050,9 @@ ensure_runtime_asm_build_obj() {
 }
 
 ensure_x_seed_bridge_obj() {
-  local o="src/x_seed_bridge.o"
-  if [ ! -f "$o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/x_seed_bridge.from_x.c (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$o"
-  fi
+  # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
+  # This function must not host-cc seeds/x_seed_bridge.from_x.c over that object. PLATFORM: SHARED.
+  return 0
 }
 
 ensure_ast_pool_l5_bridge_obj() {
