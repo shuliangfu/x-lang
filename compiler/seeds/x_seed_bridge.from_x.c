@@ -398,12 +398,17 @@ int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned 
 extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms);
 #endif
 
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
   return xlang_io_submit_write(b->ptr, b->length, b->handle, (unsigned)timeout_ms);
 }
+#else
+/* Submitted write from a buffer record lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms);
+#endif
 
 /** lsp_gen 引用 driver_read_ptr*；真 partial 无 phase1 弱桩时兜底。 */
 XLANG_WEAK uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms) {

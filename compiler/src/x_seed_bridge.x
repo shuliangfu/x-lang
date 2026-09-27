@@ -606,3 +606,34 @@ export function xlang_io_submit_write(ptr: *u8, len: usize, handle: usize, timeo
   }
   return n as i32;
 }
+
+/**
+ * Submit one write from a packed buffer record.
+ * The record holds a pointer at offset 0, a length at 8, and a handle at
+ * 16. A zero address returns -1. The write goes through xlang_io_submit_write.
+ * @param buf isize — address of the record, or 0
+ * @param timeout_ms i32 — passed through as an unsigned timeout
+ * @return i32 — bytes written, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_submit_write_buf(buf: isize, timeout_ms: i32): i32 {
+  let pad: u8[32] = [];
+  let base: *u8 = 0 as *u8;
+  let ptr: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let handle: usize = 0;
+  let r: i32 = 0;
+  pad[0] = 0;
+  if (buf == 0) {
+    return 0 - 1;
+  }
+  base = (buf as usize) as *u8;
+  unsafe {
+    ptr = diag_snap_load_ptr(base, 0);
+    len = diag_snap_load_usize(base, 8);
+    handle = diag_snap_load_usize(base, 16);
+  }
+  r = xlang_io_submit_write(ptr, len, handle, timeout_ms as u32);
+  return r;
+}
