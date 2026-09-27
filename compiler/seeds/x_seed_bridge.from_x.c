@@ -25,17 +25,8 @@
 /* sys/types for ssize_t if not from unistd */
 #include <sys/types.h>
 
-extern int32_t preprocess_x_buf(uint8_t * src, ssize_t src_len, uint8_t * out_buf, int32_t out_cap);
 extern uint8_t * typeck_std_heap_alloc(size_t size);
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-int32_t typeck_preprocess_x_buf(uint8_t * src, ssize_t src_len, uint8_t * out_buf, int32_t out_cap) {
-  (void)(({   {
-    int32_t r = preprocess_x_buf(src, src_len, out_buf, out_cap);
-    return r;
-  }
- }));
-  return 0;
-}
 uint8_t * std_heap_alloc_zeroed(size_t size) {
   (void)(({   {
     uint8_t * r = calloc(1, size);
