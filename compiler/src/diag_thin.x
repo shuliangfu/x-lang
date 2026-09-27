@@ -2312,7 +2312,6 @@ export function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_co
 }
 
 // ---- G-02f-421：code table / entry / stdio handles → seed impl ----
-export extern "C" function diag_stderr_impl(): *u8;
 export extern "C" function diag_stdout_impl(): *u8;
 /**
  * Diagnostic code at this table index.
@@ -2647,13 +2646,18 @@ export function diag_entry_details(code: *u8): *u8 {
   return 0 as *u8;
 }
 
-/** Exported function `diag_stderr`.
- * Implements `diag_stderr`.
- * @return *u8
+/**
+ * Return the stderr stream handle.
+ * The handle is fd + 1 stored in a pointer. stderr is fd 2, so the
+ * pointer value is 3. A null handle is not used for this stream.
+ * @return *u8 — opaque handle for fd 2
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_stderr(): *u8 {
-  unsafe { return diag_stderr_impl(); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  return ((2 + 1) as usize) as *u8;
 }
 
 /** Exported function `diag_stdout`.

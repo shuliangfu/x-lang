@@ -77,9 +77,11 @@ static int diag_o_printf(uint8_t *o, const char *fmt, ...) {
 #endif
 
 /** Std stream handles for direct stderr/stdout sites. */
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static uint8_t *diag_h_stderr(void) {
     return xlang_driver_handle_from_fd(2);
 }
+#endif
 
 static uint8_t *diag_h_stdout(void) {
     return xlang_driver_handle_from_fd(1);
@@ -429,10 +431,9 @@ static DiagPalette diag_palette_for_kind(const char *kind) {
 #endif
 
 /** 供 .x stdio 冷路径（G-02f-156）。9.7.1: stream params are opaque fd handles. */
-/* G-02f-421：实现体始终 seed；public PREFER 时 thin pure forward */
-uint8_t *diag_stderr_impl(void) { return diag_h_stderr(); }
+/* G-02f-421：stderr 句柄在 thin；冷路径仍走 diag_h_stderr。 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-uint8_t *diag_stderr(void) { return diag_stderr_impl(); }
+uint8_t *diag_stderr(void) { return diag_h_stderr(); }
 #endif
 /* G-02f-415：实现体始终 seed（stdio/fmt）；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
