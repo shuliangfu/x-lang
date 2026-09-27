@@ -239,6 +239,10 @@ export function net_tcp_connect_ipv6_c(addr_16: *u8, port_u32: u32, timeout_ms: 
  * PLATFORM: MACOS|DARWIN arm64
  */
 function ipv6_reuse(fd: i32): void {
+  // Live pad: the option-value slot must sit inside the frame.
+  // PLATFORM: MACOS|DARWIN arm64
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let bit: i32 = 1;
   unsafe { setsockopt(fd, 65535, 4, &bit, 4); }
 }
@@ -277,6 +281,10 @@ function ipv6_listen_bind(fd: i32, sin: *u8): i32 {
  * PLATFORM: MACOS|DARWIN arm64
  */
 function ipv6_listen_open(sin: *u8): i32 {
+  // Live pad: the socket fd slot must sit inside the frame.
+  // PLATFORM: MACOS|DARWIN arm64
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let fd: i32 = 0;
   unsafe { fd = socket(30, 1, 6); }
   if (fd < 0) {

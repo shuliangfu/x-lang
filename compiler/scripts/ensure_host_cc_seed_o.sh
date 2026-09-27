@@ -5850,6 +5850,83 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1228: src/asm/runtime_net_ipv6_fast_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. Every frame is closed.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+net_ipv6_os_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_net_ipv6_fast_darwin.x"
+  local try n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "16" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_ipv6_set_addr_port_buf_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_tcp_connect_ipv6_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_tcp_listen_ipv6_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_ipv6_poll_writable_c_impl_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="___error" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="___fcntl" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_setsockopt" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_socket" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_malloc" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_poll" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1227: src/asm/runtime_net_sock_fast_darwin.x segfaults on some
 # pure-asm tries and emits on a later try. Every frame is closed.
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
@@ -25797,6 +25874,14 @@ ensure_net_ipv6_fast_darwin_pure() {
   thin_o="$(mktemp "${TMPDIR:-/tmp}/netv6_thin.XXXXXX.o")"
   os_o="$(mktemp "${TMPDIR:-/tmp}/netv6_os.XXXXXX.o")"
   rm -f "$thin_o" "$os_o" "$o"
+  # w1228: the Darwin half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A filled object is kept. The thin half
+  # stays on the loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh net-ipv6-os-retry "$os_o"; then
+    log "prefer net ipv6 os ← pure-asm sixteen symbols (w1228)"
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     if [ ! -s "$thin_o" ]; then
@@ -29393,6 +29478,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  net-ipv6-os-retry|net_ipv6_os_retry_pure)
+    # w1228: sixteen pure-asm symbols of runtime_net_ipv6_fast_darwin.x.
+    # Does not link the thin half and does not write std/net/net_ipv6_fast.o.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o net-ipv6-os-retry: need <out.o>" >&2
+      exit 2
+    fi
+    net_ipv6_os_retry_pure "$1"
+    exit $?
+    ;;
   net-sock-os-retry|net_sock_os_retry_pure)
     # w1227: twenty-four pure-asm symbols of runtime_net_sock_fast_darwin.x.
     # Does not link the thin half and does not write std/net/net_sock_fast.o.
