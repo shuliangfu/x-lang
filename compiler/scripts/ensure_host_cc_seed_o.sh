@@ -10673,11 +10673,12 @@ PY
     # w1269: piece 1 is parser_asm_struct_layout_first_name_match_idx_c.
     # w1270: piece 2 is parser_asm_struct_layout_placeholder_idx_c.
     # w1271: piece 3 is parser_asm_tok_is_modifier_packed_c.
-    # Some pure-asm tries segfault. Twelve tries for those four pieces.
-    # The other twenty-one pieces stay at eight. Symbols stay strong.
+    # w1272: piece 4 is parser_asm_tok_is_modifier_soa_c.
+    # Some pure-asm tries segfault. Twelve tries for those five pieces.
+    # The other twenty pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
