@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_loc_file_impl(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
 export extern "C" function diag_io_fprint_loc_line_col_impl(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
 export extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
@@ -1764,17 +1763,34 @@ export function diag_io_fprint_loc_file_line(o: *u8, pc: *u8, file: *u8, line: i
   }
 }
 
-/** Exported function `diag_io_fprint_loc_file`.
- * Implements `diag_io_fprint_loc_file`.
- * @param o *u8
- * @param pc *u8
- * @param file *u8
- * @param rs *u8
- * @return void
+/**
+ * Write one human location line with only a file path.
+ * The bytes are <pc> --> <file><rs> and a newline.
+ * There is no line number and no column.
+ * A null prefix, file, or reset string is written as empty.
+ * @param o *u8 — destination stream
+ * @param pc *u8 — path color prefix, or null
+ * @param file *u8 — file path, or null
+ * @param rs *u8 — reset sequence, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): void {
-  unsafe { diag_io_fprint_loc_file_impl(o, pc, file, rs); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    if (pc != 0 as *u8) {
+      diag_io_fputs(pc, o);
+    }
+    diag_io_fputs(" --> ", o);
+    if (file != 0 as *u8) {
+      diag_io_fputs(file, o);
+    }
+    if (rs != 0 as *u8) {
+      diag_io_fputs(rs, o);
+    }
+    diag_io_fputc(o, 10);
+  }
 }
 
 /** Exported function `diag_io_fprint_loc_line_col`.
