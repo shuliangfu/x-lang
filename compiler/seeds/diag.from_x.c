@@ -30,6 +30,7 @@ void diag_json_set_state(int v);
  * All diag print sites go through these; formatting uses the Cap fmt authority.
  * Byte-exact replacements for the former fputs/fputc/fprintf/fflush calls. */
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Decode handle → fd (static wrapper keeps call sites short). */
 static int diag_o_fd(uint8_t *o) {
     return xlang_driver_handle_to_fd(o);
@@ -44,11 +45,14 @@ static int diag_o_write(uint8_t *o, const char *s, size_t n) {
         return 0;
     return xlang_io_write(fd, s, n) == (long)n ? 0 : -1;
 }
+#endif
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Write NUL-terminated string (fputs twin; NULL writes nothing). */
 static int diag_o_puts(uint8_t *o, const char *s) {
     return diag_o_write(o, s, s ? strlen(s) : 0);
 }
+#endif
 
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Write one char (fputc twin). */
@@ -441,9 +445,11 @@ int diag_io_fputc(uint8_t *o, int c) { return diag_o_putc(o, (char)c); }
 /* One-byte write lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern int diag_io_fputc(uint8_t *o, int c);
 #endif
-int diag_io_fputs_impl(const char *s, uint8_t *o) { return diag_o_puts(o, s ? s : ""); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-int diag_io_fputs(const char *s, uint8_t *o) { return diag_io_fputs_impl(s, o); }
+int diag_io_fputs(const char *s, uint8_t *o) { return diag_o_puts(o, s ? s : ""); }
+#else
+/* String write lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_io_fputs(const char *s, uint8_t *o);
 #endif
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fputs_u04x(uint8_t *o, unsigned c) { diag_o_printf(o, "\\u%04x", c); }

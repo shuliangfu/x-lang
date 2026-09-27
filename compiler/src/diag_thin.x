@@ -1529,7 +1529,6 @@ export function diag_json_set_state(v: i32): i32 {
 
 // See implementation.
 export extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
-export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 /**
  * Write one byte. The stream handle is fd + 1 stuffed into a pointer;
  * null is invalid and returns -1. The low 8 bits of c are written.
@@ -1562,15 +1561,45 @@ export function diag_io_fputc(o: *u8, c: i32): i32 {
   }
 }
 
-/** Exported function `diag_io_fputs`.
- * Implements `diag_io_fputs`.
- * @param s *u8
- * @param o *u8
- * @return i32
+/**
+ * Write a C string. A null string writes nothing. The stream handle
+ * is fd + 1 stuffed into a pointer; a null or invalid handle returns
+ * -1 even for an empty string. Returns 0 when every byte is written,
+ * otherwise -1.
+ * @param s *u8 — NUL-terminated text, or null
+ * @param o *u8 — opaque stream handle, or null
+ * @return i32 — 0 on success, -1 on error
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fputs(s: *u8, o: *u8): i32 {
-  unsafe { return diag_io_fputs_impl(s, o); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    if (o == 0 as *u8) {
+      return 0 - 1;
+    }
+    let bits: usize = o as usize;
+    let fd: i32 = ((bits as i64) - 1) as i32;
+    if (fd < 0) {
+      return 0 - 1;
+    }
+    if (s == 0 as *u8) {
+      return 0;
+    }
+    let i: i32 = 0;
+    while (s[i] != 0) {
+      i = i + 1;
+    }
+    if (i == 0) {
+      return 0;
+    }
+    let n: isize = xlang_sys_write(fd, s, i as usize);
+    if (n == (i as isize)) {
+      return 0;
+    }
+    return 0 - 1;
+  }
 }
 
 /**
