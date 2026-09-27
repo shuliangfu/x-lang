@@ -2905,15 +2905,21 @@ struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer 
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 #endif
-/* Product keep stays after the lite peel. The 46k audit suite is chapter 2.9.
- * PLATFORM: SHARED. */
+/* Product keep stays after the lite peel. Chapter 2.9 replaces those
+ * stubs with pthin_stretch_audit.x. PLATFORM: SHARED. */
 #ifdef XLANG_PARSER_STRETCH_AUDIT
 #include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
-#else
+#elif !defined(XLANG_PTHIN_STRETCH_AUDIT_FROM_X)
 /* Class BA: product keep — no suite symbol-string bloat.
- * Stays when XLANG_PTHIN_STRETCH_FROM_X drops the lite slice.
- * Chapter 2.9 owns the audit suite. PLATFORM: SHARED. */
+ * Stays when XLANG_PTHIN_STRETCH_FROM_X drops the lite slice and the
+ * audit .x is not linked. PLATFORM: SHARED. */
 #include "parser_asm_stretch_suite_product_keep.inc"
+#else
+/* PLATFORM: SHARED — chapter 2.9. Audit bodies are the .x object.
+ * The Class BA marker stays here and still returns 0. */
+int labi_pthin_stretch_suite_slice_marker(void) {
+  return 0;
+}
 #endif
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /* Class BY: tip product always NO_SEED_PARSE — .inc body archived under analysis/archive/parser_asm/.

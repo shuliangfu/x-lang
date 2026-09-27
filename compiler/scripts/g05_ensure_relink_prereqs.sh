@@ -2444,6 +2444,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p5=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p5.XXXXXX") || true
         _cb_p4pb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4pb.XXXXXX") || true
         _cb_p4p=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4p.XXXXXX") || true
+        _cb_p9a=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p9a.XXXXXX") || true
         _cb_p7b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7b.XXXXXX") || true
         _cb_p7=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7.XXXXXX") || true
         _cb_p15b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p15b.XXXXXX") || true
@@ -2481,6 +2482,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p4p_pure=0
         _cb_p4p_ok=0
         _cb_p4p_extra=""
+        _cb_p9a_pure=0
+        _cb_p9a_ok=0
         _cb_p5b_pure=0
         _cb_p5_ok=0
         if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
@@ -2563,6 +2566,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ -n "$_cb_p4pb" ] && [ -n "$_cb_p4p" ] && [ -f "$_pthin_p4pb_x" ] \
             && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-primary-pure "$_cb_p4pb"; then
             _cb_p4p_pure=1
+          fi
+          # w1320: stretch audit is 1978 business functions plus w1155
+          # trampolines. The splitter rejects any other count. The lex-step
+          # bridge stays host-cc (chapter 6). PLATFORM: MACOS|DARWIN arm64.
+          if [ -n "$_cb_p9a" ] && [ -f "$_pthin_p9a_x" ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-stretch-audit-pure "$_cb_p9a"; then
+            _cb_p9a_pure=1
           fi
         fi
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
@@ -2723,6 +2733,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               _cb_p4p_ok=1
             fi
           fi
+          if [ "$_cb_p9a_pure" = "1" ] \
+            && g05_obj_defines "$_cb_p9a" "parser_asm_stretch_if_header_audit_c" \
+            && g05_obj_defines "$_cb_p9a" "parser_asm_stretch_function_name_audit_c" \
+            && g05_obj_defines "$_cb_p9a" "parser_asm_stretch_is_type_start_kind_c" \
+            && g05_obj_defines "$_cb_p9a" "w1155_342" \
+            && g05_obj_defines "$_cb_p9a" "w1155_diag3"; then
+            _cb_p9a_ok=1
+          fi
           if g05_obj_defines "$_ca_p6b" "parser_asm_parse_struct_record_layout_x_into_c"; then
             _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
           fi
@@ -2823,6 +2841,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p9_ok:+-DXLANG_PTHIN_STRETCH_FROM_X} \
                ${_cb_p5_ok:+-DXLANG_PTHIN_CTRL_FROM_X} \
                ${_cb_p4p_ok:+-DXLANG_PTHIN_EXPR_PRIMARY_FROM_X} \
+               ${_cb_p9a_ok:+-DXLANG_PTHIN_STRETCH_AUDIT_FROM_X} \
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
@@ -2831,6 +2850,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p4t_ok:+"$_cb_p4t" "$_cb_p4tb"} \
                ${_cb_p5_ok:+"$_cb_p5" "$_cb_p5b"} \
                ${_cb_p4p_ok:+"$_cb_p4p" "$_cb_p4pb"} \
+               ${_cb_p9a_ok:+"$_cb_p9a"} \
                ${_cb_p5w_use:+"$_cb_p5w"} \
                ${_cb_p7_ok:+"$_cb_p7" "$_cb_p7b"} \
                ${_cb_p15_ok:+"$_cb_p15" "$_cb_p15b"} \
@@ -2839,6 +2859,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
               && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
               if [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
+                && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
+                && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
+                && [ "$_cb_p9a_ok" = "1" ]; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl + primary + stretch_audit (w1320)"
+              elif [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
                 && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
                 && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ]; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl + primary (w1319)"
@@ -2877,7 +2902,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
           "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
           "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u" "$_cb_p4tb" "$_cb_p4t" "$_cb_p5w" \
-          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" \
+          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" "$_cb_p9a" \
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
           "$_cb_p9b" "$_cb_p9"
       fi
