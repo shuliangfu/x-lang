@@ -851,6 +851,15 @@ ensure_sqlite_glue_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
+  # w1196: some pure-asm tries segfault. Retry before the eight-try
+  # path. A failed retry still falls back to that path and then the
+  # C seed. Symbols stay strong. sqlite3_open stays undefined.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh sqlite-glue-pure "$o"; then
+    log "prefer sqlite glue ← pure-asm twenty-three symbols (w1196)"
+    return 0
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -5617,6 +5626,56 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1196: src/asm/runtime_sqlite_glue_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. Frames are already
+# inside the allocation. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# sqlite3_open stays undefined. PLATFORM: MACOS|DARWIN arm64.
+# Other hosts return 1. cwd is compiler/.
+sqlite_glue_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_sqlite_glue_darwin.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "23" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _xlang_db_use_sqlite3_c _xlang_sqlite3_open_c \
+    _xlang_sqlite3_exec_c _sqlite_count_cb_ptr; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if ! nm -u "$o" | awk '{ s=$NF } s=="_sqlite3_open" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1195: src/asm/runtime_process_argv_darwin.x segfaults on some
 # pure-asm tries and emits on a later try. Frames are already
 # inside the allocation. Retry the whole translation unit.
@@ -27367,6 +27426,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  sqlite-glue-pure|sqlite_glue_retry_pure)
+    # w1196: twenty-three pure-asm symbols of runtime_sqlite_glue_darwin.x.
+    # Does not write runtime_sqlite_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o sqlite-glue-pure: need <out.o>" >&2
+      exit 2
+    fi
+    sqlite_glue_retry_pure "$1"
+    exit $?
+    ;;
   process-argv-pure|process_argv_retry_pure)
     # w1195: seven pure-asm symbols of runtime_process_argv_darwin.x.
     # Does not write runtime_process_argv.o unless that path is passed.
