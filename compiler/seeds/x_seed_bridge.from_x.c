@@ -230,6 +230,7 @@ extern void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_
 #endif
 
 /** lsp_io.x / pipeline 引用 libc 风格 IO 符号；seed 链 read/write 转发。 */
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
   ssize_t n;
   (void)timeout_ms;
@@ -238,6 +239,10 @@ ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
   n = (ssize_t)xlang_io_read(fd, buf, count);
   return n >= 0 ? (ptrdiff_t)n : -1;
 }
+#else
+/* Byte read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
+#endif
 
 ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
   ssize_t n;

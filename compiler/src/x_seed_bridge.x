@@ -15,6 +15,7 @@ export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
 export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
+export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -248,4 +249,37 @@ export function ast_expr_init_call_resolve(arena: *u8, expr_ref: i32): void {
   unsafe {
     pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
   }
+}
+
+/**
+ * Read up to count bytes from a file descriptor.
+ * A null buffer or a zero count returns 0 and does not call the reader.
+ * timeout_ms is ignored. A failed read returns -1. Bytes come from the
+ * existing xlang_sys_read.
+ * @param fd i32 — file descriptor
+ * @param buf *u8 — destination, or null
+ * @param count usize — maximum number of bytes
+ * @param timeout_ms u32 — ignored
+ * @return isize — bytes read, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  if (count == 0) {
+    return 0;
+  }
+  unsafe {
+    n = xlang_sys_read(fd, buf, count);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n;
 }
