@@ -1019,25 +1019,21 @@ extern const char *diag_code_details(const char *code);
 #endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_known_codes(uint8_t *out)
-#else
-void diag_print_known_codes_impl(uint8_t *out)
-#endif
 {
     size_t i;
     if (!out)
         out = diag_h_stdout();
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    for (i = 0; i < diag_code_table_len(); i++)
-        diag_o_printf(out, "%s%s", i == 0 ? "" : ", ", diag_code_table_code_at(i));
-#else
     for (i = 0; i < g_diag_code_table_count; i++)
         diag_o_printf(out, "%s%s", i == 0 ? "" : ", ", g_diag_code_table[i].code);
-#endif
     diag_o_putc(out, '\n');
 }
+#else
+/* Comma-separated known-code list lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_known_codes(uint8_t *out);
+#endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
@@ -1058,7 +1054,7 @@ void diag_print_code_explain_impl(uint8_t *out, const char *code)
         if (!ec) {
             diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
             diag_o_puts(out, "Known codes: ");
-            diag_print_known_codes_impl(out);
+            diag_print_known_codes(out);
             return;
         }
         diag_o_printf(out, "%s\n", ec);
