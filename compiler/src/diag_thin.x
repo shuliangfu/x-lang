@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
 export extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
 export extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
@@ -1938,15 +1937,35 @@ export function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8, len: i32)
   }
 }
 
-/** Exported function `diag_io_fprint_gutter_bar`.
- * Implements `diag_io_fprint_gutter_bar`.
- * @param o *u8
- * @param width i32
- * @return void
+/**
+ * Write the caret gutter: padding spaces, then " | ".
+ * There is no newline. A positive width writes that many spaces.
+ * Zero writes none. A negative width writes its magnitude, matching
+ * printf %*s on an empty string. The most negative i32 cannot be
+ * negated, so it writes no padding spaces.
+ * @param o *u8 — destination stream
+ * @param width i32 — space count before the bar
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_gutter_bar(o: *u8, width: i32): void {
-  unsafe { diag_io_fprint_gutter_bar_impl(o, width); }
+  let n: i32 = width;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    if (n < 0) {
+      if (n + 2147483647 == 0 - 1) {
+        n = 0;
+      } else {
+        n = 0 - n;
+      }
+    }
+    while (n > 0) {
+      diag_io_fputc(o, 32);
+      n = n - 1;
+    }
+    diag_io_fputs(" | ", o);
+  }
 }
 
 /** Exported function `diag_io_fprint_caret_mark`.

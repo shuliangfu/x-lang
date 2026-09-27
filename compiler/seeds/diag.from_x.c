@@ -509,13 +509,13 @@ void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len) {
 /* Source gutter line lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len);
 #endif
-void diag_io_fprint_gutter_bar_impl(uint8_t *o, int width) {
-    diag_o_printf(o, "%*s | ", width, "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_gutter_bar(uint8_t *o, int width) {
-    diag_io_fprint_gutter_bar_impl(o, width);
+    diag_o_printf(o, "%*s | ", width, "");
 }
+#else
+/* Caret gutter bar lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_gutter_bar(uint8_t *o, int width);
 #endif
 void diag_io_fprint_caret_mark_impl(uint8_t *o, const char *cc, const char *rs, const char *detail) {
     diag_o_printf(o, "%s^%s", cc ? cc : "", rs ? rs : "");
