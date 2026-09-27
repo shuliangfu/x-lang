@@ -10494,11 +10494,12 @@ PY
     # w1251: piece 0 is parser_asm_ctrl_ident_continue.
     # w1252: piece 1 is parser_asm_ctrl_bytes_eq.
     # w1253: piece 2 is parser_asm_skip_balanced_braces_bytes_comment_aware_c.
-    # Some pure-asm tries segfault. Twelve tries for those three pieces.
-    # The other twenty-eight pieces stay at eight. Symbols stay strong.
+    # w1254: piece 3 is parser_asm_kw_at_pos_buf_c.
+    # Some pure-asm tries segfault. Twelve tries for those four pieces.
+    # The other twenty-seven pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
