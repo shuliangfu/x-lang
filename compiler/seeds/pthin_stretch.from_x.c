@@ -250,18 +250,25 @@ int32_t parser_asm_stretch_allow_kw_paren_buf_audit_c(void *lex_inout, uint8_t *
 /* PLATFORM: SHARED — 7.2.1 already-T shrink (2026-09-12).
  * Hybrid P9a (XLANG_PTHIN_STRETCH_AUDIT_FROM_X) already provides the 1978
  * combinator symbols from pthin_stretch_audit.x. Including suite_slice.inc
- * here still forced host-cc to preprocess ~46k lines / 2.6MiB of #ifndef
- * bodies + vx forward decls. Skip the include on the hybrid lane.
- * classify_toplevel / import_path_score live in P9b .x (hybrid) or lite
- * (cold). Cold (no P9a): keep the suite C twins as the fallback authority. */
+ * here still forced host-cc to preprocess ~46k lines. Skip that include
+ * on the hybrid lane. CLASS_CB also skips it: Class CB keeps
+ * parser_asm_stretch_suite_product_keep.inc in thin rest instead.
+ * Chapter 2.9 owns the audit suite. Cold (neither flag): archive stays. */
 #ifndef XLANG_PTHIN_STRETCH_AUDIT_FROM_X
+#ifndef XLANG_PTHIN_STRETCH_CLASS_CB
 #include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
+#endif
 #endif
 
 int labi_pthin_stretch_slice_marker(void) {
   return 1;
 }
 
+/* Class CB sets XLANG_PTHIN_STRETCH_CLASS_CB: product_keep in thin rest
+ * owns this marker. First-pass must keep defining it so that merge still
+ * fails and Class CB remains the product path. PLATFORM: SHARED. */
+#ifndef XLANG_PTHIN_STRETCH_CLASS_CB
 int labi_pthin_stretch_suite_slice_marker(void) {
   return 1;
 }
+#endif

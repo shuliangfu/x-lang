@@ -2883,12 +2883,6 @@ struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lex
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-#ifdef XLANG_PARSER_STRETCH_AUDIT
-#include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
-#else
-/* Class BA: product keep — no suite symbol-string bloat. */
-#include "parser_asm_stretch_suite_product_keep.inc"
-#endif
 #else
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
 int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len);
@@ -2910,6 +2904,16 @@ struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lex
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
+#endif
+/* Product keep stays after the lite peel. The 46k audit suite is chapter 2.9.
+ * PLATFORM: SHARED. */
+#ifdef XLANG_PARSER_STRETCH_AUDIT
+#include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
+#else
+/* Class BA: product keep — no suite symbol-string bloat.
+ * Stays when XLANG_PTHIN_STRETCH_FROM_X drops the lite slice.
+ * Chapter 2.9 owns the audit suite. PLATFORM: SHARED. */
+#include "parser_asm_stretch_suite_product_keep.inc"
 #endif
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /* Class BY: tip product always NO_SEED_PARSE — .inc body archived under analysis/archive/parser_asm/.
