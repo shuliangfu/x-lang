@@ -363,3 +363,26 @@ export function io_write_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32):
   }
   return 0 - 1;
 }
+
+/**
+ * Read through a registered buffer slot.
+ * buf_index and offset are ignored. The call goes to io_read with a null
+ * buffer, which returns 0 without reading.
+ * @param fd i32 — file descriptor
+ * @param buf_index u32 — ignored
+ * @param offset usize — ignored
+ * @param len usize — length passed to io_read
+ * @param timeout_ms u32 — passed through to io_read
+ * @return isize — result of io_read on a null buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = buf_index as u8;
+  pad[2] = offset as u8;
+  n = io_read(fd, 0 as *u8, len, timeout_ms);
+  return n;
+}

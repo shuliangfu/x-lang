@@ -284,11 +284,16 @@ ptrdiff_t io_write_batch_buf(int fd, const void *bufs, int n, unsigned timeout_m
 extern ptrdiff_t io_write_batch_buf(int fd, const void *bufs, int n, unsigned timeout_ms);
 #endif
 
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 ptrdiff_t io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset, size_t len, unsigned timeout_ms) {
   (void)buf_index;
   (void)offset;
   return io_read(fd, NULL, len, timeout_ms);
 }
+#else
+/* Fixed read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern ptrdiff_t io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset, size_t len, unsigned timeout_ms);
+#endif
 
 ptrdiff_t io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset, size_t len, unsigned timeout_ms) {
   (void)buf_index;
