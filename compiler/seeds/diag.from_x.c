@@ -15,10 +15,7 @@
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
 #define diag_code_eq diag_code_eq_impl
 #define diag_levenshtein_ci diag_levenshtein_ci_impl
-#define diag_json_write_str diag_json_write_str_impl
-#define diag_json_severity diag_json_severity_impl
 #define diag_code_suggest diag_code_suggest_impl
-#define diag_report_json diag_report_json_impl
 int diag_ctx_get_use_color(void);
 int diag_code_table_has(const char *code);
 int diag_json_get_state(void);
@@ -1255,9 +1252,6 @@ int diag_json_enabled_impl(void)
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_json_write_str(uint8_t *out, const char *s)
-#else
-void diag_json_write_str_impl(uint8_t *out, const char *s)
-#endif
 {
     const unsigned char *p = (const unsigned char *)(s ? s : "");
     diag_o_putc(out, '"');
@@ -1280,6 +1274,10 @@ void diag_json_write_str_impl(uint8_t *out, const char *s)
     }
     diag_o_putc(out, '"');
 }
+#else
+/* JSON string walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_json_write_str(uint8_t *out, const char *s);
+#endif
 
 
 /**
@@ -1289,9 +1287,6 @@ void diag_json_write_str_impl(uint8_t *out, const char *s)
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char * diag_json_severity(const char *kind)
-#else
-const char * diag_json_severity_impl(const char *kind)
-#endif
 {
     if (!kind || !kind[0])
         return "error";
@@ -1305,8 +1300,10 @@ const char * diag_json_severity_impl(const char *kind)
         return "help";
     return "error";
 }
-
-
+#else
+/* JSON severity walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_json_severity(const char *kind);
+#endif
 
 
 /**
@@ -1318,10 +1315,6 @@ const char * diag_json_severity_impl(const char *kind)
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg)
-#else
-void diag_report_json_impl(const char *file, int line, int col,
-                             const char *kind, const char *code, const char *msg)
-#endif
 {
     const char *sev = diag_json_severity(kind);
     uint8_t *eo = diag_h_stderr();
@@ -1342,5 +1335,8 @@ void diag_report_json_impl(const char *file, int line, int col,
     diag_o_puts(eo, "}\n");
     /* raw fd 2 writes are unbuffered — no flush (9.7.1) */
 }
+#else
+/* JSON report walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+#endif
 
 

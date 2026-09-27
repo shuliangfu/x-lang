@@ -936,9 +936,6 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
 // See implementation.
 export extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 export extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
-export extern "C" function diag_json_write_str_impl(out: *u8, s: *u8): void;
-export extern "C" function diag_report_json_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void;
-export extern "C" function diag_json_severity_impl(kind: *u8): *u8;
 export extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
 
 /** Exported function `diag_code_eq`.
@@ -967,46 +964,150 @@ export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
   }
 }
 
-/** Exported function `diag_json_write_str`.
- * Write path helper `diag_json_write_str`.
- * @param out *u8
- * @param s *u8
- * @return void
+/**
+ * Write one JSON string literal, including the surrounding quotes.
+ * Escapes quote, backslash, and the usual controls. Bytes below 32
+ * go through diag_io_fputs_u04x, which still formats in the seed.
+ * A null pointer is an empty string. Stops at the first NUL, or at
+ * 1048576 bytes if the buffer is not terminated.
+ * @param out *u8 — opaque fd handle
+ * @param s *u8 — source bytes, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_json_write_str(out: *u8, s: *u8): void {
+  let p: *u8 = s;
+  let i: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (p == 0 as *u8) {
+    p = "";
+  }
   unsafe {
-    diag_json_write_str_impl(out, s);
+    diag_io_fputc(out, 34);
+    while (i < 1048576) {
+      let c: u8 = p[i];
+      if (c == 0) {
+        break;
+      }
+      if (c == 34) {
+        diag_io_fputs("\\\"", out);
+      } else {
+        if (c == 92) {
+          diag_io_fputs("\\\\", out);
+        } else {
+          if (c == 8) {
+            diag_io_fputs("\\b", out);
+          } else {
+            if (c == 12) {
+              diag_io_fputs("\\f", out);
+            } else {
+              if (c == 10) {
+                diag_io_fputs("\\n", out);
+              } else {
+                if (c == 13) {
+                  diag_io_fputs("\\r", out);
+                } else {
+                  if (c == 9) {
+                    diag_io_fputs("\\t", out);
+                  } else {
+                    if (c < 32) {
+                      diag_io_fputs_u04x(out, c as u32);
+                    } else {
+                      diag_io_fputc(out, c as i32);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      i = i + 1;
+    }
+    diag_io_fputc(out, 34);
   }
 }
 
-/** Exported function `diag_report_json`.
- * Implements `diag_report_json`.
- * @param file *u8
- * @param line i32
- * @param col i32
- * @param kind *u8
- * @param code *u8
- * @param msg *u8
- * @return void
+/**
+ * Emit one diagnostic as a single NDJSON object on stderr.
+ * line and col are printed by diag_io_fprint_line_col (seed printf).
+ * Does not flush; fd 2 writes are unbuffered.
+ * @param file *u8 — path, or null / empty for JSON null
+ * @param line i32 — printed even when 0
+ * @param col i32 — printed even when 0
+ * @param kind *u8 — mapped by diag_json_severity
+ * @param code *u8 — code, or null / empty for JSON null
+ * @param msg *u8 — message, or null for an empty string
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
+  let err: *u8 = 0 as *u8;
+  let sev: *u8 = 0 as *u8;
+  let m: *u8 = msg;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (m == 0 as *u8) {
+    m = "";
+  }
   unsafe {
-    diag_report_json_impl(file, line, col, kind, code, msg);
+    err = diag_stderr();
+    sev = diag_json_severity(kind);
+    diag_io_fputs("{\"severity\":", err);
+    diag_json_write_str(err, sev);
+    diag_io_fputs(",\"code\":", err);
+    if (code != 0 as *u8 && code[0] != 0) {
+      diag_json_write_str(err, code);
+    } else {
+      diag_io_fputs("null", err);
+    }
+    diag_io_fputs(",\"file\":", err);
+    if (file != 0 as *u8 && file[0] != 0) {
+      diag_json_write_str(err, file);
+    } else {
+      diag_io_fputs("null", err);
+    }
+    diag_io_fprint_line_col(err, line, col);
+    diag_json_write_str(err, m);
+    diag_io_fputs("}\n", err);
   }
 }
 
-/** Exported function `diag_json_severity`.
- * Implements `diag_json_severity`.
- * @param kind *u8
- * @return *u8
+/**
+ * Map a diagnostic kind word to the JSON severity string.
+ * A kind that contains "warning" is warning. Exact info and note
+ * keep their names. Exact help and hint both become "help".
+ * Anything else, including a null or empty kind, is "error".
+ * @param kind *u8 — severity word, or null
+ * @return *u8 — static severity literal
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_json_severity(kind: *u8): *u8 {
-  unsafe {
-    return diag_json_severity_impl(kind);
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (kind == 0 as *u8) {
+    return "error";
   }
+  unsafe {
+    if (kind[0] == 0) {
+      return "error";
+    }
+    if (diag_kind_contains(kind, "warning") != 0) {
+      return "warning";
+    }
+    if (diag_kind_is_exact(kind, "info") != 0) {
+      return "info";
+    }
+    if (diag_kind_is_exact(kind, "note") != 0) {
+      return "note";
+    }
+    if (diag_kind_is_exact(kind, "help") != 0 || diag_kind_is_exact(kind, "hint") != 0) {
+      return "help";
+    }
+  }
+  return "error";
 }
 
 /** Exported function `diag_code_suggest`.
