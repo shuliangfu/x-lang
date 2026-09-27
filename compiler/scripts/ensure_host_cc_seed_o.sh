@@ -5850,6 +5850,53 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1223: src/runtime/rt_pipeline_elf_diag.x segfaults on some
+# pure-asm tries and emits on a later try. Every frame is already
+# closed. Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+elf_diag_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_pipeline_elf_diag.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "8" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _rt_elf_load_i32_le _rt_elf_strlen _rt_elf_append _rt_elf_copy_name; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if ! nm -u "$o" | awk '$NF ~ /xlang_panic/ { n++ } END { exit (n==0)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1222: src/asm/runtime_tls_mbedtls_bio_darwin.x segfaults
 # on some pure-asm tries and emits on a later try. Every frame is
 # already closed. Direct xlang_asm, not pure_asm_x_to_o.
@@ -11561,8 +11608,20 @@ rt_elf_diag_pure_thin() {
       return 1
     fi
     try=0
+    # w1223: the diag body segfaults on some pure-asm tries. Fill it
+    # before the eight-try loop. A filled object is kept. The other
+    # three parts stay on the loop. Symbols stay strong.
+    # PLATFORM: MACOS|DARWIN arm64.
+    if [ "$part" = "rt_pipeline_elf_diag" ] \
+      && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+      && bash scripts/ensure_host_cc_seed_o.sh elf-diag-retry "$obj"; then
+      log "prefer elf diag ← pure-asm eight symbols (w1223)"
+    fi
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
+      if [ -s "$obj" ]; then
+        break
+      fi
       rm -f "$obj"
       if (
         export XLANG_PREFER_ASM_O=1
@@ -29052,6 +29111,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  elf-diag-retry|elf_diag_retry_pure)
+    # w1223: eight pure-asm symbols of rt_pipeline_elf_diag.x.
+    # Does not merge the elf diag bag and does not compile the other three parts.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o elf-diag-retry: need <out.o>" >&2
+      exit 2
+    fi
+    elf_diag_retry_pure "$1"
+    exit $?
+    ;;
   tls-bio-os-retry|tls_bio_os_retry_pure)
     # w1222: six pure-asm symbols of runtime_tls_mbedtls_bio_darwin.x.
     # Does not write runtime_tls_mbedtls_bio.o and does not compile the thin half.
