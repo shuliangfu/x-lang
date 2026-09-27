@@ -10,7 +10,6 @@ export extern "C" function preprocess_x_buf(src: *u8, src_len: isize, out_buf: *
 export extern "C" function typeck_std_heap_alloc(size: usize): *u8;
 export extern "C" function calloc(n: usize, size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
-export extern "C" function pipeline_match_module_bytes(): *u8;
 export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
 export extern "C" function diag_snap_load_usize(snap: *u8, off: i32): usize;
@@ -18,6 +17,10 @@ export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): v
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
 export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
+
+/* Eight-byte slot for the module pointer used while parsing a match.
+ * Callers store and load that pointer at offset 0. PLATFORM: SHARED. */
+let g_xsb_match_module: u8[8] = [];
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -182,8 +185,22 @@ export function xlang_io_register(ptr: *u8, len: usize, handle: usize): i32 {
 }
 
 /**
+ * Address of the match-module slot.
+ * The slot is the eight-byte g_xsb_match_module in this file. Callers store
+ * and load the module pointer at offset 0.
+ * @return *u8 — address of the eight-byte slot
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_match_module_bytes(): *u8 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  return &g_xsb_match_module[0];
+}
+
+/**
  * Remember the module used while parsing a match.
- * The pointer stays in the seed. Its bytes are written by the existing
+ * The pointer lives in g_xsb_match_module. Its bytes are written by the existing
  * little-endian pointer store. A null module clears the slot.
  * @param m *u8 — module pointer, or null
  * PLATFORM: SHARED.
@@ -199,7 +216,7 @@ export function pipeline_parser_set_match_module(m: *u8): void {
 
 /**
  * Return the module used while parsing a match.
- * The pointer stays in the seed. Offset 0 of that slot is the module
+ * The pointer lives in g_xsb_match_module. Offset 0 of that slot is the module
  * pointer, loaded in host byte order through diag_snap_load_ptr.
  * @return *u8 — module pointer, or null when none is set
  * PLATFORM: SHARED.

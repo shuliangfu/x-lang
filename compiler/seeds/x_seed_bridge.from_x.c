@@ -167,13 +167,18 @@ struct ast_Expr {
 struct ast_ASTArena;
 struct ast_Module;
 
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 /** parser.x parse_match 查 enum tag 时的当前 Module（parse_into 入口设置）。 */
 static struct ast_Module *g_parser_match_module_x;
 
-/* Address of the match-module slot. PLATFORM: SHARED. */
+/* Address of the match-module slot. Cold compile only. PLATFORM: SHARED. */
 uint8_t *pipeline_match_module_bytes(void) {
   return (uint8_t *)&g_parser_match_module_x;
 }
+#else
+/* Match-module slot address lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern uint8_t *pipeline_match_module_bytes(void);
+#endif
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 void pipeline_parser_set_match_module(struct ast_Module *m) {
   g_parser_match_module_x = m;
