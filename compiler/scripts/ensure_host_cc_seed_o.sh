@@ -5850,6 +5850,51 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1225: src/runtime/rt_fs_open.x segfaults on some pure-asm
+# tries and emits on a later try. Every frame is already closed.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+fs_open_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_fs_open.x"
+  local try n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "1" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_rt_fs_path_copy_nul" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF ~ /xlang_panic/ { n++ } END { exit (n==0)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1224: src/runtime/rt_pipeline_elf_diag_find.x segfaults on
 # some pure-asm tries and emits on a later try. Every frame is
 # already closed. Direct xlang_asm, not pure_asm_x_to_o.
@@ -11720,9 +11765,20 @@ rt_fs_open_pure_thin() {
   dir="$(mktemp -d "${TMPDIR:-/tmp}/rtfs.XXXXXX")" || return 1
   copy_o="$dir/copy.o"
   call_o="$dir/call.o"
+  # w1225: the copy half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A filled object is kept. The call half
+  # stays on the loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh fs-open-retry "$copy_o"; then
+    log "prefer fs open ← pure-asm one symbol (w1225)"
+  fi
   try=0
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
+    if [ -s "$copy_o" ]; then
+      break
+    fi
     rm -f "$copy_o"
     if (
       export XLANG_PREFER_ASM_O=1
@@ -29167,6 +29223,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  fs-open-retry|fs_open_retry_pure)
+    # w1225: one pure-asm symbol of rt_fs_open.x.
+    # Does not merge the fs-open bag and does not compile the call half.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o fs-open-retry: need <out.o>" >&2
+      exit 2
+    fi
+    fs_open_retry_pure "$1"
+    exit $?
+    ;;
   elf-find-retry|elf_find_retry_pure)
     # w1224: one pure-asm symbol of rt_pipeline_elf_diag_find.x.
     # Does not merge the elf diag bag and does not compile the other parts.
