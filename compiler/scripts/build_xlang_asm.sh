@@ -3382,7 +3382,7 @@ filter_strict_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
+  std_fs_shim.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o|\
   parser_asm_minimal_partial.o|\
   \
