@@ -562,9 +562,6 @@ extern int diag_line_digits(int line);
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out)
-#else
-int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *line_len_out)
-#endif
 {
     const char *src = g_diag_ctx.source;
     size_t len = g_diag_ctx.source_len;
@@ -590,6 +587,10 @@ int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *lin
     *line_len_out = i - start;
     return 0;
 }
+#else
+/* Walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out);
+#endif
 
 
 /** 供 .x 写 g_diag_ctx（G-02f-156）。 */
@@ -736,11 +737,7 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
     const char *reset = diag_color_reset();
 #endif
 
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    if (line > 0 && diag_extract_line_impl(line, &line_start, &line_len) == 0)
-#else
     if (line > 0 && diag_extract_line(line, &line_start, &line_len) == 0)
-#endif
         have_line = 1;
 
 #ifdef XLANG_L2_DIAG_THIN_FROM_X

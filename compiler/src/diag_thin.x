@@ -36,7 +36,6 @@ export extern "C" function diag_should_color_impl(): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
 export extern "C" function diag_set_json_mode_impl(enable: i32): void;
 export extern "C" function diag_json_enabled_impl(): i32;
-export extern "C" function diag_extract_line_impl(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32;
 export extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
 export extern "C" function diag_print_code_table_impl(out: *u8): void;
 export extern "C" function diag_print_known_codes_impl(out: *u8): void;
@@ -643,19 +642,79 @@ export function diag_json_enabled(): i32 {
   }
 }
 
-/** Exported function `diag_extract_line`.
- * Implements `diag_extract_line`.
- * @param line_no i32
- * @param line_start_out *u8
- * @param line_len_out *u8
- * @return i32
+/**
+ * Find source line `line_no` (1-based) in the diag context.
+ * Writes the line start pointer and the byte length, not counting the
+ * newline. A missing line, a null out, or a non-positive line returns -1.
+ * An empty source still returns line 1 as a zero-length span.
+ * The index is i32. A source longer than 2147483647 bytes is clipped.
+ * Storage stays in the seed context; this function only walks bytes.
+ * @param line_no i32 — 1-based line
+ * @param line_start_out *u8 — address of the pointer slot, or null
+ * @param line_len_out *u8 — address of the size slot, or null
+ * @return i32 — 0 when the line exists, -1 otherwise
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_out: *u8): i32 {
-  unsafe {
-    return diag_extract_line_impl(line_no, line_start_out, line_len_out);
+  let src: *u8 = 0 as *u8;
+  let len64: i64 = 0;
+  let len: i32 = 0;
+  let line: i32 = 1;
+  let i: i32 = 0;
+  let start: i32 = 0;
+  let c: i32 = 0;
+  let p: *u8 = 0 as *u8;
+  let ln: usize = 0;
+  if (line_no <= 0 || line_start_out == 0 as *u8 || line_len_out == 0 as *u8) {
+    return 0 - 1;
   }
-  return 0 - 1;
+  unsafe {
+    src = diag_ctx_get_source_impl();
+    len64 = diag_ctx_get_source_len_impl();
+  }
+  if (src == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (len64 > 2147483647) {
+    len = 2147483647;
+  } else {
+    if (len64 > 0) {
+      len = len64 as i32;
+    }
+  }
+  while (i < len) {
+    if (line == line_no) {
+      break;
+    }
+    unsafe {
+      c = src[i] as i32;
+    }
+    if (c == 10) {
+      line = line + 1;
+      start = i + 1;
+    }
+    i = i + 1;
+  }
+  if (line != line_no) {
+    return 0 - 1;
+  }
+  while (i < len) {
+    unsafe {
+      c = src[i] as i32;
+    }
+    if (c == 10 || c == 13) {
+      break;
+    }
+    i = i + 1;
+  }
+  unsafe {
+    p = src + start;
+    ln = (i - start) as usize;
+    diag_store_ptr_le(line_start_out, p);
+    diag_store_usize_le(line_len_out, ln);
+  }
+  return 0;
 }
 
 /** Exported function `diag_print_header`.
