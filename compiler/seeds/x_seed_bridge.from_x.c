@@ -27,12 +27,6 @@
 
 extern uint8_t * typeck_std_heap_alloc(size_t size);
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-void std_heap_free(uint8_t * ptr) {
-  (void)(({   {
-    (void)(free(ptr));
-  }
- }));
-}
 uint8_t * std_heap_alloc(size_t size) {
   (void)(({   {
     uint8_t * r = typeck_std_heap_alloc(size);
