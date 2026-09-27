@@ -113,14 +113,8 @@ static struct ast_Module *g_parser_match_module_x;
 /* Match-module slot address lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern uint8_t *pipeline_match_module_bytes(void);
 #endif
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-void pipeline_parser_set_match_module(struct ast_Module *m) {
-  g_parser_match_module_x = m;
-}
-#else
 /* Module-slot write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern void pipeline_parser_set_match_module(struct ast_Module *m);
-#endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 struct ast_Module *pipeline_parser_get_match_module(void) {
