@@ -388,6 +388,10 @@ function process_store_ptr(argv: **u8, i: i32, v: *u8): void {
  * PLATFORM: MACOS|DARWIN
  */
 function process_load_i32(p: *u8, off: i32): i32 {
+  // A live pad pulls the byte index inside this frame.
+  // The unpadded store sat eight bytes past the allocation.
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
   let j: i32 = off;
   let b0: u32 = p[j] as u32;
   let j1: i32 = j + 1;
