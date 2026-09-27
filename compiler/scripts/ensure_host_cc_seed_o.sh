@@ -11139,13 +11139,14 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    # w1300: piece 0 is parser_asm_import_path_dot_segment_len_kind_c.
     # w1301: piece 1 is parser_asm_import_path_dot_segment_copy_buf_c.
-    # Some pure-asm tries segfault. Twelve tries for those two pieces.
-    # The other eleven pieces stay at eight. Symbols stay strong.
+    # w1302: piece 4 is parser_asm_lexer_pos_before_run_c.
+    # Pieces 2 and 3 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for those three pieces.
+    # The other ten pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "4" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
