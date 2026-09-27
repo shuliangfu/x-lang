@@ -517,14 +517,10 @@ void diag_io_fprint_caret_mark(uint8_t *o, const char *cc, const char *rs, const
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* Hybrid: the header walk is src/diag_thin.x. Cold seed keeps this C body. */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_header(const char *kind, const char *code, const char *msg,
                               const char *kind_color, const char *reset)
-#else
-void diag_print_header_impl(const char *kind, const char *code, const char *msg,
-                              const char *kind_color, const char *reset)
-#endif
 {
     if (!msg)
         msg = "";
@@ -543,6 +539,11 @@ void diag_print_header_impl(const char *kind, const char *code, const char *msg,
     else
         diag_o_printf(diag_h_stderr(), "%s%s%s: %s\n", kind_color, kind, reset, msg);
 }
+#else
+/* Header walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_header(const char *kind, const char *code, const char *msg,
+                              const char *kind_color, const char *reset);
+#endif
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-335：hybrid 时由 diag_thin.x 提供 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
@@ -740,11 +741,7 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
     if (line > 0 && diag_extract_line(line, &line_start, &line_len) == 0)
         have_line = 1;
 
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    diag_print_header_impl(kind, code, msg, kind_color, reset);
-#else
     diag_print_header(kind, code, msg, kind_color, reset);
-#endif
 
     /* wave1221: always print line:col even when 0, so typeck errors without
      * expr line/col still show file:0:0 instead of bare file path.

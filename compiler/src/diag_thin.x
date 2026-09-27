@@ -36,7 +36,6 @@ export extern "C" function diag_should_color_impl(): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
 export extern "C" function diag_set_json_mode_impl(enable: i32): void;
 export extern "C" function diag_json_enabled_impl(): i32;
-export extern "C" function diag_print_header_impl(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void;
 export extern "C" function diag_print_code_table_impl(out: *u8): void;
 export extern "C" function diag_print_known_codes_impl(out: *u8): void;
 export extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
@@ -717,19 +716,58 @@ export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_ou
   return 0;
 }
 
-/** Exported function `diag_print_header`.
- * Implements `diag_print_header`.
- * @param kind *u8
- * @param code *u8
- * @param msg *u8
- * @param kind_color *u8
- * @param reset *u8
- * @return void
+/**
+ * Write the diagnostic header to stderr.
+ * Empty kind prints only the message and a newline. A non-empty code is
+ * wrapped in brackets. Byte order matches the former printf:
+ * color, kind, optional [code], reset, ": ", message, newline.
+ * Null strings are treated as empty. The fd write stays in the seed.
+ * @param kind *u8 — severity word, or null
+ * @param code *u8 — diagnostic code, or null
+ * @param msg *u8 — message, or null
+ * @param kind_color *u8 — ANSI prefix, or null
+ * @param reset *u8 — ANSI reset, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u8, reset: *u8): void {
+  let err: *u8 = 0 as *u8;
+  let m: *u8 = msg;
+  let k: *u8 = kind;
+  let kc: *u8 = kind_color;
+  let rs: *u8 = reset;
+  if (m == 0 as *u8) {
+    m = "";
+  }
+  if (k == 0 as *u8) {
+    k = "";
+  }
+  if (kc == 0 as *u8) {
+    kc = "";
+  }
+  if (rs == 0 as *u8) {
+    rs = "";
+  }
   unsafe {
-    diag_print_header_impl(kind, code, msg, kind_color, reset);
+    err = diag_stderr();
+    if (k[0] == 0) {
+      diag_io_fputs(m, err);
+      diag_io_fputc(err, 10);
+      return;
+    }
+    diag_io_fputs(kc, err);
+    diag_io_fputs(k, err);
+    if (code != 0 as *u8) {
+      if (code[0] != 0) {
+        diag_io_fputc(err, 91);
+        diag_io_fputs(code, err);
+        diag_io_fputc(err, 93);
+      }
+    }
+    diag_io_fputs(rs, err);
+    diag_io_fputs(": ", err);
+    diag_io_fputs(m, err);
+    diag_io_fputc(err, 10);
   }
 }
 
