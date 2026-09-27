@@ -1876,13 +1876,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # portable .inc region. Cold: no define, full .inc. Do not reuse
         # XLANG_PTHIN_GLUE_FROM_X. Compile after P12b so _pthin_p12b_ok is set.
         _pthin_p10_extra=""
+        _pthin_p10b_pure=0
+        # w1329: -o without .o segfaults. Darwin compiles to *.o then ld -r.
+        # Other hosts keep g05_try_x_to_o. PLATFORM: MACOS|DARWIN arm64.
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] \
           && [ "$_pthin_p12b_ok" = "1" ] \
           && [ -n "$_pthin_p10b_thin_o" ] && [ -f "$_pthin_p10b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p10b_x" "$_pthin_p10b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-glue-pure "$_pthin_p10b_thin_o"; then
+            _pthin_p10b_pure=1
+          fi
+          if { [ "$_pthin_p10b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p10b_x" "$_pthin_p10b_thin_o"; }; then
             _pthin_p10b_ok=1
             _pthin_p10_extra="-DXLANG_PTHIN_GLUE_BODIES_FROM_X"
-            echo "g05_ensure: P10b glue bodies ← $_pthin_p10b_x (7.2.1 B-minus)"
+            if [ "$_pthin_p10b_pure" = "1" ]; then
+              echo "g05_ensure: P10 glue ← pure-asm one symbol (w1329)"
+            else
+              echo "g05_ensure: P10b glue bodies ← $_pthin_p10b_x (7.2.1 B-minus)"
+            fi
           else
             echo "g05_ensure: P10b glue .x thin failed; P10 C twin stays full" >&2
           fi
@@ -2460,6 +2474,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p14=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p14.XXXXXX") || true
         _cb_p20bb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p20bb.XXXXXX") || true
         _cb_p20=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p20.XXXXXX") || true
+        _cb_p10bb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p10bb.XXXXXX") || true
+        _cb_p10=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p10.XXXXXX") || true
         _cb_p7b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7b.XXXXXX") || true
         _cb_p7=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7.XXXXXX") || true
         _cb_p15b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p15b.XXXXXX") || true
@@ -2507,6 +2523,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p13_pure=0
         _cb_p14_pure=0
         _cb_p20_pure=0
+        _cb_p10_pure=0
         _cb_p5b_pure=0
         _cb_p5_ok=0
         if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
@@ -2700,6 +2717,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               _cb_p20_pass=$((_cb_p20_pass + 1))
               if bash scripts/ensure_host_cc_seed_o.sh pthin-foundation-pure "$_cb_p20bb"; then
                 _cb_p20_pure=1
+                break
+              fi
+            done
+          fi
+          # w1329: glue tail is one function. -o without .o segfaults.
+          # Repeat the pass so one bad streak does not drop the slice.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ -n "$_cb_p10bb" ] && [ -n "$_cb_p10" ] && [ -f "$_pthin_p10b_x" ]; then
+            _cb_p10_pass=0
+            while [ "$_cb_p10_pass" -lt 4 ]; do
+              _cb_p10_pass=$((_cb_p10_pass + 1))
+              if bash scripts/ensure_host_cc_seed_o.sh pthin-glue-pure "$_cb_p10bb"; then
+                _cb_p10_pure=1
                 break
               fi
             done
@@ -2905,6 +2935,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_cb_p20" "parser_asm_arena_expr_get_c" \
             && g05_obj_defines "$_cb_p20" "labi_pthin_foundation_slice_marker"; then
             _cb_p20_ok=1
+          fi
+          # w1329: seed keeps the slice trampoline, the glue wrappers, and
+          # the marker. Rest drops the glue-tail include, so the C pointer
+          # shim goes with it. The .x walk replaces that shim.
+          # P9a stays host cc. PLATFORM: MACOS|DARWIN arm64.
+          if [ "$_cb_p10_pure" = "1" ] \
+            && g05_obj_defines "$_cb_p10bb" "parser_asm_skip_one_function_full_into_c" \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DXLANG_PTHIN_GLUE_BODIES_FROM_X \
+               -c -o "$_cb_p10" "$_pthin_p10_seed" \
+            && g05_obj_defines "$_cb_p10" "parser_asm_skip_one_function_full_into_slice_c" \
+            && g05_obj_defines "$_cb_p10" "parser_skip_one_function_full_into_glue" \
+            && g05_obj_defines "$_cb_p10" "labi_pthin_glue_slice_marker"; then
+            _cb_p10_ok=1
           fi
           # w1312: trampoline keeps the parse dest-buffers. Bodies are
           # the four .x symbols. set_if stays in the ctrl seed (G.7).
@@ -3142,6 +3186,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p13_ok:+-DXLANG_PTHIN_TRY_SKIP_ALLOW_FROM_X} \
                ${_cb_p14_ok:+-DXLANG_PTHIN_SKIP_IF_FROM_X} \
                ${_cb_p20_ok:+-DXLANG_PTHIN_FOUNDATION_FROM_X} \
+               ${_cb_p10_ok:+-DXLANG_PTHIN_GLUE_FROM_X} \
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
@@ -3153,6 +3198,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p13_ok:+"$_cb_p13" "$_cb_p13bb"} \
                ${_cb_p14_ok:+"$_cb_p14" "$_cb_p14bb"} \
                ${_cb_p20_ok:+"$_cb_p20" "$_cb_p20bb"} \
+               ${_cb_p10_ok:+"$_cb_p10" "$_cb_p10bb"} \
                ${_cb_p19_ok:+"$_cb_p19" "$_cb_p19b"} \
                ${_cb_p4as_ok:+"$_cb_p4as" "$_cb_p4asb" "$_cb_p4u"} \
                ${_cb_p4t_ok:+"$_cb_p4t" "$_cb_p4tb"} \
@@ -3168,6 +3214,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
               && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
               if [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
+                && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
+                && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
+                && [ "$_cb_p9a_ok" = "1" ] && [ "$_cb_p4ub_ok" = "1" ] && [ "$_cb_p4bb_ok" = "1" ] && [ "$_cb_p2b_ok" = "1" ] && [ "$_cb_p18b_ok" = "1" ] && [ "$_cb_p17_ok" = "1" ] && [ "$_cb_p13_ok" = "1" ] && [ "$_cb_p14_ok" = "1" ] && [ "$_cb_p20_ok" = "1" ] && [ "$_cb_p10_ok" = "1" ]; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl + primary + stretch_audit + unary + binop + let_alias + body_tl + diag_late + try_skip_allow + skip_if + foundation + glue (w1329)"
+              elif [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
                 && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
                 && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
                 && [ "$_cb_p9a_ok" = "1" ] && [ "$_cb_p4ub_ok" = "1" ] && [ "$_cb_p4bb_ok" = "1" ] && [ "$_cb_p2b_ok" = "1" ] && [ "$_cb_p18b_ok" = "1" ] && [ "$_cb_p17_ok" = "1" ] && [ "$_cb_p13_ok" = "1" ] && [ "$_cb_p14_ok" = "1" ] && [ "$_cb_p20_ok" = "1" ]; then
@@ -3251,7 +3302,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
           "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
           "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u" "$_cb_p4tb" "$_cb_p4t" "$_cb_p5w" \
-          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" "$_cb_p9a" "$_cb_p4ub" "$_cb_p4bb" "$_cb_p4b" "$_cb_p2bb" "$_cb_p2" "$_cb_p18bb" "$_cb_p18" "$_cb_p17bb" "$_cb_p17" "$_cb_p13bb" "$_cb_p13" "$_cb_p14bb" "$_cb_p14" "$_cb_p20bb" "$_cb_p20" \
+          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" "$_cb_p9a" "$_cb_p4ub" "$_cb_p4bb" "$_cb_p4b" "$_cb_p2bb" "$_cb_p2" "$_cb_p18bb" "$_cb_p18" "$_cb_p17bb" "$_cb_p17" "$_cb_p13bb" "$_cb_p13" "$_cb_p14bb" "$_cb_p14" "$_cb_p20bb" "$_cb_p20" "$_cb_p10bb" "$_cb_p10" \
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
           "$_cb_p9b" "$_cb_p9"
       fi

@@ -9422,6 +9422,57 @@ PY
   return 0
 }
 
+# w1329: src/asm/pthin_glue.x segfaults when -o does not end in .o.
+# One function. Compile to a *.o path, then ld -r writes the unsuffixed out.
+# Direct xlang_asm, not pure_asm_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_glue_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_glue.x"
+  local dir obj try n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinglue.XXXXXX")" || return 1
+  obj="$dir/tu.o"
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$obj"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      break
+    fi
+    rm -f "$obj"
+  done
+  if [ ! -s "$obj" ]; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  if ! ld -r -o "$o" "$obj"; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "1" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_parser_asm_skip_one_function_full_into_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1161 / w1328: the whole file segfaults when -o does not end in .o.
 # The two functions stay one translation unit: zeros calls the store
 # helper, and the 192-byte pad already keeps that spill inside the frame.
@@ -30808,6 +30859,17 @@ case "$MODE" in
       exit 2
     fi
     pthin_foundation_darwin_pure "$1"
+    exit $?
+    ;;
+  pthin-glue-pure|pthin_glue_darwin_pure)
+    # w1329: one pure-asm symbol of src/asm/pthin_glue.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-glue-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_glue_darwin_pure "$1"
     exit $?
     ;;
   pthin-expr-binop-pure|pthin_expr_binop_darwin_pure)
