@@ -6649,7 +6649,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
   ST_COMPANION_GLUE_STUBS=""
   fi
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o $ST_COMPANION_GLUE_STUBS $ST_DRIVER_CLI_OBJS"
   fi
   elif [ "$ST_USES_ASM_PIPELINE" -eq 1 ]; then
   ST_BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
