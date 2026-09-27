@@ -135,6 +135,10 @@ export function runtime_kv_mmap_glue_x_doc_anchor(): i32 {
  */
 #[no_mangle]
 export function xlang_kv_darwin_file_len(fd: i32, min_size: usize): i64 {
+  // Live pad. The lseek result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let cur: i64 = 0;
   unsafe {
     cur = lseek(fd, 0, 2);
@@ -173,6 +177,10 @@ export function xlang_kv_darwin_file_len(fd: i32, min_size: usize): i64 {
  */
 #[no_mangle]
 export function xlang_kv_darwin_map(fd: i32, len: i64): i64 {
+  // Live pad. The mmap result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let n: usize = len as usize;
   let p: i64 = 0;
   unsafe {
