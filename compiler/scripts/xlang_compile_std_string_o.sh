@@ -211,10 +211,24 @@ cc $CFLAGS -c "$tmp/mod.c" -o "$tmp/mod.o"
 # PLATFORM: MACOS|DARWIN arm64 — the eight-function seed is one TU.
 # Compile src/asm/runtime_string_fast.x with the current compiler.
 # Do not pass that seed to host cc on the first path. Symbols stay strong.
-# The current compiler can SIGSEGV once; retry before the C backup.
+# The current compiler can SIGSEGV. Twelve direct tries run before the three-try path.
 # Linux and Windows keep the branches below. No gcc -E of this seed.
 sx_pure=0
 if [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "$(uname -m 2>/dev/null)" = "arm64" ] \
+  && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
+  # w1193: some pure-asm tries segfault. Retry twelve times with direct
+  # xlang_asm before the three-try path. A failed retry still falls
+  # back to that path and then the C seed. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if (
+    cd "$COMP" &&
+    bash scripts/ensure_host_cc_seed_o.sh string-fast-pure "$tmp/sx.o"
+  ); then
+    echo "xlang_compile_std_string_o: prefer string fast ← pure-asm nine symbols (w1193)"
+    sx_pure=1
+  fi
+fi
+if [ "$sx_pure" != "1" ] && [ "$(uname -s 2>/dev/null)" = "Darwin" ] && [ "$(uname -m 2>/dev/null)" = "arm64" ] \
   && [ -f "$COMP/src/asm/runtime_string_fast.x" ]; then
   _sx_try=0
   while [ "$_sx_try" -lt 3 ]; do
