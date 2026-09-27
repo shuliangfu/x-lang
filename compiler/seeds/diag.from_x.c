@@ -113,6 +113,7 @@ static DiagContext g_diag_ctx;
 /* JSON 诊断模式：-2 = 尚未决定（按 XLANG_DIAG_JSON 环境变量），1 = 开启，0 = 关闭。 */
 static int g_diag_json = -2;
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static const DiagCodeExplain g_diag_code_table[] = {
     {"P001", "parse error", "Parser detected invalid syntax or unrecoverable parse failure.",
      "Used for parser-side syntax errors and parser fatal conditions such as out-of-memory. "
@@ -255,6 +256,17 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "`typeck OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker)."},
 };
 static const size_t g_diag_code_table_count = sizeof(g_diag_code_table) / sizeof(g_diag_code_table[0]);
+#else
+/* Code-table rows live in src/diag_thin.x. PLATFORM: SHARED. */
+extern size_t diag_code_table_len(void);
+extern const char *diag_code_table_code_at(size_t i);
+extern const char *diag_code_table_kind_at(size_t i);
+extern const char *diag_code_table_summary_at(size_t i);
+extern const char *diag_entry_code(const char *code);
+extern const char *diag_entry_kind(const char *code);
+extern const char *diag_entry_summary(const char *code);
+extern const char *diag_entry_details(const char *code);
+#endif
 
 /* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
@@ -334,6 +346,7 @@ int diag_code_eq_impl(const char *lhs, const char *rhs)
 
 
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static const DiagCodeExplain *diag_lookup_code_explain(const char *code) {
     size_t i;
     if (!code || code[0] == '\0')
@@ -344,6 +357,7 @@ static const DiagCodeExplain *diag_lookup_code_explain(const char *code) {
     }
     return NULL;
 }
+#endif
 
 typedef struct DiagPalette {
     const char *kind_color;
@@ -850,6 +864,7 @@ void diag_reportf(const char *file, int line, int col, const char *kind, const c
 
 
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** 供 .x 查 code 表是否存在（G-02f-155）。 */
 /* G-02f-386：实现体始终 seed；public PREFER 时 thin forward */
 int diag_code_table_has_impl(const char *code) {
@@ -960,6 +975,7 @@ const char *diag_entry_details(const char *code) {
     return diag_entry_details_impl(code);
 }
 #endif
+#endif
 uint8_t *diag_stdout_impl(void) { return diag_h_stdout(); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 uint8_t *diag_stdout(void) { return diag_stdout_impl(); }
@@ -1025,8 +1041,13 @@ void diag_print_known_codes_impl(uint8_t *out)
     size_t i;
     if (!out)
         out = diag_h_stdout();
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    for (i = 0; i < diag_code_table_len(); i++)
+        diag_o_printf(out, "%s%s", i == 0 ? "" : ", ", diag_code_table_code_at(i));
+#else
     for (i = 0; i < g_diag_code_table_count; i++)
         diag_o_printf(out, "%s%s", i == 0 ? "" : ", ", g_diag_code_table[i].code);
+#endif
     diag_o_putc(out, '\n');
 }
 
@@ -1038,24 +1059,42 @@ void diag_print_code_explain(uint8_t *out, const char *code)
 void diag_print_code_explain_impl(uint8_t *out, const char *code)
 #endif
 {
-    const DiagCodeExplain *entry;
     if (!out)
         out = diag_h_stdout();
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    {
+        const char *ec = diag_entry_code(code);
+        const char *ek = diag_entry_kind(code);
+        const char *es = diag_entry_summary(code);
+        const char *ed = diag_entry_details(code);
+        if (!ec) {
+            diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
+            diag_o_puts(out, "Known codes: ");
+            diag_print_known_codes_impl(out);
+            return;
+        }
+        diag_o_printf(out, "%s\n", ec);
+        diag_o_printf(out, "Kind: %s\n", ek ? ek : "");
+        diag_o_printf(out, "Summary: %s\n", es ? es : "");
+        diag_o_printf(out, "Details: %s\n", ed ? ed : "");
+        return;
+    }
+#else
+    {
+    const DiagCodeExplain *entry;
     entry = diag_lookup_code_explain(code);
     if (!entry) {
         diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
         diag_o_puts(out, "Known codes: ");
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-        diag_print_known_codes_impl(out);
-#else
         diag_print_known_codes(out);
-#endif
         return;
     }
     diag_o_printf(out, "%s\n", entry->code);
     diag_o_printf(out, "Kind: %s\n", entry->kind);
     diag_o_printf(out, "Summary: %s\n", entry->summary);
     diag_o_printf(out, "Details: %s\n", entry->details);
+    }
+#endif
 }
 
 
@@ -1135,14 +1174,24 @@ const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
     const char *best_code = NULL;
     int code_len;
 
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    if (!code || diag_code_table_len() == 0)
+        return NULL;
+#else
     if (!code || !g_diag_code_table_count)
         return NULL;
+#endif
     code_len = (int)strlen(code);
     if (code_len <= 0)
         return NULL;
 
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    for (i = 0; i < diag_code_table_len(); i++) {
+        const char *cand = diag_code_table_code_at(i);
+#else
     for (i = 0; i < g_diag_code_table_count; i++) {
         const char *cand = g_diag_code_table[i].code;
+#endif
         int d = diag_levenshtein_ci(code, cand);
         if (d < best_dist) {
             best_dist = d;
@@ -1181,10 +1230,19 @@ void diag_print_code_table_impl(uint8_t *out)
         out = diag_h_stdout();
     diag_o_printf(out, "%-8s %-18s %s\n", "CODE", "KIND", "SUMMARY");
     diag_o_printf(out, "%-8s %-18s %s\n", "----", "----", "-------");
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    for (i = 0; i < diag_code_table_len(); i++) {
+        diag_o_printf(out, "%-8s %-18s %s\n",
+                      diag_code_table_code_at(i),
+                      diag_code_table_kind_at(i),
+                      diag_code_table_summary_at(i));
+    }
+#else
     for (i = 0; i < g_diag_code_table_count; i++) {
         const DiagCodeExplain *e = &g_diag_code_table[i];
         diag_o_printf(out, "%-8s %-18s %s\n", e->code, e->kind, e->summary);
     }
+#endif
 }
 
 

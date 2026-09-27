@@ -27,10 +27,6 @@ export extern "C" function diag_ctx_get_file_impl(): *u8;
 export extern "C" function diag_ctx_get_source_impl(): *u8;
 export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
-export extern "C" function diag_code_table_has_impl(code: *u8): i32;
-export extern "C" function diag_entry_kind_impl(code: *u8): *u8;
-export extern "C" function diag_entry_summary_impl(code: *u8): *u8;
-export extern "C" function diag_entry_details_impl(code: *u8): *u8;
 export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
 export extern "C" function diag_should_color_impl(): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
@@ -203,52 +199,52 @@ export function diag_get_source_len(): i64 {
     return diag_ctx_get_source_len_impl();
   }
 }
-
-/** Exported function `diag_code_is_known`.
- * Implements `diag_code_is_known`.
+/**
+ * Return 1 when code is a known diagnostic code.
  * @param code *u8
  * @return i32
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_is_known(code: *u8): i32 {
   unsafe {
-    return diag_code_table_has_impl(code);
+    return diag_code_table_has(code);
   }
 }
-
-/** Exported function `diag_code_kind`.
- * Implements `diag_code_kind`.
+/**
+ * Kind word for a known diagnostic code, or null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_kind(code: *u8): *u8 {
   unsafe {
-    return diag_entry_kind_impl(code);
+    return diag_entry_kind(code);
   }
 }
-
-/** Exported function `diag_code_summary`.
- * Implements `diag_code_summary`.
+/**
+ * Summary for a known diagnostic code, or null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_summary(code: *u8): *u8 {
   unsafe {
-    return diag_entry_summary_impl(code);
+    return diag_entry_summary(code);
   }
 }
-
-/** Exported function `diag_code_details`.
- * Implements `diag_code_details`.
+/**
+ * Details for a known diagnostic code, or null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_details(code: *u8): *u8 {
   unsafe {
-    return diag_entry_details_impl(code);
+    return diag_entry_details(code);
   }
 }
 
@@ -1138,17 +1134,29 @@ export function diag_ctx_get_use_color(): i32 {
     return diag_ctx_get_use_color_impl();
   }
 }
-
-/** Exported function `diag_code_table_has`.
- * Implements `diag_code_table_has`.
+/**
+ * Return 1 when code matches a table row, using case-insensitive equality.
+ * A null or empty code returns 0.
  * @param code *u8
  * @return i32
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_table_has(code: *u8): i32 {
+  let n: i64 = 0;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    return diag_code_table_has_impl(code);
+    n = diag_code_table_len();
+    while (i < n) {
+      if (diag_code_eq(code, diag_code_table_code_at(i)) != 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
   }
+  return 0;
 }
 
 /** Exported function `diag_json_get_state`.
@@ -1189,7 +1197,6 @@ export extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32):
 export extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
 export extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
-export extern "C" function diag_code_table_len_impl(): i64;
 export extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
 export extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
 export extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
@@ -1352,14 +1359,16 @@ export function diag_io_fprint_gutter_bar(o: *u8, width: i32): void {
 export function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void {
   unsafe { diag_io_fprint_caret_mark_impl(o, cc, rs, detail); }
 }
-
-/** Exported function `diag_code_table_len`.
- * Query helper `diag_code_table_len`.
- * @return i64
+/**
+ * Number of rows in the diagnostic code table.
+ * @return i64 — 43
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_table_len(): i64 {
-  unsafe { return diag_code_table_len_impl(); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  return 43;
 }
 
 /** Exported function `diag_io_fprint_unknown_code`.
@@ -1438,92 +1447,339 @@ export function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_co
 }
 
 // ---- G-02f-421：code table / entry / stdio handles → seed impl ----
-export extern "C" function diag_code_table_code_at_impl(i: i64): *u8;
-export extern "C" function diag_code_table_kind_at_impl(i: i64): *u8;
-export extern "C" function diag_code_table_summary_at_impl(i: i64): *u8;
-export extern "C" function diag_code_table_details_at_impl(i: i64): *u8;
-export extern "C" function diag_entry_code_impl(code: *u8): *u8;
 export extern "C" function diag_stderr_impl(): *u8;
 export extern "C" function diag_stdout_impl(): *u8;
-
-/** Exported function `diag_code_table_code_at`.
- * Implements `diag_code_table_code_at`.
+/**
+ * Diagnostic code at this table index.
+ * Index is 0-based. A negative or out-of-range index returns null.
+ * The strings are the diagnostic code table. Count is 43.
  * @param i i64
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_table_code_at(i: i64): *u8 {
-  unsafe { return diag_code_table_code_at_impl(i); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (i == 0) { return "P001"; }
+  if (i == 1) { return "T001"; }
+  if (i == 2) { return "ARG001"; }
+  if (i == 3) { return "ARG002"; }
+  if (i == 4) { return "IO001"; }
+  if (i == 5) { return "PRC001"; }
+  if (i == 6) { return "BLD001"; }
+  if (i == 7) { return "PP001"; }
+  if (i == 8) { return "PP002"; }
+  if (i == 9) { return "L001"; }
+  if (i == 10) { return "L002"; }
+  if (i == 11) { return "L003"; }
+  if (i == 12) { return "L004"; }
+  if (i == 13) { return "L005"; }
+  if (i == 14) { return "L006"; }
+  if (i == 15) { return "L007"; }
+  if (i == 16) { return "L008"; }
+  if (i == 17) { return "L009"; }
+  if (i == 18) { return "L010"; }
+  if (i == 19) { return "L011"; }
+  if (i == 20) { return "L012"; }
+  if (i == 21) { return "IMP001"; }
+  if (i == 22) { return "IMP002"; }
+  if (i == 23) { return "IMP003"; }
+  if (i == 24) { return "IMP004"; }
+  if (i == 25) { return "XP001"; }
+  if (i == 26) { return "XP002"; }
+  if (i == 27) { return "XP003"; }
+  if (i == 28) { return "XP004"; }
+  if (i == 29) { return "XP005"; }
+  if (i == 30) { return "XP006"; }
+  if (i == 31) { return "XP007"; }
+  if (i == 32) { return "XP008"; }
+  if (i == 33) { return "XT001"; }
+  if (i == 34) { return "CG001"; }
+  if (i == 35) { return "CG002"; }
+  if (i == 36) { return "CG003"; }
+  if (i == 37) { return "CG004"; }
+  if (i == 38) { return "CHK001"; }
+  if (i == 39) { return "CHK002"; }
+  if (i == 40) { return "FMT001"; }
+  if (i == 41) { return "SMOKE001"; }
+  if (i == 42) { return "SMOKE002"; }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_code_table_kind_at`.
- * Implements `diag_code_table_kind_at`.
+/**
+ * Kind word at this table index.
+ * Index is 0-based. A negative or out-of-range index returns null.
+ * The strings are the diagnostic code table. Count is 43.
  * @param i i64
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_table_kind_at(i: i64): *u8 {
-  unsafe { return diag_code_table_kind_at_impl(i); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (i == 0) { return "parse error"; }
+  if (i == 1) { return "typeck error"; }
+  if (i == 2) { return "usage error"; }
+  if (i == 3) { return "argument error"; }
+  if (i == 4) { return "io error"; }
+  if (i == 5) { return "process error"; }
+  if (i == 6) { return "build error"; }
+  if (i == 7) { return "preprocess error"; }
+  if (i == 8) { return "preprocess error"; }
+  if (i == 9) { return "lexer error"; }
+  if (i == 10) { return "lexer error"; }
+  if (i == 11) { return "lexer error"; }
+  if (i == 12) { return "lexer error"; }
+  if (i == 13) { return "lexer error"; }
+  if (i == 14) { return "lexer error"; }
+  if (i == 15) { return "lexer error"; }
+  if (i == 16) { return "lexer error"; }
+  if (i == 17) { return "lexer error"; }
+  if (i == 18) { return "lexer error"; }
+  if (i == 19) { return "lexer error"; }
+  if (i == 20) { return "lexer error"; }
+  if (i == 21) { return "import error"; }
+  if (i == 22) { return "preprocess error"; }
+  if (i == 23) { return "import error"; }
+  if (i == 24) { return "import error"; }
+  if (i == 25) { return "pipeline error"; }
+  if (i == 26) { return "pipeline error"; }
+  if (i == 27) { return "pipeline error"; }
+  if (i == 28) { return "pipeline error"; }
+  if (i == 29) { return "pipeline error"; }
+  if (i == 30) { return "pipeline error"; }
+  if (i == 31) { return "pipeline error"; }
+  if (i == 32) { return "pipeline error"; }
+  if (i == 33) { return "typeck error"; }
+  if (i == 34) { return "codegen error"; }
+  if (i == 35) { return "codegen error"; }
+  if (i == 36) { return "codegen error"; }
+  if (i == 37) { return "codegen error"; }
+  if (i == 38) { return "check error"; }
+  if (i == 39) { return "check error"; }
+  if (i == 40) { return "fmt error"; }
+  if (i == 41) { return "info"; }
+  if (i == 42) { return "info"; }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_code_table_summary_at`.
- * Implements `diag_code_table_summary_at`.
+/**
+ * Summary sentence at this table index.
+ * Index is 0-based. A negative or out-of-range index returns null.
+ * The strings are the diagnostic code table. Count is 43.
  * @param i i64
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_table_summary_at(i: i64): *u8 {
-  unsafe { return diag_code_table_summary_at_impl(i); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (i == 0) { return "Parser detected invalid syntax or unrecoverable parse failure."; }
+  if (i == 1) { return "Type checker rejected a construct after successful parse."; }
+  if (i == 2) { return "CLI command or option is missing a required argument."; }
+  if (i == 3) { return "CLI argument value is unknown or unsupported."; }
+  if (i == 4) { return "A file operation failed before the requested compiler step could continue."; }
+  if (i == 5) { return "A child process or system-level process operation failed."; }
+  if (i == 6) { return "An external build or link step failed before producing a usable artifact."; }
+  if (i == 7) { return "Preprocessor found an unclosed conditional directive."; }
+  if (i == 8) { return "Preprocessor failed before producing a usable source buffer."; }
+  if (i == 9) { return "Lexer found an unclosed block comment."; }
+  if (i == 10) { return "Lexer found an unclosed string literal."; }
+  if (i == 11) { return "Lexer found an illegal character."; }
+  if (i == 12) { return "Lexer found an incomplete hex literal."; }
+  if (i == 13) { return "Lexer found an incomplete float exponent."; }
+  if (i == 14) { return "Lexer found an incomplete binary literal."; }
+  if (i == 15) { return "Lexer found an incomplete octal literal."; }
+  if (i == 16) { return "Lexer found an invalid digit separator."; }
+  if (i == 17) { return "Lexer found an invalid type suffix on a numeric literal."; }
+  if (i == 18) { return "Lexer found an invalid escape sequence in a string literal."; }
+  if (i == 19) { return "Lexer found a string literal that exceeds AST storage capacity."; }
+  if (i == 20) { return "Lexer found an identifier that exceeds AST name storage capacity."; }
+  if (i == 21) { return "Import path could not be opened from the resolved candidate path."; }
+  if (i == 22) { return "Imported module failed during preprocessing before parse."; }
+  if (i == 23) { return "Imported module failed to parse after preprocessing."; }
+  if (i == 24) { return "Import pipeline failed in a later dependency-resolution stage."; }
+  if (i == 25) { return ".x pipeline parse stage failed before building a usable module."; }
+  if (i == 26) { return ".x pipeline parse commit failed while committing a parsed function."; }
+  if (i == 27) { return ".x pipeline terminated with a non-zero runtime status code."; }
+  if (i == 28) { return ".x pipeline path resolution trace for a failed import or entry lookup."; }
+  if (i == 29) { return ".x pipeline failed while allocating required runtime structures."; }
+  if (i == 30) { return ".x pipeline failed while allocating output or dependency context state."; }
+  if (i == 31) { return ".x pipeline refused an input buffer that exceeds parser size limits."; }
+  if (i == 32) { return ".x dependency sub-pipeline failed while prerunning an imported module."; }
+  if (i == 33) { return ".x pipeline type checking failed for a specific function."; }
+  if (i == 34) { return "Code generation could not emit C output because no main entry was available."; }
+  if (i == 35) { return "ASM object emission failed before producing a usable .o payload."; }
+  if (i == 36) { return "Code generator failed while emitting a specific function body."; }
+  if (i == 37) { return "Code generation produced an empty output buffer after a non-failing pipeline."; }
+  if (i == 38) { return "`xlang check` failed without a more specific structured diagnostic."; }
+  if (i == 39) { return "`xlang check` found no .x files to inspect."; }
+  if (i == 40) { return "`xlang fmt` failed or found no format candidates."; }
+  if (i == 41) { return "Parse-stage smoke summary: source parsed successfully."; }
+  if (i == 42) { return "Typeck-stage smoke summary: type checking passed."; }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_code_table_details_at`.
- * Implements `diag_code_table_details_at`.
+/**
+ * Details paragraph at this table index.
+ * Index is 0-based. A negative or out-of-range index returns null.
+ * The strings are the diagnostic code table. Count is 43.
  * @param i i64
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_table_details_at(i: i64): *u8 {
-  unsafe { return diag_code_table_details_at_impl(i); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (i == 0) { return "Used for parser-side syntax errors and parser fatal conditions such as out-of-memory. Typical action: inspect the reported token/statement boundary and surrounding source line."; }
+  if (i == 1) { return "Used for regular C-path type checking failures such as mismatched types, invalid assignments, or non-bool conditions. Typical action: compare inferred and expected types at the caret location."; }
+  if (i == 2) { return "Used when a command such as `--explain` or another CLI option is present but the required value is missing. Typical action: re-run with the required operand shown in the usage hint."; }
+  if (i == 3) { return "Used when a user-provided CLI argument cannot be recognized, such as an unknown diagnostic code for `--explain`. Typical action: inspect the suggested valid values and retry with one of them."; }
+  if (i == 4) { return "Used for common runtime file-operation failures such as open, read, write, rename, or temp-file setup. Typical action: inspect the path in the diagnostic and verify permissions, existence, and parent directories."; }
+  if (i == 5) { return "Used for waitpid, system(), or child-process termination failures in compiler helper paths. Typical action: inspect the named tool or script and any paired stderr emitted before this summary."; }
+  if (i == 6) { return "Used for compiler/linker/tool invocations and runtime object build failures summarized at the driver layer. Typical action: inspect the failing tool name, exit status, and any preceding build stderr."; }
+  if (i == 7) { return "Used when `#if` / `#elseif` / `#else` nesting does not terminate cleanly before end-of-file. Typical action: inspect nearby conditional compilation directives and ensure every `#if` is closed."; }
+  if (i == 8) { return "Used for directive errors or generic preprocess failures that are not covered by a more specific code. Typical action: inspect the reported source file and nearby conditional compilation directives."; }
+  if (i == 9) { return "Used when a nested `/* ... */` block comment reaches end-of-file with nesting depth still greater than zero. Typical action: add the matching `*/` closers for every true nest-open `/*` (path globs like `src/*.x` do not nest-open)."; }
+  if (i == 10) { return "Used when a double-quoted string reaches end-of-file without a closing quote. Typical action: add the matching `\"` at the end of the string (multi-line strings are allowed if closed)."; }
+  if (i == 11) { return "Used when a source byte is not a recognized token introducer (for example `$`, bare `'`, or other non-ASCII/punct noise). Typical action: remove or replace the illegal character; character literals are not part of the product lexical surface."; }
+  if (i == 12) { return "Used when a hex integer introducer `0x` or `0X` is not followed by at least one hex digit (0-9, a-f, A-F). Typical action: complete the literal (e.g. `0x0`, `0xFF`) or remove the incomplete `0x` prefix."; }
+  if (i == 13) { return "Used when a float exponent introducer `e` or `E` (optionally followed by `+` or `-`) is not followed by at least one decimal digit. Typical action: complete the exponent (e.g. `1e0`, `1.5e+2`) or remove the incomplete exponent suffix."; }
+  if (i == 14) { return "Used when a binary integer introducer `0b` or `0B` is not followed by at least one binary digit (0 or 1). Typical action: complete the literal (e.g. `0b0`, `0b1010`) or remove the incomplete `0b` prefix."; }
+  if (i == 15) { return "Used when an octal integer introducer `0o` or `0O` is not followed by at least one octal digit (0-7). Typical action: complete the literal (e.g. `0o0`, `0o52`) or remove the incomplete `0o` prefix."; }
+  if (i == 16) { return "Used when `_` appears in a numeric literal without a following valid digit for that radix (trailing `_`, consecutive `__`, or `_` before a non-digit). Typical action: remove the underscore or place it only between digits (e.g. `1_000`, `0x2_A`)."; }
+  if (i == 17) { return "Used when a complete integer or float literal is immediately followed by alphabetic characters (for example `42u32`, `0x2Ai64`, `1.5f32`, or `42foo`). The language has no C/Rust-style type suffixes on numerics; use context type coerce (e.g. `let n: u32 = 42`) or `as T`. Typical action: remove the suffix or rewrite with `as` / annotated `let`."; }
+  if (i == 18) { return "Used when a string escape is not one of the product set `\\n \\t \\r \\0 \\\\ \\\" \\xHH` (for example `\\q`, incomplete `\\x`, or `\\xG`). Typical action: use a supported escape or write the byte as `\\xHH`."; }
+  if (i == 19) { return "Used when a decoded string literal (including C-style adjacent concatenation) would exceed 127 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. Typical action: shorten the literal, split into multiple strings with runtime concat (std.string), or await a future larger AST string pool."; }
+  if (i == 20) { return "Used when a non-keyword identifier span is longer than 255 bytes (AST name[256] content cap). Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. Typical action: shorten the identifier, or await a future larger AST name layout."; }
+  if (i == 21) { return "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, library roots, and the resolved on-disk file path shown in the diagnostic."; }
+  if (i == 22) { return "Used when an imported file was found but preprocessing of that import failed. Typical action: inspect the imported file for conditional-compilation errors such as unclosed directives."; }
+  if (i == 23) { return "Used when an import file was read and preprocessed successfully but parse still failed. Typical action: inspect the imported module with the reported parser diagnostics."; }
+  if (i == 24) { return "Used for import-side failures such as path normalization limits, unresolved dependency closure, or imported module type-check failure summaries. Typical action: inspect the paired import diagnostics emitted earlier."; }
+  if (i == 25) { return "Used when the .x pipeline cannot finish parse/module construction. Typical action: inspect the preceding parse diagnostics and the failing module entry."; }
+  if (i == 26) { return "Used for stricter .x parse/commit failures after a function was tentatively parsed but could not be committed into the module. Typical action: inspect nearby function boundaries and parse-recovery logs."; }
+  if (i == 27) { return "Used for generic .x pipeline summary failures reported as `pipeline failed rc=...` after a deeper stage returned an error code. Typical action: inspect preceding parser/typeck/import/codegen diagnostics."; }
+  if (i == 28) { return "Used for the follow-up `resolve path tried:` diagnostic that lists the concrete path attempted before pipeline failure. Typical action: inspect the shown path and verify library roots and import naming."; }
+  if (i == 29) { return "Used for allocation failures covering arena/module buffers, ELF context, or dependency-side arena/module storage before the pipeline can proceed. Typical action: inspect memory pressure and the specific pipeline stage."; }
+  if (i == 30) { return "Used when `CodegenOutBuf`, `PipelineDepCtx`, or dependency-local output/context buffers cannot be allocated. Typical action: inspect memory pressure and whether a large-output path is being exercised."; }
+  if (i == 31) { return "Used for `source too large for parser` failures when the source buffer exceeds the current `int32_t` parser boundary. Typical action: reduce input size or change the parser limit handling."; }
+  if (i == 32) { return "Used for `pipeline failed for import` summaries emitted after a dependency prerun returns non-zero. Typical action: inspect earlier diagnostics for the referenced import path and its transitive dependencies."; }
+  if (i == 33) { return "Used when .x type checking fails inside a concrete function, often with function index/name attached. Typical action: inspect the named function body and any accompanying type diagnostics."; }
+  if (i == 34) { return "Used when executable-oriented C emission requires a `main` function but the module only contains library items or no callable entry. Typical action: add a `main` entry or switch to a library/module emission path."; }
+  if (i == 35) { return "Used for `asm_codegen_elf_o failed` summaries where the backend or ELF writer returned a failing status or produced an empty object buffer. Typical action: inspect paired ELF context notes and earlier backend diagnostics."; }
+  if (i == 36) { return "Used for `failed to emit function` summaries tied to a concrete function name or index. Typical action: inspect that function body and any preceding backend/type diagnostics for unsupported constructs."; }
+  if (i == 37) { return "Used when the C-path `.x -E` pipeline returns success but the codegen output buffer is empty, indicating a codegen/pipeline wiring gap rather than a reported typeck/codegen error. Typical action: inspect the CodegenOutBuf wiring and any earlier typeck/codegen diagnostics."; }
+  if (i == 38) { return "Fallback check-mode code used when compilation/check failed but no detailed parser/typeck/import diagnostic was emitted. Typical action: inspect prior stderr output and the target file path."; }
+  if (i == 39) { return "Used when the provided path set, or the current directory, contains no discoverable .x sources. Typical action: verify input paths and whether ignored filters removed all candidates."; }
+  if (i == 40) { return "Used for format-mode failures such as missing input files, unreadable files, or no .x files found. Typical action: verify the path list, file accessibility, and whether `--check` reported unformatted files."; }
+  if (i == 41) { return "Emitted as an info-level smoke marker after a successful parse/typeck pass on the no-`-o` smoke path. Only emitted when structured smoke output is opted in (`--diag-json` or `XLANG_SMOKE_DIAG=1`); the legacy `parse OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker)."; }
+  if (i == 42) { return "Emitted as an info-level smoke marker after type checking succeeds on the no-`-o` smoke path. Only emitted when structured smoke output is opted in (`--diag-json` or `XLANG_SMOKE_DIAG=1`); the legacy `typeck OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker)."; }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_entry_code`.
- * Implements `diag_entry_code`.
+/**
+ * Canonical code spelling for a matching row.
+ * Comparison is diag_code_eq, so the match is case-insensitive.
+ * A null or unknown code returns null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_entry_code(code: *u8): *u8 {
-  unsafe { return diag_entry_code_impl(code); }
+  let n: i64 = 0;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    n = diag_code_table_len();
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      if (diag_code_eq(code, c) != 0) {
+        return diag_code_table_code_at(i);
+      }
+      i = i + 1;
+    }
+  }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_entry_kind`.
- * Implements `diag_entry_kind`.
+/**
+ * Kind word for a matching row.
+ * Comparison is diag_code_eq, so the match is case-insensitive.
+ * A null or unknown code returns null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_entry_kind(code: *u8): *u8 {
-  unsafe { return diag_entry_kind_impl(code); }
+  let n: i64 = 0;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    n = diag_code_table_len();
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      if (diag_code_eq(code, c) != 0) {
+        return diag_code_table_kind_at(i);
+      }
+      i = i + 1;
+    }
+  }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_entry_summary`.
- * Implements `diag_entry_summary`.
+/**
+ * Summary for a matching row.
+ * Comparison is diag_code_eq, so the match is case-insensitive.
+ * A null or unknown code returns null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_entry_summary(code: *u8): *u8 {
-  unsafe { return diag_entry_summary_impl(code); }
+  let n: i64 = 0;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    n = diag_code_table_len();
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      if (diag_code_eq(code, c) != 0) {
+        return diag_code_table_summary_at(i);
+      }
+      i = i + 1;
+    }
+  }
+  return 0 as *u8;
 }
-
-/** Exported function `diag_entry_details`.
- * Implements `diag_entry_details`.
+/**
+ * Details for a matching row.
+ * Comparison is diag_code_eq, so the match is case-insensitive.
+ * A null or unknown code returns null.
  * @param code *u8
  * @return *u8
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_entry_details(code: *u8): *u8 {
-  unsafe { return diag_entry_details_impl(code); }
+  let n: i64 = 0;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    n = diag_code_table_len();
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      if (diag_code_eq(code, c) != 0) {
+        return diag_code_table_details_at(i);
+      }
+      i = i + 1;
+    }
+  }
+  return 0 as *u8;
 }
 
 /** Exported function `diag_stderr`.
