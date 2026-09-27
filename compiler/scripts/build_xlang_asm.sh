@@ -6313,6 +6313,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   BSTRICT_MINIMAL_GLUE_COMPANION="$BUILD_DIR/pipeline_glue_strict_minimal.o"
   fi
   ASM_GLUE_DUP_LDFLAGS=$(asm_glue_duplicate_ldflags)
+  # Product x_seed_bridge is src/x_seed_bridge.o. This main link does not take the host-cc build_asm copy. PLATFORM: SHARED.
   # shellcheck disable=SC2086
   # PLATFORM: SHARED — early user_asm (+ Darwin arm64 enc) before weak stubs (ar extract).
   "$CC" $CFLAGS $BOOT_ENTRY_LDFLAGS $ASM_GLUE_DUP_LDFLAGS -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -o xlang_asm \
@@ -6332,7 +6333,6 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   pipeline_bootstrap_orchestration.o \
   preprocess_x.o \
   driver_fmt_x.o driver_check_x.o driver_test_x.o driver_build_x.o driver_run_x.o driver_compile_x.o driver_emit_x.o \
-  "$BUILD_DIR/x_seed_bridge.o" \
   "$BUILD_DIR/seed_link_compat.o" \
   "$BUILD_DIR/seed_host/asm_backend_partial.o" \
   $ASM_LINK_STUBS_O \
