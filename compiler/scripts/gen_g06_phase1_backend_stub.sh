@@ -56,17 +56,10 @@ mkdir -p "$OUT_DIR"
 # Wave927: shell cc direct compile from seed (no make; g05 G-02f-11 cold fallback pattern).
 # XLANG_SEED_LINK_VIA_MAKE=1 escapes to make (parity / debug).
 if [ ! -f src/x_seed_bridge.o ]; then
-  if [ "${XLANG_SEED_LINK_VIA_MAKE:-0}" = "1" ]; then
-    make src/x_seed_bridge.o >/dev/null 2>&1 || {
-      echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o via make" >&2
-      exit 1
-    }
   # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
-  # This script must not host-cc seeds/x_seed_bridge.from_x.c over that object. PLATFORM: SHARED.
-  else
-    echo "gen_g06_phase1_backend_stub: missing src/x_seed_bridge.o and seeds/x_seed_bridge.from_x.c" >&2
-    exit 1
-  fi
+  # This script must not host-cc the seed or make src/x_seed_bridge.o. PLATFORM: SHARED.
+  echo "gen_g06_phase1_backend_stub: missing src/x_seed_bridge.o and seeds/x_seed_bridge.from_x.c" >&2
+  exit 1
 fi
 
 # Wave721: phase1 OBJS/CFLAGS from mk catalog only (G.7; no make -n scrape / dual list).
