@@ -1348,6 +1348,15 @@ ensure_std_io_formal_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
+  # w1200: some pure-asm tries segfault. Retry before the eight-try
+  # path. A failed retry still falls back to that path and then the
+  # C face. Symbols stay strong. std_io_read stays undefined.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh io-formal-retry "$o"; then
+    log "prefer io formal ← pure-asm fifteen symbols (w1200)"
+    return 0
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -5653,6 +5662,56 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1200: src/asm/std_io_formal_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. Frames are already
+# inside the allocation. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# std_io_read stays undefined. PLATFORM: MACOS|DARWIN arm64.
+# Other hosts return 1. cwd is compiler/.
+io_formal_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/std_io_formal_darwin.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "15" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _std_io_formal_darwin_x_doc_anchor _std_io_timeout_from_ctx \
+    _std_io_read_ctx _std_io_write_ctx; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if ! nm -u "$o" | awk '{ s=$NF } s=="_std_io_read" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1199: src/asm/std_debug_formal_darwin.x segfaults on some
 # pure-asm tries and emits on a later try. Frames are already
 # inside the allocation. Retry the whole translation unit.
@@ -27612,6 +27671,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  io-formal-retry|io_formal_retry_pure)
+    # w1200: fifteen pure-asm symbols of std_io_formal_darwin.x.
+    # Does not write std/io/io.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o io-formal-retry: need <out.o>" >&2
+      exit 2
+    fi
+    io_formal_retry_pure "$1"
+    exit $?
+    ;;
   debug-formal-retry|debug_formal_retry_pure)
     # w1199: six pure-asm symbols of std_debug_formal_darwin.x.
     # Does not write std/debug/debug.o unless that path is passed.
