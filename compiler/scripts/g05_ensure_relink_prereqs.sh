@@ -3429,7 +3429,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           echo "g05_ensure: $_xsb_o ← $_xsb_x + seed-rest (G-02f-332 L2 hybrid x_seed_bridge thin)"
           _xsb_done=1
         else
-          echo "g05_ensure: L2 hybrid x_seed_bridge failed; fallback full seed" >&2
+          echo "g05_ensure: L2 hybrid x_seed_bridge failed; leaving src/x_seed_bridge.o unchanged" >&2
         fi
         rm -f "$_xsb_thin_o" "$_xsb_rest_o"
       fi
