@@ -1187,32 +1187,24 @@ extern const char *diag_code_suggest(const char *code, char *out, size_t out_cap
  * 格式：列对齐的 CODE / KIND / Summary，便于人工浏览全部已知码。
  */
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_code_table(uint8_t *out)
-#else
-void diag_print_code_table_impl(uint8_t *out)
-#endif
 {
     size_t i;
     if (!out)
         out = diag_h_stdout();
     diag_o_printf(out, "%-8s %-18s %s\n", "CODE", "KIND", "SUMMARY");
     diag_o_printf(out, "%-8s %-18s %s\n", "----", "----", "-------");
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    for (i = 0; i < diag_code_table_len(); i++) {
-        diag_o_printf(out, "%-8s %-18s %s\n",
-                      diag_code_table_code_at(i),
-                      diag_code_table_kind_at(i),
-                      diag_code_table_summary_at(i));
-    }
-#else
     for (i = 0; i < g_diag_code_table_count; i++) {
         const DiagCodeExplain *e = &g_diag_code_table[i];
         diag_o_printf(out, "%-8s %-18s %s\n", e->code, e->kind, e->summary);
     }
-#endif
 }
+#else
+/* Aligned code-table walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_code_table(uint8_t *out);
+#endif
 
 
 /**

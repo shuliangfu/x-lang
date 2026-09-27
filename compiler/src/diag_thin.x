@@ -31,7 +31,7 @@ export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, sou
 export extern "C" function diag_should_color_impl(): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
 export extern "C" function diag_set_json_mode_impl(enable: i32): void;
-export extern "C" function link_abi_getenv(name: *u8): *u8;export extern "C" function diag_print_code_table_impl(out: *u8): void;
+export extern "C" function link_abi_getenv(name: *u8): *u8;
 // ---- G-02f-335 pure helpers ----
 
 /** Exported function `diag_line_digits`.
@@ -787,15 +787,34 @@ export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u
   }
 }
 
-/** Exported function `diag_print_code_table`.
- * Implements `diag_print_code_table`.
- * @param out *u8
- * @return void
+/**
+ * Print the aligned CODE / KIND / SUMMARY table.
+ * A null out selects stdout. The header and each row go through the
+ * seed format helpers: code is padded to 8 columns and kind to 18.
+ * A null field is printed as an empty string by the row helper.
+ * @param out *u8 — destination stream, or null for stdout
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_print_code_table(out: *u8): void {
+  let o: *u8 = out;
+  let n: i64 = 0;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    diag_print_code_table_impl(out);
+    if (o == 0 as *u8) {
+      o = diag_stdout();
+    }
+    diag_io_fprint_code_table_hdr(o);
+    n = diag_code_table_len();
+    while (i < n) {
+      let c: *u8 = diag_code_table_code_at(i);
+      let k: *u8 = diag_code_table_kind_at(i);
+      let s: *u8 = diag_code_table_summary_at(i);
+      diag_io_fprint_code_table_row(o, c, k, s);
+      i = i + 1;
+    }
   }
 }
 
