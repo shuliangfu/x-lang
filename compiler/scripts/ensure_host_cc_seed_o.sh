@@ -5551,6 +5551,50 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1167: src/runtime/rt_lib_root.x segfaults on some pure-asm tries
+# and emits on a later try. Retry the whole translation unit.
+# Direct xlang_asm, not rt_prefer_try_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+rt_lib_root_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_lib_root.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "10" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _driver_lib_root_ptr_usable _driver_lib_root_default \
+    _driver_lib_roots_from_key _rt_lib_root_fill; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1166: src/runtime/rt_emit_flags.x segfaults on some pure-asm tries
 # and emits on a later try. Retry the whole translation unit.
 # Direct xlang_asm, not rt_prefer_try_x_to_o.
@@ -11366,13 +11410,29 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_lib_root_x" ]; then
               _rt_lr_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_lr_thin.XXXXXX") || true
               _rt_lr_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_lr_rest.XXXXXX") || true
+              _rt_lr_pure=0
+              # w1167: some pure-asm tries segfault. Darwin retries the
+              # whole translation unit. Other hosts keep rt_prefer_try.
+              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
               if [ -n "$_rt_lr_thin_o" ] && [ -n "$_rt_lr_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_lib_root_x" "$_rt_lr_thin_o" \
+                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+                && bash scripts/ensure_host_cc_seed_o.sh rt-lib-root-pure "$_rt_lr_thin_o"; then
+                _rt_lr_pure=1
+              fi
+              if [ -n "$_rt_lr_thin_o" ] && [ -n "$_rt_lr_rest_o" ] \
+                && { [ "$_rt_lr_pure" = "1" ] \
+                  || rt_prefer_try_x_to_o "$_rt_lib_root_x" "$_rt_lr_thin_o"; } \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_LIB_ROOT_FROM_X \
                      -c -o "$_rt_lr_rest_o" "$_rt_lib_root_seed" \
                 && pure_ld_partial_merge "$_rt_lr_o" "$_rt_lr_thin_o" "$_rt_lr_rest_o" 2>/dev/null; then
                 _rt_lr_ok=1
-                echo "rt-prefer: rest lib_root ← thin .x + rest (G-02f-432 L2 prefer .x)"
+                if [ "$_rt_lr_pure" = "1" ]; then
+                  echo "rt-prefer: rest lib_root ← pure-asm ten symbols (w1167)"
+                else
+                  echo "rt-prefer: rest lib_root ← thin .x + rest (G-02f-432 L2 prefer .x)"
+                fi
               fi
               rm -f "$_rt_lr_thin_o" "$_rt_lr_rest_o"
             fi
@@ -25574,6 +25634,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-lib-root-pure|rt_lib_root_darwin_pure)
+    # w1167: ten pure-asm symbols of src/runtime/rt_lib_root.x.
+    # Does not write runtime_driver_no_c.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-lib-root-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_lib_root_darwin_pure "$1"
+    exit $?
+    ;;
   rt-emit-flags-pure|rt_emit_flags_darwin_pure)
     # w1166: six pure-asm symbols of src/runtime/rt_emit_flags.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
