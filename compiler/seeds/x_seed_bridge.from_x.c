@@ -27,11 +27,6 @@
 
 extern uint8_t * typeck_std_heap_alloc(size_t size);
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. The cold zero-alloc wrapper still calls it. PLATFORM: SHARED. */
-extern uint8_t *std_heap_alloc_zeroed(size_t size);
-uint8_t * std_heap_alloc_zero(size_t size) {
-  return std_heap_alloc_zeroed(size);
-}
 void std_heap_free(uint8_t * ptr) {
   (void)(({   {
     (void)(free(ptr));
