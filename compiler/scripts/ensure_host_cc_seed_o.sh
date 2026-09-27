@@ -5551,6 +5551,52 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1162: src/asm/pthin_skip_if.x segfaults on the first pure-asm
+# tries and emits on a later try. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_skip_if_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_skip_if.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "4" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _parser_asm_skip_trait_impl_block_raw_into_c \
+    _parser_asm_skip_one_if_core_into_c \
+    _parser_asm_skip_one_if_statement_into_c \
+    _parser_asm_module_try_register_enum_name_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1161: src/asm/pthin_foundation.x segfaults on the first pure-asm
 # tries and emits on a later try. Retry the whole translation unit.
 # Direct xlang_asm, not pure_asm_x_to_o.
@@ -25304,6 +25350,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  pthin-skip-if-pure|pthin_skip_if_darwin_pure)
+    # w1162: four pure-asm symbols of src/asm/pthin_skip_if.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-skip-if-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_skip_if_darwin_pure "$1"
+    exit $?
+    ;;
   pthin-foundation-pure|pthin_foundation_darwin_pure)
     # w1161: two pure-asm symbols of src/asm/pthin_foundation.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.
