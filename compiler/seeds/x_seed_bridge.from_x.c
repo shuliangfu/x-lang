@@ -163,25 +163,11 @@ typedef struct {
 /* Buffer registration lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t xlang_io_register_buf(intptr_t buf);
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. Cold xlang_io_submit_read_buf still calls it. PLATFORM: SHARED. */
-extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms);
-#else
 /* Submitted read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms);
-#endif
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_ms) {
-  const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
-  if (!b)
-    return -1;
-  return xlang_io_submit_read(b->ptr, b->length, b->handle, (unsigned)timeout_ms);
-}
-#else
 /* Submitted read from a buffer record lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_ms);
-#endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
