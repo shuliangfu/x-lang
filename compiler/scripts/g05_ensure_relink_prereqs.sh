@@ -2431,6 +2431,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p4asb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4asb.XXXXXX") || true
         _cb_p4as=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4as.XXXXXX") || true
         _cb_p4u=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4u.XXXXXX") || true
+        _cb_p4tb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4tb.XXXXXX") || true
+        _cb_p4t=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4t.XXXXXX") || true
+        _cb_p5w=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p5w.XXXXXX") || true
         _bx_bridge_seed=seeds/parser_asm_lex_step_bridge.from_x.c
         _ca_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
         _cb_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
@@ -2447,6 +2450,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p19_ok=0
         _cb_p4as_pure=0
         _cb_p4as_ok=0
+        _cb_p4t_pure=0
+        _cb_p4t_ok=0
         if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
           && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
           && [ -f scripts/ensure_host_cc_seed_o.sh ]; then
@@ -2477,6 +2482,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ -n "$_cb_p4asb" ] && [ -n "$_cb_p4as" ] \
             && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-as-suffix-pure "$_cb_p4asb"; then
             _cb_p4as_pure=1
+          fi
+          # w1312: ternary .x is already four pure pieces. Peel it into
+          # the Class CB merge. set_if stays in the ctrl seed writer.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ -n "$_cb_p4tb" ] && [ -n "$_cb_p4t" ] && [ -n "$_cb_p5w" ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-ternary-pure "$_cb_p4tb"; then
+            _cb_p4t_pure=1
           fi
         fi
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
@@ -2520,6 +2532,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_cb_p4as" "pipeline_expr_set_as_c" \
             && g05_obj_defines "$_cb_p4u" "pipeline_expr_set_unary_operand_c"; then
             _cb_p4as_ok=1
+          fi
+          # w1312: trampoline keeps the parse dest-buffers. Bodies are
+          # the four .x symbols. set_if stays in the ctrl seed (G.7).
+          # WRITER_ONLY skips the ctrl slices already in rest.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ "$_cb_p4t_pure" = "1" ] && [ -n "$_cb_p5w" ] \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X \
+               -c -o "$_cb_p4t" "$_pthin_p4t_seed" \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DXLANG_PTHIN_CTRL_WRITER_ONLY \
+               -c -o "$_cb_p5w" "$_pthin_p5_seed" \
+            && g05_obj_defines "$_cb_p4tb" "parser_asm_parse_ternary_x_into_c" \
+            && g05_obj_defines "$_cb_p4t" "parser_asm_parse_ternary_into_slice_c" \
+            && g05_obj_defines "$_cb_p5w" "pipeline_expr_set_if_c"; then
+            _cb_p4t_ok=1
           fi
           if g05_obj_defines "$_ca_p6b" "parser_asm_parse_struct_record_layout_x_into_c"; then
             _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
@@ -2608,14 +2636,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                -DXLANG_PTHIN_FN_BLOCK_FROM_X -DXLANG_PTHIN_TYPE_REF_FROM_X \
                ${_cb_p19_ok:+-DXLANG_PTHIN_HELPERS_FROM_X} \
                ${_cb_p4as_ok:+-DXLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X} \
+               ${_cb_p4t_ok:+-DXLANG_PTHIN_EXPR_TERNARY_FROM_X} \
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
                "$_ca_bstub" ${_cb_p19_ok:+"$_cb_p19" "$_cb_p19b"} \
-               ${_cb_p4as_ok:+"$_cb_p4as" "$_cb_p4asb" "$_cb_p4u"} 2>/dev/null; then
+               ${_cb_p4as_ok:+"$_cb_p4as" "$_cb_p4asb" "$_cb_p4u"} \
+               ${_cb_p4t_ok:+"$_cb_p4t" "$_cb_p4tb" "$_cb_p5w"} 2>/dev/null; then
             if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
               && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
-              if [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ]; then
+              if [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ]; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary (w1312)"
+              elif [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ]; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix (w1311)"
               elif [ "$_cb_p19_ok" = "1" ]; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers (w1308)"
@@ -2630,7 +2662,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
           "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
-          "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u"
+          "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u" "$_cb_p4tb" "$_cb_p4t" "$_cb_p5w"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"

@@ -236,9 +236,16 @@ static struct parser_asm_lexer parser_asm_scan_sync_after_if_stmt_c(struct parse
 }
 #endif
 
+/* ternary .x calls pipeline_expr_set_if_c. That writer lives in this
+ * file, with set_block_ref and set_match_matched. WRITER_ONLY skips the
+ * three slices so the C bodies already in the thin rest are not defined
+ * twice. Chapter 2.7 peels those bodies.
+ * PLATFORM: SHARED. */
+#ifndef XLANG_PTHIN_CTRL_WRITER_ONLY
 #include "parser_asm_if_stmt_slice.inc"
 #include "parser_asm_match_subject_slice.inc"
 #include "parser_asm_if_expr_slice.inc"
+#endif
 
 int labi_pthin_ctrl_slice_marker(void) {
   return 3; /* if_stmt + match + if_expr */
