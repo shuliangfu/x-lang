@@ -61,14 +61,8 @@ if [ ! -f src/x_seed_bridge.o ]; then
       echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o via make" >&2
       exit 1
     }
-  elif [ -f seeds/x_seed_bridge.from_x.c ]; then
-    echo "gen_g06_phase1_backend_stub: cc -c seeds/x_seed_bridge.from_x.c -> src/x_seed_bridge.o" >&2
-    mkdir -p src
-    # shellcheck disable=SC2086
-    $CC $CFLAGS -c -o src/x_seed_bridge.o seeds/x_seed_bridge.from_x.c || {
-      echo "gen_g06_phase1_backend_stub: failed to build src/x_seed_bridge.o from seed" >&2
-      exit 1
-    }
+  # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
+  # This script must not host-cc seeds/x_seed_bridge.from_x.c over that object. PLATFORM: SHARED.
   else
     echo "gen_g06_phase1_backend_stub: missing src/x_seed_bridge.o and seeds/x_seed_bridge.from_x.c" >&2
     exit 1
