@@ -26,9 +26,8 @@
 #include <sys/types.h>
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-int32_t io_register_buffer(uint8_t * ptr, size_t len) {
-  return 0;
-}
+/* Product body is src/x_seed_bridge.x. The cold xlang_io_register still calls it. PLATFORM: SHARED. */
+extern int32_t io_register_buffer(uint8_t *ptr, size_t len);
 void io_unregister_buffers(void) {
   (void)(0);
 }
