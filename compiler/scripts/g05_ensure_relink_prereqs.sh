@@ -1632,15 +1632,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # twins. Runs before P5 C so BODIES_FROM_X skips the portable
         # .inc region. Cold: no define, full .inc.
         _pthin_p5_extra=""
+        _pthin_p5_pure=0
+        # w1151: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o. The dependency
+        # gate stays: P9a and P1b.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p1b_ok" = "1" ] && [ -n "$_pthin_p5b_thin_o" ] && [ -f "$_pthin_p5b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o" \
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-ctrl-pure "$_pthin_p5b_thin_o"; then
+            _pthin_p5_pure=1
+          fi
+          if { [ "$_pthin_p5_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p5b_x" "$_pthin_p5b_thin_o"; } \
             && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_subject_x_into_c" \
             && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_struct_fields_x_into_c" \
             && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_match_into_x_into_c" \
             && g05_obj_defines "$_pthin_p5b_thin_o" "parser_asm_parse_if_stmt_x_into_c"; then
             _pthin_p5b_ok=1
             _pthin_p5_extra="-DXLANG_PTHIN_CTRL_BODIES_FROM_X"
-            echo "g05_ensure: P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr + match wrap + match subject parse + match struct fields + match into + if_stmt T-shrink)"
+            if [ "$_pthin_p5_pure" = "1" ]; then
+              echo "g05_ensure: P5 ctrl ← pure-asm thirty-one pieces (w1151)"
+            else
+              echo "g05_ensure: P5b/P5c/P5d/P5e/P5f/P5g/P5h/P5i/P5j/P5k ctrl bodies ← $_pthin_p5b_x (7.2.1 Route C scan_sync + B-minus realign + dest enum tag + parse_if_expr + match wrap + match subject parse + match struct fields + match into + if_stmt T-shrink)"
+            fi
           else
             echo "g05_ensure: P5b ctrl .x thin failed or missing match-subject/struct-fields/into/if_stmt dest-buffer; P5 C twin stays full" >&2
           fi

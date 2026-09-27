@@ -16,6 +16,10 @@
 
 // pthin_ctrl.x — G-02f-286 P5 parser thin ctrl product bodies.
 //
+// w1151: one translation unit exits 139. Darwin compiles each function
+// and links the thirty-one pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P5b Route C productize (2026-09-13): after P11b skip_imports,
 // if_stmt.inc is the next still-host-cc product slice with a portable
 // buf-path region. Comment/string-aware `{...}` byte skip and keyword
@@ -497,10 +501,12 @@ export function parser_asm_skip_balanced_braces_bytes_comment_aware_c(data: *u8,
  */
 #[no_mangle]
 export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: *u8, klen: i32): i32 {
+  let pad: u8[32] = [];
   let next_pos: usize = 0;
   let prev: u8 = 0;
   let nx: u8 = 0;
   let nlen: usize = 0;
+  pad[0] = 0;
   if (data == 0 as *u8 || kw == 0 as *u8 || klen <= 0) {
     return 0;
   }
@@ -508,13 +514,18 @@ export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: 
   if (i + nlen > len) {
     return 0;
   }
-  if (parser_asm_ctrl_bytes_eq(data, len, i, kw, klen) == 0) {
-    return 0;
+  // Darwin compiles this function alone. The byte helpers are externs.
+  unsafe {
+    if (parser_asm_ctrl_bytes_eq(data, len, i, kw, klen) == 0) {
+      return 0;
+    }
   }
   if (i > 0) {
     unsafe { prev = data[i - 1]; }
-    if (parser_asm_ctrl_ident_continue(prev) != 0) {
-      return 0;
+    unsafe {
+      if (parser_asm_ctrl_ident_continue(prev) != 0) {
+        return 0;
+      }
     }
   }
   if (i + nlen < len) {
@@ -601,7 +612,10 @@ function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
   if (a != 105 || b != 102) {
     return 0;
   }
-  return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 2);
+  // Darwin compiles this function alone. The keyword probe is an extern.
+  unsafe {
+    return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 2);
+  }
 }
 
 /**
@@ -629,7 +643,10 @@ function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
   if (a != 101 || b != 108 || c != 115 || d != 101) {
     return 0;
   }
-  return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 4);
+  // Darwin compiles this function alone. The keyword probe is an extern.
+  unsafe {
+    return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 4);
+  }
 }
 
 /**
@@ -715,7 +732,10 @@ function parser_asm_ctrl_find_then_lbrace(data: *u8, len: usize, start: usize): 
   let c: u8 = 0;
   let skipped: usize = 0;
   while (i < len) {
-    skipped = parser_asm_ctrl_skip_comment_or_quote(data, len, i);
+    // Darwin compiles this function alone. The skip helper is an extern.
+    unsafe {
+      skipped = parser_asm_ctrl_skip_comment_or_quote(data, len, i);
+    }
     if (skipped != i) {
       i = skipped;
       continue;
@@ -761,6 +781,9 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
   let probe: usize = 0;
   let i: usize = 0;
   let c: u8 = 0;
+  let if_hit: i32 = 0;
+  let else_hit: i32 = 0;
+  let nested_if: i32 = 0;
   if (data == 0 as *u8) {
     return start_pos;
   }
@@ -773,7 +796,11 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     found = 0;
     cond_start = 0;
     while (true) {
-      if (parser_asm_ctrl_kw_if_at(data, len, if_pos) != 0) {
+      // Darwin compiles this function alone. The scan helpers are externs.
+      unsafe {
+        if_hit = parser_asm_ctrl_kw_if_at(data, len, if_pos);
+      }
+      if (if_hit != 0) {
         unsafe {
           probe = parser_asm_stretch_skip_ws_and_comments_c(data, len, if_pos + 2);
         }
@@ -791,7 +818,9 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     if (found == 0) {
       return cur;
     }
-    i = parser_asm_ctrl_find_then_lbrace(data, len, cond_start);
+    unsafe {
+      i = parser_asm_ctrl_find_then_lbrace(data, len, cond_start);
+    }
     unsafe {
       i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
     }
@@ -802,20 +831,36 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     if (c != 123) {
       return cur;
     }
-    i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+    unsafe {
+      i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+    }
     unsafe {
       i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
     }
-    if (i + 4 <= len && parser_asm_ctrl_kw_else_at(data, len, i) != 0) {
+    unsafe {
+      else_hit = 0;
+      if (i + 4 <= len) {
+        else_hit = parser_asm_ctrl_kw_else_at(data, len, i);
+      }
+    }
+    if (else_hit != 0) {
       unsafe {
         i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i + 4);
       }
       if (i < len) {
         unsafe { c = data[i]; }
         if (c == 123) {
-          i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+          unsafe {
+            i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+          }
         } else {
-          if (i + 2 <= len && parser_asm_ctrl_kw_if_at(data, len, i) != 0) {
+          unsafe {
+            nested_if = 0;
+            if (i + 2 <= len) {
+              nested_if = parser_asm_ctrl_kw_if_at(data, len, i);
+            }
+          }
+          if (nested_if != 0) {
             cur = i;
             continue;
           }
@@ -1042,19 +1087,28 @@ function parser_asm_ctrl_realign_scan_kw_at(data: *u8, len: usize, scan: usize, 
   let klen: usize = 0;
   let prev: u8 = 0;
   let nx: u8 = 0;
-  klen = parser_asm_ctrl_realign_scan_kw_len(kw_id) as usize;
+  let klen_i: i32 = 0;
+  // Darwin compiles this function alone. The scan helpers are externs.
+  unsafe {
+    klen_i = parser_asm_ctrl_realign_scan_kw_len(kw_id);
+  }
+  klen = klen_i as usize;
   if (scan + klen > scan_end) {
     return 0;
   }
-  if (parser_asm_ctrl_realign_scan_kw_bytes_at(data, scan, kw_id) == 0) {
-    return 0;
+  unsafe {
+    if (parser_asm_ctrl_realign_scan_kw_bytes_at(data, scan, kw_id) == 0) {
+      return 0;
+    }
   }
   if (scan > 0) {
     unsafe {
       prev = data[scan - 1];
     }
-    if (parser_asm_ctrl_ident_continue(prev) != 0) {
-      return 0;
+    unsafe {
+      if (parser_asm_ctrl_ident_continue(prev) != 0) {
+        return 0;
+      }
     }
   }
   if (scan + klen < len) {
@@ -1112,6 +1166,7 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
   let depth: i32 = 0;
   let ch: u8 = 0;
   let kw_id: i32 = 0;
+  let kw_hit: i32 = 0;
   if (lex_inout == 0 as *u8 || source == 0 as *u8) {
     return 0;
   }
@@ -1244,7 +1299,10 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
       if (depth == 0) {
         kw_id = 0;
         while (kw_id <= 7) {
-          if (parser_asm_ctrl_realign_scan_kw_at(data, len, scan, scan_end, kw_id) != 0) {
+          unsafe {
+            kw_hit = parser_asm_ctrl_realign_scan_kw_at(data, len, scan, scan_end, kw_id);
+          }
+          if (kw_hit != 0) {
             unsafe {
               parser_asm_lex_set_pos_c(lex_inout, scan);
               parser_asm_lex_set_line_c(lex_inout, line0);
@@ -1299,6 +1357,7 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
  */
 #[no_mangle]
 export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32): i32 {
+  let pad: u8[32] = [];
   let kind: i32 = 0;
   let cok: i32 = 0;
   let cond_ref: i32 = 0;
@@ -1312,6 +1371,7 @@ export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, so
   let pos0: usize = 0;
   let line0: i32 = 0;
   let col0: i32 = 0;
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_cond == 0 as *i32 || out_then == 0 as *i32 || out_else == 0 as *i32) {
     return 0;
   }
@@ -1688,7 +1748,10 @@ export function parser_asm_match_var_wrap_into_c(arena: *u8, name: *u8, nlen: i3
   if (n < 0) {
     n = 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_VAR);
+  // Darwin compiles this function alone. The prep helper is an extern.
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_VAR);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1725,7 +1788,9 @@ export function parser_asm_match_field_wrap_into_c(arena: *u8, base_ref: i32, na
   if (n < 0) {
     n = 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1752,7 +1817,9 @@ export function parser_asm_match_lit_wrap_into_c(arena: *u8, int_val: i64): i32 
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_LIT);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_LIT);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1783,7 +1850,9 @@ export function parser_asm_match_binop_wrap_into_c(arena: *u8, kind: i32, left_r
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = skip_match_wrap_prep(arena, kind);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, kind);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1812,7 +1881,9 @@ export function parser_asm_match_expr_wrap_into_c(arena: *u8, matched_ref: i32):
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_MATCH);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_MATCH);
+  }
   if (ref == 0) {
     return 0;
   }
