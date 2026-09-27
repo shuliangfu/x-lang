@@ -10670,11 +10670,12 @@ PY
     obj="$dir/t$c.o"
     try=0
     # w1268: piece 0 is parser_asm_struct_layout_name_exists_arr_c.
-    # Some pure-asm tries segfault. Twelve tries for that one piece.
-    # The other twenty-four pieces stay at eight. Symbols stay strong.
+    # w1269: piece 1 is parser_asm_struct_layout_first_name_match_idx_c.
+    # Some pure-asm tries segfault. Twelve tries for those two pieces.
+    # The other twenty-three pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
