@@ -632,7 +632,7 @@
 | 2 | `pipeline_x.o` FORCE | 🟢 shell 体 + catalog | wave725+747：`rebuild_leaves.sh pipeline-x`；list=`DRIVER_SEED_PIPELINE_X_OBJS`；`PIPELINE_X_FORCE_COMPILE=1` mode 表 |
 | 3 | `-B` 卫星 runtime/diag/simd… | 🟢 shell 体 + catalog | wave722+747：`rebuild_leaves.sh sat`；list=`DRIVER_SEED_SAT_REBUILD_OBJS`；`-B`+`PREFER_X_O=0` mode 表 |
 | 4 | `lsp_io_x.o` `lsp_x.o` … | 🟢 shell 体 + catalog | wave722+747：`rebuild_leaves.sh lsp`；list=`DRIVER_SEED_LSP_X_OBJS` |
-| 5 | `src/x_seed_bridge.o` | 🟢 shell 体 + catalog | wave724+747：`rebuild_leaves.sh bridge`；list=`DRIVER_SEED_BRIDGE_OBJS` |
+| 5 | `src/x_seed_bridge.o` | 🟢 shell 体 + catalog | bridge 名单已空，不再经 `DRIVER_SEED_BRIDGE_OBJS` 重建 |
 | 6 | `$(USER_ASM_SEED_OBJS)` | 🟢 shell 体 + catalog | wave724+747：`rebuild_leaves.sh user-asm`；list=`DRIVER_SEED_USER_ASM_SEED_OBJS` |
 | 7 | `$(ASM_GLUE_STANDALONE_O)` | 🟢 shell 体 + catalog + seed-map | wave724+747+**759**：`rebuild_leaves.sh glue` shell-only；list=`DRIVER_SEED_ASM_GLUE_OBJS`；body=`R1_SEED_MAP` try-r1 |
 | 8 | `build-seed-asm-host` | 🟢 shell 体 + 薄叶 | wave725：`bootstrap-driver-seed-asm-host` + `DRIVER_SEED_ASM_HOST_DISPATCH_OBJS`；体 `build_seed_asm_host.sh`；`build-seed-asm-host` 历史别名 |
