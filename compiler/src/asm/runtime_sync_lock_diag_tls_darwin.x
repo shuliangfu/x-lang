@@ -500,6 +500,10 @@ function diag_tls_held(): *u8 {
  * PLATFORM: MACOS|DARWIN
  */
 function diag_meta_ensure(): i32 {
+  // A live pad pulls the edge store inside this frame.
+  // The unpadded store sat eight bytes past the allocation.
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
   if (diag_ptrs != 0) {
     return 0;
   }
@@ -565,6 +569,10 @@ function diag_meta_ord_set(i: i32, v: i32): void {
  * PLATFORM: MACOS|DARWIN
  */
 function diag_meta_ord_get(i: i32): i32 {
+  // A live pad pulls the scaled index inside this frame.
+  // The unpadded store sat eight bytes past the allocation.
+  let frame_pad: u8[64] = [];
+  frame_pad[0] = 0;
   let off: i32 = i * 4;
   return diag_load_i32(diag_ords, off);
 }
