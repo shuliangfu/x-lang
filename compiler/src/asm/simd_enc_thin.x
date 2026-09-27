@@ -17,6 +17,10 @@
  */
 #[no_mangle]
 export function simd_arm64_ins_v1_from_v0_s(dst_lane: i32, src_lane: i32): u32 {
+  // Live pad. The lane-shift stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: SHARED.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let d: i32 = dst_lane & 3;
   let s: i32 = src_lane & 3;
   let enc: i32 = 1846018048 | (d << 19) | (s << 13) | 1025;
