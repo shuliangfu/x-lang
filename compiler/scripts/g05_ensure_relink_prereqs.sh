@@ -3419,7 +3419,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _xsb=seeds/x_seed_bridge.from_x.c
   _xsb_x=src/x_seed_bridge.x
   _xsb_o=src/x_seed_bridge.o
-  if [ -f "$_xsb" ]; then
     if [ ! -f "$_xsb_o" ] || { [ -f "$_xsb_x" ] && [ "$_xsb_x" -nt "$_xsb_o" ]; }; then
       _xsb_done=0
       if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_xsb_x" ]; then
@@ -3436,7 +3435,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
       # Do not host-cc the whole seed over that object. PLATFORM: SHARED.
     fi
-  fi
   # ~~G-02f-440 seed_link_compat dual hybrid~~ wave771 → try-other-l2-prefer above
   # ~~G-02f-258 strict_glue dual hybrid~~ wave771 → try-other-l2-prefer above
   # ~~G-02f-350/410 fmt_check_cmd_driver dual hybrid~~ wave771 → try-other-l2-prefer above
