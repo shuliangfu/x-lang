@@ -942,21 +942,54 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
 }
 
 // See implementation.
-export extern "C" function diag_code_eq_impl(lhs: *u8, rhs: *u8): i32;
 export extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
 export extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
 
-/** Exported function `diag_code_eq`.
- * Implements `diag_code_eq`.
- * @param lhs *u8
- * @param rhs *u8
- * @return i32
+/**
+ * Case-insensitive ASCII compare of two diagnostic codes.
+ * A null pointer returns 0. Bytes a-z fold to A-Z. The match
+ * stops at the first NUL on either side; both must end together.
+ * Strings longer than 4096 bytes without a NUL compare as unequal.
+ * @param lhs *u8 — left code, or null
+ * @param rhs *u8 — right code, or null
+ * @return i32 — 1 when equal, 0 otherwise
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
-  unsafe {
-    return diag_code_eq_impl(lhs, rhs);
+  let i: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (lhs == 0 as *u8) {
+    return 0;
   }
+  if (rhs == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    while (i < 4096) {
+      let a: u8 = lhs[i];
+      let b: u8 = rhs[i];
+      if (a >= 97) {
+        if (a <= 122) {
+          a = a - 32;
+        }
+      }
+      if (b >= 97) {
+        if (b <= 122) {
+          b = b - 32;
+        }
+      }
+      if (a != b) {
+        return 0;
+      }
+      if (a == 0) {
+        return 1;
+      }
+      i = i + 1;
+    }
+  }
+  return 0;
 }
 
 /** Exported function `diag_levenshtein_ci`.

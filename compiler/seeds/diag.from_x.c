@@ -13,7 +13,6 @@
  */
 #include "diag.h"
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
-#define diag_code_eq diag_code_eq_impl
 #define diag_levenshtein_ci diag_levenshtein_ci_impl
 #define diag_code_suggest diag_code_suggest_impl
 int diag_ctx_get_use_color(void);
@@ -324,9 +323,6 @@ const char * diag_color_reset_impl(void)
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_code_eq(const char *lhs, const char *rhs)
-#else
-int diag_code_eq_impl(const char *lhs, const char *rhs)
-#endif
 {
   size_t i;
   if (!lhs || !rhs)
@@ -343,6 +339,10 @@ int diag_code_eq_impl(const char *lhs, const char *rhs)
   }
   return lhs[i] == '\0' && rhs[i] == '\0' ? 1 : 0;
 }
+#else
+/* Case-insensitive code compare lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_code_eq(const char *lhs, const char *rhs);
+#endif
 
 
 
