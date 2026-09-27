@@ -59,6 +59,10 @@ export function atomic_load_i32_c(ptr: *i32): i32 {
  */
 #[no_mangle]
 export function atomic_store_i32_c(ptr: *i32, val: i32): void {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { ___atomic_store_4(ptr as *u8, val as u32, 5); }
 }
 
@@ -73,6 +77,10 @@ export function atomic_store_i32_c(ptr: *i32, val: i32): void {
  */
 #[no_mangle]
 export function atomic_compare_exchange_i32_c(ptr: *i32, expected: *i32, desired: i32): i32 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let p: *u8 = ptr as *u8;
     let e: *u8 = expected as *u8;
@@ -91,6 +99,10 @@ export function atomic_compare_exchange_i32_c(ptr: *i32, expected: *i32, desired
  */
 #[no_mangle]
 export function atomic_fetch_add_i32_c(ptr: *i32, delta: i32): i32 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { return ___atomic_fetch_add_4(ptr as *u8, delta as u32, 5) as i32; }
   return 0;
 }
@@ -104,6 +116,10 @@ export function atomic_fetch_add_i32_c(ptr: *i32, delta: i32): i32 {
  */
 #[no_mangle]
 export function atomic_fetch_sub_i32_c(ptr: *i32, delta: i32): i32 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { return ___atomic_fetch_sub_4(ptr as *u8, delta as u32, 5) as i32; }
   return 0;
 }
@@ -182,6 +198,10 @@ export function atomic_load_i64_c(ptr: *i64): i64 {
  */
 #[no_mangle]
 export function atomic_store_i64_c(ptr: *i64, val: i64): void {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { ___atomic_store_8(ptr as *u8, val as u64, 5); }
 }
 
@@ -194,6 +214,10 @@ export function atomic_store_i64_c(ptr: *i64, val: i64): void {
  */
 #[no_mangle]
 export function atomic_fetch_add_i64_c(ptr: *i64, delta: i64): i64 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { return ___atomic_fetch_add_8(ptr as *u8, delta as u64, 5) as i64; }
   return 0;
 }
@@ -207,6 +231,10 @@ export function atomic_fetch_add_i64_c(ptr: *i64, delta: i64): i64 {
  */
 #[no_mangle]
 export function atomic_fetch_sub_i64_c(ptr: *i64, delta: i64): i64 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { return ___atomic_fetch_sub_8(ptr as *u8, delta as u64, 5) as i64; }
   return 0;
 }
@@ -221,6 +249,10 @@ export function atomic_fetch_sub_i64_c(ptr: *i64, delta: i64): i64 {
  */
 #[no_mangle]
 export function atomic_compare_exchange_i64_c(ptr: *i64, expected: *i64, desired: i64): i32 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let p: *u8 = ptr as *u8;
     let e: *u8 = expected as *u8;
@@ -353,6 +385,10 @@ export function atomic_load_i16_c(ptr: *i16): i16 {
  */
 #[no_mangle]
 export function atomic_store_i16_c(ptr: *i16, val: i16): void {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { ___atomic_store_2(ptr as *u8, val as u32, 5); }
 }
 
@@ -365,6 +401,10 @@ export function atomic_store_i16_c(ptr: *i16, val: i16): void {
  */
 #[no_mangle]
 export function atomic_fetch_add_i16_c(ptr: *i16, delta: i16): i16 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let raw: u32 = ___atomic_fetch_add_2(ptr as *u8, delta as u32, 5);
     let wide: i32 = raw as i32;
@@ -386,6 +426,10 @@ export function atomic_fetch_add_i16_c(ptr: *i16, delta: i16): i16 {
  */
 #[no_mangle]
 export function atomic_compare_exchange_i16_c(ptr: *i16, expected: *i16, desired: i16): i32 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let p: *u8 = ptr as *u8;
     let e: *u8 = expected as *u8;
@@ -415,6 +459,10 @@ export function atomic_load_u16_c(ptr: *u16): u16 {
  */
 #[no_mangle]
 export function atomic_store_u16_c(ptr: *u16, val: u16): void {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { ___atomic_store_2(ptr as *u8, val as u32, 5); }
 }
 
@@ -427,6 +475,10 @@ export function atomic_store_u16_c(ptr: *u16, val: u16): void {
  */
 #[no_mangle]
 export function atomic_fetch_add_u16_c(ptr: *u16, delta: u16): u16 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe { return ___atomic_fetch_add_2(ptr as *u8, delta as u32, 5) as u16; }
   return 0;
 }
@@ -441,6 +493,10 @@ export function atomic_fetch_add_u16_c(ptr: *u16, delta: u16): u16 {
  */
 #[no_mangle]
 export function atomic_compare_exchange_u16_c(ptr: *u16, expected: *u16, desired: u16): i32 {
+  // Live pad. The atomic result stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let p: *u8 = ptr as *u8;
     let e: *u8 = expected as *u8;
