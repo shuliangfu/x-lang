@@ -16,6 +16,7 @@ export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
 export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
 export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -277,6 +278,39 @@ export function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize
   }
   unsafe {
     n = xlang_sys_read(fd, buf, count);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n;
+}
+
+/**
+ * Write up to count bytes from buf to a file descriptor.
+ * A null buffer or a zero count returns 0 and does not call the writer.
+ * timeout_ms is ignored. A failed write returns -1. Bytes go through the
+ * existing xlang_sys_write.
+ * @param fd i32 — file descriptor
+ * @param buf *u8 — source bytes, or null
+ * @param count usize — maximum number of bytes
+ * @param timeout_ms u32 — ignored
+ * @return isize — bytes written, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  if (count == 0) {
+    return 0;
+  }
+  unsafe {
+    n = xlang_sys_write(fd, buf, count);
   }
   if (n < 0) {
     return 0 - 1;
