@@ -10675,12 +10675,14 @@ PY
     # w1271: piece 3 is parser_asm_tok_is_modifier_packed_c.
     # w1272: piece 4 is parser_asm_tok_is_modifier_soa_c.
     # w1273: piece 7 is skip_lib_type_named.
-    # Pieces 5 and 6 are eight across eight tries.
-    # Some pure-asm tries segfault. Twelve tries for those six pieces.
-    # The other nineteen pieces stay at eight. Symbols stay strong.
+    # w1274: piece 10 is parser_asm_parse_struct_record_layout_x_into_c.
+    # Pieces 5, 6, and 9 are eight across eight tries.
+    # Piece 8 stays at eight: nine integer args, stack arg tracks the frame.
+    # Some pure-asm tries segfault. Twelve tries for those seven pieces.
+    # The other eighteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "7" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "7" ] || [ "$c" = "10" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
