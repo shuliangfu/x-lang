@@ -496,7 +496,8 @@ void diag_io_fprint_gutter_blank(uint8_t *o, int width) {
 /* Blank gutter line lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fprint_gutter_blank(uint8_t *o, int width);
 #endif
-void diag_io_fprint_src_line_impl(uint8_t *o, int line, const char *start, int len) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len) {
     /* Three-part write keeps arbitrary-length source lines intact (no 512 cap). */
     if (diag_o_printf(o, "%d | ", line) != 0)
         return;
@@ -504,10 +505,9 @@ void diag_io_fprint_src_line_impl(uint8_t *o, int line, const char *start, int l
         return;
     diag_o_puts(o, "\n");
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len) {
-    diag_io_fprint_src_line_impl(o, line, start, len);
-}
+#else
+/* Source gutter line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len);
 #endif
 void diag_io_fprint_gutter_bar_impl(uint8_t *o, int width) {
     diag_o_printf(o, "%*s | ", width, "");
