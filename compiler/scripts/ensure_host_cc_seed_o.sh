@@ -10284,11 +10284,12 @@ PY
     try=0
     # w1239: piece 0 is parser_asm_type_ref_ident_span_ok.
     # w1240: piece 6 is parser_asm_vector_type_ident_pack_c.
-    # Some pure-asm tries segfault. Twelve tries for those two pieces.
-    # The other twenty-nine pieces stay at eight. Symbols stay strong.
+    # w1241: piece 7 is parser_asm_type_ref_mangle_suffix_c.
+    # Some pure-asm tries segfault. Twelve tries for those three pieces.
+    # The other twenty-eight pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "6" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
