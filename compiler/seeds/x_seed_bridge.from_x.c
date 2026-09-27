@@ -26,9 +26,6 @@
 #include <sys/types.h>
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-int32_t io_read_ptr_len(void) {
-  return 0;
-}
 int32_t io_register_buffer(uint8_t * ptr, size_t len) {
   return 0;
 }
