@@ -26,9 +26,6 @@
 #include <sys/types.h>
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-uint8_t * io_read_ptr(uint32_t handle, uint32_t timeout_ms) {
-  return ((uint8_t *)(0));
-}
 int32_t io_read_ptr_len(void) {
   return 0;
 }
