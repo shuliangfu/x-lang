@@ -580,3 +580,29 @@ export function xlang_io_submit_read_buf(buf: isize, timeout_ms: i32): i32 {
   r = xlang_io_submit_read(ptr, len, handle, timeout_ms as u32);
   return r;
 }
+
+/**
+ * Submit one write using the handle as a file descriptor.
+ * The low 32 bits of the handle are the descriptor. A negative write
+ * returns -1. A non-negative count is returned as i32. The bytes go
+ * through io_write.
+ * @param ptr *u8 — source bytes, or null
+ * @param len usize — maximum number of bytes
+ * @param handle usize — file descriptor in the low 32 bits
+ * @param timeout_ms u32 — passed through to io_write
+ * @return i32 — bytes written, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_submit_write(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+  let pad: u8[32] = [];
+  let fd: i32 = 0;
+  let n: isize = 0;
+  pad[0] = 0;
+  fd = handle as i32;
+  n = io_write(fd, ptr, len, timeout_ms);
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n as i32;
+}
