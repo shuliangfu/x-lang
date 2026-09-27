@@ -27,7 +27,6 @@ export extern "C" function diag_ctx_get_file_impl(): *u8;
 export extern "C" function diag_ctx_get_source_impl(): *u8;
 export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
-export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
 export extern "C" function isatty(fd: i32): i32;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // ---- G-02f-335 pure helpers ----
@@ -547,19 +546,36 @@ export function diag_push_snap_save(snapshot: *u8): void {
   }
 }
 
-/** Exported function `diag_push_file`.
- * Implements `diag_push_file`.
- * @param snapshot *u8
- * @param path *u8
- * @param source *u8
- * @param source_len i64
- * @return void
+/**
+ * Save the current diagnostic context, then replace it.
+ * A null snapshot skips the save. A null path keeps the current file.
+ * A null source keeps the current source and its length. A non-null
+ * source stores source_len even when that length is 0. Color is
+ * refreshed through diag_should_color. The context bytes stay in the
+ * seed and are written through diag_ctx_set_all.
+ * @param snapshot *u8 — destination for the old context, or null
+ * @param path *u8 — new file path, or null to keep the old path
+ * @param source *u8 — new source text, or null to keep the old source
+ * @param source_len i64 — byte length used only when source is non-null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len: i64): void {
+  let p: *u8 = path;
+  let s: *u8 = source;
+  let sl: i64 = source_len;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   diag_push_snap_save(snapshot);
   unsafe {
-    diag_push_file_apply_impl(path, source, source_len);
+    if (p == 0 as *u8) {
+      p = diag_ctx_get_file();
+    }
+    if (s == 0 as *u8) {
+      s = diag_ctx_get_source();
+      sl = diag_ctx_get_source_len();
+    }
+    diag_ctx_set_all(p, s, sl, diag_should_color());
   }
 }
 

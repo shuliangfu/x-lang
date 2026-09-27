@@ -651,14 +651,7 @@ void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char 
     g_diag_ctx.use_color = diag_should_color();
 }
 #else
-/* thin 负责 snapshot 字节布局；此处仅写 g_diag_ctx（path/source 三元） */
-void diag_push_file_apply_impl(const char *path, const char *source, size_t source_len)
-{
-    g_diag_ctx.file_path = path ? path : g_diag_ctx.file_path;
-    g_diag_ctx.source = source ? source : g_diag_ctx.source;
-    g_diag_ctx.source_len = source ? source_len : g_diag_ctx.source_len;
-    g_diag_ctx.use_color = diag_should_color();
-}
+/* Push walk lives in src/diag_thin.x. Context storage stays here. PLATFORM: SHARED. */
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
