@@ -707,13 +707,13 @@ const char *diag_ctx_get_source(void) {
 /* Source-pointer read lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern const char *diag_ctx_get_source(void);
 #endif
-size_t diag_ctx_get_source_len_impl(void) {
-    return g_diag_ctx.source_len;
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 size_t diag_ctx_get_source_len(void) {
-    return diag_ctx_get_source_len_impl();
+    return g_diag_ctx.source_len;
 }
+#else
+/* Source-length read lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern size_t diag_ctx_get_source_len(void);
 #endif
 
 /* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */

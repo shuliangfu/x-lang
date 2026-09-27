@@ -24,7 +24,6 @@
 // See implementation.
 export extern "C" function diag_ctx_get_use_color_impl(): i32;
 export extern "C" function diag_ctx_base(): *u8;
-export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 export extern "C" function isatty(fd: i32): i32;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
@@ -188,7 +187,7 @@ export function diag_get_source(): *u8 {
 #[no_mangle]
 export function diag_get_source_len(): i64 {
   unsafe {
-    return diag_ctx_get_source_len_impl();
+    return diag_ctx_get_source_len();
   }
 }
 /**
@@ -540,7 +539,7 @@ export function diag_push_snap_save(snapshot: *u8): void {
   unsafe {
     diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
     diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
-    diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len_impl() as usize);
+    diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len() as usize);
     diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color_impl());
   }
 }
@@ -729,7 +728,7 @@ export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_ou
   }
   unsafe {
     src = diag_ctx_get_source();
-    len64 = diag_ctx_get_source_len_impl();
+    len64 = diag_ctx_get_source_len();
   }
   if (src == 0 as *u8) {
     return 0 - 1;
@@ -2205,13 +2204,20 @@ export function diag_ctx_get_source(): *u8 {
   }
 }
 
-/** Exported function `diag_ctx_get_source_len`.
- * Query helper `diag_ctx_get_source_len`.
- * @return i64
+/**
+ * Return the current diagnostic source length.
+ * The context record stays in the seed. Offset 16 is the size_t length,
+ * loaded in host byte order through diag_snap_load_usize.
+ * @return i64 — byte count, or 0 when none is set
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_ctx_get_source_len(): i64 {
-  unsafe { return diag_ctx_get_source_len_impl(); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    return diag_snap_load_usize(diag_ctx_base(), 16) as i64;
+  }
 }
 
 /** Exported function `diag_ctx_set_all`.
