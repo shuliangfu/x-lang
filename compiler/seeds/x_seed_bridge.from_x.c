@@ -26,12 +26,8 @@
 #include <sys/types.h>
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. The cold xlang_io_register still calls it. PLATFORM: SHARED. */
-extern int32_t io_register_buffer(uint8_t *ptr, size_t len);
-int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle) {
-  return io_register_buffer(ptr, len);
-}
-
+/* Product body is src/x_seed_bridge.x. The cold xlang_io_register_buf still calls it. PLATFORM: SHARED. */
+extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
 #else
 /* G-02f-332：thin 由 src/x_seed_bridge.x（-E）提供 */
 extern int32_t typeck_preprocess_x_buf(uint8_t *src, ssize_t src_len, uint8_t *out_buf, int32_t out_cap);
