@@ -9426,6 +9426,64 @@ PY
 # One function. Compile to a *.o path, then ld -r writes the unsuffixed out.
 # Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1330: three pointer-ABI import readers. Struct-return parse / lex
+# stay in the seed. -o without .o segfaults. Compile to *.o, then ld -r.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_diag_pipeline_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_diag_pipeline.x"
+  local dir obj try n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthindiag.XXXXXX")" || return 1
+  obj="$dir/tu.o"
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$obj"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      break
+    fi
+    rm -f "$obj"
+  done
+  if [ ! -s "$obj" ]; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  if ! ld -r -o "$o" "$obj"; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "3" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_parser_asm_get_module_num_imports_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_parser_asm_get_module_import_path_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_parser_asm_copy_module_import_path64_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 pthin_glue_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_glue.x"
@@ -30859,6 +30917,17 @@ case "$MODE" in
       exit 2
     fi
     pthin_foundation_darwin_pure "$1"
+    exit $?
+    ;;
+  pthin-diag-pipeline-pure|pthin_diag_pipeline_darwin_pure)
+    # w1330: three pure-asm symbols of src/asm/pthin_diag_pipeline.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-diag-pipeline-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_diag_pipeline_darwin_pure "$1"
     exit $?
     ;;
   pthin-glue-pure|pthin_glue_darwin_pure)

@@ -1006,12 +1006,17 @@ uint8_t *parser_asm_onefunc_result_pool_ptr_c(struct parser_asm_onefunc_result *
 
 /**
  * get_module_num_imports：返回 module.num_imports（runtime / pipeline 多文件路径）。
+ * XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X：body is pthin_diag_pipeline.x.
  */
+#ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X
 int32_t parser_asm_get_module_num_imports_c(struct ASTModule *module) {
   if (!module)
     return 0;
   return (int32_t)module->num_imports;
 }
+#else
+int32_t parser_asm_get_module_num_imports_c(struct ASTModule *module);
+#endif
 
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /** runtime / backend_call_dispatch 期望 parser_get_module_num_imports 前缀符号。 */
@@ -1022,7 +1027,9 @@ int32_t parser_get_module_num_imports(struct ASTModule *module) {
 
 /**
  * get_module_import_path：复制第 i 条 import 路径到 out[64]（NUL 结尾）；越界写空串。
+ * XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X：body is pthin_diag_pipeline.x.
  */
+#ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X
 void parser_asm_get_module_import_path_c(struct ASTModule *module, int32_t i, uint8_t *out) {
   if (!out)
     return;
@@ -1032,6 +1039,9 @@ void parser_asm_get_module_import_path_c(struct ASTModule *module, int32_t i, ui
   }
   pipeline_module_import_path_copy(module, i, out, 64);
 }
+#else
+void parser_asm_get_module_import_path_c(struct ASTModule *module, int32_t i, uint8_t *out);
+#endif
 
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
 /** runtime 期望 parser_get_module_import_path 前缀符号。 */
@@ -1042,7 +1052,9 @@ void parser_get_module_import_path(struct ASTModule *module, int32_t i, uint8_t 
 
 /**
  * copy_module_import_path64：复制 import 路径并返回字节长度（不含 NUL）。
+ * XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X：body is pthin_diag_pipeline.x.
  */
+#ifndef XLANG_PTHIN_DIAG_PIPELINE_BODIES_FROM_X
 int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out) {
   int32_t path_len;
 
@@ -1054,6 +1066,9 @@ int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t
     path_len++;
   return path_len;
 }
+#else
+int32_t parser_asm_copy_module_import_path64_c(struct ASTModule *module, int32_t i, uint8_t *out);
+#endif
 
 /**
  * diag_lex_after_imports：lexer_init + skip_imports，返回跳过顶层 import 后的 lex。

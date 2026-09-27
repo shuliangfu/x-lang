@@ -154,6 +154,11 @@ extern struct parser_asm_onefunc_result parser_onefunc_scratch_empty(void);
 extern void parser_parse_one_function_impl(struct parser_asm_onefunc_result *res, void *arena, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 extern void pipeline_module_import_path_copy(struct ASTModule *module, int32_t idx, uint8_t *dst, int32_t dst_cap);
 
+/* PLATFORM: SHARED. pthin_diag_pipeline.x loads this byte offset.
+ * One layout authority: do not duplicate the number in a second assert. */
+_Static_assert(offsetof(struct ASTModule, num_imports) == 8,
+               "pthin_diag_pipeline.x P16_OFF_NUM_IMPORTS");
+
 #include "parser_asm_diag_pipeline_slice.inc"
 
 int labi_pthin_diag_pipeline_slice_marker(void) {
