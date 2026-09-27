@@ -5565,6 +5565,70 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1175: src/seed_link_compat.x segfaults on some pure-asm tries and
+# emits on a later try. Retry the whole translation unit. Direct
+# xlang_asm, not rt_prefer_try_x_to_o. The six lsp stubs plus the
+# read and main bridges stay weak, matching the old named-weak prefer.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+seed_link_compat_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/seed_link_compat.x"
+  local try n c oc w
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "19" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _typeck_lsp_alloc _typeck_lsp_is_null \
+    _xlang_expr_is_func_param_at _xlang_module_func_index_by_name; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc="$(command -v llvm-objcopy)"
+  fi
+  if [ -z "$oc" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for w in lsp_diag_lsp_build_diagnostics_response \
+    lsp_diag_lsp_build_semantic_tokens_response \
+    lsp_diag_hover_at lsp_diag_references_at lsp_diag_definition_at \
+    typeck_lsp_main_impl std_sys_read_file_into; do
+    if ! "$oc" --weaken-symbol="_${w}" "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1174: src/asm/asm_backend_compat_stubs.x segfaults on some pure-asm
 # tries and emits on a later try. Retry the whole translation unit.
 # Direct xlang_asm, not rt_prefer_try_x_to_o. Symbols stay strong.
@@ -21503,9 +21567,20 @@ ensure_other_l2_prefer_one() {
     rest_o="$(mktemp "${TMPDIR:-/tmp}/ol2_rest.XXXXXX")"
     _thin_ok=0
     _ol2_pure=0
+    _slc_pure=0
     case "$weak_mode" in
       slc6)
-        if G05_X_O_WEAK_FUNCS="$_OTHER_L2_SLC_WEAK_FUNCS" \
+        # w1175: seed link compat segfaults on some pure-asm tries.
+        # Darwin retries the whole translation unit. Other leaves stay
+        # on rt_prefer. The six lsp stubs plus read and main stay weak.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+        if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh seed-link-compat-pure "$thin_o"; then
+          _slc_pure=1
+          _thin_ok=1
+        elif G05_X_O_WEAK_FUNCS="$_OTHER_L2_SLC_WEAK_FUNCS" \
           rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
           _thin_ok=1
         fi
@@ -21538,6 +21613,8 @@ ensure_other_l2_prefer_one() {
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
       if [ "$_ol2_pure" = "1" ]; then
         log "prefer strict glue ← pure-asm eleven symbols (w1172)"
+      elif [ "$_slc_pure" = "1" ]; then
+        log "prefer seed link compat ← pure-asm nineteen symbols (w1175)"
       else
         log "prefer thin.x+rest $o <- $x_src + seed-rest (try-other-l2-prefer/$leaf_kind)"
       fi
@@ -26078,6 +26155,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  seed-link-compat-pure|seed_link_compat_darwin_pure)
+    # w1175: nineteen pure-asm symbols of src/seed_link_compat.x.
+    # Does not write src/seed_link_compat.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o seed-link-compat-pure: need <out.o>" >&2
+      exit 2
+    fi
+    seed_link_compat_darwin_pure "$1"
+    exit $?
+    ;;
   compat-stubs-pure|compat_stubs_darwin_pure)
     # w1174: four pure-asm symbols of src/asm/asm_backend_compat_stubs.x.
     # Does not write src/asm/asm_backend_compat_stubs.o unless that path is passed.
