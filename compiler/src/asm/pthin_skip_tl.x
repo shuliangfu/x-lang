@@ -16,6 +16,10 @@
 
 // pthin_skip_tl.x — G-02f-321 P12 parser thin skip top-level product bodies.
 //
+// w1154: one translation unit exits 139. Darwin compiles each function
+// and links the sixty-three pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P12b B-minus productize (2026-09-13): after P14b skip_if walks,
 // skip_tl.inc is the largest still-host-cc product slice. skip_one_struct
 // is ~800 lines of already-T AUDIT nops around a short STRUCT/IDENT/angles
@@ -661,6 +665,9 @@ const P12G_ELEM_PTR_TO_SLICE_NDIMS: i32 = 0 - 2;
 /** P12g local: load i32 at base+off (LE; mirror of p12g_store_i32). */
 function p12g_load_i32(base: *u8, off: i32): i32 {
   let a: usize = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
     a = base[off + 0] as usize;
     a = a | ((base[off + 1] as usize) << 8);
@@ -709,6 +716,9 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
   let pii: i32 = 0;
   let k: i32 = 0;
   let nlen: i32 = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[208] = [];
+  pad[0] = 0;
   if (lex_inout == 0 as *u8 || source == 0 as *u8 || ent_img == 0 as *u8) {
     return 0;
   }
@@ -819,6 +829,9 @@ function p12g_param_copy_name(ent_img: *u8, mi: i32, p: i32, source: *u8, lex_in
   let n: i32 = 0;
   let base: i32 = 0;
   let k: i32 = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
     data = parser_asm_lex_source_data_c(source);
     slen = parser_asm_lex_source_length_c(source) as i32;
@@ -853,6 +866,9 @@ function p12g_ret_copy_name(ent_img: *u8, mi: i32, source: *u8, lex_inout: *u8):
   let n: i32 = 0;
   let base: i32 = 0;
   let k: i32 = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
     data = parser_asm_lex_source_data_c(source);
     slen = parser_asm_lex_source_length_c(source) as i32;
@@ -950,6 +966,8 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
   let ret_dims: i32[8] = [];
   let ret_elem_dims: i32[8] = [];
   let iv: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (lex_inout == 0 as *u8 || source == 0 as *u8 || ent_img == 0 as *u8) {
     return;
   }
@@ -2284,6 +2302,7 @@ function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8
       parser_asm_lex_step_kind_c(lex_inout, source);
     }
   }
+  }
 }
 
 
@@ -3584,6 +3603,8 @@ function skip_fill_gnm(arena: *u8, ty_ref: i32, gnm: *u8): i32 {
  */
 function skip_named_self_or_eq(arena: *u8, ty_ref: i32, for_name: *u8, for_nlen: i32, gnm: *u8, self_ok: i32): i32 {
   let gnl: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   gnl = skip_fill_gnm(arena, ty_ref, gnm);
   if (xlang_skip_name_is_self_c(gnm, gnl) != 0) {
     return self_ok;
@@ -3592,6 +3613,7 @@ function skip_named_self_or_eq(arena: *u8, ty_ref: i32, for_name: *u8, for_nlen:
     return 0;
   }
   return 1;
+  }
 }
 
 /**
@@ -3619,6 +3641,8 @@ export function xlang_skip_impl_self_matches_for_into_c(arena: *u8, pty0: i32, f
   let gek: i32 = 0;
   let rc: i32 = 0;
   let self_ok: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (for_k < 0) {
     return 1;
   }
@@ -3707,6 +3731,7 @@ export function xlang_skip_impl_self_matches_for_into_c(arena: *u8, pty0: i32, f
     }
   }
   return 1;
+  }
 }
 
 /**
@@ -3765,6 +3790,8 @@ function skip_fill_for_copy(for_nm: *u8, for_nl: i32, for_copy: *u8): i32 {
 export function xlang_skip_trait_named_eq_self_c(expect_nm: *u8, expect_nl: i32, got_nm: *u8, got_nl: i32, for_nm: *u8, for_nl: i32, for_ptr: i32): i32 {
   let exp_self: i32 = 0;
   let got_self: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (expect_nl <= 0) {
     return 1;
   }
@@ -3795,6 +3822,7 @@ export function xlang_skip_trait_named_eq_self_c(expect_nm: *u8, expect_nl: i32,
     return 0;
   }
   return skip_named_bytes_eq(got_nm, got_nl, expect_nm, expect_nl);
+  }
 }
 
 /**
@@ -3822,6 +3850,8 @@ export function xlang_skip_rewrite_self_type_ref_into_c(arena: *u8, type_ref: i3
   let for_named: i32 = 0;
   let elem: i32 = 0;
   let ek: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (arena == 0 as *u8 || type_ref == 0 || for_ptr != 0 || for_nl <= 0 || for_nm == 0 as *u8) {
     return type_ref;
   }
@@ -3864,6 +3894,7 @@ export function xlang_skip_rewrite_self_type_ref_into_c(arena: *u8, type_ref: i3
     }
     return pipeline_type_find_or_alloc_named(arena, for_copy, n);
   }
+  }
 }
 
 /**
@@ -3897,6 +3928,9 @@ export function xlang_generic_func_register_type_params_into_c(fn_name: *u8, fn_
   let name_off: usize = 0;
   let in_off: usize = 0;
   let lens_off: usize = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (fn_name == 0 as *u8 || fn_name_len <= 0 || names == 0 as *u8 || lens == 0 as *i32 || n <= 0) {
     return 0;
   }
@@ -3975,6 +4009,9 @@ export function xlang_generic_func_type_param_index_into_c(fn_name: *u8, fn_name
   let fname_off: usize = 0;
   let name_off: usize = 0;
   let lens_off: usize = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (fn_name == 0 as *u8 || fn_name_len <= 0 || tp_name == 0 as *u8 || tp_name_len <= 0) {
     return -1;
   }
@@ -4188,6 +4225,9 @@ export function xlang_generic_bound_check_type_args_into_c(fn_name: *u8, fn_name
   let trait_off_s: usize = 0;
   let for_off: usize = 0;
   let ta: *u8 = 0 as *u8;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (fn_name == 0 as *u8) {
     return 0;
   }
@@ -4502,6 +4542,9 @@ export function xlang_generic_bound_check_into_c(callee: *u8, callee_len: *i32, 
   let args_off: usize = 0;
   let lens_off: usize = 0;
   let lens_row: *i32 = 0 as *i32;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (callee == 0 as *u8) {
     return 0;
   }
@@ -4625,6 +4668,8 @@ export function xlang_skip_trait_method_count_into_c(trait_nm: *u8, trait_nlen: 
   let ti: i32 = 0;
   let n_meth: i32 = 0;
   let ent: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   ti = xlang_skip_trait_find_reg_into_c(trait_nm, trait_nlen, table, stride, n);
   if (ti < 0) {
     return 0;
@@ -4643,6 +4688,7 @@ export function xlang_skip_trait_method_count_into_c(trait_nm: *u8, trait_nlen: 
     return n_meth;
   }
   return 0;
+  }
 }
 
 /**
@@ -4667,6 +4713,8 @@ export function xlang_skip_trait_method_slot_into_c(trait_nm: *u8, trait_nlen: i
   let mlen: i32 = 0;
   let ent: *u8 = 0 as *u8;
   let mname: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (method_nm == 0 as *u8) {
     return 0 - 1;
   }
@@ -4707,6 +4755,7 @@ export function xlang_skip_trait_method_slot_into_c(trait_nm: *u8, trait_nlen: i
     }
   }
   return 0 - 1;
+  }
 }
 
 /**
@@ -4734,6 +4783,8 @@ export function xlang_skip_trait_method_name_dest_into_c(trait_nm: *u8, trait_nl
   let mlen: i32 = 0;
   let ent: *u8 = 0 as *u8;
   let mname: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (out64 == 0 as *u8) {
     return 0;
   }
@@ -4775,6 +4826,7 @@ export function xlang_skip_trait_method_name_dest_into_c(trait_nm: *u8, trait_nl
     }
   }
   return mlen;
+  }
 }
 
 /**
@@ -4792,6 +4844,8 @@ export function xlang_skip_trait_method_name_dest_into_c(trait_nm: *u8, trait_nl
 function skip_trait_ent_at(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i32, n: i32): *u8 {
   let ti: i32 = 0;
   let ent: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   ti = xlang_skip_trait_find_reg_into_c(trait_nm, trait_nlen, table, stride, n);
   if (ti < 0) {
     return 0 as *u8;
@@ -4806,6 +4860,7 @@ function skip_trait_ent_at(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i
     ent = table + ((ti * stride) as usize);
   }
   return ent;
+  }
 }
 
 /**
@@ -4819,6 +4874,8 @@ function skip_trait_ent_at(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i
  */
 function skip_trait_slot_in_range(ent: *u8, slot: i32): i32 {
   let n_meth: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (ent == 0 as *u8) {
     return 0;
   }
@@ -4830,6 +4887,7 @@ function skip_trait_slot_in_range(ent: *u8, slot: i32): i32 {
     return 0;
   }
   return 1;
+  }
 }
 
 /**
@@ -4853,6 +4911,8 @@ function skip_trait_slot_in_range(ent: *u8, slot: i32): i32 {
 export function xlang_skip_trait_method_slot_i32_into_c(trait_nm: *u8, trait_nlen: i32, slot: i32, table: *u8, stride: i32, n: i32, field_off: i32): i32 {
   let ent: *u8 = 0 as *u8;
   let v: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (slot < 0) {
     return 0 - 1;
   }
@@ -4868,6 +4928,7 @@ export function xlang_skip_trait_method_slot_i32_into_c(trait_nm: *u8, trait_nle
   }
   v = p12g_load_i32(ent, field_off + slot * 4);
   return v;
+  }
 }
 
 /**
@@ -4894,6 +4955,8 @@ export function xlang_skip_trait_method_slot_i32_into_c(trait_nm: *u8, trait_nle
 export function xlang_skip_trait_method_param_i32_into_c(trait_nm: *u8, trait_nlen: i32, slot: i32, param_ix: i32, table: *u8, stride: i32, n: i32, field_off: i32, row_stride: i32): i32 {
   let ent: *u8 = 0 as *u8;
   let v: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (slot < 0) {
     return 0 - 1;
   }
@@ -4918,6 +4981,7 @@ export function xlang_skip_trait_method_param_i32_into_c(trait_nm: *u8, trait_nl
   }
   v = p12g_load_i32(ent, field_off + slot * row_stride + param_ix * 4);
   return v;
+  }
 }
 
 /**
@@ -4939,6 +5003,11 @@ export function xlang_skip_trait_method_ret_array_dim_into_c(trait_nm: *u8, trai
   let ent: *u8 = 0 as *u8;
   let nd: i32 = 0;
   let v: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (slot < 0) {
     return 0 - 1;
   }
@@ -4961,6 +5030,7 @@ export function xlang_skip_trait_method_ret_array_dim_into_c(trait_nm: *u8, trai
   }
   v = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ARRAY_DIMS + slot * P12G_RET_DIMS_ROW + dim_ix * 4);
   return v;
+  }
 }
 
 /**
@@ -4984,6 +5054,11 @@ export function xlang_skip_trait_method_param_array_dim_into_c(trait_nm: *u8, tr
   let ent: *u8 = 0 as *u8;
   let nd: i32 = 0;
   let v: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (slot < 0) {
     return 0 - 1;
   }
@@ -5012,6 +5087,7 @@ export function xlang_skip_trait_method_param_array_dim_into_c(trait_nm: *u8, tr
   }
   v = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ARRAY_DIMS + slot * P12G_PARAM_DIMS_ROW + param_ix * P12G_PARAM_DIMS_ROW_INNER + dim_ix * 4);
   return v;
+  }
 }
 
 /**
@@ -5035,6 +5111,8 @@ export function xlang_skip_trait_method_ret_name_dest_into_c(trait_nm: *u8, trai
   let nlen: i32 = 0;
   let i: i32 = 0;
   let src: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (out64 == 0 as *u8) {
     return 0;
   }
@@ -5064,6 +5142,7 @@ export function xlang_skip_trait_method_ret_name_dest_into_c(trait_nm: *u8, trai
     }
   }
   return nlen;
+  }
 }
 
 /**
@@ -5088,6 +5167,11 @@ export function xlang_skip_trait_method_param_name_dest_into_c(trait_nm: *u8, tr
   let nlen: i32 = 0;
   let i: i32 = 0;
   let src: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (out64 == 0 as *u8) {
     return 0;
   }
@@ -5123,6 +5207,7 @@ export function xlang_skip_trait_method_param_name_dest_into_c(trait_nm: *u8, tr
     }
   }
   return nlen;
+  }
 }
 
 /**
@@ -5139,6 +5224,11 @@ export function xlang_skip_trait_method_param_name_dest_into_c(trait_nm: *u8, tr
  */
 function skip_trait_elem_array_dim_at(ent: *u8, dims_base: i32, nd: i32, dim_ix: i32): i32 {
   let extra: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (ent == 0 as *u8) {
     return 0 - 1;
   }
@@ -5219,6 +5309,7 @@ function skip_trait_elem_array_dim_at(ent: *u8, dims_base: i32, nd: i32, dim_ix:
   }
   extra = p12g_load_i32(ent, dims_base + dim_ix * 4);
   return extra;
+  }
 }
 
 /**
@@ -5242,6 +5333,11 @@ export function xlang_skip_trait_method_ret_elem_array_dim_into_c(trait_nm: *u8,
   let ent: *u8 = 0 as *u8;
   let nd: i32 = 0;
   let dims_base: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (slot < 0) {
     return 0 - 1;
   }
@@ -5261,6 +5357,7 @@ export function xlang_skip_trait_method_ret_elem_array_dim_into_c(trait_nm: *u8,
   nd = p12g_load_i32(ent, P12G_OFF_METHOD_RET_ELEM_ARRAY_NDIMS + slot * 4);
   dims_base = P12G_OFF_METHOD_RET_ELEM_ARRAY_DIMS + slot * P12G_RET_DIMS_ROW;
   return skip_trait_elem_array_dim_at(ent, dims_base, nd, dim_ix);
+  }
 }
 
 /**
@@ -5286,6 +5383,11 @@ export function xlang_skip_trait_method_param_elem_array_dim_into_c(trait_nm: *u
   let ent: *u8 = 0 as *u8;
   let nd: i32 = 0;
   let dims_base: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (slot < 0) {
     return 0 - 1;
   }
@@ -5311,6 +5413,7 @@ export function xlang_skip_trait_method_param_elem_array_dim_into_c(trait_nm: *u
   nd = p12g_load_i32(ent, P12G_OFF_METHOD_PARAM_ELEM_ARRAY_NDIMS + slot * P12G_PARAM_LENS_ROW + param_ix * 4);
   dims_base = P12G_OFF_METHOD_PARAM_ELEM_ARRAY_DIMS + slot * P12G_PARAM_DIMS_ROW + param_ix * P12G_PARAM_DIMS_ROW_INNER;
   return skip_trait_elem_array_dim_at(ent, dims_base, nd, dim_ix);
+  }
 }
 
 /**
@@ -5332,6 +5435,11 @@ function skip_method_on_param_fill_ret(ent: *u8, slot: i32, out_ret_kind: *i32, 
   let i: i32 = 0;
   let rk: i32 = 0;
   let src: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (ent == 0 as *u8) {
     return 1;
   }
@@ -5367,6 +5475,7 @@ function skip_method_on_param_fill_ret(ent: *u8, slot: i32, out_ret_kind: *i32, 
     }
   }
   return 1;
+  }
 }
 
 /**
@@ -5395,6 +5504,11 @@ function skip_method_on_param_try_trait(trait_nm: *u8, trait_nlen: i32, method_n
   let expect_np: i32 = 0;
   let skip: i32 = 0;
   let mname: *u8 = 0 as *u8;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (trait_nm == 0 as *u8) {
     return 0;
   }
@@ -5442,6 +5556,7 @@ function skip_method_on_param_try_trait(trait_nm: *u8, trait_nlen: i32, method_n
     }
   }
   return 0;
+  }
 }
 
 /**
@@ -5487,6 +5602,9 @@ export function xlang_generic_bound_method_on_param_into_c(fn_name: *u8, fn_name
   let hit: i32 = 0;
   let name_off: usize = 0;
   let trait_off: usize = 0;
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (fn_name == 0 as *u8) {
     return 0;
   }
@@ -5657,6 +5775,11 @@ function skip_hoist_try_method(module: *u8, arena: *u8, src: *u8, src_len: i32, 
   let fn_pos: i32 = 0;
   let fn_line: i32 = 0;
   let fn_col: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[48] = [];
+  pad[0] = 0;
+  unsafe {
   if (ent == 0 as *u8) {
     return 0;
   }
@@ -5685,6 +5808,7 @@ function skip_hoist_try_method(module: *u8, arena: *u8, src: *u8, src_len: i32, 
     return xlang_skip_hoist_inject_one_c(module, arena, src, src_len, fn_pos, fn_line, fn_col, for_nm, for_nl, for_ptr);
   }
   return 0;
+  }
 }
 
 /**
@@ -5712,6 +5836,8 @@ function skip_hoist_try_impl(module: *u8, arena: *u8, src: *u8, src_len: i32, tn
   let mi: i32 = 0;
   let n_meth: i32 = 0;
   let n_inj: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (tname == 0 as *u8) {
     return 0;
   }
@@ -5735,6 +5861,7 @@ function skip_hoist_try_impl(module: *u8, arena: *u8, src: *u8, src_len: i32, tn
     mi = mi + 1;
   }
   return n_inj;
+  }
 }
 
 /**
@@ -5921,6 +6048,11 @@ function skip_trait_check_try_method(module: *u8, arena: *u8, ent: *u8, mi: i32,
   let got_np: i32 = 0;
   let rc: i32 = 0;
   let skip: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  // Keep the last slot 16 bytes inside the frame.
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
   if (ent == 0 as *u8) {
     return 0;
   }
@@ -5961,6 +6093,7 @@ function skip_trait_check_try_method(module: *u8, arena: *u8, ent: *u8, mi: i32,
     }
   }
   return rc;
+  }
 }
 
 /**
@@ -5988,6 +6121,8 @@ function skip_trait_check_try_impl(module: *u8, arena: *u8, tname: *u8, tlen: i3
   let mi: i32 = 0;
   let n_meth: i32 = 0;
   let rc: i32 = 0;
+  // Darwin compiles this function alone. Sibling helpers are externs.
+  unsafe {
   if (tname == 0 as *u8) {
     return 0;
   }
@@ -6019,6 +6154,7 @@ function skip_trait_check_try_impl(module: *u8, arena: *u8, tname: *u8, tlen: i3
     mi = mi + 1;
   }
   return rc;
+  }
 }
 
 /**
