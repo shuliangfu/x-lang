@@ -1461,7 +1461,7 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
 }
 
 // ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
-export extern "C" function diag_json_get_state_impl(): i32;
+export extern "C" function diag_json_base(): *u8;
 export extern "C" function diag_json_set_state_impl(v: i32): i32;
 
 /**
@@ -1509,16 +1509,22 @@ export function diag_code_table_has(code: *u8): i32 {
   return 0;
 }
 
-/** Exported function `diag_json_get_state`.
- * Implements `diag_json_get_state`.
- * @return i32
+/**
+ * Return the cached JSON diagnostic mode.
+ * The int stays in the seed. -2 means not decided yet. 0 and 1 are
+ * explicit. Loaded in host byte order through diag_snap_load_i32.
+ * @return i32 — cached state, including -2
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_json_get_state(): i32 {
+  let pad: u8[32] = [];
+  let v: i32 = 0;
+  pad[0] = 0;
   unsafe {
-    return diag_json_get_state_impl();
+    v = diag_snap_load_i32(diag_json_base(), 0);
   }
-  return 0 - 2;
+  return v;
 }
 
 /** Exported function `diag_json_set_state`.
