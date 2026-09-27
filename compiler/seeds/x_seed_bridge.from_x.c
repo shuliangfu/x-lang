@@ -126,13 +126,8 @@ extern void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_
 /* Byte read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. Cold xlang_io_submit_write still calls it. PLATFORM: SHARED. */
-extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
-#else
 /* Byte write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
-#endif
 
 /* Batch read stub lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_read_batch_buf(int fd, const void *bufs, int n, unsigned timeout_ms);
@@ -170,13 +165,8 @@ extern int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, uns
 extern int32_t xlang_io_submit_read_buf(intptr_t buf, int32_t timeout_ms);
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
-  int32_t fd = (int32_t)handle;
-  ptrdiff_t r = io_write(fd, ptr, len, timeout_ms);
-  if (r < 0)
-    return -1;
-  return (int32_t)r;
-}
+/* Product body is src/x_seed_bridge.x. Cold xlang_io_submit_write_buf still calls it. PLATFORM: SHARED. */
+extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms);
 #else
 /* Submitted write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms);
