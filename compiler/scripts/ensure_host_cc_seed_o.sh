@@ -10677,13 +10677,14 @@ PY
     # w1273: piece 7 is skip_lib_type_named.
     # w1274: piece 10 is parser_asm_parse_struct_record_layout_x_into_c.
     # w1275: piece 12 is parser_asm_block_append_one_const_x.
+    # w1276: piece 13 is parser_asm_block_append_one_let_x.
     # Pieces 5, 6, 9, and 11 are eight across eight tries.
     # Piece 8 stays at eight: nine integer args, stack arg tracks the frame.
-    # Some pure-asm tries segfault. Twelve tries for those eight pieces.
-    # The other seventeen pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those nine pieces.
+    # The other sixteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "7" ] || [ "$c" = "10" ] || [ "$c" = "12" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "7" ] || [ "$c" = "10" ] || [ "$c" = "12" ] || [ "$c" = "13" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
