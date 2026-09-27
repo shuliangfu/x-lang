@@ -14,6 +14,7 @@ export extern "C" function pipeline_match_module_bytes(): *u8;
 export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
 export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
+export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -229,5 +230,22 @@ export function ast_expr_init_match_enum(e: *u8): void {
     diag_snap_store_i32(e, 320, 0);
     diag_snap_store_i32(e, 324, 0);
     diag_snap_store_i32(e, 328, 0);
+  }
+}
+
+/**
+ * Reset one call expression to unresolved.
+ * Both resolve slots are written as -1 by the existing pipeline writer.
+ * A null arena or a non-positive expression index is left unchanged.
+ * @param arena *u8 — expression arena, or null
+ * @param expr_ref i32 — expression index
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_init_call_resolve(arena: *u8, expr_ref: i32): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
   }
 }

@@ -213,6 +213,7 @@ extern void ast_expr_init_match_enum(struct ast_Expr *e);
 
 /** typeck/codegen 生成体引用；重置 call resolve 字段。Stage2 由 ast_x2.o 提供。 */
 #ifndef X_VERIFY_STAGE2
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_ref) {
   struct ast_Expr e;
   if (!arena || expr_ref <= 0)
@@ -222,6 +223,10 @@ void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_ref) {
   e.call_resolved_dep_index = -1;
   ast_arena_expr_set(arena, expr_ref, e);
 }
+#else
+/* Call-resolve reset lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_ref);
+#endif
 #endif
 
 /** lsp_io.x / pipeline 引用 libc 风格 IO 符号；seed 链 read/write 转发。 */
