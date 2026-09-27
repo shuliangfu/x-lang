@@ -2784,6 +2784,15 @@ ensure_lsp_sizes_weak_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
+  # w1205: some pure-asm tries segfault. Retry before the eight-try
+  # path. The two placeholders are already weak. A failed retry still
+  # falls back to that path and then the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh lsp-sizes-weak-retry "$o"; then
+    log "prefer lsp sizes ← pure-asm six symbols (w1205)"
+    return 0
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -5698,6 +5707,75 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1205: src/asm/lsp_diag_pipeline_sizes_weak_darwin.x segfaults
+# on some pure-asm tries and emits on a later try. Frames are
+# already inside the allocation. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o. The two placeholders are
+# weak so a linked context object can replace them. The three sizes
+# stay strong. PLATFORM: MACOS|DARWIN arm64.
+# Other hosts return 1. cwd is compiler/.
+lsp_sizes_weak_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/lsp_diag_pipeline_sizes_weak_darwin.x"
+  local try n c oc
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "6" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _lsp_diag_sizes_darwin_x_doc_anchor _lsp_diag_pipeline_sizeof_arena \
+    _lsp_diag_pipeline_sizeof_module _lsp_diag_pipeline_sizeof_dep_ctx; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if nm -u "$o" | grep -q .; then
+    rm -f "$o"
+    return 1
+  fi
+  oc="$(pure_asm_find_objcopy)" || {
+    rm -f "$o"
+    return 1
+  }
+  if ! "$oc" \
+    --weaken-symbol=_lsp_diag_x_alloc_dep_ctx_size \
+    --weaken-symbol=_lsp_diag_pipeline_ctx_fill_paths \
+    "$o"; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -m "$o" | awk '
+    $0 ~ /_lsp_diag_x_alloc_dep_ctx_size$/ && $0 ~ /weak/ { a=1 }
+    $0 ~ /_lsp_diag_pipeline_ctx_fill_paths$/ && $0 ~ /weak/ { f=1 }
+    END { exit (a && f) ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1204: src/asm/parser_asm_parse_expr_link_darwin.x segfaults
 # on some pure-asm tries and emits on a later try. Frames are
 # already inside the allocation. Retry the whole translation unit.
@@ -27939,6 +28017,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lsp-sizes-weak-retry|lsp_sizes_weak_retry_pure)
+    # w1205: six pure-asm symbols of lsp_diag_pipeline_sizes_weak_darwin.x.
+    # Does not write lsp_diag_pipeline_sizes.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lsp-sizes-weak-retry: need <out.o>" >&2
+      exit 2
+    fi
+    lsp_sizes_weak_retry_pure "$1"
+    exit $?
+    ;;
   parse-expr-link-retry|parse_expr_link_retry_pure)
     # w1204: ten pure-asm symbols of parser_asm_parse_expr_link_darwin.x.
     # Does not write parser_asm_parse_expr_link.o unless that path is passed.
