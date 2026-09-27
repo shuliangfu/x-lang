@@ -10509,6 +10509,7 @@ PY
     # w1266: piece 23 is parser_asm_match_var_wrap_into_c.
     # w1267: piece 24 is parser_asm_match_field_wrap_into_c.
     # Pieces 9, 10, 11, 16, 17, 20, 21, and 22 are eight across eight tries.
+    # Pieces 25 through 30 are eight across eight tries. Ctrl screening is done.
     # Some pure-asm tries segfault. Twelve tries for those seventeen pieces.
     # The other fourteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
@@ -10589,7 +10590,7 @@ PY
 pthin_fn_block_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_fn_block.x"
-  local dir c try src obj objs n
+  local dir c try src obj objs n limit
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -10668,7 +10669,15 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    while [ "$try" -lt 8 ]; do
+    # w1268: piece 0 is parser_asm_struct_layout_name_exists_arr_c.
+    # Some pure-asm tries segfault. Twelve tries for that one piece.
+    # The other twenty-four pieces stay at eight. Symbols stay strong.
+    # PLATFORM: MACOS|DARWIN arm64.
+    limit=8
+    if [ "$c" = "0" ]; then
+      limit=12
+    fi
+    while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
       if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
