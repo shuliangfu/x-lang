@@ -24,7 +24,6 @@
 // See implementation.
 export extern "C" function diag_ctx_get_use_color_impl(): i32;
 export extern "C" function diag_ctx_base(): *u8;
-export extern "C" function diag_ctx_get_source_impl(): *u8;
 export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 export extern "C" function isatty(fd: i32): i32;
@@ -178,7 +177,7 @@ export function diag_get_file(): *u8 {
 #[no_mangle]
 export function diag_get_source(): *u8 {
   unsafe {
-    return diag_ctx_get_source_impl();
+    return diag_ctx_get_source();
   }
 }
 
@@ -540,7 +539,7 @@ export function diag_push_snap_save(snapshot: *u8): void {
   }
   unsafe {
     diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
-    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source_impl());
+    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
     diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len_impl() as usize);
     diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color_impl());
   }
@@ -729,7 +728,7 @@ export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_ou
     return 0 - 1;
   }
   unsafe {
-    src = diag_ctx_get_source_impl();
+    src = diag_ctx_get_source();
     len64 = diag_ctx_get_source_len_impl();
   }
   if (src == 0 as *u8) {
@@ -2190,13 +2189,20 @@ export function diag_ctx_get_file(): *u8 {
   }
 }
 
-/** Exported function `diag_ctx_get_source`.
- * Implements `diag_ctx_get_source`.
- * @return *u8
+/**
+ * Return the current diagnostic source pointer.
+ * The context record stays in the seed. Offset 8 is the source pointer,
+ * loaded in host byte order through diag_snap_load_ptr.
+ * @return *u8 — source bytes, or null when none is set
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_ctx_get_source(): *u8 {
-  unsafe { return diag_ctx_get_source_impl(); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    return diag_snap_load_ptr(diag_ctx_base(), 8);
+  }
 }
 
 /** Exported function `diag_ctx_get_source_len`.

@@ -699,13 +699,13 @@ extern const char *diag_ctx_get_file(void);
 uint8_t *diag_ctx_base(void) {
     return (uint8_t *)&g_diag_ctx;
 }
-const char *diag_ctx_get_source_impl(void) {
-    return g_diag_ctx.source;
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char *diag_ctx_get_source(void) {
-    return diag_ctx_get_source_impl();
+    return g_diag_ctx.source;
 }
+#else
+/* Source-pointer read lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_ctx_get_source(void);
 #endif
 size_t diag_ctx_get_source_len_impl(void) {
     return g_diag_ctx.source_len;
