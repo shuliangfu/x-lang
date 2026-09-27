@@ -3414,7 +3414,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-11 / G-02f-332：x_seed_bridge.o
-  # 默认整 seed；PREFER_X_O=1 时 .x thin（heap/io 桩）+ seed-rest（C 尾）ld -r
+  # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x. No whole-seed host-cc.
+  # PREFER_X_O=1 still tries .x thin plus the FROM_X seed rest. PLATFORM: SHARED.
   _xsb=seeds/x_seed_bridge.from_x.c
   _xsb_x=src/x_seed_bridge.x
   _xsb_o=src/x_seed_bridge.o
