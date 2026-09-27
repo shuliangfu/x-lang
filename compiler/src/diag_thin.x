@@ -23,7 +23,7 @@
 
 // See implementation.
 export extern "C" function diag_ctx_get_use_color_impl(): i32;
-export extern "C" function diag_ctx_get_file_impl(): *u8;
+export extern "C" function diag_ctx_base(): *u8;
 export extern "C" function diag_ctx_get_source_impl(): *u8;
 export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
@@ -167,7 +167,7 @@ export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
 #[no_mangle]
 export function diag_get_file(): *u8 {
   unsafe {
-    return diag_ctx_get_file_impl();
+    return diag_ctx_get_file();
   }
 }
 
@@ -539,7 +539,7 @@ export function diag_push_snap_save(snapshot: *u8): void {
     return;
   }
   unsafe {
-    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file_impl());
+    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
     diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source_impl());
     diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len_impl() as usize);
     diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color_impl());
@@ -2174,13 +2174,20 @@ export function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, su
 }
 
 // ---- G-02f-420：ctx field get/set → seed impl pure forward ----
-/** Exported function `diag_ctx_get_file`.
- * Implements `diag_ctx_get_file`.
- * @return *u8
+/**
+ * Return the current diagnostic file path.
+ * The context record stays in the seed. Offset 0 is the path pointer,
+ * loaded in host byte order through diag_snap_load_ptr.
+ * @return *u8 — path, or null when none is set
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_ctx_get_file(): *u8 {
-  unsafe { return diag_ctx_get_file_impl(); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    return diag_snap_load_ptr(diag_ctx_base(), 0);
+  }
 }
 
 /** Exported function `diag_ctx_get_source`.

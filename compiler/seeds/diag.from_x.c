@@ -687,14 +687,18 @@ void diag_restore(const DiagContextSnapshot *snapshot)
 
 /** 供 .x 读 g_diag_ctx 字段（G-02f-155）。 */
 /* G-02f-420：实现体始终 seed；public PREFER 时 thin pure forward */
-const char *diag_ctx_get_file_impl(void) {
-    return g_diag_ctx.file_path;
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char *diag_ctx_get_file(void) {
-    return diag_ctx_get_file_impl();
+    return g_diag_ctx.file_path;
 }
+#else
+/* File-path read lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_ctx_get_file(void);
 #endif
+/* Address of the one diagnostic context record. PLATFORM: SHARED. */
+uint8_t *diag_ctx_base(void) {
+    return (uint8_t *)&g_diag_ctx;
+}
 const char *diag_ctx_get_source_impl(void) {
     return g_diag_ctx.source;
 }
