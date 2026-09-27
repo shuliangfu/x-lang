@@ -4,7 +4,6 @@
  *         then re-apply C tail (match-module / ast_expr / io_read-write / buffer / weak).
  * .x covers: typeck_preprocess_x_buf, std_heap_*, io register/read_ptr stubs.
  */
-#include <xlang_weak.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -167,13 +166,5 @@ extern int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms);
 /* Weak driver read pointer lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms);
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* lsp_gen names driver_read_ptr_len. This weak body is the fallback when no
- * strong driver is linked. PLATFORM: SHARED. */
-XLANG_WEAK int32_t std_io_driver_driver_read_ptr_len(void) {
-  return 0;
-}
-#else
 /* Weak driver read-pointer length lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t std_io_driver_driver_read_ptr_len(void);
-#endif
