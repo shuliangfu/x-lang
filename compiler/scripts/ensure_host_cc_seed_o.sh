@@ -3408,6 +3408,15 @@ ensure_net_workers_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
+  # w1203: some pure-asm tries segfault. Retry before the eight-try
+  # path. The retry object is renamed and the affinity face is weak.
+  # A failed retry still falls back to that path and then the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh net-workers-retry "$o"; then
+    log "prefer net workers ← pure-asm ten symbols (w1203)"
+    return 0
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -5680,6 +5689,87 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1203: src/asm/runtime_net_workers_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. A live pad keeps the
+# load_fd multiply slot inside the frame. Retry the whole unit.
+# Direct xlang_asm, not pure_asm_x_to_o. Rename the five mangled
+# helpers onto the call names, then weaken thread_set_affinity_self_c.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+net_workers_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_net_workers_darwin.x"
+  local try n c oc
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "10" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_net_workers_x_doc_anchor _net_worker_load_fdfa \
+    _xlang_net_worker_accept_loop _thread_set_affinity_self_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  oc="$(pure_asm_find_objcopy)" || {
+    rm -f "$o"
+    return 1
+  }
+  if ! "$oc" \
+    --redefine-sym '_net_worker_rtld_defaultf_'='_net_worker_rtld_default' \
+    --redefine-sym '_net_worker_load_fdfa'='_net_worker_load_fd' \
+    --redefine-sym '_net_worker_close_nfa'='_net_worker_close_n' \
+    --redefine-sym '_net_worker_alloc_fdsul'='_net_worker_alloc_fds' \
+    --redefine-sym '_net_worker_call_accepttf'='_net_worker_call_accept' \
+    "$o"; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! "$oc" --weaken-symbol=_thread_set_affinity_self_c "$o"; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _net_worker_rtld_default _net_worker_load_fd \
+    _xlang_net_worker_accept_loop _runtime_net_workers_x_doc_anchor; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if ! nm -m "$o" | awk '
+    $0 ~ /_thread_set_affinity_self_c$/ && $0 ~ /weak/ { w=1 }
+    END { exit w ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '{ s=$NF } s=="_malloc" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1202: src/asm/runtime_slice_glue.x segfaults on some
 # pure-asm tries and emits on a later try. Frames are already
 # inside the allocation. Retry the whole translation unit.
@@ -27789,6 +27879,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  net-workers-retry|net_workers_retry_pure)
+    # w1203: ten pure-asm symbols of runtime_net_workers_darwin.x.
+    # Does not write runtime_net_workers.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o net-workers-retry: need <out.o>" >&2
+      exit 2
+    fi
+    net_workers_retry_pure "$1"
+    exit $?
+    ;;
   slice-glue-retry|slice_glue_retry_pure)
     # w1202: eight pure-asm symbols of runtime_slice_glue.x.
     # Does not write core/slice/slice.o unless that path is passed.

@@ -136,6 +136,10 @@ export function net_worker_rtld_default(): *u8 {
  */
 #[no_mangle]
 export function net_worker_load_fd(fds: *u8, i: i32): i32 {
+  // A live pad pulls the multiply slot inside this frame.
+  // Without it the store sits on the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let b: i32 = i * 4;
   let b0: i32 = fds[b] as i32;
   let b1: i32 = fds[b + 1] as i32;
