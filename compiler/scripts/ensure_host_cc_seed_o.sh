@@ -9307,14 +9307,17 @@ PY
   return 0
 }
 
-# w1162: src/asm/pthin_skip_if.x segfaults on the first pure-asm
-# tries and emits on a later try. Retry the whole translation unit.
+# w1162 / w1327: the whole file segfaults when -o does not end in .o.
+# Four pieces. Each piece keeps only the TOKEN const its body names, so
+# a later pin cannot land a spill on saved x19. The statement piece calls
+# the core as an extern (the call is already inside unsafe). Pieces
+# compile to *.o; ld -r writes the unsuffixed out.
 # Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 pthin_skip_if_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_skip_if.x"
-  local try n c
+  local dir c try src obj objs n
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -9324,18 +9327,84 @@ pthin_skip_if_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
-  done
-  if [ ! -s "$o" ]; then
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinskipif.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+starts = []
+for i, l in enumerate(lines):
+    if l.startswith("export function "):
+        s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
+        starts.append(s)
+starts.append(len(lines))
+if len(starts) != 5:
+    sys.exit(1)
+header_lines = lines[: starts[0]]
+tokens = [l for l in header_lines if l.strip().startswith("const TOKEN_")]
+header = "".join(l for l in header_lines if not l.strip().startswith("const TOKEN_"))
+sigs = []
+sig_names = []
+bodies = []
+for a, b in zip(starts, starts[1:]):
+    chunk = "".join(lines[a:b])
+    grab = False
+    acc = []
+    for line in chunk.splitlines():
+        if line.startswith("export function ") or grab:
+            grab = True
+            acc.append(line)
+            if "{" in line:
+                break
+    if not acc or "{" not in acc[-1]:
+        sys.exit(1)
+    sig = " ".join(x.strip() for x in acc)
+    sig = sig[: sig.rfind("{")].strip()
+    if not sig.startswith("export "):
+        sig = "export " + sig
+    sigs.append("export extern " + sig[len("export "):] + ";")
+    sig_names.append(sig.split("(", 1)[0].split()[-1])
+    bodies.append(chunk)
+for i, body in enumerate(bodies):
+    mine = sig_names[i]
+    kept = [l for l in tokens if l.split(":", 1)[0].split()[-1] in body]
+    externs = "\n".join(s for s, n in zip(sigs, sig_names) if n != mine) + "\n"
+    Path(out, "t%d.x" % i).write_text(
+        "// w1327 split piece. PLATFORM: SHARED.\n" + header + "".join(kept) + externs + body
+    )
+PY
+  then
+    rm -rf "$dir"
     return 1
   fi
+  objs=""
+  for c in 0 1 2 3; do
+    src="$dir/t$c.x"
+    obj="$dir/t$c.o"
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
   if [ "$n" != "4" ]; then
     rm -f "$o"
