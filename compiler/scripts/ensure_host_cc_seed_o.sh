@@ -5565,6 +5565,52 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1187: src/asm/backend_call_dispatch_thin.x segfaults on some
+# pure-asm tries and emits on a later try. A live pad keeps the
+# stack-byte multiply stores inside the frame. Retry the whole
+# translation unit. Direct xlang_asm, not rt_prefer_try_x_to_o.
+# The full backend_call_dispatch.x stays one-shot. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+call_dispatch_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/backend_call_dispatch_thin.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "44" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _glue_asm_call_reg_max _glue_asm_call_stack_cleanup_bytes \
+    _glue_asm_append_export_c_suffix _glue_asm_string_lit_len; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1186: src/asm/simd_enc_thin.x segfaults on some pure-asm tries
 # and emits on a later try. A live pad keeps the lane-shift stores
 # inside the frame. Retry the whole translation unit. Direct
@@ -10041,6 +10087,7 @@ r3_prefer_try_step() {
   _ti_pure=0
   _sl_pure=0
   _se_pure=0
+  _cd_pure=0
   if [ "$x_src" = "src/asm/backend_try_inline_dispatch_thin.x" ] \
     && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
     && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
@@ -10071,8 +10118,21 @@ r3_prefer_try_step() {
     && bash scripts/ensure_host_cc_seed_o.sh simd-enc-pure "$thin_o"; then
     _se_pure=1
   fi
+  # w1187: the call-dispatch thin segfaults on some pure-asm tries. Darwin
+  # retries that one translation unit. The live pad keeps the stack-byte
+  # multiply stores inside the frame. The full .x and every other r3 leaf
+  # stay on the one-shot prefer. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  if [ "$x_src" = "src/asm/backend_call_dispatch_thin.x" ] \
+    && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh call-dispatch-pure "$thin_o"; then
+    _cd_pure=1
+  fi
   # Thin surface: same prologue as try-pipeline-abi / g05 (xlang_driver_* inlines).
   if [ "$_ti_pure" != "1" ] && [ "$_sl_pure" != "1" ] && [ "$_se_pure" != "1" ] \
+    && [ "$_cd_pure" != "1" ] \
     && ! rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
     rm -f "$thin_o" "$rest_o"
     return 1
@@ -10100,6 +10160,8 @@ r3_prefer_try_step() {
       log "prefer simd loop ← pure-asm twenty-two symbols (w1185)"
     elif [ "$_se_pure" = "1" ]; then
       log "prefer simd enc ← pure-asm seventy-seven symbols (w1186)"
+    elif [ "$_cd_pure" = "1" ]; then
+      log "prefer call dispatch ← pure-asm forty-four symbols (w1187)"
     else
       log "prefer thin+rest $o <- $x_src + $seed ($label; try-r3-prefer)"
     fi
@@ -26840,6 +26902,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  call-dispatch-pure|call_dispatch_darwin_pure)
+    # w1187: forty-four pure-asm symbols of backend_call_dispatch_thin.x.
+    # Does not write src/asm/backend_call_dispatch.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o call-dispatch-pure: need <out.o>" >&2
+      exit 2
+    fi
+    call_dispatch_darwin_pure "$1"
+    exit $?
+    ;;
   simd-enc-pure|simd_enc_darwin_pure)
     # w1186: seventy-seven pure-asm symbols of simd_enc_thin.x.
     # Does not write src/asm/simd_enc.o unless that path is passed.

@@ -51,6 +51,10 @@ export function glue_asm_call_reg_max(ta: i32): i32 {
  */
 #[no_mangle]
 export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
+  // Live pad. The stack-byte multiply stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: SHARED.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (nargs <= 0) {
     return 0;
   }
