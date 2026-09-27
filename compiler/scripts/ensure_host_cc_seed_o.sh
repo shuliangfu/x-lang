@@ -10506,12 +10506,13 @@ PY
     # w1263: piece 15 is parser_asm_ctrl_realign_scan_kw_at.
     # w1264: piece 18 is parser_asm_match_dest_enum_tag_into_c.
     # w1265: piece 19 is parser_asm_wrap_block_ref_as_expr_into_c.
-    # Pieces 9, 10, 11, 16, and 17 are eight across eight tries.
-    # Some pure-asm tries segfault. Twelve tries for those fifteen pieces.
-    # The other sixteen pieces stay at eight. Symbols stay strong.
+    # w1266: piece 23 is parser_asm_match_var_wrap_into_c.
+    # Pieces 9, 10, 11, 16, 17, 20, 21, and 22 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for those sixteen pieces.
+    # The other fifteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "8" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "14" ] || [ "$c" = "15" ] || [ "$c" = "18" ] || [ "$c" = "19" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "8" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "14" ] || [ "$c" = "15" ] || [ "$c" = "18" ] || [ "$c" = "19" ] || [ "$c" = "23" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
