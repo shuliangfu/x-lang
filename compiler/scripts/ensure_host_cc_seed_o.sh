@@ -4431,6 +4431,14 @@ ensure_sync_lock_diag_tls_darwin_pure() {
   thin_o="$(mktemp "${TMPDIR:-/tmp}/lockdiag_thin.XXXXXX.o")"
   os_o="$(mktemp "${TMPDIR:-/tmp}/lockdiag_os.XXXXXX.o")"
   rm -f "$thin_o" "$os_o" "$o"
+  # w1220: the thin half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A failed fill still falls back to that
+  # loop. The Darwin half stays on the loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh lockdiag-thin-retry "$thin_o"; then
+    log "prefer lock diag thin ← pure-asm six symbols (w1220)"
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     if [ ! -s "$thin_o" ]; then
@@ -5826,6 +5834,55 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1220: src/asm/runtime_sync_lock_diag_tls.x segfaults on some
+# pure-asm tries and emits on a later try. Every frame is already
+# closed. Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+lockdiag_thin_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_sync_lock_diag_tls.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "6" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_sync_lock_diag_tls_x_doc_anchor _sync_lock_diag_append_byte _sync_lock_diag_append_i32 _sync_lock_diag_find_meta_idx; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  for c in _sync_lock_diag_find_meta_idx_impl _sync_lock_diag_get_order_impl; do
+    if ! nm -u "$o" | awk -v s="$c" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1219: src/asm/runtime_process_os_darwin.x segfaults on some
 # pure-asm tries and emits on a later try. The byte index in
 # process_load_i32 sits inside the frame after a live pad.
@@ -28878,6 +28935,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lockdiag-thin-retry|lockdiag_thin_retry_pure)
+    # w1220: six pure-asm symbols of runtime_sync_lock_diag_tls.x.
+    # Does not write runtime_sync_lock_diag_tls.o and does not compile the Darwin half.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lockdiag-thin-retry: need <out.o>" >&2
+      exit 2
+    fi
+    lockdiag_thin_retry_pure "$1"
+    exit $?
+    ;;
   process-os-retry|process_os_retry_pure)
     # w1219: thirty-seven pure-asm symbols of runtime_process_os_darwin.x.
     # Does not write runtime_process_os_glue.o and does not compile the thin half.
