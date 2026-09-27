@@ -10838,12 +10838,13 @@ PY
     try=0
     # w1282: piece 3 is parser_asm_copy_slice_to_name64_buf_c.
     # w1283: piece 4 is parser_asm_copy_slice_to_name64_at_end_buf_c.
+    # w1284: piece 5 is parser_asm_copy_slice_to_param32_buf_c.
     # Pieces 0, 1, and 2 are eight across eight tries.
-    # Some pure-asm tries segfault. Twelve tries for those two pieces.
-    # The other seventeen pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those three pieces.
+    # The other sixteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "3" ] || [ "$c" = "4" ]; then
+    if [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
