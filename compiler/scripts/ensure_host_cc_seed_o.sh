@@ -10680,13 +10680,14 @@ PY
     # w1276: piece 13 is parser_asm_block_append_one_let_x.
     # w1277: piece 15 is parser_asm_append_block_lets_from_res_x_into_c.
     # w1278: piece 16 is parser_asm_library_init_block_x.
+    # w1279: piece 17 is parser_asm_library_maybe_layout_x.
     # Pieces 5, 6, 9, 11, and 14 are eight across eight tries.
     # Piece 8 stays at eight: nine integer args, stack arg tracks the frame.
-    # Some pure-asm tries segfault. Twelve tries for those eleven pieces.
-    # The other fourteen pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those twelve pieces.
+    # The other thirteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "7" ] || [ "$c" = "10" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "15" ] || [ "$c" = "16" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "7" ] || [ "$c" = "10" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "15" ] || [ "$c" = "16" ] || [ "$c" = "17" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
