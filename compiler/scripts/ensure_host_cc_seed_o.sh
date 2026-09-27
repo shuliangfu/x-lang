@@ -5551,6 +5551,52 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1157: src/asm/pthin_body_tl.x segfaults on the first pure-asm try and
+# emits on a later try. Retry the whole translation unit. Direct
+# xlang_asm, not pure_asm_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_body_tl_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_body_tl.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "13" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _parser_asm_is_fn_sig_scalar_type_token_c \
+    _parser_asm_diag_skip_let_const_into_c \
+    _parser_asm_skip_one_top_level_let_into_c \
+    _parser_onefunc_param_name_dup_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1155: src/asm/pthin_stretch_audit.x exits 139 as one translation unit.
 # Compile each function separately and ld -r. Brace counts ignore
 # comments. Calls to names of 64 characters or more go through a short
@@ -25078,6 +25124,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  pthin-body-tl-pure|pthin_body_tl_darwin_pure)
+    # w1157: thirteen pure-asm symbols of src/asm/pthin_body_tl.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-body-tl-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_body_tl_darwin_pure "$1"
+    exit $?
+    ;;
   pthin-stretch-audit-pure|pthin_stretch_audit_darwin_pure)
     # w1155: nineteen hundred seventy-eight pure-asm pieces of
     # src/asm/pthin_stretch_audit.x. Does not write parser_asm_thin_glue.o

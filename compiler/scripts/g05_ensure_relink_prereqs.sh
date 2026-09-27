@@ -1968,13 +1968,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # the portable .inc region. Cold: no define, full .inc. Do not
         # reuse XLANG_PTHIN_BODY_TL_FROM_X. 有则补全 P18b, no new P-lane.
         _pthin_p18_extra=""
+        _pthin_p18b_pure=0
+        # w1157: the first pure-asm try segfaults. Darwin retries the
+        # whole translation unit. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ "$_pthin_p9a_ok" = "1" ] && [ "$_pthin_p14b_ok" = "1" ] \
           && [ "$_pthin_p12b_ok" = "1" ] && [ "$_pthin_p10b_ok" = "1" ] \
           && [ -n "$_pthin_p18b_thin_o" ] && [ -f "$_pthin_p18b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p18b_x" "$_pthin_p18b_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-body-tl-pure "$_pthin_p18b_thin_o"; then
+            _pthin_p18b_pure=1
+          fi
+          if { [ "$_pthin_p18b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p18b_x" "$_pthin_p18b_thin_o"; }; then
             _pthin_p18b_ok=1
             _pthin_p18_extra="-DXLANG_PTHIN_BODY_TL_BODIES_FROM_X"
-            echo "g05_ensure: P18b/P18c/P18d body_tl bodies ← $_pthin_p18b_x (7.2.1 B-minus P010-P014/dup)"
+            if [ "$_pthin_p18b_pure" = "1" ]; then
+              echo "g05_ensure: P18 body_tl ← pure-asm thirteen symbols (w1157)"
+            else
+              echo "g05_ensure: P18b/P18c/P18d body_tl bodies ← $_pthin_p18b_x (7.2.1 B-minus P010-P014/dup)"
+            fi
           else
             echo "g05_ensure: P18b body_tl .x thin failed; P18 C twin stays full" >&2
           fi
