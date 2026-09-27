@@ -5565,6 +5565,52 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1180: src/asm/async_asm_pool.x segfaults on some pure-asm tries
+# and emits on a later try. Name buffers and the let-index table are
+# heap allocations, and the layout clear is one memset, so stores stay
+# inside the frame. Retry the whole translation unit. Direct xlang_asm,
+# not rt_prefer_try_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+async_asm_pool_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/async_asm_pool.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "13" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _async_asm_pool_x_doc_anchor _asm_pool_load_i32_le \
+    _asm_pool_type_size_bytes _async_asm_pool_build_layout; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1179: src/async/async_liveness.x segfaults on some pure-asm tries
 # and emits on a later try. Pointer loads are split and the frame-count
 # walk is one add, so stores stay inside the frame. Retry the whole
@@ -21585,11 +21631,21 @@ ensure_async_prefer_one() {
     && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/async_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/async_rest.XXXXXX")"
+    _pool_pure=0
     _cps_pure=0
     _live_pure=0
+    # w1180: the pool segfaults on some pure-asm tries. Darwin retries
+    # that leaf only. w1179 still retries liveness. w1178 still retries
+    # cps. Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
+    if [ "$x_src" = "src/asm/async_asm_pool.x" ] \
+      && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+      && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+      && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+      && bash scripts/ensure_host_cc_seed_o.sh async-asm-pool-pure "$thin_o"; then
+      _pool_pure=1
+    fi
     # w1179: liveness segfaults on some pure-asm tries. Darwin retries
-    # that leaf only. w1178 still retries cps. The pool stays one-shot.
-    # Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
+    # that leaf only. Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
     if [ "$x_src" = "src/async/async_liveness.x" ] \
       && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
       && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
@@ -21608,12 +21664,14 @@ ensure_async_prefer_one() {
       _cps_pure=1
     fi
     # shellcheck disable=SC2086
-    if { [ "$_live_pure" = "1" ] || [ "$_cps_pure" = "1" ] \
+    if { [ "$_pool_pure" = "1" ] || [ "$_live_pure" = "1" ] || [ "$_cps_pure" = "1" ] \
       || rt_prefer_try_x_to_o "$x_src" "$thin_o"; } \
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      if [ "$_live_pure" = "1" ]; then
+      if [ "$_pool_pure" = "1" ]; then
+        log "prefer async pool ← pure-asm thirteen symbols (w1180)"
+      elif [ "$_live_pure" = "1" ]; then
         log "prefer async liveness ← pure-asm fifty-six symbols (w1179)"
       elif [ "$_cps_pure" = "1" ]; then
         log "prefer async cps ← pure-asm forty-seven symbols (w1178)"
@@ -26392,6 +26450,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  async-asm-pool-pure|async_asm_pool_darwin_pure)
+    # w1180: thirteen pure-asm symbols of async_asm_pool.x.
+    # Does not write src/async/async_asm_pool.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o async-asm-pool-pure: need <out.o>" >&2
+      exit 2
+    fi
+    async_asm_pool_darwin_pure "$1"
+    exit $?
+    ;;
   async-liveness-pure|async_liveness_darwin_pure)
     # w1179: fifty-six pure-asm symbols of async_liveness.x.
     # Does not write src/async/async_liveness.o unless that path is passed.
