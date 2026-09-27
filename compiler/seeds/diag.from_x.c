@@ -76,16 +76,16 @@ static int diag_o_printf(uint8_t *o, const char *fmt, ...) {
 }
 #endif
 
-/** Std stream handles for direct stderr/stdout sites. */
+/** Std stream handles for direct stderr/stdout sites. Cold path only. */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 static uint8_t *diag_h_stderr(void) {
     return xlang_driver_handle_from_fd(2);
 }
-#endif
 
 static uint8_t *diag_h_stdout(void) {
     return xlang_driver_handle_from_fd(1);
 }
+#endif
 
 /* wave233 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -976,9 +976,8 @@ const char *diag_entry_details(const char *code) {
 }
 #endif
 #endif
-uint8_t *diag_stdout_impl(void) { return diag_h_stdout(); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-uint8_t *diag_stdout(void) { return diag_stdout_impl(); }
+uint8_t *diag_stdout(void) { return diag_h_stdout(); }
 #endif
 /* G-02f-415：code table io → seed impl + thin pure forward (9.7.1 fd handles) */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
