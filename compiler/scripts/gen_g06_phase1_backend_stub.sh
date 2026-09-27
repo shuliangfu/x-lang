@@ -53,7 +53,7 @@ fi
 mkdir -p "$OUT_DIR"
 
 # phase1 试链需要 DRIVER_SEED_OBJS 中的 io 桩；gen 脚本可能在 recipe 中段先于最终 prerequisite 链执行。
-# Wave927: shell cc direct compile from seed (no make; g05 G-02f-11 cold fallback pattern).
+# x_seed_bridge.o must already exist. This script does not shell-cc the seed. PLATFORM: SHARED.
 # XLANG_SEED_LINK_VIA_MAKE=1 escapes to make (parity / debug).
 if [ ! -f src/x_seed_bridge.o ]; then
   # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
