@@ -3785,7 +3785,7 @@ if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899' <<<"$_out"; then
   bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899"
 fi
 if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=4' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5 (wave899)"
+  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=4 (wave899)"
 fi
 if ! grep -q 'SWALLOWED_R1_CORE_SEED_LIST_MK=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_CORE_SEED_LIST_MK=1 (wave899)"
