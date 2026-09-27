@@ -340,3 +340,26 @@ export function io_read_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32): 
   }
   return 0 - 1;
 }
+
+/**
+ * Batch write is not implemented on this seed face.
+ * Every argument is ignored. The result is always -1.
+ * @param fd i32 — file descriptor, ignored
+ * @param bufs *u8 — buffer table, ignored
+ * @param n i32 — buffer count, ignored
+ * @param timeout_ms u32 — ignored
+ * @return isize — always -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  pad[2] = fd as u8;
+  pad[3] = n as u8;
+  if (bufs != 0 as *u8) {
+    pad[4] = 0;
+  }
+  return 0 - 1;
+}
