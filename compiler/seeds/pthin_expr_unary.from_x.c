@@ -233,7 +233,13 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *data);
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 
+/* as_suffix .x calls pipeline_expr_set_unary_operand_c. That writer lives
+ * in this file. WRITER_ONLY skips the slice so the C bodies already in
+ * the thin rest are not defined twice. Chapter 3 peels those bodies.
+ * PLATFORM: SHARED. */
+#ifndef XLANG_PTHIN_EXPR_UNARY_WRITER_ONLY
 #include "parser_asm_unary_slice.inc"
+#endif
 
 int labi_pthin_expr_unary_slice_marker(void) {
   return 1;
