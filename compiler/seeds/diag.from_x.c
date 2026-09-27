@@ -480,13 +480,13 @@ void diag_io_fprint_loc_file(uint8_t *o, const char *pc, const char *file, const
 /* Location line with only a file lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fprint_loc_file(uint8_t *o, const char *pc, const char *file, const char *rs);
 #endif
-void diag_io_fprint_loc_line_col_impl(uint8_t *o, const char *pc, int line, int col, const char *rs) {
-    diag_o_printf(o, "%s --> %d:%d%s\n", pc ? pc : "", line, col, rs ? rs : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_loc_line_col(uint8_t *o, const char *pc, int line, int col, const char *rs) {
-    diag_io_fprint_loc_line_col_impl(o, pc, line, col, rs);
+    diag_o_printf(o, "%s --> %d:%d%s\n", pc ? pc : "", line, col, rs ? rs : "");
 }
+#else
+/* Location line with line and column lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_loc_line_col(uint8_t *o, const char *pc, int line, int col, const char *rs);
 #endif
 void diag_io_fprint_gutter_blank_impl(uint8_t *o, int width) {
     diag_o_printf(o, "%*s |\n", width, "");

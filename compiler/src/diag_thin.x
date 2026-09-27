@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_loc_line_col_impl(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void;
 export extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
 export extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
@@ -1793,18 +1792,66 @@ export function diag_io_fprint_loc_file(o: *u8, pc: *u8, file: *u8, rs: *u8): vo
   }
 }
 
-/** Exported function `diag_io_fprint_loc_line_col`.
- * Implements `diag_io_fprint_loc_line_col`.
- * @param o *u8
- * @param pc *u8
- * @param line i32
- * @param col i32
- * @param rs *u8
- * @return void
+/**
+ * Write one human location line with a line and a column, and no file.
+ * The bytes are <pc> --> <line>:<col><rs> and a newline.
+ * A null prefix or reset string is written as empty.
+ * Line and column use the same decimal rules as printf %d.
+ * @param o *u8 — destination stream
+ * @param pc *u8 — path color prefix, or null
+ * @param line i32 — source line
+ * @param col i32 — source column
+ * @param rs *u8 — reset sequence, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32, rs: *u8): void {
-  unsafe { diag_io_fprint_loc_line_col_impl(o, pc, line, col, rs); }
+  let which: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    if (pc != 0 as *u8) {
+      diag_io_fputs(pc, o);
+    }
+    diag_io_fputs(" --> ", o);
+    while (which < 2) {
+      let n: i32 = line;
+      if (which != 0) {
+        diag_io_fputc(o, 58);
+        n = col;
+      }
+      if (n == 0) {
+        diag_io_fputc(o, 48);
+      } else {
+        if (n < 0) {
+          diag_io_fputc(o, 45);
+          if (n + 2147483647 == 0 - 1) {
+            diag_io_fputs("2147483648", o);
+            n = 0;
+          } else {
+            n = 0 - n;
+          }
+        }
+        let buf: u8[12] = [];
+        let i: i32 = 12;
+        while (n > 0) {
+          i = i - 1;
+          let dig: i32 = n - (n / 10) * 10;
+          buf[i] = (dig + 48) as u8;
+          n = n / 10;
+        }
+        while (i < 12) {
+          diag_io_fputc(o, buf[i] as i32);
+          i = i + 1;
+        }
+      }
+      which = which + 1;
+    }
+    if (rs != 0 as *u8) {
+      diag_io_fputs(rs, o);
+    }
+    diag_io_fputc(o, 10);
+  }
 }
 
 /** Exported function `diag_io_fprint_gutter_blank`.
