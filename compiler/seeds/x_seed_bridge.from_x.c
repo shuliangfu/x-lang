@@ -28,11 +28,6 @@
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 /* Product body is src/x_seed_bridge.x. The cold xlang_io_register still calls it. PLATFORM: SHARED. */
 extern int32_t io_register_buffer(uint8_t *ptr, size_t len);
-/* Product body is src/x_seed_bridge.x. The cold i32 wrapper still calls it. PLATFORM: SHARED. */
-extern int32_t io_register_buffers_buf(uint8_t *bufs, int32_t nr);
-int32_t io_register_buffers_buf_i32(ssize_t bufs, int32_t nr) {
-  return io_register_buffers_buf(((uint8_t *)(0)), nr);
-}
 int32_t xlang_io_register(uint8_t * ptr, size_t len, size_t handle) {
   return io_register_buffer(ptr, len);
 }
