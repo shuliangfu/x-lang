@@ -29,7 +29,6 @@ export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
 export extern "C" function isatty(fd: i32): i32;
-export extern "C" function diag_color_reset_impl(): *u8;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // ---- G-02f-335 pure helpers ----
 
@@ -608,15 +607,24 @@ export function diag_should_color(): i32 {
   return 0;
 }
 
-/** Exported function `diag_color_reset`.
- * Implements `diag_color_reset`.
- * @return *u8
+/**
+ * Return the ANSI reset sequence when color is on, otherwise "".
+ * The use_color flag stays in the seed and is read through
+ * diag_ctx_get_use_color. The reset bytes are "\x1b[0m".
+ * @return *u8 — reset sequence or an empty string
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_color_reset(): *u8 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    return diag_color_reset_impl();
+    if (diag_ctx_get_use_color() != 0) {
+      return "\x1b[0m";
+    }
+    return "";
   }
+  return "";
 }
 
 /**

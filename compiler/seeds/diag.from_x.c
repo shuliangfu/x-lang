@@ -310,15 +310,16 @@ extern const char *diag_color_prefix(const char *plain, const char *color);
 #endif
 
 /* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char * diag_color_reset(void)
-#else
-const char * diag_color_reset_impl(void)
-#endif
 {
     return g_diag_ctx.use_color ? "\x1b[0m" : "";
 }
+#else
+/* ANSI reset choice lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_color_reset(void);
+#endif
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_code_eq(const char *lhs, const char *rhs)
