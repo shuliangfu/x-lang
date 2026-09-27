@@ -55,6 +55,7 @@ static int diag_o_putc(uint8_t *o, char c) {
     return diag_o_write(o, &c, 1);
 }
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Formatted write via Cap fmt (fprintf twin; 512B cap — diag lines are short). */
 static int diag_o_printf(uint8_t *o, const char *fmt, ...) {
     char buf[512];
@@ -67,6 +68,7 @@ static int diag_o_printf(uint8_t *o, const char *fmt, ...) {
         return -1;
     return diag_o_write(o, buf, ((size_t)n < sizeof(buf)) ? (size_t)n : sizeof(buf) - 1);
 }
+#endif
 
 /** Std stream handles for direct stderr/stdout sites. */
 static uint8_t *diag_h_stderr(void) {
@@ -439,9 +441,11 @@ int diag_io_fputs_impl(const char *s, uint8_t *o) { return diag_o_puts(o, s ? s 
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_io_fputs(const char *s, uint8_t *o) { return diag_io_fputs_impl(s, o); }
 #endif
-void diag_io_fputs_u04x_impl(uint8_t *o, unsigned c) { diag_o_printf(o, "\\u%04x", c); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fputs_u04x(uint8_t *o, unsigned c) { diag_io_fputs_u04x_impl(o, c); }
+void diag_io_fputs_u04x(uint8_t *o, unsigned c) { diag_o_printf(o, "\\u%04x", c); }
+#else
+/* Unicode escape lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fputs_u04x(uint8_t *o, unsigned c);
 #endif
 void diag_io_fflush_impl(uint8_t *o) { (void)o; /* raw fd writes are unbuffered */ }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X

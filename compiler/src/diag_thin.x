@@ -1530,7 +1530,6 @@ export function diag_json_set_state(v: i32): i32 {
 // See implementation.
 export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
-export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
 /** Exported function `diag_io_fputc`.
  * Implements `diag_io_fputc`.
@@ -1554,15 +1553,44 @@ export function diag_io_fputs(s: *u8, o: *u8): i32 {
   unsafe { return diag_io_fputs_impl(s, o); }
 }
 
-/** Exported function `diag_io_fputs_u04x`.
- * Implements `diag_io_fputs_u04x`.
- * @param o *u8
- * @param c u32
- * @return void
+/**
+ * Write a JSON unicode escape: backslash, 'u', then lowercase hex.
+ * The hex is at least four digits, zero-padded on the left. A value
+ * that needs more than four digits is written in full, matching
+ * printf %04x. There is no newline.
+ * @param o *u8 — destination stream
+ * @param c u32 — bits to print
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fputs_u04x(o: *u8, c: u32): void {
-  unsafe { diag_io_fputs_u04x_impl(o, c); }
+  let n: u32 = c;
+  let i: i32 = 8;
+  let start: i32 = 0;
+  let buf: u8[8] = [];
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    while (i > 0) {
+      i = i - 1;
+      let dig: u32 = n - (n / (16 as u32)) * (16 as u32);
+      let d: i32 = dig as i32;
+      if (d < 10) {
+        buf[i] = (d + 48) as u8;
+      } else {
+        buf[i] = (d + 87) as u8;
+      }
+      n = n / (16 as u32);
+    }
+    while (start < 4 && buf[start] == 48) {
+      start = start + 1;
+    }
+    diag_io_fputs("\\u", o);
+    while (start < 8) {
+      diag_io_fputc(o, buf[start] as i32);
+      start = start + 1;
+    }
+  }
 }
 
 /** Exported function `diag_io_fflush`.
