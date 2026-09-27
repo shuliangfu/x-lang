@@ -621,16 +621,16 @@ extern int diag_extract_line(int line_no, const char **line_start_out, size_t *l
 
 /** 供 .x 写 g_diag_ctx（G-02f-156）。 */
 /* G-02f-420：实现体始终 seed；public PREFER 时 thin pure forward */
-void diag_ctx_set_all_impl(const char *path, const char *source, size_t source_len, int use_color) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
     g_diag_ctx.file_path = path;
     g_diag_ctx.source = source;
     g_diag_ctx.source_len = source_len;
     g_diag_ctx.use_color = use_color;
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
-    diag_ctx_set_all_impl(path, source, source_len, use_color);
-}
+#else
+/* Context write lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color);
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */

@@ -23,7 +23,6 @@
 
 // See implementation.
 export extern "C" function diag_ctx_base(): *u8;
-export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 export extern "C" function isatty(fd: i32): i32;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // ---- G-02f-335 pure helpers ----
@@ -250,7 +249,7 @@ export function diag_code_details(code: *u8): *u8 {
 export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   unsafe {
     let c: i32 = diag_should_color();
-    diag_ctx_set_all_impl(path, source, source_len, c);
+    diag_ctx_set_all(path, source, source_len, c);
   }
 }
 
@@ -591,7 +590,7 @@ export function diag_restore(snapshot: *u8): void {
     let s: *u8 = diag_snap_load_ptr(snapshot, 8);
     let sl: usize = diag_snap_load_usize(snapshot, 16);
     let c: i32 = diag_snap_load_i32(snapshot, 24);
-    diag_ctx_set_all_impl(p, s, sl as i64, c);
+    diag_ctx_set_all(p, s, sl as i64, c);
   }
 }
 
@@ -2229,17 +2228,28 @@ export function diag_ctx_get_source_len(): i64 {
   }
 }
 
-/** Exported function `diag_ctx_set_all`.
- * Implements `diag_ctx_set_all`.
- * @param path *u8
- * @param source *u8
- * @param source_len i64
- * @param use_color i32
- * @return void
+/**
+ * Replace the diagnostic context record.
+ * The record stays in the seed. Offsets match the snapshot layout:
+ * path at 0, source at 8, length at 16, color at 24.
+ * @param path *u8 — file path, or null
+ * @param source *u8 — source bytes, or null
+ * @param source_len i64 — byte count stored as size_t
+ * @param use_color i32 — color flag written through diag_snap_store_i32
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_color: i32): void {
-  unsafe { diag_ctx_set_all_impl(path, source, source_len, use_color); }
+  let pad: u8[32] = [];
+  let base: *u8 = 0 as *u8;
+  pad[0] = 0;
+  unsafe {
+    base = diag_ctx_base();
+    diag_snap_store_ptr(base, 0, path);
+    diag_snap_store_ptr(base, 8, source);
+    diag_snap_store_usize(base, 16, source_len as usize);
+    diag_snap_store_i32(base, 24, use_color);
+  }
 }
 
 // ---- G-02f-421：code table / entry / stdio handles → seed impl ----
