@@ -348,12 +348,17 @@ typedef struct {
   size_t handle;
 } xlang_buffer_abi_t;
 
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 int32_t xlang_io_register_buf(intptr_t buf) {
   const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
   if (!b)
     return -1;
   return xlang_io_register(b->ptr, b->length, b->handle);
 }
+#else
+/* Buffer registration lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern int32_t xlang_io_register_buf(intptr_t buf);
+#endif
 
 int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
   int32_t fd = (int32_t)handle;

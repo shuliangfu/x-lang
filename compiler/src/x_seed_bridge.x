@@ -13,6 +13,7 @@ export extern "C" function free(ptr: *u8): void;
 export extern "C" function pipeline_match_module_bytes(): *u8;
 export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
+export extern "C" function diag_snap_load_usize(snap: *u8, off: i32): usize;
 export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
 export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
 export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
@@ -489,5 +490,36 @@ export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, 
     pad[8] = 0;
   }
   r = io_write(fd, p0, l0, timeout_ms);
+  return r;
+}
+
+/**
+ * Register one buffer described by a packed record.
+ * The record holds a pointer at offset 0, a length at 8, and a handle at
+ * 16. A zero address returns -1. Registration goes through
+ * xlang_io_register.
+ * @param buf isize — address of the record, or 0
+ * @return i32 — registration result, or -1 when buf is 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_register_buf(buf: isize): i32 {
+  let pad: u8[32] = [];
+  let base: *u8 = 0 as *u8;
+  let ptr: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let handle: usize = 0;
+  let r: i32 = 0;
+  pad[0] = 0;
+  if (buf == 0) {
+    return 0 - 1;
+  }
+  base = (buf as usize) as *u8;
+  unsafe {
+    ptr = diag_snap_load_ptr(base, 0);
+    len = diag_snap_load_usize(base, 8);
+    handle = diag_snap_load_usize(base, 16);
+  }
+  r = xlang_io_register(ptr, len, handle);
   return r;
 }
