@@ -135,7 +135,7 @@ extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms
 #endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. Cold io_write_batch and xlang_io_submit_write still call it. PLATFORM: SHARED. */
+/* Product body is src/x_seed_bridge.x. Cold xlang_io_submit_write still calls it. PLATFORM: SHARED. */
 extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 #else
 /* Byte write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
@@ -158,23 +158,9 @@ extern ptrdiff_t io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset, s
 extern ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
                                uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms);
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
-                         uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
-  (void)p1;
-  (void)l1;
-  (void)p2;
-  (void)l2;
-  (void)p3;
-  (void)l3;
-  (void)n;
-  return io_write(fd, p0, l0, timeout_ms);
-}
-#else
 /* Batch write of the first buffer lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
                                 uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms);
-#endif
 
 typedef struct {
   uint8_t *ptr;
