@@ -4106,7 +4106,7 @@ ensure_crt0_codegen_parser_companion_objs() {
 # PLATFORM: LINUX — NL-07 L3 + L3b + L4+ + L5 + L9: crt0 link must include backend enc/dispatch
 # companions (BSTRICT_DISPATCH_OBJS + simd_*), seed backend_emit_* partial,
 # typeck/driver/lsp companions, codegen/parser residual partials, and experimental
-# seed-support homologues (compat stubs / x_seed_bridge / asm_full_link_stubs).
+# seed-support homologues (compat stubs / asm_full_link_stubs).
 # Who produces UNDEF (enc): pipeline/backend build_asm .o reference backend_enc_* /
 # arch_emit / try_inline / simd — dispatch live under src/asm/, never in bag historically.
 # Who produces UNDEF (emit): asm_backend_compat_stubs forwards to backend_emit_*; seed
