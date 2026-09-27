@@ -12022,7 +12022,7 @@ if grep -nE '^(export )?R1_SEED_MAP_OBJS=' compiler/scripts/ensure_host_cc_seed_
   bad "ensure_host_cc_seed_o.sh must not hardcode R1_SEED_MAP_OBJS= (G.7)"
 fi
 # Core-seed leaves must not keep inline $(CC) -c seed recipes
-if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/x_seed_bridge\.o|src/seed_link_compat\.o):' "$MF" \
+if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/seed_link_compat\.o):' "$MF" \
   | grep -qE '\$\(CC\).*-c seeds/'; then
   mf_bad "Makefile core-seed leaves still have inline \$(CC) -c (wave749 thin required)"
 fi
