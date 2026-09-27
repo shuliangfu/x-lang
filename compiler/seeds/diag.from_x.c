@@ -456,13 +456,13 @@ void diag_io_fprint_line_col(uint8_t *o, int line, int col) {
 extern void diag_io_fprint_line_col(uint8_t *o, int line, int col);
 #endif
 /** 供 .x report_human 位置/gutter 冷路径（G-02f-159）。 */
-void diag_io_fprint_loc_file_line_col_impl(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs) {
-    diag_o_printf(o, "%s --> %s:%d:%d%s\n", pc ? pc : "", file ? file : "", line, col, rs ? rs : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_loc_file_line_col(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs) {
-    diag_io_fprint_loc_file_line_col_impl(o, pc, file, line, col, rs);
+    diag_o_printf(o, "%s --> %s:%d:%d%s\n", pc ? pc : "", file ? file : "", line, col, rs ? rs : "");
 }
+#else
+/* Location line with file, line, and column lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_loc_file_line_col(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs);
 #endif
 void diag_io_fprint_loc_file_line_impl(uint8_t *o, const char *pc, const char *file, int line, const char *rs) {
     diag_o_printf(o, "%s --> %s:%d%s\n", pc ? pc : "", file ? file : "", line, rs ? rs : "");
