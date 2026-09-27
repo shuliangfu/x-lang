@@ -5565,6 +5565,52 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1188: src/asm/runtime_thread_glue.x segfaults on some pure-asm
+# tries and emits on a later try. Stores stay inside the frame.
+# Retry the whole translation unit. Direct xlang_asm, not
+# rt_prefer_try_x_to_o. Every other runtime-os leaf stays one-shot.
+# Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+thread_glue_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_thread_glue.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "25" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_thread_glue_x_doc_anchor _thread_set_name_self_c \
+    _thread_pool_start_c _thread_self_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1187: src/asm/backend_call_dispatch_thin.x segfaults on some
 # pure-asm tries and emits on a later try. A live pad keeps the
 # stack-byte multiply stores inside the frame. Retry the whole
@@ -22842,10 +22888,26 @@ ensure_runtime_os_prefer_one() {
   if [ "$_do_prefer" = "1" ]; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/rtos_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/rtos_rest.XXXXXX")"
-    if rt_prefer_try_x_to_o "$x_src" "$thin_o" \
+    # w1188: the thread glue segfaults on some pure-asm tries. Darwin
+    # retries that one translation unit. Every other runtime-os leaf
+    # stays on the one-shot prefer. Symbols stay strong.
+    # PLATFORM: MACOS|DARWIN arm64 for the retry.
+    _tg_pure=0
+    if [ "$x_src" = "src/asm/runtime_thread_glue.x" ] \
+      && [ "$uname_s" = "Darwin" ] \
+      && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+      && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+      && bash scripts/ensure_host_cc_seed_o.sh thread-glue-pure "$thin_o"; then
+      _tg_pure=1
+    fi
+    if { [ "$_tg_pure" = "1" ] || rt_prefer_try_x_to_o "$x_src" "$thin_o"; } \
       && _runtime_os_cc_seed "$rest_o" "$seed" "$from_x_def" "$leaf_kind" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin.x+rest $o <- $x_src + seed-rest (try-runtime-os-prefer/$leaf_kind)"
+      if [ "$_tg_pure" = "1" ]; then
+        log "prefer thread glue ← pure-asm twenty-five symbols (w1188)"
+      else
+        log "prefer thin.x+rest $o <- $x_src + seed-rest (try-runtime-os-prefer/$leaf_kind)"
+      fi
       done=1
     else
       log "runtime-os hybrid failed for $o ($leaf_kind); fallback full seed"
@@ -26902,6 +26964,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  thread-glue-pure|thread_glue_darwin_pure)
+    # w1188: twenty-five pure-asm symbols of runtime_thread_glue.x.
+    # Does not write runtime_thread_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o thread-glue-pure: need <out.o>" >&2
+      exit 2
+    fi
+    thread_glue_darwin_pure "$1"
+    exit $?
+    ;;
   call-dispatch-pure|call_dispatch_darwin_pure)
     # w1187: forty-four pure-asm symbols of backend_call_dispatch_thin.x.
     # Does not write src/asm/backend_call_dispatch.o unless that path is passed.
