@@ -229,6 +229,10 @@ export function xlang_sys_sendto(sockfd: i32, buf: *u8, len: i32, flg: i32, addr
  */
 #[no_mangle]
 export function xlang_sys_recvfrom(sockfd: i32, buf: *u8, len: i32, flg: i32, addr: *u8, addrlen: *i32): i32 {
+  // Live pad: the in-out length slot must sit inside the frame.
+  // PLATFORM: MACOS|DARWIN arm64
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let k: i32 = 0;
   let n: i64 = 0;
   if (len < 0) { return 0 - 1; }
@@ -295,6 +299,10 @@ function sock_new_sin(): *u8 {
  * PLATFORM: MACOS|DARWIN arm64
  */
 function sock_reuse(fd: i32): i32 {
+  // Live pad: the option-value slot must sit inside the frame.
+  // PLATFORM: MACOS|DARWIN arm64
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let bit: i32 = 1;
   unsafe { return setsockopt(fd, 65535, 4, &bit, 4); }
   return 0 - 1;
