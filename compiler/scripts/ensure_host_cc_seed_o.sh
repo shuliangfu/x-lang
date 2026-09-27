@@ -28541,7 +28541,7 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     done
     # Catalog expand + seed map resolve (G.7 lists stay mk; shell owns seed paths).
     check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
-    check_family "R1_CORE_SEED_OBJS" 5 "core-seed" "basename" "src/"
+    check_family "R1_CORE_SEED_OBJS" 4 "core-seed" "basename" "src/"
     check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
     check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
     check_family "R1_ALIAS_STUBS_OBJS" 8 "alias-stubs" "basename" ""
