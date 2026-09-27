@@ -2049,12 +2049,6 @@ ensure_runtime_asm_build_obj() {
   fi
 }
 
-ensure_x_seed_bridge_obj() {
-  # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
-  # This function must not host-cc seeds/x_seed_bridge.from_x.c over that object. PLATFORM: SHARED.
-  return 0
-}
-
 ensure_ast_pool_l5_bridge_obj() {
   # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.inc
   local o="src/runtime_driver_strict_glue_stubs.o"
