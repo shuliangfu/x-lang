@@ -112,6 +112,9 @@ export function lsp_uri_has_file_scheme(uri: *u8): i32 {
  */
 #[no_mangle]
 export function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
+  // Live pad: the decode loop stores past a 64-byte frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (uri == 0 as *u8) {
     return;
   }
@@ -175,6 +178,9 @@ export function lsp_uri_to_fs_path(uri: *u8, out: *u8, cap: i64): void {
  */
 #[no_mangle]
 export function lsp_fs_path_to_uri(path: *u8, uri: *u8, cap: i32): void {
+  // Live pad: the encode loop stores at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (path == 0 as *u8) {
     return;
   }
@@ -350,6 +356,9 @@ export function lsp_diag_x_ctx_alloc_size(): i64 {
  */
 #[no_mangle]
 export function json_escape_str(msg: *u8, out: *u8, cap: i32): i32 {
+  // Live pad: the escape loop stores at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (out == 0 as *u8) {
     return 0;
   }
@@ -821,6 +830,9 @@ export function lsp_match_quote_textdocument_quote(body: *u8, i: i32): i32 {
  */
 #[no_mangle]
 export function lsp_find_text_value_from(body: *u8, len: i32, search_start: i32, out_buf: *u8, out_cap: i32): i32 {
+  // Live pad: nested scans store past the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -1068,6 +1080,42 @@ export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *
 }
 
 // G-02f-133：ASTFunc line@0 col@4 name@+8
+/** Load a zero-extended little-endian u32 from a byte buffer.
+ * Each byte is widened to usize before the multiply, so a high bit
+ * stays in the low 32 bits. A signed i32 cast would sign-extend.
+ * @param p buffer; null returns 0
+ * @param off byte offset of the first byte
+ * @return value in 0..4294967295
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function lsp_load_u32_at(p: *u8, off: i32): usize {
+  if (p == 0) { return 0; }
+  // Live pad: four chained multiplies otherwise store at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
+  let m: usize = 256;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m * m;
+  a = a + (p[off + 3] as usize) * m * m * m;
+  return a;
+}
+
+/** Shift left by 32 with a real 64-bit shift.
+ * A multiply by 2^32 uses a 32-bit mul and yields 0.
+ * @param v value in the low 32 bits
+ * @return v shifted left by 32
+ * PLATFORM: SHARED
+ */
+#[no_mangle]
+export function lsp_shl32(v: usize): usize {
+  // Live pad so the shift temporary stays inside the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
+  return v << 32;
+}
+
 /** Exported function `lsp_load_i32_at`.
  * Implements `lsp_load_i32_at`.
  * @param p *u8
@@ -1075,6 +1123,9 @@ export function col_in_ident_span(line: i32, col: i32, sl: i32, sc: i32, name: *
  * @return i32
  */
 export function lsp_load_i32_at(p: *u8, off: i32): i32 {
+  // Live pad: four chained multiplies otherwise store past the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let m: i32 = 256;
   let a: i32 = p[off] as i32;
   a = a + (p[off + 1] as i32) * m;
@@ -1091,18 +1142,12 @@ export function lsp_load_i32_at(p: *u8, off: i32): i32 {
  */
 export function lsp_load_ptr_at(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
-  let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  // Low and high halves stay zero-extended. One function with all eight
+  // multiplies spills past the frame.
+  let lo: usize = lsp_load_u32_at(p, off);
+  let hi: usize = lsp_load_u32_at(p, off + 4);
+  // High half moves by 32 adds. A multiply by 2^32 is a 32-bit mul and yields 0.
+  return (lo + lsp_shl32(hi)) as *u8;
 }
 
 /** Exported function `func_name_covers`.
@@ -1133,6 +1178,9 @@ export function func_name_covers(f: *u8, line: i32, col: i32): i32 {
  */
 #[no_mangle]
 export function lsp_parse_int(body: *u8, len: i32, offset: i32, out: *i32): i32 {
+  // Live pad: the digit loop stores at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (body == 0 as *u8) {
     return 0 - 1;
   }
@@ -1253,6 +1301,9 @@ export function lsp_fmt_src_ws_before(doc: *u8, start: i32, j: i32): i32 {
  */
 #[no_mangle]
 export function lsp_fmt_src_ws_after(doc: *u8, start: i32, len: i32, j: i32): i32 {
+  // Live pad: the byte read stores at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let k: i32 = j + 1;
   if (k >= len) { return 0; }
   let c: u8 = doc[start + k];
@@ -1505,6 +1556,9 @@ export function lsp_fmt_space_after(doc: *u8, start: i32, len: i32, j: i32, out_
  */
 #[no_mangle]
 export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
+  // Live pad: the escape loop stores at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (s == 0) { return 0; }
   if (esc == 0) { return 0; }
   if (esc_cap < 4) { return 0; }
@@ -1545,26 +1599,23 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
 #[no_mangle]
 export function lsp_hash_source(src: *u8, len: i32): u32 {
   if (src == 0) { return 0; }
+  // Live pad: the golden multiply stores at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   // 0x9e3779b97f4a7c15 built from u32 halves (typeck: no decimal > i64 max).
   // wave257→536: unified thin source (lsp_fmt_pure_thin.x retired in wave536).
   let golden_hi: u64 = 2654435769 as u64;
   let golden_lo: u64 = 2135587861 as u64;
-  let two32: u64 = 4294967296 as u64;
+  // 2^32 via a 64-bit shift. The decimal literal collapses in a 32-bit mul.
+  let two32: u64 = (1 as u64) << 32;
   let golden: u64 = golden_hi * two32 + golden_lo;
   let h: u64 = len as u64;
   let i: i32 = 0;
   while (i + 8 <= len) {
-    let x: u64 = 0 as u64;
-    let k: i32 = 0;
-    while (k < 8) {
-      let b: u64 = src[i + k] as u64;
-      // little-endian pack
-      let shift: u64 = 1 as u64;
-      let s: i32 = 0;
-      while (s < k) { shift = shift * (256 as u64); s = s + 1; }
-      x = x + b * shift;
-      k = k + 1;
-    }
+    // Two zero-extended halves. The shift loop spilled at the frame edge.
+    let lo: u64 = lsp_load_u32_at(src, i) as u64;
+    let hi: u64 = lsp_load_u32_at(src, i + 4) as u64;
+    let x: u64 = lo + (lsp_shl32(hi as usize) as u64);
     h = h * golden + x;
     i = i + 8;
   }
@@ -1572,5 +1623,7 @@ export function lsp_hash_source(src: *u8, len: i32): u32 {
     h = h * golden + (src[i] as u64);
     i = i + 1;
   }
-  return (h ^ (h / two32)) as u32;
+  // Fold the high half with a shift. Dividing by 2^32 looks like a
+  // zero divisor because the check only sees the low 32 bits.
+  return (h ^ (h >> 32)) as u32;
 }

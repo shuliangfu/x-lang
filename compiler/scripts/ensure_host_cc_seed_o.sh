@@ -5565,6 +5565,67 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1181: src/asm/runtime_lsp_glue.x segfaults on some pure-asm tries
+# and emits on a later try. The eight-byte pointer is two zero-extended
+# loads plus a 64-bit shift, and the hash pack uses the same shift, so
+# stores stay inside the frame. Retry the whole translation unit.
+# Direct xlang_asm, not rt_prefer_try_x_to_o. Every defined global is
+# weakened, matching G05_X_O_WEAK on this leaf.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+lsp_glue_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_lsp_glue.x"
+  local try n c oc
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "56" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_lsp_glue_x_doc_anchor _lsp_load_u32_at \
+    _lsp_shl32 _lsp_hash_source; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc="$(command -v llvm-objcopy)"
+  fi
+  if [ -z "$oc" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! "$oc" --weaken "$o"; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1180: src/asm/async_asm_pool.x segfaults on some pure-asm tries
 # and emits on a later try. Name buffers and the let-index table are
 # heap allocations, and the layout clear is one memset, so stores stay
@@ -21863,6 +21924,7 @@ ensure_other_l2_prefer_one() {
     _thin_ok=0
     _ol2_pure=0
     _slc_pure=0
+    _lsp_pure=0
     case "$weak_mode" in
       slc6)
         # w1175: seed link compat segfaults on some pure-asm tries.
@@ -21881,10 +21943,20 @@ ensure_other_l2_prefer_one() {
         fi
         ;;
       weak)
+        # w1181: lsp glue segfaults on some pure-asm tries. Darwin
+        # retries that leaf only and weakens every defined global.
+        # fmt stays on the one-shot path. PLATFORM: MACOS|DARWIN arm64.
+        if [ "$leaf_kind" = "lsp" ] \
+          && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh lsp-glue-pure "$thin_o"; then
+          _lsp_pure=1
+          _thin_ok=1
         # w1172: strict glue segfaults on some pure-asm tries. Darwin
         # retries the whole translation unit. Other leaves keep rt_prefer.
         # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-        if [ "$leaf_kind" = "strict" ] \
+        elif [ "$leaf_kind" = "strict" ] \
           && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
           && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
           && [ -f scripts/ensure_host_cc_seed_o.sh ] \
@@ -21906,7 +21978,9 @@ ensure_other_l2_prefer_one() {
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      if [ "$_ol2_pure" = "1" ]; then
+      if [ "$_lsp_pure" = "1" ]; then
+        log "prefer lsp glue ← pure-asm fifty-six symbols (w1181)"
+      elif [ "$_ol2_pure" = "1" ]; then
         log "prefer strict glue ← pure-asm eleven symbols (w1172)"
       elif [ "$_slc_pure" = "1" ]; then
         log "prefer seed link compat ← pure-asm nineteen symbols (w1175)"
@@ -26450,6 +26524,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  lsp-glue-pure|lsp_glue_darwin_pure)
+    # w1181: fifty-six pure-asm symbols of runtime_lsp_glue.x.
+    # Does not write src/lsp/lsp_diag.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o lsp-glue-pure: need <out.o>" >&2
+      exit 2
+    fi
+    lsp_glue_darwin_pure "$1"
+    exit $?
+    ;;
   async-asm-pool-pure|async_asm_pool_darwin_pure)
     # w1180: thirteen pure-asm symbols of async_asm_pool.x.
     # Does not write src/async/async_asm_pool.o unless that path is passed.
