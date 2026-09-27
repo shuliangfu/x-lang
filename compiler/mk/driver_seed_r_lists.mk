@@ -19,7 +19,7 @@ RT_SEED_SLICE_OBJS = src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/
 # Not dual of DRIVER_SEED_BRIDGE_OBJS (bridge rebuild list); this is pure R1 recipe family only.
 # wave899: also make-graph multi-target FORCE thin try-heat inventory (COUNT=5).
 # Body = ensure try-heat; do not re-list in Makefile or residual shells (G.7).
-R1_CORE_SEED_OBJS = src/diag.o src/runtime_link_abi.o src/runtime_c_import.o src/x_seed_bridge.o src/seed_link_compat.o
+R1_CORE_SEED_OBJS = src/diag.o src/runtime_link_abi.o src/runtime_c_import.o src/seed_link_compat.o
 
 # wave750 R1 third family: frontend glue with basename-mismatch seed map
 # (lexer.o ← runtime_lexer_glue, ast.o ← runtime_ast_glue, lsp_diag.o ← runtime_lsp_glue).
