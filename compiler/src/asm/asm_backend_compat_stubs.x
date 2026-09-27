@@ -65,6 +65,11 @@ export function xlang_format_u32_to_buf(buf: *u8, off: i32, max: i32, u: u32): i
 #[no_mangle]
 export function xlang_elf_ctx_append_u32_le(elf_ctx: *u8, word: u32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
+  // Live pad. Darwin arm64 placed a store at the frame edge (room 0).
+  // The pad grows sub sp so that store stays inside the frame.
+  // PLATFORM: MACOS|DARWIN arm64.
+  let pad: u8[32] = [];
+  pad[0] = 0;
   let b0: u8 = (word & 255) as u8;
   let b1: u8 = ((word / 256) & 255) as u8;
   let b2: u8 = ((word / 65536) & 255) as u8;
