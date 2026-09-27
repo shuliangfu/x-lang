@@ -164,18 +164,8 @@ extern int32_t xlang_io_submit_write(uint8_t *ptr, size_t len, size_t handle, un
 /* Submitted write from a buffer record lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms);
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* lsp_gen names driver_read_ptr. This weak body is the fallback when no strong
- * driver is linked. PLATFORM: SHARED. */
-XLANG_WEAK uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms) {
-  (void)handle;
-  (void)timeout_ms;
-  return NULL;
-}
-#else
 /* Weak driver read pointer lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms);
-#endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 /* lsp_gen names driver_read_ptr_len. This weak body is the fallback when no
