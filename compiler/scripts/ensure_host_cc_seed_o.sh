@@ -3438,19 +3438,35 @@ ensure_process_argv_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
-  while [ "$try" -lt 3 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if ! (
-      export XLANG_PREFER_ASM_O=1
-      export G05_X_O_WEAK_FUNCS=process_args_count_c,process_arg_c
-      unset G05_X_O_WEAK
-      pure_asm_x_to_o "$o" "$xsrc"
-    ); then
-      echo "ensure_host_cc_seed_o process-argv: pure-asm try $try failed" >&2
+  # w1195: some pure-asm tries segfault. Retry before the three-try
+  # path. The retry object still goes through the Lxml rename. The
+  # two process faces are already weak. A failed retry falls back to
+  # the three-try path and then the C seed.
+  # PLATFORM: MACOS|DARWIN arm64.
+  local _pa_have=0
+  local _pa_from_retry=0
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh process-argv-pure "$o"; then
+    _pa_have=1
+    _pa_from_retry=1
+  fi
+  while [ "$try" -lt 3 ] || [ "$_pa_have" = "1" ]; do
+    if [ "$_pa_have" != "1" ]; then
+      _pa_from_retry=0
+      try=$((try + 1))
       rm -f "$o"
-      continue
+      if ! (
+        export XLANG_PREFER_ASM_O=1
+        export G05_X_O_WEAK_FUNCS=process_args_count_c,process_arg_c
+        unset G05_X_O_WEAK
+        pure_asm_x_to_o "$o" "$xsrc"
+      ); then
+        echo "ensure_host_cc_seed_o process-argv: pure-asm try $try failed" >&2
+        rm -f "$o"
+        continue
+      fi
     fi
+    _pa_have=0
     # Rename the two Lxml commons onto the C global names.
     # nlist order matches `nm -p`. The first text reloc inside
     # process_xlang_argc_get is the count (compared with > 0
@@ -3552,7 +3568,11 @@ ensure_process_argv_darwin_pure() {
       rm -f "$o"
       continue
     fi
-    log "pure-asm $xsrc → $o"
+    if [ "$_pa_from_retry" = "1" ]; then
+      log "prefer process argv ← pure-asm seven symbols (w1195)"
+    else
+      log "pure-asm $xsrc → $o"
+    fi
     return 0
   done
   if [ ! -s "$o" ]; then
@@ -5597,6 +5617,70 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1195: src/asm/runtime_process_argv_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. Frames are already
+# inside the allocation. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o. The two process faces
+# are weakened. The Lxml rename stays in the caller.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+process_argv_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_process_argv_darwin.x"
+  local try n c oc
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "7" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_process_argv_x_doc_anchor _process_xlang_argc_get \
+    _process_args_count_c _process_arg_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  oc="$(pure_asm_find_objcopy)" || {
+    rm -f "$o"
+    return 1
+  }
+  if ! "$oc" \
+    --weaken-symbol=_process_args_count_c \
+    --weaken-symbol=_process_arg_c \
+    "$o"; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -m "$o" | awk '
+    $0 ~ /_process_args_count_c$/ && $0 ~ /weak/ { c=1 }
+    $0 ~ /_process_arg_c$/ && $0 ~ /weak/ { a=1 }
+    END { exit (c && a) ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1194: src/asm/runtime_path_fast.x segfaults on some pure-asm
 # tries and emits on a later try. A live pad keeps the dirname
 # stores inside the frame. Retry the whole translation unit.
@@ -27283,6 +27367,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  process-argv-pure|process_argv_retry_pure)
+    # w1195: seven pure-asm symbols of runtime_process_argv_darwin.x.
+    # Does not write runtime_process_argv.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o process-argv-pure: need <out.o>" >&2
+      exit 2
+    fi
+    process_argv_retry_pure "$1"
+    exit $?
+    ;;
   path-fast-pure|path_fast_retry_pure)
     # w1194: twenty pure-asm symbols of runtime_path_fast.x.
     # Does not write std/path/path.o unless that path is passed.
