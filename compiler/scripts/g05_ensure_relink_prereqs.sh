@@ -1027,8 +1027,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # separate define so a missing body_let_bracket_x keeps the C
         # bracket twin without dropping P2b/P2c. Cold: no define, full .inc.
         _pthin_p2_extra=""
+        _pthin_p2b_pure=0
+        # w1163: some pure-asm tries segfault. Darwin retries the whole
+        # translation unit. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p2b_thin_o" ] && [ -f "$_pthin_p2b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p2b_x" "$_pthin_p2b_thin_o" \
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-let-alias-pure "$_pthin_p2b_thin_o"; then
+            _pthin_p2b_pure=1
+          fi
+          if { [ "$_pthin_p2b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p2b_x" "$_pthin_p2b_thin_o"; } \
             && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_top_level_let_x_into_c" \
             && g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_one_type_alias_x_into_c"; then
             _pthin_p2b_ok=1
@@ -1037,7 +1048,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               _pthin_p2_extra="$_pthin_p2_extra -DXLANG_PTHIN_LET_ALIAS_COND_FROM_X"
               if g05_obj_defines "$_pthin_p2b_thin_o" "parser_asm_parse_body_let_bracket_compound_init_ref_x_into_c"; then
                 _pthin_p2_extra="$_pthin_p2_extra -DXLANG_PTHIN_LET_ALIAS_BRACKET_FROM_X"
-                echo "g05_ensure: P2b/P2c/P2d let/alias bodies ← $_pthin_p2b_x (7.2.1 B-minus)"
+                if [ "$_pthin_p2b_pure" = "1" ]; then
+                  echo "g05_ensure: P2 let/alias ← pure-asm four symbols (w1163)"
+                else
+                  echo "g05_ensure: P2b/P2c/P2d let/alias bodies ← $_pthin_p2b_x (7.2.1 B-minus)"
+                fi
               else
                 echo "g05_ensure: P2b/P2c let/alias bodies ← $_pthin_p2b_x (P2d body_let_bracket C twin)"
               fi
