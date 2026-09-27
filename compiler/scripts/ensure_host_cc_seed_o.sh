@@ -5551,6 +5551,195 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1152: src/asm/pthin_type_ref.x exits 139 as one translation unit.
+# Compile the thirty-one functions separately and ld -r. Brace counts
+# ignore comments. Sibling calls are export-extern.
+# Direct xlang_asm, not pure_asm_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+pthin_type_ref_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_type_ref.x"
+  local dir c try src obj objs n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinty.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+fn_at = []
+for i, l in enumerate(lines):
+    if l.startswith("export function ") or l.startswith("function "):
+        s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
+        fn_at.append(s)
+if len(fn_at) != 31:
+    sys.exit(1)
+def delta(line, in_block):
+    i = 0
+    d = 0
+    n = len(line)
+    while i < n:
+        if in_block:
+            if line.startswith("*/", i):
+                in_block = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if line.startswith("//", i):
+            break
+        if line.startswith("/*", i):
+            in_block = True
+            i += 2
+            continue
+        ch = line[i]
+        if ch == '"':
+            i += 1
+            while i < n and line[i] != '"':
+                if line[i] == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                i += 1
+            i += 1
+            continue
+        if ch == "{":
+            d += 1
+        elif ch == "}":
+            d -= 1
+        i += 1
+    return d, in_block
+def split_tail(chunk):
+    depth = 0
+    started = False
+    in_block = False
+    for idx, line in enumerate(chunk):
+        d, in_block = delta(line, in_block)
+        depth += d
+        if not started and depth > 0:
+            started = True
+        if started and depth == 0:
+            return chunk[:idx + 1], chunk[idx + 1:]
+    sys.exit(1)
+pre = []
+bodies = []
+i = 0
+for n, start in enumerate(fn_at):
+    end = fn_at[n + 1] if n + 1 < len(fn_at) else len(lines)
+    if start > i:
+        pre.append("".join(lines[i:start]))
+    body, tail = split_tail(lines[start:end])
+    bodies.append("".join(body))
+    pre.append("".join(tail))
+    i = end
+if i < len(lines):
+    pre.append("".join(lines[i:]))
+header = "".join(pre)
+sigs = []
+for body in bodies:
+    grab = False
+    acc = []
+    for line in body.splitlines():
+        if line.startswith("export function ") or line.startswith("function ") or grab:
+            grab = True
+            acc.append(line)
+            if "{" in line and not line.strip().startswith("//"):
+                break
+    if not acc or "{" not in acc[-1]:
+        sys.exit(1)
+    sig = " ".join(x.strip() for x in acc)
+    sig = sig[: sig.rfind("{")].strip()
+    if not sig.startswith("export "):
+        sig = "export " + sig
+    sigs.append("export extern " + sig[len("export "):] + ";")
+externs = "\n".join(sigs) + "\n"
+for i, body in enumerate(bodies):
+    Path(out, "t%d.x" % i).write_text(
+        "// w1152 split piece. PLATFORM: SHARED.\n" + header + externs + body
+    )
+PY
+  then
+    rm -rf "$dir"
+    return 1
+  fi
+  objs=""
+  for c in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+    src="$dir/t$c.x"
+    obj="$dir/t$c.o"
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "31" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _parser_asm_type_ref_ident_span_ok \
+    _parser_asm_type_ref_ident_byte \
+    _parser_asm_type_ref_token_starts_type_c \
+    _parser_asm_type_ref_builtin_kind_ord_c \
+    _parser_asm_type_ref_ident_is_dyn_buf_c \
+    _parser_asm_type_ref_ident_is_linear \
+    _parser_asm_vector_type_ident_pack_c \
+    _parser_asm_type_ref_mangle_suffix_c \
+    _parser_asm_append_type_inst_mangle_into_c \
+    _parser_asm_type_angle_close_into_c \
+    _parser_asm_consume_qualified_type_ident_name_into_c \
+    _parser_asm_alloc_dyn_type_ref_into_c \
+    _parser_asm_wrap_registered_trait_as_dyn_into_c \
+    _parser_asm_parse_postfix_slice_x_into_c \
+    _parser_asm_parse_postfix_array_x_into_c \
+    _parser_asm_parse_prefix_array_x_into_c \
+    _parser_asm_parse_fn_type_x_into_c \
+    _parser_asm_parse_star_type_x_into_c \
+    _parser_asm_parse_linear_type_x_into_c \
+    _parser_asm_builtin_vec_token_elem_ord \
+    _parser_asm_builtin_vec_token_lanes \
+    _parser_asm_parse_builtin_vec_type_x_into_c \
+    _parser_asm_alloc_vector_type_ref_x_into_c \
+    _parser_asm_parse_builtin_scalar_type_x_into_c \
+    _parser_asm_peel_dyn_impl_prefix_x_into_c \
+    _parser_asm_parse_named_type_x_into_c \
+    _parser_asm_parse_named_generic_args_x_into_c \
+    _parser_asm_vector_type_ref_from_ident_spelling_x_into_c \
+    _parser_asm_parse_type_ref_impl_ident_x \
+    _parser_asm_parse_type_ref_impl_x_into_c \
+    _parser_asm_alloc_pointee_type_ref_x_into_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1151: src/asm/pthin_ctrl.x exits 139 as one translation unit.
 # Compile the thirty-one functions separately and ld -r. Brace counts
 # ignore comments, because keyword notes contain a bare '{'.
@@ -24251,6 +24440,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  pthin-type-ref-pure|pthin_type_ref_darwin_pure)
+    # w1152: thirty-one pure-asm pieces of src/asm/pthin_type_ref.x.
+    # Does not write parser_asm_thin_glue.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-type-ref-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_type_ref_darwin_pure "$1"
+    exit $?
+    ;;
   pthin-ctrl-pure|pthin_ctrl_darwin_pure)
     # w1151: thirty-one pure-asm pieces of src/asm/pthin_ctrl.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.

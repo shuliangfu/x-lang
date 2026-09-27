@@ -1076,8 +1076,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # so a missing postfix_x / prefix_x / fn_x / star_x / linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x / impl_x / pointee_x keeps that C twin without dropping
         # P3b–P3e. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p3_extra=""
+        _pthin_p3_pure=0
+        # w1152: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p3b_thin_o" ] && [ -f "$_pthin_p3b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o" \
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-type-ref-pure "$_pthin_p3b_thin_o"; then
+            _pthin_p3_pure=1
+          fi
+          if { [ "$_pthin_p3_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_pthin_p3b_thin_o"; } \
             && g05_obj_defines "$_pthin_p3b_thin_o" "parser_asm_append_type_inst_mangle_into_c"; then
             _pthin_p3b_ok=1
             _pthin_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
@@ -1137,7 +1148,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               _pthin_p3_extra="$_pthin_p3_extra -DXLANG_PTHIN_TYPE_REF_POINTEE_FROM_X"
               _pthin_p3_lane="$_pthin_p3_lane/P3s"
             fi
-            echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
+            if [ "$_pthin_p3_pure" = "1" ]; then
+              echo "g05_ensure: P3 type_ref ← pure-asm thirty-one pieces (w1152)"
+            else
+              echo "g05_ensure: ${_pthin_p3_lane} type_ref bodies ← $_pthin_p3b_x (7.2.1 Route C)"
+            fi
           else
             echo "g05_ensure: P3b type_ref .x thin failed or missing mangle_into; P3 C twin stays full" >&2
           fi

@@ -16,6 +16,10 @@
 
 // pthin_type_ref.x — G-02f-280 P3 parser thin type_ref product bodies.
 //
+// w1152: one translation unit exits 139. Darwin compiles each function
+// and links the thirty-one pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P3b Route C productize (2026-09-13): after P4b primary ident
 // spelling, type_ref.inc is the next still-host-cc product slice with a
 // portable scalar / buf-path region. token_starts_type and builtin
@@ -531,11 +535,23 @@ export function parser_asm_type_ref_builtin_kind_ord_c(kind: i32): i32 {
  */
 #[no_mangle]
 export function parser_asm_type_ref_ident_is_dyn_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 3) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 3);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_type_ref_ident_byte(data, token_start, 0) == 100 && parser_asm_type_ref_ident_byte(data, token_start, 1) == 121
-      && parser_asm_type_ref_ident_byte(data, token_start, 2) == 110) {
+  unsafe {
+    c0 = parser_asm_type_ref_ident_byte(data, token_start, 0);
+    c1 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+    c2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+  }
+  if (c0 == 100 && c1 == 121 && c2 == 110) {
     return 1;
   }
   return 0;
@@ -553,12 +569,29 @@ export function parser_asm_type_ref_ident_is_dyn_buf_c(data: *u8, length: usize,
  * PLATFORM: SHARED — buf-path sibling of ident_is_dyn (G.7 spelling family).
  */
 function parser_asm_type_ref_ident_is_linear(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 6) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 6);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_type_ref_ident_byte(data, token_start, 0) == 76 && parser_asm_type_ref_ident_byte(data, token_start, 1) == 105
-      && parser_asm_type_ref_ident_byte(data, token_start, 2) == 110 && parser_asm_type_ref_ident_byte(data, token_start, 3) == 101
-      && parser_asm_type_ref_ident_byte(data, token_start, 4) == 97 && parser_asm_type_ref_ident_byte(data, token_start, 5) == 114) {
+  unsafe {
+    c0 = parser_asm_type_ref_ident_byte(data, token_start, 0);
+    c1 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+    c2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+    c3 = parser_asm_type_ref_ident_byte(data, token_start, 3);
+    c4 = parser_asm_type_ref_ident_byte(data, token_start, 4);
+    c5 = parser_asm_type_ref_ident_byte(data, token_start, 5);
+  }
+  if (c0 == 76 && c1 == 105 && c2 == 110 && c3 == 101 && c4 == 97 && c5 == 114) {
     return 1;
   }
   return 0;
@@ -583,19 +616,30 @@ export function parser_asm_vector_type_ident_pack_c(data: *u8, length: usize, to
   if (token_start + ident_len as usize > length) {
     return 0;
   }
-  let b0: u8 = parser_asm_type_ref_ident_byte(data, token_start, 0);
-  let b1: u8 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+  let b0: u8 = 0;
+  let b1: u8 = 0;
   let b2: u8 = 0;
   let b3: u8 = 0;
   let b4: u8 = 0;
+  // Darwin compiles this function alone. The byte helper is an extern.
+  unsafe {
+    b0 = parser_asm_type_ref_ident_byte(data, token_start, 0);
+    b1 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+  }
   if (ident_len >= 3) {
-    b2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+    unsafe {
+      b2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+    }
   }
   if (ident_len >= 4) {
-    b3 = parser_asm_type_ref_ident_byte(data, token_start, 3);
+    unsafe {
+      b3 = parser_asm_type_ref_ident_byte(data, token_start, 3);
+    }
   }
   if (ident_len >= 5) {
-    b4 = parser_asm_type_ref_ident_byte(data, token_start, 4);
+    unsafe {
+      b4 = parser_asm_type_ref_ident_byte(data, token_start, 4);
+    }
   }
   // i32x4 / i3x4 nibble (C twin): nlen==5, i, '3', 'x', '4'
   if (ident_len == 5 && b0 == 105 && b1 == 51 && b2 == 120 && b3 == 52) {
