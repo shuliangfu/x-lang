@@ -2324,14 +2324,43 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _bx_bridge_seed=seeds/parser_asm_lex_step_bridge.from_x.c
         _ca_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
         _cb_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
+        # w1156: these four translation units exit 139, so one g05_try
+        # never produces the thin objects. Darwin uses the piece helpers.
+        # Other hosts keep g05_try_x_to_o. This block still merges into
+        # parser_asm_thin_glue.o only when g05 itself runs.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+        _bx_p12b_pure=0
+        _bx_p1b_pure=0
+        _bx_p6b_pure=0
+        _bx_p3b_pure=0
+        if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+          if bash scripts/ensure_host_cc_seed_o.sh pthin-skip-tl-pure "$_bx_p12b"; then
+            _bx_p12b_pure=1
+          fi
+          if bash scripts/ensure_host_cc_seed_o.sh pthin-lex-skip-pure "$_bx_p1b"; then
+            _bx_p1b_pure=1
+          fi
+          if bash scripts/ensure_host_cc_seed_o.sh pthin-fn-block-pure "$_ca_p6b"; then
+            _bx_p6b_pure=1
+          fi
+          if bash scripts/ensure_host_cc_seed_o.sh pthin-type-ref-pure "$_cb_p3b"; then
+            _bx_p3b_pure=1
+          fi
+        fi
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
           && [ -n "$_bx_bridge" ] && [ -n "$_ca_p6b" ] && [ -n "$_ca_p6" ] \
           && [ -n "$_cb_p3b" ] && [ -n "$_cb_p3" ] && [ -n "$_ca_bstub" ] && [ -n "$_ca_bstub_c" ] \
           && [ -n "$_bx_rest" ] && [ -f "$_bx_bridge_seed" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_bx_p12b" \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_bx_p1b" \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_ca_p6b" \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_cb_p3b" \
+          && { [ "$_bx_p12b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_bx_p12b"; } \
+          && { [ "$_bx_p1b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p1b_x" "$_bx_p1b"; } \
+          && { [ "$_bx_p6b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_ca_p6b"; } \
+          && { [ "$_bx_p3b_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_cb_p3b"; } \
           && g05_obj_defines "$_ca_p6b" "parser_asm_struct_layout_first_name_match_idx_c" \
           && g05_obj_defines "$_cb_p3b" "parser_asm_append_type_inst_mangle_into_c"; then
           if g05_obj_defines "$_ca_p6b" "parser_asm_parse_struct_record_layout_x_into_c"; then
@@ -2423,7 +2452,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
                "$_ca_bstub" 2>/dev/null; then
-            echo "g05_ensure: parser_asm_thin_glue.o ← Class CB type_ref+FN_BLOCK+skip_tl peel"
+            if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
+              && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
+              echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces (w1156)"
+            else
+              echo "g05_ensure: parser_asm_thin_glue.o ← Class CB type_ref+FN_BLOCK+skip_tl peel"
+            fi
             _pthin_done=1
           fi
         fi

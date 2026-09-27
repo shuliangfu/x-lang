@@ -5896,7 +5896,7 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    while [ "$try" -lt 8 ]; do
+    while [ "$try" -lt 12 ]; do
       try=$((try + 1))
       rm -f "$obj"
       if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
