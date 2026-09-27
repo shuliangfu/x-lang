@@ -45,6 +45,10 @@ export function runtime_slice_glue_x_doc_anchor(): i32 {
  */
 #[no_mangle]
 export function core_slice_i32_from_ptr_c(data: *i32, len: usize): XlangSliceI32 {
+  // A live pad pulls the 16-byte return slot inside this frame.
+  // Without it the slot sits on the frame edge, past the safe room.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let s: XlangSliceI32 = { data: data, length: len };
   return s;
 }
@@ -57,6 +61,10 @@ export function core_slice_i32_from_ptr_c(data: *i32, len: usize): XlangSliceI32
  */
 #[no_mangle]
 export function core_slice_u8_from_ptr_c(data: *u8, len: usize): XlangSliceU8 {
+  // A live pad pulls the 16-byte return slot inside this frame.
+  // Without it the slot sits on the frame edge, past the safe room.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let s: XlangSliceU8 = { data: data, length: len };
   return s;
 }
@@ -69,6 +77,10 @@ export function core_slice_u8_from_ptr_c(data: *u8, len: usize): XlangSliceU8 {
  */
 #[no_mangle]
 export function core_slice_u64_from_ptr_c(data: *u64, len: usize): XlangSliceU64 {
+  // A live pad pulls the 16-byte return slot inside this frame.
+  // Without it the slot sits on the frame edge, past the safe room.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let s: XlangSliceU64 = { data: data, length: len };
   return s;
 }
@@ -100,6 +112,10 @@ function slice_glue_clamp_len(total_len: usize, start: usize, len: usize): usize
  */
 #[no_mangle]
 export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): XlangSliceI32 {
+  // A live pad pulls the 16-byte return slot inside this frame.
+  // Without it the slot sits on the frame edge, past the safe room.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   // Clamp in a usize function. Two slice literals in this function drop the call.
   let n: usize = slice_glue_clamp_len(total_len, start, len);
   let off: usize = start;
@@ -118,6 +134,10 @@ export function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, 
  */
 #[no_mangle]
 export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): XlangSliceU8 {
+  // A live pad pulls the 16-byte return slot inside this frame.
+  // Without it the slot sits on the frame edge, past the safe room.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   // Same split as the i32 subslice. Pointer add scales by one byte.
   let n: usize = slice_glue_clamp_len(total_len, start, len);
   let off: usize = start;
@@ -136,6 +156,10 @@ export function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, le
  */
 #[no_mangle]
 export function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): XlangSliceU64 {
+  // A live pad pulls the 16-byte return slot inside this frame.
+  // Without it the slot sits on the frame edge, past the safe room.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   // Same split as the i32 subslice. Pointer add scales by eight bytes.
   let n: usize = slice_glue_clamp_len(total_len, start, len);
   let off: usize = start;
