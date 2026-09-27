@@ -2426,6 +2426,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _ca_bstub=$(mktemp "${TMPDIR:-/tmp}/g05_ca_bstub.XXXXXX.o") || true
         _ca_bstub_c=$(mktemp "${TMPDIR:-/tmp}/g05_ca_bstub_c.XXXXXX.c") || true
         _bx_rest=$(mktemp "${TMPDIR:-/tmp}/g05_bx_rest.XXXXXX") || true
+        _cb_p19b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p19b.XXXXXX") || true
+        _cb_p19=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p19.XXXXXX") || true
         _bx_bridge_seed=seeds/parser_asm_lex_step_bridge.from_x.c
         _ca_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
         _cb_p3_extra="-DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
@@ -2438,6 +2440,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _bx_p1b_pure=0
         _bx_p6b_pure=0
         _bx_p3b_pure=0
+        _cb_p19b_pure=0
+        _cb_p19_ok=0
         if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
           && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
           && [ -f scripts/ensure_host_cc_seed_o.sh ]; then
@@ -2452,6 +2456,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
           if bash scripts/ensure_host_cc_seed_o.sh pthin-type-ref-pure "$_cb_p3b"; then
             _bx_p3b_pure=1
+          fi
+          # w1308: helpers .x is already split. Peel it with the Class CB
+          # merge so the thirteen bodies enter the product glue. The full
+          # P1–P20 omit-rest hybrid stays off (Class BX tip SEGV).
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ -n "$_cb_p19b" ] && [ -n "$_cb_p19" ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-helpers-pure "$_cb_p19b"; then
+            _cb_p19b_pure=1
           fi
         fi
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
@@ -2468,6 +2480,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p3b_x" "$_cb_p3b"; } \
           && g05_obj_defines "$_ca_p6b" "parser_asm_struct_layout_first_name_match_idx_c" \
           && g05_obj_defines "$_cb_p3b" "parser_asm_append_type_inst_mangle_into_c"; then
+          # w1308: helpers trampoline + thirteen .x bodies. Rest omits the
+          # C twins via XLANG_PTHIN_HELPERS_FROM_X. LEX_SKIP bodies stay in
+          # the lex-skip piece already on this merge.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ "$_cb_p19b_pure" = "1" ] \
+            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               -DXLANG_PTHIN_HELPERS_BODIES_FROM_X $_pthin_p1_extra \
+               -c -o "$_cb_p19" "$_pthin_p19_seed" \
+            && g05_obj_defines "$_cb_p19b" "parser_asm_import_path_dot_segment_len_kind_c" \
+            && g05_obj_defines "$_cb_p19" "parser_asm_import_path_dot_segment_len_c"; then
+            _cb_p19_ok=1
+          fi
           if g05_obj_defines "$_ca_p6b" "parser_asm_parse_struct_record_layout_x_into_c"; then
             _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
           fi
@@ -2553,13 +2577,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
                -DXLANG_PTHIN_SKIP_TL_FROM_X -DXLANG_PTHIN_LEX_SKIP_FROM_X \
                -DXLANG_PTHIN_FN_BLOCK_FROM_X -DXLANG_PTHIN_TYPE_REF_FROM_X \
+               ${_cb_p19_ok:+-DXLANG_PTHIN_HELPERS_FROM_X} \
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
-               "$_ca_bstub" 2>/dev/null; then
+               "$_ca_bstub" ${_cb_p19_ok:+"$_cb_p19" "$_cb_p19b"} 2>/dev/null; then
             if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
               && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
-              echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces (w1156)"
+              if [ "$_cb_p19_ok" = "1" ]; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers (w1308)"
+              else
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces (w1156)"
+              fi
             else
               echo "g05_ensure: parser_asm_thin_glue.o ← Class CB type_ref+FN_BLOCK+skip_tl peel"
             fi
@@ -2567,7 +2596,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
-          "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest"
+          "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest" "$_cb_p19b" "$_cb_p19"
       fi
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
