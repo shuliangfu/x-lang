@@ -10071,11 +10071,12 @@ PY
     obj="$dir/t$c.o"
     try=0
     # w1229: piece 8 is parser_asm_primary_asm_option_bit_buf_c.
-    # Some pure-asm tries segfault. Twelve tries. The other thirty-six
-    # pieces stay at eight. Symbols stay strong.
+    # w1230: piece 13 is parser_asm_string_lit_decode_span_x_into_c.
+    # Some pure-asm tries segfault. Twelve tries for those two pieces.
+    # The other thirty-five pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "8" ]; then
+    if [ "$c" = "8" ] || [ "$c" = "13" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
