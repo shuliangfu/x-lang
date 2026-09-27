@@ -1530,7 +1530,6 @@ export function diag_json_set_state(v: i32): i32 {
 // See implementation.
 export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
-export extern "C" function diag_io_fflush_impl(o: *u8): void;
 /** Exported function `diag_io_fputc`.
  * Implements `diag_io_fputc`.
  * @param o *u8
@@ -1593,14 +1592,20 @@ export function diag_io_fputs_u04x(o: *u8, c: u32): void {
   }
 }
 
-/** Exported function `diag_io_fflush`.
- * Implements `diag_io_fflush`.
- * @param o *u8
- * @return void
+/**
+ * Flush is a no-op. Diagnostic bytes are written straight to the
+ * file descriptor, so there is no buffer to flush. The stream
+ * argument is accepted and ignored.
+ * @param o *u8 — destination stream; ignored
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fflush(o: *u8): void {
-  unsafe { diag_io_fflush_impl(o); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (o == o) {
+    return;
+  }
 }
 
 /**

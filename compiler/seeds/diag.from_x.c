@@ -447,9 +447,11 @@ void diag_io_fputs_u04x(uint8_t *o, unsigned c) { diag_o_printf(o, "\\u%04x", c)
 /* Unicode escape lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fputs_u04x(uint8_t *o, unsigned c);
 #endif
-void diag_io_fflush_impl(uint8_t *o) { (void)o; /* raw fd writes are unbuffered */ }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fflush(uint8_t *o) { diag_io_fflush_impl(o); }
+void diag_io_fflush(uint8_t *o) { (void)o; /* raw fd writes are unbuffered */ }
+#else
+/* Flush is a no-op and lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fflush(uint8_t *o);
 #endif
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_line_col(uint8_t *o, int line, int col) {
