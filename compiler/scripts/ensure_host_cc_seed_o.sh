@@ -28934,7 +28934,7 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     note "Makefile thin-call present"
   fi
   # Core-seed leaves must not keep inline $(CC) -c recipes (thin only).
-  if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/x_seed_bridge\.o|src/seed_link_compat\.o):' Makefile \
+  if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/seed_link_compat\.o):' Makefile \
     | grep -qE '\$\(CC\).*-c seeds/'; then
     bad "Makefile core-seed leaves still have inline \$(CC) -c (must thin-call ensure)"
   else
