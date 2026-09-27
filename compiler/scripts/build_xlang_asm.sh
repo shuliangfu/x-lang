@@ -4170,14 +4170,7 @@ ensure_crt0_backend_companion_objs() {
   fi
   ;;
   esac
-  case "$_crt0_bag" in
-  *"x_seed_bridge.o"*) ;;
-  *)
-  if [ -f "$BUILD_DIR/x_seed_bridge.o" ]; then
-  CRT0_SEED_SUPPORT="$CRT0_SEED_SUPPORT $BUILD_DIR/x_seed_bridge.o"
-  fi
-  ;;
-  esac
+  # Product x_seed_bridge is src/x_seed_bridge.o. CRT0 must not append the host-cc build_asm copy. PLATFORM: SHARED.
   case "$_crt0_bag" in
   *"seed_link_compat.o"*) ;;
   *)
