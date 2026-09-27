@@ -972,14 +972,14 @@ void diag_io_fprint_unknown_code(uint8_t *out, const char *code) {
 /* Unknown-code line lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fprint_unknown_code(uint8_t *out, const char *code);
 #endif
-void diag_io_fprint_code_table_hdr_impl(uint8_t *out) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_io_fprint_code_table_hdr(uint8_t *out) {
     diag_o_printf(out, "%-8s %-18s %s\n", "CODE", "KIND", "SUMMARY");
     diag_o_printf(out, "%-8s %-18s %s\n", "----", "----", "-------");
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fprint_code_table_hdr(uint8_t *out) {
-    diag_io_fprint_code_table_hdr_impl(out);
-}
+#else
+/* Code-table header lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_code_table_hdr(uint8_t *out);
 #endif
 void diag_io_fprint_code_table_row_impl(uint8_t *out, const char *code, const char *kind, const char *summary) {
     diag_o_printf(out, "%-8s %-18s %s\n", code ? code : "", kind ? kind : "", summary ? summary : "");

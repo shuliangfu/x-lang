@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
 export extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
 
 /** Exported function `diag_io_fputc`.
@@ -2030,14 +2029,21 @@ export function diag_io_fprint_unknown_code(out: *u8, code: *u8): void {
   }
 }
 
-/** Exported function `diag_io_fprint_code_table_hdr`.
- * Implements `diag_io_fprint_code_table_hdr`.
- * @param out *u8
- * @return void
+/**
+ * Write the two code-table header lines. Column one is left-padded
+ * to 8, column two to 18, then one separating space and the title.
+ * The bytes match printf "%-8s %-18s %s\n" for these fixed labels.
+ * @param out *u8 — destination stream
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_code_table_hdr(out: *u8): void {
-  unsafe { diag_io_fprint_code_table_hdr_impl(out); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    diag_io_fputs("CODE     KIND               SUMMARY\n", out);
+    diag_io_fputs("----     ----               -------\n", out);
+  }
 }
 
 /** Exported function `diag_io_fprint_code_table_row`.
