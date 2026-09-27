@@ -28,9 +28,6 @@
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 /* Product body is src/x_seed_bridge.x. The cold xlang_io_register still calls it. PLATFORM: SHARED. */
 extern int32_t io_register_buffer(uint8_t *ptr, size_t len);
-int32_t io_wait_readable(int32_t * fds, int32_t n, uint32_t timeout_ms) {
-  return 0;
-}
 int32_t io_register_buffers_4(uint8_t * p0, size_t l0, uint8_t * p1, size_t l1, uint8_t * p2, size_t l2, uint8_t * p3, size_t l3, uint32_t nr) {
   return 0;
 }
