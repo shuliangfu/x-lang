@@ -5954,7 +5954,7 @@ xlang_asm_bstrict_relink_runtime_only() {
   # (PLATFORM: DARWIN rejects the same .o twice as duplicate symbols).
   ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o $BUILD_DIR/seed_host/asm_full_link_stubs.o"
   # user_asm (+ Darwin arm64 enc) live in BSTRICT_USER_ASM_EARLY_LINK before stubs.
-  ST_STRICT_COMPANIONS="$BUILD_DIR/x_seed_bridge.o $BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
+  ST_STRICT_COMPANIONS="$BUILD_DIR/seed_link_compat.o $ST_BACKEND_COMPANIONS $BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK $BSTRICT_DISPATCH_COMPANIONS parser_asm_thin_glue.o $ST_BSTRICT_LINK_EXTRA src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o preprocess_x.o src/runtime_driver_strict_glue_stubs.o $ST_DRIVER_CLI_OBJS"
   ensure_pipeline_o_strict_link_partial_obj || true
   filter_strict_asm_objs
   ASM_TRY_OBJS="$FILTERED"
