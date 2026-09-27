@@ -10073,11 +10073,12 @@ PY
     # w1229: piece 8 is parser_asm_primary_asm_option_bit_buf_c.
     # w1230: piece 13 is parser_asm_string_lit_decode_span_x_into_c.
     # w1231: piece 22 is parser_asm_parse_struct_lit_fields_x_into_c.
-    # Some pure-asm tries segfault. Twelve tries for those three pieces.
-    # The other thirty-four pieces stay at eight. Symbols stay strong.
+    # w1232: piece 24 is parser_asm_finish_struct_lit_from_type_ident_x_into_c.
+    # Some pure-asm tries segfault. Twelve tries for those four pieces.
+    # The other thirty-three pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "8" ] || [ "$c" = "13" ] || [ "$c" = "22" ]; then
+    if [ "$c" = "8" ] || [ "$c" = "13" ] || [ "$c" = "22" ] || [ "$c" = "24" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
