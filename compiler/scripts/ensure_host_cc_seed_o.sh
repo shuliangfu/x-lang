@@ -5565,6 +5565,49 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1177: src/runtime/rt_run_compiler_parsed.x segfaults on some
+# pure-asm tries and emits on a later try. Retry the whole translation
+# unit. Direct xlang_asm, not rt_prefer_try_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+run_compiler_parsed_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_run_compiler_parsed.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "69" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _pp_path _pi_argc _pz_slen _rt_cp_fill_code_io001; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1176: src/asm/backend_arch_emit_dispatch.x segfaults on some
 # pure-asm tries and emits on a later try. Retry the whole translation
 # unit. Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
@@ -12210,13 +12253,29 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_compiler_parsed_x" ]; then
               _rt_rcp_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_thin.XXXXXX") || true
               _rt_rcp_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_rcp_rest.XXXXXX") || true
+              _rt_rcp_pure=0
+              # w1177: some pure-asm tries segfault. Darwin retries the
+              # whole translation unit. Other hosts keep rt_prefer_try.
+              # Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
               if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o" \
+                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+                && bash scripts/ensure_host_cc_seed_o.sh run-compiler-parsed-pure "$_rt_rcp_thin_o"; then
+                _rt_rcp_pure=1
+              fi
+              if [ -n "$_rt_rcp_thin_o" ] && [ -n "$_rt_rcp_rest_o" ] \
+                && { [ "$_rt_rcp_pure" = "1" ] \
+                  || rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_thin_o"; } \
                 && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_COMPILER_PARSED_FROM_X \
                      -c -o "$_rt_rcp_rest_o" "$_rt_run_compiler_parsed_seed" \
                 && pure_ld_partial_merge "$_rt_rcp_o" "$_rt_rcp_thin_o" "$_rt_rcp_rest_o" 2>/dev/null; then
                 _rt_rcp_ok=1
-                echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+                if [ "$_rt_rcp_pure" = "1" ]; then
+                  echo "rt-prefer: R2 run_compiler_parsed ← pure-asm sixty-nine symbols (w1177)"
+                else
+                  echo "rt-prefer: R2 run_compiler_parsed ← full .x + rest marker (R2 full H=0)"
+                fi
               fi
               rm -f "$_rt_rcp_thin_o" "$_rt_rcp_rest_o"
             fi
@@ -26213,6 +26272,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  run-compiler-parsed-pure|run_compiler_parsed_darwin_pure)
+    # w1177: sixty-nine pure-asm symbols of rt_run_compiler_parsed.x.
+    # Does not write runtime_driver_no_c.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o run-compiler-parsed-pure: need <out.o>" >&2
+      exit 2
+    fi
+    run_compiler_parsed_darwin_pure "$1"
+    exit $?
+    ;;
   arch-emit-dispatch-pure|arch_emit_dispatch_darwin_pure)
     # w1176: forty-nine pure-asm symbols of backend_arch_emit_dispatch.x.
     # Does not write src/asm/backend_arch_emit_dispatch.o unless that path is passed.
