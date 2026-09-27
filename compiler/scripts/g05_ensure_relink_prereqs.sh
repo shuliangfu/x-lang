@@ -3426,7 +3426,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _xsb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_thin.XXXXXX") || true
         _xsb_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_xsb_rest.XXXXXX") || true
         # shellcheck disable=SC2086
-        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && G05_X_O_WEAK=0 G05_X_O_WEAK_FUNCS=std_io_driver_driver_read_ptr,std_io_driver_driver_read_ptr_len pure_asm_apply_weak_polish "$_xsb_thin_o"           && pure_ld_partial_merge "$_xsb_o" "$_xsb_thin_o" "$_xsb_rest_o" 2>/dev/null; then
+        if [ -n "$_xsb_thin_o" ] && [ -n "$_xsb_rest_o" ]           && g05_try_x_to_o "$_xsb_x" "$_xsb_thin_o"           && G05_X_O_WEAK=0 G05_X_O_WEAK_FUNCS=std_io_driver_driver_read_ptr,std_io_driver_driver_read_ptr_len pure_asm_apply_weak_polish "$_xsb_thin_o"           && cp -f "$_xsb_thin_o" "$_xsb_o" 2>/dev/null; then
           echo "g05_ensure: $_xsb_o ← $_xsb_x + seed-rest (G-02f-332 L2 hybrid x_seed_bridge thin)"
           _xsb_done=1
         else
