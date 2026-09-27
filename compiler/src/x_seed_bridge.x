@@ -655,3 +655,17 @@ export function std_io_driver_driver_read_ptr(handle: usize, timeout_ms: u32): *
   pad[1] = 0;
   return 0 as *u8;
 }
+
+/**
+ * Weak fallback for the std.io driver read-pointer length.
+ * lsp_gen calls this name. The real driver supplies a strong definition when
+ * it is linked. This body returns 0. The installed symbol stays weak.
+ * @return i32 — always 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_driver_driver_read_ptr_len(): i32 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  return 0;
+}
