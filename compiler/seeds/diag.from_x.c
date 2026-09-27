@@ -266,12 +266,9 @@ extern const char *diag_entry_details(const char *code);
 #endif
 
 /* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_should_color(void)
-#else
-int diag_should_color_impl(void)
-#endif
 {
 #if defined(_WIN32)
     /* PLATFORM: WINDOWS — no ANSI color path for host stderr in this twin. */
@@ -284,6 +281,10 @@ int diag_should_color_impl(void)
     return isatty(2) ? 1 : 0;
 #endif
 }
+#else
+/* Color decision lives in src/diag_thin.x. PLATFORM: POSIX. */
+extern int diag_should_color(void);
+#endif
 
 
 /** 供 .x 读 g_diag_ctx.use_color（G-02f-154）。 */
@@ -655,7 +656,7 @@ void diag_push_file_apply_impl(const char *path, const char *source, size_t sour
     g_diag_ctx.file_path = path ? path : g_diag_ctx.file_path;
     g_diag_ctx.source = source ? source : g_diag_ctx.source;
     g_diag_ctx.source_len = source ? source_len : g_diag_ctx.source_len;
-    g_diag_ctx.use_color = diag_should_color_impl();
+    g_diag_ctx.use_color = diag_should_color();
 }
 #endif
 

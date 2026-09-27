@@ -28,7 +28,7 @@ export extern "C" function diag_ctx_get_source_impl(): *u8;
 export extern "C" function diag_ctx_get_source_len_impl(): i64;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
-export extern "C" function diag_should_color_impl(): i32;
+export extern "C" function isatty(fd: i32): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // ---- G-02f-335 pure helpers ----
@@ -254,7 +254,7 @@ export function diag_code_details(code: *u8): *u8 {
 #[no_mangle]
 export function diag_set_file(path: *u8, source: *u8, source_len: i64): void {
   unsafe {
-    let c: i32 = diag_should_color_impl();
+    let c: i32 = diag_should_color();
     diag_ctx_set_all_impl(path, source, source_len, c);
   }
 }
@@ -585,15 +585,27 @@ export function diag_restore(snapshot: *u8): void {
 
 // diag_should_color: see function docblock below.
 
-/** Exported function `diag_should_color`.
- * Implements `diag_should_color`.
- * @return i32
+/**
+ * Return 1 when stderr diagnostics should use ANSI color.
+ * Any XLANG_NO_COLOR value, including an empty string, turns color off.
+ * Otherwise color is on only when stderr (fd 2) is a terminal.
+ * The cold seed still returns 0 on Windows. This walk is the POSIX rule.
+ * @return i32 — 1 when color is on, otherwise 0
+ * PLATFORM: POSIX.
  */
 #[no_mangle]
 export function diag_should_color(): i32 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    return diag_should_color_impl();
+    if (link_abi_getenv("XLANG_NO_COLOR") != 0 as *u8) {
+      return 0;
+    }
+    if (isatty(2) != 0) {
+      return 1;
+    }
   }
+  return 0;
 }
 
 /** Exported function `diag_color_reset`.
