@@ -2445,6 +2445,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p4pb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4pb.XXXXXX") || true
         _cb_p4p=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4p.XXXXXX") || true
         _cb_p9a=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p9a.XXXXXX") || true
+        _cb_p4ub=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4ub.XXXXXX") || true
         _cb_p7b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7b.XXXXXX") || true
         _cb_p7=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7.XXXXXX") || true
         _cb_p15b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p15b.XXXXXX") || true
@@ -2484,6 +2485,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p4p_extra=""
         _cb_p9a_pure=0
         _cb_p9a_ok=0
+        _cb_p4ub_pure=0
         _cb_p5b_pure=0
         _cb_p5_ok=0
         if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
@@ -2574,6 +2576,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && bash scripts/ensure_host_cc_seed_o.sh pthin-stretch-audit-pure "$_cb_p9a"; then
             _cb_p9a_pure=1
           fi
+          # w1321: unary is three functions in one translation unit.
+          # The splitter retries the whole file. PLATFORM: MACOS|DARWIN arm64.
+          # The whole file segfaults on most tries and emits on a later
+          # one. One splitter pass is twelve tries; repeat the pass so a
+          # bad streak does not drop the slice. PLATFORM: MACOS|DARWIN arm64.
+          if [ -n "$_cb_p4ub" ] && [ -f "$_pthin_p4ub_x" ]; then
+            _cb_p4ub_pass=0
+            while [ "$_cb_p4ub_pass" -lt 4 ]; do
+              _cb_p4ub_pass=$((_cb_p4ub_pass + 1))
+              if bash scripts/ensure_host_cc_seed_o.sh pthin-expr-unary-pure "$_cb_p4ub"; then
+                _cb_p4ub_pure=1
+                break
+              fi
+            done
+          fi
         fi
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
           && [ -n "$_bx_bridge" ] && [ -n "$_ca_p6b" ] && [ -n "$_ca_p6" ] \
@@ -2616,6 +2633,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_cb_p4as" "pipeline_expr_set_as_c" \
             && g05_obj_defines "$_cb_p4u" "pipeline_expr_set_unary_operand_c"; then
             _cb_p4as_ok=1
+          fi
+          # w1321: replace the writer-only object with the BODIES seed.
+          # That seed still defines pipeline_expr_set_unary_operand_c.
+          # Rest then drops parser_asm_unary_slice.inc. A failed compile
+          # leaves the writer-only object in place.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ "$_cb_p4ub_pure" = "1" ] && [ "$_cb_p4as_ok" = "1" ] \
+            && g05_obj_defines "$_cb_p4ub" "parser_asm_unary_token_to_expr_kind_c" \
+            && g05_obj_defines "$_cb_p4ub" "parser_asm_unary_wrap_operand_into_c" \
+            && g05_obj_defines "$_cb_p4ub" "parser_asm_parse_unary_x_into_c"; then
+            _cb_p4u_bodies=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4u_bodies.XXXXXX") || true
+            if [ -n "$_cb_p4u_bodies" ] \
+              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+                 -DXLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X \
+                 -c -o "$_cb_p4u_bodies" "$_pthin_p4u_seed" \
+              && g05_obj_defines "$_cb_p4u_bodies" "parser_asm_parse_unary_into_slice_c" \
+              && g05_obj_defines "$_cb_p4u_bodies" "pipeline_expr_set_unary_operand_c" \
+              && g05_obj_defines "$_cb_p4u_bodies" "labi_pthin_expr_unary_slice_marker" \
+              && g05_obj_defines "$_cb_p4u_bodies" "parser_parse_primary_ptr_into_c"; then
+              cp -f "$_cb_p4u_bodies" "$_cb_p4u"
+              _cb_p4ub_ok=1
+            fi
+            rm -f "$_cb_p4u_bodies"
           fi
           # w1312: trampoline keeps the parse dest-buffers. Bodies are
           # the four .x symbols. set_if stays in the ctrl seed (G.7).
@@ -2842,6 +2882,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p5_ok:+-DXLANG_PTHIN_CTRL_FROM_X} \
                ${_cb_p4p_ok:+-DXLANG_PTHIN_EXPR_PRIMARY_FROM_X} \
                ${_cb_p9a_ok:+-DXLANG_PTHIN_STRETCH_AUDIT_FROM_X} \
+               ${_cb_p4ub_ok:+-DXLANG_PTHIN_EXPR_UNARY_FROM_X} \
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
@@ -2851,6 +2892,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p5_ok:+"$_cb_p5" "$_cb_p5b"} \
                ${_cb_p4p_ok:+"$_cb_p4p" "$_cb_p4pb"} \
                ${_cb_p9a_ok:+"$_cb_p9a"} \
+               ${_cb_p4ub_ok:+"$_cb_p4ub"} \
                ${_cb_p5w_use:+"$_cb_p5w"} \
                ${_cb_p7_ok:+"$_cb_p7" "$_cb_p7b"} \
                ${_cb_p15_ok:+"$_cb_p15" "$_cb_p15b"} \
@@ -2859,6 +2901,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
               && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
               if [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
+                && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
+                && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
+                && [ "$_cb_p9a_ok" = "1" ] && [ "$_cb_p4ub_ok" = "1" ]; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl + primary + stretch_audit + unary (w1321)"
+              elif [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
                 && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
                 && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
                 && [ "$_cb_p9a_ok" = "1" ]; then
@@ -2902,7 +2949,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
           "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
           "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u" "$_cb_p4tb" "$_cb_p4t" "$_cb_p5w" \
-          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" "$_cb_p9a" \
+          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" "$_cb_p9a" "$_cb_p4ub" \
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
           "$_cb_p9b" "$_cb_p9"
       fi

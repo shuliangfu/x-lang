@@ -2822,6 +2822,9 @@ int labi_pthin_expr_primary_slice_marker(void);
 #ifndef XLANG_PTHIN_EXPR_UNARY_FROM_X
 #include "parser_asm_unary_slice.inc"
 #else
+/* unary_slice.inc declared this for later slices. The definition stays
+ * in the AST object. PLATFORM: SHARED. */
+extern int32_t ast_ast_arena_expr_alloc(void *arena);
 void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                         struct parser_asm_slice_u8 *source,
                                         struct parser_asm_parse_expr_result *out);
