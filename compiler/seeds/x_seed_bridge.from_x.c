@@ -197,6 +197,7 @@ extern void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_E
 
 /** parser.x 生成体引用；初始化 match 相关字段。verify-selfhost-stage2 链 ast_x2.o 时由 ast.x 导出，勿重复定义。 */
 #ifndef X_VERIFY_STAGE2
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 void ast_expr_init_match_enum(struct ast_Expr *e) {
   if (!e)
     return;
@@ -204,6 +205,10 @@ void ast_expr_init_match_enum(struct ast_Expr *e) {
   e->match_arm_base = 0;
   e->match_num_arms = 0;
 }
+#else
+/* Match-field clear lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern void ast_expr_init_match_enum(struct ast_Expr *e);
+#endif
 #endif
 
 /** typeck/codegen 生成体引用；重置 call resolve 字段。Stage2 由 ast_x2.o 提供。 */

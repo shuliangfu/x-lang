@@ -13,6 +13,7 @@ export extern "C" function free(ptr: *u8): void;
 export extern "C" function pipeline_match_module_bytes(): *u8;
 export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
+export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -208,4 +209,25 @@ export function pipeline_parser_get_match_module(): *u8 {
     m = diag_snap_load_ptr(pipeline_match_module_bytes(), 0);
   }
   return m;
+}
+
+/**
+ * Clear the match fields of one expression.
+ * Offsets in the flat ast_Expr record: matched ref at 320, arm base at
+ * 324, arm count at 328. A null expression is left untouched.
+ * @param e *u8 — expression record, or null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_init_match_enum(e: *u8): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (e == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    diag_snap_store_i32(e, 320, 0);
+    diag_snap_store_i32(e, 324, 0);
+    diag_snap_store_i32(e, 328, 0);
+  }
 }
