@@ -159,6 +159,10 @@ export function std_path_join(out: *u8, out_max: i32, a: *u8, a_len: i32, b: *u8
  */
 #[no_mangle]
 export function std_path_dirname(path: *u8, path_len: i32, out: *u8, out_max: i32): i32 {
+  // Live pad. The dirname stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let last: i32 = path_last_sep_c(path, path_len);
   let i: i32 = 0;
   if (last <= 0) { return 0; }

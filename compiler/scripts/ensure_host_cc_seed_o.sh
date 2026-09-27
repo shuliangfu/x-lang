@@ -721,6 +721,14 @@ ensure_path_fast_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
+  # w1194: some pure-asm tries segfault. Retry before the three-try
+  # path. A failed retry still falls back to that path and then the
+  # C seed. Symbols stay strong. PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh path-fast-pure "$o"; then
+    log "prefer path fast ← pure-asm twenty symbols (w1194)"
+    return 0
+  fi
   while [ "$try" -lt 3 ]; do
     try=$((try + 1))
     rm -f "$o"
@@ -5589,6 +5597,51 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1194: src/asm/runtime_path_fast.x segfaults on some pure-asm
+# tries and emits on a later try. A live pad keeps the dirname
+# stores inside the frame. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+path_fast_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_path_fast.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "20" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_path_fast_x_doc_anchor _std_path_dirname \
+    _path_sep_c _std_path_basename; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1193: src/asm/runtime_string_fast.x segfaults on some
 # pure-asm tries and emits on a later try. Frames are already
 # inside the allocation. Retry the whole translation unit.
@@ -27230,6 +27283,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  path-fast-pure|path_fast_retry_pure)
+    # w1194: twenty pure-asm symbols of runtime_path_fast.x.
+    # Does not write std/path/path.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o path-fast-pure: need <out.o>" >&2
+      exit 2
+    fi
+    path_fast_retry_pure "$1"
+    exit $?
+    ;;
   string-fast-pure|string_fast_retry_pure)
     # w1193: nine pure-asm symbols of runtime_string_fast.x.
     # Does not write std/string/string.o unless that path is passed.
