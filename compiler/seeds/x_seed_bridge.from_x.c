@@ -113,9 +113,6 @@ extern void pipeline_parser_set_match_module(struct ast_Module *m);
 /* Module-slot read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern struct ast_Module *pipeline_parser_get_match_module(void);
 
-extern struct ast_Expr ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
-extern void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);
-
 /** parser.x 生成体引用；初始化 match 相关字段。verify-selfhost-stage2 链 ast_x2.o 时由 ast.x 导出，勿重复定义。 */
 #ifndef X_VERIFY_STAGE2
 /* Match-field clear lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
@@ -124,20 +121,8 @@ extern void ast_expr_init_match_enum(struct ast_Expr *e);
 
 /** typeck/codegen 生成体引用；重置 call resolve 字段。Stage2 由 ast_x2.o 提供。 */
 #ifndef X_VERIFY_STAGE2
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_ref) {
-  struct ast_Expr e;
-  if (!arena || expr_ref <= 0)
-    return;
-  e = ast_arena_expr_get(arena, expr_ref);
-  e.call_resolved_func_index = -1;
-  e.call_resolved_dep_index = -1;
-  ast_arena_expr_set(arena, expr_ref, e);
-}
-#else
 /* Call-resolve reset lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_ref);
-#endif
 #endif
 
 /** lsp_io.x / pipeline 引用 libc 风格 IO 符号；seed 链 read/write 转发。 */
