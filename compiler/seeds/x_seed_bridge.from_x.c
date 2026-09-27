@@ -135,14 +135,8 @@ extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms
 #endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms) {
-  ssize_t n;
-  (void)timeout_ms;
-  if (!buf || count == 0)
-    return 0;
-  n = (ssize_t)xlang_io_write(fd, buf, count);
-  return n >= 0 ? (ptrdiff_t)n : -1;
-}
+/* Product body is src/x_seed_bridge.x. Cold io_write_fixed, io_write_batch, and xlang_io_submit_write still call it. PLATFORM: SHARED. */
+extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 #else
 /* Byte write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
