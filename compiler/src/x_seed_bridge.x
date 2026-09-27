@@ -386,3 +386,26 @@ export function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize
   n = io_read(fd, 0 as *u8, len, timeout_ms);
   return n;
 }
+
+/**
+ * Write through a registered buffer slot.
+ * buf_index and offset are ignored. The call goes to io_write with a null
+ * buffer, which returns 0 without writing.
+ * @param fd i32 — file descriptor
+ * @param buf_index u32 — ignored
+ * @param offset usize — ignored
+ * @param len usize — length passed to io_write
+ * @param timeout_ms u32 — passed through to io_write
+ * @return isize — result of io_write on a null buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = buf_index as u8;
+  pad[2] = offset as u8;
+  n = io_write(fd, 0 as *u8, len, timeout_ms);
+  return n;
+}
