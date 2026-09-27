@@ -5551,6 +5551,49 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1171: src/runtime/rt_argv.x segfaults on the first pure-asm
+# tries and emits on a later try. Retry the whole translation unit.
+# Direct xlang_asm, not rt_prefer_try_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+rt_argv_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_argv.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "15" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _drv_eq_minus_o _drv_eq_flto _drv_path_ends_x _drv_target_has_arm; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1170: src/runtime/rt_fmt_one.x segfaults on some pure-asm tries
 # and emits on a later try. Retry the whole translation unit.
 # Direct xlang_asm, not rt_prefer_try_x_to_o.
@@ -11261,13 +11304,29 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ "${XLANG_RT_ARGV_FORCE_SEED:-0}" != "1" ] && [ -f "$_rt_argv_x" ]; then
               _rt_argv_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv_thin.XXXXXX") || true
               _rt_argv_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_argv_rest.XXXXXX") || true
+              _rt_argv_pure=0
+              # w1171: the first pure-asm tries segfault. Darwin retries the
+              # whole translation unit. Other hosts keep rt_prefer_try.
+              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
               if [ -n "$_rt_argv_thin_o" ] && [ -n "$_rt_argv_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_argv_thin_o" \
+                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+                && bash scripts/ensure_host_cc_seed_o.sh rt-argv-pure "$_rt_argv_thin_o"; then
+                _rt_argv_pure=1
+              fi
+              if [ -n "$_rt_argv_thin_o" ] && [ -n "$_rt_argv_rest_o" ] \
+                && { [ "$_rt_argv_pure" = "1" ] \
+                  || rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_argv_thin_o"; } \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ARGV_FROM_X \
                      -c -o "$_rt_argv_rest_o" "$_rt_argv_seed" \
                 && pure_ld_partial_merge "$_rt_a_o" "$_rt_argv_thin_o" "$_rt_argv_rest_o" 2>/dev/null; then
                 _rt_argv_ok=1
-                echo "rt-prefer: R1 argv ← full .x + rest (R2 full H=0; G-02f-431 PREFER_X_O)"
+                if [ "$_rt_argv_pure" = "1" ]; then
+                  echo "rt-prefer: R1 argv ← pure-asm fifteen symbols (w1171)"
+                else
+                  echo "rt-prefer: R1 argv ← full .x + rest (R2 full H=0; G-02f-431 PREFER_X_O)"
+                fi
               fi
               rm -f "$_rt_argv_thin_o" "$_rt_argv_rest_o"
             fi
@@ -25813,6 +25872,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-argv-pure|rt_argv_darwin_pure)
+    # w1171: fifteen pure-asm symbols of src/runtime/rt_argv.x.
+    # Does not write runtime_driver_no_c.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-argv-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_argv_darwin_pure "$1"
+    exit $?
+    ;;
   rt-fmt-one-pure|rt_fmt_one_darwin_pure)
     # w1170: three pure-asm symbols of src/runtime/rt_fmt_one.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
