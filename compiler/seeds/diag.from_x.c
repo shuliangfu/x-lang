@@ -50,10 +50,12 @@ static int diag_o_puts(uint8_t *o, const char *s) {
     return diag_o_write(o, s, s ? strlen(s) : 0);
 }
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Write one char (fputc twin). */
 static int diag_o_putc(uint8_t *o, char c) {
     return diag_o_write(o, &c, 1);
 }
+#endif
 
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Formatted write via Cap fmt (fprintf twin; 512B cap — diag lines are short). */
@@ -433,9 +435,11 @@ uint8_t *diag_stderr_impl(void) { return diag_h_stderr(); }
 uint8_t *diag_stderr(void) { return diag_stderr_impl(); }
 #endif
 /* G-02f-415：实现体始终 seed（stdio/fmt）；public PREFER 时 thin pure forward */
-int diag_io_fputc_impl(uint8_t *o, int c) { return diag_o_putc(o, (char)c); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-int diag_io_fputc(uint8_t *o, int c) { return diag_io_fputc_impl(o, c); }
+int diag_io_fputc(uint8_t *o, int c) { return diag_o_putc(o, (char)c); }
+#else
+/* One-byte write lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_io_fputc(uint8_t *o, int c);
 #endif
 int diag_io_fputs_impl(const char *s, uint8_t *o) { return diag_o_puts(o, s ? s : ""); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
