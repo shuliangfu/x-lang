@@ -10292,12 +10292,13 @@ PY
     # w1246: piece 13 is parser_asm_parse_postfix_slice_x_into_c.
     # w1247: piece 14 is parser_asm_parse_postfix_array_x_into_c.
     # w1248: piece 26 is parser_asm_parse_named_generic_args_x_into_c.
+    # w1249: piece 27 is parser_asm_vector_type_ref_from_ident_spelling_x_into_c.
     # Piece 8 stays at eight: nine integer args, the stack arg tracks the frame.
-    # Some pure-asm tries segfault. Twelve tries for those ten pieces.
-    # The other twenty-one pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those eleven pieces.
+    # The other twenty pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "9" ] || [ "$c" = "10" ] || [ "$c" = "11" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "14" ] || [ "$c" = "26" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "9" ] || [ "$c" = "10" ] || [ "$c" = "11" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "14" ] || [ "$c" = "26" ] || [ "$c" = "27" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
