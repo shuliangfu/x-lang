@@ -3873,6 +3873,14 @@ ensure_env_os_darwin_pure() {
   thin_o="$(mktemp "${TMPDIR:-/tmp}/env_thin.XXXXXX.o")"
   os_o="$(mktemp "${TMPDIR:-/tmp}/env_os.XXXXXX.o")"
   rm -f "$thin_o" "$os_o" "$o"
+  # w1214: the thin half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A failed fill still falls back to that
+  # loop. The Darwin half stays on the loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh env-thin-retry "$thin_o"; then
+    log "prefer env thin ← pure-asm eleven symbols (w1214)"
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     if [ ! -s "$thin_o" ]; then
@@ -5778,6 +5786,56 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1214: src/asm/runtime_env_os.x segfaults on some pure-asm
+# tries and emits on a later try. Frames are already inside the
+# allocation. The Darwin half stays on the old loop.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+env_thin_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_env_os.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "11" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_env_os_x_doc_anchor _env_build_key _env_getenv_c _env_iter_at_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  for c in _env_getenv_c_impl _env_getenv_exists_c_impl _env_setenv_c_impl _env_iter_count_c_impl; do
+    if ! nm -u "$o" | awk -v s="$c" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1213: src/asm/runtime_dynlib_os_darwin_text.x segfaults on some
 # pure-asm tries and emits on a later try. Frames are already
 # inside the allocation. The dlopen half stays on the old loop.
@@ -28529,6 +28587,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  env-thin-retry|env_thin_retry_pure)
+    # w1214: eleven pure-asm symbols of runtime_env_os.x.
+    # Does not write runtime_env_os.o and does not compile the Darwin half.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o env-thin-retry: need <out.o>" >&2
+      exit 2
+    fi
+    env_thin_retry_pure "$1"
+    exit $?
+    ;;
   dynlib-text-retry|dynlib_text_retry_pure)
     # w1213: six pure-asm symbols of runtime_dynlib_os_darwin_text.x.
     # Does not write runtime_dynlib_os.o and does not compile the dlopen half.

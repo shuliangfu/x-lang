@@ -636,6 +636,7 @@
 - 2026-09-27 Darwin arm64 `runtime_asm_build.o` 的产品体是 `src/asm/runtime_asm_build.x` 与 `src/asm/runtime_asm_build_main.x` 的纯 asm 合并。含 `main` 的翻译单元只发出 `main`。`skip` 读回 5，`main` 读回 17。Linux 与 Windows 仍编 `seeds/runtime_asm_build.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
 - 2026-09-27 Darwin arm64 独立 `rt_stack.o` 的产品体是 `src/runtime/rt_stack.x`，纯 asm。空参数返回空，源 11 长度 4 写回 21，大栈读回 7，留下 -99 时读回 3。切片标记留在大包 C。Linux 与 Windows 仍编 `seeds/rt_stack.from_x.c`。纯 asm 对象若带上切片标记则不收口。
 - 2026-09-27 lib root 三函数的产品体是 `src/runtime/rt_lib_root.x`，纯 asm。文件里只留一个 `while`。空指针和空串不可用，`XLANG_LIB` 为 `lib` 时读回 `lib`，两行时第一行 `abc`、第二行 `.`。切片标记留在大包 C。Linux 与 Windows 走同一份 `.x`。纯 asm 失败才退回 `-E` 或整份种子。
+- 2026-09-27 环境薄面十一个符号改由 `.x` 纯 asm 编出。第一次会段错误，第二次才发出对象。符号保持强。锚点返回 0。盘上 `runtime_env_os.o` 没有重编。系统调用那一半仍走原来的八次尝试。
 - 2026-09-27 动态库文本面六个符号改由 `.x` 纯 asm 编出。八次抽样里四次会段错误，再试才发出对象。符号保持强。锚点返回 0。盘上 `runtime_dynlib_os.o` 没有重编。装入一半仍走原来的八次尝试。
 - 2026-09-27 栈逃逸两个符号改由 `.x` 纯 asm 编出。八次抽样里三次会段错误，再试才发出对象。符号保持强。空线程入口返回空指针。盘上 `rt_stack.o` 没有重编。纯 asm 失败才退回原来的八次尝试。
 - 2026-09-27 诊断错误码十三个符号改由 `.x` 纯 asm 编出。第一次会段错误，第二次才发出对象。符号保持强。__error 改成 ___error。当前错误码返回 7。盘上 `runtime_driver_no_c.o` 没有重编。纯 asm 失败才退回原来的八次尝试。
