@@ -10492,11 +10492,12 @@ PY
     obj="$dir/t$c.o"
     try=0
     # w1251: piece 0 is parser_asm_ctrl_ident_continue.
-    # Some pure-asm tries segfault. Twelve tries for that one piece.
-    # The other thirty pieces stay at eight. Symbols stay strong.
+    # w1252: piece 1 is parser_asm_ctrl_bytes_eq.
+    # Some pure-asm tries segfault. Twelve tries for those two pieces.
+    # The other twenty-nine pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
