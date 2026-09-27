@@ -1377,34 +1377,58 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # missing header_x keeps the C twin without dropping P6g.
         # Cold: no define, full .inc.
         _pthin_p6_extra=""
+        _pthin_p6_pure=0
+        # w1150: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p6b_thin_o" ] && [ -f "$_pthin_p6b_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o" \
-            && g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_struct_layout_first_name_match_idx_c"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-fn-block-pure "$_pthin_p6b_thin_o"; then
+            _pthin_p6_pure=1
+          fi
+          if [ "$_pthin_p6_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p6b_x" "$_pthin_p6b_thin_o"; then
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_struct_layout_first_name_match_idx_c"; then
             _pthin_p6b_ok=1
             _pthin_p6_extra="-DXLANG_PTHIN_FN_BLOCK_BODIES_FROM_X"
             if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_struct_record_layout_x_into_c"; then
               _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
+            fi
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_fill_block_const_let_from_res_x_into_c"; then
+              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X"
+            fi
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_one_function_library_finish_x_into_c"; then
+              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X"
+            fi
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_one_function_buf_header_x_into_c"; then
+              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X"
+            fi
+            if [ "$_pthin_p6_pure" = "1" ]; then
+              echo "g05_ensure: P6 fn_block ← pure-asm twenty-five pieces (w1150)"
+            else
+            if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_struct_record_layout_x_into_c"; then
               echo "g05_ensure: P6b/P6c/P6d/P6e fn_block bodies ← $_pthin_p6b_x (7.2.1 B-minus)"
             else
               echo "g05_ensure: P6b/P6c/P6d fn_block bodies ← $_pthin_p6b_x (P6e parse C twin)"
             fi
             if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_fill_block_const_let_from_res_x_into_c"; then
-              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X"
               echo "g05_ensure: P6f block_from_res ← $_pthin_p6b_x (7.2.1 B-minus)"
             else
               echo "g05_ensure: P6f block_from_res C twin (missing fill_x)"
             fi
             if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_one_function_library_finish_x_into_c"; then
-              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X"
               echo "g05_ensure: P6g library remaining compositor ← $_pthin_p6b_x (7.2.1 B-minus)"
             else
               echo "g05_ensure: P6g library remaining compositor C twin (missing finish_x)"
             fi
             if g05_obj_defines "$_pthin_p6b_thin_o" "parser_asm_parse_one_function_buf_header_x_into_c"; then
-              _pthin_p6_extra="$_pthin_p6_extra -DXLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X"
               echo "g05_ensure: P6h one_function_buf header ← $_pthin_p6b_x (7.2.1 B-minus)"
             else
               echo "g05_ensure: P6h one_function_buf header C twin (missing header_x)"
+            fi
+            fi
             fi
           else
             echo "g05_ensure: P6b fn_block .x thin failed or missing layout match; P6 C twin stays full" >&2

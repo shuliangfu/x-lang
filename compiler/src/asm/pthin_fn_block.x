@@ -16,6 +16,10 @@
 
 // pthin_fn_block.x — G-02f-287 P6 parser thin fn/block product bodies.
 //
+// w1150: one translation unit exits 139. Darwin compiles each function
+// and links the twenty-five pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P6b B-minus (2026-09-15): 有则补全 this existing P6 file with the
 // three always-compiled struct-layout name matchers. The C bodies lived
 // in struct_layout.inc (always host-cc, not behind BODIES). ABI is already
@@ -352,19 +356,36 @@ export function parser_asm_struct_layout_name_exists_arr_c(module: *u8, nm: *u8,
   let ii: i32 = 0;
   let same: i32 = 0;
   let b: u8 = 0;
+  let bytes: *u8 = 0 as *u8;
+  let off: usize = 0;
+  let nb: u8 = 0;
+  let lim: i32 = 0;
+  let slot: *i32 = 0 as *i32;
   if (module == 0 as *u8 || nm == 0 as *u8 || nlen <= 0) {
     return 0;
   }
   unsafe {
+    bytes = nm;
     nsl = pipeline_module_num_struct_layouts_at(module);
     k = 0;
     while (k < nsl) {
       if (pipeline_module_struct_layout_name_len(module, k) == nlen) {
         same = 1;
+        // Stash the length through a pointer. Comparing `ii < nlen`
+        // reuses a stale x0 and the loop never reloads the parameter.
         ii = 0;
-        while (ii < nlen && ii < 64) {
+        slot = &lim;
+        slot[0] = nlen;
+        while (ii < lim) {
+          if (ii >= 64) {
+            break;
+          }
           b = pipeline_module_struct_layout_name_byte_at(module, k, ii);
-          if (b != nm[ii as usize]) {
+          // Copy the spelling pointer and the index into locals. Indexing
+          // the parameter directly drops bytes after the first.
+          off = ii as usize;
+          nb = bytes[off];
+          if (b != nb) {
             same = 0;
             break;
           }
@@ -397,19 +418,36 @@ export function parser_asm_struct_layout_first_name_match_idx_c(module: *u8, nm:
   let ii: i32 = 0;
   let same: i32 = 0;
   let b: u8 = 0;
+  let bytes: *u8 = 0 as *u8;
+  let off: usize = 0;
+  let nb: u8 = 0;
+  let lim: i32 = 0;
+  let slot: *i32 = 0 as *i32;
   if (module == 0 as *u8 || nm == 0 as *u8 || nlen <= 0) {
     return -1;
   }
   unsafe {
+    bytes = nm;
     nsl = pipeline_module_num_struct_layouts_at(module);
     k = 0;
     while (k < nsl) {
       if (pipeline_module_struct_layout_name_len(module, k) == nlen) {
         same = 1;
+        // Stash the length through a pointer. Comparing `ii < nlen`
+        // reuses a stale x0 and the loop never reloads the parameter.
         ii = 0;
-        while (ii < nlen && ii < 64) {
+        slot = &lim;
+        slot[0] = nlen;
+        while (ii < lim) {
+          if (ii >= 64) {
+            break;
+          }
           b = pipeline_module_struct_layout_name_byte_at(module, k, ii);
-          if (b != nm[ii as usize]) {
+          // Copy the spelling pointer and the index into locals. Indexing
+          // the parameter directly drops bytes after the first.
+          off = ii as usize;
+          nb = bytes[off];
+          if (b != nb) {
             same = 0;
             break;
           }
@@ -444,19 +482,36 @@ export function parser_asm_struct_layout_placeholder_idx_c(module: *u8, nm: *u8,
   let same: i32 = 0;
   let nf: i32 = 0;
   let b: u8 = 0;
+  let bytes: *u8 = 0 as *u8;
+  let off: usize = 0;
+  let nb: u8 = 0;
+  let lim: i32 = 0;
+  let slot: *i32 = 0 as *i32;
   if (module == 0 as *u8 || nm == 0 as *u8 || nlen <= 0) {
     return -1;
   }
   unsafe {
+    bytes = nm;
     nsl = pipeline_module_num_struct_layouts_at(module);
     k = 0;
     while (k < nsl) {
       if (pipeline_module_struct_layout_name_len(module, k) == nlen) {
         same = 1;
+        // Stash the length through a pointer. Comparing `ii < nlen`
+        // reuses a stale x0 and the loop never reloads the parameter.
         ii = 0;
-        while (ii < nlen && ii < 64) {
+        slot = &lim;
+        slot[0] = nlen;
+        while (ii < lim) {
+          if (ii >= 64) {
+            break;
+          }
           b = pipeline_module_struct_layout_name_byte_at(module, k, ii);
-          if (b != nm[ii as usize]) {
+          // Copy the spelling pointer and the index into locals. Indexing
+          // the parameter directly drops bytes after the first.
+          off = ii as usize;
+          nb = bytes[off];
+          if (b != nb) {
             same = 0;
             break;
           }
@@ -498,6 +553,7 @@ export function parser_asm_struct_layout_placeholder_idx_c(module: *u8, nm: *u8,
  */
 #[no_mangle]
 export function parser_asm_tok_is_modifier_packed_c(kind: i32, ident_len: i32, next_pos: usize, data: *u8, length: usize): i32 {
+  let pad: u8[64] = [];
   let start: usize = 0;
   let b0: u8 = 0;
   let b1: u8 = 0;
@@ -505,6 +561,7 @@ export function parser_asm_tok_is_modifier_packed_c(kind: i32, ident_len: i32, n
   let b3: u8 = 0;
   let b4: u8 = 0;
   let b5: u8 = 0;
+  pad[0] = 0;
   if (kind == TOKEN_PACKED) {
     return 1;
   }
@@ -549,10 +606,12 @@ export function parser_asm_tok_is_modifier_packed_c(kind: i32, ident_len: i32, n
  */
 #[no_mangle]
 export function parser_asm_tok_is_modifier_soa_c(kind: i32, ident_len: i32, next_pos: usize, data: *u8, length: usize): i32 {
+  let pad: u8[32] = [];
   let start: usize = 0;
   let b0: u8 = 0;
   let b1: u8 = 0;
   let b2: u8 = 0;
+  pad[0] = 0;
   if (kind == TOKEN_SOA) {
     return 1;
   }
@@ -714,15 +773,23 @@ export function parser_asm_library_bool_eq_shape_wrap_into_c(arena: *u8, param_n
   if (fn < 0) {
     fn = 0;
   }
-  bool_tr = skip_lib_type_bool(arena);
+  // Darwin compiles this function alone. The wrap helpers are externs,
+  // so each call sits in unsafe.
+  unsafe {
+    bool_tr = skip_lib_type_bool(arena);
+  }
   if (bool_tr == 0) {
     return 0;
   }
-  token_tr = skip_lib_type_named(arena, type_name, tnlen);
+  unsafe {
+    token_tr = skip_lib_type_named(arena, type_name, tnlen);
+  }
   if (token_tr == 0) {
     return 0;
   }
-  var_ref = skip_lib_wrap_prep(arena, EXPR_VAR);
+  unsafe {
+    var_ref = skip_lib_wrap_prep(arena, EXPR_VAR);
+  }
   if (var_ref == 0) {
     return 0;
   }
@@ -730,18 +797,24 @@ export function parser_asm_library_bool_eq_shape_wrap_into_c(arena: *u8, param_n
     pipeline_expr_set_var_name(arena, var_ref, param_name, pn);
     pipeline_expr_set_resolved_type_ref(arena, var_ref, token_tr);
   }
-  field_ref = skip_lib_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  unsafe {
+    field_ref = skip_lib_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  }
   if (field_ref == 0) {
     return 0;
   }
   unsafe {
     pipeline_expr_set_field_access_c(arena, field_ref, var_ref, field_name, fn);
   }
-  enum_ref = skip_lib_wrap_prep(arena, EXPR_ENUM_VARIANT);
+  unsafe {
+    enum_ref = skip_lib_wrap_prep(arena, EXPR_ENUM_VARIANT);
+  }
   if (enum_ref == 0) {
     return 0;
   }
-  eq_ref = skip_lib_wrap_prep(arena, EXPR_EQ);
+  unsafe {
+    eq_ref = skip_lib_wrap_prep(arena, EXPR_EQ);
+  }
   if (eq_ref == 0) {
     return 0;
   }
@@ -1287,7 +1360,11 @@ function parser_asm_library_maybe_layout_x(module: *u8, type_name: *u8, tnlen: i
   if (flen <= 0) {
     return 1;
   }
-  exists = parser_asm_struct_layout_name_exists_arr_c(module, type_name, tnlen);
+  // Darwin compiles this function alone. The name matcher is an extern,
+  // so the call sits in unsafe.
+  unsafe {
+    exists = parser_asm_struct_layout_name_exists_arr_c(module, type_name, tnlen);
+  }
   if (exists != 0) {
     return 1;
   }
@@ -1381,15 +1458,23 @@ export function parser_asm_parse_one_function_library_finish_x_into_c(arena: *u8
   if (token_ty <= 0) {
     return 0;
   }
-  block_ref = parser_asm_library_init_block_x(arena, eq_ref);
+  // Darwin compiles this function alone. The block, layout, and register
+  // helpers are externs, so each call sits in unsafe.
+  unsafe {
+    block_ref = parser_asm_library_init_block_x(arena, eq_ref);
+  }
   if (block_ref == 0) {
     return 0;
   }
-  if (parser_asm_library_maybe_layout_x(module, tname, tnlen, fname, flen) == 0) {
-    return 0;
+  unsafe {
+    if (parser_asm_library_maybe_layout_x(module, tname, tnlen, fname, flen) == 0) {
+      return 0;
+    }
   }
-  if (parser_asm_library_register_x(module, name, nlen, pname, pnlen, token_ty, bool_ty, block_ref) == 0) {
-    return 0;
+  unsafe {
+    if (parser_asm_library_register_x(module, name, nlen, pname, pnlen, token_ty, bool_ty, block_ref) == 0) {
+      return 0;
+    }
   }
   return 1;
 }
