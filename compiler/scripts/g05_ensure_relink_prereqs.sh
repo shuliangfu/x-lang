@@ -1267,11 +1267,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # Runs before P4u C so BODIES_FROM_X skips the portable .inc
         # region. No lexer-step bridge. Cold: no define, full .inc.
         _pthin_p4u_extra=""
+        _pthin_p4ub_pure=0
+        # w1159: the first pure-asm tries segfault. Darwin retries the
+        # whole translation unit. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p4ub_thin_o" ] && [ -f "$_pthin_p4ub_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4ub_x" "$_pthin_p4ub_thin_o"; then
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-unary-pure "$_pthin_p4ub_thin_o"; then
+            _pthin_p4ub_pure=1
+          fi
+          if { [ "$_pthin_p4ub_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4ub_x" "$_pthin_p4ub_thin_o"; }; then
             _pthin_p4ub_ok=1
             _pthin_p4u_extra="-DXLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X"
-            echo "g05_ensure: P4ub/P4uc/P4ud unary bodies ← $_pthin_p4ub_x (7.2.1 Route C)"
+            if [ "$_pthin_p4ub_pure" = "1" ]; then
+              echo "g05_ensure: P4 unary ← pure-asm three symbols (w1159)"
+            else
+              echo "g05_ensure: P4ub/P4uc/P4ud unary bodies ← $_pthin_p4ub_x (7.2.1 Route C)"
+            fi
           else
             echo "g05_ensure: P4ub unary .x thin failed; P4u C twin stays full" >&2
           fi
