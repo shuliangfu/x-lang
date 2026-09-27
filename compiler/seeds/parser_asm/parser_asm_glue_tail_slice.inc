@@ -1071,6 +1071,24 @@ void parser_asm_skip_one_function_full_into_slice_c(struct parser_asm_lexer *out
   /* Class AH: Cap skip-function tail debug IO retired (was XLANG_DEBUG_SKIP_FUNC). */
 }
 
+/*
+ * Pointer ABI used by pthin_body_tl.x. The slice writes the same cursor
+ * the .x leaves (start of the token after the function, or the fail
+ * cursor). This definition lives only while the C twin is the walk.
+ * P10b .x replaces it under BODIES_FROM_X.
+ * PLATFORM: SHARED.
+ */
+int32_t parser_asm_skip_one_function_full_into_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer in;
+  struct parser_asm_lexer out;
+  if (!lex_inout || !source)
+    return 0;
+  in = *(struct parser_asm_lexer *)lex_inout;
+  parser_asm_skip_one_function_full_into_slice_c(&out, in, (struct parser_asm_slice_u8 *)source);
+  *(struct parser_asm_lexer *)lex_inout = out;
+  return 1;
+}
+
 #endif /* !XLANG_PTHIN_GLUE_BODIES_FROM_X skip_one_function_full */
 
 /**

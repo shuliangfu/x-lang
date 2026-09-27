@@ -941,6 +941,41 @@ void parser_asm_skip_one_if_statement_into_slice_c(struct parser_asm_lexer_resul
   }
 }
 
+/*
+ * Pointer ABI used by pthin_body_tl.x. The slice above leaves *out one
+ * lexer_next_into past the cursor that ABI keeps (start of the next
+ * token). Walk from the entry until a step reproduces that result; the
+ * step's input is the cursor. This definition lives only while the C
+ * twin is the walk. P14b .x replaces it under BODIES_FROM_X.
+ * PLATFORM: SHARED.
+ */
+int32_t parser_asm_skip_one_if_statement_into_c(void *lex_inout, void *source) {
+  struct parser_asm_lexer in;
+  struct parser_asm_lexer walk;
+  struct parser_asm_lexer_result r;
+  struct parser_asm_lexer_result step;
+  if (!lex_inout || !source)
+    return 0;
+  in = *(struct parser_asm_lexer *)lex_inout;
+  memset(&r, 0, sizeof(r));
+  parser_asm_skip_one_if_statement_into_slice_c(&r, in, (struct parser_asm_slice_u8 *)source);
+  walk = in;
+  for (;;) {
+    lexer_next_into(&step, walk, (struct parser_asm_slice_u8 *)source);
+    if (step.next_lex.pos == r.next_lex.pos && step.tok.kind == r.tok.kind &&
+        step.tok.line == r.tok.line && step.tok.col == r.tok.col &&
+        step.next_lex.line == r.next_lex.line && step.next_lex.col == r.next_lex.col) {
+      *(struct parser_asm_lexer *)lex_inout = walk;
+      return 1;
+    }
+    if (step.tok.kind == (int32_t)TOKEN_EOF || step.next_lex.pos <= walk.pos) {
+      *(struct parser_asm_lexer *)lex_inout = r.next_lex;
+      return 1;
+    }
+    walk = step.next_lex;
+  }
+}
+
 #endif /* !XLANG_PTHIN_SKIP_IF_BODIES_FROM_X skip_one_if_statement_into */
 
 #ifndef XLANG_PTHIN_SKIP_IF_BODIES_FROM_X

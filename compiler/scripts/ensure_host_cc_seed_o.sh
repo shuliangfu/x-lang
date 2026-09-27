@@ -9661,14 +9661,15 @@ pthin_try_skip_allow_darwin_pure() {
   return 0
 }
 
-# w1157: src/asm/pthin_body_tl.x segfaults on the first pure-asm try and
-# emits on a later try. Retry the whole translation unit. Direct
-# xlang_asm, not pure_asm_x_to_o.
+# w1157 / w1324: the whole file segfaults under a long ensure.
+# Split into thirteen pieces and ld -r. TOKEN_* pins sit above the
+# first function, so each piece inherits them from the header.
+# Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 pthin_body_tl_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_body_tl.x"
-  local try n c
+  local dir c try src obj objs n
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -9678,18 +9679,98 @@ pthin_body_tl_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
-  try=0
-  while [ "$try" -lt 12 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
-  done
-  if [ ! -s "$o" ]; then
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinbtl.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+starts = []
+for i, l in enumerate(lines):
+    if l.startswith("export function ") or l.startswith("function "):
+        s = i - 1 if i > 0 and lines[i - 1].startswith("#[") else i
+        starts.append(s)
+# body_skip calls diag_skip outside unsafe. One piece keeps that
+# call intra-TU. Twelve pieces, thirteen symbols.
+kept = []
+for s in starts:
+    name = ""
+    for j in range(s, min(s + 4, len(lines))):
+        if lines[j].startswith("export function ") or lines[j].startswith("function "):
+            name = lines[j].split("(", 1)[0].split()[-1]
+            break
+    if name != "parser_asm_body_skip_let_const_then_if_into_c":
+        kept.append(s)
+starts = kept
+starts.append(len(lines))
+# Twelve pieces, plus the end sentinel.
+if len(starts) != 13:
+    sys.exit(1)
+header = "".join(lines[: starts[0]])
+sigs = []
+sig_names = []
+bodies = []
+for a, b in zip(starts, starts[1:]):
+    chunk = "".join(lines[a:b])
+    grab = False
+    acc = []
+    for line in chunk.splitlines():
+        if line.startswith("export function ") or line.startswith("function ") or grab:
+            grab = True
+            acc.append(line)
+            if "{" in line:
+                break
+    if not acc or "{" not in acc[-1]:
+        sys.exit(1)
+    sig = " ".join(x.strip() for x in acc)
+    sig = sig[: sig.rfind("{")].strip()
+    if not sig.startswith("export "):
+        sig = "export " + sig
+    sigs.append("export extern " + sig[len("export "):] + ";")
+    sig_names.append(sig.split("(", 1)[0].split()[-1])
+    bodies.append(chunk)
+for i, body in enumerate(bodies):
+    # A call to a function defined in this piece must not be an extern.
+    mine = set()
+    for line in body.splitlines():
+        if line.startswith("export function ") or line.startswith("function "):
+            mine.add(line.split("(", 1)[0].split()[-1])
+    externs = "\n".join(s for s, n in zip(sigs, sig_names) if n not in mine) + "\n"
+    Path(out, "t%d.x" % i).write_text(
+        "// w1324 split piece. PLATFORM: SHARED.\n" + header + externs + body
+    )
+PY
+  then
+    rm -rf "$dir"
     return 1
   fi
+  objs=""
+  for c in 0 1 2 3 4 5 6 7 8 9 10 11; do
+    src="$dir/t$c.x"
+    obj="$dir/t$c.o"
+    try=0
+    while [ "$try" -lt 8 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+    objs="$objs $obj"
+  done
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" $objs; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
   if [ "$n" != "13" ]; then
     rm -f "$o"
@@ -9697,7 +9778,16 @@ pthin_body_tl_darwin_pure() {
   fi
   for c in _parser_asm_is_fn_sig_scalar_type_token_c \
     _parser_asm_diag_skip_let_const_into_c \
+    _parser_asm_body_skip_let_const_then_if_into_c \
     _parser_asm_skip_one_top_level_let_into_c \
+    _parser_asm_skip_one_top_level_const_into_c \
+    _parser_asm_cfg_skip_pending_top_level_into_c \
+    _parser_asm_diag_first_ident_len_into_c \
+    _parser_report_untyped_binding_p010_c \
+    _parser_report_untyped_formal_p011_c \
+    _parser_report_duplicate_name_p012_c \
+    _parser_report_dyn_prefix_p013_c \
+    _parser_report_keyword_binding_p014_c \
     _parser_onefunc_param_name_dup_c; do
     if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
