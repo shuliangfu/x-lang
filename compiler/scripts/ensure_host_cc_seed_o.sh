@@ -10287,12 +10287,13 @@ PY
     # w1241: piece 7 is parser_asm_type_ref_mangle_suffix_c.
     # w1242: piece 9 is parser_asm_type_angle_close_into_c.
     # w1243: piece 10 is parser_asm_consume_qualified_type_ident_name_into_c.
+    # w1244: piece 11 is parser_asm_alloc_dyn_type_ref_into_c.
     # Piece 8 stays at eight: nine integer args, the stack arg tracks the frame.
-    # Some pure-asm tries segfault. Twelve tries for those five pieces.
-    # The other twenty-six pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those six pieces.
+    # The other twenty-five pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "9" ] || [ "$c" = "10" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "9" ] || [ "$c" = "10" ] || [ "$c" = "11" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
