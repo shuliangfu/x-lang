@@ -10841,12 +10841,13 @@ PY
     # w1284: piece 5 is parser_asm_copy_slice_to_param32_buf_c.
     # w1285: piece 6 is parser_asm_copy_slice_to_param32_at_end_buf_c.
     # w1286: piece 7 is parser_asm_copy_token_bytes_to_buf64_buf_c.
-    # Pieces 0, 1, and 2 are eight across eight tries.
-    # Some pure-asm tries segfault. Twelve tries for those five pieces.
-    # The other fourteen pieces stay at eight. Symbols stay strong.
+    # w1287: piece 12 is parser_asm_lex_skip_ident_is_unsafe_stmt.
+    # Pieces 0, 1, 2, 8, 9, 10, and 11 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for those six pieces.
+    # The other thirteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "6" ] || [ "$c" = "7" ]; then
+    if [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "12" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
