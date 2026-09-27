@@ -5850,6 +5850,83 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1226: src/asm/runtime_net_addr_fast_darwin.x segfaults on some
+# pure-asm tries and emits on a later try. Every frame is already closed.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+net_addr_os_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_net_addr_fast_darwin.x"
+  local try n
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "14" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_tcp_local_addr_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_tcp_peer_addr_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_tcp_set_addr_port_buf_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm "$o" | awk '$2=="T" && $3=="_net_udp_set_addr_port_buf_c" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_malloc" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_free" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_memset" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_getsockname" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_getpeername" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! nm -u "$o" | awk '$NF=="_net_sockaddr_in_pack_addr_port_c" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1225: src/runtime/rt_fs_open.x segfaults on some pure-asm
 # tries and emits on a later try. Every frame is already closed.
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
@@ -25428,6 +25505,14 @@ ensure_net_addr_fast_darwin_pure() {
   thin_o="$(mktemp "${TMPDIR:-/tmp}/netaddr_thin.XXXXXX.o")"
   os_o="$(mktemp "${TMPDIR:-/tmp}/netaddr_os.XXXXXX.o")"
   rm -f "$thin_o" "$os_o" "$o"
+  # w1226: the Darwin half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A filled object is kept. The thin half
+  # stays on the loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh net-addr-os-retry "$os_o"; then
+    log "prefer net addr os ← pure-asm fourteen symbols (w1226)"
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     if [ ! -s "$thin_o" ]; then
@@ -29223,6 +29308,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  net-addr-os-retry|net_addr_os_retry_pure)
+    # w1226: fourteen pure-asm symbols of runtime_net_addr_fast_darwin.x.
+    # Does not link the thin half and does not write std/net/net_addr_fast.o.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o net-addr-os-retry: need <out.o>" >&2
+      exit 2
+    fi
+    net_addr_os_retry_pure "$1"
+    exit $?
+    ;;
   fs-open-retry|fs_open_retry_pure)
     # w1225: one pure-asm symbol of rt_fs_open.x.
     # Does not merge the fs-open bag and does not compile the call half.
