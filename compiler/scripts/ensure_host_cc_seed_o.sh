@@ -3422,6 +3422,14 @@ ensure_dynlib_os_darwin_pure() {
   text_o="$(mktemp "${TMPDIR:-/tmp}/dynlib_text.XXXXXX.o")"
   os_o="$(mktemp "${TMPDIR:-/tmp}/dynlib_os.XXXXXX.o")"
   rm -f "$text_o" "$os_o" "$o"
+  # w1213: the text half segfaults on some pure-asm tries. Fill it
+  # before the eight-try loop. A failed fill still falls back to that
+  # loop. The dlopen half stays on the loop. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh dynlib-text-retry "$text_o"; then
+    log "prefer dynlib text ← pure-asm six symbols (w1213)"
+  fi
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     if [ ! -s "$text_o" ]; then
@@ -5770,6 +5778,55 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1213: src/asm/runtime_dynlib_os_darwin_text.x segfaults on some
+# pure-asm tries and emits on a later try. Frames are already
+# inside the allocation. The dlopen half stays on the old loop.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+dynlib_text_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/runtime_dynlib_os_darwin_text.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "6" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _runtime_dynlib_os_x_doc_anchor _dynlib_win_normalize_path \
+    _dynlib_win_load_library_w_utf8 _dynlib_os_copy_last_error_c; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if ! nm -u "$o" | awk '$NF=="_dlerror" { n++ } END { exit (n==1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 # w1212: src/runtime/rt_stack.x segfaults on some pure-asm tries
 # and emits on a later try. Frames are already inside the allocation.
 # Retry the whole translation unit. Direct xlang_asm, not pure_asm_x_to_o.
@@ -28472,6 +28529,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  dynlib-text-retry|dynlib_text_retry_pure)
+    # w1213: six pure-asm symbols of runtime_dynlib_os_darwin_text.x.
+    # Does not write runtime_dynlib_os.o and does not compile the dlopen half.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o dynlib-text-retry: need <out.o>" >&2
+      exit 2
+    fi
+    dynlib_text_retry_pure "$1"
+    exit $?
+    ;;
   rt-stack-retry|rt_stack_retry_pure)
     # w1212: two pure-asm symbols of rt_stack.x.
     # Does not write src/runtime/rt_stack.o unless that path is passed.
