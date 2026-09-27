@@ -4116,7 +4116,7 @@ ensure_crt0_codegen_parser_companion_objs() {
 # first-pass bag stubs + L1 drop of strict_minimal.
 # Who produces UNDEF (L9 residual after L1–L8): pipeline_glue_standalone U-refs
 # backend_enc_mov_imm32_to_w0_arch / backend_ensure_block_local_slots (compat stubs),
-# io_read_batch_buf / io_write_batch_buf (x_seed_bridge), arch_arm64_* (asm_full_link_stubs).
+# io_read_batch_buf / io_write_batch_buf, arch_arm64_* (asm_full_link_stubs).
 # Authority (G.7): ensure_bstrict_seed_support_objs + BSTRICT_DISPATCH_OBJS + seed emit
 # partial + ensure_crt0_typeck_driver_lsp_companion_objs +
 # ensure_crt0_codegen_parser_companion_objs + GEN_DRIVER/strict seed-support objs
