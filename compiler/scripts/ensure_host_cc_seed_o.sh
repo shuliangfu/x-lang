@@ -9422,14 +9422,16 @@ PY
   return 0
 }
 
-# w1161: src/asm/pthin_foundation.x segfaults on the first pure-asm
-# tries and emits on a later try. Retry the whole translation unit.
+# w1161 / w1328: the whole file segfaults when -o does not end in .o.
+# The two functions stay one translation unit: zeros calls the store
+# helper, and the 192-byte pad already keeps that spill inside the frame.
+# Compile to a *.o path, then ld -r writes the unsuffixed out.
 # Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 pthin_foundation_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_foundation.x"
-  local try n c
+  local dir obj try n c
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
   fi
@@ -9439,18 +9441,28 @@ pthin_foundation_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinfound.XXXXXX")" || return 1
+  obj="$dir/tu.o"
   try=0
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
-    rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    rm -f "$obj"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
       break
     fi
-    rm -f "$o"
+    rm -f "$obj"
   done
-  if [ ! -s "$o" ]; then
+  if [ ! -s "$obj" ]; then
+    rm -rf "$dir"
+    rm -f "$o"
     return 1
   fi
+  if ! ld -r -o "$o" "$obj"; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
   if [ "$n" != "2" ]; then
     rm -f "$o"
