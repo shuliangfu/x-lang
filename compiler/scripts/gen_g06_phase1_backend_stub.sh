@@ -58,7 +58,7 @@ mkdir -p "$OUT_DIR"
 if [ ! -f src/x_seed_bridge.o ]; then
   # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
   # This script must not host-cc the seed or make src/x_seed_bridge.o. PLATFORM: SHARED.
-  echo "gen_g06_phase1_backend_stub: missing src/x_seed_bridge.o and seeds/x_seed_bridge.from_x.c" >&2
+  echo "gen_g06_phase1_backend_stub: missing src/x_seed_bridge.o" >&2
   exit 1
 fi
 
