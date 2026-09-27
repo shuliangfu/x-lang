@@ -11139,14 +11139,14 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    # w1303: piece 5 is parser_asm_parser_match_kw_immediately_before_buf_c.
     # w1304: piece 7 is parser_asm_lex_at_token_pos_c.
-    # Pieces 2, 3, and 6 are eight across eight tries.
-    # Some pure-asm tries segfault. Twelve tries for those five pieces.
-    # The other eight pieces stay at eight. Symbols stay strong.
+    # w1305: piece 9 is parser_asm_struct_field_name_from_kind_c.
+    # Pieces 2, 3, 6, and 8 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for those six pieces.
+    # The other seven pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "7" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "7" ] || [ "$c" = "9" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
