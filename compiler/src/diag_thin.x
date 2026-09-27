@@ -1532,8 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
-
 /** Exported function `diag_io_fputc`.
  * Implements `diag_io_fputc`.
  * @param o *u8
@@ -2046,17 +2044,50 @@ export function diag_io_fprint_code_table_hdr(out: *u8): void {
   }
 }
 
-/** Exported function `diag_io_fprint_code_table_row`.
- * Implements `diag_io_fprint_code_table_row`.
- * @param out *u8
- * @param code *u8
- * @param kind *u8
- * @param summary *u8
- * @return void
+/**
+ * Write one code-table row. Code is left-padded to 8 and kind to 18.
+ * A field longer than its width is written in full. A null field is
+ * empty. Summary has no pad. One space separates the columns, and the
+ * line ends with a newline.
+ * @param out *u8 — destination stream
+ * @param code *u8 — code text, or null
+ * @param kind *u8 — kind text, or null
+ * @param summary *u8 — summary text, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, summary: *u8): void {
-  unsafe { diag_io_fprint_code_table_row_impl(out, code, kind, summary); }
+  let which: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    while (which < 2) {
+      let s: *u8 = code;
+      let width: i32 = 8;
+      let n: i32 = 0;
+      if (which != 0) {
+        diag_io_fputc(out, 32);
+        s = kind;
+        width = 18;
+      }
+      if (s != 0 as *u8) {
+        while (s[n] != 0) {
+          diag_io_fputc(out, s[n] as i32);
+          n = n + 1;
+        }
+      }
+      while (n < width) {
+        diag_io_fputc(out, 32);
+        n = n + 1;
+      }
+      which = which + 1;
+    }
+    diag_io_fputc(out, 32);
+    if (summary != 0 as *u8) {
+      diag_io_fputs(summary, out);
+    }
+    diag_io_fputc(out, 10);
+  }
 }
 
 // ---- G-02f-420：ctx field get/set → seed impl pure forward ----

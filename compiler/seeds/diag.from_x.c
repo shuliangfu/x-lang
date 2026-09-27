@@ -981,13 +981,13 @@ void diag_io_fprint_code_table_hdr(uint8_t *out) {
 /* Code-table header lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fprint_code_table_hdr(uint8_t *out);
 #endif
-void diag_io_fprint_code_table_row_impl(uint8_t *out, const char *code, const char *kind, const char *summary) {
-    diag_o_printf(out, "%-8s %-18s %s\n", code ? code : "", kind ? kind : "", summary ? summary : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_code_table_row(uint8_t *out, const char *code, const char *kind, const char *summary) {
-    diag_io_fprint_code_table_row_impl(out, code, kind, summary);
+    diag_o_printf(out, "%-8s %-18s %s\n", code ? code : "", kind ? kind : "", summary ? summary : "");
 }
+#else
+/* Code-table row lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_code_table_row(uint8_t *out, const char *code, const char *kind, const char *summary);
 #endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
