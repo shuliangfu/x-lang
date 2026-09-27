@@ -2153,7 +2153,7 @@ ensure_runtime_pipeline_abi_obj
 ensure_runtime_driver_obj
 ensure_runtime_driver_strict_glue_stubs_obj
 ensure_runtime_asm_build_obj
-ensure_x_seed_bridge_obj
+# Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x. Do not call the seed host-cc. PLATFORM: SHARED.
 ensure_ast_pool_l5_bridge_obj
 ensure_asm_experimental_symbol_bridge_obj
 ensure_lsp_codegen_extern_obj
