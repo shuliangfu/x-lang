@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
 export extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
 export extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
 export extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
@@ -1968,17 +1967,35 @@ export function diag_io_fprint_gutter_bar(o: *u8, width: i32): void {
   }
 }
 
-/** Exported function `diag_io_fprint_caret_mark`.
- * Implements `diag_io_fprint_caret_mark`.
- * @param o *u8
- * @param cc *u8
- * @param rs *u8
- * @param detail *u8
- * @return void
+/**
+ * Write the caret line: color prefix, '^', reset, then an optional
+ * detail. A null prefix or reset is empty. A null or empty detail
+ * writes no extra space. A non-empty detail is preceded by one space.
+ * The line always ends with a newline.
+ * @param o *u8 — destination stream
+ * @param cc *u8 — caret color prefix, or null
+ * @param rs *u8 — reset sequence, or null
+ * @param detail *u8 — message after the caret, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void {
-  unsafe { diag_io_fprint_caret_mark_impl(o, cc, rs, detail); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    if (cc != 0 as *u8) {
+      diag_io_fputs(cc, o);
+    }
+    diag_io_fputc(o, 94);
+    if (rs != 0 as *u8) {
+      diag_io_fputs(rs, o);
+    }
+    if (detail != 0 as *u8 && detail[0] != 0) {
+      diag_io_fputc(o, 32);
+      diag_io_fputs(detail, o);
+    }
+    diag_io_fputc(o, 10);
+  }
 }
 /**
  * Number of rows in the diagnostic code table.
