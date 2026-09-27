@@ -1462,7 +1462,6 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
 
 // ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
 export extern "C" function diag_json_base(): *u8;
-export extern "C" function diag_json_set_state_impl(v: i32): i32;
 
 /**
  * Return whether diagnostics use color.
@@ -1527,16 +1526,70 @@ export function diag_json_get_state(): i32 {
   return v;
 }
 
-/** Exported function `diag_json_set_state`.
- * Implements `diag_json_set_state`.
- * @param v i32
- * @return i32
+/**
+ * Store the cached JSON diagnostic mode and return 0.
+ * The int stays in the seed. -2 must stay -2, so the bytes are written
+ * here instead of through diag_snap_store_i32, which stores negatives as 0.
+ * A negative value other than INT_MIN is negated, split, inverted, then
+ * incremented. INT_MIN is the four bytes 00 00 00 80.
+ * @param v i32 — new state, including -2
+ * @return i32 — always 0
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_json_set_state(v: i32): i32 {
-  unsafe {
-    return diag_json_set_state_impl(v);
+  let pad: u8[32] = [];
+  let n: i32 = 0;
+  let neg: i32 = 0;
+  let b0: i32 = 0;
+  let b1: i32 = 0;
+  let b2: i32 = 0;
+  let b3: i32 = 0;
+  let c: i32 = 0;
+  let p: *u8 = 0 as *u8;
+  pad[0] = 0;
+  if (v + 2147483647 == 0 - 1) {
+    b3 = 128;
+  } else {
+    n = v;
+    if (v < 0) {
+      n = 0 - v;
+      neg = 1;
+    }
+    b0 = n % 256;
+    n = n / 256;
+    b1 = n % 256;
+    n = n / 256;
+    b2 = n % 256;
+    n = n / 256;
+    b3 = n % 256;
+    if (neg != 0) {
+      b0 = 255 - b0;
+      b1 = 255 - b1;
+      b2 = 255 - b2;
+      b3 = 255 - b3;
+      c = b0 + 1;
+      b0 = c % 256;
+      c = c / 256;
+      c = b1 + c;
+      b1 = c % 256;
+      c = c / 256;
+      c = b2 + c;
+      b2 = c % 256;
+      c = c / 256;
+      b3 = b3 + c;
+    }
   }
+  unsafe {
+    p = diag_json_base();
+    if (p != 0 as *u8) {
+      p[0] = b0 as u8;
+      p[1] = b1 as u8;
+      p[2] = b2 as u8;
+      p[3] = b3 as u8;
+    }
+  }
+  return 0;
 }
 
 // See implementation.

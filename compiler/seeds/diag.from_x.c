@@ -1236,15 +1236,10 @@ extern void diag_set_json_mode(int enable);
 #endif
 
 /** 供 .x 读写 g_diag_json 状态（-2=未决）。 */
-/* G-02f-386：set 仍在种子；get 在 thin。 */
+/* G-02f-386：get/set 在 thin；地址由 diag_json_base 给出。 */
 /* Address of the JSON-mode cache. Values include -2. PLATFORM: SHARED. */
 uint8_t *diag_json_base(void) {
     return (uint8_t *)&g_diag_json;
-}
-
-int diag_json_set_state_impl(int v) {
-    g_diag_json = v;
-    return 0;
 }
 
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
@@ -1252,7 +1247,7 @@ int diag_json_get_state(void) {
     return g_diag_json;
 }
 void diag_json_set_state(int v) {
-    (void)diag_json_set_state_impl(v);
+    g_diag_json = v;
 }
 #endif
 
