@@ -447,13 +447,13 @@ void diag_io_fflush_impl(uint8_t *o) { (void)o; /* raw fd writes are unbuffered 
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fflush(uint8_t *o) { diag_io_fflush_impl(o); }
 #endif
-void diag_io_fprint_line_col_impl(uint8_t *o, int line, int col) {
-    diag_o_printf(o, ",\"line\":%d,\"col\":%d,\"message\":", line, col);
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_line_col(uint8_t *o, int line, int col) {
-    diag_io_fprint_line_col_impl(o, line, col);
+    diag_o_printf(o, ",\"line\":%d,\"col\":%d,\"message\":", line, col);
 }
+#else
+/* JSON line/col fields live in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_line_col(uint8_t *o, int line, int col);
 #endif
 /** 供 .x report_human 位置/gutter 冷路径（G-02f-159）。 */
 void diag_io_fprint_loc_file_line_col_impl(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs) {

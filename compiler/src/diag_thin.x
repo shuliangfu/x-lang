@@ -1304,7 +1304,7 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
 
 /**
  * Emit one diagnostic as a single NDJSON object on stderr.
- * line and col are printed by diag_io_fprint_line_col (seed printf).
+ * line and col are printed by diag_io_fprint_line_col as decimal fields.
  * Does not flush; fd 2 writes are unbuffered.
  * @param file *u8 — path, or null / empty for JSON null
  * @param line i32 — printed even when 0
@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_line_col_impl(o: *u8, line: i32, col: i32): void;
 export extern "C" function diag_io_fprint_loc_file_line_col_impl(o: *u8, pc: *u8, file: *u8, line: i32, col: i32, rs: *u8): void;
 export extern "C" function diag_io_fprint_loc_file_line_impl(o: *u8, pc: *u8, file: *u8, line: i32, rs: *u8): void;
 export extern "C" function diag_io_fprint_loc_file_impl(o: *u8, pc: *u8, file: *u8, rs: *u8): void;
@@ -1588,16 +1587,59 @@ export function diag_io_fflush(o: *u8): void {
   unsafe { diag_io_fflush_impl(o); }
 }
 
-/** Exported function `diag_io_fprint_line_col`.
- * Implements `diag_io_fprint_line_col`.
- * @param o *u8
- * @param line i32
- * @param col i32
- * @return void
+/**
+ * Write the JSON line and column fields used by a diagnostic object.
+ * The bytes are ,"line":<d>,"col":<d>,"message": with no spaces.
+ * Each number is printed like printf %d: 0 is "0", a negative value
+ * has a leading '-', and the most negative i32 is written in full.
+ * @param o *u8 — destination stream
+ * @param line i32 — source line
+ * @param col i32 — source column
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_line_col(o: *u8, line: i32, col: i32): void {
-  unsafe { diag_io_fprint_line_col_impl(o, line, col); }
+  let which: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    while (which < 2) {
+      let n: i32 = line;
+      if (which == 0) {
+        diag_io_fputs(",\"line\":", o);
+      } else {
+        diag_io_fputs(",\"col\":", o);
+        n = col;
+      }
+      if (n == 0) {
+        diag_io_fputc(o, 48);
+      } else {
+        if (n < 0) {
+          diag_io_fputc(o, 45);
+          if (n + 2147483647 == 0 - 1) {
+            diag_io_fputs("2147483648", o);
+            n = 0;
+          } else {
+            n = 0 - n;
+          }
+        }
+        let buf: u8[12] = [];
+        let i: i32 = 12;
+        while (n > 0) {
+          i = i - 1;
+          let dig: i32 = n - (n / 10) * 10;
+          buf[i] = (dig + 48) as u8;
+          n = n / 10;
+        }
+        while (i < 12) {
+          diag_io_fputc(o, buf[i] as i32);
+          i = i + 1;
+        }
+      }
+      which = which + 1;
+    }
+    diag_io_fputs(",\"message\":", o);
+  }
 }
 
 /** Exported function `diag_io_fprint_loc_file_line_col`.
