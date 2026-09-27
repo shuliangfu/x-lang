@@ -10997,11 +10997,13 @@ PY
     # w1289: piece 0 is parser_asm_stretch_token_run_len_c.
     # w1290: piece 1 is parser_asm_stretch_import_path_validate_c.
     # w1291: piece 2 is parser_asm_stretch_struct_field_name_kind_c.
-    # Some pure-asm tries segfault. Twelve tries for those three pieces.
-    # The other twelve pieces stay at eight. Symbols stay strong.
+    # w1292: piece 6 is parser_asm_stretch_import_path_normalize_c.
+    # Pieces 3, 4, and 5 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for those four pieces.
+    # The other eleven pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "6" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
