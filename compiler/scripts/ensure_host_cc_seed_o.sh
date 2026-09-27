@@ -11139,9 +11139,10 @@ PY
     src="$dir/t$c.x"
     obj="$dir/t$c.o"
     try=0
-    # w1305: piece 9 is parser_asm_struct_field_name_from_kind_c.
     # w1306: piece 10 is parser_asm_ident_is_unsafe_stmt_kind_c.
-    # Pieces 2, 3, 6, and 8 are eight across eight tries.
+    # w1307: pieces 11 and 12 are eight across eight tries.
+    # Pieces 2, 3, 6, 8, 11, and 12 are eight across eight tries.
+    # Helpers screening is done.
     # Some pure-asm tries segfault. Twelve tries for those seven pieces.
     # The other six pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
