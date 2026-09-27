@@ -5343,7 +5343,17 @@ ensure_rt_emit_state_prefer() {
   # pure_asm only. Do not fall through to gcc -E of this TU.
   # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
   # The marker is in the .x. The seed cc emits BSS, lib-name, and entry prefix.
-  if (
+  # w1173: a later pure-asm try can segfault. Darwin retries the whole
+  # translation unit. Other hosts keep the one-shot pure_asm path.
+  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  _es_pure=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$thin"; then
+    _es_pure=1
+  fi
+  if { [ "$_es_pure" = "1" ] || (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
@@ -5351,7 +5361,7 @@ ensure_rt_emit_state_prefer() {
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
-  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
+  ); } && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
     && ld_flags="$(r3_prefer_ld_r_flags)" \
     && ld $ld_flags -o "$merged" "$thin" "$rest" \
     && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_path" \
@@ -5366,7 +5376,11 @@ ensure_rt_emit_state_prefer() {
     && r3_prefer_nm_has_sym "$merged" "driver_x_emit_c_path" \
     && r3_prefer_nm_has_sym "$merged" "driver_x_emit_lib_name_buf"; then
     mv -f "$merged" "$o"
-    log "rt-emit-state $o <- pure-asm $xsrc + BSS rest (w859; marker is in the .x)"
+    if [ "$_es_pure" = "1" ]; then
+      log "rt-emit-state $o <- pure-asm fourteen symbols (w1173) + BSS rest"
+    else
+      log "rt-emit-state $o <- pure-asm $xsrc + BSS rest (w859; marker is in the .x)"
+    fi
     rm -f "$thin" "$rest"
     return 0
   fi
@@ -5551,6 +5565,50 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1173: src/runtime/rt_emit_state.x segfaults on a later pure-asm
+# try after earlier tries emit. Retry the whole translation unit.
+# Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+rt_emit_state_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_emit_state.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "14" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _rt_emit_max_lib_roots _rt_argv_is_minus_L \
+    _driver_run_x_emit_c_set_path _labi_rt_emit_state_slice_marker; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1172: src/runtime_driver_strict_glue_thin.x segfaults on some
 # pure-asm tries and emits on a later try. Retry the whole translation
 # unit. Direct xlang_asm, not rt_prefer_try_x_to_o. Weaken when objcopy
@@ -11623,13 +11681,29 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_emit_st_x" ]; then
               _rt_est_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st_thin.XXXXXX") || true
               _rt_est_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st_rest.XXXXXX") || true
+              _rt_est_pure=0
+              # w1173: a later pure-asm try can segfault. Darwin retries the
+              # whole translation unit. Other hosts keep rt_prefer_try.
+              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
               if [ -n "$_rt_est_thin_o" ] && [ -n "$_rt_est_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_emit_st_x" "$_rt_est_thin_o" \
+                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+                && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$_rt_est_thin_o"; then
+                _rt_est_pure=1
+              fi
+              if [ -n "$_rt_est_thin_o" ] && [ -n "$_rt_est_rest_o" ] \
+                && { [ "$_rt_est_pure" = "1" ] \
+                  || rt_prefer_try_x_to_o "$_rt_emit_st_x" "$_rt_est_thin_o"; } \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_STATE_FROM_X \
                      -c -o "$_rt_est_rest_o" "$_rt_emit_st_seed" \
                 && pure_ld_partial_merge "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
                 _rt_est_ok=1
-                echo "rt-prefer: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
+                if [ "$_rt_est_pure" = "1" ]; then
+                  echo "rt-prefer: rest emit_state ← pure-asm fourteen symbols (w1173)"
+                else
+                  echo "rt-prefer: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
+                fi
               fi
               rm -f "$_rt_est_thin_o" "$_rt_est_rest_o"
             fi
@@ -25944,6 +26018,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-emit-state-pure|rt_emit_state_darwin_pure)
+    # w1173: fourteen pure-asm symbols of src/runtime/rt_emit_state.x.
+    # Does not write src/runtime/rt_emit_state.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-emit-state-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_emit_state_darwin_pure "$1"
+    exit $?
+    ;;
   strict-glue-thin-pure|strict_glue_thin_darwin_pure)
     # w1172: eleven pure-asm symbols of runtime_driver_strict_glue_thin.x.
     # Does not write runtime_driver_strict_glue_stubs.o unless that path is passed.
