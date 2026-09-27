@@ -3433,11 +3433,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         rm -f "$_xsb_thin_o" "$_xsb_rest_o"
       fi
-      if [ "$_xsb_done" = "0" ]; then
-        echo "g05_ensure: $_xsb_o ← seed (G-02f-11)"
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_xsb_o" "$_xsb"
-      fi
+      # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
+      # Do not host-cc the whole seed over that object. PLATFORM: SHARED.
     fi
   fi
   # ~~G-02f-440 seed_link_compat dual hybrid~~ wave771 → try-other-l2-prefer above
