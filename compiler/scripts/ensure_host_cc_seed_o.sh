@@ -5551,6 +5551,228 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1155: src/asm/pthin_stretch_audit.x exits 139 as one translation unit.
+# Compile each function separately and ld -r. Brace counts ignore
+# comments. Calls to names of 64 characters or more go through a short
+# w1155_* trampoline that lives in the callee piece. The 2-arg C extern
+# of diag_parse_one_full_deep is dropped from that function's piece so
+# the 3-arg body is the definition. Direct xlang_asm, not pure_asm_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+pthin_stretch_audit_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/pthin_stretch_audit.x"
+  local dir c try src obj n batch
+  local -a files
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinaud.XXXXXX")" || return 1
+  if ! python3 - "$xsrc" "$dir" << 'PY'
+import re
+import sys
+from pathlib import Path
+src, out = sys.argv[1], sys.argv[2]
+lines = Path(src).read_text().splitlines(True)
+fn = []
+for i, l in enumerate(lines):
+    if l.startswith("export function ") or l.startswith("function "):
+        m = re.match(r"(?:export )?function (\w+)", l)
+        if not m:
+            sys.exit(1)
+        fn.append((i, m.group(1)))
+orig = [(i, n) for i, n in fn if not n.startswith("w1155_")]
+if len(orig) != 1978:
+    sys.exit(1)
+pos = {name: k for k, (i, name) in enumerate(fn)}
+
+def delta(line, in_block):
+    i = 0
+    d = 0
+    n = len(line)
+    while i < n:
+        if in_block:
+            if line.startswith("*/", i):
+                in_block = False
+                i += 2
+                continue
+            i += 1
+            continue
+        if line.startswith("//", i):
+            break
+        if line.startswith("/*", i):
+            in_block = True
+            i += 2
+            continue
+        ch = line[i]
+        if ch == '"':
+            i += 1
+            while i < n and line[i] != '"':
+                if line[i] == "\\" and i + 1 < n:
+                    i += 2
+                    continue
+                i += 1
+            i += 1
+            continue
+        if ch == "{":
+            d += 1
+        elif ch == "}":
+            d -= 1
+        i += 1
+    return d, in_block
+
+def split_tail(chunk):
+    depth = 0
+    started = False
+    in_block = False
+    for idx, line in enumerate(chunk):
+        d, in_block = delta(line, in_block)
+        depth += d
+        if not started and depth > 0:
+            started = True
+        if started and depth == 0:
+            return chunk[:idx + 1]
+    sys.exit(1)
+
+header = "".join(lines[:orig[0][0]])
+bad_extern = (
+    'export extern "C" function '
+    "parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c"
+    "(data: *u8, len: i32): i32;\n"
+)
+sig_of = {}
+for start, name in fn:
+    k = pos[name]
+    end = fn[k + 1][0] if k + 1 < len(fn) else len(lines)
+    body = split_tail(lines[start:end])
+    sigline = None
+    for line in body:
+        if line.startswith("export function ") or line.startswith("function "):
+            sigline = line.strip()
+            break
+    if sigline is None or "{" not in sigline:
+        sys.exit(1)
+    sig = sigline[:sigline.rfind("{")].strip()
+    if not sig.startswith("export "):
+        sig = "export " + sig
+    sig_of[name] = "export extern " + sig[len("export "):] + ";"
+pre_externs = set(re.findall(r'export extern (?:\"C\" )?function (\w+)', header))
+call_rx = re.compile(r"\b(w1155_\w+|parser_asm_\w+|xlang_\w+)\s*\(")
+diag = "parser_asm_stretch_diag_parse_one_full_deep_buf_audit_c"
+expect = 0
+for n, (start, name) in enumerate(orig):
+    k = pos[name]
+    end = fn[k + 1][0] if k + 1 < len(fn) else len(lines)
+    body = "".join(split_tail(lines[start:end]))
+    extra = ""
+    attached = []
+    tnames = ["w1155_%d" % n]
+    if name == diag:
+        tnames.append("w1155_diag3")
+    for tname in tnames:
+        if tname not in pos:
+            continue
+        tk = pos[tname]
+        tend = fn[tk + 1][0] if tk + 1 < len(fn) else len(lines)
+        tstart = fn[tk][0] - 1
+        if tstart > 0 and "w1155 short call" in lines[tstart - 1]:
+            tstart -= 1
+        extra += "".join(lines[tstart:fn[tk][0] - 1])
+        extra += "".join(split_tail(lines[fn[tk][0]:tend]))
+        attached.append(tname)
+    blob = body + extra
+    calls = set(call_rx.findall(blob))
+    calls.discard(name)
+    for t in attached:
+        calls.discard(t)
+    externs = []
+    for c in sorted(calls):
+        if c in pre_externs:
+            continue
+        if c not in sig_of:
+            sys.exit(1)
+        externs.append(sig_of[c])
+    hdr = header
+    if name == diag:
+        hdr = hdr.replace(bad_extern, "")
+    Path(out, "t%d.x" % n).write_text(
+        "// w1155 split piece. PLATFORM: SHARED.\n" + hdr + "\n".join(externs) + "\n" + blob
+    )
+    expect += 1 + len(attached)
+Path(out, "expect_t").write_text("%d\n" % expect)
+PY
+  then
+    rm -rf "$dir"
+    return 1
+  fi
+  batch=0
+  # bash array; link in batches so the argument list stays short.
+  files=()
+  for c in $(seq 0 1977); do
+    src="$dir/t$c.x"
+    obj="$dir/t$c.o"
+    try=0
+    while [ "$try" -lt 12 ]; do
+      try=$((try + 1))
+      rm -f "$obj"
+      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+        break
+      fi
+      rm -f "$obj"
+    done
+    if [ ! -s "$obj" ]; then
+      rm -f "$o"
+      return 1
+    fi
+    files+=("$obj")
+    if [ "${#files[@]}" -eq 250 ]; then
+      if ! ld -r -o "$dir/b${batch}.o" "${files[@]}"; then
+        rm -rf "$dir"
+        rm -f "$o"
+        return 1
+      fi
+      files=()
+      batch=$((batch + 1))
+    fi
+  done
+  if [ "${#files[@]}" -gt 0 ]; then
+    if ! ld -r -o "$dir/b${batch}.o" "${files[@]}"; then
+      rm -rf "$dir"
+      rm -f "$o"
+      return 1
+    fi
+  fi
+  # shellcheck disable=SC2086
+  if ! ld -r -o "$o" "$dir"/b*.o; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "$(tr -d '[:space:]' < "$dir/expect_t")" ]; then
+    rm -rf "$dir"
+    rm -f "$o"
+    return 1
+  fi
+  rm -rf "$dir"
+  for c in _parser_asm_stretch_if_header_audit_c \
+    _parser_asm_stretch_function_name_audit_c \
+    _parser_asm_stretch_is_type_start_kind_c \
+    _w1155_342 \
+    _w1155_diag3; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1154: src/asm/pthin_skip_tl.x exits 139 as one translation unit.
 # Compile the sixty-three functions separately and ld -r. Brace counts
 # ignore comments. Sibling calls are export-extern.
@@ -24856,6 +25078,18 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  pthin-stretch-audit-pure|pthin_stretch_audit_darwin_pure)
+    # w1155: nineteen hundred seventy-eight pure-asm pieces of
+    # src/asm/pthin_stretch_audit.x. Does not write parser_asm_thin_glue.o
+    # unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o pthin-stretch-audit-pure: need <out.o>" >&2
+      exit 2
+    fi
+    pthin_stretch_audit_darwin_pure "$1"
+    exit $?
+    ;;
   pthin-skip-tl-pure|pthin_skip_tl_darwin_pure)
     # w1154: sixty-three pure-asm pieces of src/asm/pthin_skip_tl.x.
     # Does not write parser_asm_thin_glue.o unless that path is passed.
