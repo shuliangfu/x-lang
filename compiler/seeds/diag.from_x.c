@@ -1036,36 +1036,13 @@ extern void diag_print_known_codes(uint8_t *out);
 #endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_code_explain(uint8_t *out, const char *code)
-#else
-void diag_print_code_explain_impl(uint8_t *out, const char *code)
-#endif
 {
+    const DiagCodeExplain *entry;
     if (!out)
         out = diag_h_stdout();
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    {
-        const char *ec = diag_entry_code(code);
-        const char *ek = diag_entry_kind(code);
-        const char *es = diag_entry_summary(code);
-        const char *ed = diag_entry_details(code);
-        if (!ec) {
-            diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
-            diag_o_puts(out, "Known codes: ");
-            diag_print_known_codes(out);
-            return;
-        }
-        diag_o_printf(out, "%s\n", ec);
-        diag_o_printf(out, "Kind: %s\n", ek ? ek : "");
-        diag_o_printf(out, "Summary: %s\n", es ? es : "");
-        diag_o_printf(out, "Details: %s\n", ed ? ed : "");
-        return;
-    }
-#else
-    {
-    const DiagCodeExplain *entry;
     entry = diag_lookup_code_explain(code);
     if (!entry) {
         diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
@@ -1077,9 +1054,11 @@ void diag_print_code_explain_impl(uint8_t *out, const char *code)
     diag_o_printf(out, "Kind: %s\n", entry->kind);
     diag_o_printf(out, "Summary: %s\n", entry->summary);
     diag_o_printf(out, "Details: %s\n", entry->details);
-    }
-#endif
 }
+#else
+/* Explain walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_code_explain(uint8_t *out, const char *code);
+#endif
 
 
 /**
