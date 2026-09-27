@@ -700,6 +700,9 @@ export function parser_is_ident_allow(ident: *u8, len: i32): i32 {
 // pure (this wave): parse_skip / parse_commit_fail XP002 / parse_func_generic /
 //   parser_onefunc_param_ref / typeck_import_const / warn_pad / warn_hot / hint_unused
 export extern "C" function diag_report(file: *u8, line: i32, col: i32, kind: *u8, msg: *u8, detail: *u8): void;
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function free(p: *u8): void;
+export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
 export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
 export extern "C" function lsp_diag_add(line: i32, col: i32, severity: i32, msg: *u8): void;
 export extern "C" function lsp_diag_add_code(line: i32, col: i32, severity: i32, code: *u8, msg: *u8): void;
@@ -712,23 +715,31 @@ export extern "C" function driver_check_diag_emitted_note(): void;
  * PLATFORM: SHARED — pure authority in thin.x; rest drops pure-dup _impl under FROM_X. */
 #[no_mangle]
 export function driver_diagnostic_parse_fail(main_idx: i32, num_funcs: i32, arena_num_types: i32): void {
+  // Live pad. Call spills in this function sit at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
-    let msg: u8[256] = [];
-    let at: i32 = driver_diag_append_cstr(&msg[0], 256, 0, ".x parse failed (main_idx=");
-    at = driver_diag_append_i32(&msg[0], 256, at, main_idx);
-    at = driver_diag_append_cstr(&msg[0], 256, at, ", num_funcs=");
-    at = driver_diag_append_i32(&msg[0], 256, at, num_funcs);
-    at = driver_diag_append_cstr(&msg[0], 256, at, ", arena_num_types=");
-    at = driver_diag_append_i32(&msg[0], 256, at, arena_num_types);
-    at = driver_diag_append_cstr(&msg[0], 256, at, ")");
+    // Heap message. A 256-byte stack array is stored past the frame.
+    let msg: *u8 = malloc(256);
+    if (msg == 0) { return; }
+    memset(msg, 0, 256);
+    let at: i32 = driver_diag_append_cstr(msg, 256, 0, ".x parse failed (main_idx=");
+    at = driver_diag_append_i32(msg, 256, at, main_idx);
+    at = driver_diag_append_cstr(msg, 256, at, ", num_funcs=");
+    at = driver_diag_append_i32(msg, 256, at, num_funcs);
+    at = driver_diag_append_cstr(msg, 256, at, ", arena_num_types=");
+    at = driver_diag_append_i32(msg, 256, at, arena_num_types);
+    at = driver_diag_append_cstr(msg, 256, at, ")");
     if (lsp_diag_get_enabled() != 0) {
-      lsp_diag_add_code(1, 1, 1, "XP001", &msg[0]);
+      lsp_diag_add_code(1, 1, 1, "XP001", msg);
+      free(msg);
       return;
     }
     if (driver_check_only_get() != 0) {
       driver_check_diag_emitted_note();
     }
-    diag_report_with_code(0 as *u8, 0, 0, "pipeline error", "XP001", &msg[0], 0 as *u8);
+    diag_report_with_code(0 as *u8, 0, 0, "pipeline error", "XP001", msg, 0 as *u8);
+    free(msg);
   }
 }
 
@@ -760,40 +771,48 @@ export extern "C" function pipeline_typeck_diag_soft_suppress_get(): i32;
  * Soft-suppress: dep prerun full typeck may fail then light-fallback; do not spam XT001. */
 #[no_mangle]
 export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, name_len: i32, kind: i32): void {
+  // Live pad. Call spills in this function sit past the frame.
+  let pad: u8[128] = [];
+  pad[0] = 0;
   unsafe {
     if (pipeline_typeck_diag_soft_suppress_get() != 0) {
       return;
     }
-    let msg: u8[240] = [];
-    let at: i32 = driver_diag_append_cstr(&msg[0], 240, 0, ".x type check failed in function #");
-    at = driver_diag_append_i32(&msg[0], 240, at, func_idx);
-    at = driver_diag_append_cstr(&msg[0], 240, at, " ");
+    // Heap message. A 240-byte stack array is stored past the frame.
+    let msg: *u8 = malloc(240);
+    if (msg == 0) { return; }
+    memset(msg, 0, 240);
+    let at: i32 = driver_diag_append_cstr(msg, 240, 0, ".x type check failed in function #");
+    at = driver_diag_append_i32(msg, 240, at, func_idx);
+    at = driver_diag_append_cstr(msg, 240, at, " ");
     if (name != 0 as *u8 && name_len > 0) {
       let nl: i32 = name_len;
       if (nl > 64) {
         nl = 64;
       }
-      at = driver_diag_append_name(&msg[0], 240, at, name, nl);
+      at = driver_diag_append_name(msg, 240, at, name, nl);
     } else {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "(unknown)");
+      at = driver_diag_append_cstr(msg, 240, at, "(unknown)");
     }
-    at = driver_diag_append_cstr(&msg[0], 240, at, " (");
+    at = driver_diag_append_cstr(msg, 240, at, " (");
     if (kind == 0 - 6) {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "implicit tail return");
+      at = driver_diag_append_cstr(msg, 240, at, "implicit tail return");
     } else {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "check_block failed");
+      at = driver_diag_append_cstr(msg, 240, at, "check_block failed");
     }
-    at = driver_diag_append_cstr(&msg[0], 240, at, ")");
+    at = driver_diag_append_cstr(msg, 240, at, ")");
     if (lsp_diag_get_enabled() != 0) {
-      lsp_diag_add_code(1, 1, 1, "XT001", &msg[0]);
+      lsp_diag_add_code(1, 1, 1, "XT001", msg);
+      free(msg);
       return;
     }
     driver_check_diag_emitted_note();
-    diag_report_with_code(0 as *u8, 0, 0, "typeck error", "XT001", &msg[0], 0 as *u8);
+    diag_report_with_code(0 as *u8, 0, 0, "typeck error", "XT001", msg, 0 as *u8);
     if (kind == 0 - 6) {
       driver_diag_report_prefixed(0, 0,
         "typeck error: return value must use explicit return statement (e.g. return 0;)");
     }
+    free(msg);
   }
 }
 
@@ -855,6 +874,9 @@ export function driver_parse_strict_enabled(): i32 {
  */
 #[no_mangle]
 export function driver_diag_note(msg: *u8): void {
+  // Live pad. The report call stores past a 96-byte frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let m: *u8 = msg;
     if (m == 0) { m = ""; }
@@ -1367,6 +1389,9 @@ export function driver_diagnostic_asm_macho_missing_und_reloc(reloc_idx: i32): v
  * PLATFORM: SHARED — pure authority in thin.x; cold seed keeps C body; FROM_X no pure-dup _impl. */
 #[no_mangle]
 export function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void {
+  // Live pad. Call spills in this function sit at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (driver_diag_parse_debug_enabled() == 0) {
     return;
   }
@@ -1376,47 +1401,52 @@ export function driver_diagnostic_parse_skip_function(byte_pos: i32, num_funcs_s
     if (link_abi_getenv("XLANG_DEBUG_PARSE") != 0 as *u8) {
       tag = "debug";
     }
-    let msg: u8[240] = [];
+    // Heap message. A 240-byte stack array is stored past the frame.
+    let msg: *u8 = malloc(240);
+    if (msg == 0) { return; }
+    memset(msg, 0, 240);
     let at: i32 = 0;
     if (lsp_diag_get_enabled() != 0) {
-      at = driver_diag_append_cstr(&msg[0], 240, 0, "parse skip at byte ");
-      at = driver_diag_append_i32(&msg[0], 240, at, byte_pos);
-      at = driver_diag_append_cstr(&msg[0], 240, at, " (num_funcs=");
-      at = driver_diag_append_i32(&msg[0], 240, at, num_funcs_so_far);
-      at = driver_diag_append_cstr(&msg[0], 240, at, ") name=");
+      at = driver_diag_append_cstr(msg, 240, 0, "parse skip at byte ");
+      at = driver_diag_append_i32(msg, 240, at, byte_pos);
+      at = driver_diag_append_cstr(msg, 240, at, " (num_funcs=");
+      at = driver_diag_append_i32(msg, 240, at, num_funcs_so_far);
+      at = driver_diag_append_cstr(msg, 240, at, ") name=");
       if (name != 0 as *u8) {
         if (name_len > 0) {
-          at = driver_diag_append_name(&msg[0], 240, at, name, name_len);
+          at = driver_diag_append_name(msg, 240, at, name, name_len);
         } else {
-          at = driver_diag_append_cstr(&msg[0], 240, at, "?");
+          at = driver_diag_append_cstr(msg, 240, at, "?");
         }
       } else {
-        at = driver_diag_append_cstr(&msg[0], 240, at, "?");
+        at = driver_diag_append_cstr(msg, 240, at, "?");
       }
-      at = driver_diag_append_cstr(&msg[0], 240, at, " [");
-      at = driver_diag_append_cstr(&msg[0], 240, at, tag);
-      at = driver_diag_append_cstr(&msg[0], 240, at, "]");
-      lsp_diag_add(1, 1, 1, &msg[0]);
+      at = driver_diag_append_cstr(msg, 240, at, " [");
+      at = driver_diag_append_cstr(msg, 240, at, tag);
+      at = driver_diag_append_cstr(msg, 240, at, "]");
+      lsp_diag_add(1, 1, 1, msg);
+      free(msg);
       return;
     }
-    at = driver_diag_append_cstr(&msg[0], 240, 0, "parse skip at byte ");
-    at = driver_diag_append_i32(&msg[0], 240, at, byte_pos);
-    at = driver_diag_append_cstr(&msg[0], 240, at, " (num_funcs=");
-    at = driver_diag_append_i32(&msg[0], 240, at, num_funcs_so_far);
-    at = driver_diag_append_cstr(&msg[0], 240, at, ", name=");
+    at = driver_diag_append_cstr(msg, 240, 0, "parse skip at byte ");
+    at = driver_diag_append_i32(msg, 240, at, byte_pos);
+    at = driver_diag_append_cstr(msg, 240, at, " (num_funcs=");
+    at = driver_diag_append_i32(msg, 240, at, num_funcs_so_far);
+    at = driver_diag_append_cstr(msg, 240, at, ", name=");
     if (name != 0 as *u8) {
       if (name_len > 0) {
-        at = driver_diag_append_name(&msg[0], 240, at, name, name_len);
+        at = driver_diag_append_name(msg, 240, at, name, name_len);
       } else {
-        at = driver_diag_append_cstr(&msg[0], 240, at, "?");
+        at = driver_diag_append_cstr(msg, 240, at, "?");
       }
     } else {
-      at = driver_diag_append_cstr(&msg[0], 240, at, "?");
+      at = driver_diag_append_cstr(msg, 240, at, "?");
     }
-    at = driver_diag_append_cstr(&msg[0], 240, at, ", mode=");
-    at = driver_diag_append_cstr(&msg[0], 240, at, tag);
-    at = driver_diag_append_cstr(&msg[0], 240, at, ")");
-    driver_diag_note(&msg[0]);
+    at = driver_diag_append_cstr(msg, 240, at, ", mode=");
+    at = driver_diag_append_cstr(msg, 240, at, tag);
+    at = driver_diag_append_cstr(msg, 240, at, ")");
+    driver_diag_note(msg);
+    free(msg);
   }
 }
 
