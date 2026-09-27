@@ -5551,6 +5551,63 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1172: src/runtime_driver_strict_glue_thin.x segfaults on some
+# pure-asm tries and emits on a later try. Retry the whole translation
+# unit. Direct xlang_asm, not rt_prefer_try_x_to_o. Weaken when objcopy
+# is present so the thin symbols stay weak, matching the old prefer.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+strict_glue_thin_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime_driver_strict_glue_thin.x"
+  local try n c oc
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "11" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _typeck_i32_ptr_store _typeck_i32_ptr_read \
+    _typeck_layout_metrics_init_slot _asm_driver_skip_codegen_dep_0_get; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  oc=""
+  if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    oc="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  elif command -v llvm-objcopy >/dev/null 2>&1; then
+    oc="$(command -v llvm-objcopy)"
+  fi
+  if [ -n "$oc" ]; then
+    if ! "$oc" --weaken "$o"; then
+      rm -f "$o"
+      return 1
+    fi
+  fi
+  return 0
+}
+
 # w1171: src/runtime/rt_argv.x segfaults on the first pure-asm
 # tries and emits on a later try. Retry the whole translation unit.
 # Direct xlang_asm, not rt_prefer_try_x_to_o.
@@ -21311,6 +21368,7 @@ ensure_other_l2_prefer_one() {
     thin_o="$(mktemp "${TMPDIR:-/tmp}/ol2_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/ol2_rest.XXXXXX")"
     _thin_ok=0
+    _ol2_pure=0
     case "$weak_mode" in
       slc6)
         if G05_X_O_WEAK_FUNCS="$_OTHER_L2_SLC_WEAK_FUNCS" \
@@ -21319,7 +21377,17 @@ ensure_other_l2_prefer_one() {
         fi
         ;;
       weak)
-        if G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+        # w1172: strict glue segfaults on some pure-asm tries. Darwin
+        # retries the whole translation unit. Other leaves keep rt_prefer.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
+        if [ "$leaf_kind" = "strict" ] \
+          && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+          && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+          && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+          && bash scripts/ensure_host_cc_seed_o.sh strict-glue-thin-pure "$thin_o"; then
+          _ol2_pure=1
+          _thin_ok=1
+        elif G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
           _thin_ok=1
         fi
         ;;
@@ -21334,7 +21402,11 @@ ensure_other_l2_prefer_one() {
       && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $rest_extra -D"$from_x_def" \
            -c -o "$rest_o" "$seed" \
       && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      log "prefer thin.x+rest $o <- $x_src + seed-rest (try-other-l2-prefer/$leaf_kind)"
+      if [ "$_ol2_pure" = "1" ]; then
+        log "prefer strict glue ← pure-asm eleven symbols (w1172)"
+      else
+        log "prefer thin.x+rest $o <- $x_src + seed-rest (try-other-l2-prefer/$leaf_kind)"
+      fi
       done=1
     else
       log "other-l2 hybrid failed for $o ($leaf_kind); fallback full seed"
@@ -25872,6 +25944,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  strict-glue-thin-pure|strict_glue_thin_darwin_pure)
+    # w1172: eleven pure-asm symbols of runtime_driver_strict_glue_thin.x.
+    # Does not write runtime_driver_strict_glue_stubs.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o strict-glue-thin-pure: need <out.o>" >&2
+      exit 2
+    fi
+    strict_glue_thin_darwin_pure "$1"
+    exit $?
+    ;;
   rt-argv-pure|rt_argv_darwin_pure)
     # w1171: fifteen pure-asm symbols of src/runtime/rt_argv.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
