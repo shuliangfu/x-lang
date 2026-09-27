@@ -5551,6 +5551,50 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1169: src/runtime/rt_compile.x segfaults on the first pure-asm
+# tries and emits on a later try. Retry the whole translation unit.
+# Direct xlang_asm, not rt_prefer_try_x_to_o.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+rt_compile_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_compile.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "32" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _rt_cmp_eq _rt_help_token_is \
+    _driver_compile_state_alloc_c _driver_deps_are_std_core_closure_only; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1168: src/runtime/rt_parse_diag.x segfaults on some pure-asm tries
 # and emits on a later try. Retry the whole translation unit.
 # Direct xlang_asm, not rt_prefer_try_x_to_o.
@@ -11263,17 +11307,33 @@ ensure_rt_prefer_one() {
             if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_compile_x" ]; then
               _rt_cmp_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_compile_thin.XXXXXX") || true
               _rt_cmp_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_compile_rest.XXXXXX") || true
+              _rt_cmp_pure=0
+              # w1169: the first pure-asm tries segfault. Darwin retries the
+              # whole translation unit. Other hosts keep rt_prefer_try.
+              # nm accepts the Darwin leading underscore. PLATFORM: MACOS|DARWIN.
               if [ -n "$_rt_cmp_thin_o" ] && [ -n "$_rt_cmp_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o" \
+                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+                && bash scripts/ensure_host_cc_seed_o.sh rt-compile-pure "$_rt_cmp_thin_o"; then
+                _rt_cmp_pure=1
+              fi
+              if [ -n "$_rt_cmp_thin_o" ] && [ -n "$_rt_cmp_rest_o" ] \
+                && { [ "$_rt_cmp_pure" = "1" ] \
+                  || rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_thin_o"; } \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_COMPILE_FROM_X \
                      $(host_cc_win_compat_cflags) \
                      -c -o "$_rt_cmp_rest_o" "$_rt_compile_seed" \
                 && pure_ld_partial_merge "$_rt_cmp_o" "$_rt_cmp_thin_o" "$_rt_cmp_rest_o" 2>/dev/null \
-                && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_state_alloc_c$" \
-                && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_deps_are_std_core_closure_only$" \
-                && nm "$_rt_cmp_o" 2>/dev/null | grep -q " T driver_compile_parse_argv_impl_c$"; then
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -E -q ' T _?driver_compile_state_alloc_c$' \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -E -q ' T _?driver_deps_are_std_core_closure_only$' \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -E -q ' T _?driver_compile_parse_argv_impl_c$'; then
                 _rt_compile_ok=1
-                echo "rt-prefer: R6 compile ← full .x + rest marker (R2 full H=0)"
+                if [ "$_rt_cmp_pure" = "1" ]; then
+                  echo "rt-prefer: R6 compile ← pure-asm thirty-two symbols (w1169)"
+                else
+                  echo "rt-prefer: R6 compile ← full .x + rest marker (R2 full H=0)"
+                fi
               else
                 echo "rt-prefer: R6 compile .x hybrid incomplete (missing T exports) → seed fallback" >&2
               fi
@@ -25694,6 +25754,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-compile-pure|rt_compile_darwin_pure)
+    # w1169: thirty-two pure-asm symbols of src/runtime/rt_compile.x.
+    # Does not write runtime_driver_no_c.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-compile-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_compile_darwin_pure "$1"
+    exit $?
+    ;;
   rt-parse-diag-pure|rt_parse_diag_darwin_pure)
     # w1168: two pure-asm symbols of src/runtime/rt_parse_diag.x.
     # Does not write runtime_driver_no_c.o unless that path is passed.
