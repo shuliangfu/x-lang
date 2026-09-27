@@ -10995,11 +10995,12 @@ PY
     obj="$dir/t$c.o"
     try=0
     # w1289: piece 0 is parser_asm_stretch_token_run_len_c.
-    # Some pure-asm tries segfault. Twelve tries for this one piece.
-    # The other fourteen pieces stay at eight. Symbols stay strong.
+    # w1290: piece 1 is parser_asm_stretch_import_path_validate_c.
+    # Some pure-asm tries segfault. Twelve tries for those two pieces.
+    # The other thirteen pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
