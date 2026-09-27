@@ -13,7 +13,6 @@
  */
 #include "diag.h"
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
-#define diag_code_suggest diag_code_suggest_impl
 int diag_ctx_get_use_color(void);
 int diag_code_table_has(const char *code);
 int diag_json_get_state(void);
@@ -1158,6 +1157,7 @@ extern int diag_levenshtein_ci(const char *a, const char *b);
  * 与查询等长或仅差 1，避免把任意短查询都建议成首个已知码。
  */
 /* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
     size_t i;
     int best_dist = 999;
@@ -1202,6 +1202,10 @@ const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
     }
     return out ? out : best_code;
 }
+#else
+/* Did-you-mean walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_code_suggest(const char *code, char *out, size_t out_cap);
+#endif
 
 /**
  * 打印完整诊断码表（用户面：`xlang explain --list` / `xlang --explain --list`）。

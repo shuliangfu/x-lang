@@ -967,8 +967,6 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
 }
 
 // See implementation.
-export extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
-
 /**
  * Case-insensitive ASCII compare of two diagnostic codes.
  * A null pointer returns 0. Bytes a-z fold to A-Z. The match
@@ -1267,18 +1265,85 @@ export function diag_json_severity(kind: *u8): *u8 {
   return "error";
 }
 
-/** Exported function `diag_code_suggest`.
- * Implements `diag_code_suggest`.
- * @param code *u8
- * @param out *u8
- * @param out_cap i64
- * @return *u8
+/**
+ * Suggest the closest known diagnostic code.
+ * A null code, an empty code, or an empty table returns null and
+ * does not write out. Distance above 3, or above the query length
+ * plus one, also returns null without writing. When out is non-null
+ * and out_cap is positive, the suggestion is copied and out is
+ * returned. When out is null, the table pointer is returned.
+ * The query length stops at 256 bytes if there is no NUL.
+ * @param code *u8 — unknown code, or null
+ * @param out *u8 — destination, or null to query only
+ * @param out_cap i64 — byte capacity of out
+ * @return *u8 — out, the table code, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
-  unsafe {
-    return diag_code_suggest_impl(code, out, out_cap);
+  let n: i64 = 0;
+  let code_len: i32 = 0;
+  let best_dist: i32 = 999;
+  let best: *u8 = 0 as *u8;
+  let i: i64 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (code == 0 as *u8) {
+    return 0 as *u8;
   }
+  unsafe {
+    n = diag_code_table_len();
+    if (n <= 0) {
+      return 0 as *u8;
+    }
+    while (code_len < 256) {
+      if (code[code_len] == 0) {
+        break;
+      }
+      code_len = code_len + 1;
+    }
+    if (code_len <= 0) {
+      return 0 as *u8;
+    }
+    while (i < n) {
+      let cand: *u8 = diag_code_table_code_at(i);
+      if (cand != 0 as *u8) {
+        let d: i32 = diag_levenshtein_ci(code, cand);
+        if (d < best_dist) {
+          best_dist = d;
+          best = cand;
+        }
+      }
+      i = i + 1;
+    }
+    if (best == 0 as *u8) {
+      return 0 as *u8;
+    }
+    if (best_dist > 3) {
+      return 0 as *u8;
+    }
+    if (best_dist > code_len + 1) {
+      return 0 as *u8;
+    }
+    if (out != 0 as *u8 && out_cap > 0) {
+      let lim: i64 = out_cap - 1;
+      let j: i64 = 0;
+      while (j < lim) {
+        let ch: u8 = best[j as i32];
+        if (ch == 0) {
+          break;
+        }
+        out[j as i32] = ch;
+        j = j + 1;
+      }
+      out[j as i32] = 0;
+    }
+    if (out != 0 as *u8) {
+      return out;
+    }
+    return best;
+  }
+  return 0 as *u8;
 }
 
 // ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
