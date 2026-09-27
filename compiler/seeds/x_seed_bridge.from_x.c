@@ -170,9 +170,18 @@ struct ast_Module;
 /** parser.x parse_match 查 enum tag 时的当前 Module（parse_into 入口设置）。 */
 static struct ast_Module *g_parser_match_module_x;
 
+/* Address of the match-module slot. PLATFORM: SHARED. */
+uint8_t *pipeline_match_module_bytes(void) {
+  return (uint8_t *)&g_parser_match_module_x;
+}
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 void pipeline_parser_set_match_module(struct ast_Module *m) {
   g_parser_match_module_x = m;
 }
+#else
+/* Module-slot write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern void pipeline_parser_set_match_module(struct ast_Module *m);
+#endif
 
 struct ast_Module *pipeline_parser_get_match_module(void) {
   return g_parser_match_module_x;

@@ -10,6 +10,8 @@ export extern "C" function preprocess_x_buf(src: *u8, src_len: isize, out_buf: *
 export extern "C" function typeck_std_heap_alloc(size: usize): *u8;
 export extern "C" function calloc(n: usize, size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
+export extern "C" function pipeline_match_module_bytes(): *u8;
+export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -171,4 +173,20 @@ export function io_register_buffers_buf_i32(bufs: isize, nr: i32): i32 {
 #[no_mangle]
 export function xlang_io_register(ptr: *u8, len: usize, handle: usize): i32 {
   return io_register_buffer(ptr, len);
+}
+
+/**
+ * Remember the module used while parsing a match.
+ * The pointer stays in the seed. Its bytes are written by the existing
+ * little-endian pointer store. A null module clears the slot.
+ * @param m *u8 — module pointer, or null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_set_match_module(m: *u8): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    diag_store_ptr_le(pipeline_match_module_bytes(), m);
+  }
 }
