@@ -36101,11 +36101,17 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       stack_pos = fs;
     }
   }
-  // PLATFORM: MACOS|ARM64 — enc_prologue parks callee-saved x19 at
-  // [sp,#aligned_request] and grows the frame by 16. Incoming stack
-  // arguments sit at [x29,#aligned_request+16], not in the x19 slot.
-  // Pre-grow `fs` (historical) homes the 9th formal from leftover x19
-  // (dest-shadow = 4) → append_std_objs `str w0,[x1]` EXC_BAD_ACCESS.
+  // PLATFORM: MACOS|ARM64 — enc_prologue aligns the request up to 16, then
+  // parks x19 at [sp,#aligned] and grows the frame by another 16. Incoming
+  // stack arguments therefore sit at [x29,#aligned+16].
+  // compute_frame_size aligns once, then adds call scratch, so the stored
+  // fs can be 4/8/12 mod 16. Adding 16 to that raw fs homes the 9th formal
+  // inside the frame (suffix `pending_refs[i]=0` writes the expr int_val:
+  // `return 7` exits 0). Align first, same rule as enc_prologue, then add
+  // the x19 pad. An already-aligned fs (or the default 16) is unchanged.
+  if ((stack_pos & 15) != 0) {
+    stack_pos = stack_pos + (16 - (stack_pos & 15));
+  }
   stack_pos = stack_pos + 16;
   i = 0;
   while (i < np) {

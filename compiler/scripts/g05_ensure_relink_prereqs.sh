@@ -2442,6 +2442,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p5w=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p5w.XXXXXX") || true
         _cb_p5b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p5b.XXXXXX") || true
         _cb_p5=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p5.XXXXXX") || true
+        _cb_p4pb=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4pb.XXXXXX") || true
+        _cb_p4p=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4p.XXXXXX") || true
         _cb_p7b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7b.XXXXXX") || true
         _cb_p7=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p7.XXXXXX") || true
         _cb_p15b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p15b.XXXXXX") || true
@@ -2476,6 +2478,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p11_ok=0
         _cb_p9b_pure=0
         _cb_p9_ok=0
+        _cb_p4p_pure=0
+        _cb_p4p_ok=0
+        _cb_p4p_extra=""
         _cb_p5b_pure=0
         _cb_p5_ok=0
         if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
@@ -2550,6 +2555,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ -n "$_cb_p5b" ] && [ -n "$_cb_p5" ] \
             && bash scripts/ensure_host_cc_seed_o.sh pthin-ctrl-pure "$_cb_p5b"; then
             _cb_p5b_pure=1
+          fi
+          # w1319: primary .x is already thirty-seven functions. Peel it
+          # into the Class CB merge. The 9th-formal home must be the
+          # aligned frame (param-home align), or `return 7` exits 0.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ -n "$_cb_p4pb" ] && [ -n "$_cb_p4p" ] && [ -f "$_pthin_p4pb_x" ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-primary-pure "$_cb_p4pb"; then
+            _cb_p4p_pure=1
           fi
         fi
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
@@ -2670,6 +2683,46 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_cb_p5" "parser_asm_realign_lex_after_if_arm_c"; then
             _cb_p5_ok=1
           fi
+          # w1319: every primary body flag, plus TYPE_REF_BODIES so the
+          # 7-arg mangle trampoline is global (not the static C twin).
+          # Do not set EXPR_UNARY_FROM_X; the writer object is already merged.
+          # PLATFORM: MACOS|DARWIN arm64.
+          if [ "$_cb_p4p_pure" = "1" ] && [ -f "$_pthin_p4p_seed" ] \
+            && g05_obj_defines "$_cb_p4pb" "parser_asm_parse_primary_x_into_c" \
+            && g05_obj_defines "$_cb_p4pb" "parser_asm_parse_struct_lit_fields_x_into_c"; then
+            _cb_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X -DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_parse_anonymous_struct_lit_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X"
+            fi
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_string_lit_decode_span_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X"
+            fi
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_finish_struct_lit_from_type_ident_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X"
+            fi
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_primary_parse_asm_bang_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X"
+            fi
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_primary_parse_unsafe_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X"
+            fi
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_primary_lbrace_looks_like_block_x_into_c" \
+              && g05_obj_defines "$_cb_p4pb" "parser_asm_primary_empty_ident_braces_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X"
+            fi
+            if g05_obj_defines "$_cb_p4pb" "parser_asm_ident_pre_dispatch_x_into_c"; then
+              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_IDENT_PRE_DISPATCH_FROM_X"
+            fi
+            # shellcheck disable=SC2086
+            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
+               $_cb_p4p_extra \
+               -c -o "$_cb_p4p" "$_pthin_p4p_seed" \
+              && g05_obj_defines "$_cb_p4p" "parser_asm_parse_primary_into_slice_c" \
+              && g05_obj_defines "$_cb_p4p" "labi_pthin_expr_primary_slice_marker" \
+              && g05_obj_defines "$_cb_p4pb" "parser_asm_primary_suffix_loop_x_into_c"; then
+              _cb_p4p_ok=1
+            fi
+          fi
           if g05_obj_defines "$_ca_p6b" "parser_asm_parse_struct_record_layout_x_into_c"; then
             _ca_p6_extra="$_ca_p6_extra -DXLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X"
           fi
@@ -2769,6 +2822,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p11_ok:+-DXLANG_PTHIN_IMPORTS_FROM_X} \
                ${_cb_p9_ok:+-DXLANG_PTHIN_STRETCH_FROM_X} \
                ${_cb_p5_ok:+-DXLANG_PTHIN_CTRL_FROM_X} \
+               ${_cb_p4p_ok:+-DXLANG_PTHIN_EXPR_PRIMARY_FROM_X} \
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
@@ -2776,6 +2830,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p4as_ok:+"$_cb_p4as" "$_cb_p4asb" "$_cb_p4u"} \
                ${_cb_p4t_ok:+"$_cb_p4t" "$_cb_p4tb"} \
                ${_cb_p5_ok:+"$_cb_p5" "$_cb_p5b"} \
+               ${_cb_p4p_ok:+"$_cb_p4p" "$_cb_p4pb"} \
                ${_cb_p5w_use:+"$_cb_p5w"} \
                ${_cb_p7_ok:+"$_cb_p7" "$_cb_p7b"} \
                ${_cb_p15_ok:+"$_cb_p15" "$_cb_p15b"} \
@@ -2784,6 +2839,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             if [ "$_bx_p12b_pure" = "1" ] && [ "$_bx_p1b_pure" = "1" ] \
               && [ "$_bx_p6b_pure" = "1" ] && [ "$_bx_p3b_pure" = "1" ]; then
               if [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
+                && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
+                && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ]; then
+                echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl + primary (w1319)"
+              elif [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
                 && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
                 && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ]; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl (w1317)"
@@ -2818,7 +2877,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
           "$_cb_p3b" "$_cb_p3" "$_ca_bstub" "$_ca_bstub_c" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
           "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u" "$_cb_p4tb" "$_cb_p4t" "$_cb_p5w" \
-          "$_cb_p5b" "$_cb_p5" \
+          "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" \
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
           "$_cb_p9b" "$_cb_p9"
       fi
