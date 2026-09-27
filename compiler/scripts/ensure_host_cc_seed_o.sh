@@ -11001,12 +11001,13 @@ PY
     # w1293: piece 7 is parser_asm_stretch_skip_comment_at_c.
     # w1294: piece 8 is parser_asm_stretch_skip_ws_and_comments_c.
     # w1295: piece 9 is parser_asm_stretch_verify_kw_spelling_c.
+    # w1296: piece 10 is parser_asm_stretch_import_path_finalize_c.
     # Pieces 3, 4, and 5 are eight across eight tries.
-    # Some pure-asm tries segfault. Twelve tries for those seven pieces.
-    # The other eight pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those eight pieces.
+    # The other seven pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "8" ] || [ "$c" = "9" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "8" ] || [ "$c" = "9" ] || [ "$c" = "10" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
