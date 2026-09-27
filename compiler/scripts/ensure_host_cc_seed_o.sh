@@ -198,7 +198,7 @@
 # Families (list authority = catalog KEY):
 #   RT_SEED_SLICE_OBJS     — five Cap residual slices under src/runtime/
 #   R1_CORE_SEED_OBJS      — diag + runtime_link_abi + runtime_c_import +
-#                            x_seed_bridge + seed_link_compat
+#                            seed_link_compat
 #   R1_FRONTEND_GLUE_OBJS  — lexer.o / ast.o / lsp_diag.o (runtime_*_glue seeds)
 #   R1_MAIN_RUNTIME_OBJS   — main / main_x / main_driver / runtime / runtime_x /
 #                            runtime_driver / runtime_driver_no_c
