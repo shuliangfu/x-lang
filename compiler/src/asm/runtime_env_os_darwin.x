@@ -459,6 +459,10 @@ export function env_getenv_c_impl(key: *u8, key_len: i32, out: *u8, out_cap: i32
  */
 #[no_mangle]
 export function env_getenv_ptr_c_impl(key: *u8, key_len: i32, out_len: *i32): *u8 {
+  // A live pad pulls the strlen length slot inside this frame.
+  // The unpadded store sat eight bytes past the allocation.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let buf: *u8 = env_os_key_z(key, key_len);
   if (buf == 0) {
     return 0;
