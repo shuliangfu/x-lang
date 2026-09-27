@@ -636,6 +636,7 @@
 - 2026-09-27 Darwin arm64 `runtime_asm_build.o` 的产品体是 `src/asm/runtime_asm_build.x` 与 `src/asm/runtime_asm_build_main.x` 的纯 asm 合并。含 `main` 的翻译单元只发出 `main`。`skip` 读回 5，`main` 读回 17。Linux 与 Windows 仍编 `seeds/runtime_asm_build.from_x.c`。纯 asm 失败且对象缺失时走同一份种子。
 - 2026-09-27 Darwin arm64 独立 `rt_stack.o` 的产品体是 `src/runtime/rt_stack.x`，纯 asm。空参数返回空，源 11 长度 4 写回 21，大栈读回 7，留下 -99 时读回 3。切片标记留在大包 C。Linux 与 Windows 仍编 `seeds/rt_stack.from_x.c`。纯 asm 对象若带上切片标记则不收口。
 - 2026-09-27 lib root 三函数的产品体是 `src/runtime/rt_lib_root.x`，纯 asm。文件里只留一个 `while`。空指针和空串不可用，`XLANG_LIB` 为 `lib` 时读回 `lib`，两行时第一行 `abc`、第二行 `.`。切片标记留在大包 C。Linux 与 Windows 走同一份 `.x`。纯 asm 失败才退回 `-E` 或整份种子。
+- 2026-09-27 操作数解析一个符号改由 `.x` 纯 asm 编出。八次抽样里六次会段错误，再试才发出对象。整份帧已经关着。符号保持强。空指针返回 0。盘上 `parser_asm_thin_glue.o` 没有重编。其余二十九份仍走原来的八次尝试。
 - 2026-09-27 寄存器打包一个符号改由 `.x` 纯 asm 编出。八次抽样里四次会段错误，再试才发出对象。整份帧已经关着。符号保持强。空指针返回 -1。盘上 `parser_asm_thin_glue.o` 没有重编。其余三十份仍走原来的八次尝试。
 - 2026-09-27 模板解码一个符号改由 `.x` 纯 asm 编出。八次抽样里五次会段错误，再试才发出对象。整份帧已经关着。符号保持强。空指针返回 0。盘上 `parser_asm_thin_glue.o` 没有重编。其余三十一份仍走原来的八次尝试。
 - 2026-09-27 十六进制半字节一个符号改由 `.x` 纯 asm 编出。八次抽样里五次会段错误，再试才发出对象。整份帧已经关着。符号保持强。字母 a 写成 10。盘上 `parser_asm_thin_glue.o` 没有重编。其余三十二份仍走原来的八次尝试。
