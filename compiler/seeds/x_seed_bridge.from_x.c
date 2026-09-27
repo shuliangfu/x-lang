@@ -183,9 +183,14 @@ void pipeline_parser_set_match_module(struct ast_Module *m) {
 extern void pipeline_parser_set_match_module(struct ast_Module *m);
 #endif
 
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 struct ast_Module *pipeline_parser_get_match_module(void) {
   return g_parser_match_module_x;
 }
+#else
+/* Module-slot read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern struct ast_Module *pipeline_parser_get_match_module(void);
+#endif
 
 extern struct ast_Expr ast_arena_expr_get(struct ast_ASTArena *a, int32_t ref);
 extern void ast_arena_expr_set(struct ast_ASTArena *a, int32_t ref, struct ast_Expr e);

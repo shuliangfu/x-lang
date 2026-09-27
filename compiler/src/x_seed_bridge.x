@@ -12,6 +12,7 @@ export extern "C" function calloc(n: usize, size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
 export extern "C" function pipeline_match_module_bytes(): *u8;
 export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
+export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -189,4 +190,22 @@ export function pipeline_parser_set_match_module(m: *u8): void {
   unsafe {
     diag_store_ptr_le(pipeline_match_module_bytes(), m);
   }
+}
+
+/**
+ * Return the module used while parsing a match.
+ * The pointer stays in the seed. Offset 0 of that slot is the module
+ * pointer, loaded in host byte order through diag_snap_load_ptr.
+ * @return *u8 — module pointer, or null when none is set
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_get_match_module(): *u8 {
+  let pad: u8[32] = [];
+  let m: *u8 = 0 as *u8;
+  pad[0] = 0;
+  unsafe {
+    m = diag_snap_load_ptr(pipeline_match_module_bytes(), 0);
+  }
+  return m;
 }
