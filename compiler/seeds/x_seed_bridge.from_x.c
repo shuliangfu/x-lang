@@ -142,18 +142,8 @@ extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_m
 extern ptrdiff_t io_write(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 #endif
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-ptrdiff_t io_read_batch_buf(int fd, const void *bufs, int n, unsigned timeout_ms) {
-  (void)fd;
-  (void)bufs;
-  (void)n;
-  (void)timeout_ms;
-  return -1;
-}
-#else
 /* Batch read stub lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_read_batch_buf(int fd, const void *bufs, int n, unsigned timeout_ms);
-#endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 ptrdiff_t io_write_batch_buf(int fd, const void *bufs, int n, unsigned timeout_ms) {
