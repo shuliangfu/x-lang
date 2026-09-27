@@ -25,16 +25,7 @@
 /* sys/types for ssize_t if not from unistd */
 #include <sys/types.h>
 
-extern uint8_t * typeck_std_heap_alloc(size_t size);
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-uint8_t * std_heap_alloc(size_t size) {
-  (void)(({   {
-    uint8_t * r = typeck_std_heap_alloc(size);
-    return r;
-  }
- }));
-  return ((uint8_t *)(0));
-}
 uint8_t * io_read_ptr(uint32_t handle, uint32_t timeout_ms) {
   return ((uint8_t *)(0));
 }
