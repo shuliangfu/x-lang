@@ -377,6 +377,7 @@ extern int diag_kind_contains(const char *kind, const char *needle);
 #endif
 
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static DiagPalette diag_palette_for_kind(const char *kind) {
     DiagPalette pal;
     pal.kind_color = diag_color_prefix("", "\x1b[1;37m");
@@ -410,6 +411,7 @@ static DiagPalette diag_palette_for_kind(const char *kind) {
     }
     return pal;
 }
+#endif
 
 /** 供 .x stdio 冷路径（G-02f-156）。9.7.1: stream params are opaque fd handles. */
 /* G-02f-421：实现体始终 seed；public PREFER 时 thin pure forward */
@@ -717,9 +719,6 @@ void diag_report_json(const char *file, int line, int col,
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_human(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#else
-void diag_report_human_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#endif
 {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
     const char *line_start = NULL;
@@ -774,6 +773,10 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
         diag_o_printf(diag_h_stderr(), " %s", detail);
     diag_o_putc(diag_h_stderr(), '\n');
 }
+#else
+/* Human report walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_report_human(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail);
+#endif
 
 /* G-02f-158：逻辑源 .x（JSON 分流真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl（可再调 thin public 或 _impl） */
@@ -792,7 +795,7 @@ void diag_report_with_code_impl(const char *file, int line, int col, const char 
         diag_report_json(actual_file, line, col, kind, code, msg);
         return;
     }
-    diag_report_human_impl(file, line, col, kind, code, msg, detail);
+    diag_report_human(file, line, col, kind, code, msg, detail);
 #else
     if (diag_json_enabled()) {
         diag_report_json(actual_file, line, col, kind, code, msg);

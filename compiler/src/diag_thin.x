@@ -40,8 +40,6 @@ export extern "C" function diag_print_code_table_impl(out: *u8): void;
 export extern "C" function diag_print_known_codes_impl(out: *u8): void;
 export extern "C" function diag_print_code_explain_impl(out: *u8, code: *u8): void;
 export extern "C" function diag_report_with_code_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-export extern "C" function diag_report_human_impl(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
-
 // ---- G-02f-335 pure helpers ----
 
 /** Exported function `diag_line_digits`.
@@ -826,21 +824,112 @@ export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8,
   }
 }
 
-/** Exported function `diag_report_human`.
- * Implements `diag_report_human`.
- * @param file *u8
- * @param line i32
- * @param col i32
- * @param kind *u8
- * @param code *u8
- * @param msg *u8
- * @param detail *u8
- * @return void
+/**
+ * Print one human diagnostic: header, location, source line, caret.
+ * Colors match the seed palette (error, warning, info, note, help, hint).
+ * Formatted pieces stay in the seed fd helpers. This function does not
+ * flush; the fd writes are unbuffered. A missing source line returns
+ * after the location line.
+ * @param file *u8 — path, or null to use the context path
+ * @param line i32 — 1-based line; 0 still prints file:0:0
+ * @param col i32 — 1-based column; non-positive skips the caret
+ * @param kind *u8 — severity word
+ * @param code *u8 — diagnostic code, or null
+ * @param msg *u8 — message
+ * @param detail *u8 — caret note, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void {
+  let err: *u8 = 0 as *u8;
+  let actual_file: *u8 = file;
+  let kind_color: *u8 = 0 as *u8;
+  let caret_color: *u8 = 0 as *u8;
+  let path_color: *u8 = 0 as *u8;
+  let reset: *u8 = 0 as *u8;
+  let line_start_slot: u8[8] = [];
+  let line_len_slot: u8[8] = [];
+  let have_line: i32 = 0;
+  let line_start: *u8 = 0 as *u8;
+  let line_len_u: usize = 0;
+  let width: i32 = 1;
+  let caret_col: i32 = 0;
+  let i: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  line_start_slot[0] = 0;
+  line_len_slot[0] = 0;
   unsafe {
-    diag_report_human_impl(file, line, col, kind, code, msg, detail);
+    err = diag_stderr();
+    if (actual_file == 0 as *u8) {
+      actual_file = diag_ctx_get_file();
+    }
+    kind_color = diag_color_prefix("", "\x1b[1;37m");
+    caret_color = diag_color_prefix("", "\x1b[37m");
+    if (kind != 0 as *u8) {
+      if (kind[0] != 0) {
+        if (diag_kind_contains(kind, "error") != 0) {
+          kind_color = diag_color_prefix("", "\x1b[1;31m");
+          caret_color = diag_color_prefix("", "\x1b[31m");
+        } else {
+          if (diag_kind_contains(kind, "warning") != 0) {
+            kind_color = diag_color_prefix("", "\x1b[1;33m");
+            caret_color = diag_color_prefix("", "\x1b[33m");
+          } else {
+            if (diag_kind_is_exact(kind, "info") != 0) {
+              kind_color = diag_color_prefix("", "\x1b[1;36m");
+              caret_color = diag_color_prefix("", "\x1b[36m");
+            } else {
+              if (diag_kind_is_exact(kind, "note") != 0) {
+                kind_color = diag_color_prefix("", "\x1b[1;34m");
+                caret_color = diag_color_prefix("", "\x1b[34m");
+              } else {
+                if (diag_kind_is_exact(kind, "help") != 0 || diag_kind_is_exact(kind, "hint") != 0) {
+                  kind_color = diag_color_prefix("", "\x1b[1;32m");
+                  caret_color = diag_color_prefix("", "\x1b[32m");
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    path_color = diag_color_prefix("", "\x1b[34m");
+    reset = diag_color_reset();
+    if (line > 0) {
+      if (diag_extract_line(line, &line_start_slot[0], &line_len_slot[0]) == 0) {
+        have_line = 1;
+      }
+    }
+    diag_print_header(kind, code, msg, kind_color, reset);
+    if (actual_file != 0 as *u8) {
+      diag_io_fprint_loc_file_line_col(err, path_color, actual_file, line, col, reset);
+    } else {
+      if (line > 0 || col > 0) {
+        diag_io_fprint_loc_line_col(err, path_color, line, col, reset);
+      }
+    }
+    if (have_line == 0 || line <= 0 || col <= 0) {
+      return;
+    }
+    line_start = diag_snap_load_ptr(&line_start_slot[0], 0);
+    line_len_u = diag_snap_load_usize(&line_len_slot[0], 0);
+    width = diag_line_digits(line);
+    diag_io_fprint_gutter_blank(err, width);
+    diag_io_fprint_src_line(err, line, line_start, line_len_u as i32);
+    diag_io_fprint_gutter_bar(err, width);
+    if (col > 1) {
+      caret_col = col - 1;
+    }
+    while (i < caret_col) {
+      if ((i as usize) < line_len_u && line_start != 0 as *u8 && line_start[i] == 9) {
+        diag_io_fputc(err, 9);
+      } else {
+        diag_io_fputc(err, 32);
+      }
+      i = i + 1;
+    }
+    diag_io_fprint_caret_mark(err, caret_color, reset, detail);
   }
 }
 
