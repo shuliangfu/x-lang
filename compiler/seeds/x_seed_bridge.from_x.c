@@ -410,12 +410,18 @@ int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms) {
 extern int32_t xlang_io_submit_write_buf(intptr_t buf, int32_t timeout_ms);
 #endif
 
-/** lsp_gen 引用 driver_read_ptr*；真 partial 无 phase1 弱桩时兜底。 */
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
+/* lsp_gen names driver_read_ptr. This weak body is the fallback when no strong
+ * driver is linked. PLATFORM: SHARED. */
 XLANG_WEAK uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms) {
   (void)handle;
   (void)timeout_ms;
   return NULL;
 }
+#else
+/* Weak driver read pointer lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern uint8_t *std_io_driver_driver_read_ptr(size_t handle, unsigned timeout_ms);
+#endif
 
 XLANG_WEAK int32_t std_io_driver_driver_read_ptr_len(void) {
   return 0;

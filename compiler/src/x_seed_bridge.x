@@ -637,3 +637,21 @@ export function xlang_io_submit_write_buf(buf: isize, timeout_ms: i32): i32 {
   r = xlang_io_submit_write(ptr, len, handle, timeout_ms as u32);
   return r;
 }
+
+/**
+ * Weak fallback for the std.io driver read pointer.
+ * lsp_gen calls this name. The real driver supplies a strong definition when
+ * it is linked. This body ignores the handle and the timeout and returns a
+ * null pointer. The installed symbol stays weak.
+ * @param handle usize — ignored
+ * @param timeout_ms u32 — ignored
+ * @return *u8 — always null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_driver_driver_read_ptr(handle: usize, timeout_ms: u32): *u8 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  pad[1] = 0;
+  return 0 as *u8;
+}
