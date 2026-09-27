@@ -1502,6 +1502,15 @@ rt_diag_errno_darwin_pure() {
     return 1
   fi
   mkdir -p "$(dirname "$o")"
+  # w1211: some pure-asm tries segfault. Retry before the eight-try
+  # path. A failed retry still falls back to that path. Symbols stay
+  # strong. U __error is renamed to ___error. The slice marker stays
+  # absent. PLATFORM: MACOS|DARWIN arm64.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh rt-diag-errno-retry "$o"; then
+    log "prefer diag errno ← pure-asm thirteen symbols (w1211)"
+    return 0
+  fi
   # -backend asm only emits a relocatable object when the path ends in .o.
   stage=$(mktemp "${TMPDIR:-/tmp}/rtdiag.XXXXXX") || return 1
   rm -f "$stage"
@@ -5752,6 +5761,72 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1211: src/runtime/rt_diag_errno.x segfaults on some pure-asm
+# tries and emits on a later try. Frames are already inside the
+# allocation. Retry the whole translation unit. Direct xlang_asm.
+# llvm-objcopy renames U __error to ___error so libc resolves it.
+# Symbols stay strong. The slice marker must stay absent.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+rt_diag_errno_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_diag_errno.x"
+  local objcopy="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ] || [ ! -x "$objcopy" ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "13" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _rt_diag_get_errno _rt_diag_ensure_codes _rt_diag_append \
+    _runtime_diag_code_for_kind _runtime_diag_errno _runtime_diag_errno_path \
+    _runtime_diag_errno_path_pair _runtime_diag_cli_usage_note; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  if nm "$o" | awk '$2=="T" && $3=="_labi_rt_diag_errno_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  if ! "$objcopy" --redefine-sym '__error=___error' "$o"; then
+    rm -f "$o"
+    return 1
+  fi
+  if nm -u "$o" | awk '$NF=="__error" { found=1 } END { exit found ? 0 : 1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in ___error _malloc _strcmp _strerror _diag_report_with_code; do
+    if ! nm -u "$o" | awk -v s="$c" '$NF==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1210: src/pipeline_phase_parse_only_alias.x segfaults on
 # some pure-asm tries and emits on a later try. Frames are
 # already inside the allocation. Retry the whole translation unit.
@@ -28334,6 +28409,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  rt-diag-errno-retry|rt_diag_errno_retry_pure)
+    # w1211: thirteen pure-asm symbols of rt_diag_errno.x.
+    # Renames U __error to ___error. Does not merge the marker rest.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-diag-errno-retry: need <out.o>" >&2
+      exit 2
+    fi
+    rt_diag_errno_retry_pure "$1"
+    exit $?
+    ;;
   phase-parse-retry|phase_parse_retry_pure)
     # w1210: two pure-asm symbols of pipeline_phase_parse_only_alias.x.
     # Does not write pipeline_phase_parse_only_alias.o unless that path is passed.
