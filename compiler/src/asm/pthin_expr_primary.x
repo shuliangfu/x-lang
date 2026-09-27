@@ -13,6 +13,10 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// w1153: one translation unit exits 139. Darwin compiles each function
+// and links the thirty-seven pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
 
 /* Primary literal wave: token ordinals (token.h enum, validated
  * ELSE=5/IF=4) and bridges. */
@@ -323,12 +327,29 @@ function parser_asm_primary_ident_byte(data: *u8, token_start: usize, i: i32): u
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_unsafe_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 6) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 6);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 117 && parser_asm_primary_ident_byte(data, token_start, 1) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 115 && parser_asm_primary_ident_byte(data, token_start, 3) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 4) == 102 && parser_asm_primary_ident_byte(data, token_start, 5) == 101) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+    c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+  }
+  if (c0 == 117 && c1 == 110 && c2 == 115 && c3 == 97 && c4 == 102 && c5 == 101) {
     return 1;
   }
   return 0;
@@ -345,11 +366,23 @@ export function parser_asm_primary_ident_is_unsafe_buf_c(data: *u8, length: usiz
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_asm_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 97 && parser_asm_primary_ident_byte(data, token_start, 1) == 115
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 109) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+  }
+  if (c0 == 97 && c1 == 115 && c2 == 109) {
     return 1;
   }
   return 0;
@@ -366,10 +399,21 @@ export function parser_asm_primary_ident_is_asm_buf_c(data: *u8, length: usize, 
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_in_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 2) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 2);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 105 && parser_asm_primary_ident_byte(data, token_start, 1) == 110) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+  }
+  if (c0 == 105 && c1 == 110) {
     return 1;
   }
   return 0;
@@ -386,11 +430,23 @@ export function parser_asm_primary_ident_is_in_buf_c(data: *u8, length: usize, t
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_out_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 111 && parser_asm_primary_ident_byte(data, token_start, 1) == 117
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 116) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+  }
+  if (c0 == 111 && c1 == 117 && c2 == 116) {
     return 1;
   }
   return 0;
@@ -407,13 +463,31 @@ export function parser_asm_primary_ident_is_out_buf_c(data: *u8, length: usize, 
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_lateout_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  let c6: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 108 && parser_asm_primary_ident_byte(data, token_start, 1) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 116 && parser_asm_primary_ident_byte(data, token_start, 3) == 101
-      && parser_asm_primary_ident_byte(data, token_start, 4) == 111 && parser_asm_primary_ident_byte(data, token_start, 5) == 117
-      && parser_asm_primary_ident_byte(data, token_start, 6) == 116) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+    c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+    c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+  }
+  if (c0 == 108 && c1 == 97 && c2 == 116 && c3 == 101 && c4 == 111 && c5 == 117 && c6 == 116) {
     return 1;
   }
   return 0;
@@ -430,13 +504,31 @@ export function parser_asm_primary_ident_is_lateout_buf_c(data: *u8, length: usi
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_options_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  let c6: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 111 && parser_asm_primary_ident_byte(data, token_start, 1) == 112
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 116 && parser_asm_primary_ident_byte(data, token_start, 3) == 105
-      && parser_asm_primary_ident_byte(data, token_start, 4) == 111 && parser_asm_primary_ident_byte(data, token_start, 5) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 6) == 115) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+    c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+    c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+  }
+  if (c0 == 111 && c1 == 112 && c2 == 116 && c3 == 105 && c4 == 111 && c5 == 110 && c6 == 115) {
     return 1;
   }
   return 0;
@@ -455,57 +547,113 @@ export function parser_asm_primary_ident_is_options_buf_c(data: *u8, length: usi
  */
 #[no_mangle]
 export function parser_asm_primary_asm_option_bit_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  let c6: u8 = 0;
+  let c7: u8 = 0;
+  let c8: u8 = 0;
+  let c9: u8 = 0;
+  let c10: u8 = 0;
+  let c11: u8 = 0;
+  let c12: u8 = 0;
+  let c13: u8 = 0;
+  let c14: u8 = 0;
   if (data == 0 as *u8 || ident_len <= 0) {
     return 0;
   }
   if (token_start + ident_len as usize > length) {
     return 0;
   }
-  // nostack = 1
-  if (ident_len == 7 && parser_asm_primary_ident_byte(data, token_start, 0) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 111 && parser_asm_primary_ident_byte(data, token_start, 2) == 115
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 116 && parser_asm_primary_ident_byte(data, token_start, 4) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 99 && parser_asm_primary_ident_byte(data, token_start, 6) == 107) {
-    return 1;
+  // Darwin compiles this function alone. The byte helper is an extern.
+  // Each length loads only the bytes that spelling uses.
+  if (ident_len == 7) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+      c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+      c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+    }
+    // nostack = 1
+    if (c0 == 110 && c1 == 111 && c2 == 115 && c3 == 116 && c4 == 97 && c5 == 99 && c6 == 107) {
+      return 1;
+    }
   }
-  // preserves_flags = 2
-  if (ident_len == 15 && parser_asm_primary_ident_byte(data, token_start, 0) == 112
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 114 && parser_asm_primary_ident_byte(data, token_start, 2) == 101
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 115 && parser_asm_primary_ident_byte(data, token_start, 4) == 101
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 114 && parser_asm_primary_ident_byte(data, token_start, 6) == 118
-      && parser_asm_primary_ident_byte(data, token_start, 7) == 101 && parser_asm_primary_ident_byte(data, token_start, 8) == 115
-      && parser_asm_primary_ident_byte(data, token_start, 9) == 95 && parser_asm_primary_ident_byte(data, token_start, 10) == 102
-      && parser_asm_primary_ident_byte(data, token_start, 11) == 108 && parser_asm_primary_ident_byte(data, token_start, 12) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 13) == 103 && parser_asm_primary_ident_byte(data, token_start, 14) == 115) {
-    return 2;
+  if (ident_len == 15) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+      c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+      c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+      c7 = parser_asm_primary_ident_byte(data, token_start, 7);
+      c8 = parser_asm_primary_ident_byte(data, token_start, 8);
+      c9 = parser_asm_primary_ident_byte(data, token_start, 9);
+      c10 = parser_asm_primary_ident_byte(data, token_start, 10);
+      c11 = parser_asm_primary_ident_byte(data, token_start, 11);
+      c12 = parser_asm_primary_ident_byte(data, token_start, 12);
+      c13 = parser_asm_primary_ident_byte(data, token_start, 13);
+      c14 = parser_asm_primary_ident_byte(data, token_start, 14);
+    }
+    // preserves_flags = 2
+    if (c0 == 112 && c1 == 114 && c2 == 101 && c3 == 115 && c4 == 101 && c5 == 114 && c6 == 118
+        && c7 == 101 && c8 == 115 && c9 == 95 && c10 == 102 && c11 == 108 && c12 == 97
+        && c13 == 103 && c14 == 115) {
+      return 2;
+    }
   }
-  // nomem = 4
-  if (ident_len == 5 && parser_asm_primary_ident_byte(data, token_start, 0) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 111 && parser_asm_primary_ident_byte(data, token_start, 2) == 109
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 101 && parser_asm_primary_ident_byte(data, token_start, 4) == 109) {
-    return 4;
+  if (ident_len == 5) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    }
+    // nomem = 4
+    if (c0 == 110 && c1 == 111 && c2 == 109 && c3 == 101 && c4 == 109) {
+      return 4;
+    }
   }
-  // readonly = 8
-  if (ident_len == 8 && parser_asm_primary_ident_byte(data, token_start, 0) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 101 && parser_asm_primary_ident_byte(data, token_start, 2) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 100 && parser_asm_primary_ident_byte(data, token_start, 4) == 111
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 110 && parser_asm_primary_ident_byte(data, token_start, 6) == 108
-      && parser_asm_primary_ident_byte(data, token_start, 7) == 121) {
-    return 8;
+  if (ident_len == 8) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+      c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+      c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+      c7 = parser_asm_primary_ident_byte(data, token_start, 7);
+    }
+    // readonly = 8
+    if (c0 == 114 && c1 == 101 && c2 == 97 && c3 == 100 && c4 == 111 && c5 == 110 && c6 == 108 && c7 == 121) {
+      return 8;
+    }
+    // noreturn = 32
+    if (c0 == 110 && c1 == 111 && c2 == 114 && c3 == 101 && c4 == 116 && c5 == 117 && c6 == 114 && c7 == 110) {
+      return 32;
+    }
   }
-  // pure = 16
-  if (ident_len == 4 && parser_asm_primary_ident_byte(data, token_start, 0) == 112
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 117 && parser_asm_primary_ident_byte(data, token_start, 2) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 101) {
-    return 16;
-  }
-  // noreturn = 32
-  if (ident_len == 8 && parser_asm_primary_ident_byte(data, token_start, 0) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 111 && parser_asm_primary_ident_byte(data, token_start, 2) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 101 && parser_asm_primary_ident_byte(data, token_start, 4) == 116
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 117 && parser_asm_primary_ident_byte(data, token_start, 6) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 7) == 110) {
-    return 32;
+  if (ident_len == 4) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    }
+    // pure = 16
+    if (c0 == 112 && c1 == 117 && c2 == 114 && c3 == 101) {
+      return 16;
+    }
   }
   return 0;
 }
@@ -521,7 +669,12 @@ export function parser_asm_primary_asm_option_bit_buf_c(data: *u8, length: usize
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_asm_option_name_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_asm_option_bit_buf_c(data, length, token_start, ident_len) != 0) {
+  let bit: i32 = 0;
+  // Darwin compiles this function alone. The bit table is an extern.
+  unsafe {
+    bit = parser_asm_primary_asm_option_bit_buf_c(data, length, token_start, ident_len);
+  }
+  if (bit != 0) {
     return 1;
   }
   return 0;
@@ -554,6 +707,8 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
   let fval: f64 = 0 as f64;
   let tl: i32 = 0;
   let tc: i32 = 0;
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -1132,6 +1287,8 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
   let col0: i32 = 0;
   let data: *u8 = 0 as *u8;
   let ok2: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -1603,6 +1760,8 @@ function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *
   let ref: i32 = 0;
   let eok: i32 = 0;
   let eref: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -1673,6 +1832,8 @@ function parser_asm_primary_lbrace_x_into_c(arena: *u8, lex_inout: *u8, source: 
   let wrap: i32 = 0;
   let eok: i32 = 0;
   let eref: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -2044,6 +2205,8 @@ function parser_asm_primary_asm_template_decode_x(source: *u8, q0: usize, nlen: 
   let slen: usize = 0;
   let consumed: i32 = 0;
   let b: u8 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (source == 0 as *u8 || tmpl_buf == 0 as *u8) {
     return 0;
   }
@@ -2577,6 +2740,8 @@ export function parser_asm_primary_parse_unsafe_x_into_c(arena: *u8, lex_inout: 
   let wrap: i32 = 0;
   let wref: i32 = 0;
   let uidx: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8) {
     return 0;
   }

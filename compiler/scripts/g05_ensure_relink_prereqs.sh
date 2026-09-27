@@ -1191,8 +1191,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # Cold: no define, full .inc.
         # P3c mangle trampoline in primary.inc needs TYPE_REF_BODIES too.
         _pthin_p4p_extra=""
+        _pthin_p4pb_pure=0
+        # w1153: the file exits 139. Darwin compiles each function and
+        # links them. Other hosts keep g05_try_x_to_o.
+        # PLATFORM: MACOS|DARWIN arm64 for the pure path.
         if [ -n "$_pthin_p4pb_thin_o" ] && [ -f "$_pthin_p4pb_x" ]; then
-          if G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o" \
+          if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+            && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+            && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+            && bash scripts/ensure_host_cc_seed_o.sh pthin-expr-primary-pure "$_pthin_p4pb_thin_o"; then
+            _pthin_p4pb_pure=1
+          fi
+          if { [ "$_pthin_p4pb_pure" = "1" ] \
+            || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4pb_x" "$_pthin_p4pb_thin_o"; } \
             && g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_primary_x_into_c" \
             && g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_parse_struct_lit_fields_x_into_c"; then
             _pthin_p4pb_ok=1
@@ -1216,15 +1227,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                 _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X"
                 if g05_obj_defines "$_pthin_p4pb_thin_o" "parser_asm_ident_pre_dispatch_x_into_c"; then
                   _pthin_p4p_extra="$_pthin_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_IDENT_PRE_DISPATCH_FROM_X"
-                  echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp/P4bq/P4br primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe + lbrace lookahead + ident_pre_dispatch ← $_pthin_p4pb_x"
+                  if [ "$_pthin_p4pb_pure" != "1" ]; then
+                    echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp/P4bq/P4br primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe + lbrace lookahead + ident_pre_dispatch ← $_pthin_p4pb_x"
+                  fi
                 else
-                  echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp/P4bq primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe + lbrace lookahead ← $_pthin_p4pb_x (P4br ident_pre_dispatch C twin)"
+                  if [ "$_pthin_p4pb_pure" != "1" ]; then
+                    echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp/P4bq primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe + lbrace lookahead ← $_pthin_p4pb_x (P4br ident_pre_dispatch C twin)"
+                  fi
                 fi
               else
-                echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe ← $_pthin_p4pb_x (P4bq lbrace C twin)"
+                if [ "$_pthin_p4pb_pure" != "1" ]; then
+                  echo "g05_ensure: P4b–P4bi/P4bj/P4bm/P4bn/P4bo/P4bp primary + anon-struct + STRING decode + finish_type_ident + asm_bang + unsafe ← $_pthin_p4pb_x (P4bq lbrace C twin)"
+                fi
               fi
             else
-              echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi/P4bj/P4bm/P4bn/P4bo primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bp unsafe C twin)"
+              if [ "$_pthin_p4pb_pure" != "1" ]; then
+                echo "g05_ensure: P4b/P4be/P4bf/P4bg/P4bh/P4bi/P4bj/P4bm/P4bn/P4bo primary bodies ← $_pthin_p4pb_x (7.2.1 Route C; P4bp unsafe C twin)"
+              fi
+            fi
+            if [ "$_pthin_p4pb_pure" = "1" ]; then
+              echo "g05_ensure: P4 primary ← pure-asm thirty-seven pieces (w1153)"
             fi
           else
             echo "g05_ensure: P4b primary .x thin failed or missing parse_primary/struct_lit_fields dest-buffer; P4 C twin stays full" >&2
