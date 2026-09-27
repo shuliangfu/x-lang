@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_unknown_code_impl(out: *u8, code: *u8): void;
 export extern "C" function diag_io_fprint_code_table_hdr_impl(out: *u8): void;
 export extern "C" function diag_io_fprint_code_table_row_impl(out: *u8, code: *u8, kind: *u8, summary: *u8): void;
 
@@ -2009,15 +2008,26 @@ export function diag_code_table_len(): i64 {
   return 43;
 }
 
-/** Exported function `diag_io_fprint_unknown_code`.
- * Implements `diag_io_fprint_unknown_code`.
- * @param out *u8
- * @param code *u8
- * @return void
+/**
+ * Write one unknown-code line: "Unknown diagnostic code: ", the code,
+ * and a newline. A null code is written as the text "(null)".
+ * @param out *u8 — destination stream
+ * @param code *u8 — diagnostic code, or null
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_unknown_code(out: *u8, code: *u8): void {
-  unsafe { diag_io_fprint_unknown_code_impl(out, code); }
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    diag_io_fputs("Unknown diagnostic code: ", out);
+    if (code != 0 as *u8) {
+      diag_io_fputs(code, out);
+    } else {
+      diag_io_fputs("(null)", out);
+    }
+    diag_io_fputc(out, 10);
+  }
 }
 
 /** Exported function `diag_io_fprint_code_table_hdr`.

@@ -964,13 +964,13 @@ uint8_t *diag_stdout_impl(void) { return diag_h_stdout(); }
 uint8_t *diag_stdout(void) { return diag_stdout_impl(); }
 #endif
 /* G-02f-415：code table io → seed impl + thin pure forward (9.7.1 fd handles) */
-void diag_io_fprint_unknown_code_impl(uint8_t *out, const char *code) {
-    diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_unknown_code(uint8_t *out, const char *code) {
-    diag_io_fprint_unknown_code_impl(out, code);
+    diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
 }
+#else
+/* Unknown-code line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_unknown_code(uint8_t *out, const char *code);
 #endif
 void diag_io_fprint_code_table_hdr_impl(uint8_t *out) {
     diag_o_printf(out, "%-8s %-18s %s\n", "CODE", "KIND", "SUMMARY");
