@@ -942,7 +942,6 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
 }
 
 // See implementation.
-export extern "C" function diag_levenshtein_ci_impl(a: *u8, b: *u8): i32;
 export extern "C" function diag_code_suggest_impl(code: *u8, out: *u8, out_cap: i64): *u8;
 
 /**
@@ -992,17 +991,109 @@ export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
   return 0;
 }
 
-/** Exported function `diag_levenshtein_ci`.
- * Implements `diag_levenshtein_ci`.
- * @param a *u8
- * @param b *u8
- * @return i32
+/**
+ * Case-insensitive Levenshtein distance for short diagnostic codes.
+ * A null pointer returns 999. A side of 64 bytes or more without a
+ * NUL also returns 999. An empty side returns the other side's length.
+ * a-z folds to A-Z. The distance is the usual insert, delete, and
+ * substitute minimum. Only the first 63 bytes of each side are read.
+ * @param a *u8 — left code, or null
+ * @param b *u8 — right code, or null
+ * @return i32 — edit distance, or 999 when the inputs are unusable
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_levenshtein_ci(a: *u8, b: *u8): i32 {
-  unsafe {
-    return diag_levenshtein_ci_impl(a, b);
+  let la: i32 = 0;
+  let lb: i32 = 0;
+  let prev: i32[64] = [];
+  let cur: i32[64] = [];
+  let i: i32 = 1;
+  let j: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (a == 0 as *u8) {
+    return 999;
   }
+  if (b == 0 as *u8) {
+    return 999;
+  }
+  unsafe {
+    while (la < 64) {
+      if (a[la] == 0) {
+        break;
+      }
+      la = la + 1;
+    }
+    while (lb < 64) {
+      if (b[lb] == 0) {
+        break;
+      }
+      lb = lb + 1;
+    }
+    if (la >= 64) {
+      return 999;
+    }
+    if (lb >= 64) {
+      return 999;
+    }
+    if (la == 0) {
+      return lb;
+    }
+    if (lb == 0) {
+      return la;
+    }
+    while (j <= lb) {
+      prev[j] = j;
+      j = j + 1;
+    }
+    while (i <= la) {
+      cur[0] = i;
+      j = 1;
+      while (j <= lb) {
+        let ca: u8 = a[i - 1];
+        let cb: u8 = b[j - 1];
+        let cost: i32 = 1;
+        let del: i32 = 0;
+        let ins: i32 = 0;
+        let sub: i32 = 0;
+        let m: i32 = 0;
+        if (ca >= 97) {
+          if (ca <= 122) {
+            ca = ca - 32;
+          }
+        }
+        if (cb >= 97) {
+          if (cb <= 122) {
+            cb = cb - 32;
+          }
+        }
+        if (ca == cb) {
+          cost = 0;
+        }
+        del = prev[j] + 1;
+        ins = cur[j - 1] + 1;
+        sub = prev[j - 1] + cost;
+        m = del;
+        if (ins < m) {
+          m = ins;
+        }
+        if (sub < m) {
+          m = sub;
+        }
+        cur[j] = m;
+        j = j + 1;
+      }
+      j = 0;
+      while (j <= lb) {
+        prev[j] = cur[j];
+        j = j + 1;
+      }
+      i = i + 1;
+    }
+    return prev[lb];
+  }
+  return 999;
 }
 
 /**

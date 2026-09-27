@@ -13,7 +13,6 @@
  */
 #include "diag.h"
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
-#define diag_levenshtein_ci diag_levenshtein_ci_impl
 #define diag_code_suggest diag_code_suggest_impl
 int diag_ctx_get_use_color(void);
 int diag_code_table_has(const char *code);
@@ -1101,9 +1100,6 @@ void diag_print_code_explain_impl(uint8_t *out, const char *code)
 /* G-02f-152 / G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_levenshtein_ci(const char *a, const char *b)
-#else
-int diag_levenshtein_ci_impl(const char *a, const char *b)
-#endif
 {
     size_t la = a ? strlen(a) : 0;
     size_t lb = b ? strlen(b) : 0;
@@ -1147,6 +1143,10 @@ int diag_levenshtein_ci_impl(const char *a, const char *b)
     }
     return prev[lb];
 }
+#else
+/* Case-insensitive edit distance lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_levenshtein_ci(const char *a, const char *b);
+#endif
 
 /**
  * 为未知诊断码找一个最接近的已知码（did-you-mean 建议）。
