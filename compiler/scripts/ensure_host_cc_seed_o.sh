@@ -10290,12 +10290,13 @@ PY
     # w1244: piece 11 is parser_asm_alloc_dyn_type_ref_into_c.
     # w1245: piece 12 is parser_asm_wrap_registered_trait_as_dyn_into_c.
     # w1246: piece 13 is parser_asm_parse_postfix_slice_x_into_c.
+    # w1247: piece 14 is parser_asm_parse_postfix_array_x_into_c.
     # Piece 8 stays at eight: nine integer args, the stack arg tracks the frame.
-    # Some pure-asm tries segfault. Twelve tries for those eight pieces.
-    # The other twenty-three pieces stay at eight. Symbols stay strong.
+    # Some pure-asm tries segfault. Twelve tries for those nine pieces.
+    # The other twenty-two pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "9" ] || [ "$c" = "10" ] || [ "$c" = "11" ] || [ "$c" = "12" ] || [ "$c" = "13" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "9" ] || [ "$c" = "10" ] || [ "$c" = "11" ] || [ "$c" = "12" ] || [ "$c" = "13" ] || [ "$c" = "14" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
