@@ -10500,11 +10500,13 @@ PY
     # w1257: piece 6 is parser_asm_ctrl_skip_comment_or_quote.
     # w1258: piece 7 is parser_asm_ctrl_find_then_lbrace.
     # w1259: piece 8 is parser_asm_scan_sync_after_if_stmt_pos_c.
-    # Some pure-asm tries segfault. Twelve tries for those nine pieces.
-    # The other twenty-two pieces stay at eight. Symbols stay strong.
+    # w1260: piece 12 is parser_asm_ctrl_realign_scan_kw_len.
+    # Pieces 9, 10, and 11 are eight across eight tries.
+    # Some pure-asm tries segfault. Twelve tries for those ten pieces.
+    # The other twenty-one pieces stay at eight. Symbols stay strong.
     # PLATFORM: MACOS|DARWIN arm64.
     limit=8
-    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "8" ]; then
+    if [ "$c" = "0" ] || [ "$c" = "1" ] || [ "$c" = "2" ] || [ "$c" = "3" ] || [ "$c" = "4" ] || [ "$c" = "5" ] || [ "$c" = "6" ] || [ "$c" = "7" ] || [ "$c" = "8" ] || [ "$c" = "12" ]; then
       limit=12
     fi
     while [ "$try" -lt "$limit" ]; do
