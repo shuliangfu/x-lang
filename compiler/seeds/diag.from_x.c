@@ -488,13 +488,13 @@ void diag_io_fprint_loc_line_col(uint8_t *o, const char *pc, int line, int col, 
 /* Location line with line and column lives in src/diag_thin.x. PLATFORM: SHARED. */
 extern void diag_io_fprint_loc_line_col(uint8_t *o, const char *pc, int line, int col, const char *rs);
 #endif
-void diag_io_fprint_gutter_blank_impl(uint8_t *o, int width) {
-    diag_o_printf(o, "%*s |\n", width, "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_gutter_blank(uint8_t *o, int width) {
-    diag_io_fprint_gutter_blank_impl(o, width);
+    diag_o_printf(o, "%*s |\n", width, "");
 }
+#else
+/* Blank gutter line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_gutter_blank(uint8_t *o, int width);
 #endif
 void diag_io_fprint_src_line_impl(uint8_t *o, int line, const char *start, int len) {
     /* Three-part write keeps arbitrary-length source lines intact (no 512 cap). */

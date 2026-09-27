@@ -1532,7 +1532,6 @@ export extern "C" function diag_io_fputc_impl(o: *u8, c: i32): i32;
 export extern "C" function diag_io_fputs_impl(s: *u8, o: *u8): i32;
 export extern "C" function diag_io_fputs_u04x_impl(o: *u8, c: u32): void;
 export extern "C" function diag_io_fflush_impl(o: *u8): void;
-export extern "C" function diag_io_fprint_gutter_blank_impl(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_src_line_impl(o: *u8, line: i32, start: *u8, len: i32): void;
 export extern "C" function diag_io_fprint_gutter_bar_impl(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_caret_mark_impl(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
@@ -1854,15 +1853,35 @@ export function diag_io_fprint_loc_line_col(o: *u8, pc: *u8, line: i32, col: i32
   }
 }
 
-/** Exported function `diag_io_fprint_gutter_blank`.
- * Implements `diag_io_fprint_gutter_blank`.
- * @param o *u8
- * @param width i32
- * @return void
+/**
+ * Write a blank gutter line: padding spaces, then " |" and a newline.
+ * A positive width writes that many spaces. Zero writes none.
+ * A negative width writes its magnitude, matching printf %*s on an
+ * empty string. The most negative i32 cannot be negated, so it writes
+ * no padding spaces.
+ * @param o *u8 — destination stream
+ * @param width i32 — space count before the bar
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_io_fprint_gutter_blank(o: *u8, width: i32): void {
-  unsafe { diag_io_fprint_gutter_blank_impl(o, width); }
+  let n: i32 = width;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    if (n < 0) {
+      if (n + 2147483647 == 0 - 1) {
+        n = 0;
+      } else {
+        n = 0 - n;
+      }
+    }
+    while (n > 0) {
+      diag_io_fputc(o, 32);
+      n = n - 1;
+    }
+    diag_io_fputs(" |\n", o);
+  }
 }
 
 /** Exported function `diag_io_fprint_src_line`.
