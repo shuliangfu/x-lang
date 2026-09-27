@@ -25,10 +25,7 @@
 /* sys/types for ssize_t if not from unistd */
 #include <sys/types.h>
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. The cold xlang_io_register_buf still calls it. PLATFORM: SHARED. */
-extern int32_t xlang_io_register(uint8_t *ptr, size_t len, size_t handle);
-#else
+#ifdef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 /* G-02f-332：thin 由 src/x_seed_bridge.x（-E）提供 */
 extern int32_t typeck_preprocess_x_buf(uint8_t *src, ssize_t src_len, uint8_t *out_buf, int32_t out_cap);
 extern uint8_t *std_heap_alloc_zeroed(size_t size);
@@ -168,17 +165,8 @@ typedef struct {
   size_t handle;
 } xlang_buffer_abi_t;
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-int32_t xlang_io_register_buf(intptr_t buf) {
-  const xlang_buffer_abi_t *b = (const xlang_buffer_abi_t *)(uintptr_t)buf;
-  if (!b)
-    return -1;
-  return xlang_io_register(b->ptr, b->length, b->handle);
-}
-#else
 /* Buffer registration lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern int32_t xlang_io_register_buf(intptr_t buf);
-#endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 int32_t xlang_io_submit_read(uint8_t *ptr, size_t len, size_t handle, unsigned timeout_ms) {
