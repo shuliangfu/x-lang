@@ -44,6 +44,9 @@ G05_BOOTSTRAP="${G05_BOOTSTRAP:-bootstrap_xlangc}"
 _BASE_CFLAGS="-Wall -Wextra -I. -Iinclude -Isrc"
 _DRIVER_SEED_LINK_FLAGS="-DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN"
 
+# Darwin diag.o references xlang_panic_. Other hosts leave this empty.
+_PANIC_LINK_O=""
+
 case "$UNAME_S" in
   Darwin)
   # PLATFORM: MACOS — `-multiply_defined` is obsolete on Apple ld (g05 pure-ld
@@ -706,6 +709,38 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_let_init_module_var.o $_PABI_SELFHOST"
   fi
+  # PLATFORM: MACOS|DARWIN — host_is_arm64_c is mov w0,#1; ret. Leftover
+  # PAGE21/PAGEOFF12 still name the old BSS load and sit on that mov/ret.
+  # ld rejects them. Drop only those mismatched relocs.
+  # Do not rebuild pabi_weak.o. Diagnostics go to stderr (stdout is eval'd).
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    python3 scripts/pabi_drop_stale_pageoff12.py \
+      build_asm/selfhost_pabi/pabi_weak.o >&2 || true
+  fi
+  # diag.o eight pure pieces reference xlang_panic_. This object is the
+  # Darwin pure-asm body. Do not re-emit it: the current compiler faults
+  # on runtime_panic_arm64.x. getenv is already strong in
+  # runtime_link_abi.o; Apple ld has no multidef, so weaken the copies.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -s runtime_panic.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m runtime_panic.o 2>/dev/null \
+      | grep -F "_link_abi_getenv" | grep -qv weak; then
+      "$_oc" --weaken-symbol=_link_abi_getenv \
+        --weaken-symbol=_link_abi_getenv_impl \
+        runtime_panic.o 2>/dev/null || true
+    fi
+    _PANIC_LINK_O="runtime_panic.o"
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -960,7 +995,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

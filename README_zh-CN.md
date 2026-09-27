@@ -12,7 +12,7 @@
 | **源文件后缀** | `.x` |
 | **项目构建** | `build.x` — 用 X 语言描述构建策略（`xlang build` / `build_tool` / `xlang-build.sh`） |
 | **现阶段（2026-09-23）** | **产品 L4 钉盘 `ecdb5cc1e`**（双端真冷；**日常不升钉**）。tip 在 **`dev`**：**M2** 真减 host-cc（Class AD–BI Cap／stretch／unwind／needle／leftover）· Cap residual **9.1–9.7 ✅** · BC inventory **present 0** · leftover unique **0** · Darwin tip **prefer labi** · Ubuntu tip 全量重链常走 **warm**（SEGV／FAIL）· Win 默认 **LEGACY** · 写 `let x: Trait = a`（**不要**写 `dyn Trait`，**P013**）· **三端 L2 硬闸已启用**（mac + Ubuntu + Windows）。MG Makefile **已删**（0-make）。**尚未完全自举** — 冷启动仍需 seed／宿主 `cc`；真债＝map 外 `from_x`／产品 `.inc`／大户 leftover；`labi_invoke_cc` 未删；mega FORCE 仍禁。 |
-| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [M2 主链](analysis/自举效率方法-M2主链.md) · [C 迁移债](analysis/C迁移追踪.md) · [自举验证](analysis/自举验证.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [9 月 24 日归档](analysis/自举进度-归档-2026-09-24.md) · [9 月 23 日归档](analysis/自举进度-归档-2026-09-23.md) · [9 月 22 日归档](analysis/自举进度-归档-2026-09-22.md) |
+| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [M2 主链](analysis/自举效率方法-M2主链.md) · [终局待办](analysis/终局待办.md) · [自举验证](analysis/自举验证.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [9 月 24 日归档](analysis/自举进度-归档-2026-09-24.md) · [9 月 23 日归档](analysis/自举进度-归档-2026-09-23.md) · [9 月 22 日归档](analysis/自举进度-归档-2026-09-22.md) |
 | **English** | [README.md](README.md) |
 
 ---
@@ -43,7 +43,7 @@
 | **放行 / 钉盘审阅** | 文首状态表 · [§七](#七自举状态摘要--2026-09-23) | 仅认 L4 真冷 + 全量 bstrict（**131** 套）；三端 L2 绿 ≠ 升钉 |
 | **要 residual 实时数字** | **别只看本文** — 打开 [自举进度](analysis/自举进度.md) 或 `./xbuild bc-inventory` | README 是快照；冲突时以仪表盘为准 |
 
-**文档职责（禁止混权威）：** 根 README = 产品与上手着陆页；`analysis/自举进度.md` = 自举实时 KPI；`analysis/C迁移追踪.md` = 终局债状态；`analysis/自举验证.md` = 闸门手册；`compiler/docs/SELFHOST.md` = 操作手册；`docs/` = 面向用户的语言语法；`AGENTS.md` + skill `xlang-selfhost-product-gate` = 工程纪律。
+**文档职责（禁止混权威）：** 根 README = 产品与上手着陆页；`analysis/自举进度.md` = 自举实时 KPI；`analysis/终局待办.md` = 到终局的勾选；`analysis/自举验证.md` = 闸门手册；`compiler/docs/SELFHOST.md` = 操作手册；`docs/` = 面向用户的语言语法；`AGENTS.md` + skill `xlang-selfhost-product-gate` = 工程纪律。
 
 ---
 
@@ -423,7 +423,7 @@ xlang/
 
 ## 七、自举状态（摘要 · 2026-09-23）
 
-> **实时数字以** [自举进度.md](analysis/自举进度.md) · [C迁移追踪.md](analysis/C迁移追踪.md) · [自举验证.md](analysis/自举验证.md) · inventory `./xbuild bc-inventory` **为准**。  
+> **实时数字以** [自举进度.md](analysis/自举进度.md) · [终局待办.md](analysis/终局待办.md) · [自举验证.md](analysis/自举验证.md) · inventory `./xbuild bc-inventory` **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **三端日常 L2 绿**写成 L4 重钉或「完全自举」。  
 > **Makefile 物理删除已完成**。产品入口仅为 **`./xbuild`**。冷启动走 **`./xbuild bootstrap-driver-seed`**，不是 `make`。  
 > **主刀 = M2**（真减 host-cc／纯 asm）— 见 [M2 主链](analysis/自举效率方法-M2主链.md)。禁：mega FORCE · leftover-first · `-E` 当修 · HARD BAN 分类主刀 · CloudAgent · 默升钉。
@@ -494,7 +494,7 @@ xlang/
 - **未**把「Windows LEGACY 5/5」写成自举完成
 - 终局零 cc 冷启 + `v2==v3` + 删 `labi_invoke_cc` 仍在路线图
 
-**完全自举（D+E+F）：** 阶段 **D**（Stage2）+ **E**（编译器产品路径无 C/H）+ **F**（`std/` 无手写 C）。仅 Stage2 **不等于**完全自举。终局三义：**MG + BC + PC + v2==v3**。权威：[SELFHOST.md](compiler/docs/SELFHOST.md) · [C迁移追踪.md](analysis/C迁移追踪.md)。
+**完全自举（D+E+F）：** 阶段 **D**（Stage2）+ **E**（编译器产品路径无 C/H）+ **F**（`std/` 无手写 C）。仅 Stage2 **不等于**完全自举。终局三义：**MG + BC + PC + v2==v3**。权威：[SELFHOST.md](compiler/docs/SELFHOST.md) · [终局待办.md](analysis/终局待办.md)。
 
 方法：[自举效率方法-M2主链.md](analysis/自举效率方法-M2主链.md) · 闸门：[自举验证.md](analysis/自举验证.md) · 运维：[SELFHOST.md](compiler/docs/SELFHOST.md) · 纪律：[AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`。
 

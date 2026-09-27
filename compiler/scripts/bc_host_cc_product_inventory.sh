@@ -6,7 +6,7 @@
 #   require host-cc on the cold / product path (BC layer). Does NOT compile
 #   and does NOT own .o lists (those stay compiler/mk/*.mk + catalog).
 #
-#   Human map: analysis/C迁移追踪.md §8.3
+#   Human map: analysis/终局待办.md
 #   Progress:  analysis/自举进度.md (wave rows)
 #   Related:   leaf_pattern_residual.sh (MG leaf residual · already closed)
 #

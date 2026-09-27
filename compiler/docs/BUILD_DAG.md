@@ -393,7 +393,7 @@ Human + machine map: `compiler/docs/LEAF_PATTERN_RESIDUAL.md` ·
 
 ## References
 
-- `analysis/C迁移追踪.md` §11.1.1–4 · §11.3 · §11.3.1  
+- `analysis/终局待办.md`  
 - `compiler/docs/LEAF_PATTERN_RESIDUAL.md`  
 
 - `analysis/Makefile迁移表.md` §5b cold whitelist  

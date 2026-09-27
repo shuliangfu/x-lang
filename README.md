@@ -12,7 +12,7 @@
 | **Source extension** | `.x` |
 | **Project build** | `build.x` — build strategy written in X (`xlang build` / `build_tool` / `xlang-build.sh`) |
 | **Status (2026-09-23)** | **Product L4 pin `ecdb5cc1e`** (dual-host true cold; **no daily raise**). Tip on **`dev`**: **M2** host-cc true-cut (Class AD–BI Cap / stretch / unwind / needle / leftover) · Cap residual **9.1–9.7 ✅** · BC inventory **present 0** · leftover unique **0** · Darwin tip **prefer labi** · Ubuntu tip full rebuild often **warm** (SEGV/FAIL) · Win default **LEGACY** · write `let x: Trait = a` (do **not** write `dyn Trait` — **P013**) · **three-end L2 hard gate enabled** (mac + Ubuntu + Windows). MG Makefile **deleted** (0-make). **Self-host not finished** — cold start still needs seed / host `cc`; true debt = map-out `from_x` / product `.inc` / large leftover; `labi_invoke_cc` not deleted; mega FORCE still banned. |
-| **Live dashboard** | [Progress](analysis/自举进度.md) · [M2 method](analysis/自举效率方法-M2主链.md) · [C-migration debt](analysis/C迁移追踪.md) · [Verification](analysis/自举验证.md) · [Makefile map](analysis/Makefile迁移表.md) · [Archive 2026-09-24](analysis/自举进度-归档-2026-09-24.md) · [Archive 2026-09-23](analysis/自举进度-归档-2026-09-23.md) · [Archive 2026-09-22](analysis/自举进度-归档-2026-09-22.md) |
+| **Live dashboard** | [Progress](analysis/自举进度.md) · [M2 method](analysis/自举效率方法-M2主链.md) · [Endgame checklist](analysis/终局待办.md) · [Verification](analysis/自举验证.md) · [Makefile map](analysis/Makefile迁移表.md) · [Archive 2026-09-24](analysis/自举进度-归档-2026-09-24.md) · [Archive 2026-09-23](analysis/自举进度-归档-2026-09-23.md) · [Archive 2026-09-22](analysis/自举进度-归档-2026-09-22.md) |
 | **Chinese** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -43,7 +43,7 @@
 | **Release / pin reviewer** | Status table (top) · [§7](#7-self-host-status-snapshot--2026-09-23) | L4 true cold + full bstrict (**131** suites) only; three-end L2 green ≠ re-pin |
 | **Need live residual numbers** | **Not this file** — open [Progress](analysis/自举进度.md) or `./xbuild bc-inventory` | This README is a snapshot; dashboards win on conflict |
 
-**Doc roles (do not mix authorities):** root README = product + onboarding landing; `analysis/自举进度.md` = live self-host KPI; `analysis/C迁移追踪.md` = endgame debt status; `analysis/自举验证.md` = gate runbook; `compiler/docs/SELFHOST.md` = operator runbook; `docs/` = language syntax for users; `AGENTS.md` + skill `xlang-selfhost-product-gate` = engineering discipline.
+**Doc roles (do not mix authorities):** root README = product + onboarding landing; `analysis/自举进度.md` = live self-host KPI; `analysis/终局待办.md` = endgame checklist; `analysis/自举验证.md` = gate runbook; `compiler/docs/SELFHOST.md` = operator runbook; `docs/` = language syntax for users; `AGENTS.md` + skill `xlang-selfhost-product-gate` = engineering discipline.
 
 ---
 
@@ -423,7 +423,7 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 
 ## 7. Self-host status (snapshot · 2026-09-23)
 
-> **Authoritative live numbers:** [Progress](analysis/自举进度.md) · [C-migration](analysis/C迁移追踪.md) · [Verification](analysis/自举验证.md) · inventory `./xbuild bc-inventory`.  
+> **Authoritative live numbers:** [Progress](analysis/自举进度.md) · [Endgame checklist](analysis/终局待办.md) · [Verification](analysis/自举验证.md) · inventory `./xbuild bc-inventory`.  
 > This README only summarizes. **Do not** treat Stage2 / prove / WPO / **three-end daily L2** green as an L4 re-pin or as “self-host done”.  
 > **Makefile physical delete is done**. Product entry is **`./xbuild` only**. Cold start is **`./xbuild bootstrap-driver-seed`**, not `make`.  
 > **Main knife = M2** (true host-cc cut / pure asm) — see [M2 method](analysis/自举效率方法-M2主链.md). Ban: mega FORCE · leftover-first · `-E` as a “fix” · HARD BAN taxonomy as the main knife · CloudAgent · default pin raise.
@@ -494,7 +494,7 @@ On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates)
 - **Not** “Windows LEGACY 5/5 = self-host done”
 - Final zero-cc cold + `v2==v3` + delete `labi_invoke_cc` remains roadmap
 
-**Full self-host (D+E+F):** Stage **D** (Stage2) + **E** (compiler product path no C/H) + **F** (`std/` no handwritten C). Stage2 alone is **not** full self-host. Endgame triad: **MG + BC + PC + v2==v3**. Authority: [SELFHOST.md](compiler/docs/SELFHOST.md) · [C迁移追踪.md](analysis/C迁移追踪.md).
+**Full self-host (D+E+F):** Stage **D** (Stage2) + **E** (compiler product path no C/H) + **F** (`std/` no handwritten C). Stage2 alone is **not** full self-host. Endgame triad: **MG + BC + PC + v2==v3**. Authority: [SELFHOST.md](compiler/docs/SELFHOST.md) · [终局待办.md](analysis/终局待办.md).
 
 Methodology: [自举效率方法-M2主链.md](analysis/自举效率方法-M2主链.md) · gates: [自举验证.md](analysis/自举验证.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 

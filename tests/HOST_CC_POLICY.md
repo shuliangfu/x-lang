@@ -1,7 +1,7 @@
 # tests/ host-cc policy (C迁移 11.5 · wave741)
 
 > **Authority** for classifying `tests/**/*.c` under the zero host-cc endgame map.  
-> **Status map**: `analysis/C迁移追踪.md` §11.5 (status only).  
+> **Status map**: `analysis/终局待办.md`（阶段 D）.  
 > **Wave rows**: `analysis/自举进度.md` only.  
 > **PLATFORM: SHARED** — policy is host-portable; sanitizer probes are Linux-primary in practice.
 

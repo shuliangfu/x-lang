@@ -8,7 +8,7 @@
 > of `compiler/Makefile` (11.3.1). Machine check:
 > `compiler/scripts/leaf_pattern_residual.sh --check` ·
 > `./xbuild leaf-patterns --check`.  
-> **Status map:** `analysis/C迁移追踪.md` §11.3 / §11.3.1 (status only).  
+> **Status map:** `analysis/终局待办.md`（阶段 D）.  
 > **Wave rows:** `analysis/自举进度.md` only.  
 > **PLATFORM: SHARED** — residual classes are portable; ABI / UNAME recipe bodies
 > stay in Makefile / mk until each class is swallowed by a named shell body.
@@ -1517,7 +1517,7 @@ After (wave776):
 
 ## References
 
-- `analysis/C迁移追踪.md` §11.3 · §11.3.1  
+- `analysis/终局待办.md`  
 - `compiler/docs/BUILD_DAG.md` §5 residual make graph  
 - `compiler/docs/PLATFORM_LINKER.md` (R6 / UNAME leaf cross-ref)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  

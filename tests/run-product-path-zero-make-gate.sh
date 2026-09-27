@@ -600,11 +600,15 @@ else
   bad "analysis/Makefile迁移表.md incomplete"
 fi
 
-# --- C迁移 11.0.1 checked ---
-if grep -q '11.0.1' analysis/C迁移追踪.md && grep -q 'Makefile迁移表' analysis/C迁移追踪.md; then
-  note "C迁移追踪 links migration table"
+# Checklist authority is analysis/终局待办.md (C迁移追踪.md removed 2026-09-27).
+if [ -f analysis/终局待办.md ] \
+  && grep -q 'MG' analysis/终局待办.md \
+  && grep -q 'BC' analysis/终局待办.md \
+  && grep -q 'PC' analysis/终局待办.md \
+  && grep -q 'Makefile迁移表' analysis/终局待办.md; then
+  note "终局待办.md is the endgame checklist"
 else
-  bad "C迁移追踪.md missing 11.0.1 / migration table link"
+  bad "analysis/终局待办.md missing MG/BC/PC checklist"
 fi
 
 # --- wave726: PATH runtime probe present + obj-catalog export (11.0.4 start) ---
@@ -748,20 +752,18 @@ else
   bad "root Makefile not help-only / missing ./xbuild (wave729)"
 fi
 
-# 8.3 glue map present in C迁移追踪 (inventory, not changelog)
-if grep -q '### 8.3' analysis/C迁移追踪.md \
-  && grep -q 'pipeline_glue.c' analysis/C迁移追踪.md \
-  && grep -q '消费方' analysis/C迁移追踪.md; then
-  note "8.3 glue map + consumers present in C迁移追踪"
+# Retired glue shells stay out of the checklist (wave309 deleted pipeline_glue.c).
+if [ -f analysis/终局待办.md ] && grep -q 'pipeline_glue.c' analysis/终局待办.md; then
+  bad "终局待办.md must not revive retired pipeline_glue.c"
 else
-  bad "C迁移追踪 8.3 glue map missing consumer section (wave729)"
+  note "retired pipeline_glue.c stays out of 终局待办 (wave309)"
 fi
 
-# Changelog lives only in 自举进度 (not C迁移追踪)
-if grep -qE '^## 变更记录' analysis/C迁移追踪.md; then
-  bad "C迁移追踪.md must not carry ## 变更记录 (write waves in 自举进度 only)"
+# Changelog lives only in 自举进度 (not the checklist)
+if [ -f analysis/终局待办.md ] && grep -qE '^## 变更记录' analysis/终局待办.md; then
+  bad "终局待办.md must not carry ## 变更记录 (write waves in 自举进度 only)"
 else
-  note "C迁移追踪 has no wave changelog section (authority: 自举进度)"
+  note "终局待办 has no wave changelog section (authority: 自举进度)"
 fi
 
 # --- wave730: 11.2.5 CI workflows + 11.4.3 docker-ci outer 0× make -C ---
