@@ -409,3 +409,44 @@ export function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usiz
   n = io_write(fd, 0 as *u8, len, timeout_ms);
   return n;
 }
+
+/**
+ * Read the first buffer of a four-slot batch.
+ * p1, p2, p3, their lengths, and n are ignored. The bytes come from io_read
+ * on p0.
+ * @param fd i32 — file descriptor
+ * @param p0 *u8 — first buffer, or null
+ * @param l0 usize — length of the first buffer
+ * @param p1 *u8 — ignored
+ * @param l1 usize — ignored
+ * @param p2 *u8 — ignored
+ * @param l2 usize — ignored
+ * @param p3 *u8 — ignored
+ * @param l3 usize — ignored
+ * @param n i32 — ignored
+ * @param timeout_ms u32 — passed through to io_read
+ * @return isize — result of io_read on the first buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let r: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  pad[2] = n as u8;
+  pad[3] = l1 as u8;
+  pad[4] = l2 as u8;
+  pad[5] = l3 as u8;
+  if (p1 != 0 as *u8) {
+    pad[6] = 0;
+  }
+  if (p2 != 0 as *u8) {
+    pad[7] = 0;
+  }
+  if (p3 != 0 as *u8) {
+    pad[8] = 0;
+  }
+  r = io_read(fd, p0, l0, timeout_ms);
+  return r;
+}

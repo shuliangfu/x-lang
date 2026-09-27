@@ -306,6 +306,7 @@ ptrdiff_t io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset, size_t l
 extern ptrdiff_t io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset, size_t len, unsigned timeout_ms);
 #endif
 
+#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
                         uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
   (void)p1;
@@ -317,6 +318,11 @@ ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t 
   (void)n;
   return io_read(fd, p0, l0, timeout_ms);
 }
+#else
+/* Batch read of the first buffer lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
+extern ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
+                               uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms);
+#endif
 
 ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
                          uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
