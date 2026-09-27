@@ -5565,6 +5565,52 @@ ensure_rt_parse_diag_prefer() {
 # Compile the nineteen functions separately and ld -r. Direct xlang_asm,
 # not pure_asm_x_to_o. Sibling calls sit in unsafe.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+# w1184: src/asm/backend_try_inline_dispatch_thin.x segfaults on some
+# pure-asm tries and emits on a later try. Stores stay inside the
+# frame. Retry the whole translation unit. Direct xlang_asm, not
+# rt_prefer_try_x_to_o. The full backend_try_inline_dispatch.x stays
+# one-shot. Symbols stay strong.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+try_inline_dispatch_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/backend_try_inline_dispatch_thin.x"
+  local try n c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+  if [ "$n" != "49" ]; then
+    rm -f "$o"
+    return 1
+  fi
+  for c in _glue_align_up8_c _glue_is_vector_lane_scalar_binop_ko \
+    _glue_const_scalar_binop_eval_i32 _asm_index_elem_byte_sz; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
 # w1183: src/runtime_driver_diagnostic_thin.x segfaults on some
 # pure-asm tries and emits on a later try. The open message buffers
 # are heap allocations, so stores stay inside the frame. Retry the
@@ -9897,8 +9943,20 @@ r3_prefer_try_step() {
   thin_o="${o%.o}_prefer_step.o"
   rest_o="${o%.o}_prefer_rest.o"
   mkdir -p "$(dirname "$o")"
+  # w1184: the try-inline thin segfaults on some pure-asm tries. Darwin
+  # retries that one translation unit. The full .x and every other r3
+  # leaf stay on the one-shot prefer. Symbols stay strong.
+  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  _ti_pure=0
+  if [ "$x_src" = "src/asm/backend_try_inline_dispatch_thin.x" ] \
+    && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh try-inline-pure "$thin_o"; then
+    _ti_pure=1
+  fi
   # Thin surface: same prologue as try-pipeline-abi / g05 (xlang_driver_* inlines).
-  if ! rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
+  if [ "$_ti_pure" != "1" ] && ! rt_prefer_try_x_to_o "$x_src" "$thin_o"; then
     rm -f "$thin_o" "$rest_o"
     return 1
   fi
@@ -9919,7 +9977,11 @@ r3_prefer_try_step() {
   # shellcheck disable=SC2086
   if ld $ld_flags -o "$o" "$thin_o" "$rest_o" 2>/dev/null \
     && r3_prefer_nm_has_sym "$o" "$nm_sym"; then
-    log "prefer thin+rest $o <- $x_src + $seed ($label; try-r3-prefer)"
+    if [ "$_ti_pure" = "1" ]; then
+      log "prefer try inline ← pure-asm forty-nine symbols (w1184)"
+    else
+      log "prefer thin+rest $o <- $x_src + $seed ($label; try-r3-prefer)"
+    fi
     rm -f "$thin_o" "$rest_o"
     return 0
   fi
@@ -26657,6 +26719,17 @@ try_heat_one() {
 }
 
 case "$MODE" in
+  try-inline-pure|try_inline_dispatch_darwin_pure)
+    # w1184: forty-nine pure-asm symbols of backend_try_inline_dispatch_thin.x.
+    # Does not write src/asm/backend_try_inline_dispatch.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-inline-pure: need <out.o>" >&2
+      exit 2
+    fi
+    try_inline_dispatch_darwin_pure "$1"
+    exit $?
+    ;;
   diagnostic-thin-pure|diagnostic_thin_darwin_pure)
     # w1183: eighty-eight pure-asm symbols of runtime_driver_diagnostic_thin.x.
     # Does not write src/runtime_driver_diagnostic.o unless that path is passed.
