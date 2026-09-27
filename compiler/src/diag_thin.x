@@ -22,7 +22,6 @@
 // See implementation.
 
 // See implementation.
-export extern "C" function diag_ctx_get_use_color_impl(): i32;
 export extern "C" function diag_ctx_base(): *u8;
 export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_len: i64, use_color: i32): void;
 export extern "C" function isatty(fd: i32): i32;
@@ -148,7 +147,7 @@ export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
 #[no_mangle]
 export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
   unsafe {
-    if (diag_ctx_get_use_color_impl() != 0) {
+    if (diag_ctx_get_use_color() != 0) {
       return color;
     }
     return plain;
@@ -540,7 +539,7 @@ export function diag_push_snap_save(snapshot: *u8): void {
     diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
     diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
     diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len() as usize);
-    diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color_impl());
+    diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color());
   }
 }
 
@@ -1466,15 +1465,25 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
 export extern "C" function diag_json_get_state_impl(): i32;
 export extern "C" function diag_json_set_state_impl(v: i32): i32;
 
-/** Exported function `diag_ctx_get_use_color`.
- * Implements `diag_ctx_get_use_color`.
- * @return i32
+/**
+ * Return whether diagnostics use color.
+ * The context record stays in the seed. Offset 24 is the int flag.
+ * Any non-zero stored value becomes 1.
+ * @return i32 — 1 when color is on, otherwise 0
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_ctx_get_use_color(): i32 {
+  let pad: u8[32] = [];
+  let v: i32 = 0;
+  pad[0] = 0;
   unsafe {
-    return diag_ctx_get_use_color_impl();
+    v = diag_snap_load_i32(diag_ctx_base(), 24);
   }
+  if (v != 0) {
+    return 1;
+  }
+  return 0;
 }
 /**
  * Return 1 when code matches a table row, using case-insensitive equality.

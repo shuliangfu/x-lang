@@ -297,13 +297,9 @@ extern int diag_should_color(void);
 
 /** 供 .x 读 g_diag_ctx.use_color（G-02f-154）。 */
 /* G-02f-386：实现体始终 seed；public PREFER 时 thin forward */
-int diag_ctx_get_use_color_impl(void) {
-    return g_diag_ctx.use_color ? 1 : 0;
-}
-
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_ctx_get_use_color(void) {
-    return diag_ctx_get_use_color_impl();
+    return g_diag_ctx.use_color ? 1 : 0;
 }
 #endif
 
