@@ -1213,15 +1213,16 @@ extern void diag_print_code_table(uint8_t *out);
  * 仅供 driver 在解析 --diag-json 等 CLI 标志后调用；冷路径，零性能影响。
  */
 /* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_set_json_mode(int enable)
-#else
-void diag_set_json_mode_impl(int enable)
-#endif
 {
     g_diag_json = enable ? 1 : 0;
 }
+#else
+/* JSON mode switch lives in src/diag_thin.x. Cache stays here. PLATFORM: SHARED. */
+extern void diag_set_json_mode(int enable);
+#endif
 
 /** 供 .x 读写 g_diag_json 状态（-2=未决）。 */
 /* G-02f-386：实现体始终 seed；public PREFER 时 thin forward（set 用 i32 壳） */

@@ -30,7 +30,6 @@ export extern "C" function diag_ctx_set_all_impl(path: *u8, source: *u8, source_
 export extern "C" function diag_push_file_apply_impl(path: *u8, source: *u8, source_len: i64): void;
 export extern "C" function diag_should_color_impl(): i32;
 export extern "C" function diag_color_reset_impl(): *u8;
-export extern "C" function diag_set_json_mode_impl(enable: i32): void;
 export extern "C" function link_abi_getenv(name: *u8): *u8;
 // ---- G-02f-335 pure helpers ----
 
@@ -608,15 +607,24 @@ export function diag_color_reset(): *u8 {
   }
 }
 
-/** Exported function `diag_set_json_mode`.
- * Implements `diag_set_json_mode`.
- * @param enable i32
- * @return void
+/**
+ * Force JSON diagnostics on or off.
+ * A non-zero enable stores 1. Zero stores 0. The cache itself stays in
+ * the seed, written through diag_json_set_state. This value wins over
+ * XLANG_DIAG_JSON on the next diag_json_enabled read.
+ * @param enable i32 — non-zero turns JSON on
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function diag_set_json_mode(enable: i32): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
   unsafe {
-    diag_set_json_mode_impl(enable);
+    if (enable != 0) {
+      diag_json_set_state(1);
+    } else {
+      diag_json_set_state(0);
+    }
   }
 }
 
