@@ -157,6 +157,10 @@ function time_os_mul(value: i64, factor: i64): i64 {
  * PLATFORM: MACOS|DARWIN
  */
 function time_os_read_ns(clk: i32): i64 {
+  // Live pad. The timespec stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let ts: TimeOsSpec = { sec: 0, nsec: 0 };
   let rc: i32 = 0;
   unsafe {
@@ -197,6 +201,10 @@ export function time_now_wall_ns_c(): i64 {
  * PLATFORM: MACOS|DARWIN
  */
 function time_os_nanosleep(sec: i64, nsec: i64): void {
+  // Live pad. The sleep request stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let req: TimeOsSpec = { sec: 0, nsec: 0 };
   req.sec = sec;
   req.nsec = nsec;
@@ -275,6 +283,10 @@ function time_os_month_day(doy: i64): i64 {
  * PLATFORM: MACOS|DARWIN
  */
 function time_os_ymd_tail(doe: i64, era: i64): i64 {
+  // Live pad. The year-day multiply stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: MACOS|DARWIN.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let yoe: i64 = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
   let yy: i64 = yoe + time_os_mul(era, 400);
   let doy: i64 = doe - (time_os_mul(yoe, 365) + yoe / 4 - yoe / 100);
