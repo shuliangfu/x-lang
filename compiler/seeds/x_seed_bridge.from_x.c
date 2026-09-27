@@ -127,7 +127,7 @@ extern void ast_expr_init_call_resolve(struct ast_ASTArena *arena, int32_t expr_
 
 /** lsp_io.x / pipeline 引用 libc 风格 IO 符号；seed 链 read/write 转发。 */
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-/* Product body is src/x_seed_bridge.x. Cold io_read_batch and xlang_io_submit_read still call it. PLATFORM: SHARED. */
+/* Product body is src/x_seed_bridge.x. Cold xlang_io_submit_read still calls it. PLATFORM: SHARED. */
 extern ptrdiff_t io_read(int fd, uint8_t *buf, size_t count, unsigned timeout_ms);
 #else
 /* Byte read lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
@@ -154,23 +154,9 @@ extern ptrdiff_t io_read_fixed(int32_t fd, uint32_t buf_index, size_t offset, si
 /* Fixed write lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_write_fixed(int32_t fd, uint32_t buf_index, size_t offset, size_t len, unsigned timeout_ms);
 
-#ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
-ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
-                        uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms) {
-  (void)p1;
-  (void)l1;
-  (void)p2;
-  (void)l2;
-  (void)p3;
-  (void)l3;
-  (void)n;
-  return io_read(fd, p0, l0, timeout_ms);
-}
-#else
 /* Batch read of the first buffer lives in src/x_seed_bridge.x. PLATFORM: SHARED. */
 extern ptrdiff_t io_read_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
                                uint8_t *p3, size_t l3, int32_t n, unsigned timeout_ms);
-#endif
 
 #ifndef XLANG_L2_X_SEED_BRIDGE_THIN_FROM_X
 ptrdiff_t io_write_batch(int32_t fd, uint8_t *p0, size_t l0, uint8_t *p1, size_t l1, uint8_t *p2, size_t l2,
