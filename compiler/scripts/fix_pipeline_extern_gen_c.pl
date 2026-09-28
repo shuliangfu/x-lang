@@ -81,7 +81,7 @@ add_alias('typeck_merge_dep_struct_layouts_into_entry', 'typeck_typeck_merge_dep
 add_alias('typeck_wpo_unify_soa_layouts', 'typeck_typeck_wpo_unify_soa_layouts');
 add_alias('codegen_x_ast', 'codegen_codegen_x_ast');
 add_alias('asm_codegen_ast', 'asm_asm_codegen_ast');
-add_alias('lexer_init', 'lexer_lexer_init');
+add_alias('lexer_lexer_init', 'lexer_init');
 add_alias('lexer_lexer_next_into', 'lexer_next_into');
 add_alias('lexer_lexer_next_buf', 'lexer_next_buf');
 add_alias('ast_arena_init', 'ast_ast_arena_init');
@@ -121,15 +121,8 @@ if ($std_fs_extern ne '' && index($src, '/* std_fs_shim.o */') < 0) {
     or warn "fix_pipeline_extern_gen_c: std_fs extern anchor not found\n";
 }
 
-# lexer_init → lexer_lexer_init（lexer_x.o）；须 extern 声明，勿与 lexer_lexer_init→lexer_init 互指成环。
-if (index($src, '#define lexer_init lexer_lexer_init') >= 0
-    && index($src, 'extern struct lexer_Lexer lexer_lexer_init') < 0) {
-  my $lexer_decl = "/* lexer_x.o */\nextern struct lexer_Lexer lexer_lexer_init(void);\n";
-  if (index($src, '/* pipeline extern TU aliases */') >= 0) {
-    $src =~ s/(#define lexer_init lexer_lexer_init\n)/$lexer_decl$1/s
-      or warn "fix_pipeline_extern_gen_c: lexer_lexer_init anchor not found\n";
-  }
-}
+# w1492: lexer_lexer_init no longer exists (seed forwarder deleted); gen-C
+# maps lexer_lexer_* to the lexer_x.o names above, like next_into / next_buf.
 
 # wave967: do NOT reinject #include "pipeline_glue.c" / ast_pool same-TU.
 # Pre-leave path appended the include after stripping so fat-gen detection

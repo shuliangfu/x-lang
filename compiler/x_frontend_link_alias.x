@@ -57,8 +57,10 @@
 // *u8 shape, not the *u8 two-argument shape, not the i32 one-argument
 // shape, not the void three-argument shape, and not the i32 two-argument
 // shape.
-// The product installer pure-asm's this file, then cc's the seed for the
-// lexer struct-return tail.
+// The product installer pure-asm's this file and installs that object alone.
+// w1492 deleted seeds/x_frontend_link_alias.from_x.c. Its three C forwarders
+// (lexer_lexer_init, lexer_lexer_next_into, lexer_lexer_next_buf) had no
+// caller in any product link and used a stale LexerResult layout.
 // There is no full-seed fallback and XLANG_G05_PREFER_X_O is ignored.
 // Windows takes the same path.
 // Fourteen faces are weakened after asm. The first five stay weak so a strong
@@ -121,7 +123,8 @@ extern "C" function pipeline_dep_ctx_module_at(ctx: *u8, i: i32): *u8;
 extern "C" function pipeline_asm_emit_dep_pipe_c(): *u8;
 extern "C" function pipeline_module_import_path_byte_at(m: *u8, i: i32, j: i32): u8;
 
-// lexer_*  struct  / by-value Lexer： seeds  C （/ABI ）。
+// w1492: no lexer by-value forwarders here. Callers use lexer_init,
+// lexer_next_into and lexer_next_buf from the lexer object directly.
 
 /** Function `typeck_pipeline_module_num_funcs`.
  * Purpose: implements `typeck_pipeline_module_num_funcs`; params/returns as declared.
@@ -294,7 +297,7 @@ function codegen_codegen_x_ast(module: *u8, arena: *u8, out: *u8, ctx: *u8, dep_
  * @param r i32 — row index forwarded unchanged
  * @return i32 — the value pipeline_type_kind_ord_at returns
  * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_type_kind_ord_at_u8_ptr_i32_reti32(a: *u8, r: i32): i32 {
@@ -312,7 +315,7 @@ function pipeline_type_kind_ord_at_u8_ptr_i32_reti32(a: *u8, r: i32): i32 {
  * @param e i32 — integer argument forwarded unchanged
  * @return i32 — the value glue_asm_build_func_export_sym_c returns
  * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32(a: *u8, b: *u8, c: i32, d: *u8, e: i32): i32 {
@@ -330,7 +333,7 @@ function glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32(a:
  * @param e *u8 — output buffer; null is forwarded, not checked here
  * @return i32 — the value glue_asm_build_import_binding_call_sym returns
  * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_reti32(a: *u8, b: i32, c: *u8, d: i32, e: *u8): i32 {
@@ -347,7 +350,7 @@ function glue_asm_build_import_binding_call_sym_u8_ptr_i32_u8_ptr_i32_u8_ptr_ret
  * @param cap i32 — output capacity forwarded unchanged
  * @return i32 — the value glue_try_std_heap_redirect_sym_local returns
  * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
@@ -364,8 +367,7 @@ function glue_try_std_heap_redirect_sym_local_u8_ptr_i32_u8_ptr_i32_reti32(name:
  * @param buf_cap i32 — output capacity forwarded unchanged
  * @return void — the callee writes the C prefix into buf
  * #[no_mangle] keeps the signature-suffixed link name. The symbol stays strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(path: *u8, buf: *u8, buf_cap: i32): void {
@@ -381,8 +383,7 @@ function glue_codegen_import_path_to_c_prefix_into_u8_ptr_u8_ptr_i32(path: *u8, 
  * @return i32 — the value pipeline_expr_field_access_name_len returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
@@ -399,8 +400,7 @@ function pipeline_expr_field_access_name_len_u8_ptr_i32_reti32(a: *u8, er: i32):
  * @return i32 — the value pipeline_expr_field_access_base_ref returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
@@ -417,8 +417,7 @@ function pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32(a: *u8, er: i32):
  * @return i32 — the value pipeline_expr_binop_left_ref_at returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
@@ -435,8 +434,7 @@ function pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32(a: *u8, er: i32): i32
  * @return i32 — the value pipeline_expr_binop_right_ref_at returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32(a: *u8, er: i32): i32 {
@@ -456,8 +454,7 @@ function pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32(a: *u8, er: i32): i3
  * @return void — the callee writes the field name into dst
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(a: *u8, er: i32, dst: *u8): void {
@@ -474,8 +471,7 @@ function pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr(a: *u8, er: i32,
  * @return i32 — the value pipeline_dep_ctx_ndep returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_dep_ctx_ndep_u8_ptr_reti32(ctx: *u8): i32 {
@@ -495,8 +491,7 @@ function pipeline_dep_ctx_ndep_u8_ptr_reti32(ctx: *u8): i32 {
  * @return *u8 — the module pointer pipeline_dep_ctx_module_at returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining XLANG_WEAK cluster stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(ctx: *u8, i: i32): *u8 {
@@ -514,8 +509,7 @@ function pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(ctx: *u8, i: i32): *u8 
  * @return *u8 — the pointer pipeline_asm_emit_dep_pipe_c returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail and the
- * remaining uint8 XLANG_WEAK alias stay in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_asm_emit_dep_pipe_c_retu8_ptr(): *u8 {
@@ -537,7 +531,7 @@ function pipeline_asm_emit_dep_pipe_c_retu8_ptr(): *u8 {
  * @return u8 — the byte pipeline_module_import_path_byte_at returns
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
- * PLATFORM: SHARED — pure asm. The lexer struct-return tail stays in the C seed.
+ * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
 function pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(m: *u8, i: i32, j: i32): u8 {

@@ -3458,7 +3458,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # ~~G-02f-15 / wave536 lsp_diag dual hybrid~~ wave771 → try-other-l2-prefer above
   # ~~G-02f-442/441/439 L2 asm dual hybrid~~ wave769 → try-l2-asm-prefer above
   # w847: the 18 alias C bodies are deleted. Single installer is
-  # ensure_x_frontend_link_alias_prefer (pure-asm .x + lexer/mangled rest).
+  # ensure_x_frontend_link_alias_prefer (pure-asm .x only; w1492 deleted the seed rest).
   # No full-seed fallback. Windows takes the same path. A seed-only cc
   # would drop the 18 symbols. PLATFORM: SHARED.
   bash scripts/ensure_host_cc_seed_o.sh try-xfla-prefer || {

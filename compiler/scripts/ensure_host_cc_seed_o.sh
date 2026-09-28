@@ -12895,8 +12895,11 @@ ensure_main_runtime() {
 #   pipeline_dep_ctx_ndep mangled face, the w874
 #   pipeline_dep_ctx_module_at mangled face, the w875
 #   pipeline_asm_emit_dep_pipe_c mangled face, and the w876
-#   pipeline_module_import_path_byte_at mangled face; fourteen weakened)
-#   + seeds/x_frontend_link_alias.from_x.c (lexer struct-return tail)
+#   pipeline_module_import_path_byte_at mangled face; fourteen weakened).
+# w1492 deleted seeds/x_frontend_link_alias.from_x.c. Its three lexer
+# forwarders had no caller in any product link. The asm object is installed
+# alone: no host cc, no rest, no partial merge. An object that still
+# defines lexer_lexer_init (old cc rest) is rebuilt once.
 # w847 deleted the 18 C bodies and the XLANG_XFLA_ASM gate. w863 moved
 # pipeline_type_kind_ord_at_u8_ptr_i32_reti32 into the .x; it stays strong.
 # w864 moved glue_asm_build_func_export_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_reti32
@@ -12945,48 +12948,44 @@ ensure_main_runtime() {
 # G.7: one body. try-r1 / try-heat, the alias-stubs family, and g05 call this.
 ensure_x_frontend_link_alias_prefer() {
   local o="x_frontend_link_alias.o"
-  local seed="seeds/x_frontend_link_alias.from_x.c"
   local xsrc="x_frontend_link_alias.x"
-  local thin rest bare_thin bare_rest
+  local thin bare_thin
   local weak_funcs="check_block_impl,check_expr_impl,find_or_alloc_ptr_type_ref,pipeline_typeck_set_active_ctx_c,pipeline_typeck_ptr_for_addr_of_operand_c,pipeline_expr_field_access_name_len_u8_ptr_i32_reti32,pipeline_expr_field_access_base_ref_u8_ptr_i32_reti32,pipeline_expr_binop_left_ref_at_u8_ptr_i32_reti32,pipeline_expr_binop_right_ref_at_u8_ptr_i32_reti32,pipeline_expr_field_access_name_into_u8_ptr_i32_u8_ptr,pipeline_dep_ctx_ndep_u8_ptr_reti32,pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr,pipeline_asm_emit_dep_pipe_c_retu8_ptr,pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8"
 
-  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
-    echo "ensure_host_cc_seed_o try-xfla-prefer: missing $seed or $xsrc" >&2
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-xfla-prefer: missing $xsrc" >&2
     return 1
   fi
 
-  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
-  # the deleted C bodies still rebuilds once either input moves.
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
-    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
+  # Up-to-date: the .x is not newer and the object carries no w1492-deleted
+  # lexer forwarder from the old cc rest.
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    if ! nm "$o" 2>/dev/null | grep -Eq ' [TtWw] _?lexer_lexer_(init|next_into|next_buf)$'; then
       log "skip up-to-date $o (x-frontend-link-alias)"
       return 0
     fi
   fi
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/xfla_thin.XXXXXX")" || true
-  bare_rest="$(mktemp "${TMPDIR:-/tmp}/xfla_rest.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ]; then
+  if [ -z "$bare_thin" ]; then
     echo "ensure: x-frontend-link-alias mktemp failed" >&2
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest"
+  rm -f "$bare_thin"
   thin="${bare_thin}.o"
-  rest="${bare_rest}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
   # PLATFORM: SHARED — PREFER_ASM_O is scoped to this subshell.
   if (
     export XLANG_PREFER_ASM_O=1
     export G05_X_O_WEAK_FUNCS="$weak_funcs"
     pure_asm_x_to_o "$thin" "$xsrc"
-  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
-    && pure_ld_partial_merge "$o" "$thin" "$rest"; then
-    log "x-frontend-link-alias $o <- pure-asm $xsrc + lexer rest (w876; type_kind_ord, func_export, import_binding, heap_redirect, import_path, field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, emit_dep_pipe, and import_path_byte faces are in the .x; field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, emit_dep_pipe, and import_path_byte stay weak)"
-    rm -f "$thin" "$rest"
+  ) && [ -s "$thin" ] && cp -f "$thin" "$o"; then
+    log "x-frontend-link-alias $o <- pure-asm $xsrc only (w1492; no seed rest; type_kind_ord, func_export, import_binding, heap_redirect, import_path, field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, emit_dep_pipe, and import_path_byte faces are in the .x; field_name_len, field_base_ref, binop_left, binop_right, field_name_into, dep_ctx_ndep, dep_ctx_module_at, emit_dep_pipe, and import_path_byte stay weak)"
+    rm -f "$thin"
     return 0
   fi
   echo "ensure: x-frontend-link-alias pure-asm failed; C bodies are gone, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$o"
+  rm -f "$thin" "$o"
   return 1
 }
 
