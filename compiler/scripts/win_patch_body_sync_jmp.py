@@ -82,6 +82,8 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "glue_emit_assign_rhs_mod_elf_c",
     # w1501: module-let string pool baker overlay (modlet_strpool.o).
     "pipe_modlet_bake_string_lit_elem_to_data",
+    # w1502: VAR assign gate overlay (assign_var_compound.o).
+    "glue_emit_assign_var_elf_c",
 )
 
 
@@ -323,6 +325,8 @@ def main() -> int:
         "glue_emit_assign_rhs_mod_elf_c",
         # w1501: module-let string pool baker overlay. PLATFORM: WINDOWS.
         "pipe_modlet_bake_string_lit_elem_to_data",
+        # w1502: VAR assign gate overlay. PLATFORM: WINDOWS.
+        "glue_emit_assign_var_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

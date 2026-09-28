@@ -464,6 +464,45 @@ if [ "${XLANG_MODLET_STRPOOL_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/modlet_strpool.o pipe_modlet_bake_string_lit_elem_to_data
   _PABI_MODLET_STRPOOL="$_G05_PO_OUT"
 fi
+# w1502: VAR assign gate + leaves (终局待办 10.25). Darwin pabi is a libtool
+# archive, so ensure's w620 inject of the assign_var leaves never ran there,
+# and Windows linked seeds/win_assign_var_override.c; both live gates handled
+# plain ASSIGN only, so `a += 3` and every compound op failed with CG002.
+# Compile the gate overlay plus the unchanged leaves (try_let, finish, typed
+# stores, rhs_to_rax and its arms; load_lr lives in the gate file, mod stays
+# binop_wide) with the current
+# product every relink. Darwin weakens the pabi_weak gate below; Windows
+# drops the var override, weakens pabi_weak and folds W/t to T post-link.
+# Linux keeps the injected pabi leaves. PLATFORM: MACOS|DARWIN + WINDOWS.
+_PABI_ASSIGN_VAR=""
+case "$UNAME_S" in
+  Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ "${XLANG_ASSIGN_VAR_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_assign_var_compound_thin.x \
+        build_asm/selfhost_pabi/assign_var_compound.o glue_emit_assign_var_elf_c
+      if [ -n "$_G05_PO_OUT" ]; then
+        _PABI_ASSIGN_VAR="$_G05_PO_OUT"
+        for _avl in \
+          "assign_var_try_let|glue_emit_assign_var_try_let_elf_c" \
+          "assign_var_finish|glue_emit_assign_var_finish_elf_c" \
+          "assign_var_store|glue_emit_assign_var_store_elf_c" \
+          "assign_var_store_pair|glue_emit_assign_var_store_pair_elf_c" \
+          "assign_var_store_f32|glue_emit_assign_var_store_f32_elf_c" \
+          "assign_var_store_slice|glue_emit_assign_var_store_slice_elf_c" \
+          "assign_rhsrax_to_rax|glue_emit_assign_rhs_to_rax_elf_c" \
+          "assign_rhsrax_arms_simple|glue_emit_assign_rhs_add_elf_c" \
+          "assign_rhsrax_arms_div|glue_emit_assign_rhs_div_elf_c" \
+          "assign_rhsrax_arms_div_float|glue_emit_assign_rhs_div_float_elf_c" \
+          "assign_rhsrax_arms_shl|glue_emit_assign_rhs_shl_elf_c" \
+          "assign_rhsrax_arms_shr|glue_emit_assign_rhs_shr_elf_c"; do
+          _g05_pure_overlay "src/runtime_pipeline_abi_${_avl%%|*}_thin.x" \
+            "build_asm/selfhost_pabi/av_${_avl%%|*}.o" "${_avl##*|}"
+          _PABI_ASSIGN_VAR="$_PABI_ASSIGN_VAR $_G05_PO_OUT"
+        done
+      fi
+    fi
+    ;;
+esac
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
@@ -481,6 +520,11 @@ case "$UNAME_S" in
     for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
+        continue
+      fi
+      # w1502: the pure .x gate replaces the kind-28-only var override.
+      if [ -n "$_PABI_ASSIGN_VAR" ] \
+        && [ "$_wov" = "src/win_assign_var_override.o" ]; then
         continue
       fi
       if [ -s "$_wov" ]; then
@@ -931,6 +975,26 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_let_init_module_var.o $_PABI_SELFHOST"
   fi
+  # w1502: leftover gcc VAR assign gate (plain ASSIGN only) is strong T in
+  # pabi_weak. Weaken it so the pure .x gate wins for same-TU callers too.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -n "$_PABI_ASSIGN_VAR" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " _glue_emit_assign_var_elf_c$" | grep -v undefined | grep -qv weak; then
+      "$_oc" --weaken-symbol=_glue_emit_assign_var_elf_c \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+  fi
   # PLATFORM: MACOS|DARWIN — host_is_arm64_c is mov w0,#1; ret. Leftover
   # PAGE21/PAGEOFF12 still name the old BSS load and sit on that mov/ret.
   # ld rejects them. Drop only those mismatched relocs.
@@ -1083,7 +1147,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_BB_CACHE" ] \
       || [ -n "$_PABI_TAIL_JMP_OFF" ] \
       || [ -n "$_PABI_BINOP_WIDE" ] \
-      || [ -n "$_PABI_MODLET_STRPOOL" ]; then
+      || [ -n "$_PABI_MODLET_STRPOOL" ] \
+      || [ -n "$_PABI_ASSIGN_VAR" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -1194,6 +1259,12 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=pipe_modlet_bake_string_lit_elem_to_data \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1502: weaken egg VAR assign gate (pure .x gate first-wins).
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_ASSIGN_VAR" ]; then
+          "$_oc" --weaken-symbol=glue_emit_assign_var_elf_c \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
         # w1041: weaken egg call_spill so overlay first-wins.
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_CALL_SPILL" ]; then
@@ -1283,7 +1354,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
