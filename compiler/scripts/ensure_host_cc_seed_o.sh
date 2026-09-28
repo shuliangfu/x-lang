@@ -5629,54 +5629,43 @@ ensure_catalog_family() {
   log "$label OK ($n objs via catalog $key)"
 }
 
-# Product install of src/runtime/rt_emit_state.o:
-#   pure-asm src/runtime/rt_emit_state.x (five setters + slice marker)
-#   + seeds/rt_emit_state.from_x.c (BSS + lib-name + entry prefix)
-# The five setters were deleted from the seed in w845.
-# labi_rt_emit_state_slice_marker moved into the .x in w859 (still returns 1).
-# There is no full-seed fallback and no Windows special case: a seed-only cc
-# does not define the setters or the marker. XLANG_G05_PREFER_X_O is ignored.
-# Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o from this path.
-# Failure leaves the previous .o in place and returns 1.
+# Product install of src/runtime/rt_emit_state.o: pure-asm
+# src/runtime/rt_emit_state.x only. w1493 (终局待办 5.4) deleted
+# seeds/rt_emit_state.from_x.c. The .x now holds the ten shared emit
+# buffers as module lets, the lib-name pair, and the entry-prefix setter,
+# next to the five setters (w845) and the slice marker (w859).
+# Module lets come out as Lxml COMMONs. rt_emit_state_rename_bss renames
+# them onto the C names that runtime_driver_abi externs.
+# No host cc, no seed, no full-seed fallback. XLANG_G05_PREFER_X_O is
+# ignored. Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o
+# from this path. Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED — POSIX and Windows both take this path.
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
 # replace this .o.
 ensure_rt_emit_state_prefer() {
   local o="src/runtime/rt_emit_state.o"
-  local seed="seeds/rt_emit_state.from_x.c"
   local xsrc="src/runtime/rt_emit_state.x"
-  local thin rest merged ld_flags bare_thin bare_rest bare_merged
+  local thin bare_thin s
 
-  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
-    echo "ensure_host_cc_seed_o try-rt-emit-state-prefer: missing $seed or $xsrc" >&2
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-emit-state-prefer: missing $xsrc" >&2
     return 1
   fi
 
-  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
-  # the deleted C bodies still rebuilds once either input moves.
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
-    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
-      log "skip up-to-date $o (rt-emit-state)"
-      return 0
-    fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip up-to-date $o (rt-emit-state)"
+    return 0
   fi
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtemit_thin.XXXXXX")" || true
-  bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtemit_rest.XXXXXX")" || true
-  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtemit_merged.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
+  if [ -z "$bare_thin" ]; then
     echo "ensure: rt-emit-state mktemp failed" >&2
-    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
+  rm -f "$bare_thin"
   thin="${bare_thin}.o"
-  rest="${bare_rest}.o"
-  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
-  # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
-  # The marker is in the .x. The seed cc emits BSS, lib-name, and entry prefix.
   # w1173: a later pure-asm try can segfault. Darwin retries the whole
   # translation unit. Other hosts keep the one-shot pure_asm path.
   # PLATFORM: MACOS|DARWIN arm64 for the retry.
@@ -5695,32 +5684,98 @@ ensure_rt_emit_state_prefer() {
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
-  ); } && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
-    && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$merged" "$thin" "$rest" \
-    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_path" \
-    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_lib" \
-    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_n_lib_roots" \
-    && r3_prefer_nm_has_sym "$merged" "driver_run_x_emit_c_set_emit_extern" \
-    && r3_prefer_nm_has_sym "$merged" "driver_argv_parse_x_emit_c" \
-    && r3_prefer_nm_has_sym "$merged" "labi_rt_emit_state_slice_marker" \
-    && r3_prefer_nm_has_sym "$merged" "xlang_pipeline_pctx_set_entry_lib_prefix" \
-    && r3_prefer_nm_has_sym "$merged" "xlang_driver_x_emit_set_lib_name" \
-    && r3_prefer_nm_has_sym "$merged" "xlang_driver_x_emit_lib_name_into" \
-    && r3_prefer_nm_has_sym "$merged" "driver_x_emit_c_path" \
-    && r3_prefer_nm_has_sym "$merged" "driver_x_emit_lib_name_buf"; then
-    mv -f "$merged" "$o"
+  ); } && rt_emit_state_rename_bss "$thin"; then
+    for s in driver_run_x_emit_c_set_path driver_run_x_emit_c_set_lib \
+      driver_run_x_emit_c_set_n_lib_roots driver_run_x_emit_c_set_emit_extern \
+      driver_argv_parse_x_emit_c labi_rt_emit_state_slice_marker \
+      xlang_pipeline_pctx_set_entry_lib_prefix xlang_driver_x_emit_set_lib_name \
+      xlang_driver_x_emit_lib_name_into $(rt_emit_state_bss_names); do
+      if ! r3_prefer_nm_has_sym "$thin" "$s"; then
+        echo "ensure: rt-emit-state pure-asm object lacks $s" >&2
+        rm -f "$thin"
+        return 1
+      fi
+    done
+    mv -f "$thin" "$o"
     if [ "$_es_pure" = "1" ]; then
-      log "rt-emit-state $o <- pure-asm fourteen symbols (w1173) + BSS rest"
+      log "rt-emit-state $o <- pure-asm $xsrc (w1173 retry) + BSS rename (w1493)"
     else
-      log "rt-emit-state $o <- pure-asm $xsrc + BSS rest (w859; marker is in the .x)"
+      log "rt-emit-state $o <- pure-asm $xsrc + BSS rename (w1493)"
     fi
-    rm -f "$thin" "$rest"
     return 0
   fi
-  echo "ensure: rt-emit-state pure-asm failed; marker and setters are in the .x, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$merged"
+  echo "ensure: rt-emit-state pure-asm failed; no seed fallback (w1493)" >&2
+  rm -f "$thin"
   return 1
+}
+
+# The ten module lets of src/runtime/rt_emit_state.x, in source order.
+# The asm backend names module let number i (0-based)
+#   Lxml_<hex8(fnv32(name bytes, then i & 255))><hex8(module fingerprint)>
+# (pipe_modlet_assign_unique_label in runtime_pipeline_abi.x).
+# The order and the names here must match the .x exactly.
+# PLATFORM: SHARED.
+rt_emit_state_bss_names() {
+  echo driver_x_emit_c_path driver_x_emit_lib_roots driver_x_emit_n_lib_roots \
+    driver_x_emit_path_buf driver_x_emit_lib_bufs driver_x_emit_c_want_extern \
+    driver_x_emit_scan_ab driver_x_emit_scan_nx driver_x_emit_lib_name_buf \
+    driver_x_emit_lib_name_len
+}
+
+# Rename the Lxml COMMONs of a pure-asm rt_emit_state object onto the
+# C names runtime_driver_abi externs. Every computed Lxml name must be in
+# the object, the object must hold exactly ten Lxml symbols, and none may
+# remain after the rename. Darwin symbols carry a leading underscore;
+# ELF and COFF do not. $1 = object, edited in place.
+# PLATFORM: SHARED.
+rt_emit_state_rename_bss() {
+  local o="$1" oc first pfx fp map old new args=() nlx
+  [ -f "$o" ] || return 1
+  oc="$(pure_asm_find_objcopy)" || {
+    echo "ensure: rt-emit-state rename needs objcopy" >&2
+    return 1
+  }
+  nlx="$(nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_[0-9a-f]+$/ {n++} END {print n+0}')"
+  if [ "$nlx" != "10" ]; then
+    echo "ensure: rt-emit-state expected 10 Lxml commons, found $nlx" >&2
+    return 1
+  fi
+  first="$(nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_[0-9a-f]+$/ {print $NF; exit}')"
+  case "$first" in
+    _Lxml_*) pfx="_" ;;
+    *) pfx="" ;;
+  esac
+  fp="${first#${pfx}Lxml_}"
+  fp="${fp#????????}"
+  map="$(perl -e '
+    my ($pfx, $fp, @names) = @ARGV;
+    my $i = 0;
+    for my $n (@names) {
+      my $h = 2166136261;
+      for my $b (unpack("C*", $n)) { $h = (($h ^ $b) * 16777619) & 0xffffffff; }
+      $h = (($h ^ ($i & 255)) * 16777619) & 0xffffffff;
+      printf "%sLxml_%08x%s %s%s\n", $pfx, $h, $fp, $pfx, $n;
+      $i++;
+    }' "$pfx" "$fp" $(rt_emit_state_bss_names))" || return 1
+  while read -r old new; do
+    [ -n "$old" ] || continue
+    if ! nm "$o" 2>/dev/null | awk -v s="$old" '$NF==s {f=1} END {exit f?0:1}'; then
+      echo "ensure: rt-emit-state missing $old for $new" >&2
+      return 1
+    fi
+    args+=(--redefine-sym "$old=$new")
+  done <<RTEMITMAP
+$map
+RTEMITMAP
+  "$oc" "${args[@]}" "$o" || {
+    echo "ensure: rt-emit-state objcopy rename failed" >&2
+    return 1
+  }
+  if nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_/ {f=1} END {exit f?0:1}'; then
+    echo "ensure: rt-emit-state Lxml commons remain after rename" >&2
+    return 1
+  fi
+  return 0
 }
 
 # Product install of src/runtime/rt_arena_buf.o:
@@ -8788,6 +8843,9 @@ compat_stubs_darwin_pure() {
 
 # w1173: src/runtime/rt_emit_state.x segfaults on a later pure-asm
 # try after earlier tries emit. Retry the whole translation unit.
+# w1493: seventeen T symbols (the lib-name pair and the entry-prefix
+# setter moved in from the deleted seed). The ten BSS lets are Lxml
+# commons here; the caller renames them.
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 rt_emit_state_darwin_pure() {
@@ -8816,7 +8874,7 @@ rt_emit_state_darwin_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "14" ]; then
+  if [ "$n" != "17" ]; then
     rm -f "$o"
     return 1
   fi
@@ -15267,7 +15325,6 @@ ensure_rt_prefer_one() {
     _rt_entry_x=src/runtime/rt_entry.x
     _rt_diag_seed=seeds/rt_diag_errno.from_x.c
     _rt_diag_x=src/runtime/rt_diag_errno.x
-    _rt_emit_st_seed=seeds/rt_emit_state.from_x.c
     _rt_emit_st_x=src/runtime/rt_emit_state.x
     _rt_elf_diag_seed=seeds/rt_pipeline_elf_diag.from_x.c
     _rt_elf_diag_x=src/runtime/rt_pipeline_elf_diag.x
@@ -15320,7 +15377,6 @@ ensure_rt_prefer_one() {
         || { [ -f "$_rt_entry_x" ] && [ "$_rt_entry_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_diag_seed" ] && [ "$_rt_diag_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_diag_x" ] && [ "$_rt_diag_x" -nt "$_rt_o" ]; } \
-        || { [ -f "$_rt_emit_st_seed" ] && [ "$_rt_emit_st_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_emit_st_x" ] && [ "$_rt_emit_st_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_elf_diag_seed" ] && [ "$_rt_elf_diag_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_elf_diag_x" ] && [ "$_rt_elf_diag_x" -nt "$_rt_o" ]; } \
@@ -15710,44 +15766,14 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_est_o" ] && [ -f "$_rt_emit_st_seed" ]; then
-            # G-02f-455：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_emit_st_x" ]; then
-              _rt_est_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st_thin.XXXXXX") || true
-              _rt_est_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_emit_st_rest.XXXXXX") || true
-              _rt_est_pure=0
-              # w1173: a later pure-asm try can segfault. Darwin retries the
-              # whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-              if [ -n "$_rt_est_thin_o" ] && [ -n "$_rt_est_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-                && bash scripts/ensure_host_cc_seed_o.sh rt-emit-state-pure "$_rt_est_thin_o"; then
-                _rt_est_pure=1
-              fi
-              if [ -n "$_rt_est_thin_o" ] && [ -n "$_rt_est_rest_o" ] \
-                && { [ "$_rt_est_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_emit_st_x" "$_rt_est_thin_o"; } \
-                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_EMIT_STATE_FROM_X \
-                     -c -o "$_rt_est_rest_o" "$_rt_emit_st_seed" \
-                && pure_ld_partial_merge "$_rt_est_o" "$_rt_est_thin_o" "$_rt_est_rest_o" 2>/dev/null; then
-                _rt_est_ok=1
-                if [ "$_rt_est_pure" = "1" ]; then
-                  echo "rt-prefer: rest emit_state ← pure-asm fourteen symbols (w1173)"
-                else
-                  echo "rt-prefer: rest emit state ← full .x + rest BSS+marker (R2 full H=0)"
-                fi
-              fi
-              rm -f "$_rt_est_thin_o" "$_rt_est_rest_o"
-            fi
-            if [ "$_rt_est_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_est_o" "$_rt_emit_st_seed"; then
-                _rt_est_ok=1
-                echo "rt-prefer: rest emit state+argv ← $_rt_emit_st_seed (G-02f-303/304 seed slice)"
-              fi
-            fi
+          # w1493: rt_emit_state has no seed. The permanent slice object
+          # src/runtime/rt_emit_state.o (ensure_rt_emit_state_prefer, pure asm)
+          # defines every emit-state symbol, so the rest only needs
+          # -DXLANG_RT_EMIT_STATE_FROM_X to leave them undefined. No temp.
+          # PLATFORM: SHARED.
+          if [ -f "$_rt_emit_st_x" ]; then
+            _rt_est_ok=1
+            echo "rt-prefer: rest emit_state <- slice object (pure asm, w1493)"
           fi
           if [ -n "$_rt_elfd_o" ] && [ -f "$_rt_elf_diag_seed" ]; then
             # G-02f-445：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
@@ -30890,7 +30916,7 @@ case "$MODE" in
     exit $?
     ;;
   rt-emit-state-pure|rt_emit_state_darwin_pure)
-    # w1173: fourteen pure-asm symbols of src/runtime/rt_emit_state.x.
+    # w1173: pure-asm symbols of src/runtime/rt_emit_state.x (seventeen T since w1493).
     # Does not write src/runtime/rt_emit_state.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then

@@ -162,8 +162,8 @@ export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: 
  * Fetching argv[i+1] clobbers arg_buf — call only after the flag matched.
  * PLATFORM: SHARED. */
 export extern function driver_compile_argv_next_is_value_c(argc: i32, argv: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32;
-/* Opt-in -lib-name slot for the X-pipeline emit lane (always-seed authority
- * in seeds/rt_emit_state.from_x.c; bare default when unset). PLATFORM: SHARED. */
+/* Opt-in -lib-name slot for the X-pipeline emit lane (pure-asm body
+ * in src/runtime/rt_emit_state.x since w1493; bare default when unset). PLATFORM: SHARED. */
 export extern "C" function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void;
 /* See implementation. */
 export extern function driver_build_build_x(): i32;

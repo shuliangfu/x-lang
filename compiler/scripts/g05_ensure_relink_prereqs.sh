@@ -530,9 +530,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # survived g05 green and broke the link later (rt_emit_state trap: new seed
     # functions missing until a manual rm+try-heat). Delegate to the existing
     # rt-slice family authority (seed -nt .o → cc -c). PLATFORM: SHARED.
-    # w859: emit_state setters and the slice marker are in the .x. rt-slice
-    # pure-asms rt_emit_state.x and cc's the BSS, lib-name, and entry-prefix
-    # rest (POSIX and Windows).
+    # w859: emit_state setters and the slice marker are in the .x.
+    # w1493: the BSS, lib-name, and entry-prefix rest moved into the .x and
+    # the seed is deleted. rt-slice pure-asms rt_emit_state.x only and
+    # renames its Lxml commons onto the C names (POSIX and Windows).
     # w844: arena_buf functions are deleted from the seed; same shape.
     # w860: the precise diagnostic and the slice marker are in the .x.
     # rt-slice pure-asms rt_parse_diag.x and cc's the recovery rest

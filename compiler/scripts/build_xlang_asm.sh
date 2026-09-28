@@ -5379,7 +5379,7 @@ ensure_rt_seed_slice_objs() {
   local pair seed o
   for pair in \
     "rt_arena_buf:seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
-    "rt_emit_state:seeds/rt_emit_state.from_x.c:src/runtime/rt_emit_state.o" \
+    "rt_emit_state:src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
     "rt_preamble:seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
     "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
     "rt_parse_diag:seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
@@ -5391,7 +5391,8 @@ ensure_rt_seed_slice_objs() {
       return 1
     fi
     # w859: emit_state setters and the slice marker live only in the .x.
-    # BSS, lib-name, and the entry-prefix setter stay in the seed.
+    # w1493: BSS, lib-name, and the entry-prefix setter moved into the .x;
+    # the seed is deleted (pair names the .x so the presence check passes).
     # No full-seed fallback.
     # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_emit_state.o" ]; then

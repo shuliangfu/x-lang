@@ -27,6 +27,30 @@ export extern "C" function driver_x_emit_n_lib_roots_slot(): *i32;
 export extern "C" function driver_x_emit_want_extern_slot(): *i32;
 export extern "C" function driver_get_argv_i(argc: i32, argv: **u8, i: i32, buf: *u8, max: i32): i32;
 
+// w1493 (终局待办 5.4 rt_emit_state): the shared emit buffers moved here
+// from seeds/rt_emit_state.from_x.c, which is deleted. Each module let is
+// emitted as an Lxml COMMON. ensure_rt_emit_state_prefer renames every one
+// onto the C name that runtime_driver_abi externs (driver_x_emit_*).
+// The rename key is fnv32(name bytes, then index), so THE ORDER AND THE
+// NAMES OF THESE TEN LETS ARE A LINK CONTRACT. Do not reorder, rename,
+// insert, or delete one without updating rt_emit_state_bss_names in
+// scripts/ensure_host_cc_seed_o.sh.
+// Sizes match the old C block: 16 roots, 512-byte path, 16x256 lib bufs,
+// 512-byte argv scratch, 64-byte lib name. Scalars are 8-byte commons.
+// Direct stores to a scalar module let fail on Darwin asm (CG002), so the
+// functions below write scalars through a pointer taken with &.
+// PLATFORM: SHARED — ELF SHN_COMMON, Mach-O __common, COFF common.
+let driver_x_emit_c_path: *u8 = 0 as *u8;
+let driver_x_emit_lib_roots: i64[16] = [];
+let driver_x_emit_n_lib_roots: i32 = 0;
+let driver_x_emit_path_buf: u8[512] = [];
+let driver_x_emit_lib_bufs: u8[4096] = [];
+let driver_x_emit_c_want_extern: i32 = 0;
+let driver_x_emit_scan_ab: u8[512] = [];
+let driver_x_emit_scan_nx: u8[512] = [];
+let driver_x_emit_lib_name_buf: u8[64] = [];
+let driver_x_emit_lib_name_len: i32 = 0;
+
 /** Maximum number of -L library roots accepted by emit-state setters/scan.
  * Returns 16. Used as an upper bound for set_lib / set_n_lib_roots / argv scan.
  * Track-L: #[no_mangle] keeps surface short name (not rt_emit_state_rt_emit_max_lib_roots).
@@ -389,6 +413,150 @@ export function driver_argv_parse_x_emit_c(argc: i32, argv: **u8): i32 {
     return 0;
   }
   return rt_scan_x_emit_argv(argc, argv, 1);
+}
+
+/**
+ * Byte offsets inside struct ast_PipelineDepCtx (runtime_pipeline_abi.h).
+ * current_codegen_prefix_mirror[256] at 8389740, its len at 8389996,
+ * entry_module_import_path_mirror[256] at 8390004, its len at 8390260.
+ * Same values as pipe_pctx_off_* in runtime_pipeline_abi.x. Checked with
+ * offsetof on Darwin, Ubuntu, and Windows in w1493.
+ * PLATFORM: SHARED — the struct has no long fields.
+ */
+function rt_emit_pctx_off_prefix_mirror(): i32 {
+  return 8389740;
+}
+
+function rt_emit_pctx_off_prefix_len(): i32 {
+  return 8389996;
+}
+
+function rt_emit_pctx_off_import_mirror(): i32 {
+  return 8390004;
+}
+
+function rt_emit_pctx_off_import_len(): i32 {
+  return 8390260;
+}
+
+/**
+ * Seed the codegen ctx entry prefix with `name` plus a trailing '_'.
+ * Writes both current_codegen_prefix_mirror and
+ * entry_module_import_path_mirror, NUL-terminates both, and sets both
+ * lengths to name_len + 1. A null ctx, a null name, name_len <= 0, or
+ * name_len >= 63 is a no-op.
+ * w1493: moved from seeds/rt_emit_state.from_x.c (deleted).
+ * @param ctx *u8 — struct ast_PipelineDepCtx *
+ * @param name *u8 — name bytes (not NUL-terminated)
+ * @param name_len i32 — byte count
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_pipeline_pctx_set_entry_lib_prefix(ctx: *u8, name: *u8, name_len: i32): void {
+  let pfx: *u8 = 0 as *u8;
+  let imp: *u8 = 0 as *u8;
+  let plen: *i32 = 0 as *i32;
+  let ilen: *i32 = 0 as *i32;
+  let k: i32 = 0;
+  if (ctx == 0 as *u8) {
+    return;
+  }
+  if (name == 0 as *u8) {
+    return;
+  }
+  if (name_len <= 0) {
+    return;
+  }
+  if (name_len >= 63) {
+    return;
+  }
+  pfx = ctx + (rt_emit_pctx_off_prefix_mirror() as usize);
+  imp = ctx + (rt_emit_pctx_off_import_mirror() as usize);
+  plen = (ctx + (rt_emit_pctx_off_prefix_len() as usize)) as *i32;
+  ilen = (ctx + (rt_emit_pctx_off_import_len() as usize)) as *i32;
+  while (k < name_len) {
+    pfx[k as usize] = name[k as usize];
+    imp[k as usize] = name[k as usize];
+    k = k + 1;
+  }
+  pfx[name_len as usize] = 95;
+  pfx[(name_len + 1) as usize] = 0;
+  imp[name_len as usize] = 95;
+  imp[(name_len + 1) as usize] = 0;
+  plen[0] = name_len + 1;
+  ilen[0] = name_len + 1;
+}
+
+/**
+ * Store the -lib-name value for the X-pipeline -E/-o emit lane.
+ * parse_x (main.x) calls this. Clears the stored name first. A null
+ * buf, len <= 0, or len >= 64 leaves it empty.
+ * w1493: moved from seeds/rt_emit_state.from_x.c (deleted).
+ * @param buf *u8 — name bytes (not NUL-terminated)
+ * @param len i32 — byte count
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void {
+  let dst: *u8 = &driver_x_emit_lib_name_buf[0];
+  let nslot: *i32 = &driver_x_emit_lib_name_len;
+  let k: i32 = 0;
+  nslot[0] = 0;
+  dst[0] = 0;
+  if (buf == 0 as *u8) {
+    return;
+  }
+  if (len <= 0) {
+    return;
+  }
+  if (len >= 64) {
+    return;
+  }
+  while (k < len) {
+    dst[k as usize] = buf[k as usize];
+    k = k + 1;
+  }
+  dst[len as usize] = 0;
+  nslot[0] = len;
+}
+
+/**
+ * Copy the stored -lib-name into `out` (at most cap - 1 bytes plus NUL).
+ * driver_run_x_emit_c (rt_run_x_emit.x) reads it to seed the ctx prefix.
+ * Returns the byte count copied. Returns 0 for a null out or cap <= 0,
+ * and writes an empty string when no name is stored.
+ * w1493: moved from seeds/rt_emit_state.from_x.c (deleted).
+ * @param out *u8 — destination buffer
+ * @param cap i32 — destination capacity in bytes
+ * @return i32 — bytes copied, not counting the NUL
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_driver_x_emit_lib_name_into(out: *u8, cap: i32): i32 {
+  let src: *u8 = &driver_x_emit_lib_name_buf[0];
+  let nslot: *i32 = &driver_x_emit_lib_name_len;
+  let n: i32 = 0;
+  let k: i32 = 0;
+  if (out == 0 as *u8) {
+    return 0;
+  }
+  if (cap <= 0) {
+    return 0;
+  }
+  n = nslot[0];
+  if (n <= 0) {
+    out[0] = 0;
+    return 0;
+  }
+  if (n > cap - 1) {
+    n = cap - 1;
+  }
+  while (k < n) {
+    out[k as usize] = src[k as usize];
+    k = k + 1;
+  }
+  out[n as usize] = 0;
+  return n;
 }
 
 /**

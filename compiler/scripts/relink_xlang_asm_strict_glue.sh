@@ -2224,15 +2224,15 @@ ensure_rt_seed_slice_objs() {
   local pair src o
   for pair in \
     "seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
-    "seeds/rt_emit_state.from_x.c:src/runtime/rt_emit_state.o" \
+    "src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
     "seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
     "seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
     "seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
   o="${pair##*:}"
   # w859: same product object as ensure_rt_emit_state_prefer.
-  # Setters and the slice marker are in the .x. BSS, lib-name, and the
-  # entry-prefix setter stay in the seed. PLATFORM: SHARED.
+  # Setters, the slice marker, BSS, lib-name, and the entry-prefix setter
+  # are all in the .x since w1493 (seed deleted). PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_emit_state.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-emit-state-prefer \
       || return 1
