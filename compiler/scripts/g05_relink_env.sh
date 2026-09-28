@@ -453,6 +453,17 @@ if [ "${XLANG_BINOP_WIDE_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/binop_wide.o pipeline_asm_emit_binop_mod_elf_c
   _PABI_BINOP_WIDE="$_G05_PO_OUT"
 fi
+# w1501: module-let STRING_LIT pool head chunk 127 (终局待办 10.24). pabi's
+# pipe_modlet_bake_string_lit_elem_to_data copied the head chunk with a 255
+# cap while the parser splits literals every 127 bytes, so bytes 127..254 of a
+# long module string became NUL. Same pure-overlay rules as binop_wide.
+# PLATFORM: SHARED.
+_PABI_MODLET_STRPOOL=""
+if [ "${XLANG_MODLET_STRPOOL_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_modlet_strpool_thin.x \
+    build_asm/selfhost_pabi/modlet_strpool.o pipe_modlet_bake_string_lit_elem_to_data
+  _PABI_MODLET_STRPOOL="$_G05_PO_OUT"
+fi
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
@@ -1071,7 +1082,8 @@ case "$UNAME_S" in
       || [ "$_WIN_TRUE_PACK" = "1" ] \
       || [ -n "$_PABI_BB_CACHE" ] \
       || [ -n "$_PABI_TAIL_JMP_OFF" ] \
-      || [ -n "$_PABI_BINOP_WIDE" ]; then
+      || [ -n "$_PABI_BINOP_WIDE" ] \
+      || [ -n "$_PABI_MODLET_STRPOOL" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -1176,6 +1188,12 @@ case "$UNAME_S" in
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done
         fi
+        # w1501: weaken egg module-let string pool baker (127 head chunk).
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_MODLET_STRPOOL" ]; then
+          "$_oc" --weaken-symbol=pipe_modlet_bake_string_lit_elem_to_data \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
         # w1041: weaken egg call_spill so overlay first-wins.
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_CALL_SPILL" ]; then
@@ -1265,7 +1283,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

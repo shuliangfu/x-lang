@@ -80,6 +80,8 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "pipeline_asm_emit_binop_mod_elf_c",
     "pipeline_asm_emit_divisor_zero_check_rbx_elf_c",
     "glue_emit_assign_rhs_mod_elf_c",
+    # w1501: module-let string pool baker overlay (modlet_strpool.o).
+    "pipe_modlet_bake_string_lit_elem_to_data",
 )
 
 
@@ -319,6 +321,8 @@ def main() -> int:
         "pipeline_asm_emit_binop_mod_elf_c",
         "pipeline_asm_emit_divisor_zero_check_rbx_elf_c",
         "glue_emit_assign_rhs_mod_elf_c",
+        # w1501: module-let string pool baker overlay. PLATFORM: WINDOWS.
+        "pipe_modlet_bake_string_lit_elem_to_data",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
