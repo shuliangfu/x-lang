@@ -250,6 +250,16 @@ if ! nm "$OUT/pabi_alias.o" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_
   echo "linux_selfhost_pabi_sidecars: alias dropped the original symbol" >&2
   exit 1
 fi
+# w1493: point the C rest's calls to its local modlet copies at the
+# global .x faces (one modlet table). See linux_selfhost_pabi_refresh_tip.sh.
+if ! python3 scripts/elf_retarget_local_dup_relocs.py "$OUT/pabi_alias.o" \
+  pipeline_asm_modlet_prepare_and_emit_elf_c \
+  pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+  pipeline_asm_modlet_store_from_rax_elf_c \
+  pipeline_asm_modlet_name_is_shared; then
+  echo "linux_selfhost_pabi_sidecars: modlet retarget failed" >&2
+  exit 1
+fi
 
 # w1012: true-pack ARRAY i8 (INDEX esz=1 + sext8 + assign tip + force_esz).
 # Host-gcc twins first-wins over pabi. Shared C seeds (same as Darwin tip /

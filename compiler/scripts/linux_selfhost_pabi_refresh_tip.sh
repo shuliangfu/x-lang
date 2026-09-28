@@ -29,17 +29,36 @@ if [ ! -x "$XL" ]; then
 fi
 
 # 1. pabi_alias
-if [ ! -s "$OUT/pabi_alias.o" ] || ! cmp -s src/runtime_pipeline_abi.o "$OUT/pabi_alias.o"; then
-  cp -f src/runtime_pipeline_abi.o "$OUT/pabi_alias.o.new"
-  if ! nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_rest"{found=1} END{exit !found}'; then
-    _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
-    if [ -z "$_base_addr" ]; then
-      echo "linux_selfhost_pabi_refresh_tip: index base symbol missing" >&2
-      rm -f "$OUT/pabi_alias.o.new"
-      exit 1
-    fi
-    objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o.new"
+# w1493: the tip pabi keeps LOCAL copies of four C-rest modlet faces next
+# to their GLOBAL .x definitions, and the rest's own calls (mega body,
+# mutable lit inits, register lets) point at the local copies. prepare
+# then fills g_pipeline_asm_modlet_cold while the global load/find read
+# g_pipeline_asm_modlet, so any module-let access fails with CG002
+# (code_len=12). elf_retarget_local_dup_relocs.py points those
+# relocations at the global faces. Build .new every time and install only
+# when it differs, so an unchanged tip does not touch the alias.
+cp -f src/runtime_pipeline_abi.o "$OUT/pabi_alias.o.new"
+if ! nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_rest"{found=1} END{exit !found}'; then
+  _base_addr=$(nm "$OUT/pabi_alias.o.new" | awk '$3=="glue_try_index_var_or_field_base_to_rbx_elf_c"{print $1; exit}')
+  if [ -z "$_base_addr" ]; then
+    echo "linux_selfhost_pabi_refresh_tip: index base symbol missing" >&2
+    rm -f "$OUT/pabi_alias.o.new"
+    exit 1
   fi
+  objcopy --add-symbol "glue_try_index_var_or_field_base_to_rbx_elf_rest=.text:0x${_base_addr},global,function" "$OUT/pabi_alias.o.new"
+fi
+if ! python3 scripts/elf_retarget_local_dup_relocs.py "$OUT/pabi_alias.o.new" \
+  pipeline_asm_modlet_prepare_and_emit_elf_c \
+  pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+  pipeline_asm_modlet_store_from_rax_elf_c \
+  pipeline_asm_modlet_name_is_shared; then
+  echo "linux_selfhost_pabi_refresh_tip: modlet retarget failed" >&2
+  rm -f "$OUT/pabi_alias.o.new"
+  exit 1
+fi
+if [ -s "$OUT/pabi_alias.o" ] && cmp -s "$OUT/pabi_alias.o.new" "$OUT/pabi_alias.o"; then
+  rm -f "$OUT/pabi_alias.o.new"
+else
   mv -f "$OUT/pabi_alias.o.new" "$OUT/pabi_alias.o"
   echo "linux_selfhost_pabi_refresh_tip: pabi_alias.o <- src/runtime_pipeline_abi.o"
 fi
