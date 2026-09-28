@@ -32,6 +32,7 @@ export extern function asm_ctx_ensure_block_locals(ctx: *u8, arena: *u8, block_r
 export extern function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_asm_last_call_max_gp_units_c(): i32;
+export extern function glue_asm_last_binop_preserve_homes_c(): i32;
 export extern function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
 export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
@@ -253,6 +254,7 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   let ret_sz: i32 = 0;
   let hoist: i32 = 0;
   let rem: i32 = 0;
+  let homes: i32 = 0;
   if (arena == (0 as *u8) || block_ref <= 0) {
     return 64;
   }
@@ -316,6 +318,7 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   unsafe {
     arr_temp = asm_sum_block_array_temp_bytes(arena, block_ref);
     call_spill = glue_asm_sum_block_call_spill_bytes(arena, block_ref);
+    homes = glue_asm_last_binop_preserve_homes_c();
   }
   // w1484: arm64 gives every call temp its own 16-byte slot. MACOS|ARM64.
   if (is_arm != 0) {
@@ -327,6 +330,12 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
     reent_dc = glue_sum_block_slice_reent_dc_bytes_c(arena, block_ref);
   }
   size = next_off + arr_temp + wa_temp + reent_dc;
+  // w1503 (终局待办 10.31/10.27): arm64 binop left-preserve homes are taken
+  // from next_offset during body emit; without them the homes ran over the
+  // x19 save slot and past the frame into the caller's fp/lr. MACOS|ARM64.
+  if (is_arm != 0 && homes > 0) {
+    size = size + homes * 8;
+  }
   if (size > 0) {
     rem = size % 16;
     if (rem != 0) {
@@ -361,7 +370,9 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
     }
   }
   // w1043: param-home-only forwarders cap at 48 (num_params <= 4).
-  if (call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0) {
+  // w1503: arm64 saves x19 at [sp+size], so the cap only applies when every
+  // home (params, locals, binop left-preserve homes) ends at or below 48.
+  if (call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
     if (num_params <= 4 && size > 48 && size <= 64) {
       return 48;
     }

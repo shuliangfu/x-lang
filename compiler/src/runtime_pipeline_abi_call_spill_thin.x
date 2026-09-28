@@ -68,9 +68,14 @@ export extern function ast_ast_block_stmt_order_kind(arena: *u8, block_ref: i32,
 export extern function ast_ast_block_stmt_order_idx(arena: *u8, block_ref: i32, si: i32): i32;
 export extern function glue_sysv_x86_call_arg_slot_c(arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32): void;
 export extern function pipeline_asm_host_is_arm64_c(): i32;
+export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 
-// Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units.
-let w1500_cs_st: i32[4] = [];
+// Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
+// [4] arm64 binop left-preserve frame homes (w1503).
+let w1500_cs_st: i32[5] = [];
 
 /** Record the widest outgoing GP unit count. PLATFORM: SHARED. */
 function w1500_cs_note_gp(gp: i32): void {
@@ -280,10 +285,46 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       return;
     }
   }
+  if (ko == 43) {
+    // w1503: MATCH scrutinee, guards and arm results (binops/calls inside
+    // arms were not counted, so their frame homes were missing).
+    unsafe {
+      op = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+      n = pipeline_expr_match_num_arms_at(arena, expr_ref);
+    }
+    w1500_cs_expr(arena, op);
+    if (n > 1024) {
+      n = 1024;
+    }
+    i = 0;
+    while (i < n) {
+      unsafe {
+        op = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+        arg_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+      }
+      w1500_cs_expr(arena, op);
+      w1500_cs_expr(arena, arg_ref);
+      i = i + 1;
+    }
+    return;
+  }
   if ((ko >= 4 && ko <= 21) || ko == 25 || ko == 26 || (ko >= 28 && ko <= 38)) {
     unsafe {
       arg_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
       op = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    }
+    // w1503 (终局待办 10.31/10.27): on arm64 glue_binop_preserve_rax_for_rbx_load
+    // parks the left value in a fresh frame home (next_offset += 8, never
+    // released). Count one home per binop whose right side is not an int or
+    // bool literal so compute_frame_size reserves them. MACOS|ARM64.
+    if (w1500_cs_st[2] == 0 && ko >= 4 && ko <= 21 && op > 0) {
+      unsafe {
+        need = pipeline_expr_kind_ord_at(arena, op);
+      }
+      if (need != 0 && need != 2) {
+        w1500_cs_st[4] = w1500_cs_st[4] + 1;
+      }
+      need = 0;
     }
     w1500_cs_expr(arena, arg_ref);
     w1500_cs_expr(arena, op);
@@ -619,6 +660,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
   w1500_cs_st[0] = 0;
   w1500_cs_st[1] = 0;
   w1500_cs_st[3] = 0 - 1;
+  w1500_cs_st[4] = 0;
   unsafe {
     arm = pipeline_asm_host_is_arm64_c();
   }
@@ -635,4 +677,10 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
 #[no_mangle]
 export function glue_asm_last_call_max_gp_units_c(): i32 {
   return w1500_cs_st[3];
+}
+
+/** arm64 binop left-preserve frame homes from the last walk (w1503). PLATFORM: MACOS|ARM64. */
+#[no_mangle]
+export function glue_asm_last_binop_preserve_homes_c(): i32 {
+  return w1500_cs_st[4];
 }
