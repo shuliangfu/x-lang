@@ -474,6 +474,8 @@ fi
 # product every relink. Darwin weakens the pabi_weak gate below; Windows
 # weakens pabi_weak and folds W/t to T post-link.
 # Linux keeps the injected pabi leaves. PLATFORM: MACOS|DARWIN + WINDOWS.
+# w1507 (终局待办 10.34): the gate also skips the finish demote for f32 targets
+# whose value is already f32 bits (compound ops, plain FLOAT_LIT assign).
 _PABI_ASSIGN_VAR=""
 case "$UNAME_S" in
   Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
@@ -519,6 +521,22 @@ case "$UNAME_S" in
       _g05_pure_overlay src/runtime_pipeline_abi_asm_expr_thin.x \
         build_asm/selfhost_pabi/asm_expr_rec.o pipeline_asm_emit_expr_elf_rec
       _PABI_ASM_EXPR="$_G05_PO_OUT"
+    fi
+    ;;
+esac
+# w1507 (终局待办 10.34): Linux VAR assign goes through the assign.o sidecar
+# (runtime_pipeline_abi_assign_thin.x, stale-marks pabi.o), not the VAR gate,
+# and calls the pabi demote after rhs_to_rax. That demote called FLOAT_LIT f64
+# and ran cvtsd2ss over f32 bits (`x = 2.25`, `x += 2.25`). A pure .x demote
+# (pabi copy is weak on Linux) skips FLOAT_LIT sources; compile it with the
+# current product every relink and link it first. PLATFORM: LINUX.
+_PABI_F32_DEMOTE=""
+case "$UNAME_S" in
+  Linux)
+    if [ "${XLANG_F32_DEMOTE_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_f32_demote_thin.x \
+        build_asm/selfhost_pabi/f32_demote.o glue_maybe_demote_f64_to_f32_eax_elf_c
+      _PABI_F32_DEMOTE="$_G05_PO_OUT"
     fi
     ;;
 esac
@@ -1408,7 +1426,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

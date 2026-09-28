@@ -21,6 +21,15 @@
 // Editing the assign_var / rhsrax leaves marks pabi.o stale (FORCE pabi is
 // banned), so this lives in its own file. g05_relink_env compiles it with the
 // current product every relink, next to the unchanged leaves.
+// w1507 (终局待办 10.34): an f32 VAR target whose value is already f32 bits
+// (compound op computed in the lhs type, or plain ASSIGN of a FLOAT_LIT that
+// glue_emit_assign_rhs_elf_c emits dest-typed as imm32) must not go through
+// finish: its demote asks glue_binop_operand_is_scalar_f64_elf_c about the
+// right side only, a FLOAT_LIT counts as f64, so cvtsd2ss / fcvt s0,d0 turned
+// the f32 bits into garbage (`x = 2.25`, `x += 2.25`, `x *= 2.0` all wrong on
+// all three targets). Same skip rule as the let-init path (init_f32_lit).
+// Linux does not reach this gate for VAR assign (assign.o sidecar); its fix is
+// runtime_pipeline_abi_f32_demote_thin.x.
 // PLATFORM: MACOS|DARWIN + WINDOWS. Linux keeps the injected pabi leaves.
 
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
@@ -42,6 +51,7 @@ export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_emit_assign_var_store_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
 
 /**
  * File-scope scalar assign: value (plain or compound) into rax, then store
@@ -71,6 +81,34 @@ function w1502_assign_modlet(arena: *u8, elf_ctx: *u8, expr_ref: i32, left_ref: 
       return 0 - 1;
     }
     return pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, &vname[0], vlen, ta);
+  }
+}
+
+/**
+ * w1507 (终局待办 10.34): does rhs_to_rax already leave f32 bits for an f32
+ * VAR target? Compound ops (kinds 29..38) compute in the lhs type; plain
+ * ASSIGN (28) of a FLOAT_LIT is emitted dest-typed as imm32. Those skip the
+ * finish demote (it would treat the f32 bits as f64 and convert again).
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ek i32 — assign expr kind
+ * @param left_ref i32 — assign target
+ * @param right_ref i32 — right side
+ * @return i32 — 1 when the store must skip the demote; 0 otherwise
+ * PLATFORM: SHARED freestanding.
+ */
+function w1507_f32_bits_ready(arena: *u8, ctx: *u8, ek: i32, left_ref: i32, right_ref: i32): i32 {
+  unsafe {
+    if (glue_assign_lhs_f32_type_ref_elf_c(arena, ctx, left_ref) <= 0) {
+      return 0;
+    }
+    if (ek >= 29 && ek <= 38) {
+      return 1;
+    }
+    if (ek == 28 && pipeline_expr_kind_ord_at(arena, right_ref) == 1) {
+      return 1;
+    }
+    return 0;
   }
 }
 
@@ -105,7 +143,16 @@ export function glue_emit_assign_var_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
     glue_index_scratch_spill_invalidate_var(arena, elf_ctx, ctx, left_ref, ta);
     glue_binop_var_slot_cache_invalidate_slot(off);
     let rc: i32 = 0 - 1;
-    if (pipeline_expr_kind_ord_at(arena, expr_ref) == 28) {
+    let ek: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (w1507_f32_bits_ready(arena, ctx, ek, left_ref, right_ref) != 0) {
+      rc = glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
+      if (rc == 0) {
+        rc = glue_emit_assign_var_store_elf_c(arena, elf_ctx, left_ref, right_ref, ctx, ta);
+      }
+      glue_binop_var_slot_cache_invalidate_slot(off);
+      return rc;
+    }
+    if (ek == 28) {
       rc = glue_emit_assign_var_try_let_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta);
     }
     if (rc != 0) {
