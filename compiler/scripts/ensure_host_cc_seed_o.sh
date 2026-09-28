@@ -313,6 +313,55 @@ set -euo pipefail
 _ENSURE_HOST_CC_DIR="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 cd "$_ENSURE_HOST_CC_DIR/.."
 
+# w1484: g05 pure-asm crash detector. Every pure-asm compile below goes
+# through g05_xasm. A signal death (rc>=128, e.g. 139 SIGSEGV) or a timeout
+# (124) is appended to build_asm/g05_xasm_crash.log even when a retry or a
+# host-cc seed fallback later "succeeds", so a crashing product can no longer
+# silently turn a pure-asm object back into cc. g05_ensure_relink_prereqs.sh
+# and g05_relink_xlang.sh fail when the log is non-empty
+# (XLANG_G05_XASM_ALLOW_CRASH=1 downgrades that to a warning). PLATFORM: SHARED.
+G05_XASM_CRASH_LOG="${G05_XASM_CRASH_LOG:-build_asm/g05_xasm_crash.log}"
+# The product only writes a relocatable object for `-c` when the -o path ends
+# in .o; a mktemp name (rtpref_*_thin.XXXXXX) made it try to link a program,
+# fail on _main and then SIGSEGV in the error path — every rt-prefer pure-asm
+# try crashed and silently fell back to the cc seed. g05_xasm therefore
+# compiles such targets to "<out>.g05.o" and moves the result into place.
+g05_xasm() {
+  local _g05_rc=0 _g05_out="" _g05_c=0 _g05_prev="" _g05_a
+  for _g05_a in "$@"; do
+    [ "$_g05_a" = "-c" ] && _g05_c=1
+    [ "$_g05_prev" = "-o" ] && _g05_out="$_g05_a"
+    _g05_prev="$_g05_a"
+  done
+  if [ "$_g05_c" = "1" ] && [ -n "$_g05_out" ] && [ "${_g05_out%.o}" = "$_g05_out" ]; then
+    local -a _g05_args=()
+    _g05_prev=""
+    for _g05_a in "$@"; do
+      if [ "$_g05_prev" = "-o" ]; then
+        _g05_args+=("$_g05_out.g05.o")
+      else
+        _g05_args+=("$_g05_a")
+      fi
+      _g05_prev="$_g05_a"
+    done
+    rm -f "$_g05_out.g05.o"
+    "${_g05_args[@]}" || _g05_rc=$?
+    if [ "$_g05_rc" -eq 0 ] && [ -s "$_g05_out.g05.o" ]; then
+      mv -f "$_g05_out.g05.o" "$_g05_out"
+    else
+      rm -f "$_g05_out.g05.o"
+    fi
+  else
+    "$@" || _g05_rc=$?
+  fi
+  if [ "$_g05_rc" -eq 124 ] || [ "$_g05_rc" -ge 128 ]; then
+    mkdir -p "$(dirname "$G05_XASM_CRASH_LOG")" 2>/dev/null || true
+    printf '%s rc=%s ensure_host_cc_seed_o: %s\n' "$(date +%H:%M:%S)" "$_g05_rc" "$*" \
+      >>"$G05_XASM_CRASH_LOG" 2>/dev/null || true
+  fi
+  return "$_g05_rc"
+}
+
 # G.7: single default-CC policy (scripts/resolve_host_cc.sh). Do not hardcode
 # CC=cc — MinGW ships gcc without a `cc` alias (Windows hybrid min-gate).
 # shellcheck source=resolve_host_cc.sh
@@ -1518,7 +1567,7 @@ rt_diag_errno_darwin_pure() {
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$stage"
-    if "$xl" -backend asm -c "$xsrc" -o "$stage" >/dev/null 2>&1 && [ -s "$stage" ]; then
+    if g05_xasm "$xl" -backend asm -c "$xsrc" -o "$stage" >/dev/null 2>&1 && [ -s "$stage" ]; then
       if "$objcopy" --redefine-sym '__error=___error' "$stage"; then
         break
       fi
@@ -3311,7 +3360,7 @@ ensure_std_runtime_fast_darwin_pure() {
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if "$xl" -backend asm -c -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm "$xl" -backend asm -c -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
       local _sr_short _sr_ok
       _sr_ok=1
       for _sr_short in \
@@ -5871,7 +5920,7 @@ net_ipv6_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -5948,7 +5997,7 @@ net_sock_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6025,7 +6074,7 @@ net_addr_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6102,7 +6151,7 @@ fs_open_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6148,7 +6197,7 @@ elf_find_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6195,7 +6244,7 @@ elf_diag_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6243,7 +6292,7 @@ tls_bio_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6294,7 +6343,7 @@ lockdiag_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6343,7 +6392,7 @@ lockdiag_thin_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6393,7 +6442,7 @@ process_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6444,7 +6493,7 @@ crypto_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6495,7 +6544,7 @@ log_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6544,7 +6593,7 @@ log_thin_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6594,7 +6643,7 @@ env_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6644,7 +6693,7 @@ env_thin_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6694,7 +6743,7 @@ dynlib_text_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6743,7 +6792,7 @@ rt_stack_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6799,7 +6848,7 @@ rt_diag_errno_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6864,7 +6913,7 @@ phase_parse_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6919,7 +6968,7 @@ compress_formal_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -6983,7 +7032,7 @@ lexer_glue_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7036,7 +7085,7 @@ build_tool_bridge_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7086,7 +7135,7 @@ lsp_diag_stub_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7137,7 +7186,7 @@ lsp_sizes_weak_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7205,7 +7254,7 @@ parse_expr_link_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7256,7 +7305,7 @@ net_workers_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7337,7 +7386,7 @@ slice_glue_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7387,7 +7436,7 @@ driver_formal_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7437,7 +7486,7 @@ io_formal_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7487,7 +7536,7 @@ debug_formal_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7537,7 +7586,7 @@ dir_cap_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7592,7 +7641,7 @@ atomic_glue_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7646,7 +7695,7 @@ sqlite_glue_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7696,7 +7745,7 @@ process_argv_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7759,7 +7808,7 @@ path_fast_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7804,7 +7853,7 @@ string_fast_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7850,7 +7899,7 @@ time_os_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7896,7 +7945,7 @@ kv_mmap_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7941,7 +7990,7 @@ random_fill_retry_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -7987,7 +8036,7 @@ test_fn_invoke_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8032,7 +8081,7 @@ thread_glue_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8078,7 +8127,7 @@ call_dispatch_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8124,7 +8173,7 @@ simd_enc_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8169,7 +8218,7 @@ simd_loop_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8215,7 +8264,7 @@ try_inline_dispatch_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8261,7 +8310,7 @@ diagnostic_thin_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8307,7 +8356,7 @@ fmt_check_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8368,7 +8417,7 @@ lsp_glue_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8428,7 +8477,7 @@ async_asm_pool_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8474,7 +8523,7 @@ async_liveness_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8519,7 +8568,7 @@ async_cps_codegen_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8563,7 +8612,7 @@ run_compiler_parsed_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8606,7 +8655,7 @@ arch_emit_dispatch_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8651,7 +8700,7 @@ seed_link_compat_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8714,7 +8763,7 @@ compat_stubs_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8758,7 +8807,7 @@ rt_emit_state_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8803,7 +8852,7 @@ strict_glue_thin_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8859,7 +8908,7 @@ rt_argv_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8902,7 +8951,7 @@ rt_fmt_one_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8945,7 +8994,7 @@ rt_compile_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -8989,7 +9038,7 @@ rt_parse_diag_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -9033,7 +9082,7 @@ rt_lib_root_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -9077,7 +9126,7 @@ rt_emit_flags_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -9121,7 +9170,7 @@ rt_run_x_emit_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -9164,7 +9213,7 @@ rt_run_asm_backend_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
       break
     fi
     rm -f "$o"
@@ -9271,7 +9320,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -9386,7 +9435,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -9448,7 +9497,7 @@ pthin_diag_pipeline_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$obj"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
       break
     fi
     rm -f "$obj"
@@ -9503,7 +9552,7 @@ pthin_glue_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$obj"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
       break
     fi
     rm -f "$obj"
@@ -9556,7 +9605,7 @@ pthin_foundation_darwin_pure() {
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$obj"
-    if ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
       break
     fi
     rm -f "$obj"
@@ -9662,7 +9711,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -9771,7 +9820,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -9891,7 +9940,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -10017,7 +10066,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -10231,7 +10280,7 @@ PY
     while [ "$try" -lt 12 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -10410,7 +10459,7 @@ PY
     while [ "$try" -lt 12 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -10648,7 +10697,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -10863,7 +10912,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11078,7 +11127,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11255,7 +11304,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11413,7 +11462,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11575,7 +11624,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11711,7 +11760,7 @@ PY
     while [ "$try" -lt "$limit" ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11822,7 +11871,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -11928,7 +11977,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -12034,7 +12083,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -12139,7 +12188,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -12261,7 +12310,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -12376,7 +12425,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -12486,7 +12535,7 @@ PY
     while [ "$try" -lt 8 ]; do
       try=$((try + 1))
       rm -f "$obj"
-      if ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$src" -o "$obj" >/dev/null 2>&1 && [ -s "$obj" ]; then
         break
       fi
       rm -f "$obj"
@@ -14233,7 +14282,7 @@ ensure_win_call_dispatch_host_thin() {
   ld_flags="$(r3_prefer_ld_r_flags)"
 
   if [ "$want_tip" = "1" ] && [ -x "$xlang_bin" ] && [ -f "$thin_x" ]; then
-    if "$xlang_bin" -backend asm -c -o "$thin_o" "$thin_x" 2>/dev/null; then
+    if g05_xasm "$xlang_bin" -backend asm -c -o "$thin_o" "$thin_x" 2>/dev/null; then
       tip_ok=1
     else
       rm -f "$thin_o"
@@ -23596,7 +23645,7 @@ pipeline_abi_inject_asm_wpo_thin() {
     log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar live"
     return 0
   fi
-  if ! "$xlang" -backend asm -c "$thin_x" -o "$thin_o"; then
+  if ! g05_xasm "$xlang" -backend asm -c "$thin_x" -o "$thin_o"; then
     log "pipeline_abi w745-asm-wpo-thin: PREFER -c failed"
     return 1
   fi
@@ -27430,7 +27479,7 @@ ensure_lsp_sat_prefer_one() {
           thin_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_thin.XXXXXX").o"
           rest_o="$(mktemp "${TMPDIR:-/tmp}/ldsn_rest.XXXXXX").o"
           # shellcheck disable=SC2086
-          if "$asm_bin" -backend asm -c "$x_src" -o "$thin_o" 2>/dev/null \
+          if g05_xasm "$asm_bin" -backend asm -c "$x_src" -o "$thin_o" 2>/dev/null \
             && [ -s "$thin_o" ] \
             && $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
                  -D"$from_x_def" -c "$seed" -o "$rest_o" \
@@ -27638,7 +27687,7 @@ _cfg_eval_link_x_plus_host_lit() {
   lit_tmp="$(mktemp "${TMPDIR:-/tmp}/cfg_host_lit.XXXXXX")"
   lit_new="${lit_tmp}.o"
   mv "$lit_tmp" "$lit_new"
-  if ! "$asm_bin" -backend asm -c "$lit_x" -o "$lit_new" 2>/dev/null \
+  if ! g05_xasm "$asm_bin" -backend asm -c "$lit_x" -o "$lit_new" 2>/dev/null \
     || [ ! -s "$lit_new" ] \
     || ! r3_prefer_nm_has_sym "$lit_new" "cfg_host_os_lit" \
     || ! r3_prefer_nm_has_sym "$lit_new" "cfg_host_arch_lit"; then
@@ -27755,7 +27804,7 @@ ensure_cfg_eval_ladder_one() {
       asm_bin="$xlang_c"
     fi
     if [ -n "$asm_bin" ]; then
-      if "$asm_bin" -backend asm -c "$x_src" -o "$x_o" 2>/dev/null \
+      if g05_xasm "$asm_bin" -backend asm -c "$x_src" -o "$x_o" 2>/dev/null \
         && [ -s "$x_o" ] \
         && _cfg_eval_link_x_plus_host_lit "$o" "$x_o"; then
         log "cfg_eval.o from cfg_eval.x (pure-asm -c + host_lit.x) [w851]"

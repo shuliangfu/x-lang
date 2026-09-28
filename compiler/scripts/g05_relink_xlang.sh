@@ -34,6 +34,17 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# w1484: refuse to link when ensure / relink_env logged a g05 pure-asm crash
+# (a retry or cc fallback may have hidden it). PLATFORM: SHARED.
+if [ -s build_asm/g05_xasm_crash.log ]; then
+  echo "g05_relink_xlang: g05 pure-asm compiler crashed (build_asm/g05_xasm_crash.log):" >&2
+  sed 's/^/  /' build_asm/g05_xasm_crash.log >&2
+  if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
+    echo "  fix the product and rm the log, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn" >&2
+    exit 1
+  fi
+fi
+
 CC="${G05_CC:-cc}"
 CFLAGS="${G05_CFLAGS:-}"
 

@@ -539,6 +539,81 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
   fi
+  # w1484: arm64 call_spill ×2 root fix (compute_frame_size overlay). The
+  # Darwin pabi_weak w189 param_ptr_slot bodies were emitted by a product
+  # whose frame budget was 8 B/temp while the arm64 emitter uses 16 B slots:
+  # temps overwrite the caller's saved x29/x30 → ~1/3 `-backend asm -c`
+  # SIGSEGV in glue_load_var_as_value_to_rax_rdx_elf_c. pabi.o is a libtool
+  # archive here (inject skip) and FORCE pabi is banned, so re-emit the thin
+  # with the current product and let it first-win over weakened pabi_weak.
+  # Rebuilt when missing or older than the thin .x / frame overlay.
+  # PLATFORM: MACOS|DARWIN.
+  _pps_x=src/runtime_pipeline_abi_param_ptr_slot_thin.x
+  _pps_o=build_asm/selfhost_pabi/param_ptr_slot_a64.o
+  if [ -f "$_pps_x" ] && [ -x ./xlang_asm ]; then
+    if [ ! -s "$_pps_o" ] || [ "$_pps_x" -nt "$_pps_o" ] \
+      || [ seeds/runtime_pipeline_abi_compute_frame_size_overlay.c -nt "$_pps_o" ]; then
+      rm -f "$_pps_o"
+      for _pps_try in 1 2 3 4 5 6 7 8; do
+        _pps_rc=0
+        ./xlang_asm -backend asm -c "$_pps_x" -o "$_pps_o.tmp.o" >/dev/null 2>&1 || _pps_rc=$?
+        # w1484 crash detector: same log as ensure's g05_xasm; relink fails on it.
+        if [ "$_pps_rc" -eq 124 ] || [ "$_pps_rc" -ge 128 ]; then
+          printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
+            "$(date +%H:%M:%S)" "$_pps_rc" "$_pps_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        fi
+        if [ "$_pps_rc" -eq 0 ] \
+          && nm -m "$_pps_o.tmp.o" 2>/dev/null | grep -q 'external _w189_param_at_is_type_ptr$'; then
+          mv -f "$_pps_o.tmp.o" "$_pps_o"
+          break
+        fi
+        rm -f "$_pps_o.tmp.o"
+      done
+    fi
+  fi
+  if [ -s "$_pps_o" ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      for _psym in _w189_param_at_is_type_ptr _w189_stack_off_is_emit_param_ptr_slot \
+        _glue_local_var_slot_needs_ptr_load_elf_c; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_psym" | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_psym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+      # Apple ld treats the first symbol of a non-subsections __text (the
+      # section atom name) as strong even when N_WEAK_DEF is set, so a weak
+      # w189 at offset 0 still collides with the thin. Prefix a brk stub via
+      # ld -r so w189 becomes an alias, then weaken again. Idempotent.
+      _pw=build_asm/selfhost_pabi/pabi_weak.o
+      if nm -nm "$_pw" 2>/dev/null \
+        | awk '$1=="0000000000000000" && /__TEXT,__text/ {print $NF; exit}' \
+        | grep -qx '_w189_param_at_is_type_ptr'; then
+        printf '.text\n.globl _pabi_weak_text_base\n.p2align 2\n_pabi_weak_text_base:\n  brk #0x1484\n' \
+          > build_asm/selfhost_pabi/pabi_weak_base.s
+        if as -arch arm64 -o build_asm/selfhost_pabi/pabi_weak_base.o \
+            build_asm/selfhost_pabi/pabi_weak_base.s 2>/dev/null \
+          && ld -r -keep_private_externs -o "$_pw.tmp.o" \
+            build_asm/selfhost_pabi/pabi_weak_base.o "$_pw" 2>/dev/null; then
+          for _psym in _w189_param_at_is_type_ptr _w189_stack_off_is_emit_param_ptr_slot \
+            _glue_local_var_slot_needs_ptr_load_elf_c; do
+            "$_oc" --weaken-symbol="$_psym" "$_pw.tmp.o" 2>/dev/null || true
+          done
+          mv -f "$_pw.tmp.o" "$_pw"
+        fi
+        rm -f "$_pw.tmp.o"
+      fi
+    fi
+    _PABI_SELFHOST="$_pps_o $_PABI_SELFHOST"
+  fi
   # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
   # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
   # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only

@@ -102,6 +102,16 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, in
   asm_ctx_fill_locals_block_tree(&ctx_buf[0], arena, block_ref, &next_off, &num_loc);
   arr_temp = asm_sum_block_array_temp_bytes(arena, block_ref);
   call_spill = glue_asm_sum_block_call_spill_bytes(arena, block_ref);
+  /* w1484: arm64 emit gives every call temp its own 16-byte slot
+   * (str x0,[x29,#off]; next_off += 16). The w1040/w1041 budget counts
+   * 8 bytes per temp (x86 stride), so arm64 frames came out too small and
+   * temps landed on the caller's saved x29/x30 (e.g. w189_param_at_is_type_ptr
+   * sub #0xf0 storing at #0xf0/#0x100 → Darwin `-backend asm -c` SIGSEGV in
+   * glue_load_var_as_value_to_rax_rdx_elf_c). Double the budget on arm64.
+   * PLATFORM: MACOS|arm64 — x86_64 (Linux/Windows) unchanged. */
+  if (is_arm != 0) {
+    call_spill = call_spill * 2;
+  }
   pipeline_asm_emit_ctx_module_set(prev_mod);
   wa_temp = asm_sum_block_wa_temp_bytes(arena, block_ref);
   reent_dc = glue_sum_block_slice_reent_dc_bytes_c(arena, block_ref);

@@ -19,6 +19,11 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# w1484: fresh g05 pure-asm crash log for this ensure run (see g05_xasm in
+# ensure_host_cc_seed_o.sh). Checked before the OK line below.
+mkdir -p build_asm
+: >build_asm/g05_xasm_crash.log
+
 echo "g05_ensure_relink_prereqs: load env (shell, no make)"
 # shellcheck disable=SC2046
 eval "$(bash scripts/g05_relink_env.sh)"
@@ -3757,5 +3762,15 @@ if [ "$miss" -ne 0 ]; then
   exit 1
 fi
 
+# w1484: a pure-asm compile that crashed (signal / timeout) may have been
+# papered over by a retry or a host-cc seed fallback; refuse to call it OK.
+if [ -s build_asm/g05_xasm_crash.log ]; then
+  echo "g05_ensure_relink_prereqs: g05 pure-asm compiler crashed $(wc -l <build_asm/g05_xasm_crash.log | tr -d ' ') time(s):" >&2
+  sed 's/^/  /' build_asm/g05_xasm_crash.log >&2
+  if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
+    echo "  (pure-asm may have fallen back to cc; fix the product, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn)" >&2
+    exit 1
+  fi
+fi
 n=$(echo "$G05_OBJS" | wc -w | tr -d ' ')
 echo "g05_ensure_relink_prereqs OK ($n objs present, host=${G05_UNAME_S:-?}/${G05_UNAME_M:-?})"
