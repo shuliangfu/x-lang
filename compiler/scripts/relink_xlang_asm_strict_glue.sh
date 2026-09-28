@@ -2219,13 +2219,13 @@ esac
 
 # PLATFORM: SHARED — RT Cap residual slices (Makefile RT_SEED_SLICE_OBJS); product
 # g05/build_xlang_asm links them via asm_bootstrap_support_extra_link. runtime_driver_abi
-# needs driver_preamble_fs_path_lines{,_n} from rt_preamble.o.
+# needs driver_preamble_io_net_lines / fs_path_lines from rt_preamble.o (w1495: .x).
 ensure_rt_seed_slice_objs() {
   local pair src o
   for pair in \
     "seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
     "src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
-    "seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
+    "src/runtime/rt_preamble.x:src/runtime/rt_preamble.o" \
     "seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
     "src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
@@ -2255,7 +2255,8 @@ ensure_rt_seed_slice_objs() {
     continue
   fi
   # w861: same product object as ensure_rt_preamble_prefer.
-  # Writers and the slice marker are in the .x. Tables stay in the seed.
+  # Writers, the slice marker, and (w1495) the string tables are all in
+  # the .x; the seed is deleted.
   # PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_preamble.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \

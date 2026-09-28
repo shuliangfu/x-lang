@@ -5380,7 +5380,7 @@ ensure_rt_seed_slice_objs() {
   for pair in \
     "rt_arena_buf:seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
     "rt_emit_state:src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
-    "rt_preamble:seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
+    "rt_preamble:src/runtime/rt_preamble.x:src/runtime/rt_preamble.o" \
     "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
     "rt_parse_diag:src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
     seed="${pair#*:}"
@@ -5417,7 +5417,7 @@ ensure_rt_seed_slice_objs() {
       continue
     fi
     # w861: preamble writers and the slice marker live only in the .x.
-    # String tables stay in the seed. No full-seed fallback.
+    # w1495: the string tables joined the .x (seed deleted). No seed fallback.
     # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_preamble.o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \

@@ -568,7 +568,7 @@ for _exp_rt_pair in \
       || return 1
     continue
   fi
-  # w861: seed-only cc would drop the two writers and the slice marker.
+  # w861: writers and marker are in the .x; w1495 moved the tables too (no seed).
   # Use the product installer. PLATFORM: SHARED.
   if [ "$_exp_rt_name" = "rt_preamble" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \

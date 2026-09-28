@@ -5722,22 +5722,28 @@ rt_emit_state_bss_names() {
     driver_x_emit_lib_name_len
 }
 
-# Rename the Lxml COMMONs of a pure-asm rt_emit_state object onto the
-# C names runtime_driver_abi externs. Every computed Lxml name must be in
-# the object, the object must hold exactly ten Lxml symbols, and none may
-# remain after the rename. Darwin symbols carry a leading underscore;
-# ELF and COFF do not. $1 = object, edited in place.
+# Rename the leading Lxml COMMONs of a pure-asm rt slice object onto the
+# C names other objects extern. $1 = object (edited in place), $2 = log
+# tag, $3 = the total Lxml count the object must hold, then the C names of
+# the first module lets in source order. Every computed Lxml name must be
+# in the object; after the rename exactly total minus renamed Lxml symbols
+# may remain (module-local lets that nobody externs). Darwin symbols carry
+# a leading underscore; ELF and COFF do not.
+# The asm backend names module let number i (0-based)
+#   Lxml_<hex8(fnv32(name bytes, then i & 255))><hex8(module fingerprint)>
+# (pipe_modlet_assign_unique_label in runtime_pipeline_abi.x).
 # PLATFORM: SHARED.
-rt_emit_state_rename_bss() {
-  local o="$1" oc first pfx fp map old new args=() nlx
+rt_slice_rename_bss() {
+  local o="$1" tag="$2" total="$3" oc first pfx fp map old new args=() nlx left
+  shift 3
   [ -f "$o" ] || return 1
   oc="$(pure_asm_find_objcopy)" || {
-    echo "ensure: rt-emit-state rename needs objcopy" >&2
+    echo "ensure: $tag rename needs objcopy" >&2
     return 1
   }
   nlx="$(nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_[0-9a-f]+$/ {n++} END {print n+0}')"
-  if [ "$nlx" != "10" ]; then
-    echo "ensure: rt-emit-state expected 10 Lxml commons, found $nlx" >&2
+  if [ "$nlx" != "$total" ]; then
+    echo "ensure: $tag expected $total Lxml commons, found $nlx" >&2
     return 1
   fi
   first="$(nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_[0-9a-f]+$/ {print $NF; exit}')"
@@ -5756,26 +5762,34 @@ rt_emit_state_rename_bss() {
       $h = (($h ^ ($i & 255)) * 16777619) & 0xffffffff;
       printf "%sLxml_%08x%s %s%s\n", $pfx, $h, $fp, $pfx, $n;
       $i++;
-    }' "$pfx" "$fp" $(rt_emit_state_bss_names))" || return 1
+    }' "$pfx" "$fp" "$@")" || return 1
   while read -r old new; do
     [ -n "$old" ] || continue
     if ! nm "$o" 2>/dev/null | awk -v s="$old" '$NF==s {f=1} END {exit f?0:1}'; then
-      echo "ensure: rt-emit-state missing $old for $new" >&2
+      echo "ensure: $tag missing $old for $new" >&2
       return 1
     fi
     args+=(--redefine-sym "$old=$new")
-  done <<RTEMITMAP
+  done <<RTSLICEMAP
 $map
-RTEMITMAP
+RTSLICEMAP
   "$oc" "${args[@]}" "$o" || {
-    echo "ensure: rt-emit-state objcopy rename failed" >&2
+    echo "ensure: $tag objcopy rename failed" >&2
     return 1
   }
-  if nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_/ {f=1} END {exit f?0:1}'; then
-    echo "ensure: rt-emit-state Lxml commons remain after rename" >&2
+  left="$(nm "$o" 2>/dev/null | awk '$NF ~ /^_?Lxml_[0-9a-f]+$/ {n++} END {print n+0}')"
+  if [ "$left" != "$((total - $#))" ]; then
+    echo "ensure: $tag has $left Lxml commons after rename, want $((total - $#))" >&2
     return 1
   fi
   return 0
+}
+
+# rt_emit_state: all ten module lets are renamed; none may remain.
+# PLATFORM: SHARED.
+rt_emit_state_rename_bss() {
+  # shellcheck disable=SC2046
+  rt_slice_rename_bss "$1" rt-emit-state 10 $(rt_emit_state_bss_names)
 }
 
 # Product install of src/runtime/rt_arena_buf.o:
@@ -5924,18 +5938,6 @@ ensure_rt_parse_diag_prefer() {
   return 1
 }
 
-# Product install of src/runtime/rt_preamble.o:
-#   pure-asm src/runtime/rt_preamble.x (two writers + slice marker)
-#   + seeds/rt_preamble.from_x.c (string tables only)
-# w843 deleted the C writers. w861 deleted the C marker. There is no
-# full-seed fallback and no Windows special case: a seed-only cc does not
-# define write_io_net_abi_inline, write_fs_path_map_error_abi_inline, or
-# labi_rt_preamble_slice_marker. XLANG_G05_PREFER_X_O is ignored.
-# Do not gcc -E this TU. Default unwind: do not pass -fno-unwind-tables.
-# PLATFORM: SHARED — POSIX and Windows both take this path.
-# G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
-# experimental bootstrap call this. The older try-rt-prefer temp must not
-# replace this .o.
 # w1135: path copy and the two libc open calls are separate translation units.
 # A while plus a 512-byte stack buffer in one TU exits 139.
 # $1 = merged thin object. The marker stays in the C rest.
@@ -9104,6 +9106,45 @@ rt_parse_diag_darwin_pure() {
   for c in _runtime_report_precise_parse_failure_if_known \
     _labi_rt_parse_diag_slice_marker \
     _runtime_report_parse_recovery_diagnostics; do
+    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+      rm -f "$o"
+      return 1
+    fi
+  done
+  return 0
+}
+
+# w1495: src/runtime/rt_preamble.x (writers, marker, and the tables) as
+# one pure-asm object. Retry the whole translation unit like rt_parse_diag.
+# Direct xlang_asm, not rt_prefer_try_x_to_o. The caller renames the BSS.
+# PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
+rt_preamble_darwin_pure() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_preamble.x"
+  local try c
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+    return 1
+  fi
+  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  for c in _write_io_net_abi_inline _write_fs_path_map_error_abi_inline \
+    _labi_rt_preamble_slice_marker; do
     if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
@@ -12833,43 +12874,56 @@ rt_fs_open_pure_thin() {
   return 1
 }
 
+# Product install of src/runtime/rt_preamble.o: pure-asm
+# src/runtime/rt_preamble.x only. w1495 (终局待办 5.4) moved the
+# Cap-giant-string tables into the .x and deleted seeds/rt_preamble.from_x.c.
+# The two writers (w843) and labi_rt_preamble_slice_marker (w861) were
+# already there. The tables are the first two module lets (pointer slots,
+# filled from literals on first use); rt_preamble_rename_bss renames their
+# Lxml COMMONs onto driver_preamble_io_net_lines / driver_preamble_fs_path_lines,
+# which runtime_driver_abi's *_lines_raw() read. The third let (row arena)
+# stays a local COMMON. The unused *_lines_n counts are gone.
+# No host cc, no seed, no full-seed fallback. XLANG_G05_PREFER_X_O is
+# ignored. Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o
+# from this path. Failure leaves the previous .o in place and returns 1.
+# PLATFORM: SHARED — POSIX and Windows both take this path.
+# G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
+# experimental bootstrap call this. The older try-rt-prefer temp must not
+# replace this .o.
 ensure_rt_preamble_prefer() {
   local o="src/runtime/rt_preamble.o"
-  local seed="seeds/rt_preamble.from_x.c"
   local xsrc="src/runtime/rt_preamble.x"
-  local thin rest merged ld_flags bare_thin bare_rest bare_merged
+  local thin bare_thin s
 
-  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
-    echo "ensure_host_cc_seed_o try-rt-preamble-prefer: missing $seed or $xsrc" >&2
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-preamble-prefer: missing $xsrc" >&2
     return 1
   fi
 
-  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
-  # the deleted C writers still rebuilds once either input moves.
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
-    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
-      log "skip up-to-date $o (rt-preamble)"
-      return 0
-    fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip up-to-date $o (rt-preamble)"
+    return 0
   fi
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpre_thin.XXXXXX")" || true
-  bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpre_rest.XXXXXX")" || true
-  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtpre_merged.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
+  if [ -z "$bare_thin" ]; then
     echo "ensure: rt-preamble mktemp failed" >&2
-    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
+  rm -f "$bare_thin"
   thin="${bare_thin}.o"
-  rest="${bare_rest}.o"
-  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
-  # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
-  # The marker is in the .x. The seed cc emits the string tables.
-  # Default unwind. Do not pass -fno-unwind-tables.
-  if (
+  # Darwin retries the whole translation unit (same as rt_parse_diag,
+  # w1168: a pure-asm try can segfault). Other hosts keep one-shot pure_asm.
+  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  _pre_pure=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh rt-preamble-pure "$thin"; then
+    _pre_pure=1
+  fi
+  if { [ "$_pre_pure" = "1" ] || (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
@@ -12877,24 +12931,35 @@ ensure_rt_preamble_prefer() {
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
-  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
-    && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$merged" "$thin" "$rest" \
-    && r3_prefer_nm_has_sym "$merged" "write_io_net_abi_inline" \
-    && r3_prefer_nm_has_sym "$merged" "write_fs_path_map_error_abi_inline" \
-    && r3_prefer_nm_has_sym "$merged" "labi_rt_preamble_slice_marker" \
-    && r3_prefer_nm_has_sym "$merged" "driver_preamble_io_net_lines" \
-    && r3_prefer_nm_has_sym "$merged" "driver_preamble_io_net_lines_n" \
-    && r3_prefer_nm_has_sym "$merged" "driver_preamble_fs_path_lines" \
-    && r3_prefer_nm_has_sym "$merged" "driver_preamble_fs_path_lines_n"; then
-    mv -f "$merged" "$o"
-    log "rt-preamble $o <- pure-asm $xsrc + table rest (w861; marker is in the .x)"
-    rm -f "$thin" "$rest"
+  ); } && rt_preamble_rename_bss "$thin"; then
+    for s in write_io_net_abi_inline write_fs_path_map_error_abi_inline \
+      labi_rt_preamble_slice_marker driver_preamble_io_net_lines \
+      driver_preamble_fs_path_lines; do
+      if ! r3_prefer_nm_has_sym "$thin" "$s"; then
+        echo "ensure: rt-preamble pure-asm object lacks $s" >&2
+        rm -f "$thin"
+        return 1
+      fi
+    done
+    mv -f "$thin" "$o"
+    if [ "$_pre_pure" = "1" ]; then
+      log "rt-preamble $o <- pure-asm $xsrc (Darwin retry) + BSS rename (w1495)"
+    else
+      log "rt-preamble $o <- pure-asm $xsrc + BSS rename (w1495)"
+    fi
     return 0
   fi
-  echo "ensure: rt-preamble pure-asm failed; writers and marker are in the .x, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$merged"
+  echo "ensure: rt-preamble pure-asm failed; no seed fallback (w1495)" >&2
+  rm -f "$thin"
   return 1
+}
+
+# rt_preamble: rename the two table lets (0 and 1); the row arena (2)
+# stays a local COMMON. Names and order must match the .x.
+# PLATFORM: SHARED.
+rt_preamble_rename_bss() {
+  rt_slice_rename_bss "$1" rt-preamble 3 \
+    driver_preamble_io_net_lines driver_preamble_fs_path_lines
 }
 
 ensure_rt_slice() {
@@ -15306,7 +15371,6 @@ ensure_rt_prefer_one() {
     _rt_argv_x=src/runtime/rt_argv.x
     _rt_ef_seed=seeds/rt_emit_flags.from_x.c
     _rt_ef_x=src/runtime/rt_emit_flags.x
-    _rt_pre_seed=seeds/rt_preamble.from_x.c
     _rt_pre_x=src/runtime/rt_preamble.x
     _rt_compile_seed=seeds/rt_compile.from_x.c
     _rt_compile_x=src/runtime/rt_compile.x
@@ -15357,7 +15421,6 @@ ensure_rt_prefer_one() {
         || { [ -f "$_rt_argv_x" ] && [ "$_rt_argv_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_ef_seed" ] && [ "$_rt_ef_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_ef_x" ] && [ "$_rt_ef_x" -nt "$_rt_o" ]; } \
-        || { [ -f "$_rt_pre_seed" ] && [ "$_rt_pre_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_pre_x" ] && [ "$_rt_pre_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_compile_seed" ] && [ "$_rt_compile_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_compile_x" ] && [ "$_rt_compile_x" -nt "$_rt_o" ]; } \
@@ -15573,30 +15636,14 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_p_o" ] && [ -f "$_rt_pre_seed" ]; then
-            # w861: the two writers and the slice marker are in the .x.
-            # This temp merges .x + string tables. It must not replace
-            # src/runtime/rt_preamble.o. Do not invoke try-rt-prefer.
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_pre_x" ]; then
-              _rt_p_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre_thin.XXXXXX") || true
-              _rt_p_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_pre_rest.XXXXXX") || true
-              if [ -n "$_rt_p_thin_o" ] && [ -n "$_rt_p_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_pre_x" "$_rt_p_thin_o" \
-                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_PREAMBLE_FROM_X \
-                     -c -o "$_rt_p_rest_o" "$_rt_pre_seed" \
-                && pure_ld_partial_merge "$_rt_p_o" "$_rt_p_thin_o" "$_rt_p_rest_o" 2>/dev/null; then
-                _rt_pre_ok=1
-                echo "rt-prefer: R3 preamble ← full .x + rest tables (w861; marker is in the .x)"
-              fi
-              rm -f "$_rt_p_thin_o" "$_rt_p_rest_o"
-            fi
-            if [ "$_rt_pre_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_p_o" "$_rt_pre_seed"; then
-                _rt_pre_ok=1
-                echo "rt-prefer: R3 preamble ← $_rt_pre_seed (G-02f-265 seed slice cold)"
-              fi
-            fi
+          # w1495: rt_preamble has no seed. The permanent slice object
+          # src/runtime/rt_preamble.o (ensure_rt_preamble_prefer, pure asm)
+          # defines the writers, the marker, and the tables, so the rest only
+          # needs -DXLANG_RT_PREAMBLE_FROM_X to leave them undefined. No temp.
+          # PLATFORM: SHARED.
+          if [ -f "$_rt_pre_x" ]; then
+            _rt_pre_ok=1
+            echo "rt-prefer: rest preamble <- slice object (pure asm, w1495)"
           fi
           if [ -n "$_rt_cmp_o" ] && [ -f "$_rt_compile_seed" ]; then
             # G-02f-454：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
@@ -30924,6 +30971,17 @@ case "$MODE" in
       exit 2
     fi
     rt_compile_darwin_pure "$1"
+    exit $?
+    ;;
+  rt-preamble-pure|rt_preamble_darwin_pure)
+    # w1495: pure-asm src/runtime/rt_preamble.x (whole product object).
+    # Does not rename BSS; ensure_rt_preamble_prefer does that.
+    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-preamble-pure: need <out.o>" >&2
+      exit 2
+    fi
+    rt_preamble_darwin_pure "$1"
     exit $?
     ;;
   rt-parse-diag-pure|rt_parse_diag_darwin_pure)
