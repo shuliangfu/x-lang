@@ -630,9 +630,9 @@ MODULES=(
   # 种子只留 marker + 巨型字串表；Cap-giant-string 行访问在 driver_abi。
   # prove 锁 full surface IDENTICAL。没有全 C 体可回退。
   "rt_preamble|src/runtime/rt_preamble.x|seeds/rt_preamble_surface.from_x.c||"
-  # rt_stack R2 full：.x 吃满 thread_fn + large_stack；产品 rest 在 FROM_X 下业务符号 H=0（仅 marker）
+  # rt_stack：.x 吃满 thread_fn + large_stack + marker（w1496 种子已删，产品纯 asm）
   # Cap-fn-ptr residual：driver_run_stack_esc_gate_on_large_stack 在 driver_abi（平台层）
-  # prove 锁 full surface IDENTICAL（2 公共符号）；冷/无 PREFER 仍可走 seeds/rt_stack.from_x.c 全 C 体
+  # prove 锁 full surface IDENTICAL。没有全 C 体可回退。
   "rt_stack|src/runtime/rt_stack.x|seeds/rt_stack_surface.from_x.c||"
   # rt_lib_root R2 full：.x 吃满 ptr_usable + default + roots_from_key；产品 rest 在 FROM_X 下业务符号 H=0（仅 marker）
   # prove 锁 full surface IDENTICAL（3 公共符号）；冷/无 PREFER 仍可走 seeds/rt_lib_root.from_x.c 全 C 体

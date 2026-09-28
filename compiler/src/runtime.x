@@ -1023,7 +1023,7 @@ export function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8)
 /*
  * Retired mega wrappers: driver_stack_esc_gate_thread_fn / large_stack
  * forwarded to never-defined *_impl. Product authority is
- * src/runtime/rt_stack.x (+ seeds/rt_stack.from_x.c cold twin).
+ * src/runtime/rt_stack.x (pure asm; the seed twin was deleted in w1496).
  * Re-adding these export names here would duplicate rt_stack (ELF/Mach-O
  * first-wins) the same class as the deleted typeck/parser/asm_codegen_ast
  * weak stubs. Missing provider → link UNDEF, not a silent _impl -1.

@@ -2226,7 +2226,7 @@ ensure_rt_seed_slice_objs() {
     "seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
     "src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
     "src/runtime/rt_preamble.x:src/runtime/rt_preamble.o" \
-    "seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
+    "src/runtime/rt_stack.x:src/runtime/rt_stack.o" \
     "src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
   o="${pair##*:}"
@@ -2263,19 +2263,12 @@ ensure_rt_seed_slice_objs() {
       || return 1
     continue
   fi
-  # w1133: Darwin arm64 standalone rt_stack.o is pure asm of the .x.
-  # Does not match rt_emit_state.o. Linux and Windows stay on the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1496: thread_fn, large_stack, and the slice marker are all in the .x
+  # (seed deleted). PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_stack.o" ]; then
-    case "$(uname -s)-$(uname -m 2>/dev/null)" in
-      Darwin-arm64|Darwin-aarch64)
-        if [ -f src/runtime/rt_stack.x ]; then
-          bash scripts/ensure_host_cc_seed_o.sh rt-stack-pure "$o" \
-            || return 1
-          continue
-        fi
-        ;;
-    esac
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-stack-prefer \
+      || return 1
+    continue
   fi
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- $src (RT seed slice)"

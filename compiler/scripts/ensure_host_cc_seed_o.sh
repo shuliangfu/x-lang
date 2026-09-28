@@ -1523,12 +1523,6 @@ ensure_std_io_driver_formal_darwin_pure() {
   return 0
 }
 
-# w1133: Darwin arm64 standalone rt_stack.o is pure asm of src/runtime/rt_stack.x.
-# thread_fn and large_stack live in that .x. The slice marker stays in the C rest
-# of the runtime_driver_no_c prefer merge. Linux and Windows keep host cc of the seed.
-# Does not match rt_emit_state.o.
-# PLATFORM: MACOS|DARWIN arm64.
-# $1 = output object. cwd is compiler/.
 # w1136: Darwin arm64 pure-asm of src/runtime/rt_diag_errno.x.
 # File-level diagnostic codes are stored through pointer slots (a direct
 # store does not emit). The compiler writes U __error; llvm-objcopy renames
@@ -1611,67 +1605,18 @@ rt_diag_errno_darwin_pure() {
   return 0
 }
 
+# w1496: src/runtime/rt_stack.x (thread_fn, large_stack, and the slice
+# marker) is the whole product object. seeds/rt_stack.from_x.c is deleted.
+# Kept for the old rt-stack-pure mode name; it only calls
+# ensure_rt_stack_prefer (the one body). $1 must be src/runtime/rt_stack.o.
+# PLATFORM: SHARED. cwd is compiler/.
 ensure_rt_stack_darwin_pure() {
   local o="${1:-src/runtime/rt_stack.o}"
-  local xsrc="src/runtime/rt_stack.x"
-  local try=0
-  local miss=0
-  local s
-  if [ ! -f "$xsrc" ]; then
-    echo "ensure_host_cc_seed_o rt-stack: missing .x" >&2
+  if [ "$o" != "src/runtime/rt_stack.o" ]; then
+    echo "ensure_host_cc_seed_o rt-stack: only src/runtime/rt_stack.o (w1496)" >&2
     return 1
   fi
-  if [ "${FORCE:-0}" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
-    log "skip $o (up-to-date vs $xsrc)"
-    return 0
-  fi
-  mkdir -p "$(dirname "$o")"
-  # w1212: some pure-asm tries segfault. Retry before the eight-try
-  # path. A failed retry still falls back to that path and then the
-  # C seed. Symbols stay strong. The slice marker stays absent.
-  # PLATFORM: MACOS|DARWIN arm64.
-  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
-    && bash scripts/ensure_host_cc_seed_o.sh rt-stack-retry "$o"; then
-    log "prefer rt stack ← pure-asm two symbols (w1212)"
-    return 0
-  fi
-  while [ "$try" -lt 8 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if (
-      export XLANG_PREFER_ASM_O=1
-      pure_asm_x_to_o "$o" "$xsrc"
-    ) && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
-  done
-  if [ ! -s "$o" ]; then
-    echo "ensure_host_cc_seed_o rt-stack: pure asm failed, host cc seed" >&2
-    # shellcheck disable=SC2086
-    ${CC:-cc} ${CFLAGS:-} -I. -Iinclude -Isrc -c seeds/rt_stack.from_x.c -o "$o" || return 1
-  fi
-  # The C seed defines the slice marker. A pure-asm object must not.
-  if nm "$o" | awk '$2=="T" && $3=="_labi_rt_stack_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
-    echo "ensure_host_cc_seed_o rt-stack: object is the C seed, not the .x" >&2
-    return 1
-  fi
-  miss=0
-  for s in _driver_stack_esc_gate_thread_fn _driver_stack_esc_gate_large_stack; do
-    if ! nm "$o" | awk -v s="$s" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      miss=1
-    fi
-  done
-  for s in _driver_run_stack_esc_gate_on_large_stack _pipeline_typeck_x_stack_escape_gate_from_src_c; do
-    if ! nm -u "$o" | awk -v s="$s" '$NF==s { found=1 } END { exit found ? 0 : 1 }'; then
-      miss=1
-    fi
-  done
-  if [ "$miss" != "0" ]; then
-    echo "ensure_host_cc_seed_o rt-stack: symbol set mismatch" >&2
-    return 1
-  fi
-  return 0
+  ensure_rt_stack_prefer
 }
 
 # w1132: Darwin arm64 runtime_asm_build.o merges two pure-asm files.
@@ -6824,7 +6769,7 @@ dynlib_text_retry_pure() {
 # w1212: src/runtime/rt_stack.x segfaults on some pure-asm tries
 # and emits on a later try. Frames are already inside the allocation.
 # Retry the whole translation unit. Direct xlang_asm, not pure_asm_x_to_o.
-# Symbols stay strong. The slice marker must stay absent.
+# Symbols stay strong. w1496: the slice marker is in the .x (three T).
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 rt_stack_retry_pure() {
   local o="${1:-}"
@@ -6852,20 +6797,17 @@ rt_stack_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "2" ]; then
+  if [ "$n" != "3" ]; then
     rm -f "$o"
     return 1
   fi
-  for c in _driver_stack_esc_gate_thread_fn _driver_stack_esc_gate_large_stack; do
+  for c in _driver_stack_esc_gate_thread_fn _driver_stack_esc_gate_large_stack \
+    _labi_rt_stack_slice_marker; do
     if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
     fi
   done
-  if nm "$o" | awk '$2=="T" && $3=="_labi_rt_stack_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
-    rm -f "$o"
-    return 1
-  fi
   for c in _driver_run_stack_esc_gate_on_large_stack _pipeline_typeck_x_stack_escape_gate_from_src_c; do
     if ! nm -u "$o" | awk -v s="$c" '$NF==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
@@ -12962,6 +12904,73 @@ rt_preamble_rename_bss() {
     driver_preamble_io_net_lines driver_preamble_fs_path_lines
 }
 
+# src/runtime/rt_stack.x only. w1496 (终局待办 5.4) moved
+# labi_rt_stack_slice_marker into the .x and deleted seeds/rt_stack.from_x.c.
+# driver_stack_esc_gate_thread_fn and driver_stack_esc_gate_large_stack were
+# already there (R2 full). No host cc, no seed, no fallback. Failure leaves
+# the previous .o in place and returns 1.
+# PLATFORM: SHARED — POSIX and Windows both take this path. Darwin arm64
+# retries the whole translation unit first (w1212).
+# G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
+# experimental bootstrap call this.
+ensure_rt_stack_prefer() {
+  local o="src/runtime/rt_stack.o"
+  local xsrc="src/runtime/rt_stack.x"
+  local thin bare_thin s
+
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-stack-prefer: missing $xsrc" >&2
+    return 1
+  fi
+
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && r3_prefer_nm_has_sym "$o" labi_rt_stack_slice_marker; then
+    log "skip up-to-date $o (rt-stack)"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$o")"
+  bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtstack_thin.XXXXXX")" || true
+  if [ -z "$bare_thin" ]; then
+    echo "ensure: rt-stack mktemp failed" >&2
+    return 1
+  fi
+  rm -f "$bare_thin"
+  thin="${bare_thin}.o"
+  _st_pure=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh rt-stack-retry "$thin"; then
+    _st_pure=1
+  fi
+  if [ "$_st_pure" = "1" ] || (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ); then
+    for s in driver_stack_esc_gate_thread_fn \
+      driver_stack_esc_gate_large_stack \
+      labi_rt_stack_slice_marker; do
+      if ! r3_prefer_nm_has_sym "$thin" "$s"; then
+        echo "ensure: rt-stack pure-asm object lacks $s" >&2
+        rm -f "$thin"
+        return 1
+      fi
+    done
+    mv -f "$thin" "$o"
+    log "rt-stack $o <- pure-asm $xsrc only (w1496; marker is in the .x, seed deleted)"
+    return 0
+  fi
+  echo "ensure: rt-stack pure-asm failed; no seed fallback (w1496)" >&2
+  rm -f "$thin"
+  return 1
+}
+
 ensure_rt_slice() {
   local list o n=0
   list="$(catalog_key_words "RT_SEED_SLICE_OBJS")"
@@ -12976,6 +12985,8 @@ ensure_rt_slice() {
       ensure_rt_parse_diag_prefer || exit 1
     elif [ "$o" = "src/runtime/rt_preamble.o" ]; then
       ensure_rt_preamble_prefer || exit 1
+    elif [ "$o" = "src/runtime/rt_stack.o" ]; then
+      ensure_rt_stack_prefer || exit 1
     else
       ensure_one "$o" "$(seed_for_o "$o")"
     fi
@@ -15404,7 +15415,6 @@ ensure_rt_prefer_one() {
     _rt_run_asm_backend_x=src/runtime/rt_run_asm_backend.x
     _rt_run_compiler_parsed_seed=seeds/rt_run_compiler_parsed.from_x.c
     _rt_run_compiler_parsed_x=src/runtime/rt_run_compiler_parsed.x
-    _rt_stack_seed=seeds/rt_stack.from_x.c
     _rt_stack_x=src/runtime/rt_stack.x
     _rt_o="$1"
     # wave320: product multi-slice gated on content layer seed (not monofile presence).
@@ -15454,7 +15464,6 @@ ensure_rt_prefer_one() {
         || { [ -f "$_rt_run_asm_backend_x" ] && [ "$_rt_run_asm_backend_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_run_compiler_parsed_seed" ] && [ "$_rt_run_compiler_parsed_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_run_compiler_parsed_x" ] && [ "$_rt_run_compiler_parsed_x" -nt "$_rt_o" ]; } \
-        || { [ -f "$_rt_stack_seed" ] && [ "$_rt_stack_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_stack_x" ] && [ "$_rt_stack_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_content_x" ] && [ "$_rt_content_x" -nt "$_rt_o" ]; }; then
         _rt_done=0
@@ -16141,28 +16150,14 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_st_o" ] && [ -f "$_rt_stack_seed" ]; then
-            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_stack_x" ]; then
-              _rt_st_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_stack_thin.XXXXXX") || true
-              _rt_st_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_stack_rest.XXXXXX") || true
-              if [ -n "$_rt_st_thin_o" ] && [ -n "$_rt_st_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_stack_x" "$_rt_st_thin_o" \
-                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_STACK_FROM_X \
-                     -c -o "$_rt_st_rest_o" "$_rt_stack_seed" \
-                && pure_ld_partial_merge "$_rt_st_o" "$_rt_st_thin_o" "$_rt_st_rest_o" 2>/dev/null; then
-                _rt_st_ok=1
-                echo "rt-prefer: rest stack esc ← full .x + rest marker (R2 full H=0)"
-              fi
-              rm -f "$_rt_st_thin_o" "$_rt_st_rest_o"
-            fi
-            if [ "$_rt_st_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_st_o" "$_rt_stack_seed"; then
-                _rt_st_ok=1
-                echo "rt-prefer: rest stack esc ← $_rt_stack_seed (G-02f-317 seed slice cold)"
-              fi
-            fi
+          # w1496: rt_stack has no seed. The permanent slice object
+          # src/runtime/rt_stack.o (ensure_rt_stack_prefer, pure asm) defines
+          # thread_fn, large_stack, and the marker, so the rest only needs
+          # -DXLANG_RT_STACK_FROM_X to leave them undefined. No temp merge.
+          # PLATFORM: SHARED.
+          if [ -f "$_rt_stack_x" ]; then
+            _rt_st_ok=1
+            echo "rt-prefer: rest stack <- slice object (pure asm, w1496)"
           fi
           _rt_rest_defs="-DXLANG_RT_CONTENT_FROM_X"
           if [ "$_rt_util_ok" = "1" ]; then
@@ -30490,7 +30485,7 @@ case "$MODE" in
     exit $?
     ;;
   rt-stack-retry|rt_stack_retry_pure)
-    # w1212: two pure-asm symbols of rt_stack.x.
+    # w1212: pure-asm symbols of rt_stack.x (three since w1496).
     # Does not write src/runtime/rt_stack.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
@@ -31361,9 +31356,8 @@ case "$MODE" in
     exit $?
     ;;
   rt-stack-pure|rt_stack_pure)
-    # w1133: Darwin arm64 standalone stack-escape object from the .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1133 name; w1496 routes it to ensure_rt_stack_prefer (all hosts).
+    # PLATFORM: SHARED. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o rt-stack-pure: need <out.o>" >&2
       exit 2
@@ -33155,6 +33149,9 @@ case "$MODE" in
     ;;
   try-rt-preamble-prefer|try-rt-preamble)
     ensure_rt_preamble_prefer
+    ;;
+  try-rt-stack-prefer|try-rt-stack)
+    ensure_rt_stack_prefer
     ;;
   try-xfla-prefer|try-x-frontend-link-alias-prefer)
     ensure_x_frontend_link_alias_prefer

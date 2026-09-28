@@ -575,19 +575,12 @@ for _exp_rt_pair in \
       || return 1
     continue
   fi
-  # w1133: Darwin arm64 standalone rt_stack.o is pure asm of the .x.
-  # Does not match rt_emit_state.o. Linux and Windows stay on the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1496: thread_fn, large_stack, and the slice marker are all in the .x
+  # (seed deleted). Use the product installer. PLATFORM: SHARED.
   if [ "$_exp_rt_name" = "rt_stack" ]; then
-    case "$(uname -s)-$(uname -m 2>/dev/null)" in
-      Darwin-arm64|Darwin-aarch64)
-        if [ -f src/runtime/rt_stack.x ]; then
-          bash scripts/ensure_host_cc_seed_o.sh rt-stack-pure "$_exp_rt_out" \
-            || return 1
-          continue
-        fi
-        ;;
-    esac
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-stack-prefer \
+      || return 1
+    continue
   fi
   if [ ! -f "$_exp_rt_out" ] || [ "seeds/${_exp_rt_name}.from_x.c" -nt "$_exp_rt_out" ]; then
     mkdir -p src/runtime

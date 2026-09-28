@@ -541,7 +541,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # w861: preamble writers and the slice marker are in the .x.
     # w1495: the string tables joined the .x; rt-slice pure-asms
     # rt_preamble.x only and renames the two table commons (POSIX and Windows).
-    # stack stays full seed cc. PLATFORM: SHARED caller.
+    # w1496: the stack marker joined the .x; rt-slice pure-asms rt_stack.x
+    # only (POSIX and Windows, no seed). PLATFORM: SHARED caller.
     # Refreshing a slice must not go through try-rt-prefer of
     # runtime_driver_no_c.o: that prefer rebuild makes hello exit 1.
     echo "g05_ensure: rt-slice standalone refresh (G05_OBJS members)"

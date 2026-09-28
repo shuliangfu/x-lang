@@ -5381,7 +5381,7 @@ ensure_rt_seed_slice_objs() {
     "rt_arena_buf:seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
     "rt_emit_state:src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
     "rt_preamble:src/runtime/rt_preamble.x:src/runtime/rt_preamble.o" \
-    "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
+    "rt_stack:src/runtime/rt_stack.x:src/runtime/rt_stack.o" \
     "rt_parse_diag:src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
     seed="${pair#*:}"
     seed="${seed%%:*}"
@@ -5424,20 +5424,12 @@ ensure_rt_seed_slice_objs() {
         || { build_xlang_asm_error "rt_preamble prefer failed"; return 1; }
       continue
     fi
-    # w1133: Darwin arm64 standalone rt_stack.o is pure asm of the .x.
-    # The mega prefer merge still pairs that .x with the marker-only C rest.
-    # Does not match rt_emit_state.o. Linux and Windows stay on the C seed.
-    # PLATFORM: MACOS|DARWIN arm64.
+    # w1496: thread_fn, large_stack, and the slice marker are all in the .x
+    # (seed deleted). No seed fallback. PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_stack.o" ]; then
-      case "$(uname -s)-$(uname -m 2>/dev/null)" in
-        Darwin-arm64|Darwin-aarch64)
-          if [ -f src/runtime/rt_stack.x ]; then
-            bash scripts/ensure_host_cc_seed_o.sh rt-stack-pure "$o" \
-              || { build_xlang_asm_error "rt_stack pure asm failed"; return 1; }
-            continue
-          fi
-          ;;
-      esac
+      bash scripts/ensure_host_cc_seed_o.sh try-rt-stack-prefer \
+        || { build_xlang_asm_error "rt_stack prefer failed"; return 1; }
+      continue
     fi
     if [ ! -f "$o" ] || [ "$seed" -nt "$o" ]; then
       echo " cc -c $o <- $seed (Cap residual / RT seed slice)"

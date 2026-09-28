@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // G-02f-317/449 / P2 runtime R8-lite: stack-escape gate on large-stack pthread.
-// R2 full: .x owns thread_fn + large_stack; FROM_X rest is marker-only (business H=0).
-// w1133: Darwin standalone src/runtime/rt_stack.o is pure asm of this file.
-// The slice marker stays in the C rest of the runtime_driver_no_c merge.
-// Linux and Windows keep host cc of seeds/rt_stack.from_x.c.
+// R2 full: .x owns thread_fn + large_stack.
+// w1496 (终局待办 5.4): the slice marker joined this file and
+// seeds/rt_stack.from_x.c is deleted. src/runtime/rt_stack.o is pure asm of
+// this file on every platform (ensure_rt_stack_prefer). No host cc.
 // Cap-fn-ptr: .x cannot take function addresses → dedicated entry
 // driver_run_stack_esc_gate_on_large_stack (driver_abi platform layer binds thread_fn).
 
@@ -76,4 +76,16 @@ export function driver_stack_esc_gate_large_stack(src: *u8, src_len: i32): i32 {
     return r2;
   }
   return args.result;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm (w1496; the seed is deleted).
+ */
+#[no_mangle]
+export function labi_rt_stack_slice_marker(): i32 {
+  return 1;
 }
