@@ -958,7 +958,7 @@ int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx
   if (!elf_ctx) return -1;
   idx = k; if (idx < 0) idx = 0;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-  if (idx > 15) idx = 15;
+  if (idx > 63) idx = 63;
   is_win = 1;
 #else
   if (idx > 5) idx = 5;
@@ -971,18 +971,26 @@ int32_t arch_x86_64_enc_enc_mov_arg_reg_to_rax(struct platform_elf_ElfCodegenCtx
     if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
     /* Win64: k>=4 loads from 0x30+8*(k-4)(%rbp). w1045: do not clamp to k=5.
      * PLATFORM: WINDOWS. */
+    /* w1497: disp32 (48 8B 85 imm32) once the offset leaves disp8. */
     {
-      uint8_t win_stk[4];
+      uint8_t win_stk[7];
       int32_t slot = idx - 4;
       int32_t off;
       if (slot < 0) slot = 0;
-      if (slot > 11) slot = 11;
       off = 0x30 + slot * 8;
       win_stk[0] = 0x48;
       win_stk[1] = 0x8B;
-      win_stk[2] = 0x45;
-      win_stk[3] = (uint8_t)off;
-      return x86_enc_bytes(elf_ctx, win_stk, 4);
+      if (off <= 127) {
+        win_stk[2] = 0x45;
+        win_stk[3] = (uint8_t)off;
+        return x86_enc_bytes(elf_ctx, win_stk, 4);
+      }
+      win_stk[2] = 0x85;
+      win_stk[3] = (uint8_t)(off & 255);
+      win_stk[4] = (uint8_t)((off >> 8) & 255);
+      win_stk[5] = (uint8_t)((off >> 16) & 255);
+      win_stk[6] = (uint8_t)((off >> 24) & 255);
+      return x86_enc_bytes(elf_ctx, win_stk, 7);
     }
   }
   if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);
@@ -1013,7 +1021,7 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
   if (!elf_ctx) return -1;
   idx = k; if (idx < 0) idx = 0;
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-  if (idx > 15) idx = 15;
+  if (idx > 63) idx = 63;
   is_win = 1;
 #else
   if (idx > 5) idx = 5;
@@ -1026,19 +1034,27 @@ int32_t arch_x86_64_enc_enc_mov_rax_to_arg_reg(struct platform_elf_ElfCodegenCtx
     if (idx == 3) return x86_enc_bytes(elf_ctx, win3, 3);
     /* Outgoing Win64 k>=4: [rsp+0x20+8*(k-4)]. w1045 extends past k=5.
      * PLATFORM: WINDOWS. */
+    /* w1497: disp32 (48 89 84 24 imm32) once the offset leaves disp8. */
     {
-      uint8_t win_stk[5];
+      uint8_t win_stk[8];
       int32_t slot = idx - 4;
       int32_t off;
       if (slot < 0) slot = 0;
-      if (slot > 11) slot = 11;
       off = 0x20 + slot * 8;
       win_stk[0] = 0x48;
       win_stk[1] = 0x89;
-      win_stk[2] = 0x44;
       win_stk[3] = 0x24;
-      win_stk[4] = (uint8_t)off;
-      return x86_enc_bytes(elf_ctx, win_stk, 5);
+      if (off <= 127) {
+        win_stk[2] = 0x44;
+        win_stk[4] = (uint8_t)off;
+        return x86_enc_bytes(elf_ctx, win_stk, 5);
+      }
+      win_stk[2] = 0x84;
+      win_stk[4] = (uint8_t)(off & 255);
+      win_stk[5] = (uint8_t)((off >> 8) & 255);
+      win_stk[6] = (uint8_t)((off >> 16) & 255);
+      win_stk[7] = (uint8_t)((off >> 24) & 255);
+      return x86_enc_bytes(elf_ctx, win_stk, 8);
     }
   }
   if (idx == 0) return x86_enc_bytes(elf_ctx, sysv0, 3);

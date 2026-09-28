@@ -935,7 +935,8 @@ static int32_t glue_sysv_spill_rax_rdx_to_frame_c(struct platform_elf_ElfCodegen
         return -1;
     }
   }
-  ly->next_offset = off + step;
+  /* w1497: x86 cursor = off (bytes used); twin of backend_call_dispatch.x. */
+  ly->next_offset = (ta == 0) ? off : off + step;
   return off;
 }
 

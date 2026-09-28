@@ -33,6 +33,7 @@ extern void asm_ctx_fill_locals_block_tree(uint8_t *ctx, uint8_t *arena, int32_t
                                            int32_t *next_off, int32_t *num_loc);
 extern int32_t asm_sum_block_array_temp_bytes(uint8_t *arena, int32_t block_ref);
 extern int32_t glue_asm_sum_block_call_spill_bytes(uint8_t *arena, int32_t block_ref);
+extern int32_t glue_asm_last_call_max_gp_units_c(void);
 extern int32_t asm_sum_block_wa_temp_bytes(uint8_t *arena, int32_t block_ref);
 extern int32_t glue_sum_block_slice_reent_dc_bytes_c(uint8_t *arena, int32_t block_ref);
 extern void asm_ctx_ensure_block_locals(uint8_t *ctx, uint8_t *arena, int32_t block_ref,
@@ -186,9 +187,10 @@ static void w1490_fill_expr_nested_locals(uint8_t *ctx, uint8_t *arena, int32_t 
 /**
  * Compute total frame size for a function prologue (w1032 leaf floor skip).
  * PLATFORM: SHARED — mirrors runtime_pipeline_abi.x authority.
+ * w1497: body renamed; the public entry adds the Windows outgoing area.
  */
-int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, int32_t block_ref,
-                                          uint8_t *mod, int32_t func_index) {
+static int32_t w1497_frame_core(int32_t num_params, uint8_t *arena, int32_t block_ref,
+                                uint8_t *mod, int32_t func_index) {
   uint8_t ctx_buf[256];
   int32_t next_off = 16;
   int32_t num_loc = 0;
@@ -324,5 +326,35 @@ int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, in
       num_params <= 4 && size > 48 && size <= 64) {
     return 48;
   }
+  return size;
+}
+
+/**
+ * Frame size for a function prologue.
+ * w1497 PLATFORM: WINDOWS x86_64 — the caller stores args k>=4 at
+ * [rsp+0x20+8*(k-4)] and every callee (C or x-lang) may write the 32-byte
+ * home area at [rsp..rsp+0x20). Neither was reserved: the bottom of the frame
+ * held call spills / locals, so a 15-arg call overwrote a spilled arg and a
+ * C callee could overwrite the caller's deepest slots. Reserve
+ * 32 + 8*max(0, gp-4) (16-aligned) below everything else whenever the body
+ * has a call. gp is the widest outgoing GP unit count from the call-spill
+ * walk (+1 for sret). Linux/macOS unchanged.
+ */
+int32_t pipeline_asm_compute_frame_size_c(int32_t num_params, uint8_t *arena, int32_t block_ref,
+                                          uint8_t *mod, int32_t func_index) {
+  int32_t size = w1497_frame_core(num_params, arena, block_ref, mod, func_index);
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+  if (arena != 0 && block_ref > 0 && pipeline_asm_host_is_arm64_c() == 0) {
+    int32_t gp = glue_asm_last_call_max_gp_units_c();
+    if (gp >= 0) {
+      int32_t out = 32;
+      if (gp > 4) {
+        out = out + (gp - 4) * 8;
+      }
+      out = (out + 15) & ~15;
+      size = size + out;
+    }
+  }
+#endif
   return size;
 }

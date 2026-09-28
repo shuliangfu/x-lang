@@ -24,8 +24,11 @@ export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u
 #[cfg(target_os = "windows")]
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
+  /* w1497: 64 virtual slots. With 16, args k>=16 took the push path and the
+   * callee read them at [rbp+16..], on top of the Win64 home area and the
+   * [rbp+0x30+8*(k-4)] slots. Every arg now follows the Win64 stack layout. */
   if (ta == 0) {
-    return 16;
+    return 64;
   }
   return 8;
 }

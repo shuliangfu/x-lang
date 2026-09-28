@@ -728,8 +728,11 @@ export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
 #[cfg(target_os = "windows")]
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
+  /* w1497: 64 virtual slots. With 16, args k>=16 took the push path and the
+   * callee read them at [rbp+16..], on top of the Win64 home area and the
+   * [rbp+0x30+8*(k-4)] slots. Every arg now follows the Win64 stack layout. */
   if (ta == 0) {
-    return 16;
+    return 64;
   }
   return 8;
 }
@@ -1050,7 +1053,16 @@ function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_unit
       if (backend_enc_store_x_reg_to_rbp_arch(elf, 1, off + 8, ta) != 0) { return 0 - 1; }
     }
   }
-  call_dispatch_store_i32_le(ctx, 4, off + step);
+  /* w1497: next_offset counts bytes used (locals store at cur+8, cursor=off).
+   * x86 kept off+step, so the real stride was 16/32 while the frame budget
+   * (glue_asm_sum_block_call_spill_bytes) counts 8/16: spills ran below the
+   * frame (Ubuntu 8-arg call smashed stack arg 7). AAPCS64 keeps its layout
+   * (w1484 budget doubles for it). PLATFORM: LINUX+WINDOWS x86_64. */
+  if (ta == 0) {
+    call_dispatch_store_i32_le(ctx, 4, off);
+  } else {
+    call_dispatch_store_i32_le(ctx, 4, off + step);
+  }
   return off;
 }
 

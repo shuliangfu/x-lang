@@ -396,6 +396,25 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# w1497: Windows param-home canonicalize overlay. Egg mega_body calls the
+# same-TU leftover-PE param_home that homes i32 formals without cltq, so a
+# C caller's stack `movl` leaves garbage upper bits. Strong T first-wins;
+# weakened pabi_weak egg T; post-link jmp W/t→T.
+# PLATFORM: WINDOWS | MSYS | MINGW only.
+_PABI_WIN_PARAM_HOME=""
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -f seeds/runtime_pipeline_abi_win_param_home_overlay.c ]; then
+      mkdir -p build_asm/selfhost_pabi
+      # shellcheck disable=SC2086
+      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
+          build_asm/selfhost_pabi/win_param_home.o \
+          seeds/runtime_pipeline_abi_win_param_home_overlay.c 2>/dev/null; then
+        _PABI_WIN_PARAM_HOME="build_asm/selfhost_pabi/win_param_home.o"
+      fi
+    fi
+    ;;
+esac
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
@@ -1101,6 +1120,12 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=w499_mega_try_tail_jmp \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1497: weaken egg param_home so the canonicalize overlay first-wins.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_PARAM_HOME" ]; then
+          "$_oc" --weaken-symbol=pipeline_asm_emit_param_home_elf_c \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
         # w1041: weaken egg call_spill so overlay first-wins.
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_CALL_SPILL" ]; then
@@ -1190,7 +1215,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

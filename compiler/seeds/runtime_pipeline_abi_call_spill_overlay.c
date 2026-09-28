@@ -69,6 +69,67 @@ extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int3
 static int32_t g_w157_spill_total = 0;
 static int32_t g_w157_spill_visits = 0;
 
+/*
+ * w1497 PLATFORM: LINUX+WINDOWS x86_64 — exact per-arg GP units.
+ * The x86 spill cursor now advances 8 per single-GP and 16 per dual-GP arg
+ * (glue_sysv_spill_rax_rdx_to_frame_c). Budget each CALL arg by its real
+ * unit count from the call packer (glue_sysv_x86_call_arg_slot_c) instead of
+ * a flat 8, and record the widest outgoing GP index so Windows can reserve
+ * the shadow + stack-arg area (glue_asm_last_call_max_gp_units_c).
+ * AAPCS64 keeps the old flat count (compute_frame doubles it, w1484).
+ */
+extern void glue_sysv_x86_call_arg_slot_c(void *arena, int32_t call_expr_ref, int32_t nargs,
+                                          int32_t arg_index, int32_t *out_kind,
+                                          int32_t *out_reg_k, int32_t *out_stack_k);
+extern int32_t pipeline_asm_host_is_arm64_c(void);
+static int32_t g_w1497_x86 = 0;
+static int32_t g_w1497_max_gp = -1;
+
+/* Units per arg: xmm 1, gp = distance to the next gp arg (1..2; last gp 2),
+ * stack-class 1. *total_gp = highest gp index used + its units. */
+static void w1497_call_arg_units(void *arena, int32_t call, int32_t n, int32_t *units,
+                                 int32_t *total_gp) {
+  int32_t kind[64];
+  int32_t reg[64];
+  int32_t i, j, stk, u;
+  *total_gp = 0;
+  for (i = 0; i < n; i++) {
+    kind[i] = 2;
+    reg[i] = 0;
+    stk = 0;
+    glue_sysv_x86_call_arg_slot_c(arena, call, n, i, &kind[i], &reg[i], &stk);
+  }
+  for (i = 0; i < n; i++) {
+    if (kind[i] == 0) {
+      u = 2;
+      for (j = i + 1; j < n; j++) {
+        if (kind[j] == 0) {
+          u = reg[j] - reg[i];
+          break;
+        }
+      }
+      if (u < 1) {
+        u = 1;
+      }
+      if (u > 2) {
+        u = 2;
+      }
+      units[i] = u;
+      if (reg[i] + u > *total_gp) {
+        *total_gp = reg[i] + u;
+      }
+    } else {
+      units[i] = 1;
+    }
+  }
+}
+
+static void w1497_note_gp(int32_t gp) {
+  if (gp > g_w1497_max_gp) {
+    g_w1497_max_gp = gp;
+  }
+}
+
 static void w157_walk_block_rec(void *arena, int32_t cur, int32_t depth);
 
 /**
@@ -93,6 +154,30 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
     }
     if (n > 64) {
       n = 64;
+    }
+    if (g_w1497_x86 != 0) {
+      /* w1497: x86 real units. EXPR_VAR single-GP reuses its home; a dual-GP
+       * VAR still spills 16. One extra slot per call as before. +1 GP for a
+       * possible sret pointer shift. */
+      int32_t need = 0;
+      int32_t units[64];
+      int32_t total_gp = 0;
+      w1497_call_arg_units(arena, expr_ref, n, units, &total_gp);
+      for (i = 0; i < n; i++) {
+        arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
+        w157_sum_expr_call_spill_bytes(arena, arg_ref);
+        if (arg_ref > 0 && pipeline_expr_kind_ord_at(arena, arg_ref) != 3) {
+          need = need + units[i];
+        } else if (arg_ref > 0 && units[i] >= 2) {
+          need = need + units[i];
+        }
+      }
+      if (need > 0 || n == 0) {
+        need = need + 1;
+      }
+      g_w157_spill_total += need * 8;
+      w1497_note_gp(total_gp + 1);
+      return;
     }
     {
       int32_t need = 0;
@@ -138,6 +223,12 @@ static void w157_sum_expr_call_spill_bytes(void *arena, int32_t expr_ref) {
       }
       if (need > 0) {
         need = need + 1;
+      }
+      /* w1497: x86 has no per-arg classifier for method calls here; budget
+       * two units per counted slot and receiver + args as GP. */
+      if (g_w1497_x86 != 0) {
+        need = need * 2;
+        w1497_note_gp(2 * (n + 1) + 1);
       }
       g_w157_spill_total += need * 8;
     }
@@ -392,6 +483,17 @@ int32_t glue_asm_sum_block_call_spill_bytes(void *arena, int32_t block_ref) {
   }
   g_w157_spill_total = 0;
   g_w157_spill_visits = 0;
+  g_w1497_max_gp = -1;
+  g_w1497_x86 = (pipeline_asm_host_is_arm64_c() == 0) ? 1 : 0;
   w157_walk_block_rec(arena, block_ref, 256);
   return g_w157_spill_total;
+}
+
+/**
+ * w1497: widest outgoing GP unit count over the CALL / METHOD_CALL nodes seen
+ * by the last glue_asm_sum_block_call_spill_bytes walk; -1 when the body has
+ * no call. x86 only (arm64 walks leave -1). PLATFORM: SHARED.
+ */
+int32_t glue_asm_last_call_max_gp_units_c(void) {
+  return g_w1497_max_gp;
 }

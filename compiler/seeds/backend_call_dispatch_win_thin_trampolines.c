@@ -101,7 +101,8 @@ int32_t glue_asm_call_reg_max(int32_t ta) {
    * SysV-shaped and tip thin 8-arg forwarders pushed garbage for args 7+. */
   if (ta == 0) {
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    return 16;
+    /* w1497: 64 virtual slots (twin of backend_call_dispatch_thin.x). */
+    return 64;
 #else
     return 6;
 #endif

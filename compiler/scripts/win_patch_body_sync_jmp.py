@@ -71,6 +71,10 @@ _TIP_FAT_TO_IMPL: tuple[str, ...] = (
 # Empty: keep the helper for escape / future twins. PLATFORM: WINDOWS.
 _TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = ()
 
+# w1497: names whose same-TU egg local (t) copy must jmp to the overlay T.
+# PLATFORM: WINDOWS.
+_STATIC_T_TO_OVERLAY: tuple[str, ...] = ("pipeline_asm_emit_param_home_elf_c",)
+
 
 def _nm(exe: Path) -> dict[str, list[tuple[int, str]]]:
     out = subprocess.check_output(["nm", str(exe)], text=True, errors="replace")
@@ -301,6 +305,8 @@ def main() -> int:
         "glue_asm_sum_block_call_spill_bytes",
         # w1487: egg tail-jmp peer → off overlay (return 0). PLATFORM: WINDOWS.
         "w499_mega_try_tail_jmp",
+        # w1497: param_home canonicalize overlay. PLATFORM: WINDOWS.
+        "pipeline_asm_emit_param_home_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
@@ -311,6 +317,19 @@ def main() -> int:
     patched += _patch_tip_fat_earliest_to_later(data, secs, syms)
     # w1486: single binop VAR-slot cache (static t → global T). PLATFORM: WINDOWS.
     patched += _patch_cache_static_to_global(data, secs, syms)
+    # w1497: egg mega_body calls the same-TU local (t) leftover-PE
+    # param_home; fold it onto the overlay T only when the egg T was
+    # weakened (W present), i.e. the overlay is linked. PLATFORM: WINDOWS.
+    for _ln in _STATIC_T_TO_OVERLAY:
+        _ents = syms.get(_ln, [])
+        _st = [a for a, k in _ents if k == "T"]
+        _wk = [a for a, k in _ents if k == "W"]
+        _lc = [a for a, k in _ents if k == "t"]
+        if len(_st) != 1 or not _wk or not _lc:
+            print(f"win_patch_body_sync_jmp: skip {_ln}(t) (overlay not linked)")
+            continue
+        for _a in _lc:
+            patched += _patch_jmp(data, secs, _ln + "(t)", _a, _st[0])
     for name in names:
         entries = syms.get(name, [])
         strong = [a for a, k in entries if k == "T"]
