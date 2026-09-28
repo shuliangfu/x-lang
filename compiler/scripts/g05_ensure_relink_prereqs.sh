@@ -41,18 +41,22 @@ eval "$(bash scripts/g05_relink_env.sh)"
 # PLATFORM: SHARED — same mk parse on Darwin/Linux/Windows MSYS2.
 if [ -z "${XLANG_CATALOG_CACHE_FILE:-}" ] || [ ! -s "${XLANG_CATALOG_CACHE_FILE:-}" ]; then
   _g05_cat_cache="${TMPDIR:-/tmp}/xlang_g05_catalog_$$.txt"
+  # w1488: stderr path must honor TMPDIR too. Windows busybox sh has no /tmp,
+  # so a hardcoded /tmp redirect failed the warm and every try-* re-parsed
+  # the mk catalog (~400 s each on windows-server). PLATFORM: SHARED.
+  _g05_cat_err="${TMPDIR:-/tmp}/xlang_g05_cat_err_$$.txt"
   if bash scripts/driver_seed_obj_catalog.sh --shell >"${_g05_cat_cache}" \
-    2>/tmp/xlang_g05_cat_err_$$.txt; then
+    2>"${_g05_cat_err}"; then
     export XLANG_CATALOG_CACHE_FILE="${_g05_cat_cache}"
     echo "g05_ensure_relink_prereqs: catalog cache warm OK (${XLANG_CATALOG_CACHE_FILE})"
   else
     echo "g05_ensure_relink_prereqs: WARN catalog warm failed (try-* will re-expand)" >&2
-    cat /tmp/xlang_g05_cat_err_$$.txt 2>/dev/null || true
-    rm -f "${_g05_cat_cache}" /tmp/xlang_g05_cat_err_$$.txt
+    cat "${_g05_cat_err}" 2>/dev/null || true
+    rm -f "${_g05_cat_cache}" "${_g05_cat_err}"
     _g05_cat_cache=""
   fi
   # shellcheck disable=SC2064
-  trap 'if [ -n "${_g05_cat_cache:-}" ]; then rm -f "${_g05_cat_cache}" /tmp/xlang_g05_cat_err_$$.txt; fi' EXIT HUP INT TERM
+  trap 'if [ -n "${_g05_cat_cache:-}" ]; then rm -f "${_g05_cat_cache}" "${_g05_cat_err:-}"; fi' EXIT HUP INT TERM
 else
   echo "g05_ensure_relink_prereqs: catalog cache reuse OK (${XLANG_CATALOG_CACHE_FILE})"
 fi

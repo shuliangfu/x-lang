@@ -531,7 +531,12 @@ _catalog_mtime() {
     echo 0
     return 0
   fi
-  stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0
+  # w1488: GNU/busybox first. On Linux and Windows busybox `stat -f` means
+  # filesystem status: it prints free-block counts to stdout (rc=1), so the
+  # fingerprint changed with every write and the disk cache never hit
+  # (~6 min mk re-parse per try-* on windows-server). BSD stat -c prints
+  # nothing on stdout, so Darwin falls through to -f %m. PLATFORM: SHARED.
+  stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0
 }
 
 # Durable on-disk catalog path (per-user + per-repo). Overridable via
