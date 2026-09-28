@@ -3,6 +3,9 @@
 
 Usage: elf_retarget_local_dup_relocs.py OBJ NAME [NAME ...]
 
+A NAME ending in '*' is a prefix: it covers every defined function
+symbol whose name starts with the text before the '*'.
+
 Some Linux pipeline_abi objects were merged with a C rest whose weak
 twins (for example pipeline_asm_modlet_prepare_and_emit_elf_c) became
 LOCAL copies next to the GLOBAL .x definition of the same name. Calls
@@ -27,16 +30,31 @@ import struct
 import sys
 
 
+def name_matches(nm, names, prefixes):
+    if nm in names:
+        return True
+    for p in prefixes:
+        if nm.startswith(p):
+            return True
+    return False
+
+
+def split_names(args):
+    names = set(a for a in args if not a.endswith("*"))
+    prefixes = tuple(a[:-1] for a in args if a.endswith("*"))
+    return names, prefixes
+
+
 def main(argv):
     if len(argv) < 3:
         sys.stderr.write("usage: elf_retarget_local_dup_relocs.py OBJ NAME...\n")
         return 2
     path = argv[1]
-    names = set(argv[2:])
+    names, prefixes = split_names(argv[2:])
     with open(path, "rb") as f:
         data = bytearray(f.read())
     if data[:4] != b"\x7fELF":
-        return coff_main(path, data, names)
+        return coff_main(path, data, names, prefixes)
     if data[4] != 2 or data[5] != 1:
         sys.stderr.write("not ELF64 LE: %s\n" % path)
         return 1
@@ -74,24 +92,23 @@ def main(argv):
         if typ != 2:
             continue
         nm = cstr(str_off + st_name)
-        if nm not in names:
+        if not name_matches(nm, names, prefixes):
             continue
         if bind == 0:
             local_idx.setdefault(nm, set()).add(i)
         elif bind in (1, 2):
             global_idx.setdefault(nm, []).append(i)
     remap = {}
-    for nm in names:
+    idx_name = {}
+    seen = set(local_idx) | set(global_idx)
+    for nm in seen:
         g = global_idx.get(nm, [])
         if len(g) != 1:
             continue
         for li in local_idx.get(nm, ()):
             remap[li] = g[0]
-    counts = dict((nm, 0) for nm in names)
-    idx_name = {}
-    for nm in names:
-        for li in local_idx.get(nm, ()):
             idx_name[li] = nm
+    counts = dict((nm, 0) for nm in names | seen)
     for sh_type, sh_offset, sh_size, sh_link, sh_entsize in secs:
         if sh_type not in (4, 9) or sh_link != st or sh_entsize == 0:
             continue
@@ -104,12 +121,12 @@ def main(argv):
                 counts[idx_name[sym]] += 1
     with open(path, "wb") as f:
         f.write(data)
-    for nm in sorted(names):
+    for nm in sorted(counts):
         print("retarget %s %d" % (nm, counts[nm]))
     return 0
 
 
-def coff_main(path, data, names):
+def coff_main(path, data, names, prefixes=()):
     big = struct.unpack_from("<HH", data, 0) == (0, 0xFFFF)
     if big:
         machine = struct.unpack_from("<H", data, 6)[0]
@@ -145,7 +162,7 @@ def coff_main(path, data, names):
             secno, typ, cls, naux = struct.unpack_from("<hHBB", data, o + 12)
         if secno > 0 and (typ & 0x30) == 0x20:
             nm = sym_name(o)
-            if nm in names:
+            if name_matches(nm, names, prefixes):
                 if cls == 3:
                     static_idx.setdefault(nm, set()).add(i)
                 elif cls == 2:
@@ -153,14 +170,15 @@ def coff_main(path, data, names):
         i += 1 + naux
     remap = {}
     idx_name = {}
-    for nm in names:
+    seen = set(static_idx) | set(extern_idx)
+    for nm in seen:
         g = extern_idx.get(nm, [])
         if len(g) != 1:
             continue
         for li in static_idx.get(nm, ()):
             remap[li] = g[0]
             idx_name[li] = nm
-    counts = dict((nm, 0) for nm in names)
+    counts = dict((nm, 0) for nm in names | seen)
     for k in range(nsec):
         so = sec_off + k * 40
         rptr = struct.unpack_from("<I", data, so + 24)[0]
@@ -178,7 +196,7 @@ def coff_main(path, data, names):
                 counts[idx_name[sym]] += 1
     with open(path, "wb") as f:
         f.write(data)
-    for nm in sorted(names):
+    for nm in sorted(counts):
         print("retarget %s %d" % (nm, counts[nm]))
     return 0
 

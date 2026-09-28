@@ -1060,7 +1060,10 @@ case "$UNAME_S" in
         # w1493: the demote leaves STATIC modlet copies whose callers (store,
         # index, &let paths) fill a different module-let table than the
         # EXTERNAL find/load read, so those accesses fail with CG002
-        # elf_ec=-1. Point those relocations at the EXTERNAL faces.
+        # elf_ec=-1. Point those relocations at the EXTERNAL faces. The two
+        # prefixes cover every other duplicated modlet helper (for example
+        # pipe_modlet_lea_named_binding_addr_to_rax on `return &g[0]`, which
+        # failed while only the eight names above were moved).
         # PLATFORM: WINDOWS.
         if [ -f scripts/elf_retarget_local_dup_relocs.py ]; then
           python3 scripts/elf_retarget_local_dup_relocs.py \
@@ -1071,6 +1074,7 @@ case "$UNAME_S" in
             pipeline_asm_modlet_load_to_rax_elf_c \
             pipeline_asm_modlet_find pipe_modlet_get_n \
             pipeline_asm_modlet_name_is_shared pipeline_asm_modlet_reset \
+            'pipe_modlet_*' 'pipeline_asm_modlet_*' \
             >/dev/null 2>&1 || true
         fi
         # w1034: when wave743 sidecar is linked, weaken egg typed so PE
