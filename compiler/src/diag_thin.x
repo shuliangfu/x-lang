@@ -405,11 +405,13 @@ export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
   }
   if (val < 0) {
     unsafe {
-      let q: *u8 = snap + off;
-      q[0] = 0;
-      q[1] = 0;
-      q[2] = 0;
-      q[3] = 0;
+      // w1483: distinct name — Win x64 asm product resolved a sibling-block
+      // `q` to the first block's stack slot (read garbage, SIGSEGV).
+      let qz: *u8 = snap + off;
+      qz[0] = 0;
+      qz[1] = 0;
+      qz[2] = 0;
+      qz[3] = 0;
     }
     return;
   }
