@@ -5852,61 +5852,52 @@ ensure_rt_arena_buf_prefer() {
   return 1
 }
 
-# Product install of src/runtime/rt_parse_diag.o:
-#   pure-asm src/runtime/rt_parse_diag.x (precise diagnostic + slice marker)
-#   + seeds/rt_parse_diag.from_x.c (recovery diagnostics)
-# runtime_report_precise_parse_failure_if_known was deleted from the seed
-# in w846, including the PRECISE_BRIDGE wrapper.
-# labi_rt_parse_diag_slice_marker moved into the .x in w860 (still returns 1).
-# There is no full-seed fallback and no Windows special case: a seed-only cc
-# does not define the precise diagnostic or the marker. XLANG_G05_PREFER_X_O
-# is ignored. Do not gcc -E this TU.
-# Do not pass -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE.
-# Do not rebuild runtime_driver_no_c.o from this path.
-# Failure leaves the previous .o in place and returns 1.
+# Product install of src/runtime/rt_parse_diag.o: pure-asm
+# src/runtime/rt_parse_diag.x only. w1494 (终局待办 5.4) moved
+# runtime_report_parse_recovery_diagnostics and its rt_rec_* scanner into
+# the .x and deleted seeds/rt_parse_diag.from_x.c. The precise diagnostic
+# (w846) and labi_rt_parse_diag_slice_marker (w860) were already there.
+# No host cc, no seed, no full-seed fallback. XLANG_G05_PREFER_X_O is
+# ignored. Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o
+# from this path. Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED — POSIX and Windows both take this path.
 # G.7: one body; g05 rt-slice, build_xlang_asm, strict glue, and the
 # experimental bootstrap call this. The older try-rt-prefer temp must not
-# replace this .o. Its -DXLANG_RT_PARSE_DIAG_FROM_X /
-# PRECISE_BRIDGE flags are no-ops and that temp is not merged into no_c.
+# replace this .o.
 ensure_rt_parse_diag_prefer() {
   local o="src/runtime/rt_parse_diag.o"
-  local seed="seeds/rt_parse_diag.from_x.c"
   local xsrc="src/runtime/rt_parse_diag.x"
-  local thin rest merged ld_flags bare_thin bare_rest bare_merged
+  local thin bare_thin s
 
-  if [ ! -f "$seed" ] || [ ! -f "$xsrc" ]; then
-    echo "ensure_host_cc_seed_o try-rt-parse-diag-prefer: missing $seed or $xsrc" >&2
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-parse-diag-prefer: missing $xsrc" >&2
     return 1
   fi
 
-  # Up-to-date: seed, the .x, and project headers. A full-cc .o that predates
-  # the deleted C body still rebuilds once either input moves.
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$seed" -nt "$o" ]; then
-    if [ ! "$xsrc" -nt "$o" ] && ! seed_project_hdrs_newer "$seed" "$o"; then
-      log "skip up-to-date $o (rt-parse-diag)"
-      return 0
-    fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip up-to-date $o (rt-parse-diag)"
+    return 0
   fi
 
   bare_thin="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_thin.XXXXXX")" || true
-  bare_rest="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_rest.XXXXXX")" || true
-  bare_merged="$(mktemp "${TMPDIR:-/tmp}/rtpdiag_merged.XXXXXX")" || true
-  if [ -z "$bare_thin" ] || [ -z "$bare_rest" ] || [ -z "$bare_merged" ]; then
+  if [ -z "$bare_thin" ]; then
     echo "ensure: rt-parse-diag mktemp failed" >&2
-    rm -f "$bare_thin" "$bare_rest" "$bare_merged"
     return 1
   fi
-  rm -f "$bare_thin" "$bare_rest" "$bare_merged"
+  rm -f "$bare_thin"
   thin="${bare_thin}.o"
-  rest="${bare_rest}.o"
-  merged="${bare_merged}.o"
   # pure_asm only. Do not fall through to gcc -E of this TU.
-  # PLATFORM: SHARED — rt_prefer scopes PREFER_ASM_O inside the subshell.
-  # The marker is in the .x. The seed cc emits recovery diagnostics.
-  # Default unwind: the live object has __compact_unwind. Do not pass
-  # -fno-unwind-tables.
-  if (
+  # w1168: some pure-asm tries segfault. Darwin retries the whole
+  # translation unit. Other hosts keep the one-shot pure_asm path.
+  # PLATFORM: MACOS|DARWIN arm64 for the retry.
+  _pd_pure=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh rt-parse-diag-pure "$thin"; then
+    _pd_pure=1
+  fi
+  if [ "$_pd_pure" = "1" ] || (
     if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
       export XLANG_PREFER_ASM_O=1
     elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
@@ -5914,19 +5905,22 @@ ensure_rt_parse_diag_prefer() {
     fi
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
     pure_asm_x_to_o "$thin" "$xsrc"
-  ) && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$rest" \
-    && ld_flags="$(r3_prefer_ld_r_flags)" \
-    && ld $ld_flags -o "$merged" "$thin" "$rest" \
-    && r3_prefer_nm_has_sym "$merged" "runtime_report_precise_parse_failure_if_known" \
-    && r3_prefer_nm_has_sym "$merged" "labi_rt_parse_diag_slice_marker" \
-    && r3_prefer_nm_has_sym "$merged" "runtime_report_parse_recovery_diagnostics"; then
-    mv -f "$merged" "$o"
-    log "rt-parse-diag $o <- pure-asm $xsrc + recovery rest (w860; marker is in the .x)"
-    rm -f "$thin" "$rest"
+  ); then
+    for s in runtime_report_precise_parse_failure_if_known \
+      labi_rt_parse_diag_slice_marker \
+      runtime_report_parse_recovery_diagnostics; do
+      if ! r3_prefer_nm_has_sym "$thin" "$s"; then
+        echo "ensure: rt-parse-diag pure-asm object lacks $s" >&2
+        rm -f "$thin"
+        return 1
+      fi
+    done
+    mv -f "$thin" "$o"
+    log "rt-parse-diag $o <- pure-asm $xsrc only (w1494; recovery diagnostics are in the .x)"
     return 0
   fi
-  echo "ensure: rt-parse-diag pure-asm failed; marker and precise diagnostic are in the .x, no seed fallback" >&2
-  rm -f "$thin" "$rest" "$merged"
+  echo "ensure: rt-parse-diag pure-asm failed; no seed fallback" >&2
+  rm -f "$thin"
   return 1
 }
 
@@ -9077,6 +9071,7 @@ rt_compile_darwin_pure() {
 
 # w1168: src/runtime/rt_parse_diag.x segfaults on some pure-asm tries
 # and emits on a later try. Retry the whole translation unit.
+# w1494: the whole file is the product object (no seed rest).
 # Direct xlang_asm, not rt_prefer_try_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 rt_parse_diag_darwin_pure() {
@@ -9104,13 +9099,11 @@ rt_parse_diag_darwin_pure() {
   if [ ! -s "$o" ]; then
     return 1
   fi
-  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "2" ]; then
-    rm -f "$o"
-    return 1
-  fi
+  # w1494: the recovery body and its rt_rec_* helpers joined the .x, so
+  # check the three product faces instead of an exact T count.
   for c in _runtime_report_precise_parse_failure_if_known \
-    _labi_rt_parse_diag_slice_marker; do
+    _labi_rt_parse_diag_slice_marker \
+    _runtime_report_parse_recovery_diagnostics; do
     if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
@@ -15330,7 +15323,6 @@ ensure_rt_prefer_one() {
     _rt_elf_diag_x=src/runtime/rt_pipeline_elf_diag.x
     _rt_lib_root_seed=seeds/rt_lib_root.from_x.c
     _rt_lib_root_x=src/runtime/rt_lib_root.x
-    _rt_parse_diag_seed=seeds/rt_parse_diag.from_x.c
     _rt_parse_diag_x=src/runtime/rt_parse_diag.x
     _rt_fs_open_seed=seeds/rt_fs_open.from_x.c
     _rt_fs_open_x=src/runtime/rt_fs_open.x
@@ -15382,7 +15374,6 @@ ensure_rt_prefer_one() {
         || { [ -f "$_rt_elf_diag_x" ] && [ "$_rt_elf_diag_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_lib_root_seed" ] && [ "$_rt_lib_root_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_lib_root_x" ] && [ "$_rt_lib_root_x" -nt "$_rt_o" ]; } \
-        || { [ -f "$_rt_parse_diag_seed" ] && [ "$_rt_parse_diag_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_parse_diag_x" ] && [ "$_rt_parse_diag_x" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_fs_open_seed" ] && [ "$_rt_fs_open_seed" -nt "$_rt_o" ]; } \
         || { [ -f "$_rt_fs_open_x" ] && [ "$_rt_fs_open_x" -nt "$_rt_o" ]; } \
@@ -15841,49 +15832,14 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_pd_o" ] && [ -f "$_rt_parse_diag_seed" ]; then
-            # w860: the precise diagnostic and the slice marker are in the .x.
-            # FROM_X / PRECISE_BRIDGE below are no-ops. This temp is rm'd
-            # and must not replace src/runtime/rt_parse_diag.o. Do not
-            # route a slice refresh through try-rt-prefer of no_c.
-            # G-02f-448：PREFER_X_O=1 时 thin .x + rest seed (-D) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_parse_diag_x" ]; then
-              _rt_pd_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_parse_diag_thin.XXXXXX") || true
-              _rt_pd_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_parse_diag_rest.XXXXXX") || true
-              _rt_pd_pure=0
-              # w1168: some pure-asm tries segfault. Darwin retries the
-              # whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-              if [ -n "$_rt_pd_thin_o" ] && [ -n "$_rt_pd_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-                && bash scripts/ensure_host_cc_seed_o.sh rt-parse-diag-pure "$_rt_pd_thin_o"; then
-                _rt_pd_pure=1
-              fi
-              if [ -n "$_rt_pd_thin_o" ] && [ -n "$_rt_pd_rest_o" ] \
-                && { [ "$_rt_pd_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_parse_diag_x" "$_rt_pd_thin_o"; } \
-                && $CC $BASE_CFLAGS -I. -Iinclude -Isrc \
-                     -DXLANG_RT_PARSE_DIAG_FROM_X -DXLANG_RT_PARSE_DIAG_PRECISE_BRIDGE \
-                     -c -o "$_rt_pd_rest_o" "$_rt_parse_diag_seed" \
-                && pure_ld_partial_merge "$_rt_pd_o" "$_rt_pd_thin_o" "$_rt_pd_rest_o" 2>/dev/null; then
-                _rt_pd_ok=1
-                if [ "$_rt_pd_pure" = "1" ]; then
-                  echo "rt-prefer: rest parse_diag ← pure-asm two symbols (w1168)"
-                else
-                  echo "rt-prefer: rest parse_diag ← thin .x + rest (R2 full H=0; G-02f-448 PREFER_X_O)"
-                fi
-              fi
-              rm -f "$_rt_pd_thin_o" "$_rt_pd_rest_o"
-            fi
-            if [ "$_rt_pd_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_pd_o" "$_rt_parse_diag_seed"; then
-                _rt_pd_ok=1
-                echo "rt-prefer: rest parse diag ← $_rt_parse_diag_seed (G-02f-307 seed slice)"
-              fi
-            fi
+          # w1494: rt_parse_diag has no seed. The permanent slice object
+          # src/runtime/rt_parse_diag.o (ensure_rt_parse_diag_prefer, pure asm)
+          # defines the precise and recovery diagnostics, so the rest only needs
+          # -DXLANG_RT_PARSE_DIAG_FROM_X to leave them undefined. No temp.
+          # PLATFORM: SHARED.
+          if [ -f "$_rt_parse_diag_x" ]; then
+            _rt_pd_ok=1
+            echo "rt-prefer: rest parse_diag <- slice object (pure asm, w1494)"
           fi
           if [ -n "$_rt_fs_o" ] && [ -f "$_rt_fs_open_seed" ]; then
             # w1135: pure-asm the copy TU and the open TU, then ld -r.
@@ -16337,7 +16293,7 @@ ensure_rt_prefer_one() {
         fi
         if [ "$_rt_done" = "0" ]; then
           # wave320: product default refuses monofile full-seed last-resort (7.1.2).
-          # multi-error recovery 权威在 seeds/rt_parse_diag.from_x.c → 单独链 rt_parse_diag.o
+          # multi-error recovery 权威在 src/runtime/rt_parse_diag.x（w1494）→ 单独链 rt_parse_diag.o
           # （g05_relink_env RT_SEED_SLICE）；NO_C 已带 XLANG_RT_PARSE_DIAG_FROM_X，禁止再 merge。
           if [ "$allow_monofile" = "1" ] && [ -f "$_rt" ]; then
             # wave321: monofile seed physically retired; this branch only if a
@@ -30971,7 +30927,7 @@ case "$MODE" in
     exit $?
     ;;
   rt-parse-diag-pure|rt_parse_diag_darwin_pure)
-    # w1168: two pure-asm symbols of src/runtime/rt_parse_diag.x.
+    # w1168: pure-asm src/runtime/rt_parse_diag.x (whole product object since w1494).
     # Does not write runtime_driver_no_c.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then

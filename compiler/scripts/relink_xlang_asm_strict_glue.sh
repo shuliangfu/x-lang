@@ -2227,7 +2227,7 @@ ensure_rt_seed_slice_objs() {
     "src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
     "seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
     "seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
-    "seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
+    "src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
   o="${pair##*:}"
   # w859: same product object as ensure_rt_emit_state_prefer.
@@ -2247,8 +2247,8 @@ ensure_rt_seed_slice_objs() {
     continue
   fi
   # w860: same product object as ensure_rt_parse_diag_prefer.
-  # The precise diagnostic and the slice marker are in the .x.
-  # Recovery stays in the seed. PLATFORM: SHARED.
+  # The precise diagnostic, the slice marker, and (w1494) the recovery
+  # diagnostics are all in the .x; the seed is deleted. PLATFORM: SHARED.
   if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
     bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
       || return 1

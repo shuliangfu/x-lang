@@ -5372,7 +5372,7 @@ ensure_runtime_driver_diagnostic_obj() {
 }
 
 # Cap residual：driver_abi 跨 TU 数据/thread_fn（与 Makefile RT_SEED_SLICE_OBJS 同源）。
-# 须含 rt_parse_diag：runtime_report_parse_recovery_diagnostics 权威体在 seeds/rt_parse_diag.from_x.c
+# 须含 rt_parse_diag：runtime_report_parse_recovery_diagnostics 权威体在 src/runtime/rt_parse_diag.x（w1494 删种子）
 # （runtime.from_x.c 仅声明；缺链 → B-strict experimental link U 引用）。
 ensure_rt_seed_slice_objs() {
   mkdir -p src/runtime
@@ -5382,7 +5382,7 @@ ensure_rt_seed_slice_objs() {
     "rt_emit_state:src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
     "rt_preamble:seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
     "rt_stack:seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
-    "rt_parse_diag:seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
+    "rt_parse_diag:src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
     seed="${pair#*:}"
     seed="${seed%%:*}"
     o="${pair##*:}"
@@ -5409,7 +5409,7 @@ ensure_rt_seed_slice_objs() {
       continue
     fi
     # w860: the precise diagnostic and the slice marker live only in the .x.
-    # Recovery stays in the seed. No full-seed fallback.
+    # w1494: recovery diagnostics joined the .x (seed deleted). No seed fallback.
     # PLATFORM: SHARED (Windows pure-asm too).
     if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \

@@ -536,8 +536,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # renames its Lxml commons onto the C names (POSIX and Windows).
     # w844: arena_buf functions are deleted from the seed; same shape.
     # w860: the precise diagnostic and the slice marker are in the .x.
-    # rt-slice pure-asms rt_parse_diag.x and cc's the recovery rest
-    # (POSIX and Windows).
+    # w1494: recovery joined the .x; rt-slice pure-asms rt_parse_diag.x only
+    # (POSIX and Windows, no seed).
     # w861: preamble writers and the slice marker are in the .x. rt-slice
     # pure-asms rt_preamble.x and cc's the string-table rest
     # (POSIX and Windows).

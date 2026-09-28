@@ -536,7 +536,7 @@ else
   EXP_ALLOW_MULTIDEF="-Wl,--allow-multiple-definition"
 fi
 # w860: seed-only cc would drop runtime_report_precise_parse_failure_if_known
-# and labi_rt_parse_diag_slice_marker. Recovery diagnostics stay in the seed.
+# and labi_rt_parse_diag_slice_marker. w1494: recovery diagnostics are in the .x too.
 # PLATFORM: SHARED.
 bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
   || return 1
