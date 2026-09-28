@@ -682,6 +682,14 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
 fi
+# w1508 (10.33): rebuild the index-assign seed every relink (no leftover .o).
+if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/assign_index_true_i8_override.c ]; then
+  if ! gcc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
+      seeds/assign_index_true_i8_override.c; then
+    echo "g05_relink_env: assign_index_true_i8 cc failed" >&2
+    rm -f build_asm/selfhost_pabi/assign_index_true_i8.o
+  fi
+fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
 fi
@@ -896,6 +904,15 @@ if [ "$UNAME_S" = "Darwin" ] \
   fi
   if [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
+  fi
+  # w1508 (10.33): the Darwin .o was a leftover from before w1072; rebuild it
+  # from the seed every relink so compound index ops reach the live body.
+  if [ -f seeds/assign_index_true_i8_override.c ]; then
+    if ! cc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
+        seeds/assign_index_true_i8_override.c; then
+      echo "g05_relink_env: assign_index_true_i8 cc failed" >&2
+      rm -f build_asm/selfhost_pabi/assign_index_true_i8.o
+    fi
   fi
   if [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
     _oc=""

@@ -6,6 +6,12 @@
  * lvalue via glue_emit_index_eff_addr_scaled with tip pipeline_asm_index_elem
  * so address scale matches bake/load. G.7 twin of win_assign_index_override
  * scalar core + tip esz. Link FIRST (Darwin strong / PE first-wins / Linux).
+ * w1508 (终局待办 10.33): compound ops (kinds 29..38, `a[i] += x`) returned
+ * -1 here, so the whole function failed with CG002 on Darwin and Windows.
+ * A scalar element (<= 8 bytes) now takes the value from
+ * glue_emit_assign_rhs_to_rax_elf_c (loads the element, applies the op in
+ * the element type), same as the authority twin
+ * runtime_pipeline_abi_assign_index_generic_thin.x, then the usual store.
  */
 #include <stdint.h>
 
@@ -14,6 +20,9 @@ extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
                                            int32_t ta);
+extern int32_t glue_emit_assign_rhs_to_rax_elf_c(void *arena, void *elf_ctx, int32_t assign_expr_ref,
+                                                 int32_t left_ref, int32_t right_ref, void *ctx,
+                                                 int32_t ta);
 extern int32_t glue_emit_index_eff_addr_scaled_elf_c(void *arena, void *elf_ctx, int32_t ix_ref,
                                                      int32_t base_ref, int32_t idx_ref, void *ctx,
                                                      int32_t ta, int32_t esz);
@@ -35,7 +44,8 @@ int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_re
   int32_t idx_ref;
   if (!arena || !elf_ctx || !ctx || left_ref <= 0 || right_ref <= 0)
     return -1;
-  if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28)
+  int32_t ek = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ek != 28 && (ek < 29 || ek > 38))
     return -1;
   if (pipeline_expr_kind_ord_at(arena, left_ref) != 47)
     return -1;
@@ -47,7 +57,13 @@ int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_re
   sz = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
   if (sz <= 0)
     sz = 8;
-  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+  if (ek != 28) {
+    /* w1508: compound op on a scalar element. PLATFORM: SHARED. */
+    if (sz > 8)
+      return -1;
+    if (glue_emit_assign_rhs_to_rax_elf_c(arena, elf_ctx, expr_ref, left_ref, right_ref, ctx, ta) != 0)
+      return -1;
+  } else if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
     return -1;
   /* PLATFORM: MACOS|ARM64. A 9..16 byte element is a dual-GP value when the
    * RHS kind is VAR (3), FIELD (44), STRUCT_LIT (45), INDEX (47), CALL (48),
