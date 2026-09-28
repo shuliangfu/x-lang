@@ -298,34 +298,63 @@ _PABI_CONST_LIT=""
 if [ -s src/runtime_pipeline_abi_const_lit.o ]; then
   _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
 fi
-# w1041: call_spill budget (n+1)*8 (egg leftover still *32). Strong T
-# first-wins; HARD BAN tip reinject of w157 thin (Darwin BRANCH26).
+# w1500 (终局待办 10.23): compile one pure .x pabi overlay with the current
+# product (no host cc). 3 tries; a crash (rc 124 / >=128) is logged to
+# build_asm/g05_xasm_crash.log, and a product that cannot produce the object
+# (or whose object lacks the T) is logged there too, so g05_relink_xlang.sh
+# refuses to link instead of silently falling back to the egg bodies (the
+# 10.17 / 10.18 regressions). Result path in _G05_PO_OUT ("" = not built).
+# Usage: _g05_pure_overlay SRC.x OUT.o T_SYMBOL
+# PLATFORM: SHARED.
+_g05_pure_overlay() {
+  _po_x=$1
+  _po_o=$2
+  _po_sym=$3
+  _G05_PO_OUT=""
+  [ -f "$_po_x" ] || return 0
+  mkdir -p build_asm/selfhost_pabi
+  rm -f "$_po_o" "$_po_o.tmp.o"
+  if [ ! -x ./xlang_asm ]; then
+    echo "g05_relink_env: WARNING pure overlay $_po_x not built (no ./xlang_asm)" >&2
+    return 0
+  fi
+  for _po_try in 1 2 3; do
+    _po_rc=0
+    ./xlang_asm -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
+    if [ "$_po_rc" -eq 124 ] || [ "$_po_rc" -ge 128 ]; then
+      printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
+        "$(date +%H:%M:%S)" "$_po_rc" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+    fi
+    if [ "$_po_rc" -eq 0 ] \
+      && nm "$_po_o.tmp.o" 2>/dev/null | grep -q "T _*${_po_sym}\$"; then
+      mv -f "$_po_o.tmp.o" "$_po_o"
+      break
+    fi
+    rm -f "$_po_o.tmp.o"
+  done
+  if [ -s "$_po_o" ]; then
+    _G05_PO_OUT="$_po_o"
+  else
+    printf '%s overlay-missing g05_relink_env: %s (no T %s)\n' \
+      "$(date +%H:%M:%S)" "$_po_x" "$_po_sym" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+    echo "g05_relink_env: ERROR pure overlay $_po_x did not build (T $_po_sym)" >&2
+  fi
+}
+# w1041/w1497: call_spill budget ((n+1)*8, x86 exact per-arg GP units, widest
+# GP for the Windows outgoing area). w1500: pure .x (was host-cc seed).
+# Strong T first-wins; HARD BAN tip reinject of w157 thin (Darwin BRANCH26).
 # Must precede _PABI_SELFHOST: Linux spill.o also defines this T and would
 # otherwise first-win the egg *32 body (w1041 map). PLATFORM: SHARED.
-_PABI_CALL_SPILL=""
-if [ -f seeds/runtime_pipeline_abi_call_spill_overlay.c ]; then
-  mkdir -p build_asm/selfhost_pabi
-  # shellcheck disable=SC2086
-  if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-      build_asm/selfhost_pabi/call_spill.o \
-      seeds/runtime_pipeline_abi_call_spill_overlay.c 2>/dev/null; then
-    _PABI_CALL_SPILL="build_asm/selfhost_pabi/call_spill.o"
-  fi
-fi
-# w1032: compute_frame_size leaf scratch floor skip. Strong T first-wins
-# egg weak (Darwin/Ubuntu) or weakened pabi_weak T (Windows). Built here
-# when the seed overlay is present. Also ahead of _PABI_SELFHOST.
-# PLATFORM: SHARED.
-_PABI_FRAME_SIZE=""
-if [ -f seeds/runtime_pipeline_abi_compute_frame_size_overlay.c ]; then
-  mkdir -p build_asm/selfhost_pabi
-  # shellcheck disable=SC2086
-  if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-      build_asm/selfhost_pabi/compute_frame_size.o \
-      seeds/runtime_pipeline_abi_compute_frame_size_overlay.c 2>/dev/null; then
-    _PABI_FRAME_SIZE="build_asm/selfhost_pabi/compute_frame_size.o"
-  fi
-fi
+_g05_pure_overlay src/runtime_pipeline_abi_call_spill_thin.x \
+  build_asm/selfhost_pabi/call_spill.o glue_asm_sum_block_call_spill_bytes
+_PABI_CALL_SPILL="$_G05_PO_OUT"
+# w1032..w1497: compute_frame_size (leaf scratch floor skip, arm64 x2, w1490
+# expression-nested locals, Windows outgoing area). w1500: pure .x (was
+# host-cc seed). Strong T first-wins egg weak (Darwin/Ubuntu) or weakened
+# pabi_weak T (Windows). Also ahead of _PABI_SELFHOST. PLATFORM: SHARED.
+_g05_pure_overlay src/runtime_pipeline_abi_frame_size_thin.x \
+  build_asm/selfhost_pabi/compute_frame_size.o pipeline_asm_compute_frame_size_c
+_PABI_FRAME_SIZE="$_G05_PO_OUT"
 # w1486: Windows block-entry VAR-slot cache clear (egg body_sync forwarder
 # never clears; mega reuses one ctx so next function hits stale %rbx).
 # Strong T first-wins weakened pabi_weak egg T; post-link jmp W→T.
@@ -404,15 +433,10 @@ esac
 _PABI_WIN_PARAM_HOME=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    if [ -f seeds/runtime_pipeline_abi_win_param_home_overlay.c ]; then
-      mkdir -p build_asm/selfhost_pabi
-      # shellcheck disable=SC2086
-      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-          build_asm/selfhost_pabi/win_param_home.o \
-          seeds/runtime_pipeline_abi_win_param_home_overlay.c 2>/dev/null; then
-        _PABI_WIN_PARAM_HOME="build_asm/selfhost_pabi/win_param_home.o"
-      fi
-    fi
+    # w1500: pure .x (was host-cc seed).
+    _g05_pure_overlay src/runtime_pipeline_abi_win_param_home_thin.x \
+      build_asm/selfhost_pabi/win_param_home.o pipeline_asm_emit_param_home_elf_c
+    _PABI_WIN_PARAM_HOME="$_G05_PO_OUT"
     ;;
 esac
 # w1499: 64-bit MUL / MOD / divisor zero check (终局待办 10.20). The pabi
@@ -421,31 +445,13 @@ esac
 # diagnostic. Pure thin .x compiled by the current product every relink (no
 # host cc) and linked first: Darwin pabi copies are weak, Linux first-wins,
 # Windows weakens pabi_weak below and win_patch_body_sync_jmp folds W/t→T.
-# A missing product or a failed compile keeps the pabi bodies.
+# A failed compile is logged and blocks the link (w1500 _g05_pure_overlay).
 # PLATFORM: SHARED.
 _PABI_BINOP_WIDE=""
-_bw_x=src/runtime_pipeline_abi_binop_wide_thin.x
-_bw_o=build_asm/selfhost_pabi/binop_wide.o
-if [ "${XLANG_BINOP_WIDE_OVERLAY:-1}" = "1" ] && [ -f "$_bw_x" ] && [ -x ./xlang_asm ]; then
-  mkdir -p build_asm/selfhost_pabi
-  rm -f "$_bw_o"
-  for _bw_try in 1 2 3; do
-    _bw_rc=0
-    ./xlang_asm -backend asm -c "$_bw_x" -o "$_bw_o.tmp.o" >/dev/null 2>&1 || _bw_rc=$?
-    if [ "$_bw_rc" -eq 124 ] || [ "$_bw_rc" -ge 128 ]; then
-      printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
-        "$(date +%H:%M:%S)" "$_bw_rc" "$_bw_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-    fi
-    if [ "$_bw_rc" -eq 0 ] \
-      && nm "$_bw_o.tmp.o" 2>/dev/null | grep -q 'T _*pipeline_asm_emit_binop_mod_elf_c$'; then
-      mv -f "$_bw_o.tmp.o" "$_bw_o"
-      break
-    fi
-    rm -f "$_bw_o.tmp.o"
-  done
-  if [ -s "$_bw_o" ]; then
-    _PABI_BINOP_WIDE="$_bw_o"
-  fi
+if [ "${XLANG_BINOP_WIDE_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_binop_wide_thin.x \
+    build_asm/selfhost_pabi/binop_wide.o pipeline_asm_emit_binop_mod_elf_c
+  _PABI_BINOP_WIDE="$_G05_PO_OUT"
 fi
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
@@ -667,13 +673,13 @@ if [ "$UNAME_S" = "Darwin" ] \
   # SIGSEGV in glue_load_var_as_value_to_rax_rdx_elf_c. pabi.o is a libtool
   # archive here (inject skip) and FORCE pabi is banned, so re-emit the thin
   # with the current product and let it first-win over weakened pabi_weak.
-  # Rebuilt when missing or older than the thin .x / frame overlay.
+  # Rebuilt when missing or older than the thin .x / frame overlay (w1500: frame_size_thin.x).
   # PLATFORM: MACOS|DARWIN.
   _pps_x=src/runtime_pipeline_abi_param_ptr_slot_thin.x
   _pps_o=build_asm/selfhost_pabi/param_ptr_slot_a64.o
   if [ -f "$_pps_x" ] && [ -x ./xlang_asm ]; then
     if [ ! -s "$_pps_o" ] || [ "$_pps_x" -nt "$_pps_o" ] \
-      || [ seeds/runtime_pipeline_abi_compute_frame_size_overlay.c -nt "$_pps_o" ]; then
+      || [ src/runtime_pipeline_abi_frame_size_thin.x -nt "$_pps_o" ]; then
       rm -f "$_pps_o"
       for _pps_try in 1 2 3 4 5 6 7 8; do
         _pps_rc=0
