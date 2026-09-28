@@ -222,7 +222,7 @@ stage2_load_g05_platform
 stage2_build_seed_asm_host
 # runtime_driver_strict_glue_stubs is already on the seed/g05 bag when needed;
 # do not re-cc with a truncated -o (historic phys-del bitrot).
-cc $CFLAGS -DX_VERIFY_STAGE2 -c src/x_seed_bridge.c -o src/x_seed_bridge_stage2.o
+# x_seed_bridge has no C source left; stage2 links the product object built from src/x_seed_bridge.x (w1482).
 cc $CFLAGS -c typeck_x_link_alias.c -o x_frontend_link_alias.o
 cc $CFLAGS -c codegen_x_link_alias.c -o x_frontend_link_alias.o
 cc $CFLAGS -c lexer_x_link_alias.c -o x_frontend_link_alias.o 2>/dev/null || true
@@ -258,7 +258,7 @@ cc -fno-stack-protector -Wall -Wextra -I. -Iinclude -Isrc -w \
   src/async/async_liveness.o src/async/async_cps_codegen.o \
   src/runtime_c_import.o src/codegen/codegen_pipeline_stubs.o src/lexer/cfg_eval.o \
   src/typeck/typeck_f64_bits.o typeck_c_module_stubs.o \
-  src/x_seed_bridge_stage2.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
+  src/x_seed_bridge.o src/seed_link_compat.o src/std_fs_shim.o src/std_sys_shim.o \
   \
   token_x2.o ast_x2.o lexer_x2.o parser_x2.o typeck_x2.o codegen_x2.o preprocess_x2.o "$PIPELINE_X2_FILTERED" \
   x_frontend_link_alias.o \

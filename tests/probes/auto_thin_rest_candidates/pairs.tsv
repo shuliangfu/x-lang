@@ -135,4 +135,3 @@ rt_run_x_emit	src/runtime/rt_run_x_emit.x	seeds/rt_run_x_emit.from_x.c	1	490	0	n
 rt_stack	src/runtime/rt_stack.x	seeds/rt_stack.from_x.c	1	55	0	no	yes	ifdef	already_split
 rt_util	src/runtime/rt_util.x	seeds/rt_util.from_x.c	1	37	0	no	yes	ifdef	already_split
 seed_link_compat	src/seed_link_compat.x	seeds/seed_link_compat.from_x.c	20	1037	0	no	yes	va_list,weak,ifdef,large	already_split
-x_seed_bridge	src/x_seed_bridge.x	seeds/x_seed_bridge.from_x.c	14	323	0	no	yes	weak,ifdef	already_split

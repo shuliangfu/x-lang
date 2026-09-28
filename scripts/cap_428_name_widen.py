@@ -580,7 +580,6 @@ def iter_targets() -> list[Path]:
         "compiler/src/runtime_pipeline_abi_wpo_dump_thin.x",
         "compiler/src/runtime_pipeline_abi_unused_hints_thin.x",
         "compiler/seeds/user_asm_seed_bridge.from_x.c",
-        "compiler/seeds/x_seed_bridge.from_x.c",
     ]:
         p = ROOT / rel
         if p.exists():

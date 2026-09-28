@@ -415,12 +415,7 @@ MODULES=(
   #   rest 含 12 extern bridges (typeck_lsp_* shared by 2 wrappers each);
   #   prove 锁 thin+rest surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
   "lsp_diag_pipeline_ctx|src/lsp/lsp_diag_pipeline_ctx.x|seeds/lsp_diag_pipeline_ctx_surface.from_x.c||"
-  # x_seed_bridge R2 mixed (wave562)：.x 14 #[no_mangle] public API
-  #   (5 thin+rest forwards: typeck_preprocess_x_buf + std_heap_alloc_zeroed/zero/free/alloc
-  #    + 9 DIRECT: 8 io_* stubs + 1 forward chain io_register_buffers_buf_i32/xlang_io_register);
-  #   rest 含 4 extern bridges (preprocess_x_buf + typeck_std_heap_alloc + calloc + free);
-  #   prove 锁 mixed surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
-  "x_seed_bridge|src/x_seed_bridge.x|seeds/x_seed_bridge_surface.from_x.c||"
+  # x_seed_bridge: no C surface seed left; product object comes from src/x_seed_bridge.x only (w1482).
   # seed_link_compat R2 mixed (wave562)：.x 19 #[no_mangle] public API
   #   (11 thin+rest forwards: typeck_lsp_alloc/free/is_null/main_impl + typeck_std_heap_alloc/alloc_zeroed/free
   #    + std_sys_read_file_into + std_heap_free_u8_ptr + ast_pipeline_module_struct_layout_set_packed

@@ -317,7 +317,7 @@
 | 1629 | `src/asm/crt0_darwin_x86_64.o` | ⬜ |
 | 1635 | `src/asm/crt0_mingw.o` | ⬜ |
 | 1642 | `src/typeck/typeck_f64_bits.o` | ⬜ |
-| 1894 | `src/x_seed_bridge.o` | ⬜ |
+| 1894 | `src/x_seed_bridge.o` | ✅ w1482 只由 `src/x_seed_bridge.x` 纯 asm 编出，C 种子已移到 archive |
 | 1963 | `src/asm/user_asm_seed_bridge.o` | ⬜ |
 | 1967 | `src/asm/asm_backend_compat_stubs.o` | ⬜ |
 | 1971 | `src/asm/backend_enc_dispatch.o` | ⬜ |

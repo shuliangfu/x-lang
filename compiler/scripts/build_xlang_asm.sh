@@ -4330,7 +4330,7 @@ ensure_asm_bootstrap_x_companion_objs() {
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
-  # This script must not host-cc seeds/x_seed_bridge.from_x.c. PLATFORM: SHARED.
+  # The old C seed for it is gone (cold twin in analysis/archive). PLATFORM: SHARED.
   if [ ! -f "$BUILD_DIR/seed_link_compat.o" ] || [ "seeds/seed_link_compat.from_x.c" -nt "$BUILD_DIR/seed_link_compat.o" ]; then
     echo " cc -c seeds/seed_link_compat.from_x.c -> $BUILD_DIR/seed_link_compat.o (G-02f-11)"
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/seed_link_compat.from_x.c -o "$BUILD_DIR/seed_link_compat.o"

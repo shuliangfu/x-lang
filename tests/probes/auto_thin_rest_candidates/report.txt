@@ -137,6 +137,5 @@ rt_run_x_emit                                 1        490      0          candi
 rt_stack                                      1         55      0          candidate
 rt_util                                       1         37      0          candidate
 seed_link_compat                             20       1037      0    large candidate
-x_seed_bridge                                14        323      0          candidate
 -----------------------------------------------------------------------------------------
-summary: candidates=76 already_split=10 not_candidate=52
+summary: candidates=75 already_split=10 not_candidate=52

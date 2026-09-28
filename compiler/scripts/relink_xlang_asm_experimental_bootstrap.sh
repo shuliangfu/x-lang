@@ -227,7 +227,7 @@ ensure_experimental_companion_objs() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
   # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
-  # This script must not host-cc seeds/x_seed_bridge.from_x.c. PLATFORM: SHARED.
+  # The old C seed for it is gone (cold twin in analysis/archive). PLATFORM: SHARED.
   if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt src/runtime_driver_strict_glue_stubs.o ]; then
     experimental_bootstrap_info "cc runtime_driver_strict_glue_stubs.o (G-02f-11 seed)"
     $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o src/runtime_driver_strict_glue_stubs.o
