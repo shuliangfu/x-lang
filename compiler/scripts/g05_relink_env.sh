@@ -331,9 +331,43 @@ fi
 # Strong T first-wins weakened pabi_weak egg T; post-link jmp W→T.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux tip .x already clear.
 _PABI_BB_CACHE=""
+# w1488: Windows let-order / emit_let_init host-gcc twins (w1009/w1010) were
+# only ever built by hand; a cold build_asm lost them and the egg block_inits
+# hoisted CALL let inits above earlier stmts (let y=id(x) before side(&x)).
+# Rebuild from the in-repo .c twins every relink. The let-order twin's
+# backend_emit_block_body_sync_elf also clears the VAR-slot cache, so the
+# w1486 cache-clear overlay is skipped when it builds.
+# PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux keep tip .x objects.
+_PABI_WIN_LET_ORDER=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    if [ -f seeds/runtime_pipeline_abi_win_block_body_cache_clear_overlay.c ]; then
+    mkdir -p build_asm/selfhost_pabi
+    rm -f build_asm/selfhost_pabi/body_sync_let_order.o build_asm/selfhost_pabi/emit_let_init.o
+    if [ "${XLANG_WIN_LET_ORDER_TWIN:-1}" = "1" ] \
+        && [ -f src/runtime_pipeline_abi_block_body_sync_let_order_thin.c ]; then
+      # shellcheck disable=SC2086
+      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
+          build_asm/selfhost_pabi/body_sync_let_order.o \
+          src/runtime_pipeline_abi_block_body_sync_let_order_thin.c 2>/dev/null; then
+        _PABI_WIN_LET_ORDER=1
+      else
+        rm -f build_asm/selfhost_pabi/body_sync_let_order.o
+      fi
+    fi
+    if [ "${XLANG_WIN_EMIT_LET_INIT_TWIN:-1}" = "1" ] \
+        && [ -f src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.c ]; then
+      # shellcheck disable=SC2086
+      $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
+          build_asm/selfhost_pabi/emit_let_init.o \
+          src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.c 2>/dev/null \
+        || rm -f build_asm/selfhost_pabi/emit_let_init.o
+    fi
+    ;;
+esac
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ -z "$_PABI_WIN_LET_ORDER" ] \
+        && [ -f seeds/runtime_pipeline_abi_win_block_body_cache_clear_overlay.c ]; then
       mkdir -p build_asm/selfhost_pabi
       # shellcheck disable=SC2086
       if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \

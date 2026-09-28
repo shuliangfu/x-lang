@@ -13,6 +13,8 @@
 #include <stdint.h>
 #include <string.h>
 
+extern void glue_binop_var_slot_cache_clear(void);
+
 extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
 extern int32_t asm_ctx_block_slot_get(void *ctx, int32_t block_ref);
 extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
@@ -338,6 +340,8 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
  */
 int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
                                          int32_t ta) {
+  /* w1488: egg forwarder never clears the VAR-slot register cache (w1486). */
+  glue_binop_var_slot_cache_clear();
   glue_asm_block_diverged_set(0);
   glue_block_body_bind_module_dep_from_ctx(ctx);
   return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
