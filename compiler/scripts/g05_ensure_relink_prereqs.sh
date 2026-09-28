@@ -23,6 +23,10 @@ cd "$(dirname "$0")/.."
 # ensure_host_cc_seed_o.sh). Checked before the OK line below.
 mkdir -p build_asm
 : >build_asm/g05_xasm_crash.log
+# w1485: fresh cc-fallback log. g05_try_x_to_o appends "<uname-s> <src>" when
+# pure asm was tried and failed and -E + host cc took over. Checked against
+# scripts/g05_cc_fallback_baseline.txt before the OK line below.
+: >build_asm/g05_cc_fallback.log
 
 echo "g05_ensure_relink_prereqs: load env (shell, no make)"
 # shellcheck disable=SC2046
@@ -181,6 +185,13 @@ g05_try_x_to_o() {
     pure_asm_x_to_o "$_xout" "$_xsrc"
   ); then
     return 0
+  fi
+  # w1485: pure asm was the intended path and failed; record the silent host-cc
+  # fallback (SYM_RENAME and PREFER_ASM_O_G05=0 are cc by design). PLATFORM: SHARED.
+  if [ "${XLANG_PREFER_ASM_O_G05:-1}" = "1" ] && [ -z "${G05_X_O_SYM_RENAME:-}" ]; then
+    _fb_os="$(uname -s 2>/dev/null || echo Unknown)"
+    case "$_fb_os" in MINGW*|MSYS*|CYGWIN*) _fb_os=Windows ;; esac
+    echo "$_fb_os $_xsrc" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
   fi
   # Historic: -E → prologue → $CC -c
   # BSD/macOS mktemp 要求 X 串在模板末尾；勿用 XXXXXX.c
@@ -3769,6 +3780,27 @@ if [ -s build_asm/g05_xasm_crash.log ]; then
   sed 's/^/  /' build_asm/g05_xasm_crash.log >&2
   if [ "${XLANG_G05_XASM_ALLOW_CRASH:-0}" != "1" ]; then
     echo "  (pure-asm may have fallen back to cc; fix the product, or XLANG_G05_XASM_ALLOW_CRASH=1 to only warn)" >&2
+    exit 1
+  fi
+fi
+# w1485: silent g05 host-cc fallback detector. Known debt lives in
+# scripts/g05_cc_fallback_baseline.txt; anything else fails ensure.
+# XLANG_ALLOW_G05_CC_FALLBACK=1 only warns. Incremental ensure skips
+# up-to-date objects, so scripts/g05_pure_asm_audit.sh is the full sweep.
+if [ -s build_asm/g05_cc_fallback.log ]; then
+  _fb_new=0
+  for _fb_line in $(sort -u build_asm/g05_cc_fallback.log | tr ' ' '|'); do
+    _fb_line=$(echo "$_fb_line" | tr '|' ' ')
+    if [ -f scripts/g05_cc_fallback_baseline.txt ] \
+      && grep -qxF "$_fb_line" scripts/g05_cc_fallback_baseline.txt; then
+      echo "g05_ensure_relink_prereqs: known cc fallback (baseline): $_fb_line" >&2
+    else
+      echo "g05_ensure_relink_prereqs: NEW silent cc fallback: $_fb_line" >&2
+      _fb_new=1
+    fi
+  done
+  if [ "$_fb_new" = "1" ] && [ "${XLANG_ALLOW_G05_CC_FALLBACK:-0}" != "1" ]; then
+    echo "  pure asm failed and host cc was used; fix the product or add the line to scripts/g05_cc_fallback_baseline.txt (XLANG_ALLOW_G05_CC_FALLBACK=1 to only warn)" >&2
     exit 1
   fi
 fi

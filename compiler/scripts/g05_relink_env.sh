@@ -800,6 +800,13 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
     python3 scripts/pabi_drop_stale_pageoff12.py \
       build_asm/selfhost_pabi/pabi_weak.o >&2 || true
+    # w1485: leftover gcc pabi calls pipeline_asm_emit_module_ref_c with no
+    # prototype (implicit int) and sign-extends w0, cutting the Module* high
+    # word. Any .x that reads a file-level let/const in a body then faults in
+    # asm_module_top_level_const_lit_i32 and g05 falls back to host cc.
+    # Rewrite that sxtw to mov. Idempotent. PLATFORM: MACOS|DARWIN.
+    python3 scripts/pabi_ptr_ret_sxtw_fix.py \
+      build_asm/selfhost_pabi/pabi_weak.o >&2 || true
   fi
   # diag.o eight pure pieces reference xlang_panic_. This object is the
   # Darwin pure-asm body. Do not re-emit it: the current compiler faults

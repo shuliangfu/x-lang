@@ -1,0 +1,13 @@
+# w1485: g05 pure-asm cc-fallback baseline. One "<uname-s> <src>" per line
+# (Windows for MINGW/MSYS). Every entry is known debt: the current product
+# cannot emit that whole source as pure asm, so a whole-file compile falls
+# back to -E + host cc. scripts/g05_pure_asm_audit.sh and
+# g05_ensure_relink_prereqs.sh fail on any fallback not listed here.
+# Remove a line as soon as the audit prints FIXED.
+#
+# Darwin arm64: ensure builds these two per function (diag-thin-pure w1140,
+# pthin-stretch-audit-pure w1155), so the installed objects stay pure asm.
+# Whole-file debt only: diag_thin references xlang_panic_ (bounds checks);
+# pthin_stretch_audit faults in diag_io_fputs on its error path.
+Darwin src/diag_thin.x
+Darwin src/asm/pthin_stretch_audit.x
