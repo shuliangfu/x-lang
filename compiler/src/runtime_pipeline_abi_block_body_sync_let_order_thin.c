@@ -84,9 +84,15 @@ extern void glue_block_body_bind_module_dep_from_ctx(void *ctx);
 extern void glue_asm_block_diverged_set(int32_t v);
 extern int32_t pipe_load_i32_le(uint8_t *base, int32_t off);
 
-static uint8_t g_w1010_let_defer[512];
+/* w1505 / 10.36: per nesting level (inner blocks re-enter body_sync and used to
+ * overwrite the outer defer mask, dropping outer pass1 lets). 64 x 512. */
+static uint8_t g_w1010_let_defer[64][512];
 static uint8_t g_w1010_name_buf[256];
-static uint8_t g_w1010_lnb[256];
+static uint8_t g_w1010_lnb[64][256];
+static int32_t g_w1010_depth;
+
+int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                              int32_t ta);
 
 /**
  * Emit one let init (pass0 pure or pass1 deferred).
@@ -99,23 +105,33 @@ static int32_t w1010_emit_let(void *arena, void *elf_ctx, int32_t block_ref, int
   int32_t slot;
   int32_t llen;
   int32_t rc;
+  int32_t lv;
+  uint8_t *lnb;
 
   init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
   if (init_ref <= 0) {
     return 0;
   }
+  lv = g_w1010_depth - 1;
+  if (lv < 0) {
+    lv = 0;
+  }
+  if (lv > 63) {
+    lv = 63;
+  }
+  lnb = g_w1010_lnb[lv];
   slot = slot_base + nconst + idx;
   llen = pipeline_block_let_name_len(arena, block_ref, idx);
   rc = 0;
   if (llen > 0) {
-    pipeline_block_let_name_copy64(arena, block_ref, idx, g_w1010_lnb);
-    rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, g_w1010_lnb, llen);
+    pipeline_block_let_name_copy64(arena, block_ref, idx, lnb);
+    rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, lnb, llen);
   }
   if (rc != 0) {
     return -1;
   }
   return glue_block_body_emit_let_init(arena, elf_ctx, block_ref, idx, init_ref, slot, ctx, ta,
-                                       g_w1010_lnb, llen);
+                                       lnb, llen);
 }
 
 /**
@@ -123,8 +139,8 @@ static int32_t w1010_emit_let(void *arena, void *elf_ctx, int32_t block_ref, int
  * @return 0 ok; -1 fail
  * PLATFORM: WINDOWS — host-gcc twin of pipeline_asm_emit_block_body_sync_elf.
  */
-int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
-                                              int32_t ta) {
+static int32_t w1010_body_sync_level(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                     int32_t ta, uint8_t *dm) {
   int32_t slot_base;
   int32_t nconst;
   int32_t nlet;
@@ -164,11 +180,10 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   nconst = ast_ast_block_num_consts(arena, block_ref);
   nlet = ast_ast_block_num_lets(arena, block_ref);
   use_defer = 0;
-  if (nlet > 0 && nlet <= 512) {
+  if (nlet > 0 && nlet <= 512 && dm != 0) {
     use_defer = 1;
-    memset(g_w1010_let_defer, 0, (size_t)nlet);
-    glue_block_compute_pass1_deferred_lets(arena, ctx, block_ref, slot_base, nconst, nlet,
-                                           g_w1010_let_defer);
+    memset(dm, 0, (size_t)nlet);
+    glue_block_compute_pass1_deferred_lets(arena, ctx, block_ref, slot_base, nconst, nlet, dm);
   }
   for (ci = 0; ci < nconst; ci++) {
     init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, ci);
@@ -184,7 +199,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
   }
   for (li = 0; li < nlet; li++) {
     defer_bit = 0;
-    if (use_defer != 0 && g_w1010_let_defer[li] != 0) {
+    if (use_defer != 0 && dm[li] != 0) {
       defer_bit = 1;
     }
     if (defer_bit == 0) {
@@ -198,7 +213,7 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
     k = ast_ast_block_stmt_order_kind(arena, block_ref, si);
     idx = ast_ast_block_stmt_order_idx(arena, block_ref, si);
     if (k == 1) {
-      if (use_defer != 0 && idx >= 0 && idx < nlet && g_w1010_let_defer[idx] != 0) {
+      if (use_defer != 0 && idx >= 0 && idx < nlet && dm[idx] != 0) {
         if (w1010_emit_let(arena, elf_ctx, block_ref, idx, slot_base, nconst, ctx, ta) != 0) {
           return -1;
         }
@@ -331,6 +346,22 @@ int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_
     return -1;
   }
   return 0;
+}
+
+/**
+ * Two-pass block body ELF emit: push one nesting level, run, pop (w1505 / 10.36).
+ * @return 0 ok; -1 fail
+ * PLATFORM: WINDOWS — host-gcc twin of pipeline_asm_emit_block_body_sync_elf.
+ */
+int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                              int32_t ta) {
+  int32_t d = g_w1010_depth;
+  int32_t rc;
+  uint8_t *dm = (d >= 0 && d < 64) ? g_w1010_let_defer[d] : 0;
+  g_w1010_depth = d + 1;
+  rc = w1010_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm);
+  g_w1010_depth = d;
+  return rc;
 }
 
 /**

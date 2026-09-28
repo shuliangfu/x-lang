@@ -67,9 +67,15 @@ export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 
 // File-level BSS — tip asm smash on large stack arrays (wave703 class).
 // PLATFORM: SHARED — wave1009 Cap residual thin local storage.
-let g_w1009_let_defer: u8[512] = [];
+// w1505 / 10.36: the defer mask and let-name buffer are per nesting level.
+// One shared mask was overwritten by the inner block (if/while/region body
+// re-enters body_sync), so an outer pass1-deferred let (`let m2 = msg;`
+// after `if (..) { let q = ..; }`) read the inner mask, was skipped in both
+// passes, and its slot kept stack garbage. 64 levels x 512 lets.
+let g_w1009_let_defer: u8[32768] = [];
 let g_w1009_name_buf: u8[256] = [];
-let g_w1009_lnb: u8[256] = [];
+let g_w1009_lnb: u8[16384] = [];
+let g_w1009_depth: i32 = 0;
 
 /**
  * Emit one let init (pass0 pure or pass1 deferred).
@@ -84,35 +90,46 @@ function w1009_emit_let(
   let slot: i32 = 0;
   let llen: i32 = 0;
   let rc: i32 = 0;
+  let lv: i32 = 0;
+  let lnb: *u8 = 0 as *u8;
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     init_ref = ast_pipeline_block_let_init_ref(arena, block_ref, idx);
     if (init_ref <= 0) {
       return 0;
     }
+    // w1505: name buffer of this nesting level (init may re-enter body_sync).
+    lv = g_w1009_depth - 1;
+    if (lv < 0) {
+      lv = 0;
+    }
+    if (lv > 63) {
+      lv = 63;
+    }
+    lnb = &g_w1009_lnb[lv * 256];
     slot = slot_base + nconst + idx;
     llen = pipeline_block_let_name_len(arena, block_ref, idx);
     if (llen > 0) {
-      pipeline_block_let_name_copy64(arena, block_ref, idx, &g_w1009_lnb[0]);
-      rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, &g_w1009_lnb[0], llen);
+      pipeline_block_let_name_copy64(arena, block_ref, idx, lnb);
+      rc = glue_lazy_append_block_let_local(arena, ctx, block_ref, idx, lnb, llen);
     }
     if (rc != 0) {
       return 0 - 1;
     }
     return glue_block_body_emit_let_init(
-      arena, elf_ctx, block_ref, idx, init_ref, slot, ctx, ta, &g_w1009_lnb[0], llen
+      arena, elf_ctx, block_ref, idx, init_ref, slot, ctx, ta, lnb, llen
     );
   }
 }
 
 /**
  * Two-pass block body ELF emit with pass1-deferred lets (wave1009).
+ * @param dm *u8 — this level's defer mask (0: no deferral)
  * @return i32 — 0 ok; -1 fail
  * PLATFORM: SHARED — G.7 twin of pre-wave703 mega body_sync (+ leftover walk).
  */
-#[no_mangle]
-export function pipeline_asm_emit_block_body_sync_elf(
-  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32
+function w1009_body_sync_level(
+  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32, dm: *u8
 ): i32 {
   let slot_base: i32 = 0;
   let nconst: i32 = 0;
@@ -154,10 +171,10 @@ export function pipeline_asm_emit_block_body_sync_elf(
     nconst = ast_ast_block_num_consts(arena, block_ref);
     nlet = ast_ast_block_num_lets(arena, block_ref);
     use_defer = 0;
-    if (nlet > 0 && nlet <= 512) {
+    if (nlet > 0 && nlet <= 512 && dm != (0 as *u8)) {
       use_defer = 1;
       glue_block_compute_pass1_deferred_lets(
-        arena, ctx, block_ref, slot_base, nconst, nlet, &g_w1009_let_defer[0]
+        arena, ctx, block_ref, slot_base, nconst, nlet, dm
       );
     }
     // Pass0 consts (scalar store path).
@@ -180,7 +197,7 @@ export function pipeline_asm_emit_block_body_sync_elf(
     while (li < nlet) {
       defer_bit = 0;
       if (use_defer != 0) {
-        if (g_w1009_let_defer[li] != (0 as u8)) {
+        if (dm[li] != (0 as u8)) {
           defer_bit = 1;
         }
       }
@@ -199,7 +216,7 @@ export function pipeline_asm_emit_block_body_sync_elf(
       if (k == 1) {
         if (use_defer != 0 && idx >= 0 && idx < nlet) {
           defer_bit = 0;
-          if (g_w1009_let_defer[idx] != (0 as u8)) {
+          if (dm[idx] != (0 as u8)) {
             defer_bit = 1;
           }
           if (defer_bit != 0) {
@@ -350,6 +367,33 @@ export function pipeline_asm_emit_block_body_sync_elf(
     }
     return 0;
   }
+}
+
+/**
+ * Two-pass block body ELF emit: push one nesting level, run, pop.
+ * w1505 / 10.36: nested blocks (if/while/for/region bodies) re-enter here and
+ * each level owns its defer mask, so the outer pass1 lets are still emitted.
+ * @return i32 — 0 ok; -1 fail
+ * PLATFORM: SHARED — G.7 entry (Windows host-gcc twin mirrors it).
+ */
+#[no_mangle]
+export function pipeline_asm_emit_block_body_sync_elf(
+  arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let d: i32 = 0;
+  let rc: i32 = 0;
+  let dm: *u8 = 0 as *u8;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    d = g_w1009_depth;
+    if (d >= 0 && d < 64) {
+      dm = &g_w1009_let_defer[d * 512];
+    }
+    g_w1009_depth = d + 1;
+    rc = w1009_body_sync_level(arena, elf_ctx, block_ref, ctx, ta, dm);
+    g_w1009_depth = d;
+  }
+  return rc;
 }
 
 /**

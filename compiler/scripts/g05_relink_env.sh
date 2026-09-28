@@ -522,6 +522,21 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# w1505 (终局待办 10.36): the body_sync let-order thin kept one defer mask for
+# every nesting level, so an inner if/while/region body overwrote the outer
+# block's mask and an outer pass1-deferred `let` (`let m2 = msg;` after an if
+# holding its own let) was emitted by neither pass. The object used to be a
+# leftover (Sep 25); compile its source with the current product every relink
+# so the per-level mask reaches the product. Windows builds the host-gcc twin
+# of the same file above. PLATFORM: MACOS|DARWIN + LINUX.
+case "$UNAME_S" in
+  Darwin|Linux)
+    if [ "${XLANG_BODY_SYNC_LET_ORDER_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
+        build_asm/selfhost_pabi/body_sync_let_order.o pipeline_asm_emit_block_body_sync_elf
+    fi
+    ;;
+esac
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
