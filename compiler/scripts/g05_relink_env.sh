@@ -185,8 +185,8 @@ esac
 # DRIVER_SEED layout: mirror Makefile LEGACY vs no_c default.
 # PLATFORM: SHARED — Makefile is the single authority (makefile L1843-1900).
 # g05_relink_env is the shell mirror (G.7). On Linux/macOS the default no_c
-# layout works (X pipeline self-contained). On Windows MSYS/MinGW the
-# documented build env sets XLANG_LEGACY_C_FRONTEND=1 (see
+# layout works (X pipeline self-contained). Historical (before w1498): on
+# Windows MSYS/MinGW the documented build env sets XLANG_LEGACY_C_FRONTEND=1 (see
 # analysis/Windows平台限制与测试指南.md §3.2): xlang-c.exe must use the C
 # frontend runtime (runtime_driver.o + lexer.o + ast_seed.o +
 # cfg_eval_bootstrap_stub.o + async_*), NOT the no_c runtime
@@ -196,26 +196,26 @@ esac
 # binary layout (the pinned bootstrap_xlangc was captured under LEGACY mode).
 # Without this guard g05 relink-xlang on Windows produced a xlang.exe that
 # links cleanly but cannot run even `function main(): i32 { return 42; }`.
-# Class S / leftover-safe (2026-09-22): Windows PE product path must use LEGACY
-# runtime_driver.o (Win64 argc/argv). Unset XLANG_LEGACY_C_FRONTEND used to fall
-# through to no_c → SysV driver_run_compiler_full → --help SEGV in driver_argv_at,
-# so FIELD override never landed in a runnable live. Default LEGACY=1 on Win hosts
-# when unset; XLANG_NO_C_SEED_LINK=1 still forces no_c; explicit =0 still allowed.
-case "$(uname -s 2>/dev/null || echo Unknown)" in
-  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    if [ -z "${XLANG_LEGACY_C_FRONTEND+x}" ]; then
-      XLANG_LEGACY_C_FRONTEND=1
-    fi
-    ;;
-esac
+# w1498 (10.19): Windows no longer defaults to LEGACY. src/runtime_driver.o has
+# had no builder since wave321 (runtime monofile retired); on Windows it was a
+# stale leftover that still carried old copies of the rt slices
+# (emit_state/parse_diag/preamble/stack/arena_buf) and, being linked before
+# _RT_SEED_SLICE_OBJS under --allow-multiple-definition (first wins), shadowed
+# the new slices. The no_c runtime is rebuilt by ensure (try-rt-prefer) from
+# the .x on every host; its two Windows gaps (rt_diag_get_errno, setenv) are now
+# Windows bodies in rt_diag_errno.x and rt_compile.x. Windows uses the same
+# no_c layout as Linux/macOS. Explicit XLANG_LEGACY_C_FRONTEND=1 keeps the C
+# lexer/ast archaeology objects but still takes the no_c runtime (below).
 # Honor XLANG_LEGACY_C_FRONTEND (=1 LEGACY; otherwise no_c default) and
 # XLANG_NO_C_SEED_LINK (=1 forces no_c even under LEGACY — experimental).
 if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" = "1" ]; then
   # LEGACY mode: matches Makefile XLANG_LEGACY_C_FRONTEND=1 branch.
-  # runtime_driver.o (not no_c), C lexer.o + ast_seed.o, cfg_eval_bootstrap_stub,
+  # (historically runtime_driver.o), C lexer.o + ast_seed.o, cfg_eval_bootstrap_stub,
   # async liveness/cps_codegen. DRIVER_SEED_C_FRONTEND_LEGACY is empty (C
   # frontend deleted, G-02a) so DRIVER_SEED_FRONTEND_EXTRA is empty.
-  _DRIVER_SEED_RUNTIME_O="src/runtime_driver.o"
+  # w1498: the runtime is the ensure-built no_c object even under LEGACY;
+  # src/runtime_driver.o has no builder and must never reach a product link.
+  _DRIVER_SEED_RUNTIME_O="src/runtime_driver_no_c.o"
   _LEXER_LINK_O="src/lexer/lexer.o"
   _AST_LINK_O="src/ast/ast_seed.o"
   # NOTE: runtime_driver_strict_glue_stubs.o is NOT here — it goes in _GLUE_SUFFIX
@@ -1256,10 +1256,10 @@ fi
 
 # 供 ensure 使用的热路径（force 重编的 .c → .o）
 # Hot-path C rebuild targets. In no_c mode runtime_driver_no_c.o is hot;
-# in LEGACY mode runtime_driver.o is hot (matches Makefile DRIVER_SEED_RUNTIME_REBUILD).
+# w1498: LEGACY also links and heats runtime_driver_no_c.o (runtime_driver.o retired).
 # wave304: strict_minimal shell retired — no longer a hot C rebuild target.
 if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" = "1" ]; then
-  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver.o"
+  G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o"
 else
   G05_HOT_C_OBJS="src/runtime_link_abi.o src/runtime_driver_no_c.o"
 fi

@@ -19,6 +19,7 @@
 
 export extern "C" function __errno_location(): *i32;
 export extern "C" function __error(): *i32;
+export extern "C" function _errno(): *i32;
 
 export extern "C" function strcmp(a: *u8, b: *u8): i32;
 export extern "C" function strerror(e: i32): *u8;
@@ -61,6 +62,25 @@ export function rt_diag_get_errno(): i32 {
   // FFI: Darwin errno accessor (not __errno_location).
   unsafe {
     p = __error();
+  }
+  if (p == 0 as *i32) {
+    return 0;
+  }
+  return p[0];
+}
+
+/** Read the thread-local errno for Windows (MinGW / msvcrt).
+ * Calls `_errno` and returns `*p`, or 0 if the pointer is null.
+ * Track-L: #[no_mangle] keeps the short surface name.
+ * PLATFORM: WINDOWS — errno via msvcrt _errno (w1498: the no_c runtime needs
+ * this body on Windows; before, only the stale LEGACY runtime_driver.o had it). */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function rt_diag_get_errno(): i32 {
+  let p: *i32 = 0 as *i32;
+  // FFI: msvcrt errno accessor.
+  unsafe {
+    p = _errno();
   }
   if (p == 0 as *i32) {
     return 0;

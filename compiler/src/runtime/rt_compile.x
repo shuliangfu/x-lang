@@ -62,6 +62,9 @@ export extern "C" function diag_report_with_code(
 export extern "C" function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void;
 export extern "C" function driver_resolve_target_arch(parsed_target: i32, saw_target_flag: i32): i32;
 export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
+// w1498: MinGW has no setenv; the Windows body below calls _putenv_s.
+// Kept always-on (not #[cfg]) like the errno accessors in rt_diag_errno.x.
+export extern "C" function _putenv_s(name: *u8, value: *u8): i32;
 export extern "C" function malloc(n: usize): *u8;
 export extern "C" function free(p: *u8): void;
 export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
@@ -341,6 +344,7 @@ export function driver_compile_argv_set_use_freestanding_c(state: *RtCompileStat
  * Implements `driver_compile_argv_set_legacy_f32_abi_c`.
  * @return void
  */
+#[cfg(not(target_os = "windows"))]
 #[no_mangle]
 export function driver_compile_argv_set_legacy_f32_abi_c(): void {
   let name: *u8 = 0 as *u8;
@@ -349,6 +353,24 @@ export function driver_compile_argv_set_legacy_f32_abi_c(): void {
     name = "XLANG_ABI_F32_XMM" as *u8;
     val = "0" as *u8;
     setenv(name, val, 1);
+  }
+}
+
+/** Windows body of `driver_compile_argv_set_legacy_f32_abi_c`.
+ * MinGW has no setenv, so this sets XLANG_ABI_F32_XMM=0 through _putenv_s.
+ * _putenv_s always overwrites, which matches setenv(..., 1) above.
+ * PLATFORM: WINDOWS (w1498: the no_c runtime links this .x on Windows too).
+ * @return void
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function driver_compile_argv_set_legacy_f32_abi_c(): void {
+  let name: *u8 = 0 as *u8;
+  let val: *u8 = 0 as *u8;
+  unsafe {
+    name = "XLANG_ABI_F32_XMM" as *u8;
+    val = "0" as *u8;
+    _putenv_s(name, val);
   }
 }
 
