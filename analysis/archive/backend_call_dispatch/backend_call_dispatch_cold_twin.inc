@@ -251,8 +251,9 @@ static int32_t glue_asm_string_lit_copy_c(struct ast_ASTArena *arena, int32_t ex
   cur = expr_ref;
   while (copied < slen && cur > 0) {
     pipeline_expr_var_name_into(arena, cur, buf);
+    /* w1499: head chunk = parser PARSER_ASM_STRING_LIT_CHUNK (127), same as .x. */
     if (cur == expr_ref)
-      n = slen < 255 ? slen : 255;
+      n = slen < 127 ? slen : 127;
     else
       n = pipeline_expr_var_name_len_for_string_lit_c(arena, cur);
     if (n < 0)

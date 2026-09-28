@@ -415,6 +415,38 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# w1499: 64-bit MUL / MOD / divisor zero check (终局待办 10.20). The pabi
+# bodies emit 32-bit mul/rem/test, so i64/usize products and remainders lost
+# their high half and diag_snap_load_ptr (usize MUL) crashed every located
+# diagnostic. Pure thin .x compiled by the current product every relink (no
+# host cc) and linked first: Darwin pabi copies are weak, Linux first-wins,
+# Windows weakens pabi_weak below and win_patch_body_sync_jmp folds W/t→T.
+# A missing product or a failed compile keeps the pabi bodies.
+# PLATFORM: SHARED.
+_PABI_BINOP_WIDE=""
+_bw_x=src/runtime_pipeline_abi_binop_wide_thin.x
+_bw_o=build_asm/selfhost_pabi/binop_wide.o
+if [ "${XLANG_BINOP_WIDE_OVERLAY:-1}" = "1" ] && [ -f "$_bw_x" ] && [ -x ./xlang_asm ]; then
+  mkdir -p build_asm/selfhost_pabi
+  rm -f "$_bw_o"
+  for _bw_try in 1 2 3; do
+    _bw_rc=0
+    ./xlang_asm -backend asm -c "$_bw_x" -o "$_bw_o.tmp.o" >/dev/null 2>&1 || _bw_rc=$?
+    if [ "$_bw_rc" -eq 124 ] || [ "$_bw_rc" -ge 128 ]; then
+      printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
+        "$(date +%H:%M:%S)" "$_bw_rc" "$_bw_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+    fi
+    if [ "$_bw_rc" -eq 0 ] \
+      && nm "$_bw_o.tmp.o" 2>/dev/null | grep -q 'T _*pipeline_asm_emit_binop_mod_elf_c$'; then
+      mv -f "$_bw_o.tmp.o" "$_bw_o"
+      break
+    fi
+    rm -f "$_bw_o.tmp.o"
+  done
+  if [ -s "$_bw_o" ]; then
+    _PABI_BINOP_WIDE="$_bw_o"
+  fi
+fi
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
@@ -1032,7 +1064,8 @@ case "$UNAME_S" in
       || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
       || [ "$_WIN_TRUE_PACK" = "1" ] \
       || [ -n "$_PABI_BB_CACHE" ] \
-      || [ -n "$_PABI_TAIL_JMP_OFF" ]; then
+      || [ -n "$_PABI_TAIL_JMP_OFF" ] \
+      || [ -n "$_PABI_BINOP_WIDE" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -1126,6 +1159,17 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=pipeline_asm_emit_param_home_elf_c \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1499: weaken egg 32-bit mul/mod/zero-check so the binop_wide
+        # overlay first-wins. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_BINOP_WIDE" ]; then
+          for _bwsym in glue_emit_binop_mul_rax_rbx_elf_c \
+            pipeline_asm_emit_binop_mod_elf_c \
+            pipeline_asm_emit_divisor_zero_check_rbx_elf_c \
+            glue_emit_assign_rhs_mod_elf_c; do
+            "$_oc" --weaken-symbol="$_bwsym" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          done
+        fi
         # w1041: weaken egg call_spill so overlay first-wins.
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_CALL_SPILL" ]; then
@@ -1215,7 +1259,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

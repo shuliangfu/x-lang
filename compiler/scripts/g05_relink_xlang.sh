@@ -141,19 +141,28 @@ case "$(uname -s 2>/dev/null)" in
     ;;
 esac
 
-cp -f "$OUT" "$XLANG_C"
-cp -f "$OUT" "$BOOTSTRAP"
+# w1499: copy onto a fresh inode. macOS keeps the code signature of an
+# executable it already ran cached per vnode, so cp over the old file can make
+# the next exec die with SIGKILL ("load code signature error 2").
+# PLATFORM: MACOS needs it; SHARED harmless.
+_g05_cp_fresh() {
+  [ "$1" = "$2" ] && return 0
+  rm -f "$2"
+  cp -f "$1" "$2"
+}
+_g05_cp_fresh "$OUT" "$XLANG_C"
+_g05_cp_fresh "$OUT" "$BOOTSTRAP"
 echo "g05_relink_xlang OK ($OUT → $XLANG_C + $BOOTSTRAP)"
 
 # Always sync product asm name after g05. On Windows MinGW, L2 defaults to
 # ./compiler/xlang_asm (no .exe) while -o xlang materializes as xlang.exe —
 # a stale bare xlang_asm silently fails hello/si while xlang_asm.exe is green.
 # PLATFORM: WINDOWS sync both names; SHARED sync bare xlang_asm.
-cp -f "$OUT" xlang_asm
+_g05_cp_fresh "$OUT" xlang_asm
 echo "g05_relink_xlang: synced xlang_asm"
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    cp -f "$OUT" xlang_asm.exe
+    _g05_cp_fresh "$OUT" xlang_asm.exe
     echo "g05_relink_xlang: synced xlang_asm.exe"
     ;;
 esac

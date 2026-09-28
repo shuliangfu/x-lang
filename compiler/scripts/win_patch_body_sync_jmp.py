@@ -73,7 +73,14 @@ _TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = ()
 
 # w1497: names whose same-TU egg local (t) copy must jmp to the overlay T.
 # PLATFORM: WINDOWS.
-_STATIC_T_TO_OVERLAY: tuple[str, ...] = ("pipeline_asm_emit_param_home_elf_c",)
+_STATIC_T_TO_OVERLAY: tuple[str, ...] = (
+    "pipeline_asm_emit_param_home_elf_c",
+    # w1499: 64-bit mul/mod/zero-check overlay (binop_wide.o).
+    "glue_emit_binop_mul_rax_rbx_elf_c",
+    "pipeline_asm_emit_binop_mod_elf_c",
+    "pipeline_asm_emit_divisor_zero_check_rbx_elf_c",
+    "glue_emit_assign_rhs_mod_elf_c",
+)
 
 
 def _nm(exe: Path) -> dict[str, list[tuple[int, str]]]:
@@ -307,6 +314,11 @@ def main() -> int:
         "w499_mega_try_tail_jmp",
         # w1497: param_home canonicalize overlay. PLATFORM: WINDOWS.
         "pipeline_asm_emit_param_home_elf_c",
+        # w1499: 64-bit mul/mod/zero-check overlay. PLATFORM: WINDOWS.
+        "glue_emit_binop_mul_rax_rbx_elf_c",
+        "pipeline_asm_emit_binop_mod_elf_c",
+        "pipeline_asm_emit_divisor_zero_check_rbx_elf_c",
+        "glue_emit_assign_rhs_mod_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
