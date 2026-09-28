@@ -16998,6 +16998,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_emit_index_thin "$o" || true
+      pipeline_abi_inject_w156_guard_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
@@ -17620,6 +17621,7 @@ ensure_pipeline_abi_prefer_one() {
     pipeline_abi_inject_asm73_live_set_thin "$o" || true
     pipeline_abi_inject_for_call_args_thin "$o" || true
     pipeline_abi_inject_emit_index_thin "$o" || true
+    pipeline_abi_inject_w156_guard_thin "$o" || true
     pipeline_abi_inject_call_method_wrappers_thin "$o" || true
     pipeline_abi_inject_al_nc_seq_thin "$o" || true
     pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
@@ -17713,6 +17715,7 @@ ensure_pipeline_abi_prefer_one() {
         pipeline_abi_inject_asm73_live_set_thin "$o" || true
         pipeline_abi_inject_for_call_args_thin "$o" || true
         pipeline_abi_inject_emit_index_thin "$o" || true
+        pipeline_abi_inject_w156_guard_thin "$o" || true
         pipeline_abi_inject_call_method_wrappers_thin "$o" || true
         pipeline_abi_inject_al_nc_seq_thin "$o" || true
         pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
@@ -17790,6 +17793,7 @@ ensure_pipeline_abi_prefer_one() {
       pipeline_abi_inject_asm73_live_set_thin "$o" || true
       pipeline_abi_inject_for_call_args_thin "$o" || true
       pipeline_abi_inject_emit_index_thin "$o" || true
+      pipeline_abi_inject_w156_guard_thin "$o" || true
       pipeline_abi_inject_call_method_wrappers_thin "$o" || true
       pipeline_abi_inject_al_nc_seq_thin "$o" || true
       pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
@@ -17875,6 +17879,7 @@ ensure_pipeline_abi_prefer_one() {
   pipeline_abi_inject_asm73_live_set_thin "$o" || true
   pipeline_abi_inject_for_call_args_thin "$o" || true
   pipeline_abi_inject_emit_index_thin "$o" || true
+  pipeline_abi_inject_w156_guard_thin "$o" || true
   pipeline_abi_inject_call_method_wrappers_thin "$o" || true
   pipeline_abi_inject_al_nc_seq_thin "$o" || true
   pipeline_abi_inject_emit_ctx_bss_thin "$o" || true
@@ -22305,6 +22310,38 @@ pipeline_abi_inject_for_call_args_thin() {
 # wave516: tipU 6/13→15/15 pipe-cell heal (mid base/idx/esz/hit/rc/res_ty/rtk);
 #   stamp → w516; tip PRODUCT reinject still HARD BAN (keep prior overlay).
 # PLATFORM: SHARED · BAN reinject both ends.
+# w1483: wave156 INDEX assign-addr cache guard (stale rbx SEGV on x86_64).
+# Strong glue_index_assign_addr_cache_hit (always miss) over base weak.
+# Idempotent: skip when $o already has T for the symbol.
+# PLATFORM: LINUX PREFER (pure-asm). MACOS/WINDOWS: no-op.
+pipeline_abi_inject_w156_guard_thin() {
+  local o="$1"
+  local thin_x="src/runtime_pipeline_abi_w156_guard_thin.x"
+  local saved_prefer="${XLANG_PABI_THIN_PREFER_ASM-}"
+  local had_prefer=0
+  local rc=0
+  [ -s "$o" ] && [ -f "$thin_x" ] || return 0
+  case "$(uname -s)" in
+    Linux) ;;
+    *) return 0 ;;
+  esac
+  if nm "$o" 2>/dev/null | grep -q " T glue_index_assign_addr_cache_hit$"; then
+    return 0
+  fi
+  if [ "${XLANG_PABI_THIN_PREFER_ASM+x}" = "x" ]; then
+    had_prefer=1
+  fi
+  export XLANG_PABI_THIN_PREFER_ASM=1
+  XLANG_PABI_THIN_FORCE_INJECT=1 pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w1483-w156-guard"
+  rc=$?
+  if [ "$had_prefer" = "1" ]; then
+    export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"
+  else
+    unset XLANG_PABI_THIN_PREFER_ASM
+  fi
+  return "$rc"
+}
+
 pipeline_abi_inject_emit_index_thin() {
   local o="$1"
   local thin_idx="src/runtime_pipeline_abi_emit_index_thin.x"

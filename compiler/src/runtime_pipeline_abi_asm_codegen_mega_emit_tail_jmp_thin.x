@@ -18,6 +18,12 @@ export extern function pipeline_block_labeled_return_expr_ref(arena: *u8, block_
 export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
 export extern function ast_pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, ei: i32): i32;
 export extern function ast_ast_block_final_expr_ref(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_consts(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_if_stmts(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_for_loops(arena: *u8, block_ref: i32): i32;
+export extern function ast_ast_block_num_stmt_order(arena: *u8, block_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -192,6 +198,51 @@ function w499t_find_fwd_in_block(a: *u8, m: *u8, fi: i32, br: i32): i32 {
 }
 
 /**
+ * True when block br holds exactly one statement (w1483 gate).
+ * A forwarder body is one `return callee(formals…)` (or one unsafe
+ * region wrapping it). Any let / const / if / loop / extra expr_stmt
+ * means the call is not the whole body: w1048 used to pick the first
+ * matching CALL anywhere (e.g. a 0-arg `reset();` in a 0-param fn)
+ * and replaced the whole function with `jmp reset` (Ubuntu tip
+ * rt_ab_step_read_pp 8-byte body).
+ * @param a *u8 — arena
+ * @param br i32 — block ref; <=0 returns 0
+ * @return i32 — 1 single statement, 0 otherwise
+ * PLATFORM: SHARED — w1483 forwarder gate.
+ */
+function w499t_single_stmt(a: *u8, br: i32): i32 {
+  unsafe {
+    let cell: u8[8];
+    let n: i32 = 0;
+    let fe: i32 = 0;
+    if (br <= 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_lets(a, br));
+    if (w499t_c32(&cell[0]) != 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_consts(a, br));
+    if (w499t_c32(&cell[0]) != 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_if_stmts(a, br));
+    if (w499t_c32(&cell[0]) != 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_loops(a, br));
+    if (w499t_c32(&cell[0]) != 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_for_loops(a, br));
+    if (w499t_c32(&cell[0]) != 0) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_stmt_order(a, br));
+    if (w499t_c32(&cell[0]) > 1) { return 0; }
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_expr_stmts(a, br));
+    n = w499t_c32(&cell[0]);
+    pipe_store_i32_le(&cell[0], 0, pipeline_block_num_labeled_stmts(a, br));
+    n = n + w499t_c32(&cell[0]);
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_regions(a, br));
+    n = n + w499t_c32(&cell[0]);
+    pipe_store_i32_le(&cell[0], 0, ast_ast_block_final_expr_ref(a, br));
+    fe = w499t_c32(&cell[0]);
+    if (fe > 0) { n = n + 1; }
+    if (n != 1) { return 0; }
+    return 1;
+  }
+}
+
+/**
  * Try to emit a pure param-forwarder as a host-like jmp stub.
  * @return i32 — 1 emitted (caller done), 0 not applicable, -1 emit failure
  * PLATFORM: SHARED — x86_64 product; ARM64 keeps fat forwarder path.
@@ -213,21 +264,23 @@ export function w499_mega_try_tail_jmp(
     if (bctx == (0 as *u8)) { return 0; }
     if (ta != 0) { return 0; }
     if (body_ref <= 0) { return 0; }
-    /* Prefer first forwarder CALL among labeled returns (body + unsafe regions). */
+    /* w1483: body must be exactly one statement (the forwarder, or one
+     * unsafe region whose body is exactly the forwarder). */
+    pipe_store_i32_le(&cell[0], 0, w499t_single_stmt(a, body_ref));
+    if (w499t_c32(&cell[0]) == 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, w499t_find_fwd_in_block(a, m, i, body_ref));
     ret_ref = w499t_c32(&cell[0]);
     if (ret_ref <= 0) {
       pipe_store_i32_le(&cell[0], 0, ast_ast_block_num_regions(a, body_ref));
       nreg = w499t_c32(&cell[0]);
+      if (nreg != 1) { return 0; }
       ri = 0;
-      while (ri < nreg) {
-        pipe_store_i32_le(&cell[0], 0, pipeline_block_region_body_ref(a, body_ref, ri));
-        ch = w499t_c32(&cell[0]);
-        pipe_store_i32_le(&cell[0], 0, w499t_find_fwd_in_block(a, m, i, ch));
-        ret_ref = w499t_c32(&cell[0]);
-        if (ret_ref > 0) { break; }
-        ri = ri + 1;
-      }
+      pipe_store_i32_le(&cell[0], 0, pipeline_block_region_body_ref(a, body_ref, ri));
+      ch = w499t_c32(&cell[0]);
+      pipe_store_i32_le(&cell[0], 0, w499t_single_stmt(a, ch));
+      if (w499t_c32(&cell[0]) == 0) { return 0; }
+      pipe_store_i32_le(&cell[0], 0, w499t_find_fwd_in_block(a, m, i, ch));
+      ret_ref = w499t_c32(&cell[0]);
     }
     if (ret_ref <= 0) { return 0; }
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_call_callee_ref_at(a, ret_ref));
