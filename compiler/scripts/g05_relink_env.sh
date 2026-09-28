@@ -1057,6 +1057,22 @@ case "$UNAME_S" in
           python3 scripts/win_coff_keep_earliest_sym.py --demote-all-dual \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1493: the demote leaves STATIC modlet copies whose callers (store,
+        # index, &let paths) fill a different module-let table than the
+        # EXTERNAL find/load read, so those accesses fail with CG002
+        # elf_ec=-1. Point those relocations at the EXTERNAL faces.
+        # PLATFORM: WINDOWS.
+        if [ -f scripts/elf_retarget_local_dup_relocs.py ]; then
+          python3 scripts/elf_retarget_local_dup_relocs.py \
+            build_asm/selfhost_pabi/pabi_weak.o \
+            pipeline_asm_modlet_prepare_and_emit_elf_c \
+            pipeline_asm_modlet_seed_nonzero_inits_elf_c \
+            pipeline_asm_modlet_store_from_rax_elf_c \
+            pipeline_asm_modlet_load_to_rax_elf_c \
+            pipeline_asm_modlet_find pipe_modlet_get_n \
+            pipeline_asm_modlet_name_is_shared pipeline_asm_modlet_reset \
+            >/dev/null 2>&1 || true
+        fi
         # w1034: when wave743 sidecar is linked, weaken egg typed so PE
         # first-wins PAGE21 owner-bind (matches Ubuntu single T). PLATFORM: WINDOWS.
         if [ -n "$_PABI_RELOC_TYPED" ]; then
