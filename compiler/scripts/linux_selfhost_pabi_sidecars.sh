@@ -160,7 +160,11 @@ print("noped", noped)
 PY
 python3 "$WORK/nop_panic.py" "$WORK/two_raw.o" "$WORK/two_stripped.o"
 
-weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod
+# w1491: pipe_slot_bytes_named_in_mod stays strong too. The copy in
+# runtime_pipeline_abi.o jumps to its epilogue from the name-match while
+# (returns 1), so every struct local got an 8/16-byte slot and overlapped
+# its neighbours (runtime_read_file_malloc_impl view vs out_len).
+weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod pipe_slot_bytes_named_in_mod
 weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
   pipeline_asm_array_lit_elem_byte_sz_c \
   glue_array_lit_force_esz_from_elem_type_c \

@@ -20386,6 +20386,22 @@ pipeline_abi_inject_binop_block_peel_thin() {
 #   w599 LINUX -E replace smash leftover to_rax; HARD BAN PREFER.
 # G.7: helpers+rhsrax+emit peers match mega / full thin semantics.
 # PLATFORM: SHARED · MACOS full PREFER / LINUX -E chain + w445/w448/w449/w451/w454 heal-asm.
+# w1491: a HARD BAN "keep prior" leaf only has a prior body when $o still
+# defines its exports. A from-scratch pabi (full cold, or object lost) has
+# none, so every keep-prior leaf is U and the pure-ld product link fails.
+# Return 0 when any `export function` of the thin is not T/W in $o.
+# PLATFORM: SHARED (called from the LINUX -E chain).
+pabi_keep_prior_leaf_absent() {
+  local obj="$1" thin="$2" fn
+  [ -f "$obj" ] && [ -f "$thin" ] || return 1
+  for fn in $(sed -n 's/^export function \([A-Za-z0-9_]*\).*/\1/p' "$thin"); do
+    if ! nm "$obj" 2>/dev/null | awk -v s="$fn" '($2=="T"||$2=="W")&&$3==s{f=1} END{exit !f}'; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 pipeline_abi_inject_assign_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_assign_thin.x"
@@ -20745,8 +20761,20 @@ pipeline_abi_inject_assign_thin() {
         lo_stamp="src/${lo_rest%%|*}"
         lo_tag="${lo_rest#*|}"
         # wave533–w537 Soft Cap: HARD BAN tip reinject for deref peers.
+        # w1491: the ban keeps the prior body. When $o has no prior body
+        # (from-scratch pabi), rebuild it on this -E chain as before the ban.
         case "$lo_x" in
           *assign_deref_let_init_thin.x|*assign_deref_vec_var_thin.x|*assign_deref_scalar_thin.x|*assign_deref_array_call_thin.x|*assign_deref_vec_call_thin.x|*assign_deref_slice_call_thin.x|*assign_index_array_walk_thin.x|*assign_index_array_peel_thin.x|*assign_index_setup_thin.x|*assign_field_chain_walk_thin.x|*assign_field_mag_fold_thin.x|*assign_index_array_resolve_thin.x)
+            if pabi_keep_prior_leaf_absent "$o" "$lo_x"; then
+              log "pipeline_abi w1491 keep-prior absent in pabi: -E rebuild $lo_x"
+              pipeline_abi_inject_thin_leaf "$o" "$lo_x" "$lo_tag"
+              rc=$?
+              if [ "$rc" -eq 0 ]; then
+                touch "$lo_stamp"
+                continue
+              fi
+              break
+            fi
             if [ -f "$lo_x" ]; then
               touch "$lo_stamp"
               rm -f src/.pabi_w445_assign_deref_let_init.stamp \

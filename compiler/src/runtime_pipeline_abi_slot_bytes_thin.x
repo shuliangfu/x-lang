@@ -497,7 +497,9 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
        * glue_type_size_simple lanes*esz). Do not add an i32x4 name table.
        * PLATFORM: SHARED — LINUX|x86 high-end is the live overlap;
        * MACOS|ARM64 low-end was false-green. */
-      arr_sz = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      unsafe {
+        arr_sz = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      }
       if (arr_sz > 0) {
         if (arr_sz % 8 != 0) {
           arr_sz = arr_sz + (8 - (arr_sz % 8));
