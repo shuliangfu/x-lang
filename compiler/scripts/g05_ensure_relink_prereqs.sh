@@ -3728,6 +3728,15 @@ if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" 
   fi
 fi
 
+# w1483: Linux selfhost_pabi tip refresh (pabi_alias + arr_struct_lit peers).
+# PLATFORM: LINUX.
+if [ "$(uname -s)" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
+  if ! bash scripts/linux_selfhost_pabi_refresh_tip.sh >&2; then
+    echo "g05_ensure_relink_prereqs: selfhost_pabi tip refresh failed" >&2
+    exit 1
+  fi
+fi
+
 # --- 齐备检查 ---
 mkdir -p build_asm/seed_host
 miss=0

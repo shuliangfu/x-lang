@@ -468,6 +468,15 @@ if [ -n "$_PABI_SELFHOST" ] \
   && [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
 fi
+# w1483: arr_struct_lit peers (tip pabi U). Built by
+# linux_selfhost_pabi_sidecars.sh. PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ]; then
+  for _asl in call_bulk call_elems copy_bulk copy_elems call_one_elem; do
+    if [ -s "build_asm/selfhost_pabi/asl_$_asl.o" ]; then
+      _PABI_SELFHOST="$_PABI_SELFHOST build_asm/selfhost_pabi/asl_$_asl.o"
+    fi
+  done
+fi
 # w1023: nested ARRAY_LIT local let-init → array_lit_flat. PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/vector_let_init_nested_override.c ]; then
   mkdir -p build_asm/selfhost_pabi
