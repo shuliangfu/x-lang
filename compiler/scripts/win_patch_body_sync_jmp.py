@@ -231,6 +231,33 @@ def _patch_extra_t_to_primary(
     return patched
 
 
+def _patch_cache_static_to_global(
+    data: bytearray,
+    secs: list[tuple[int, int, int, str]],
+    syms: dict[str, list[tuple[int, str]]],
+) -> int:
+    """
+    w1486: egg carries two binop VAR-slot caches — static wave210 copies (t,
+    g_wave210_var_*) and global T copies (g_var_cache_*). Different egg
+    glue_try_binop_load_operand copies call different sets, and the
+    block-entry cache clear overlay can only reach the global T. Fold every
+    static t entry onto its global T twin so there is one cache state.
+    PLATFORM: WINDOWS.
+    """
+    patched = 0
+    for name in sorted(syms):
+        if not name.startswith("glue_binop_var_slot_cache_"):
+            continue
+        entries = syms[name]
+        strong = [a for a, k in entries if k == "T"]
+        local = [a for a, k in entries if k == "t"]
+        if len(strong) != 1 or not local:
+            continue
+        for a in local:
+            patched += _patch_jmp(data, secs, name + "(t)", a, strong[0])
+    return patched
+
+
 def main() -> int:
     exe = Path(sys.argv[1] if len(sys.argv) > 1 else "xlang.exe")
     if not exe.is_file():
@@ -272,12 +299,16 @@ def main() -> int:
         "pipeline_asm_compute_frame_size_c",
         # w1041: call_spill (n+1)*8 overlay. PLATFORM: WINDOWS.
         "glue_asm_sum_block_call_spill_bytes",
+        # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
+        # already listed first (W→T). PLATFORM: WINDOWS.
     )
     patched = 0
     # w1026: tip fat call / enc_label / reloc surface → Cap residual. Do this
     # before bake W→T folds so call_dispatch tip bodies do not stay first-wins.
     patched += _patch_tip_fat_to_impl(data, secs, syms)
     patched += _patch_tip_fat_earliest_to_later(data, secs, syms)
+    # w1486: single binop VAR-slot cache (static t → global T). PLATFORM: WINDOWS.
+    patched += _patch_cache_static_to_global(data, secs, syms)
     for name in names:
         entries = syms.get(name, [])
         strong = [a for a, k in entries if k == "T"]
