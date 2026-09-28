@@ -17,7 +17,8 @@
 
 /** typeck.x: named-type scratch (avoid local u8[64] under self-typecheck). */
 uint8_t *typeck_named_scratch64(void) {
-  static uint8_t s[128];
+  /* w1504: 256 like the host-local gens (AST names are up to 255 + NUL). */
+  static uint8_t s[256];
   return s;
 }
 
@@ -137,6 +138,8 @@ extern void pipeline_expr_var_name_into(struct ast_ASTArena *a, int32_t expr_ref
 extern int32_t pipeline_expr_const_folded_valid_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_const_folded_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t pipeline_expr_int_val_at(struct ast_ASTArena *a, int32_t expr_ref);
+/* w1504: full 64-bit literal value (int_val_at is the i32 face). */
+extern int64_t pipeline_expr_int64_val_at(struct ast_ASTArena *a, int32_t expr_ref);
 extern int32_t glue_fold_func_returns_param01_scalar_binop_c(struct ast_ASTArena *a, struct ast_Module *mod, int32_t fi, int32_t *out_ko);
 extern int32_t glue_try_eval_pure_param0_scalar_func_c(struct ast_ASTArena *a, struct ast_Module *mod, int32_t fi, int32_t arg, int32_t *out);
 extern int32_t glue_fold_func_returns_param0_index_const_c(struct ast_ASTArena *a, struct ast_Module *mod, int32_t fi, int32_t *out_lane);
@@ -912,6 +915,7 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     int32_t av0;
     int32_t av1;
     int32_t folded;
+    int32_t call_wide;
     uint8_t cname[256];
     struct ast_Module *mod;
     struct ast_Expr *ea0;
@@ -954,8 +958,21 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
     if (fi < 0)
       return;
 
+    /* PLATFORM: SHARED — w1504 / 10.30: const_folded_val is int32_t. A call whose
+     * result type is wider than 32 bits (i64/u64/ptr) may only be stamped when the
+     * exact 64-bit value is known to fit; otherwise the fold truncates
+     * (id(10000000000) -> 1410065408). call_wide=1 gates the paths below. */
+    {
+      int32_t call_tr = e->resolved_type_ref;
+      int32_t call_tk = call_tr > 0 ? pipeline_type_kind_ord_at(a, call_tr) : 0;
+      call_wide = (call_tk >= 0 && call_tk <= 3) ? 0 : 1;
+    }
+
     /* (1) scalar f(c0,c1) -> const */
     if (nargs == 2) {
+      int64_t av0w;
+      int64_t av1w;
+      int64_t folded64;
       if (glue_fold_func_returns_param01_scalar_binop_c(a, mod, fi, &binop_ko) == 0)
         return;
       arg0 = pipeline_expr_call_arg_ref(a, expr_ref, 0);
@@ -966,42 +983,54 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
       ea1 = glue_arena_expr_at_ref(a, arg1);
       if (!ea0 || !ea1)
         return;
+      /* w1504: a LIT arg outside int32 is never truncated into the fold. */
       if (ea0->const_folded_valid)
-        av0 = ea0->const_folded_val;
-      else if (ea0->kind == ast_ExprKind_EXPR_LIT || ea0->kind == ast_ExprKind_EXPR_BOOL_LIT)
-        av0 = (int32_t)ea0->int_val;
-      else
+        av0w = (int64_t)ea0->const_folded_val;
+      else if (ea0->kind == ast_ExprKind_EXPR_LIT || ea0->kind == ast_ExprKind_EXPR_BOOL_LIT) {
+        av0w = ea0->int_val;
+        if (!typeck_ctfe_fits_i32(av0w))
+          return;
+      } else
         return;
       if (ea1->const_folded_valid)
-        av1 = ea1->const_folded_val;
-      else if (ea1->kind == ast_ExprKind_EXPR_LIT || ea1->kind == ast_ExprKind_EXPR_BOOL_LIT)
-        av1 = (int32_t)ea1->int_val;
-      else
+        av1w = (int64_t)ea1->const_folded_val;
+      else if (ea1->kind == ast_ExprKind_EXPR_LIT || ea1->kind == ast_ExprKind_EXPR_BOOL_LIT) {
+        av1w = ea1->int_val;
+        if (!typeck_ctfe_fits_i32(av1w))
+          return;
+      } else
         return;
+      av0 = (int32_t)av0w;
+      av1 = (int32_t)av1w;
       /* Same domain as glue_const_scalar_binop_eval_i32 (ko 4..8). */
       switch (binop_ko) {
       case 4:
-        folded = (int32_t)((int64_t)av0 + (int64_t)av1);
+        folded64 = av0w + av1w;
         break;
       case 5:
-        folded = (int32_t)((int64_t)av0 - (int64_t)av1);
+        folded64 = av0w - av1w;
         break;
       case 6:
-        folded = (int32_t)((int64_t)av0 * (int64_t)av1);
+        folded64 = av0w * av1w;
         break;
       case 7:
         if (av1 == 0)
           return;
-        folded = (int32_t)((int64_t)av0 / (int64_t)av1);
+        folded64 = av0w / av1w;
         break;
       case 8:
         if (av1 == 0)
           return;
-        folded = (int32_t)((int64_t)av0 % (int64_t)av1);
+        folded64 = av0w % av1w;
         break;
       default:
         return;
       }
+      /* w1504: wide result type needs the exact value to fit the i32 field;
+       * 32-bit result types keep the historical wrap. */
+      if (call_wide && !typeck_ctfe_fits_i32(folded64))
+        return;
+      folded = (int32_t)folded64;
       e->const_folded_val = folded;
       e->const_folded_valid = 1;
       return;
@@ -1028,10 +1057,18 @@ static void typeck_fold_expr_ref_impl(struct ast_ASTArena *a, int32_t expr_ref,
         } else {
           int32_t ako = pipeline_expr_kind_ord_at(a, arg0);
           if (ako == 0 || ako == 2) {
-            av0 = (int32_t)pipeline_expr_int_val_at(a, arg0);
-            arg_const_ok = 1;
+            int64_t av0w1 = pipeline_expr_int64_val_at(a, arg0);
+            /* w1504: never truncate a wide LIT arg into the i32 evaluator. */
+            if (typeck_ctfe_fits_i32(av0w1)) {
+              av0 = (int32_t)av0w1;
+              arg_const_ok = 1;
+            }
           }
         }
+        /* w1504: the pure-1-param evaluator is i32-only; for a wide result type
+         * its product can overflow silently, so leave the call live. */
+        if (call_wide)
+          arg_const_ok = 0;
         if (arg_const_ok != 0 &&
             glue_try_eval_pure_param0_scalar_func_c(a, mod, fi, av0, &folded) != 0) {
           e->const_folded_val = folded;

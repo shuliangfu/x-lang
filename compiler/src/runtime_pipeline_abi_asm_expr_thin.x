@@ -50,6 +50,10 @@ export extern function pipeline_asm_emit_logor_elf_impl(arena: *u8, elf_ctx: *u8
 export extern function pipeline_expr_enum_namespace_field_tag(arena: *u8, expr_ref: i32): i32;
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_int64_val_at(arena: *u8, expr_ref: i32): i64;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
@@ -66,6 +70,53 @@ function w495_cell_i32(base: *u8): i32 {
   }
 }
 
+
+/**
+ * Emit an INT_LIT whose i64 value does not fit in i32 as a full imm64.
+ * w1504 (10.30): the Darwin leftover pabi emit_expr_elf_fast calls
+ * pipeline_expr_int64_val_at without a prototype (implicit int), so it
+ * sign-extends w0 and range-checks only bit 31; 10000000000 became
+ * mov w0,#0xe400; movk w0,#0x540b,lsl16. The rec owns wide literals first.
+ * Float-typed literals stay on the fast path (it converts to f32/f64 bits).
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF emit context
+ * @param expr_ref i32 — INT_LIT expression ref
+ * @param ta i32 — target arch
+ * @return i32 — emit rc when handled; -99 when not a wide int literal
+ * PLATFORM: SHARED freestanding emit (Linux/Win fast already emit the same imm64).
+ */
+function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32): i32 {
+  let v64: i64 = 0;
+  let i32_max: i64 = 2147483647;
+  let i32_min: i64 = 0;
+  let tref: i32 = 0;
+  let tk: i32 = 0;
+  let lo: i32 = 0;
+  let hi: i32 = 0;
+  unsafe {
+    v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+  }
+  i32_min = 0 - 2147483647 - 1;
+  if (v64 >= i32_min && v64 <= i32_max) {
+    return 0 - 99;
+  }
+  unsafe {
+    tref = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  }
+  if (tref > 0) {
+    unsafe {
+      tk = pipeline_type_kind_ord_at(arena, tref);
+    }
+    if (tk == 14 || tk == 15) {
+      return 0 - 99;
+    }
+  }
+  lo = v64 as i32;
+  hi = (v64 >> 32) as i32;
+  unsafe {
+    return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+  }
+}
 
 /**
  * Freestanding expr ELF recursion with EXPR_ASM (60) slice0.
@@ -90,6 +141,16 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
       pipe_store_i32_le(&cell_ko[0], 0, pipeline_expr_kind_ord_at(arena, expr_ref));
     }
     ko = w495_cell_i32(&cell_ko[0]);
+  }
+  if (ko == 0) {
+    unsafe {
+      /* w1504 (10.30): wide INT_LIT imm64 before the fast path; pipe cell. */
+      pipe_store_i32_le(&cell_r[0], 0, w1504_emit_wide_int_lit(arena, elf_ctx, expr_ref, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r != (0 - 99)) {
+      return r;
+    }
   }
   unsafe {
     /* PLATFORM: SHARED — tip drops mid `r=pipeline_asm_emit_expr_elf_fast()`; pipe cell. */

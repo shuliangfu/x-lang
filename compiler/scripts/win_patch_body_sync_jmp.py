@@ -86,6 +86,15 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "glue_emit_assign_var_elf_c",
 )
 
+# w1504 (10.30): egg copies of the i32 literal probe skip the wide check, so
+# `a + 20000000000` loaded `mov $0xa817c800,%ebx` (low 32 bits). Fold every
+# entry (T and same-TU t) onto the checked twin with the same signature
+# (arena, expr_ref, out_imm) -> 1 only for an i32-fit INT/BOOL literal.
+# PLATFORM: WINDOWS.
+_ALIAS_TO_CHECKED: tuple[tuple[str, str], ...] = (
+    ("pipeline_asm_expr_lit_i32_at_c", "pipeline_asm_cmp_expr_lit_i32_at"),
+)
+
 
 def _nm(exe: Path) -> dict[str, list[tuple[int, str]]]:
     out = subprocess.check_output(["nm", str(exe)], text=True, errors="replace")
@@ -350,6 +359,15 @@ def main() -> int:
             continue
         for _a in _lc:
             patched += _patch_jmp(data, secs, _ln + "(t)", _a, _st[0])
+    # w1504: unchecked i32 literal probe → checked twin. PLATFORM: WINDOWS.
+    for _src, _dst in _ALIAS_TO_CHECKED:
+        _dt = [a for a, k in syms.get(_dst, []) if k == "T"]
+        _se = [a for a, k in syms.get(_src, []) if k in "Tt"]
+        if len(_dt) != 1 or not _se:
+            print(f"win_patch_body_sync_jmp: skip {_src} (checked twin missing)")
+            continue
+        for _a in _se:
+            patched += _patch_jmp(data, secs, _src + "->" + _dst, _a, _dt[0])
     for name in names:
         entries = syms.get(name, [])
         strong = [a for a, k in entries if k == "T"]

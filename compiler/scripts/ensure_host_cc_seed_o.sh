@@ -19836,6 +19836,16 @@ pipeline_abi_inject_modlet_thin() {
   if [ "${XLANG_PABI_THIN_ALLOW_E_REPLACE+x}" = "x" ]; then had_e_repl=1; fi
   unset XLANG_PABI_THIN_INJECT_IF_NEWER
   export XLANG_PABI_THIN_PREFER_ASM=1
+  # w1504 PLATFORM: LINUX — keep -E+cc for this TU. Pure asm bakes the
+  #   file-level table into its own Lxml_ BSS label while the leftover pabi
+  #   still reads the static g_pipeline_asm_modlet (two tables; the modlet
+  #   index runs past 512 and the next product SEGVs compiling any .x with
+  #   module-level lets). Before the w1504 typeck gen the pure-asm try always
+  #   failed on T001 (nested unsafe blocks), so -E+cc is what every Linux
+  #   product has shipped. Debt 10.38.
+  case "$(uname -s 2>/dev/null)" in
+    Linux) export XLANG_PABI_THIN_PREFER_ASM=0 ;;
+  esac
   export XLANG_PABI_THIN_ALLOW_E_REPLACE=1
   pipeline_abi_inject_thin_leaf "$o" "$thin_x" "w631-modlet-prefer"
   rc=$?

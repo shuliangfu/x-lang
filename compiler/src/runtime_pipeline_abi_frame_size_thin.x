@@ -33,6 +33,7 @@ export extern function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32
 export extern function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_asm_last_call_max_gp_units_c(): i32;
 export extern function glue_asm_last_binop_preserve_homes_c(): i32;
+export extern function glue_binop_var_slot_cache_clear(): void;
 export extern function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
 export extern function ast_ast_block_num_loops(arena: *u8, block_ref: i32): i32;
@@ -384,6 +385,10 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
  * Frame size for a function prologue.
  * Windows x86_64 (w1497): reserve 32 + 8*max(0, gp-4), 16-aligned, below the
  * frame when the body has a call. Linux/macOS return the core size.
+ * w1504: runs once per function before its body, so it also drops the binop
+ * VAR slot cache. The cache key is the reused AsmFuncCtx pointer, so without
+ * this a register home from the previous function (e.g. rbx = [rbp-0x18])
+ * was treated as live and the next function skipped its operand load.
  * PLATFORM: SHARED · WINDOWS x86_64 outgoing area.
  */
 #[no_mangle]
@@ -394,6 +399,9 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   let gp: i32 = 0;
   let out: i32 = 0;
   let rem: i32 = 0;
+  unsafe {
+    glue_binop_var_slot_cache_clear();
+  }
   size = w1500_fs_core(num_params, arena, block_ref, mod, func_index);
   if (arena == (0 as *u8) || block_ref <= 0) {
     return size;

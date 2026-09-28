@@ -139,10 +139,46 @@ def assemble(tip_text: str, short: str, cap: str, malias: str) -> str:
     return _BANNER + hdr + body
 
 
+_CAP_MARK = "/* wave322 layer-1 Cap residual (seeds/typeck_cap_residual.from_x.c) */\n"
+_MALIAS_MARK = "\n/* wave322 layer-2 mangle aliases (seeds/typeck_mangle_link_alias.from_x.c) */\n"
+
+
+def splice_cap_residual(gen_path: Path, cap_path: Path) -> int:
+    """w1504: re-splice layer-1 Cap residual into an existing typeck_gen.c.
+
+    PLATFORM: SHARED — when tip -E of typeck.x is unavailable, the host-local
+    typeck_gen.c is reused as-is and edits to seeds/typeck_cap_residual.from_x.c
+    never reach typeck_x.o (the CTFE CALL fold kept truncating i64 results).
+    The Cap residual sits between two fixed markers written by assemble(), so
+    the seed text is authoritative for that span. Returns 0 unchanged,
+    2 spliced, 1 error (markers missing: caller keeps the gen untouched).
+    """
+    if not gen_path.is_file() or not cap_path.is_file():
+        return 1
+    g = gen_path.read_text(encoding="utf-8", errors="replace")
+    a = g.find(_CAP_MARK)
+    b = g.find(_MALIAS_MARK)
+    if a < 0 or b < 0 or b < a:
+        print(f"assemble_typeck_gen: splice skip, markers missing in {gen_path}", file=sys.stderr)
+        return 1
+    a += len(_CAP_MARK)
+    cap = cap_path.read_text(encoding="utf-8", errors="replace")
+    if g[a:b] == cap:
+        return 0
+    gen_path.write_text(g[:a] + cap + g[b:], encoding="utf-8")
+    print(f"assemble_typeck_gen: spliced Cap residual into {gen_path}", file=sys.stderr)
+    return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--tip", required=True, help="path to tip xlang -E output (.c)")
-    ap.add_argument("--out", required=True, help="output typeck_gen.c path")
+    ap.add_argument("--tip", default=None, help="path to tip xlang -E output (.c)")
+    ap.add_argument("--out", default=None, help="output typeck_gen.c path")
+    ap.add_argument(
+        "--splice-cap",
+        default=None,
+        help="existing typeck_gen.c: re-splice seeds Cap residual only (exit 0 same / 2 spliced)",
+    )
     ap.add_argument(
         "--compiler-root",
         default=None,
@@ -153,6 +189,11 @@ def main(argv: list[str] | None = None) -> int:
     script_dir = Path(__file__).resolve().parent
     root = Path(args.compiler_root) if args.compiler_root else script_dir.parent
     seeds = root / "seeds"
+    if args.splice_cap:
+        return splice_cap_residual(Path(args.splice_cap), seeds / "typeck_cap_residual.from_x.c")
+    if not args.tip or not args.out:
+        print("assemble_typeck_gen: --tip and --out are required", file=sys.stderr)
+        return 1
     short_p = seeds / "typeck_short_face_alias.from_x.c"
     cap_p = seeds / "typeck_cap_residual.from_x.c"
     malias_p = seeds / "typeck_mangle_link_alias.from_x.c"

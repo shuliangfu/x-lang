@@ -503,6 +503,25 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# w1504 (终局待办 10.30): Darwin links the leftover gcc emit_expr_elf_rec /
+# emit_expr_elf_c from pabi_weak, whose emit_expr_elf_fast reads INT_LIT
+# values through an implicit-int int64_val_at (sxtw w0, bit-31 range check),
+# so literals above 32 bits were emitted as imm32. The rec's own source
+# (runtime_pipeline_abi_asm_expr_thin.x, no new file) now emits wide INT_LIT
+# as imm64 before the fast path; compile it with the current product every
+# relink and weaken the leftover rec/emit_expr_elf_c below.
+# Linux keeps its w739 rec, Windows its egg rec (both emit imm64 already).
+# PLATFORM: MACOS|DARWIN.
+_PABI_ASM_EXPR=""
+case "$UNAME_S" in
+  Darwin)
+    if [ "${XLANG_ASM_EXPR_REC_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_asm_expr_thin.x \
+        build_asm/selfhost_pabi/asm_expr_rec.o pipeline_asm_emit_expr_elf_rec
+      _PABI_ASM_EXPR="$_G05_PO_OUT"
+    fi
+    ;;
+esac
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
 # var + field + index + deref scalar. Built by g05_ensure when seeds present.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
@@ -995,6 +1014,30 @@ if [ "$UNAME_S" = "Darwin" ] \
         build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
     fi
   fi
+  # w1504: leftover gcc emit_expr_elf_rec / emit_expr_elf_c (and the shared
+  # w495 cell helper) are strong T in pabi_weak. Weaken them so the asm_expr
+  # rec wins for same-TU callers too. PLATFORM: MACOS|DARWIN.
+  if [ -n "$_PABI_ASM_EXPR" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ]; then
+      for _aesym in _pipeline_asm_emit_expr_elf_rec _pipeline_asm_emit_expr_elf_c _w495_cell_i32; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -E " ${_aesym}\$" | grep -v undefined | grep -qv weak; then
+          "$_oc" --weaken-symbol="$_aesym" \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+  fi
   # PLATFORM: MACOS|DARWIN — host_is_arm64_c is mov w0,#1; ret. Leftover
   # PAGE21/PAGEOFF12 still name the old BSS load and sit on that mov/ret.
   # ld rejects them. Drop only those mismatched relocs.
@@ -1354,7 +1397,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

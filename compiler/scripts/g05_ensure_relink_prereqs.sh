@@ -3549,11 +3549,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: typeck_gen.c ← archaeology seed (cold egg; no assemble)"
     fi
   fi
+  # w1504 (10.30): host-local typeck_gen.c is reused when tip -E typeck.x is
+  # unavailable, so Cap residual seed edits never reached typeck_x.o. Re-splice
+  # the seed span (exit 2 = changed → recompile). PLATFORM: SHARED.
+  _tg_spliced=0
+  if [ -f typeck_gen.c ] && [ -f scripts/assemble_typeck_gen_from_x.py ]; then
+    _tg_sp_rc=0
+    python3 scripts/assemble_typeck_gen_from_x.py --splice-cap typeck_gen.c || _tg_sp_rc=$?
+    if [ "$_tg_sp_rc" = "2" ]; then
+      _tg_spliced=1
+      echo "g05_ensure: typeck_gen.c Cap residual re-spliced from seed"
+    fi
+  fi
   if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
     python3 scripts/patch_typeck_gen_lang007.py || true
     _tg_after=$(wc -c < typeck_gen.c | tr -d ' ')
-    if [ "$_tg_before" != "$_tg_after" ] || [ ! -f typeck_x.o ] || [ typeck_gen.c -nt typeck_x.o ]; then
+    if [ "$_tg_spliced" = "1" ] || [ "$_tg_before" != "$_tg_after" ] || [ ! -f typeck_x.o ] || [ typeck_gen.c -nt typeck_x.o ]; then
       echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 / assemble)"
       # shellcheck disable=SC2086
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
