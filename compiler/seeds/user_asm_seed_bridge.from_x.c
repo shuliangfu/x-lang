@@ -322,6 +322,8 @@ int32_t seed_platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {
 extern void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst);
 extern int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx);
 extern int32_t pipeline_elf_ctx_reloc_offset_at(uint8_t *ctx_bytes, int32_t idx);
+extern int32_t pipeline_elf_ctx_reloc_shndx_at(uint8_t *ctx_bytes, int32_t idx);
+extern int32_t pipeline_elf_ctx_reloc_r_type_at(uint8_t *ctx_bytes, int32_t r);
 /* F7 data section. The modlet baker calls these same two faces.
  * First strong definition inside runtime_pipeline_abi.o (Windows from_x
  * leftover-PE static g_pipeline_elf_data_*) is the buffer that was written.
@@ -343,6 +345,21 @@ static int32_t seed_coff_append(struct codegen_CodegenOutBuf *out, const uint8_t
     out->length = out->length + 1;
   }
   return (i < n) ? -1 : 0;
+}
+
+/**
+ * 1 when reloc r patches a .data slot: shndx 4, or the absolute64 sentinel
+ * (r_type 200, only ever used for data slots). Twin of coff.x
+ * coff_reloc_is_data. PLATFORM: WINDOWS.
+ */
+static int32_t seed_coff_reloc_is_data(uint8_t *ctx_bytes, int32_t r, int32_t has_data) {
+  if (has_data == 0)
+    return 0;
+  if (pipeline_elf_ctx_reloc_shndx_at(ctx_bytes, r) == 4)
+    return 1;
+  if (pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, r) == 200)
+    return 1;
+  return 0;
 }
 
 /**
@@ -389,6 +406,10 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   int32_t strtab_used;
   int32_t ptr_raw;
   int32_t ptr_reloc;
+  int32_t ptr_reloc_data;
+  int32_t n_text_rel;
+  int32_t n_data_rel;
+  int32_t pass;
   int32_t ptr_sym;
   int32_t data_len;
   int32_t align_data;
@@ -492,6 +513,21 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   if (has_data != 0)
     align_data = (data_len + 3) & (-4);
   nsec = (has_data != 0) ? 2 : 1;
+  /* w1506 (10.28): a reloc that patches a .data slot (module string array,
+   * vtable, pointer bake) goes in the .data relocation table as
+   * IMAGE_REL_AMD64_ADDR64, not in .text as REL32. A reloc is a data reloc
+   * when its shndx is 4, or when it is the absolute64 sentinel (r_type 200):
+   * every absolute64 caller writes a .data slot, and on Windows the shndx
+   * override lands in a second BSS copy of the leftover pabi, so the shndx
+   * sidecar alone still reads .text there. PLATFORM: WINDOWS. */
+  n_text_rel = 0;
+  n_data_rel = 0;
+  for (r = 0; r < num_relocs; r++) {
+    if (seed_coff_reloc_is_data(ctx_bytes, r, has_data) != 0)
+      n_data_rel = n_data_rel + 1;
+    else
+      n_text_rel = n_text_rel + 1;
+  }
   reloc_size = num_relocs * 10;
   num_coff_syms = 2 + num_syms;
   symtab_size = num_coff_syms * 18;
@@ -505,6 +541,7 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     ptr_reloc = ptr_data + align_data;
   else
     ptr_reloc = ptr_raw + align4;
+  ptr_reloc_data = ptr_reloc + n_text_rel * 10;
   ptr_sym = ptr_reloc + reloc_size;
 
   out->length = 0;
@@ -544,8 +581,8 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
   sh[25] = (uint8_t)(ptr_reloc >> 8);
   sh[26] = (uint8_t)(ptr_reloc >> 16);
   sh[27] = (uint8_t)(ptr_reloc >> 24);
-  sh[32] = (uint8_t)(num_relocs);
-  sh[33] = (uint8_t)(num_relocs >> 8);
+  sh[32] = (uint8_t)(n_text_rel);
+  sh[33] = (uint8_t)(n_text_rel >> 8);
   sh[36] = 32;  /* Characteristics low */
   sh[38] = 80;
   sh[39] = 96;
@@ -575,6 +612,14 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     dh[21] = (uint8_t)(ptr_data >> 8);
     dh[22] = (uint8_t)(ptr_data >> 16);
     dh[23] = (uint8_t)(ptr_data >> 24);
+    if (n_data_rel > 0) {
+      dh[24] = (uint8_t)(ptr_reloc_data);
+      dh[25] = (uint8_t)(ptr_reloc_data >> 8);
+      dh[26] = (uint8_t)(ptr_reloc_data >> 16);
+      dh[27] = (uint8_t)(ptr_reloc_data >> 24);
+      dh[32] = (uint8_t)(n_data_rel);
+      dh[33] = (uint8_t)(n_data_rel >> 8);
+    }
     dh[36] = 0x40;
     dh[37] = 0x00;
     dh[38] = 0x30;
@@ -599,13 +644,18 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     }
   }
 
+  for (pass = 0; pass < 2; pass++)
   for (r = 0; r < num_relocs; r++) {
     uint8_t rel[10];
     int32_t sym_idx = 0;
+    int32_t is_data_rel;
     int32_t m;
     uint8_t r_sym_buf[256];
     int32_t rlen;
     int32_t roff;
+    is_data_rel = seed_coff_reloc_is_data(ctx_bytes, r, has_data);
+    if (is_data_rel != pass)
+      continue;
     memset(r_sym_buf, 0, sizeof(r_sym_buf));
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx_bytes, r, r_sym_buf);
     rlen = pipeline_elf_ctx_reloc_name_len(ctx_bytes, r);
@@ -629,7 +679,9 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     rel[5] = (uint8_t)(sym_idx >> 8);
     rel[6] = (uint8_t)(sym_idx >> 16);
     rel[7] = (uint8_t)(sym_idx >> 24);
-    rel[8] = 4; /* IMAGE_REL_AMD64_REL32 */
+    /* IMAGE_REL_AMD64_ADDR64 = 1 for a .data slot or the absolute64 sentinel
+     * (r_type 200); IMAGE_REL_AMD64_REL32 = 4 for .text code. */
+    rel[8] = (is_data_rel != 0 || pipeline_elf_ctx_reloc_r_type_at(ctx_bytes, r) == 200) ? 1 : 4;
     if (seed_coff_append(out, rel, 10) != 0)
       return -1;
   }
@@ -662,8 +714,8 @@ int32_t seed_platform_coff_write_coff_o_to_buf(void *elf_ctx, void *out_buf) {
     aux[1] = (uint8_t)(align4 >> 8);
     aux[2] = (uint8_t)(align4 >> 16);
     aux[3] = (uint8_t)(align4 >> 24);
-    aux[4] = (uint8_t)(num_relocs);
-    aux[5] = (uint8_t)(num_relocs >> 8);
+    aux[4] = (uint8_t)(n_text_rel);
+    aux[5] = (uint8_t)(n_text_rel >> 8);
     aux[14] = 1;
     if (seed_coff_append(out, aux, 18) != 0)
       return -1;

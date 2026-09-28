@@ -813,7 +813,7 @@ int32_t pipeline_asm_emit_struct_let_init_elf_c(void *arena, void *elf_ctx, int3
 
 /* VAR assign: real leftover body (was return -1 → si/if-assign CG002).
  * FIELD/INDEX/DEREF still stub until their windows_e peers land; si uses VAR dest.
- * PLATFORM: WINDOWS leftover-PE. Full twin: seeds/win_assign_var_override.c */
+ * PLATFORM: WINDOWS leftover-PE. Live product gate: src/runtime_pipeline_abi_assign_var_compound_thin.x */
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
 extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);

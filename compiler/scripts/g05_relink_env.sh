@@ -466,13 +466,13 @@ if [ "${XLANG_MODLET_STRPOOL_OVERLAY:-1}" = "1" ]; then
 fi
 # w1502: VAR assign gate + leaves (终局待办 10.25). Darwin pabi is a libtool
 # archive, so ensure's w620 inject of the assign_var leaves never ran there,
-# and Windows linked seeds/win_assign_var_override.c; both live gates handled
+# and Windows linked a host-cc var override (removed w1506); both live gates handled
 # plain ASSIGN only, so `a += 3` and every compound op failed with CG002.
 # Compile the gate overlay plus the unchanged leaves (try_let, finish, typed
 # stores, rhs_to_rax and its arms; load_lr lives in the gate file, mod stays
 # binop_wide) with the current
 # product every relink. Darwin weakens the pabi_weak gate below; Windows
-# drops the var override, weakens pabi_weak and folds W/t to T post-link.
+# weakens pabi_weak and folds W/t to T post-link.
 # Linux keeps the injected pabi leaves. PLATFORM: MACOS|DARWIN + WINDOWS.
 _PABI_ASSIGN_VAR=""
 case "$UNAME_S" in
@@ -551,16 +551,12 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
-    for _wov in src/win_assign_var_override.o src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_assign_deref_override.o src/win_struct_let_init_override.o src/win_copy_large_struct_override.o src/win_simd_splat_override.o src/win_vector_type_let_init_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue
       fi
-      # w1502: the pure .x gate replaces the kind-28-only var override.
-      if [ -n "$_PABI_ASSIGN_VAR" ] \
-        && [ "$_wov" = "src/win_assign_var_override.o" ]; then
-        continue
-      fi
+      # w1506 (10.35): the var override .c is gone; the pure .x gate owns VAR assign.
       if [ -s "$_wov" ]; then
         _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES $_wov"
       fi

@@ -1,7 +1,7 @@
 // Thin pure overlay: VAR assign gate for Darwin + Windows (w1502, 终局待办 10.25).
 // Darwin pabi is a libtool archive, so the w620 inject of the assign_var
 // leaves never ran there; the live gate was a leftover host-cc body that only
-// handled plain ASSIGN (kind 28). Windows used seeds/win_assign_var_override.c,
+// handled plain ASSIGN (kind 28). Windows used a host-cc var override (removed w1506),
 // also kind 28 only. `a += 3` and every compound op (kinds 29..38) then
 // returned -1 and the whole function failed with CG002.
 // This gate keeps the leaf split of runtime_pipeline_abi_assign_var_thin.x
