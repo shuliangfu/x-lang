@@ -299,6 +299,8 @@ def main() -> int:
         "pipeline_asm_compute_frame_size_c",
         # w1041: call_spill (n+1)*8 overlay. PLATFORM: WINDOWS.
         "glue_asm_sum_block_call_spill_bytes",
+        # w1487: egg tail-jmp peer → off overlay (return 0). PLATFORM: WINDOWS.
+        "w499_mega_try_tail_jmp",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
