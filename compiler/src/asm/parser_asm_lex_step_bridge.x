@@ -9,30 +9,24 @@
 //
 // Layout matches seeds/parser_asm_lex_step_bridge.from_x.c and the lexer
 // authority: Lexer is 16 bytes, Token is 48, LexerResult is 72, slice is 16.
-// A 16-byte lexer is passed in two GPRs on SysV (Darwin arm64 verified
-// against clang; Linux x86_64 is the same shape). Write-back of the next
-// lexer is field stores. A whole-struct store keeps only the low 8 bytes.
-// The wrap ring stores its data pointer with memcpy of 8 bytes. A store
-// through *u8 emits one byte.
+// SysV (Darwin arm64 and Linux x86_64) passes that lexer in two GPRs.
+// Win64 MinGW passes it by address, and a 16-byte struct return arrives
+// through a hidden pointer in the first register. The wrappers below are
+// that split. Positive target_os only: #[cfg(not(...))] SIGSEGVs Darwin.
+// Write-back of the next lexer is field stores. A whole-struct store keeps
+// only the low 8 bytes. The wrap ring stores its data pointer with memcpy
+// of 8 bytes. A store through *u8 emits one byte.
 //
 // The C seed stays on disk for the prove harnesses. Product g05 must not
 // host-cc it. Chapter 9 deletes the seed.
-// PLATFORM: SHARED. Windows x64 passes a struct larger than 8 bytes by
-// address. If that host's product matrix is red, split the calls the way
-// parser_asm_parse_expr_link.x does. Do not host-cc the seed to go green.
+// PLATFORM: SHARED.
 
 extern function memcpy(dst: *u8, src: *u8, n: u64): *u8;
-
-extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
 
 extern function parser_asm_stretch_is_type_start_kind_c(kind: i32): i32;
 extern function parser_asm_stretch_skip_balanced_brackets_into_c(lex_inout: *u8, source: *u8): i32;
 extern function parser_asm_stretch_skip_type_suffix_c(lex_inout: *u8, source: *u8): i32;
 extern function parser_asm_stretch_skip_one_param_type_c(lex_inout: *u8, source: *u8): i32;
-extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
-extern function parser_asm_skip_balanced_braces_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
-extern function parser_asm_skip_one_struct_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
-extern function parser_asm_skip_imports_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
 
 // 16 bytes. pos at 0, line at 8, col at 12. Same as struct parser_asm_lexer.
 allow(padding) struct ParserAsmLexLexer {
@@ -128,6 +122,444 @@ function parser_asm_lex_bridge_store_i64(dst: *u8, v: i64): void {
   }
 }
 
+// Win64 passes a struct larger than 8 bytes by address. A 16-byte
+// return uses a hidden pointer in the first argument register and then
+// the address of the input lexer. SysV passes the lexer in two GPRs and
+// returns it in two GPRs. The wrappers are the single call face.
+// PLATFORM: WINDOWS x64 vs POSIX SysV.
+
+#[cfg(target_os = "windows")]
+extern function lexer_next_into(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void;
+#[cfg(target_os = "linux")]
+extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
+#[cfg(target_os = "macos")]
+extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
+#[cfg(target_os = "freebsd")]
+extern function lexer_next_into(out: *ParserAsmLexResult, lex: ParserAsmLexLexer, data: *u8): void;
+
+#[cfg(target_os = "windows")]
+extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "linux")]
+extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "macos")]
+extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "freebsd")]
+extern function parser_asm_skip_balanced_parens_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
+
+#[cfg(target_os = "windows")]
+extern function parser_asm_skip_balanced_braces_into_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "linux")]
+extern function parser_asm_skip_balanced_braces_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "macos")]
+extern function parser_asm_skip_balanced_braces_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "freebsd")]
+extern function parser_asm_skip_balanced_braces_into_slice_c(out: *ParserAsmLexLexer, lex: ParserAsmLexLexer, source: *u8): void;
+
+#[cfg(target_os = "windows")]
+extern function parser_asm_skip_one_struct_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "linux")]
+extern function parser_asm_skip_one_struct_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
+#[cfg(target_os = "macos")]
+extern function parser_asm_skip_one_struct_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
+#[cfg(target_os = "freebsd")]
+extern function parser_asm_skip_one_struct_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
+
+#[cfg(target_os = "windows")]
+extern function parser_asm_skip_imports_slice_c(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void;
+#[cfg(target_os = "linux")]
+extern function parser_asm_skip_imports_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
+#[cfg(target_os = "macos")]
+extern function parser_asm_skip_imports_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
+#[cfg(target_os = "freebsd")]
+extern function parser_asm_skip_imports_slice_c(lex: ParserAsmLexLexer, source: *u8): ParserAsmLexLexer;
+
+/**
+ * Call lexer_next_into. Win64 already receives the 16-byte lexer as an
+ * address, so the pointer is forwarded. The caller owns every pointer.
+ * @param out *ParserAsmLexResult — 72-byte result; not null
+ * @param lex *ParserAsmLexLexer — lexer to copy in; not null
+ * @param data *u8 — source slice; not null
+ * @return void
+ * PLATFORM: WINDOWS x64.
+ */
+#[cfg(target_os = "windows")]
+function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
+  unsafe {
+    lexer_next_into(out, lex, data);
+  }
+}
+
+/**
+ * Call lexer_next_into. SysV takes the 16-byte lexer in two GPRs, so
+ * the wrapper loads the caller's copy. A touched pad keeps that spill
+ * inside `sub sp`. The caller owns every pointer.
+ * @param out *ParserAsmLexResult — 72-byte result; not null
+ * @param lex *ParserAsmLexLexer — lexer to copy in; not null
+ * @param data *u8 — source slice; not null
+ * @return void
+ * PLATFORM: LINUX x86_64 SysV.
+ */
+#[cfg(target_os = "linux")]
+function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    lexer_next_into(out, *lex, data);
+  }
+}
+
+/**
+ * Call lexer_next_into. SysV takes the 16-byte lexer in two GPRs, so
+ * the wrapper loads the caller's copy. A touched pad keeps that spill
+ * inside `sub sp`. The caller owns every pointer.
+ * @param out *ParserAsmLexResult — 72-byte result; not null
+ * @param lex *ParserAsmLexLexer — lexer to copy in; not null
+ * @param data *u8 — source slice; not null
+ * @return void
+ * PLATFORM: MACOS arm64 SysV.
+ */
+#[cfg(target_os = "macos")]
+function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    lexer_next_into(out, *lex, data);
+  }
+}
+
+/**
+ * Call lexer_next_into. SysV takes the 16-byte lexer in two GPRs, so
+ * the wrapper loads the caller's copy. A touched pad keeps that spill
+ * inside `sub sp`. The caller owns every pointer.
+ * @param out *ParserAsmLexResult — 72-byte result; not null
+ * @param lex *ParserAsmLexLexer — lexer to copy in; not null
+ * @param data *u8 — source slice; not null
+ * @return void
+ * PLATFORM: FREEBSD SysV.
+ */
+#[cfg(target_os = "freebsd")]
+function parser_asm_lex_bridge_next(out: *ParserAsmLexResult, lex: *ParserAsmLexLexer, data: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    lexer_next_into(out, *lex, data);
+  }
+}
+
+/**
+ * Skip a balanced paren group. Win64 passes the input lexer by address.
+ * The callee writes the output lexer through out.
+ * @param out *ParserAsmLexLexer — advanced past the matching ')'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '('; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: WINDOWS x64.
+ */
+#[cfg(target_os = "windows")]
+function parser_asm_lex_bridge_skip_parens(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  unsafe {
+    parser_asm_skip_balanced_parens_into_slice_c(out, lex, source);
+  }
+}
+
+/**
+ * Skip a balanced paren group. SysV passes the input lexer in two GPRs.
+ * A touched pad keeps that spill inside `sub sp`.
+ * @param out *ParserAsmLexLexer — advanced past the matching ')'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '('; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: LINUX x86_64 SysV.
+ */
+#[cfg(target_os = "linux")]
+function parser_asm_lex_bridge_skip_parens(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    parser_asm_skip_balanced_parens_into_slice_c(out, *lex, source);
+  }
+}
+
+/**
+ * Skip a balanced paren group. SysV passes the input lexer in two GPRs.
+ * A touched pad keeps that spill inside `sub sp`.
+ * @param out *ParserAsmLexLexer — advanced past the matching ')'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '('; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: MACOS arm64 SysV.
+ */
+#[cfg(target_os = "macos")]
+function parser_asm_lex_bridge_skip_parens(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    parser_asm_skip_balanced_parens_into_slice_c(out, *lex, source);
+  }
+}
+
+/**
+ * Skip a balanced paren group. SysV passes the input lexer in two GPRs.
+ * A touched pad keeps that spill inside `sub sp`.
+ * @param out *ParserAsmLexLexer — advanced past the matching ')'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '('; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: FREEBSD SysV.
+ */
+#[cfg(target_os = "freebsd")]
+function parser_asm_lex_bridge_skip_parens(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    parser_asm_skip_balanced_parens_into_slice_c(out, *lex, source);
+  }
+}
+
+/**
+ * Skip a balanced brace group. Win64 passes the input lexer by address.
+ * The callee writes the output lexer through out.
+ * @param out *ParserAsmLexLexer — advanced past the matching '}'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '{'; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: WINDOWS x64.
+ */
+#[cfg(target_os = "windows")]
+function parser_asm_lex_bridge_skip_braces(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  unsafe {
+    parser_asm_skip_balanced_braces_into_slice_c(out, lex, source);
+  }
+}
+
+/**
+ * Skip a balanced brace group. SysV passes the input lexer in two GPRs.
+ * A touched pad keeps that spill inside `sub sp`.
+ * @param out *ParserAsmLexLexer — advanced past the matching '}'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '{'; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: LINUX x86_64 SysV.
+ */
+#[cfg(target_os = "linux")]
+function parser_asm_lex_bridge_skip_braces(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    parser_asm_skip_balanced_braces_into_slice_c(out, *lex, source);
+  }
+}
+
+/**
+ * Skip a balanced brace group. SysV passes the input lexer in two GPRs.
+ * A touched pad keeps that spill inside `sub sp`.
+ * @param out *ParserAsmLexLexer — advanced past the matching '}'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '{'; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: MACOS arm64 SysV.
+ */
+#[cfg(target_os = "macos")]
+function parser_asm_lex_bridge_skip_braces(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    parser_asm_skip_balanced_braces_into_slice_c(out, *lex, source);
+  }
+}
+
+/**
+ * Skip a balanced brace group. SysV passes the input lexer in two GPRs.
+ * A touched pad keeps that spill inside `sub sp`.
+ * @param out *ParserAsmLexLexer — advanced past the matching '}'; not null
+ * @param lex *ParserAsmLexLexer — lexer positioned after '{'; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: FREEBSD SysV.
+ */
+#[cfg(target_os = "freebsd")]
+function parser_asm_lex_bridge_skip_braces(out: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    parser_asm_skip_balanced_braces_into_slice_c(out, *lex, source);
+  }
+}
+
+/**
+ * Skip one struct. Win64 returns the next lexer through the hidden
+ * first-argument pointer and takes the input lexer by address. Field
+ * stores write pos, line, and col. A whole-struct store keeps only pos.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the struct; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: WINDOWS x64.
+ */
+#[cfg(target_os = "windows")]
+function parser_asm_lex_bridge_skip_struct(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let got: ParserAsmLexLexer = { pos: 0, line: 0, col: 0 };
+  unsafe {
+    parser_asm_skip_one_struct_slice_c(&got, lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip one struct. SysV returns the next lexer in two GPRs. The value
+ * stays in a local and is written field by field. A touched pad keeps
+ * the return slot inside `sub sp`.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the struct; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: LINUX x86_64 SysV.
+ */
+#[cfg(target_os = "linux")]
+function parser_asm_lex_bridge_skip_struct(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    let got: ParserAsmLexLexer = parser_asm_skip_one_struct_slice_c(*lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip one struct. SysV returns the next lexer in two GPRs. The value
+ * stays in a local and is written field by field. A touched pad keeps
+ * the return slot inside `sub sp`.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the struct; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: MACOS arm64 SysV.
+ */
+#[cfg(target_os = "macos")]
+function parser_asm_lex_bridge_skip_struct(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    let got: ParserAsmLexLexer = parser_asm_skip_one_struct_slice_c(*lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip one struct. SysV returns the next lexer in two GPRs. The value
+ * stays in a local and is written field by field. A touched pad keeps
+ * the return slot inside `sub sp`.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the struct; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: FREEBSD SysV.
+ */
+#[cfg(target_os = "freebsd")]
+function parser_asm_lex_bridge_skip_struct(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    let got: ParserAsmLexLexer = parser_asm_skip_one_struct_slice_c(*lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip leading imports. Win64 returns the next lexer through the hidden
+ * first-argument pointer and takes the input lexer by address. Field
+ * stores write pos, line, and col.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the first import; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: WINDOWS x64.
+ */
+#[cfg(target_os = "windows")]
+function parser_asm_lex_bridge_skip_imports(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let got: ParserAsmLexLexer = { pos: 0, line: 0, col: 0 };
+  unsafe {
+    parser_asm_skip_imports_slice_c(&got, lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip leading imports. SysV returns the next lexer in two GPRs. Field
+ * stores keep line and col. A touched pad keeps the return slot inside
+ * `sub sp`.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the first import; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: LINUX x86_64 SysV.
+ */
+#[cfg(target_os = "linux")]
+function parser_asm_lex_bridge_skip_imports(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    let got: ParserAsmLexLexer = parser_asm_skip_imports_slice_c(*lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip leading imports. SysV returns the next lexer in two GPRs. Field
+ * stores keep line and col. A touched pad keeps the return slot inside
+ * `sub sp`.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the first import; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: MACOS arm64 SysV.
+ */
+#[cfg(target_os = "macos")]
+function parser_asm_lex_bridge_skip_imports(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    let got: ParserAsmLexLexer = parser_asm_skip_imports_slice_c(*lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
+/**
+ * Skip leading imports. SysV returns the next lexer in two GPRs. Field
+ * stores keep line and col. A touched pad keeps the return slot inside
+ * `sub sp`.
+ * @param dst *ParserAsmLexLexer — receives the next lexer; not null
+ * @param lex *ParserAsmLexLexer — lexer at the first import; not null
+ * @param source *u8 — source slice; not null
+ * @return void
+ * PLATFORM: FREEBSD SysV.
+ */
+#[cfg(target_os = "freebsd")]
+function parser_asm_lex_bridge_skip_imports(dst: *ParserAsmLexLexer, lex: *ParserAsmLexLexer, source: *u8): void {
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
+  unsafe {
+    let got: ParserAsmLexLexer = parser_asm_skip_imports_slice_c(*lex, source);
+    dst.pos = got.pos;
+    dst.line = got.line;
+    dst.col = got.col;
+  }
+}
+
 /**
  * Run lexer_next_into on a copy of the caller's lexer and field-copy the
  * 72-byte result into raw. Does not advance the caller's lexer. A null
@@ -171,9 +603,9 @@ function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
   };
   unsafe {
     let p: *ParserAsmLexLexer = lex_in as *ParserAsmLexLexer;
-    // Two-register load of the 16-byte lexer. The call overwrites r.
+    // Copy the lexer, then let the wrapper match SysV or Win64.
     let cur: ParserAsmLexLexer = *p;
-    lexer_next_into(&r, cur, source);
+    parser_asm_lex_bridge_next(&r, &cur, source);
     let dst: *ParserAsmLexResult = raw as *ParserAsmLexResult;
     dst.next_lex.pos = r.next_lex.pos;
     dst.next_lex.line = r.next_lex.line;
@@ -691,7 +1123,7 @@ export function parser_asm_lex_skip_balanced_parens_inplace_c(lex_inout: *u8, so
   unsafe {
     let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
     let cur: ParserAsmLexLexer = *p;
-    parser_asm_skip_balanced_parens_into_slice_c(p, cur, source);
+    parser_asm_lex_bridge_skip_parens(p, &cur, source);
   }
 }
 
@@ -718,7 +1150,7 @@ export function parser_asm_lex_skip_balanced_braces_inplace_c(lex_inout: *u8, so
   unsafe {
     let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
     let cur: ParserAsmLexLexer = *p;
-    parser_asm_skip_balanced_braces_into_slice_c(p, cur, source);
+    parser_asm_lex_bridge_skip_braces(p, &cur, source);
   }
 }
 
@@ -747,12 +1179,9 @@ export function parser_asm_lex_skip_one_struct_inplace_c(lex_inout: *u8, source:
   unsafe {
     let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
     let cur: ParserAsmLexLexer = *p;
-    // Keep the 16-byte return in a local, then store each field.
-    // Assigning the call through *p keeps only the low 8 bytes.
-    let got: ParserAsmLexLexer = parser_asm_skip_one_struct_slice_c(cur, source);
-    p.pos = got.pos;
-    p.line = got.line;
-    p.col = got.col;
+    // The wrapper field-stores the 16-byte return. A store of the
+    // whole struct through p keeps only pos.
+    parser_asm_lex_bridge_skip_struct(p, &cur, source);
   }
 }
 
@@ -779,11 +1208,8 @@ export function parser_asm_lex_skip_imports_inplace_c(lex_inout: *u8, source: *u
   unsafe {
     let p: *ParserAsmLexLexer = lex_inout as *ParserAsmLexLexer;
     let cur: ParserAsmLexLexer = *p;
-    // Same 16-byte return as skip_one_struct. Field stores keep line and col.
-    let got: ParserAsmLexLexer = parser_asm_skip_imports_slice_c(cur, source);
-    p.pos = got.pos;
-    p.line = got.line;
-    p.col = got.col;
+    // Same 16-byte return as skip_one_struct. The wrapper field-stores it.
+    parser_asm_lex_bridge_skip_imports(p, &cur, source);
   }
 }
 
