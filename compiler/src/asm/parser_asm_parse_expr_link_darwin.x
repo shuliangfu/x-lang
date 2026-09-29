@@ -7,7 +7,7 @@
 // debug stays off. The snippet does not write. parse_expr_into copies
 // the 16-byte lexer in two registers, forwards the source slice, and
 // copies the 24-byte result back. The weak parse stubs stay out of this
-// object. Linux and Windows keep the C seed.
+// object. Linux and Windows build parser_asm_parse_expr_link.x (w1514).
 // PLATFORM: MACOS|DARWIN arm64.
 
 extern function memcpy(dst: *u8, src: *u8, n: u64): *u8;

@@ -752,8 +752,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # (R3_COLD catalog; G.7 single body; no second full/thin ladder here).
 
   # G-02f-10 / G-02f-333：parser_asm_parse_expr_link.o
-  # w1118: Darwin arm64 is one .x. Linux keeps thin .x plus the C rest.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1118: Darwin arm64 is one .x (parser_asm_parse_expr_link_darwin.x).
+  # w1514 (5.6): Linux and Windows build the whole object from
+  # parser_asm_parse_expr_link.x with product pure asm (no seed-rest cc).
+  # The seed .c is only a logged fallback (build_asm/g05_cc_fallback.log).
+  # PLATFORM: MACOS|DARWIN arm64 · LINUX x86_64 · WINDOWS x86_64.
   _pel=seeds/parser_asm_parse_expr_link.from_x.c
   _pel_x=src/asm/parser_asm_parse_expr_link.x
   _pel_o=src/asm/parser_asm_parse_expr_link.o
@@ -766,30 +769,45 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || [ "$_pel" -nt "$_pel_o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$_pel_o"
     fi
-  elif [ -f "$_pel" ]; then
-    if [ ! -f "$_pel_o" ] || [ "$_pel" -nt "$_pel_o" ] \
-      || { [ -f "$_pel_x" ] && [ "$_pel_x" -nt "$_pel_o" ]; }; then
+  elif [ -f "$_pel_x" ]; then
+    # w1514: rebuild when the .x is newer or the object is the old hybrid
+    # (hybrid had W doc_anchor; the pure .x object has it as T).
+    if [ ! -f "$_pel_o" ] || [ "$_pel_x" -nt "$_pel_o" ] \
+      || ! nm "$_pel_o" 2>/dev/null | grep -q "T _*parser_asm_parse_expr_link_x_doc_anchor\$"; then
       _pel_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_pel_x" ]; then
-        _pel_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pel_thin.XXXXXX") || true
-        _pel_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_pel_rest.XXXXXX") || true
-        # shellcheck disable=SC2086
-        if [ -n "$_pel_thin_o" ] && [ -n "$_pel_rest_o" ] \
-          && G05_X_O_WEAK=1 g05_try_x_to_o "$_pel_x" "$_pel_thin_o" \
-          && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \
-               -DXLANG_L2_PEL_THIN_FROM_X -c -o "$_pel_rest_o" "$_pel" \
-          && pure_ld_partial_merge "$_pel_o" "$_pel_thin_o" "$_pel_rest_o" 2>/dev/null; then
-          echo "g05_ensure: $_pel_o ← $_pel_x + seed-rest (G-02f-333 L2 hybrid parse_expr_link thin)"
-          _pel_done=1
-        else
-          echo "g05_ensure: L2 hybrid parse_expr_link failed; fallback full seed" >&2
+      mkdir -p build_asm
+      for _pel_try in 1 2 3; do
+        rm -f "$_pel_o.tmp.o"
+        if (
+          export XLANG_PREFER_ASM_O=1
+          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+          pure_asm_x_to_o "$_pel_o.tmp.o" "$_pel_x"
+        ) && [ -s "$_pel_o.tmp.o" ]; then
+          _pel_nm=$(nm "$_pel_o.tmp.o" 2>/dev/null)
+          if printf '%s\n' "$_pel_nm" | grep -q "T _*parse_expr_into\$" \
+            && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_debug_enabled\$" \
+            && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_debug_snippet_c\$" \
+            && printf '%s\n' "$_pel_nm" | grep -q "U _*parser_parse_expr_into\$"; then
+            mv -f "$_pel_o.tmp.o" "$_pel_o"
+            _pel_done=1
+            break
+          fi
         fi
-        rm -f "$_pel_thin_o" "$_pel_rest_o"
-      fi
-      if [ "$_pel_done" = "0" ]; then
-        echo "g05_ensure: $_pel_o ← seed (G-02f-10 SKIP_X)"
+        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_pel_try" "$_pel_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      done
+      rm -f "$_pel_o.tmp.o"
+      if [ "$_pel_done" = "1" ]; then
+        echo "g05_ensure: $_pel_o ← $_pel_x (w1514 pure asm, whole object)"
+      elif [ -f "$_pel" ]; then
+        _fb_os="$(uname -s 2>/dev/null || echo Unknown)"
+        case "$_fb_os" in MINGW*|MSYS*|CYGWIN*) _fb_os=Windows ;; esac
+        echo "$_fb_os $_pel_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: WARN $_pel_x pure asm failed; fallback full seed (logged)" >&2
         # shellcheck disable=SC2086
         $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o "$_pel_o" "$_pel"
+      else
+        echo "g05_ensure: ERROR $_pel_x pure asm failed and no seed" >&2
       fi
     fi
   fi
