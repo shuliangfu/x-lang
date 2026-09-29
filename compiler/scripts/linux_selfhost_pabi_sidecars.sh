@@ -164,7 +164,10 @@ python3 "$WORK/nop_panic.py" "$WORK/two_raw.o" "$WORK/two_stripped.o"
 # runtime_pipeline_abi.o jumps to its epilogue from the name-match while
 # (returns 1), so every struct local got an 8/16-byte slot and overlapped
 # its neighbours (runtime_read_file_malloc_impl view vs out_len).
-weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod pipe_slot_bytes_named_in_mod
+# w1512: asm_fixed_array_total_bytes_mod has the same bug in the pabi copy
+# (returns 1, so a local [N]Struct got an 8-byte slot); keep slot.o's.
+weaken_keep "$WORK/slot.o" "$OUT/slot.o" pipe_local_slot_bytes_mod pipe_slot_bytes_named_in_mod \
+  asm_fixed_array_total_bytes_mod
 weaken_keep "$WORK/esz.o" "$OUT/esz.o" \
   pipeline_asm_array_lit_elem_byte_sz_c \
   glue_array_lit_force_esz_from_elem_type_c \

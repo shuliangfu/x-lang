@@ -12,6 +12,11 @@
  * glue_emit_assign_rhs_to_rax_elf_c (loads the element, applies the op in
  * the element type), same as the authority twin
  * runtime_pipeline_abi_assign_index_generic_thin.x, then the usual store.
+ * w1512 (终局待办 10.41): on x86-64 (ta == 0) a plain `=` of an element
+ * wider than 8 bytes from an lvalue (VAR / FIELD / INDEX rhs) copies the
+ * whole element with memcpy: rhs address in rax, element address in rbx,
+ * glue_copy slot -3. Windows used to load the rhs value into rax (and rdx)
+ * and run one 8-byte store, so 12/16/24-byte elements were partly copied.
  */
 #include <stdint.h>
 
@@ -36,6 +41,8 @@ extern int32_t backend_enc_append_u32_le_c(void *elf_ctx, uint32_t word);
 extern int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref);
 extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
                                                         int32_t sz, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                       void *ctx, int32_t ta);
 
 int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
                                     int32_t right_ref, void *ctx, int32_t ta) {
@@ -57,6 +64,24 @@ int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_re
   sz = pipeline_asm_index_elem_byte_sz_c(arena, left_ref);
   if (sz <= 0)
     sz = 8;
+  /* w1512: x86-64 whole-element copy from an lvalue. PLATFORM: LINUX|WINDOWS. */
+  if (ek == 28 && ta == 0 && sz > 8) {
+    int32_t rkx = pipeline_expr_kind_ord_at(arena, right_ref);
+    if (rkx == 3 || rkx == 44 || rkx == 47) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta,
+                                               sz) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, sz, ta);
+    }
+  }
   if (ek != 28) {
     /* w1508: compound op on a scalar element. PLATFORM: SHARED. */
     if (sz > 8)

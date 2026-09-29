@@ -83,10 +83,12 @@ done
 # 3. w1491 slot sizer: slot.o must keep pipe_slot_bytes_named_in_mod
 #    strong (see linux_selfhost_pabi_sidecars.sh). Rebuild it from the
 #    thin when the thin is newer or the symbol is still weak.
+#    w1512: asm_fixed_array_total_bytes_mod too (same epilogue-jump bug in
+#    the pabi copy: returned 1, so a local [N]Struct got an 8-byte slot).
 _slot_src=src/runtime_pipeline_abi_slot_bytes_thin.x
 _slot_dst="$OUT/slot.o"
 if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_dst" ] \
-    || ! nm "$_slot_dst" | awk '$2=="T"&&$3=="pipe_slot_bytes_named_in_mod"{f=1} END{exit !f}'; }; then
+    || ! nm "$_slot_dst" | awk '$2=="T"&&$3=="pipe_slot_bytes_named_in_mod"{f++} $2=="T"&&$3=="asm_fixed_array_total_bytes_mod"{f++} END{exit f!=2}'; }; then
   _slot_tmp="$OUT/slot.tmp.o"
   if ! timeout 240 "$XL" -backend asm -c "$_slot_src" -o "$_slot_tmp"; then
     echo "linux_selfhost_pabi_refresh_tip: $_slot_src failed" >&2
@@ -96,11 +98,11 @@ if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_
   while read -r _sym; do
     [ -n "$_sym" ] || continue
     case "$_sym" in
-      pipe_local_slot_bytes_mod|pipe_slot_bytes_named_in_mod) ;;
+      pipe_local_slot_bytes_mod|pipe_slot_bytes_named_in_mod|asm_fixed_array_total_bytes_mod) ;;
       *) objcopy --weaken-symbol="$_sym" "$_slot_tmp" ;;
     esac
   done < <(nm "$_slot_tmp" | awk '$2=="T"{print $3}')
   mv -f "$_slot_tmp" "$_slot_dst"
-  echo "linux_selfhost_pabi_refresh_tip: $_slot_dst (named_in_mod strong)"
+  echo "linux_selfhost_pabi_refresh_tip: $_slot_dst (named_in_mod+fixed_array strong)"
 fi
 echo "linux_selfhost_pabi_refresh_tip: OK"
