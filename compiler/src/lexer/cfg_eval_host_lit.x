@@ -13,11 +13,17 @@
 // stack slot and depended on that residue surviving. A larger caller
 // frame (the lexer-step bridge) overwrites the slot and cfg_strlen
 // walks 0x310027f648. Each literal is now a cfg-selected byte array
-// with its own data symbol, and each function ADRPs that symbol.
+// with its own data symbol, and each function loads that symbol.
 // Stack arrays would dangle after return. Same-name #[cfg] functions
-// dual-emit on Darwin, so the cfg stays on the arrays.
-// #[cfg(not(...))] on this TU SIGSEGVs the Darwin compiler (rc 139);
-// the three product hosts match a positive arm. PLATFORM: SHARED.
+// dual-emit on the Darwin image that still has the stack-slot lit, so
+// the cfg stays on the arrays.
+// #[cfg(not(...))] on this TU SIGSEGVs the Darwin compiler (rc 139).
+// #[cfg(target_arch = ...)] SIGSEGVs the Ubuntu image whose
+// cfg_host_arch_lit is still that stack slot: this file is compiled
+// by that image, so the arch bytes are selected by target_os. The
+// product pairs are linux/x86_64, windows/x86_64, macos/aarch64,
+// freebsd/x86_64. A linux riscv64 host is not one of those pairs.
+// PLATFORM: SHARED.
 
 #[cfg(target_os = "linux")]
 let CFG_HOST_OS_LIT: u8[6] = [108, 105, 110, 117, 120, 0];
@@ -28,12 +34,14 @@ let CFG_HOST_OS_LIT: u8[8] = [119, 105, 110, 100, 111, 119, 115, 0];
 #[cfg(target_os = "freebsd")]
 let CFG_HOST_OS_LIT: u8[8] = [102, 114, 101, 101, 98, 115, 100, 0];
 
-#[cfg(target_arch = "aarch64")]
-let CFG_HOST_ARCH_LIT: u8[8] = [97, 97, 114, 99, 104, 54, 52, 0];
-#[cfg(target_arch = "x86_64")]
+#[cfg(target_os = "linux")]
 let CFG_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
-#[cfg(target_arch = "riscv64")]
-let CFG_HOST_ARCH_LIT: u8[8] = [114, 105, 115, 99, 118, 54, 52, 0];
+#[cfg(target_os = "macos")]
+let CFG_HOST_ARCH_LIT: u8[8] = [97, 97, 114, 99, 104, 54, 52, 0];
+#[cfg(target_os = "windows")]
+let CFG_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
+#[cfg(target_os = "freebsd")]
+let CFG_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
 
 /**
  * Host target_os literal ("linux" / "macos" / "windows" / "freebsd").
@@ -47,7 +55,8 @@ export function cfg_host_os_lit(): *u8 {
 }
 
 /**
- * Host target_arch literal ("x86_64" / "aarch64" / "riscv64").
+ * Host target_arch literal for the product pair of this OS
+ * ("x86_64" on linux, windows, and freebsd; "aarch64" on macos).
  * @return *u8 — NUL-terminated static bytes; never null. The pointer
  *   addresses CFG_HOST_ARCH_LIT. It must not reuse cfg_host_os_lit's frame.
  * PLATFORM: SHARED.
