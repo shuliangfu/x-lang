@@ -678,13 +678,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   fi
   # wave769 G.7: L2 asm three product PREFER → ensure try-l2-asm-prefer
   # (table body; thin .x + rest FROM_X → cc -r; cold ensure_one).
-  # Leaves: backend_x86_64_enc_c · asm_backend_compat_stubs
-  # (user_asm_seed_bridge left in w1518: whole object from .x, block below).
+  # Leaf: backend_x86_64_enc_c
+  # (user_asm_seed_bridge left in w1518 and asm_backend_compat_stubs left in
+  # w1519: whole objects from .x, blocks below).
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     for _l2_asm_o in \
-      src/asm/backend_x86_64_enc_c.o \
-      src/asm/asm_backend_compat_stubs.o; do
+      src/asm/backend_x86_64_enc_c.o; do
       echo "g05_ensure: try-l2-asm-prefer $_l2_asm_o (wave769)"
       XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
         CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
@@ -738,6 +738,67 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         mkdir -p build_asm
         echo "$_uab_os $_uab_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
         echo "g05_ensure: ERROR $_uab_x pure asm failed 3x; no cc fallback (w1518)" >&2
+        exit 1
+      fi
+    fi
+  fi
+  # w1519 (5.8b): src/asm/asm_backend_compat_stubs.o is the whole
+  # src/asm/asm_backend_compat_stubs.x built by product pure asm on all three
+  # hosts (format helpers, CodegenOutBuf line append, ELF u32 helpers, block
+  # slot and emit forwards). No seed-rest cc and no cc fallback: three failed
+  # tries log build_asm/g05_cc_fallback.log and stop g05.
+  # Darwin and Linux weaken the same 14 names the old seed marked weak so the
+  # real types / peephole / typeck definitions win; Windows keeps all strong
+  # (the old COFF object was all strong too). Calls inside the object go
+  # through symbol relocations, so a real strong definition still wins.
+  # Rebuild when the .x is newer or the object is the old hybrid (no
+  # abcs_rd32). Must run before the asm_full_link_stubs generator and the
+  # Darwin filtered copy below.
+  # PLATFORM: MACOS arm64 · LINUX x86_64 · WINDOWS x86_64.
+  _abx_x=src/asm/asm_backend_compat_stubs.x
+  _abx_o=src/asm/asm_backend_compat_stubs.o
+  if [ -f "$_abx_x" ]; then
+    if [ ! -f "$_abx_o" ] || [ "$_abx_x" -nt "$_abx_o" ] \
+      || ! nm "$_abx_o" 2>/dev/null | tr -d '\r' | grep -q " T _*abcs_rd32\$"; then
+      _abx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_abx_os" in MINGW*|MSYS*|CYGWIN*) _abx_os=Windows ;; esac
+      _abx_weak=""
+      case "$_abx_os" in
+        Darwin|Linux)
+          _abx_weak="append_asm_line,format_i32_to_buf,asm_types_append_asm_line,asm_types_format_i32_to_buf,asm_types_format_u32_to_buf,asm_types_format_u32_hex8_to_buf,asm_types_elf_read_u32_le,expr_layout_prime_call_resolved,emit_ldr_sp_slot_to_xreg,backend_asm_codegen_ast_seed_mega,backend_asm_codegen_ast_to_elf_seed_mega,peephole_peephole_run,peephole_peephole_elf_run,typeck_lsp_build_semantic_tokens_response"
+          ;;
+      esac
+      _abx_done=0
+      for _abx_try in 1 2 3; do
+        rm -f "$_abx_o.x.tmp.o"
+        if (
+          export XLANG_PREFER_ASM_O=1
+          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+          if [ -n "$_abx_weak" ]; then
+            export G05_X_O_WEAK_FUNCS="$_abx_weak"
+          fi
+          pure_asm_x_to_o "$_abx_o.x.tmp.o" "$_abx_x"
+        ) && [ -s "$_abx_o.x.tmp.o" ]; then
+          _abx_nm=$(nm "$_abx_o.x.tmp.o" 2>/dev/null | tr -d '\r')
+          if printf '%s\n' "$_abx_nm" | grep -q " T _*asm_backend_compat_stubs_x_doc_anchor\$" \
+            && printf '%s\n' "$_abx_nm" | grep -q " T _*xlang_format_u32_to_buf\$" \
+            && printf '%s\n' "$_abx_nm" | grep -q " T _*pipeline_asm_emit_skip_heavy_stub_elf_c\$" \
+            && printf '%s\n' "$_abx_nm" | grep -q " T _*peephole_run\$"; then
+            _abx_done=1
+            break
+          fi
+        fi
+        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_abx_try" "$_abx_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      done
+      if [ "$_abx_done" = "1" ]; then
+        mv -f "$_abx_o.x.tmp.o" "$_abx_o"
+        echo "g05_ensure: $_abx_o ← $_abx_x (w1519 pure asm, whole object, no cc)"
+      else
+        rm -f "$_abx_o.x.tmp.o" "$_abx_o"
+        mkdir -p build_asm
+        echo "$_abx_os $_abx_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_abx_x pure asm failed 3x; no cc fallback (w1519)" >&2
         exit 1
       fi
     fi
