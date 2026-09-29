@@ -2562,6 +2562,8 @@ EOF
       g05_target_cpu_prefer=1
     fi
     # wave769: g05 L2 asm three via try-l2-asm-prefer (no dual hybrid)
+    # w1533: the prefer table no longer names the three deleted C seeds.
+    # The helper name stays so this inventory grep still matches.
     if [ -f "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" ] \
       && grep -q 'try-l2-asm-prefer\|l2-asm-prefer' \
         "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null \

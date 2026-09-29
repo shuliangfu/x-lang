@@ -109,9 +109,12 @@ ensure_pipeline_x_fresh_for_ast_pool() {
 ensure_pipeline_x_fresh_for_ast_pool || true
 
 # experimental 链符号桥（缺则 ld 失败）。
-if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
-  experimental_bootstrap_info "cc asm_experimental_symbol_bridge.o"
-  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$BUILD_DIR/asm_experimental_symbol_bridge.o"
+# w1533 (5.11): the C seed is deleted. Darwin g05 writes this object
+# from the .x. This side path does not host-cc.
+# PLATFORM: SHARED. Not the daily path.
+if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
+  experimental_bootstrap_info "missing asm_experimental_symbol_bridge.o; no seed cc (w1533)"
+  exit 1
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。
@@ -236,13 +239,15 @@ ensure_experimental_companion_objs() {
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
   ./scripts/build_seed_asm_host.sh
   fi
-  if [ ! -f src/asm/asm_backend_compat_stubs.o ] || [ "seeds/asm_backend_compat_stubs.from_x.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
-  experimental_bootstrap_info "cc asm_backend_compat_stubs.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o src/asm/asm_backend_compat_stubs.o
+  # w1533 (5.11): both C seeds are deleted. g05 pure asm owns the objects.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ ! -f src/asm/asm_backend_compat_stubs.o ]; then
+  experimental_bootstrap_info "missing asm_backend_compat_stubs.o; no seed cc (w1533)"
+  return 1
   fi
-  if [ ! -f src/asm/user_asm_seed_bridge.o ] || [ "seeds/user_asm_seed_bridge.from_x.c" -nt src/asm/user_asm_seed_bridge.o ]; then
-  experimental_bootstrap_info "cc user_asm_seed_bridge.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o src/asm/user_asm_seed_bridge.o
+  if [ ! -f src/asm/user_asm_seed_bridge.o ]; then
+  experimental_bootstrap_info "missing user_asm_seed_bridge.o; no seed cc (w1533)"
+  return 1
   fi
 }
 ensure_experimental_companion_objs
@@ -260,20 +265,20 @@ if [ ! -f "$PARSER_ASM_THIN_C" ] || [ "seeds/parser_asm_thin_c.from_x.c" -nt "$P
 fi
 
 # parse_expr_into 桥 + pipeline 弱 parse 桩（G-02e-7：原 parser_asm_link_alias 并入）
-# w1118: Darwin arm64 bridge is the .x. Linux and Windows stay on cc.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1118: Darwin arm64 bridge is the .x.
+# w1533 (5.11): the C seed is deleted. Linux and Windows keep the g05
+# object and do not host-cc. PLATFORM: MACOS|DARWIN arm64 · LINUX · WINDOWS.
 _pe_os="$(uname -s 2>/dev/null || echo Unknown)"
 _pe_mach="$(uname -m 2>/dev/null || echo unknown)"
 if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
   && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
   if [ ! -f "$PARSER_EXPR_LINK_O" ] \
-    || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$PARSER_EXPR_LINK_O" ] \
-    || [ seeds/parser_asm_parse_expr_link.from_x.c -nt "$PARSER_EXPR_LINK_O" ]; then
+    || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$PARSER_EXPR_LINK_O" ]; then
     bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$PARSER_EXPR_LINK_O"
   fi
-elif [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
-  experimental_bootstrap_info "cc parser_asm_parse_expr_link.o"
-  sh scripts/cc_inc_tu.sh seeds/parser_asm_parse_expr_link.from_x.c "$PARSER_EXPR_LINK_O" $PARSER_ASM_LINK_ALIAS_CFLAGS
+elif [ ! -f "$PARSER_EXPR_LINK_O" ]; then
+  experimental_bootstrap_info "missing parser_asm_parse_expr_link.o; no seed cc (w1533)"
+  exit 1
 fi
 if [ ! -f "$PARSER_ASM_PARTIAL" ] && [ -f "$BUILD_DIR/parser.o" ]; then
   if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then

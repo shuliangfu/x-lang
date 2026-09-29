@@ -25240,53 +25240,21 @@ try_ensure_target_cpu_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
-# wave769: try-l2-asm-prefer OUT — g05 L2 asm three thin+rest product PREFER.
-#
-# Table-driven single body (G.7 有则补全; no second -E prologue; reuses
-# rt_prefer_try_x_to_o). Leaves (historic g05 G-02f-439/441/442 dual hybrid):
-#   src/asm/user_asm_seed_bridge.o
-#     x=src/asm/user_asm_seed_bridge.x
-#     seed=seeds/user_asm_seed_bridge.from_x.c
-#     rest -D=XLANG_USER_ASM_SEED_BRIDGE_FROM_X
-#     rest -I=default
-#   src/asm/backend_x86_64_enc_c.o
-#     x=src/asm/backend_x86_64_enc_c.x
-#     seed=seeds/backend_x86_64_enc_c.from_x.c
-#     rest -D=XLANG_BACKEND_X86_64_ENC_C_FROM_X
-#     rest -I=default
-#   src/asm/asm_backend_compat_stubs.o
-#     x=src/asm/asm_backend_compat_stubs.x
-#     seed=seeds/asm_backend_compat_stubs.from_x.c
-#     rest -D=XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X
-#     rest -I=default + -Isrc/asm -Isrc/lexer
-# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
-#   thin .x → .o via rt_prefer_try_x_to_o (no WEAK — historic g05 strong thin)
-#   rest = seed under FROM_X -D (+ optional -I)
-#   merge: $CC -r -nostdlib thin + rest → OUT
-# Prefer fail / PREFER≠1 / no xlang → ensure_one cold plain seed.
-# Callers: g05_ensure (wave769) · Makefile three leaves (was ensure one cold).
+# wave769: try-l2-asm-prefer OUT — historic g05 L2 asm three thin+rest.
+# w1533 (5.11): the three C seeds are deleted. g05 builds each whole object
+# from its .x (user_asm_seed_bridge, backend_x86_64_enc_c,
+# asm_backend_compat_stubs). This table is empty on purpose. A call returns 3
+# so try-heat falls through and does not host-cc a seed. Do not put those
+# seeds back.
 # Exit codes:
-#   0 — OUT is a table member; prefer or cold body produced OUT
-#   3 — OUT is not in the L2 asm prefer table
-#   1 — cold seed missing / compile failed
-# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
-# Residual after: ~~async three~~ (wave770) · other L2 (seed_link_compat /
-#   strict_glue / fmt_check / lsp_diag…) · pure-ld · physical delete.
+#   3 — OUT is not in the L2 asm prefer table (every OUT, after w1533)
+# PLATFORM: SHARED shell body. Not the daily product path.
 # ---------------------------------------------------------------------------
 
 # Resolve OUT → seed|x_src|from_x_def|rest_extra_incs (pipe-separated).
-# Empty string means non-member.
+# Empty string means non-member. w1533: no members.
 l2_asm_prefer_spec_for_out() {
   case "$1" in
-    src/asm/user_asm_seed_bridge.o)
-      printf '%s' "seeds/user_asm_seed_bridge.from_x.c|src/asm/user_asm_seed_bridge.x|XLANG_USER_ASM_SEED_BRIDGE_FROM_X|"
-      ;;
-    src/asm/backend_x86_64_enc_c.o)
-      printf '%s' "seeds/backend_x86_64_enc_c.from_x.c|src/asm/backend_x86_64_enc_c.x|XLANG_BACKEND_X86_64_ENC_C_FROM_X|"
-      ;;
-    src/asm/asm_backend_compat_stubs.o)
-      printf '%s' "seeds/asm_backend_compat_stubs.from_x.c|src/asm/asm_backend_compat_stubs.x|XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X|-Isrc/asm -Isrc/lexer"
-      ;;
     *)
       printf '%s' ""
       ;;

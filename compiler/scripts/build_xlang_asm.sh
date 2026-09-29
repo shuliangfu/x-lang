@@ -2743,12 +2743,20 @@ ensure_backend_asm_strict_fallback_alias_obj() {
   fi
 }
 
-# strict 链：compat stubs 须随源码重编（勿用 src/asm/*.o 陈旧副本）。
+# strict 链：compat stubs 用 g05 纯 asm 对象，不 host-cc。
+# w1533 (5.11): the C seed is deleted. PLATFORM: SHARED. Not the daily path.
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ seeds/asm_backend_compat_stubs.from_x.c -nt "$STUB_O" ]; then
-  echo " cc -c seeds/asm_backend_compat_stubs.from_x.c -> $STUB_O"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o "$STUB_O"
+  local prod="src/asm/asm_backend_compat_stubs.o"
+  if [ -f "$prod" ]; then
+    if [ ! -f "$STUB_O" ] || [ "$prod" -nt "$STUB_O" ]; then
+      cp -f "$prod" "$STUB_O"
+    fi
+    return 0
+  fi
+  if [ ! -f "$STUB_O" ]; then
+    echo "ERROR: $prod missing; no seed cc (w1533)" >&2
+    return 1
   fi
 }
 
@@ -3198,9 +3206,12 @@ asm_strict_keep_build_asm_typeck_backend() {
 # 实验 asm-only 链：build_asm 裸符号名 → runtime 期望名（首链 experimental 仍需要；strict 链不链 bridge）。
 ensure_asm_experimental_symbol_bridge_obj() {
   BRIDGE_OBJ="$BUILD_DIR/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$BRIDGE_OBJ" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$BRIDGE_OBJ" ]; then
-  echo " cc -c seeds/asm_experimental_symbol_bridge.from_x.c -> $BRIDGE_OBJ"
-  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$BRIDGE_OBJ"
+  # w1533 (5.11): the C seed is deleted. Darwin g05 already wrote this
+  # object from the .x. This side path does not host-cc.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ ! -f "$BRIDGE_OBJ" ]; then
+    echo "ERROR: $BRIDGE_OBJ missing; no seed cc (w1533)" >&2
+    return 1
   fi
 }
 
@@ -3998,11 +4009,6 @@ ensure_crt0_codegen_parser_companion_objs() {
   # already link BSTRICT_USER_ASM_SEED_BRIDGE_LINK. multi vs bag: only W/t same names.
   if [ -f src/asm/user_asm_seed_bridge.o ] && [ -s src/asm/user_asm_seed_bridge.o ]; then
   CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/asm/user_asm_seed_bridge.o"
-  elif [ -f seeds/user_asm_seed_bridge.from_x.c ]; then
-  ensure_bstrict_seed_support_objs 2>/dev/null || true
-  if [ -f src/asm/user_asm_seed_bridge.o ] && [ -s src/asm/user_asm_seed_bridge.o ]; then
-  CRT0_CG_PARSER_COMPANIONS="$CRT0_CG_PARSER_COMPANIONS src/asm/user_asm_seed_bridge.o"
-  fi
   fi
   # process argv surface (g05 / experimental already links runtime_process_argv.o).
   if [ -f runtime_process_argv.o ] && [ -s runtime_process_argv.o ]; then
@@ -4398,32 +4404,15 @@ refresh_bstrict_link_variants() {
   fi
   if [ -s "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   ensure_asm_backend_compat_stubs_obj >/dev/null 2>&1 || true
-  # PLATFORM: DARWIN — prefer/libtool may leave user_asm_seed_bridge.o as an ar whose
-  # thin member has multi LC_SEGMENT; Stage2 final ld then never extracts the rest
-  # member that holds strong asm_asm_codegen_elf_o → CG002 code_len=0. G.7 twin of
-  # ensure_bstrict_darwin_strict_glue_stubs_filt_obj MH_OBJECT prep: host-cc the seed
-  # to a plain MH_OBJECT, then filter against seed_partial (filter out is MH too).
+  # w1533 (5.11): the C seed is deleted. Filter the g05 pure-asm object.
+  # Do not host-cc a replacement MH. PLATFORM: DARWIN. Not the daily path.
   _uabr_src="src/asm/user_asm_seed_bridge.o"
-  _uabr_host="$BUILD_DIR/bstrict_user_asm_seed_bridge_host.o"
-  if [ -f seeds/user_asm_seed_bridge.from_x.c ]; then
-  # Rebuild MH host only when missing/stale (not on every refresh just because prefer ar exists).
-  if [ ! -f "$_uabr_host" ] \
-    || [ "seeds/user_asm_seed_bridge.from_x.c" -nt "$_uabr_host" ] \
-    || file "$_uabr_host" 2>/dev/null | grep -qi 'ar archive'; then
-  echo " cc -c seeds/user_asm_seed_bridge.from_x.c -> $_uabr_host (Darwin BSTRICT MH_OBJECT; not prefer ar)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o "$_uabr_host" \
-    || build_xlang_asm_warn "Darwin user_asm MH host-cc failed"
+  if [ ! -f "$_uabr_src" ]; then
+    build_xlang_asm_warn "user_asm_seed_bridge.o missing; no seed cc (w1533)"
   fi
-  if [ -s "$_uabr_host" ] && file "$_uabr_host" 2>/dev/null | grep -qi 'Mach-O'; then
-  _uabr_src="$_uabr_host"
-  fi
-  fi
-  # Only the filtered MH enters EARLY / companions. host.o is skipped by
-  # filter_strict_asm_objs / filter_experimental_asm_objs (must not also land in ASM_TRY_OBJS).
+  # Only the filtered object enters EARLY / companions.
   if ensure_bstrict_filtered_obj_against_seed_partial "$_uabr_src" "$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o" "bstrict_user_asm_seed_bridge" 2>/dev/null; then
   BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$BUILD_DIR/bstrict_user_asm_seed_bridge_filtered.o"
-  elif [ -s "$_uabr_host" ]; then
-  BSTRICT_USER_ASM_SEED_BRIDGE_LINK="$_uabr_host"
   fi
   if ensure_bstrict_filtered_obj_against_seed_partial "$BUILD_DIR/asm_backend_compat_stubs.o" "$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o" "bstrict_asm_backend_compat_stubs" 2>/dev/null; then
   BSTRICT_ASM_BACKEND_COMPAT_STUBS_LINK="$BUILD_DIR/bstrict_asm_backend_compat_stubs_filtered.o"
@@ -4433,13 +4422,12 @@ refresh_bstrict_link_variants() {
   fi
   fi
   # G.7 twin g05_relink_env Darwin _USER_ASM_LINK: strong arm64 enc MH_OBJECT.
-  if [ -f src/asm/backend_arm64_enc_c.o ] || [ -f seeds/backend_arm64_enc_c.from_x.c ]; then
-  if [ ! -f src/asm/backend_arm64_enc_c.o ] \
-    || [ "seeds/backend_arm64_enc_c.from_x.c" -nt src/asm/backend_arm64_enc_c.o ]; then
-  echo " cc -c seeds/backend_arm64_enc_c.from_x.c -> src/asm/backend_arm64_enc_c.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_arm64_enc_c.from_x.c -o src/asm/backend_arm64_enc_c.o
-  fi
+  # w1533 (5.11): the C seed is deleted. Use the g05 pure-asm object.
+  # PLATFORM: DARWIN. Not the daily path.
+  if [ -f src/asm/backend_arm64_enc_c.o ]; then
   BSTRICT_BACKEND_ARM64_ENC_LINK="src/asm/backend_arm64_enc_c.o"
+  else
+  build_xlang_asm_warn "backend_arm64_enc_c.o missing; no seed cc (w1533)"
   fi
   fi
   BSTRICT_DISPATCH_OBJS="src/asm/backend_enc_dispatch.o $BSTRICT_BACKEND_X86_64_ENC_LINK $BSTRICT_BACKEND_ARM64_ENC_LINK src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o"
@@ -4511,10 +4499,11 @@ ensure_bstrict_seed_support_objs() {
   echo " cc -c seeds/backend_asm_strict_fallback_alias.from_x.c -> $BUILD_DIR/backend_asm_strict_fallback_alias.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$BUILD_DIR/backend_asm_strict_fallback_alias.o" seeds/backend_asm_strict_fallback_alias.from_x.c
   fi
-  if [ ! -f src/asm/asm_backend_compat_stubs.o ] \
-  || [ "seeds/asm_backend_compat_stubs.from_x.c" -nt src/asm/asm_backend_compat_stubs.o ]; then
-  echo " cc -c seeds/asm_backend_compat_stubs.from_x.c -> src/asm/asm_backend_compat_stubs.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o src/asm/asm_backend_compat_stubs.o
+  # w1533 (5.11): the C seed is deleted. g05 pure asm owns this object.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ ! -f src/asm/asm_backend_compat_stubs.o ]; then
+  echo "ERROR: src/asm/asm_backend_compat_stubs.o missing; no seed cc (w1533)" >&2
+  return 1
   fi
   for _disp in backend_enc_dispatch backend_arch_emit_dispatch backend_try_inline_dispatch backend_call_dispatch; do
   if [ "$_disp" = "backend_arch_emit_dispatch" ]; then
@@ -4544,9 +4533,11 @@ ensure_bstrict_seed_support_objs() {
   fi
   fi
   done
-  if [ ! -f src/asm/backend_x86_64_enc_c.o ] || [ "seeds/backend_x86_64_enc_c.from_x.c" -nt src/asm/backend_x86_64_enc_c.o ]; then
-  echo " cc -c seeds/backend_x86_64_enc_c.from_x.c -> src/asm/backend_x86_64_enc_c.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_x86_64_enc_c.from_x.c -o src/asm/backend_x86_64_enc_c.o -I. -Iinclude -Isrc
+  # w1533 (5.11): the C seed is deleted. g05 pure asm owns this object.
+  # PLATFORM: SHARED. Not the daily path. Do not rebuild it here.
+  if [ ! -f src/asm/backend_x86_64_enc_c.o ]; then
+  echo "ERROR: src/asm/backend_x86_64_enc_c.o missing; no seed cc (w1533)" >&2
+  return 1
   fi
   if [ ! -f src/driver/fmt_check_cmd_driver.o ] \
   || [ "seeds/fmt_check_cmd.from_x.c" -nt src/driver/fmt_check_cmd_driver.o ]; then
@@ -4570,10 +4561,11 @@ ensure_bstrict_seed_support_objs() {
   echo " cc -c seeds/simd_loop.from_x.c -> src/asm/simd_loop.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/simd_loop.from_x.c -o src/asm/simd_loop.o
   fi
-  if [ ! -f src/asm/user_asm_seed_bridge.o ] \
-  || [ "seeds/user_asm_seed_bridge.from_x.c" -nt src/asm/user_asm_seed_bridge.o ]; then
-  echo " cc -c seeds/user_asm_seed_bridge.from_x.c -> src/asm/user_asm_seed_bridge.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/user_asm_seed_bridge.from_x.c -o src/asm/user_asm_seed_bridge.o
+  # w1533 (5.11): the C seed is deleted. g05 pure asm owns this object.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ ! -f src/asm/user_asm_seed_bridge.o ]; then
+  echo "ERROR: src/asm/user_asm_seed_bridge.o missing; no seed cc (w1533)" >&2
+  return 1
   fi
   # parser EMIT_HEAVY extern bl _glue：须与 Makefile USER_ASM_SEED_OBJS 同步链入 xlang_asm。
   PARSER_ASM_THIN_GLUE_CFLAGS="-DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE"
@@ -4748,22 +4740,23 @@ ensure_asm_strict_link_extra_objs() {
   echo " cc -c seeds/runtime_io_abi.from_x.c -> src/runtime_io_abi.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_io_abi.from_x.c -o src/runtime_io_abi.o
   fi
-  # w1118: Darwin arm64 bridge is the .x. Linux and Windows stay on cc.
+  # w1118: Darwin arm64 bridge is the .x.
+  # w1533: Linux and Windows do not host-cc the deleted seed.
   # PLATFORM: MACOS|DARWIN arm64.
   _pe_os="$(uname -s 2>/dev/null || echo Unknown)"
   _pe_mach="$(uname -m 2>/dev/null || echo unknown)"
+  # w1533 (5.11): the C seed is deleted. Darwin still uses the one-shot
+  # pure-asm mode. Linux and Windows keep the g05 object and do not host-cc.
+  # PLATFORM: MACOS|DARWIN arm64 · LINUX · WINDOWS. Not the daily path.
   if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
     && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
     if [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
-      || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt src/asm/parser_asm_parse_expr_link.o ] \
-      || [ seeds/parser_asm_parse_expr_link.from_x.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
+      || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt src/asm/parser_asm_parse_expr_link.o ]; then
       bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure src/asm/parser_asm_parse_expr_link.o
     fi
-  elif [ ! -f src/asm/parser_asm_parse_expr_link.o ] \
-  || [ seeds/parser_asm_parse_expr_link.from_x.c -nt src/asm/parser_asm_parse_expr_link.o ]; then
-  echo " cc -c seeds/parser_asm_parse_expr_link.from_x.c -> src/asm/parser_asm_parse_expr_link.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS \
-    -c seeds/parser_asm_parse_expr_link.from_x.c -o src/asm/parser_asm_parse_expr_link.o
+  elif [ ! -f src/asm/parser_asm_parse_expr_link.o ]; then
+  echo "ERROR: src/asm/parser_asm_parse_expr_link.o missing; no seed cc (w1533)" >&2
+  return 1
   fi
   # G-02-B1：优先 .x（-backend asm）；无 xlang 或失败时回退 .c（删 C 前须 Docker Stage2 回归）。
   if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \

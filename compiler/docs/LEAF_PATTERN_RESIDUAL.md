@@ -687,8 +687,8 @@ Family: R1_EXTRA_CFLAGS_OBJS (Makefile list authority)
   runtime_sqlite_glue.o                ← seeds/runtime_sqlite_glue.from_x.c
                                          + -DXLANG_DB_USE_SQLITE3
   runtime_sqlite_glue_stub.o           ← seeds/runtime_sqlite_glue.from_x.c (no -D)
-  src/asm/parser_asm_parse_expr_link.o ← seeds/parser_asm_parse_expr_link.from_x.c
-                                         + $(PARSER_ASM_LINK_ALIAS_CFLAGS)
+  src/asm/parser_asm_parse_expr_link.o ← src/asm/parser_asm_parse_expr_link.x
+                                         (w1533: C seed deleted; g05 pure asm, no host cc)
 
 Body (G.7 same ensure_host_cc_seed_o.sh):
   scripts/ensure_host_cc_seed_o.sh one OUT SEED [extras...]

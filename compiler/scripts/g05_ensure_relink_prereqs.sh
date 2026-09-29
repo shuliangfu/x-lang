@@ -819,7 +819,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   fi
   # w1523 (5.8): src/asm/backend_arm64_enc_c.o is src/asm/backend_arm64_enc_c.x
   # built by product pure asm on all three hosts. It replaces the cc build
-  # of seeds/backend_arm64_enc_c.from_x.c (build_xlang_asm.sh / strict glue).
+  # of the C seed (deleted w1533; side scripts no longer host-cc it).
   # Only five helpers were left there: the frame-size store/load pair, the
   # SP chunk walk, the add-imm chunk walk and the x19 save/restore. The
   # ARM64 encoders in backend_enc_dispatch_thin.x call them. All strong on
@@ -1103,8 +1103,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # parser_asm_parse_expr_link.x with product pure asm.
   # w1532 (5.11): one pure-asm emit on the main chain. A failed emit or a
   # missing required symbol removes the object and exits 1. No retry and no
-  # host cc of seeds/parser_asm_parse_expr_link.from_x.c. That seed stays on
-  # disk until the non-main-chain scripts stop naming it.
+  # host cc of the C seed. w1533 deleted that seed. Side scripts do not
+  # host-cc it. A failed pure-asm emit still exits 1.
   # PLATFORM: MACOS|DARWIN arm64 · LINUX x86_64 · WINDOWS x86_64.
   _pel_x=src/asm/parser_asm_parse_expr_link.x
   _pel_o=src/asm/parser_asm_parse_expr_link.o
@@ -3985,9 +3985,9 @@ fi
 # platform_macho_write_macho_o_to_buf, name bridges, weak entry).
 # w1520 (5.8c): both objects are built by product pure asm from
 # src/asm/asm_experimental_symbol_bridge.x and
-# src/asm/asm_experimental_symbol_bridge_entry.x. The seed
-# seeds/asm_experimental_symbol_bridge.from_x.c is no longer compiled here; no
-# cc fallback: three failed tries log build_asm/g05_cc_fallback.log and stop g05.
+# src/asm/asm_experimental_symbol_bridge_entry.x. w1533 deleted the C seed.
+# It is not compiled here. No cc fallback: three failed tries log
+# build_asm/g05_cc_fallback.log and stop g05.
 # entry is split out because a TU that defines `entry` is compiled in
 # entry-module mode (only entry is emitted). The two objects are linked
 # separately: Mac ld -r drops weak from the symbol at section offset 0.

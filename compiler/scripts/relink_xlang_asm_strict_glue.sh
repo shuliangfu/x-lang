@@ -1071,9 +1071,18 @@ ensure_backend_o_strict_link_partial_obj() {
 
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ seeds/asm_backend_compat_stubs.from_x.c -nt "$STUB_O" ]; then
-  strict_glue_info "cc -c seeds/asm_backend_compat_stubs.from_x.c -> $STUB_O"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o "$STUB_O"
+  local prod="src/asm/asm_backend_compat_stubs.o"
+  # w1533 (5.11): the C seed is deleted. Copy the g05 pure-asm object.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ -f "$prod" ]; then
+    if [ ! -f "$STUB_O" ] || [ "$prod" -nt "$STUB_O" ]; then
+      cp -f "$prod" "$STUB_O"
+    fi
+    return 0
+  fi
+  if [ ! -f "$STUB_O" ]; then
+    strict_glue_info "missing $prod; no seed cc (w1533)"
+    return 1
   fi
 }
 
@@ -1554,21 +1563,20 @@ if [ ! -f parser_x.o ] && ensure_parser_asm_minimal_partial_obj; then
 fi
 
 PARSER_EXPR_LINK_O="src/asm/parser_asm_parse_expr_link.o"
-# w1118: Darwin arm64 bridge is the .x. Linux and Windows stay on cc.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1118: Darwin arm64 bridge is the .x.
+# w1533 (5.11): the C seed is deleted. Linux and Windows keep the g05
+# object and do not host-cc. PLATFORM: MACOS|DARWIN arm64 · LINUX · WINDOWS.
 _pe_os="$(uname -s 2>/dev/null || echo Unknown)"
 _pe_mach="$(uname -m 2>/dev/null || echo unknown)"
 if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
   && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
   if [ ! -f "$PARSER_EXPR_LINK_O" ] \
-    || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$PARSER_EXPR_LINK_O" ] \
-    || [ seeds/parser_asm_parse_expr_link.from_x.c -nt "$PARSER_EXPR_LINK_O" ]; then
+    || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$PARSER_EXPR_LINK_O" ]; then
     bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$PARSER_EXPR_LINK_O"
   fi
-elif [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
-  strict_glue_info "cc seeds/parser_asm_parse_expr_link.from_x.c → parse_expr_link.o (G-02f-10)"
-  $CC $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -I. -Iinclude -Isrc \
-    -c seeds/parser_asm_parse_expr_link.from_x.c -o "$PARSER_EXPR_LINK_O"
+elif [ ! -f "$PARSER_EXPR_LINK_O" ]; then
+  strict_glue_info "missing $PARSER_EXPR_LINK_O; no seed cc (w1533)"
+  exit 1
 fi
 
 ST_LAYOUT_PARTIAL=""
@@ -2048,9 +2056,17 @@ ensure_ast_pool_l5_bridge_obj() {
 
 ensure_asm_experimental_symbol_bridge_obj() {
   local o="src/asm/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$o" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/asm_experimental_symbol_bridge.from_x.c"
-  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$o"
+  local prod="build_asm/asm_experimental_symbol_bridge.o"
+  # w1533 (5.11): the C seed is deleted. Darwin g05 writes the product
+  # object at build_asm from the .x. This side link still names src/asm,
+  # so copy that product object across. Do not host-cc.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ ! -f "$o" ] && [ -f "$prod" ]; then
+    cp -f "$prod" "$o"
+  fi
+  if [ ! -f "$o" ]; then
+    strict_glue_info "missing $o; no seed cc (w1533)"
+    return 1
   fi
 }
 
@@ -2078,10 +2094,18 @@ ensure_backend_seed_mega_fallback_obj() {
 }
 ensure_backend_x86_64_enc_c_obj() {
   local o="$BUILD_DIR/backend_x86_64_enc_c.o"
-  local src="seeds/backend_x86_64_enc_c.from_x.c"
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- $src (G-02f-15 x86_64 enc)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"
+  local prod="src/asm/backend_x86_64_enc_c.o"
+  # w1533 (5.11): the C seed is deleted. Copy the g05 pure-asm object.
+  # Do not rebuild the encoder here. PLATFORM: SHARED. Not the daily path.
+  if [ -f "$prod" ]; then
+    if [ ! -f "$o" ] || [ "$prod" -nt "$o" ]; then
+      cp -f "$prod" "$o"
+    fi
+    return 0
+  fi
+  if [ ! -f "$o" ]; then
+    strict_glue_info "missing $prod; no seed cc (w1533)"
+    return 1
   fi
 }
 ensure_typeck_f64_bits_obj() {
@@ -2185,11 +2209,11 @@ ensure_async_asm_pool_obj() {
 }
 ensure_backend_arm64_enc_c_obj() {
   local o="src/asm/backend_arm64_enc_c.o"
-  local src="seeds/backend_arm64_enc_c.from_x.c"
-  [ -f "$src" ] || return 1
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- $src (Darwin arch_arm64_enc_* strong)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o" || return 1
+  # w1533 (5.11): the C seed is deleted. g05 pure asm owns this object.
+  # PLATFORM: MACOS arm64. Not the daily path. Do not rebuild it here.
+  if [ ! -f "$o" ]; then
+    strict_glue_info "missing $o; no seed cc (w1533)"
+    return 1
   fi
   return 0
 }
