@@ -934,6 +934,35 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
   fi
+  # w1509 (10.32): the pabi field-assign body only took plain `=` (kind 28),
+  # so `p.x += 4` failed with CG002. Build the shared field-assign seed (same
+  # body plus compound ops) every relink and weaken the pabi copy.
+  rm -f build_asm/selfhost_pabi/assign_field_seed.o
+  if [ -f seeds/win_assign_field_override.c ]; then
+    if ! cc -c -O2 -o build_asm/selfhost_pabi/assign_field_seed.o \
+        seeds/win_assign_field_override.c; then
+      echo "g05_relink_env: assign_field_seed cc failed" >&2
+      rm -f build_asm/selfhost_pabi/assign_field_seed.o
+    fi
+  fi
+  if [ -s build_asm/selfhost_pabi/assign_field_seed.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "_glue_emit_assign_field_elf_c" | grep -qv weak; then
+        "$_oc" --weaken-symbol=_glue_emit_assign_field_elf_c build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      fi
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/assign_field_seed.o $_PABI_SELFHOST"
+  fi
   if [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
     _oc=""
     if command -v llvm-objcopy >/dev/null 2>&1; then

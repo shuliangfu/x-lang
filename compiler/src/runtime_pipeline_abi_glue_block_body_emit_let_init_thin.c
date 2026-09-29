@@ -94,6 +94,9 @@ extern int32_t pipeline_expr_kind_ord_at(uint8_t *arena, int32_t expr_ref);
 extern void pipeline_expr_var_name_into(uint8_t *arena, int32_t expr_ref, uint8_t *out64);
 extern int32_t pipeline_expr_var_name_len(uint8_t *arena, int32_t expr_ref);
 extern int32_t pipeline_type_kind_ord_at(uint8_t *arena, int32_t ref);
+extern int32_t glue_type_size_simple(uint8_t *m, uint8_t *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(uint8_t *arena, int32_t ty_ref);
+extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(uint8_t *elf_ctx, int32_t slot_off, int32_t sz, int32_t ta);
 
 /**
  * Emit one block-let initializer into ELF (float-lit fast path + f32 store).
@@ -283,6 +286,28 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
   rc = glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, let_ty2, src_ty, ta);
   if (rc != 0) {
     return -1;
+  }
+  /* w1509 (终局待办 10.32): a >16B STRUCT_LIT (45) leaves the address of its
+   * frame temp in rax (pipeline_asm_emit_struct_lit_fields_elf_c, lea). The
+   * PE twin of glue_store_retval_pair_to_rbp_elf_c only copies >16B for
+   * CALL/METHOD/INDEX, so `let p: P = P { .. }` (24B) stored the pointer and
+   * p.x read the pointer slot + 8. Copy the payload like the
+   * runtime_pipeline_abi.x authority does. PLATFORM: WINDOWS. */
+  if (let_ty2 > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 45) {
+    int32_t big_sz = glue_type_size_simple(glue_emit_module_from_ctx(ctx), arena, let_ty2, 0);
+    int32_t named_sz = glue_type_named_layout_size_any_module_elf_c(arena, let_ty2);
+    if (named_sz > big_sz) {
+      big_sz = named_sz;
+    }
+    if (big_sz > 16) {
+      rc = glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, slot_off, big_sz, ta);
+      if (rc != 0) {
+        return -1;
+      }
+      glue_binop_var_slot_cache_kill_def_at_slot(slot_off);
+      glue_live_fwd_forward_after_def(arena, ctx, slot_off, init_ref);
+      return 0;
+    }
   }
   rc = glue_store_retval_pair_to_rbp_elf_c(glue_emit_module_from_ctx(ctx), arena, elf_ctx, let_ty2, slot_off, ta,
                                           init_ref, ctx);

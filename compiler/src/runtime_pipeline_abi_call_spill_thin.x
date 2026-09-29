@@ -72,10 +72,13 @@ export extern function pipeline_expr_match_num_arms_at(arena: *u8, expr_ref: i32
 export extern function pipeline_expr_match_matched_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i32): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
-// [4] arm64 binop left-preserve frame homes (w1503).
-let w1500_cs_st: i32[5] = [];
+// [4] arm64 binop left-preserve frame homes (w1503),
+// [5] STRUCT_LIT value temp bytes (w1509).
+let w1500_cs_st: i32[6] = [];
 
 /** Record the widest outgoing GP unit count. PLATFORM: SHARED. */
 function w1500_cs_note_gp(gp: i32): void {
@@ -186,6 +189,7 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
   let op: i32 = 0;
   let as_op: i32 = 0;
   let need: i32 = 0;
+  let mod_p: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || expr_ref <= 0) {
     return;
   }
@@ -389,6 +393,27 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
     }
     if (n > 64) {
       n = 64;
+    }
+    // w1509 (终局待办 10.32): a STRUCT_LIT rvalue takes an 8-aligned temp
+    // home from next_offset while the body is emitted (Windows leftover
+    // pipeline_asm_emit_struct_lit_fields_elf_c, stack_slot_off -1). Count
+    // max(value bytes, 8 per field) + 8 alignment so the frame covers it.
+    need = 0;
+    unsafe {
+      mod_p = pipeline_asm_emit_module_ref_c();
+      if (mod_p != (0 as *u8)) {
+        need = pipeline_expr_struct_lit_value_bytes(arena, mod_p, expr_ref);
+      }
+    }
+    if (need < n * 8) {
+      need = n * 8;
+    }
+    if (need < 8) {
+      need = 8;
+    }
+    if (need <= 4096) {
+      need = ((need + 7) / 8) * 8 + 8;
+      w1500_cs_st[5] = w1500_cs_st[5] + need;
     }
     i = 0;
     while (i < n) {
@@ -661,6 +686,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
   w1500_cs_st[1] = 0;
   w1500_cs_st[3] = 0 - 1;
   w1500_cs_st[4] = 0;
+  w1500_cs_st[5] = 0;
   unsafe {
     arm = pipeline_asm_host_is_arm64_c();
   }
@@ -683,4 +709,10 @@ export function glue_asm_last_call_max_gp_units_c(): i32 {
 #[no_mangle]
 export function glue_asm_last_binop_preserve_homes_c(): i32 {
   return w1500_cs_st[4];
+}
+
+/** STRUCT_LIT value temp bytes from the last walk (w1509). PLATFORM: WINDOWS x86_64. */
+#[no_mangle]
+export function glue_asm_last_struct_lit_temp_bytes_c(): i32 {
+  return w1500_cs_st[5];
 }

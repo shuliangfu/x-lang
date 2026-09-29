@@ -33,6 +33,7 @@ export extern function asm_sum_block_array_temp_bytes(arena: *u8, block_ref: i32
 export extern function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_asm_last_call_max_gp_units_c(): i32;
 export extern function glue_asm_last_binop_preserve_homes_c(): i32;
+export extern function glue_asm_last_struct_lit_temp_bytes_c(): i32;
 export extern function glue_binop_var_slot_cache_clear(): void;
 export extern function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
@@ -399,6 +400,7 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   let gp: i32 = 0;
   let out: i32 = 0;
   let rem: i32 = 0;
+  let lit: i32 = 0;
   unsafe {
     glue_binop_var_slot_cache_clear();
   }
@@ -411,6 +413,23 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
     arm = pipeline_asm_host_is_arm64_c();
   }
   if (win != 0 && arm == 0) {
+    // w1509 (终局待办 10.32): STRUCT_LIT rvalue temps come from next_offset
+    // during body emit and were not in the frame. In a function without a
+    // call (no outgoing area) the 16B temp for `let p: P = P { .. }` landed
+    // under rsp, the literal emitter's push rbx overwrote it, and the next
+    // field store went through a clobbered rbx (0xC0000005; u8 fields read
+    // back pointer bytes). Reserve them above the outgoing area.
+    // PLATFORM: WINDOWS x86_64.
+    unsafe {
+      lit = glue_asm_last_struct_lit_temp_bytes_c();
+    }
+    if (lit > 0) {
+      size = size + lit;
+      rem = size % 16;
+      if (rem != 0) {
+        size = size + (16 - rem);
+      }
+    }
     unsafe {
       gp = glue_asm_last_call_max_gp_units_c();
     }
