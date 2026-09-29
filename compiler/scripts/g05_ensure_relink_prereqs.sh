@@ -678,11 +678,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   fi
   # wave769 G.7: L2 asm three product PREFER → ensure try-l2-asm-prefer
   # (table body; thin .x + rest FROM_X → cc -r; cold ensure_one).
-  # Leaves: user_asm_seed_bridge · backend_x86_64_enc_c · asm_backend_compat_stubs.
+  # Leaves: backend_x86_64_enc_c · asm_backend_compat_stubs
+  # (user_asm_seed_bridge left in w1518: whole object from .x, block below).
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     for _l2_asm_o in \
-      src/asm/user_asm_seed_bridge.o \
       src/asm/backend_x86_64_enc_c.o \
       src/asm/asm_backend_compat_stubs.o; do
       echo "g05_ensure: try-l2-asm-prefer $_l2_asm_o (wave769)"
@@ -693,6 +693,54 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     done
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; L2 asm prefer residual" >&2
+  fi
+  # w1518 (5.8b): src/asm/user_asm_seed_bridge.o is the whole
+  # src/asm/user_asm_seed_bridge.x built by product pure asm on all three
+  # hosts (asm_asm_codegen_ast / asm_asm_codegen_elf_o, ctx reset, empty-text
+  # gate, Mach-O forward, COFF writer). No seed-rest cc and no cc fallback:
+  # three failed tries log build_asm/g05_cc_fallback.log and stop g05.
+  # Rebuild when the .x is newer or the object is the old hybrid (the hybrid
+  # has no uasb_rd32). Must run before the asm_full_link_stubs generator and
+  # the Darwin filtered copy below.
+  # PLATFORM: MACOS arm64 · LINUX x86_64 · WINDOWS x86_64.
+  _uab_x=src/asm/user_asm_seed_bridge.x
+  _uab_o=src/asm/user_asm_seed_bridge.o
+  if [ -f "$_uab_x" ]; then
+    if [ ! -f "$_uab_o" ] || [ "$_uab_x" -nt "$_uab_o" ] \
+      || ! nm "$_uab_o" 2>/dev/null | tr -d '\r' | grep -q " T _*uasb_rd32\$"; then
+      _uab_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_uab_os" in MINGW*|MSYS*|CYGWIN*) _uab_os=Windows ;; esac
+      _uab_done=0
+      for _uab_try in 1 2 3; do
+        rm -f "$_uab_o.x.tmp.o"
+        if (
+          export XLANG_PREFER_ASM_O=1
+          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+          pure_asm_x_to_o "$_uab_o.x.tmp.o" "$_uab_x"
+        ) && [ -s "$_uab_o.x.tmp.o" ]; then
+          _uab_nm=$(nm "$_uab_o.x.tmp.o" 2>/dev/null | tr -d '\r')
+          if printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_elf_o\$" \
+            && printf '%s\n' "$_uab_nm" | grep -q " T _*asm_asm_codegen_ast\$" \
+            && printf '%s\n' "$_uab_nm" | grep -q " T _*seed_platform_coff_write_coff_o_to_buf\$" \
+            && printf '%s\n' "$_uab_nm" | grep -q " T _*user_asm_seed_bridge_x_doc_anchor\$"; then
+            _uab_done=1
+            break
+          fi
+        fi
+        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_uab_try" "$_uab_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      done
+      if [ "$_uab_done" = "1" ]; then
+        mv -f "$_uab_o.x.tmp.o" "$_uab_o"
+        echo "g05_ensure: $_uab_o ← $_uab_x (w1518 pure asm, whole object, no cc)"
+      else
+        rm -f "$_uab_o.x.tmp.o" "$_uab_o"
+        mkdir -p build_asm
+        echo "$_uab_os $_uab_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_uab_x pure asm failed 3x; no cc fallback (w1518)" >&2
+        exit 1
+      fi
+    fi
   fi
   # wave770 G.7: async three product PREFER → ensure try-async-prefer
   # (table body; full .x + rest FROM_X → cc -r; cold ensure_one).
