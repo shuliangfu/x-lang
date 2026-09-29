@@ -1082,9 +1082,11 @@ ensure_asm_backend_compat_stubs_obj() {
 ensure_simd_glue_link_objs() {
   # w1524 (5.11): C seed deleted; same full .x object as the g05 main chain.
   bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/asm/backend_call_dispatch.o || return 1
-  if [ ! -f src/driver/target_cpu.o ] || [ seeds/target_cpu_pure.from_x.c -nt src/driver/target_cpu.o ]; then
-  strict_glue_info "cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o src/driver/target_cpu.o
+  # w1528: the C seed is deleted. Same full-.x pure asm as the g05 main chain.
+  # PLATFORM: SHARED. This script is not the daily path.
+  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu_pure.x -nt src/driver/target_cpu.o ]; then
+  strict_glue_info "pure asm src/driver/target_cpu_pure.x -> src/driver/target_cpu.o"
+  bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer src/driver/target_cpu.o || return 1
   fi
   if [ ! -f src/asm/simd_enc.o ] || [ seeds/simd_enc.from_x.c -nt src/asm/simd_enc.o ]; then
   strict_glue_info "cc -c seeds/simd_enc.from_x.c -> src/asm/simd_enc.o"

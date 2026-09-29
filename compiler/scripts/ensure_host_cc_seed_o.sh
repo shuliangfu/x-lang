@@ -4756,6 +4756,14 @@ ensure_one() {
     exit 1
   fi
 
+  # w1528 (5.9): src/driver/target_cpu.o has no C seed. Full .x pure asm only.
+  # Check before the missing-seed exit so a seed-map caller does not cc.
+  # PLATFORM: SHARED.
+  if [ "$out" = "src/driver/target_cpu.o" ]; then
+    ensure_target_cpu_full_x "$out" || return 1
+    return 0
+  fi
+
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o: missing seed $seed" >&2
     exit 1
@@ -12433,46 +12441,16 @@ PY
   return 0
 }
 
-# w1139: pure asm of src/driver/target_cpu_pure.x, retried.
-# tcp_eq_at takes a byte pointer. SIMD spelling checks are split so each
-# frame covers its stores. Host detect stays in the C seed.
+# w1528: one pure-asm shot of src/driver/target_cpu_pure.x. Host detect, print,
+# and the slice marker are in that file. No retry. The old 8-try loop rejected
+# a defined xlang_target_cpu_detect_host; that check is gone.
 # PLATFORM: SHARED. cwd is compiler/.
 target_cpu_pure_asm() {
   local o="${1:-}"
-  local xsrc="src/driver/target_cpu_pure.x"
-  local try=0
-  local s
-  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+  if [ -z "$o" ]; then
     return 1
   fi
-  mkdir -p "$(dirname "$o")"
-  while [ "$try" -lt 8 ]; do
-    try=$((try + 1))
-    rm -f "$o"
-    if (
-      export XLANG_PREFER_ASM_O=1
-      pure_asm_x_to_o "$o" "$xsrc"
-    ) && [ -s "$o" ]; then
-      break
-    fi
-    rm -f "$o"
-  done
-  if [ ! -s "$o" ]; then
-    return 1
-  fi
-  if nm "$o" | awk '$2=="T" && $3=="_xlang_target_cpu_detect_host" { found=1 } END { exit found ? 0 : 1 }'; then
-    rm -f "$o"
-    return 1
-  fi
-  for s in _driver_set_pending_target_cpu_features _driver_get_pending_target_cpu_features \
-    _tcp_tolower _tcp_eq5 _tcp_eq6 _tcp_eq_at _tcp_parse_named _tcp_set_u32 \
-    _xlang_target_cpu_resolve _xlang_simd_is_vector_type_spelling \
-    _xlang_simd_vector_lanes_esz_from_spelling _append_feat_name _flags_has_token; do
-    if ! nm "$o" | awk -v s="$s" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
-  done
+  ensure_target_cpu_full_x "$o" || return 1
   return 0
 }
 
@@ -24801,124 +24779,40 @@ try_ensure_ldpc_prefer_one() {
 }
 
 # ---------------------------------------------------------------------------
-# wave768: try-target-cpu-prefer OUT — g05 target_cpu product PREFER (single body).
+# w1528: try-target-cpu-prefer OUT — full .x pure asm, one shot.
 #
-# Single leaf: src/driver/target_cpu.o (R1_SEED_MAP; cold twin = ensure_one pure
-# seed seeds/target_cpu_pure.from_x.c).
-# When XLANG_G05_PREFER_X_O=1 and an xlang binary works:
-#   flags.x (pending/tolower/eq5/eq6) → .o via rt_prefer_try_x_to_o
-#     (G.7 有则补全: same harness as pipeline_abi/ldpc/rt; no WEAK — historic
-#     g05 flags helpers are strong and rest omits them under FROM_X)
-#   rest = seeds/target_cpu_pure.from_x.c under -DXLANG_L2_TARGET_CPU_FLAGS_FROM_X
-#   merge: $CC -r -nostdlib flags + rest → OUT (g05 historic)
-# Prefer fail / PREFER≠1 / no xlang → ensure_one cold pure seed (full TU).
-# Callers: g05_ensure (wave768) · Makefile src/driver/target_cpu.o (unified).
+# Leaf: src/driver/target_cpu.o. The C seed is deleted. Host detect, print,
+# and the slice marker are in src/driver/target_cpu_pure.x. No flags.x merge,
+# no seed cc, no retry. ensure_r3_full_x_pure_w1525 is the one compiler call.
 # Exit codes:
-#   0 — OUT is target_cpu.o; prefer or cold body produced OUT
+#   0 — OUT is the full-.x object and the w1528 anchor is present
 #   3 — OUT is not src/driver/target_cpu.o
-#   1 — cold seed missing / compile failed
-# PLATFORM: SHARED shell body · g05 historic PREFER=1 · cold chain PREFER=0.
-# G.7: reuses rt_prefer_try_x_to_o harness (有则补全; no second -E prologue).
-# Residual after: other L2 hybrid · pure-ld · physical delete.
+#   1 — pure asm failed
+# PLATFORM: SHARED.
 # ---------------------------------------------------------------------------
+
+ensure_target_cpu_full_x() {
+  # w1528 (5.9): one pure-asm shot of the full .x. Reuses the w1525 helper
+  # (G.7: do not open a second pure-asm body). PLATFORM: SHARED.
+  local o="$1"
+  if ensure_r3_full_x_pure_w1525 "$o" src/driver/target_cpu_pure.x \
+    target_cpu_pure_x_w1528_anchor target_cpu_pure_slice_marker \
+    xlang_target_cpu_detect_host xlang_target_cpu_print \
+    xlang_target_cpu_generic_for_host xlang_target_cpu_resolve \
+    driver_set_pending_target_cpu_features append_feat_name flags_has_token; then
+    log "target_cpu full .x $o (w1528)"
+    return 0
+  fi
+  return 1
+}
 
 ensure_target_cpu_prefer_one() {
   local o="$1"
-  local seed="seeds/target_cpu_pure.from_x.c"
-  local flags_x="src/driver/target_cpu_flags.x"
-  local pure_x="src/driver/target_cpu_pure.x"
-  local hdr="include/target_cpu.h"
-  local prefer="${XLANG_G05_PREFER_X_O:-0}"
-  local stale=0 done=0
-  local thin_o rest_o
-  local _tc_via=0
-  local _tc_thin_ok=0
-  local _tc_defs=""
-
-  if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o try-target-cpu-prefer: missing seed $seed" >&2
-    return 1
+  if [ "$o" != "src/driver/target_cpu.o" ]; then
+    echo "ensure_host_cc_seed_o try-target-cpu-prefer: OUT is not src/driver/target_cpu.o" >&2
+    return 3
   fi
-
-  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
-    stale=0
-    [ "$seed" -nt "$o" ] && stale=1
-    if [ -f "$flags_x" ] && [ "$flags_x" -nt "$o" ]; then
-      stale=1
-    fi
-    if [ -f "$pure_x" ] && [ "$pure_x" -nt "$o" ]; then
-      stale=1
-    fi
-    if [ -f "$hdr" ] && [ "$hdr" -nt "$o" ]; then
-      stale=1
-    fi
-    # wave793: project-header mtime (FORCE thin; G.7 single body).
-    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
-      stale=1
-    fi
-    # wave794: Makefile flag-sensitive FORCE thin (main/runtime/pipeline_abi).
-    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
-      stale=1
-    fi
-    if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (target-cpu-prefer)"
-      return 0
-    fi
-  fi
-
-  mkdir -p "$(dirname "$o")"
-
-  # PREFER flags.x + seed-rest only when PREFER=1 (Darwin cold-chain safety twin).
-  if [ "$prefer" = "1" ] && [ -f "$flags_x" ] \
-    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
-    thin_o="$(mktemp "${TMPDIR:-/tmp}/tcpu_flags.XXXXXX")"
-    rest_o="$(mktemp "${TMPDIR:-/tmp}/tcpu_rest.XXXXXX")"
-    # w1139: pure asm of the full business file, retried. Host detect stays
-    # in the C rest. w1138 flags.x remains the fallback.
-    _tc_via=0
-    _tc_thin_ok=0
-    _tc_defs="-DXLANG_L2_TARGET_CPU_FLAGS_FROM_X"
-    if target_cpu_pure_asm "$thin_o"; then
-      _tc_thin_ok=1
-      _tc_via=2
-      _tc_defs="$_tc_defs -DXLANG_L2_TARGET_CPU_PURE_FROM_X"
-    elif target_cpu_flags_pure "$thin_o"; then
-      _tc_thin_ok=1
-      _tc_via=1
-    elif rt_prefer_try_x_to_o "$flags_x" "$thin_o"; then
-      _tc_thin_ok=1
-    fi
-    # shellcheck disable=SC2086
-    if [ "$_tc_thin_ok" = "1" ] \
-      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc $_tc_defs \
-           -c -o "$rest_o" "$seed" \
-      && pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
-      if [ "$_tc_via" = "2" ]; then
-        log "prefer pure-asm target cpu $o <- $pure_x (w1139) + seed rest"
-      elif [ "$_tc_via" = "1" ]; then
-        log "prefer pure-asm flags $o <- $flags_x (w1138) + seed rest"
-      else
-        log "prefer thin+rest $o <- $flags_x + seed-rest (try-target-cpu-prefer)"
-      fi
-      done=1
-    else
-      log "target_cpu hybrid failed; fallback full seed"
-    fi
-    rm -f "$thin_o" "$rest_o"
-  fi
-
-  if [ "$done" = "1" ]; then
-    return 0
-  fi
-
-  # Cold full pure seed (ensure_one twin / PREFER=0).
-  if [ -f "$o" ] && [ "$prefer" = "1" ]; then
-    FORCE=1
-    ensure_one "$o" "$seed"
-    FORCE=0
-  else
-    ensure_one "$o" "$seed"
-  fi
+  ensure_target_cpu_full_x "$o" || return 1
   return 0
 }
 
@@ -24931,7 +24825,7 @@ try_ensure_target_cpu_prefer_one() {
   if [ "$o" != "src/driver/target_cpu.o" ]; then
     return 3
   fi
-  ensure_target_cpu_prefer_one "$o"
+  ensure_target_cpu_prefer_one "$o" || return 1
   return 0
 }
 

@@ -4564,10 +4564,12 @@ ensure_bstrict_seed_support_objs() {
   echo " cc -c seeds/fmt_check_cmd.from_x.c -> src/driver/fmt_check_cmd_driver.o (G-02f-11)"
   $CC $CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE -c seeds/fmt_check_cmd.from_x.c -o src/driver/fmt_check_cmd_driver.o
   fi
+  # w1528: the C seed is deleted. Same full-.x pure asm as the g05 main chain.
+  # PLATFORM: SHARED. This script is not the daily path.
   if [ ! -f src/driver/target_cpu.o ] \
-  || [ "seeds/target_cpu_pure.from_x.c" -nt src/driver/target_cpu.o ]; then
-  echo " cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o src/driver/target_cpu.o
+  || [ "src/driver/target_cpu_pure.x" -nt src/driver/target_cpu.o ]; then
+  echo " pure asm src/driver/target_cpu_pure.x -> src/driver/target_cpu.o"
+  bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer src/driver/target_cpu.o || exit 1
   fi
   if [ ! -f src/asm/simd_enc.o ] \
   || [ "seeds/simd_enc.from_x.c" -nt src/asm/simd_enc.o ]; then

@@ -697,18 +697,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; ldpc prefer residual" >&2
   fi
-  # wave768 G.7: target_cpu product PREFER → ensure try-target-cpu-prefer
-  # (single body; flags.x + rest pure FROM_X → cc -r; cold pure seed).
-  # Leaf = src/driver/target_cpu.o (R1_SEED_MAP cold twin). No dual inline hybrid.
-  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
+  # w1528 (5.9): target_cpu.o is the full .x alone. Host detect, print,
+  # and the slice marker moved into the .x. The C seed is deleted. A failed
+  # ensure must not continue, and an object without the w1528 anchor must not
+  # be linked. PLATFORM: SHARED.
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
-    echo "g05_ensure: try-target-cpu-prefer src/driver/target_cpu.o (wave768)"
+    echo "g05_ensure: try-target-cpu-prefer src/driver/target_cpu.o (w1528)"
     XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
       CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
       bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer src/driver/target_cpu.o \
-      || echo "g05_ensure: try-target-cpu-prefer failed (non-fatal if unused)" >&2
+      || { echo "g05_ensure: ERROR try-target-cpu-prefer failed (full .x, no C fallback)" >&2; exit 1; }
+    if ! nm src/driver/target_cpu.o 2>/dev/null \
+      | grep -q "T _*target_cpu_pure_x_w1528_anchor\$"; then
+      echo "g05_ensure: ERROR src/driver/target_cpu.o lacks the w1528 anchor (full .x pure asm failed; no C fallback)" >&2
+      exit 1
+    fi
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; target_cpu prefer residual" >&2
+    exit 1
   fi
   # w1522 (5.8): src/asm/backend_x86_64_enc_c.o is the whole
   # src/asm/backend_x86_64_enc_c.x built by product pure asm on all three
