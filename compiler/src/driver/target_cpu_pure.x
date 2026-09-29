@@ -8,6 +8,8 @@
 // Print always writes fd 1. A null out handle writes nothing.
 // Linux x86_64 reads /proc/cpuinfo flags (FMA is a bit, not a printed name).
 // macOS arm64 is NEON. Windows x86_64 is SSE2.
+// generic_for_host uses stacked cfg(target_os) and cfg(target_arch).
+// A sole cfg(target_arch) for a foreign arch SIGSEGVs the Ubuntu x86_64 compiler.
 // PLATFORM: SHARED.
 //
 // See implementation.
@@ -428,10 +430,13 @@ export function xlang_target_cpu_detect_host(): u32 {
 }
 
 /**
- * Generic feature floor for this host: SSE2 on x86_64, NEON on arm64, else 0.
- * @return u32 — baseline bitmask
- * PLATFORM: x86_64.
+ * Generic feature floor on x86_64 Linux: SSE2.
+ * A sole cfg(target_arch) for a foreign arch crashes the Ubuntu x86_64 compiler.
+ * Stacked cfg(target_os) plus cfg(target_arch) is the form detect_host already uses.
+ * @return u32 — 1 (SSE2)
+ * PLATFORM: LINUX x86_64.
  */
+#[cfg(target_os = "linux")]
 #[cfg(target_arch = "x86_64")]
 #[no_mangle]
 export function xlang_target_cpu_generic_for_host(): u32 {
@@ -439,10 +444,35 @@ export function xlang_target_cpu_generic_for_host(): u32 {
 }
 
 /**
- * Generic feature floor for this host.
- * @return u32 — 256 (NEON)
- * PLATFORM: aarch64.
+ * Generic feature floor on x86_64 macOS: SSE2.
+ * @return u32 — 1 (SSE2)
+ * PLATFORM: MACOS x86_64.
  */
+#[cfg(target_os = "macos")]
+#[cfg(target_arch = "x86_64")]
+#[no_mangle]
+export function xlang_target_cpu_generic_for_host(): u32 {
+  return 1;
+}
+
+/**
+ * Generic feature floor on x86_64 Windows: SSE2.
+ * @return u32 — 1 (SSE2)
+ * PLATFORM: WINDOWS x86_64.
+ */
+#[cfg(target_os = "windows")]
+#[cfg(target_arch = "x86_64")]
+#[no_mangle]
+export function xlang_target_cpu_generic_for_host(): u32 {
+  return 1;
+}
+
+/**
+ * Generic feature floor on aarch64 Linux: NEON.
+ * @return u32 — 256
+ * PLATFORM: LINUX aarch64.
+ */
+#[cfg(target_os = "linux")]
 #[cfg(target_arch = "aarch64")]
 #[no_mangle]
 export function xlang_target_cpu_generic_for_host(): u32 {
@@ -450,10 +480,35 @@ export function xlang_target_cpu_generic_for_host(): u32 {
 }
 
 /**
- * Generic feature floor for this host. RISC-V has no mandatory vector baseline.
- * @return u32 — 0
- * PLATFORM: riscv64.
+ * Generic feature floor on aarch64 macOS: NEON.
+ * @return u32 — 256
+ * PLATFORM: MACOS aarch64.
  */
+#[cfg(target_os = "macos")]
+#[cfg(target_arch = "aarch64")]
+#[no_mangle]
+export function xlang_target_cpu_generic_for_host(): u32 {
+  return 256;
+}
+
+/**
+ * Generic feature floor on aarch64 Windows: NEON.
+ * @return u32 — 256
+ * PLATFORM: WINDOWS aarch64.
+ */
+#[cfg(target_os = "windows")]
+#[cfg(target_arch = "aarch64")]
+#[no_mangle]
+export function xlang_target_cpu_generic_for_host(): u32 {
+  return 256;
+}
+
+/**
+ * Generic feature floor on riscv64 Linux. No mandatory vector baseline.
+ * @return u32 — 0
+ * PLATFORM: LINUX riscv64.
+ */
+#[cfg(target_os = "linux")]
 #[cfg(target_arch = "riscv64")]
 #[no_mangle]
 export function xlang_target_cpu_generic_for_host(): u32 {
