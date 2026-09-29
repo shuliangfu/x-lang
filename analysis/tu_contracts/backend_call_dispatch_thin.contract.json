@@ -2,7 +2,7 @@
   "schema_version": 1,
   "tu": "backend_call_dispatch_thin",
   "x_src": "src/asm/backend_call_dispatch_thin.x",
-  "seed_src": "seeds/backend_call_dispatch.from_x.c",
+  "seed_src": "deleted in w1524 (5.11)",
   "probe_dir": "../tests/probes/prove_x_o/backend_call_dispatch_thin",
   "phase": "phase0_trial",
   "status": {

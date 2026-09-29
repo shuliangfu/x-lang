@@ -1620,7 +1620,7 @@ export function glue_emit_one_call_arg_elf_c(
  * Build link symbol for EXPR_CALL with VAR callee (same-module + dep co-emit).
  * Dep-pool hits must score overload mid (mul Vec4f → mul_f32x4_f32x4), not bare
  * prefix+cname (STD-SIMD-INTRINSIC std_simd_mul UNDEF on Ubuntu pure .x path).
- * G.7 twin of seeds/backend_call_dispatch.from_x.c glue_asm_build_call_export_sym_c_impl.
+ * G.7: single body here (the C seed twin was deleted in w1524).
  * @param arena *u8 — call-site AST arena
  * @param call_expr_ref i32 — EXPR_CALL expr ref
  * @param callee_ref i32 — EXPR_VAR callee ref
@@ -1942,7 +1942,7 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
  * @param out *u8 — destination symbol buffer
  * @param out_cap i32 — capacity; must be > 0
  * @return i32 — symbol length, or -1 on failure
- * PLATFORM: SHARED — G.7 twin of seeds/backend_call_dispatch.from_x.c impl authority.
+ * PLATFORM: SHARED — G.7 single body (C seed deleted in w1524).
  */
 #[no_mangle]
 export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, out: *u8, out_cap: i32): i32 {
@@ -2677,7 +2677,7 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
  * Ubuntu assign_index_struct_field panic 134 (i became 15).
  * Stage 12.0.5: AAPCS64 spill-then-load + stack-before-GP-reload (seed twin).
  * Root: high-to-low direct place then stack emit→x0 clobbered arg0 (rt_eq6 c=0x3e).
- * Authority matches seeds/backend_call_dispatch.from_x.c (wave392/600/601 + 12.0.5).
+ * Authority: this .x (wave392/600/601 + 12.0.5; C seed deleted in w1524).
  * PLATFORM: SHARED — LINUX+MACOS x86_64 SysV dual-GP; MACOS|ARM64 AAPCS64 spill.
  */
 #[no_mangle]
@@ -4376,8 +4376,8 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
        * Associated Type.method(): resolved callee nparams == nargs (no implicit
        * self). `P.mk()` / `P.id(7)` / `P.get(p)` — type-name receiver is not
        * an argument. Instance `p.get()` keeps nparams == nargs+1 so has_recv
-       * stays 1. PLATFORM: SHARED — G.7 complete UFCS leave; seed twin
-       * seeds/backend_call_dispatch.from_x.c.
+       * stays 1. PLATFORM: SHARED — G.7 complete UFCS leave (C seed twin
+       * deleted in w1524).
        */
       if (has_recv != 0) {
         let assoc_fn: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
@@ -7531,10 +7531,174 @@ export function glue_try_std_encoding_redirect_sym_local(name: *u8, nlen: i32, o
  * @param cap i32
  * @return i32
  */
+// w1524 (5.11): the std heap redirect table moved here from the deleted C table
+// seed. Same 38 rows, same order, same
+// rule: exact name match, copy the target when target_len + 1 <= cap, else 0.
+// The public wrapper below forwards to _impl (the thin .x declares the same
+// _impl extern). Doc anchor backend_call_dispatch_x_w1524_anchor marks this
+// object as the pure full .x build. PLATFORM: SHARED.
 #[no_mangle]
-export extern "C" function glue_try_std_heap_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32;
+export function backend_call_dispatch_x_w1524_anchor(): i32 {
+  return 1524;
+}
+
+function w1524_heap_redir_eq(name: *u8, nlen: i32, s: *u8, slen: i32): i32 {
+  if (nlen != slen) { return 0; }
+  let j: i32 = 0;
+  while (j < slen) {
+    let a: i32 = name[j] as i32;
+    let b: i32 = s[j] as i32;
+    if (a != b) { return 0; }
+    j = j + 1;
+  }
+  return 1;
+}
+
+function w1524_heap_redir_put(out: *u8, cap: i32, t: *u8, tlen: i32): i32 {
+  if (tlen + 1 > cap) { return 0; }
+  let j: i32 = 0;
+  while (j < tlen) {
+    out[j] = t[j];
+    j = j + 1;
+  }
+  return tlen;
+}
+
+/** Std heap short name to runtime symbol (table body, w1524).
+ * @param name *u8
+ * @param nlen i32
+ * @param out *u8
+ * @param cap i32
+ * @return i32 — target length, or 0 when no row matches / cap too small
+ */
+#[no_mangle]
+export function glue_try_std_heap_redirect_sym_local_impl(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
+  if (name == 0 as *u8) { return 0; }
+  if (out == 0 as *u8) { return 0; }
+  if (nlen <= 0) { return 0; }
+  if (cap <= 0) { return 0; }
+  if (w1524_heap_redir_eq(name, nlen, "alloc", 5) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_c", 12);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_i32", 9) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_i32_c", 16);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_i32_ret_i32_ptr", 21) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_i32_c", 16);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_i32_ret_u8_ptr", 20) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_u8_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_i32_ret_u64_ptr", 21) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_u64_c", 16);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_i32_ret_f64_ptr", 21) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_f64_c", 16);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_i32_ret_f32_ptr", 21) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_f32_c", 16);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_i32", 11) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_i32_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_i32_ret_i32_ptr", 23) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_i32_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_u64_ret_u64_ptr", 23) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_u64_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_f64_ret_f64_ptr", 23) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_f64_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_f32_ret_f32_ptr", 23) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_f32_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_u8_ret_u8_ptr", 21) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_u8_c", 17);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_i32", 8) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_i32_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_i32_ptr", 12) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_i32_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_u64_ptr", 12) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_u64_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_f64_ptr", 12) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_f64_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_f32_ptr", 12) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_f32_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_u8", 8) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_u8_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_u8", 10) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_u8_c", 17);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_u8", 7) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_u8_c", 14);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "alloc_f32", 9) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_alloc_f32_c", 16);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "realloc_f32", 11) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_realloc_f32_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "free_f32", 8) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_free_f32_c", 15);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_i32_at", 11) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_i32_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_u8_at", 10) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_u8_at_c", 17);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_f32_at", 11) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_f32_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_u64_at", 11) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_u64_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_f64_at", 11) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_f64_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_i32_ptr_i32_i32_ptr_i32", 28) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_i32_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_u8_ptr_i32_u8_ptr_i32", 26) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_u8_at_c", 17);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_f32_ptr_i32_f32_ptr_i32", 28) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_f32_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_u64_ptr_i32_u64_ptr_i32", 28) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_u64_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "copy_f64_ptr_i32_f64_ptr_i32", 28) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_copy_f64_at_c", 18);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "arena64_init", 12) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_arena64_init_c", 19);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "arena64_alloc", 13) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_arena64_alloc_c", 20);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "arena64_deinit", 14) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_arena64_deinit_c", 21);
+  }
+  if (w1524_heap_redir_eq(name, nlen, "ptr_mod", 7) != 0) {
+    return w1524_heap_redir_put(out, cap, "heap_ptr_mod_c", 14);
+  }
+  return 0;
+}
+
+// w1524: #[no_mangle] keeps the C name (the old extern decl above gave it the
+// same attribute); the mangled alias lives in x_frontend_link_alias.o.
+#[no_mangle]
 export function glue_try_std_heap_redirect_sym_local(name: *u8, nlen: i32, out: *u8, cap: i32): i32 {
-  /* Class BM: table via _impl (seeds/call_dispatch_std_redirect_tables.c). */
+  /* Class BM: table body is glue_try_std_heap_redirect_sym_local_impl above. */
   unsafe {
     return glue_try_std_heap_redirect_sym_local_impl(name, nlen, out, cap);
   }

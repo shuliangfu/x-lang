@@ -1080,10 +1080,8 @@ ensure_asm_backend_compat_stubs_obj() {
 # 与 build_xlang_asm.sh 一致：pipeline_glue_standalone 引用 simd_enc / simd_loop / target_cpu。
 # PLATFORM: SHARED — G-02e: f32 xmm ABI folded into backend_call_dispatch (no pipeline_abi_f32_xmm.c).
 ensure_simd_glue_link_objs() {
-  if [ ! -f src/asm/backend_call_dispatch.o ] || [ seeds/backend_call_dispatch.from_x.c -nt src/asm/backend_call_dispatch.o ]; then
-  strict_glue_info "cc -c seeds/backend_call_dispatch.from_x.c -> src/asm/backend_call_dispatch.o (G-02e f32 xmm)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch.o
-  fi
+  # w1524 (5.11): C seed deleted; same full .x object as the g05 main chain.
+  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/asm/backend_call_dispatch.o || return 1
   if [ ! -f src/driver/target_cpu.o ] || [ seeds/target_cpu_pure.from_x.c -nt src/driver/target_cpu.o ]; then
   strict_glue_info "cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o src/driver/target_cpu.o

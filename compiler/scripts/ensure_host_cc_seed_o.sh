@@ -14377,6 +14377,52 @@ ensure_enc_dispatch_pure() {
   return 0
 }
 
+# w1524 (5.11): backend_call_dispatch.o is src/asm/backend_call_dispatch.x
+# alone. The C seed (and its std heap redirect table) is deleted; the table
+# body glue_try_std_heap_redirect_sym_local_impl lives in the .x. Build goes
+# through rt_prefer_try_x_to_o (same full rung as before), three tries, no
+# ld -r with a seed rest, no cold seed cc. Rebuild when the .x is newer or the
+# w1524 anchor is missing. nm gates: the anchor, the table body, the public
+# wrapper, glue_sysv_arg_byte_size_c (full-only), and the doc anchor.
+# Failure logs build_asm/g05_xasm_crash.log and returns 1 (no C fallback);
+# g05_ensure refuses to continue when the object lacks the anchor.
+# PLATFORM: SHARED.
+ensure_call_dispatch_full_x() {
+  local o="src/asm/backend_call_dispatch.o"
+  local x_src="src/asm/backend_call_dispatch.x"
+  local tmp_o="${o%.o}_full_x_step.o"
+  local try=0
+  if [ ! -f "$x_src" ]; then
+    echo "ensure: call dispatch missing $x_src; no C fallback" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
+    && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor"; then
+    log "skip up-to-date $o (call dispatch full .x w1524)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")" build_asm
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$tmp_o"
+    if rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
+      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
+      && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
+      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
+      mv -f "$tmp_o" "$o"
+      log "call dispatch $o <- $x_src (w1524 full .x, no seed rest)"
+      return 0
+    fi
+    printf '%s try=%s ensure: call dispatch %s failed\n' \
+      "$(date +%H:%M:%S)" "$try" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+  done
+  rm -f "$tmp_o"
+  echo "ensure: call dispatch $x_src failed 3 times; no C fallback" >&2
+  return 1
+}
+
 ensure_r3_prefer_one() {
   # Prefer ladder (full→thin) or cold seed for one R3_COLD member (no membership check).
   local o="$1"
@@ -14402,8 +14448,15 @@ ensure_r3_prefer_one() {
     ensure_enc_dispatch_pure || return 1
     return 0
   fi
-  # w1521: backend_call_dispatch.o uses the same full→thin tip ladder on
-  # every host (Win w1047 thin+trampoline path retired with its seed).
+  # w1521: backend_call_dispatch.o used the full→thin ladder on every host
+  # (Win w1047 thin+trampoline path retired with its seed).
+  # w1524 (5.11): the C seed is deleted. The object is the full .x alone
+  # (heap redirect table now in the .x); no seed rest, no thin+rest rung,
+  # no cold seed cc. PLATFORM: SHARED.
+  if [ "$o" = "src/asm/backend_call_dispatch.o" ]; then
+    ensure_call_dispatch_full_x || return 1
+    return 0
+  fi
 
   seed="$(seed_for_o "$o")"
   if ! spec="$(r3_prefer_leaf_spec "$o")"; then

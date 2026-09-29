@@ -646,6 +646,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
       bash scripts/ensure_host_cc_seed_o.sh r3-prefer-family \
       || echo "g05_ensure: r3-prefer-family failed (non-fatal if unused)" >&2
+    # w1524 (5.11): backend_call_dispatch.o is the full .x alone (C seed
+    # deleted). The family above swallows per-leaf failures, so refuse to
+    # go on with an object that lacks the w1524 anchor. PLATFORM: SHARED.
+    if ! nm src/asm/backend_call_dispatch.o 2>/dev/null \
+      | grep -q "T _*backend_call_dispatch_x_w1524_anchor\$"; then
+      echo "g05_ensure: ERROR src/asm/backend_call_dispatch.o lacks the w1524 anchor (full .x build failed; no C fallback)" >&2
+      exit 1
+    fi
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; R3_COLD prefer residual" >&2
   fi

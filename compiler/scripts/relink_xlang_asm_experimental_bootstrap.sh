@@ -165,10 +165,8 @@ ensure_runtime_driver_asm_strict_obj
 # pipeline_glue / pipeline_x 引用 target_cpu / simd_enc / simd_loop（SIMD-S1–S4）。
 ensure_simd_glue_link_objs() {
   # G-02e: f32 xmm ABI 并入 backend_call_dispatch.o（无独立 pipeline_abi_f32_xmm.o）
-  if [ ! -f src/asm/backend_call_dispatch.o ] || [ seeds/backend_call_dispatch.from_x.c -nt src/asm/backend_call_dispatch.o ]; then
-  experimental_bootstrap_info "cc seeds/backend_call_dispatch.from_x.c → src/asm/backend_call_dispatch.o"
-  $CC $CFLAGS -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch.o
-  fi
+  # w1524 (5.11): C seed deleted; same full .x object as the g05 main chain.
+  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/asm/backend_call_dispatch.o || return 1
   if [ ! -f src/driver/target_cpu.o ] || [ seeds/target_cpu_pure.from_x.c -nt src/driver/target_cpu.o ]; then
   experimental_bootstrap_info "cc src/driver/target_cpu.o"
   sh scripts/cc_inc_tu.sh seeds/target_cpu_pure.from_x.c src/driver/target_cpu.o -I. -Iinclude -Isrc
