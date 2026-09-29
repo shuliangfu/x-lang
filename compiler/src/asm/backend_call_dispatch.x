@@ -20,6 +20,10 @@ export extern function glue_codegen_import_path_to_c_prefix_into(path: *u8, buf:
  * PLATFORM: SHARED — product hybrid full.x path owns f32 xmm / WPO fold env gates. */
 export extern function link_abi_getenv(name: *u8): *u8;
 export extern function link_abi_host_is_windows(): i32;
+export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
+export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+export extern function pipeline_asm_get_return_expr_ref_at(a: *u8, m: *u8, func_index: i32): i32;
+export extern function pipeline_asm_set_call_expected_ret_ty_c(ty: i32): void;
 export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_var_name_len_for_string_lit_c(arena: *u8, er: i32): i32;
@@ -56,6 +60,10 @@ export extern function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: 
 /** x86_64 only: move xmm0 f64 bits into rax after CALL. PLATFORM: LINUX|MACOS x86_64. */
 export extern function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_call_sret_reg_shift_c(): i32;
+/** w1521: Win64 by-ref arg materialize (sret shift / struct temp / qword load). PLATFORM: WINDOWS x86_64. */
+export extern function pipeline_asm_emit_set_call_sret_reg_shift_c(shift: i32): void;
+export extern function pipeline_asm_emit_struct_let_init_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, off: i32): i32;
+export extern function backend_enc_load_64_from_rax_arch(elf: *u8, ta: i32): i32;
 export extern function backend_enc_store_x0_sp_offset_arch(elf: *u8, off_bytes: i32, ta: i32): i32;
 /* wave614: width-aware stack-extra store (natural packing; see backend_enc_dispatch.x). */
 export extern function backend_enc_store_arg_sp_offset_arch(elf: *u8, off_bytes: i32, nbytes: i32, ta: i32): i32;
@@ -862,7 +870,8 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
  * wave214 fix: pure surface previously always used 1 unit → dual-GP struct clobbered later args.
  */
 function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32 {
-  if (sz > 16) { return 0; }
+  // w1521: Win64 >16B aggregate = 1 GP holding the caller-copy address.
+  if (sz > 16) { return w1521_win_mem_byref_sz(sz); }
   if (sz > 8) {
     if (sz <= 16) { return 2; }
   }
@@ -871,13 +880,21 @@ function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32 {
 
 /** SysV MEMORY by-value: aggregate size >16 (not a pointer in a GP). */
 function glue_sysv_arg_is_memory_by_value_c(sz: i32): i32 {
-  if (sz > 16) { return 1; }
+  // w1521: Windows x86_64 passes >16B by reference (not a stack MEMORY copy).
+  if (sz > 16) {
+    if (w1521_win_mem_byref_sz(sz) != 0) { return 0; }
+    return 1;
+  }
   return 0;
 }
 
 /** Stack words for one SysV arg: MEMORY → ceil(sz/8); integer stack excess → units. */
 function glue_sysv_arg_stack_words_c(sz: i32, gp_units: i32): i32 {
-  if (sz > 16) { return (sz + 7) / 8; }
+  if (sz > 16) {
+    // w1521: Win64 by-reference → one pointer word.
+    if (w1521_win_mem_byref_sz(sz) != 0) { return 1; }
+    return (sz + 7) / 8;
+  }
   if (gp_units < 1) { return 1; }
   return gp_units;
 }
@@ -1016,6 +1033,134 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
   if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) { return 0 - 1; }
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+}
+
+/**
+ * w1521 (终局待办 10.57): Win64 passes an aggregate that is not 1/2/4/8 bytes
+ * by reference (caller copy + pointer in the next GP/stack slot). The x86
+ * packer here used SysV MEMORY pushes on Windows too, while the Windows
+ * callee param home read the GP register, so >16B struct args were garbage.
+ * 9–16B stay two GPs (X-to-X self-consistent, unchanged).
+ * @return 1 when this arg size travels by reference on Windows x86_64.
+ * PLATFORM: WINDOWS x86_64 (0 elsewhere).
+ */
+function w1521_win_mem_byref_sz(sz: i32): i32 {
+  if (sz <= 16) { return 0; }
+  unsafe {
+    if (link_abi_host_is_windows() != 0) { return 1; }
+  }
+  return 0;
+}
+
+/**
+ * Win64 by-reference arg: materialize a caller-owned copy in a frame temp and
+ * leave its address in rax. VAR/FIELD/INDEX/DEREF copy qwords from the lvalue
+ * address; STRUCT_LIT inits the temp; nested CALL/METHOD writes it via sret
+ * (outer sret dest in arg0 saved/restored, same as the SysV push helper).
+ * Frame budget: call_spill walk adds align8(sz)+16 per arg (w1521_win_call_mem_temp_bytes_c).
+ * @return 0 ok; -1 fail. PLATFORM: WINDOWS x86_64.
+ */
+function w1521_win_mem_arg_addr_to_rax_c(
+    arena: *u8, elf_ctx: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32 {
+  let ko: i32 = 0;
+  let nbytes: i32 = 0;
+  let off: i32 = 0;
+  let save_off: i32 = 0;
+  let cur: i32 = 0;
+  let sum: i32 = 0;
+  let k: i32 = 0;
+  if (arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8 || arg_ref <= 0 || sz <= 16 || ta != 0) {
+    return 0 - 1;
+  }
+  ko = pipeline_expr_kind_ord_at(arena, arg_ref);
+  nbytes = (sz + 7) & (0 - 8);
+  cur = call_dispatch_load_i32_le(ctx, 4);
+  if (cur < 8) { cur = 8; }
+  // Temp occupies [rbp-off .. rbp-off+nbytes); byte k at rbp-(off-k).
+  off = cur + nbytes;
+  save_off = off + 8;
+  sum = save_off;
+  if (sum < cur) { return 0 - 1; }
+  call_dispatch_store_i32_le(ctx, 4, sum);
+  if (ko == 48 || ko == 49) {
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+    w1521_set_sret_shift(1);
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
+      w1521_set_sret_shift(0);
+      return 0 - 1;
+    }
+    w1521_set_sret_shift(0);
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+  } else if (ko == 45) {
+    if (w1521_struct_let_init(arena, elf_ctx, arg_ref, ctx, ta, off) != 0) { return 0 - 1; }
+  } else {
+    // EXPR_VAR(3) / FIELD(44) / INDEX(47) / DEREF(52) and other lvalues.
+    k = 0;
+    while (k < nbytes) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) { return 0 - 1; }
+      if (k != 0) {
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+      }
+      if (w1521_load64_from_rax(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off - k, ta) != 0) { return 0 - 1; }
+      k = k + 8;
+    }
+  }
+  return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+}
+
+/** Thin wrappers over pabi/enc externs (keep unsafe local). PLATFORM: WINDOWS x86_64. */
+function w1521_set_sret_shift(v: i32): void {
+  unsafe { pipeline_asm_emit_set_call_sret_reg_shift_c(v); }
+}
+function w1521_struct_let_init(arena: *u8, elf_ctx: *u8, er: i32, ctx: *u8, ta: i32, off: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, er, ctx, ta, off); }
+  return rc;
+}
+function w1521_load64_from_rax(elf_ctx: *u8, ta: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = backend_enc_load_64_from_rax_arch(elf_ctx, ta); }
+  return rc;
+}
+
+/**
+ * Frame temp bytes the Win64 by-reference packer takes for one CALL/METHOD
+ * arg list (align8(sz)+16 per >16B arg). Called by the call_spill walk.
+ * @param is_method i32 — 1 for METHOD_CALL args (pipeline_expr_method_call_arg_ref)
+ * PLATFORM: WINDOWS x86_64 (0 elsewhere).
+ */
+#[no_mangle]
+export function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32 {
+  let j: i32 = 0;
+  let tot: i32 = 0;
+  if (arena == 0 as *u8 || call <= 0 || nargs <= 0) { return 0; }
+  if (w1521_win_mem_byref_sz(17) == 0) { return 0; }
+  unsafe {
+    while (j < nargs) {
+      let ar: i32 = 0;
+      let pty: i32 = 0;
+      if (is_method != 0) {
+        ar = pipeline_expr_method_call_arg_ref(arena, call, j);
+        pty = 0;
+      } else {
+        ar = pipeline_expr_call_arg_ref(arena, call, j);
+        pty = glue_call_param_type_ref_at(arena, call, j);
+      }
+      if (ar > 0) {
+        let sz: i32 = glue_sysv_arg_byte_size_c(arena, 0 as *u8, pty, ar);
+        if (sz > 16) {
+          tot = tot + ((sz + 7) & (0 - 8)) + 16;
+        }
+      }
+      j = j + 1;
+    }
+  }
+  return tot;
 }
 
 /**
@@ -1344,7 +1489,8 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
           // PLATFORM: SHARED x86_64 SysV.
           let home_off_f: i32 = 0 - 1;
           if (is_sse_f[i] == 0 && gp_units_f[i] == 1
-              && pipeline_expr_kind_ord_at(arena, arg_ref_f) == 3) {
+              && pipeline_expr_kind_ord_at(arena, arg_ref_f) == 3
+              && w1521_win_mem_byref_sz(glue_sysv_arg_byte_size_c(arena, ctx, glue_call_param_type_ref_at(arena, er, i), arg_ref_f)) == 0) {
             let arg_ty_f: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref_f);
             let arg_tk_f: i32 = 0;
             if (arg_ty_f > 0) {
@@ -1431,6 +1577,14 @@ export function glue_emit_one_call_arg_elf_c(
   if (arg_ref == 0) { return 0; }
   unsafe {
     let pty0: i32 = glue_call_param_type_ref_at(arena, call_expr_ref, arg_index);
+    // w1521 (10.57): Win64 >16B aggregate → caller copy + address in rax.
+    // PLATFORM: WINDOWS x86_64.
+    if (ta == 0) {
+      let sz_w: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty0, arg_ref);
+      if (w1521_win_mem_byref_sz(sz_w) != 0) {
+        return w1521_win_mem_arg_addr_to_rax_c(arena, elf_ctx, ctx, arg_ref, sz_w, ta);
+      }
+    }
     pipeline_asm_emit_set_call_param_type_ref(pty0);
     pipeline_asm_emit_call_arg_begin_c();
     if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
@@ -2387,6 +2541,97 @@ export function glue_asm_try_emit_fmt_any_import_call_elf_c(
   return 0;
 }
 
+// w1521 (终局待办 10.57): AAPCS64 indirect result (x8) for CALLs returning
+// more than 16 bytes. The caller's x8 must hold the result address at the
+// bl itself, so pipeline_asm_emit_call_elf_c records it here and
+// glue_asm_enc_call_redirected writes x8 right before the call (nested
+// calls inside the args save/restore this state). State:
+// [0] mode (0 none, 1 add x8,x29,#off = own temp, 2 ldr x8,[x29,#off] =
+// outer preset dest saved at off), [1] off, [2] x8 emitted at a call.
+// PLATFORM: MACOS|ARM64.
+export extern function pipeline_elf_pgo_hot_enabled(): i32;
+export extern function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
+/**
+ * w1521: 1 when a CALL / METHOD_CALL resolves to an xlang-bodied (non-extern)
+ * module function. X-to-X passes > 16-byte POD by value on the stack (callee
+ * param home reads stack words); host-C extern keeps the AAPCS64 pointer.
+ * PLATFORM: SHARED (used on MACOS|ARM64 import METHOD).
+ */
+function w1521_callee_is_xlang(arena: *u8, expr_ref: i32): i32 {
+  let ms: u8[8] = [];
+  let fs: i32[1] = [];
+  let ds: i32[1] = [];
+  let m: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  fs[0] = 0 - 1;
+  ds[0] = 0 - 1;
+  call_dispatch_store_i32_le(&ms[0], 0, 0);
+  call_dispatch_store_i32_le(&ms[0], 4, 0);
+  unsafe {
+    rc = glue_asm_resolve_call_target_module_c(arena, expr_ref, &ms[0], &fs[0], &ds[0]);
+  }
+  if (rc != 0 || fs[0] < 0) { return 0; }
+  m = call_dispatch_load_ptr_le(&ms[0], 0);
+  if (m == 0 as *u8) { return 0; }
+  unsafe {
+    if (pipeline_module_func_is_extern_at(m, fs[0]) != 0) { return 0; }
+  }
+  return 1;
+}
+let w1521_x8_st: i32[3] = [];
+
+/** Append one little-endian arm64 instruction word. PLATFORM: MACOS|ARM64. */
+function w1521_a64(elf_ctx: *u8, word: i64): i32 {
+  let b: u8[4] = [];
+  b[0] = (word & 255) as u8;
+  b[1] = ((word >> 8) & 255) as u8;
+  b[2] = ((word >> 16) & 255) as u8;
+  b[3] = ((word >> 24) & 255) as u8;
+  unsafe {
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * 1 when the last emitted instruction is `mov x8, x0` (0xAA0003E8): the
+ * outer let/arg/store path already pointed x8 at its own destination.
+ * Offsets mirror runtime_pipeline_abi pipe_elf_off_* (code_len 0,
+ * hot_len 43581480, emit_hot 43581484, code_data 43581488,
+ * hot_data 52297776). PLATFORM: MACOS|ARM64.
+ */
+function w1521_last_is_mov_x8_x0(elf_ctx: *u8): i32 {
+  let len: i32 = 0;
+  let data_off: i32 = 43581488;
+  let p: *u8 = 0 as *u8;
+  unsafe {
+    len = call_dispatch_load_i32_le(elf_ctx, 0);
+    if (pipeline_elf_pgo_hot_enabled() != 0 && call_dispatch_load_i32_le(elf_ctx, 43581484) != 0) {
+      len = call_dispatch_load_i32_le(elf_ctx, 43581480);
+      data_off = 52297776;
+    }
+    if (len < 4) { return 0; }
+    p = elf_ctx + ((data_off + len - 4) as usize);
+    if (p[0] == 232 && p[1] == 3 && p[2] == 0 && p[3] == 170) { return 1; }
+  }
+  return 0;
+}
+
+/** Emit the pending x8 set before a bl. PLATFORM: MACOS|ARM64. */
+function w1521_emit_x8(elf_ctx: *u8): i32 {
+  let off: i32 = w1521_x8_st[1];
+  if (w1521_x8_st[0] == 1) {
+    // add x8, x29, #off
+    if (w1521_a64(elf_ctx, 2432697256 + ((off as i64) << 10)) != 0) { return 0 - 1; }
+    w1521_x8_st[2] = 1;
+  } else if (w1521_x8_st[0] == 2) {
+    // ldr x8, [x29, #off]
+    if (w1521_a64(elf_ctx, 4181722024 + (((off / 8) as i64) << 10)) != 0) { return 0 - 1; }
+    w1521_x8_st[2] = 1;
+  }
+  return 0;
+}
+
 // glue_asm_enc_call_redirected: see function docblock below.
 /** Exported function `glue_asm_enc_call_redirected`.
  * Implements `glue_asm_enc_call_redirected`.
@@ -2400,6 +2645,9 @@ export function glue_asm_try_emit_fmt_any_import_call_elf_c(
 export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
   if (name == 0 as *u8) { return 0 - 1; }
   if (name_len <= 0) { return 0 - 1; }
+  if (ta == 1 && w1521_x8_st[0] != 0) {
+    if (w1521_emit_x8(elf_ctx) != 0) { return 0 - 1; }
+  }
   unsafe {
     let redir: u8[256] = [];
     let rlen: i32 = glue_try_std_heap_redirect_sym_local(name, name_len, &redir[0], 64);
@@ -2744,7 +2992,8 @@ export function pipeline_asm_emit_call_args_elf_c(
           if (arg_ref != 0) {
             let home_off: i32 = 0 - 1;
             if (is_sse[i] == 0 && gp_units[i] == 1
-                && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
+                && pipeline_expr_kind_ord_at(arena, arg_ref) == 3
+                && w1521_win_mem_byref_sz(glue_sysv_arg_byte_size_c(arena, ctx, glue_call_param_type_ref_at(arena, expr_ref, i), arg_ref)) == 0) {
               let arg_ty_h: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
               let arg_tk_h: i32 = 0;
               if (arg_ty_h > 0) {
@@ -3226,7 +3475,12 @@ export function pipeline_asm_emit_call_args_text_c(
  * PLATFORM: SHARED — mac + Ubuntu freestanding · LINUX gold dual-GP
  */
 #[no_mangle]
+/** w1521: METHOD_CALL entry; arm64 > 16-byte result via x8 (see CALL wrapper). */
 export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  return w1521_sret_wrap(arena, elf_ctx, expr_ref, ctx, ta, 1);
+}
+
+function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   if (ctx == 0 as *u8) { return 0 - 1; }
@@ -3764,6 +4018,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       }
                       let gp_cur_m: i32 = sret_sh_m;
                       if (reg_max_m < 1) { reg_max_m = 6; }
+                      // w1521: arm64 X-to-X import METHOD (std .x bodies) → stack MEMORY.
+                      let x_callee_m: i32 = 0;
+                      if (ta == 1) {
+                        x_callee_m = w1521_callee_is_xlang(arena, expr_ref);
+                      }
                       /*
                        * Classify large POD for import METHOD → host-C std .o (string.o):
                        * - PLATFORM: LINUX|x86_64 SysV — MEMORY by-value on stack (gcc formals
@@ -3809,6 +4068,11 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                             if (ta == 0) {
                               // x86 SysV MEMORY: stack only (not lea into GP).
                               is_mem_m[i_m] = 1;
+                              gp_start_m[i_m] = 0 - 1;
+                              gp_units_m[i_m] = 0;
+                            } else if (x_callee_m != 0) {
+                              // w1521: xlang callee param home reads stack words.
+                              is_mem_m[i_m] = 3;
                               gp_start_m[i_m] = 0 - 1;
                               gp_units_m[i_m] = 0;
                             } else {
@@ -3902,11 +4166,36 @@ export function pipeline_asm_emit_method_call_elf_c(arena: *u8, elf_ctx: *u8, ex
                       }
                       // arm64 excess: place on [sp] via x0 *before* final GP load (do not clobber GPs).
                       // Skip is_mem==2 (already in GP); only true excess integer stack.
+                      // w1521: is_mem==3 (X-to-X MEMORY) reserves + stores like UFCS wave606.
                       if (ta == 1) {
                         let stk_pos_m: i32 = 0;
+                        let nw_m: i32 = 0;
+                        let any3_m: i32 = 0;
                         i_m = 0;
                         while (i_m < nargs) {
-                          if (gp_start_m[i_m] < 0) {
+                          if (is_mem_m[i_m] == 3) {
+                            any3_m = 1;
+                            nw_m = nw_m + glue_sysv_arg_stack_words_c(arg_sz_m[i_m], 0);
+                          } else if (gp_start_m[i_m] < 0 && is_mem_m[i_m] != 2) {
+                            nw_m = nw_m + 1;
+                          }
+                          i_m = i_m + 1;
+                        }
+                        if (any3_m != 0) {
+                          mem_stack_m = (nw_m * 8 + 15) & (0 - 16);
+                          if (backend_enc_call_stack_reserve_arch(elf_ctx, mem_stack_m, ta) != 0) { return 0 - 1; }
+                        }
+                        i_m = 0;
+                        while (i_m < nargs) {
+                          if (is_mem_m[i_m] == 3) {
+                            let arg_m3: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
+                            if (arg_m3 == 0) { return 0 - 1; }
+                            let moff_m3: i32 = glue_call_stk_extra_align(stk_pos_m, arg_sz_m[i_m], ta);
+                            let st_m3: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
+                              arena, elf_ctx, ctx, arg_m3, arg_sz_m[i_m], ta, moff_m3);
+                            if (st_m3 < 0) { return 0 - 1; }
+                            stk_pos_m = glue_call_stk_extra_advance(moff_m3, st_m3, ta);
+                          } else if (gp_start_m[i_m] < 0) {
                             if (is_mem_m[i_m] != 2) {
                               let arg_stk_a: i32 = pipeline_expr_method_call_arg_ref(arena, expr_ref, i_m);
                               if (arg_stk_a != 0) {
@@ -5416,8 +5705,178 @@ export function pipeline_asm_try_emit_inline_asm_expr_elf_c(
   }
 }
 
+/**
+ * w1521 (终局待办 10.57): arm64 CALL returning > 16 bytes. Picks the x8
+ * destination (outer preset dest when the last insn is mov x8,x0, else an
+ * own frame temp; frame budget in call_spill_thin w1500_cs_st[6]), lets the
+ * call body emit with x8 written right before its bl, then points x0 at the
+ * result so the copy-from-x0 callers keep working. PLATFORM: MACOS|ARM64;
+ * other targets go straight to the body.
+ */
 #[no_mangle]
 export function pipeline_asm_emit_call_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  return w1521_sret_wrap(arena, elf_ctx, expr_ref, ctx, ta, 0);
+}
+
+/** Dispatch to the CALL (is_m 0) or METHOD_CALL (is_m 1) body. */
+function w1521_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, is_m: i32): i32 {
+  if (is_m != 0) {
+    return w1521_emit_method_body(arena, elf_ctx, expr_ref, ctx, ta);
+  }
+  return w1521_emit_call_body(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+/*
+ * w1521: current function (module, index) noted by the Windows param-home
+ * overlay. The egg mega_body emits a `{ return f(..); }` body's result expr
+ * directly (no RETURN node, so the return_sret overlay never runs); the call
+ * path below forwards this function's own sret dest to the callee instead.
+ * PLATFORM: WINDOWS x86_64 (only the Win param-home overlay calls the setter).
+ */
+let w1521_win_cur_mod: *u8 = 0 as *u8;
+let w1521_win_cur_fi: i32[1] = [0];
+
+/** Record the function whose params are being homed. PLATFORM: WINDOWS x86_64. */
+export function w1521_win_note_func_c(mod: *u8, func_index: i32): void {
+  w1521_win_cur_mod = mod;
+  w1521_win_cur_fi[0] = func_index;
+}
+
+/**
+ * `return f(..)` as a whole Win body result with a > 16-byte return: load this
+ * function's sret dest into arg0 (rcx), shift the args by one, then rax = dest.
+ * @return 1 emitted; 0 not this shape; -1 fail. PLATFORM: WINDOWS x86_64.
+ */
+function w1521_win_fwd_ret_call(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, is_m: i32): i32 {
+  let act: i32 = 0;
+  let home: i32 = 0;
+  let rsz: i32 = 0;
+  let rref: i32 = 0;
+  let ty: i32 = 0;
+  let rc: i32 = 0;
+  let md: *u8 = 0 as *u8;
+  if (ta != 0 || w1521_win_mem_byref_sz(17) == 0) { return 0; }
+  if (w1521_win_cur_mod == 0 as *u8) { return 0; }
+  unsafe {
+    if (pipeline_asm_emit_call_sret_reg_shift_c() != 0) { return 0; }
+    act = pipeline_asm_emit_ctx_sret_active_get();
+    home = pipeline_asm_emit_ctx_sret_home_off_get();
+    rsz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+  }
+  if (act == 0 || home <= 0 || rsz <= 16) { return 0; }
+  md = call_dispatch_load_ptr_le(ctx, 16);
+  if (md != w1521_win_cur_mod) { return 0; }
+  unsafe {
+    rref = pipeline_asm_get_return_expr_ref_at(arena, md, w1521_win_cur_fi[0]);
+  }
+  if (rref != expr_ref) { return 0; }
+  unsafe {
+    if (glue_call_return_byte_size_c(arena, expr_ref) <= 16) { return 0; }
+    ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (ty > 0) {
+      pipeline_asm_set_call_expected_ret_ty_c(ty);
+    } else {
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+    }
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      return 0 - 1;
+    }
+    pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+  }
+  rc = w1521_body(arena, elf_ctx, expr_ref, ctx, ta, is_m);
+  unsafe {
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+    pipeline_asm_set_call_expected_ret_ty_c(0);
+  }
+  if (rc != 0) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, home, ta) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
+function w1521_sret_wrap(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, is_m: i32): i32 {
+  let rs: i32 = 0;
+  let mode: i32 = 0;
+  let off: i32 = 0;
+  let cur: i32 = 0;
+  let p0: i32 = 0;
+  let p1: i32 = 0;
+  let p2: i32 = 0;
+  let rc: i32 = 0;
+  let used: i32 = 0;
+  if (ta == 0 && arena != 0 as *u8 && elf_ctx != 0 as *u8 && ctx != 0 as *u8) {
+    rc = w1521_win_fwd_ret_call(arena, elf_ctx, expr_ref, ctx, ta, is_m);
+    if (rc < 0) { return 0 - 1; }
+    if (rc > 0) { return 0; }
+  }
+  if (ta != 1 || arena == 0 as *u8 || elf_ctx == 0 as *u8 || ctx == 0 as *u8) {
+    return w1521_body(arena, elf_ctx, expr_ref, ctx, ta, is_m);
+  }
+  unsafe {
+    rs = glue_call_return_byte_size_c(arena, expr_ref);
+  }
+  // Cross-module NAMED result (import METHOD `m.f()` / dep-internal CALL):
+  // callee-side sizing misses when the struct lives in another module.
+  if (rs <= 16) {
+    let rty_w: i32 = 0;
+    let rs2: i32 = 0;
+    unsafe {
+      rty_w = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (rty_w > 0) {
+        rs2 = glue_type_named_layout_size_any_module_elf_c(arena, rty_w);
+      }
+    }
+    if (rs2 > 16) { rs = rs2; }
+  }
+  if (rs > 16) {
+    cur = call_dispatch_load_i32_le(ctx, 4);
+    if (cur < 16) { cur = 16; }
+    off = (cur + 7) & (0 - 8);
+    if (w1521_last_is_mov_x8_x0(elf_ctx) != 0) {
+      if (off < 32760) {
+        // str x8, [x29, #off]
+        if (w1521_a64(elf_ctx, 4177527720 + (((off / 8) as i64) << 10)) != 0) { return 0 - 1; }
+        call_dispatch_store_i32_le(ctx, 4, off + 8);
+        mode = 2;
+      }
+    } else {
+      if (off < 4096) {
+        call_dispatch_store_i32_le(ctx, 4, off + ((rs + 7) & (0 - 8)));
+        mode = 1;
+      }
+    }
+  }
+  p0 = w1521_x8_st[0];
+  p1 = w1521_x8_st[1];
+  p2 = w1521_x8_st[2];
+  w1521_x8_st[0] = mode;
+  w1521_x8_st[1] = off;
+  w1521_x8_st[2] = 0;
+  rc = w1521_body(arena, elf_ctx, expr_ref, ctx, ta, is_m);
+  used = w1521_x8_st[2];
+  w1521_x8_st[0] = p0;
+  w1521_x8_st[1] = p1;
+  w1521_x8_st[2] = p2;
+  if (rc != 0) { return rc; }
+  if (mode != 0 && used != 0) {
+    if (mode == 1) {
+      // add x0, x29, #off
+      if (w1521_a64(elf_ctx, 2432697248 + ((off as i64) << 10)) != 0) { return 0 - 1; }
+    } else {
+      // ldr x0, [x29, #off]
+      if (w1521_a64(elf_ctx, 4181722016 + (((off / 8) as i64) << 10)) != 0) { return 0 - 1; }
+    }
+  }
+  return 0;
+}
+
+function w1521_emit_call_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   if (arena == 0 as *u8) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
   if (ctx == 0 as *u8) { return 0 - 1; }

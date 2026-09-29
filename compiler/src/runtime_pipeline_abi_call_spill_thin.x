@@ -74,11 +74,15 @@ export extern function pipeline_expr_match_arm_result_ref(arena: *u8, expr_ref: 
 export extern function pipeline_expr_match_arm_guard_ref(arena: *u8, expr_ref: i32, i: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
 export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr_ref: i32): i32;
+export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
+/** w1521: Win64 by-ref >16B call-arg temp bytes (bcd). PLATFORM: WINDOWS x86_64. */
+export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
 // [4] arm64 binop left-preserve frame homes (w1503),
-// [5] STRUCT_LIT value temp bytes (w1509).
-let w1500_cs_st: i32[6] = [];
+// [5] STRUCT_LIT value temp bytes (w1509),
+// [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521).
+let w1500_cs_st: i32[7] = [];
 
 /** Record the widest outgoing GP unit count. PLATFORM: SHARED. */
 function w1500_cs_note_gp(gp: i32): void {
@@ -220,9 +224,27 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       i = i + 1;
     }
     if (w1500_cs_st[2] != 0) {
+      // w1521 (10.57): Win64 by-reference >16B arg copies (0 off Windows).
+      unsafe {
+        // Call first into a local: Win x86 emit pushes the left operand then calls
+        // without shadow space; the gcc-built callee homes rcx over that push.
+        op = w1521_win_call_mem_temp_bytes_c(arena, expr_ref, n, 0);
+        w1500_cs_st[6] = w1500_cs_st[6] + op;
+        op = 0;
+      }
       w1500_cs_call_x86(arena, expr_ref, n);
       return;
     }
+    // w1521 (终局待办 10.57): pipeline_asm_emit_call_elf_c takes a result
+    // temp (align8(ret) bytes) plus an 8-byte x8 save slot from next_offset
+    // for every CALL returning > 16 bytes. PLATFORM: MACOS|ARM64.
+    unsafe {
+      op = glue_call_return_byte_size_c(arena, expr_ref);
+    }
+    if (op > 16) {
+      w1500_cs_st[6] = w1500_cs_st[6] + ((op + 7) & (0 - 8)) + 16;
+    }
+    op = 0;
     if (need > 0 || n == 0) {
       need = need + 1;
     }
@@ -257,6 +279,14 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       need = need + 1;
     }
     if (w1500_cs_st[2] != 0) {
+      // w1521 (10.57): Win64 by-reference >16B arg copies (0 off Windows).
+      unsafe {
+        // Call first into a local: Win x86 emit pushes the left operand then calls
+        // without shadow space; the gcc-built callee homes rcx over that push.
+        op = w1521_win_call_mem_temp_bytes_c(arena, expr_ref, n, 1);
+        w1500_cs_st[6] = w1500_cs_st[6] + op;
+        op = 0;
+      }
       need = need * 2;
       w1500_cs_note_gp(2 * (n + 1) + 1);
     }
@@ -687,6 +717,7 @@ export function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref: i32):
   w1500_cs_st[3] = 0 - 1;
   w1500_cs_st[4] = 0;
   w1500_cs_st[5] = 0;
+  w1500_cs_st[6] = 0;
   unsafe {
     arm = pipeline_asm_host_is_arm64_c();
   }
@@ -715,4 +746,10 @@ export function glue_asm_last_binop_preserve_homes_c(): i32 {
 #[no_mangle]
 export function glue_asm_last_struct_lit_temp_bytes_c(): i32 {
   return w1500_cs_st[5];
+}
+
+/** arm64 sret CALL temp bytes from the last walk (w1521). PLATFORM: MACOS|ARM64. */
+#[no_mangle]
+export function glue_asm_last_sret_call_temp_bytes_c(): i32 {
+  return w1500_cs_st[6];
 }

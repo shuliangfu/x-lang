@@ -1058,28 +1058,10 @@ struct RaisReadPtrView {
 }
 
 /**
- * io.ptr_view on Linux x86_64 (5.7b / w1516): SysV returns this 24B struct
- * through a hidden sret pointer in rdi and hands it back in rax. Product
- * callers already follow that; the product callee side does not write the
- * sret for `return v` (debt 10.57), so spell the sret out as an explicit
- * first parameter. Same machine ABI as the C seed this replaces.
- * PLATFORM: LINUX
+ * io.ptr_view: pack the last read_ptr / len / gen. The 24B result goes back
+ * through the caller's sret buffer (x8 / rdi) since w1521 (10.57); the old
+ * Linux explicit-out spelling is gone. PLATFORM: SHARED
  */
-#[cfg(target_os = "linux")]
-#[no_mangle]
-export function std_io_ptr_view(out: *RaisReadPtrView, handle: usize, timeout_ms: u32): *RaisReadPtrView {
-  let p: *u8 = io_read_ptr(handle as u32, timeout_ms);
-  let n: i32 = io_read_ptr_len();
-  let g: u64 = g_rais_read_ptr_gen[0];
-  out.ptr = p;
-  out.length = n;
-  out.pad0 = 0;
-  out.gen = g;
-  return out;
-}
-
-/** io.ptr_view: pack the last read_ptr / len / gen. PLATFORM: MACOS|DARWIN · WINDOWS */
-#[cfg(not(target_os = "linux"))]
 #[no_mangle]
 export function std_io_ptr_view(handle: usize, timeout_ms: u32): RaisReadPtrView {
   let p: *u8 = io_read_ptr(handle as u32, timeout_ms);
@@ -1096,15 +1078,7 @@ export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
   return std_io_ptr_valid(v.gen);
 }
 
-/** io.stdin_ptr_view on Linux x86_64: explicit sret, see std_io_ptr_view. PLATFORM: LINUX */
-#[cfg(target_os = "linux")]
-#[no_mangle]
-export function std_io_stdin_ptr_view(out: *RaisReadPtrView): *RaisReadPtrView {
-  return std_io_ptr_view(out, std_io_stdin(), 0);
-}
-
-/** io.stdin_ptr_view. PLATFORM: MACOS|DARWIN · WINDOWS */
-#[cfg(not(target_os = "linux"))]
+/** io.stdin_ptr_view. PLATFORM: SHARED */
 #[no_mangle]
 export function std_io_stdin_ptr_view(): RaisReadPtrView {
   return std_io_ptr_view(std_io_stdin(), 0);

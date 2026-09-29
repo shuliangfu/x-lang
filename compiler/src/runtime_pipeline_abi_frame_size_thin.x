@@ -34,6 +34,7 @@ export extern function glue_asm_sum_block_call_spill_bytes(arena: *u8, block_ref
 export extern function glue_asm_last_call_max_gp_units_c(): i32;
 export extern function glue_asm_last_binop_preserve_homes_c(): i32;
 export extern function glue_asm_last_struct_lit_temp_bytes_c(): i32;
+export extern function glue_asm_last_sret_call_temp_bytes_c(): i32;
 export extern function glue_binop_var_slot_cache_clear(): void;
 export extern function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
@@ -338,6 +339,25 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   if (is_arm != 0 && homes > 0) {
     size = size + homes * 8;
   }
+  // w1521 (终局待办 10.57): w499_mega_emit_frame parks the hidden sret dest
+  // pointer at align8(next_offset + ret_sz) AFTER the body locals and bumps
+  // next_offset by 8, but the frame only had the early +8. The home sat
+  // under rsp (x86 push clobbered it) / at [sp+size] on arm64 (x19 save,
+  // then caller fp/lr). Reserve ret_sz + 16 (align slack + the 8B slot).
+  // PLATFORM: SHARED — LINUX/WINDOWS x86_64 · MACOS|ARM64.
+  if (ret_sz > 16) {
+    size = size + ret_sz + 16;
+  }
+  // w1521: arm64 sret CALL result temps + x8 save slots (call_spill walk).
+  // PLATFORM: MACOS|ARM64.
+  if (is_arm != 0) {
+    unsafe {
+      w = glue_asm_last_sret_call_temp_bytes_c();
+    }
+    if (w > 0) {
+      size = size + w;
+    }
+  }
   if (size > 0) {
     rem = size % 16;
     if (rem != 0) {
@@ -374,7 +394,7 @@ function w1500_fs_core(num_params: i32, arena: *u8, block_ref: i32, mod: *u8, fu
   // w1043: param-home-only forwarders cap at 48 (num_params <= 4).
   // w1503: arm64 saves x19 at [sp+size], so the cap only applies when every
   // home (params, locals, binop left-preserve homes) ends at or below 48.
-  if (call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
+  if (ret_sz <= 16 && call_spill == 0 && arr_temp == 0 && wa_temp == 0 && reent_dc == 0 && (is_arm == 0 || next_off + homes * 8 <= 48)) {
     if (num_params <= 4 && size > 48 && size <= 64) {
       return 48;
     }
@@ -401,6 +421,7 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
   let out: i32 = 0;
   let rem: i32 = 0;
   let lit: i32 = 0;
+  let w: i32 = 0;
   unsafe {
     glue_binop_var_slot_cache_clear();
   }
@@ -422,6 +443,12 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
     // PLATFORM: WINDOWS x86_64.
     unsafe {
       lit = glue_asm_last_struct_lit_temp_bytes_c();
+    }
+    // w1521 (10.57): Win64 by-reference >16B call-arg copies + arg0 save
+    // slots (call_spill walk [6]) also come from next_offset. PLATFORM: WINDOWS.
+    unsafe {
+      w = glue_asm_last_sret_call_temp_bytes_c();
+      lit = lit + w;
     }
     if (lit > 0) {
       size = size + lit;

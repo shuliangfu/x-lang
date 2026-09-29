@@ -553,6 +553,34 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# w1521 (终局待办 10.57): Darwin's live EXPR_RETURN impl (pabi_weak strong T)
+# never copied a > 16-byte result into the caller's x8 buffer. The pure
+# overlay copies into the parked sret dest and returns it in x0; pabi_weak
+# _pipeline_asm_emit_return_elf_impl is weakened below. Linux x86_64: same
+# overlay (lea local + copy into [rbp-home]); pabi.o keeps a strong T there,
+# so the Linux copy weakens it in pabi_weak.o. Windows (w1521): egg T weakened
+# in pabi_weak + win_patch jmp. PLATFORM: MACOS|DARWIN|LINUX|WINDOWS.
+_PABI_RETURN_SRET=""
+case "$UNAME_S" in
+  Darwin|Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    if [ "${XLANG_RETURN_SRET_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_return_sret_thin.x \
+        build_asm/selfhost_pabi/return_sret.o pipeline_asm_emit_return_elf_impl
+      _PABI_RETURN_SRET="$_G05_PO_OUT"
+    fi
+    ;;
+esac
+# w1521 (终局待办 10.57): INDEX base `v.p[i]` with a *T struct field peeled
+# the pointer twice (pabi glue_emit_index_eff_addr_base_elf_c FIELD branch
+# plus trailing arm). Pure overlay skips the second peel for PTR fields;
+# pabi_weak _glue_emit_index_eff_addr_base_elf_c weakened below (Darwin,
+# Windows egg copy); Linux pabi already carries it weak. PLATFORM: SHARED.
+_PABI_INDEX_BASE_FIELD=""
+if [ "${XLANG_INDEX_BASE_FIELD_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_index_base_field_thin.x \
+    build_asm/selfhost_pabi/index_base_field.o glue_emit_index_eff_addr_base_elf_c
+  _PABI_INDEX_BASE_FIELD="$_G05_PO_OUT"
+fi
 # w1507 (终局待办 10.34): Linux VAR assign goes through the assign.o sidecar
 # (runtime_pipeline_abi_assign_thin.x, stale-marks pabi.o), not the VAR gate,
 # and calls the pabi demote after rhs_to_rax. That demote called FLOAT_LIT f64
@@ -643,6 +671,15 @@ if [ -n "$_PABI_SELFHOST" ] \
   && [ -s build_asm/selfhost_pabi/pabi_alias.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/base.o build_asm/selfhost_pabi/spill.o $_PABI_SELFHOST"
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_alias.o"
+fi
+# w1521 (终局待办 10.57): Linux keeps a strong EXPR_RETURN impl in the pabi
+# link object; weaken it (idempotent) so return_sret.o first-wins.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_RETURN_SRET" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipeline_asm_emit_return_elf_impl$"; then
+    objcopy --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_PABI_LINK_O" 2>/dev/null || true
+  fi
 fi
 # w945: compiler-emitted pipeline_asm_emit_assign_elf_c. The gcc body
 # returns 0 after the pointer peel and never emits scalar `*p = v`.
@@ -1142,6 +1179,43 @@ if [ "$UNAME_S" = "Darwin" ] \
       done
     fi
   fi
+  # w1521: weaken leftover EXPR_RETURN impl so return_sret.o wins.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -n "$_PABI_RETURN_SRET" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " _pipeline_asm_emit_return_elf_impl$" | grep -v undefined | grep -qv weak; then
+      "$_oc" --weaken-symbol=_pipeline_asm_emit_return_elf_impl \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+  fi
+  # w1521: weaken leftover INDEX base eff-addr so index_base_field.o wins.
+  if [ -n "$_PABI_INDEX_BASE_FIELD" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " _glue_emit_index_eff_addr_base_elf_c$" | grep -v undefined | grep -qv weak; then
+      "$_oc" --weaken-symbol=_glue_emit_index_eff_addr_base_elf_c \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+  fi
   # PLATFORM: MACOS|DARWIN — host_is_arm64_c is mov w0,#1; ret. Leftover
   # PAGE21/PAGEOFF12 still name the old BSS load and sit on that mov/ret.
   # ld rejects them. Drop only those mismatched relocs.
@@ -1297,6 +1371,7 @@ case "$UNAME_S" in
       || [ -n "$_PABI_MODLET_STRPOOL" ] \
       || [ -n "$_PABI_STRUCT_LIT_FIELD" ] \
       || [ -n "$_PABI_MODLET_FLOAT_IMM" ] \
+      || [ -n "$_PABI_INDEX_BASE_FIELD" ] \
       || [ -n "$_PABI_ASSIGN_VAR" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
@@ -1390,6 +1465,15 @@ case "$UNAME_S" in
         if [ -n "$_PABI_WIN_PARAM_HOME" ]; then
           "$_oc" --weaken-symbol=pipeline_asm_emit_param_home_elf_c \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          # w1521: egg fill_param_slots gave >16B formals an 8-byte slot.
+          "$_oc" --weaken-symbol=pipeline_asm_fill_param_slots \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        # w1521: weaken egg EXPR_RETURN impl (>16B sret copy overlay).
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_RETURN_SRET" ]; then
+          "$_oc" --weaken-symbol=pipeline_asm_emit_return_elf_impl \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1499: weaken egg 32-bit mul/mod/zero-check so the binop_wide
         # overlay first-wins. PLATFORM: WINDOWS.
@@ -1416,6 +1500,12 @@ case "$UNAME_S" in
             "$_oc" --weaken-symbol="$_slsym" \
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done
+        fi
+        # w1521: weaken egg INDEX base eff-addr (single *T field peel).
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_INDEX_BASE_FIELD" ]; then
+          "$_oc" --weaken-symbol=glue_emit_index_eff_addr_base_elf_c \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1511: weaken egg module-let scalar COMMON gate (f32 imm).
         # PLATFORM: WINDOWS.
@@ -1518,7 +1608,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

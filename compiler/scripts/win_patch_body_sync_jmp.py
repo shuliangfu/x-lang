@@ -24,9 +24,9 @@ entry to `jmp rel32` toward `_impl` (or the later twin). Do NOT swap in
 backend_call_dispatch.o.bak (175735) — that cleared CG002 then SEGV/reloc
 truncated at run. PLATFORM: WINDOWS tip bake stack.
 
-w1027/w1028: Windows product uses host-cc thin trampolines
-(seeds/backend_call_dispatch_win_thin_trampolines.c) so call-surface
-fat→_impl jmp is OFF by default. Re-enable with XLANG_WIN_FORCE_CALL_PATCH=1.
+w1027/w1028: call-surface fat→_impl jmp is OFF by default (w1521: Win
+backend_call_dispatch.o uses the same full→thin tip ladder as POSIX; the
+host-cc trampoline seed is gone). Re-enable with XLANG_WIN_FORCE_CALL_PATCH=1.
 w1030: enc_label dual-T closed (authority only in enc_dispatch_thin; enc_c.x
 no longer exports).
 w1031: append_reloc dual-T closed (pabi_weak keeps earliest Cap EXTERNAL;
@@ -90,6 +90,10 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "glue_struct_lit_field_store_sz",
     # w1511: module-let scalar COMMON gate with f32 imm (modlet_float_imm.o).
     "pipe_modlet_scalar_init_common_imm",
+    # w1521: >16B struct ABI (index_base_field.o, win_param_home.o, return_sret.o).
+    "glue_emit_index_eff_addr_base_elf_c",
+    "pipeline_asm_fill_param_slots",
+    "pipeline_asm_emit_return_elf_impl",
 )
 
 # w1504 (10.30): egg copies of the i32 literal probe skip the wide check, so
@@ -261,6 +265,18 @@ def _patch_extra_t_to_primary(
     return patched
 
 
+# w1486: binop VAR-slot cache. w1521 (10.57): the egg also carries two copies
+# of the sret emit-ctx accessors (t + T, each with its own static). mega_body
+# sets active/ret_sz/home_off through the t copy while the param_home /
+# return_sret overlays read the T copy, so the callee never saw sret on Win
+# (rcx taken as arg0, return did not copy to the hidden dest). Fold t onto T
+# so there is one sret state. PLATFORM: WINDOWS.
+_STATIC_STATE_FOLD_PREFIXES: tuple[str, ...] = (
+    "glue_binop_var_slot_cache_",
+    "pipeline_asm_emit_ctx_sret_",
+)
+
+
 def _patch_cache_static_to_global(
     data: bytearray,
     secs: list[tuple[int, int, int, str]],
@@ -276,7 +292,7 @@ def _patch_cache_static_to_global(
     """
     patched = 0
     for name in sorted(syms):
-        if not name.startswith("glue_binop_var_slot_cache_"):
+        if not name.startswith(_STATIC_STATE_FOLD_PREFIXES):
             continue
         entries = syms[name]
         strong = [a for a, k in entries if k == "T"]
@@ -348,6 +364,10 @@ def main() -> int:
         "glue_struct_lit_field_store_sz",
         # w1511: module-let f32 imm COMMON gate overlay. PLATFORM: WINDOWS.
         "pipe_modlet_scalar_init_common_imm",
+        # w1521: >16B struct ABI overlays. PLATFORM: WINDOWS.
+        "glue_emit_index_eff_addr_base_elf_c",
+        "pipeline_asm_fill_param_slots",
+        "pipeline_asm_emit_return_elf_impl",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
