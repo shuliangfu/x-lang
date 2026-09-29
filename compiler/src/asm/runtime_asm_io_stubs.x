@@ -6,16 +6,16 @@
 // std.io family .x modules skip machine code in the asm pipeline; this object
 // supplies the C ABI print_* / write_* / read_ptr / fmt / JSON-schema / io stub
 // surface linked into user executables (and the g05 compiler link on Darwin and
-// Windows). Logic matches seeds/runtime_asm_io_stubs.from_x.c line for line.
+// Windows). Since w1516 (5.7b) this .x is the only source; the C seed is gone.
 //
-// Build (scripts/g05_ensure_relink_prereqs.sh, w1515):
-//   · Windows x86_64: this .x is the whole object (product pure asm).
-//   · Darwin arm64 / Linux x86_64: this .x plus the seed residual compiled with
-//     -DXLANG_RUNTIME_ASM_IO_STUBS_FROM_X (backtrace stubs on both, cpu detect
-//     and UDP batch on Linux), merged with `cc -r`. 5.7b moves the residual.
-//   · Weak faces: g05 passes G05_X_O_WEAK_FUNCS (Darwin/Linux: every seed
-//     XLANG_WEAK face; Windows: xlang_target_cpu_detect_host only, because
-//     XLANG_WEAK is empty on Windows in the seed).
+// Build (scripts/g05_ensure_relink_prereqs.sh, w1516): on all three hosts this
+// .x is the whole object (product pure asm, no host cc). Linux cpu detect and
+// the Linux ptr_view sret faces live here since 5.7b; the old backtrace weak
+// probe stubs and Linux UDP batch include were dropped (no referencing object;
+// user links get the strong runtime_backtrace_platform.o / runtime_net_udp_batch.o).
+//   · Weak faces: g05 passes G05_X_O_WEAK_FUNCS (Darwin/Linux: the historic
+//     XLANG_WEAK io faces plus xlang_target_cpu_detect_host; Windows:
+//     xlang_target_cpu_detect_host only).
 //
 // Helpers are named rais_* (non-export functions still emit as global T).
 // Module cells use the one-element array form (g_x[0]).
@@ -328,13 +328,68 @@ export function xlang_sys_writev(fd: i32, iov: *u8, iovcnt: i32): i64 {
 
 /**
  * Weak host CPU feature bits (strong twin src/driver/target_cpu.o).
- * Darwin arm64 is NEON (256). Linux stays in the seed residual (cpuinfo).
+ * Darwin arm64 is NEON (256).
  * PLATFORM: MACOS arm64
  */
 #[cfg(target_os = "macos")]
 #[no_mangle]
 export function xlang_target_cpu_detect_host(): u32 {
   return 256;
+}
+
+/**
+ * Linux x86_64 host CPU bits from the /proc/cpuinfo "flags" line: SSE2 (1)
+ * for " sse2" or "\tsse2", AVX2 (8) for " avx2"; no flags line or an
+ * unreadable file gives the SSE2 minimum (1). Reads at most 8191 bytes like
+ * the seed's xlang_proc_read_file. 5.7b (w1516) port of the seed residual.
+ * PLATFORM: LINUX x86_64
+ */
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function xlang_target_cpu_detect_host(): u32 {
+  let buf: u8[8192] = [];
+  let path: *u8 = "/proc/cpuinfo";
+  let fd: i64 = 0;
+  let n: i64 = 0;
+  let got: i32 = 0;
+  let ls: i32 = 0;
+  let le: i32 = 0;
+  let k: i32 = 0;
+  let f: u32 = 0;
+  let done: i32 = 0;
+  fd = rais_sys3(2, path as i64, 0, 0);
+  if (fd < 0) { return 1; }
+  while (got < 8191) {
+    n = rais_sys3(0, fd, (&buf[got]) as i64, (8191 - got) as i64);
+    if (n <= 0) { break; }
+    got = got + (n as i32);
+  }
+  rais_sys3(3, fd, 0, 0);
+  if (got <= 0) { return 1; }
+  buf[got] = 0;
+  while (ls < got && done == 0) {
+    le = ls;
+    while (le < got && buf[le] != 10) { le = le + 1; }
+    if (le - ls >= 5 && buf[ls] == 102 && buf[ls + 1] == 108 && buf[ls + 2] == 97
+        && buf[ls + 3] == 103 && buf[ls + 4] == 115) {
+      k = ls;
+      while (k + 5 <= le) {
+        if ((buf[k] == 32 || buf[k] == 9) && buf[k + 1] == 115 && buf[k + 2] == 115
+            && buf[k + 3] == 101 && buf[k + 4] == 50) {
+          f = f | 1;
+        }
+        if (buf[k] == 32 && buf[k + 1] == 97 && buf[k + 2] == 118 && buf[k + 3] == 120
+            && buf[k + 4] == 50) {
+          f = f | 8;
+        }
+        k = k + 1;
+      }
+      done = 1;
+    }
+    ls = le + 1;
+  }
+  if (f != 0) { return f; }
+  return 1;
 }
 
 /** Windows x86_64 host CPU bits: SSE2 (1). PLATFORM: WINDOWS x86_64 */
@@ -1002,7 +1057,29 @@ struct RaisReadPtrView {
   gen: u64;
 }
 
-/** io.ptr_view: pack the last read_ptr / len / gen. PLATFORM: SHARED */
+/**
+ * io.ptr_view on Linux x86_64 (5.7b / w1516): SysV returns this 24B struct
+ * through a hidden sret pointer in rdi and hands it back in rax. Product
+ * callers already follow that; the product callee side does not write the
+ * sret for `return v` (debt 10.57), so spell the sret out as an explicit
+ * first parameter. Same machine ABI as the C seed this replaces.
+ * PLATFORM: LINUX
+ */
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function std_io_ptr_view(out: *RaisReadPtrView, handle: usize, timeout_ms: u32): *RaisReadPtrView {
+  let p: *u8 = io_read_ptr(handle as u32, timeout_ms);
+  let n: i32 = io_read_ptr_len();
+  let g: u64 = g_rais_read_ptr_gen[0];
+  out.ptr = p;
+  out.length = n;
+  out.pad0 = 0;
+  out.gen = g;
+  return out;
+}
+
+/** io.ptr_view: pack the last read_ptr / len / gen. PLATFORM: MACOS|DARWIN · WINDOWS */
+#[cfg(not(target_os = "linux"))]
 #[no_mangle]
 export function std_io_ptr_view(handle: usize, timeout_ms: u32): RaisReadPtrView {
   let p: *u8 = io_read_ptr(handle as u32, timeout_ms);
@@ -1019,7 +1096,15 @@ export function std_io_ptr_view_valid(v: RaisReadPtrView): i32 {
   return std_io_ptr_valid(v.gen);
 }
 
-/** io.stdin_ptr_view. PLATFORM: SHARED */
+/** io.stdin_ptr_view on Linux x86_64: explicit sret, see std_io_ptr_view. PLATFORM: LINUX */
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function std_io_stdin_ptr_view(out: *RaisReadPtrView): *RaisReadPtrView {
+  return std_io_ptr_view(out, std_io_stdin(), 0);
+}
+
+/** io.stdin_ptr_view. PLATFORM: MACOS|DARWIN · WINDOWS */
+#[cfg(not(target_os = "linux"))]
 #[no_mangle]
 export function std_io_stdin_ptr_view(): RaisReadPtrView {
   return std_io_ptr_view(std_io_stdin(), 0);

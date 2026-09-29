@@ -485,98 +485,75 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   echo "g05_ensure_relink_prereqs: hot rebuild (cc, no make)"
   # Cap 9.1.8 Darwin/Windows relink provider freshness: g05 MAIN_LINK_O carries
   # runtime_asm_io_stubs.o (weak xlang_sys_write/read/writev for rt_entry.x SHARED
-  # Cap leaf; freestanding_io strong twin is Linux-x86_64-only). The g05 path does
-  # not run build_xlang_asm.sh (its seed-newer rule lives there), so refresh here
-  # with the same command; also keeps the 9.5.3 Cap print template current in the
-  # product link. Same flags as build_xlang_asm.sh line ~5294.
-  # PLATFORM: SHARED compile (slot only linked on MACOS|WINDOWS; Linux rebuild is
-  # a harmless SHARED-surface compile validation).
-  # w1515 (5.7a): runtime_asm_io_stubs.o ← src/asm/runtime_asm_io_stubs.x
-  # (product pure asm). Windows: whole object from the .x. Darwin arm64 and
-  # Linux x86_64: the .x object plus the seed residual compiled with
-  # -DXLANG_RUNTIME_ASM_IO_STUBS_FROM_X (backtrace_capture_c /
-  # backtrace_symbolicate_c; Linux also xlang_target_cpu_detect_host and the
-  # glibc UDP batch include), merged with pure_ld_partial_merge. Weak faces
-  # match the seed's XLANG_WEAK set. Other hosts, or a failed pure-asm build,
-  # fall back to the full seed cc (logged in build_asm/g05_cc_fallback.log).
-  # 5.7b ports the residual and deletes the seed.
+  # Cap leaf; freestanding_io strong twin is Linux-x86_64-only). This is the only
+  # place that builds it; it is also linked into every user program.
+  # w1515 (5.7a) / w1516 (5.7b): runtime_asm_io_stubs.o is built only from
+  # src/asm/runtime_asm_io_stubs.x by product pure asm, as one whole object on
+  # all three hosts; the seed is deleted (no host cc). 5.7b dropped the seed's
+  # residual: backtrace_capture_c / backtrace_symbolicate_c weak probe stubs
+  # and the Linux glibc UDP batch include have no referencing object (user
+  # links that use std.backtrace or std.net already get the strong
+  # runtime_backtrace_platform.o / runtime_net_udp_batch.o from the link plan;
+  # the Windows seed never had them); Linux cpuinfo and the Linux ptr_view
+  # trio moved into the .x. Weak faces match the old seed XLANG_WEAK set.
+  # A failed pure-asm build logs build_asm/g05_xasm_crash.log and
+  # build_asm/g05_cc_fallback.log, removes the object and stops (no stale or
+  # cc-built object is ever linked).
   # PLATFORM: MACOS|DARWIN arm64 · LINUX x86_64 · WINDOWS x86_64.
-  _rais=seeds/runtime_asm_io_stubs.from_x.c
   _rais_x=src/asm/runtime_asm_io_stubs.x
   _rais_o=runtime_asm_io_stubs.o
   _rais_os="$(uname -s 2>/dev/null || echo Unknown)"
   _rais_mach="$(uname -m 2>/dev/null || echo unknown)"
   case "$_rais_os" in MINGW*|MSYS*|CYGWIN*|Windows_NT) _rais_os=Windows ;; esac
   _rais_weak_io="io_read,io_read_batch,io_read_batch_buf,io_read_batch_provided,io_read_ptr,io_read_ptr_len,io_register_buffer,io_register_buffers_4,io_unregister_buffers,io_uring_accept,io_uring_accept_many,io_uring_connect,io_uring_connect_many,io_uring_prefetch_fd,io_wait_readable,io_write,io_write_batch,io_write_batch_buf,std_io_backend_handle_from_fd,std_io_backend_io_read_ptr_backend,std_io_driver_driver_read_ptr_backend,std_io_driver_driver_read_ptr_gen,std_io_driver_submit_read_batch,std_io_driver_submit_read_batch_buf,std_io_driver_submit_write_batch,std_io_driver_submit_write_batch_buf,std_io_print_str,std_io_print_u8_ptr_usize,std_io_read_fixed_fd,std_io_read_fixed_fd_impl,std_io_sync_io_read_fixed,std_io_sync_io_write_fixed,std_io_write_fixed_fd,std_io_write_fixed_fd_impl,std_io_write_stdout,std_io_write_with_timeout,xlang_io_read_fixed,xlang_io_read_ptr_backend,xlang_io_register,xlang_io_register_buf,xlang_io_submit_read,xlang_io_submit_read_async,xlang_io_submit_write,xlang_io_write_fixed,xlang_sys_mmap,xlang_sys_munmap,xlang_sys_read,xlang_sys_write,xlang_sys_writev"
-  _rais_mode=""
   _rais_weak=""
   if [ "$_rais_os" = "Darwin" ] && [ "$_rais_mach" = "arm64" ]; then
-    _rais_mode=merge
     _rais_weak="$_rais_weak_io,xlang_target_cpu_detect_host"
   elif [ "$_rais_os" = "Linux" ] && [ "$_rais_mach" = "x86_64" ]; then
-    _rais_mode=merge
-    # w1515: ptr_view trio comes from the cc residual on Linux (debt 10.57).
-    _rais_weak="$_rais_weak_io,std_io_ptr_view,std_io_ptr_view_valid,std_io_stdin_ptr_view"
+    _rais_weak="$_rais_weak_io,xlang_target_cpu_detect_host"
   elif [ "$_rais_os" = "Windows" ]; then
-    _rais_mode=whole
     _rais_weak="xlang_target_cpu_detect_host"
+  else
+    echo "g05_ensure: $_rais_x has no pure-asm host for $_rais_os $_rais_mach" >&2
+    exit 1
   fi
-  if [ -f "$_rais" ] && { [ ! -f "$_rais_o" ] || [ "$_rais" -nt "$_rais_o" ] \
-    || { [ -n "$_rais_mode" ] && [ -f "$_rais_x" ] && { [ "$_rais_x" -nt "$_rais_o" ] \
-      || ! nm "$_rais_o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; }; }; }; then
+  # Rebuild when missing, older than the .x, not from the .x (no doc anchor),
+  # or a 5.7a merge object (still carries the dropped backtrace residual).
+  if [ ! -f "$_rais_o" ] || [ "$_rais_x" -nt "$_rais_o" ] \
+    || ! nm "$_rais_o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
+    || nm "$_rais_o" 2>/dev/null | grep -Eq " [TWw] _*backtrace_capture_c\$"; then
     _rais_done=0
     mkdir -p build_asm
-    if [ -n "$_rais_mode" ] && [ -f "$_rais_x" ]; then
-      for _rais_try in 1 2 3; do
-        rm -f "$_rais_o.x.tmp.o"
-        if (
-          export XLANG_PREFER_ASM_O=1
-          unset G05_X_O_WEAK G05_X_O_SYM_RENAME
-          export G05_X_O_WEAK_FUNCS="$_rais_weak"
-          pure_asm_x_to_o "$_rais_o.x.tmp.o" "$_rais_x"
-        ) && [ -s "$_rais_o.x.tmp.o" ]; then
-          _rais_nm=$(nm "$_rais_o.x.tmp.o" 2>/dev/null)
-          if printf '%s\n' "$_rais_nm" | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
-            && printf '%s\n' "$_rais_nm" | grep -q "T _*std_fmt_println_i64\$" \
-            && printf '%s\n' "$_rais_nm" | grep -q "T _*std_io_read_stdin_ptr_slice\$" \
-            && printf '%s\n' "$_rais_nm" | grep -Eq "[TWw] _*xlang_sys_write\$"; then
-            _rais_done=1
-            break
-          fi
+    for _rais_try in 1 2 3; do
+      rm -f "$_rais_o.x.tmp.o"
+      if (
+        export XLANG_PREFER_ASM_O=1
+        unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+        export G05_X_O_WEAK_FUNCS="$_rais_weak"
+        pure_asm_x_to_o "$_rais_o.x.tmp.o" "$_rais_x"
+      ) && [ -s "$_rais_o.x.tmp.o" ]; then
+        _rais_nm=$(nm "$_rais_o.x.tmp.o" 2>/dev/null)
+        if printf '%s\n' "$_rais_nm" | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$" \
+          && printf '%s\n' "$_rais_nm" | grep -q "T _*std_fmt_println_i64\$" \
+          && printf '%s\n' "$_rais_nm" | grep -q "T _*std_io_read_stdin_ptr_slice\$" \
+          && printf '%s\n' "$_rais_nm" | grep -q "T _*std_io_ptr_view\$" \
+          && printf '%s\n' "$_rais_nm" | grep -Eq "[TWw] _*xlang_target_cpu_detect_host\$" \
+          && printf '%s\n' "$_rais_nm" | grep -Eq "[TWw] _*xlang_sys_write\$"; then
+          _rais_done=1
+          break
         fi
-        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
-          "$(date +%H:%M:%S)" "$_rais_try" "$_rais_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-      done
-    fi
-    if [ "$_rais_done" = "1" ] && [ "$_rais_mode" = "merge" ]; then
-      _rais_done=0
-      rm -f "$_rais_o.resid.tmp.o" "$_rais_o.tmp.o"
-      # PLATFORM: MACOS — `cc -r` without a deployment target stamps the host
-      # SDK (minos 26) and every user link then warns; keep minos 11.0.
-      _rais_cc_save="${CC:-cc}"
-      if [ "$_rais_os" = "Darwin" ]; then
-        CC="$_rais_cc_save -mmacosx-version-min=11.0"
       fi
-      # shellcheck disable=SC2086
-      if $_rais_cc_save $BASE_CFLAGS -fPIE -DXLANG_RUNTIME_ASM_IO_STUBS_FROM_X -c "$_rais" -o "$_rais_o.resid.tmp.o" \
-        && pure_ld_partial_merge "$_rais_o.tmp.o" "$_rais_o.x.tmp.o" "$_rais_o.resid.tmp.o" \
-        && [ -s "$_rais_o.tmp.o" ] \
-        && nm "$_rais_o.tmp.o" 2>/dev/null | grep -q "[TWw] _*backtrace_capture_c\$"; then
-        mv -f "$_rais_o.tmp.o" "$_rais_o"
-        _rais_done=1
-        echo "g05_ensure: $_rais_o ← $_rais_x + seed residual (w1515 pure asm, ld -r)"
-      fi
-      CC="$_rais_cc_save"
-    elif [ "$_rais_done" = "1" ]; then
+      printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+        "$(date +%H:%M:%S)" "$_rais_try" "$_rais_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+    done
+    if [ "$_rais_done" = "1" ]; then
       mv -f "$_rais_o.x.tmp.o" "$_rais_o"
-      echo "g05_ensure: $_rais_o ← $_rais_x (w1515 pure asm, whole object)"
-    fi
-    rm -f "$_rais_o.x.tmp.o" "$_rais_o.resid.tmp.o" "$_rais_o.tmp.o"
-    if [ "$_rais_done" != "1" ]; then
+      echo "g05_ensure: $_rais_o ← $_rais_x (w1516 pure asm, whole object, no seed)"
+    else
+      rm -f "$_rais_o.x.tmp.o" "$_rais_o"
       echo "$_rais_os $_rais_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-      echo "g05_ensure: WARN $_rais_x pure asm unavailable; fallback full seed cc (logged)" >&2
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS -fPIE -c "$_rais" -o "$_rais_o"
+      echo "g05_ensure: ERROR $_rais_x pure asm failed 3x; no seed fallback (w1516)" >&2
+      exit 1
     fi
   fi
   # wave765 G.7: labi multi-slice product PREFER → ensure try-labi-prefer

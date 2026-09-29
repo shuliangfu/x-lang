@@ -4744,6 +4744,18 @@ ensure_one() {
     return 0
   fi
 
+  # w1516 (5.7b): runtime_asm_io_stubs.o has no C seed any more. It is built
+  # only from src/asm/runtime_asm_io_stubs.x by product pure asm in
+  # scripts/g05_ensure_relink_prereqs.sh. Here we accept an existing object and
+  # never cc. PLATFORM: SHARED.
+  if [ "$out" = "runtime_asm_io_stubs.o" ]; then
+    if [ -f runtime_asm_io_stubs.o ]; then
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o: runtime_asm_io_stubs.o missing; build it from src/asm/runtime_asm_io_stubs.x via scripts/g05_ensure_relink_prereqs.sh" >&2
+    exit 1
+  fi
+
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o: missing seed $seed" >&2
     exit 1

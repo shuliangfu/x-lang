@@ -5653,9 +5653,11 @@ ensure_asm_link_objs() {
 
 # 用户程序 asm 链预编译 runtime 对象（nostdlib xlang_asm 无 fork+cc，须在 build 阶段产出）。
 ensure_runtime_user_link_objs() {
-  if [ ! -f runtime_asm_io_stubs.o ] || [ seeds/runtime_asm_io_stubs.from_x.c -nt runtime_asm_io_stubs.o ]; then
-  echo " cc_inc_tu runtime_asm_io_stubs.o <- seeds/runtime_asm_io_stubs.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -fPIE -c seeds/runtime_asm_io_stubs.from_x.c -o runtime_asm_io_stubs.o
+  # w1516 (5.7b): the C seed is deleted. runtime_asm_io_stubs.o is built only
+  # from src/asm/runtime_asm_io_stubs.x by product pure asm in
+  # scripts/g05_ensure_relink_prereqs.sh; this script never cc's it.
+  if [ ! -f runtime_asm_io_stubs.o ]; then
+  echo " warn: runtime_asm_io_stubs.o missing; build it via scripts/g05_ensure_relink_prereqs.sh (from src/asm/runtime_asm_io_stubs.x)" >&2
   fi
   if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
   echo " cc_inc_tu runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
