@@ -654,6 +654,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: ERROR src/asm/backend_call_dispatch.o lacks the w1524 anchor (full .x build failed; no C fallback)" >&2
       exit 1
     fi
+    # w1525 (5.9): simd_loop.o / simd_enc.o / runtime_io_abi.o are the full
+    # .x alone (pure asm, marker in the .x). Refuse an object without the
+    # w1525 anchor instead of linking a stale seed build. PLATFORM: SHARED.
+    for _w1525 in src/asm/simd_loop.o:simd_loop src/asm/simd_enc.o:simd_enc \
+      src/runtime_io_abi.o:runtime_io_abi; do
+      _w1525_o="${_w1525%%:*}"
+      _w1525_n="${_w1525#*:}"
+      if ! nm "$_w1525_o" 2>/dev/null | grep -q "T _*${_w1525_n}_x_w1525_anchor\$"; then
+        echo "g05_ensure: ERROR $_w1525_o lacks the w1525 anchor (full .x pure asm failed; no C fallback)" >&2
+        exit 1
+      fi
+    done
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; R3_COLD prefer residual" >&2
   fi

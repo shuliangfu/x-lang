@@ -14423,6 +14423,49 @@ ensure_call_dispatch_full_x() {
   return 1
 }
 
+ensure_r3_full_x_pure_w1525() {
+  # w1525 (5.9): simd_loop.o / simd_enc.o / runtime_io_abi.o are the full .x
+  # alone, compiled by the pure asm backend in one shot. Their seed rest only
+  # carried the slice marker, which now lives in the .x with a w1525 anchor.
+  # No thin rung, no seed rest, no -E+cc, no cold seed cc, no retry: a failed
+  # build is a real bug to fix, so it returns 1.
+  # Args: <out.o> <full.x> <sym>... (every sym must be defined in the result;
+  # the first is the w1525 anchor used by the up-to-date skip).
+  # PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows x86_64).
+  local o="$1" x_src="$2"
+  shift 2
+  local anchor_sym="$1"
+  local tmp_o="${o%.o}_w1525_step.o"
+  local sym
+  if [ ! -f "$x_src" ]; then
+    echo "ensure: $o missing $x_src; no C fallback" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
+    && r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+    log "skip up-to-date $o (full .x pure asm w1525)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  rm -f "$tmp_o"
+  if ! ( export XLANG_PREFER_ASM_O=1; unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY; \
+      pure_asm_x_to_o "$tmp_o" "$x_src" ) || [ ! -s "$tmp_o" ]; then
+    rm -f "$tmp_o"
+    echo "ensure: $o pure asm of $x_src failed; no C fallback" >&2
+    return 1
+  fi
+  for sym in "$@"; do
+    if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
+      rm -f "$tmp_o"
+      echo "ensure: $o from $x_src lacks $sym; no C fallback" >&2
+      return 1
+    fi
+  done
+  mv -f "$tmp_o" "$o"
+  log "r3 full .x $o <- $x_src (w1525 pure asm, no seed rest, no host cc)"
+  return 0
+}
+
 ensure_r3_prefer_one() {
   # Prefer ladder (full→thin) or cold seed for one R3_COLD member (no membership check).
   local o="$1"
@@ -14457,6 +14500,27 @@ ensure_r3_prefer_one() {
     ensure_call_dispatch_full_x || return 1
     return 0
   fi
+  # w1525 (5.9): the slice marker moved into the full .x, so these three
+  # leaves no longer cc any seed rest. PLATFORM: SHARED.
+  case "$o" in
+    src/asm/simd_loop.o)
+      ensure_r3_full_x_pure_w1525 "$o" src/asm/simd_loop.x \
+        simd_loop_x_w1525_anchor simd_loop_slice_marker \
+        glue_simd_loop_pick_lanes_c glue_expr_same_var_c || return 1
+      return 0
+      ;;
+    src/asm/simd_enc.o)
+      ensure_r3_full_x_pure_w1525 "$o" src/asm/simd_enc.x \
+        simd_enc_x_w1525_anchor simd_enc_slice_marker simd_rbp_disp32 || return 1
+      return 0
+      ;;
+    src/runtime_io_abi.o)
+      ensure_r3_full_x_pure_w1525 "$o" src/runtime_io_abi.x \
+        runtime_io_abi_x_w1525_anchor runtime_io_abi_slice_marker \
+        runtime_read_file_view_impl xlang_write_path_bytes_impl std_fs_fs_open_write || return 1
+      return 0
+      ;;
+  esac
 
   seed="$(seed_for_o "$o")"
   if ! spec="$(r3_prefer_leaf_spec "$o")"; then
