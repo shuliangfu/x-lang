@@ -3939,6 +3939,278 @@ ensure_process_argv_w1529() {
   return 0
 }
 
+# w1530 (5.10): names that stay strong in runtime_driver_strict_glue_stubs.o.
+# Eight heap bodies, eight lsp emitters, append_text_to_codegen_buf,
+# pipeline_block_labeled_set_names, and the two anchors. Every other global
+# text symbol is weakened after the one pure-asm compile.
+# PLATFORM: SHARED.
+strict_glue_w1530_keep_names() {
+  printf '%s\n' \
+    append_text_to_codegen_buf \
+    heap_alloc_c \
+    heap_alloc_zeroed_c \
+    heap_realloc_c \
+    heap_free_c \
+    heap_alloc_aligned_c \
+    heap_arena_init_c \
+    heap_arena64_alloc_c \
+    heap_arena64_deinit_c \
+    lsp_codegen_emit_path_is_lsp_io_x \
+    lsp_codegen_emit_path_is_lsp_main_x \
+    lsp_codegen_emit_heap_alias_block \
+    lsp_codegen_emit_heap_alias_to_buf \
+    lsp_codegen_emit_io_extern_block \
+    lsp_codegen_emit_io_extern_to_buf \
+    lsp_codegen_emit_gen_extern_block \
+    lsp_codegen_emit_gen_extern_to_buf \
+    pipeline_block_labeled_set_names \
+    runtime_driver_strict_glue_stubs_x_w1530_anchor \
+    runtime_driver_strict_glue_stubs_x_doc_anchor
+}
+
+# Returns 0 when the keep-list is exactly the strong global text, the stub
+# faces that must lose to another object are weak, asm_asm_codegen_elf_o is
+# absent, and nm -u has neither xlang_panic nor a bare __error.
+# Darwin plain nm prints weak text as T; weak is only visible in nm -m.
+# Linux and Windows use the nm type letter (T versus W/w).
+# PLATFORM: SHARED.
+# $1 = object.
+strict_glue_w1530_bindings_ok() {
+  local o="$1"
+  local os_s keepf
+  local -a _sg_nm=()
+  [ -s "$o" ] || return 1
+  os_s="$(uname -s 2>/dev/null || echo Unknown)"
+  keepf="$(mktemp "${TMPDIR:-/tmp}/w1530keep.XXXXXX")" || return 1
+  strict_glue_w1530_keep_names > "$keepf"
+  # Darwin weak text is T in plain nm. nm -m is the binding check there.
+  # A failing test must not sit in a command substitution under set -e.
+  if [ "$os_s" = "Darwin" ]; then
+    _sg_nm=(nm -m "$o")
+  else
+    _sg_nm=(nm "$o")
+  fi
+  if ! "${_sg_nm[@]}" 2>/dev/null | awk -v os="$os_s" -v keepf="$keepf" '
+    BEGIN {
+      while ((getline line < keepf) > 0) {
+        gsub(/\r/, "", line)
+        if (line != "") keep[line] = 1
+      }
+      close(keepf)
+      mustw["preprocess_define_add"] = 1
+      mustw["asm_driver_skip_codegen_dep_0_get"] = 1
+      mustw["asm_driver_set_current_dep_path_for_codegen"] = 1
+      mustw["w1530_host_write"] = 1
+      mustw["w1530_path_class"] = 1
+      mustw["w1530_fill_copy"] = 1
+      mustw["w1530_fill_set"] = 1
+    }
+    function bare(n) {
+      gsub(/\r/, "", n)
+      sub(/^_/, "", n)
+      return n
+    }
+    os == "Darwin" && /__TEXT,__text/ && /external/ && $0 !~ /non-external/ {
+      name = bare($NF)
+      if (name == "asm_asm_codegen_elf_o") elf = 1
+      if ($0 ~ /weak/) weak[name] = 1
+      else strong[name] = 1
+      next
+    }
+    os != "Darwin" && NF >= 2 {
+      typ = $(NF - 1)
+      name = bare($NF)
+      if (name == "asm_asm_codegen_elf_o") elf = 1
+      if (typ == "T") strong[name] = 1
+      else if (typ == "W" || typ == "w") weak[name] = 1
+    }
+    END {
+      for (k in keep)
+        if (!strong[k]) {
+          printf "ensure: strict glue missing strong %s\n", k > "/dev/stderr"
+          bad = 1
+        }
+      for (s in strong)
+        if (!keep[s]) {
+          printf "ensure: strict glue extra strong %s\n", s > "/dev/stderr"
+          bad = 1
+        }
+      for (w in mustw)
+        if (!weak[w]) {
+          printf "ensure: strict glue %s is not weak\n", w > "/dev/stderr"
+          bad = 1
+        }
+      if (elf) {
+        printf "ensure: strict glue defines asm_asm_codegen_elf_o\n" > "/dev/stderr"
+        bad = 1
+      }
+      exit bad ? 1 : 0
+    }
+  '; then
+    rm -f "$keepf"
+    return 1
+  fi
+  rm -f "$keepf"
+  if nm -u "$o" 2>/dev/null | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then
+    echo "ensure: $o has xlang_panic or __error; no host cc" >&2
+    return 1
+  fi
+  return 0
+}
+
+# Weaken every defined global text symbol that is not on the keep-list.
+# The symbol token passed to objcopy is the name nm prints (Darwin keeps
+# the leading underscore). --weaken-symbol returns 0 for a missing name on
+# Darwin llvm-objcopy, so the caller must run strict_glue_w1530_bindings_ok
+# after this pass. Do not set G05_X_O_WEAK (that weakens the keep-list too)
+# or G05_X_O_WEAK_FUNCS (a missing listed name fails the whole polish).
+# PLATFORM: SHARED.
+# $1 = object, modified in place.
+strict_glue_w1530_weaken() {
+  local o="$1"
+  local oc name bare keepf list
+  local -a args=()
+  oc="$(pure_asm_find_objcopy)" || {
+    echo "ensure: strict glue objcopy missing; no host cc" >&2
+    return 1
+  }
+  keepf="$(mktemp "${TMPDIR:-/tmp}/w1530keep.XXXXXX")" || return 1
+  list="$(mktemp "${TMPDIR:-/tmp}/w1530nm.XXXXXX")" || {
+    rm -f "$keepf"
+    return 1
+  }
+  strict_glue_w1530_keep_names > "$keepf"
+  if ! nm "$o" 2>/dev/null | awk 'NF >= 2 && $(NF - 1) == "T" { print $NF }' > "$list"; then
+    rm -f "$keepf" "$list"
+    echo "ensure: strict glue nm failed; no host cc" >&2
+    return 1
+  fi
+  while IFS= read -r name; do
+    name="${name//$'\r'/}"
+    [ -n "$name" ] || continue
+    bare="$name"
+    case "$bare" in
+      _*) bare="${bare#_}" ;;
+    esac
+    if grep -Fxq "$bare" "$keepf"; then
+      continue
+    fi
+    args+=(--weaken-symbol="$name")
+  done < "$list"
+  rm -f "$keepf" "$list"
+  if [ "${#args[@]}" -eq 0 ]; then
+    echo "ensure: strict glue has no stub text to weaken; no host cc" >&2
+    return 1
+  fi
+  if ! "$oc" "${args[@]}" "$o"; then
+    echo "ensure: strict glue objcopy failed; no host cc" >&2
+    return 1
+  fi
+  return 0
+}
+
+# w1530 (5.10): runtime_driver_strict_glue_stubs.o is one pure-asm
+# translation unit. src/runtime_heap_user.x is concatenated in front of
+# src/asm/runtime_driver_strict_glue_stubs_w1530.x. Darwin ld -r of two
+# pure-asm MH_OBJECTs fails ("more than one LC_SEGMENT") and the archive
+# fallback hides strong symbols behind weak members, so the two files are
+# not merged after compile. One shot, no seed, no retry, no host-cc.
+# The C seed stays for tests that only read the file. The thin .x is not
+# compiled. The hang guard is 180s because this unit is the heap file plus
+# the glue file; that is one compile, not a retry.
+# PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows x86_64).
+# $1 = output object (default src/runtime_driver_strict_glue_stubs.o, cwd is compiler/).
+ensure_strict_glue_w1530() {
+  local o="${1:-src/runtime_driver_strict_glue_stubs.o}"
+  local os_s arch x_heap x_glue tmp_base tmp_x tmp_o
+  os_s="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$os_s" in
+    Darwin)
+      if [ "$arch" != "arm64" ]; then
+        echo "ensure: strict glue unsupported $os_s $arch; no host cc" >&2
+        return 1
+      fi
+      ;;
+    Linux)
+      if [ "$arch" != "x86_64" ]; then
+        echo "ensure: strict glue unsupported $os_s $arch; no host cc" >&2
+        return 1
+      fi
+      ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ "$arch" != "x86_64" ]; then
+        echo "ensure: strict glue unsupported $os_s $arch; no host cc" >&2
+        return 1
+      fi
+      ;;
+    *)
+      echo "ensure: strict glue unsupported $os_s; no host cc" >&2
+      return 1
+      ;;
+  esac
+  x_heap="src/runtime_heap_user.x"
+  x_glue="src/asm/runtime_driver_strict_glue_stubs_w1530.x"
+  if [ ! -f "$x_heap" ] || [ ! -f "$x_glue" ]; then
+    echo "ensure: $o missing $x_heap or $x_glue; no host cc" >&2
+    return 1
+  fi
+  if [ "${FORCE:-0}" != "1" ] && [ -f "$o" ] \
+    && [ ! "$x_heap" -nt "$o" ] && [ ! "$x_glue" -nt "$o" ] \
+    && strict_glue_w1530_bindings_ok "$o"; then
+    log "skip up-to-date $o (strict glue full .x w1530)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  tmp_base="$(mktemp "${TMPDIR:-/tmp}/w1530src.XXXXXX")" || return 1
+  tmp_x="${tmp_base}.x"
+  mv -f "$tmp_base" "$tmp_x"
+  tmp_o="$(mktemp "${TMPDIR:-/tmp}/w1530obj.XXXXXX")" || {
+    rm -f "$tmp_x"
+    return 1
+  }
+  rm -f "$tmp_o"
+  tmp_o="${tmp_o}.o"
+  if ! cat "$x_heap" "$x_glue" > "$tmp_x"; then
+    rm -f "$tmp_x" "$tmp_o"
+    echo "ensure: $o cat of $x_heap and $x_glue failed; no host cc" >&2
+    return 1
+  fi
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    export XLANG_PURE_ASM_TIMEOUT_SEC=180
+    unset G05_X_O_WEAK
+    unset G05_X_O_WEAK_FUNCS
+    unset G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$tmp_o" "$tmp_x"
+  ) || [ ! -s "$tmp_o" ]; then
+    rm -f "$tmp_x" "$tmp_o"
+    echo "ensure: $o pure asm of $x_heap + $x_glue failed; no retry, no host cc" >&2
+    return 1
+  fi
+  rm -f "$tmp_x"
+  if ! strict_glue_w1530_weaken "$tmp_o"; then
+    rm -f "$tmp_o"
+    echo "ensure: $o weaken failed; no host cc" >&2
+    return 1
+  fi
+  if ! strict_glue_w1530_bindings_ok "$tmp_o"; then
+    rm -f "$tmp_o"
+    echo "ensure: $o strong/weak set mismatch; no host cc" >&2
+    return 1
+  fi
+  if ! mv -f "$tmp_o" "$o"; then
+    cp -f "$tmp_o" "$o" || {
+      rm -f "$tmp_o"
+      echo "ensure: $o install failed; no host cc" >&2
+      return 1
+    }
+    rm -f "$tmp_o"
+  fi
+  log "strict glue full .x $o <- $x_heap + $x_glue (w1530 pure asm, no seed, no host cc)"
+  return 0
+}
+
 # Darwin arm64 cold body for runtime_queue_contention.o.
 # Two translation units, then ld -r: the shared smoke in
 # src/asm/runtime_queue_contention.x and the pthread bridges in
@@ -5316,6 +5588,14 @@ ensure_one() {
   if [ "$(basename "$seed")" = "runtime_process_argv.from_x.c" ] \
     || [ "$(basename "$out")" = "runtime_process_argv.o" ]; then
     ensure_process_argv_w1529 "$out" || return 1
+    return 0
+  fi
+
+  # w1530: all three hosts pure-asm the whole TU. No host-cc of the seed.
+  # PLATFORM: SHARED.
+  if [ "$(basename "$seed")" = "runtime_driver_strict_glue_stubs.from_x.c" ] \
+    || [ "$(basename "$out")" = "runtime_driver_strict_glue_stubs.o" ]; then
+    ensure_strict_glue_w1530 "$out" || return 1
     return 0
   fi
 
@@ -25460,6 +25740,16 @@ ensure_other_l2_prefer_one() {
   weak_mode="${rest%%|*}"
   leaf_kind="${rest#*|}"
 
+  # w1530: strict glue is the concatenated .x, one shot, fail closed.
+  # The spec string above stays so a catalog check can still name this
+  # leaf. Do not fall through to the thin retry or the seed cc.
+  # PLATFORM: SHARED.
+  if [ "$leaf_kind" = "strict" ] \
+    || [ "$(basename "$o")" = "runtime_driver_strict_glue_stubs.o" ]; then
+    ensure_strict_glue_w1530 "$o" || return 1
+    return 0
+  fi
+
   if [ ! -f "$seed" ]; then
     echo "ensure_host_cc_seed_o try-other-l2-prefer: missing seed $seed for $o" >&2
     return 1
@@ -25997,6 +26287,13 @@ ensure_runtime_os_prefer_one() {
   # PLATFORM: SHARED.
   if [ "$o" = "runtime_process_argv.o" ]; then
     ensure_process_argv_w1529 "$o" || return 1
+    return 0
+  fi
+
+  # w1530: not a runtime-os leaf. A mis-routed call must not host-cc it.
+  # PLATFORM: SHARED.
+  if [ "$(basename "$o")" = "runtime_driver_strict_glue_stubs.o" ]; then
+    ensure_strict_glue_w1530 "$o" || return 1
     return 0
   fi
 
@@ -32809,6 +33106,27 @@ case "$MODE" in
     esac
     set +e
     ensure_process_argv_w1529 "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-strict-glue-prefer|try_strict_glue_prefer|strict-glue-prefer)
+    # w1530: runtime_driver_strict_glue_stubs.o is heap .x plus the glue .x.
+    # Exit 3 if the path is some other object. The status is the real ensure status.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-strict-glue-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    case "$(basename "$_try_out")" in
+      runtime_driver_strict_glue_stubs.o) ;;
+      *)
+        echo "ensure_host_cc_seed_o try-strict-glue-prefer: not runtime_driver_strict_glue_stubs.o" >&2
+        exit 3
+        ;;
+    esac
+    set +e
+    ensure_strict_glue_w1530 "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"

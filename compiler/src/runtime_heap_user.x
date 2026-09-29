@@ -13,8 +13,106 @@ export extern "C" function free(ptr: *u8): void;
 export extern "C" function realloc(ptr: *u8, new_size: usize): *u8;
 export extern "C" function calloc(n: usize, size: usize): *u8;
 
-// See implementation.
-export extern "C" function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8;
+/**
+ * posix_memalign. align_bytes must be a power of two and a multiple of sizeof(void*).
+ * Declared on macOS and Linux separately: a sole foreign cfg, and cfg(not(...))
+ * inside a large translation unit, are avoided.
+ * @param out **u8 — slot that receives the block
+ * @param align_bytes usize — alignment; the name is not `align` (that word is a keyword)
+ * @param size usize — byte count
+ * @return i32 — 0 on success
+ * PLATFORM: MACOS|DARWIN
+ */
+#[cfg(target_os = "macos")]
+export extern "C" function posix_memalign(out: **u8, align_bytes: usize, size: usize): i32;
+
+/**
+ * posix_memalign. Same contract as the macOS declaration.
+ * @param out **u8 — slot that receives the block
+ * @param align_bytes usize — alignment
+ * @param size usize — byte count
+ * @return i32 — 0 on success
+ * PLATFORM: LINUX
+ */
+#[cfg(target_os = "linux")]
+export extern "C" function posix_memalign(out: **u8, align_bytes: usize, size: usize): i32;
+
+/**
+ * Windows aligned allocation. The caller frees with heap_free_c's free path only
+ * when the block came from malloc; this product tail matches the C seed and
+ * returns the pointer for the arena init.
+ * @param size usize — byte count
+ * @param align_bytes usize — alignment
+ * @return *u8 — block, or null
+ * PLATFORM: WINDOWS
+ */
+#[cfg(target_os = "windows")]
+export extern "C" function _aligned_malloc(size: usize, align_bytes: usize): *u8;
+
+/**
+ * Allocate size bytes at align_bytes. A zero size or a zero alignment returns null.
+ * @param align_bytes usize — alignment; 0 fails
+ * @param size usize — byte count; 0 fails
+ * @return *u8 — block, or null
+ * PLATFORM: MACOS|DARWIN
+ */
+#[cfg(target_os = "macos")]
+#[no_mangle]
+export function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
+  if (size == 0 || align_bytes == 0) {
+    return 0 as *u8;
+  }
+  let p: *u8 = 0 as *u8;
+  let slot: **u8 = &p;
+  unsafe {
+    if (posix_memalign(slot, align_bytes, size) != 0) {
+      return 0 as *u8;
+    }
+  }
+  return p;
+}
+
+/**
+ * Allocate size bytes at align_bytes. A zero size or a zero alignment returns null.
+ * @param align_bytes usize — alignment; 0 fails
+ * @param size usize — byte count; 0 fails
+ * @return *u8 — block, or null
+ * PLATFORM: LINUX
+ */
+#[cfg(target_os = "linux")]
+#[no_mangle]
+export function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
+  if (size == 0 || align_bytes == 0) {
+    return 0 as *u8;
+  }
+  let p: *u8 = 0 as *u8;
+  let slot: **u8 = &p;
+  unsafe {
+    if (posix_memalign(slot, align_bytes, size) != 0) {
+      return 0 as *u8;
+    }
+  }
+  return p;
+}
+
+/**
+ * Allocate size bytes at align_bytes. A zero size or a zero alignment returns null.
+ * @param align_bytes usize — alignment; 0 fails
+ * @param size usize — byte count; 0 fails
+ * @return *u8 — block, or null
+ * PLATFORM: WINDOWS
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function heap_alloc_aligned_c(align_bytes: usize, size: usize): *u8 {
+  if (size == 0 || align_bytes == 0) {
+    return 0 as *u8;
+  }
+  unsafe {
+    return _aligned_malloc(size, align_bytes);
+  }
+  return 0 as *u8;
+}
 
 /* See implementation. */
 export struct XlangHeapArena64 {
@@ -143,7 +241,12 @@ export function heap_arena64_alloc_c(a: *XlangHeapArena64, size: usize, align_by
     obj_align = 8;
   }
   let cur: usize = a.off;
-  let rem: usize = cur % obj_align;
+  // obj_align is 8 when the caller passes 0, and posix_memalign already
+  // rejects a non-power-of-two. A variable divisor emits xlang_panic_ and
+  // pure asm refuses the object, so the gap is cur masked by align-1.
+  // PLATFORM: SHARED.
+  let mask: usize = obj_align - 1;
+  let rem: usize = cur & mask;
   let gap: usize = 0;
   if (rem != 0) {
     gap = obj_align - rem;

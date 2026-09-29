@@ -1962,22 +1962,20 @@ ensure_runtime_c_import_obj() {
 }
 
 ensure_runtime_pipeline_abi_xlang_c_stubs_obj() {
-  # G-02e-12：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11) (former pipeline_abi_xlang_c_stubs)"
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 # G-02e: codegen_pipeline_stubs / std_fs_shim deleted — use ensure_runtime_driver_strict_glue_stubs_obj
 # and ensure_runtime_io_abi_obj (authority in build_xlang_asm.sh).
 
 ensure_runtime_driver_strict_glue_stubs_obj() {
+  # w1530: heap .x concatenated with the strict glue .x. The output path
+  # may be under BUILD_DIR. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 # PLATFORM: DARWIN — G.7 twin of build_xlang_asm ensure_bstrict_darwin_strict_glue_stubs_filt_obj.
@@ -1988,17 +1986,9 @@ ensure_runtime_driver_strict_glue_stubs_obj() {
 ensure_strict_glue_darwin_stubs_filt_obj() {
   local src_o="src/runtime_driver_strict_glue_stubs.o"
   local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
-  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
-  local need_cc=0
-  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
-  need_cc=1
-  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
-  need_cc=1
-  fi
-  if [ "$need_cc" = "1" ]; then
-  strict_glue_info "cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
-  fi
+  # w1530: source object is heap .x + strict glue .x. Do not host-cc the seed.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$src_o" || return 1
   [ -f "$src_o" ] || return 1
   if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
   rm -f "$out_o"
@@ -2050,12 +2040,10 @@ ensure_runtime_asm_build_obj() {
 }
 
 ensure_ast_pool_l5_bridge_obj() {
-  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    echo "  cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11) (former ast_pool_l5_bridge)" >&2
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 ensure_asm_experimental_symbol_bridge_obj() {
@@ -2067,12 +2055,10 @@ ensure_asm_experimental_symbol_bridge_obj() {
 }
 
 ensure_lsp_codegen_extern_obj() {
-  # G-02e-11：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11) (former lsp_codegen_extern)"
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 ensure_lsp_pipeline_ctx_obj() {

@@ -228,10 +228,10 @@ ensure_experimental_companion_objs() {
   fi
   # Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x.
   # The old C seed for it is gone (cold twin in analysis/archive). PLATFORM: SHARED.
-  if [ ! -f src/runtime_driver_strict_glue_stubs.o ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt src/runtime_driver_strict_glue_stubs.o ]; then
-    experimental_bootstrap_info "cc runtime_driver_strict_glue_stubs.o (G-02f-11 seed)"
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o src/runtime_driver_strict_glue_stubs.o
-  fi
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer src/runtime_driver_strict_glue_stubs.o \
+    || return 1
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
   experimental_bootstrap_info "build_seed_asm_host (asm_backend_partial.o)"
   ./scripts/build_seed_asm_host.sh

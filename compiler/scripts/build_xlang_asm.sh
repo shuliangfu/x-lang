@@ -2541,12 +2541,10 @@ ensure_asm_pipeline_glue_strict_minimal_obj() {
 
 # B-strict：preprocess -D 与 labeled 名写入（ast_pool_l5_bridge.c）。
 ensure_ast_pool_l5_bridge_obj() {
-  # G-02f-11：实现已并入 seeds/runtime_driver_strict_glue_stubs.from_x.c
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    echo "  cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)" >&2
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 # B-strict：pipeline_x.o 仅导出 asm/backend 四入口（legacy experimental 链）。
@@ -2810,18 +2808,9 @@ ensure_bstrict_pipeline_filtered_obj() {
 ensure_bstrict_darwin_strict_glue_stubs_filt_obj() {
   local src_o="src/runtime_driver_strict_glue_stubs.o"
   local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
-  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
-  local need_cc=0
-  # Prefer/libtool may leave an ar at src_o; force a fresh MH_OBJECT before filter.
-  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
-  need_cc=1
-  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
-  need_cc=1
-  fi
-  if [ "$need_cc" = "1" ]; then
-  echo " cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
-  fi
+  # w1530: source object is heap .x + strict glue .x. Do not host-cc the seed.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$src_o" || return 1
   [ -f "$src_o" ] || return 1
   # Stale filt that still exports asm_asm_codegen_* must rebuild (omit set expanded).
   if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
@@ -5276,12 +5265,10 @@ ensure_asm_xlang_lsp_diag_stub_obj() {
 
 # codegen.o（C seed）引用 lsp_codegen_emit_*；小 TU，不与 pipeline_x.o 重复
 ensure_asm_lsp_codegen_extern_obj() {
-  LCE_C="seeds/runtime_driver_strict_glue_stubs.from_x.c"
-  LCE_O=src/runtime_driver_strict_glue_stubs.o
-  if [ ! -f "$LCE_O" ] || [ "$LCE_C" -nt "$LCE_O" ]; then
-  echo " cc -c $LCE_O <- $LCE_C (G-02f-11)"
-  "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$LCE_O" "$LCE_C"
-  fi
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer src/runtime_driver_strict_glue_stubs.o \
+    || return 1
 }
 
 # 回退链接所需的 C 桩（不依赖 make）
@@ -5497,11 +5484,10 @@ ensure_asm_bootstrap_support_extra_objs() {
   fi
   fi
   ensure_typeck_f64_bits_obj
-  o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-  echo " cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  # w1530: pure asm of heap .x + strict glue .x. Do not cc the seed over it.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer src/runtime_driver_strict_glue_stubs.o \
+    || return 1
   ensure_typeck_c_module_stubs_obj
   # w1529: pure asm of the host .x. Do not cc the seed over it.
   # PLATFORM: SHARED — process_xlang_argc/argv_get (g05 DRIVER_SEED_OBJS).

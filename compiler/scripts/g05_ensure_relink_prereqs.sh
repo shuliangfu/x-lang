@@ -738,6 +738,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; process argv prefer residual" >&2
     exit 1
   fi
+  # w1530 (5.10): src/runtime_driver_strict_glue_stubs.o is
+  # src/runtime_heap_user.x concatenated with
+  # src/asm/runtime_driver_strict_glue_stubs_w1530.x, one pure-asm shot.
+  # Darwin cannot ld -r two pure-asm objects. The C seed stays for tests.
+  # A failed ensure must not continue. The wave771 other-l2 loop no longer
+  # builds this leaf: that loop is non-fatal and used to host-cc the seed.
+  # PLATFORM: SHARED.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-strict-glue-prefer src/runtime_driver_strict_glue_stubs.o (w1530)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer src/runtime_driver_strict_glue_stubs.o \
+      || { echo "g05_ensure: ERROR try-strict-glue-prefer failed (full .x, no C fallback)" >&2; exit 1; }
+    if ! nm src/runtime_driver_strict_glue_stubs.o 2>/dev/null \
+      | grep -q "T _*runtime_driver_strict_glue_stubs_x_w1530_anchor\$"; then
+      echo "g05_ensure: ERROR src/runtime_driver_strict_glue_stubs.o lacks the w1530 anchor (full .x pure asm failed; no C fallback)" >&2
+      exit 1
+    fi
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; strict glue prefer residual" >&2
+    exit 1
+  fi
   # w1522 (5.8): src/asm/backend_x86_64_enc_c.o is the whole
   # src/asm/backend_x86_64_enc_c.x built by product pure asm on all three
   # hosts. It replaces the wave769 try-l2-asm-prefer leaf (thin .x plus
@@ -975,15 +997,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; async prefer residual" >&2
   fi
-  # wave771 G.7: other L2 four product PREFER → ensure try-other-l2-prefer
+  # wave771 G.7: other L2 product PREFER → ensure try-other-l2-prefer
   # (table body; thin/full .x + rest FROM_X → cc -r; slc named-weak; cold ensure_one).
-  # Leaves: seed_link_compat · strict_glue_stubs · fmt_check_cmd_driver · lsp_diag.
+  # Leaves: seed_link_compat · fmt_check_cmd_driver · lsp_diag.
+  # w1530: strict_glue_stubs left this non-fatal loop. Its own block above
+  # fail-closes on the full .x. The spec string stays in ensure for a catalog name.
   # residual: physical delete (~~fmt_check_cmd.o dual~~ wave775).
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     for _ol2_o in \
       src/seed_link_compat.o \
-      src/runtime_driver_strict_glue_stubs.o \
       src/driver/fmt_check_cmd_driver.o \
       src/lsp/lsp_diag.o; do
       echo "g05_ensure: try-other-l2-prefer $_ol2_o (wave771)"
