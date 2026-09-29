@@ -3703,7 +3703,8 @@ ensure_process_argv_darwin_pure() {
       _process_xlang_argv_get \
       _process_args_count_c \
       _process_arg_c \
-      _runtime_process_argv_x_doc_anchor; do
+      _runtime_process_argv_x_doc_anchor \
+      _runtime_process_argv_x_w1529_anchor; do
       if ! nm "$o" 2>/dev/null | awk -v s="$_pa_short" '$NF==s { ok=1 } END { exit ok?0:1 }'; then
         _pa_ok=0
         break
@@ -3724,7 +3725,7 @@ ensure_process_argv_darwin_pure() {
       continue
     fi
     if [ "$_pa_from_retry" = "1" ]; then
-      log "prefer process argv ← pure-asm seven symbols (w1195)"
+      log "prefer process argv ← pure-asm eight symbols (w1529 anchor)"
     else
       log "pure-asm $xsrc → $o"
     fi
@@ -3735,6 +3736,206 @@ ensure_process_argv_darwin_pure() {
     # shellcheck disable=SC2086
     $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
   fi
+  return 0
+}
+
+# Linux and Windows emit file-level lets as Lxml commons, same as Darwin.
+# The first Lxml relocation inside process_xlang_argc_get is the count
+# (that function loads the count before the vector). The other Lxml
+# common is the vector. Both are renamed onto the C names. Darwin does
+# this inside ensure_process_argv_darwin_pure and must not call here.
+# PLATFORM: LINUX x86_64 | WINDOWS x86_64.
+# $1 = object that already contains the two Lxml commons.
+process_argv_rename_lxml_w1529() {
+  local o="$1"
+  local argc_hex argv_hex argc_dec next_dec dec off name
+  local argc_name argv_name nmname oc line
+  if r3_prefer_nm_has_sym "$o" xlang_process_argc \
+    && r3_prefer_nm_has_sym "$o" xlang_process_argv; then
+    return 0
+  fi
+  argc_hex="$(nm "$o" 2>/dev/null | awk '
+    $NF=="process_xlang_argc_get" || $NF=="_process_xlang_argc_get" { print $1; exit }')"
+  argv_hex="$(nm "$o" 2>/dev/null | awk '
+    $NF=="process_xlang_argv_get" || $NF=="_process_xlang_argv_get" { print $1; exit }')"
+  if [ -z "$argc_hex" ] || [ -z "$argv_hex" ]; then
+    echo "ensure: process argv getters missing before Lxml rename" >&2
+    return 1
+  fi
+  argc_dec=$((16#$argc_hex))
+  next_dec=$((16#$argv_hex))
+  if [ "$argc_dec" -ge "$next_dec" ]; then
+    echo "ensure: process argv argc getter is not before argv getter" >&2
+    return 1
+  fi
+  argc_name=""
+  while read -r off name; do
+    case "$off" in
+      *[!0-9a-fA-F]*) continue ;;
+    esac
+    [ -n "$off" ] || continue
+    dec=$((16#$off))
+    if [ "$dec" -ge "$argc_dec" ] && [ "$dec" -lt "$next_dec" ]; then
+      case "$name" in
+        Lxml_*|_Lxml_*)
+          argc_name="$name"
+          break
+          ;;
+      esac
+    fi
+  done < <(objdump -d -r "$o" 2>/dev/null | awk '
+    /Lxml_/ {
+      if (match($0, /^[ \t]*[0-9a-fA-F]+:/)) {
+        off = substr($0, RSTART, RLENGTH)
+        gsub(/[^0-9a-fA-F]/, "", off)
+        if (match($0, /_?Lxml_[0-9a-fA-F]+/)) {
+          name = substr($0, RSTART, RLENGTH)
+          print off, name
+        }
+      }
+    }')
+  if [ -z "$argc_name" ]; then
+    echo "ensure: process argv argc Lxml reloc missing" >&2
+    return 1
+  fi
+  argv_name=""
+  while read -r nmname; do
+    case "$nmname" in
+      Lxml_*|_Lxml_*)
+        if [ "$nmname" != "$argc_name" ]; then
+          argv_name="$nmname"
+        fi
+        ;;
+    esac
+  done < <(nm -p "$o" 2>/dev/null | awk '{ print $NF }')
+  if [ -z "$argv_name" ]; then
+    echo "ensure: process argv vector Lxml missing" >&2
+    return 1
+  fi
+  oc="$(pure_asm_find_objcopy)" || return 1
+  if ! "$oc" \
+    --redefine-sym "${argc_name}"='xlang_process_argc' \
+    --redefine-sym "${argv_name}"='xlang_process_argv' \
+    "$o"; then
+    echo "ensure: process argv Lxml rename failed" >&2
+    return 1
+  fi
+  return 0
+}
+
+# w1529 (5.10): runtime_process_argv.o is the host .x alone.
+# Darwin arm64 keeps ensure_process_argv_darwin_pure (getters read
+# _NSGetArgc; the w1529 anchor was added to that .x). Linux x86_64
+# pure-asms src/asm/runtime_process_argv_linux.x. Windows x86_64
+# pure-asms src/asm/runtime_process_argv_windows.x. One shot, no seed,
+# no -E, no retry, no host-cc fallback. The two process faces are
+# weakened. An object without the anchor is not installed.
+# The C seed file stays on disk for tests that only check it exists.
+# PLATFORM: SHARED (Darwin arm64 / Linux x86_64 / Windows x86_64).
+# $1 = output object (default runtime_process_argv.o, cwd is compiler/).
+ensure_process_argv_w1529() {
+  local o="${1:-runtime_process_argv.o}"
+  local os_s arch xsrc tmp_o sym
+  os_s="$(uname -s 2>/dev/null || echo Unknown)"
+  arch="$(uname -m 2>/dev/null || echo unknown)"
+  case "$os_s" in
+    Darwin)
+      if [ "$arch" != "arm64" ]; then
+        echo "ensure: process argv unsupported $os_s $arch; no host cc" >&2
+        return 1
+      fi
+      ensure_process_argv_darwin_pure "$o" || return 1
+      if ! r3_prefer_nm_has_sym "$o" runtime_process_argv_x_w1529_anchor; then
+        echo "ensure: $o lacks runtime_process_argv_x_w1529_anchor; refusing host-cc fallback" >&2
+        rm -f "$o"
+        return 1
+      fi
+      log "process argv full .x $o <- src/asm/runtime_process_argv_darwin.x (w1529 pure asm, no seed, no host cc)"
+      return 0
+      ;;
+    Linux)
+      if [ "$arch" != "x86_64" ]; then
+        echo "ensure: process argv unsupported $os_s $arch; no host cc" >&2
+        return 1
+      fi
+      xsrc="src/asm/runtime_process_argv_linux.x"
+      ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      if [ "$arch" != "x86_64" ]; then
+        echo "ensure: process argv unsupported $os_s $arch; no host cc" >&2
+        return 1
+      fi
+      xsrc="src/asm/runtime_process_argv_windows.x"
+      ;;
+    *)
+      echo "ensure: process argv unsupported $os_s; no host cc" >&2
+      return 1
+      ;;
+  esac
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure: $o missing $xsrc; no host cc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && r3_prefer_nm_has_sym "$o" runtime_process_argv_x_w1529_anchor \
+    && r3_prefer_nm_has_sym "$o" xlang_process_argc \
+    && r3_prefer_nm_has_sym "$o" xlang_process_argv; then
+    log "skip up-to-date $o (process argv full .x w1529)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  tmp_o="${o%.o}_w1529_step.o"
+  rm -f "$tmp_o"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    export G05_X_O_WEAK_FUNCS=process_args_count_c,process_arg_c
+    unset G05_X_O_WEAK
+    unset G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$tmp_o" "$xsrc"
+  ) || [ ! -s "$tmp_o" ]; then
+    rm -f "$tmp_o"
+    echo "ensure: $o pure asm of $xsrc failed; no retry, no host cc" >&2
+    return 1
+  fi
+  if ! process_argv_rename_lxml_w1529 "$tmp_o"; then
+    rm -f "$tmp_o"
+    echo "ensure: $o Lxml rename failed; no host cc" >&2
+    return 1
+  fi
+  for sym in \
+    runtime_process_argv_x_w1529_anchor \
+    runtime_process_argv_x_doc_anchor \
+    xlang_process_argc \
+    xlang_process_argv \
+    xlang_process_argv_bind_from_crt \
+    xlang_process_argv_bind_from_crt_impl \
+    process_xlang_argc_get \
+    process_xlang_argv_get \
+    process_args_count_c \
+    process_arg_c
+  do
+    if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
+      rm -f "$tmp_o"
+      echo "ensure: $o from $xsrc lacks $sym; no host cc" >&2
+      return 1
+    fi
+  done
+  if ! nm "$tmp_o" 2>/dev/null | awk '
+    {
+      name = $NF
+      typ = ""
+      if (NF >= 3) { typ = $(NF - 1) }
+    }
+    name ~ /_?process_args_count_c$/ && (typ == "W" || typ == "w") { c = 1 }
+    name ~ /_?process_arg_c$/ && (typ == "W" || typ == "w") { a = 1 }
+    END { exit (c && a) ? 0 : 1 }
+  '; then
+    rm -f "$tmp_o"
+    echo "ensure: $o process faces are not weak; no host cc" >&2
+    return 1
+  fi
+  mv -f "$tmp_o" "$o"
+  log "process argv full .x $o <- $xsrc (w1529 pure asm, no seed, no host cc)"
   return 0
 }
 
@@ -5110,19 +5311,12 @@ ensure_one() {
     fi
   fi
 
-  # w1085: Darwin arm64 argc/argv getters are the .x, not this seed.
-  # Linux keeps the /proc seed. Windows keeps the Win32 seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1529: all three hosts pure-asm the whole TU. No host-cc of the seed.
+  # PLATFORM: SHARED.
   if [ "$(basename "$seed")" = "runtime_process_argv.from_x.c" ] \
     || [ "$(basename "$out")" = "runtime_process_argv.o" ]; then
-    local pa_s pa_m
-    pa_s="$(uname -s 2>/dev/null || echo Unknown)"
-    pa_m="$(uname -m 2>/dev/null || echo unknown)"
-    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
-      && [ -f src/asm/runtime_process_argv_darwin.x ]; then
-      ensure_process_argv_darwin_pure "$out" || return 1
-      return 0
-    fi
+    ensure_process_argv_w1529 "$out" || return 1
+    return 0
   fi
 
   # w1084: Darwin arm64 accept worker is the .x, not this seed.
@@ -7767,11 +7961,12 @@ process_argv_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "7" ]; then
+  if [ "$n" != "8" ]; then
     rm -f "$o"
     return 1
   fi
-  for c in _runtime_process_argv_x_doc_anchor _process_xlang_argc_get \
+  for c in _runtime_process_argv_x_doc_anchor _runtime_process_argv_x_w1529_anchor \
+    _process_xlang_argc_get \
     _process_args_count_c _process_arg_c; do
     if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
@@ -25798,17 +25993,11 @@ ensure_runtime_os_prefer_one() {
     fi
   fi
 
-  # w1085: Darwin arm64 whole TU is the .x. Do not thin+rest host-cc it.
-  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  # w1529: all hosts pure-asm the whole TU. Do not thin+rest host-cc it.
+  # PLATFORM: SHARED.
   if [ "$o" = "runtime_process_argv.o" ]; then
-    local pa_s pa_m
-    pa_s="$(uname -s 2>/dev/null || echo Unknown)"
-    pa_m="$(uname -m 2>/dev/null || echo unknown)"
-    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
-      && [ -f src/asm/runtime_process_argv_darwin.x ]; then
-      ensure_process_argv_darwin_pure "$o" || return 1
-      return 0
-    fi
+    ensure_process_argv_w1529 "$o" || return 1
+    return 0
   fi
 
   # w1084: Darwin arm64 whole TU is the .x. Do not thin+rest host-cc it.
@@ -26827,11 +27016,10 @@ ensure_std_core_prefer_one() {
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
         return 1
       fi
-      if [ ! -f runtime_process_argv.o ]; then
-        try_ensure_runtime_os_prefer_one runtime_process_argv.o \
-          || ensure_one runtime_process_argv.o seeds/runtime_process_argv.from_x.c \
-          || return 1
-      fi
+      # w1529: pure asm of the host .x. Do not cc the seed over a failure.
+      # try_ensure_runtime_os_prefer_one returns 0 after the call, so this
+      # site calls ensure_process_argv_w1529 and keeps its status.
+      ensure_process_argv_w1529 runtime_process_argv.o || return 1
       if [ ! -f runtime_process_os_glue.o ]; then
         try_ensure_runtime_os_prefer_one runtime_process_os_glue.o \
           || ensure_one runtime_process_os_glue.o seeds/runtime_process_os_glue.from_x.c \
@@ -30356,7 +30544,7 @@ case "$MODE" in
     exit $?
     ;;
   process-argv-pure|process_argv_retry_pure)
-    # w1195: seven pure-asm symbols of runtime_process_argv_darwin.x.
+    # w1195: eight pure-asm symbols of runtime_process_argv_darwin.x (w1529 anchor).
     # Does not write runtime_process_argv.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
@@ -32600,6 +32788,27 @@ case "$MODE" in
     _try_out="$1"
     set +e
     try_ensure_target_cpu_prefer_one "$_try_out"
+    _try_rc=$?
+    set -e
+    exit "$_try_rc"
+    ;;
+  try-process-argv-prefer|try_process_argv_prefer|process-argv-prefer)
+    # w1529: runtime_process_argv.o is the host .x. Exit 3 if the path is
+    # some other object. The status is the real ensure status.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o try-process-argv-prefer: need <out.o>" >&2
+      exit 2
+    fi
+    _try_out="$1"
+    case "$(basename "$_try_out")" in
+      runtime_process_argv.o) ;;
+      *)
+        echo "ensure_host_cc_seed_o try-process-argv-prefer: not runtime_process_argv.o" >&2
+        exit 3
+        ;;
+    esac
+    set +e
+    ensure_process_argv_w1529 "$_try_out"
     _try_rc=$?
     set -e
     exit "$_try_rc"

@@ -5503,12 +5503,10 @@ ensure_asm_bootstrap_support_extra_objs() {
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
   fi
   ensure_typeck_c_module_stubs_obj
-  # PLATFORM: SHARED — process_xlang_argc/argv_get (g05 DRIVER_SEED_OBJS); experimental/strict
-  # both need this for backend_enc_dispatch process_args_count_c / process_arg_c.
-  if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
-  echo " cc -c runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c (bootstrap support)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
-  fi
+  # w1529: pure asm of the host .x. Do not cc the seed over it.
+  # PLATFORM: SHARED — process_xlang_argc/argv_get (g05 DRIVER_SEED_OBJS).
+  bash scripts/ensure_host_cc_seed_o.sh try-process-argv-prefer runtime_process_argv.o \
+    || return 1
 }
 
 # experimental / strict runtime 链：heap_*_c 在 runtime_driver_strict_glue_stubs.o（G-02e-14）。
@@ -5661,10 +5659,10 @@ ensure_runtime_user_link_objs() {
   if [ ! -f runtime_asm_io_stubs.o ]; then
   echo " warn: runtime_asm_io_stubs.o missing; build it via scripts/g05_ensure_relink_prereqs.sh (from src/asm/runtime_asm_io_stubs.x)" >&2
   fi
-  if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
-  echo " cc_inc_tu runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
-  fi
+  # w1529: pure asm of the host .x. Do not cc the seed over it.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-process-argv-prefer runtime_process_argv.o \
+    || return 1
   # w1077: user-domain CSPRNG fill.
   # Darwin arm64 pure-asms src/asm/runtime_random_fill.x (strong faces).
   # Linux and Windows still host-cc the C seed. One body: ensure_one.

@@ -2278,11 +2278,10 @@ ensure_rt_seed_slice_objs() {
 }
 ensure_rt_seed_slice_objs
 ST_RT_SEED_SLICES="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+# w1529: pure asm of the host .x. Do not cc the seed over it.
 # PLATFORM: SHARED — process_xlang_argc/argv_get authority (product asm_bootstrap_support_extra_link).
-if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
-  strict_glue_info "cc -c runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
-fi
+bash scripts/ensure_host_cc_seed_o.sh try-process-argv-prefer runtime_process_argv.o \
+  || { echo "strict glue: process argv pure asm failed" >&2; exit 1; }
 ST_RT_SEED_SLICES="$ST_RT_SEED_SLICES runtime_process_argv.o"
 
 strict_glue_info "linking xlang_asm.strict_glue (glue_standalone + build_asm pipeline.o ...)"

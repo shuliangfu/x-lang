@@ -716,6 +716,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; target_cpu prefer residual" >&2
     exit 1
   fi
+  # w1529 (5.10): runtime_process_argv.o is the host .x alone.
+  # Darwin arm64 keeps runtime_process_argv_darwin.x. Linux x86_64 reads
+  # /proc/self/cmdline from runtime_process_argv_linux.x. Windows x86_64
+  # defines the globals and a no-op bind in runtime_process_argv_windows.x.
+  # The C seed stays for tests. A failed ensure must not continue, and an
+  # object without the w1529 anchor must not be linked.
+  # PLATFORM: SHARED.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-process-argv-prefer runtime_process_argv.o (w1529)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-process-argv-prefer runtime_process_argv.o \
+      || { echo "g05_ensure: ERROR try-process-argv-prefer failed (full .x, no C fallback)" >&2; exit 1; }
+    if ! nm runtime_process_argv.o 2>/dev/null \
+      | grep -q "T _*runtime_process_argv_x_w1529_anchor\$"; then
+      echo "g05_ensure: ERROR runtime_process_argv.o lacks the w1529 anchor (full .x pure asm failed; no C fallback)" >&2
+      exit 1
+    fi
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; process argv prefer residual" >&2
+    exit 1
+  fi
   # w1522 (5.8): src/asm/backend_x86_64_enc_c.o is the whole
   # src/asm/backend_x86_64_enc_c.x built by product pure asm on all three
   # hosts. It replaces the wave769 try-l2-asm-prefer leaf (thin .x plus
@@ -3926,7 +3948,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # special: runtime_driver_no_c.o 源是 runtime.c（上面已热编）
     case "$o" in
       # 已在热路径专用 flags / .x seed 编译
-      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|src/lsp/lsp_diag.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|x_frontend_link_alias.o|driver_fmt_x.o|driver_check_x.o|driver_test_x.o|lsp_io_x.o|lsp_io_std_heap_x.o|driver_build_x.o|driver_run_x.o|build_asm/*|*.s) continue ;;
+      src/runtime_driver_no_c.o|src/runtime_pipeline_abi.o|src/runtime_link_abi.o|src/runtime_io_abi.o|src/runtime_driver_abi.o|src/runtime_driver_diagnostic.o|src/lsp/lsp_diag_pipeline_ctx.o|src/typeck/typeck_f64_bits.o|src/lsp/lsp_diag_pipeline_sizes_nostub.o|src/driver/target_cpu.o|runtime_process_argv.o|src/asm/simd_enc.o|src/asm/simd_loop.o|src/asm/backend_enc_dispatch.o|src/asm/backend_arch_emit_dispatch.o|src/asm/backend_try_inline_dispatch.o|src/asm/backend_call_dispatch.o|src/asm/parser_asm_parse_expr_link.o|parser_asm_thin_glue.o|src/diag.o|src/x_seed_bridge.o|src/seed_link_compat.o|src/runtime_driver_strict_glue_stubs.o|src/driver/fmt_check_cmd_driver.o|src/lsp/lsp_diag.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|x_frontend_link_alias.o|driver_fmt_x.o|driver_check_x.o|driver_test_x.o|lsp_io_x.o|lsp_io_std_heap_x.o|driver_build_x.o|driver_run_x.o|build_asm/*|*.s) continue ;;
     esac
 
     if [ -n "$src" ]; then

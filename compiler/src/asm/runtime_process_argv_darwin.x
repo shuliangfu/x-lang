@@ -18,10 +18,11 @@
 // runtime_process_argv.o.
 //
 // The cold ensure path pure-asms this file and does not pass
-// seeds/runtime_process_argv.from_x.c to host cc. Linux still reads
-// /proc/self/cmdline in that seed. Windows still uses the Win32 CRT
-// path in that seed. src/asm/runtime_process_argv.x stays the shared
-// thin: it forwards to the C _impl. Darwin does not compile that thin.
+// seeds/runtime_process_argv.from_x.c to host cc. Linux pure-asms
+// src/asm/runtime_process_argv_linux.x. Windows pure-asms
+// src/asm/runtime_process_argv_windows.x. The C seed stays for tests.
+// src/asm/runtime_process_argv.x stays the shared thin: it forwards
+// to the C _impl. Darwin does not compile that thin.
 //
 // Darwin argc and argv come from libSystem _NSGetArgc and _NSGetArgv.
 // The Mach-O names are __NSGetArgc and __NSGetArgv.
@@ -43,8 +44,10 @@
 // std/process/process.x defines the same two names as strong symbols.
 // When a user link includes both objects, the strong process faces win.
 //
-// This object is a user companion. It is not in the g05 compiler image.
-// A missing object after a pure-asm fault falls back to the C seed.
+// This object is linked in the g05 compiler image. g05 requires
+// runtime_process_argv_x_w1529_anchor and rejects a host-cc fallback.
+// A missing object after a pure-asm fault still falls back to the C
+// seed inside the Darwin helper; that fallback object lacks the anchor.
 //
 // PLATFORM: MACOS|DARWIN arm64.
 
@@ -190,4 +193,15 @@ export function process_args_count_c(): i32 {
 #[no_mangle]
 export function process_arg_c(i: i32): *u8 {
   return process_xlang_argv_get(i);
+}
+
+/**
+ * Wave anchor. g05 rejects an object that lacks this symbol, so a
+ * host-cc of the C seed cannot be linked in its place.
+ * @return i32 — always 0
+ * PLATFORM: MACOS|DARWIN arm64.
+ */
+#[no_mangle]
+export function runtime_process_argv_x_w1529_anchor(): i32 {
+  return 0;
 }
