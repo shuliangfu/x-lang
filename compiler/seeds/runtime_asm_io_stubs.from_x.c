@@ -33,6 +33,16 @@
 #define snprintf xlang_snprintf
 
 /*
+ * 5.7a (w1515): XLANG_RUNTIME_ASM_IO_STUBS_FROM_X = residual-only mode.
+ * src/asm/runtime_asm_io_stubs.x now carries every face below (pure asm on all
+ * three platforms); g05 compiles this seed with the macro and `cc -r` merges
+ * only the platform residual: backtrace_capture_c / backtrace_symbolicate_c
+ * (LINUX | DARWIN), xlang_target_cpu_detect_host (LINUX, /proc/cpuinfo) and the
+ * glibc UDP batch include. Without the macro the seed is still the complete TU
+ * (runtime ensure / logged g05 fallback). 5.7b ports the residual and deletes it.
+ */
+#ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
+/*
  * Cap residual 9.5.3: debug print via Cap IO face — libc printf/putchar/fputs
  * replaced by xlang_io_write on fd 1 (stdout) + xlang_snprintf
  * (G.7 single authorities: xlang_io_cap.h / xlang_fmt_cap.h).
@@ -112,7 +122,6 @@ long seed_io_syscall_read_impl(int fd, void *buf, unsigned long count) {
   return xlang_io_read(fd, buf, (size_t)count);
 }
 
-#ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供
  * Cap residual 9.1.8: emit wrappers on all platforms. */
 long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
@@ -121,7 +130,6 @@ long seed_io_syscall_write(int fd, const void *buf, unsigned long count) {
 long seed_io_syscall_read(int fd, void *buf, unsigned long count) {
   return seed_io_syscall_read_impl(fd, buf, count);
 }
-#endif
 
 /* thin+rest：thin 函数在 rest 模式下由 .x 提供，前向声明供 rest 函数调用 */
 long seed_io_syscall_write(int fd, const void *buf, unsigned long count);
@@ -143,6 +151,8 @@ XLANG_WEAK ssize_t xlang_sys_read(int32_t fd, uint8_t *buf, size_t count) {
 XLANG_WEAK ssize_t xlang_sys_writev(int32_t fd, uint8_t *iov, int32_t iovcnt) {
   return (ssize_t)xlang_io_writev((int)fd, (const void *)iov, (int)iovcnt);
 }
+
+#endif /* !XLANG_RUNTIME_ASM_IO_STUBS_FROM_X */
 
 #if !defined(_WIN32) && !defined(_WIN64)
 
@@ -301,6 +311,8 @@ __attribute__((weak)) int32_t backtrace_symbolicate_c(const uint8_t *buf, int32_
 #endif /* LINUX|DARWIN backtrace capture stub */
 #endif /* !_WIN32 */
 
+#if !defined(XLANG_RUNTIME_ASM_IO_STUBS_FROM_X) || defined(__linux__)
+
 /*
  * Cap residual 9.1.12: weak xlang_target_cpu_detect_host for probes and runtime.
  * Strong twin in src/driver/target_cpu.o wins on full product link.
@@ -372,6 +384,9 @@ __attribute__((weak)) uint32_t xlang_target_cpu_detect_host(void) {
   return 0;
 #endif
 }
+#endif /* residual: LINUX cpu detect */
+
+#ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
 
 /** F-03：sync.x 机器码不在 io.o；本 TU 提供 io_write/io_read 同步 ABI。 */
 XLANG_WEAK ptrdiff_t io_write(int fd, const uint8_t *buf, size_t count, unsigned timeout_ms) {
@@ -547,12 +562,10 @@ int32_t seed_io_write_fd1_impl(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   return (int32_t)r;
 }
 
-#ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
 /* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
 int32_t seed_io_write_fd1(uint8_t *ptr, size_t len, uint32_t timeout_ms) {
   return seed_io_write_fd1_impl(ptr, len, timeout_ms);
 }
-#endif
 
 
 
@@ -1032,6 +1045,26 @@ int32_t std_io_ptr_backend(void) {
   return g_io_read_ptr_backend;
 }
 
+#endif /* !XLANG_RUNTIME_ASM_IO_STUBS_FROM_X */
+
+/*
+ * 5.7a (w1515) PLATFORM: LINUX — the ptr_view trio stays in the cc residual on
+ * Linux x86_64: product codegen there does not fill the hidden sret pointer for
+ * a >16B struct return (`return v` only loads rax; `return f()` drops the
+ * sret), so the .x copies are weakened and these strong C ones win (debt
+ * 10.57; must be fixed before 5.7b deletes this seed).
+ */
+#if !defined(XLANG_RUNTIME_ASM_IO_STUBS_FROM_X) || defined(__linux__)
+#ifdef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
+uint8_t *io_read_ptr(unsigned handle, unsigned timeout_ms);
+int32_t io_read_ptr_len(void);
+size_t std_io_stdin(void);
+int32_t std_io_ptr_valid(uint64_t saved);
+uint64_t std_io_ptr_gen(void);
+#define XLANG_RAIS_PTR_GEN() std_io_ptr_gen()
+#else
+#define XLANG_RAIS_PTR_GEN() g_io_read_ptr_gen
+#endif
 /**
  * Product import METHOD io.ptr_view / ptr_view_valid / stdin_ptr_view.
  * Unique UNDEF class for examples/cookbook/zc_read_ptr_slice (G.7 complete
@@ -1051,7 +1084,7 @@ std_io_ReadPtrView std_io_ptr_view(size_t handle, uint32_t timeout_ms) {
   std_io_ReadPtrView v;
   v.ptr = io_read_ptr((unsigned)handle, timeout_ms);
   v.length = io_read_ptr_len();
-  v.gen = g_io_read_ptr_gen;
+  v.gen = XLANG_RAIS_PTR_GEN();
   return v;
 }
 
@@ -1064,6 +1097,9 @@ int32_t std_io_ptr_view_valid(std_io_ReadPtrView v) {
 std_io_ReadPtrView std_io_stdin_ptr_view(void) {
   return std_io_ptr_view(std_io_stdin(), 0);
 }
+#endif /* ptr_view trio: full seed, or Linux residual */
+
+#ifndef XLANG_RUNTIME_ASM_IO_STUBS_FROM_X
 
 /**
  * Product import METHOD io.register_provided / unregister_provided.
@@ -1360,6 +1396,8 @@ XLANG_WEAK int xlang_sys_munmap(void *addr, size_t length) {
 }
 #endif
 #endif
+
+#endif /* !XLANG_RUNTIME_ASM_IO_STUBS_FROM_X */
 
 #if defined(__linux__) && defined(__GLIBC__)
 #define XLANG_NET_UDP_GLUE_WEAK XLANG_WEAK
