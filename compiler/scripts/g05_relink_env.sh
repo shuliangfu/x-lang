@@ -81,11 +81,13 @@ case "$UNAME_S" in
   # Darwin historically linked bootstrap_seed_pipeline_filtered.o; empty keep after
   # leave made filter --require-keep fail. Live faces = runtime_pipeline_abi pure/seed.
   # asm_experimental_symbol_bridge：Darwin weak 桩 platform_macho_write_macho_o_to_buf
-  # （seed bridge weak_import 静态链必需；见 seeds/asm_experimental_symbol_bridge.from_x.c）
+  # （seed bridge weak_import 静态链必需）。w1520：两对象均由纯 asm 编
+  # src/asm/asm_experimental_symbol_bridge.x ＋ _entry.x（定义 entry 的 TU 走入口模式只出
+  # entry，故拆开；Mac ld -r 会丢段首弱属性，故不合并，链两个 .o）。
   # PLATFORM: MACOS product pure-ld — no pipeline mega .o.
   _PIPELINE_LINK_O=""
   # PLATFORM: MACOS — backend_arm64_enc_c.o strong arch_arm64_enc_* override weak -1 stubs (CG002).
-  _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_arm64_enc_c.o build_asm/asm_experimental_symbol_bridge.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
+  _USER_ASM_LINK="build_asm/seed_host/asm_backend_partial.o build_asm/seed_host/asm_full_link_stubs.o build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o src/asm/backend_arm64_enc_c.o build_asm/asm_experimental_symbol_bridge.o build_asm/asm_experimental_symbol_bridge_entry.o src/asm/backend_enc_dispatch.o src/asm/backend_arch_emit_dispatch.o src/asm/backend_try_inline_dispatch.o src/asm/backend_call_dispatch.o parser_asm_thin_glue.o src/asm/parser_asm_parse_expr_link.o"
   ;;
   Linux)
   _ASM_GLUE_DUP_LDFLAGS="-Wl,--allow-multiple-definition"

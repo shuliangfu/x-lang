@@ -3806,19 +3806,63 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
 fi
 
 # --- Darwin bridge (PLATFORM: MACOS) ---
-# g05_relink_env USER_ASM_LINK lists build_asm/asm_experimental_symbol_bridge.o for
-# Darwin (weak platform_macho_write_macho_o_to_buf). bootstrap-driver-seed does not
-# always emit it; after true L4 wipe g05 would MISSING and stop. Build from seed when
-# listed in G05_OBJS — same source as build_xlang_asm ensure_asm_experimental_symbol_bridge_obj.
+# g05_relink_env USER_ASM_LINK lists build_asm/asm_experimental_symbol_bridge.o and
+# build_asm/asm_experimental_symbol_bridge_entry.o for Darwin (weak
+# platform_macho_write_macho_o_to_buf, name bridges, weak entry).
+# w1520 (5.8c): both objects are built by product pure asm from
+# src/asm/asm_experimental_symbol_bridge.x and
+# src/asm/asm_experimental_symbol_bridge_entry.x. The seed
+# seeds/asm_experimental_symbol_bridge.from_x.c is no longer compiled here; no
+# cc fallback: three failed tries log build_asm/g05_cc_fallback.log and stop g05.
+# entry is split out because a TU that defines `entry` is compiled in
+# entry-module mode (only entry is emitted). The two objects are linked
+# separately: Mac ld -r drops weak from the symbol at section offset 0.
+# Weak set = every export except get_module_import_path (strong, as in the seed).
+# Rebuild when a .x is newer or the object is the old hybrid (no aesb_word_eq).
 case " $G05_OBJS " in
   *" build_asm/asm_experimental_symbol_bridge.o "*)
-    if [ ! -f build_asm/asm_experimental_symbol_bridge.o ] \
-      && [ -f seeds/asm_experimental_symbol_bridge.from_x.c ]; then
-      mkdir -p build_asm
-      echo "g05_ensure: asm_experimental_symbol_bridge.o ← seed (Darwin cold L4)"
-      bash scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c \
-        build_asm/asm_experimental_symbol_bridge.o
-    fi
+    mkdir -p build_asm
+    _aesb_weak="typeck_lsp_main,run_compiler_x_path_impl,main_run_compiler_x_path_impl,main_cmd_build,main_entry,main_run_compiler_c,parse_into_buf,parse_into,parse_into_init,parse_into_set_main_index,get_module_num_imports,parser_get_module_import_path,preprocess_x_buf,parser_parse_into_init,parser_parse_into,parser_parse_into_set_main_index,parser_get_module_num_imports,peephole_peephole_run,backend_asm_codegen_ast,asm_asm_codegen_ast,typeck_typeck_x_ast,typeck_typeck_x_ast_library,parser_diag_token_after_collect_imports,typeck_struct_layout_metrics,typeck_typeck_struct_layout_metrics,std_io_driver_driver_read_ptr,std_io_driver_driver_read_ptr_len,typeck_merge_dep_struct_layouts_into_entry,typeck_typeck_merge_dep_struct_layouts_into_entry,typeck_wpo_unify_soa_layouts,typeck_typeck_wpo_unify_soa_layouts,ast_arena_init,ast_ast_arena_init,platform_macho_write_macho_o_to_buf"
+    for _aesb_pair in \
+      "src/asm/asm_experimental_symbol_bridge.x|build_asm/asm_experimental_symbol_bridge.o|aesb_word_eq|$_aesb_weak|platform_macho_write_macho_o_to_buf" \
+      "src/asm/asm_experimental_symbol_bridge_entry.x|build_asm/asm_experimental_symbol_bridge_entry.o|entry|entry|entry"; do
+      _aesb_x="${_aesb_pair%%|*}"; _aesb_r="${_aesb_pair#*|}"
+      _aesb_o="${_aesb_r%%|*}"; _aesb_r="${_aesb_r#*|}"
+      _aesb_anchor="${_aesb_r%%|*}"; _aesb_r="${_aesb_r#*|}"
+      _aesb_w="${_aesb_r%%|*}"; _aesb_wchk="${_aesb_r#*|}"
+      [ -f "$_aesb_x" ] || { echo "g05_ensure: ERROR missing $_aesb_x (w1520)" >&2; exit 1; }
+      if [ -f "$_aesb_o" ] && [ ! "$_aesb_x" -nt "$_aesb_o" ] \
+        && nm "$_aesb_o" 2>/dev/null | grep -q " [TW] _*${_aesb_anchor}\$"; then
+        continue
+      fi
+      _aesb_done=0
+      for _aesb_try in 1 2 3; do
+        rm -f "$_aesb_o.x.tmp.o"
+        if (
+          export XLANG_PREFER_ASM_O=1
+          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+          export G05_X_O_WEAK_FUNCS="$_aesb_w"
+          pure_asm_x_to_o "$_aesb_o.x.tmp.o" "$_aesb_x"
+        ) && [ -s "$_aesb_o.x.tmp.o" ]; then
+          if nm "$_aesb_o.x.tmp.o" 2>/dev/null | grep -q " [TW] _*${_aesb_anchor}\$" \
+            && nm -m "$_aesb_o.x.tmp.o" 2>/dev/null | grep -q "weak external _${_aesb_wchk}\$"; then
+            _aesb_done=1
+            break
+          fi
+        fi
+        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_aesb_try" "$_aesb_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      done
+      if [ "$_aesb_done" = "1" ]; then
+        mv -f "$_aesb_o.x.tmp.o" "$_aesb_o"
+        echo "g05_ensure: $_aesb_o ← $_aesb_x (w1520 pure asm, whole object, no cc)"
+      else
+        rm -f "$_aesb_o.x.tmp.o" "$_aesb_o"
+        echo "Darwin $_aesb_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_aesb_x pure asm failed 3x; no cc fallback (w1520)" >&2
+        exit 1
+      fi
+    done
     ;;
 esac
 
