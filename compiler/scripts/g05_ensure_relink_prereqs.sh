@@ -733,6 +733,59 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   fi
+  # w1523 (5.8): src/asm/backend_arm64_enc_c.o is src/asm/backend_arm64_enc_c.x
+  # built by product pure asm on all three hosts. It replaces the cc build
+  # of seeds/backend_arm64_enc_c.from_x.c (build_xlang_asm.sh / strict glue).
+  # Only five helpers were left there: the frame-size store/load pair, the
+  # SP chunk walk, the add-imm chunk walk and the x19 save/restore. The
+  # ARM64 encoders in backend_enc_dispatch_thin.x call them. All strong on
+  # every host, same as the cc object linked before. No seed cc and no cc
+  # fallback: three failed tries log build_asm/g05_cc_fallback.log and stop
+  # g05. Rebuild when the object is missing, the .x is newer, or the anchor
+  # is absent (the old cc object).
+  # PLATFORM: MACOS arm64 · LINUX x86_64 · WINDOWS x86_64.
+  _aenc_x=src/asm/backend_arm64_enc_c.x
+  _aenc_o=src/asm/backend_arm64_enc_c.o
+  if [ -f "$_aenc_x" ]; then
+    if [ ! -f "$_aenc_o" ] || [ "$_aenc_x" -nt "$_aenc_o" ] \
+      || ! nm "$_aenc_o" 2>/dev/null | tr -d '\r' | grep -q " T _*backend_arm64_enc_c_x_doc_anchor\$"; then
+      _aenc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_aenc_os" in MINGW*|MSYS*|CYGWIN*) _aenc_os=Windows ;; esac
+      _aenc_done=0
+      for _aenc_try in 1 2 3; do
+        rm -f "$_aenc_o.x.tmp.o"
+        if (
+          export XLANG_PREFER_ASM_O=1
+          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+          pure_asm_x_to_o "$_aenc_o.x.tmp.o" "$_aenc_x"
+        ) && [ -s "$_aenc_o.x.tmp.o" ]; then
+          _aenc_nm=$(nm "$_aenc_o.x.tmp.o" 2>/dev/null | tr -d '\r')
+          _aenc_ok=1
+          for _aenc_s in backend_arm64_enc_c_x_doc_anchor arm64_enc_frame_size_store \
+            arm64_enc_frame_size_load arm64_enc_addsub_sp_imm_chunks \
+            arm64_enc_add_rd_rn_imm_chunks arm64_enc_x19_sp_off; do
+            printf '%s\n' "$_aenc_nm" | grep -q " T _*$_aenc_s\$" || _aenc_ok=0
+          done
+          if [ "$_aenc_ok" = "1" ]; then
+            _aenc_done=1
+            break
+          fi
+        fi
+        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_aenc_try" "$_aenc_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      done
+      if [ "$_aenc_done" = "1" ]; then
+        mv -f "$_aenc_o.x.tmp.o" "$_aenc_o"
+        echo "g05_ensure: $_aenc_o ← $_aenc_x (w1523 pure asm, whole object, no cc)"
+      else
+        rm -f "$_aenc_o.x.tmp.o" "$_aenc_o"
+        mkdir -p build_asm
+        echo "$_aenc_os $_aenc_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_aenc_x pure asm failed 3x; no cc fallback (w1523)" >&2
+        exit 1
+      fi
+    fi
+  fi
   # w1518 (5.8b): src/asm/user_asm_seed_bridge.o is the whole
   # src/asm/user_asm_seed_bridge.x built by product pure asm on all three
   # hosts (asm_asm_codegen_ast / asm_asm_codegen_elf_o, ctx reset, empty-text
