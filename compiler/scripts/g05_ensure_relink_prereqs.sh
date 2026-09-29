@@ -159,6 +159,42 @@ g05_obj_defines() {
   nm -gU "$_g05_obj" 2>/dev/null | grep -E " [TWtw] (_)?${_g05_sym}\$" >/dev/null
 }
 
+# w1534 (checklist 6.1): P9a lexer-step bridge is one pure-asm emit.
+# No host cc of seeds/parser_asm_lex_step_bridge.from_x.c and no -E fallback.
+# The seed file stays for the prove harnesses. Missing object or symbol
+# returns 1; the caller exits. PLATFORM: SHARED. $1 = output object.
+# cwd is compiler/.
+g05_p9a_bridge_pure() {
+  local _bo="$1"
+  local _bx="src/asm/parser_asm_lex_step_bridge.x"
+  if [ ! -f "$_bx" ]; then
+    echo "g05_ensure: P9a bridge .x missing" >&2
+    return 1
+  fi
+  if [ -z "$_bo" ]; then
+    echo "g05_ensure: P9a bridge output path missing" >&2
+    return 1
+  fi
+  rm -f "$_bo"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$_bo" "$_bx"
+  ) || [ ! -s "$_bo" ]; then
+    echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  if ! g05_obj_defines "$_bo" "parser_asm_lex_step_kind_c" \
+    || ! g05_obj_defines "$_bo" "parser_asm_lex_peek_kind_c" \
+    || ! g05_obj_defines "$_bo" "parser_asm_lex_step_bridge_w1534_anchor"; then
+    echo "g05_ensure: P9a bridge missing symbols" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  return 0
+}
+
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -1197,6 +1233,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # G-02f-318a / 7.2.1 B-minus pilot (RFC §5c): stretch-audit .x thin + lexer-step bridge
   _pthin_p9a_x=src/asm/pthin_stretch_audit.x
   _pthin_p9a_bridge=seeds/parser_asm_lex_step_bridge.from_x.c
+  # w1534: product object comes from this .x. The .c seed stays for prove.
+  _pthin_p9a_bridge_x=src/asm/parser_asm_lex_step_bridge.x
   # 7.2.1 Route C productize: stretch lite .x (no bridge; pure scalar tables)
   _pthin_p9b_x=src/asm/pthin_stretch.x
   _pthin_p10_seed=seeds/pthin_glue.from_x.c
@@ -1261,6 +1299,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p9_seed" ] && [ "$_pthin_p9_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p9a_x" ] && [ "$_pthin_p9a_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p9a_bridge" ] && [ "$_pthin_p9a_bridge" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p9a_bridge_x" ] && [ "$_pthin_p9a_bridge_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p9b_x" ] && [ "$_pthin_p9b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p10_seed" ] && [ "$_pthin_p10_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p10b_x" ] && [ "$_pthin_p10b_x" -nt parser_asm_thin_glue.o ]; } \
@@ -1959,14 +1998,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # lane). STRETCH_AUDIT_FROM_X still requires the audit .x thin.
         # PLATFORM: SHARED
         _pthin_p9_extra=""
-        if [ -n "$_pthin_p9a_o" ] && [ -f "$_pthin_p9a_bridge" ]; then
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_pthin_p9a_o" "$_pthin_p9a_bridge"; then
-            _pthin_p9a_ok=1
-            echo "g05_ensure: P9a lexer-step bridge ← $_pthin_p9a_bridge (7.2.1 B-minus)"
-          else
-            echo "g05_ensure: P9a lexer-step bridge -c failed; peek/step stay absent" >&2
-          fi
+        # w1534: one pure-asm emit. A miss stops ensure. No host cc of the seed.
+        # PLATFORM: SHARED. Linux and Windows link this object. Darwin Class CB
+        # compiles it again into its own temp and discards this pass.
+        if [ -z "$_pthin_p9a_o" ]; then
+          echo "g05_ensure: P9a bridge output path missing" >&2
+          exit 1
+        fi
+        if g05_p9a_bridge_pure "$_pthin_p9a_o"; then
+          _pthin_p9a_ok=1
+          echo "g05_ensure: P9a lexer-step bridge ← pure-asm w1534"
+        else
+          echo "g05_ensure: P9a lexer-step bridge pure-asm failed" >&2
+          exit 1
         fi
         _pthin_p9a_pure=0
         # w1155: the file exits 139. Darwin compiles each function and
@@ -3148,7 +3192,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ -n "$_bx_p12b" ] && [ -n "$_bx_p12" ] && [ -n "$_bx_p1b" ] && [ -n "$_bx_p1" ] \
           && [ -n "$_bx_bridge" ] && [ -n "$_ca_p6b" ] && [ -n "$_ca_p6" ] \
           && [ -n "$_cb_p3b" ] && [ -n "$_cb_p3" ] && [ -n "$_ca_bstub" ] && [ -n "$_ca_bstub_c" ] \
-          && [ -n "$_bx_rest" ] && [ -f "$_bx_bridge_seed" ] \
+          && [ -n "$_bx_rest" ] && [ -f "$_bx_bridge_seed" ] && [ -f "$_pthin_p9a_bridge_x" ] \
           && { [ "$_bx_p12b_pure" = "1" ] \
             || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p12b_x" "$_bx_p12b"; } \
           && { [ "$_bx_p1b_pure" = "1" ] \
@@ -3349,7 +3393,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           # w1329: seed keeps the slice trampoline, the glue wrappers, and
           # the marker. Rest drops the glue-tail include, so the C pointer
           # shim goes with it. The .x walk replaces that shim.
-          # P9a stays host cc. PLATFORM: MACOS|DARWIN arm64.
+          # P9a lexer-step bridge is pure-asm (w1534) and is linked below.
+          # PLATFORM: MACOS|DARWIN arm64.
           if [ "$_cb_p10_pure" = "1" ] \
             && g05_obj_defines "$_cb_p10bb" "parser_asm_skip_one_function_full_into_c" \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
@@ -3588,8 +3633,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                $_cb_p3_extra \
                -c -o "$_cb_p3" "$_pthin_p3_seed" \
-            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -c -o "$_bx_bridge" "$_bx_bridge_seed" \
+            && { g05_p9a_bridge_pure "$_bx_bridge" || exit 1; } \
+            && echo "g05_ensure: P9a lexer-step bridge ← pure-asm w1534" \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE \
                -DXLANG_PTHIN_SKIP_TL_FROM_X -DXLANG_PTHIN_LEX_SKIP_FROM_X \
