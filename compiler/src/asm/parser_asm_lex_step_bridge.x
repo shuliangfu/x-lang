@@ -142,6 +142,11 @@ function parser_asm_lex_bridge_store_i64(dst: *u8, v: i64): void {
  * PLATFORM: SHARED.
  */
 function parser_asm_lex_bridge_fill(lex_in: *u8, source: *u8, raw: *u8): i32 {
+  // The compiler that emits this function sizes the frame 64 bytes short of
+  // the by-value lexer spill. A touched array is counted in `sub sp` and
+  // keeps that spill inside the frame. PLATFORM: SHARED.
+  let frame_pad: u8[128] = [];
+  frame_pad[0] = 0;
   if (lex_in == 0) {
     return 0;
   }
@@ -673,6 +678,10 @@ export function parser_asm_lex_wrap_buf_c(data: *u8, len: i32): *u8 {
  */
 #[no_mangle]
 export function parser_asm_lex_skip_balanced_parens_inplace_c(lex_inout: *u8, source: *u8): void {
+  // Frame is 8 bytes short of the by-value lexer slot. Touched pad grows
+  // `sub sp` so the slot stays inside the frame. PLATFORM: SHARED.
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
   if (lex_inout == 0) {
     return;
   }
@@ -696,6 +705,10 @@ export function parser_asm_lex_skip_balanced_parens_inplace_c(lex_inout: *u8, so
  */
 #[no_mangle]
 export function parser_asm_lex_skip_balanced_braces_inplace_c(lex_inout: *u8, source: *u8): void {
+  // Frame is 8 bytes short of the by-value lexer slot. Touched pad grows
+  // `sub sp` so the slot stays inside the frame. PLATFORM: SHARED.
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
   if (lex_inout == 0) {
     return;
   }
@@ -721,6 +734,10 @@ export function parser_asm_lex_skip_balanced_braces_inplace_c(lex_inout: *u8, so
  */
 #[no_mangle]
 export function parser_asm_lex_skip_one_struct_inplace_c(lex_inout: *u8, source: *u8): void {
+  // Frame is 8 bytes short of the 16-byte return slot. Touched pad grows
+  // `sub sp` so the slot stays inside the frame. PLATFORM: SHARED.
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
   if (lex_inout == 0) {
     return;
   }
@@ -749,6 +766,10 @@ export function parser_asm_lex_skip_one_struct_inplace_c(lex_inout: *u8, source:
  */
 #[no_mangle]
 export function parser_asm_lex_skip_imports_inplace_c(lex_inout: *u8, source: *u8): void {
+  // Frame is 8 bytes short of the 16-byte return slot. Touched pad grows
+  // `sub sp` so the slot stays inside the frame. PLATFORM: SHARED.
+  let frame_pad: u8[32] = [];
+  frame_pad[0] = 0;
   if (lex_inout == 0) {
     return;
   }
