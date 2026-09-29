@@ -676,23 +676,62 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; target_cpu prefer residual" >&2
   fi
-  # wave769 G.7: L2 asm three product PREFER → ensure try-l2-asm-prefer
-  # (table body; thin .x + rest FROM_X → cc -r; cold ensure_one).
-  # Leaf: backend_x86_64_enc_c
-  # (user_asm_seed_bridge left in w1518 and asm_backend_compat_stubs left in
-  # w1519: whole objects from .x, blocks below).
-  # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
-  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
-    for _l2_asm_o in \
-      src/asm/backend_x86_64_enc_c.o; do
-      echo "g05_ensure: try-l2-asm-prefer $_l2_asm_o (wave769)"
-      XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
-        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
-        bash scripts/ensure_host_cc_seed_o.sh try-l2-asm-prefer "$_l2_asm_o" \
-        || echo "g05_ensure: try-l2-asm-prefer failed for $_l2_asm_o (non-fatal if unused)" >&2
-    done
-  else
-    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; L2 asm prefer residual" >&2
+  # w1522 (5.8): src/asm/backend_x86_64_enc_c.o is the whole
+  # src/asm/backend_x86_64_enc_c.x built by product pure asm on all three
+  # hosts. It replaces the wave769 try-l2-asm-prefer leaf (thin .x plus
+  # seed-rest FROM_X merged by cc -r; the seed rest was empty). No seed cc,
+  # no cc -r and no cc fallback: three failed tries log
+  # build_asm/g05_cc_fallback.log and stop g05.
+  # Darwin weakens every definition: backend_enc_dispatch.o already owns 126
+  # of the 137 names and the old Darwin object only carried the two argmov
+  # encoders, so the dispatch bodies must keep winning there. Linux and
+  # Windows keep all strong, same as the object they linked before (Windows
+  # still undefines four names on a copy in g05_relink_env.sh, w1053).
+  # Rebuild when the object is missing, the .x is newer, or the anchor is
+  # absent (the old Darwin cold-seed object). Must run before the Darwin
+  # filtered copy below.
+  # PLATFORM: MACOS arm64 · LINUX x86_64 · WINDOWS x86_64.
+  _xenc_x=src/asm/backend_x86_64_enc_c.x
+  _xenc_o=src/asm/backend_x86_64_enc_c.o
+  if [ -f "$_xenc_x" ]; then
+    if [ ! -f "$_xenc_o" ] || [ "$_xenc_x" -nt "$_xenc_o" ] \
+      || ! nm "$_xenc_o" 2>/dev/null | tr -d '\r' | grep -q " [TW] _*backend_x86_64_enc_c_x_doc_anchor\$"; then
+      _xenc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_xenc_os" in MINGW*|MSYS*|CYGWIN*) _xenc_os=Windows ;; esac
+      _xenc_done=0
+      for _xenc_try in 1 2 3; do
+        rm -f "$_xenc_o.x.tmp.o"
+        if (
+          export XLANG_PREFER_ASM_O=1
+          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+          if [ "$_xenc_os" = "Darwin" ]; then
+            export G05_X_O_WEAK=1
+          fi
+          pure_asm_x_to_o "$_xenc_o.x.tmp.o" "$_xenc_x"
+        ) && [ -s "$_xenc_o.x.tmp.o" ]; then
+          _xenc_nm=$(nm "$_xenc_o.x.tmp.o" 2>/dev/null | tr -d '\r')
+          if printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*backend_x86_64_enc_c_x_doc_anchor\$" \
+            && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*arch_x86_64_enc_enc_mov_arg_reg_to_rax\$" \
+            && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*arch_x86_64_enc_enc_mov_rax_to_arg_reg\$" \
+            && printf '%s\n' "$_xenc_nm" | grep -q " [TW] _*x86_enc_jcc_rel32\$"; then
+            _xenc_done=1
+            break
+          fi
+        fi
+        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_xenc_try" "$_xenc_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      done
+      if [ "$_xenc_done" = "1" ]; then
+        mv -f "$_xenc_o.x.tmp.o" "$_xenc_o"
+        echo "g05_ensure: $_xenc_o ← $_xenc_x (w1522 pure asm, whole object, no cc)"
+      else
+        rm -f "$_xenc_o.x.tmp.o" "$_xenc_o"
+        mkdir -p build_asm
+        echo "$_xenc_os $_xenc_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_xenc_x pure asm failed 3x; no cc fallback (w1522)" >&2
+        exit 1
+      fi
+    fi
   fi
   # w1518 (5.8b): src/asm/user_asm_seed_bridge.o is the whole
   # src/asm/user_asm_seed_bridge.x built by product pure asm on all three
