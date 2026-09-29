@@ -1100,10 +1100,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # G-02f-10 / G-02f-333：parser_asm_parse_expr_link.o
   # w1118: Darwin arm64 is one .x (parser_asm_parse_expr_link_darwin.x).
   # w1514 (5.6): Linux and Windows build the whole object from
-  # parser_asm_parse_expr_link.x with product pure asm (no seed-rest cc).
-  # The seed .c is only a logged fallback (build_asm/g05_cc_fallback.log).
+  # parser_asm_parse_expr_link.x with product pure asm.
+  # w1532 (5.11): one pure-asm emit on the main chain. A failed emit or a
+  # missing required symbol removes the object and exits 1. No retry and no
+  # host cc of seeds/parser_asm_parse_expr_link.from_x.c. That seed stays on
+  # disk until the non-main-chain scripts stop naming it.
   # PLATFORM: MACOS|DARWIN arm64 · LINUX x86_64 · WINDOWS x86_64.
-  _pel=seeds/parser_asm_parse_expr_link.from_x.c
   _pel_x=src/asm/parser_asm_parse_expr_link.x
   _pel_o=src/asm/parser_asm_parse_expr_link.o
   _pe_os="$(uname -s 2>/dev/null || echo Unknown)"
@@ -1111,49 +1113,44 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
     && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
     if [ ! -f "$_pel_o" ] \
-      || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$_pel_o" ] \
-      || [ "$_pel" -nt "$_pel_o" ]; then
-      bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$_pel_o"
+      || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$_pel_o" ]; then
+      if ! bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$_pel_o"; then
+        echo "g05_ensure: ERROR $_pel_o pure asm failed; no cc fallback (w1532)" >&2
+        exit 1
+      fi
     fi
   elif [ -f "$_pel_x" ]; then
-    # w1514: rebuild when the .x is newer or the object is the old hybrid
-    # (hybrid had W doc_anchor; the pure .x object has it as T).
+    # Rebuild when the .x is newer or the object lacks the strong anchor
+    # (the old hybrid had W doc_anchor; the pure .x object has it as T).
     if [ ! -f "$_pel_o" ] || [ "$_pel_x" -nt "$_pel_o" ] \
-      || ! nm "$_pel_o" 2>/dev/null | grep -q "T _*parser_asm_parse_expr_link_x_doc_anchor\$"; then
-      _pel_done=0
-      mkdir -p build_asm
-      for _pel_try in 1 2 3; do
-        rm -f "$_pel_o.tmp.o"
-        if (
-          export XLANG_PREFER_ASM_O=1
-          unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
-          pure_asm_x_to_o "$_pel_o.tmp.o" "$_pel_x"
-        ) && [ -s "$_pel_o.tmp.o" ]; then
-          _pel_nm=$(nm "$_pel_o.tmp.o" 2>/dev/null)
-          if printf '%s\n' "$_pel_nm" | grep -q "T _*parse_expr_into\$" \
-            && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_debug_enabled\$" \
-            && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_debug_snippet_c\$" \
-            && printf '%s\n' "$_pel_nm" | grep -q "U _*parser_parse_expr_into\$"; then
-            mv -f "$_pel_o.tmp.o" "$_pel_o"
-            _pel_done=1
-            break
-          fi
-        fi
-        printf '%s try=%s g05_ensure: pure asm %s failed\n' \
-          "$(date +%H:%M:%S)" "$_pel_try" "$_pel_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-      done
+      || ! nm "$_pel_o" 2>/dev/null | tr -d '\r' | grep -q "T _*parser_asm_parse_expr_link_x_doc_anchor\$"; then
       rm -f "$_pel_o.tmp.o"
-      if [ "$_pel_done" = "1" ]; then
-        echo "g05_ensure: $_pel_o ← $_pel_x (w1514 pure asm, whole object)"
-      elif [ -f "$_pel" ]; then
-        _fb_os="$(uname -s 2>/dev/null || echo Unknown)"
-        case "$_fb_os" in MINGW*|MSYS*|CYGWIN*) _fb_os=Windows ;; esac
-        echo "$_fb_os $_pel_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
-        echo "g05_ensure: WARN $_pel_x pure asm failed; fallback full seed (logged)" >&2
-        # shellcheck disable=SC2086
-        $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DPARSER_ASM_LINK_ALIAS_SKIP_X_SYMBOLS -c -o "$_pel_o" "$_pel"
+      _pel_ok=0
+      if (
+        export XLANG_PREFER_ASM_O=1
+        unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+        pure_asm_x_to_o "$_pel_o.tmp.o" "$_pel_x"
+      ) && [ -s "$_pel_o.tmp.o" ]; then
+        _pel_nm=$(nm "$_pel_o.tmp.o" 2>/dev/null | tr -d '\r')
+        if printf '%s\n' "$_pel_nm" | grep -q "T _*parse_expr_into\$" \
+          && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_debug_enabled\$" \
+          && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_debug_snippet_c\$" \
+          && printf '%s\n' "$_pel_nm" | grep -q "T _*parser_asm_parse_expr_link_x_doc_anchor\$" \
+          && printf '%s\n' "$_pel_nm" | grep -q "U _*parser_parse_expr_into\$"; then
+          mv -f "$_pel_o.tmp.o" "$_pel_o"
+          _pel_ok=1
+        fi
+      fi
+      rm -f "$_pel_o.tmp.o"
+      if [ "$_pel_ok" = "1" ]; then
+        echo "g05_ensure: $_pel_o ← $_pel_x (w1532 pure asm, one try, no cc)"
       else
-        echo "g05_ensure: ERROR $_pel_x pure asm failed and no seed" >&2
+        rm -f "$_pel_o"
+        mkdir -p build_asm
+        printf '%s try=1 g05_ensure: pure asm %s failed\n' \
+          "$(date +%H:%M:%S)" "$_pel_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        echo "g05_ensure: ERROR $_pel_x pure asm failed; no cc fallback (w1532)" >&2
+        exit 1
       fi
     fi
   fi
