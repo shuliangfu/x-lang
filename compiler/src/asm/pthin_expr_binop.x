@@ -21,12 +21,12 @@
 // tables. TOKEN → ExprKind for * / % + - << >> < <= > >= == != (and the
 // single-tok & ^ | && || map, kept complete) is Route C (int32). Peek
 // cache, single_tok_chain, and parse_* stay C.
-// 7.2.1 P4bc B-minus (2026-09-15): 有则补全 wrap dest-buffer.
-// Language has no Expr by-value; the C trampoline in expr_binop_slice.inc
-// holds parse_expr_result* and forwards out.ok / out.expr_ref. Sidecar
+// 7.2.1 P4bc B-minus (2026-09-15): complete the existing wrap dest-buffer.
+// Language has no Expr by-value. pthin_expr_binop_tramp.x holds the
+// parse_expr_result face and forwards out.ok / out.expr_ref. Sidecar
 // writes go through the PABI writer family (set_common_zeros / set_kind /
-// set_line_col) plus pipeline_expr_set_binop_operands_c defined in the
-// P4b seed (pabi inject-only skips new rest symbols; do not FORCE the
+// set_line_col) plus pipeline_expr_set_binop_operands_c defined in
+// pthin_expr_binop_set.x (one writer; do not copy it, do not FORCE the
 // mega). Do not copy wrap into parse_term / parse_addsub / …. Do not merge
 // unary wrap (unary_operand_ref vs left/right). Do not open a new P-lane.
 // Contiguous already-T AUDIT_CALL padding on parse_logor is gated in the
@@ -110,9 +110,9 @@ export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u
 /** P9a: consume one token; returns its kind. */
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
 /**
- * Pointer-face parse_cast. Zero-algorithm C shim in binop.inc:
- * copies lexer, calls parser_parse_cast_into (unary + as_suffix),
- * writes ok/ref/next_lex.
+ * Pointer-face parse_cast. Defined in pthin_expr_binop_tramp.x:
+ * calls parser_parse_cast_into (unary + as_suffix) and writes
+ * ok/ref/next_lex. Do not copy that shim into this file.
  */
 export extern "C" function parser_parse_cast_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 

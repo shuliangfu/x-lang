@@ -244,8 +244,8 @@ export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, 
 export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
 /**
  * P4bc consumer-wave writer: write Expr.binop_left_ref / binop_right_ref.
- * G.7: one writer for those slots. Lives in the P4bc seed; do not copy
- * into this seed; do not FORCE pabi mega; do not merge with P4bc wrap.
+ * G.7: one writer for those slots. Lives in pthin_expr_binop_set.x; do not copy
+ * it here; do not FORCE pabi mega; do not merge with P4bc wrap.
  */
 export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
 

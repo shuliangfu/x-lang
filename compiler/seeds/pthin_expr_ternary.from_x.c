@@ -11,7 +11,7 @@
  * BODIES define, full .inc.
  * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
  * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots);
- * pipeline_expr_set_binop_operands_c lives in the P4bc seed; do not
+ * pipeline_expr_set_binop_operands_c lives in pthin_expr_binop_set.x; do not
  * copy those writers here, do not FORCE pabi mega, do not extend
  * P4bc wrap with line/col.
  * PLATFORM: SHARED — do not assemble parser.x.

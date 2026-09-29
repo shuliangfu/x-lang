@@ -15,6 +15,9 @@
  * TOKEN→ExprKind, wrap dest-buffer, and parse_* dest-buffer come from
  * pthin_expr_binop.x; this TU keeps wrap + parse trampolines plus
  * peek-cache / AUDIT. Cold: no BODIES define, full .inc.
+ * w1535: product g05 does not host-cc this file. The operand writer is
+ * pthin_expr_binop_set.x and the by-value faces are
+ * pthin_expr_binop_tramp.x. This seed stays for prove harnesses.
  * Do not reuse XLANG_PTHIN_EXPR_BINOP_FROM_X for P4bb/P4bc/P4bd bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */

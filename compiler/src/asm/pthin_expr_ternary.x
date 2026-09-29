@@ -84,7 +84,7 @@ export extern "C" function pipeline_expr_set_if_c(a: *u8, er: i32, cond_ref: i32
 /**
  * P4bc consumer-wave writer: write Expr.binop_left_ref / binop_right_ref.
  * G.7: one writer for those slots (binop wrap and assign wrap share them).
- * Lives in the P4bc seed; do not copy into this seed; do not FORCE pabi mega.
+ * Lives in pthin_expr_binop_set.x; do not copy it here; do not FORCE pabi mega.
  */
 export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
 /** P9a: peek next kind without advancing. */
