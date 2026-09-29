@@ -796,6 +796,44 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; strict glue prefer residual" >&2
     exit 1
   fi
+  # w1534 (6.1): cfg_eval.o is cfg_eval.x ld -r'd with cfg_eval_host_lit.x.
+  # g05 did not call try-cfg-eval-ladder, so a newer host-lit .x never
+  # entered the product. cfg_host_arch_lit then kept loading the stack slot
+  # where cfg_host_os_lit had parked the arch cstring, and a larger caller
+  # frame made cfg_strlen walk a smashed pointer. The ladder is the one
+  # rebuild. The -E rungs link cfg_eval_link_alias and drop the host lit,
+  # so a log line that is not pure-asm and not an up-to-date skip fails
+  # the ensure. PLATFORM: SHARED.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
+    echo "g05_ensure: try-cfg-eval-ladder src/lexer/cfg_eval.o (w1534)"
+    _ce_log="$(mktemp "${TMPDIR:-/tmp}/g05_cfg_eval.XXXXXX")"
+    if ! bash scripts/ensure_host_cc_seed_o.sh try-cfg-eval-ladder src/lexer/cfg_eval.o >"$_ce_log" 2>&1; then
+      echo "g05_ensure: ERROR try-cfg-eval-ladder failed (pure-asm host_lit, no -E fallback)" >&2
+      cat "$_ce_log" >&2
+      rm -f "$_ce_log"
+      exit 1
+    fi
+    if ! grep -q 'pure-asm -c + host_lit.x' "$_ce_log" \
+      && ! grep -q 'skip up-to-date src/lexer/cfg_eval.o (cfg-eval-ladder)' "$_ce_log"; then
+      echo "g05_ensure: ERROR cfg_eval ladder took a non-pure-asm rung" >&2
+      cat "$_ce_log" >&2
+      rm -f "$_ce_log"
+      exit 1
+    fi
+    cat "$_ce_log"
+    rm -f "$_ce_log"
+    if ! nm src/lexer/cfg_eval.o 2>/dev/null | grep -q ' T _*cfg_host_arch_lit$'; then
+      echo "g05_ensure: ERROR src/lexer/cfg_eval.o lacks cfg_host_arch_lit" >&2
+      exit 1
+    fi
+    if ! nm src/lexer/cfg_eval.o 2>/dev/null | grep -q ' T _*cfg_host_os_lit$'; then
+      echo "g05_ensure: ERROR src/lexer/cfg_eval.o lacks cfg_host_os_lit" >&2
+      exit 1
+    fi
+  else
+    echo "g05_ensure: missing ensure_host_cc_seed_o.sh; cfg_eval ladder residual" >&2
+    exit 1
+  fi
   # w1522 (5.8): src/asm/backend_x86_64_enc_c.o is the whole
   # src/asm/backend_x86_64_enc_c.x built by product pure asm on all three
   # hosts. It replaces the wave769 try-l2-asm-prefer leaf (thin .x plus
