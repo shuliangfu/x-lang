@@ -96,7 +96,6 @@ export extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: 
 export extern "C" function backend_fold_func_x_plus_k_chain(arena: *u8, mod: *u8, fi: i32, depth: i32): i32;
 export extern "C" function pipeline_asm_emit_expr_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, ta: i32): i32;
-export extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
 export extern "C" function backend_fold_func_returns_param0_single_field(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_fold_func_returns_param0_field_sum(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf: *u8, ta: i32): i32;
@@ -323,6 +322,35 @@ export function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
   p[off + 6] = (a & 255) as u8;
   a = a >> 8;
   p[off + 7] = (a & 255) as u8;
+}
+
+/** w1527 (5.9): module_ref accessor. The seed tail used to carry it.
+ * AsmFuncCtx starts with four i32 (frame_size, next_offset, num_locals,
+ * label_counter), so module_ref is the pointer at offset 16. Null ctx -> 0.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_asm_ctx_module_ref_c_impl(asm_ctx: *u8): *u8 {
+  if (asm_ctx == 0) { return 0 as *u8; }
+  return g02f_load_ptr_at(asm_ctx, 16);
+}
+
+/** Public C name of the module_ref accessor (w1527, was in the seed tail). */
+#[no_mangle]
+export function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8 {
+  return glue_asm_ctx_module_ref_c_impl(asm_ctx);
+}
+
+/** Slice marker; nothing calls it (w1527, was in the seed tail). */
+#[no_mangle]
+export function backend_try_inline_dispatch_slice_marker(): i32 {
+  return 0;
+}
+
+/** w1527 anchor: the object is this .x alone, no seed tail, no host cc. */
+#[no_mangle]
+export function backend_try_inline_dispatch_x_w1527_anchor(): i32 {
+  return 1527;
 }
 
 // See implementation.

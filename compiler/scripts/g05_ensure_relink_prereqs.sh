@@ -673,6 +673,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: ERROR src/asm/backend_enc_dispatch.o lacks the w1526 anchor (thin .x pure asm failed; no C fallback)" >&2
       exit 1
     fi
+    # w1527 (5.9): backend_try_inline_dispatch.o is the full .x alone (seed
+    # deleted). Refuse an object without the w1527 anchor. PLATFORM: SHARED.
+    if ! nm src/asm/backend_try_inline_dispatch.o 2>/dev/null \
+      | grep -q "T _*backend_try_inline_dispatch_x_w1527_anchor\$"; then
+      echo "g05_ensure: ERROR src/asm/backend_try_inline_dispatch.o lacks the w1527 anchor (full .x pure asm failed; no C fallback)" >&2
+      exit 1
+    fi
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; R3_COLD prefer residual" >&2
   fi
