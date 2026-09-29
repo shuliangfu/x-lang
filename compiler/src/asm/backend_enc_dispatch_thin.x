@@ -187,9 +187,8 @@
 // They go through x86_enc_u8. It stays strong. It does not compare
 // elf_ctx with 0 or divide. The opcode is a straight-line let. jmp,
 // call, label, and the Win64 argument moves stay in the C seed.
-// The rest of the f64/Cap tail stays in seeds/backend_enc_dispatch.from_x.c.
-// The installer pure-asms this file, then cc's that seed with
-// -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No full .x.
+// w1526: the old C tail is gone; the installer pure-asms this file alone
+// (one shot, no host cc, no seed). No gcc -E. No full .x.
 // RBP lane: LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29.
 // PLATFORM: SHARED.
 //
@@ -10868,4 +10867,230 @@ export function arch_arm64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32 {
     }
   }
   return 0;
+}
+
+// w1526 (5.9): the last C tail of backend_enc_dispatch.o moves here, so the
+// object is this file alone (pure asm, one shot, no host cc). The tail
+// carried backend_enc_x86_jcc_rel32_c_impl, backend_enc_arm64_call_c_impl,
+// backend_enc_lea_sym_to_reg_arch, and weak arch_*_impl helpers. The two
+// riscv64 helpers stay (the riscv64 publics above forward to them and
+// return -1). The four arm64 *_impl helpers (call, add_sp, sub_sp, str_x0)
+// had no caller anywhere and are dropped. PLATFORM: SHARED.
+export extern "C" function pipeline_elf_ctx_append_reloc_typed(ctx: *u8, at: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32;
+
+/**
+ * Emit an x86_64 conditional jump rel32 to a label: 0F opcode2 00 00 00 00,
+ * then ensure the label and add a 32-bit patch at the rel32 slot.
+ * @param elf_ctx *u8 — emit context; null returns -1
+ * @param opcode2 i32 — second opcode byte (low 8 bits are used)
+ * @param label *u8 — label bytes; null returns -1
+ * @param label_len i32 — label length; non-positive returns -1
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: SHARED. The code length is read in a later block.
+ */
+#[no_mangle]
+export function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (label == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (label_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let buf: u8[8] = [];
+    buf[0] = 15;
+    buf[1] = (opcode2 & 255) as u8;
+    buf[2] = 0;
+    buf[3] = 0;
+    buf[4] = 0;
+    buf[5] = 0;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &buf[0], 6) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    let clen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = clen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 32);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 BL with a reloc on the instruction word.
+ * Mach-O prepends one underscore (always, even for names already starting
+ * with underscore, so __error becomes ___error) when the flag is set and
+ * the name length is 1..255; otherwise the original name goes to the reloc.
+ * @param elf_ctx *u8 — emit context; null returns -1
+ * @param name *u8 — callee name; null returns -1
+ * @param name_len i32 — byte count; non-positive returns -1
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: SHARED — MACOS arm64 BL reloc; ELF flag stays 0.
+ */
+#[no_mangle]
+export function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  /* 2483027968 = 0x94000000 BL #0. */
+  if (backend_enc_append_u32_le_c_impl(elf_ctx, 2483027968 as u32) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let clen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let at: i32 = clen - 4;
+    if (at < 0) {
+      return 0 - 1;
+    }
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let rn: u8[256] = [];
+    rn[0] = 95;
+    let copied: *u8 = memcpy(&rn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len <= 255) {
+        return pipeline_elf_ctx_append_reloc(elf_ctx, at, &rn[0], name_len + 1);
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, at, name, name_len);
+  }
+  return 0 - 1;
+}
+
+/**
+ * riscv64 direct call is unsupported. Null or non-positive inputs and every
+ * other call return -1. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  return 0 - 1;
+}
+
+/**
+ * riscv64 argument-register move is unsupported; always -1. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32 {
+  return 0 - 1;
+}
+
+/**
+ * Materialize a symbol address into a register.
+ * ta 1 (arm64): adrp xN + PAGE21 reloc (r_type 3, pcrel 1), then
+ * add xN, xN, #0 + PAGEOFF12 reloc (r_type 4, pcrel 0). reg must be 0..30.
+ * ta 0 (x86_64): lea r64, [rip+disp32] (REX.W[+R] 8D ModRM(reg,101))
+ * with an untyped PC32 reloc on disp32. reg must be 0..15.
+ * Any other ta, a null context or name, or a non-positive length returns -1.
+ * PLATFORM: SHARED — MACOS|ARM64 PAGE21/12 · x86_64 RIP-relative PC32.
+ * Code-length reads sit in their own blocks.
+ */
+#[no_mangle]
+export function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    if (reg < 0) {
+      return 0 - 1;
+    }
+    if (reg > 30) {
+      return 0 - 1;
+    }
+    unsafe {
+      if (backend_enc_append_u32_le_c(elf_ctx, (2415919104 as u32) | (reg as u32)) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let c1: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      let adrp_at: i32 = c1 - 4;
+      if (pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, name, name_len, 3, 1) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let ru: u32 = reg as u32;
+      let word: u32 = (2432696320 as u32) | (ru * 32) | ru;
+      if (backend_enc_append_u32_le_c(elf_ctx, word) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let c2: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      let add_at: i32 = c2 - 4;
+      return pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, name, name_len, 4, 0);
+    }
+  }
+  if (ta == 0) {
+    if (reg < 0) {
+      return 0 - 1;
+    }
+    if (reg > 15) {
+      return 0 - 1;
+    }
+    unsafe {
+      let rex: i32 = 72;
+      if (reg >= 8) {
+        rex = 76;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, rex) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+        return 0 - 1;
+      }
+      let modrm: i32 = ((reg & 7) * 8) + 5;
+      if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) {
+        return 0 - 1;
+      }
+      let zb: u8[8] = [];
+      zb[0] = 0;
+      zb[1] = 0;
+      zb[2] = 0;
+      zb[3] = 0;
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &zb[0], 4) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let c3: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      let rel32_at: i32 = c3 - 4;
+      return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+    }
+  }
+  return 0 - 1;
+}
+
+/** w1526 anchor: backend_enc_dispatch.o has no C tail. Returns 1526. */
+#[no_mangle]
+export function backend_enc_dispatch_x_w1526_anchor(): i32 {
+  return 1526;
 }

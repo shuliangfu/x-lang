@@ -13744,8 +13744,8 @@ ensure_rdd_pure() {
 
 # w854: thin enc publics live only in backend_enc_dispatch_thin.x.
 # w862: backend_enc_dispatch_slice_marker lives in that .x too and returns 1.
-# Product object is pure_asm_x_to_o of that thin plus cc of the f64/Cap tail
-# with -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X. No gcc -E. No cold full-seed cc.
+# w1526: product object is pure_asm_x_to_o of that thin alone. The f64/Cap
+# C tail seed is deleted. No gcc -E. No cold full-seed cc. No ld -r.
 # No full.x attempt. XLANG_G05_PREFER_X_O is ignored. Windows takes the same
 # path. Keep default unwind tables: the linked object carries __compact_unwind.
 # nm gates: backend_enc_addsd_rax_rbx_arch (tail), backend_enc_append_u32_le_c
@@ -13762,27 +13762,25 @@ ensure_rdd_pure() {
 # Failure leaves the previous .o in place and returns 1.
 # PLATFORM: SHARED.
 ensure_enc_dispatch_pure() {
+  # w1526 (5.9): the C tail (seeds/backend_enc_dispatch.from_x.c) is deleted.
+  # Its last bodies live in the thin .x. The object is the thin .x alone,
+  # pure asm, one shot: no tail cc, no ld -r, no retry. Failure returns 1.
   local o="src/asm/backend_enc_dispatch.o"
   local x_src="src/asm/backend_enc_dispatch_thin.x"
-  local seed="seeds/backend_enc_dispatch.from_x.c"
-  local thin_tmp thin_o rest_tmp rest_o merged_tmp merged_o ld_flags asm_bin
+  local thin_tmp thin_o merged_o asm_bin
   local stale=0
 
-  if [ ! -f "$x_src" ] || [ ! -f "$seed" ]; then
-    echo "ensure: enc dispatch missing $x_src or $seed; C bodies are gone, no fallback" >&2
+  if [ ! -f "$x_src" ]; then
+    echo "ensure: enc dispatch missing $x_src; C bodies are gone, no fallback" >&2
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
-    [ "$seed" -nt "$o" ] && stale=1
     [ "$x_src" -nt "$o" ] && stale=1
-    if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
-      stale=1
-    fi
-    if [ "$stale" = "0" ] && force_thin_makefile_flags_newer "$o"; then
+    if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" "backend_enc_dispatch_x_w1526_anchor"; then
       stale=1
     fi
     if [ "$stale" = "0" ]; then
-      log "skip up-to-date $o (enc dispatch pure-asm w885)"
+      log "skip up-to-date $o (enc dispatch pure-asm w1526)"
       return 0
     fi
   fi
@@ -13802,12 +13800,7 @@ ensure_enc_dispatch_pure() {
   thin_tmp="$(mktemp "${TMPDIR:-/tmp}/enc_x.XXXXXX")"
   thin_o="${thin_tmp}.o"
   mv "$thin_tmp" "$thin_o"
-  rest_tmp="$(mktemp "${TMPDIR:-/tmp}/enc_tail.XXXXXX")"
-  rest_o="${rest_tmp}.o"
-  mv "$rest_tmp" "$rest_o"
-  merged_tmp="$(mktemp "${TMPDIR:-/tmp}/enc_merged.XXXXXX")"
-  merged_o="${merged_tmp}.o"
-  mv "$merged_tmp" "$merged_o"
+  merged_o="$thin_o"
 
   if ! (
     export XLANG="$asm_bin"
@@ -13817,22 +13810,17 @@ ensure_enc_dispatch_pure() {
     pure_asm_x_to_o "$thin_o" "$x_src"
   ); then
     echo "ensure: enc dispatch pure-asm failed; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
+    rm -f "$thin_o"
     return 1
   fi
-  # Tail cc matches the linked object, including __compact_unwind.
-  # Do not pass -fno-unwind-tables. Do not pass -no_compact_unwind.
+  # w1526: no tail cc and no ld -r; the pure-asm object is the product.
   # PLATFORM: SHARED.
-  # shellcheck disable=SC2086
-  if ! ${CC:-cc} $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc \
-      -DXLANG_L2_ENC_DISPATCH_THIN_FROM_X -c -o "$rest_o" "$seed"; then
-    echo "ensure: enc dispatch tail cc failed; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
-    return 1
-  fi
-  ld_flags="$(r3_prefer_ld_r_flags)"
-  # shellcheck disable=SC2086
-  if ! ld $ld_flags -o "$merged_o" "$thin_o" "$rest_o" \
+  if ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_dispatch_x_w1526_anchor" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_x86_jcc_rel32_c_impl" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_arm64_call_c_impl" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_lea_sym_to_reg_arch" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "arch_riscv64_enc_enc_call_impl" \
+    || ! r3_prefer_nm_has_sym "$merged_o" "arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_addsd_rax_rbx_arch" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_append_u32_le_c" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_dispatch_slice_marker" \
@@ -13864,7 +13852,7 @@ ensure_enc_dispatch_pure() {
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_blr_arch" \
     || ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_ldr_xreg_xreg_imm_arch"; then
     echo "ensure: enc dispatch merge failed; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
+    rm -f "$thin_o"
     return 1
   fi
   # w906: the 27 fixed-word ARM64 encoders live in the thin and stay strong.
@@ -13901,7 +13889,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w906_sym"; then
       echo "ensure: enc dispatch missing $w906_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -13980,7 +13968,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w907_sym"; then
       echo "ensure: enc dispatch missing $w907_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -13997,7 +13985,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w908_sym"; then
       echo "ensure: enc dispatch missing $w908_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14012,7 +14000,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w909_sym"; then
       echo "ensure: enc dispatch missing $w909_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14104,7 +14092,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w910_sym"; then
       echo "ensure: enc dispatch missing $w910_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14128,7 +14116,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w911_sym"; then
       echo "ensure: enc dispatch missing $w911_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14158,7 +14146,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w912_sym"; then
       echo "ensure: enc dispatch missing $w912_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14176,7 +14164,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w913_sym"; then
       echo "ensure: enc dispatch missing $w913_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14189,7 +14177,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w914_sym"; then
       echo "ensure: enc dispatch missing $w914_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14202,7 +14190,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w915_sym"; then
       echo "ensure: enc dispatch missing $w915_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14214,7 +14202,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w916_sym"; then
       echo "ensure: enc dispatch missing $w916_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14228,7 +14216,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w917_sym"; then
       echo "ensure: enc dispatch missing $w917_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14244,7 +14232,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w918_sym"; then
       echo "ensure: enc dispatch missing $w918_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14255,7 +14243,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w919_sym"; then
       echo "ensure: enc dispatch missing $w919_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14266,7 +14254,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w920_sym"; then
       echo "ensure: enc dispatch missing $w920_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14277,7 +14265,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w922_sym"; then
       echo "ensure: enc dispatch missing $w922_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14289,7 +14277,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w923_sym"; then
       echo "ensure: enc dispatch missing $w923_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14300,7 +14288,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w924_sym"; then
       echo "ensure: enc dispatch missing $w924_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14312,7 +14300,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w925_sym"; then
       echo "ensure: enc dispatch missing $w925_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14323,7 +14311,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w926_sym"; then
       echo "ensure: enc dispatch missing $w926_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14334,7 +14322,7 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w927_sym"; then
       echo "ensure: enc dispatch missing $w927_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
@@ -14347,14 +14335,14 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w928_sym"; then
       echo "ensure: enc dispatch missing $w928_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
   # Also require the arch dispatcher used by mega try_tail_jmp.
   if ! r3_prefer_nm_has_sym "$merged_o" "backend_enc_jmp_sym_arch"; then
     echo "ensure: enc dispatch missing backend_enc_jmp_sym_arch; C bodies are gone, no fallback" >&2
-    rm -f "$thin_o" "$rest_o" "$merged_o"
+    rm -f "$thin_o"
     return 1
   fi
   # w929: ARM64 prologue, epilogue, and ret_imm32.
@@ -14367,20 +14355,20 @@ ensure_enc_dispatch_pure() {
   do
     if ! r3_prefer_nm_has_sym "$merged_o" "$w929_sym"; then
       echo "ensure: enc dispatch missing $w929_sym; C bodies are gone, no fallback" >&2
-      rm -f "$thin_o" "$rest_o" "$merged_o"
+      rm -f "$thin_o"
       return 1
     fi
   done
   mv -f "$merged_o" "$o"
-  rm -f "$thin_o" "$rest_o"
-  log "backend_enc_dispatch.o from $x_src (pure-asm) + enc tail [w1048 jmp_sym; w929; arm64 prologue epilogue ret_imm32, w928; x86 call, w927; x86 label, w926; arm64 label, w925; arm64 rbp leas, w924; arm64 branch patch, w923; x86 jcc and jmp, w922; mov_imm32_to_w0, w920; x86 cmp_setcc, the w919 ARM64 cmp_setcc, the w918 ARM64 jmp jz jne jnz jeq jge, the w917 x86 jz jeq jge jnz, the w916 prologue and epilogue, the w915 3 x86 append helpers, the w914 2, the w913 7, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
+  log "backend_enc_dispatch.o from $x_src (pure-asm only, w1526 no C tail) [w1048 jmp_sym; w929; arm64 prologue epilogue ret_imm32, w928; x86 call, w927; x86 label, w926; arm64 label, w925; arm64 rbp leas, w924; arm64 branch patch, w923; x86 jcc and jmp, w922; mov_imm32_to_w0, w920; x86 cmp_setcc, the w919 ARM64 cmp_setcc, the w918 ARM64 jmp jz jne jnz jeq jge, the w917 x86 jz jeq jge jnz, the w916 prologue and epilogue, the w915 3 x86 append helpers, the w914 2, the w913 7, the w912 19, the w911 13, the w910 81, the w909 four, the w908 six, the w907 68, the w906 27, ldr arch, blr arch, store-arg, ucomiss, setcc, mov rax-xmm, mov xmm-rax, ucomisd, divsd, mulsd, subsd rax-rbx, subsd rbx-rax, addsd, and the earlier enc callees are in the .x; all stay strong]"
   return 0
 }
 
 # w1524 (5.11): backend_call_dispatch.o is src/asm/backend_call_dispatch.x
 # alone. The C seed (and its std heap redirect table) is deleted; the table
 # body glue_try_std_heap_redirect_sym_local_impl lives in the .x. Build goes
-# through rt_prefer_try_x_to_o (same full rung as before), three tries, no
+# through rt_prefer_try_x_to_o (same full rung as before), one shot (w1526
+# dropped the three-try loop; no host ever needed a retry), no
 # ld -r with a seed rest, no cold seed cc. Rebuild when the .x is newer or the
 # w1524 anchor is missing. nm gates: the anchor, the table body, the public
 # wrapper, glue_sysv_arg_byte_size_c (full-only), and the doc anchor.
@@ -14391,7 +14379,6 @@ ensure_call_dispatch_full_x() {
   local o="src/asm/backend_call_dispatch.o"
   local x_src="src/asm/backend_call_dispatch.x"
   local tmp_o="${o%.o}_full_x_step.o"
-  local try=0
   if [ ! -f "$x_src" ]; then
     echo "ensure: call dispatch missing $x_src; no C fallback" >&2
     return 1
@@ -14402,24 +14389,21 @@ ensure_call_dispatch_full_x() {
     return 0
   fi
   mkdir -p "$(dirname "$o")" build_asm
-  while [ "$try" -lt 3 ]; do
-    try=$((try + 1))
-    rm -f "$tmp_o"
-    if rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
-      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
-      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
-      && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
-      && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
-      && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
-      mv -f "$tmp_o" "$o"
-      log "call dispatch $o <- $x_src (w1524 full .x, no seed rest)"
-      return 0
-    fi
-    printf '%s try=%s ensure: call dispatch %s failed\n' \
-      "$(date +%H:%M:%S)" "$try" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-  done
   rm -f "$tmp_o"
-  echo "ensure: call dispatch $x_src failed 3 times; no C fallback" >&2
+  if rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
+    && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
+    && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
+    && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
+    && r3_prefer_nm_has_sym "$tmp_o" "glue_sysv_arg_byte_size_c" \
+    && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_doc_anchor"; then
+    mv -f "$tmp_o" "$o"
+    log "call dispatch $o <- $x_src (w1524 full .x, no seed rest, one shot)"
+    return 0
+  fi
+  printf '%s ensure: call dispatch %s failed (one shot, w1526)\n' \
+    "$(date +%H:%M:%S)" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+  rm -f "$tmp_o"
+  echo "ensure: call dispatch $x_src failed; no retry, no C fallback" >&2
   return 1
 }
 

@@ -666,6 +666,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         exit 1
       fi
     done
+    # w1526 (5.9): backend_enc_dispatch.o is the thin .x alone (C tail seed
+    # deleted). Refuse an object without the w1526 anchor. PLATFORM: SHARED.
+    if ! nm src/asm/backend_enc_dispatch.o 2>/dev/null \
+      | grep -q "T _*backend_enc_dispatch_x_w1526_anchor\$"; then
+      echo "g05_ensure: ERROR src/asm/backend_enc_dispatch.o lacks the w1526 anchor (thin .x pure asm failed; no C fallback)" >&2
+      exit 1
+    fi
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; R3_COLD prefer residual" >&2
   fi
