@@ -3781,10 +3781,56 @@ if [ -f build_asm/seed_host/asm_backend_partial.o ] && [ -x scripts/gen_asm_full
       fi
     done
     _stubs_scan="${_stubs_scan_present# }"
-    if [ -n "$_stubs_scan" ] && perl scripts/gen_asm_full_link_stubs.pl build_asm/seed_host/asm_full_link_stubs.c $_stubs_scan 2>&1; then
-      if [ build_asm/seed_host/asm_full_link_stubs.c -nt build_asm/seed_host/asm_full_link_stubs.o ] 2>/dev/null; then
-        echo "g05_ensure: cc -c build_asm/seed_host/asm_full_link_stubs.o (stubs.c updated)" >&2
-        $CC $BASE_CFLAGS -c -o build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.c
+    # w1517 (5.8a): the generator writes asm_full_link_stubs.x (+ .x.syms, the
+    # comma list of stub names) and product pure asm builds the object; no
+    # host cc. POSIX stubs are weak via G05_X_O_WEAK_FUNCS (same faces as the
+    # old C XLANG_WEAK stubs); Windows keeps strong stubs (the PE weaken copy
+    # in g05_relink_env.sh still applies). A failed pure-asm build logs
+    # build_asm/g05_xasm_crash.log and build_asm/g05_cc_fallback.log, removes
+    # the object and stops (no cc fallback).
+    # PLATFORM: MACOS|DARWIN arm64 · LINUX x86_64 · WINDOWS x86_64.
+    _fls_x=build_asm/seed_host/asm_full_link_stubs.x
+    _fls_o=build_asm/seed_host/asm_full_link_stubs.o
+    if [ -n "$_stubs_scan" ] && perl scripts/gen_asm_full_link_stubs.pl "$_fls_x" $_stubs_scan 2>&1 \
+      && [ -s "$_fls_x.syms" ]; then
+      if [ ! -f "$_fls_o" ] || [ "$_fls_x" -nt "$_fls_o" ] \
+        || ! nm "$_fls_o" 2>/dev/null | grep -q "T _*asm_full_link_stubs_x_doc_anchor\$"; then
+        _fls_os="$(uname -s 2>/dev/null || echo Unknown)"
+        case "$_fls_os" in MINGW*|MSYS*|CYGWIN*|Windows_NT) _fls_os=Windows ;; esac
+        _fls_syms="$(tr -d '\r\n' <"$_fls_x.syms")"
+        _fls_want="$(printf '%s\n' "$_fls_syms" | tr ',' '\n' | grep -c .)"
+        _fls_weak=""
+        [ "$_fls_os" = "Windows" ] || _fls_weak="$_fls_syms"
+        _fls_done=0
+        for _fls_try in 1 2 3; do
+          rm -f "$_fls_o.x.tmp.o"
+          if (
+            export XLANG_PREFER_ASM_O=1
+            unset G05_X_O_WEAK G05_X_O_SYM_RENAME G05_X_O_WEAK_FUNCS
+            [ -n "$_fls_weak" ] && export G05_X_O_WEAK_FUNCS="$_fls_weak"
+            pure_asm_x_to_o "$_fls_o.x.tmp.o" "$_fls_x"
+          ) && [ -s "$_fls_o.x.tmp.o" ]; then
+            _fls_nm=$(nm "$_fls_o.x.tmp.o" 2>/dev/null)
+            _fls_have=$(printf '%s\n' "$_fls_nm" | grep -Ec ' [TWw] ')
+            if printf '%s\n' "$_fls_nm" | grep -q "T _*asm_full_link_stubs_x_doc_anchor\$" \
+              && [ "$_fls_have" -eq "$((_fls_want + 1))" ]; then
+              _fls_done=1
+              break
+            fi
+          fi
+          printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+            "$(date +%H:%M:%S)" "$_fls_try" "$_fls_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        done
+        if [ "$_fls_done" = "1" ]; then
+          mv -f "$_fls_o.x.tmp.o" "$_fls_o"
+          rm -f build_asm/seed_host/asm_full_link_stubs.c
+          echo "g05_ensure: $_fls_o ← $_fls_x (w1517 pure asm, ${_fls_want} stubs, no cc)"
+        else
+          rm -f "$_fls_o.x.tmp.o" "$_fls_o"
+          echo "$_fls_os $_fls_x" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+          echo "g05_ensure: ERROR $_fls_x pure asm failed 3x; no cc fallback (w1517)" >&2
+          exit 1
+        fi
       fi
     fi
   fi
