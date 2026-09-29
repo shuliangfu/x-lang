@@ -464,6 +464,20 @@ if [ "${XLANG_MODLET_STRPOOL_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/modlet_strpool.o pipe_modlet_bake_string_lit_elem_to_data
   _PABI_MODLET_STRPOOL="$_G05_PO_OUT"
 fi
+# w1510: STRUCT_LIT fields matched to the layout by name (终局待办 10.29).
+# pabi's pipeline_expr_struct_lit_field_offset_at / _field_type_ref_at took
+# the literal field index as the layout index, so a literal written in a
+# different field order (`S { a: 7, t: "x", b: 9 }`) stored every value at the
+# wrong offset (local/module garbage, module *u8 SEGV, module struct arrays
+# CG002). The pure .x also carries glue_struct_lit_field_store_sz (bool pad
+# uses the next layout offset). Same pure-overlay rules as binop_wide.
+# PLATFORM: SHARED.
+_PABI_STRUCT_LIT_FIELD=""
+if [ "${XLANG_STRUCT_LIT_FIELD_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_struct_lit_field_thin.x \
+    build_asm/selfhost_pabi/struct_lit_field.o pipeline_expr_struct_lit_field_offset_at
+  _PABI_STRUCT_LIT_FIELD="$_G05_PO_OUT"
+fi
 # w1502: VAR assign gate + leaves (终局待办 10.25). Darwin pabi is a libtool
 # archive, so ensure's w620 inject of the assign_var leaves never ran there,
 # and Windows linked a host-cc var override (removed w1506); both live gates handled
@@ -1266,6 +1280,7 @@ case "$UNAME_S" in
       || [ -n "$_PABI_TAIL_JMP_OFF" ] \
       || [ -n "$_PABI_BINOP_WIDE" ] \
       || [ -n "$_PABI_MODLET_STRPOOL" ] \
+      || [ -n "$_PABI_STRUCT_LIT_FIELD" ] \
       || [ -n "$_PABI_ASSIGN_VAR" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
@@ -1377,6 +1392,15 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=pipe_modlet_bake_string_lit_elem_to_data \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1510: weaken egg STRUCT_LIT field offset/type/store_sz (by-name).
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_STRUCT_LIT_FIELD" ]; then
+          for _slsym in pipeline_expr_struct_lit_field_offset_at \
+              pipeline_expr_struct_lit_field_type_ref_at glue_struct_lit_field_store_sz; do
+            "$_oc" --weaken-symbol="$_slsym" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          done
+        fi
         # w1502: weaken egg VAR assign gate (pure .x gate first-wins).
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_ASSIGN_VAR" ]; then
@@ -1472,7 +1496,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

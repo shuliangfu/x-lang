@@ -84,6 +84,10 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "pipe_modlet_bake_string_lit_elem_to_data",
     # w1502: VAR assign gate overlay (assign_var_compound.o).
     "glue_emit_assign_var_elf_c",
+    # w1510: STRUCT_LIT by-name field overlay (struct_lit_field.o).
+    "pipeline_expr_struct_lit_field_offset_at",
+    "pipeline_expr_struct_lit_field_type_ref_at",
+    "glue_struct_lit_field_store_sz",
 )
 
 # w1504 (10.30): egg copies of the i32 literal probe skip the wide check, so
@@ -336,6 +340,10 @@ def main() -> int:
         "pipe_modlet_bake_string_lit_elem_to_data",
         # w1502: VAR assign gate overlay. PLATFORM: WINDOWS.
         "glue_emit_assign_var_elf_c",
+        # w1510: STRUCT_LIT by-name field overlay. PLATFORM: WINDOWS.
+        "pipeline_expr_struct_lit_field_offset_at",
+        "pipeline_expr_struct_lit_field_type_ref_at",
+        "glue_struct_lit_field_store_sz",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
