@@ -4336,7 +4336,7 @@ ensure_asm_bootstrap_x_companion_objs() {
   ensure_bstrict_seed_support_objs
   if [ -n "${XLANG_ASM_BSTRICT_RELINK_ONLY:-}" ] && [ -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
     :
-  elif [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
+  elif [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] || [ "src/asm/backend_seed_mega_fallback.x" -nt "$BUILD_DIR/seed_host/asm_backend_partial.o" ]; then
     build_xlang_asm_info "build_seed_asm_host (backend_enc_* for pipeline_x.o)"
     ./scripts/build_seed_asm_host.sh
   fi
@@ -5948,8 +5948,9 @@ xlang_asm_bstrict_relink_runtime_only() {
   ST_RUNTIME_PANIC="runtime_panic.o atoi_stub.o"
   fi
   refresh_build_asm_ci_text_stubs_for_strict_link || true
+  # w1541 (6.3): real partial = strong T backend_asm_codegen_ast_seed_mega (not size).
   if [ ! -f "$BUILD_DIR/seed_host/asm_backend_partial.o" ] \
-  || [ "$(wc -c <"$BUILD_DIR/seed_host/asm_backend_partial.o" | tr -d ' ')" -lt 8192 ]; then
+  || ! nm -g "$BUILD_DIR/seed_host/asm_backend_partial.o" 2>/dev/null | tr -d '\r' | grep -qE ' T _?backend_asm_codegen_ast_seed_mega$'; then
   if [ "${XLANG_ASM_BSTRICT_RELINK_ALLOW_PHASE1_STUB:-0}" = "1" ]; then
   build_xlang_asm_warn "runtime-only relink with phase1 asm_backend_partial (dev/Docker only)"
   else

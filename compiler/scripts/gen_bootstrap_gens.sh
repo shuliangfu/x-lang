@@ -11,7 +11,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 # PLATFORM: SHARED — post-Makefile phys-del: LEGACY xlang-c via legacy_xlang_c_link
-# (G.7; same authority as capture_asm_partial_seed_legacy). Ban residual bare make.
+# (G.7). Ban residual bare make.
 # Escape: XLANG_GEN_BOOTSTRAP_VIA_MAKE=1 + Makefile → historic `make xlang-c`.
 echo "gen_bootstrap_gens: build LEGACY xlang-c ..."
 if [ "${XLANG_GEN_BOOTSTRAP_VIA_MAKE:-0}" = "1" ] && [ -f Makefile ]; then
@@ -86,7 +86,7 @@ for req in typeck_gen.c codegen_gen.c parser_gen.c lexer_gen.c driver_gen.c prep
   fi
 done
 
-echo "gen_bootstrap_gens: build-seed-asm-host (asm.x -E via LEGACY xlang-c) ..."
+echo "gen_bootstrap_gens: build-seed-asm-host (pure asm partial, w1541) ..."
 if [ "${XLANG_SKIP_SEED_ASM_E:-0}" = "1" ]; then
   echo "gen_bootstrap_gens: skip asm.x -E (XLANG_SKIP_SEED_ASM_E=1)" >&2
 else

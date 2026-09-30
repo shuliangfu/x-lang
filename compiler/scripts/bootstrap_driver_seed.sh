@@ -239,16 +239,8 @@ case "$os" in
   # Git Bash / w64devkit often report Windows_NT (not MINGW64_NT-*).
   msys_nt*|mingw*_nt*|mingw*|cygwin*|windows_nt*) os=windows ;;
 esac
-seed_partial="seeds/asm_backend_partial.${os}.${arch}.o"
-if [ ! -s build_asm/seed_host/asm_backend_partial.o ] && [ -f "$seed_partial" ] && [ -s "$seed_partial" ]; then
-  if nm "$seed_partial" 2>/dev/null | awk '/ T / { s=$3; sub(/^_/, "", s); if (s=="backend_asm_codegen_ast_seed_mega") found=1 } END { exit !found }'; then
-    mkdir -p build_asm/seed_host
-    cp -f "$seed_partial" build_asm/seed_host/asm_backend_partial.o
-    log "seed partial <- $seed_partial"
-  else
-    log "ignore non-real seed partial $seed_partial (missing strong seed_mega)"
-  fi
-fi
+# w1541 (6.3): no seeds/asm_backend_partial.<os>.<arch>.o; step 8 builds the
+# partial by pure asm (scripts/build_asm_backend_partial_pure.sh).
 
 # 5) bridge (export + shell; §5b #5)
 # wave934: direct shell invocation (was mk bootstrap-driver-seed-bridge).
@@ -269,8 +261,8 @@ _ensure_asm_host_dispatch_objs
 bash scripts/build_seed_asm_host.sh
 
 if [ ! -s build_asm/seed_host/asm_backend_partial.o ]; then
-  log "no seed partial, gen phase1 backend stub ..."
-  ./scripts/gen_g06_phase1_backend_stub.sh
+  log "missing asm_backend_partial.o after build_seed_asm_host (pure asm, w1541)"
+  exit 1
 fi
 
 mkdir -p build_asm/seed_host

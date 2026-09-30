@@ -17,14 +17,13 @@ PRE="xlang_asm.pre_link_abi_relink"
 
 if [ ! -f "$PARTIAL" ]; then
   echo "relink_xlang_asm_link_abi_only: missing $PARTIAL" >&2
-  echo "  run build_seed_asm_host or copy real partial; phase1 stub breaks -o (see 自举进度 #57)" >&2
+  echo "  run scripts/build_asm_backend_partial_pure.sh (pure asm, w1541)" >&2
   exit 1
 fi
 
-# 拒绝 phase1 stub（~3.6KB）误当 production partial
-sz=$(wc -c <"$PARTIAL" | tr -d ' ')
-if [ "$sz" -lt 8192 ] 2>/dev/null; then
-  echo "relink_xlang_asm_link_abi_only: $PARTIAL too small (${sz}B); likely phase1 stub" >&2
+# w1541 (6.3): real partial = strong T backend_asm_codegen_ast_seed_mega (not size).
+if ! nm -g "$PARTIAL" 2>/dev/null | tr -d '\r' | grep -qE ' T _?backend_asm_codegen_ast_seed_mega$'; then
+  echo "relink_xlang_asm_link_abi_only: $PARTIAL lacks strong backend_asm_codegen_ast_seed_mega" >&2
   exit 1
 fi
 
