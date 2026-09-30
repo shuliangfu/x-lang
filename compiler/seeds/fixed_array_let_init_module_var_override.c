@@ -27,6 +27,8 @@ extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf, int32_t off, int32_t
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t glue_emit_bulk_mem_copy_spills_elf_c(void *elf, int32_t src_spill, int32_t dst_spill,
                                                    int32_t nbytes, int32_t ta);
+extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off, int32_t sz,
+                                                        int32_t ta);
 
 /**
  * Copy module (or other non-local) fixed-array VAR into a frame slot.
@@ -83,6 +85,53 @@ static int32_t tip_copy_nonlocal_var_array_to_slot(void *arena, void *elf_ctx, i
 }
 
 /**
+ * Dest-in-rbx fixed-array VAR copy.
+ * stack_slot_off -3 means the caller already pointed rbx at the field
+ * (sret home + field offset, or glue_struct_lit_dest_in_rbx). Passing -3
+ * through as a frame magnitude makes glue_struct_field_frame_mag_c return
+ * -3 and the store returns -1, which this wrapper treats as fatal.
+ * That is CG002 on `return { name: local_u8_256 }` under an active sret.
+ * A local VAR is lea'd and memcpy'd into the pointer already in rbx.
+ * @return 0 copied; -1 encoder failure; -2 not this shape (caller falls through).
+ * PLATFORM: SHARED — SysV and AAPCS64 dest-in-rbx. LINUX gold.
+ */
+static int32_t tip_copy_local_var_array_to_rbx(void *arena, void *elf_ctx, int32_t init_ref,
+                                              void *ctx, int32_t ta, int32_t type_ref) {
+  int32_t src_off;
+  int32_t nbytes;
+  int32_t n_arr;
+  int32_t elem_tr;
+  int32_t esz;
+
+  if (ta != 0 && ta != 1)
+    return -2;
+  if (pipeline_expr_kind_ord_at(arena, init_ref) != 3)
+    return -2;
+  src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+  if (src_off < 0)
+    return -2;
+  nbytes = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+  if (nbytes <= 0) {
+    n_arr = pipeline_type_array_size_at(arena, type_ref);
+    elem_tr = pipeline_type_elem_ref_at(arena, type_ref);
+    esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+    if (esz <= 0)
+      esz = glue_index_elem_byte_sz_from_type_ref_c(arena, type_ref);
+    if (esz <= 0)
+      esz = 4;
+    nbytes = n_arr * esz;
+  }
+  /* glue_copy rejects sz < 8. Outside 8..4096 falls through and stays fail-closed. */
+  if (nbytes < 8 || nbytes > 4096)
+    return -2;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
+    return -1;
+  if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, nbytes, ta) != 0)
+    return -1;
+  return 0;
+}
+
+/**
  * Fixed-array let-init: Cap residual store, then module-VAR fallback.
  * @return 0 ok; -1 hard fail; -2 not a fixed array.
  * PLATFORM: SHARED.
@@ -96,6 +145,16 @@ int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, in
     return -2;
   if (!glue_type_is_fixed_array(arena, type_ref))
     return -2;
+
+  /* -3 is dest-in-rbx, not a frame slot. A local VAR copies through rbx.
+   * Any other init falls through; the store still returns -1 for a negative
+   * magnitude, which keeps non-VAR dest-in-rbx fail-closed.
+   * PLATFORM: SHARED. */
+  if (stack_slot_off == -3) {
+    st = tip_copy_local_var_array_to_rbx(arena, elf_ctx, init_ref, ctx, ta, type_ref);
+    if (st != -2)
+      return st;
+  }
 
   st = glue_struct_lit_store_fixed_array_field_elf_c(arena, elf_ctx, init_ref, ctx, ta, 0,
                                                     stack_slot_off, 0, type_ref);
