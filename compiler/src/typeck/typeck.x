@@ -2950,6 +2950,10 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
  *   next_field_offset — shared typeck_scratch64 slots can clobber field_nm.
  *   G.7: single authority ensure_struct_layout_from_struct_lit; seed typeck_gen
  *   same commit when regen.
+ *   A qualified lit name (token.Token) binds to the bare layout (Token) already
+ *   merged from the defining module. Allocating a second layout leaves
+ *   allow(padding) clear, and the dep-prerun padding check then rejects every
+ *   importer of lexer. PLATFORM: SHARED.
  *
  * @param module *Module — owning struct_layouts table
  * @param arena *ASTArena — STRUCT_LIT expr pool
@@ -3013,6 +3017,31 @@ expr_ref: i32): i32 {
         break;
       }
       k = k + 1;
+    }
+    /* Qualified name token.Token: use the bare Token layout from the import
+     * merge. A new slot would not copy allow(padding). PLATFORM: SHARED. */
+    if (found_idx < 0) {
+      let dot_at: i32 = 0 - 1;
+      let si: i32 = 0;
+      while (si < name_len) {
+        if (lit_nm[si] == 46) {
+          dot_at = si;
+        }
+        si = si + 1;
+      }
+      if (dot_at >= 0 && dot_at + 1 < name_len) {
+        let suf_len: i32 = name_len - (dot_at + 1);
+        k = 0;
+        while (k < nsl) {
+          pipeline_module_struct_layout_name_into(module, k, layout_nm);
+          sname_len = pipeline_module_struct_layout_name_len(module, k);
+          if (sname_len == suf_len && name_equal(layout_nm, sname_len, &lit_nm[dot_at + 1], suf_len)) {
+            found_idx = k;
+            break;
+          }
+          k = k + 1;
+        }
+      }
     }
     if (found_idx >= 0) {
       idx_m = found_idx;

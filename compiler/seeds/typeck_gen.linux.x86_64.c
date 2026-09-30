@@ -3746,6 +3746,9 @@ int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module * module, 
     int32_t foff_j = 0;
     int32_t nsl = 0;
     int32_t sname_len = 0;
+    int32_t dot_at = -1;
+    int32_t si = 0;
+    int32_t suf_len = 0;
     uint8_t * lit_nm = typeck_scratch64_slot(4);
     uint8_t * layout_nm = typeck_scratch64_slot(5);
     uint8_t * field_nm = typeck_scratch64_slot(6);
@@ -3773,6 +3776,31 @@ int32_t typeck_ensure_struct_layout_from_struct_lit(struct ast_Module * module, 
         break;
       }
       (void)((k = (k + 1)));
+    }
+    /* Qualified name token.Token binds to the bare Token layout.
+     * PLATFORM: SHARED — twin of typeck.x ensure_struct_layout_from_struct_lit. */
+    if ((found_idx < 0)) {
+      (void)((dot_at = -1));
+      (void)((si = 0));
+      while ((si < name_len)) {
+        if ((lit_nm[si] == 46)) {
+          (void)((dot_at = si));
+        }
+        (void)((si = (si + 1)));
+      }
+      if (((dot_at >= 0) && ((dot_at + 1) < name_len))) {
+        (void)((suf_len = (name_len - (dot_at + 1))));
+        (void)((k = 0));
+        while ((k < nsl)) {
+          (void)(pipeline_module_struct_layout_name_into(module, k, layout_nm));
+          (void)((sname_len = pipeline_module_struct_layout_name_len(module, k)));
+          if (((sname_len == suf_len) && typeck_name_equal(layout_nm, sname_len, (lit_nm + (dot_at + 1)), suf_len))) {
+            (void)((found_idx = k));
+            break;
+          }
+          (void)((k = (k + 1)));
+        }
+      }
     }
     if ((found_idx >=0)) {
       (void)((idx_m = found_idx));
