@@ -9,7 +9,7 @@
 #       lsp_diag_x.o ← lsp_diag_gen.c
 #       pipeline_x.o ← pipeline_gen.c (+ gen_driver cache / FORCE / PIPELINE_X_DEPS)
 #     wave782 (try-gen-c-to-o B4 bootstrap; NOT try-gen-x catalog):
-#       lexer_x.o      ← lexer_gen.c (+ token enum sync)
+#       lexer_x.o      ← src/lexer/lexer.x pure-asm (w1546; no host cc)
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
 #       preprocess_x.o ← preprocess_gen.c
@@ -298,63 +298,32 @@ need_rebuild_gen_o_or_deps() {
 }
 
 build_lexer_x() {
-  # Makefile: perl sync_lexer_gen_token_enum + PIPELINE_GEN_CFLAGS -I triad.
-  # Always run ensure_migrate_gen lexer first: gitignored pin can fail product
-  # symbol contract (Windows dual-boot stale pin) while .o is still "up-to-date"
-  # vs that pin — phase1 then UNDEF lexer_*_reset. G.7: migrate owns gen body.
+  # w1546 (checklist 7.2, lexer only): lexer_x.o is one pure-asm emit of
+  # src/lexer/lexer.x. No host cc of seeds/lexer_gen.linux.x86_64.c or of
+  # lexer_gen.c, and no fallback. The seed file stays on disk (removal is 9.2).
+  # Caller deletes a warm object first; this function also removes lexer_x.o
+  # before emit so a failed emit cannot leave the previous host-cc object.
+  # xlang_panic_ is weakened so Darwin runtime_panic.o stays the strong copy.
   # PLATFORM: SHARED.
-  # wave328: Track L retirement — prefer cold-seed archaeology via driver_leaf
-  # catalog. lexer_gen.c historically has implicit-decl issues (lexer_next undeclared
-  # C99); .x → -E also duplicates token_is_eof when parser_x.o re-exports lexer/token.x.
-  # Cold seed (seeds/lexer_gen.linux.x86_64.c) contains no token_is_eof definition
-  # (only extern decl), so it is the only Track L rung that avoids both bugs.
-  # Fall back to lexer_gen.c (ARCHAEOLOGY) only if Track L fails.
-  if [ -f scripts/driver_leaf_x_to_o.sh ] && [ -f "seeds/lexer_gen.linux.x86_64.c" ]; then
-    # Manual cold-seed rung (skip PREFER_X_O to avoid token_is_eof duplicate).
-    BASE_CFLAGS="${BASE_CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
-    # BusyBox/w64devkit: XXXXXX must be template suffix (no .c).
-    _t=$(mktemp "${TMPDIR:-/tmp}/lexer_cold_seed.XXXXXX") || return 1
-    _leaf_tmp="${_t}.c"
-    mv "$_t" "$_leaf_tmp"
-    sed -e '\|^extern uint8_t \* malloc(|d' \
-        -e '\|^extern void free(|d' \
-        -e '\|^extern uint8_t \* calloc(|d' \
-        "seeds/lexer_gen.linux.x86_64.c" > "$_leaf_tmp"
-    # shellcheck disable=SC2086
-    if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then
-      rm -f "$_leaf_tmp"
-      log "lexer_x.o ← Track L cold seed (seeds/lexer_gen.linux.x86_64.c; wave328; no token_is_eof dup)"
-      return 0
-    fi
-    # Fallback: unstripped
-    cp -f "seeds/lexer_gen.linux.x86_64.c" "$_leaf_tmp"
-    # shellcheck disable=SC2086
-    if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then
-      rm -f "$_leaf_tmp"
-      log "lexer_x.o ← Track L cold seed (unstripped; wave328)"
-      return 0
-    fi
-    rm -f "$_leaf_tmp"
-    log "Track L cold seed failed for lexer_x.o; falling back to lexer_gen.c (archaeology)"
-  fi
-  if [ -f scripts/ensure_migrate_gen.sh ]; then
-    MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-      bash scripts/ensure_migrate_gen.sh lexer || return 1
-  elif [ ! -f lexer_gen.c ]; then
-    log "missing lexer_gen.c (run bash scripts/ensure_migrate_gen.sh lexer first)"
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/lexer/lexer.x ]; then
+    log "lexer_x.o: pure_ld_shared.sh or src/lexer/lexer.x missing"
     return 1
   fi
-  if ! need_rebuild_gen_o lexer_x.o lexer_gen.c; then
-    log "skip lexer_x.o (up-to-date vs lexer_gen.c)"
+  rm -f lexer_x.o
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+    export G05_X_O_WEAK_FUNCS=xlang_panic_
+    pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
+  ) && [ -s lexer_x.o ]; then
+    log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
     return 0
   fi
-  if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
-    perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
-  fi
-  log "cc -c lexer_gen.c → lexer_x.o"
-  # shellcheck disable=SC2086
-  $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o
-  log "lexer_x.o OK"
+  rm -f lexer_x.o
+  log "lexer_x.o pure-asm failed (w1546; no cc fallback)"
+  return 1
 }
 
 build_ast_gen2() {

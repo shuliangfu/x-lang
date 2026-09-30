@@ -14,6 +14,13 @@
 // g05_relink_env.sh compiles this with the current product (pure asm, no
 // host cc) and links it ahead of pabi: Darwin pabi copies are weak, Linux is
 // first-wins, Windows weakens pabi_weak and jmp-patches leftovers.
+// w1546: same object also overrides glue_try_emit_mixed_f32_f64_arith_elf_c.
+// The egg body returns -2 when ta != 0 and only promotes f32 next to f64, so
+// `f64 * integer` (lexer `frac * (d - 48)`) fell through to a 32-bit integer
+// mul and kept only the low half of the f64 bit pattern. The override accepts
+// ta 0 and 1, leaves both-f64, both-f32, and integer×integer on the existing
+// paths, and converts the integer side before addsd/subsd/mulsd/divsd.
+// f32×integer stays -2. Do not edit runtime_pipeline_abi.x for this symbol.
 // PLATFORM: SHARED freestanding emit · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
 
 export extern function glue_binop_operand_is_64bit_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32;
@@ -48,6 +55,15 @@ export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int64_val_at(arena: *u8, expr_ref: i32): i64;
 export extern function link_abi_getenv(name: *u8): *u8;
+export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_addsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_subsd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_divsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 
 /**
  * True when the expr is an INT_LIT whose i64 value does not fit in i32.
@@ -519,4 +535,314 @@ export function glue_emit_assign_rhs_mod_elf_c(arena: *u8, elf_ctx: *u8, assign_
     }
     return w1499_emit_rem32(elf_ctx, glue_binop_operand_is_unsigned_elf_c(arena, ctx, left_ref, right_ref), ta);
   }
+}
+
+/**
+ * Scalar integer type-kind of one binop operand, or -1 when it is not one.
+ * The resolved type wins. A VAR whose resolved type is empty uses its decl
+ * type. An INT_LIT (expr kind 0) with no resolved type is i32 (kind 0).
+ * Accepted kinds are i32=0, u8=2, u32=3, u64=4, i64=5, usize=6, isize=7, and
+ * kind 8 (the existing `as f64` path treats kind 8 like i32). bool (1) and
+ * pointer (9) return -1 so the caller leaves them on the integer path.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param ctx *u8 — emit context; used only for the VAR decl fallback
+ * @param expr_ref i32 — operand expression; <=0 returns -1
+ * @return i32 — type kind, or -1
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1546_binop_int_kind(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
+  let tr: i32 = 0;
+  let ko: i32 = 0;
+  let kind: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  }
+  if (tr <= 0) {
+    unsafe {
+      ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    }
+    // INT_LIT with no resolved type is the i32 literal fallback.
+    if (ko == 0) {
+      return 0;
+    }
+    if (ko == 3 && ctx != (0 as *u8)) {
+      unsafe {
+        tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+      }
+    }
+  }
+  if (tr <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, tr);
+  }
+  if (kind == 0 || kind == 2 || kind == 3 || kind == 4 || kind == 5 || kind == 6 || kind == 7 || kind == 8) {
+    return kind;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Convert the integer bit pattern in rax into an f64 bit pattern in rax.
+ * u64, usize, and u32 use the unsigned 64-bit converter. A 32-bit result is
+ * already zero-extended, so u32 must not take the signed 32-bit converter
+ * (values >= 2^31 would become negative). i64 and isize use the signed
+ * 64-bit converter. i32, u8, and kind 8 use the signed 32-bit converter.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param kind i32 — type kind from w1546_binop_int_kind
+ * @return i32 — 0 when the converter is appended, non-zero on encode failure
+ * PLATFORM: SHARED — x86_64 cvtsi2sd and arm64 scvtf/ucvtf.
+ */
+function w1546_emit_int_kind_to_f64_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
+  unsafe {
+    if (kind == 4 || kind == 6 || kind == 3) {
+      return backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx, ta);
+    }
+    if (kind == 5 || kind == 7) {
+      return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+    }
+    return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * Promote the value in rax to f64 bits.
+ * is_f32 selects cvtss2sd. int_kind >= 0 selects the integer converter.
+ * Both clear means the value is already f64 and this is a no-op.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param is_f32 i32 — non-zero when rax holds f32 bits
+ * @param int_kind i32 — integer type kind, or -1 when rax is not an integer
+ * @return i32 — 0 ok, non-zero encode failure
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1546_promote_rax_to_f64(elf_ctx: *u8, ta: i32, is_f32: i32, int_kind: i32): i32 {
+  if (is_f32 != 0) {
+    unsafe {
+      return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+    }
+  }
+  if (int_kind >= 0) {
+    return w1546_emit_int_kind_to_f64_rax(elf_ctx, ta, int_kind);
+  }
+  return 0;
+}
+
+/**
+ * Promote rbx to f64 bits and leave rax unchanged.
+ * A push/mov/pop pair moves rbx through rax, where the converters write.
+ * Already-f64 (is_f32 == 0 and int_kind < 0) does not touch the stack.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param is_f32 i32 — non-zero when rbx holds f32 bits
+ * @param int_kind i32 — integer type kind, or -1 when rbx is not an integer
+ * @return i32 — 0 ok, -1 encode failure
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1546_promote_rbx_to_f64(elf_ctx: *u8, ta: i32, is_f32: i32, int_kind: i32): i32 {
+  if (is_f32 == 0 && int_kind < 0) {
+    return 0;
+  }
+  unsafe {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  if (w1546_promote_rax_to_f64(elf_ctx, ta, is_f32, int_kind) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Place ADD, SUB, and MUL operands: rbx = left, rax = right.
+ * Emit left, push it, emit right, pop the left into rbx. This is the
+ * placement the egg mixed helper uses, so a conversion here is not confused
+ * by callers that disagree about which register holds left.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left expression ref
+ * @param right_ref i32 — right expression ref
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, -1 if an operand or a push/pop fails
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1546_emit_left_rbx_right_rax(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  unsafe {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Place DIV operands: rax = left, rbx = right.
+ * Emit left, push it, emit right, move right into rbx, pop left back to rax.
+ * divsd then divides rax by rbx.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left expression ref
+ * @param right_ref i32 — right expression ref
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, -1 if an operand or a move fails
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1546_emit_left_rax_right_rbx(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  unsafe {
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Emit one f32↔f64 or f64×integer add, sub, mul, or div, or refuse it.
+ * Return -2 when the running paths must handle the op: both f64, both f32,
+ * integer×integer, f32×integer, a pointer, or ta other than 0 or 1.
+ * Return 0 after the scalar fp op is appended. Return -1 on encode failure.
+ * f32↔f64 uses cvtss2sd. An integer side uses scvtf/ucvtf (cvtsi2sd).
+ * The egg copy of this symbol stays weak; this strong body is the product.
+ * @param arena *u8 — AST arena; null returns -2
+ * @param elf_ctx *u8 — encoder context; null returns -2
+ * @param ctx *u8 — emit context; null returns -2
+ * @param left_ref i32 — left expression ref
+ * @param right_ref i32 — right expression ref
+ * @param ta i32 — 0 is x86_64, 1 is arm64; any other value returns -2
+ * @param op_kind i32 — 4 add, 5 sub, 6 mul, 7 div; anything else returns -2
+ * @return i32 — 0 consumed, -1 failure, -2 fall through
+ * PLATFORM: SHARED — Darwin arm64 and Linux/Windows x86_64.
+ */
+#[no_mangle]
+export function glue_try_emit_mixed_f32_f64_arith_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32, op_kind: i32): i32 {
+  let lf32: i32 = 0;
+  let rf32: i32 = 0;
+  let lf64: i32 = 0;
+  let rf64: i32 = 0;
+  let lk: i32 = 0;
+  let rk: i32 = 0;
+  let f32f64: i32 = 0;
+  let f64int: i32 = 0;
+  lk = 0 - 1;
+  rk = 0 - 1;
+  if ((ta != 0 && ta != 1) || arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
+    return 0 - 2;
+  }
+  if (op_kind != 4 && op_kind != 5 && op_kind != 6 && op_kind != 7) {
+    return 0 - 2;
+  }
+  unsafe {
+    lf32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref);
+    rf32 = glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref);
+    lf64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref);
+    rf64 = glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref);
+  }
+  // Same-class floats stay on mulsd/mulss/addsd/addss in the existing leaves.
+  if (lf32 != 0 && rf32 != 0) {
+    return 0 - 2;
+  }
+  if (lf64 != 0 && rf64 != 0 && lf32 == 0 && rf32 == 0) {
+    return 0 - 2;
+  }
+  if (lf32 == 0 && lf64 == 0) {
+    lk = w1546_binop_int_kind(arena, ctx, left_ref);
+  }
+  if (rf32 == 0 && rf64 == 0) {
+    rk = w1546_binop_int_kind(arena, ctx, right_ref);
+  }
+  if ((lf32 != 0 && rf64 != 0) || (lf64 != 0 && rf32 != 0)) {
+    f32f64 = 1;
+  }
+  // f32×integer is a different hole and is not consumed here.
+  if ((lf64 != 0 && rk >= 0) || (rf64 != 0 && lk >= 0)) {
+    f64int = 1;
+  }
+  if (f32f64 == 0 && f64int == 0) {
+    return 0 - 2;
+  }
+  if (op_kind == 7) {
+    if (w1546_emit_left_rax_right_rbx(arena, elf_ctx, ctx, left_ref, right_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    if (w1546_promote_rax_to_f64(elf_ctx, ta, lf32, lk) != 0) {
+      return 0 - 1;
+    }
+    if (w1546_promote_rbx_to_f64(elf_ctx, ta, rf32, rk) != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      if (backend_enc_divsd_rax_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+  } else {
+    if (w1546_emit_left_rbx_right_rax(arena, elf_ctx, ctx, left_ref, right_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    if (w1546_promote_rbx_to_f64(elf_ctx, ta, lf32, lk) != 0) {
+      return 0 - 1;
+    }
+    if (w1546_promote_rax_to_f64(elf_ctx, ta, rf32, rk) != 0) {
+      return 0 - 1;
+    }
+    unsafe {
+      if (op_kind == 4) {
+        if (backend_enc_addsd_rax_rbx_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      } else if (op_kind == 5) {
+        if (backend_enc_subsd_rbx_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      } else {
+        if (backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+  }
+  unsafe {
+    glue_binop_var_slot_cache_invalidate_rax();
+  }
+  return 0;
 }

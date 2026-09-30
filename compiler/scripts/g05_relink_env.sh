@@ -1231,6 +1231,27 @@ if [ "$UNAME_S" = "Darwin" ] \
         build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
     fi
   fi
+  # w1546: binop_wide's glue_try_emit_mixed_f32_f64_arith_elf_c converts an
+  # integer operand of an f64 add/sub/mul/div. The egg body is already weak
+  # in the current pabi_weak; weaken again if a rebuild leaves it strong.
+  # Apple ld has no multidef. PLATFORM: MACOS|DARWIN.
+  if [ -n "$_PABI_BINOP_WIDE" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -F "_glue_try_emit_mixed_f32_f64_arith_elf_c" | grep -qv weak; then
+      "$_oc" --weaken-symbol=_glue_try_emit_mixed_f32_f64_arith_elf_c \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+  fi
   # PLATFORM: MACOS|DARWIN — host_is_arm64_c is mov w0,#1; ret. Leftover
   # PAGE21/PAGEOFF12 still name the old BSS load and sit on that mov/ret.
   # ld rejects them. Drop only those mismatched relocs.
@@ -1502,7 +1523,8 @@ case "$UNAME_S" in
           for _bwsym in glue_emit_binop_mul_rax_rbx_elf_c \
             pipeline_asm_emit_binop_mod_elf_c \
             pipeline_asm_emit_divisor_zero_check_rbx_elf_c \
-            glue_emit_assign_rhs_mod_elf_c; do
+            glue_emit_assign_rhs_mod_elf_c \
+            glue_try_emit_mixed_f32_f64_arith_elf_c; do
             "$_oc" --weaken-symbol="$_bwsym" \
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done

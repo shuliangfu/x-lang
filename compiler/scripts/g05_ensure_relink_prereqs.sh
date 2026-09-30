@@ -4327,6 +4327,15 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       fi
     fi
   done
+  # w1546 (checklist 7.2, lexer only): rebuild lexer_x.o from src/lexer/lexer.x
+  # every generation. A warm host-cc object is not a timestamp hit — delete it
+  # first. Authority is build_lexer_x in ensure_gen_x_o.sh. No $CC fallback.
+  # PLATFORM: SHARED. lexer_gen seed stays (removal is 9.2).
+  rm -f lexer_x.o
+  if ! bash scripts/ensure_gen_x_o.sh lexer_x; then
+    echo "g05_ensure: lexer_x.o pure-asm failed" >&2
+    return 1
+  fi
   # parser_x.o cold path (wave324 M4 7.2.2 + residual pin authority).
   # PLATFORM: SHARED — product authority = seeds/parser_gen.linux.x86_64.c.
   # Full tip -E assemble of parser.x drops surgical seed leaves (generic_bound_scan,

@@ -76,10 +76,12 @@ _TIP_FAT_EARLIEST_TO_LATER: tuple[str, ...] = ()
 _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "pipeline_asm_emit_param_home_elf_c",
     # w1499: 64-bit mul/mod/zero-check overlay (binop_wide.o).
+    # w1546: f64×integer / f32↔f64 mixed arith, same object.
     "glue_emit_binop_mul_rax_rbx_elf_c",
     "pipeline_asm_emit_binop_mod_elf_c",
     "pipeline_asm_emit_divisor_zero_check_rbx_elf_c",
     "glue_emit_assign_rhs_mod_elf_c",
+    "glue_try_emit_mixed_f32_f64_arith_elf_c",
     # w1501: module-let string pool baker overlay (modlet_strpool.o).
     "pipe_modlet_bake_string_lit_elem_to_data",
     # w1502: VAR assign gate overlay (assign_var_compound.o).
@@ -350,10 +352,12 @@ def main() -> int:
         # w1497: param_home canonicalize overlay. PLATFORM: WINDOWS.
         "pipeline_asm_emit_param_home_elf_c",
         # w1499: 64-bit mul/mod/zero-check overlay. PLATFORM: WINDOWS.
+        # w1546: f64×integer / f32↔f64 mixed arith, same object.
         "glue_emit_binop_mul_rax_rbx_elf_c",
         "pipeline_asm_emit_binop_mod_elf_c",
         "pipeline_asm_emit_divisor_zero_check_rbx_elf_c",
         "glue_emit_assign_rhs_mod_elf_c",
+        "glue_try_emit_mixed_f32_f64_arith_elf_c",
         # w1501: module-let string pool baker overlay. PLATFORM: WINDOWS.
         "pipe_modlet_bake_string_lit_elem_to_data",
         # w1502: VAR assign gate overlay. PLATFORM: WINDOWS.
