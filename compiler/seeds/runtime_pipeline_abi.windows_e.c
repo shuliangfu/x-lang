@@ -38415,6 +38415,7 @@ int32_t backend_try_fold_count_up_while_elf(uint8_t * arena, uint8_t * elf_ctx, 
 }
 int32_t backend_emit_loop_body_content_elf_sync(uint8_t * arena, uint8_t * elf_ctx, int32_t body_ref, uint8_t * ctx, int32_t ta) {
   uint8_t * mod = 0;
+  int32_t saved_scope = 0;
   if ((((arena ==0) || (elf_ctx ==0)) || (ctx ==0))) {
     return -1;
   }
@@ -38425,11 +38426,18 @@ int32_t backend_emit_loop_body_content_elf_sync(uint8_t * arena, uint8_t * elf_c
   if ((mod !=0)) {
     (void)(pipeline_asm_emit_set_module(mod));
   }
+  /* w1546: restore the caller scope. The loop body does not declare the
+   * enclosing block's lets; leaving scope there makes the next statement
+   * miss them and load the last same-named sibling. PLATFORM: SHARED. */
+  (void)((saved_scope = asm_ctx_scope_block_ref_at(ctx)));
   (void)(backend_ensure_block_local_slots(ctx, arena, body_ref));
   (void)(pipeline_asm_fill_block_locals_tree(ctx, arena, body_ref));
   (void)(glue_asm_ctx_set_scope_block(ctx, body_ref));
-  ((pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, body_ref, ctx, ta) !=0) ? ({   return -1;
- }) : 0);
+  if ((pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, body_ref, ctx, ta) !=0)) {
+    (void)(glue_asm_ctx_set_scope_block(ctx, saved_scope));
+    return -1;
+  }
+  (void)(glue_asm_ctx_set_scope_block(ctx, saved_scope));
   return 0;
 }
 int32_t backend_emit_while_loop_elf_sync(uint8_t * arena, uint8_t * elf_ctx, int32_t block_ref, int32_t loop_idx, uint8_t * ctx, int32_t ta) {

@@ -2977,6 +2977,73 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
   return 0 - 1;
 }
 
+/**
+ * Park the hidden return pointer already sitting in arg0 and clear the
+ * global sret-shift flag before this call's arguments are evaluated.
+ *
+ * The flag means arg0 (SysV rdi / Win64 rcx) already holds THIS call's
+ * hidden destination. Two producers preload it: the >16-byte return
+ * forwarder (the function's own sret home) and the Win64 by-reference
+ * struct-arg materializer (a frame temp). Nested calls must not inherit
+ * the flag. `return lexer_next_slice(lex, lexer_slice_from_raw(data, len))`
+ * otherwise calls lexer_slice_from_raw with the outer return buffer in
+ * arg0 and the source pointer in the next register, so the lexer scans
+ * the return buffer and reports L012 at 0:0.
+ *
+ * The live arg0 value is what gets spilled. Reloading the function sret
+ * home would be wrong for the struct-arg producer, which preloaded a
+ * temp. w1545_pend is a different mechanism (it emits `lea rcx` itself);
+ * this helper parks only when the global flag is set. AAPCS64 keeps the
+ * destination in x8 and leaves the flag clear.
+ *
+ * The spill advances AsmFuncCtx.next_offset. The x86 call-spill walk
+ * reserves 16 bytes per call so the slot stays inside the frame.
+ *
+ * @param elf_ctx *u8 — codegen byte sink; null fails
+ * @param ctx *u8 — AsmFuncCtx; next_offset is the i32 at byte 4
+ * @param ta i32 — 0 = x86_64, 1 = aarch64
+ * @return i32 — frame offset of the parked pointer; -2 when the flag was
+ *   clear (including every aarch64 call); -1 when an encode or spill
+ *   failed. On -1 the flag has already been cleared if it was set.
+ * PLATFORM: LINUX+WINDOWS x86_64. MACOS|ARM64 returns -2 without emitting.
+ */
+function w1546_park_call_sret_arg0(elf_ctx: *u8, ctx: *u8, ta: i32): i32 {
+  if (ta != 0) { return 0 - 2; }
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  if (ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    if (pipeline_asm_emit_call_sret_reg_shift_c() == 0) { return 0 - 2; }
+    // Nested argument calls must see a clear flag. This call already
+    // captured the shift in its own local. PLATFORM: x86_64.
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+  }
+  return glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+}
+
+/**
+ * Reload a pointer parked by w1546_park_call_sret_arg0 back into arg0.
+ * Call after argument registers are loaded and before w1545_pend_rcx_emit,
+ * which writes rcx itself when the 9–16 byte Windows return is pending.
+ * A negative park offset (flag was clear, or aarch64) emits nothing.
+ *
+ * @param elf_ctx *u8 — codegen byte sink
+ * @param park i32 — frame offset from w1546_park_call_sret_arg0, or <0
+ * @param ta i32 — 0 = x86_64, 1 = aarch64
+ * @return i32 — 0 when restored or when there was nothing to restore; -1
+ *   when the load or the move into arg0 failed
+ * PLATFORM: LINUX+WINDOWS x86_64.
+ */
+function w1546_reload_call_sret_arg0(elf_ctx: *u8, park: i32, ta: i32): i32 {
+  if (park < 0) { return 0; }
+  if (elf_ctx == 0 as *u8) { return 0 - 1; }
+  unsafe {
+    if (backend_enc_load_rbp_to_rax_arch(elf_ctx, park, ta) != 0) { return 0 - 1; }
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
+  }
+  return 0;
+}
+
 // GLUE_ASM_MAX_CALL_ARGS=96
 /**
  * Emit freestanding CALL args into SysV/AAPCS register/stack homes.
@@ -2987,6 +3054,10 @@ export function glue_asm_enc_call_redirected(elf_ctx: *u8, name: *u8, name_len: 
  * Stage 12.0.5: AAPCS64 spill-then-load + stack-before-GP-reload (seed twin).
  * Root: high-to-low direct place then stack emit→x0 clobbered arg0 (rt_eq6 c=0x3e).
  * Authority: this .x (wave392/600/601 + 12.0.5; C seed deleted in w1524).
+ * w1546: the global sret-shift flag is consumed here, before any argument
+ * is evaluated, and the preloaded arg0 is restored after the arg regs
+ * are loaded (w1546_park_call_sret_arg0). Import METHOD and UFCS in this
+ * file do the same. AAPCS64 does not use the flag.
  * PLATFORM: SHARED — LINUX+MACOS x86_64 SysV dual-GP; MACOS|ARM64 AAPCS64 spill.
  */
 #[no_mangle]
@@ -3008,10 +3079,17 @@ export function pipeline_asm_emit_call_args_elf_c(
       }
     }
     let sret_sh: i32 = 0;
+    // -2: nothing parked. Only the global flag parks; w1545_pend reloads
+    // rcx itself later. PLATFORM: x86_64. AAPCS64 leaves this at -2.
+    let sret_park: i32 = 0 - 2;
     if (ta == 0) {
       sret_sh = pipeline_asm_emit_call_sret_reg_shift_c();
       // w1545: hidden return pointer (rcx) of this call. PLATFORM: WINDOWS.
       if (sret_sh == 0) { sret_sh = w1545_pend_is(expr_ref); }
+      // Clear the flag before stack-arg and register-arg evaluation so a
+      // nested call does not shift its own formals. sret_sh stays local.
+      sret_park = w1546_park_call_sret_arg0(elf_ctx, ctx, ta);
+      if (sret_park == (0 - 1)) { return 0 - 1; }
     }
     let eff_reg_max: i32 = reg_max - sret_sh;
     if (ta == 2) { return 0 - 1; }
@@ -3364,6 +3442,11 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
         i = i + 1;
       }
+      // Restore the parked hidden dest into arg0. Argument evaluation and
+      // the reload loop both clobber it. w1545_pend (below) then owns rcx
+      // only when this call did not already take the global flag.
+      // PLATFORM: LINUX+WINDOWS x86_64.
+      if (w1546_reload_call_sret_arg0(elf_ctx, sret_park, ta) != 0) { return 0 - 1; }
       // w1545: hidden return pointer last, after every arg register. WINDOWS.
       if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
       pipeline_asm_emit_set_call_param_type_ref(0);
@@ -4328,9 +4411,14 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                       // SysV hidden sret consumes rdi (GP0); shift formals by sret_sh.
                       // PLATFORM: SHARED — LINUX+MACOS x86_64 SysV; AAPCS64 uses x8 (sret_sh=0).
                       let sret_sh_m: i32 = 0;
+                      let sret_park_m: i32 = 0 - 2;
                       if (ta == 0) {
                         sret_sh_m = pipeline_asm_emit_call_sret_reg_shift_c();
                         if (sret_sh_m == 0) { sret_sh_m = w1545_pend_is(expr_ref); }
+                        // Same flag scope as free CALL. Nested args must not
+                        // inherit rdi/rcx. PLATFORM: LINUX+WINDOWS x86_64.
+                        sret_park_m = w1546_park_call_sret_arg0(elf_ctx, ctx, ta);
+                        if (sret_park_m == (0 - 1)) { return 0 - 1; }
                       }
                       let gp_cur_m: i32 = sret_sh_m;
                       if (reg_max_m < 1) { reg_max_m = 6; }
@@ -4554,6 +4642,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                         }
                         i_m = i_m - 1;
                       }
+                      if (w1546_reload_call_sret_arg0(elf_ctx, sret_park_m, ta) != 0) { return 0 - 1; }
                       if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
                       if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
                       // Cleanup: MEMORY multi-word bytes when tracked; else nargs-based.
@@ -4687,6 +4776,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
       let xmm_cur_u: i32 = 0;
       let reg_max_u: i32 = glue_asm_call_reg_max(ta);
       let sret_sh_u: i32 = 0;
+      let sret_park_u: i32 = 0 - 2;
       let gp_cur_u: i32 = 0;
       if (base_ref != 0) { has_recv = 1; }
       /*
@@ -4743,6 +4833,9 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
       if (ta == 0) {
         sret_sh_u = pipeline_asm_emit_call_sret_reg_shift_c();
         if (sret_sh_u == 0) { sret_sh_u = w1545_pend_is(expr_ref); }
+        // Same flag scope as free CALL. PLATFORM: LINUX+WINDOWS x86_64.
+        sret_park_u = w1546_park_call_sret_arg0(elf_ctx, ctx, ta);
+        if (sret_park_u == (0 - 1)) { return 0 - 1; }
       }
       gp_cur_u = sret_sh_u;
       if (reg_max_u < 1) { reg_max_u = 6; }
@@ -5020,6 +5113,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
         }
         i_u = i_u - 1;
       }
+      if (w1546_reload_call_sret_arg0(elf_ctx, sret_park_u, ta) != 0) { return 0 - 1; }
       if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
       // wave683: overload-safe export-sym (get_S / take0) — bare name UNDEF on Ubuntu.
       {

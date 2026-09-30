@@ -57433,13 +57433,22 @@ export function backend_try_fold_count_up_while_elf(arena: *u8, elf_ctx: *u8, bl
 /**
  * ELF loop body stmt_order emit (while/for body content).
  * Empty body_ref is legal; does not abort.
- * @return i32 - 0 ok; -1 error
+ * Saves the caller scope and restores it after the body. The body block does
+ * not declare the enclosing block's lets. Leaving scope on the body makes the
+ * next statement in the caller miss those names.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — codegen context
+ * @param body_ref i32 — loop body block; <=0 is an empty body
+ * @param ctx *u8 — AsmFuncCtx*
+ * @param ta i32 — target arch
+ * @return i32 — 0 ok; -1 error
  * wave155 pure: G.7 authority (was backend_emit_loop_body_content_elf_sync).
  * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function backend_emit_loop_body_content_elf_sync(arena: *u8, elf_ctx: *u8, body_ref: i32, ctx: *u8, ta: i32): i32 {
   let mod: *u8 = 0 as *u8;
+  let saved_scope: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8)) {
     return 0 - 1;
   }
@@ -57451,6 +57460,7 @@ export function backend_emit_loop_body_content_elf_sync(arena: *u8, elf_ctx: *u8
     pipeline_asm_emit_set_module(mod);
   }
   unsafe {
+    saved_scope = asm_ctx_scope_block_ref_at(ctx);
     backend_ensure_block_local_slots(ctx, arena, body_ref);
   }
   pipeline_asm_fill_block_locals_tree(ctx, arena, body_ref);
@@ -57459,8 +57469,14 @@ export function backend_emit_loop_body_content_elf_sync(arena: *u8, elf_ctx: *u8
   }
   unsafe {
     if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, body_ref, ctx, ta) != 0) {
+      glue_asm_ctx_set_scope_block(ctx, saved_scope);
       return 0 - 1;
     }
+  }
+  // PLATFORM: SHARED — caller statements after the loop resolve in the
+  // enclosing block, not in the loop body.
+  unsafe {
+    glue_asm_ctx_set_scope_block(ctx, saved_scope);
   }
   return 0;
 }

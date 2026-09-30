@@ -31993,72 +31993,69 @@ int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, in
 }
 
 /*
- * Resolve local name within the current emit scope block.
+ * Resolve a local name from the current emit scope, then its ancestors.
  *
  * PLATFORM: SHARED — pure-asm VAR load / return of block-local lets.
  *
  * Root (Stage 12.0.5 labi_ensure_list hybrid RED): fill_block_locals_tree
  * pre-order-appends sibling if-then blocks into one name table. Scanning
- * from count-1 down to min_slot (this block's base) still sees later
- * siblings' same-name lets. Multi-branch
- *   if (i==0) { let p = "a"; return p; }
- *   if (i==1) { let p = "b"; return p; }
- * then stores into per-branch slots but every `return p` loads the last
- * registered "p" (or the first when fill order is reversed) → catalog_stem
- * returns wrong path strings → ensure/prepare BLD001 on pure freestanding.
+ * from count-1 down through later siblings' same-name lets made every
+ * `return p` load the last registered "p".
  *
- * Fix: only search this block's direct const/let range
- *   [min_slot, min_slot + nconst + nlet). Nested children have their own
- * block_slot bases and are not included. Fallback: unscoped find_offset
- * (back-to-front) for outer-scope names.
+ * Each block is searched only on its direct range
+ *   [min_slot, min_slot + nconst + nlet).
+ * Nested children have their own block_slot bases and are not included.
+ * w1546: a miss walks parent_block_ref. The old unscoped end-scan returned
+ * the last same-named sibling in the function. After a while/for body the
+ * scope block does not declare the enclosing let's start/line0/col0, so
+ * every use loaded that last sibling and lexer ident length spanned the
+ * file prefix (L012 at 0:0). A hit in the current block returns immediately.
+ * End-scan remains only when no ancestor block owns the name (params).
  */
 int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, void *arena, uint8_t *name, int32_t name_len) {
   int32_t scope_blk;
-  int32_t min_slot;
-  int32_t end_slot;
-  int32_t nconst;
-  int32_t nlet;
-  int32_t count;
+  int32_t depth;
   scope_blk = asm_ctx_scope_block_ref_at(ctx);
-  if (scope_blk <= 0)
+  if (scope_blk <= 0 || !arena)
     return asm_ctx_local_find_offset(ctx, name, name_len);
-  min_slot = asm_ctx_block_slot_get(ctx, scope_blk);
-  if (min_slot < 0)
-    return asm_ctx_local_find_offset(ctx, name, name_len);
-  nconst = 0;
-  nlet = 0;
-  if (arena) {
-    nconst = ast_ast_block_num_consts(arena, scope_blk);
-    nlet = ast_ast_block_num_lets(arena, scope_blk);
-  }
-  if (nconst < 0)
-    nconst = 0;
-  if (nlet < 0)
-    nlet = 0;
-  end_slot = min_slot + nconst + nlet;
-  count = asm_ctx_local_count(ctx);
-  if (end_slot > count)
-    end_slot = count;
-  {
+  depth = 0;
+  while (scope_blk > 0 && depth < 128) {
+    int32_t min_slot;
+    int32_t end_slot;
+    int32_t nconst;
+    int32_t nlet;
+    int32_t count;
     int32_t i;
-    int32_t off;
-    for (i = end_slot - 1; i >= min_slot; i--) {
-      uint8_t nb[256];
-      int32_t nlen;
-      int32_t k;
-      nlen = asm_ctx_local_name_len(ctx, i);
-      if (nlen != name_len)
-        continue;
-      asm_ctx_local_name_copy64(ctx, i, nb);
-      for (k = 0; k < name_len; k++) {
-        if (nb[k] != name[k])
-          break;
-      }
-      if (k == name_len) {
-        off = asm_ctx_local_offset_at(ctx, i);
-        return off;
+    min_slot = asm_ctx_block_slot_get(ctx, scope_blk);
+    if (min_slot >= 0) {
+      nconst = ast_ast_block_num_consts(arena, scope_blk);
+      nlet = ast_ast_block_num_lets(arena, scope_blk);
+      if (nconst < 0)
+        nconst = 0;
+      if (nlet < 0)
+        nlet = 0;
+      end_slot = min_slot + nconst + nlet;
+      count = asm_ctx_local_count(ctx);
+      if (end_slot > count)
+        end_slot = count;
+      for (i = end_slot - 1; i >= min_slot; i--) {
+        uint8_t nb[256];
+        int32_t nlen;
+        int32_t k;
+        nlen = asm_ctx_local_name_len(ctx, i);
+        if (nlen != name_len)
+          continue;
+        asm_ctx_local_name_copy64(ctx, i, nb);
+        for (k = 0; k < name_len; k++) {
+          if (nb[k] != name[k])
+            break;
+        }
+        if (k == name_len)
+          return asm_ctx_local_offset_at(ctx, i);
       }
     }
+    scope_blk = pipeline_block_parent_block_ref_at(arena, scope_blk);
+    depth++;
   }
   return asm_ctx_local_find_offset(ctx, name, name_len);
 }

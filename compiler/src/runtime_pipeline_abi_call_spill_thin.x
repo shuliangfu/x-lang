@@ -169,6 +169,12 @@ function w1500_cs_call_x86(arena: *u8, call: i32, n: i32): void {
     need = need + 1;
   }
   w1500_cs_st[0] = w1500_cs_st[0] + need * 8;
+  // w1546: w1546_park_call_sret_arg0 spills the live arg0 (8 bytes) when
+  // the global sret flag is set. The walk cannot see the flag, so every
+  // x86 call reserves 16. The extra 8 covers glue_sysv_spill rounding a
+  // cursor below 8 up to offset 16. Calls that do not park leave the
+  // bytes unused. PLATFORM: LINUX+WINDOWS x86_64.
+  w1500_cs_st[0] = w1500_cs_st[0] + 16;
   w1500_cs_note_gp(total_gp + 1);
 }
 
@@ -341,6 +347,9 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       }
       need = need * 2;
       w1500_cs_note_gp(2 * (n + 1) + 1);
+      // w1546: import METHOD and UFCS park arg0 the same way as CALL.
+      // PLATFORM: LINUX+WINDOWS x86_64.
+      w1500_cs_st[0] = w1500_cs_st[0] + 16;
     }
     w1500_cs_st[0] = w1500_cs_st[0] + need * 8;
     return;
