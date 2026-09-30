@@ -509,6 +509,34 @@ if [ "${XLANG_PARSER_THIN_DELEGATE_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/parser_thin_delegate.o asm_parser_func_is_thin_delegate
   _PABI_PARSER_THIN_DELEGATE="$_G05_PO_OUT"
 fi
+# w1572: ELF undef workspace. The egg pipe_elf_undef_cap is weak and
+# returns 256. Its name/len BSS is local and 256 rows, and only the three
+# weak accessors reference it. The .x authorities already return 2048 and
+# size the rows at 2048. This overlay is those four strong symbols plus
+# the 2048-row storage. A missing T blocks the link (crash log). Do not
+# rebuild the pabi egg. PLATFORM: SHARED.
+_PABI_ELF_UNDEF_CAP=""
+if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_elf_undef_cap_thin.x \
+    build_asm/selfhost_pabi/elf_undef_cap.o pipe_elf_undef_cap
+  if [ -n "$_G05_PO_OUT" ]; then
+    _cap_ok=1
+    for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
+        pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
+      if ! nm "$_G05_PO_OUT" 2>/dev/null | grep -q "T _*${_csym}\$"; then
+        _cap_ok=0
+      fi
+    done
+    if [ "$_cap_ok" != "1" ]; then
+      echo "g05_relink_env: ERROR elf undef cap overlay missing a T" >&2
+      printf '%s overlay-missing g05_relink_env: elf_undef_cap (accessor T)\n' \
+        "$(date +%H:%M:%S)" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      rm -f "$_G05_PO_OUT"
+      _G05_PO_OUT=""
+    fi
+  fi
+  _PABI_ELF_UNDEF_CAP="$_G05_PO_OUT"
+fi
 # w1501: module-let STRING_LIT pool head chunk 127 (终局待办 10.24). pabi's
 # pipe_modlet_bake_string_lit_elem_to_data copied the head chunk with a 255
 # cap while the parser splits literals every 127 bytes, so bytes 127..254 of a
@@ -758,6 +786,18 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_PARSER_THIN_DELEGATE" ] && [ -s "$_P
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T asm_parser_func_is_thin_delegate$"; then
     objcopy --weaken-symbol=asm_parser_func_is_thin_delegate "$_PABI_LINK_O" 2>/dev/null || true
   fi
+fi
+# w1572: egg undef cap and the three workspace accessors are already weak.
+# If a refresh leaves any of them strong, weaken so the overlay first-wins.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_ELF_UNDEF_CAP" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
+      pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
+    if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_csym}$"; then
+      objcopy --weaken-symbol="$_csym" "$_PABI_LINK_O" 2>/dev/null || true
+    fi
+  done
 fi
 # w945: compiler-emitted pipeline_asm_emit_assign_elf_c. The gcc body
 # returns 0 after the pointer peel and never emits scalar `*p = v`.
@@ -1354,6 +1394,31 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PANIC_LINK_O="runtime_panic.o"
   fi
+  # w1572: egg undef cap is a strong T on some Darwin copies. Apple ld
+  # has no multidef, so weaken the pabi_weak copy. The original egg stays.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -n "$_PABI_ELF_UNDEF_CAP" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ]; then
+      for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
+          pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -E " _${_csym}$" | grep -v undefined | grep -qv weak; then
+          "$_oc" --weaken-symbol="_${_csym}" \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+      done
+    fi
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -1610,6 +1675,15 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=asm_parser_func_is_thin_delegate \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1572: weaken egg undef cap and workspace accessors.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_ELF_UNDEF_CAP" ]; then
+          for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
+              pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
+            "$_oc" --weaken-symbol="$_csym" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          done
+        fi
         # w1501: weaken egg module-let string pool baker (127 head chunk).
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_MODLET_STRPOOL" ]; then
@@ -1732,7 +1806,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
