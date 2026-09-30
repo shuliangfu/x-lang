@@ -28,8 +28,8 @@
 // The C trampoline in as_suffix_slice.inc holds parse_expr_result*
 // and forwards out.ok / out.expr_ref. Sidecar writes go through the
 // PABI writer family (set_common_zeros / set_kind / set_line_col)
-// plus pipeline_expr_set_unary_operand_c in the P4u seed (G.7: one
-// writer for unary_operand_ref; do not copy into this seed) and
+// plus pipeline_expr_set_unary_operand_c in pthin_expr_unary_set.x
+// (G.7: one writer for unary_operand_ref; do not copy the store) and
 // pipeline_expr_set_as_c in this P-lane seed (late as_* offsets;
 // pabi inject-only skips new rest symbols; do not FORCE the mega).
 // 7.2.1 P4ad B-minus (2026-09-16): 有则补全 parse dest-buffer.

@@ -9,8 +9,9 @@
  * pthin_expr_as_suffix.x; this TU keeps wrap trampolines plus peek-after
  * / parse trampolines. Cold: no BODIES define, full .inc.
  * Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies.
- * G.7: pipeline_expr_set_unary_operand_c lives in the P4u seed
- * (unary_operand_ref); pipeline_expr_set_as_c lives here (as_* slots).
+ * G.7: pipeline_expr_set_unary_operand_c lives in
+ * pthin_expr_unary_set.x (unary_operand_ref); pipeline_expr_set_as_c
+ * lives here (as_* slots).
  * Do not copy set_unary into this seed and do not FORCE pabi mega.
  * PLATFORM: SHARED — do not assemble parser.x.
  */

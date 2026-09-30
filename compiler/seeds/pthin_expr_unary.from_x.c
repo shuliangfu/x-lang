@@ -9,6 +9,9 @@
  * TOKEN→ExprKind, wrap dest-buffer, and parse_unary dest-buffer come from
  * pthin_expr_unary.x; this TU keeps wrap + primary-ptr trampolines.
  * Cold: no BODIES define, full .inc.
+ * w1536: product g05 does not host-cc this file. The operand writer is
+ * pthin_expr_unary_set.x and the by-value face is
+ * pthin_expr_unary_tramp.x. This seed stays for prove harnesses.
  * Do not reuse XLANG_PTHIN_EXPR_UNARY_FROM_X for P4ub/P4uc bodies.
  */
 #include <stddef.h>
@@ -233,9 +236,10 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
                             struct parser_asm_slice_u8 *data);
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 
-/* as_suffix .x calls pipeline_expr_set_unary_operand_c. That writer lives
- * in this file. WRITER_ONLY skips the slice so the C bodies already in
- * the thin rest are not defined twice. Chapter 3 peels those bodies.
+/* as_suffix .x calls pipeline_expr_set_unary_operand_c. The product
+ * writer is pthin_expr_unary_set.x. This definition stays for prove
+ * harnesses that still host-cc the seed. WRITER_ONLY skips the slice
+ * so the C bodies already in the thin rest are not defined twice.
  * PLATFORM: SHARED. */
 #ifndef XLANG_PTHIN_EXPR_UNARY_WRITER_ONLY
 #include "parser_asm_unary_slice.inc"

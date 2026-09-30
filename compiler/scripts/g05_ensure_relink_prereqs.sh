@@ -264,6 +264,74 @@ g05_binop_tramp_pure() {
   return 0
 }
 
+# w1536 (checklist 6.2): unary operand writer is one pure-asm emit.
+# No host cc of seeds/pthin_expr_unary.from_x.c.
+# Missing object or symbol returns 1. The caller exits.
+# PLATFORM: SHARED. $1 = output object. cwd is compiler/.
+g05_unary_set_pure() {
+  local _bo="$1"
+  local _bx="src/asm/pthin_expr_unary_set.x"
+  if [ ! -f "$_bx" ]; then
+    echo "g05_ensure: P4 unary setter .x missing" >&2
+    return 1
+  fi
+  if [ -z "$_bo" ]; then
+    echo "g05_ensure: P4 unary setter output path missing" >&2
+    return 1
+  fi
+  rm -f "$_bo"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$_bo" "$_bx"
+  ) || [ ! -s "$_bo" ]; then
+    echo "g05_ensure: P4 unary setter pure-asm failed" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  if ! g05_obj_defines "$_bo" "pipeline_expr_set_unary_operand_c"; then
+    echo "g05_ensure: P4 unary setter missing symbol" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  return 0
+}
+
+# w1536: the by-value unary face, the primary pointer shim, and the marker.
+# One pure-asm emit. No -E fallback and no host cc of the seed.
+# PLATFORM: SHARED. $1 = output object. cwd is compiler/.
+g05_unary_tramp_pure() {
+  local _bo="$1"
+  local _bx="src/asm/pthin_expr_unary_tramp.x"
+  if [ ! -f "$_bx" ]; then
+    echo "g05_ensure: P4 unary trampoline .x missing" >&2
+    return 1
+  fi
+  if [ -z "$_bo" ]; then
+    echo "g05_ensure: P4 unary trampoline output path missing" >&2
+    return 1
+  fi
+  rm -f "$_bo"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$_bo" "$_bx"
+  ) || [ ! -s "$_bo" ]; then
+    echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  if ! g05_obj_defines "$_bo" "parser_asm_parse_unary_into_slice_c" \
+    || ! g05_obj_defines "$_bo" "parser_parse_primary_ptr_into_c" \
+    || ! g05_obj_defines "$_bo" "labi_pthin_expr_unary_slice_marker" \
+    || ! g05_obj_defines "$_bo" "pthin_expr_unary_tramp_w1536_anchor"; then
+    echo "g05_ensure: P4 unary trampoline missing symbols" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  return 0
+}
+
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -1316,6 +1384,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p4u_seed=seeds/pthin_expr_unary.from_x.c
   # 7.2.1 P4ub Route C: unary .x bodies (TOKEN→ExprKind)
   _pthin_p4ub_x=src/asm/pthin_expr_unary.x
+  # w1536: operand writer and by-value face. The seed stays for prove.
+  _pthin_p4u_set_x=src/asm/pthin_expr_unary_set.x
+  _pthin_p4u_tramp_x=src/asm/pthin_expr_unary_tramp.x
   _pthin_p4b_seed=seeds/pthin_expr_binop.from_x.c
   # 7.2.1 P4bb/P4bc/P4bd Route C: binop .x bodies (TOKEN→ExprKind + wrap + parse dest-buffer)
   _pthin_p4bb_x=src/asm/pthin_expr_binop.x
@@ -1393,6 +1464,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p4pb_x" ] && [ "$_pthin_p4pb_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4u_seed" ] && [ "$_pthin_p4u_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4ub_x" ] && [ "$_pthin_p4ub_x" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4u_set_x" ] && [ "$_pthin_p4u_set_x" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4u_tramp_x" ] && [ "$_pthin_p4u_tramp_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4b_seed" ] && [ "$_pthin_p4b_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4bb_x" ] && [ "$_pthin_p4bb_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4b_set_x" ] && [ "$_pthin_p4b_set_x" -nt parser_asm_thin_glue.o ]; } \
@@ -1463,6 +1536,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p4p_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4p.XXXXXX") || true
         _pthin_p4pb_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4pb_thin.XXXXXX") || true
         _pthin_p4u_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4u.XXXXXX") || true
+        _pthin_p4u_set_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4u_set.XXXXXX") || true
         _pthin_p4ub_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4ub.XXXXXX") || true
         _pthin_p4b_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4b.XXXXXX") || true
         _pthin_p4b_set_o=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_p4b_set.XXXXXX") || true
@@ -1512,6 +1586,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _pthin_p4p_ok=0
         _pthin_p4pb_ok=0
         _pthin_p4u_ok=0
+        _pthin_p4u_set_ok=0
         _pthin_p4ub_ok=0
         _pthin_p4b_ok=0
         _pthin_p4b_set_ok=0
@@ -1816,10 +1891,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         fi
         # PLATFORM: SHARED — 7.2.1 P4ub/P4uc/P4ud Route C (2026-09-13/15).
         # pthin_expr_unary.x holds TOKEN→ExprKind + wrap dest-buffer +
-        # parse_unary dest-buffer (P9a peek/step; primary ptr shim).
-        # Runs before P4u C so BODIES_FROM_X skips the portable .inc
-        # region. No lexer-step bridge. Cold: no define, full .inc.
-        _pthin_p4u_extra=""
+        # parse_unary dest-buffer (P9a peek/step).
+        # w1536: the operand writer and the by-value face are pure-asm.
+        # Product g05 does not host-cc seeds/pthin_expr_unary.from_x.c.
+        # The seed stays on disk for prove. A miss of the setter, or of
+        # the trampoline once the three bodies exist, stops ensure.
+        # A splitter flake leaves the C slice in rest.
         _pthin_p4ub_pure=0
         # w1159: the first pure-asm tries segfault. Darwin retries the
         # whole translation unit. Other hosts keep g05_try_x_to_o.
@@ -1834,24 +1911,32 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if { [ "$_pthin_p4ub_pure" = "1" ] \
             || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4ub_x" "$_pthin_p4ub_thin_o"; }; then
             _pthin_p4ub_ok=1
-            _pthin_p4u_extra="-DXLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X"
             if [ "$_pthin_p4ub_pure" = "1" ]; then
               echo "g05_ensure: P4 unary ← pure-asm three symbols (w1159)"
             else
               echo "g05_ensure: P4ub/P4uc/P4ud unary bodies ← $_pthin_p4ub_x (7.2.1 Route C)"
             fi
           else
-            echo "g05_ensure: P4ub unary .x thin failed; P4u C twin stays full" >&2
+            echo "g05_ensure: P4ub unary .x thin failed; rest keeps the C slice" >&2
           fi
         fi
-        if [ -n "$_pthin_p4u_o" ] && [ -f "$_pthin_p4u_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               $_pthin_p4u_extra -c -o "$_pthin_p4u_o" "$_pthin_p4u_seed"; then
-            _pthin_p4u_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_UNARY_FROM_X"
-            echo "g05_ensure: P4 unary ← $_pthin_p4u_seed (G-02f-283 seed slice)"
+        # w1536: setter is always linked. Trampoline replaces the seed
+        # only when the three bodies linked, so rest can drop its slice.
+        # PLATFORM: SHARED.
+        if ! g05_unary_set_pure "$_pthin_p4u_set_o"; then
+          echo "g05_ensure: P4 unary setter pure-asm failed" >&2
+          exit 1
+        fi
+        _pthin_p4u_set_ok=1
+        echo "g05_ensure: P4 unary setter ← pure-asm w1536"
+        if [ "$_pthin_p4ub_ok" = "1" ]; then
+          if ! g05_unary_tramp_pure "$_pthin_p4u_o"; then
+            echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
+            exit 1
           fi
+          _pthin_p4u_ok=1
+          _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_UNARY_FROM_X"
+          echo "g05_ensure: P4 unary trampoline ← pure-asm w1536"
         fi
         # PLATFORM: SHARED — 7.2.1 P4bb/P4bc/P4bd Route C (2026-09-13/15).
         # pthin_expr_binop.x holds TOKEN→ExprKind + wrap + parse dest-buffer.
@@ -1904,8 +1989,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # pthin_expr_as_suffix.x holds TRY_PROPAGATE + EXPR_AS wrap dest-buffer
         # plus parse dest-buffer (P9a peek/step; type_ref ptr shim in primary).
         # Runs before P4as C so BODIES_FROM_X skips the portable wrap twins
-        # and the parse body. set_unary lives in the P4u seed (G.7 unary
-        # operand slot; do not FORCE pabi mega). set_as lives in this seed.
+        # and the parse body. set_unary lives in pthin_expr_unary_set.x
+        # (G.7 unary operand slot; do not FORCE pabi mega). set_as lives in this seed.
         # Cold: no define, full .inc.
         _pthin_p4as_extra=""
         _pthin_p4as_pure=0
@@ -2820,6 +2905,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_p4pb_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4pb_thin_o"
         fi
+        if [ "$_pthin_p4u_set_ok" = "1" ]; then
+          _pthin_link="$_pthin_link $_pthin_p4u_set_o"
+        fi
         if [ "$_pthin_p4u_ok" = "1" ]; then
           _pthin_link="$_pthin_link $_pthin_p4u_o"
         fi
@@ -2972,7 +3060,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         if [ "$_pthin_done" = "0" ]; then
           echo "g05_ensure: parser thin P1–P7+P9–P20 hybrid failed; fallback full seed" >&2
         fi
-        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p2b_thin_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4b_set_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
+        rm -f "$_pthin_p1_o" "$_pthin_p1b_thin_o" "$_pthin_p2_o" "$_pthin_p2b_thin_o" "$_pthin_p3_o" "$_pthin_p3b_thin_o" "$_pthin_p4p_o" "$_pthin_p4pb_thin_o" "$_pthin_p4u_o" "$_pthin_p4u_set_o" "$_pthin_p4ub_thin_o" "$_pthin_p4b_o" "$_pthin_p4b_set_o" "$_pthin_p4bb_thin_o" "$_pthin_p4as_o" "$_pthin_p4asb_thin_o" "$_pthin_p4t_o" "$_pthin_p4tb_thin_o" "$_pthin_p5_o" "$_pthin_p5b_thin_o" "$_pthin_p6_o" "$_pthin_p6b_thin_o" "$_pthin_p7_o" "$_pthin_p7b_thin_o" "$_pthin_p9_o" "$_pthin_p9a_thin_o" "$_pthin_p9a_o" "$_pthin_p9b_thin_o" "$_pthin_p10_o" "$_pthin_p10b_thin_o" "$_pthin_p11_o" "$_pthin_p11b_thin_o" "$_pthin_p12_o" "$_pthin_p12b_thin_o" "$_pthin_p13_o" "$_pthin_p13b_thin_o" "$_pthin_p14_o" "$_pthin_p14b_thin_o" "$_pthin_p15_o" "$_pthin_p15b_thin_o" "$_pthin_p16_o" "$_pthin_p17_o" "$_pthin_p17b_thin_o" "$_pthin_p18_o" "$_pthin_p18b_thin_o" "$_pthin_p19_o" "$_pthin_p19b_thin_o" "$_pthin_p20_o" "$_pthin_rest_o"
       fi
       # Class CB is the Darwin product glue. A successful first-pass hybrid
       # would keep audit and other slices this chapter has not peeled.
@@ -2997,6 +3085,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         _cb_p3b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p3b.XXXXXX") || true
         _cb_p3=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p3.XXXXXX") || true
         _cb_p4bset=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4bset.XXXXXX") || true
+        _cb_p4uset=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4uset.XXXXXX") || true
+        _cb_p4ut=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4ut.XXXXXX") || true
         _bx_rest=$(mktemp "${TMPDIR:-/tmp}/g05_bx_rest.XXXXXX") || true
         _cb_p19b=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p19b.XXXXXX") || true
         _cb_p19=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p19.XXXXXX") || true
@@ -3339,43 +3429,32 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             _cb_p19_ok=1
           fi
           # w1311: trampoline keeps set_as and the parse dest-buffer.
-          # Bodies are the four .x symbols. set_unary stays in the unary
-          # seed (G.7). WRITER_ONLY skips the unary slice already in rest.
+          # Bodies are the four .x symbols. set_unary is
+          # pthin_expr_unary_set.x (G.7). Product g05 does not host-cc
+          # seeds/pthin_expr_unary.from_x.c.
           # PLATFORM: MACOS|DARWIN arm64.
-          if [ "$_cb_p4as_pure" = "1" ] && [ -n "$_cb_p4u" ] \
+          if [ "$_cb_p4as_pure" = "1" ] \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DXLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X \
                -c -o "$_cb_p4as" "$_pthin_p4as_seed" \
-            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -DXLANG_PTHIN_EXPR_UNARY_WRITER_ONLY \
-               -c -o "$_cb_p4u" "$_pthin_p4u_seed" \
             && g05_obj_defines "$_cb_p4asb" "parser_asm_parse_as_suffix_x_into_c" \
-            && g05_obj_defines "$_cb_p4as" "pipeline_expr_set_as_c" \
-            && g05_obj_defines "$_cb_p4u" "pipeline_expr_set_unary_operand_c"; then
+            && g05_obj_defines "$_cb_p4as" "pipeline_expr_set_as_c"; then
             _cb_p4as_ok=1
           fi
-          # w1321: replace the writer-only object with the BODIES seed.
-          # That seed still defines pipeline_expr_set_unary_operand_c.
-          # Rest then drops parser_asm_unary_slice.inc. A failed compile
-          # leaves the writer-only object in place.
+          # w1536: faces come from the trampoline .x. The seed is not
+          # host-cc'd. A body object without the trampoline stops ensure,
+          # because the primary shim would be missing.
+          # A splitter flake does not stop ensure.
           # PLATFORM: MACOS|DARWIN arm64.
-          if [ "$_cb_p4ub_pure" = "1" ] && [ "$_cb_p4as_ok" = "1" ] \
+          if [ "$_cb_p4ub_pure" = "1" ] \
             && g05_obj_defines "$_cb_p4ub" "parser_asm_unary_token_to_expr_kind_c" \
             && g05_obj_defines "$_cb_p4ub" "parser_asm_unary_wrap_operand_into_c" \
             && g05_obj_defines "$_cb_p4ub" "parser_asm_parse_unary_x_into_c"; then
-            _cb_p4u_bodies=$(mktemp "${TMPDIR:-/tmp}/g05_cb_p4u_bodies.XXXXXX") || true
-            if [ -n "$_cb_p4u_bodies" ] \
-              && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-                 -DXLANG_PTHIN_EXPR_UNARY_BODIES_FROM_X \
-                 -c -o "$_cb_p4u_bodies" "$_pthin_p4u_seed" \
-              && g05_obj_defines "$_cb_p4u_bodies" "parser_asm_parse_unary_into_slice_c" \
-              && g05_obj_defines "$_cb_p4u_bodies" "pipeline_expr_set_unary_operand_c" \
-              && g05_obj_defines "$_cb_p4u_bodies" "labi_pthin_expr_unary_slice_marker" \
-              && g05_obj_defines "$_cb_p4u_bodies" "parser_parse_primary_ptr_into_c"; then
-              cp -f "$_cb_p4u_bodies" "$_cb_p4u"
-              _cb_p4ub_ok=1
+            if ! g05_unary_tramp_pure "$_cb_p4ut"; then
+              echo "g05_ensure: P4 unary trampoline pure-asm failed" >&2
+              exit 1
             fi
-            rm -f "$_cb_p4u_bodies"
+            _cb_p4ub_ok=1
           fi
           # w1535: faces come from the trampoline .x. The seed is not
           # host-cc'd. A body object without the trampoline stops ensure,
@@ -3729,7 +3808,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           # w1535: the generated operand stub is gone. The setter .x is
           # the one writer and is linked on both the body-success path
           # and the body-miss path. PLATFORM: MACOS|DARWIN arm64.
-          if { g05_binop_set_pure "$_cb_p4bset" || exit 1; } \
+          if { g05_unary_set_pure "$_cb_p4uset" || exit 1; } \
+            && echo "g05_ensure: P4 unary setter ← pure-asm w1536" \
+            && { [ "${_cb_p4ub_ok:-}" != "1" ] || echo "g05_ensure: P4 unary trampoline ← pure-asm w1536"; } \
+            && { g05_binop_set_pure "$_cb_p4bset" || exit 1; } \
             && echo "g05_ensure: P4 binop setter ← pure-asm w1535" \
             && { [ "${_cb_p4bb_ok:-}" != "1" ] || echo "g05_ensure: P4 binop trampoline ← pure-asm w1535"; } \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
@@ -3773,7 +3855,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                -c -o "$_bx_rest" "$_pthin" \
             && pure_ld_partial_merge parser_asm_thin_glue.o "$_bx_rest" "$_bx_p12" "$_bx_p12b" \
                "$_bx_p1" "$_bx_p1b" "$_bx_bridge" "$_ca_p6" "$_ca_p6b" "$_cb_p3" "$_cb_p3b" \
-               "$_cb_p4bset" \
+               "$_cb_p4bset" "$_cb_p4uset" \
                ${_cb_p4bb_ok:+"$_cb_p4b" "$_cb_p4bb"} \
                ${_cb_p2b_ok:+"$_cb_p2" "$_cb_p2bb"} \
                ${_cb_p18b_ok:+"$_cb_p18" "$_cb_p18bb"} \
@@ -3784,12 +3866,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                ${_cb_p10_ok:+"$_cb_p10" "$_cb_p10bb"} \
                ${_cb_p16_ok:+"$_cb_p16" "$_cb_p16bb"} \
                ${_cb_p19_ok:+"$_cb_p19" "$_cb_p19b"} \
-               ${_cb_p4as_ok:+"$_cb_p4as" "$_cb_p4asb" "$_cb_p4u"} \
+               ${_cb_p4as_ok:+"$_cb_p4as" "$_cb_p4asb"} \
                ${_cb_p4t_ok:+"$_cb_p4t" "$_cb_p4tb"} \
                ${_cb_p5_ok:+"$_cb_p5" "$_cb_p5b"} \
                ${_cb_p4p_ok:+"$_cb_p4p" "$_cb_p4pb"} \
                ${_cb_p9a_ok:+"$_cb_p9a"} \
-               ${_cb_p4ub_ok:+"$_cb_p4ub"} \
+               ${_cb_p4ub_ok:+"$_cb_p4ut" "$_cb_p4ub"} \
                ${_cb_p5w_use:+"$_cb_p5w"} \
                ${_cb_p7_ok:+"$_cb_p7" "$_cb_p7b"} \
                ${_cb_p15_ok:+"$_cb_p15" "$_cb_p15b"} \
@@ -3889,7 +3971,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           fi
         fi
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
-          "$_cb_p3b" "$_cb_p3" "$_cb_p4bset" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
+          "$_cb_p3b" "$_cb_p3" "$_cb_p4bset" "$_cb_p4uset" "$_cb_p4ut" "$_bx_rest" "$_cb_p19b" "$_cb_p19" \
           "$_cb_p4asb" "$_cb_p4as" "$_cb_p4u" "$_cb_p4tb" "$_cb_p4t" "$_cb_p5w" \
           "$_cb_p5b" "$_cb_p5" "$_cb_p4pb" "$_cb_p4p" "$_cb_p9a" "$_cb_p4ub" "$_cb_p4bb" "$_cb_p4b" "$_cb_p2bb" "$_cb_p2" "$_cb_p18bb" "$_cb_p18" "$_cb_p17bb" "$_cb_p17" "$_cb_p13bb" "$_cb_p13" "$_cb_p14bb" "$_cb_p14" "$_cb_p20bb" "$_cb_p20" "$_cb_p10bb" "$_cb_p10" "$_cb_p16bb" "$_cb_p16" \
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
