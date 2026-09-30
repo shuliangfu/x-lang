@@ -2009,10 +2009,28 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
   return 0 - 1;
 }
 
-// See implementation.
-/** Function `glue_emit_one_call_arg_elf_c`.
- * Purpose: implements `glue_emit_one_call_arg_elf_c`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
+/**
+ * Emit one call argument into the SysV or Win64 argument sequence.
+ * A nested CALL (expr kind 48) whose callee returns 0..8 bytes already
+ * holds a scalar or pointer in rax. Leave that value alone. The struct16
+ * classifier returns 1 for every skip_heavy body, including an i32, so
+ * this site must size the return before asking it to dereference rax.
+ * The store path already requires 9..16 bytes first. A size above 8, or
+ * a failed lookup (-1), still asks the classifier, so a real 9..16 byte
+ * sret and an unresolved struct16 keep today's hidden-pointer load.
+ * The spill that follows is a SysV no-op: a 9..16 byte integer aggregate
+ * is already in rax:rdx.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param elf_ctx *u8 — codegen byte sink; null returns 0
+ * @param call_expr_ref i32 — outer CALL whose parameter list owns this argument
+ * @param arg_ref i32 — argument expression; 0 returns 0
+ * @param arg_index i32 — zero-based parameter index used to recover the formal type
+ * @param ctx *u8 — AsmFuncCtx; null returns 0
+ * @param ta i32 — 0 is x86_64 (SysV or Win64); non-zero is the other ISA slot
+ * @return i32 — 0 when the argument is emitted, -1 on an encode error
+ * PLATFORM: SHARED — scalar-versus-sret gate. LINUX+MACOS x86_64 SysV
+ * returns a scalar in rax. WINDOWS x86_64 aggregates above 16 bytes take
+ * the w1521 hidden-pointer path before this gate.
  */
 #[no_mangle]
 export function glue_emit_one_call_arg_elf_c(
@@ -2040,13 +2058,22 @@ export function glue_emit_one_call_arg_elf_c(
       return 0 - 1;
     }
     let pty: i32 = glue_call_param_type_ref_at(arena, call_expr_ref, arg_index);
-    // CALL=48
+    // CALL=48. PLATFORM: SHARED.
+    // glue_call_return_byte_size_c returns 0 for void, 4 for i32, 8 for a
+    // pointer or i64, 16 for a slice, and -1 when the callee type does not
+    // resolve. 0..8 is already the value in rax. Dereferencing an i32 loads
+    // address 1 (the hello crash inside parser_parse_into_buf). Above 8, and
+    // a failed lookup, keep the classifier so a real 9..16 byte sret and an
+    // unresolved struct16 still take the hidden-pointer load.
     if (pipeline_expr_kind_ord_at(arena, arg_ref) == 48) {
-      if (pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, arg_ref) != 0) {
-        if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
-          pipeline_asm_emit_call_arg_end_c();
-          pipeline_asm_emit_set_call_param_type_ref(0);
-          return 0 - 1;
+      let ret_sz: i32 = glue_call_return_byte_size_c(arena, arg_ref);
+      if (ret_sz > 8 || ret_sz < 0) {
+        if (pipeline_asm_call_struct16_ret_needs_rax_deref_c(arena, arg_ref) != 0) {
+          if (pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta) != 0) {
+            pipeline_asm_emit_call_arg_end_c();
+            pipeline_asm_emit_set_call_param_type_ref(0);
+            return 0 - 1;
+          }
         }
       }
       if (glue_spill_struct16_call_arg_to_lea_elf_c(arena, elf_ctx, ctx, pty, ta) != 0) {
