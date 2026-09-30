@@ -364,6 +364,16 @@ export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
 export extern function pipeline_expr_call_resolved_dep_index_at(arena: *u8, call: i32): i32;
 /** Process-local AsmFuncCtx dep_pipe (set by pipeline_asm_emit_set_dep_pipe). PLATFORM: SHARED. */
 export extern function pipeline_asm_emit_dep_pipe_c(): *u8;
+/** Copy of entry_module_import_path_mirror (includes the trailing '_'). PLATFORM: SHARED. */
+export extern function xlang_pipeline_pctx_entry_lib_prefix_into(ctx: *u8, out: *u8, cap: i32): i32;
+/**
+ * 1 when name already begins with prefix. Prefix ast_ is never redundant.
+ * This is the host-cc rule. glue_asm_c_prefix_redundant_with_name is build_ only.
+ * PLATFORM: SHARED.
+ */
+export extern function codegen_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, name: *u8, name_len: i32): i32;
+/** 1 when func_ix is #[no_mangle]. PLATFORM: SHARED. */
+export extern function pipeline_module_func_is_no_mangle_at(m: *u8, func_ix: i32): i32;
 export extern function pipeline_dep_ctx_ndep(dep: *u8): i32;
 export extern function pipeline_dep_ctx_module_at(dep: *u8, j: i32): *u8;
 export extern function pipeline_dep_ctx_import_path_copy64(dep: *u8, j: i32, path: *u8): void;
@@ -2276,13 +2286,22 @@ export function glue_asm_build_call_export_sym_c(
 }
 
 // glue_asm_build_dep_export_sym_c: see function docblock below.
-/** Exported function `glue_asm_build_dep_export_sym_c`.
- * Implements `glue_asm_build_dep_export_sym_c`.
- * @param name *u8
- * @param name_len i32
- * @param out *u8
- * @param out_cap i32
- * @return i32
+/**
+ * Build the link symbol for a definition or a same-module call.
+ * When the dep path is set, prepend that module's C prefix (build_ is
+ * the only prefix glue_asm_c_prefix_redundant_with_name treats as already
+ * present). When the dep path is empty, this is the entry module: prepend
+ * entry_module_import_path_mirror, which already includes the trailing '_'.
+ * The entry compare is codegen_c_prefix_redundant_with_name, so a source
+ * name that already starts with parser_ is not doubled. The four-byte
+ * name main stays bare on the entry module only; a dep function named
+ * main still takes the dep prefix. Does not store a dep path.
+ * @param name *u8 — source function name bytes; not necessarily NUL-terminated
+ * @param name_len i32 — byte count; must be > 0
+ * @param out *u8 — destination symbol buffer
+ * @param out_cap i32 — capacity; must be > 0
+ * @return i32 — symbol length, or -1 on failure
+ * PLATFORM: SHARED — link-name contract. Dep-path branch is unchanged.
  */
 #[no_mangle]
 export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
@@ -2293,8 +2312,10 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
   unsafe {
     let dep_path: *u8 = driver_get_current_dep_path_for_codegen();
     let pos: i32 = 0;
+    let dep_live: i32 = 0;
     if (dep_path != 0) {
       if (dep_path[0] != 0) {
+        dep_live = 1;
         let prefix: u8[128] = [];
         glue_codegen_import_path_to_c_prefix_into(dep_path, &prefix[0], 128);
         let plen: i32 = 0;
@@ -2310,6 +2331,35 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
               out[pos] = prefix[i];
               pos = pos + 1;
               i = i + 1;
+            }
+          }
+        }
+      }
+    }
+    // Entry module. main is the process entry on both host-cc and asm.
+    // Any other name takes the mirror prefix unless it already starts
+    // with that prefix (ast_ is never treated as redundant).
+    if (dep_live == 0) {
+      let is_main: i32 = 0;
+      if (name_len == 4) {
+        if (name[0] == 109 && name[1] == 97 && name[2] == 105 && name[3] == 110) {
+          is_main = 1;
+        }
+      }
+      if (is_main == 0) {
+        let pctx: *u8 = pipeline_asm_emit_dep_pipe_c();
+        if (pctx != 0 as *u8) {
+          let eprefix: u8[128] = [];
+          let eplen: i32 = xlang_pipeline_pctx_entry_lib_prefix_into(pctx, &eprefix[0], 128);
+          if (eplen > 0) {
+            if (codegen_c_prefix_redundant_with_name(&eprefix[0], eplen, name, name_len) == 0) {
+              let ei: i32 = 0;
+              while (ei < eplen) {
+                if (pos >= out_cap - 1) { break; }
+                out[pos] = eprefix[ei];
+                pos = pos + 1;
+                ei = ei + 1;
+              }
             }
           }
         }
@@ -2335,6 +2385,8 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
  * Same param-sig siblings append `_ret_<T>` (align seed glue_asm_build_func_export_sym_c_impl).
  * Why: dot(Vec4f){ mul(a,b) } must call std_simd_mul_f32x4_f32x4, not bare std_simd_mul
  * (STD-SIMD-INTRINSIC BLD001 on Ubuntu when .x used glue_type_kind_to_suffix for TYPE_VECTOR).
+ * Entry module only: #[no_mangle] copies the source name with no module prefix.
+ * Overload suffixes still follow. A non-empty dep path does not take this skip.
  * @param m *u8 — owning Module
  * @param a *u8 — arena for param/return type_refs
  * @param func_ix i32 — function index in m
@@ -2356,17 +2408,42 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
     if (fname_len > 255) { return 0 - 1; }
     let fname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
-    if (glue_module_func_overload_count_c(m, &fname[0], fname_len) <= 1) {
-      let pos0: i32 = glue_asm_build_dep_export_sym_c(&fname[0], fname_len, out, out_cap);
-      if (pos0 <= 0) { return 0 - 1; }
-      if (glue_asm_std_c_wrapper_fname_needs_export_c_suffix(&fname[0], fname_len) != 0) {
-        pos0 = glue_asm_append_export_c_suffix(out, pos0, out_cap);
+    // PLATFORM: SHARED — #[no_mangle] on the entry module skips the prefix
+    // and still keeps overload suffixes (emit_func: prefix length 0, then
+    // the link name). Dep co-emit keeps the dep prefix.
+    let dep_live_nm: i32 = 0;
+    let dep_path_nm: *u8 = driver_get_current_dep_path_for_codegen();
+    if (dep_path_nm != 0 as *u8) {
+      if (dep_path_nm[0] != 0) {
+        dep_live_nm = 1;
       }
-      if (pos0 > 0) { return pos0; }
+    }
+    let bare_nomangle: i32 = 0;
+    if (dep_live_nm == 0) {
+      if (pipeline_module_func_is_no_mangle_at(m, func_ix) != 0) {
+        bare_nomangle = 1;
+      }
+    }
+    let pos: i32 = 0;
+    if (bare_nomangle != 0) {
+      let cj: i32 = 0;
+      while (cj < fname_len) {
+        if (pos >= out_cap - 1) { break; }
+        out[pos] = fname[cj];
+        pos = pos + 1;
+        cj = cj + 1;
+      }
+    } else {
+      pos = glue_asm_build_dep_export_sym_c(&fname[0], fname_len, out, out_cap);
+    }
+    if (pos <= 0) { return 0 - 1; }
+    if (glue_module_func_overload_count_c(m, &fname[0], fname_len) <= 1) {
+      if (glue_asm_std_c_wrapper_fname_needs_export_c_suffix(&fname[0], fname_len) != 0) {
+        pos = glue_asm_append_export_c_suffix(out, pos, out_cap);
+      }
+      if (pos > 0) { return pos; }
       return 0 - 1;
     }
-    let pos: i32 = glue_asm_build_dep_export_sym_c(&fname[0], fname_len, out, out_cap);
-    if (pos <= 0) { return 0 - 1; }
     let np: i32 = pipeline_module_func_num_params_at(m, func_ix);
     let pi: i32 = 0;
     while (pi < np) {

@@ -6057,8 +6057,9 @@ ensure_catalog_family() {
 # Product install of src/runtime/rt_emit_state.o: pure-asm
 # src/runtime/rt_emit_state.x only. w1493 (终局待办 5.4) deleted
 # seeds/rt_emit_state.from_x.c. The .x now holds the ten shared emit
-# buffers as module lets, the lib-name pair, and the entry-prefix setter,
-# next to the five setters (w845) and the slice marker (w859).
+# buffers as module lets, the lib-name pair, and the entry-prefix
+# setter and getter, next to the five setters (w845) and the slice
+# marker (w859).
 # Module lets come out as Lxml COMMONs. rt_emit_state_rename_bss renames
 # them onto the C names that runtime_driver_abi externs.
 # No host cc, no seed, no full-seed fallback. XLANG_G05_PREFER_X_O is
@@ -6113,7 +6114,8 @@ ensure_rt_emit_state_prefer() {
     for s in driver_run_x_emit_c_set_path driver_run_x_emit_c_set_lib \
       driver_run_x_emit_c_set_n_lib_roots driver_run_x_emit_c_set_emit_extern \
       driver_argv_parse_x_emit_c labi_rt_emit_state_slice_marker \
-      xlang_pipeline_pctx_set_entry_lib_prefix xlang_driver_x_emit_set_lib_name \
+      xlang_pipeline_pctx_set_entry_lib_prefix xlang_pipeline_pctx_entry_lib_prefix_into \
+      xlang_driver_x_emit_set_lib_name \
       xlang_driver_x_emit_lib_name_into $(rt_emit_state_bss_names); do
       if ! r3_prefer_nm_has_sym "$thin" "$s"; then
         echo "ensure: rt-emit-state pure-asm object lacks $s" >&2

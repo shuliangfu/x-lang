@@ -488,6 +488,56 @@ export function xlang_pipeline_pctx_set_entry_lib_prefix(ctx: *u8, name: *u8, na
 }
 
 /**
+ * Copy entry_module_import_path_mirror into out and write a trailing NUL.
+ * The stored bytes already include the trailing '_'. Returns 0 when ctx
+ * or out is null, cap is too small, or the stored length is outside 1..127.
+ * Does not allocate. The asm -c entry path reads this after
+ * xlang_pipeline_pctx_set_entry_lib_prefix; host-cc reads the same mirror.
+ * @param ctx *u8 — struct ast_PipelineDepCtx *; null returns 0
+ * @param out *u8 — destination buffer; caller owns; not retained
+ * @param cap i32 — destination capacity in bytes; must exceed the stored length
+ * @return i32 — bytes copied, not counting the NUL; 0 when unset
+ * PLATFORM: SHARED — same w1493 offsets as the setter.
+ * Track-L: #[no_mangle] keeps the source name as the link symbol.
+ */
+#[no_mangle]
+export function xlang_pipeline_pctx_entry_lib_prefix_into(ctx: *u8, out: *u8, cap: i32): i32 {
+  let imp: *u8 = 0 as *u8;
+  let ilen: *i32 = 0 as *i32;
+  let n: i32 = 0;
+  let k: i32 = 0;
+  if (ctx == 0 as *u8) {
+    return 0;
+  }
+  if (out == 0 as *u8) {
+    return 0;
+  }
+  if (cap <= 1) {
+    return 0;
+  }
+  // Reject a wild length before any copy. The setter never stores more
+  // than 63 name bytes plus the trailing '_'.
+  ilen = (ctx + (rt_emit_pctx_off_import_len() as usize)) as *i32;
+  n = ilen[0];
+  if (n <= 0) {
+    return 0;
+  }
+  if (n >= 128) {
+    return 0;
+  }
+  if (n >= cap) {
+    return 0;
+  }
+  imp = ctx + (rt_emit_pctx_off_import_mirror() as usize);
+  while (k < n) {
+    out[k as usize] = imp[k as usize];
+    k = k + 1;
+  }
+  out[n as usize] = 0;
+  return n;
+}
+
+/**
  * Store the -lib-name value for the X-pipeline -E/-o emit lane.
  * parse_x (main.x) calls this. Clears the stored name first. A null
  * buf, len <= 0, or len >= 64 leaves it empty.
