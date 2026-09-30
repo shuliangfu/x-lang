@@ -880,8 +880,11 @@ export function glue_asm_emit_jmp_skip_string_then_lea(ctx_bytes: *u8, ta: i32, 
  * PLATFORM: LINUX+MACOS x86_64 SysV — how many integer arg registers a value of size sz needs.
  * 9–16B POD → 2; >16B MEMORY → 0 GP; else 1.
  * wave214 fix: pure surface previously always used 1 unit → dual-GP struct clobbered later args.
+ * #[no_mangle]: call_spill.o calls this bare name. The entry prefix for this
+ * file is backend_call_dispatch_, which would leave that reloc undefined.
  */
-function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32 {
+#[no_mangle]
+export function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32 {
   // w1521: Win64 >16B aggregate = 1 GP holding the caller-copy address.
   if (sz > 16) { return w1521_win_mem_byref_sz(sz); }
   if (sz > 8) {
@@ -1198,8 +1201,11 @@ function w1545_win_mid_ret_call(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
  * named_layout (or type_ref size) is true MEMORY (>16). Do NOT max ≤16 layouts
  * (SLICE fat=16 would undo E* pack → slice_oob).
  * G.7: one packer; max() not first-wins. PLATFORM: SHARED freestanding dual-GP.
+ * #[no_mangle]: ensure anchor and call_spill.o use the bare name. The entry
+ * prefix for this file is backend_call_dispatch_.
  */
-function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32 {
+#[no_mangle]
+export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32 {
   // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
   // body-less extern calls in this function sit in one unsafe block.
   unsafe {
