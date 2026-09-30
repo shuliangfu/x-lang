@@ -437,6 +437,63 @@ g05_ternary_tramp_pure() {
   return 0
 }
 
+# w1540 (6.3): build_asm/seed_host/asm_backend_partial.o is one pure-asm
+# emit of src/asm/backend_seed_mega_fallback.x on all three hosts. It used
+# to be a host-cc leftover of seeds/backend_seed_mega_fallback.from_x.c that
+# g05 never rebuilt. Strong: the four backend_asm_codegen_ast* entries,
+# pipeline_seed_mega_ctx_reset, pipeline_dep_ctx_target_arch_local.
+# The ten backend_emit_* return-0 stubs are weak on Darwin and Linux (PE has
+# no weak; Windows links first-wins, same as the old seed object).
+# Three failed tries stop g05. No cc fallback. The seed stays on disk (9.1).
+# PLATFORM: SHARED. cwd is compiler/.
+g05_backend_partial_pure() {
+  local _bo=build_asm/seed_host/asm_backend_partial.o
+  local _bx=src/asm/backend_seed_mega_fallback.x
+  local _bw="backend_emit_block_body,backend_emit_block_inits,backend_emit_expr,backend_emit_expr_call,backend_emit_expr_elf,backend_emit_expr_method_call,backend_emit_for_loop,backend_emit_if_then_block_body_text,backend_emit_loop_body_content,backend_emit_while_loop"
+  local _try _bs _ok
+  [ -f "$_bx" ] || { echo "g05_ensure: ERROR missing $_bx (w1540)" >&2; return 1; }
+  mkdir -p build_asm/seed_host
+  if [ -f "$_bo" ] && [ ! "$_bx" -nt "$_bo" ] \
+    && g05_obj_defines "$_bo" backend_seed_mega_fallback_w1540_anchor; then
+    return 0
+  fi
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT) _bw= ;;
+  esac
+  for _try in 1 2 3; do
+    rm -f "$_bo.x.tmp.o"
+    _ok=0
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      [ -n "$_bw" ] && export G05_X_O_WEAK_FUNCS="$_bw"
+      pure_asm_x_to_o "$_bo.x.tmp.o" "$_bx"
+    ) && [ -s "$_bo.x.tmp.o" ]; then
+      _ok=1
+      for _bs in backend_asm_codegen_ast backend_asm_codegen_ast_seed_mega \
+        backend_asm_codegen_ast_to_elf backend_asm_codegen_ast_to_elf_seed_mega \
+        pipeline_seed_mega_ctx_reset pipeline_dep_ctx_target_arch_local \
+        backend_emit_block_body backend_emit_while_loop \
+        backend_seed_mega_fallback_w1540_anchor; do
+        g05_obj_defines "$_bo.x.tmp.o" "$_bs" || { _ok=0; break; }
+      done
+      # The real-partial marker the other scripts test: strong seed_mega.
+      nm -gU "$_bo.x.tmp.o" 2>/dev/null | grep -qE " T _?backend_asm_codegen_ast_seed_mega\$" || _ok=0
+    fi
+    if [ "$_ok" = 1 ]; then
+      mv -f "$_bo.x.tmp.o" "$_bo"
+      echo "g05_ensure: $_bo <- $_bx (w1540 pure asm, whole object, no cc)"
+      return 0
+    fi
+    printf '%s try=%s g05_ensure: pure asm %s failed\n' \
+      "$(date +%H:%M:%S)" "$_try" "$_bx" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+  done
+  rm -f "$_bo.x.tmp.o" "$_bo"
+  echo "$(uname -s) $_bx" >>build_asm/g05_cc_fallback.log 2>/dev/null || true
+  echo "g05_ensure: ERROR $_bx pure asm failed 3x; no cc fallback (w1540)" >&2
+  return 1
+}
+
 # w1539: the primary pointer shims, by-value faces, mangle trampoline,
 # the three AST writers, the field-depth counter, and the marker.
 # One pure-asm emit. No -E fallback and no host cc of the seed.
@@ -1468,6 +1525,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   else
     echo "g05_ensure: skip pipeline filtered (wave309 product mega retired)"
   fi
+  # w1540 (6.3): the backend partial comes from the .x every generation.
+  g05_backend_partial_pure || exit 1
   # Class-G trio: filter against seed_host partial only (catalog in filter script).
   _partial=build_asm/seed_host/asm_backend_partial.o
   if [ -f "$_partial" ]; then
