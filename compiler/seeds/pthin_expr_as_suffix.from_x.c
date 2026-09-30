@@ -4,15 +4,17 @@
  *
  * Body: seeds/parser_asm/parser_asm_as_suffix_slice.inc
  *
- * Hybrid P4as/P4ad (XLANG_PTHIN_EXPR_AS_SUFFIX_BODIES_FROM_X): portable
- * TRY_PROPAGATE + EXPR_AS wrap dest-buffer and parse dest-buffer come from
- * pthin_expr_as_suffix.x; this TU keeps wrap trampolines plus peek-after
- * / parse trampolines. Cold: no BODIES define, full .inc.
- * Do not reuse XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies.
+ * w1537: product g05 does not host-cc this seed. The product writer is
+ * pthin_expr_as_suffix_set.x. The pointer face, peek-after, and marker
+ * are pthin_expr_as_suffix_tramp.x. Bodies stay in pthin_expr_as_suffix.x.
+ * This TU remains so prove harnesses can still compile the C twins.
+ * Cold: no BODIES define, full .inc. Do not reuse
+ * XLANG_PTHIN_EXPR_AS_SUFFIX_FROM_X for P4as/P4ad bodies.
  * G.7: pipeline_expr_set_unary_operand_c lives in
- * pthin_expr_unary_set.x (unary_operand_ref); pipeline_expr_set_as_c
- * lives here (as_* slots).
- * Do not copy set_unary into this seed and do not FORCE pabi mega.
+ * pthin_expr_unary_set.x. The product pipeline_expr_set_as_c lives in
+ * pthin_expr_as_suffix_set.x. The C function below stays for prove.
+ * Do not copy set_as into primary, unary, ternary, ctrl, or fn_block.
+ * Do not FORCE pabi mega.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>

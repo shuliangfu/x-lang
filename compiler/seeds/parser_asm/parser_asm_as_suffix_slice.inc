@@ -117,7 +117,9 @@ extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_a
  * Peek the token AFTER the unconsumed next token, without advancing.
  * Language has no lexer by-value; this C face copies the cursor, drives
  * lexer_next twice, and returns the second kind.
- * PLATFORM: SHARED — P4ad zero-algorithm shim. Do not copy into P9a this wave.
+ * Product g05 compiles pthin_expr_as_suffix_tramp.x instead of this
+ * seed. The C body stays so a prove harness can still host-cc it.
+ * PLATFORM: SHARED — P4ad zero-algorithm shim. Do not copy into P9a.
  */
 int32_t parser_asm_lex_peek_kind_after_c(void *lex, void *source) {
   struct parser_asm_lexer_result r;

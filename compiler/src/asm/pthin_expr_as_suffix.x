@@ -20,28 +20,31 @@
 // pthin_expr_as_suffix.x — G-02f-285 P4 parser thin as_suffix product bodies.
 //
 // 7.2.1 P4as Route C (2026-09-15): first bodies in this P-lane file.
-// as_suffix.inc is always host-cc'd into the hybrid P4as object.
-// Language has no Expr by-value; dest-buffer both postfix wrap soups
-// in one wave (efficiency: one domain file, two wraps, one L2):
+// w1537: product g05 does not host-cc seeds/pthin_expr_as_suffix.from_x.c.
+// The seed and as_suffix.inc stay for prove. Language has no Expr
+// by-value; dest-buffer both postfix wrap soups in one file:
 //   TRY_PROPAGATE (kind=58 + unary_operand_ref + line/col=0)
 //   EXPR_AS       (kind=54 + as_operand/as_target + line/col=0)
-// The C trampoline in as_suffix_slice.inc holds parse_expr_result*
-// and forwards out.ok / out.expr_ref. Sidecar writes go through the
-// PABI writer family (set_common_zeros / set_kind / set_line_col)
-// plus pipeline_expr_set_unary_operand_c in pthin_expr_unary_set.x
+// The pointer face lives in pthin_expr_as_suffix_tramp.x. It copies
+// the 16-byte cursor, forwards out.ok / out.expr_ref, and writes the
+// cursor back. Sidecar writes go through the PABI writer family
+// (set_common_zeros / set_kind / set_line_col) plus
+// pipeline_expr_set_unary_operand_c in pthin_expr_unary_set.x
 // (G.7: one writer for unary_operand_ref; do not copy the store) and
-// pipeline_expr_set_as_c in this P-lane seed (late as_* offsets;
-// pabi inject-only skips new rest symbols; do not FORCE the mega).
-// 7.2.1 P4ad B-minus (2026-09-16): 有则补全 parse dest-buffer.
+// pipeline_expr_set_as_c in pthin_expr_as_suffix_set.x (offsets
+// 1208 and 1212; pabi inject-only skips new rest symbols; do not
+// FORCE the mega).
+// 7.2.1 P4ad B-minus (2026-09-16): parse dest-buffer lives in this file.
 // Token walk reuses P9a peek/step (same family as P4ud / P4bd).
-// `?` vs ternary: peek_kind_after shim in as_suffix.inc (zero-algorithm
-// two lexer_next on a copy; language has no lexer by-value). Terminator
-// `; ) } , ]` consumes both `?` and the terminator (C twin sets
-// next_lex = rpeek.next_lex). `as` consumes the keyword then drives
-// the existing primary pointer-face parse_type_ref_ptr_into_c (G.7:
-// one type_ref ptr shim; do not dest-buffer type_ref parse — P3f was
-// product-red). Wrap stays P4as. C trampoline keeps AUDIT and the
-// by-value parse_expr_result face; parse does not zero out.ok /
+// `?` vs ternary: peek_kind_after in pthin_expr_as_suffix_tramp.x
+// saves the cursor, steps once, peeks, and restores through the P9a
+// bridge. It does not call lexer_next_into. Terminator `; ) } , ]`
+// consumes both `?` and the terminator (C twin sets next_lex =
+// rpeek.next_lex). `as` consumes the keyword then drives the existing
+// primary pointer-face parse_type_ref_ptr_into_c (G.7: one type_ref
+// ptr shim; do not dest-buffer type_ref parse — P3f was product-red).
+// Wrap stays P4as. The product face is the pointer trampoline and
+// does not call stretch-audit. Parse does not zero out.ok /
 // out.expr_ref (caller already filled them from unary/primary).
 // Do not copy wrap into parse. Do not merge unary / binop / ternary
 // parse. Do not dest-buffer parse_cast / parse_assign / parse_ternary
@@ -78,12 +81,13 @@ export extern "C" function pipeline_expr_set_line_col(a: *u8, er: i32, line: i32
 /**
  * P4uc consumer-wave writer: write Expr.unary_operand_ref.
  * G.7: one writer for that slot (unary prefix and TRY_PROPAGATE share it).
- * Lives in the P4u seed; do not copy into this seed.
+ * Lives in pthin_expr_unary_set.x; do not copy into this file.
  */
 export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
 /**
  * P4as consumer-wave writer: write Expr.as_operand_ref / as_target_type_ref.
- * Lives in the P4as seed; do not FORCE pabi mega; do not copy into other seeds.
+ * Lives in pthin_expr_as_suffix_set.x. Do not FORCE pabi mega.
+ * Do not copy the store into primary, unary, ternary, ctrl, or fn_block.
  */
 export extern "C" function pipeline_expr_set_as_c(a: *u8, er: i32, operand_ref: i32, type_ref: i32): void;
 /** P9a: peek next kind without advancing. */
@@ -92,7 +96,8 @@ export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
 /**
  * Peek the token AFTER the unconsumed next token, without advancing.
- * Zero-algorithm C shim in as_suffix.inc (two lexer_next on a copy).
+ * Defined in pthin_expr_as_suffix_tramp.x. Save, step, peek, restore
+ * through the P9a bridge. Do not call lexer_next_into from this file.
  */
 export extern "C" function parser_asm_lex_peek_kind_after_c(lex_inout: *u8, source: *u8): i32;
 /**
@@ -222,8 +227,9 @@ export function parser_asm_as_suffix_try_terminator_c(kind: i32): i32 {
  * @param out_ok *i32 — parse_expr_result.ok (must already be 1)
  * @param out_expr_ref *i32 — inner expr; rewritten on each wrap
  * @return i32 — 1 success (including zero suffixes); 0 failure
- * PLATFORM: SHARED — product P4ad B-minus. C trampoline keeps AUDIT
- * and the by-value parse_expr_result face. Do not open a new lane.
+ * PLATFORM: SHARED — product P4ad B-minus. The pointer face and the
+ * peek-after shim live in pthin_expr_as_suffix_tramp.x. That face
+ * does not call stretch-audit. Do not open a new lane.
  */
 #[no_mangle]
 export function parser_asm_parse_as_suffix_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
