@@ -915,7 +915,8 @@ export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexe
 export function onefunc_result_layout_prime(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[128] = [];
+  // OneFuncResult.name is u8[256]. A shorter array is an assignment mismatch.
+  let z64: u8[256] = [];
   /* See implementation. */
   let _prime: OneFuncResult = {
     ok: false,
@@ -1012,7 +1013,8 @@ export function onefunc_result_layout_prime_c(): void {
 export function onefunc_result_layout_prime_d(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let ccn: u8[128] = [];
+  // OneFuncResult.call_callee_name is u8[256].
+  let ccn: u8[256] = [];
   let _q4: OneFuncResult = {
     has_binop: false,
     binop_right_val: 0,
@@ -1033,7 +1035,8 @@ export function onefunc_result_layout_prime_d(): void {
 export function onefunc_result_layout_prime_d_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let rvn: u8[128] = [];
+  // OneFuncResult.return_var_name is u8[256].
+  let rvn: u8[256] = [];
   let _q4b: OneFuncResult = {
     call_callee_len: 0,
     return_var_name: rvn,
