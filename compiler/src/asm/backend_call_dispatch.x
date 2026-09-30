@@ -2059,6 +2059,11 @@ export function glue_emit_one_call_arg_elf_c(
  * Build link symbol for EXPR_CALL with VAR callee (same-module + dep co-emit).
  * Dep-pool hits must score overload mid (mul Vec4f → mul_f32x4_f32x4), not bare
  * prefix+cname (STD-SIMD-INTRINSIC std_simd_mul UNDEF on Ubuntu pure .x path).
+ * Same-module forward extern: the resolver returns the first name match.
+ * When that index is extern and a non-extern function in this module has
+ * the same source name and parameter count, emit the definition's link
+ * symbol (host-cc emits parser_parse_one_function_impl, not the bare
+ * forward name). A bare extern with no local body stays the source name.
  * G.7: single body here (the C seed twin was deleted in w1524).
  * @param arena *u8 — call-site AST arena
  * @param call_expr_ref i32 — EXPR_CALL expr ref
@@ -2286,6 +2291,30 @@ export function glue_asm_build_call_export_sym_c(
       }
       if (func_ix >= 0) {
         if (pipeline_module_func_is_extern_at(mod, func_ix) != 0) {
+          // PLATFORM: SHARED — forward extern plus a later body is one
+          // function. Host parser_x.o relocates parse_into to
+          // parser_parse_one_function_impl. Scan past the extern and use
+          // that definition's export symbol. No twin: keep the raw extern
+          // name (glue and libc declarations).
+          let twin_ix: i32 = 0 - 1;
+          if (clen > 0) {
+            let scan_i: i32 = 0;
+            let nfuncs_scan: i32 = pipeline_module_num_funcs(mod);
+            while (scan_i < nfuncs_scan) {
+              if (pipeline_module_func_is_extern_at(mod, scan_i) == 0) {
+                if (pipeline_module_func_name_equal_at(mod, scan_i, &cname[0], clen) != 0) {
+                  if (pipeline_module_func_num_params_at(mod, scan_i) == want_np2) {
+                    twin_ix = scan_i;
+                    break;
+                  }
+                }
+              }
+              scan_i = scan_i + 1;
+            }
+          }
+          if (twin_ix >= 0) {
+            return glue_asm_build_func_export_sym_c(mod, arena, twin_ix, out, out_cap);
+          }
           if (clen > 0) {
             if (clen < out_cap) {
               let ci2: i32 = 0;
