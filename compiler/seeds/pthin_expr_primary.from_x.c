@@ -13,6 +13,11 @@
  * Cold: no BODIES define, full .inc.
  * P3c mangle trampoline is compiled when this TU also sees
  * XLANG_PTHIN_TYPE_REF_BODIES_FROM_X (g05 passes P3 extra).
+ *
+ * w1539 (6.2): product g05 no longer host-cc's this seed. With every
+ * body flag on, its 21 exported shims, faces, writers, and marker come
+ * from src/asm/pthin_expr_primary_tramp.x (one pure-asm emit). This
+ * file stays on disk for prove harnesses. Do not delete it here.
  */
 #include <stddef.h>
 #include <stdint.h>

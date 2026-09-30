@@ -437,6 +437,88 @@ g05_ternary_tramp_pure() {
   return 0
 }
 
+# w1539: the primary pointer shims, by-value faces, mangle trampoline,
+# the three AST writers, the field-depth counter, and the marker.
+# One pure-asm emit. No -E fallback and no host cc of the seed.
+# PLATFORM: SHARED. $1 = output object. cwd is compiler/.
+g05_primary_tramp_pure() {
+  local _bo="$1"
+  local _bx="src/asm/pthin_expr_primary_tramp.x"
+  local _bs
+  if [ ! -f "$_bx" ]; then
+    echo "g05_ensure: P4 primary trampoline .x missing" >&2
+    return 1
+  fi
+  if [ -z "$_bo" ]; then
+    echo "g05_ensure: P4 primary trampoline output path missing" >&2
+    return 1
+  fi
+  rm -f "$_bo"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$_bo" "$_bx"
+  ) || [ ! -s "$_bo" ]; then
+    echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  for _bs in labi_pthin_expr_primary_slice_marker \
+    parser_asm_append_type_inst_mangle_c \
+    parser_asm_struct_lit_append_field_src_c \
+    parser_asm_struct_lit_append_shorthand_src_c \
+    parser_asm_struct_lit_parse_field_value_c \
+    parser_asm_parse_anonymous_struct_lit_c \
+    parser_asm_finish_struct_lit_from_type_ident_into_c \
+    parser_parse_expr_ptr_into_c \
+    parser_finish_struct_lit_ptr_into_c \
+    parser_asm_lbrace_looks_like_block_ptr_c \
+    parser_asm_empty_ident_braces_prefer_block_ptr_c \
+    parser_asm_parse_struct_lit_fields_ptr_c \
+    parser_asm_string_lit_decode_span_ptr_c \
+    parser_asm_string_lit_append_byte_ptr_c \
+    parser_parse_match_ptr_into_c \
+    parser_parse_at_simd_builtin_ptr_into_c \
+    parser_asm_parse_anonymous_struct_lit_ptr_c \
+    parser_asm_parse_type_ref_ptr_into_c \
+    parser_asm_skip_angle_count_ptr_into_c \
+    parser_asm_ident_pre_dispatch_ptr_c \
+    parser_asm_parse_primary_into_slice_c \
+    pthin_expr_primary_tramp_w1539_anchor; do
+    if ! g05_obj_defines "$_bo" "$_bs"; then
+      echo "g05_ensure: P4 primary trampoline missing $_bs" >&2
+      rm -f "$_bo"
+      return 1
+    fi
+  done
+  return 0
+}
+
+# w1539: the primary trampoline calls every body the full seed define
+# set named. $1 = body object. Returns 1 when one is missing.
+# PLATFORM: SHARED.
+g05_primary_bodies_complete() {
+  local _bb="$1"
+  local _bs
+  for _bs in parser_asm_parse_primary_x_into_c \
+    parser_asm_parse_struct_lit_fields_x_into_c \
+    parser_asm_parse_anonymous_struct_lit_x_into_c \
+    parser_asm_string_lit_decode_span_x_into_c \
+    parser_asm_finish_struct_lit_from_type_ident_x_into_c \
+    parser_asm_primary_parse_asm_bang_x_into_c \
+    parser_asm_primary_parse_unsafe_x_into_c \
+    parser_asm_primary_lbrace_looks_like_block_x_into_c \
+    parser_asm_primary_empty_ident_braces_x_into_c \
+    parser_asm_ident_pre_dispatch_x_into_c \
+    parser_asm_primary_suffix_loop_x_into_c; do
+    if ! g05_obj_defines "$_bb" "$_bs"; then
+      echo "g05_ensure: P4 primary body object missing $_bs" >&2
+      return 1
+    fi
+  done
+  return 0
+}
+
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -1486,6 +1568,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p4p_seed=seeds/pthin_expr_primary.from_x.c
   # 7.2.1 P4b Route C: primary .x bodies (ident spelling / asm-option-bit)
   _pthin_p4pb_x=src/asm/pthin_expr_primary.x
+  # w1539: pointer shims, faces, writers, and marker. The seed stays for prove.
+  _pthin_p4p_tramp_x=src/asm/pthin_expr_primary_tramp.x
   _pthin_p4u_seed=seeds/pthin_expr_unary.from_x.c
   # 7.2.1 P4ub Route C: unary .x bodies (TOKEN→ExprKind)
   _pthin_p4ub_x=src/asm/pthin_expr_unary.x
@@ -1571,6 +1655,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p3_seed" ] && [ "$_pthin_p3_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p3b_x" ] && [ "$_pthin_p3b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4p_seed" ] && [ "$_pthin_p4p_seed" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4p_tramp_x" ] && [ "$_pthin_p4p_tramp_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4pb_x" ] && [ "$_pthin_p4pb_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4u_seed" ] && [ "$_pthin_p4u_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4ub_x" ] && [ "$_pthin_p4ub_x" -nt parser_asm_thin_glue.o ]; } \
@@ -1995,14 +2080,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P4b primary .x thin failed or missing parse_primary/struct_lit_fields dest-buffer; P4 C twin stays full" >&2
           fi
         fi
-        if [ -n "$_pthin_p4p_o" ] && [ -f "$_pthin_p4p_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               $_pthin_p4p_extra $_pthin_p3_extra -c -o "$_pthin_p4p_o" "$_pthin_p4p_seed"; then
-            _pthin_p4p_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
-            echo "g05_ensure: P4 primary ← $_pthin_p4p_seed (G-02f-282 seed slice)"
+        # w1539: the trampoline replaces the seed only when the bodies
+        # linked, so rest can drop its slice. It needs every body of
+        # the full define set and the P3 mangle body. A partial body
+        # set stops ensure. A body miss keeps the .inc and does not
+        # host-cc the seed. PLATFORM: SHARED.
+        if [ "$_pthin_p4pb_ok" = "1" ] && [ -n "$_pthin_p4p_o" ]; then
+          case " $_pthin_p3_extra " in
+            *" -DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X "*) ;;
+            *)
+              echo "g05_ensure: P4 primary trampoline needs the P3 type_ref bodies" >&2
+              exit 1
+              ;;
+          esac
+          if ! g05_primary_bodies_complete "$_pthin_p4pb_thin_o"; then
+            exit 1
           fi
+          if ! g05_primary_tramp_pure "$_pthin_p4p_o"; then
+            echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
+            exit 1
+          fi
+          _pthin_p4p_ok=1
+          _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_PRIMARY_FROM_X"
+          echo "g05_ensure: P4 primary trampoline ← pure-asm w1539"
         fi
         # PLATFORM: SHARED — 7.2.1 P4ub/P4uc/P4ud Route C (2026-09-13/15).
         # pthin_expr_unary.x holds TOKEN→ExprKind + wrap dest-buffer +
@@ -3829,45 +3929,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_cb_p5" "parser_asm_realign_lex_after_if_arm_c"; then
             _cb_p5_ok=1
           fi
-          # w1319: every primary body flag, plus TYPE_REF_BODIES so the
-          # 7-arg mangle trampoline is global (not the static C twin).
-          # Do not set EXPR_UNARY_FROM_X; the writer object is already merged.
+          # w1539: shims, faces, writers, and the marker come from the
+          # trampoline .x. The seed is not host-cc'd. A body object
+          # without every body or without the trampoline stops ensure.
+          # A splitter flake does not stop ensure.
           # PLATFORM: MACOS|DARWIN arm64.
-          if [ "$_cb_p4p_pure" = "1" ] && [ -f "$_pthin_p4p_seed" ] \
+          if [ "$_cb_p4p_pure" = "1" ] && [ -n "$_cb_p4p" ] \
             && g05_obj_defines "$_cb_p4pb" "parser_asm_parse_primary_x_into_c" \
             && g05_obj_defines "$_cb_p4pb" "parser_asm_parse_struct_lit_fields_x_into_c"; then
-            _cb_p4p_extra="-DXLANG_PTHIN_EXPR_PRIMARY_BODIES_FROM_X -DXLANG_PTHIN_TYPE_REF_BODIES_FROM_X"
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_parse_anonymous_struct_lit_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ANON_STRUCT_FROM_X"
+            if ! g05_primary_bodies_complete "$_cb_p4pb"; then
+              exit 1
             fi
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_string_lit_decode_span_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_STRING_DECODE_FROM_X"
+            if ! g05_primary_tramp_pure "$_cb_p4p"; then
+              echo "g05_ensure: P4 primary trampoline pure-asm failed" >&2
+              exit 1
             fi
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_finish_struct_lit_from_type_ident_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_FINISH_TYPE_IDENT_FROM_X"
-            fi
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_primary_parse_asm_bang_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_ASM_BANG_FROM_X"
-            fi
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_primary_parse_unsafe_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_UNSAFE_FROM_X"
-            fi
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_primary_lbrace_looks_like_block_x_into_c" \
-              && g05_obj_defines "$_cb_p4pb" "parser_asm_primary_empty_ident_braces_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_LBRACE_LOOKAHEAD_FROM_X"
-            fi
-            if g05_obj_defines "$_cb_p4pb" "parser_asm_ident_pre_dispatch_x_into_c"; then
-              _cb_p4p_extra="$_cb_p4p_extra -DXLANG_PTHIN_EXPR_PRIMARY_IDENT_PRE_DISPATCH_FROM_X"
-            fi
-            # shellcheck disable=SC2086
-            if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               $_cb_p4p_extra \
-               -c -o "$_cb_p4p" "$_pthin_p4p_seed" \
-              && g05_obj_defines "$_cb_p4p" "parser_asm_parse_primary_into_slice_c" \
-              && g05_obj_defines "$_cb_p4p" "labi_pthin_expr_primary_slice_marker" \
-              && g05_obj_defines "$_cb_p4pb" "parser_asm_primary_suffix_loop_x_into_c"; then
-              _cb_p4p_ok=1
-            fi
+            _cb_p4p_ok=1
           fi
           if [ "$_cb_p9a_pure" = "1" ] \
             && g05_obj_defines "$_cb_p9a" "parser_asm_stretch_if_header_audit_c" \
@@ -3950,6 +4027,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && echo "g05_ensure: P4 as_suffix setter ← pure-asm w1537" \
             && { [ "${_cb_p4as_ok:-}" != "1" ] || echo "g05_ensure: P4 as_suffix trampoline ← pure-asm w1537"; } \
             && { [ "${_cb_p4t_ok:-}" != "1" ] || echo "g05_ensure: P4 ternary trampoline ← pure-asm w1538"; } \
+            && { [ "${_cb_p4p_ok:-}" != "1" ] || echo "g05_ensure: P4 primary trampoline ← pure-asm w1539"; } \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X -DXLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X \
                -c -o "$_bx_p12" "$_pthin_p12_seed" \
