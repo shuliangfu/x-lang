@@ -517,23 +517,57 @@ fi
 # rebuild the pabi egg. PLATFORM: SHARED.
 _PABI_ELF_UNDEF_CAP=""
 if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
-  _g05_pure_overlay src/runtime_pipeline_abi_elf_undef_cap_thin.x \
-    build_asm/selfhost_pabi/elf_undef_cap.o pipe_elf_undef_cap
-  if [ -n "$_G05_PO_OUT" ]; then
-    _cap_ok=1
-    for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
-        pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
-      if ! nm "$_G05_PO_OUT" 2>/dev/null | grep -q "T _*${_csym}\$"; then
-        _cap_ok=0
+  # Same product compile as _g05_pure_overlay, plus a 240s cap. The 2048-row
+  # BSS is larger than the other thins. A hang must not pin the relink.
+  # PLATFORM: SHARED.
+  _cap_x=src/runtime_pipeline_abi_elf_undef_cap_thin.x
+  _cap_o=build_asm/selfhost_pabi/elf_undef_cap.o
+  _G05_PO_OUT=""
+  if [ -f "$_cap_x" ] && [ -x ./xlang_asm ]; then
+    mkdir -p build_asm/selfhost_pabi
+    rm -f "$_cap_o" "$_cap_o.tmp.o"
+    _cap_try=1
+    while [ "$_cap_try" -le 3 ]; do
+      _cap_rc=0
+      timeout 240 ./xlang_asm -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
+        >/dev/null 2>&1 || _cap_rc=$?
+      if [ "$_cap_rc" -eq 0 ] && [ -s "$_cap_o.tmp.o" ]; then
+        mv -f "$_cap_o.tmp.o" "$_cap_o"
+        break
       fi
+      if [ "$_cap_rc" -eq 124 ] || [ "$_cap_rc" -ge 128 ]; then
+        printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
+          "$(date +%H:%M:%S)" "$_cap_rc" "$_cap_x" \
+          >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      fi
+      rm -f "$_cap_o.tmp.o"
+      _cap_try=$((_cap_try + 1))
     done
-    if [ "$_cap_ok" != "1" ]; then
-      echo "g05_relink_env: ERROR elf undef cap overlay missing a T" >&2
-      printf '%s overlay-missing g05_relink_env: elf_undef_cap (accessor T)\n' \
-        "$(date +%H:%M:%S)" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-      rm -f "$_G05_PO_OUT"
-      _G05_PO_OUT=""
+    if [ -s "$_cap_o" ]; then
+      _cap_ok=1
+      for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
+          pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
+        if ! nm "$_cap_o" 2>/dev/null | grep -q "T _*${_csym}\$"; then
+          _cap_ok=0
+        fi
+      done
+      if [ "$_cap_ok" = "1" ]; then
+        _G05_PO_OUT="$_cap_o"
+      else
+        echo "g05_relink_env: ERROR elf undef cap overlay missing a T" >&2
+        printf '%s overlay-missing g05_relink_env: %s (accessor T)\n' \
+          "$(date +%H:%M:%S)" "$_cap_x" \
+          >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        rm -f "$_cap_o"
+      fi
+    else
+      echo "g05_relink_env: ERROR pure overlay $_cap_x did not build (T pipe_elf_undef_cap)" >&2
+      printf '%s overlay-missing g05_relink_env: %s (no T pipe_elf_undef_cap)\n' \
+        "$(date +%H:%M:%S)" "$_cap_x" \
+        >>build_asm/g05_xasm_crash.log 2>/dev/null || true
     fi
+  elif [ ! -x ./xlang_asm ]; then
+    echo "g05_relink_env: WARNING pure overlay $_cap_x not built (no ./xlang_asm)" >&2
   fi
   _PABI_ELF_UNDEF_CAP="$_G05_PO_OUT"
 fi
