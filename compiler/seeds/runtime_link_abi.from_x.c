@@ -5847,6 +5847,13 @@ void xlang_link_capture_opt_level_from_argv(int argc, char **argv) {
  * 参数：driver_freestanding 同 xlang_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。
  */
+#if defined(_WIN32) && (defined(__MINGW32__) || defined(__MINGW64__))
+/* w1542 (7.1): Windows ld argv helpers (labi_freestanding_list L7 .x / cold twin). */
+int labi_win_ld_prepare(char *bufs, int cap);
+char *labi_win_ld_slot(char *bufs, int cap, int i);
+void labi_win_ld_append_head(char *bufs, int cap, const char **argv, int *la, int max_la);
+void labi_win_ld_append_tail(char *bufs, int cap, const char **argv, int *la, int max_la);
+#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots,
@@ -5964,22 +5971,29 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
 #endif
         if (use_coff_o) {
 #if defined(_WIN32) && (defined(__MINGW32__) || defined(__MINGW64__))
-            /* PLATFORM: WINDOWS | MINGW — gcc as link driver pulls UCRT/msvcrt and
-             * resolves on-demand std/panic objs. Bare lld-link without /libpath to
-             * mingw ucrt left printf/__acrt_iob_func UNDEF after ws2_32 was fixed. */
+            /* PLATFORM: WINDOWS | MINGW — w1542 (7.1): spawn bare MinGW ld, never
+             * gcc (default user path host-cc=0). labi_win_ld_* (L7 .x) derive
+             * crt2/crtbegin/crtend, -L dirs and the libgcc/mingw -l tail from
+             * ld.exe on PATH (≡ the old gcc driver line); missing → BLD001,
+             * no gcc fallback. User/std -l stay before the runtime tail. */
+            static char xlang_win_ld_bufs[12 * 1024];
             la = 0;
             ld_bank->n = 0;
             memset(ld_bank->slots, 0, sizeof ld_bank->slots);
-            argv[la++] = "gcc";
+            if (labi_win_ld_prepare(xlang_win_ld_bufs, 1024) != 0)
+                return -1;
+            argv[la++] = "ld";
+            labi_win_ld_append_head(xlang_win_ld_bufs, 1024, argv, &la, XLANG_LD_ARGV_CAP);
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
             xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
+            labi_win_ld_append_tail(xlang_win_ld_bufs, 1024, argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
             {
-                int rc = xlang_spawn_sync("gcc", (const char *const *)argv);
+                int rc = xlang_spawn_sync(labi_win_ld_slot(xlang_win_ld_bufs, 1024, 0), (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
                     return -1;

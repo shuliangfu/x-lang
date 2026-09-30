@@ -1972,3 +1972,550 @@ export function xlang_ensure_freestanding_io_o(argv0: *u8, driver_freestanding: 
   }
   return 0;
 }
+
+// ---------------------------------------------------------------------------
+// w1542 (7.1): Windows user-program link spawns bare MinGW `ld`, never `gcc`.
+// The default user path must not execve a host C compiler (host-cc=0 goal;
+// 8.3 zero-cc). gcc used to be the link driver only to supply crt objects,
+// -L search dirs and the libgcc/mingw runtime -l tail. We now derive those
+// from where ld.exe sits on PATH: root = <ld dir>/.., crt2.o under
+// <root>/lib or <root>/<triple>/lib, crtbegin/crtend under
+// <root>/lib/gcc/<triple>/<ver> (scanned; highest version wins). No gcc
+// version or machine path is hard-coded. Missing pieces → BLD001 and the
+// link fails; there is no fallback to gcc.
+// Buffer contract: caller passes `bufs` holding labi_win_ld_slot_count()
+// slots of `cap` bytes each (durable for the spawn; seed keeps it static).
+// PLATFORM: WINDOWS | MINGW consumer (seed use_coff_o branch); pure bytes
+// elsewhere (never called on Darwin/Linux).
+// ---------------------------------------------------------------------------
+
+export extern "C" function xlang_fmt_opendir(name: *u8): *u8;
+export extern "C" function xlang_fmt_closedir(dirp: *u8): i32;
+export extern "C" function xlang_fmt_readdir_name(dirp: *u8): *u8;
+export extern "C" function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8, detail: *u8): void;
+
+/**
+ * Number of path slots labi_win_ld_prepare fills (caller sizes bufs = count * cap).
+ * @return i32 — slot count (12)
+ */
+#[no_mangle]
+export function labi_win_ld_slot_count(): i32 {
+  return 12;
+}
+
+/**
+ * Address of slot i inside the caller slot bank.
+ * @param bufs *u8 — slot bank base
+ * @param cap i32 — bytes per slot
+ * @param i i32 — slot index
+ * @return *u8 — slot start
+ */
+#[no_mangle]
+export function labi_win_ld_slot(bufs: *u8, cap: i32, i: i32): *u8 {
+  let off: i32 = i * cap;
+  return &bufs[off as usize];
+}
+
+/**
+ * Append src at dst[pos..]; keeps NUL. Returns new pos or -1 on overflow/null dst.
+ * @param dst *u8 — destination buffer
+ * @param cap i32 — capacity in bytes
+ * @param pos i32 — write index
+ * @param src *u8 — C string (null = empty)
+ * @return i32 — new pos, or -1
+ */
+#[no_mangle]
+export function labi_win_ld_cat(dst: *u8, cap: i32, pos: i32, src: *u8): i32 {
+  if (dst == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (pos < 0) {
+    return 0 - 1;
+  }
+  if (pos >= cap) {
+    return 0 - 1;
+  }
+  let i: i32 = 0;
+  if (src == 0 as *u8) {
+    dst[pos as usize] = 0;
+    return pos;
+  }
+  while (1 == 1) {
+    let c: u8 = src[i as usize];
+    if (c == 0) {
+      break;
+    }
+    if (pos + 1 >= cap) {
+      dst[pos as usize] = 0;
+      return 0 - 1;
+    }
+    dst[pos as usize] = c;
+    pos = pos + 1;
+    i = i + 1;
+  }
+  dst[pos as usize] = 0;
+  return pos;
+}
+
+/**
+ * dst = a + b + c (any may be null). Returns 1 ok, 0 overflow.
+ * @param dst *u8 — destination
+ * @param cap i32 — capacity
+ * @param a *u8 — first piece
+ * @param b *u8 — second piece
+ * @param c *u8 — third piece
+ * @return i32 — 1 ok, 0 overflow
+ */
+#[no_mangle]
+export function labi_win_ld_join3(dst: *u8, cap: i32, a: *u8, b: *u8, c: *u8): i32 {
+  let p: i32 = 0;
+  dst[0] = 0;
+  p = labi_win_ld_cat(dst, cap, p, a);
+  if (p < 0) {
+    return 0;
+  }
+  p = labi_win_ld_cat(dst, cap, p, b);
+  if (p < 0) {
+    return 0;
+  }
+  p = labi_win_ld_cat(dst, cap, p, c);
+  if (p < 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Compare dotted version strings numerically ("16.2.0" > "9.5.0").
+ * @param a *u8 — version a
+ * @param b *u8 — version b
+ * @return i32 — >0 when a newer, <0 when b newer, 0 equal
+ */
+#[no_mangle]
+export function labi_win_ld_ver_cmp(a: *u8, b: *u8): i32 {
+  let ia: i32 = 0;
+  let ib: i32 = 0;
+  let rounds: i32 = 0;
+  while (rounds < 8) {
+    let na: i32 = 0;
+    let nb: i32 = 0;
+    while (1 == 1) {
+      let ca: u8 = a[ia as usize];
+      if (ca < 48 || ca > 57) {
+        break;
+      }
+      na = na * 10 + ((ca as i32) - 48);
+      ia = ia + 1;
+    }
+    while (1 == 1) {
+      let cb: u8 = b[ib as usize];
+      if (cb < 48 || cb > 57) {
+        break;
+      }
+      nb = nb * 10 + ((cb as i32) - 48);
+      ib = ib + 1;
+    }
+    if (na != nb) {
+      return na - nb;
+    }
+    let ea: u8 = a[ia as usize];
+    let eb: u8 = b[ib as usize];
+    if (ea != 46 || eb != 46) {
+      return 0;
+    }
+    ia = ia + 1;
+    ib = ib + 1;
+    rounds = rounds + 1;
+  }
+  return 0;
+}
+
+/**
+ * Find ld.exe on PATH (';' separated). On hit: ld_out = "<dir>/ld.exe",
+ * root_out = "<dir>/..". Entries may end with '\' or '/'.
+ * @param ld_out *u8 — full ld path out
+ * @param root_out *u8 — toolchain root out
+ * @param cap i32 — capacity of each out buffer
+ * @return i32 — 1 found, 0 not found
+ */
+#[no_mangle]
+export function labi_win_ld_find_on_path(ld_out: *u8, root_out: *u8, cap: i32): i32 {
+  let path: *u8 = 0 as *u8;
+  unsafe {
+    path = link_abi_getenv("PATH");
+  }
+  if (path == 0 as *u8) {
+    return 0;
+  }
+  let dir: u8[1024] = [];
+  let i: i32 = 0;
+  let guard: i32 = 0;
+  while (guard < 65536) {
+    guard = guard + 1;
+    // Copy one entry into dir.
+    let n: i32 = 0;
+    while (1 == 1) {
+      let c: u8 = path[i as usize];
+      if (c == 0 || c == 59) {
+        break;
+      }
+      if (n < 1000) {
+        dir[n as usize] = c;
+        n = n + 1;
+      }
+      i = i + 1;
+    }
+    // Trim a trailing separator.
+    if (n > 0) {
+      let last: u8 = dir[(n - 1) as usize];
+      if (last == 92 || last == 47) {
+        n = n - 1;
+      }
+    }
+    dir[n as usize] = 0;
+    if (n > 0) {
+      if (labi_win_ld_join3(ld_out, cap, &dir[0], "/ld.exe", 0 as *u8) != 0) {
+        let ok: i32 = 0;
+        unsafe {
+          ok = link_abi_path_readable(ld_out);
+        }
+        if (ok != 0) {
+          if (labi_win_ld_join3(root_out, cap, &dir[0], "/..", 0 as *u8) != 0) {
+            return 1;
+          }
+        }
+      }
+    }
+    if (path[i as usize] == 0) {
+      break;
+    }
+    i = i + 1;
+  }
+  ld_out[0] = 0;
+  root_out[0] = 0;
+  return 0;
+}
+
+/**
+ * Scan <root>/lib/gcc/<triple>/<ver>/crtbegin.o; keep highest <ver>.
+ * Writes gcc_dir_out = "<root>/lib/gcc/<triple>/<ver>" and triple_out.
+ * @param root *u8 — toolchain root
+ * @param gcc_dir_out *u8 — out
+ * @param triple_out *u8 — out
+ * @param cap i32 — capacity of each out and scratch
+ * @param scratch *u8 — scratch buffer (cap bytes)
+ * @return i32 — 1 found, 0 none
+ */
+#[no_mangle]
+export function labi_win_ld_find_gcc_dir(root: *u8, gcc_dir_out: *u8, triple_out: *u8, cap: i32, scratch: *u8): i32 {
+  let base: u8[1024] = [];
+  let tdir: u8[1024] = [];
+  let tname: u8[256] = [];
+  let best_ver: u8[256] = [];
+  let found: i32 = 0;
+  gcc_dir_out[0] = 0;
+  triple_out[0] = 0;
+  best_ver[0] = 0;
+  if (labi_win_ld_join3(&base[0], 1024, root, "/lib/gcc", 0 as *u8) == 0) {
+    return 0;
+  }
+  let d1: *u8 = 0 as *u8;
+  unsafe {
+    d1 = xlang_fmt_opendir(&base[0]);
+  }
+  if (d1 == 0 as *u8) {
+    return 0;
+  }
+  let g1: i32 = 0;
+  while (g1 < 256) {
+    g1 = g1 + 1;
+    let n1: *u8 = 0 as *u8;
+    unsafe {
+      n1 = xlang_fmt_readdir_name(d1);
+    }
+    if (n1 == 0 as *u8) {
+      break;
+    }
+    if (n1[0] == 46) {
+      continue;
+    }
+    tname[0] = 0;
+    if (labi_win_ld_cat(&tname[0], 256, 0, n1) < 0) {
+      continue;
+    }
+    if (labi_win_ld_join3(&tdir[0], 1024, &base[0], "/", &tname[0]) == 0) {
+      continue;
+    }
+    let d2: *u8 = 0 as *u8;
+    unsafe {
+      d2 = xlang_fmt_opendir(&tdir[0]);
+    }
+    if (d2 == 0 as *u8) {
+      continue;
+    }
+    let g2: i32 = 0;
+    while (g2 < 256) {
+      g2 = g2 + 1;
+      let n2: *u8 = 0 as *u8;
+      unsafe {
+        n2 = xlang_fmt_readdir_name(d2);
+      }
+      if (n2 == 0 as *u8) {
+        break;
+      }
+      if (n2[0] < 48 || n2[0] > 57) {
+        continue;
+      }
+      let p: i32 = 0;
+      scratch[0] = 0;
+      p = labi_win_ld_cat(scratch, cap, p, &tdir[0]);
+      p = labi_win_ld_cat(scratch, cap, p, "/");
+      p = labi_win_ld_cat(scratch, cap, p, n2);
+      p = labi_win_ld_cat(scratch, cap, p, "/crtbegin.o");
+      if (p < 0) {
+        continue;
+      }
+      let ok: i32 = 0;
+      unsafe {
+        ok = link_abi_path_readable(scratch);
+      }
+      if (ok == 0) {
+        continue;
+      }
+      let better: i32 = 1;
+      if (found != 0) {
+        if (labi_win_ld_ver_cmp(n2, &best_ver[0]) <= 0) {
+          better = 0;
+        }
+      }
+      if (better != 0) {
+        best_ver[0] = 0;
+        if (labi_win_ld_cat(&best_ver[0], 256, 0, n2) >= 0) {
+          if (labi_win_ld_join3(gcc_dir_out, cap, &tdir[0], "/", &best_ver[0]) != 0) {
+            triple_out[0] = 0;
+            labi_win_ld_cat(triple_out, cap, 0, &tname[0]);
+            found = 1;
+          }
+        }
+      }
+    }
+    unsafe {
+      xlang_fmt_closedir(d2);
+    }
+  }
+  unsafe {
+    xlang_fmt_closedir(d1);
+  }
+  return found;
+}
+
+/**
+ * Report a Windows link setup failure (BLD001) with a clear reason.
+ * @param what *u8 — what is missing
+ * @param where_s *u8 — searched location (nullable)
+ * @return void
+ */
+#[no_mangle]
+export function labi_win_ld_report(what: *u8, where_s: *u8): void {
+  let msg: u8[1400] = [];
+  let p: i32 = 0;
+  msg[0] = 0;
+  p = labi_win_ld_cat(&msg[0], 1400, p, "windows link: ");
+  p = labi_win_ld_cat(&msg[0], 1400, p, what);
+  if (where_s != 0 as *u8) {
+    p = labi_win_ld_cat(&msg[0], 1400, p, " (looked in ");
+    p = labi_win_ld_cat(&msg[0], 1400, p, where_s);
+    p = labi_win_ld_cat(&msg[0], 1400, p, ")");
+  }
+  p = labi_win_ld_cat(&msg[0], 1400, p, "; need MinGW binutils ld with its crt/libgcc tree; gcc is not used as the link driver");
+  unsafe {
+    diag_report_with_code(0 as *u8, 0, 0, "build error", "BLD001", &msg[0], 0 as *u8);
+  }
+}
+
+/**
+ * Fill the Windows ld slot bank. Slots:
+ *   0 ld.exe path  1 root  2 crt2.o  3 crtbegin.o  4 crtend.o
+ *   5 -L<gcc ver dir>  6 -L<root>/lib/gcc  7 -L<root>/<triple>/lib (may be empty)
+ *   8 -L<root>/lib  9 -L<root>  10 triple  11 scratch
+ * @param bufs *u8 — slot bank (labi_win_ld_slot_count() * cap bytes)
+ * @param cap i32 — bytes per slot (>= 512)
+ * @return i32 — 0 ok; -1 ld missing; -2 crtbegin/crtend missing; -3 crt2 missing; -4 overflow
+ */
+#[no_mangle]
+export function labi_win_ld_prepare(bufs: *u8, cap: i32): i32 {
+  let s0: *u8 = labi_win_ld_slot(bufs, cap, 0);
+  let s1: *u8 = labi_win_ld_slot(bufs, cap, 1);
+  let s2: *u8 = labi_win_ld_slot(bufs, cap, 2);
+  let s3: *u8 = labi_win_ld_slot(bufs, cap, 3);
+  let s4: *u8 = labi_win_ld_slot(bufs, cap, 4);
+  let s5: *u8 = labi_win_ld_slot(bufs, cap, 5);
+  let s6: *u8 = labi_win_ld_slot(bufs, cap, 6);
+  let s7: *u8 = labi_win_ld_slot(bufs, cap, 7);
+  let s8: *u8 = labi_win_ld_slot(bufs, cap, 8);
+  let s9: *u8 = labi_win_ld_slot(bufs, cap, 9);
+  let s10: *u8 = labi_win_ld_slot(bufs, cap, 10);
+  let s11: *u8 = labi_win_ld_slot(bufs, cap, 11);
+  let gdir: u8[1024] = [];
+  let k: i32 = 0;
+  while (k < 12) {
+    let sk: *u8 = labi_win_ld_slot(bufs, cap, k);
+    sk[0] = 0;
+    k = k + 1;
+  }
+  if (labi_win_ld_find_on_path(s0, s1, cap) == 0) {
+    labi_win_ld_report("ld.exe not found", "PATH");
+    return 0 - 1;
+  }
+  if (labi_win_ld_find_gcc_dir(s1, &gdir[0], s10, cap, s11) == 0) {
+    labi_win_ld_join3(s11, cap, s1, "/lib/gcc/<triple>/<version>", 0 as *u8);
+    labi_win_ld_report("crtbegin.o not found", s11);
+    return 0 - 2;
+  }
+  if (labi_win_ld_join3(s3, cap, &gdir[0], "/crtbegin.o", 0 as *u8) == 0) {
+    return 0 - 4;
+  }
+  if (labi_win_ld_join3(s4, cap, &gdir[0], "/crtend.o", 0 as *u8) == 0) {
+    return 0 - 4;
+  }
+  let ce: i32 = 0;
+  unsafe {
+    ce = link_abi_path_readable(s4);
+  }
+  if (ce == 0) {
+    labi_win_ld_report("crtend.o not found", s4);
+    return 0 - 2;
+  }
+  // crt2.o: <root>/lib first (w64devkit, msys2), then <root>/<triple>/lib.
+  let have_crt2: i32 = 0;
+  if (labi_win_ld_join3(s2, cap, s1, "/lib/crt2.o", 0 as *u8) != 0) {
+    unsafe {
+      have_crt2 = link_abi_path_readable(s2);
+    }
+  }
+  // <root>/<triple>/lib search dir (kept when it exists; crt2 fallback).
+  if (labi_win_ld_join3(s11, cap, s1, "/", s10) != 0) {
+    let p7: i32 = 0;
+    p7 = labi_win_ld_cat(s11, cap, 0, s1);
+    p7 = labi_win_ld_cat(s11, cap, p7, "/");
+    p7 = labi_win_ld_cat(s11, cap, p7, s10);
+    p7 = labi_win_ld_cat(s11, cap, p7, "/lib/crt2.o");
+    if (p7 > 0) {
+      let t7: i32 = 0;
+      unsafe {
+        t7 = link_abi_path_readable(s11);
+      }
+      if (t7 != 0) {
+        let q: i32 = 0;
+        q = labi_win_ld_cat(s7, cap, 0, "-L");
+        q = labi_win_ld_cat(s7, cap, q, s1);
+        q = labi_win_ld_cat(s7, cap, q, "/");
+        q = labi_win_ld_cat(s7, cap, q, s10);
+        q = labi_win_ld_cat(s7, cap, q, "/lib");
+        if (q < 0) {
+          s7[0] = 0;
+        }
+        if (have_crt2 == 0) {
+          s2[0] = 0;
+          if (labi_win_ld_cat(s2, cap, 0, s11) >= 0) {
+            have_crt2 = 1;
+          }
+        }
+      }
+    }
+  }
+  if (have_crt2 == 0) {
+    labi_win_ld_join3(s11, cap, s1, "/lib", 0 as *u8);
+    labi_win_ld_report("crt2.o not found", s11);
+    return 0 - 3;
+  }
+  if (labi_win_ld_join3(s5, cap, "-L", &gdir[0], 0 as *u8) == 0) {
+    return 0 - 4;
+  }
+  if (labi_win_ld_join3(s6, cap, "-L", s1, "/lib/gcc") == 0) {
+    return 0 - 4;
+  }
+  if (labi_win_ld_join3(s8, cap, "-L", s1, "/lib") == 0) {
+    return 0 - 4;
+  }
+  if (labi_win_ld_join3(s9, cap, "-L", s1, 0 as *u8) == 0) {
+    return 0 - 4;
+  }
+  return 0;
+}
+
+/**
+ * Push one argv entry when room remains (keeps one slot for NULL).
+ * @param argv **u8 — argv table
+ * @param la *i32 — in/out count
+ * @param max_la i32 — capacity
+ * @param s *u8 — entry (null/empty skipped)
+ * @return void
+ */
+#[no_mangle]
+export function labi_win_ld_push(argv: **u8, la: *i32, max_la: i32, s: *u8): void {
+  if (s == 0 as *u8) {
+    return;
+  }
+  if (s[0] == 0) {
+    return;
+  }
+  let cur: i32 = la[0];
+  if (cur < max_la - 1) {
+    argv[cur] = s;
+    la[0] = cur + 1;
+  }
+}
+
+/**
+ * Head of the ld argv (after argv[0]): PE target, crt start objects, -L dirs.
+ * ≡ gcc driver: -m i386pep -Bdynamic crt2.o crtbegin.o -L<ver> -L<lib/gcc> -L<lib> -L<root>.
+ * @param bufs *u8 — slot bank filled by labi_win_ld_prepare
+ * @param cap i32 — bytes per slot
+ * @param argv **u8 — argv table
+ * @param la *i32 — in/out count
+ * @param max_la i32 — capacity
+ * @return void
+ */
+#[no_mangle]
+export function labi_win_ld_append_head(bufs: *u8, cap: i32, argv: **u8, la: *i32, max_la: i32): void {
+  labi_win_ld_push(argv, la, max_la, "-m");
+  labi_win_ld_push(argv, la, max_la, "i386pep");
+  labi_win_ld_push(argv, la, max_la, "-Bdynamic");
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 2));
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 3));
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 5));
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 6));
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 7));
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 8));
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 9));
+}
+
+/**
+ * Tail of the ld argv: MinGW runtime -l group (≡ gcc libgcc spec) then crtend.o.
+ * @param bufs *u8 — slot bank filled by labi_win_ld_prepare
+ * @param cap i32 — bytes per slot
+ * @param argv **u8 — argv table
+ * @param la *i32 — in/out count
+ * @param max_la i32 — capacity
+ * @return void
+ */
+#[no_mangle]
+export function labi_win_ld_append_tail(bufs: *u8, cap: i32, argv: **u8, la: *i32, max_la: i32): void {
+  labi_win_ld_push(argv, la, max_la, "-lmingw32");
+  labi_win_ld_push(argv, la, max_la, "-lgcc");
+  labi_win_ld_push(argv, la, max_la, "-lmingwex");
+  labi_win_ld_push(argv, la, max_la, "-lmsvcrt");
+  labi_win_ld_push(argv, la, max_la, "-lkernel32");
+  labi_win_ld_push(argv, la, max_la, "-lpthread");
+  labi_win_ld_push(argv, la, max_la, "-ladvapi32");
+  labi_win_ld_push(argv, la, max_la, "-lshell32");
+  labi_win_ld_push(argv, la, max_la, "-luser32");
+  labi_win_ld_push(argv, la, max_la, "-lkernel32");
+  labi_win_ld_push(argv, la, max_la, "-lmingw32");
+  labi_win_ld_push(argv, la, max_la, "-lgcc");
+  labi_win_ld_push(argv, la, max_la, "-lmingwex");
+  labi_win_ld_push(argv, la, max_la, "-lmsvcrt");
+  labi_win_ld_push(argv, la, max_la, "-lkernel32");
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 4));
+}

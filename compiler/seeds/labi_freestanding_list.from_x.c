@@ -899,3 +899,127 @@ int link_abi_generated_c_contains_any_substr(const char *c_path, const char **ne
 int labi_freestanding_list_slice_marker(void) {
   return 1;
 }
+/* w1542 (7.1): cold twin of labi_freestanding_list.x labi_win_ld_* (Windows
+ * user link spawns bare ld; crt/-L derived from ld.exe on PATH; no gcc).
+ * Only compiled on Windows hosts; the .x body is authoritative. */
+#if defined(_WIN32)
+#include <dirent.h>
+#include <stdio.h>
+void diag_report_with_code(const char *file, int line, int col, const char *kind,
+                           const char *code, const char *msg, const char *detail);
+int labi_win_ld_slot_count(void) { return 12; }
+char *labi_win_ld_slot(char *bufs, int cap, int i) { return bufs + (size_t)i * (size_t)cap; }
+int labi_win_ld_ver_cmp(const char *a, const char *b) {
+  int r;
+  for (r = 0; r < 8; r++) {
+    int na = 0, nb = 0;
+    while (*a >= '0' && *a <= '9') na = na * 10 + (*a++ - '0');
+    while (*b >= '0' && *b <= '9') nb = nb * 10 + (*b++ - '0');
+    if (na != nb) return na - nb;
+    if (*a != '.' || *b != '.') return 0;
+    a++; b++;
+  }
+  return 0;
+}
+void labi_win_ld_report(const char *what, const char *where_s) {
+  char msg[1400];
+  snprintf(msg, sizeof msg, "windows link: %s%s%s%s; need MinGW binutils ld with its crt/libgcc tree; gcc is not used as the link driver",
+           what, where_s ? " (looked in " : "", where_s ? where_s : "", where_s ? ")" : "");
+  diag_report_with_code(NULL, 0, 0, "build error", "BLD001", msg, NULL);
+}
+int labi_win_ld_find_on_path(char *ld_out, char *root_out, int cap) {
+  const char *p = link_abi_getenv("PATH");
+  ld_out[0] = root_out[0] = 0;
+  while (p && *p) {
+    char dir[1024];
+    int n = 0;
+    while (*p && *p != ';') { if (n < 1000) dir[n++] = *p; p++; }
+    if (*p == ';') p++;
+    if (n > 0 && (dir[n - 1] == '\\' || dir[n - 1] == '/')) n--;
+    dir[n] = 0;
+    if (n > 0 && snprintf(ld_out, (size_t)cap, "%s/ld.exe", dir) < cap && link_abi_path_readable(ld_out) &&
+        snprintf(root_out, (size_t)cap, "%s/..", dir) < cap)
+      return 1;
+  }
+  ld_out[0] = root_out[0] = 0;
+  return 0;
+}
+int labi_win_ld_find_gcc_dir(const char *root, char *gcc_dir_out, char *triple_out, int cap, char *scratch) {
+  char base[1024], tdir[1024], best[256] = "";
+  DIR *d1, *d2;
+  struct dirent *e1, *e2;
+  int found = 0;
+  gcc_dir_out[0] = triple_out[0] = 0;
+  if (snprintf(base, sizeof base, "%s/lib/gcc", root) >= (int)sizeof base) return 0;
+  if (!(d1 = opendir(base))) return 0;
+  while ((e1 = readdir(d1)) != NULL) {
+    if (e1->d_name[0] == '.') continue;
+    if (snprintf(tdir, sizeof tdir, "%s/%s", base, e1->d_name) >= (int)sizeof tdir) continue;
+    if (!(d2 = opendir(tdir))) continue;
+    while ((e2 = readdir(d2)) != NULL) {
+      if (e2->d_name[0] < '0' || e2->d_name[0] > '9') continue;
+      if (snprintf(scratch, (size_t)cap, "%s/%s/crtbegin.o", tdir, e2->d_name) >= cap) continue;
+      if (!link_abi_path_readable(scratch)) continue;
+      if (found && labi_win_ld_ver_cmp(e2->d_name, best) <= 0) continue;
+      if (snprintf(best, sizeof best, "%s", e2->d_name) >= (int)sizeof best) continue;
+      if (snprintf(gcc_dir_out, (size_t)cap, "%s/%s", tdir, best) >= cap) continue;
+      snprintf(triple_out, (size_t)cap, "%s", e1->d_name);
+      found = 1;
+    }
+    closedir(d2);
+  }
+  closedir(d1);
+  return found;
+}
+int labi_win_ld_prepare(char *bufs, int cap) {
+  char *s[12], gdir[1024];
+  int k, have_crt2 = 0;
+  for (k = 0; k < 12; k++) { s[k] = labi_win_ld_slot(bufs, cap, k); s[k][0] = 0; }
+  if (!labi_win_ld_find_on_path(s[0], s[1], cap)) { labi_win_ld_report("ld.exe not found", "PATH"); return -1; }
+  if (!labi_win_ld_find_gcc_dir(s[1], gdir, s[10], cap, s[11])) {
+    snprintf(s[11], (size_t)cap, "%s/lib/gcc/<triple>/<version>", s[1]);
+    labi_win_ld_report("crtbegin.o not found", s[11]);
+    return -2;
+  }
+  if (snprintf(s[3], (size_t)cap, "%s/crtbegin.o", gdir) >= cap) return -4;
+  if (snprintf(s[4], (size_t)cap, "%s/crtend.o", gdir) >= cap) return -4;
+  if (!link_abi_path_readable(s[4])) { labi_win_ld_report("crtend.o not found", s[4]); return -2; }
+  if (snprintf(s[2], (size_t)cap, "%s/lib/crt2.o", s[1]) < cap) have_crt2 = link_abi_path_readable(s[2]);
+  if (snprintf(s[11], (size_t)cap, "%s/%s/lib/crt2.o", s[1], s[10]) < cap && link_abi_path_readable(s[11])) {
+    if (snprintf(s[7], (size_t)cap, "-L%s/%s/lib", s[1], s[10]) >= cap) s[7][0] = 0;
+    if (!have_crt2) { snprintf(s[2], (size_t)cap, "%s", s[11]); have_crt2 = 1; }
+  }
+  if (!have_crt2) {
+    snprintf(s[11], (size_t)cap, "%s/lib", s[1]);
+    labi_win_ld_report("crt2.o not found", s[11]);
+    return -3;
+  }
+  if (snprintf(s[5], (size_t)cap, "-L%s", gdir) >= cap) return -4;
+  if (snprintf(s[6], (size_t)cap, "-L%s/lib/gcc", s[1]) >= cap) return -4;
+  if (snprintf(s[8], (size_t)cap, "-L%s/lib", s[1]) >= cap) return -4;
+  if (snprintf(s[9], (size_t)cap, "-L%s", s[1]) >= cap) return -4;
+  return 0;
+}
+void labi_win_ld_push(const char **argv, int *la, int max_la, const char *s) {
+  if (!s || !s[0]) return;
+  if (*la < max_la - 1) argv[(*la)++] = s;
+}
+void labi_win_ld_append_head(char *bufs, int cap, const char **argv, int *la, int max_la) {
+  static const int slots[] = {2, 3, 5, 6, 7, 8, 9};
+  size_t i;
+  labi_win_ld_push(argv, la, max_la, "-m");
+  labi_win_ld_push(argv, la, max_la, "i386pep");
+  labi_win_ld_push(argv, la, max_la, "-Bdynamic");
+  for (i = 0; i < sizeof slots / sizeof slots[0]; i++)
+    labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, slots[i]));
+}
+void labi_win_ld_append_tail(char *bufs, int cap, const char **argv, int *la, int max_la) {
+  static const char *const libs[] = {"-lmingw32", "-lgcc", "-lmingwex", "-lmsvcrt", "-lkernel32",
+                                     "-lpthread", "-ladvapi32", "-lshell32", "-luser32", "-lkernel32",
+                                     "-lmingw32", "-lgcc", "-lmingwex", "-lmsvcrt", "-lkernel32"};
+  size_t i;
+  for (i = 0; i < sizeof libs / sizeof libs[0]; i++)
+    labi_win_ld_push(argv, la, max_la, libs[i]);
+  labi_win_ld_push(argv, la, max_la, labi_win_ld_slot(bufs, cap, 4));
+}
+#endif
