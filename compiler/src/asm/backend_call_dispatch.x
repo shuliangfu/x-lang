@@ -1200,6 +1200,9 @@ function w1545_win_mid_ret_call(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
  * G.7: one packer; max() not first-wins. PLATFORM: SHARED freestanding dual-GP.
  */
 function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let sz: i32 = 0;
   let alt: i32 = 0;
   let ko: i32 = 0;
@@ -1274,6 +1277,8 @@ function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32)
     if (w1545_arg_mid_sz(arena, pty, arg_ref) > 0) { return 24; }
   }
   return sz;
+
+  }
 }
 
 /**
@@ -1285,6 +1290,9 @@ function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32)
  */
 function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
     arena: *u8, elf_ctx: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let ko: i32 = 0;
   let nbytes: i32 = 0;
   let off: i32 = 0;
@@ -1328,6 +1336,8 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
   if (backend_enc_load_rbp_to_rax_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
   if (glue_arm64_mov_x0_to_x8_elf_c(elf_ctx) != 0) { return 0 - 1; }
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+
+  }
 }
 
 /**
@@ -1357,6 +1367,9 @@ function w1521_win_mem_byref_sz(sz: i32): i32 {
  */
 function w1521_win_mem_arg_addr_to_rax_c(
     arena: *u8, elf_ctx: *u8, ctx: *u8, arg_ref: i32, sz: i32, ta: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let ko: i32 = 0;
   let nbytes: i32 = 0;
   let off: i32 = 0;
@@ -1421,6 +1434,8 @@ function w1521_win_mem_arg_addr_to_rax_c(
     }
   }
   return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+
+  }
 }
 
 /** Thin wrappers over pabi/enc externs (keep unsafe local). PLATFORM: WINDOWS x86_64. */
@@ -1493,6 +1508,9 @@ export function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i3
  * @return i32 — spill offset (low half), or -1
  */
 function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_units: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   if (elf == 0 as *u8) { return 0 - 1; }
   if (ctx == 0 as *u8) { return 0 - 1; }
   if (ta != 0) {
@@ -1528,6 +1546,8 @@ function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_unit
     call_dispatch_store_i32_le(ctx, 4, off + step);
   }
   return off;
+
+  }
 }
 
 /**
@@ -1536,6 +1556,9 @@ function glue_sysv_spill_rax_rdx_to_frame_c(elf: *u8, ctx: *u8, ta: i32, gp_unit
  * When gp==0 and dual-GP, load high half first then low (avoid overwriting low in rax).
  */
 function glue_sysv_load_spill_to_arg_regs_elf_c(elf: *u8, ta: i32, spill_off: i32, gp: i32, gp_units: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   if (elf == 0 as *u8) { return 0 - 1; }
   if (spill_off < 0) { return 0 - 1; }
   if (gp < 0) { return 0 - 1; }
@@ -1559,6 +1582,8 @@ function glue_sysv_load_spill_to_arg_regs_elf_c(elf: *u8, ta: i32, spill_off: i3
     if (backend_enc_mov_rax_to_arg_reg_arch(elf, gp + 1, ta) != 0) { return 0 - 1; }
   }
   return 0;
+
+  }
 }
 
 /**
@@ -1617,6 +1642,9 @@ export function w1547_win_place_float(gp_inout: *i32, out_use_xmm: *i32, out_slo
 export function glue_sysv_x86_call_arg_slot_c(
   arena: *u8, call_expr_ref: i32, nargs: i32, arg_index: i32, out_kind: *i32, out_reg_k: *i32, out_stack_k: *i32
 ): void {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   if (out_kind == 0) { return; }
   if (out_reg_k == 0) { return; }
   if (out_stack_k == 0) { return; }
@@ -1712,6 +1740,8 @@ export function glue_sysv_x86_call_arg_slot_c(
   out_kind[0] = 2;
   out_reg_k[0] = 0;
   out_stack_k[0] = 0;
+
+  }
 }
 
 /**
@@ -2657,6 +2687,9 @@ function glue_asm_fmt_any_append_dec(out: *u8, cap: i32, pos: i32, v: i32): i32 
  * PLATFORM: SHARED — G.7 twin of typeck_find_layout_idx_by_type_name (pipeline face).
  */
 function glue_asm_fmt_any_find_layout(m: *u8, nm: *u8, nlen: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let n: i32 = 0;
   let k: i32 = 0;
   let ln: i32 = 0;
@@ -2678,6 +2711,8 @@ function glue_asm_fmt_any_find_layout(m: *u8, nm: *u8, nlen: i32): i32 {
     k = k + 1;
   }
   return 0 - 1;
+
+  }
 }
 
 /**
@@ -2689,6 +2724,9 @@ function glue_asm_fmt_any_find_layout(m: *u8, nm: *u8, nlen: i32): i32 {
  */
 function glue_asm_fmt_any_build_schema(m: *u8, arena: *u8, ty: i32, out: *u8, cap: i32,
 base_off: i32, depth: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let tk: i32 = 0;
   let pos: i32 = 0;
   let elem: i32 = 0;
@@ -2887,6 +2925,8 @@ base_off: i32, depth: i32): i32 {
   out[pos] = 125; /* } */
   pos = pos + 1;
   return pos;
+
+  }
 }
 
 /**
@@ -7948,6 +7988,9 @@ export function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, n
  */
 #[no_mangle]
 export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let gp: i32 = 0;
   let xmm: i32 = 0;
   let stk: i32 = 0;
@@ -7988,6 +8031,8 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
     j = j + 1;
   }
   return stk;
+
+  }
 }
 
 /**
@@ -8003,6 +8048,9 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
  * @return i32 — stack word count (not yet 16-aligned)
  */
 function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32): i32 {
+  // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
+  // body-less extern calls in this function sit in one unsafe block.
+  unsafe {
   let nw: i32 = 0;
   let gp: i32 = 0;
   let fp: i32 = 0;
@@ -8035,6 +8083,8 @@ function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32
     j = j + 1;
   }
   return nw;
+
+  }
 }
 
 // See implementation.
