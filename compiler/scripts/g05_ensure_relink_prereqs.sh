@@ -400,6 +400,43 @@ g05_as_suffix_tramp_pure() {
   return 0
 }
 
+# w1538: the by-value ternary and assign faces, the logor pointer
+# shim, and the marker. One pure-asm emit. No -E fallback and no
+# host cc of the seed. PLATFORM: SHARED. $1 = output object.
+# cwd is compiler/.
+g05_ternary_tramp_pure() {
+  local _bo="$1"
+  local _bx="src/asm/pthin_expr_ternary_tramp.x"
+  if [ ! -f "$_bx" ]; then
+    echo "g05_ensure: P4 ternary trampoline .x missing" >&2
+    return 1
+  fi
+  if [ -z "$_bo" ]; then
+    echo "g05_ensure: P4 ternary trampoline output path missing" >&2
+    return 1
+  fi
+  rm -f "$_bo"
+  if ! (
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$_bo" "$_bx"
+  ) || [ ! -s "$_bo" ]; then
+    echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  if ! g05_obj_defines "$_bo" "parser_asm_parse_ternary_into_slice_c" \
+    || ! g05_obj_defines "$_bo" "parser_asm_parse_assign_into_slice_c" \
+    || ! g05_obj_defines "$_bo" "parser_parse_logor_ptr_into_c" \
+    || ! g05_obj_defines "$_bo" "labi_pthin_expr_ternary_slice_marker" \
+    || ! g05_obj_defines "$_bo" "pthin_expr_ternary_tramp_w1538_anchor"; then
+    echo "g05_ensure: P4 ternary trampoline missing symbols" >&2
+    rm -f "$_bo"
+    return 1
+  fi
+  return 0
+}
+
 g05_try_x_to_o() {
   _xsrc="$1"
   _xout="$2"
@@ -1470,6 +1507,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p4t_seed=seeds/pthin_expr_ternary.from_x.c
   # 7.2.1 P4tb/P4tc Route C: ternary wrap + assign wrap dest-buffer
   _pthin_p4tb_x=src/asm/pthin_expr_ternary.x
+  # w1538: by-value faces, logor pointer shim, and marker. The seed stays for prove.
+  _pthin_p4t_tramp_x=src/asm/pthin_expr_ternary_tramp.x
   _pthin_p5_seed=seeds/pthin_ctrl.from_x.c
   # 7.2.1 P5b/P5c/P5d/P5e/P5f/P5g Route C: ctrl .x bodies (brace skip / kw /
   # scan_sync / realign / dest-tag / parse_if_expr / match wrap)
@@ -1547,6 +1586,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       || { [ -f "$_pthin_p4as_tramp_x" ] && [ "$_pthin_p4as_tramp_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4t_seed" ] && [ "$_pthin_p4t_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p4tb_x" ] && [ "$_pthin_p4tb_x" -nt parser_asm_thin_glue.o ]; } \
+      || { [ -f "$_pthin_p4t_tramp_x" ] && [ "$_pthin_p4t_tramp_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p5_seed" ] && [ "$_pthin_p5_seed" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p5b_x" ] && [ "$_pthin_p5b_x" -nt parser_asm_thin_glue.o ]; } \
       || { [ -f "$_pthin_p6_seed" ] && [ "$_pthin_p6_seed" -nt parser_asm_thin_glue.o ]; } \
@@ -2113,13 +2153,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         # PLATFORM: SHARED — 7.2.1 P4tb/P4tc/P4td/P4te (2026-09-16).
         # pthin_expr_ternary.x holds EXPR_TERNARY wrap + assign wrap
         # dest-buffer + parse_ternary dest-buffer + parse_assign
-        # dest-buffer. Runs before P4t C so BODIES_FROM_X skips the
-        # portable wrap twins and the parse bodies. No lexer-step
-        # bridge. set_if lives in the P5 seed (G.7 if_* slots);
+        # dest-buffer. w1538: product faces, the logor pointer shim,
+        # and the marker come from pthin_expr_ternary_tramp.x.
+        # The C seed stays for prove and is not host-cc'd.
+        # set_if lives in the P5 seed (G.7 if_* slots);
         # set_binop lives in the P4bc seed (G.7 left/right slots; do
         # not FORCE pabi mega; do not extend P4bc wrap with line/col).
-        # Cold: no define, full .inc.
-        _pthin_p4t_extra=""
+        # Cold / body miss: no FROM_X, rest keeps the .inc.
         _pthin_p4t_pure=0
         # w1141: the four-function file exits 139. Darwin compiles each
         # function and links them. Other hosts keep g05_try_x_to_o.
@@ -2134,7 +2174,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if [ "$_pthin_p4t_pure" = "1" ] \
             || G05_X_O_WEAK=1 g05_try_x_to_o "$_pthin_p4tb_x" "$_pthin_p4tb_thin_o"; then
             _pthin_p4tb_ok=1
-            _pthin_p4t_extra="-DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X"
             if [ "$_pthin_p4t_pure" = "1" ]; then
               echo "g05_ensure: P4 ternary ← pure-asm four pieces (w1141)"
             else
@@ -2144,14 +2183,18 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             echo "g05_ensure: P4tb ternary .x thin failed; P4t C twin stays full" >&2
           fi
         fi
-        if [ -n "$_pthin_p4t_o" ] && [ -f "$_pthin_p4t_seed" ]; then
-          # shellcheck disable=SC2086
-          if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               $_pthin_p4t_extra -c -o "$_pthin_p4t_o" "$_pthin_p4t_seed"; then
-            _pthin_p4t_ok=1
-            _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_TERNARY_FROM_X"
-            echo "g05_ensure: P4 ternary ← $_pthin_p4t_seed (G-02f-285 seed slice)"
+        # w1538: trampoline replaces the seed only when the four
+        # bodies linked, so rest can drop its slice. A body miss
+        # keeps the .inc and does not host-cc the seed.
+        # PLATFORM: SHARED.
+        if [ "$_pthin_p4tb_ok" = "1" ] && [ -n "$_pthin_p4t_o" ]; then
+          if ! g05_ternary_tramp_pure "$_pthin_p4t_o"; then
+            echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
+            exit 1
           fi
+          _pthin_p4t_ok=1
+          _pthin_rest_defs="$_pthin_rest_defs -DXLANG_PTHIN_EXPR_TERNARY_FROM_X"
+          echo "g05_ensure: P4 ternary trampoline ← pure-asm w1538"
         fi
         # P5 C is compiled after P9a (P5d realign .x calls the bridge
         # peek family). See the P5b/P5c/P5d block below.
@@ -3708,20 +3751,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && g05_obj_defines "$_cb_p16" "labi_pthin_diag_pipeline_slice_marker"; then
             _cb_p16_ok=1
           fi
-          # w1312: trampoline keeps the parse dest-buffers. Bodies are
-          # the four .x symbols. set_if stays in the ctrl seed (G.7).
-          # WRITER_ONLY skips the ctrl slices already in rest.
+          # w1538: faces, the logor pointer shim, and the marker come
+          # from the trampoline .x. The seed is not host-cc'd.
+          # set_if stays in the ctrl writer-only object (G.7).
+          # A body object without the trampoline stops ensure.
+          # A splitter flake does not stop ensure.
           # PLATFORM: MACOS|DARWIN arm64.
           if [ "$_cb_p4t_pure" = "1" ] && [ -n "$_cb_p5w" ] \
-            && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
-               -DXLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X \
-               -c -o "$_cb_p4t" "$_pthin_p4t_seed" \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DXLANG_PTHIN_CTRL_WRITER_ONLY \
                -c -o "$_cb_p5w" "$_pthin_p5_seed" \
             && g05_obj_defines "$_cb_p4tb" "parser_asm_parse_ternary_x_into_c" \
-            && g05_obj_defines "$_cb_p4t" "parser_asm_parse_ternary_into_slice_c" \
             && g05_obj_defines "$_cb_p5w" "pipeline_expr_set_if_c"; then
+            if ! g05_ternary_tramp_pure "$_cb_p4t"; then
+              echo "g05_ensure: P4 ternary trampoline pure-asm failed" >&2
+              exit 1
+            fi
             _cb_p4t_ok=1
           fi
           # w1313: trampoline keeps name[256] wrap and parse next_lex.
@@ -3904,6 +3949,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             && { g05_as_suffix_set_pure "$_cb_p4asset" || exit 1; } \
             && echo "g05_ensure: P4 as_suffix setter ← pure-asm w1537" \
             && { [ "${_cb_p4as_ok:-}" != "1" ] || echo "g05_ensure: P4 as_suffix trampoline ← pure-asm w1537"; } \
+            && { [ "${_cb_p4t_ok:-}" != "1" ] || echo "g05_ensure: P4 ternary trampoline ← pure-asm w1538"; } \
             && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -Isrc/lexer -Isrc/asm -Iseeds/parser_asm \
                -DXLANG_PTHIN_SKIP_TL_BODIES_FROM_X -DXLANG_PTHIN_SKIP_TL_TRAIT_SHAPE_FROM_X \
                -c -o "$_bx_p12" "$_pthin_p12_seed" \

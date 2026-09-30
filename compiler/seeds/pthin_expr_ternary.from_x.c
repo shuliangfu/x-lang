@@ -4,10 +4,10 @@
  *
  * Body: seeds/parser_asm/parser_asm_ternary_assign_slice.inc
  *
- * Hybrid P4tb/P4tc/P4td/P4te (XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X): portable
- * EXPR_TERNARY wrap, assign wrap dest-buffer, parse_ternary dest-buffer,
- * and parse_assign dest-buffer come from pthin_expr_ternary.x; this TU
- * keeps wrap trampolines plus logor-ptr / parse trampolines. Cold: no
+ * w1538: product g05 does not host-cc this seed. The by-value faces,
+ * the logor pointer shim, and the marker are pthin_expr_ternary_tramp.x.
+ * Bodies stay in pthin_expr_ternary.x. This TU remains so prove harnesses
+ * can still compile the C twins, including stretch-audit. Cold: no
  * BODIES define, full .inc.
  * Do not reuse XLANG_PTHIN_EXPR_TERNARY_FROM_X for bodies.
  * G.7: pipeline_expr_set_if_c lives in the P5 seed (if_* slots);

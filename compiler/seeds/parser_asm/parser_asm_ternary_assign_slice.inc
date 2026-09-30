@@ -177,6 +177,7 @@ static int32_t parser_asm_assign_wrap_c(void *arena, struct parser_asm_parse_exp
  * Pointer-face parse_logor. Language has no lexer / parse_expr_result
  * by-value; this C face copies the cursor, drives the historical
  * parser_parse_logor_into, and writes ok / expr_ref / next_lex.
+ * Product g05 compiles the same shim from pthin_expr_ternary_tramp.x.
  * PLATFORM: SHARED — P4td zero-algorithm shim. Do not copy logor parse.
  */
 int32_t parser_parse_logor_ptr_into_c(void *arena, void *lex_inout, void *source, int32_t *out_ok,
@@ -214,6 +215,7 @@ void parser_asm_parse_ternary_into_slice_c(void *arena, struct parser_asm_lexer 
     return;
 #ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
   /* PLATFORM: SHARED — P4td trampoline. AUDIT stays (product nop).
+   * Product g05 compiles this face from pthin_expr_ternary_tramp.x.
    * .x peeks; includes logor via the ptr shim. Publish next_lex from
    * the live cursor. parse_assign dest-buffer is P4te. */
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_ternary_op_audit_c(&lex, source));
@@ -988,8 +990,10 @@ void parser_asm_parse_assign_into_slice_c(void *arena, struct parser_asm_lexer l
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_expr_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_audit_c(&lex, source));
 #ifdef XLANG_PTHIN_EXPR_TERNARY_BODIES_FROM_X
   /* PLATFORM: SHARED — P4te trampoline. Prefix AUDIT stayed above
-   * (product nop). .x keeps the redundant double parse_ternary from
-   * the same start cursor. Publish next_lex from the live cursor. */
+   * (product nop). Product g05 compiles this face from
+   * pthin_expr_ternary_tramp.x. .x keeps the redundant double
+   * parse_ternary from the same start cursor. Publish next_lex
+   * from the live cursor. */
   {
     struct parser_asm_lexer cur;
     int32_t ok;
