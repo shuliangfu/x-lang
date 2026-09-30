@@ -519,6 +519,7 @@ export function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i
 // See implementation.
 export extern "C" function arch_arm64_enc_enc_push_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_push_rax(elf_ctx: *u8): i32;
+export extern "C" function w1545_win_epi_prefix_c(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_push_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_push_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_push_rbx(elf_ctx: *u8): i32;
@@ -626,6 +627,11 @@ export function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32 {
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_epilogue(elf_ctx); }
+  }
+  // w1545 (终局待办 10.72): Win64 9–16B named result — write rax:rdx through
+  // the saved hidden pointer, rax = pointer (no-op elsewhere).
+  unsafe {
+    if (w1545_win_epi_prefix_c(elf_ctx) != 0) { return 0 - 1; }
   }
   unsafe { return arch_x86_64_enc_enc_epilogue(elf_ctx); }
   return 0 - 1;

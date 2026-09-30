@@ -34,6 +34,11 @@ export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
 export extern function pipe_asm_ctx_off_num_locals(): i32;
 export extern function pipe_asm_ctx_off_next_offset(): i32;
 export extern function w1521_win_note_func_c(mod: *u8, func_index: i32): void;
+export extern function pipeline_module_func_return_type_at(m: *u8, func_index: i32): i32;
+export extern function pipeline_module_func_param_type_ref_at(m: *u8, func_index: i32, param_index: i32): i32;
+export extern function w1545_win_mid_named_sz(arena: *u8, ty: i32): i32;
+export extern function w1545_win_ret_slot_latch_c(mod: *u8, func_index: i32, off: i32, sz: i32): void;
+export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
 
 /**
  * w1521 (终局待办 10.57): Windows formal slot table matching the tip x86
@@ -96,6 +101,27 @@ export function pipeline_asm_fill_param_slots(ctx: *u8, mod: *u8, func_index: i3
       off = off + 8;
     }
     i = i + 1;
+  }
+  // w1545 (终局待办 10.72): a 9–16B named result comes back through a hidden
+  // pointer in rcx (Microsoft x64). Its 8-byte save slot follows the formals;
+  // the epilogue writes rax:rdx through it (backend_enc_epilogue_arch).
+  // Frame: pipeline_asm_compute_frame_size_c adds 16. PLATFORM: WINDOWS.
+  width = 0;
+  if (arena != (0 as *u8)) {
+    unsafe {
+      ap = pipeline_module_func_return_type_at(mod, func_index);
+      width = w1545_win_mid_named_sz(arena, ap);
+    }
+  }
+  unsafe {
+    if (width > 0) {
+      w1545_win_ret_slot_latch_c(mod, func_index, off, width);
+    } else {
+      w1545_win_ret_slot_latch_c(mod, func_index, 0 - 1, 0);
+    }
+  }
+  if (width > 0) {
+    off = off + 8;
   }
   unsafe {
     pipe_store_i32_le(ctx, pipe_asm_ctx_off_next_offset(), off);
@@ -177,6 +203,9 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   let wide_home: i32 = 0;
   let rc: i32 = 0;
   let arena_ph: *u8 = 0 as *u8;
+  let ms_off: i32 = 0 - 1;
+  let pty: i32 = 0;
+  let mid: i32 = 0;
   if (elf_ctx == (0 as *u8) || mod == (0 as *u8) || func_index < 0) {
     return -1;
   }
@@ -193,6 +222,15 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       return -1;
     }
   }
+  // w1545 (10.72): save the hidden return pointer (rcx); formals start at rdx.
+  unsafe {
+    ms_off = w1545_win_ret_slot_for_c(mod, func_index);
+  }
+  if (ms_off > 0) {
+    if (w1500_ph_mov_store(elf_ctx, 0, ms_off, ta) != 0) {
+      return -1;
+    }
+  }
   unsafe {
     np = pipeline_asm_module_func_num_params_at(mod, func_index);
   }
@@ -200,6 +238,9 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
     return 0;
   }
   if (sret_act != 0) {
+    gp = 1;
+  }
+  if (ms_off > 0) {
     gp = 1;
   }
   unsafe {
@@ -217,7 +258,15 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
     if (w <= 0) {
       w = 8;
     }
-    if (w > 16) {
+    // w1545 (10.72): 9–16B named formal arrives by reference, like > 16B.
+    mid = 0;
+    if (w > 8 && w <= 16 && arena_ph != (0 as *u8)) {
+      unsafe {
+        pty = pipeline_module_func_param_type_ref_at(mod, func_index, i);
+        mid = w1545_win_mid_named_sz(arena_ph, pty);
+      }
+    }
+    if (w > 16 || mid > 0) {
       // w1521 (10.57): Win64 passes >16B by value as a pointer in one GP.
       wide_home = home + w;
       if (w1521_ph_copy_byref(elf_ctx, gp, wide_home, w, ta) != 0) {

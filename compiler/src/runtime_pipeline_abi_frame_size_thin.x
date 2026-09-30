@@ -35,6 +35,8 @@ export extern function glue_asm_last_call_max_gp_units_c(): i32;
 export extern function glue_asm_last_binop_preserve_homes_c(): i32;
 export extern function glue_asm_last_struct_lit_temp_bytes_c(): i32;
 export extern function glue_asm_last_sret_call_temp_bytes_c(): i32;
+export extern function pipeline_module_func_return_type_at(m: *u8, func_index: i32): i32;
+export extern function w1545_win_mid_named_sz(arena: *u8, ty: i32): i32;
 export extern function glue_binop_var_slot_cache_clear(): void;
 export extern function asm_sum_block_wa_temp_bytes(arena: *u8, block_ref: i32): i32;
 export extern function glue_sum_block_slice_reent_dc_bytes_c(arena: *u8, block_ref: i32): i32;
@@ -469,6 +471,15 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
     unsafe {
       w = glue_asm_last_sret_call_temp_bytes_c();
       lit = lit + w;
+    }
+    // w1545 (10.72): hidden return pointer save slot (fill_param_slots puts
+    // it after the formals, shifting every local by 8). PLATFORM: WINDOWS.
+    unsafe {
+      w = pipeline_module_func_return_type_at(mod, func_index);
+      w = w1545_win_mid_named_sz(arena, w);
+    }
+    if (w > 0) {
+      lit = lit + 16;
     }
     if (lit > 0) {
       size = size + lit;

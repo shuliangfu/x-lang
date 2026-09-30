@@ -175,6 +175,8 @@ export extern function backend_enc_label_arch(elf: *u8, name: *u8, name_len: i32
 export extern function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, buf_size: i32): i32;
 /* Cap 10.7.1 slice12: current emit func index for named-param gp skip. */
 export extern function pipeline_asm_emit_func_index_c(): i32;
+/* w1545: current emit module (epilogue hidden-pointer latch check). */
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
 /* 10.4.1 slice2: i64 atomic encoders. */
 export extern "C" function arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx: *u8): i32;
@@ -899,6 +901,282 @@ function glue_sysv_arg_stack_words_c(sz: i32, gp_units: i32): i32 {
   return gp_units;
 }
 
+
+/*
+ * w1545 (终局待办 10.72): Microsoft x64 passes and returns every aggregate
+ * whose size is not 1/2/4/8 bytes by reference. X kept 9–16-byte named
+ * structs in two GPs / rax:rdx, so gcc-built C (pabi, *_gen.c, seed twins)
+ * and X disagreed at every such call (Lexer {usize,i32,i32} by value).
+ * Now, on Windows x86_64 only, a TYPE_NAMED with named layout 9–16:
+ *   arg    — caller copy + pointer (same as the w1521 > 16 path);
+ *   return — hidden pointer in rcx (args shift by one), callee writes the
+ *            value there and returns the pointer in rax.
+ * Inside one function the value still travels in rax:rdx: the call site
+ * reads it back from the hidden buffer and the callee epilogue stores
+ * rax:rdx through the saved pointer. Slices / non-named 16B are unchanged.
+ * PLATFORM: WINDOWS x86_64 (all helpers return 0 / no-op elsewhere).
+ */
+
+/** @return layout size (9..16) when ty is a Win64 by-reference named struct; else 0. */
+#[no_mangle]
+export function w1545_win_mid_named_sz(arena: *u8, ty: i32): i32 {
+  let w: i32 = 0;
+  if (arena == 0 as *u8 || ty <= 0) { return 0; }
+  unsafe {
+    if (link_abi_host_is_windows() == 0) { return 0; }
+    if (pipeline_type_kind_ord_at(arena, ty) != 8) { return 0; }
+    w = glue_type_named_layout_size_any_module_elf_c(arena, ty);
+  }
+  if (w > 8 && w <= 16) { return w; }
+  return 0;
+}
+
+/** Formal type first, then the arg's resolved type. @return 9..16 or 0. */
+function w1545_arg_mid_sz(arena: *u8, pty: i32, arg_ref: i32): i32 {
+  let w: i32 = 0;
+  let tr: i32 = 0;
+  if (arena == 0 as *u8) { return 0; }
+  unsafe {
+    if (link_abi_host_is_windows() == 0) { return 0; }
+  }
+  if (pty > 0) {
+    w = w1545_win_mid_named_sz(arena, pty);
+    if (w > 0) { return w; }
+    unsafe {
+      if (pipeline_type_kind_ord_at(arena, pty) != 8) { return 0; }
+    }
+  }
+  if (arg_ref > 0 && arena != 0 as *u8) {
+    unsafe { tr = pipeline_expr_resolved_type_ref(arena, arg_ref); }
+    return w1545_win_mid_named_sz(arena, tr);
+  }
+  return 0;
+}
+
+/*
+ * Pending hidden return pointer for one call expr. w1545_win_mid_ret_call
+ * sets it; the x86 arg packers shift formals by one when it names their
+ * expr and emit lea rcx,[rbp-off] after every arg register is loaded.
+ * Keyed by expr ref so calls nested in the args never take it.
+ */
+let w1545_pend_expr: i32[1] = [0];
+let w1545_pend_off: i32[1] = [0];
+let w1545_pend_used: i32[1] = [0];
+
+/** @return 1 when expr_ref owns the pending hidden return pointer. */
+function w1545_pend_is(expr_ref: i32): i32 {
+  if (expr_ref > 0 && w1545_pend_expr[0] == expr_ref) { return 1; }
+  return 0;
+}
+
+/** lea rcx,[rbp-off] for the pending call (48 8D 8D disp32). @return 0 ok / not pending; -1 fail. */
+function w1545_pend_rcx_emit(elf_ctx: *u8, expr_ref: i32): i32 {
+  let b: u8[8] = [];
+  let d: i32 = 0;
+  let du: u32 = 0;
+  let rc: i32 = 0;
+  if (w1545_pend_is(expr_ref) == 0) { return 0; }
+  d = 0 - w1545_pend_off[0];
+  du = d as u32;
+  b[0] = 72;
+  b[1] = 141;
+  b[2] = 141;
+  b[3] = (du & 255) as u8;
+  b[4] = ((du >> 8) & 255) as u8;
+  b[5] = ((du >> 16) & 255) as u8;
+  b[6] = ((du >> 24) & 255) as u8;
+  unsafe { rc = pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 7); }
+  if (rc != 0) { return 0 - 1; }
+  w1545_pend_used[0] = 1;
+  w1545_pend_expr[0] = 0;
+  return 0;
+}
+
+/*
+ * Callee side: hidden pointer slot of the function being emitted, latched by
+ * the Windows fill_param_slots overlay and read by the param home (store
+ * rcx) and backend_enc_epilogue_arch (write rax:rdx back). Checked against
+ * the current emit (module, func index) so stubs never pick it up.
+ */
+let w1545_epi_mod: *u8 = 0 as *u8;
+let w1545_epi_fi: i32[1] = [0 - 1];
+let w1545_epi_off: i32[1] = [0 - 1];
+let w1545_epi_sz: i32[1] = [0];
+
+/** Latch (or clear with off < 0) the hidden return slot. PLATFORM: WINDOWS x86_64. */
+#[no_mangle]
+export function w1545_win_ret_slot_latch_c(mod: *u8, func_index: i32, off: i32, sz: i32): void {
+  w1545_epi_mod = mod;
+  w1545_epi_fi[0] = func_index;
+  w1545_epi_off[0] = off;
+  w1545_epi_sz[0] = sz;
+}
+
+/** @return the latched slot offset for (mod, func_index), else -1. */
+#[no_mangle]
+export function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32 {
+  if (w1545_epi_off[0] <= 0) { return 0 - 1; }
+  if (mod != w1545_epi_mod || func_index != w1545_epi_fi[0]) { return 0 - 1; }
+  return w1545_epi_off[0];
+}
+
+function w1545_put(elf_ctx: *u8, b: *u8, n: i32): i32 {
+  let rc: i32 = 0;
+  unsafe { rc = pipeline_elf_ctx_append_bytes(elf_ctx, b, n); }
+  return rc;
+}
+
+/**
+ * Before an x86 epilogue of a hidden-pointer function: r11 = saved pointer,
+ * store the sz-byte value from rax:rdx, rax = r11. Exact width so a C
+ * caller's 12-byte buffer is not overrun.
+ * @return 0 ok / nothing to do; -1 fail. PLATFORM: WINDOWS x86_64.
+ */
+#[no_mangle]
+export function w1545_win_epi_prefix_c(elf_ctx: *u8): i32 {
+  let b: u8[8] = [];
+  let d: i32 = 0;
+  let du: u32 = 0;
+  let rem: i32 = 0;
+  let at: i32 = 8;
+  let fi: i32 = 0;
+  let md: *u8 = 0 as *u8;
+  if (elf_ctx == 0 as *u8 || w1545_epi_off[0] <= 0) { return 0; }
+  unsafe {
+    fi = pipeline_asm_emit_func_index_c();
+    md = pipeline_asm_emit_module_ref_c();
+  }
+  if (fi != w1545_epi_fi[0] || md != w1545_epi_mod) { return 0; }
+  // mov r11, [rbp-off]  (4C 8B 9D disp32)
+  d = 0 - w1545_epi_off[0];
+  du = d as u32;
+  b[0] = 76;
+  b[1] = 139;
+  b[2] = 157;
+  b[3] = (du & 255) as u8;
+  b[4] = ((du >> 8) & 255) as u8;
+  b[5] = ((du >> 16) & 255) as u8;
+  b[6] = ((du >> 24) & 255) as u8;
+  if (w1545_put(elf_ctx, &b[0], 7) != 0) { return 0 - 1; }
+  // mov [r11], rax  (49 89 03)
+  b[0] = 73;
+  b[1] = 137;
+  b[2] = 3;
+  if (w1545_put(elf_ctx, &b[0], 3) != 0) { return 0 - 1; }
+  rem = w1545_epi_sz[0] - 8;
+  if (rem >= 8) {
+    // mov [r11+8], rdx  (49 89 53 08)
+    b[0] = 73;
+    b[1] = 137;
+    b[2] = 83;
+    b[3] = 8;
+    if (w1545_put(elf_ctx, &b[0], 4) != 0) { return 0 - 1; }
+    rem = 0;
+  }
+  if (rem >= 4) {
+    // mov [r11+at], edx  (41 89 53 at); shr rdx, 32  (48 C1 EA 20)
+    b[0] = 65;
+    b[1] = 137;
+    b[2] = 83;
+    b[3] = at as u8;
+    if (w1545_put(elf_ctx, &b[0], 4) != 0) { return 0 - 1; }
+    b[0] = 72;
+    b[1] = 193;
+    b[2] = 234;
+    b[3] = 32;
+    if (w1545_put(elf_ctx, &b[0], 4) != 0) { return 0 - 1; }
+    at = at + 4;
+    rem = rem - 4;
+  }
+  if (rem >= 2) {
+    // mov [r11+at], dx  (66 41 89 53 at); shr rdx, 16  (48 C1 EA 10)
+    b[0] = 102;
+    b[1] = 65;
+    b[2] = 137;
+    b[3] = 83;
+    b[4] = at as u8;
+    if (w1545_put(elf_ctx, &b[0], 5) != 0) { return 0 - 1; }
+    b[0] = 72;
+    b[1] = 193;
+    b[2] = 234;
+    b[3] = 16;
+    if (w1545_put(elf_ctx, &b[0], 4) != 0) { return 0 - 1; }
+    at = at + 2;
+    rem = rem - 2;
+  }
+  if (rem >= 1) {
+    // mov [r11+at], dl  (41 88 53 at)
+    b[0] = 65;
+    b[1] = 136;
+    b[2] = 83;
+    b[3] = at as u8;
+    if (w1545_put(elf_ctx, &b[0], 4) != 0) { return 0 - 1; }
+  }
+  // mov rax, r11  (4C 89 D8)
+  b[0] = 76;
+  b[1] = 137;
+  b[2] = 216;
+  return w1545_put(elf_ctx, &b[0], 3);
+}
+
+/**
+ * Caller side of a call returning a Win64 by-reference named struct: take a
+ * 16-byte frame temp (budget: w1521_win_call_mem_temp_bytes_c +32), let the
+ * packer pass its address in rcx, then load rax:rdx from the pointer the
+ * callee returns. A path that never loads args (inline) leaves the value in
+ * rax:rdx already.
+ * @return 1 emitted; 0 not this shape; -1 fail. PLATFORM: WINDOWS x86_64.
+ */
+function w1545_win_mid_ret_call(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, is_m: i32): i32 {
+  let ty: i32 = 0;
+  let sz: i32 = 0;
+  let cur: i32 = 0;
+  let off: i32 = 0;
+  let p_e: i32 = 0;
+  let p_o: i32 = 0;
+  let p_u: i32 = 0;
+  let rc: i32 = 0;
+  let used: i32 = 0;
+  let b: u8[8] = [];
+  if (ta != 0 || expr_ref <= 0) { return 0; }
+  unsafe {
+    if (pipeline_asm_emit_call_sret_reg_shift_c() != 0) { return 0; }
+    ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  }
+  sz = w1545_win_mid_named_sz(arena, ty);
+  if (sz == 0) { return 0; }
+  cur = call_dispatch_load_i32_le(ctx, 4);
+  if (cur < 8) { cur = 8; }
+  // Temp [rbp-off .. rbp-off+16).
+  off = cur + 16;
+  call_dispatch_store_i32_le(ctx, 4, off);
+  p_e = w1545_pend_expr[0];
+  p_o = w1545_pend_off[0];
+  p_u = w1545_pend_used[0];
+  w1545_pend_expr[0] = expr_ref;
+  w1545_pend_off[0] = off;
+  w1545_pend_used[0] = 0;
+  rc = w1521_body(arena, elf_ctx, expr_ref, ctx, ta, is_m);
+  used = w1545_pend_used[0];
+  w1545_pend_expr[0] = p_e;
+  w1545_pend_off[0] = p_o;
+  w1545_pend_used[0] = p_u;
+  if (rc != 0) { return 0 - 1; }
+  if (used != 0) {
+    // mov rdx, [rax+8]  (48 8B 50 08); mov rax, [rax]  (48 8B 00)
+    b[0] = 72;
+    b[1] = 139;
+    b[2] = 80;
+    b[3] = 8;
+    if (w1545_put(elf_ctx, &b[0], 4) != 0) { return 0 - 1; }
+    b[0] = 72;
+    b[1] = 139;
+    b[2] = 0;
+    if (w1545_put(elf_ctx, &b[0], 3) != 0) { return 0 - 1; }
+  }
+  return 1;
+}
+
 /**
  * Byte size of a call/method arg for SysV packing.
  * Take max of call_arg_value / formal / resolved / nested CALL return size.
@@ -978,6 +1256,13 @@ function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32)
     }
   }
   if (sz <= 0) { return 8; }
+  // w1545 (10.72): Win64 9–16B named struct goes by reference like > 16B.
+  // 24 is the by-reference class size (drives the w1521 > 16 machinery:
+  // caller copy, pointer in one GP/stack word); the copy itself uses the
+  // real layout size (w1521_win_mem_arg_addr_to_rax_c). PLATFORM: WINDOWS.
+  if (sz <= 16) {
+    if (w1545_arg_mid_sz(arena, pty, arg_ref) > 0) { return 24; }
+  }
   return sz;
 }
 
@@ -1082,6 +1367,21 @@ function w1521_win_mem_arg_addr_to_rax_c(
   sum = save_off;
   if (sum < cur) { return 0 - 1; }
   call_dispatch_store_i32_le(ctx, 4, sum);
+  // w1545 (10.72): 9–16B named (class size 24). Lvalues copy the real size;
+  // any other expr (nested call included) yields rax:rdx, stored to the temp.
+  if (sz == 24) {
+    let msz: i32 = w1545_arg_mid_sz(arena, 0, arg_ref);
+    if (msz > 0) {
+      if (ko == 3 || ko == 44 || ko == 47 || ko == 52) {
+        nbytes = (msz + 7) & (0 - 8);
+      } else if (ko != 45) {
+        if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, arg_ref, ctx, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0) { return 0 - 1; }
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, off - 8, ta) != 0) { return 0 - 1; }
+        return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+      }
+    }
+  }
   if (ko == 48 || ko == 49) {
     if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
     if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
@@ -1138,8 +1438,17 @@ function w1521_load64_from_rax(elf_ctx: *u8, ta: i32): i32 {
 export function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32 {
   let j: i32 = 0;
   let tot: i32 = 0;
-  if (arena == 0 as *u8 || call <= 0 || nargs <= 0) { return 0; }
+  if (arena == 0 as *u8 || call <= 0) { return 0; }
   if (w1521_win_mem_byref_sz(17) == 0) { return 0; }
+  // w1545 (10.72): hidden return buffer of a 9–16B named result (16B + pad).
+  {
+    let rty: i32 = 0;
+    unsafe { rty = pipeline_expr_resolved_type_ref(arena, call); }
+    if (w1545_win_mid_named_sz(arena, rty) > 0) {
+      tot = tot + 32;
+    }
+  }
+  if (nargs <= 0) { return tot; }
   unsafe {
     while (j < nargs) {
       let ar: i32 = 0;
@@ -2692,13 +3001,17 @@ export function pipeline_asm_emit_call_args_elf_c(
     if (ta == 0) {
       if (pipeline_asm_abi_f32_xmm_enabled_c() != 0) {
         if (pipeline_asm_emit_call_sret_reg_shift_c() == 0) {
-          return glue_emit_call_args_elf_sysv_f32_xmm_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+          if (w1545_pend_is(expr_ref) == 0) {
+            return glue_emit_call_args_elf_sysv_f32_xmm_c(arena, elf_ctx, expr_ref, ctx, ta, nargs);
+          }
         }
       }
     }
     let sret_sh: i32 = 0;
     if (ta == 0) {
       sret_sh = pipeline_asm_emit_call_sret_reg_shift_c();
+      // w1545: hidden return pointer (rcx) of this call. PLATFORM: WINDOWS.
+      if (sret_sh == 0) { sret_sh = w1545_pend_is(expr_ref); }
     }
     let eff_reg_max: i32 = reg_max - sret_sh;
     if (ta == 2) { return 0 - 1; }
@@ -3051,6 +3364,8 @@ export function pipeline_asm_emit_call_args_elf_c(
         }
         i = i + 1;
       }
+      // w1545: hidden return pointer last, after every arg register. WINDOWS.
+      if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
       pipeline_asm_emit_set_call_param_type_ref(0);
       return 0;
     }
@@ -4015,6 +4330,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                       let sret_sh_m: i32 = 0;
                       if (ta == 0) {
                         sret_sh_m = pipeline_asm_emit_call_sret_reg_shift_c();
+                        if (sret_sh_m == 0) { sret_sh_m = w1545_pend_is(expr_ref); }
                       }
                       let gp_cur_m: i32 = sret_sh_m;
                       if (reg_max_m < 1) { reg_max_m = 6; }
@@ -4238,6 +4554,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                         }
                         i_m = i_m - 1;
                       }
+                      if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
                       if (glue_asm_enc_call_redirected(elf_ctx, &sym_flat[0], sym_len, ta) != 0) { return 0 - 1; }
                       // Cleanup: MEMORY multi-word bytes when tracked; else nargs-based.
                       {
@@ -4425,6 +4742,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
       }
       if (ta == 0) {
         sret_sh_u = pipeline_asm_emit_call_sret_reg_shift_c();
+        if (sret_sh_u == 0) { sret_sh_u = w1545_pend_is(expr_ref); }
       }
       gp_cur_u = sret_sh_u;
       if (reg_max_u < 1) { reg_max_u = 6; }
@@ -4702,6 +5020,7 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
         }
         i_u = i_u - 1;
       }
+      if (w1545_pend_rcx_emit(elf_ctx, expr_ref) != 0) { return 0 - 1; }
       // wave683: overload-safe export-sym (get_S / take0) — bare name UNDEF on Ubuntu.
       {
         let r_fn_call: i32 = pipeline_expr_call_resolved_func_index_at(arena, expr_ref);
@@ -5812,6 +6131,9 @@ function w1521_sret_wrap(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: 
   let used: i32 = 0;
   if (ta == 0 && arena != 0 as *u8 && elf_ctx != 0 as *u8 && ctx != 0 as *u8) {
     rc = w1521_win_fwd_ret_call(arena, elf_ctx, expr_ref, ctx, ta, is_m);
+    if (rc < 0) { return 0 - 1; }
+    if (rc > 0) { return 0; }
+    rc = w1545_win_mid_ret_call(arena, elf_ctx, expr_ref, ctx, ta, is_m);
     if (rc < 0) { return 0 - 1; }
     if (rc > 0) { return 0; }
   }

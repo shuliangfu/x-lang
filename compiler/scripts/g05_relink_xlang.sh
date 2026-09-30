@@ -166,3 +166,31 @@ case "$(uname -s 2>/dev/null)" in
     echo "g05_relink_xlang: synced xlang_asm.exe"
     ;;
 esac
+
+# w1545: refresh cached formal std/core leaves after the product changes.
+# Leaves are built once and only rebuilt when missing or older than their .x
+# sources, so a calling-convention change in the product (w1545: Windows 9-16
+# byte structs via hidden pointer) leaves callee bodies on the old ABI. On
+# Windows the product's own ensure hook cannot run the bash command line, so
+# the relink step rebuilds every leaf that already exists with the new
+# product (Windows leaves go through the asm backend, no host cc). Keep the
+# old leaf when the rebuild fails.
+# PLATFORM: WINDOWS only (Mach-O/ELF leaves are C-backend objects whose ABI
+# follows the host C compiler, unaffected by product call-lowering changes).
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    case "$OUT" in /*|?:*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
+    for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
+      [ -s "$_leaf" ] || continue
+      cp -f "$_leaf" "$_leaf.w1545bak"
+      if FORCE=1 XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 \
+          && [ -s "$_leaf" ]; then
+        rm -f "$_leaf.w1545bak"
+        echo "g05_relink_xlang: refreshed $_leaf"
+      else
+        mv -f "$_leaf.w1545bak" "$_leaf"
+        echo "g05_relink_xlang: WARN refresh failed, kept $_leaf" >&2
+      fi
+    done
+    ;;
+esac
