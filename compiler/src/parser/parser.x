@@ -9198,9 +9198,12 @@ export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex
 
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Parse one source slice into module: imports, types, and function bodies.
+ * @param arena *ASTArena — expression and type pool for this module
+ * @param module *Module — destination; counters and layouts are appended
+ * @param source u8[] — full source bytes; not required to be NUL-terminated
+ * @return ParseIntoResult — ok 0 on success; negative ok is a hard parse failure
+ * PLATFORM: SHARED — slice twin of parse_into_buf.
  */
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9536,7 +9539,9 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     let lex_at_function: Lexer = lexer.lexer_init();
     lex_at_function = current_tok_lex;
     lex_from_next_into(&lex, r);
-    let parse_into_empty64: u8[128] = [];
+    // OneFuncResult.name and the wire-dummy formals are u8[256].
+    // A shorter array is a call-argument type mismatch.
+    let parse_into_empty64: u8[256] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, parse_into_empty64);
@@ -9546,7 +9551,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
     /* See implementation. */
-    let empty64_lib_first: u8[128] = [];
+    // LibraryParseResult.name is u8[256].
+    let empty64_lib_first: u8[256] = [];
     let lib_first: LibraryParseResult = { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     lib_first = { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     parse_one_function_library_into(&lib_first, arena, module, lex_at_function, source);
@@ -11394,6 +11400,15 @@ function parse_into_finish_ok(module: *Module, main_idx: i32): ParseIntoResult {
   }
 }
 
+/**
+ * Parse one raw buffer into module. Same scan as parse_into, via a slice.
+ * @param arena *ASTArena — expression and type pool for this module
+ * @param module *Module — destination; counters and layouts are appended
+ * @param data *u8 — source bytes; null with len 0 is an empty module
+ * @param len i32 — byte count; negative is treated as empty by the slice helper
+ * @return ParseIntoResult — ok 0 on success; negative ok is a hard parse failure
+ * PLATFORM: SHARED — buffer twin of parse_into.
+ */
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -11769,7 +11784,9 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     lex_from_next_into(&lex, r);
     /* See implementation. */
     /* See implementation. */
-    let empty64_buf: u8[128] = [];
+    // OneFuncResult.name and the wire-dummy formals are u8[256].
+    // A shorter array is a call-argument type mismatch.
+    let empty64_buf: u8[256] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, empty64_buf);
@@ -11781,7 +11798,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     let slice_for_impl: u8[] = parser_slice_from_buf(data, len);
     slice_for_impl = parser_slice_from_buf(data, len);
     /* See implementation. */
-    let empty64_lib_buf_first: u8[128] = [];
+    // LibraryParseResult.name is u8[256].
+    let empty64_lib_buf_first: u8[256] = [];
     let lib_buf_first: LibraryParseResult = {
       ok: false,
       _pad: [],
