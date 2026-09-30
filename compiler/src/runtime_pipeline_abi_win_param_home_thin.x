@@ -12,6 +12,11 @@
 // asm, no host cc), weakens the egg T in pabi_weak, and
 // scripts/win_patch_body_sync_jmp.py patches the egg W and local (t) copies
 // to jmp here. Darwin/Linux keep their tip bodies and never link this file.
+// w1547: an f32/f64 formal in positional slot 0..3 is read from xmmN, not
+// from rcx/rdx/r8/r9. Slot >= 4 stays the integer stack home. This matches
+// w1547_win_place_float in backend_call_dispatch.x. The Linux SysV xmm
+// file in runtime_pipeline_abi.x is a different function and is not used
+// here.
 // PLATFORM: WINDOWS x86_64 ONLY.
 
 export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
@@ -39,6 +44,10 @@ export extern function pipeline_module_func_param_type_ref_at(m: *u8, func_index
 export extern function w1545_win_mid_named_sz(arena: *u8, ty: i32): i32;
 export extern function w1545_win_ret_slot_latch_c(mod: *u8, func_index: i32, off: i32, sz: i32): void;
 export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 
 /**
  * w1521 (终局待办 10.57): Windows formal slot table matching the tip x86
@@ -187,8 +196,20 @@ function w1500_ph_mov_store(elf_ctx: *u8, k: i32, off: i32, ta: i32): i32 {
 }
 
 /**
- * Home every GP formal of func_index into its rbp slot (Windows x86_64).
- * @return 0 ok, -1 encode error. PLATFORM: WINDOWS.
+ * Home every formal of func_index into its rbp slot on Windows x86_64.
+ * Slots 0..3 are rcx, rdx, r8, r9 except an f32 or f64 formal, which is
+ * read from xmm0..xmm3 at that same index. Slot 4 and above is
+ * [rbp+0x30+8*(slot-4)], including float bits. A 9–16 byte named struct
+ * and anything wider than 16 bytes arrive by reference in one GP.
+ * ta other than 0 returns 0 without emitting. Darwin and Linux never
+ * link this file.
+ * @param elf_ctx *u8 — codegen byte sink; null returns -1
+ * @param ctx *u8 — AsmFuncCtx; not read by this homing pass
+ * @param mod *u8 — module that owns the function; null returns -1
+ * @param func_index i32 — function index; negative returns -1
+ * @param ta i32 — 0 is x86_64; any other value returns 0
+ * @return i32 — 0 when every formal is homed, -1 on an encode error
+ * PLATFORM: WINDOWS x86_64 ONLY.
  */
 #[no_mangle]
 export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: *u8, func_index: i32, ta: i32): i32 {
@@ -206,6 +227,8 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
   let ms_off: i32 = 0 - 1;
   let pty: i32 = 0;
   let mid: i32 = 0;
+  let pk: i32 = 0;
+  let from_xmm: i32 = 0;
   if (elf_ctx == (0 as *u8) || mod == (0 as *u8) || func_index < 0) {
     return -1;
   }
@@ -289,25 +312,72 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       gp = gp + 1;
       home = wide_home + 8;
     } else {
-      unsafe {
-        rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
-      }
-      if (rc != 0) {
-        return -1;
-      }
-      if (arena_ph != (0 as *u8)) {
+      // w1547: Win64 f32/f64 in slots 0..3 live in xmmN. Slot >= 4 is the
+      // integer stack home the GP move already reads. Kind 14 stores 4
+      // bytes (movd leaves the high half of rax stale). Kind 15 stores 8.
+      // Canonicalize is a no-op for both kinds, so the xmm path skips it.
+      // The slot still advances by 8 so later formals do not move.
+      // PLATFORM: WINDOWS x86_64.
+      pk = 0;
+      from_xmm = 0;
+      if (arena_ph != (0 as *u8) && gp < 4) {
         unsafe {
-          rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena_ph, mod, func_index, i, ta);
+          pty = pipeline_module_func_param_type_ref_at(mod, func_index, i);
+          if (pty > 0) {
+            pk = pipeline_type_kind_ord_at(arena_ph, pty);
+          }
+        }
+        if (pk == 14 || pk == 15) {
+          from_xmm = 1;
+        }
+      }
+      if (from_xmm != 0 && pk == 15) {
+        unsafe {
+          rc = backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, gp, ta);
         }
         if (rc != 0) {
           return -1;
         }
-      }
-      unsafe {
-        rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
-      }
-      if (rc != 0) {
-        return -1;
+        unsafe {
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+        }
+        if (rc != 0) {
+          return -1;
+        }
+      } else if (from_xmm != 0 && pk == 14) {
+        unsafe {
+          rc = backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, gp, ta);
+        }
+        if (rc != 0) {
+          return -1;
+        }
+        unsafe {
+          rc = backend_enc_store_eax_to_rbp_arch(elf_ctx, home, ta);
+        }
+        if (rc != 0) {
+          return -1;
+        }
+      } else {
+        unsafe {
+          rc = backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta);
+        }
+        if (rc != 0) {
+          return -1;
+        }
+        if (arena_ph != (0 as *u8)) {
+          unsafe {
+            rc = glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx, arena_ph, mod, func_index, i, ta);
+          }
+          if (rc != 0) {
+            return -1;
+          }
+        }
+        unsafe {
+          rc = backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta);
+        }
+        if (rc != 0) {
+          return -1;
+        }
       }
       gp = gp + 1;
       home = home + 8;

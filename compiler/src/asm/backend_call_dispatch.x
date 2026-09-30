@@ -1552,12 +1552,56 @@ function glue_sysv_load_spill_to_arg_regs_elf_c(elf: *u8, ta: i32, spill_off: i3
 }
 
 /**
+ * Place one f32 or f64 argument on the Microsoft x64 positional slot.
+ * The cursor is the same integer slot the GP arguments use. Slot 0..3 is
+ * xmm0..xmm3. Slot 4 and above is the integer stack home: the caller writes
+ * `mov [rsp+0x20+8*(slot-4)], rax` and the callee reads
+ * `[rbp+0x30+8*(slot-4)]`. A float is not a separate xmm file and it is
+ * not a System V push.
+ * @param gp_inout *i32 — positional cursor; advanced by 1; null is ignored
+ * @param out_use_xmm *i32 — 1 when reload must use xmm[slot]; 0 when the
+ *   bits go through the GP stack encoder; null is ignored
+ * @param out_slot *i32 — xmm index or GP/stack slot index; null is ignored
+ * @return void
+ * Track-L: #[no_mangle] keeps the short name so a Windows probe can nm it.
+ * PLATFORM: WINDOWS x86_64. Callers invoke this only when
+ * link_abi_host_is_windows() is non-zero and ta is 0. Linux and macOS keep
+ * the System V xmm file and must not call this.
+ */
+#[no_mangle]
+export function w1547_win_place_float(gp_inout: *i32, out_use_xmm: *i32, out_slot: *i32): void {
+  let gp: i32 = 0;
+  if (gp_inout == 0 as *i32) { return; }
+  if (out_use_xmm == 0 as *i32) { return; }
+  if (out_slot == 0 as *i32) { return; }
+  gp = gp_inout[0];
+  out_slot[0] = gp;
+  // The first four positional slots are xmm0..xmm3. Later slots are the
+  // integer stack homes, so the caller clears its sse flag and reloads
+  // through mov_rax_to_arg_reg. PLATFORM: WINDOWS x86_64.
+  if (gp < 4) {
+    out_use_xmm[0] = 1;
+  } else {
+    out_use_xmm[0] = 0;
+  }
+  gp_inout[0] = gp + 1;
+}
+
+/**
  * SysV x86_64: classify arg_index into GP / XMM / stack, with dual-GP unit accounting.
+ * On Windows x86_64 an f32/f64 consumes one positional slot instead: kind 1
+ * and reg_k = slot when slot < 4 (xmm[slot]), kind 0 and reg_k = slot when
+ * slot >= 4 (integer stack home, not a System V push).
+ * @param arena *u8 — AST arena
+ * @param call_expr_ref i32 — CALL expr ref
+ * @param nargs i32 — argument count
+ * @param arg_index i32 — argument to classify
  * @param out_kind *i32 — 0=gp 1=xmm 2=stack
  * @param out_reg_k *i32 — GP or XMM index when kind is 0/1
  * @param out_stack_k *i32 — stack word index when kind is 2
  * PLATFORM: LINUX+MACOS x86_64 SysV — 9–16B INTEGER aggregates consume 2 GP slots.
- * w1045: GP file from glue_asm_call_reg_max (SysV=6; Win=16 virtual via enc k>=4).
+ * PLATFORM: WINDOWS x86_64 — float slot rule above; integer dual-GP is unchanged.
+ * w1045: GP file from glue_asm_call_reg_max (SysV=6; Win=64 virtual via enc k>=4).
  */
 #[no_mangle]
 export function glue_sysv_x86_call_arg_slot_c(
@@ -1583,7 +1627,25 @@ export function glue_sysv_x86_call_arg_slot_c(
       /* G.7: extras without formals (variadic) still SSE via resolved type /
        * FLOAT_LIT. Twin of seed glue_call_arg_is_sse_float_c. */
       if (glue_arg_ref_is_sse_float_c(arena, arg_ref, pty) != 0) {
-        if (xmm < 8) {
+        // PLATFORM: WINDOWS x86_64 — one positional slot (xmm or GP stack).
+        // PLATFORM: LINUX+MACOS x86_64 SysV — separate xmm file, then push.
+        let win_place: i32 = 0;
+        unsafe {
+          if (link_abi_host_is_windows() != 0) { win_place = 1; }
+        }
+        if (win_place != 0) {
+          let use_xmm: i32 = 0;
+          let slot_w: i32 = 0;
+          w1547_win_place_float(&gp, &use_xmm, &slot_w);
+          if (use_xmm != 0) {
+            out_kind[0] = 1;
+            out_reg_k[0] = slot_w;
+          } else {
+            out_kind[0] = 0;
+            out_reg_k[0] = slot_w;
+          }
+          out_stack_k[0] = 0;
+        } else if (xmm < 8) {
           out_kind[0] = 1;
           out_reg_k[0] = xmm;
         } else {
@@ -1612,7 +1674,16 @@ export function glue_sysv_x86_call_arg_slot_c(
       return;
     }
     if (glue_arg_ref_is_sse_float_c(arena, arg_ref, pty) != 0) {
-      if (xmm < 8) { xmm = xmm + 1; }
+      // Same Windows positional rule as the classify arm above.
+      let win_adv: i32 = 0;
+      unsafe {
+        if (link_abi_host_is_windows() != 0) { win_adv = 1; }
+      }
+      if (win_adv != 0) {
+        let use_xmm_a: i32 = 0;
+        let slot_a: i32 = 0;
+        w1547_win_place_float(&gp, &use_xmm_a, &slot_a);
+      } else if (xmm < 8) { xmm = xmm + 1; }
       else { stk = stk + 1; }
     } else {
       if (glue_sysv_arg_is_memory_by_value_c(sz) != 0) {
@@ -1653,15 +1724,18 @@ export function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, 
 
 // See implementation.
 // GLUE_ASM_MAX_CALL_ARGS=96
-/** Exported function `glue_emit_call_args_elf_sysv_f32_xmm_c`.
- * Implements `glue_emit_call_args_elf_sysv_f32_xmm_c`.
- * @param arena *u8
- * @param elf *u8
- * @param er i32
- * @param ctx *u8
- * @param ta i32
- * @param nargs i32
- * @return i32
+/**
+ * Default x86_64 CALL packer. System V keeps a separate xmm file: an f64
+ * does not consume a GP slot. Windows consumes one positional slot per
+ * float (xmm0..xmm3, then the integer stack home) via w1547_win_place_float.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param elf *u8 — codegen byte sink; null returns -1
+ * @param er i32 — CALL expr ref
+ * @param ctx *u8 — AsmFuncCtx; null returns -1
+ * @param ta i32 — 0 is x86_64
+ * @param nargs i32 — argument count; negative or above 96 returns -1
+ * @return i32 — 0 when every argument is placed, -1 on an encode error
+ * PLATFORM: LINUX+MACOS x86_64 SysV xmm file. WINDOWS x86_64 positional slots.
  */
 #[no_mangle]
 export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32, nargs: i32): i32 {
@@ -1755,7 +1829,23 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
       is_f64_f[i] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_f, pty_f);
       spill_off_f[i] = 0 - 1;
       if (is_sse_f[i] != 0) {
-        if (xmm_cur_f < 8) {
+        // PLATFORM: WINDOWS x86_64 — consume gp_cur_f. Slot >= 4 clears
+        // is_sse so the GP reload writes [rsp+0x20+8*(slot-4)].
+        // PLATFORM: LINUX+MACOS x86_64 SysV — separate xmm file.
+        let win_f: i32 = 0;
+        unsafe {
+          if (link_abi_host_is_windows() != 0) { win_f = 1; }
+        }
+        if (win_f != 0) {
+          let use_xmm_f: i32 = 0;
+          let slot_f: i32 = 0;
+          w1547_win_place_float(&gp_cur_f, &use_xmm_f, &slot_f);
+          gp_start_f[i] = slot_f;
+          gp_units_f[i] = 1;
+          if (use_xmm_f == 0) {
+            is_sse_f[i] = 0;
+          }
+        } else if (xmm_cur_f < 8) {
           gp_start_f[i] = xmm_cur_f;
           gp_units_f[i] = 1;
           xmm_cur_f = xmm_cur_f + 1;
@@ -3343,7 +3433,24 @@ export function pipeline_asm_emit_call_args_elf_c(
         is_f64[i] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_i, pty_i);
         spill_off[i] = 0 - 1;
         if (is_sse[i] != 0) {
-          if (xmm_cur < 8) {
+          // PLATFORM: WINDOWS x86_64 — same positional float as the f32_xmm
+          // packer. gp_cur already includes the sret shift, so a hidden
+          // pointer in rcx makes the first formal f64 xmm1.
+          // PLATFORM: LINUX+MACOS x86_64 SysV — separate xmm file.
+          let win_fb: i32 = 0;
+          unsafe {
+            if (link_abi_host_is_windows() != 0) { win_fb = 1; }
+          }
+          if (win_fb != 0) {
+            let use_xmm_b: i32 = 0;
+            let slot_b: i32 = 0;
+            w1547_win_place_float(&gp_cur, &use_xmm_b, &slot_b);
+            gp_start[i] = slot_b;
+            gp_units[i] = 1;
+            if (use_xmm_b == 0) {
+              is_sse[i] = 0;
+            }
+          } else if (xmm_cur < 8) {
             gp_start[i] = xmm_cur;
             gp_units[i] = 1;
             xmm_cur = xmm_cur + 1;
@@ -4152,7 +4259,25 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           is_sse_e[ei] = is_f64_e[ei];
         }
         if (is_sse_e[ei] != 0) {
-          if (xmm_cur < 8) {
+          // PLATFORM: WINDOWS x86_64 — extras share the positional cursor
+          // (self already took slot 0). Slot >= 4 stays off the SysV push
+          // list so the GP encoder writes the stack home.
+          // PLATFORM: LINUX x86_64 SysV · MACOS|ARM64 AAPCS64 — xmm/v file.
+          let win_e: i32 = 0;
+          if (ta == 0) {
+            unsafe {
+              if (link_abi_host_is_windows() != 0) { win_e = 1; }
+            }
+          }
+          if (win_e != 0) {
+            let use_xmm_e: i32 = 0;
+            let slot_e: i32 = 0;
+            w1547_win_place_float(&gp_cur, &use_xmm_e, &slot_e);
+            place_e[ei] = slot_e;
+            if (use_xmm_e == 0) {
+              is_sse_e[ei] = 0;
+            }
+          } else if (xmm_cur < 8) {
             place_e[ei] = xmm_cur;
             xmm_cur = xmm_cur + 1;
           } else {
@@ -4461,10 +4586,31 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                           is_f64_m[i_m] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_m, pty_m);
                         }
                         if (is_sse_m[i_m] != 0) {
-                          if (xmm_cur_m >= 8) { return 0 - 1; }
-                          gp_start_m[i_m] = xmm_cur_m;
-                          gp_units_m[i_m] = 1;
-                          xmm_cur_m = xmm_cur_m + 1;
+                          // PLATFORM: WINDOWS x86_64 — positional slot. gp_cur_m
+                          // already includes the sret shift. Slot >= 4 clears
+                          // is_sse so it is not a System V push.
+                          // PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 — xmm/v file.
+                          let win_m: i32 = 0;
+                          if (ta == 0) {
+                            unsafe {
+                              if (link_abi_host_is_windows() != 0) { win_m = 1; }
+                            }
+                          }
+                          if (win_m != 0) {
+                            let use_xmm_m: i32 = 0;
+                            let slot_m: i32 = 0;
+                            w1547_win_place_float(&gp_cur_m, &use_xmm_m, &slot_m);
+                            gp_start_m[i_m] = slot_m;
+                            gp_units_m[i_m] = 1;
+                            if (use_xmm_m == 0) {
+                              is_sse_m[i_m] = 0;
+                            }
+                          } else {
+                            if (xmm_cur_m >= 8) { return 0 - 1; }
+                            gp_start_m[i_m] = xmm_cur_m;
+                            gp_units_m[i_m] = 1;
+                            xmm_cur_m = xmm_cur_m + 1;
+                          }
                         } else {
                           if (u_m < 1) { u_m = 1; }
                           if (u_m > 2) { u_m = 2; }
@@ -4885,10 +5031,30 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           is_sse_u[i_u] = is_f64_u[i_u];
         }
         if (is_sse_u[i_u] != 0) {
-          if (xmm_cur_u >= 8) { return 0 - 1; }
-          gp_start_u[i_u] = xmm_cur_u;
-          gp_units_u[i_u] = 1;
-          xmm_cur_u = xmm_cur_u + 1;
+          // PLATFORM: WINDOWS x86_64 — same positional float as import METHOD.
+          // Slot >= 4 clears is_sse so the GP encoder writes the stack home.
+          // PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64 — xmm/v file.
+          let win_u: i32 = 0;
+          if (ta == 0) {
+            unsafe {
+              if (link_abi_host_is_windows() != 0) { win_u = 1; }
+            }
+          }
+          if (win_u != 0) {
+            let use_xmm_u: i32 = 0;
+            let slot_u: i32 = 0;
+            w1547_win_place_float(&gp_cur_u, &use_xmm_u, &slot_u);
+            gp_start_u[i_u] = slot_u;
+            gp_units_u[i_u] = 1;
+            if (use_xmm_u == 0) {
+              is_sse_u[i_u] = 0;
+            }
+          } else {
+            if (xmm_cur_u >= 8) { return 0 - 1; }
+            gp_start_u[i_u] = xmm_cur_u;
+            gp_units_u[i_u] = 1;
+            xmm_cur_u = xmm_cur_u + 1;
+          }
         } else {
           if (u_u < 1) { u_u = 1; }
           if (u_u > 2) { u_u = 2; }
@@ -7692,12 +7858,16 @@ export function glue_asm_import_binding_name_equal(mod: *u8, ix: i32, nm: *u8, n
 /**
  * Count stack words for SysV x86 call args (after GP/XMM registers are full).
  * wave214: dual-GP units + MEMORY multi-word (wave601). Prior pure always used 1 unit.
+ * On Windows a float consumes a positional slot and is not a push, so it
+ * does not add a stack word here. The frame outgoing area comes from the
+ * positional cursor in glue_sysv_x86_call_arg_slot_c.
  * @param arena *u8 — AST arena
  * @param call i32 — CALL expr ref
  * @param nargs i32 — argument count
- * @return i32 — stack word count
+ * @return i32 — stack word count (System V pushes; 0 for Win64 float homes)
  * PLATFORM: LINUX+MACOS x86_64 SysV.
- * w1045: GP file from glue_asm_call_reg_max (SysV=6; Win=16 virtual).
+ * PLATFORM: WINDOWS x86_64 — floats advance the positional cursor only.
+ * w1045: GP file from glue_asm_call_reg_max (SysV=6; Win=64 virtual).
  */
 #[no_mangle]
 export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32): i32 {
@@ -7714,7 +7884,17 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
     let units: i32 = glue_sysv_arg_gp_units_from_size_c(sz);
     let words: i32 = glue_sysv_arg_stack_words_c(sz, units);
     if (glue_arg_ref_is_sse_float_c(arena, arg_ref, pty) != 0) {
-      if (xmm < 8) { xmm = xmm + 1; }
+      // PLATFORM: WINDOWS x86_64 — positional slot, not a SysV push.
+      // PLATFORM: LINUX+MACOS x86_64 SysV — xmm file, then one stack word.
+      let win_n: i32 = 0;
+      unsafe {
+        if (link_abi_host_is_windows() != 0) { win_n = 1; }
+      }
+      if (win_n != 0) {
+        let use_xmm_n: i32 = 0;
+        let slot_n: i32 = 0;
+        w1547_win_place_float(&gp, &use_xmm_n, &slot_n);
+      } else if (xmm < 8) { xmm = xmm + 1; }
       else { stk = stk + 1; }
     } else {
       if (glue_sysv_arg_is_memory_by_value_c(sz) != 0) {
