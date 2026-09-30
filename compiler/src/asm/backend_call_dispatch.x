@@ -385,9 +385,11 @@ export extern function pipeline_module_func_return_type_at(m: *u8, fi: i32): i32
 /**
  * G.7 import-binding CALL/METHOD_CALL mangle (pre+mid with overload suffixes).
  * Defined later in this TU; METHOD/CALL sites must not bare-concat pre+name.
- * PLATFORM: SHARED — pure-asm mangles this surface (…_u8_ptr_…_reti32). Body must
- * NOT use #[no_mangle]: short def + mangled call → pure-ld U on Ubuntu PREFER
- * thin+rest (seed-only path keeps static short name; dual authority same commit).
+ * The definition is #[no_mangle]. This forward extern is the first name
+ * match, and a compiler that still returns the extern spelling relocates
+ * the short name. Overload count ignores externs, so the export symbol is
+ * that short name with no type suffix.
+ * PLATFORM: SHARED.
  */
 export extern function glue_asm_mangle_import_binding_call_sym_c(
   arena: *u8, ctx: *u8, expr_ref: i32, mod_ref: *u8, imp_j: i32,
@@ -2070,6 +2072,8 @@ export function glue_emit_one_call_arg_elf_c(
  * the same source name and parameter count, emit the definition's link
  * symbol (host-cc emits parser_parse_one_function_impl, not the bare
  * forward name). A bare extern with no local body stays the source name.
+ * The heap-redirect scan must not return that bare name while a local
+ * body still exists; that return used to run before the twin scan.
  * G.7: single body here (the C seed twin was deleted in w1524).
  * @param arena *u8 — call-site AST arena
  * @param call_expr_ref i32 — EXPR_CALL expr ref
@@ -2100,6 +2104,9 @@ export function glue_asm_build_call_export_sym_c(
       let dep_path: *u8 = driver_get_current_dep_path_for_codegen();
       let skip_heap_redirect: i32 = 0;
       let has_local: i32 = 0;
+      // 1 after any extern hit. The bare return below also requires
+      // has_local == 0, so a later body falls through to the twin scan.
+      let saw_extern: i32 = 0;
       if (dep_path != 0 as *u8) {
         if (dep_path[0] != 0) {
           let p0: i32 = 0;
@@ -2120,22 +2127,35 @@ export function glue_asm_build_call_export_sym_c(
         let efi: i32 = 0;
         while (efi < pipeline_module_num_funcs(mod)) {
           if (pipeline_module_func_name_equal_at(mod, efi, &cname[0], clen) != 0) {
+            // PLATFORM: SHARED — do not return the extern spelling on the
+            // first hit. A later non-extern with the same source name is
+            // the body (forward extern + definition). Returning here made
+            // the twin scan unreachable, so the call stayed bare while the
+            // definition took the entry prefix.
             if (pipeline_module_func_is_extern_at(mod, efi) != 0) {
-              if (clen > 0) {
-                if (clen < out_cap) {
-                  let ci_e: i32 = 0;
-                  while (ci_e < clen) {
-                    out[ci_e] = cname[ci_e];
-                    ci_e = ci_e + 1;
-                  }
-                  return clen;
-                }
-              }
-              return 0 - 1;
+              saw_extern = 1;
+            } else {
+              has_local = 1;
             }
-            has_local = 1;
           }
           efi = efi + 1;
+        }
+      }
+      if (has_local == 0) {
+        if (saw_extern != 0) {
+          // FFI / glue extern with no local body. Keep the source name and
+          // skip heap redirect, matching the previous early return.
+          if (clen > 0) {
+            if (clen < out_cap) {
+              let ci_e: i32 = 0;
+              while (ci_e < clen) {
+                out[ci_e] = cname[ci_e];
+                ci_e = ci_e + 1;
+              }
+              return clen;
+            }
+          }
+          return 0 - 1;
         }
       }
       if (skip_heap_redirect == 0) {
@@ -7767,10 +7787,14 @@ export function glue_asm_res_mod_for_import_binding_c(
  * @param is_method i32 — 1 METHOD_CALL, 0 CALL
  * @param sym_flat *u8 — out symbol buffer (cap 128)
  * @return i32 — symbol length, or -1 on failure
- * PLATFORM: SHARED — mac + Ubuntu pure-asm product. No #[no_mangle]: must match
- * pure-asm mangled call sites from the forward export extern (see comment above).
- * Seed mirror is static short name (seed-only fallback); PREFER .x uses mangled T.
+ * #[no_mangle]: the entry prefix for this file is backend_call_dispatch_.
+ * Call sites above bind the forward extern and relocate the short name.
+ * glue_asm_build_func_export_sym_c emits that same short name for a
+ * #[no_mangle] definition when the overload count is one (externs are
+ * not counted). The previous product object exported this short name.
+ * PLATFORM: SHARED — mac + Ubuntu pure-asm product.
  */
+#[no_mangle]
 export function glue_asm_mangle_import_binding_call_sym_c(
   arena: *u8, ctx: *u8, expr_ref: i32, mod_ref: *u8, imp_j: i32,
   pre_buf: *u8, pre_len: i32, field_name: *u8, field_len: i32,
