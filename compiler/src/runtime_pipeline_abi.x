@@ -1810,12 +1810,11 @@ export extern function pipeline_asm_emit_return_elf_impl(
 ): i32;
 
 /**
- * G.7: leftover gcc overlay owns asm_parser_func_is_thin_delegate
- * (W 0x12d3, endbr64 sub $0x10). FORCE mega T smash first-won leftover W.
- * Mega skip_heavy CALLs this (already unsafe). No thin copy.
- * Do not leftover-first asm_skip_heavy_module_func_body (FORCE_FULL_BODIES
- * dual env). Mega must emit U.
- * PLATFORM: LINUX gold FORCE leftover-weaken — leftover overlay provides the body.
+ * G.7: runtime_pipeline_abi_parser_thin_delegate_thin.x owns
+ * asm_parser_func_is_thin_delegate. The egg copy stays weak behind that
+ * overlay (was W 0x12d3). Mega skip_heavy CALLs this (already unsafe).
+ * Do not add a second body here. Mega must emit U.
+ * PLATFORM: SHARED — overlay first-wins; egg table is not the linked body.
  */
 export extern function asm_parser_func_is_thin_delegate(m: *u8, func_index: i32): i32;
 
@@ -20830,19 +20829,15 @@ export extern function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32)
 // FORCE mega smash was sub $0x87c8. Do not leftover-first skip_heavy itself.
 
 /**
- * wave120 pure: true if func is in k_asm_parser_thin_delegate x_name set.
+ * w1565: linked body is runtime_pipeline_abi_parser_thin_delegate_thin.x.
+ * It returns 0. The egg 116-row table stays weak and is not consulted.
  * @param m *u8 — Module*
  * @param func_index i32 — function index
- * @return i32 — 1 thin delegate
- * wave717: FORCE leftover-first — mega export-extern at file top so leftover
- *   gcc W 0x12d3 (endbr64 sub $0x10) is the sole global. Mega smash T first-won
- *   leftover gcc. No thin copy. Do not leftover-first skip_heavy.
- * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ * @return i32 — 0 from the overlay (egg table would have returned 1 on a hit)
+ * PLATFORM: SHARED — declaration only; do not add a second body here.
  */
-// wave717: asm_parser_func_is_thin_delegate is export-extern at file top
-// (leftover gcc W 0x12d3, endbr64 sub $0x10). FORCE mega T smash first-won
-// leftover gcc W. No thin copy. Do not leftover-first skip_heavy.
-// Mega must emit U. leftover gcc overlay provides the body.
+// w1565: asm_parser_func_is_thin_delegate is export-extern here.
+// The pure thin is the strong T. Egg stays weak. Mega must emit U.
 
 
 /**
