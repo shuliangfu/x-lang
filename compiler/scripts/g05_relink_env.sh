@@ -357,6 +357,21 @@ _PABI_CALL_SPILL="$_G05_PO_OUT"
 _g05_pure_overlay src/runtime_pipeline_abi_frame_size_thin.x \
   build_asm/selfhost_pabi/compute_frame_size.o pipeline_asm_compute_frame_size_c
 _PABI_FRAME_SIZE="$_G05_PO_OUT"
+# w1544: CALL-returned slice deep-copy no longer truncates past its cap
+# (egg copied only the first 1024 bytes; a longer slice is now passed
+# through unchanged, like the host-C twin). Strong T first-wins egg weak
+# (Darwin) / --allow-multiple-definition (Linux) / weakened pabi_weak T
+# (Windows). Ahead of _PABI_SELFHOST. PLATFORM: SHARED.
+_g05_pure_overlay src/runtime_pipeline_abi_reent_nocap_thin.x \
+  build_asm/selfhost_pabi/reent_nocap.o glue_slice_let_reent_deep_copy_after_dual_gp_elf_c
+_PABI_REENT_NOCAP="$_G05_PO_OUT"
+# w1544: Cap residual field load/store width (w1007/w1008), now rebuilt
+# from .x by the current product on every relink instead of a stale
+# prebuilt object. Enum-typed struct fields are 4 bytes (Token.kind store
+# used to write 8 and zero Token.line). Consumed below by the per-OS
+# _PABI_SELFHOST blocks. PLATFORM: SHARED.
+_g05_pure_overlay src/runtime_pipeline_abi_field_cap_residual_load_thin.x \
+  build_asm/selfhost_pabi/field_cap_residual_load.o pipeline_expr_field_access_load_byte_sz
 # w1486: Windows block-entry VAR-slot cache clear (egg body_sync forwarder
 # never clears; mega reuses one ctx so next function hits stale %rbx).
 # Strong T first-wins weakened pabi_weak egg T; post-link jmp W→T.
@@ -1442,6 +1457,12 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=pipeline_elf_ctx_append_reloc_typed \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1544: weaken egg reent deep-copy so the no-cap overlay first-wins.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_REENT_NOCAP" ]; then
+          "$_oc" --weaken-symbol=glue_slice_let_reent_deep_copy_after_dual_gp_elf_c \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
         # w1032: weaken egg compute_frame_size so overlay first-wins.
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_FRAME_SIZE" ]; then
@@ -1608,7 +1629,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501

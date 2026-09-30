@@ -77,6 +77,9 @@ export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr
 export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
 /** w1521: Win64 by-ref >16B call-arg temp bytes (bcd). PLATFORM: WINDOWS x86_64. */
 export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
+export extern function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i32, param_index: i32): i32;
+export extern function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32;
+export extern function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
 // [4] arm64 binop left-preserve frame homes (w1503),
@@ -169,6 +172,45 @@ function w1500_cs_call_x86(arena: *u8, call: i32, n: i32): void {
   w1500_cs_note_gp(total_gp + 1);
 }
 
+/**
+ * w1544: arm64 call-arg spill units for one argument (every argument).
+ * The AAPCS64 packer (backend_call_dispatch.x, glue_sysv_spill_rax_rdx_to_frame_c)
+ * spills each register-class argument to a fresh frame slot from next_offset
+ * (16B per single-GP arg, 32B per dual-GP arg; the frame doubles these units).
+ * Only a single-GP EXPR_VAR with a local stack home reuses that home, so a
+ * 16-byte struct VAR, a slice/array VAR (LEA) or a VAR without a local home
+ * still takes a slot. The old walk counted VAR args as zero: a pure-asm
+ * lexer_next_into (lex: Lexer, data: u8[]) wrote its temps past the frame
+ * into the caller's fp/lr. Counting every argument over-reserves at most one
+ * 16B slot per scalar VAR arg. pty 0 = method call (no formal lookup).
+ * @return i32 - GP units 1..2
+ * PLATFORM: MACOS|ARM64.
+ */
+function w1544_cs_arm_units(arena: *u8, call: i32, i: i32, arg_ref: i32, is_method: i32): i32 {
+  let pty: i32 = 0;
+  let sz: i32 = 0;
+  let u: i32 = 1;
+  if (arg_ref <= 0) {
+    return 0;
+  }
+  if (is_method == 0) {
+    unsafe {
+      pty = glue_call_param_type_ref_at(arena, call, i);
+    }
+  }
+  unsafe {
+    sz = glue_sysv_arg_byte_size_c(arena, 0 as *u8, pty, arg_ref);
+    u = glue_sysv_arg_gp_units_from_size_c(sz);
+  }
+  if (u < 1) {
+    u = 1;
+  }
+  if (u > 2) {
+    u = 2;
+  }
+  return u;
+}
+
 /** Count args that are not EXPR_VAR(3). PLATFORM: SHARED. */
 function w1500_cs_non_var(arena: *u8, e: i32): i32 {
   let k: i32 = 0;
@@ -220,7 +262,12 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
         arg_ref = pipeline_expr_call_arg_ref(arena, expr_ref, i);
       }
       w1500_cs_expr(arena, arg_ref);
-      need = need + w1500_cs_non_var(arena, arg_ref);
+      if (w1500_cs_st[2] == 0) {
+        // w1544: arm64 spills VAR args too (see w1544_cs_arm_units). MACOS|ARM64.
+        need = need + w1544_cs_arm_units(arena, expr_ref, i, arg_ref, 0);
+      } else {
+        need = need + w1500_cs_non_var(arena, arg_ref);
+      }
       i = i + 1;
     }
     if (w1500_cs_st[2] != 0) {
@@ -272,7 +319,12 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
         arg_ref = pipeline_expr_method_call_arg_ref(arena, expr_ref, i);
       }
       w1500_cs_expr(arena, arg_ref);
-      need = need + w1500_cs_non_var(arena, arg_ref);
+      if (w1500_cs_st[2] == 0) {
+        // w1544: arm64 method args spill like CALL args. MACOS|ARM64.
+        need = need + w1544_cs_arm_units(arena, expr_ref, i, arg_ref, 1);
+      } else {
+        need = need + w1500_cs_non_var(arena, arg_ref);
+      }
       i = i + 1;
     }
     if (need > 0) {

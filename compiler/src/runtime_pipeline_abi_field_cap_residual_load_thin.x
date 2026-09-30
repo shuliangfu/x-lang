@@ -42,6 +42,11 @@ export extern function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u
 export extern function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function pipeline_typeck_get_dep_ctx(): *u8;
+export extern function pipeline_dep_ctx_ndep(ctx: *u8): i32;
+export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
+export extern function pipeline_module_enum_name_len(module: *u8, idx: i32): i32;
+export extern function pipeline_module_enum_name_byte_at(module: *u8, idx: i32, off: i32): u8;
 
 /**
  * Compare n bytes at a and b; 1 if equal, else 0.
@@ -66,6 +71,121 @@ function field_cap_bytes_eq(a: *u8, b: *u8, n: i32): i32 {
     i = i + 1;
   }
   return 1;
+}
+
+/**
+ * 1 if module m declares an enum named nm[0..nlen), else 0.
+ * @param m *u8 - Module*
+ * @param nm *u8 - enum name bytes (unqualified)
+ * @param nlen i32 - name length
+ * @return i32 - 1 found, 0 not found
+ * PLATFORM: SHARED - w1544.
+ */
+function field_cap_module_has_enum(m: *u8, nm: *u8, nlen: i32): i32 {
+  let ei: i32 = 0;
+  let el: i32 = 0;
+  let j: i32 = 0;
+  let eq: i32 = 0;
+  let b1: i32 = 0;
+  let b2: i32 = 0;
+  if (m == (0 as *u8) || nlen <= 0) {
+    return 0;
+  }
+  while (ei < 4096) {
+    unsafe {
+      el = pipeline_module_enum_name_len(m, ei);
+    }
+    if (el <= 0) {
+      return 0;
+    }
+    if (el == nlen) {
+      eq = 1;
+      j = 0;
+      while (j < nlen) {
+        unsafe {
+          b1 = (pipeline_module_enum_name_byte_at(m, ei, j) as i32) & 255;
+          b2 = (nm[j] as i32) & 255;
+        }
+        if (b1 != b2) {
+          eq = 0;
+          break;
+        }
+        j = j + 1;
+      }
+      if (eq != 0) {
+        return 1;
+      }
+    }
+    ei = ei + 1;
+  }
+  return 0;
+}
+
+/**
+ * Enum-typed TYPE_NAMED field width: 4 (C layout stores the tag as int).
+ * Searches the current module, then typeck dep modules; a qualified name
+ * (`token.TokenKind`) is matched by its last segment.
+ * w1544: x86/arm64 `t.kind = (N as K)` stored 8 bytes and zeroed the next
+ * i32 field (lexer Token.line), since TYPE_NAMED non-builtin fell to 8.
+ * @param a *u8 - ASTArena*
+ * @param m *u8 - Module*
+ * @param ty_ref i32 - TYPE_NAMED type ref
+ * @return i32 - 4 if enum, else 0
+ * PLATFORM: SHARED - w1544.
+ */
+function field_cap_named_enum_width(a: *u8, m: *u8, ty_ref: i32): i32 {
+  let nm: u8[256] = [];
+  let nlen: i32 = 0;
+  let st: i32 = 0;
+  let i: i32 = 0;
+  let ctx: *u8 = 0 as *u8;
+  let dm: *u8 = 0 as *u8;
+  let nd: i32 = 0;
+  let di: i32 = 0;
+  if (a == (0 as *u8) || ty_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(a, ty_ref, &nm[0]);
+  }
+  if (nlen <= 0 || nlen > 255) {
+    return 0;
+  }
+  i = 0;
+  while (i < nlen) {
+    if (nm[i] == (46 as u8)) {
+      st = i + 1;
+    }
+    i = i + 1;
+  }
+  if (st >= nlen) {
+    return 0;
+  }
+  if (field_cap_module_has_enum(m, &nm[st], nlen - st) != 0) {
+    return 4;
+  }
+  unsafe {
+    ctx = pipeline_typeck_get_dep_ctx();
+  }
+  if (ctx == (0 as *u8)) {
+    return 0;
+  }
+  unsafe {
+    nd = pipeline_dep_ctx_ndep(ctx);
+  }
+  di = 0;
+  while (di < nd && di < 4096) {
+    unsafe {
+      dm = pipeline_dep_ctx_module_at(ctx, di);
+    }
+    if (dm != (0 as *u8) && dm != m) {
+      if (field_cap_module_has_enum(dm, &nm[st], nlen - st) != 0) {
+        return 4;
+      }
+    }
+    di = di + 1;
+  }
+  return 0;
 }
 
 /**
@@ -179,6 +299,9 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
       if (hit == 1 || hit == 2 || hit == 4) {
         return hit;
       }
+      if (field_cap_named_enum_width(a, m, tr) == 4) {
+        return 4;
+      }
     } else if (kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
       return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
@@ -261,6 +384,9 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
                 if (ftr_kind == 8) {
                   if (hit == 1 || hit == 2 || hit == 4) {
                     return hit;
+                  }
+                  if (field_cap_named_enum_width(a, m, ftr) == 4) {
+                    return 4;
                   }
                 } else {
                   return hit;

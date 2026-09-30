@@ -433,6 +433,26 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
     win = link_abi_host_is_windows();
     arm = pipeline_asm_host_is_arm64_c();
   }
+  // w1544: STRUCT_LIT rvalue temps (e.g. `return { pos: .., line: .. }`)
+  // come from next_offset during body emit on every target, but were only
+  // reserved on Windows. Pure-asm lexer advance_one put its 16B return
+  // literal over the arm64 x19 save slot (the second one into the caller's
+  // fp/lr); on SysV x86_64 the literal sat under rsp and the emitter's
+  // push rax overwrote the line field.
+  // PLATFORM: MACOS|ARM64 · LINUX x86_64 (Windows x86_64 below).
+  if (win == 0 || arm != 0) {
+    unsafe {
+      lit = glue_asm_last_struct_lit_temp_bytes_c();
+    }
+    if (lit > 0) {
+      size = size + lit;
+      rem = size % 16;
+      if (rem != 0) {
+        size = size + (16 - rem);
+      }
+    }
+    lit = 0;
+  }
   if (win != 0 && arm == 0) {
     // w1509 (终局待办 10.32): STRUCT_LIT rvalue temps come from next_offset
     // during body emit and were not in the frame. In a function without a
