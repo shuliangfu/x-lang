@@ -41,11 +41,52 @@ allow(padding) struct LexerResult {
 }
 
 /**
-* See implementation.
-* See implementation.
-* See implementation.
-*/
-export extern function lexer_parser_slice_from_buf(data: *u8, len: i32): u8[];
+ * Fat source view. Same two words as SliceU8 / xlang_slice_uint8_t:
+ * data pointer, then byte length. The linked body returns this as a
+ * named 16-byte struct. On Windows x64 that return uses a hidden
+ * pointer in rcx (w1545). A u8[] declaration made the caller put the
+ * source pointer in rcx, so the callee wrote the header over the
+ * first 16 source bytes.
+ * PLATFORM: SHARED layout. WINDOWS is why the extern is not a slice.
+ */
+allow(padding) struct LexerBuf {
+  data: *u8;
+  length: usize;
+}
+
+/** Copy 16 bytes. Used only to turn LexerBuf into a u8[] in this file. */
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
+/**
+ * Cross-TU constructor. Return type is LexerBuf so the Windows caller
+ * passes the hidden return pointer. Negative len is clamped by the body.
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count
+ * @return LexerBuf — {data, length}
+ * PLATFORM: SHARED symbol; WINDOWS return is the w1545 hidden pointer.
+ */
+export extern function lexer_parser_slice_from_buf(data: *u8, len: i32): LexerBuf;
+
+/**
+ * u8[] view of [data, data+len) for the rest of this file.
+ * The extern returns a named struct (Windows hidden pointer). A slice
+ * return from this function stays in rax:rdx, and this file's callers
+ * are compiled with that same convention. The 16-byte copy is the
+ * layout match proved by {pointer, length}, not a second constructor.
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count; negative becomes an empty view
+ * @return u8[] — fat pointer the lexer indexes
+ * PLATFORM: SHARED
+ */
+export function lexer_slice_from_raw(data: *u8, len: i32): u8[] {
+  let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+  let sl: u8[] = [];
+  unsafe {
+    b = lexer_parser_slice_from_buf(data, len);
+    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+  }
+  return sl;
+}
 
 /**
  * Fixed-message diagnostic sink for hard lexer errors (no va_list).
@@ -3081,7 +3122,7 @@ export function skip_whitespace_and_comments(lex: Lexer, data: u8[]): Lexer {
  */
 export function skip_whitespace_and_comments_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   unsafe {
-    return skip_whitespace_and_comments(lex, lexer_parser_slice_from_buf(data, len));
+    return skip_whitespace_and_comments(lex, lexer_slice_from_raw(data, len));
   }
   return lex;
 }
@@ -4162,7 +4203,7 @@ export function lexer_next_into(out: *LexerResult, lex: Lexer, data: u8[]): void
  */
 export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   unsafe {
-    lexer_next_into(out, lex, lexer_parser_slice_from_buf(data, len));
+    lexer_next_into(out, lex, lexer_slice_from_raw(data, len));
   }
 }
 
@@ -4178,6 +4219,6 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
  */
 export function lexer_next_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   unsafe {
-    return lexer_next_slice(lex, lexer_parser_slice_from_buf(data, len));
+    return lexer_next_slice(lex, lexer_slice_from_raw(data, len));
   }
 }

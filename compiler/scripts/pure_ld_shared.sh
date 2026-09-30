@@ -629,6 +629,7 @@ pure_asm_x_to_o() {
   local src="$2"
   local xl=""
   local _pure_asm_stage=""
+  local _pure_u=""
   local _bn="" _stem="" _only="" _tok="" _match=0 _old_ifs=""
   if [ -z "$out" ] || [ -z "$src" ]; then
     return 1
@@ -761,9 +762,16 @@ pure_asm_x_to_o() {
     #   at pure-ld (same pattern as fmt xlang_fmt_* WEAK). Prologue static inline
     #   remains for -E inlining only (local `t`, no multidef vs weak globals).
     # PLATFORM: SHARED reject list · G.7 freestanding surface (panic / bare __error only).
-    if nm -u "$_pure_asm_stage" 2>/dev/null | grep -E \
-      'xlang_panic|^__error$' \
-      >/dev/null 2>&1; then
+    # w1546: ELF nm -u lists xlang_panic_ next to a definition in the same
+    # object, because an x86 bounds call is an external reloc. That
+    # definition is the body (build_lexer_x weakens it afterwards). Reject
+    # only a missing body. Bare __error stays a hard reject.
+    # PLATFORM: SHARED — ELF shows the extra U; Mach-O usually does not.
+    _pure_u="$(nm -u "$_pure_asm_stage" 2>/dev/null || true)"
+    if nm "$_pure_asm_stage" 2>/dev/null | grep -E ' [TtWw] _?xlang_panic_$' >/dev/null 2>&1; then
+      _pure_u="$(printf '%s\n' "$_pure_u" | grep -v 'xlang_panic_' || true)"
+    fi
+    if printf '%s\n' "$_pure_u" | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then
       rm -f "$_pure_asm_stage"
       return 1
     fi

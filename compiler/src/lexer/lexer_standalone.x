@@ -32,10 +32,11 @@ const lexer = import("lexer");
 export function main(): i32 {
   let src: u8[32] = [108, 101, 116, 32, 120, 32, 61, 32, 49, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-  // PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
+  // Same-module slice adapter. The extern returns a named struct so
+  // Windows passes the hidden return pointer (w1545).
   let sl: u8[] = [];
   unsafe {
-    sl = lexer.lexer_parser_slice_from_buf(&src[0], 11);
+    sl = lexer.lexer_slice_from_raw(&src[0], 11);
   }
   let lex: lexer.Lexer = lexer.lexer_init();
   let r: lexer.LexerResult = lexer.lexer_next_slice(lex, sl);
