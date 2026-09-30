@@ -20805,51 +20805,18 @@ export function asm_skip_heavy_parser_mega_entry(m: *u8, func_index: i32): i32 {
 }
 
 /**
- * wave120 pure: force ret0 stub names/prefixes (not safe_helper whitelist).
+ * Parser EMIT_HEAVY force-stub list. The body is
+ * runtime_pipeline_abi_parser_force_stub_thin.x. The egg call is
+ * R_X86_64_PLT32, and the egg object is not rebuilt, so the thin overlay
+ * is the linked definition. Keeping a second body here would drift.
+ * The thin keeps the six recorded segfault / elf_ec=-1 names and drops the
+ * onefunc_ / copy_onefunc_ / set_onefunc_ prefix fence.
  * @param m *u8 — Module*
  * @param func_index i32 — function index
- * @return i32 — 1 force stub
- * PLATFORM: SHARED — sole provider after parser_emit_heavy leave.
+ * @return i32 — 1 when this function must stay a stub
+ * PLATFORM: SHARED.
  */
-#[no_mangle]
-export function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32 {
-  unsafe {
-    if (m == 0 as *u8 || func_index < 0) {
-      return 0;
-    }
-    if (asm_module_is_parser_emit_heavy(m) == 0) {
-      return 0;
-    }
-    if (pipeline_module_func_name_has_prefix_at(m, func_index, "copy_onefunc_", 13) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_has_prefix_at(m, func_index, "onefunc_", 8) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_has_prefix_at(m, func_index, "set_onefunc_", 12) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "wrap_block_ref_as_expr", 22) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_true_bool_lit", 26) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_float_lit", 22) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_expr_wrap_in_return", 26) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
-      return 1;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
-      return 1;
-    }
-    return 0;
-  }
-}
+export extern function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32;
 
 /**
  * wave120 pure: safe X real-emit helper whitelist (parser EMIT_HEAVY 2nd pass).
