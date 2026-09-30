@@ -82,8 +82,12 @@ function w1511_mf_f32_bits(arena: *u8, eref: i32, out_bits: *i32): i32 {
  * @param is_const i32 - 1 = const let (prepare skips; hoist keeps)
  * @param out_imm *i32 - folded init bits
  * @return i32 - 1 register 8-byte cell; 0 keep other arms / hoist
+ * The filename contains "pipeline", so the entry-module prefix would emit
+ * pipeline_pipe_modlet_scalar_init_common_imm. The egg and g05 both require
+ * the bare name.
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 · WINDOWS.
  */
+#[no_mangle]
 export function pipe_modlet_scalar_init_common_imm(
   arena: *u8, init_ref: i32, tk: i32, is_const: i32, out_imm: *i32
 ): i32 {

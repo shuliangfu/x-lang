@@ -65,8 +65,12 @@ function w1501_sp_hex8(lab: *u8, at: i32, v: i64): void {
  * @param eref i32 — STRING_LIT expr ref
  * @param slot_off i32 — .data offset of the pointer slot
  * @return i32 — 0 ok, -1 on failure
+ * The filename contains "pipeline", so the entry-module prefix would emit
+ * pipeline_pipe_modlet_bake_string_lit_elem_to_data. The egg and g05 both
+ * require the bare name.
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function pipe_modlet_bake_string_lit_elem_to_data(
   arena: *u8, elf_ctx: *u8, eref: i32, slot_off: i32
 ): i32 {

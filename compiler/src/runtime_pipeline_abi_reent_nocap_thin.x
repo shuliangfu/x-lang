@@ -46,6 +46,23 @@ export extern function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i3
 export extern function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 
+/**
+ * Deep-copy a CALL-returned slice into the caller frame, or leave it
+ * aliased when the payload is longer than the cap.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — object writer context
+ * @param ctx *u8 — emit context
+ * @param ta i32 — target arch tag
+ * @param home i32 — destination home slot
+ * @param ty_ref i32 — slice element type ref
+ * @param use_frame i32 — 1 when the dest is a frame slot
+ * @return i32 — 0 on success, negative on failure
+ * The filename contains "pipeline", so the entry-module prefix would emit
+ * pipeline_glue_slice_let_reent_deep_copy_after_dual_gp_elf_c. The egg and
+ * g05 both require the bare name.
+ * PLATFORM: SHARED freestanding. LINUX gold. MACOS. WINDOWS.
+ */
+#[no_mangle]
 export function glue_slice_let_reent_deep_copy_after_dual_gp_elf_c(
     arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32, home: i32, ty_ref: i32, use_frame: i32): i32 {
   unsafe {
