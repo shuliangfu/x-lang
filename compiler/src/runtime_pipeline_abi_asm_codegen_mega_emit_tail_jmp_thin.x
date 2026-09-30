@@ -2,7 +2,8 @@
 // G.7: part of w393_mega_emit_one (peer-flat; before frame/prologue).
 // Detects pure `return callee(params…)` forwarders and emits a 5-byte
 // x86 `jmp` stub (host-cc sibling-call shape) so tip thin matches host.
-// tipU: keep leaf small — callee VAR name as link sym. A return that
+// tipU: keep leaf small. The jmp target is glue_asm_build_call_export_sym_c
+// (the normal CALL link symbol), not the callee VAR spelling. A return that
 // closes a block is Block.final_expr_ref (parser does not append
 // stmt_order). unsafe { return _impl } is a region; the CALL sits in
 // that inner block's final_expr. Do not call get_return: the later
@@ -29,12 +30,27 @@ export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: 
 export extern function pipeline_expr_call_callee_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_num_args_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_call_arg_ref(arena: *u8, expr_ref: i32, idx: i32): i32;
-export extern function pipeline_expr_var_name_len(arena: *u8, er: i32): i32;
-export extern function pipeline_expr_var_name_into(arena: *u8, er: i32, out: *u8): void;
 export extern function pipeline_asm_module_func_num_params_at(m: *u8, fi: i32): i32;
 export extern function glue_expr_is_func_param_at_c(arena: *u8, mod: *u8, func_idx: i32, expr_ref: i32, param_ix: i32): i32;
 export extern function backend_enc_jmp_sym_arch(
     elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_dep_pipe_c(): *u8;
+/**
+ * Same-module and import CALL link symbol. Tail-jmp stubs must use this
+ * rather than the callee VAR bytes. Defined in backend_call_dispatch.x.
+ * @param arena *u8 — call-site AST arena
+ * @param call_expr_ref i32 — EXPR_CALL
+ * @param callee_ref i32 — EXPR_VAR callee
+ * @param mod *u8 — emitting module
+ * @param dep_pipe *u8 — dep ctx; null skips the dep search
+ * @param out *u8 — destination symbol buffer
+ * @param out_cap i32 — capacity; must be > 0
+ * @return i32 — symbol length, or -1
+ * PLATFORM: SHARED.
+ */
+export extern function glue_asm_build_call_export_sym_c(
+    arena: *u8, call_expr_ref: i32, callee_ref: i32, mod: *u8, dep_pipe: *u8,
+    out: *u8, out_cap: i32): i32;
 
 /**
  * Load i32 from pipe cell (unique name — avoid multi-leaf T clash).
@@ -244,8 +260,21 @@ function w499t_single_stmt(a: *u8, br: i32): i32 {
 
 /**
  * Try to emit a pure param-forwarder as a host-like jmp stub.
- * @return i32 — 1 emitted (caller done), 0 not applicable, -1 emit failure
- * PLATFORM: SHARED — x86_64 product; ARM64 keeps fat forwarder path.
+ * The jmp reloc is glue_asm_build_call_export_sym_c of that CALL, so a
+ * same-module body uses the definition link symbol (parse_assign_into
+ * becomes parser_parse_assign_into). A bare extern with no local body
+ * stays the source name. Length <= 0 skips the stub; the caller emits
+ * the full body instead of a jmp to the VAR spelling.
+ * @param m *u8 — emitting module
+ * @param a *u8 — AST arena
+ * @param elf_ctx *u8 — code buffer
+ * @param bctx *u8 — backend ctx; null returns 0
+ * @param ta i32 — 0 is x86_64; any other arch returns 0
+ * @param i i32 — function index of the forwarder
+ * @param body_ref i32 — body block ref; <=0 returns 0
+ * @return i32 — 1 emitted, 0 not applicable, -1 emit failure
+ * PLATFORM: SHARED — x86_64 product. The Windows host-cc overlay returns
+ * 0 and is not this body. ARM64 keeps the fat forwarder (ta != 0).
  */
 #[no_mangle]
 export function w499_mega_try_tail_jmp(
@@ -259,8 +288,10 @@ export function w499_mega_try_tail_jmp(
     let nreg: i32 = 0;
     let ri: i32 = 0;
     let ch: i32 = 0;
-    /* pipeline_expr_var_name_into zeros 256 bytes, not the name length. */
+    /* Symbol buffer. glue_asm_build_call_export_sym_c writes the link
+     * name here; backend_enc_jmp_sym_arch consumes the returned length. */
     let cname: u8[256] = [];
+    let dep: *u8 = 0 as *u8;
     if (bctx == (0 as *u8)) { return 0; }
     if (ta != 0) { return 0; }
     if (body_ref <= 0) { return 0; }
@@ -286,11 +317,15 @@ export function w499_mega_try_tail_jmp(
     pipe_store_i32_le(&cell[0], 0, pipeline_expr_call_callee_ref_at(a, ret_ref));
     callee_ref = w499t_c32(&cell[0]);
     if (callee_ref <= 0) { return 0; }
-    pipe_store_i32_le(&cell[0], 0, pipeline_expr_var_name_len(a, callee_ref));
+    // PLATFORM: SHARED — one link-name authority with normal CALL emit.
+    // Do not fall back to the VAR spelling: that left parse_assign_into,
+    // parse_cond_expr_into, and skip_one_enum_register_into_buf raw.
+    dep = pipeline_asm_emit_dep_pipe_c();
+    pipe_store_i32_le(&cell[0], 0, glue_asm_build_call_export_sym_c(
+        a, ret_ref, callee_ref, m, dep, &cname[0], 256));
     clen = w499t_c32(&cell[0]);
     if (clen <= 0) { return 0; }
     if (clen > 255) { return 0; }
-    pipeline_expr_var_name_into(a, callee_ref, &cname[0]);
     pipe_store_i32_le(&cell[0], 0, backend_enc_jmp_sym_arch(elf_ctx, &cname[0], clen, ta));
     if (w499t_c32(&cell[0]) != 0) { return neg1; }
     return 1;
