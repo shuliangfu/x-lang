@@ -32,10 +32,20 @@ const ast = import("ast");
 extern "C" function calloc(nmemb: usize, size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
 
-/* See implementation. */
-export extern "C" function std_fs_open(path: *u8): i32;
-export extern "C" function std_fs_read(fd: i32, buf: *u8, count: usize): isize;
-export extern "C" function std_fs_close(fd: i32): i32;
+/* File-read smoke test used only by main below.
+ * These three names are the no_mangle FS surface defined in runtime_io_abi.x
+ * and already linked into the compiler image:
+ *   fs_open_read_c(path) opens a NUL-terminated path read-only and returns a fd
+ *   fs_posix_read_c(fd, buf, count) reads into buf and returns the byte count
+ *   fs_posix_close_c(fd) closes fd
+ * std_fs_open / std_fs_read / std_fs_close are not defined in the link.
+ * An asm-built parser.o that calls them fails at link with three undefs
+ * (the host-cc seed does not emit this main, so the product object never
+ * referenced them). PLATFORM: SHARED.
+ */
+export extern "C" function fs_open_read_c(path: *u8): i32;
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function fs_posix_close_c(fd: i32): i32;
 
 /* See implementation. */
 /* See implementation. */
@@ -12844,11 +12854,11 @@ export function main(): i32 {
     47, 116, 109, 112, 47, 115, 104, 117, 95, 112, 97, 114, 115, 101, 95, 116,
     101, 115, 116, 46, 115, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
   ];
-  let fd: i32 = std_fs_open(path);
+  let fd: i32 = fs_open_read_c(path);
   if (fd >= 0) {
     let buf: u8[128] = [];
-    let n: isize = std_fs_read(fd, buf, 128);
-    std_fs_close(fd);
+    let n: isize = fs_posix_read_c(fd, buf, 128);
+    fs_posix_close_c(fd);
     if (n > 0) {
       /* See implementation. */
       let sl: u8[] = parser_slice_from_buf(&buf[0], (n as i32));

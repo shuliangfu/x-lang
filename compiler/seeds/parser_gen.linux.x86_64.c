@@ -1335,9 +1335,13 @@ extern int32_t parser_copy_module_import_path64(struct ast_Module * module, int3
 extern int32_t parser_main(void);
 extern uint8_t * calloc(size_t nmemb, size_t size);
 extern void free(uint8_t * ptr);
-extern int32_t std_fs_open(uint8_t * path);
-extern ssize_t std_fs_read(int32_t fd, uint8_t * buf, size_t count);
-extern int32_t std_fs_close(int32_t fd);
+/* Same names as parser.x main. These are the no_mangle FS surface in
+ * runtime_io_abi.x (fs_open_read_c / fs_posix_read_c / fs_posix_close_c).
+ * This seed does not emit main, so the declarations are unused here.
+ * PLATFORM: SHARED. */
+extern int32_t fs_open_read_c(uint8_t * path);
+extern ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count);
+extern int32_t fs_posix_close_c(int32_t fd);
 extern int32_t parser_parse_peek_function_name_buf_glue(struct lexer_Lexer lex, uint8_t * data, int32_t len, uint8_t * out);
 int32_t parser_parse_peek_function_name_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len, uint8_t * out) {
   return parser_parse_peek_function_name_buf_glue(lex, data, len, out);
