@@ -18358,6 +18358,26 @@ EOF
   return 0
 }
 
+# True when THIN's executable PROGBITS already are the live symbols in BASE.
+# PLATFORM: LINUX — ELF ld -r keeps weakened .text, so merging an identical
+# thin again prepends another copy (Ubuntu pabi .text +0x1ce0 per ensure).
+# The predicate lives in scripts/elf_thin_body_match.py (one compare).
+# Non-ELF, missing python, or any byte/reloc difference returns 1 and the
+# caller keeps its existing weaken+merge. PLATFORM: MACOS / WINDOWS unchanged.
+pipeline_abi_elf_thin_body_matches() {
+  local base="$1"
+  local thin="$2"
+  local py
+  [ -s "$base" ] && [ -s "$thin" ] || return 1
+  command -v python3 >/dev/null 2>&1 || return 1
+  py="$(cd "$(dirname "$0")" && pwd)/elf_thin_body_match.py"
+  if [ ! -f "$py" ]; then
+    py="scripts/elf_thin_body_match.py"
+  fi
+  [ -f "$py" ] || return 1
+  python3 "$py" "$base" "$thin"
+}
+
 pipeline_abi_inject_thin_leaf() {
   local o="$1"
   local thin_x="$2"
@@ -18469,6 +18489,14 @@ pipeline_abi_inject_thin_leaf() {
       rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
       return 0
     fi
+  fi
+  # Identical text must not be weakened and merged again. First ingest (symbol
+  # absent) and a real body change still fall through. PLATFORM: LINUX.
+  if pipeline_abi_thin_already_defined "$o" "$thin_o" \
+    && pipeline_abi_elf_thin_body_matches "$o" "$thin_o"; then
+    log "pipeline_abi ${tag} inject skip: ELF text already matches"
+    rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
+    return 0
   fi
   cp -f "$o" "$base_o"
   cp -f "$o" "$restore_o"
@@ -19513,6 +19541,15 @@ pipeline_abi_heal_assign_index_undef() {
     log "pipeline_abi Class P heal: cc stubs failed"
     rm -f "$stub_o" "$base_o"
     return 1
+  fi
+  # has_mid forces this heal even when the stubs are already the live text.
+  # A second ld -r prepends another copy. Skip when the bytes match; a real
+  # Soft-Cap tip body still falls through and is overlaid once.
+  # PLATFORM: LINUX — this heal is a no-op on Darwin and Windows.
+  if pipeline_abi_elf_thin_body_matches "$o" "$stub_o"; then
+    log "pipeline_abi Class P heal assign_index: ELF text already matches"
+    rm -f "$stub_o" "$base_o"
+    return 0
   fi
   cp -f "$o" "$base_o"
   # If Soft-Cap tip T already present (bad prior heal), weaken then stub overlay.
