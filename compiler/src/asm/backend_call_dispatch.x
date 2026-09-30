@@ -2373,20 +2373,22 @@ export function glue_asm_build_call_export_sym_c(
 // glue_asm_build_dep_export_sym_c: see function docblock below.
 /**
  * Build the link symbol for a definition or a same-module call.
- * When the dep path is set, prepend that module's C prefix (build_ is
- * the only prefix glue_asm_c_prefix_redundant_with_name treats as already
- * present). When the dep path is empty, this is the entry module: prepend
+ * When the dep path is set, prepend that module's C prefix unless the
+ * source name already starts with it. The dep-path compare is
+ * codegen_c_prefix_redundant_with_name, the same rule the entry module
+ * uses: a name that already begins with lexer_ is not doubled, and the
+ * prefix ast_ stays not redundant. glue_asm_c_prefix_redundant_with_name
+ * remains build_-only and is not the compare used here.
+ * When the dep path is empty, this is the entry module: prepend
  * entry_module_import_path_mirror, which already includes the trailing '_'.
- * The entry compare is codegen_c_prefix_redundant_with_name, so a source
- * name that already starts with parser_ is not doubled. The four-byte
- * name main stays bare on the entry module only; a dep function named
- * main still takes the dep prefix. Does not store a dep path.
+ * The four-byte name main stays bare on the entry module only; a dep
+ * function named main still takes the dep prefix. Does not store a dep path.
  * @param name *u8 — source function name bytes; not necessarily NUL-terminated
  * @param name_len i32 — byte count; must be > 0
  * @param out *u8 — destination symbol buffer
  * @param out_cap i32 — capacity; must be > 0
  * @return i32 — symbol length, or -1 on failure
- * PLATFORM: SHARED — link-name contract. Dep-path branch is unchanged.
+ * PLATFORM: SHARED — link-name contract for dep definitions and entry definitions.
  */
 #[no_mangle]
 export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *u8, out_cap: i32): i32 {
@@ -2409,7 +2411,9 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
           plen = plen + 1;
         }
         if (plen > 0) {
-          if (glue_asm_c_prefix_redundant_with_name(&prefix[0], plen, name, name_len) == 0) {
+          // Entry definitions already use this compare. The build_-only
+          // helper left a co-emitted lexer_next_into as lexer_lexer_next_into.
+          if (codegen_c_prefix_redundant_with_name(&prefix[0], plen, name, name_len) == 0) {
             let i: i32 = 0;
             while (i < plen) {
               if (pos >= out_cap - 1) { break; }
@@ -8168,14 +8172,23 @@ export function glue_asm_string_lit_len(arena: *u8, er: i32): i32 {
   return 0;
 }
 
-/** Exported function `glue_asm_build_import_binding_call_sym`.
- * Implements `glue_asm_build_import_binding_call_sym`.
- * @param pre *u8
- * @param plen i32
- * @param field *u8
- * @param flen i32
- * @param out *u8
- * @return i32
+/**
+ * Build an import-call link symbol: the module C prefix plus the source
+ * name, unless that name already starts with the prefix.
+ * The compare is codegen_c_prefix_redundant_with_name, the same rule entry
+ * definitions use. A lexer import of lexer_next_into therefore links as
+ * lexer_next_into. Prefix ast_ stays not redundant, so an ast_ name still
+ * takes a second ast_ when the import prefix is ast_. A name that does not
+ * already start with the prefix (println under std_io_) is still prefixed.
+ * glue_asm_c_prefix_redundant_with_name stays build_-only and is not called
+ * here. The destination is not NUL-terminated. Capacity is 255 bytes.
+ * @param pre *u8 — import C prefix bytes; ignored when plen is 0
+ * @param plen i32 — prefix length; 0 emits the field alone
+ * @param field *u8 — source name or overload mid; must be non-null
+ * @param flen i32 — field length; must be > 0
+ * @param out *u8 — destination buffer
+ * @return i32 — symbol length, or -1 when field or out is empty
+ * PLATFORM: SHARED — import calls and entry definitions must agree.
  */
 #[no_mangle]
 export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, field: *u8, flen: i32, out: *u8): i32 {
@@ -8187,7 +8200,9 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, fiel
   let pos: i32 = 0;
   let skip_pre: i32 = 0;
   if (plen > 0) {
-    if (glue_asm_c_prefix_redundant_with_name(pre, plen, field, flen) != 0) {
+    // build_-only compare doubled lexer_next_into. Entry objects export
+    // the single-prefix name, so the import call must use the same rule.
+    if (codegen_c_prefix_redundant_with_name(pre, plen, field, flen) != 0) {
       skip_pre = 1;
     }
   }
