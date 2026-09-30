@@ -8202,8 +8202,12 @@ export function glue_asm_build_import_binding_call_sym(pre: *u8, plen: i32, fiel
   if (plen > 0) {
     // build_-only compare doubled lexer_next_into. Entry objects export
     // the single-prefix name, so the import call must use the same rule.
-    if (codegen_c_prefix_redundant_with_name(pre, plen, field, flen) != 0) {
-      skip_pre = 1;
+    // The compare is extern (defined in codegen.x). An extern call outside
+    // unsafe is T001. The dep-path call already sits in its unsafe block.
+    unsafe {
+      if (codegen_c_prefix_redundant_with_name(pre, plen, field, flen) != 0) {
+        skip_pre = 1;
+      }
     }
   }
   if (skip_pre == 0) {
