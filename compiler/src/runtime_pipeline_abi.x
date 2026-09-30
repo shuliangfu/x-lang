@@ -20715,7 +20715,10 @@ function asm_parser_mega_bisect_skip_stub(m: *u8, func_index: i32, name: *u8, le
 }
 
 /**
- * wave120 pure helper: PARSE_BOOTSTRAP_EMIT whitelist for mega X emit.
+ * Bootstrap mega-name allow list. The body is
+ * runtime_pipeline_abi_parser_mega_allow_thin.x. The egg call is
+ * R_X86_64_PLT32, and the egg object is not rebuilt, so the thin overlay
+ * is the linked definition. Keeping a second body here would drift.
  * @param m *u8 — Module*
  * @param func_index i32 — function index
  * @param name *u8 — candidate name
@@ -20723,59 +20726,7 @@ function asm_parser_mega_bisect_skip_stub(m: *u8, func_index: i32, name: *u8, le
  * @return i32 — 1 when bootstrap emit allows this mega name
  * PLATFORM: SHARED.
  */
-function asm_parser_bootstrap_mega_emit_allowed(m: *u8, func_index: i32, name: *u8, len: i32): i32 {
-  unsafe {
-    if (m == 0 as *u8 || func_index < 0) {
-      return 0;
-    }
-    // Presence check (null only) — empty string still enables bootstrap path.
-    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT") == 0 as *u8) {
-      return 0;
-    }
-    if (pipeline_module_func_name_equal_at(m, func_index, name, len) == 0) {
-      return 0;
-    }
-    if (link_abi_getenv("XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT_MINIMAL") != 0 as *u8) {
-      if (len == 15) {
-        if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
-          return 1;
-        }
-      }
-      if (len == 25) {
-        if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
-          return 1;
-        }
-      }
-      return 0;
-    }
-    if (len == 14) {
-      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_buf", 14) != 0) {
-        return 1;
-      }
-    }
-    if (len == 10) {
-      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into", 10) != 0) {
-        return 1;
-      }
-    }
-    if (len == 15) {
-      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_init", 15) != 0) {
-        return 1;
-      }
-    }
-    if (len == 25) {
-      if (pipeline_module_func_name_equal_at(m, func_index, "parse_into_set_main_index", 25) != 0) {
-        return 1;
-      }
-    }
-    if (len == 19) {
-      if (pipeline_module_func_name_equal_at(m, func_index, "collect_imports_buf", 19) != 0) {
-        return 1;
-      }
-    }
-    return 0;
-  }
-}
+export extern function asm_parser_bootstrap_mega_emit_allowed(m: *u8, func_index: i32, name: *u8, len: i32): i32;
 
 /**
  * wave120 pure: mega parse entry → ret0 stub (unless bisect/bootstrap allow X).

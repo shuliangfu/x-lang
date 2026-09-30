@@ -470,6 +470,19 @@ if [ "${XLANG_BINOP_WIDE_OVERLAY:-1}" = "1" ]; then
     build_asm/selfhost_pabi/binop_wide.o pipeline_asm_emit_binop_mod_elf_c
   _PABI_BINOP_WIDE="$_G05_PO_OUT"
 fi
+# w1558: parser bootstrap mega allow list. Egg
+# asm_parser_bootstrap_mega_emit_allowed is the short list (parse_into* and
+# collect_imports_buf). mega_entry calls it with R_X86_64_PLT32, so this
+# overlay is the linked body. Adds parse, parse_one_function_impl,
+# parse_expr_into, parse_block_into, parse_body_lets_into when
+# XLANG_ASM_PARSER_PARSE_BOOTSTRAP_EMIT is set. MINIMAL stays two names.
+# A failed compile is logged and blocks the link. PLATFORM: SHARED.
+_PABI_PARSER_MEGA_ALLOW=""
+if [ "${XLANG_PARSER_MEGA_ALLOW_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_parser_mega_allow_thin.x \
+    build_asm/selfhost_pabi/parser_mega_allow.o asm_parser_bootstrap_mega_emit_allowed
+  _PABI_PARSER_MEGA_ALLOW="$_G05_PO_OUT"
+fi
 # w1501: module-let STRING_LIT pool head chunk 127 (终局待办 10.24). pabi's
 # pipe_modlet_bake_string_lit_elem_to_data copied the head chunk with a 255
 # cap while the parser splits literals every 127 bytes, so bytes 127..254 of a
@@ -694,6 +707,14 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_RETURN_SRET" ] && [ -s "$_PABI_LINK_
   && command -v objcopy >/dev/null 2>&1; then
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipeline_asm_emit_return_elf_impl$"; then
     objcopy --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_PABI_LINK_O" 2>/dev/null || true
+  fi
+fi
+# w1558: egg allow-list is already weak. If a rebuild leaves it strong,
+# weaken so the overlay first-wins. PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_PARSER_MEGA_ALLOW" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T asm_parser_bootstrap_mega_emit_allowed$"; then
+    objcopy --weaken-symbol=asm_parser_bootstrap_mega_emit_allowed "$_PABI_LINK_O" 2>/dev/null || true
   fi
 fi
 # w945: compiler-emitted pipeline_asm_emit_assign_elf_c. The gcc body
@@ -1529,6 +1550,12 @@ case "$UNAME_S" in
               build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
           done
         fi
+        # w1558: weaken egg parser mega allow list so the overlay first-wins.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_PARSER_MEGA_ALLOW" ]; then
+          "$_oc" --weaken-symbol=asm_parser_bootstrap_mega_emit_allowed \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
         # w1501: weaken egg module-let string pool baker (127 head chunk).
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_MODLET_STRPOOL" ]; then
@@ -1651,7 +1678,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
