@@ -1829,7 +1829,16 @@ export function typeck_top_level_let_name_equal(module: *Module, tl_ix: i32, nm:
     }
     let i: i32 = 0;
     while (i < nm_len) {
-      if (pipeline_module_top_level_let_name_byte_at(module, tl_ix, i) != nm[i]) {
+      /*
+       * Keep each side in its own local. An inline `byte_at(...) != nm[i]`
+       * is emitted as `index != nm[i]`: the asm backend reuses the
+       * call-result register for the index while that result is still live.
+       * The length compare above is already a local and stays correct.
+       * PLATFORM: SHARED — same byte compare on macOS, Ubuntu, and Windows.
+       */
+      let got: i32 = pipeline_module_top_level_let_name_byte_at(module, tl_ix, i) as i32;
+      let want: i32 = nm[i] as i32;
+      if (got != want) {
         return false;
       }
       i = i + 1;
