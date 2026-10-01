@@ -36,6 +36,15 @@ extern "C" function free(ptr: *u8): void;
 // function named main or entry. WPO treats either name as a program root
 // and drops exports that other objects call. The host-cc seed does not
 // emit that smoke entry. PLATFORM: SHARED.
+//
+// These three FS declarations are not called from this library. The
+// standalone smoke calls the same symbols. Deleting the declarations
+// makes parse_into fail the struct-pointer overload check; three empty
+// externs at this slot typecheck too, so the check is sensitive to the
+// slots and the original declarations stay. PLATFORM: SHARED.
+export extern "C" function fs_open_read_c(path: *u8): i32;
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function fs_posix_close_c(fd: i32): i32;
 
 /* See implementation. */
 /* See implementation. */
