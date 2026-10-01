@@ -1,9 +1,13 @@
-// Thin pure: mixed-width integer ADD and f32-expression promote (w1591, 10.49).
+// Thin pure: mixed-width integer ADD and SUB, and f32-expression promote
+// (w1591 add / f32, w1594 sub).
 // glue_binop_operand_is_64bit_elf_c keeps the first typed operand. An i32
-// on the left hides an i64 on the right, so the add is 32-bit and then
-// cltq drops the high half. An f32 binop assigned to f64 has no type ref,
-// so the promote helper no-ops and the f32 bits are stored as an f64.
+// on the left hides an i64 on the right. The add was then 32-bit and cltq
+// dropped the high half. The rbx-minus-rax sub is already subq on x86, and
+// the same missed width still runs cltq and keeps only the low 32 bits.
+// An f32 binop assigned to f64 has no type ref, so the promote helper
+// no-ops and the f32 bits are stored as an f64.
 // Integer times f64 already goes through the binop_wide mixed leaf.
+// Integer times a wide integer is not this object.
 // LINUX links this object ahead of the egg. Do not rebuild the pabi egg.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX installs the object.
 
@@ -18,6 +22,10 @@ export extern function backend_enc_addsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i3
 export extern function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_subsd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_subss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -244,6 +252,110 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   }
   if (rc != 0) {
     return rc;
+  }
+  unsafe {
+    return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
+  }
+}
+
+/**
+ * Emit rbx - rax as a 64-bit subtract and leave the result in rax.
+ * x86 uses the existing subq-then-mov encoder. arm64 uses SUB X0, X1, X0
+ * because the shared then-mov face is still a 32-bit W subtract.
+ * @param elf_ctx *u8 — encoder context; null is rejected by append
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, -1 encode failure
+ * PLATFORM: SHARED — x86_64 REX.W sub and arm64 SUB X.
+ */
+function w1594_emit_wide_sub_rbx_minus_rax(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    // 0xCB000020 — SUB X0, X1, X0. Little-endian bytes 20 00 00 CB.
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 203) != 0) {
+        return 0 - 1;
+      }
+    }
+    return 0;
+  }
+  unsafe {
+    return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+  }
+}
+
+/**
+ * Emit rbx minus rax for integer or float SUB.
+ * Same float arms as the egg. A narrow integer on the left next to a wide
+ * integer is sign-extended and subtracted at 64 bits, with no following
+ * cltq. i32 minus i32 still uses that cltq. A wide left already takes the
+ * 64-bit arm; a narrow literal in rbx is sign-extended first so -1 stays
+ * negative.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left expression, already in rbx
+ * @param right_ref i32 — right expression, already in rax
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, nonzero encode failure
+ * PLATFORM: SHARED — x86_64 subq and arm64 SUB X. LINUX links this body.
+ */
+#[no_mangle]
+export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  let is_64bit: i32 = 0;
+  let left_kind: i32 = 0;
+  let mixed: i32 = 0;
+  unsafe {
+    if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
+      return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
+    }
+    if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) != 0)) {
+      return backend_enc_subss_rbx_rax_arch(elf_ctx, ta);
+    }
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  }
+  // mov imm32 into rbx zero-extends. A negative i32 literal next to a
+  // wide right must be sign-extended before the 64-bit subtract.
+  if (is_64bit != 0 && w1591_is_narrow_lit(arena, left_ref) != 0 && w1591_is_wide_int(arena, ctx, right_ref) != 0) {
+    if (w1591_sxt_rbx(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  // i32 on the left hides the i64, so is_64bit stays 0. x86 then-mov is
+  // already subq; cltq below would discard the high half.
+  mixed = 0;
+  if (is_64bit == 0 && w1591_is_wide_int(arena, ctx, right_ref) != 0) {
+    left_kind = w1591_operand_kind(arena, ctx, left_ref);
+    if (w1591_is_narrow_lit(arena, left_ref) != 0 || left_kind == 0) {
+      mixed = 1;
+    }
+  }
+  if (mixed != 0) {
+    if (w1591_sxt_rbx(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return w1594_emit_wide_sub_rbx_minus_rax(elf_ctx, ta);
+  }
+  unsafe {
+    if (is_64bit != 0 && ta == 1) {
+      rc = w1594_emit_wide_sub_rbx_minus_rax(elf_ctx, ta);
+    } else {
+      rc = backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
+    }
+  }
+  if (rc != 0) {
+    return rc;
+  }
+  if (is_64bit != 0) {
+    return 0;
   }
   unsafe {
     return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);

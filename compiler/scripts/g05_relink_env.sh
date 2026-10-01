@@ -971,8 +971,21 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o $_PABI_SELFHOST"
 fi
-# w1591: i32+i64 add width and f32-expression promote. First-wins over the egg.
-# A missing object keeps the previous list. PLATFORM: LINUX
+# w1594: i32 - i64 skips the cltq after subq. Recompile the w1591 object
+# from this source on Linux. A missing T is logged and the link is refused.
+# PLATFORM: LINUX
+case "$UNAME_S" in
+  Linux)
+    if [ "${XLANG_WIDEN_MIXED_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_widen_mixed_thin.x \
+        build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o \
+        glue_emit_binop_sub_rbx_minus_rax_elf_c
+    fi
+    ;;
+esac
+# w1591: i32+i64 add width and f32-expression promote. w1594 sub lives in
+# the same object. First-wins over the egg. A missing object keeps the
+# previous list. PLATFORM: LINUX
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o $_PABI_SELFHOST"
 fi
