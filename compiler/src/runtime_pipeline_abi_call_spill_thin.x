@@ -80,11 +80,13 @@ export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, na
 export extern function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i32, param_index: i32): i32;
 export extern function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32;
 export extern function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32;
+export extern function link_abi_host_is_windows(): i32;
 
 // Walk state: [0] total bytes, [1] visits, [2] x86 flag, [3] widest GP units,
 // [4] arm64 binop left-preserve frame homes (w1503),
 // [5] STRUCT_LIT value temp bytes (w1509),
-// [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521).
+// [6] arm64 sret CALL result temps + x8 save slot; Win64 by-ref arg copies (w1521);
+//     Linux x86_64 SysV push-helper temps (w1587).
 let w1500_cs_st: i32[7] = [];
 
 /** Record the widest outgoing GP unit count. PLATFORM: SHARED. */
@@ -217,6 +219,105 @@ function w1544_cs_arm_units(arena: *u8, call: i32, i: i32, arg_ref: i32, is_meth
   return u;
 }
 
+/**
+ * Bytes one argument takes from next_offset inside
+ * pipeline_asm_push_sysv_memory_by_value_elf_c.
+ * EXPR_VAR reuses its home. STRUCT_LIT is written into the slot the
+ * struct-lit walk already records in st[5]. FIELD, INDEX, and DEREF
+ * take an align8(sz) copy. A nested CALL or METHOD takes align8(sz)
+ * plus 8 for the saved destination register.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param pty i32 — formal type ref; 0 when the arg has no formal (method receiver)
+ * @param arg_ref i32 — argument expr; <=0 returns 0
+ * @return i32 — bytes the helper adds; 0 when this arg allocates no temp
+ * PLATFORM: LINUX x86_64 SysV. The caller returns 0 on Windows.
+ */
+function w1587_linux_push_arg_bytes(arena: *u8, pty: i32, arg_ref: i32): i32 {
+  let ak: i32 = 0;
+  let sz: i32 = 0;
+  let nbytes: i32 = 0;
+  if (arena == (0 as *u8) || arg_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ak = pipeline_expr_kind_ord_at(arena, arg_ref);
+  }
+  // 3 = EXPR_VAR (home). 45 = STRUCT_LIT (st[5] is that same temp).
+  if (ak == 3 || ak == 45) {
+    return 0;
+  }
+  // 44 FIELD, 47 INDEX, 52 DEREF, 48 CALL, 49 METHOD. The helper
+  // rejects every other kind, so the frame does not reserve them.
+  if (ak != 44 && ak != 47 && ak != 52 && ak != 48 && ak != 49) {
+    return 0;
+  }
+  unsafe {
+    sz = glue_sysv_arg_byte_size_c(arena, 0 as *u8, pty, arg_ref);
+  }
+  if (sz <= 16) {
+    return 0;
+  }
+  nbytes = (sz + 7) & (0 - 8);
+  if (ak == 48 || ak == 49) {
+    nbytes = nbytes + 8;
+  }
+  return nbytes;
+}
+
+/**
+ * Sum of w1587_linux_push_arg_bytes for one CALL or METHOD.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param call i32 — CALL or METHOD_CALL expr ref; <=0 returns 0
+ * @param nargs i32 — argument count, not counting a method receiver
+ * @param is_method i32 — 1 also counts the method receiver
+ * @return i32 — bytes to add on Linux x86_64; 0 on Windows
+ * PLATFORM: LINUX x86_64 SysV. Windows by-ref copies stay in
+ * w1521_win_call_mem_temp_bytes_c. Arm64 does not call this.
+ */
+function w1587_linux_push_temp_bytes(arena: *u8, call: i32, nargs: i32, is_method: i32): i32 {
+  let win: i32 = 0;
+  let j: i32 = 0;
+  let tot: i32 = 0;
+  let ar: i32 = 0;
+  let pty: i32 = 0;
+  if (arena == (0 as *u8) || call <= 0) {
+    return 0;
+  }
+  unsafe {
+    win = link_abi_host_is_windows();
+  }
+  if (win != 0) {
+    return 0;
+  }
+  if (is_method != 0) {
+    unsafe {
+      ar = pipeline_expr_method_call_base_ref_at(arena, call);
+    }
+    tot = tot + w1587_linux_push_arg_bytes(arena, 0, ar);
+  }
+  if (nargs < 0) {
+    nargs = 0;
+  }
+  if (nargs > 64) {
+    nargs = 64;
+  }
+  j = 0;
+  while (j < nargs) {
+    pty = 0;
+    unsafe {
+      if (is_method != 0) {
+        ar = pipeline_expr_method_call_arg_ref(arena, call, j);
+      } else {
+        ar = pipeline_expr_call_arg_ref(arena, call, j);
+        pty = glue_call_param_type_ref_at(arena, call, j);
+      }
+    }
+    tot = tot + w1587_linux_push_arg_bytes(arena, pty, ar);
+    j = j + 1;
+  }
+  return tot;
+}
+
 /** Count args that are not EXPR_VAR(3). PLATFORM: SHARED. */
 function w1500_cs_non_var(arena: *u8, e: i32): i32 {
   let k: i32 = 0;
@@ -285,6 +386,11 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
         w1500_cs_st[6] = w1500_cs_st[6] + op;
         op = 0;
       }
+      // w1587 (10.64): the SysV push helper's next_offset temp. 0 on Windows.
+      // PLATFORM: LINUX x86_64.
+      op = w1587_linux_push_temp_bytes(arena, expr_ref, n, 0);
+      w1500_cs_st[6] = w1500_cs_st[6] + op;
+      op = 0;
       w1500_cs_call_x86(arena, expr_ref, n);
       return;
     }
@@ -345,6 +451,11 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
         w1500_cs_st[6] = w1500_cs_st[6] + op;
         op = 0;
       }
+      // w1587 (10.64): same push-helper temp for a method arg list.
+      // PLATFORM: LINUX x86_64.
+      op = w1587_linux_push_temp_bytes(arena, expr_ref, n, 1);
+      w1500_cs_st[6] = w1500_cs_st[6] + op;
+      op = 0;
       need = need * 2;
       w1500_cs_note_gp(2 * (n + 1) + 1);
       // w1546: import METHOD and UFCS park arg0 the same way as CALL.
@@ -809,7 +920,12 @@ export function glue_asm_last_struct_lit_temp_bytes_c(): i32 {
   return w1500_cs_st[5];
 }
 
-/** arm64 sret CALL temp bytes from the last walk (w1521). PLATFORM: MACOS|ARM64. */
+/**
+ * Last-walk st[6]. Arm64 sret CALL temps (w1521), Win64 by-ref copies
+ * (w1521), and Linux SysV push-helper temps (w1587).
+ * @return i32 — bytes; 0 when the last walk reserved none
+ * PLATFORM: MACOS|ARM64 · WINDOWS x86_64 · LINUX x86_64.
+ */
 #[no_mangle]
 export function glue_asm_last_sret_call_temp_bytes_c(): i32 {
   return w1500_cs_st[6];

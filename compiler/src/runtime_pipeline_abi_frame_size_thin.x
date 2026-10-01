@@ -455,6 +455,24 @@ export function pipeline_asm_compute_frame_size_c(num_params: i32, arena: *u8, b
     }
     lit = 0;
   }
+  // w1587 (checklist 10.64): Linux push-helper temps are st[6]. The helper
+  // copies a non-VAR MEMORY arg to next_offset (align8(sz), plus 8 when
+  // the arg is itself a call) and that slot sat under rsp. Arm64 already
+  // adds st[6] in w1500_fs_core. Windows adds it in the block below.
+  // PLATFORM: LINUX x86_64.
+  if (win == 0 && arm == 0) {
+    unsafe {
+      w = glue_asm_last_sret_call_temp_bytes_c();
+    }
+    if (w > 0) {
+      size = size + w;
+      rem = size % 16;
+      if (rem != 0) {
+        size = size + (16 - rem);
+      }
+    }
+    w = 0;
+  }
   if (win != 0 && arm == 0) {
     // w1509 (终局待办 10.32): STRUCT_LIT rvalue temps come from next_offset
     // during body emit and were not in the frame. In a function without a
