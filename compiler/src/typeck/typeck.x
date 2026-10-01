@@ -17621,9 +17621,38 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             func_ix = 0 - 1;
             if (dep_slot >= 0) {
               dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
+              /*
+               * The ctx module slot can be null or an empty shell while the
+               * driver still holds the parsed dep module. Use that buffer only
+               * when the ctx module has no functions. Same preference as the
+               * host-cc paste of this method-call import path.
+               * PLATFORM: SHARED — driver dep module buffer on macOS, Ubuntu, Windows.
+               */
+              if (dm == 0 as *Module || pipeline_module_num_funcs(dm) == 0) {
+                let alt_dm: *u8 = typeck_driver_dep_module_buf(dep_slot);
+                if (alt_dm != 0 as *u8 && pipeline_module_num_funcs(alt_dm as *Module) > 0) {
+                  dm = alt_dm as *Module;
+                }
+              }
               if (dm != 0 as *Module && pipeline_module_num_funcs(dm) > 0) {
                 import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
                   dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
+                /*
+                 * A dep-indexed overload map can miss while the unbound return
+                 * type_ref is still valid in the dep module. Retry unbound,
+                 * then map that type into the caller arena.
+                 */
+                if (import_ret_ty <= 0) {
+                  let local_ret: i32 = 0;
+                  let local_fi: i32 = 0 - 1;
+                  local_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                    dm, arena, &method_nm[0], method_nlen, 0 - 1, num_args, expr_ref, 1, ctx,
+                    &local_fi);
+                  if (local_ret > 0) {
+                    import_ret_ty = get_dep_return_type_in_caller_arena(dep_slot, local_ret, arena, ctx);
+                    func_ix = local_fi;
+                  }
+                }
                 if (import_ret_ty > 0) {
                   dep_ix = dep_slot;
                 }
@@ -17639,6 +17668,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 let try_ret: i32 = 0;
                 if (try_di != dep_slot) {
                   try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
+                  if (try_dm == 0 as *Module || pipeline_module_num_funcs(try_dm) == 0) {
+                    let alt_tdm: *u8 = typeck_driver_dep_module_buf(try_di);
+                    if (alt_tdm != 0 as *u8 && pipeline_module_num_funcs(alt_tdm as *Module) > 0) {
+                      try_dm = alt_tdm as *Module;
+                    }
+                  }
                   if (try_dm != 0 as *Module && pipeline_module_num_funcs(try_dm) > 0) {
                     try_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
                       try_dm, arena, &method_nm[0], method_nlen, try_di, num_args, expr_ref, 1, ctx,
