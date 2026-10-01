@@ -29388,10 +29388,13 @@ export function pipeline_asm_typekind_variant_tag(field_buf: *u8, flen: i32): i3
  * @param expr_ref i32 - candidate field-access expr
  * @return i32 - tag >= 0 or -1
  * wave137 pure: was static pipeline_asm_cmp_enum_rhs_tag_c.
- * PLATFORM: SHARED.
+ * pipeline_expr_var_name_into zeros 256 bytes before copying the name.
+ * base_buf matches that contract. A 32-byte buffer on the Windows shifted
+ * frame covers the saved rbp and the return address (72 bytes past the
+ * buffer). field_buf is already 256. PLATFORM: SHARED.
  */
 function pipeline_asm_cmp_enum_rhs_tag_c(arena: *u8, expr_ref: i32): i32 {
-  let base_buf: u8[32] = [];
+  let base_buf: u8[256] = [];
   let field_buf: u8[256] = [];
   let blen: i32 = 0;
   let flen: i32 = 0;
@@ -52120,11 +52123,13 @@ export function pipeline_expr_enum_field_tag_via_module(enum_name: *u8, enum_len
  * @param expr_ref i32 - FIELD_ACCESS expr ref
  * @return i32 - tag or -1
  * wave151 pure: G.7 authority (was pipeline_expr_enum_namespace_field_tag).
- * PLATFORM: SHARED.
+ * pipeline_expr_var_name_into zeros 256 bytes before copying the name.
+ * base_buf matches that contract. The blen > 31 gate still rejects names
+ * this table does not compare. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i32 {
-  let base_buf: u8[32] = [];
+  let base_buf: u8[256] = [];
   let field_buf: u8[256] = [];
   let blen: i32 = 0;
   let flen: i32 = 0;

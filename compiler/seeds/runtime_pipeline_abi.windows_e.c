@@ -21402,7 +21402,8 @@ int32_t pipeline_asm_typekind_variant_tag(uint8_t * field_buf, int32_t flen) {
   return -1;
 }
 int32_t pipeline_asm_cmp_enum_rhs_tag_c(uint8_t * arena, int32_t expr_ref) {
-  uint8_t base_buf[32] = {};
+  /* pipeline_expr_var_name_into zeros 256 bytes. PLATFORM: SHARED. */
+  uint8_t base_buf[256] = {};
   uint8_t field_buf[256] = {};
   int32_t blen = 0;
   int32_t flen = 0;
@@ -34453,7 +34454,8 @@ int32_t pipeline_expr_enum_field_tag_via_module(uint8_t * enum_name, int32_t enu
   return pipeline_module_enum_variant_tag_for_names(mod, enum_name, enum_len, variant_name, variant_len);
 }
 int32_t pipeline_expr_enum_namespace_field_tag(uint8_t * a, int32_t expr_ref) {
-  uint8_t base_buf[32] = {};
+  /* pipeline_expr_var_name_into zeros 256 bytes. PLATFORM: SHARED. */
+  uint8_t base_buf[256] = {};
   uint8_t field_buf[256] = {};
   int32_t blen = 0;
   int32_t flen = 0;
