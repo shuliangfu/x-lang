@@ -19,73 +19,99 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# w1578: parser_gen.c is gitignored. Copying the seed refreshes its
-# mtime, and the test below used to host-cc over parser_x.o whenever
-# that file was newer. A pure-asm object is recorded as
-# parser_x.pure_asm (one sha256 line). A match skips host-cc. Both
-# files present but the digest different: stop, do not cc. No stamp:
-# pin/cold cc unchanged. Object missing: the stamp is ignored and the
-# cold cc still runs, then the stamp is removed. These three flags
-# exit before the crash-log wipe. ensure only reads the stamp.
+# w1578 / w1610: *_gen.c is gitignored. Copying a seed or re-assembling
+# refreshes its mtime, and the test below used to host-cc over the
+# frontend object whenever that file was newer. A pure-asm object is
+# recorded as <stem>.pure_asm (one sha256 line). stem is parser_x or
+# codegen_x; the gen file is the stem with the _x suffix replaced by
+# _gen.c. A match skips host-cc. Both files present but the digest
+# different: stop, do not cc. No stamp: pin/cold cc unchanged. Object
+# missing: the stamp is ignored and the cold cc still runs, then the
+# stamp is removed. These flags exit before the crash-log wipe.
+# ensure only reads the stamp. It does not emit the .x.
 # PLATFORM: SHARED — Darwin and Windows g05 use this script.
-# win_host_cc_parser_x.sh is a separate Windows helper and still
-# host-ccs when invoked on its own. Checklist 7.2 stays open.
-g05_parser_x_sha256() {
-  _px_file="$1"
+# A stamp is written only beside an installed pure-asm object. Darwin
+# and Windows have no codegen_x.pure_asm, so their ensure still
+# host-ccs codegen_gen.c when that file is newer. A missing object
+# on every host still host-ccs. win_host_cc_parser_x.sh is a separate
+# Windows helper and still host-ccs when invoked on its own.
+# Checklist 7.2 stays open: typeck_x.o is still host-cc of typeck_gen.c.
+g05_frontend_x_sha256() {
+  _fx_file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum -- "$_px_file" | awk 'NR==1 { print $1; exit }'
+    sha256sum -- "$_fx_file" | awk 'NR==1 { print $1; exit }'
     return 0
   fi
   if command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 -- "$_px_file" | awk 'NR==1 { print $1; exit }'
+    shasum -a 256 -- "$_fx_file" | awk 'NR==1 { print $1; exit }'
     return 0
   fi
   echo "g05_ensure: sha256sum and shasum are both missing" >&2
   return 1
 }
 
-g05_parser_x_pure_asm_kept() {
-  # 0 when dir/parser_x.o bytes match dir/parser_x.pure_asm.
+g05_frontend_x_pure_asm_kept() {
+  # 0 when dir/<stem>.o bytes match dir/<stem>.pure_asm.
   # dir defaults to . (compiler/ after the cd above).
-  _px_dir="${1:-.}"
-  [ -f "$_px_dir/parser_x.o" ] || return 1
-  [ -f "$_px_dir/parser_x.pure_asm" ] || return 1
-  _px_got=$(g05_parser_x_sha256 "$_px_dir/parser_x.o") || return 1
-  _px_want=$(awk 'NF { print $1; exit }' "$_px_dir/parser_x.pure_asm") || return 1
-  [ -n "$_px_got" ] || return 1
-  [ "$_px_got" = "$_px_want" ] || return 1
+  _fx_dir="${1:-.}"
+  _fx_stem="${2:?stem}"
+  [ -f "$_fx_dir/${_fx_stem}.o" ] || return 1
+  [ -f "$_fx_dir/${_fx_stem}.pure_asm" ] || return 1
+  _fx_got=$(g05_frontend_x_sha256 "$_fx_dir/${_fx_stem}.o") || return 1
+  _fx_want=$(awk 'NF { print $1; exit }' "$_fx_dir/${_fx_stem}.pure_asm") || return 1
+  [ -n "$_fx_got" ] || return 1
+  [ "$_fx_got" = "$_fx_want" ] || return 1
   return 0
 }
 
-g05_stamp_parser_x_pure_asm() {
-  # Write dir/parser_x.pure_asm as the sha256 of dir/parser_x.o.
-  # Caller has just installed a parser.x pure-asm object.
-  _px_dir="${1:-.}"
-  [ -f "$_px_dir/parser_x.o" ] || return 1
-  _px_dig=$(g05_parser_x_sha256 "$_px_dir/parser_x.o") || return 1
-  [ -n "$_px_dig" ] || return 1
-  printf '%s\n' "$_px_dig" > "$_px_dir/parser_x.pure_asm" || return 1
+g05_stamp_frontend_x_pure_asm() {
+  # Write dir/<stem>.pure_asm as the sha256 of dir/<stem>.o.
+  # Caller has just installed a pure-asm object for that stem.
+  _fx_dir="${1:-.}"
+  _fx_stem="${2:?stem}"
+  [ -f "$_fx_dir/${_fx_stem}.o" ] || return 1
+  _fx_dig=$(g05_frontend_x_sha256 "$_fx_dir/${_fx_stem}.o") || return 1
+  [ -n "$_fx_dig" ] || return 1
+  printf '%s\n' "$_fx_dig" > "$_fx_dir/${_fx_stem}.pure_asm" || return 1
   return 0
 }
 
-# 0 = host-cc parser_gen.c. 1 = leave parser_x.o (up to date, or the
+# 0 = host-cc the gen. 1 = leave the object (up to date, or the
 # pure-asm stamp matches). 2 = stamp and object both exist and differ;
 # caller must stop and must not cc.
-g05_parser_x_needs_host_cc() {
-  _px_dir="${1:-.}"
-  if [ -f "$_px_dir/parser_x.o" ] && [ -f "$_px_dir/parser_x.pure_asm" ]; then
-    if g05_parser_x_pure_asm_kept "$_px_dir"; then
+g05_frontend_x_needs_host_cc() {
+  _fx_dir="${1:-.}"
+  _fx_stem="${2:?stem}"
+  _fx_gen="${_fx_stem%_x}_gen.c"
+  if [ -f "$_fx_dir/${_fx_stem}.o" ] && [ -f "$_fx_dir/${_fx_stem}.pure_asm" ]; then
+    if g05_frontend_x_pure_asm_kept "$_fx_dir" "$_fx_stem"; then
       return 1
     fi
     return 2
   fi
-  if [ ! -f "$_px_dir/parser_gen.c" ]; then
+  if [ ! -f "$_fx_dir/$_fx_gen" ]; then
     return 1
   fi
-  if [ ! -f "$_px_dir/parser_x.o" ] || [ "$_px_dir/parser_gen.c" -nt "$_px_dir/parser_x.o" ]; then
+  if [ ! -f "$_fx_dir/${_fx_stem}.o" ] || [ "$_fx_dir/$_fx_gen" -nt "$_fx_dir/${_fx_stem}.o" ]; then
     return 0
   fi
   return 1
+}
+
+g05_parser_x_sha256() {
+  g05_frontend_x_sha256 "$1"
+}
+
+g05_parser_x_pure_asm_kept() {
+  g05_frontend_x_pure_asm_kept "${1:-.}" parser_x
+}
+
+g05_stamp_parser_x_pure_asm() {
+  g05_stamp_frontend_x_pure_asm "${1:-.}" parser_x
+}
+
+g05_parser_x_needs_host_cc() {
+  g05_frontend_x_needs_host_cc "${1:-.}" parser_x
 }
 
 case "${1:-}" in
@@ -99,6 +125,18 @@ case "${1:-}" in
     ;;
   --parser-x-needs-host-cc)
     g05_parser_x_needs_host_cc "${2:-.}"
+    exit 0
+    ;;
+  --codegen-x-pure-asm-stamp)
+    g05_stamp_frontend_x_pure_asm "${2:-.}" codegen_x
+    exit 0
+    ;;
+  --codegen-x-pure-asm-kept)
+    g05_frontend_x_pure_asm_kept "${2:-.}" codegen_x
+    exit 0
+    ;;
+  --codegen-x-needs-host-cc)
+    g05_frontend_x_needs_host_cc "${2:-.}" codegen_x
     exit 0
     ;;
 esac
@@ -4515,12 +4553,27 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: codegen_gen.c ← archaeology seed (cold egg; no assemble)"
     fi
   fi
-  if [ -f codegen_gen.c ]; then
-    if [ ! -f codegen_x.o ] || [ codegen_gen.c -nt codegen_x.o ]; then
-      echo "g05_ensure: cc -c codegen_gen.c → codegen_x.o (assemble / cold)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o codegen_x.o codegen_gen.c
-    fi
+  # w1610: same stamp as parser_x.pure_asm. A matching
+  # codegen_x.pure_asm skips the cc below even when codegen_gen.c is
+  # newer. A stamp that does not match the object stops ensure.
+  # No stamp: mtime cc unchanged. Cold missing object still host-ccs
+  # after the assemble above, then the stamp is removed.
+  # PLATFORM: SHARED. The stamp file is written only where the
+  # pure-asm object is installed (Ubuntu, w1609). Darwin and Windows
+  # have no stamp, so this branch does not change their host-cc.
+  _cgx_rc=0
+  g05_frontend_x_needs_host_cc . codegen_x || _cgx_rc=$?
+  if [ "$_cgx_rc" -eq 2 ]; then
+    echo "g05_ensure: ERROR codegen_x.pure_asm does not match codegen_x.o; refusing to host-cc" >&2
+    exit 1
+  fi
+  if [ "$_cgx_rc" -eq 0 ]; then
+    echo "g05_ensure: cc -c codegen_gen.c → codegen_x.o (assemble / cold)"
+    # shellcheck disable=SC2086
+    $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o codegen_x.o codegen_gen.c
+    rm -f codegen_x.pure_asm
+  elif g05_frontend_x_pure_asm_kept . codegen_x; then
+    echo "g05_ensure: codegen_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
   # G-02e：产品链 C 源缺失或比 .o 新时强制重编（并入/删 TU 后跨机 git pull 必走此路径）
   # shellcheck disable=SC2086

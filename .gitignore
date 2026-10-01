@@ -18,8 +18,9 @@ su
 *.o
 *.o.fast
 *.obj
-# w1578: sha256 of a pure-asm compiler/parser_x.o. Local build fact.
+# w1578 / w1610: sha256 of a pure-asm frontend object. Local build fact.
 compiler/parser_x.pure_asm
+compiler/codegen_x.pure_asm
 *.a
 *.lib
 *.so
