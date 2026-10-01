@@ -26,7 +26,13 @@
 // add.
 // w1599: that store scan takes the binop kind. Add still passes 4. The
 // binop-wide overlay calls the same scan with 6, for a 32-bit product that
-// is stored in a u32. The add tail in this file is otherwise unchanged.
+// is stored in a u32.
+// w1600: two u8 values, or a u8 and a narrow literal, take that same 32-bit
+// add. 200 + 100 stays 300 in the 8-byte slot; there is no and $0xff.
+// The subtract classifier already returns 2 for that pair. Mask only that
+// width and skip cltq. A u32 sum still uses the store scan, so a sum that
+// is not stored in a u32 still sign-extends. A u8 plus a wide integer
+// already returned on the 64-bit add. u8 times u8 is not this object.
 // LINUX links this object ahead of the egg. Do not rebuild the pabi egg.
 // Darwin and Windows keep the previous body until they relink.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX installs the object.
@@ -535,6 +541,77 @@ export function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, rig
 }
 
 /**
+ * Unsigned width of a narrow add or subtract, or 0 when the signed path stays.
+ * Both sides u32, or one u32 and a narrow literal, return 3. Both sides u8,
+ * or one u8 and a narrow literal, return 2. A wide integer on either side
+ * returns 0 so the full 64-bit result is kept. An i32 still returns 0
+ * and the caller sign-extends. Add uses only the u8 answer: a u32 sum that
+ * is not stored in a u32 must still sign-extend.
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — emit context; null skips the declaration fallback
+ * @param left_ref i32 — left operand
+ * @param right_ref i32 — right operand
+ * @return i32 — 3 for u32, 2 for u8, 0 otherwise
+ * PLATFORM: SHARED — type kinds only; the extend is emitted by the caller.
+ */
+function w1597_unsigned_kind(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+  let lk: i32 = 0;
+  let rk: i32 = 0;
+  if (w1591_is_wide_int(arena, ctx, left_ref) != 0) {
+    return 0;
+  }
+  if (w1591_is_wide_int(arena, ctx, right_ref) != 0) {
+    return 0;
+  }
+  lk = w1591_operand_kind(arena, ctx, left_ref);
+  rk = w1591_operand_kind(arena, ctx, right_ref);
+  if (lk == 3 && rk == 3) {
+    return 3;
+  }
+  if (lk == 2 && rk == 2) {
+    return 2;
+  }
+  // A bare literal has no unsigned type of its own. Next to a u32 or u8
+  // it takes that width. Next to an i32 the caller still sign-extends.
+  if (lk == 3 && w1591_is_narrow_lit(arena, right_ref) != 0) {
+    return 3;
+  }
+  if (rk == 3 && w1591_is_narrow_lit(arena, left_ref) != 0) {
+    return 3;
+  }
+  if (lk == 2 && w1591_is_narrow_lit(arena, right_ref) != 0) {
+    return 2;
+  }
+  if (rk == 2 && w1591_is_narrow_lit(arena, left_ref) != 0) {
+    return 2;
+  }
+  return 0;
+}
+
+/**
+ * Zero-extend rax to a u32 or a u8.
+ * u32 uses mov %eax,%eax. u8 uses and $0xff,%eax. A u8 must not use the
+ * u32 form: a 32-bit add of 200 + 100 leaves 300, and a 32-bit subtract of
+ * 0 - 1 leaves 0xffffffff. Only the byte mask wraps those.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param kind i32 — 3 for u32, 2 for u8
+ * @return i32 — 0 ok, -1 when kind is neither or the encoder fails
+ * PLATFORM: SHARED — existing zxt encoders; x86_64 and arm64.
+ */
+function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
+  unsafe {
+    if (kind == 3) {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (kind == 2) {
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  return 0 - 1;
+}
+
+/**
  * Emit integer or float ADD of the values already in rax and rbx.
  * Same float, pointer-scale, and 32-bit arms as the egg. A narrow
  * integer next to a wide integer uses the 64-bit add and does not cltq.
@@ -542,6 +619,8 @@ export function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, rig
  * sign-extended in rax; that cdqe is a no-op when the slot load already
  * sign-extended. A 32-bit add stored into a u32 is zero-extended instead,
  * so a sum at or above 2^31 does not become a negative i64 in that slot.
+ * A same-width u8 add, or a u8 next to a narrow literal, is masked to
+ * 8 bits so 200 + 100 becomes 44. A u8 plus a wide integer stays 64-bit.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -557,6 +636,7 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   let is_64bit: i32 = 0;
   let left_kind: i32 = 0;
   let lit_mixed: i32 = 0;
+  let uk: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
@@ -609,6 +689,13 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   if (rc != 0) {
     return rc;
   }
+  // Same-width u8 wraps at 8 bits. addl of 200 + 100 leaves 300. Kind 2
+  // is the w1597 classifier. Do not take kind 3 here: a u32 sum that is
+  // not stored in a u32 still sign-extends below.
+  uk = w1597_unsigned_kind(arena, ctx, left_ref, right_ref);
+  if (uk == 2) {
+    return w1597_zxt_rax(elf_ctx, ta, uk);
+  }
   // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
   // a sum at or above 2^31 negative in the 8-byte slot. i32 still cltqs.
   // EXPR_ADD is kind 4. Mul passes 6 from the other overlay.
@@ -653,76 +740,6 @@ function w1594_emit_wide_sub_rbx_minus_rax(elf_ctx: *u8, ta: i32): i32 {
   unsafe {
     return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx, ta);
   }
-}
-
-/**
- * Unsigned width of a narrow subtraction, or 0 when the signed path stays.
- * Both sides u32, or one u32 and a narrow literal, return 3. Both sides u8,
- * or one u8 and a narrow literal, return 2. A wide integer on either side
- * returns 0 so the full 64-bit difference is kept. An i32 still returns 0
- * and the caller sign-extends.
- * @param arena *u8 — AST arena
- * @param ctx *u8 — emit context; null skips the declaration fallback
- * @param left_ref i32 — left operand
- * @param right_ref i32 — right operand
- * @return i32 — 3 for u32, 2 for u8, 0 otherwise
- * PLATFORM: SHARED — type kinds only; the extend is emitted by the caller.
- */
-function w1597_unsigned_kind(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
-  let lk: i32 = 0;
-  let rk: i32 = 0;
-  if (w1591_is_wide_int(arena, ctx, left_ref) != 0) {
-    return 0;
-  }
-  if (w1591_is_wide_int(arena, ctx, right_ref) != 0) {
-    return 0;
-  }
-  lk = w1591_operand_kind(arena, ctx, left_ref);
-  rk = w1591_operand_kind(arena, ctx, right_ref);
-  if (lk == 3 && rk == 3) {
-    return 3;
-  }
-  if (lk == 2 && rk == 2) {
-    return 2;
-  }
-  // A bare literal has no unsigned type of its own. Next to a u32 or u8
-  // it takes that width. Next to an i32 the caller still sign-extends.
-  if (lk == 3 && w1591_is_narrow_lit(arena, right_ref) != 0) {
-    return 3;
-  }
-  if (rk == 3 && w1591_is_narrow_lit(arena, left_ref) != 0) {
-    return 3;
-  }
-  if (lk == 2 && w1591_is_narrow_lit(arena, right_ref) != 0) {
-    return 2;
-  }
-  if (rk == 2 && w1591_is_narrow_lit(arena, left_ref) != 0) {
-    return 2;
-  }
-  return 0;
-}
-
-/**
- * Zero-extend rax to a u32 or a u8.
- * u32 uses mov %eax,%eax. u8 uses and $0xff,%eax. A u8 must not use the
- * u32 form: a 32-bit subtract of 0 - 1 leaves 0xffffffff, and only the
- * byte mask wraps that to 255.
- * @param elf_ctx *u8 — encoder context
- * @param ta i32 — 0 is x86_64, 1 is arm64
- * @param kind i32 — 3 for u32, 2 for u8
- * @return i32 — 0 ok, -1 when kind is neither or the encoder fails
- * PLATFORM: SHARED — existing zxt encoders; x86_64 and arm64.
- */
-function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
-  unsafe {
-    if (kind == 3) {
-      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
-    }
-    if (kind == 2) {
-      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
-    }
-  }
-  return 0 - 1;
 }
 
 /**
