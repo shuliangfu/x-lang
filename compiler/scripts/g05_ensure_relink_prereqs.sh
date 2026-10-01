@@ -19,6 +19,90 @@
 set -e
 cd "$(dirname "$0")/.."
 
+# w1578: parser_gen.c is gitignored. Copying the seed refreshes its
+# mtime, and the test below used to host-cc over parser_x.o whenever
+# that file was newer. A pure-asm object is recorded as
+# parser_x.pure_asm (one sha256 line). A match skips host-cc. Both
+# files present but the digest different: stop, do not cc. No stamp:
+# pin/cold cc unchanged. Object missing: the stamp is ignored and the
+# cold cc still runs, then the stamp is removed. These three flags
+# exit before the crash-log wipe. ensure only reads the stamp.
+# PLATFORM: SHARED — Darwin and Windows g05 use this script.
+# win_host_cc_parser_x.sh is a separate Windows helper and still
+# host-ccs when invoked on its own. Checklist 7.2 stays open.
+g05_parser_x_sha256() {
+  _px_file="$1"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum -- "$_px_file" | awk 'NR==1 { print $1; exit }'
+    return 0
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 -- "$_px_file" | awk 'NR==1 { print $1; exit }'
+    return 0
+  fi
+  echo "g05_ensure: sha256sum and shasum are both missing" >&2
+  return 1
+}
+
+g05_parser_x_pure_asm_kept() {
+  # 0 when dir/parser_x.o bytes match dir/parser_x.pure_asm.
+  # dir defaults to . (compiler/ after the cd above).
+  _px_dir="${1:-.}"
+  [ -f "$_px_dir/parser_x.o" ] || return 1
+  [ -f "$_px_dir/parser_x.pure_asm" ] || return 1
+  _px_got=$(g05_parser_x_sha256 "$_px_dir/parser_x.o") || return 1
+  _px_want=$(awk 'NF { print $1; exit }' "$_px_dir/parser_x.pure_asm") || return 1
+  [ -n "$_px_got" ] || return 1
+  [ "$_px_got" = "$_px_want" ] || return 1
+  return 0
+}
+
+g05_stamp_parser_x_pure_asm() {
+  # Write dir/parser_x.pure_asm as the sha256 of dir/parser_x.o.
+  # Caller has just installed a parser.x pure-asm object.
+  _px_dir="${1:-.}"
+  [ -f "$_px_dir/parser_x.o" ] || return 1
+  _px_dig=$(g05_parser_x_sha256 "$_px_dir/parser_x.o") || return 1
+  [ -n "$_px_dig" ] || return 1
+  printf '%s\n' "$_px_dig" > "$_px_dir/parser_x.pure_asm" || return 1
+  return 0
+}
+
+# 0 = host-cc parser_gen.c. 1 = leave parser_x.o (up to date, or the
+# pure-asm stamp matches). 2 = stamp and object both exist and differ;
+# caller must stop and must not cc.
+g05_parser_x_needs_host_cc() {
+  _px_dir="${1:-.}"
+  if [ -f "$_px_dir/parser_x.o" ] && [ -f "$_px_dir/parser_x.pure_asm" ]; then
+    if g05_parser_x_pure_asm_kept "$_px_dir"; then
+      return 1
+    fi
+    return 2
+  fi
+  if [ ! -f "$_px_dir/parser_gen.c" ]; then
+    return 1
+  fi
+  if [ ! -f "$_px_dir/parser_x.o" ] || [ "$_px_dir/parser_gen.c" -nt "$_px_dir/parser_x.o" ]; then
+    return 0
+  fi
+  return 1
+}
+
+case "${1:-}" in
+  --parser-x-pure-asm-stamp)
+    g05_stamp_parser_x_pure_asm "${2:-.}"
+    exit 0
+    ;;
+  --parser-x-pure-asm-kept)
+    g05_parser_x_pure_asm_kept "${2:-.}"
+    exit 0
+    ;;
+  --parser-x-needs-host-cc)
+    g05_parser_x_needs_host_cc "${2:-.}"
+    exit 0
+    ;;
+esac
+
 # w1484: fresh g05 pure-asm crash log for this ensure run (see g05_xasm in
 # ensure_host_cc_seed_o.sh). Checked before the OK line below.
 mkdir -p build_asm
@@ -4345,6 +4429,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # land in the committed seed (same commit as parser.x); gitignored local gen is not
   # product authority on cold missing-.o. Tip assemble only with XLANG_PARSER_FROM_X=1.
   # G.7: one cold path; do not auto-assemble parser.x on every missing .o.
+  # w1578: g05_parser_x_needs_host_cc. A matching parser_x.pure_asm stamp
+  # skips the cc below even when parser_gen.c is newer. A stamp that
+  # does not match the object stops ensure (exit 2 from the helper).
+  # PLATFORM: SHARED.
   if [ ! -f parser_x.o ]; then
     if [ "${XLANG_PARSER_FROM_X:-0}" = "1" ] && [ -f scripts/ensure_migrate_gen.sh ]; then
       echo "g05_ensure: ensure_migrate_gen parser (opt-in XLANG_PARSER_FROM_X=1; tip assemble)"
@@ -4360,12 +4448,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: parser_gen.c ← product pin seed (cold missing parser_x.o; no tip assemble)"
     fi
   fi
-  if [ -f parser_gen.c ]; then
-    if [ ! -f parser_x.o ] || [ parser_gen.c -nt parser_x.o ]; then
-      echo "g05_ensure: cc -c parser_gen.c → parser_x.o (pin/cold)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o parser_x.o parser_gen.c
-    fi
+  _px_rc=0
+  g05_parser_x_needs_host_cc || _px_rc=$?
+  if [ "$_px_rc" -eq 2 ]; then
+    echo "g05_ensure: ERROR parser_x.pure_asm does not match parser_x.o; refusing to host-cc" >&2
+    exit 1
+  fi
+  if [ "$_px_rc" -eq 0 ]; then
+    echo "g05_ensure: cc -c parser_gen.c → parser_x.o (pin/cold)"
+    # shellcheck disable=SC2086
+    $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o parser_x.o parser_gen.c
+    rm -f parser_x.pure_asm
+  elif g05_parser_x_pure_asm_kept; then
+    echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
   # LANG-007 + typeck_x.o cold path (wave322 M4 7.4.1).
   # PLATFORM: SHARED — true cold deletes typeck_x.o; host-local typeck_gen.c is gitignored
