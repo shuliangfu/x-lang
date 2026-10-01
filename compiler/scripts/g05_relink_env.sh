@@ -2058,6 +2058,40 @@ case "$UNAME_S" in
     fi
     ;;
 esac
+# w1624: the egg skip_heavy body does not call asm_env_force_full_bodies.
+# Twelve PLT32 sites inside that object call the symbol. Alias the bytes
+# and undefine the link name in a copy, then link the thin prefix ahead
+# of that copy. FORCE unset calls the egg body. Do not edit pabi_alias.o
+# or the 64k copy in place, and do not rebuild the egg. Darwin and
+# Windows keep their w1549 image. PLATFORM: LINUX.
+_PABI_SKIP_HEAVY=""
+case "$UNAME_S" in
+  Linux)
+    if [ "${XLANG_SKIP_HEAVY_FORCE_OVERLAY:-1}" = "1" ]; then
+      case "$_PABI_LINK_O" in
+        build_asm/selfhost_pabi/pabi_alias.o|build_asm/selfhost_pabi/pabi_alias.elf64k.o)
+          _g05_pure_overlay src/runtime_pipeline_abi_skip_heavy_force_thin.x \
+            build_asm/selfhost_pabi/skip_heavy_force.o \
+            asm_skip_heavy_module_func_body
+          if [ -n "$_G05_PO_OUT" ]; then
+            if ! nm "$_G05_PO_OUT" 2>/dev/null | grep -q ' T asm_env_force_full_bodies$'; then
+              echo "g05_relink_env: skip_heavy thin missing asm_env_force_full_bodies" >&2
+              exit 1
+            fi
+            _skip_dst=build_asm/selfhost_pabi/pabi_alias.skip_egg.o
+            if ! python3 scripts/g05_pabi_skip_heavy_egg_alias.py \
+                "$_PABI_LINK_O" "$_skip_dst"; then
+              echo "g05_relink_env: skip_heavy egg alias failed" >&2
+              exit 1
+            fi
+            _PABI_LINK_O="$_skip_dst"
+            _PABI_SKIP_HEAVY="$_G05_PO_OUT"
+          fi
+          ;;
+      esac
+    fi
+    ;;
+esac
 # w1609: cap residual product faces (host-call temps, slice-let reent,
 # pipeline scratch buffers, bounded-loop helpers) are defined only in
 # seeds/codegen_cap_residual.from_x.c, which assemble pastes into
@@ -2150,7 +2184,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o"
-_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
