@@ -1722,7 +1722,16 @@ nm_len: i32): bool {
     }
     let i: i32 = 0;
     while (i < nm_len) {
-      if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i]) {
+      /*
+       * Keep each side in its own local. An inline `byte_at(...) != nm[i]`
+       * is emitted as `index != nm[i]`: the asm backend reuses the
+       * call-result register for the index while that result is still live.
+       * Length compares above are already locals and stay correct.
+       * PLATFORM: SHARED — same byte compare on macOS, Ubuntu, and Windows.
+       */
+      let got: i32 = pipeline_module_import_binding_name_byte_at(module, imp_ix, i) as i32;
+      let want: i32 = nm[i] as i32;
+      if (got != want) {
         return false;
       }
       i = i + 1;
