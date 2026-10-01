@@ -1160,20 +1160,62 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   }
 }
 
-/** Exported function `onefunc_scratch_empty`.
- * Implements `onefunc_scratch_empty`.
- * @return OneFuncResult
+/**
+ * Return a OneFuncResult with every field stored explicitly.
+ * The asm backend writes only fields named in a struct literal. The host-cc
+ * seed lowers the same literal to a C designated initializer, which zeros
+ * every omitted field. copy_onefunc_into copies num_params from that value.
+ * An empty parameter list never assigns num_params again, so a missing store
+ * keeps the stack slot (measured 6) and the function is registered with the
+ * wrong arity. Every field is named here so both backends start from zero.
+ * @return OneFuncResult — scalars 0 or false, three name buffers zero, lexer from lexer_init
+ * PLATFORM: SHARED — scratch copied into the function parse before the parameter scan.
  */
 export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[256] = [];
+  let z_name: u8[256] = [];
+  let z_call: u8[256] = [];
+  let z_ret: u8[256] = [];
+  // One store per field. Do not drop a field to shorten the literal.
   return {
     ok: false,
     next_lex: lexer.lexer_init(),
-    name: z64,
+    name: z_name,
     name_len: 0,
-    num_params: 0
+    num_params: 0,
+    num_generic_params: 0,
+    num_consts: 0,
+    num_lets: 0,
+    has_if_expr: false,
+    if_cond_true: false,
+    if_then_val: 0,
+    if_else_val: 0,
+    if_cond_expr_ref: 0,
+    has_mul: false,
+    mul_right_val: 0,
+    has_binop: false,
+    binop_right_val: 0,
+    binop_left_param_idx: 0,
+    binop_right_param_idx: 0,
+    has_unary_neg: false,
+    return_val: 0,
+    has_call_expr: false,
+    call_callee_name: z_call,
+    call_callee_len: 0,
+    return_var_name: z_ret,
+    return_var_name_len: 0,
+    return_expr_ref: 0,
+    has_final_expr: false,
+    has_explicit_return_kw: false,
+    call_num_args: 0,
+    num_loops: 0,
+    num_for_loops: 0,
+    num_if_stmts: 0,
+    num_src_stmt_order: 0,
+    num_src_body_expr_stmts: 0,
+    func_return_type_ref: 0,
+    is_variadic: 0
   };
   }
 }
@@ -1230,88 +1272,142 @@ export function onefunc_finish_impl_to_out(
   copy_onefunc_into(out, snap);
   }
 }
-/** Exported function `onefunc_res_wire_dummy_head`.
- * Implements `onefunc_res_wire_dummy_head`.
- * @param res *OneFuncResult
- * @param lex Lexer
- * @param name64 u8[256]
+/**
+ * Copy a zeroed OneFuncResult into res, then overlay the head fields.
+ * The temporary starts from onefunc_scratch_empty so num_params and the
+ * other scalars are stored zeros. A partial literal would leave those
+ * slots uninitialized on the asm backend and copy_onefunc_into would
+ * publish them.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
+ * @param lex Lexer — written to the temporary next_lex
+ * @param name64 u8[256] — 256 name bytes copied onto the temporary
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.ok = false;
+  _w.next_lex = lex;
+  _w.name_len = 0;
+  _w.num_params = 0;
+  // Copy the whole 256-byte buffer. name_len stays 0 until the real scan.
+  let ni: i32 = 0;
+  while (ni < 256) {
+    _w.name[ni] = name64[ni];
+    ni = ni + 1;
+  }
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_const_let`.
- * Implements `onefunc_res_wire_dummy_const_let`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the const and let counts.
+ * Counts that copy_onefunc_into republishes come from the reset pool.
+ * The zero base keeps num_params from being reloaded out of an omitted field.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { num_consts: 0, num_lets: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.num_consts = 0;
+  _w.num_lets = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_if_mul`.
- * Implements `onefunc_res_wire_dummy_if_mul`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the if and mul fields.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.has_if_expr = false;
+  _w.if_cond_true = false;
+  _w.if_then_val = 0;
+  _w.if_else_val = 0;
+  _w.if_cond_expr_ref = 0;
+  _w.has_mul = false;
+  _w.mul_right_val = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_call_binop`.
- * Implements `onefunc_res_wire_dummy_call_binop`.
- * @param res *OneFuncResult
- * @param name64 u8[256]
+/**
+ * Copy a zeroed OneFuncResult into res, then overlay the call and binop fields.
+ * binop parameter indexes are -1 on this temporary only. The later for-if
+ * wire copies another zeroed result, so the value that reaches the scan is 0.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
+ * @param name64 u8[256] — copied into call_callee_name on the temporary
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.has_binop = false;
+  _w.binop_right_val = 0;
+  _w.binop_left_param_idx = -1;
+  _w.binop_right_param_idx = -1;
+  _w.has_unary_neg = false;
+  _w.return_val = 0;
+  _w.has_call_expr = false;
+  let ni: i32 = 0;
+  while (ni < 256) {
+    _w.call_callee_name[ni] = name64[ni];
+    ni = ni + 1;
+  }
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_loop_call`.
- * Implements `onefunc_res_wire_dummy_loop_call`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the call and loop fields.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { call_callee_len: 0, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, num_loops: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.call_callee_len = 0;
+  _w.return_var_name_len = 0;
+  _w.return_expr_ref = 0;
+  _w.call_num_args = 0;
+  _w.num_loops = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_for_if`.
- * Implements `onefunc_res_wire_dummy_for_if`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the for and if counts.
+ * This is the last wire before the parameter scan. Its copy is the value
+ * an empty `()` list leaves in num_params.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { num_for_loops: 0, num_if_stmts: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.num_for_loops = 0;
+  _w.num_if_stmts = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
