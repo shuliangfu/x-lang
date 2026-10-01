@@ -253,8 +253,8 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
 /**
  * Type ref of a float source, including an f32 add, sub, mul, or div.
  * A variable still resolves through its parameter or local declaration.
- * A binop with no stamp takes the f32 type of its operands when both
- * sides are f32, so a later promote emits cvtss2sd before an f64 store.
+ * An f32 binop wins over a non-f32 stamp: the arithmetic bits are f32,
+ * so a later promote emits cvtss2sd before an f64 store.
  * @param arena *u8 — AST arena; null returns 0
  * @param expr_ref i32 — source expression; <=0 returns 0
  * @return i32 — type ref, or 0 when none applies
@@ -263,7 +263,9 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
 #[no_mangle]
 export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 {
   let tr: i32 = 0;
-  let vname: u8[64] = [];
+  // name_into zeros 256 bytes. A shorter stack slot is overwritten upward
+  // through the saved return address (the f32-var compile fault).
+  let vname: u8[256] = [];
   let vlen: i32 = 0;
   let ko: i32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -326,13 +328,8 @@ export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 
       }
     }
   }
-  unsafe {
-    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
-  }
-  if (tr > 0) {
-    return tr;
-  }
-  // ADD=4 SUB=5 MUL=6 DIV=7. Both f32 children: the result bits are f32.
+  // ADD=4 SUB=5 MUL=6 DIV=7. Both f32 children: the result bits are f32
+  // even when this expr already carries a non-f32 stamp.
   if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
     unsafe {
       left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
@@ -351,6 +348,12 @@ export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 
         }
       }
     }
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  }
+  if (tr > 0) {
+    return tr;
   }
   return 0;
 }
