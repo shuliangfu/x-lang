@@ -26,17 +26,20 @@ cd "$(dirname "$0")/.."
 # parser_x, codegen_x, or typeck_x; the gen file is the stem with the
 # _x suffix replaced by _gen.c. A match skips host-cc. Both files
 # present but the digest different: stop, do not cc. No stamp: pin/cold
-# cc unchanged. Object missing: the stamp is ignored and the cold cc
-# still runs, then the stamp is removed. These flags exit before the
-# crash-log wipe. ensure only reads the stamp. It does not emit the .x.
+# cc unchanged. Object missing: typeck and codegen still ignore the
+# stamp, cold-cc, then remove the stamp. Parser on Linux does not:
+# a missing parser_x.o is rebuilt from src/parser/parser.x (w1633) and
+# stamped. A stamp with no object is not a hard stop, because L4
+# deletes the .o and keeps the stamp. These flags exit before the
+# crash-log wipe. ensure does not emit typeck.x or codegen.x.
 # PLATFORM: SHARED — Darwin and Windows g05 use this script.
 # A stamp is written only beside an installed pure-asm object. Darwin
 # and Windows have no codegen_x.pure_asm or typeck_x.pure_asm, so their
 # ensure still host-ccs that gen when the file is newer. A missing
-# object on every host still host-ccs. win_host_cc_parser_x.sh is a
-# separate Windows helper and still host-ccs when invoked on its own.
-# Checklist 7.2 stays open: a missing typeck_x.o still host-ccs
-# typeck_gen.c, and the Windows parser script still host-ccs.
+# typeck or codegen object on every host still host-ccs. A missing
+# parser object host-ccs on Darwin and Windows. win_host_cc_parser_x.sh
+# is a separate Windows helper and still host-ccs when invoked on its
+# own. Checklist 7.2 stays open.
 g05_frontend_x_sha256() {
   _fx_file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -4471,20 +4474,31 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: lexer_x.o pure-asm failed" >&2
     return 1
   fi
-  # parser_x.o cold path (wave324 M4 7.2.2 + residual pin authority).
-  # PLATFORM: SHARED — product authority = seeds/parser_gen.linux.x86_64.c.
-  # Full tip -E assemble of parser.x drops surgical seed leaves (generic_bound_scan,
-  # dest IF last-dest, region ASI, …) and has produced host-C `return (struct ){`.
-  # Default (XLANG_PARSER_FROM_X unset/0): when parser_x.o is missing, always restore
-  # the product pin over any local tip-assemble artifact, then cc. Surgical work must
-  # land in the committed seed (same commit as parser.x); gitignored local gen is not
-  # product authority on cold missing-.o. Tip assemble only with XLANG_PARSER_FROM_X=1.
-  # G.7: one cold path; do not auto-assemble parser.x on every missing .o.
-  # w1578: g05_parser_x_needs_host_cc. A matching parser_x.pure_asm stamp
-  # skips the cc below even when parser_gen.c is newer. A stamp that
-  # does not match the object stops ensure (exit 2 from the helper).
-  # PLATFORM: SHARED.
-  if [ ! -f parser_x.o ]; then
+  # parser_x.o cold path.
+  # Linux missing object (w1633): rebuild from src/parser/parser.x via
+  # build_parser_x. No host cc, no -E assemble. L4 deletes the .o and
+  # keeps the stamp, so the rebuild has to run in that case. The helper
+  # was measured against the installed object: same defined and undefined
+  # sets, same .text. Darwin and Windows still pin-cc below; their
+  # compilers have not emitted this module. PLATFORM: LINUX for the
+  # rebuild, SHARED for the stamp check.
+  # w1578: a matching parser_x.pure_asm stamp skips the cc below even
+  # when parser_gen.c is newer. A stamp that does not match the object
+  # stops ensure (exit 2 from the helper).
+  if [ ! -f parser_x.o ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
+    if ! bash scripts/ensure_gen_x_o.sh parser_x; then
+      echo "g05_ensure: parser_x.o pure-asm failed" >&2
+      return 1
+    fi
+    if ! g05_stamp_parser_x_pure_asm .; then
+      echo "g05_ensure: parser_x.o pure-asm stamp failed" >&2
+      return 1
+    fi
+  elif [ ! -f parser_x.o ]; then
+    # PLATFORM: DARWIN | WINDOWS — pin seed, then the cc below.
+    # Tip -E assemble stays opt-in (XLANG_PARSER_FROM_X=1). Default
+    # restores seeds/parser_gen.linux.x86_64.c over a local gen.
     if [ "${XLANG_PARSER_FROM_X:-0}" = "1" ] && [ -f scripts/ensure_migrate_gen.sh ]; then
       echo "g05_ensure: ensure_migrate_gen parser (opt-in XLANG_PARSER_FROM_X=1; tip assemble)"
       bash scripts/ensure_migrate_gen.sh parser \

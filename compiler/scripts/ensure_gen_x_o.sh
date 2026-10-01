@@ -12,8 +12,8 @@
 #       lexer_x.o      ← src/lexer/lexer.x pure-asm (w1546; no host cc)
 #       parser_x.o     ← src/parser/parser.x pure-asm (w1633; no host cc).
 #                        Not the migrate_x_objs.sh host-cc leaf. That script
-#                        still compiles parser_gen.c. This function is the
-#                        cold rebuild; g05 calls it only after a proof.
+#                        still compiles parser_gen.c. g05 calls this on Linux
+#                        when parser_x.o is missing.
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
 #       preprocess_x.o ← preprocess_gen.c
