@@ -54443,6 +54443,60 @@ function glue_struct_layout_name_eq_c(m: *u8, k: i32, name: *u8, nlen: i32): i32
 }
 
 /**
+ * Match a struct layout name to a TYPE_NAMED spelling.
+ * Exact equality first. A qualified spelling such as token.Token also
+ * matches the layout Token: the byte before the trailing segment must
+ * be '.' and the trailing bytes must equal the layout name.
+ * MyToken does not match Token. This is the single suffix rule.
+ * glue_type_size_simple and the field-access matcher both call it.
+ * The egg's weak glue_type_size_simple still compares names exactly, so
+ * the strong body in runtime_pipeline_abi_named_size_thin.x is what the
+ * product link runs until that egg body is rebuilt.
+ * @param m *u8 — module that owns the layout; null returns 0
+ * @param k i32 — layout index
+ * @param name *u8 — TYPE_NAMED bytes; not required to be NUL-terminated
+ * @param nlen i32 — byte count of name; must be > 0
+ * @return i32 — 1 on match, 0 otherwise
+ * PLATFORM: SHARED.
+ */
+function glue_layout_name_matches_named_type_c(m: *u8, k: i32, name: *u8, nlen: i32): i32 {
+  let ln: i32 = 0;
+  let j: i32 = 0;
+  let b: i32 = 0;
+  let ch: i32 = 0;
+  if (glue_struct_layout_name_eq_c(m, k, name, nlen) != 0) {
+    return 1;
+  }
+  if (m == (0 as *u8) || name == (0 as *u8) || nlen <= 0) {
+    return 0;
+  }
+  unsafe {
+    ln = pipeline_module_struct_layout_name_len(m, k);
+  }
+  if (ln <= 0) {
+    return 0;
+  }
+  // Suffix form: name[nlen - ln - 1] == '.' and the tail equals the layout.
+  if (nlen > ln + 1) {
+    ch = name[nlen - ln - 1] as i32;
+    if (ch == 46) {
+      j = 0;
+      while (j < ln) {
+        unsafe {
+          b = pipeline_module_struct_layout_name_byte_at(m, k, j);
+        }
+        if (b != (name[nlen - ln + j] as i32)) {
+          return 0;
+        }
+        j = j + 1;
+      }
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
  * Return 1 if ty_ref is TYPE_NAMED empty / empty-of-empty ZST.
  * @param module *u8 - Module*
  * @param arena *u8 - ASTArena*
@@ -54631,7 +54685,8 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
       }
       k = 0;
       while (k < nlayouts) {
-        if (glue_struct_layout_name_eq_c(m, k, &name[0], nlen) != 0) {
+        // Qualified TYPE_NAMED (token.Token) shares this rule with field access.
+        if (glue_layout_name_matches_named_type_c(m, k, &name[0], nlen) != 0) {
           unsafe {
             return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
           }
@@ -54639,7 +54694,8 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
         k = k + 1;
       }
     }
-    // Dep exact-name layout (field type_refs are dep-arena indices)
+    // Dep layout. Field type_refs are that module's arena indices.
+    // A qualified name matches the layout's last segment.
     unsafe {
       dep = pipeline_asm_emit_dep_pipe_c();
     }
@@ -54659,7 +54715,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
           }
           k = 0;
           while (k < nlayouts) {
-            if (glue_struct_layout_name_eq_c(dm, k, &name[0], nlen) != 0) {
+            if (glue_layout_name_matches_named_type_c(dm, k, &name[0], nlen) != 0) {
               unsafe {
                 sz = typeck_x_type_size_from_layout_glue(dm, da, k, depth + 1);
               }
@@ -54758,7 +54814,7 @@ export function glue_type_align_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32):
     }
     k = 0;
     while (k < nlayouts) {
-      if (glue_struct_layout_name_eq_c(m, k, &name[0], nlen) != 0) {
+      if (glue_layout_name_matches_named_type_c(m, k, &name[0], nlen) != 0) {
         unsafe {
           is_pk = pipeline_module_struct_layout_packed_at(m, k);
           nf = pipeline_module_struct_layout_num_fields(m, k);
@@ -67140,53 +67196,19 @@ export function glue_emit_soa_index_field_addr_elf_c(arena: *u8, elf_ctx: *u8, i
 
 /**
  * Match module struct-layout name to TYPE_NAMED spelling.
- * Exact equality via glue_struct_layout_name_eq_c (wave154), or type_name ends
- * with ".LayoutShort" when layout is LayoutShort (e.g. vec.Vec_u8 vs Vec_u8).
+ * Delegates to glue_layout_name_matches_named_type_c so field access and
+ * glue_type_size_simple share one exact-or-suffix rule (vec.Vec_u8 vs Vec_u8).
  * @param mod *u8 — Module*
  * @param li i32 — layout index
  * @param type_name *u8 — TYPE_NAMED bytes (not required NUL-terminated)
  * @param type_len i32 — byte count; must be > 0
  * @return i32 — 1 match, 0 no match / bad args
- * wave187 pure private helper (was Cap residual static). G.7: reuses name_eq.
+ * wave187 pure private helper (was Cap residual static).
  * PLATFORM: SHARED freestanding layout name match.
  */
 function glue_struct_layout_name_matches_type_name_c(mod: *u8, li: i32, type_name: *u8, type_len: i32): i32 {
-  let ln: i32 = 0;
-  let j: i32 = 0;
-  let b: i32 = 0;
-  let ch: i32 = 0;
-  if (mod == (0 as *u8) || li < 0 || type_name == (0 as *u8) || type_len <= 0) {
-    return 0;
-  }
-  // Exact path — G.7 reuse wave154 name_eq (no second exact loop).
-  if (glue_struct_layout_name_eq_c(mod, li, type_name, type_len) != 0) {
-    return 1;
-  }
-  unsafe {
-    ln = pipeline_module_struct_layout_name_len(mod, li);
-  }
-  if (ln <= 0) {
-    return 0;
-  }
-  // Suffix form: type_name[type_len - ln - 1] == '.' && trailing bytes == layout name.
-  // Compare via i32 (name_byte_at returns i32; *u8 index is u8 — match name_eq style).
-  if (type_len > ln + 1) {
-    ch = type_name[type_len - ln - 1] as i32;
-    if (ch == 46) {
-      j = 0;
-      while (j < ln) {
-        unsafe {
-          b = pipeline_module_struct_layout_name_byte_at(mod, li, j);
-        }
-        if (b != (type_name[type_len - ln + j] as i32)) {
-          return 0;
-        }
-        j = j + 1;
-      }
-      return 1;
-    }
-  }
-  return 0;
+  // Same suffix rule as glue_type_size_simple. One implementation.
+  return glue_layout_name_matches_named_type_c(mod, li, type_name, type_len);
 }
 
 /**
