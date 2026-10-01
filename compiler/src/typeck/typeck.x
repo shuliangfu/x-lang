@@ -340,6 +340,16 @@ export extern function parser_get_module_num_imports(module: *Module): i32;
 export extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
 /* Win/live-dep: prefer driver_dep_module_buf when ctx slot is stale/null. PLATFORM: SHARED. */
 export extern function typeck_driver_dep_module_buf(i: i32): *u8;
+/**
+ * Dependency arena pointer stashed by the driver when the dep-ctx arena slot is null.
+ * Twin of typeck_driver_dep_module_buf. The body is typeck_driver_dep_arena_buf in
+ * runtime_pipeline_abi.x; this declaration is the same-TU forward so the layout merge
+ * can call it. One i32 slot index, one pointer result.
+ * @param i i32 — dependency slot index; negative or empty slots return null
+ * @return *u8 — ASTArena pointer for that slot, or null when the slot is empty
+ * PLATFORM: SHARED — declaration only; the store lives with the module-buf twin.
+ */
+export extern function typeck_driver_dep_arena_buf(i: i32): *u8;
 export function typeck_live_dep_module(ctx: *PipelineDepCtx, dep_i: i32): *Module {
   unsafe {
     let dm: *Module = 0 as *Module;
