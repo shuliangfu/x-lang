@@ -5,11 +5,13 @@
 // parser_onefunc_scratch_empty was one of them. A throwaway link of this
 // list, ahead of the weak egg symbol, emitted those helpers (scratch span
 // 212, 23 prefix names grew, parser rc 0, T001 0, CG002 0).
-// Five exact names stay. They are the recorded segfault / elf_ec=-1 set
+// Four exact names stay. They are the recorded segfault / elf_ec=-1 set
 // and must not be batch-moved into asm_parser_emit_heavy_safe_helper.
 // parser_expr_wrap_in_return left this list in w1577. Its 24-byte body
 // returned 0, and parse_into_buf treats that 0 as failure, so a non-void
 // explicit return aborted the whole module (fmt dep prerun, num_funcs=0).
+// parser_alloc_float_lit left this list in w1579. Its 24-byte body returned
+// 0, so `let x: f64 = 1.5; return x as i32` compiled and exited 0.
 // asm_skip_heavy_module_func_body calls this symbol on the EMIT_HEAVY
 // second pass. g05_relink_env.sh compiles this file with the current
 // product and links it ahead of pabi. The egg copy stays weak and is not
@@ -27,6 +29,8 @@ export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i
  * @return i32 — 1 when this function must stay a stub, else 0
  * parser_expr_wrap_in_return is intentionally absent. The stub returned 0
  * and parse_into_buf aborted every non-void explicit return on that 0.
+ * parser_alloc_float_lit is intentionally absent. The stub returned 0, so
+ * a plain f64 literal init was dropped and `1.5 as i32` exited 0.
  * The onefunc_ / copy_onefunc_ / set_onefunc_ prefix fence is not here.
  * PLATFORM: SHARED — sole linked body; egg weak copy still lists the old six.
  */
@@ -46,9 +50,8 @@ export function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32 {
     if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_true_bool_lit", 26) != 0) {
       return 1;
     }
-    if (pipeline_module_func_name_equal_at(m, func_index, "parser_alloc_float_lit", 22) != 0) {
-      return 1;
-    }
+    // parser_alloc_float_lit is emitted. A ret0 body returns 0, and the
+    // plain `let x: f64 = 1.5` path stores that 0 as the init (w1579).
     // parser_expr_wrap_in_return is emitted. A ret0 body returns 0, and
     // parse_into_buf treats that 0 as failure (w1577 fmt dep prerun).
     if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
