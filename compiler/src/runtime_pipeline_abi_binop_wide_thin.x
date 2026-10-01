@@ -25,8 +25,13 @@
 // the product stayed on `imul %ebx,%eax` plus cltq and lost the high half.
 // A left i32 literal is parked in rbx and the wide value is in rax. Every
 // other hidden-width case leaves the i32 in rax and the i64 in rbx. Both
-// shapes emit the 64-bit multiply and skip cltq. u32 and u8 stay on the
-// 32-bit imul. A wide left already takes the 64-bit arm.
+// shapes emit the 64-bit multiply and skip cltq. A wide left already takes
+// the 64-bit arm.
+// w1596: a left u32 or u8 hid that same wide right operand, so the product
+// stayed on the 32-bit imul. Zero-extend the narrow value in rax, then use
+// the 64-bit multiply. u32 uses mov eax,eax. u8 uses and $0xff. A u32 at or
+// above 2^31 must not be sign-extended. An i32 left, a left literal, a wide
+// left, and a same-width multiply stay on the arms above.
 // PLATFORM: SHARED freestanding emit · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
 // LINUX installs this object. Darwin and Windows keep the previous body
 // until they relink.
@@ -50,6 +55,8 @@ export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i
 export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
 export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function glue_try_binop_left_rax_right_rbx_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_binop_var_slot_cache_invalidate_rax(): void;
@@ -479,12 +486,38 @@ function w1595_emit_wide_mul(elf_ctx: *u8, ta: i32): i32 {
 }
 
 /**
+ * Zero-extend an unsigned narrow value already in rax.
+ * Kind 3 is u32: mov eax,eax clears a sign-extended upper half, so a
+ * value at or above 2^31 stays unsigned. Kind 2 is u8: mask to 0xff.
+ * A sign-extended u8 255 is all-ones; the u32 form would keep 2^32-1,
+ * so u8 must not call the u32 encoder. Other kinds are rejected.
+ * @param elf_ctx *u8 — encoder context; null is rejected by the encoder
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param kind i32 — 2 is u8, 3 is u32
+ * @return i32 — 0 ok, -1 when kind is neither or the encoder fails
+ * PLATFORM: SHARED — x86_64 mov/and and arm64 uxtw/uxtb.
+ */
+function w1596_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
+  unsafe {
+    if (kind == 3) {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (kind == 2) {
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  return 0 - 1;
+}
+
+/**
  * Integer or float MUL of the values already in rax and rbx.
  * Same both-f64 and both-f32 arms as before. A wide operand still uses
- * the 64-bit multiply. When the pair helper misses a right-hand i64
- * because the left operand is an i32, sign-extend that i32 and multiply
- * at 64 bits with no cltq. A left i32 literal is the value in rbx; every
- * other i32 left is the value in rax. u32 and u8 stay on the 32-bit imul.
+ * the 64-bit multiply. When the pair helper misses a right-hand wide
+ * integer because the left operand is narrow, extend that left value
+ * and multiply at 64 bits with no cltq. A left i32 literal is the value
+ * in rbx and is sign-extended there. Every other i32 left is sign-extended
+ * in rax. A left u32 or u8 is zero-extended in rax. A wide left, and a
+ * same-width multiply, stay on the existing arms.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -516,8 +549,9 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
     }
     return w1595_emit_wide_mul(elf_ctx, ta);
   }
-  // i32 in rax, hidden i64 in rbx. The slot load is often already
-  // sign-extended; cdqe keeps a negative i32 negative. Skip cltq.
+  // Hidden wide integer in rbx. i32 in rax is sign-extended so a
+  // negative i32 stays negative. u32 and u8 are zero-extended: cdqe
+  // would turn a u32 at or above 2^31 into a negative i64. Skip cltq.
   if ((ta == 0 || ta == 1) && is_64bit == 0 && w1595_is_wide_int(arena, ctx, right_ref) != 0) {
     left_kind = w1595_operand_kind(arena, ctx, left_ref);
     if (left_kind == 0) {
@@ -525,6 +559,12 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
         if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
           return 0 - 1;
         }
+      }
+      return w1595_emit_wide_mul(elf_ctx, ta);
+    }
+    if (left_kind == 2 || left_kind == 3) {
+      if (w1596_zxt_rax(elf_ctx, ta, left_kind) != 0) {
+        return 0 - 1;
       }
       return w1595_emit_wide_mul(elf_ctx, ta);
     }
