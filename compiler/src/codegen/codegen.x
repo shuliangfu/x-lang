@@ -10874,7 +10874,12 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             k = k + 1;
             continue;
           }
-          if (pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &ty_nm[0], nl) == 0) {
+          // PLATFORM: SHARED — LANG-007 S0: export extern claim must sit in unsafe.
+          let claimed_top: i32 = 0;
+          unsafe {
+            claimed_top = pipeline_codegen_struct_tag_try_claim(&claim_pfx[0], claim_plen, &ty_nm[0], nl);
+          }
+          if (claimed_top == 0) {
             k = k + 1;
             continue;
           }
@@ -10903,8 +10908,13 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           }
           let j: i32 = 0;
           while (j < nf) {
-            let flen: i32 = pipeline_module_struct_layout_field_name_len(module, k, j);
-            let ftr: i32 = pipeline_module_struct_layout_field_type_ref(module, k, j);
+            // PLATFORM: SHARED — LANG-007 S0: export extern layout reads.
+            let flen: i32 = 0;
+            let ftr: i32 = 0;
+            unsafe {
+              flen = pipeline_module_struct_layout_field_name_len(module, k, j);
+              ftr = pipeline_module_struct_layout_field_type_ref(module, k, j);
+            }
             if (flen <= 0) {
               j = j + 1;
               continue;
@@ -10913,7 +10923,9 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
               return -1;
             }
             let fnm: u8[256] = [];
-            pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
+            unsafe {
+              pipeline_module_struct_layout_field_name_into(module, k, j, &fnm[0]);
+            }
             ftr = codegen_resolve_generic_struct_field_type(module, arena, &ty_nm[0], nl, &fnm[0], flen, ftr);
             if (codegen_emit_struct_field_decl_x(arena, out, ftr, &fnm[0], flen, 0 as *u8, 0, ctx) != 0) {
               return -1;
@@ -10995,14 +11007,21 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
         while (ji < njob) {
           let jk: i32 = job_k[ji];
           let jntp: i32 = job_ntp[ji];
-          let jnf: i32 = pipeline_module_struct_layout_num_fields(module, jk);
-          let jnl: i32 = pipeline_module_struct_layout_name_len(module, jk);
+          // PLATFORM: SHARED — LANG-007 S0: export extern layout reads.
+          let jnf: i32 = 0;
+          let jnl: i32 = 0;
+          unsafe {
+            jnf = pipeline_module_struct_layout_num_fields(module, jk);
+            jnl = pipeline_module_struct_layout_name_len(module, jk);
+          }
           if (jnl <= 0 || jntp <= 0) {
             ji = ji + 1;
             continue;
           }
           let jty: u8[256] = [];
-          pipeline_module_struct_layout_name_into(module, jk, &jty[0]);
+          unsafe {
+            pipeline_module_struct_layout_name_into(module, jk, &jty[0]);
+          }
           let mono_c: i32[4] = [];
           let ms: i32 = 0;
           while (ms < jntp && ms < 4) {
@@ -11034,7 +11053,12 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
             ji = ji + 1;
             continue;
           }
-          if (pipeline_codegen_struct_tag_try_claim(&claim_pfx2[0], claim_plen2, &mangled[0], mlen) == 0) {
+          // PLATFORM: SHARED — LANG-007 S0: export extern claim must sit in unsafe.
+          let claimed_mono: i32 = 0;
+          unsafe {
+            claimed_mono = pipeline_codegen_struct_tag_try_claim(&claim_pfx2[0], claim_plen2, &mangled[0], mlen);
+          }
+          if (claimed_mono == 0) {
             ji = ji + 1;
             continue;
           }
@@ -11063,8 +11087,13 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
           }
           let j_m: i32 = 0;
           while (j_m < jnf) {
-            let flen_m: i32 = pipeline_module_struct_layout_field_name_len(module, jk, j_m);
-            let ftr_m: i32 = pipeline_module_struct_layout_field_type_ref(module, jk, j_m);
+            // PLATFORM: SHARED — LANG-007 S0: export extern layout reads.
+            let flen_m: i32 = 0;
+            let ftr_m: i32 = 0;
+            unsafe {
+              flen_m = pipeline_module_struct_layout_field_name_len(module, jk, j_m);
+              ftr_m = pipeline_module_struct_layout_field_type_ref(module, jk, j_m);
+            }
             if (flen_m <= 0) {
               j_m = j_m + 1;
               continue;
@@ -11073,7 +11102,9 @@ export function codegen_emit_module_struct_definitions(module: *Module, arena: *
               return -1;
             }
             let fnm_m: u8[256] = [];
-            pipeline_module_struct_layout_field_name_into(module, jk, j_m, &fnm_m[0]);
+            unsafe {
+              pipeline_module_struct_layout_field_name_into(module, jk, j_m, &fnm_m[0]);
+            }
             ftr_m = codegen_generic_struct_field_type_from_mono(module, arena, jk, ftr_m, &mono_c[0], jntp);
             if (codegen_emit_struct_field_decl_x(arena, out, ftr_m, &fnm_m[0], flen_m, 0 as *u8, 0, ctx) != 0) {
               return -1;
@@ -21150,8 +21181,12 @@ export function codegen_is_libc_conflicting_extern_name(name: *u8, name_len: i32
     return 0;
   }
   /* Cap 10.7.1: va_start/va_end/va_copy/va_arg* are macros, not C functions.
-   * PLATFORM: SHARED skip; MACOS|DARWIN clang redeclare is the live face. */
-  if (typeck_is_cap_va_builtin_name(name, name_len) != 0) {
+   * PLATFORM: SHARED — LANG-007 S0: this export extern call must sit in unsafe. */
+  let va_hit: i32 = 0;
+  unsafe {
+    va_hit = typeck_is_cap_va_builtin_name(name, name_len);
+  }
+  if (va_hit != 0) {
     return 1;
   }
   /* read 4 */
