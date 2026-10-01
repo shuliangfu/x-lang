@@ -127,6 +127,7 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
   let da: *u8 = 0 as *u8;
   let dep: *u8 = 0 as *u8;
   let sz: i32 = 0;
+  let vok: i32 = 1;
   if (a == (0 as *u8) || ty_ref <= 0 || depth > 64) {
     return 0;
   }
@@ -167,9 +168,13 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
       asz = pipeline_type_array_size_at(a, ty_ref);
     }
     if (elem_ref <= 0 || asz <= 0) {
-      // TYPE_VECTOR without array_size: lanes*esz, not the 0→8B floor.
+      // TYPE_VECTOR without array_size: lanes*esz, not the 0 to 8 byte floor.
+      // This TU sees the helper as extern, so the call stays inside unsafe.
       if (kind_ord == 13) {
-        if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+        unsafe {
+          vok = glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves);
+        }
+        if (vok == 0 && vl > 0 && ves > 0) {
           return vl * ves;
         }
       }
@@ -249,7 +254,11 @@ export function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): 
       }
     }
     // No struct layout: SIMD named spelling is lanes*esz. Non-SIMD named stay 4.
-    if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0) {
+    // Same extern call as above: unsafe here, branch outside.
+    unsafe {
+      vok = glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves);
+    }
+    if (vok == 0 && vl > 0 && ves > 0) {
       return vl * ves;
     }
     return 4;
