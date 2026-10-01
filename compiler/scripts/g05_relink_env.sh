@@ -2031,8 +2031,12 @@ esac
 # w1607: strong 65536 label/patch layout. The thin's getters are
 # file-private and the thin is not linked, so the weak copies still
 # return the 16384 offsets. sizeof on this host is already the 64k
-# end. Linux only: Darwin and Windows sizeof is not that end.
-# Does not change pipe_elf_table_cap. A missing T blocks the link.
+# end. The egg also inlines e_machine/reloc_type at the 16384
+# offsets (add $17432600 / $17432604, six stores each, two mega
+# copies). Getter-only link reads a zero slot and ld reports EM: 0.
+# Patch those adds on a copy. Do not rebuild the egg and do not
+# edit the original .o. Linux only: Darwin and Windows sizeof is
+# not that end. Does not change pipe_elf_table_cap.
 # PLATFORM: LINUX
 _PABI_ELF_LAYOUT_64K=""
 case "$UNAME_S" in
@@ -2042,6 +2046,15 @@ case "$UNAME_S" in
         build_asm/selfhost_pabi/elf_layout_64k.o \
         pipe_elf_off_num_labels
       _PABI_ELF_LAYOUT_64K="$_G05_PO_OUT"
+      if [ "$_PABI_LINK_O" = "build_asm/selfhost_pabi/pabi_alias.o" ]; then
+        _pabi_elf64=build_asm/selfhost_pabi/pabi_alias.elf64k.o
+        if ! python3 scripts/patch_pabi_elf_emachine_64k.py \
+            "$_PABI_LINK_O" "$_pabi_elf64"; then
+          echo "g05_relink_env: elf 64k egg patch failed" >&2
+          exit 1
+        fi
+        _PABI_LINK_O="$_pabi_elf64"
+      fi
     fi
     ;;
 esac

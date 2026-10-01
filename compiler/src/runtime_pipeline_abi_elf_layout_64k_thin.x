@@ -6,8 +6,10 @@
 // path is a hard no-op. The linked copies are weak and still return
 // the 16384 layout (num_labels at 4325380). pipeline_sizeof_elf_ctx
 // already returns 53477424, the end of this 65536 layout, so the
-// allocation is large enough. Readers call the getters; the 16384
-// immediates live only inside those getters.
+// allocation is large enough. Readers call the getters. The egg
+// still inlines e_machine and reloc_type as add $17432600 /
+// $17432604 inside both copies of the mega body. g05 rewrites
+// those adds on a copy of the egg; this file does not.
 //
 // This file is the strong global face of that same layout. It does
 // not change pipe_elf_table_cap. That symbol stays 16384 and is the
