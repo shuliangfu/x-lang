@@ -32,6 +32,13 @@
 // the 64-bit multiply. u32 uses mov eax,eax. u8 uses and $0xff. A u32 at or
 // above 2^31 must not be sign-extended. An i32 left, a left literal, a wide
 // left, and a same-width multiply stay on the arms above.
+// w1599: two i32-stamped literals multiplied and stored in a u32 still took
+// the 32-bit imul and then cltq. The product's low 32 bits are already the
+// unsigned result. cltq makes a product at or above 2^31 negative in the
+// 8-byte slot. When that mul is a u32 let's initializer, or assigned to a
+// u32 variable, zero-extend and skip cltq. The store scan is
+// w1598_add_stored_in_u32 in the widen-mixed overlay, called with kind 6.
+// An i32 destination still sign-extends. A wide multiply stays on imulq.
 // PLATFORM: SHARED freestanding emit · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
 // LINUX installs this object. Darwin and Windows keep the previous body
 // until they relink.
@@ -56,6 +63,7 @@ export extern function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, word: u32): i32;
 export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, op_kind: i32): i32;
 export extern function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function glue_try_binop_left_rax_right_rbx_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
@@ -517,7 +525,9 @@ function w1596_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
  * and multiply at 64 bits with no cltq. A left i32 literal is the value
  * in rbx and is sign-extended there. Every other i32 left is sign-extended
  * in rax. A left u32 or u8 is zero-extended in rax. A wide left, and a
- * same-width multiply, stay on the existing arms.
+ * same-width multiply, stay on the existing arms. A 32-bit product stored
+ * into a u32 is zero-extended instead of sign-extended, so a product at or
+ * above 2^31 stays unsigned in that slot. An i32 destination still cltqs.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -532,6 +542,7 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   let rc: i32 = 0;
   let is_64bit: i32 = 0;
   let left_kind: i32 = 0;
+  let stored_u32: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
@@ -577,6 +588,18 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   }
   if (rc != 0) {
     return rc;
+  }
+  // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
+  // a product at or above 2^31 negative in the 8-byte slot. Kind 6 is MUL.
+  // i32 still takes the sign-extend below. The scan lives in the widen overlay.
+  // The scan is an extern, so the call stays inside unsafe.
+  unsafe {
+    stored_u32 = w1598_add_stored_in_u32(arena, ctx, left_ref, right_ref, 6);
+  }
+  if (stored_u32 != 0) {
+    unsafe {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
   }
   return w1499_maybe_sxt_i32_result(arena, ctx, left_ref, right_ref, elf_ctx, ta);
 }

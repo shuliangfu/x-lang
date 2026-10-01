@@ -24,6 +24,9 @@
 // for, and if bodies. An i32 destination still sign-extends. An add that is
 // not stored in a u32 still sign-extends. A wide integer stays on the 64-bit
 // add.
+// w1599: that store scan takes the binop kind. Add still passes 4. The
+// binop-wide overlay calls the same scan with 6, for a 32-bit product that
+// is stored in a u32. The add tail in this file is otherwise unchanged.
 // LINUX links this object ahead of the egg. Do not rebuild the pabi egg.
 // Darwin and Windows keep the previous body until they relink.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX installs the object.
@@ -215,22 +218,23 @@ function w1591_sxt_rbx(elf_ctx: *u8, ta: i32): i32 {
 }
 
 /**
- * True when this block stores the add of left_ref and right_ref into a u32.
- * A let whose initializer is that add, or an assign whose right-hand side is
- * that add and whose left-hand side is a u32 variable, counts. Other
+ * True when this block stores the binop of left_ref and right_ref into a u32.
+ * A let whose initializer is that binop, or an assign whose right-hand side
+ * is that binop and whose left-hand side is a u32 variable, counts. Other
  * destinations stay on the signed tail. Nested while, for, and if bodies
  * are scanned after this block. The walk is capped so a corrupt count
  * cannot run away.
  * @param arena *u8 — AST arena; null returns 0
  * @param ctx *u8 — emit context; null skips the assign walk
  * @param block_ref i32 — block that may own the let or the assign; <=0 returns 0
- * @param left_ref i32 — add's left expression
- * @param right_ref i32 — add's right expression
+ * @param left_ref i32 — binop's left expression
+ * @param right_ref i32 — binop's right expression
  * @param depth i32 — 0 at the function body; each nested body adds one; above 16 returns 0
+ * @param op_kind i32 — expression kind of the binop; 4 is add, 6 is mul
  * @return i32 — 1 when the stored result is u32, else 0
  * PLATFORM: SHARED freestanding emit.
  */
-function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32, depth: i32): i32 {
+function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32, depth: i32, op_kind: i32): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
   let init: i32 = 0;
@@ -267,8 +271,9 @@ function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref:
       unsafe {
         init_kind = pipeline_expr_kind_ord_at(arena, init);
       }
-      // EXPR_ADD = 4. The initializer is this add, not a wider expression.
-      if (init_kind == 4) {
+      // op_kind selects the binop (4 add, 6 mul). A wider expression
+      // around it is not this operation.
+      if (init_kind == op_kind) {
         child_l = 0;
         child_r = 0;
         unsafe {
@@ -296,7 +301,7 @@ function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref:
     i = i + 1;
   }
   if (ctx == (0 as *u8)) {
-    return w1598_nested_has_u32_add(arena, ctx, block_ref, left_ref, right_ref, depth);
+    return w1598_nested_has_u32_add(arena, ctx, block_ref, left_ref, right_ref, depth, op_kind);
   }
   n = 0;
   unsafe {
@@ -330,7 +335,7 @@ function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref:
           unsafe {
             rhs_kind = pipeline_expr_kind_ord_at(arena, rhs);
           }
-          if (rhs_kind == 4) {
+          if (rhs_kind == op_kind) {
             child_l = 0;
             child_r = 0;
             unsafe {
@@ -371,24 +376,25 @@ function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref:
     }
     i = i + 1;
   }
-  return w1598_nested_has_u32_add(arena, ctx, block_ref, left_ref, right_ref, depth);
+  return w1598_nested_has_u32_add(arena, ctx, block_ref, left_ref, right_ref, depth, op_kind);
 }
 
 /**
- * True when a nested while, for, or if body stores this add into a u32.
+ * True when a nested while, for, or if body stores this binop into a u32.
  * The parent block's lets and assigns are already scanned. Each nested
  * body adds one to depth. At 16 the walk stops, so a body that points at
  * its parent cannot run away.
  * @param arena *u8 — AST arena; null returns 0
  * @param ctx *u8 — emit context; forwarded into each nested body
  * @param block_ref i32 — parent block; <=0 returns 0
- * @param left_ref i32 — add's left expression
- * @param right_ref i32 — add's right expression
+ * @param left_ref i32 — binop's left expression
+ * @param right_ref i32 — binop's right expression
  * @param depth i32 — depth of the parent; >=16 returns 0
- * @return i32 — 1 when a nested body stores the add into a u32, else 0
+ * @param op_kind i32 — expression kind of the binop; 4 is add, 6 is mul
+ * @return i32 — 1 when a nested body stores the binop into a u32, else 0
  * PLATFORM: SHARED freestanding emit.
  */
-function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32, depth: i32): i32 {
+function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32, depth: i32, op_kind: i32): i32 {
   let n: i32 = 0;
   let i: i32 = 0;
   let child: i32 = 0;
@@ -412,7 +418,7 @@ function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref
     }
     // A body that is this block would cycle. Skip it.
     if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1) != 0) {
+      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
         return 1;
       }
     }
@@ -435,7 +441,7 @@ function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref
       child = pipeline_block_for_body_ref(arena, block_ref, i);
     }
     if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1) != 0) {
+      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
         return 1;
       }
     }
@@ -458,7 +464,7 @@ function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref
       child = pipeline_block_if_then_body_ref(arena, block_ref, i);
     }
     if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1) != 0) {
+      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
         return 1;
       }
     }
@@ -467,7 +473,7 @@ function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref
       child = pipeline_block_if_else_body_ref(arena, block_ref, i);
     }
     if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1) != 0) {
+      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
         return 1;
       }
     }
@@ -477,18 +483,20 @@ function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref
 }
 
 /**
- * True when the add of these two operands is stored into a u32.
+ * True when the binop of these two operands is stored into a u32.
  * An operand block is tried first. A literal has no block ref, so the
  * current function body is scanned after that, including nested while,
- * for, and if bodies.
+ * for, and if bodies. The mul overlay calls this by the bare name.
  * @param arena *u8 — AST arena; null returns 0
  * @param ctx *u8 — emit context; null still checks lets
- * @param left_ref i32 — add's left expression
- * @param right_ref i32 — add's right expression
+ * @param left_ref i32 — binop's left expression
+ * @param right_ref i32 — binop's right expression
+ * @param op_kind i32 — expression kind of the binop; 4 is add, 6 is mul
  * @return i32 — 1 when the stored result is u32, else 0
- * PLATFORM: SHARED freestanding emit.
+ * PLATFORM: SHARED freestanding emit. LINUX — both overlays link this name.
  */
-function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+#[no_mangle]
+export function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, op_kind: i32): i32 {
   let block_l: i32 = 0;
   let block_r: i32 = 0;
   let block_f: i32 = 0;
@@ -509,17 +517,17 @@ function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref:
     }
   }
   if (block_l > 0) {
-    if (w1598_block_has_u32_add(arena, ctx, block_l, left_ref, right_ref, 0) != 0) {
+    if (w1598_block_has_u32_add(arena, ctx, block_l, left_ref, right_ref, 0, op_kind) != 0) {
       return 1;
     }
   }
   if (block_r > 0 && block_r != block_l) {
-    if (w1598_block_has_u32_add(arena, ctx, block_r, left_ref, right_ref, 0) != 0) {
+    if (w1598_block_has_u32_add(arena, ctx, block_r, left_ref, right_ref, 0, op_kind) != 0) {
       return 1;
     }
   }
   if (block_f > 0 && block_f != block_l && block_f != block_r) {
-    if (w1598_block_has_u32_add(arena, ctx, block_f, left_ref, right_ref, 0) != 0) {
+    if (w1598_block_has_u32_add(arena, ctx, block_f, left_ref, right_ref, 0, op_kind) != 0) {
       return 1;
     }
   }
@@ -603,7 +611,8 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   }
   // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
   // a sum at or above 2^31 negative in the 8-byte slot. i32 still cltqs.
-  if (w1598_add_stored_in_u32(arena, ctx, left_ref, right_ref) != 0) {
+  // EXPR_ADD is kind 4. Mul passes 6 from the other overlay.
+  if (w1598_add_stored_in_u32(arena, ctx, left_ref, right_ref, 4) != 0) {
     unsafe {
       return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
     }
