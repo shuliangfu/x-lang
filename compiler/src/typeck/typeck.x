@@ -5664,22 +5664,24 @@ caller_arena: *ASTArena, nm: *u8, nlen: i32): i32 {
 
 /**
  * Resolve a dep module return type_ref into the caller's arena.
- * For TYPE_NAMED with entry module set, applies import-binding prefix so
- * `let v: vec.Vec_u8` matches dep `Vec_u8`. Otherwise delegates to
- * dep_return_type_to_caller_arena (recursive compound map).
- * @param from_dep_index i32 — dep slot; <0 → 0
- * @param dep_return_type_ref i32 — type_ref valid in dep arena
+ * The ctx arena slot and pipeline_get_dep_arena_slot can both be null while
+ * the driver still holds the parsed dep types. When typeck_driver_dep_arena_buf
+ * is non-null it wins. For TYPE_NAMED with the entry module set, applies the
+ * import-binding prefix so `let v: vec.Vec_u8` matches dep `Vec_u8`. Otherwise
+ * delegates to dep_return_type_to_caller_arena (recursive compound map).
+ * @param from_dep_index i32 — dep slot; negative returns 0
+ * @param dep_return_type_ref i32 — type_ref valid in the dep arena
  * @param caller_arena *ASTArena — destination type pool
- * @param ctx *PipelineDepCtx — dep arenas / modules
- * @return i32 — caller-arena type_ref, or 0
- * wave254 pure leave: was residual pipeline_typeck_get_dep_return_type_in_caller_arena_c.
- * PLATFORM: SHARED freestanding typeck dep map.
+ * @param ctx *PipelineDepCtx — dep arenas and modules; null returns 0
+ * @return i32 — caller-arena type_ref, or 0 when the arena or the type is missing
+ * PLATFORM: SHARED — live dep arena buffer, same on macOS, Ubuntu, and Windows.
  */
 export function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_type_ref: i32,
 caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let dep_arena: *ASTArena = 0 as *ASTArena;
+    let alt_arena: *ASTArena = 0 as *ASTArena;
     let kind: i32 = 0;
     let nlen: i32 = 0;
     let nm_buf: *u8 = typeck_scratch64_slot(0);
@@ -5690,9 +5692,14 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
     dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
     if (dep_arena == 0 as *ASTArena) {
       dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-      if (dep_arena == 0 as *ASTArena) {
-        return 0;
-      }
+    }
+    /* Live buffer beats a null or stale sidecar. Thin twin of driver_dep_arena_buf. */
+    alt_arena = typeck_driver_dep_arena_buf(from_dep_index) as *ASTArena;
+    if (alt_arena != 0 as *ASTArena) {
+      dep_arena = alt_arena;
+    }
+    if (dep_arena == 0 as *ASTArena) {
+      return 0;
     }
     // Bootstrap: dep_index may be >= ndep when slot is still bound.
     if (from_dep_index >= pipeline_dep_ctx_ndep(ctx)) {
