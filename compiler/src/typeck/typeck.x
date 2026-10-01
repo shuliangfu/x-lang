@@ -5319,7 +5319,15 @@ base_ref: i32, ctx: *PipelineDepCtx): void {
   }
 }
 
-/** See implementation for details. */
+/**
+ * Compare a VAR callee's name with one function in a module.
+ * @param arena *ASTArena — callee expression owner
+ * @param callee_expr_ref i32 — EXPR_VAR callee; any other kind returns false
+ * @param mod *Module — function table, local or a dependency
+ * @param func_index i32 — function index in mod; out of range returns false
+ * @return bool — true when both names are the same non-empty byte string
+ * PLATFORM: SHARED — bare-call resolve on macOS, Ubuntu, and Windows.
+ */
 export function expr_var_name_equal_func(arena: *ASTArena, callee_expr_ref: i32, mod: *Module,
 func_index: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5344,7 +5352,17 @@ func_index: i32): bool {
     }
     pipeline_expr_var_name_into(arena, callee_expr_ref, vbuf);
     while (i < a_len) {
-      if (pipeline_module_func_name_byte_at(mod, func_index, i) != vbuf[i]) {
+      /*
+       * Keep each side in its own local. An inline `byte_at(...) != vbuf[i]`
+       * is emitted as `index != vbuf[i]`: the asm backend reuses the
+       * call-result register for the index while that result is still live.
+       * A bare call then matches no function, and the zero func-index slot
+       * is read as function 0. Length compares above are already locals.
+       * PLATFORM: SHARED — same byte compare on macOS, Ubuntu, and Windows.
+       */
+      let got: i32 = pipeline_module_func_name_byte_at(mod, func_index, i) as i32;
+      let want: i32 = vbuf[i] as i32;
+      if (got != want) {
         return false;
       }
       i = i + 1;
