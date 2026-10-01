@@ -3555,6 +3555,76 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
       (void)(typeck_i32_ptr_store(out_al, 1));
       return 0;
     }
+    /* PLATFORM: SHARED — padding verdict only.
+     * i8/i16/u16 stay 4-byte cells on the size walk below. A gap that is
+     * absent at language width (i8 = 1, i16/u16 = 2) is not implicit
+     * padding. Explicit align(N) wider than that width still counts.
+     * check_pad == 0 does not enter this walk. */
+    int32_t natural_clean = 0;
+    if (((check_pad != 0) && (allow == 0))) {
+      int32_t c2 = 0;
+      int32_t ma2 = 1;
+      int32_t j2 = 0;
+      int32_t natural_bad = 0;
+      while (((j2 < nf) && (natural_bad == 0))) {
+        int32_t ftr2 = pipeline_module_struct_layout_field_type_ref(module, li, j2);
+        (void)(typeck_layout_field_name_into(module, li, j2, field_nm));
+        (void)((flen = pipeline_module_struct_layout_field_name_len(module, li, j2)));
+        if ((ftr2 == 0)) {
+          (void)((ftr2 = typeck_synth_layout_field_type_ref(arena, field_nm, flen)));
+        }
+        int32_t fa2 = pipeline_module_struct_layout_field_align_at(module, li, j2);
+        int32_t A2 = typeck_x_type_align(module, arena, ftr2, depth);
+        if ((A2 <= 0)) {
+          (void)((A2 = 1));
+        }
+        if ((fa2 > A2)) {
+          (void)((A2 = fa2));
+        }
+        int32_t sz2 = typeck_x_type_size(module, arena, ftr2, depth);
+        int32_t nat = 0;
+        int32_t ko2 = pipeline_type_kind_ord_at(arena, ftr2);
+        if ((ko2 == 8)) {
+          uint8_t * nb = typeck_scratch64_slot(4);
+          int32_t nl2 = pipeline_type_named_name_into(arena, ftr2, nb);
+          if ((((nl2 == 2) && ((nb)[0] == 105)) && ((nb)[1] == 56))) {
+            (void)((nat = 1));
+          }
+          if (((((nl2 == 3) && ((nb)[0] == 105)) && ((nb)[1] == 49)) && ((nb)[2] == 54))) {
+            (void)((nat = 2));
+          }
+          if (((((nl2 == 3) && ((nb)[0] == 117)) && ((nb)[1] == 49)) && ((nb)[2] == 54))) {
+            (void)((nat = 2));
+          }
+        }
+        if (((nat > 0) && (fa2 <= nat))) {
+          (void)((A2 = nat));
+          (void)((sz2 = nat));
+        }
+        if (((sz2 < 0) || ((sz2 == 0) && (typeck_type_is_empty_struct(module, arena, ftr2, depth) == 0)))) {
+          (void)((natural_bad = 1));
+        } else {
+          int32_t rem2 = (c2 % A2);
+          int32_t gap2 = (A2 - rem2);
+          (void)((gap2 = (gap2 % A2)));
+          if ((gap2 > 0)) {
+            (void)((natural_bad = 1));
+          } else {
+            (void)((c2 = (c2 + sz2)));
+            if ((A2 > ma2)) {
+              (void)((ma2 = A2));
+            }
+            (void)((j2 = (j2 + 1)));
+          }
+        }
+      }
+      if ((((natural_bad == 0) && (ma2 > 0)) && ((c2 % ma2) != 0))) {
+        (void)((natural_bad = 1));
+      }
+      if ((natural_bad == 0)) {
+        (void)((natural_clean = 1));
+      }
+    }
     (void)((j = 0));
     while ((j < nf)) {
       (void)((ftr = pipeline_module_struct_layout_field_type_ref(module, li, j)));
@@ -3574,7 +3644,7 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
       (void)((rem = (current % A)));
       (void)((gap = (A - rem)));
       (void)((gap = (gap % A)));
-      if ((((check_pad !=0) && (gap > 0)) && (allow ==0))) {
+      if (((((check_pad !=0) && (gap > 0)) && (allow ==0)) && (natural_clean ==0))) {
         (void)(driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen));
         return -1;
       }
@@ -3594,7 +3664,7 @@ int32_t typeck_struct_layout_metrics(struct ast_Module * module, struct ast_ASTA
     }
     if (((max_align > 0) && ((current % max_align) !=0))) {
       (void)((end_pad = (max_align - (current % max_align))));
-      if ((((check_pad !=0) && (end_pad > 0)) && (allow ==0))) {
+      if (((((check_pad !=0) && (end_pad > 0)) && (allow ==0)) && (natural_clean ==0))) {
         (void)(driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad));
         return -1;
       }

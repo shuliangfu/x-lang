@@ -2675,9 +2675,21 @@ export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTA
 }
 
 /**
-* See implementation.
-* See implementation.
-*/
+ * Struct size and alignment, and the zero-padding verdict.
+ * check_pad == 0 returns the Cap residual cell size (i8/i16/u16 stay 4).
+ * check_pad != 0 reports a gap only when the same gap exists at language
+ * width (i8 = 1, i16/u16 = 2). A dense language layout is not implicit
+ * padding. Explicit align(N) wider than that width still counts.
+ * @param module *Module — layout table owner
+ * @param arena *ASTArena — type pool for field sizes
+ * @param li i32 — struct layout index
+ * @param depth i32 — nested-layout depth; above 64 fails
+ * @param check_pad i32 — 1 diagnoses implicit padding; 0 only measures
+ * @param out_sz *i32 — byte size out; required
+ * @param out_al *i32 — alignment out; required
+ * @return i32 — 0 when the layout is usable, -1 on a real gap or bad size
+ * PLATFORM: SHARED — verdict only; cell size for check_pad == 0 is unchanged.
+ */
 export function typeck_struct_layout_metrics(module: *Module, arena: *ASTArena, li: i32, depth: i32,
 check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2697,6 +2709,21 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     let fsize: i32 = 0;
     let end_pad: i32 = 0;
     let fa: i32 = 0;
+    let natural_clean: i32 = 0;
+    let natural_bad: i32 = 0;
+    let c2: i32 = 0;
+    let ma2: i32 = 1;
+    let j2: i32 = 0;
+    let ftr2: i32 = 0;
+    let fa2: i32 = 0;
+    let A2: i32 = 0;
+    let sz2: i32 = 0;
+    let nat: i32 = 0;
+    let ko2: i32 = 0;
+    let nl2: i32 = 0;
+    let rem2: i32 = 0;
+    let gap2: i32 = 0;
+    let nb: *u8 = 0 as *u8;
     /* See implementation. */
     let layout_nm: *u8 = typeck_scratch64_slot(2);
     let field_nm: *u8 = typeck_scratch64_slot(3);
@@ -2736,6 +2763,72 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       typeck_i32_ptr_store(out_al, 1);
       return 0;
     }
+    // Language width of i8/i16/u16 is 1/2. The cell walk below still uses
+    // the 4-byte Cap residual size. A gap that is absent at language width
+    // is not implicit padding. Explicit align(N) wider than that width,
+    // and every other scalar, still diagnose.
+    // PLATFORM: SHARED — check_pad verdict only.
+    natural_clean = 0;
+    if (check_pad != 0 && allow == 0) {
+      c2 = 0;
+      ma2 = 1;
+      j2 = 0;
+      natural_bad = 0;
+      while (j2 < nf && natural_bad == 0) {
+        ftr2 = pipeline_module_struct_layout_field_type_ref(module, li, j2);
+        fa2 = pipeline_module_struct_layout_field_align_at(module, li, j2);
+        A2 = typeck_x_type_align(module, arena, ftr2, depth);
+        if (A2 <= 0) {
+          A2 = 1;
+        }
+        if (fa2 > A2) {
+          A2 = fa2;
+        }
+        sz2 = typeck_x_type_size(module, arena, ftr2, depth);
+        nat = 0;
+        ko2 = pipeline_type_kind_ord_at(arena, ftr2);
+        // Name bytes are read after type_size, which reuses scratch slot 4.
+        if (ko2 == 8) {
+          nb = typeck_scratch64_slot(4);
+          nl2 = pipeline_type_named_name_into(arena, ftr2, nb);
+          if (nl2 == 2 && nb[0] == 105 && nb[1] == 56) {
+            nat = 1;
+          }
+          if (nl2 == 3 && nb[0] == 105 && nb[1] == 49 && nb[2] == 54) {
+            nat = 2;
+          }
+          if (nl2 == 3 && nb[0] == 117 && nb[1] == 49 && nb[2] == 54) {
+            nat = 2;
+          }
+        }
+        if (nat > 0 && fa2 <= nat) {
+          A2 = nat;
+          sz2 = nat;
+        }
+        if (sz2 < 0 || (sz2 == 0 && typeck_type_is_empty_struct(module, arena, ftr2, depth) == 0)) {
+          natural_bad = 1;
+        } else {
+          rem2 = c2 % A2;
+          gap2 = A2 - rem2;
+          gap2 = gap2 % A2;
+          if (gap2 > 0) {
+            natural_bad = 1;
+          } else {
+            c2 = c2 + sz2;
+            if (A2 > ma2) {
+              ma2 = A2;
+            }
+            j2 = j2 + 1;
+          }
+        }
+      }
+      if (natural_bad == 0 && ma2 > 0 && (c2 % ma2) != 0) {
+        natural_bad = 1;
+      }
+      if (natural_bad == 0) {
+        natural_clean = 1;
+      }
+    }
     j = 0;
     while (j < nf) {
       ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
@@ -2752,7 +2845,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       rem = current % A;
       gap = A - rem;
       gap = gap % A;
-      if (check_pad != 0 && gap > 0 && allow == 0) {
+      if (check_pad != 0 && gap > 0 && allow == 0 && natural_clean == 0) {
         driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen);
         return - 1;
       }
@@ -2773,7 +2866,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     }
     if (max_align > 0 && (current % max_align) != 0) {
       end_pad = max_align - (current % max_align);
-      if (check_pad != 0 && end_pad > 0 && allow == 0) {
+      if (check_pad != 0 && end_pad > 0 && allow == 0 && natural_clean == 0) {
         driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad);
         return - 1;
       }
