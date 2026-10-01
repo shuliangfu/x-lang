@@ -5,8 +5,8 @@
 // parser_onefunc_scratch_empty was one of them. A throwaway link of this
 // list, ahead of the weak egg symbol, emitted those helpers (scratch span
 // 212, 23 prefix names grew, parser rc 0, T001 0, CG002 0).
-// Three exact names stay. They are the recorded segfault / elf_ec=-1 set
-// and must not be batch-moved into asm_parser_emit_heavy_safe_helper.
+// Two exact names stay on this list. Do not batch-move them into
+// asm_parser_emit_heavy_safe_helper.
 // parser_expr_wrap_in_return left this list in w1577. Its 24-byte body
 // returned 0, and parse_into_buf treats that 0 as failure, so a non-void
 // explicit return aborted the whole module (fmt dep prerun, num_funcs=0).
@@ -15,6 +15,9 @@
 // parser_alloc_true_bool_lit left this list in w1580. Its 24-byte body
 // returned 0, and both `loop` paths abort the function on that 0, so ld
 // reports an undefined main. Host-cc of the same program exits 1.
+// wrap_block_ref_as_expr left this list in w1581. Its 24-byte body returned
+// 0, and a bare block statement aborts the function on that 0, so ld
+// reports an undefined main. Host-cc of `{ 10 } return 7` exits 7.
 // asm_skip_heavy_module_func_body calls this symbol on the EMIT_HEAVY
 // second pass. g05_relink_env.sh compiles this file with the current
 // product and links it ahead of pabi. The egg copy stays weak and is not
@@ -36,6 +39,8 @@ export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i
  * a plain f64 literal init was dropped and `1.5 as i32` exited 0.
  * parser_alloc_true_bool_lit is intentionally absent. The stub returned 0,
  * and both loop paths abort the function, so the program has no main.
+ * wrap_block_ref_as_expr is intentionally absent. The stub returned 0,
+ * and a bare block statement aborts the function on that 0.
  * The onefunc_ / copy_onefunc_ / set_onefunc_ prefix fence is not here.
  * PLATFORM: SHARED — sole linked body; egg weak copy still lists the old six.
  */
@@ -48,10 +53,10 @@ export function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32 {
     if (asm_module_is_parser_emit_heavy(m) == 0) {
       return 0;
     }
-    // Recorded segfault / elf_ec=-1. Lengths are the source-name byte counts.
-    if (pipeline_module_func_name_equal_at(m, func_index, "wrap_block_ref_as_expr", 22) != 0) {
-      return 1;
-    }
+    // Lengths are the source-name byte counts.
+    // wrap_block_ref_as_expr is emitted. A ret0 body returns 0, and a
+    // bare block statement aborts the function on that 0 (w1581: ld has
+    // no main). Host-cc of the same program exits 7.
     // parser_alloc_true_bool_lit is emitted. A ret0 body returns 0, and
     // both loop paths abort the function on that 0 (w1580: ld has no main).
     // parser_alloc_float_lit is emitted. A ret0 body returns 0, and the
