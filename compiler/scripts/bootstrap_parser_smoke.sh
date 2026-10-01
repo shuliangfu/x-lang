@@ -3,8 +3,10 @@
 #
 # Authority (G.7 有则补全):
 #   Single implementation for Makefile phony bootstrap-parser / bootstrap-parse-file:
-#     1) parser: product host compiles src/parser/parser.x → /tmp/xlang_parser_test
-#        then runs it (self-host parse of minimal main; historical 9.1 gate)
+#     1) parser: product host compiles src/parser/parser_standalone.x
+#        → /tmp/xlang_parser_test then runs it (self-host parse of minimal
+#        main; historical 9.1 gate). The library src/parser/parser.x has no
+#        function named main, so its -c object is not dead-stripped from one.
 #     2) parse-file: write minimal / expr-chain fixtures; run .x parser binary +
 #        host product xlang on same fixture; both must emit "parse OK"
 #
@@ -106,12 +108,13 @@ fi
 
 case "$MODE" in
   parser)
-    # Self-host 9.1: compile parser.x (import lexer + token + ast + std.fs)
-    # -L .. for std.fs; -L src/lexer for token; -L src/ast for ast
+    # Self-host 9.1: compile the standalone smoke, which imports parser.x.
+    # parser.x itself has no main. -L src/parser finds that library;
+    # -L .. for std.fs; -L src/lexer for token; -L src/ast for ast.
     # PLATFORM: SHARED — product -o path; host is relink-xlang / g05 product binary
     rm -f "$PARSE_FIXTURE"
-    log "compile src/parser/parser.x → $PARSER_BIN"
-    "$XLANG" -L .. -L src/lexer -L src/ast src/parser/parser.x -o "$PARSER_BIN"
+    log "compile src/parser/parser_standalone.x → $PARSER_BIN"
+    "$XLANG" -L .. -L src/parser -L src/lexer -L src/ast src/parser/parser_standalone.x -o "$PARSER_BIN"
     "$PARSER_BIN"
     echo "bootstrap-parser OK"
     ;;

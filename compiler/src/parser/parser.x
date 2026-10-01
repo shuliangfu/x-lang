@@ -32,20 +32,10 @@ const ast = import("ast");
 extern "C" function calloc(nmemb: usize, size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
 
-/* File-read smoke test used only by main below.
- * These three names are the no_mangle FS surface defined in runtime_io_abi.x
- * and already linked into the compiler image:
- *   fs_open_read_c(path) opens a NUL-terminated path read-only and returns a fd
- *   fs_posix_read_c(fd, buf, count) reads into buf and returns the byte count
- *   fs_posix_close_c(fd) closes fd
- * std_fs_open / std_fs_read / std_fs_close are not defined in the link.
- * An asm-built parser.o that calls them fails at link with three undefs
- * (the host-cc seed does not emit this main, so the product object never
- * referenced them). PLATFORM: SHARED.
- */
-export extern "C" function fs_open_read_c(path: *u8): i32;
-export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
-export extern "C" function fs_posix_close_c(fd: i32): i32;
+// Smoke entry is parser_standalone.x. This library must not define a
+// function named main or entry. WPO treats either name as a program root
+// and drops exports that other objects call. The host-cc seed does not
+// emit that smoke entry. PLATFORM: SHARED.
 
 /* See implementation. */
 /* See implementation. */
@@ -12937,51 +12927,4 @@ export function copy_module_import_path64(module: *Module, i: i32, out: u8[128])
   }
   return path_len;
   }
-}
-
-/** Exported function `main`.
- * Program/test entry point.
- * @return i32
- */
-export function main(): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-  let path: u8[32] = [
-    47, 116, 109, 112, 47, 115, 104, 117, 95, 112, 97, 114, 115, 101, 95, 116,
-    101, 115, 116, 46, 115, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  ];
-  let fd: i32 = fs_open_read_c(path);
-  if (fd >= 0) {
-    let buf: u8[128] = [];
-    let n: isize = fs_posix_read_c(fd, buf, 128);
-    fs_posix_close_c(fd);
-    if (n > 0) {
-      /* See implementation. */
-      let sl: u8[] = parser_slice_from_buf(&buf[0], (n as i32));
-      let res: ParseResult = parse(sl);
-      if (res.ok) {
-        return 0;
-      }
-      return 1;
-    }
-  }
-  // See implementation.
-  let src: u8[128] = [
-    102, 117, 110, 99, 116, 105, 111, 110, 32, 109, 97, 105, 110, 40, 41, 58,
-    32, 105, 51, 50, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32, 48, 59,
-    32, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  ];
-  /* See implementation. */
-  let sl: u8[] = parser_slice_from_buf(&src[0], 35);
-  let res: ParseResult = parse(sl);
-  if (!res.ok) {
-    return 1;
-  }
-  if (res.return_val != 0) {
-    return 2;
-  }
-  return 0;
-  }
-  return 0;  // unreachable — typeck after unsafe block
 }
