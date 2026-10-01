@@ -365,6 +365,68 @@ _PABI_FRAME_SIZE="$_G05_PO_OUT"
 _g05_pure_overlay src/runtime_pipeline_abi_reent_nocap_thin.x \
   build_asm/selfhost_pabi/reent_nocap.o glue_slice_let_reent_deep_copy_after_dual_gp_elf_c
 _PABI_REENT_NOCAP="$_G05_PO_OUT"
+# w1584: egg glue_sum_block_slice_reent_dc_bytes_c adds the <=1024 slice
+# payload into its total slot, then the esz>8 false branch jumps to the
+# epilogue with eax=0. compute_frame_size therefore reserves nothing, and
+# the use_frame=1 deep copy (reent_nocap) is placed below rsp. The current
+# product compiles the existing w157 thin so that false branch falls
+# through and the epilogue returns the total slot. Link that strong T
+# ahead of the egg. Localize the unprefixed walker and the spill twins in
+# this object: they must not replace the egg w157_walk_block_rec_x or
+# glue_asm_sum_block_call_spill_bytes. Not an ld -r egg reinject (wave406
+# HARD BAN). Algorithm stays the thin body. PLATFORM: SHARED.
+_PABI_REENT_SUM=""
+if [ "${XLANG_REENT_SUM_OVERLAY:-1}" = "1" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_w157_sum_thin.x \
+    build_asm/selfhost_pabi/reent_sum.o glue_sum_block_slice_reent_dc_bytes_c
+  _PABI_REENT_SUM="$_G05_PO_OUT"
+  if [ -n "$_PABI_REENT_SUM" ] && [ -s "$_PABI_REENT_SUM" ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -z "$_oc" ]; then
+      echo "g05_relink_env: ERROR reent sum overlay has no objcopy" >&2
+      printf '%s overlay-missing g05_relink_env: %s (no objcopy)\n' \
+        "$(date +%H:%M:%S)" "$_PABI_REENT_SUM" \
+        >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      _PABI_REENT_SUM=""
+    else
+      for _hsym in w157_walk_block_rec_x \
+          pipeline_w157_sum_expr_call_spill_bytes \
+          pipeline_glue_asm_sum_block_call_spill_bytes \
+          glue_asm_sum_block_call_spill_bytes; do
+        if nm "$_PABI_REENT_SUM" 2>/dev/null | grep -qE " T ${_hsym}\$"; then
+          "$_oc" --localize-symbol="${_hsym}" "$_PABI_REENT_SUM" 2>/dev/null || true
+        fi
+        if nm "$_PABI_REENT_SUM" 2>/dev/null | grep -qE " T _${_hsym}\$"; then
+          "$_oc" --localize-symbol="_${_hsym}" "$_PABI_REENT_SUM" 2>/dev/null || true
+        fi
+      done
+      if ! nm "$_PABI_REENT_SUM" 2>/dev/null \
+        | grep -qE " T _*glue_sum_block_slice_reent_dc_bytes_c\$"; then
+        echo "g05_relink_env: ERROR reent sum overlay lost T glue_sum_block_slice_reent_dc_bytes_c" >&2
+        printf '%s overlay-missing g05_relink_env: %s (T lost after localize)\n' \
+          "$(date +%H:%M:%S)" "$_PABI_REENT_SUM" \
+          >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        _PABI_REENT_SUM=""
+      elif nm "$_PABI_REENT_SUM" 2>/dev/null \
+        | grep -qE " T _*w157_walk_block_rec_x\$"; then
+        echo "g05_relink_env: ERROR reent sum walker still global" >&2
+        printf '%s overlay-missing g05_relink_env: %s (walker still global)\n' \
+          "$(date +%H:%M:%S)" "$_PABI_REENT_SUM" \
+          >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+        _PABI_REENT_SUM=""
+      fi
+    fi
+  fi
+fi
 # w1544: Cap residual field load/store width (w1007/w1008), now rebuilt
 # from .x by the current product on every relink instead of a stale
 # prebuilt object. Enum-typed struct fields are 4 bytes (Token.kind store
@@ -862,6 +924,22 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_NAMED_SIZE" ] && [ -s "$_PABI_LINK_O
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T glue_type_size_simple$"; then
     objcopy --weaken-symbol=glue_type_size_simple "$_PABI_LINK_O" 2>/dev/null || true
   fi
+fi
+# w1584: egg slice-reent sum is a strong T that returns 0 after adding the
+# payload. Weaken the pabi link object (build_asm only; never the src egg)
+# so the overlay first-wins. spill.o already carries a weak copy.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_REENT_SUM" ] && [ -s "$_PABI_LINK_O" ] \
+  && command -v objcopy >/dev/null 2>&1; then
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      if nm "$_PABI_LINK_O" 2>/dev/null \
+        | grep -qE " T glue_sum_block_slice_reent_dc_bytes_c$"; then
+        objcopy --weaken-symbol=glue_sum_block_slice_reent_dc_bytes_c \
+          "$_PABI_LINK_O" 2>/dev/null || true
+      fi
+      ;;
+  esac
 fi
 # w945: compiler-emitted pipeline_asm_emit_assign_elf_c. The gcc body
 # returns 0 after the pointer peel and never emits scalar `*p = v`.
@@ -1505,6 +1583,29 @@ if [ "$UNAME_S" = "Darwin" ] \
       fi
     fi
   fi
+  # w1584: Apple ld has no multidef. Weaken a strong slice-reent sum on
+  # the pabi_weak copy so the overlay wins. The egg file stays.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -n "$_PABI_REENT_SUM" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ]; then
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep -E " _glue_sum_block_slice_reent_dc_bytes_c$" \
+        | grep -v undefined | grep -qv weak; then
+        "$_oc" --weaken-symbol=_glue_sum_block_slice_reent_dc_bytes_c \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      fi
+    fi
+  fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
 # PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
@@ -1776,6 +1877,12 @@ case "$UNAME_S" in
           "$_oc" --weaken-symbol=glue_type_size_simple \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
+        # w1584: weaken egg slice-reent sum so the overlay first-wins.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_REENT_SUM" ]; then
+          "$_oc" --weaken-symbol=glue_sum_block_slice_reent_dc_bytes_c \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
         # w1501: weaken egg module-let string pool baker (127 head chunk).
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_MODLET_STRPOOL" ]; then
@@ -1898,7 +2005,7 @@ case "$UNAME_S" in
 esac
 # Default seed_link_compat path (POSIX keeps src/; Win may override above).
 : "${_SEED_LINK_COMPAT:=src/seed_link_compat.o}"
-_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
