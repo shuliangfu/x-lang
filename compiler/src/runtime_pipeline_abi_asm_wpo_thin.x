@@ -1442,11 +1442,16 @@ function asm_wpo_dce_env_enabled(): i32 {
 
 /**
  * Register entry+deps funcs and build WPO reach for asm elf emit.
- * @param entry *u8 - entry ast_Module*
- * @param entry_arena *u8 - entry ASTArena*
- * @param ctx *u8 - PipelineDepCtx* (nullable)
- * wave274 pure-owned leave.
- * PLATFORM: SHARED freestanding WPO leave.
+ * A translation unit with no main and no function named entry is a library
+ * object. Callers in other objects are invisible, so reachability would drop
+ * exports (single-file typeck.x lost 112, including wrappers only the egg
+ * calls). Those libraries full-emit, compiler selfhost modules included.
+ * A module that has main, or a function named entry, still builds reach.
+ * @param entry *u8 — entry ast_Module pointer; null returns after clear
+ * @param entry_arena *u8 — entry ASTArena pointer; null returns after clear
+ * @param ctx *u8 — PipelineDepCtx pointer; null skips dep registration
+ * @return void — sets g_aw_valid to 1 only when a reach graph was built
+ * PLATFORM: SHARED — library full-emit is the same on every host.
  */
 #[no_mangle]
 export function pipeline_asm_wpo_reach_compute_for_elf(entry: *u8, entry_arena: *u8, ctx: *u8): void {
@@ -1458,7 +1463,9 @@ export function pipeline_asm_wpo_reach_compute_for_elf(entry: *u8, entry_arena: 
     if (asm_wpo_dce_env_enabled() == 0) {
       return;
     }
-    // User library module .o (no main/entry): full emit; selfhost dogfood must not early-return.
+    // No main and no function named "entry": this TU is linked with other
+    // objects. Leave g_aw_valid at 0 so should_emit keeps every function.
+    // Programs that do have main or "entry" fall through and run DCE.
     let main_ix: i32 = pipeline_module_main_func_index(entry);
     if (main_ix < 0) {
       let nf0: i32 = pipeline_module_num_funcs(entry);
@@ -1472,10 +1479,7 @@ export function pipeline_asm_wpo_reach_compute_for_elf(entry: *u8, entry_arena: 
         fi0 = fi0 + 1;
       }
       if (found_entry == 0) {
-        if (asm_module_is_typeck_selfhost(entry) == 0 && asm_module_is_pipeline_selfhost(entry) == 0 &&
-            asm_module_is_backend_selfhost(entry) == 0 && asm_module_is_driver_compile_selfhost(entry) == 0) {
-          return;
-        }
+        return;
       }
     }
     asm_wpo_set_entry(entry);

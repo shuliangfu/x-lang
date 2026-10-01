@@ -56997,9 +56997,11 @@ void pipeline_asm_wpo_reach_compute_for_elf(uint8_t * entry, uint8_t * entry_are
         }
         (void)((fi0 = (fi0 + 1)));
       }
-      ((found_entry ==0) ? ({   (((((asm_module_is_typeck_selfhost(entry) ==0) && (asm_module_is_pipeline_selfhost(entry) ==0)) && (asm_module_is_backend_selfhost(entry) ==0)) && (asm_module_is_driver_compile_selfhost(entry) ==0)) ? ({   return;
- }) : 0);
- }) : 0);
+      /* PLATFORM: SHARED — library TU (no main, no function named entry)
+       * full-emits, including compiler selfhost modules. Matches the thin. */
+      if ((found_entry ==0)) {
+        return;
+      }
     }
     (void)(asm_wpo_set_entry(entry));
     (void)(asm_wpo_set_dep_ctx(ctx));

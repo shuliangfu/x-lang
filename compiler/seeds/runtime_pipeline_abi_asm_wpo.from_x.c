@@ -1221,12 +1221,11 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
   /** A/B bench：XLANG_ASM_WPO_DCE=0 时不构图，emit 全量函数。 */
   if (!asm_wpo_dce_env_enabled())
     return;
-  /**
-   * 用户库 module .o（无 main、无 entry）：须全量 export 进 .o，勿 WPO 误留 emit_n=1 空壳。
-   * PLATFORM: SHARED — compiler selfhost dogfood（typeck/pipeline/backend/driver_compile）
-   * 使用下方命名 WPO root；禁止走此 early-return（否则 typeck_wpo __text 全量 ~100KiB 压不进 baseline）。
-   * 历史债：2026-06-24 加用户库门时误伤 selfhost；typeck_wpo max 2048 从此红。
-   */
+  /* PLATFORM: SHARED — a TU with no main and no function named entry is a
+   * library object. Other TUs' calls are invisible, so DCE drops exports
+   * (single-file typeck.x lost 112). Full-emit, selfhost modules included.
+   * A module that has main or a function named entry still builds reach.
+   * Same rule as pipeline_asm_wpo_reach_compute_for_elf in the thin. */
   main_ix = pipeline_module_main_func_index(entry);
   if (main_ix < 0) {
     static const uint8_t entry_nm[6] = {'e', 'n', 't', 'r', 'y', 0};
@@ -1235,11 +1234,8 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
       if (pipeline_module_func_name_equal_at(entry, fi, entry_nm, 5))
         break;
     }
-    if (fi >= nf) {
-      if (!asm_module_is_typeck_selfhost(entry) && !asm_module_is_pipeline_selfhost(entry) &&
-          !asm_module_is_backend_selfhost(entry) && !asm_module_is_driver_compile_selfhost(entry))
-        return;
-    }
+    if (fi >= nf)
+      return;
   }
   /**
    * build_xlang_asm EMIT_HEAVY 第二遍：全 compiler 自举模块均可 WPO（root 按模块名设置）。
