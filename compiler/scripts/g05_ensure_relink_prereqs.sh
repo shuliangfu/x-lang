@@ -26,18 +26,19 @@ cd "$(dirname "$0")/.."
 # parser_x, codegen_x, or typeck_x; the gen file is the stem with the
 # _x suffix replaced by _gen.c. A match skips host-cc. Both files
 # present but the digest different: stop, do not cc. No stamp: pin/cold
-# cc unchanged. Object missing: typeck and codegen still ignore the
-# stamp, cold-cc, then remove the stamp. Parser on Linux does not:
-# a missing parser_x.o is rebuilt from src/parser/parser.x (w1633) and
-# stamped. A stamp with no object is not a hard stop, because L4
+# cc unchanged. Object missing: typeck still ignores the stamp,
+# cold-cc, then removes the stamp. Parser and codegen on Linux do not:
+# a missing object is rebuilt from the .x (parser w1633, codegen w1634)
+# and stamped. A stamp with no object is not a hard stop, because L4
 # deletes the .o and keeps the stamp. These flags exit before the
-# crash-log wipe. ensure does not emit typeck.x or codegen.x.
+# crash-log wipe. ensure does not emit typeck.x. It emits parser.x and
+# codegen.x on Linux only when that object is missing.
 # PLATFORM: SHARED — Darwin and Windows g05 use this script.
 # A stamp is written only beside an installed pure-asm object. Darwin
 # and Windows have no codegen_x.pure_asm or typeck_x.pure_asm, so their
 # ensure still host-ccs that gen when the file is newer. A missing
-# typeck or codegen object on every host still host-ccs. A missing
-# parser object host-ccs on Darwin and Windows. win_host_cc_parser_x.sh
+# typeck object on every host still host-ccs. A missing parser or
+# codegen object host-ccs on Darwin and Windows. win_host_cc_parser_x.sh
 # is a separate Windows helper and still host-ccs when invoked on its
 # own. Checklist 7.2 stays open.
 g05_frontend_x_sha256() {
@@ -4582,11 +4583,29 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       rm -f typeck_x.pure_asm
     fi
   fi
-  # codegen_x.o cold path (wave323 M4 7.4.2).
-  # PLATFORM: SHARED — prefer ensure_migrate_gen codegen (codegen.x -E + Cap residual)
-  # when a product -E binary exists; archaeology seed only if assemble cannot run.
-  # G.7: do not blind-cp pin over a fresher .x assemble.
-  if [ ! -f codegen_x.o ]; then
+  # codegen_x.o cold path.
+  # Linux missing object (w1634): rebuild from src/codegen/codegen.x via
+  # build_codegen_x. No host cc, no -E assemble. L4 deletes the .o and
+  # keeps the stamp, so the rebuild has to run in that case. The helper
+  # emits the same defined set as the installed object. Two constant-10
+  # division checks inside format_uint64 are absent on this compiler,
+  # so the bytes are not a drop-in and this path does not replace the
+  # installed object. Darwin and Windows still assemble below.
+  # PLATFORM: LINUX for the rebuild, SHARED for the stamp check.
+  # Cap residual stays a separate object. It is not inside codegen.x.
+  if [ ! -f codegen_x.o ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "g05_ensure: codegen_x.o missing; pure-asm src/codegen/codegen.x (no host-cc)"
+    if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
+      echo "g05_ensure: codegen_x.o pure-asm failed" >&2
+      return 1
+    fi
+    if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
+      echo "g05_ensure: codegen_x.o pure-asm stamp failed" >&2
+      return 1
+    fi
+  elif [ ! -f codegen_x.o ]; then
+    # PLATFORM: DARWIN | WINDOWS — assemble, then the cc below.
+    # G.7: do not blind-cp pin over a fresher .x assemble.
     if [ -f scripts/ensure_migrate_gen.sh ]; then
       echo "g05_ensure: ensure_migrate_gen codegen (cold: missing codegen_x.o; prefer .x assemble)"
       bash scripts/ensure_migrate_gen.sh codegen \
@@ -4600,10 +4619,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # w1610: same stamp as parser_x.pure_asm. A matching
   # codegen_x.pure_asm skips the cc below even when codegen_gen.c is
   # newer. A stamp that does not match the object stops ensure.
-  # No stamp: mtime cc unchanged. Cold missing object still host-ccs
-  # after the assemble above, then the stamp is removed.
+  # No stamp: mtime cc unchanged. Linux missing object was rebuilt
+  # above and stamped, so the cc below is skipped. Darwin and Windows
+  # missing objects still host-cc after the assemble above, then the
+  # stamp is removed.
   # PLATFORM: SHARED. The stamp file is written only where the
-  # pure-asm object is installed (Ubuntu, w1609). Darwin and Windows
+  # pure-asm object is installed (Ubuntu). Darwin and Windows
   # have no stamp, so this branch does not change their host-cc.
   _cgx_rc=0
   g05_frontend_x_needs_host_cc . codegen_x || _cgx_rc=$?
