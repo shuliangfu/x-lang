@@ -486,8 +486,9 @@ fi
 # w1564: parser EMIT_HEAVY force-stub list. The egg
 # asm_parser_emit_heavy_force_stub also stubs every onefunc_ /
 # copy_onefunc_ / set_onefunc_ name. skip_heavy calls it with
-# R_X86_64_PLT32, so this overlay is the linked body. The thin keeps the
-# six recorded segfault / elf_ec=-1 names and drops those three prefixes.
+# R_X86_64_PLT32, so this overlay is the linked body. The thin keeps five
+# recorded segfault / elf_ec=-1 names, drops those three prefixes, and
+# emits parser_expr_wrap_in_return (w1577: a ret0 stub aborted fmt).
 # A failed compile is logged and blocks the link. PLATFORM: SHARED.
 _PABI_PARSER_FORCE_STUB=""
 if [ "${XLANG_PARSER_FORCE_STUB_OVERLAY:-1}" = "1" ]; then
