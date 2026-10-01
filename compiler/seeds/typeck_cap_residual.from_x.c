@@ -1,7 +1,8 @@
 /* ============================================================================
  * wave317 typeck M4 layer-1 Cap residual (BSS slots + CTFE).
  * Authority: pin typeck_gen L13097-14390 (pre-wave317). allow_legacy lives in
- * patch_typeck_gen_lang007 / product header — not duplicated here.
+ * seeds/typeck_allow_legacy.from_x.c. patch_typeck_gen_lang007.py inserts
+ * that file. Not duplicated here.
  * Append-only companion for tip typeck.x -E re-pin; G.7 residual TU.
  * PLATFORM: SHARED freestanding typeck Cap residual.
  * ========================================================================== */
@@ -93,6 +94,12 @@ int32_t *typeck_layout_metrics_al_slot_depth(int32_t depth) {
   return &g_typeck_layout_metrics_depth_scratch[s % 8][1];
 }
 
+/* TYPECK_CAP_RESIDUAL_SLOTS_ONLY compiles the BSS slot prefix above as its
+ * own object (seeds/typeck_cap_residual_tu.c). The CTFE half below stays in
+ * this file and is still pasted into host-cc typeck_gen.c when the macro is
+ * undefined. PLATFORM: SHARED — one slot body, not a second copy.
+ */
+#if !defined(TYPECK_CAP_RESIDUAL_SLOTS_ONLY)
 /* ==========================================================================
  * wave238 hand-sync: typeck CTFE pure leave (LANG-006 producer).
  * Authority = typeck_x.o (this file). Cap residual pipeline_typeck_ctfe.c thins
@@ -1505,5 +1512,5 @@ void typeck_fold_expr_in_block(struct ast_ASTArena *arena, int32_t block_ref,
   typeck_block_const_env_build_impl(arena, block_ref, nconst, names, name_bufs, values, &n);
   typeck_fold_expr_ref_impl(arena, expr_ref, names, values, n);
 }
-
+#endif /* !TYPECK_CAP_RESIDUAL_SLOTS_ONLY */
 

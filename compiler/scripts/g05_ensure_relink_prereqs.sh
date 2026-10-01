@@ -19,23 +19,24 @@
 set -e
 cd "$(dirname "$0")/.."
 
-# w1578 / w1610: *_gen.c is gitignored. Copying a seed or re-assembling
-# refreshes its mtime, and the test below used to host-cc over the
-# frontend object whenever that file was newer. A pure-asm object is
-# recorded as <stem>.pure_asm (one sha256 line). stem is parser_x or
-# codegen_x; the gen file is the stem with the _x suffix replaced by
-# _gen.c. A match skips host-cc. Both files present but the digest
-# different: stop, do not cc. No stamp: pin/cold cc unchanged. Object
-# missing: the stamp is ignored and the cold cc still runs, then the
-# stamp is removed. These flags exit before the crash-log wipe.
-# ensure only reads the stamp. It does not emit the .x.
+# w1578 / w1610 / w1612: *_gen.c is gitignored. Copying a seed or
+# re-assembling refreshes its mtime, and the test below used to host-cc
+# over the frontend object whenever that file was newer. A pure-asm
+# object is recorded as <stem>.pure_asm (one sha256 line). stem is
+# parser_x, codegen_x, or typeck_x; the gen file is the stem with the
+# _x suffix replaced by _gen.c. A match skips host-cc. Both files
+# present but the digest different: stop, do not cc. No stamp: pin/cold
+# cc unchanged. Object missing: the stamp is ignored and the cold cc
+# still runs, then the stamp is removed. These flags exit before the
+# crash-log wipe. ensure only reads the stamp. It does not emit the .x.
 # PLATFORM: SHARED — Darwin and Windows g05 use this script.
 # A stamp is written only beside an installed pure-asm object. Darwin
-# and Windows have no codegen_x.pure_asm, so their ensure still
-# host-ccs codegen_gen.c when that file is newer. A missing object
-# on every host still host-ccs. win_host_cc_parser_x.sh is a separate
-# Windows helper and still host-ccs when invoked on its own.
-# Checklist 7.2 stays open: typeck_x.o is still host-cc of typeck_gen.c.
+# and Windows have no codegen_x.pure_asm or typeck_x.pure_asm, so their
+# ensure still host-ccs that gen when the file is newer. A missing
+# object on every host still host-ccs. win_host_cc_parser_x.sh is a
+# separate Windows helper and still host-ccs when invoked on its own.
+# Checklist 7.2 stays open: a missing typeck_x.o still host-ccs
+# typeck_gen.c, and the Windows parser script still host-ccs.
 g05_frontend_x_sha256() {
   _fx_file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -137,6 +138,18 @@ case "${1:-}" in
     ;;
   --codegen-x-needs-host-cc)
     g05_frontend_x_needs_host_cc "${2:-.}" codegen_x
+    exit 0
+    ;;
+  --typeck-x-pure-asm-stamp)
+    g05_stamp_frontend_x_pure_asm "${2:-.}" typeck_x
+    exit 0
+    ;;
+  --typeck-x-pure-asm-kept)
+    g05_frontend_x_pure_asm_kept "${2:-.}" typeck_x
+    exit 0
+    ;;
+  --typeck-x-needs-host-cc)
+    g05_frontend_x_needs_host_cc "${2:-.}" typeck_x
     exit 0
     ;;
 esac
@@ -4528,7 +4541,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: typeck_gen.c Cap residual re-spliced from seed"
     fi
   fi
-  if [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
+  # w1612: same stamp as parser_x.pure_asm / codegen_x.pure_asm.
+  # A matching typeck_x.pure_asm skips the cc below even when the
+  # splice refreshed typeck_gen.c. A stamp that does not match the
+  # object stops ensure. No stamp: splice / mtime cc unchanged.
+  # Cold missing object still host-ccs after the assemble above, then
+  # the stamp is removed. PLATFORM: SHARED. The stamp file is written
+  # only where the pure-asm object is installed. Darwin and Windows
+  # have no typeck_x.pure_asm, so this branch does not change their host-cc.
+  _tgx_rc=0
+  g05_frontend_x_needs_host_cc . typeck_x || _tgx_rc=$?
+  if [ "$_tgx_rc" -eq 2 ]; then
+    echo "g05_ensure: ERROR typeck_x.pure_asm does not match typeck_x.o; refusing to host-cc" >&2
+    exit 1
+  fi
+  if [ "$_tgx_rc" -eq 1 ] && g05_frontend_x_pure_asm_kept . typeck_x; then
+    echo "g05_ensure: typeck_x.o kept (pure-asm stamp matches; no host-cc)"
+  elif [ -f typeck_gen.c ] && [ -f scripts/patch_typeck_gen_lang007.py ]; then
     _tg_before=$(wc -c < typeck_gen.c | tr -d ' ')
     python3 scripts/patch_typeck_gen_lang007.py || true
     _tg_after=$(wc -c < typeck_gen.c | tr -d ' ')
@@ -4536,6 +4565,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 / assemble)"
       # shellcheck disable=SC2086
       $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
+      rm -f typeck_x.pure_asm
     fi
   fi
   # codegen_x.o cold path (wave323 M4 7.4.2).
