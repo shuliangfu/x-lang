@@ -8,7 +8,15 @@
 // no-ops and the f32 bits are stored as an f64.
 // Integer times f64 already goes through the binop_wide mixed leaf.
 // Integer times a wide integer is not this object.
+// w1597: u32 minus u32, and u8 minus u8, kept a 64-bit result. On x86 the
+// rbx-minus-rax encoder is subq, so 0 - 1 stays -1. A literal on the right
+// uses subl, which wraps at 32 bits, and then cltq sign-extends that wrap.
+// Zero-extend the low 32 bits for u32, or the low 8 bits for u8, and skip
+// cltq. A wide integer on either side stays a full 64-bit subtract. i32
+// still sign-extends. The rax-minus-rbx direction is in this object too,
+// so a literal on the right takes the same zero-extend.
 // LINUX links this object ahead of the egg. Do not rebuild the pabi egg.
+// Darwin and Windows keep the previous body until they relink.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX installs the object.
 
 export extern function glue_binop_operand_is_scalar_f64_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
@@ -18,6 +26,11 @@ export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_ex
 export extern function glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32;
 export extern function glue_binop_maybe_sxt_i32_result_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, elf_ctx: *u8, ta: i32): i32;
 export extern function glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_subsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_subss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_addsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_addss_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32;
@@ -292,12 +305,108 @@ function w1594_emit_wide_sub_rbx_minus_rax(elf_ctx: *u8, ta: i32): i32 {
 }
 
 /**
+ * Unsigned width of a narrow subtraction, or 0 when the signed path stays.
+ * Both sides u32, or one u32 and a narrow literal, return 3. Both sides u8,
+ * or one u8 and a narrow literal, return 2. A wide integer on either side
+ * returns 0 so the full 64-bit difference is kept. An i32 still returns 0
+ * and the caller sign-extends.
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — emit context; null skips the declaration fallback
+ * @param left_ref i32 — left operand
+ * @param right_ref i32 — right operand
+ * @return i32 — 3 for u32, 2 for u8, 0 otherwise
+ * PLATFORM: SHARED — type kinds only; the extend is emitted by the caller.
+ */
+function w1597_unsigned_kind(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+  let lk: i32 = 0;
+  let rk: i32 = 0;
+  if (w1591_is_wide_int(arena, ctx, left_ref) != 0) {
+    return 0;
+  }
+  if (w1591_is_wide_int(arena, ctx, right_ref) != 0) {
+    return 0;
+  }
+  lk = w1591_operand_kind(arena, ctx, left_ref);
+  rk = w1591_operand_kind(arena, ctx, right_ref);
+  if (lk == 3 && rk == 3) {
+    return 3;
+  }
+  if (lk == 2 && rk == 2) {
+    return 2;
+  }
+  // A bare literal has no unsigned type of its own. Next to a u32 or u8
+  // it takes that width. Next to an i32 the caller still sign-extends.
+  if (lk == 3 && w1591_is_narrow_lit(arena, right_ref) != 0) {
+    return 3;
+  }
+  if (rk == 3 && w1591_is_narrow_lit(arena, left_ref) != 0) {
+    return 3;
+  }
+  if (lk == 2 && w1591_is_narrow_lit(arena, right_ref) != 0) {
+    return 2;
+  }
+  if (rk == 2 && w1591_is_narrow_lit(arena, left_ref) != 0) {
+    return 2;
+  }
+  return 0;
+}
+
+/**
+ * Zero-extend rax to a u32 or a u8.
+ * u32 uses mov %eax,%eax. u8 uses and $0xff,%eax. A u8 must not use the
+ * u32 form: a 32-bit subtract of 0 - 1 leaves 0xffffffff, and only the
+ * byte mask wraps that to 255.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param kind i32 — 3 for u32, 2 for u8
+ * @return i32 — 0 ok, -1 when kind is neither or the encoder fails
+ * PLATFORM: SHARED — existing zxt encoders; x86_64 and arm64.
+ */
+function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
+  unsafe {
+    if (kind == 3) {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
+    if (kind == 2) {
+      return glue_enc_zxt_u8_result_to_rax_elf_c(elf_ctx, ta);
+    }
+  }
+  return 0 - 1;
+}
+
+/**
+ * After a narrow subtract, zero-extend an unsigned result or sign-extend i32.
+ * Unsigned returns before cltq. subq of two u32 values leaves the high half
+ * set on wrap; the zero-extend keeps only the low 32 bits. subl of a u8
+ * wraps at 32 bits, so the u8 form must mask to 8 bits.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left operand
+ * @param right_ref i32 — right operand
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, nonzero encode failure
+ * PLATFORM: SHARED — x86_64 mov/and and arm64 uxtw/uxtb.
+ */
+function w1597_finish_narrow(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let uk: i32 = 0;
+  uk = w1597_unsigned_kind(arena, ctx, left_ref, right_ref);
+  if (uk != 0) {
+    return w1597_zxt_rax(elf_ctx, ta, uk);
+  }
+  unsafe {
+    return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
+  }
+}
+
+/**
  * Emit rbx minus rax for integer or float SUB.
  * Same float arms as the egg. A narrow integer on the left next to a wide
  * integer is sign-extended and subtracted at 64 bits, with no following
- * cltq. i32 minus i32 still uses that cltq. A wide left already takes the
- * 64-bit arm; a narrow literal in rbx is sign-extended first so -1 stays
- * negative.
+ * cltq. i32 minus i32 still uses that cltq. A u32 or u8 minus the same
+ * width, or minus a narrow literal, is zero-extended and does not cltq.
+ * A wide left already takes the 64-bit arm; a narrow literal in rbx is
+ * sign-extended first so -1 stays negative.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -357,9 +466,81 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
   if (is_64bit != 0) {
     return 0;
   }
+  // u32 and u8 wrap here. i32 still sign-extends inside the finish helper.
+  return w1597_finish_narrow(arena, elf_ctx, ctx, left_ref, right_ref, ta);
+}
+
+/**
+ * Emit rax minus rbx for integer or float SUB.
+ * Same float, pointer-scale, and 64-bit arms as the egg. The right-hand
+ * literal path lands here: subl already wraps at 32 bits, and the egg then
+ * sign-extended because the literal is an unstamped i32. A u32 or u8 result
+ * is zero-extended instead. i32 still sign-extends. A wide operand returns
+ * before that extend.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left expression, already in rax
+ * @param right_ref i32 — right expression, already in rbx
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, nonzero encode failure
+ * PLATFORM: SHARED — x86_64 subq %rbx,%rax and arm64 SUB X0,X0,X1. LINUX links this body.
+ */
+#[no_mangle]
+export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let rc: i32 = 0;
+  let is_64bit: i32 = 0;
   unsafe {
-    return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
+    if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
+      return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
+    }
+    if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) != 0)) {
+      return backend_enc_subss_rax_rbx_arch(elf_ctx, ta);
+    }
+    if (glue_ptr_arith_scale_rbx_offset_if_left_ptr_c(arena, elf_ctx, left_ref, right_ref, ta) != 0) {
+      return 0 - 1;
+    }
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+    if (is_64bit != 0) {
+      // Same bytes as the egg. x86: subq %rbx,%rax (48 29 d8).
+      // arm64: SUB X0, X0, X1 (00 00 01 CB).
+      if (ta == 0) {
+        if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 216) != 0) {
+          return 0 - 1;
+        }
+      } else if (ta == 1) {
+        if (backend_enc_append_u8_c(elf_ctx, 0) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 0) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 1) != 0) {
+          return 0 - 1;
+        }
+        if (backend_enc_append_u8_c(elf_ctx, 203) != 0) {
+          return 0 - 1;
+        }
+      } else {
+        rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+      }
+    } else {
+      rc = backend_enc_sub_rax_rbx_arch(elf_ctx, ta);
+    }
   }
+  if (rc != 0) {
+    return rc;
+  }
+  if (is_64bit != 0) {
+    return 0;
+  }
+  return w1597_finish_narrow(arena, elf_ctx, ctx, left_ref, right_ref, ta);
 }
 
 /**
