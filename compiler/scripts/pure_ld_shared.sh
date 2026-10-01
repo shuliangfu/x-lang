@@ -584,6 +584,10 @@ pure_asm_emit_with_timeout() {
   local xl="$1" stage="$2" src="$3"
   local to="${XLANG_PURE_ASM_TIMEOUT_SEC:-90}"
   local pid="" killer="" rc=0
+  # Unset keeps the historic argv and discards stderr. Parser's cold
+  # rebuild sets both: the -L list the direct asm emit used, and a log
+  # path. Other callers leave them empty. PLATFORM: SHARED.
+  local _pure_err="${XLANG_PURE_ASM_ERR:-/dev/null}"
 
   if [ -z "$xl" ] || [ -z "$stage" ] || [ -z "$src" ]; then
     return 1
@@ -595,7 +599,12 @@ pure_asm_emit_with_timeout() {
 
   # Timeout 0: historic unbounded emit (diagnostic maps only).
   if [ "$to" = "0" ]; then
-    "$xl" -backend asm -c -o "$stage" "$src" 2>/dev/null
+    if [ -n "${XLANG_PURE_ASM_LIBROOT:-}" ]; then
+      # shellcheck disable=SC2086
+      "$xl" -backend asm -c ${XLANG_PURE_ASM_LIBROOT} -o "$stage" "$src" 2>"$_pure_err"
+    else
+      "$xl" -backend asm -c -o "$stage" "$src" 2>"$_pure_err"
+    fi
     return $?
   fi
 
@@ -603,7 +612,15 @@ pure_asm_emit_with_timeout() {
   # Map 2026-08-12: mega pure-asm hung 180s+ with empty OUT/stderr; basename ban
   # covers runtime_pipeline_abi.x, timeout is residual safety for any other
   # unbounded pure-asm emit that could stall try-*-prefer before -E fallthrough.
-  "$xl" -backend asm -c -o "$stage" "$src" 2>/dev/null &
+  # LIBROOT is split by the shell. Paths have no spaces. An empty value
+  # stays on the historic argv so bash 3.2 + set -u never expands an
+  # empty array. PLATFORM: SHARED.
+  if [ -n "${XLANG_PURE_ASM_LIBROOT:-}" ]; then
+    # shellcheck disable=SC2086
+    "$xl" -backend asm -c ${XLANG_PURE_ASM_LIBROOT} -o "$stage" "$src" 2>"$_pure_err" &
+  else
+    "$xl" -backend asm -c -o "$stage" "$src" 2>"$_pure_err" &
+  fi
   pid=$!
   (
     sleep "$to"
@@ -769,6 +786,14 @@ pure_asm_x_to_o() {
     # PLATFORM: SHARED — ELF shows the extra U; Mach-O usually does not.
     _pure_u="$(nm -u "$_pure_asm_stage" 2>/dev/null || true)"
     if nm "$_pure_asm_stage" 2>/dev/null | grep -E ' [TtWw] _?xlang_panic_$' >/dev/null 2>&1; then
+      _pure_u="$(printf '%s\n' "$_pure_u" | grep -v 'xlang_panic_' || true)"
+    fi
+    # Parser's installed object references xlang_panic_ and does not
+    # define it. The weak body stays in lexer_x.o. Rejecting that
+    # undefined would throw away a full emit and fall through to host cc.
+    # Opt in only from that rebuild. Bare __error is still rejected.
+    # PLATFORM: SHARED flag; the parser caller is LINUX.
+    if [ "${XLANG_PURE_ASM_ALLOW_U_PANIC:-0}" = "1" ]; then
       _pure_u="$(printf '%s\n' "$_pure_u" | grep -v 'xlang_panic_' || true)"
     fi
     if printf '%s\n' "$_pure_u" | grep -E 'xlang_panic|^__error$' >/dev/null 2>&1; then

@@ -10,6 +10,10 @@
 #       pipeline_x.o ← pipeline_gen.c (+ gen_driver cache / FORCE / PIPELINE_X_DEPS)
 #     wave782 (try-gen-c-to-o B4 bootstrap; NOT try-gen-x catalog):
 #       lexer_x.o      ← src/lexer/lexer.x pure-asm (w1546; no host cc)
+#       parser_x.o     ← src/parser/parser.x pure-asm (w1633; no host cc).
+#                        Not the migrate_x_objs.sh host-cc leaf. That script
+#                        still compiles parser_gen.c. This function is the
+#                        cold rebuild; g05 calls it only after a proof.
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
 #       preprocess_x.o ← preprocess_gen.c
@@ -22,13 +26,15 @@
 #   ensure_migrate_gen — this script may call lsp/pipeline gen when missing;
 #   it does not own -E regen policy for B4 (Makefile keeps gen.c prereqs).
 #
-#   migrate_x_objs.sh stays the authority for parser/typeck/codegen migrate leaves
-#   (wave735); do not fork a second migrate path here.
+#   migrate_x_objs.sh stays the host-cc archaeology for parser/typeck/codegen
+#   migrate leaves (wave735). w1633 does not fork that -E path: parser_x.o
+#   cold rebuild is pure-asm below, same authority as lexer (pure_asm_x_to_o).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_gen_x_o.sh one <out.o>
 #   bash scripts/ensure_gen_x_o.sh lsp-io|lsp|lsp-diag|pipeline
 #   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x
+#   bash scripts/ensure_gen_x_o.sh parser_x [out.o]
 #   bash scripts/ensure_gen_x_o.sh lsp-all     # three LSP gen objs
 #   bash scripts/ensure_gen_x_o.sh residual-all  # lsp trio + pipeline_x (not B4)
 #
@@ -326,6 +332,49 @@ build_lexer_x() {
   return 1
 }
 
+build_parser_x() {
+  # w1633 (checklist 7.2, parser cold rebuild): one pure-asm emit of
+  # src/parser/parser.x. No host cc of parser_gen.c and no fallback.
+  # $1 is the output path. Default parser_x.o in cwd (compiler/). A probe
+  # passes an absolute path whose name does not contain "main"; that
+  # substring prefixes every T symbol. This function removes only $1.
+  #
+  # Flags match the emit that produced the installed object: entry module
+  # only, full bodies, DCE left on. The library defines no function named
+  # main or entry, so DCE keeps every export. FORCE is required because
+  # skip_heavy stubs later ordinals when the module is large. It is set
+  # only in this subshell, never for a product relink.
+  # xlang_panic_ stays undefined here. lexer_x.o owns the weak body.
+  # PLATFORM: LINUX caller. Darwin and Windows do not call this yet.
+  local out="${1:-parser_x.o}"
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/parser/parser.x ]; then
+    log "parser_x.o: pure_ld_shared.sh or src/parser/parser.x missing"
+    return 1
+  fi
+  rm -f "$out"
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    export XLANG_ASM_ENTRY_MODULE_ONLY=1
+    export XLANG_ASM_FORCE_FULL_BODIES=1
+    export XLANG_PURE_ASM_TIMEOUT_SEC=900
+    export XLANG_PURE_ASM_ALLOW_U_PANIC=1
+    export XLANG_PURE_ASM_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
+    unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
+    ulimit -s 65532 || true
+    pure_asm_x_to_o "$out" src/parser/parser.x
+  ) && [ -s "$out" ]; then
+    log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
+    return 0
+  fi
+  rm -f "$out"
+  log "parser_x.o pure-asm failed (w1633; no cc fallback)"
+  return 1
+}
+
 build_ast_gen2() {
   # wave329: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
   # ast_gen2 has no archaeology cold seed pin (yet); PREFER_X_O will timeout
@@ -451,6 +500,9 @@ case "$MODE" in
   lexer-x|lexer_x|lexer_x.o)
     build_lexer_x
     ;;
+  parser-x|parser_x|parser_x.o)
+    build_parser_x "${2:-parser_x.o}"
+    ;;
   ast-gen2|ast_gen2|ast_gen2.o)
     build_ast_gen2
     ;;
@@ -478,7 +530,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|lsp-all|residual-all)" >&2
+    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|parser-x|ast-gen2|driver-x|preprocess-x|lsp-all|residual-all)" >&2
     exit 2
     ;;
 esac
