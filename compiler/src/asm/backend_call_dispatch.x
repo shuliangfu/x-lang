@@ -1795,15 +1795,19 @@ function glue_sysv_push_int_stack_arg_elf_c(elf: *u8, ta: i32, gp_units: i32): i
   let rc: i32 = 0;
   if (elf == 0 as *u8) { return 0 - 1; }
   if (ta != 0) { return 0 - 1; }
-  if (gp_units >= 2) {
-    // High eightbyte at the higher address. push rdx does not clobber rax.
-    op[0] = 82;
-    unsafe { rc = pipeline_elf_ctx_append_bytes(elf, &op[0], 1); }
-    if (rc != 0) { return 0 - 1; }
+  // append_bytes and push_rax are extern. The one-byte push rdx stays raw:
+  // the encoder exports push rax (0x50) and push rbx (0x53), and that object
+  // is not rebuilt for opcode 0x52. push rdx does not clobber rax.
+  unsafe {
+    if (gp_units >= 2) {
+      op[0] = 82;
+      rc = pipeline_elf_ctx_append_bytes(elf, &op[0], 1);
+      if (rc != 0) { return 0 - 1; }
+      if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
+      return 16;
+    }
     if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
-    return 16;
   }
-  if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
   return 8;
 }
 
