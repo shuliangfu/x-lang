@@ -18,6 +18,12 @@
 #                        Same split: migrate_x_objs.sh still compiles
 #                        codegen_gen.c. g05 calls this on Linux when
 #                        codegen_x.o is missing.
+#       typeck_x.o     ← src/typeck/typeck.x pure-asm (w1635; no host cc).
+#                        migrate_x_objs.sh still compiles typeck_gen.c.
+#                        g05 calls this on Linux when typeck_x.o is missing.
+#                        Seven CTFE names stay undefined; typeck_ctfe.o
+#                        owns those bodies. Cap-residual slot names stay
+#                        undefined in the companion already on the link list.
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
 #       preprocess_x.o ← preprocess_gen.c
@@ -31,9 +37,9 @@
 #   it does not own -E regen policy for B4 (Makefile keeps gen.c prereqs).
 #
 #   migrate_x_objs.sh stays the host-cc archaeology for parser/typeck/codegen
-#   migrate leaves (wave735). w1633 / w1634 do not fork that -E path:
-#   parser_x.o and codegen_x.o cold rebuilds are pure-asm below, same
-#   authority as lexer (pure_asm_x_to_o). typeck_x.o is not in this script.
+#   migrate leaves (wave735). w1633 / w1634 / w1635 do not fork that -E path:
+#   parser_x.o, codegen_x.o, and typeck_x.o cold rebuilds are pure-asm
+#   below, same authority as lexer (pure_asm_x_to_o).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_gen_x_o.sh one <out.o>
@@ -426,6 +432,69 @@ build_codegen_x() {
   return 1
 }
 
+build_typeck_x() {
+  # w1635 (checklist 7.2, typeck cold rebuild): one pure-asm emit of
+  # src/typeck/typeck.x. No host cc of typeck_gen.c and no fallback.
+  # $1 is the output path. Default typeck_x.o in cwd (compiler/). A probe
+  # passes an absolute path whose name does not contain "main"; that
+  # substring prefixes every T symbol. This function removes only $1.
+  #
+  # Flags match the emit that produced the installed object: entry module
+  # only, full bodies, DCE left on. The library defines no function named
+  # main or entry, so DCE keeps every export. FORCE is required because
+  # skip_heavy stubs later ordinals when the module is large. It is set
+  # only in this subshell, never for a product relink.
+  #
+  # The seven CTFE faces (typeck_fold_expr, typeck_fold_block_const_init,
+  # typeck_fold_expr_in_block, typeck_block_const_init_is_const,
+  # typeck_const_init_not_constant, typeck_expr_is_c_static_const_init,
+  # typeck_expr_is_const_with_module_consts) are export extern in the .x.
+  # They stay undefined here. seeds/typeck_ctfe_tu.c is the body, linked
+  # as typeck_ctfe.o when the stamp matches. Cap-residual slot names,
+  # including typeck_scratch64_slot, stay undefined in the companion
+  # already on the link list. Do not define either set in this object.
+  #
+  # This compiler's emit of the layout remainder sites
+  # (typeck_soa_col_base_for_field, typeck_soa_array_storage_size_glue,
+  # typeck_struct_layout_metrics) omits the idiv zero-divisor panic
+  # sequence. The source already forces that alignment divisor to at
+  # least 1, or guards the remainder with max_al > 1. The bytes are
+  # therefore not a drop-in for the installed object. Callers must not
+  # copy this emit over an object that is already present.
+  # xlang_panic_ is not referenced by this emit. The allow flag stays:
+  # the installed object does reference it, and an older compiler's emit
+  # of this TU would be rejected without the flag. lexer_x.o owns the
+  # weak body.
+  # PLATFORM: LINUX caller. Darwin and Windows do not call this yet.
+  local out="${1:-typeck_x.o}"
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/typeck/typeck.x ]; then
+    log "typeck_x.o: pure_ld_shared.sh or src/typeck/typeck.x missing"
+    return 1
+  fi
+  rm -f "$out"
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    export XLANG_ASM_ENTRY_MODULE_ONLY=1
+    export XLANG_ASM_FORCE_FULL_BODIES=1
+    export XLANG_PURE_ASM_TIMEOUT_SEC=900
+    export XLANG_PURE_ASM_ALLOW_U_PANIC=1
+    export XLANG_PURE_ASM_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
+    unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
+    ulimit -s 65532 || true
+    pure_asm_x_to_o "$out" src/typeck/typeck.x
+  ) && [ -s "$out" ]; then
+    log "typeck_x.o <- pure-asm src/typeck/typeck.x ($out)"
+    return 0
+  fi
+  rm -f "$out"
+  log "typeck_x.o pure-asm failed (w1635; no cc fallback)"
+  return 1
+}
+
 build_ast_gen2() {
   # wave329: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
   # ast_gen2 has no archaeology cold seed pin (yet); PREFER_X_O will timeout
@@ -556,6 +625,9 @@ case "$MODE" in
     ;;
   codegen-x|codegen_x|codegen_x.o)
     build_codegen_x "${2:-codegen_x.o}"
+    ;;
+  typeck-x|typeck_x|typeck_x.o)
+    build_typeck_x "${2:-typeck_x.o}"
     ;;
   ast-gen2|ast_gen2|ast_gen2.o)
     build_ast_gen2

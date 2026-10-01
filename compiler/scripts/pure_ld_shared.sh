@@ -788,12 +788,15 @@ pure_asm_x_to_o() {
     if nm "$_pure_asm_stage" 2>/dev/null | grep -E ' [TtWw] _?xlang_panic_$' >/dev/null 2>&1; then
       _pure_u="$(printf '%s\n' "$_pure_u" | grep -v 'xlang_panic_' || true)"
     fi
-    # Parser and codegen installed objects reference xlang_panic_ and
-    # do not define it. The weak body stays in lexer_x.o. Rejecting
-    # that undefined would throw away a full emit and fall through to
-    # host cc. Opt in only from those rebuilds. Bare __error is still
-    # rejected.
-    # PLATFORM: SHARED flag; the parser and codegen callers are LINUX.
+    # Parser, codegen, and typeck installed objects reference
+    # xlang_panic_ and do not define it. The weak body stays in
+    # lexer_x.o. Rejecting that undefined would throw away a full emit
+    # and fall through to host cc. Opt in only from those rebuilds.
+    # A newer compiler may emit the same TU with no panic reloc; the
+    # flag still has to be set, or the older shape is rejected.
+    # Bare __error is still rejected.
+    # PLATFORM: SHARED flag; the parser, codegen, and typeck callers
+    # are LINUX.
     if [ "${XLANG_PURE_ASM_ALLOW_U_PANIC:-0}" = "1" ]; then
       _pure_u="$(printf '%s\n' "$_pure_u" | grep -v 'xlang_panic_' || true)"
     fi

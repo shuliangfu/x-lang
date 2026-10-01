@@ -26,21 +26,17 @@ cd "$(dirname "$0")/.."
 # parser_x, codegen_x, or typeck_x; the gen file is the stem with the
 # _x suffix replaced by _gen.c. A match skips host-cc. Both files
 # present but the digest different: stop, do not cc. No stamp: pin/cold
-# cc unchanged. Object missing: typeck still ignores the stamp,
-# cold-cc, then removes the stamp. Parser and codegen on Linux do not:
-# a missing object is rebuilt from the .x (parser w1633, codegen w1634)
-# and stamped. A stamp with no object is not a hard stop, because L4
-# deletes the .o and keeps the stamp. These flags exit before the
-# crash-log wipe. ensure does not emit typeck.x. It emits parser.x and
-# codegen.x on Linux only when that object is missing.
+# cc unchanged. Object missing on Linux: parser (w1633), codegen
+# (w1634), and typeck (w1635) rebuild from the .x and stamp. A stamp
+# with no object is not a hard stop, because L4 deletes the .o and
+# keeps the stamp. These flags exit before the crash-log wipe.
+# Darwin and Windows still host-cc a missing parser, codegen, or typeck
+# object. win_host_cc_parser_x.sh is a separate Windows helper and still
+# host-ccs when invoked on its own. Checklist 7.2 stays open.
 # PLATFORM: SHARED — Darwin and Windows g05 use this script.
 # A stamp is written only beside an installed pure-asm object. Darwin
 # and Windows have no codegen_x.pure_asm or typeck_x.pure_asm, so their
-# ensure still host-ccs that gen when the file is newer. A missing
-# typeck object on every host still host-ccs. A missing parser or
-# codegen object host-ccs on Darwin and Windows. win_host_cc_parser_x.sh
-# is a separate Windows helper and still host-ccs when invoked on its
-# own. Checklist 7.2 stays open.
+# ensure still host-ccs that gen when the file is newer.
 g05_frontend_x_sha256() {
   _fx_file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -4528,12 +4524,32 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   elif g05_parser_x_pure_asm_kept; then
     echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
-  # LANG-007 + typeck_x.o cold path (wave322 M4 7.4.1).
-  # PLATFORM: SHARED — true cold deletes typeck_x.o; host-local typeck_gen.c is gitignored
-  # and may be stale. Prefer ensure_migrate_gen typeck (typeck.x -E + companions assemble)
-  # when a product -E binary exists; archaeology seed only if assemble cannot run.
-  # G.7: do not blind-cp pin over a fresher .x assemble.
-  if [ ! -f typeck_x.o ]; then
+  # typeck_x.o cold path.
+  # Linux missing object (w1635): rebuild from src/typeck/typeck.x via
+  # build_typeck_x. No host cc, no -E assemble. L4 deletes the .o and
+  # keeps the stamp, so the rebuild has to run in that case. The helper
+  # emits the same defined set as the installed object. Seven CTFE names
+  # and the cap-residual slot names stay undefined; their bodies stay in
+  # the companion objects already on the link list. Layout remainder
+  # sites no longer emit the idiv zero-divisor panic sequence, so the
+  # bytes are not a drop-in and this path does not replace the installed
+  # object. Darwin and Windows still assemble below.
+  # PLATFORM: LINUX for the rebuild, SHARED for the stamp check.
+  if [ ! -f typeck_x.o ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
+    if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
+      echo "g05_ensure: typeck_x.o pure-asm failed" >&2
+      return 1
+    fi
+    if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
+      echo "g05_ensure: typeck_x.o pure-asm stamp failed" >&2
+      return 1
+    fi
+  elif [ ! -f typeck_x.o ]; then
+    # PLATFORM: DARWIN | WINDOWS — assemble, then the cc below.
+    # Tip -E assemble when a product binary exists; archaeology seed
+    # only if assemble cannot run. G.7: do not blind-cp pin over a
+    # fresher .x assemble.
     if [ -f scripts/ensure_migrate_gen.sh ]; then
       echo "g05_ensure: ensure_migrate_gen typeck (cold: missing typeck_x.o; prefer .x assemble)"
       bash scripts/ensure_migrate_gen.sh typeck \
@@ -4560,10 +4576,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # A matching typeck_x.pure_asm skips the cc below even when the
   # splice refreshed typeck_gen.c. A stamp that does not match the
   # object stops ensure. No stamp: splice / mtime cc unchanged.
-  # Cold missing object still host-ccs after the assemble above, then
-  # the stamp is removed. PLATFORM: SHARED. The stamp file is written
-  # only where the pure-asm object is installed. Darwin and Windows
-  # have no typeck_x.pure_asm, so this branch does not change their host-cc.
+  # Linux missing object was rebuilt above and stamped, so the cc
+  # below is skipped. Darwin and Windows missing objects still host-cc
+  # after the assemble above, then the stamp is removed.
+  # PLATFORM: SHARED. The stamp file is written only where the
+  # pure-asm object is installed. Darwin and Windows have no
+  # typeck_x.pure_asm, so this branch does not change their host-cc.
   _tgx_rc=0
   g05_frontend_x_needs_host_cc . typeck_x || _tgx_rc=$?
   if [ "$_tgx_rc" -eq 2 ]; then
