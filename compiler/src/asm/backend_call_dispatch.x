@@ -3957,12 +3957,15 @@ export function glue_asm_harvest_call_ret_to_gpr_c(
  * the return value into GPR (i32 sxtw / u32 zxt / f32 xmm).
  * Completes pure .x authority to match seed glue_asm_emit_call_with_cleanup_impl
  * harvest (was missing → pure-asm try_c `rc == -2` false → hello -o rc=254).
- * Windows x86_64: after argument registers are loaded, emit `sub rsp, 32`
- * so a gcc-built callee homes rcx/rdx/r8/r9 in that shadow instead of over
- * a caller push that a later pop must reload. The same 32 bytes are added
- * back after harvest, before this function returns. SysV stack arguments
- * keep their own push and add. backend_enc_call_stack_reserve_arch still
- * returns 0 on x86 and is not the shadow.
+ * Windows x86_64: emit `sub rsp, 32` before argument materialization.
+ * Stack arguments are stored at [rsp+0x20] and [rsp+0x28]; those slots are
+ * the ABI homes only when the 32-byte shadow is already reserved. A sub
+ * after the stores makes the callee read the home instead of the arguments.
+ * Register arguments are loaded after the sub and do not depend on rsp.
+ * The same 32 bytes are added back after harvest. A caller push that must
+ * survive the call stays above this sub. SysV stack arguments keep their
+ * own push and add. backend_enc_call_stack_reserve_arch still returns 0
+ * on x86 and is not the shadow.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ElfCodegenCtx*
  * @param expr_ref i32 — EXPR_CALL node
@@ -3983,12 +3986,10 @@ export function glue_asm_emit_call_with_cleanup(
   let hr: i32 = 0;
   let win_shadow: i32 = 0;
   unsafe {
-    if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0) {
-      return 0 - 1;
-    }
     // PLATFORM: WINDOWS x86_64. 48 83 EC 20 is sub rsp, 32. The add twin
     // arch_x86_64_enc_enc_add_rsp_imm uses ModRM C4; EC is the sub form.
-    // Emitted only after arg regs are set, and only when this host is Windows.
+    // Must precede emit_call_args: that helper stores stack arguments at
+    // [rsp+0x20] relative to rsp as it stands. Host check is Windows only.
     if (ta == 0) {
       if (link_abi_host_is_windows() != 0) {
         win_shadow = 32;
@@ -3997,6 +3998,9 @@ export function glue_asm_emit_call_with_cleanup(
           return 0 - 1;
         }
       }
+    }
+    if (pipeline_asm_emit_call_args_elf_c(arena, elf_ctx, expr_ref, ctx, ta, nargs) != 0) {
+      return 0 - 1;
     }
     if (glue_asm_enc_call_redirected(elf_ctx, cname, clen, ta) != 0) {
       return 0 - 1;
