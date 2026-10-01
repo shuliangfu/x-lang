@@ -2058,7 +2058,34 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+# w1609: cap residual product faces (host-call temps, slice-let reent,
+# pipeline scratch buffers, bounded-loop helpers) are defined only in
+# seeds/codegen_cap_residual.from_x.c, which assemble pastes into
+# codegen_gen.c. A pure-asm codegen_x.o leaves them undefined. Link the
+# same seed as its own object after codegen_x.o. With a host-cc
+# codegen_x.o the symbols are duplicated and the earlier copy wins.
+# Linux only this wave: Darwin and Windows still link the w1549 image,
+# whose codegen_x.o already contains the paste. Does not rebuild the
+# pabi egg and does not set XLANG_CODEGEN_FROM_X.
+# PLATFORM: LINUX
+_CODEGEN_CAP_RESIDUAL=""
+case "$UNAME_S" in
+  Linux)
+    if [ "${XLANG_CODEGEN_CAP_RESIDUAL:-1}" = "1" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      _cap_o=build_asm/selfhost_pabi/codegen_cap_residual.o
+      if ! $G05_CC $_BASE_CFLAGS \
+          -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
+          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+          -c -o "$_cap_o" seeds/codegen_cap_residual_tu.c; then
+        echo "g05_relink_env: codegen cap residual compile failed" >&2
+        exit 1
+      fi
+      _CODEGEN_CAP_RESIDUAL="$_cap_o"
+    fi
+    ;;
+esac
+_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
