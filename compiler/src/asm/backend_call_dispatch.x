@@ -1770,6 +1770,43 @@ export function glue_spill_struct16_call_arg_to_lea_elf_c(arena: *u8, elf: *u8, 
   return 0;
 }
 
+/**
+ * Push one System V integer stack argument that emit left in rax:rdx.
+ * glue_sysv_arg_stack_words_c already charges two eightbytes when a 9–16
+ * byte INTEGER aggregate does not fit in the GP file, and the callee homes
+ * [rbp+stack_pos] as the low half and [rbp+stack_pos+8] as the high half.
+ * Emit leaves that pair in rax and rdx. Push the high half first so it
+ * lands at the higher address, then the low half.
+ * A one-word stack argument pushes rax only. The >16 byte MEMORY helper is
+ * a different contract (it copies from the lvalue); this function does not
+ * re-read the source.
+ * push rdx is the one-byte opcode 0x52, the same family as push rax (0x50)
+ * and push rbx (0x53). The encoder exports the latter two and is not
+ * rebuilt for this opcode.
+ * @param elf *u8 — codegen byte sink; null returns -1
+ * @param ta i32 — 0 is x86_64; any other value returns -1
+ * @param gp_units i32 — 2 for a 9–16 byte INTEGER aggregate, else 1
+ * @return i32 — bytes pushed (8 or 16), or -1 on an encode error
+ * PLATFORM: LINUX+MACOS x86_64 SysV. Windows 9–16 byte named structs are
+ * one pointer (gp_units 1) and do not take the two-push arm.
+ */
+function glue_sysv_push_int_stack_arg_elf_c(elf: *u8, ta: i32, gp_units: i32): i32 {
+  let op: u8[1] = [];
+  let rc: i32 = 0;
+  if (elf == 0 as *u8) { return 0 - 1; }
+  if (ta != 0) { return 0 - 1; }
+  if (gp_units >= 2) {
+    // High eightbyte at the higher address. push rdx does not clobber rax.
+    op[0] = 82;
+    unsafe { rc = pipeline_elf_ctx_append_bytes(elf, &op[0], 1); }
+    if (rc != 0) { return 0 - 1; }
+    if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
+    return 16;
+  }
+  if (backend_enc_push_rax_arch(elf, ta) != 0) { return 0 - 1; }
+  return 8;
+}
+
 // See implementation.
 // GLUE_ASM_MAX_CALL_ARGS=96
 /**
@@ -1845,8 +1882,14 @@ export function glue_emit_call_args_elf_sysv_f32_xmm_c(arena: *u8, elf: *u8, er:
           if (pushed_s < 0) { return 0 - 1; }
         } else if (glue_emit_one_call_arg_elf_c(arena, elf, er, arg_ref, i, ctx, ta) != 0) {
           return 0 - 1;
-        } else if (backend_enc_push_rax_arch(elf, ta) != 0) {
-          return 0 - 1;
+        } else {
+          // 9–16B INTEGER that missed the GP file is in rax:rdx. The word
+          // counter already charged two eightbytes (cleanup matches).
+          // PLATFORM: LINUX+MACOS x86_64 SysV.
+          let u_s: i32 = glue_sysv_arg_gp_units_from_size_c(sz_s);
+          if (glue_sysv_push_int_stack_arg_elf_c(elf, ta, u_s) < 0) {
+            return 0 - 1;
+          }
         }
       }
       si = si - 1;
@@ -3447,8 +3490,14 @@ export function pipeline_asm_emit_call_args_elf_c(
               if (pushed0 < 0) { return 0 - 1; }
             } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_ref0, i0, ctx, ta) != 0) {
               return 0 - 1;
-            } else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
+            } else {
+              // Same two-eightbyte push as the f32-xmm packer. n_stack
+              // already counts glue_sysv_arg_stack_words_c.
+              // PLATFORM: LINUX+MACOS x86_64 SysV.
+              let u0: i32 = glue_sysv_arg_gp_units_from_size_c(sz0);
+              if (glue_sysv_push_int_stack_arg_elf_c(elf_ctx, ta, u0) < 0) {
+                return 0 - 1;
+              }
             }
           }
         }
@@ -4861,7 +4910,14 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                           if (is_mem_m[i_m] == 1) {
                             raw_mem = raw_mem + ((arg_sz_m[i_m] + 7) & (0 - 8));
                           } else if (gp_start_m[i_m] < 0) {
-                            raw_mem = raw_mem + 8;
+                            // A 9–16B INTEGER that missed the GP file is two
+                            // eightbytes, matching the push below.
+                            // PLATFORM: LINUX+MACOS x86_64 SysV.
+                            if (gp_units_m[i_m] >= 2) {
+                              raw_mem = raw_mem + 16;
+                            } else {
+                              raw_mem = raw_mem + 8;
+                            }
                           }
                           i_m = i_m + 1;
                         }
@@ -4886,8 +4942,9 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                               if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_stk, i_m, ctx, ta) != 0) {
                                 return 0 - 1;
                               }
-                              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-                              pushed_total = pushed_total + 8;
+                              let nb_m: i32 = glue_sysv_push_int_stack_arg_elf_c(elf_ctx, ta, gp_units_m[i_m]);
+                              if (nb_m < 0) { return 0 - 1; }
+                              pushed_total = pushed_total + nb_m;
                             }
                           }
                           i_m = i_m - 1;
@@ -5289,7 +5346,13 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           if (is_mem_u[i_u] == 1) {
             raw_mem = raw_mem + ((arg_sz_u[i_u] + 7) & (0 - 8));
           } else if (gp_start_u[i_u] < 0) {
-            raw_mem = raw_mem + 8;
+            // Same two-eightbyte charge as the import METHOD packer.
+            // PLATFORM: LINUX+MACOS x86_64 SysV.
+            if (gp_units_u[i_u] >= 2) {
+              raw_mem = raw_mem + 16;
+            } else {
+              raw_mem = raw_mem + 8;
+            }
           }
           i_u = i_u + 1;
         }
@@ -5334,8 +5397,9 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
               } else if (glue_emit_one_call_arg_elf_c(arena, elf_ctx, expr_ref, arg_pl, i_u, ctx, ta) != 0) {
                 return 0 - 1;
               }
-              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
-              pushed_total = pushed_total + 8;
+              let nb_u: i32 = glue_sysv_push_int_stack_arg_elf_c(elf_ctx, ta, gp_units_u[i_u]);
+              if (nb_u < 0) { return 0 - 1; }
+              pushed_total = pushed_total + nb_u;
             }
           }
           i_u = i_u - 1;
