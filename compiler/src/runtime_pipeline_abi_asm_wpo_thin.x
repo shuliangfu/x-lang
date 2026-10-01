@@ -1446,7 +1446,9 @@ function asm_wpo_dce_env_enabled(): i32 {
  * object. Callers in other objects are invisible, so reachability would drop
  * exports (single-file typeck.x lost 112, including wrappers only the egg
  * calls). Those libraries full-emit, compiler selfhost modules included.
- * A module that has main, or a function named entry, still builds reach.
+ * A module that has a function named main, or a function named entry, still
+ * builds reach. main_func_index is not that test: a module with no main
+ * still stores 0 there.
  * @param entry *u8 — entry ast_Module pointer; null returns after clear
  * @param entry_arena *u8 — entry ASTArena pointer; null returns after clear
  * @param ctx *u8 — PipelineDepCtx pointer; null skips dep registration
@@ -1463,24 +1465,23 @@ export function pipeline_asm_wpo_reach_compute_for_elf(entry: *u8, entry_arena: 
     if (asm_wpo_dce_env_enabled() == 0) {
       return;
     }
-    // No main and no function named "entry": this TU is linked with other
-    // objects. Leave g_aw_valid at 0 so should_emit keeps every function.
-    // Programs that do have main or "entry" fall through and run DCE.
-    let main_ix: i32 = pipeline_module_main_func_index(entry);
-    if (main_ix < 0) {
-      let nf0: i32 = pipeline_module_num_funcs(entry);
-      let fi0: i32 = 0;
-      let found_entry: i32 = 0;
-      while (fi0 < nf0) {
-        if (pipeline_module_func_name_equal_at(entry, fi0, "entry", 5) != 0) {
-          found_entry = 1;
-          break;
-        }
-        fi0 = fi0 + 1;
+    // main_func_index stays 0 when the module has no main, so `< 0` never
+    // sees a library. Scan names. No "main" and no "entry": this TU is
+    // linked with other objects. Leave g_aw_valid at 0 so should_emit keeps
+    // every function. A real main or entry falls through and runs DCE.
+    let nf0: i32 = pipeline_module_num_funcs(entry);
+    let fi0: i32 = 0;
+    let found_root: i32 = 0;
+    while (fi0 < nf0) {
+      if (pipeline_module_func_name_equal_at(entry, fi0, "main", 4) != 0 ||
+          pipeline_module_func_name_equal_at(entry, fi0, "entry", 5) != 0) {
+        found_root = 1;
+        break;
       }
-      if (found_entry == 0) {
-        return;
-      }
+      fi0 = fi0 + 1;
+    }
+    if (found_root == 0) {
+      return;
     }
     asm_wpo_set_entry(entry);
     asm_wpo_set_dep_ctx(ctx);
@@ -1593,7 +1594,7 @@ export function pipeline_asm_wpo_reach_compute_for_elf(entry: *u8, entry_arena: 
         }
       }
     }
-    main_ix = pipeline_module_main_func_index(entry);
+    let main_ix: i32 = pipeline_module_main_func_index(entry);
     if (g_aw_root_id < 0 && main_ix >= 0) {
       if (pipeline_module_func_name_equal_at(entry, main_ix, "main", 4) != 0) {
         g_aw_root_id = asm_wpo_func_id_of(entry, main_ix);

@@ -56985,23 +56985,25 @@ void pipeline_asm_wpo_reach_compute_for_elf(uint8_t * entry, uint8_t * entry_are
     if ((asm_wpo_dce_env_enabled() ==0)) {
       return;
     }
-    int32_t main_ix = pipeline_module_main_func_index(entry);
-    if ((main_ix < 0)) {
-      int32_t nf0 = pipeline_module_num_funcs(entry);
-      int32_t fi0 = 0;
-      int32_t found_entry = 0;
-      while ((fi0 < nf0)) {
-        if ((pipeline_module_func_name_equal_at(entry, fi0, ((uint8_t *)"\x65\x6e\x74\x72\x79"), 5) !=0)) {
-          (void)((found_entry = 1));
-          break;
-        }
-        (void)((fi0 = (fi0 + 1)));
+    /* PLATFORM: SHARED — main_func_index stays 0 with no main. Full-emit
+       * when no function is named main or entry. Matches the thin. */
+    int32_t main_ix = 0;
+    int32_t nf0 = pipeline_module_num_funcs(entry);
+    int32_t fi0 = 0;
+    int32_t found_root = 0;
+    while ((fi0 < nf0)) {
+      if ((pipeline_module_func_name_equal_at(entry, fi0, ((uint8_t *)"\x6d\x61\x69\x6e"), 4) !=0)) {
+        (void)((found_root = 1));
+        break;
       }
-      /* PLATFORM: SHARED — library TU (no main, no function named entry)
-       * full-emits, including compiler selfhost modules. Matches the thin. */
-      if ((found_entry ==0)) {
-        return;
+      if ((pipeline_module_func_name_equal_at(entry, fi0, ((uint8_t *)"\x65\x6e\x74\x72\x79"), 5) !=0)) {
+        (void)((found_root = 1));
+        break;
       }
+      (void)((fi0 = (fi0 + 1)));
+    }
+    if ((found_root ==0)) {
+      return;
     }
     (void)(asm_wpo_set_entry(entry));
     (void)(asm_wpo_set_dep_ctx(ctx));

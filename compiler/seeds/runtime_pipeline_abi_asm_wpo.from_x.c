@@ -1221,17 +1221,18 @@ void pipeline_asm_wpo_reach_compute_for_elf(struct ast_Module *entry, struct ast
   /** A/B bench：XLANG_ASM_WPO_DCE=0 时不构图，emit 全量函数。 */
   if (!asm_wpo_dce_env_enabled())
     return;
-  /* PLATFORM: SHARED — a TU with no main and no function named entry is a
-   * library object. Other TUs' calls are invisible, so DCE drops exports
-   * (single-file typeck.x lost 112). Full-emit, selfhost modules included.
-   * A module that has main or a function named entry still builds reach.
+  /* PLATFORM: SHARED — main_func_index stays 0 when the module has no main,
+   * so a `< 0` test never treats that TU as a library. Scan names instead.
+   * No function named main and no function named entry: full-emit, including
+   * compiler selfhost modules. Other TUs' calls are invisible (single-file
+   * typeck.x lost 112 exports). A real main or entry still builds reach.
    * Same rule as pipeline_asm_wpo_reach_compute_for_elf in the thin. */
-  main_ix = pipeline_module_main_func_index(entry);
-  if (main_ix < 0) {
+  {
     static const uint8_t entry_nm[6] = {'e', 'n', 't', 'r', 'y', 0};
     nf = pipeline_module_num_funcs(entry);
     for (fi = 0; fi < nf; fi++) {
-      if (pipeline_module_func_name_equal_at(entry, fi, entry_nm, 5))
+      if (pipeline_module_func_name_equal_at(entry, fi, main_nm, 4) ||
+          pipeline_module_func_name_equal_at(entry, fi, entry_nm, 5))
         break;
     }
     if (fi >= nf)
