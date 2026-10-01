@@ -5632,9 +5632,12 @@ function try_fold_size_align_of_call_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32
  *
  * Lowering:
  *   1. emit each arg expr (pipeline_asm_emit_expr_elf_for_call_args → rax) and
- *      spill rax to a frame slot, bumping the AsmFuncCtx.next_offset cursor
- *      exactly like glue_sysv_spill_rax_rdx_to_frame_c (G.7 same discipline;
- *      arg emissions may clobber rax so nothing lives in registers mid-loop)
+ *      spill rax through glue_sysv_spill_rax_rdx_to_frame_c with one GP unit.
+ *      That helper owns the cursor: x86_64 stores an 8-byte slot and sets
+ *      next_offset to that slot; aarch64 advances one extra 8. An inlined
+ *      16-byte pitch plus a trailing 16 left raw_syscall6's last slot under
+ *      rsp, because the frame walk budgets 8 bytes per GP spill (10.55).
+ *      Arg emission may clobber rax, so each value is spilled before the next.
  *   2a. Linux x86_64 (ta==0): reload a1→rdi(k0) a2→rsi(k1) a3→rdx(k2)
  *       a4→r10(raw; no C-ABI k slot) a5→r8(k4) a6→r9(k5); nr LAST → rax;
  *       enc syscall (0F 05). Return in rax; clobbers rcx/r11 (dead here).
@@ -5673,7 +5676,6 @@ function try_emit_raw_syscall_call_elf_c(
     let arity: i32 = 0 - 1;
     let pfx: u8[11] = [114, 97, 119, 95, 115, 121, 115, 99, 97, 108, 108];
     let i: i32 = 0;
-    let cur: i32 = 0;
     let off: i32[8] = [];
     let arg_ref: i32 = 0;
     let j: i32 = 0;
@@ -5714,9 +5716,10 @@ function try_emit_raw_syscall_call_elf_c(
     arity = name[11] as i32 - 48;
     if (arity < 0 || arity > 6) { return 0; }
     if (n_args != arity + 1) { return 0; }
-    /* Emit + spill each arg to its own frame slot (cursor discipline twin of
-     * glue_sysv_spill_rax_rdx_to_frame_c: off = max(cur+16,16), 16 stride). */
-    cur = call_dispatch_load_i32_le(ctx, 4);
+    /* Spill each arg with the single-GP helper. x86_64 pitch is 8 bytes and
+     * next_offset lands on the slot. The old inlined pitch (cur+16, then a
+     * trailing +16) put raw_syscall6's last store under rsp. PLATFORM:
+     * LINUX x86_64 (ta 0) and LINUX ELF aarch64 (ta 1). */
     i = 0;
     while (i < n_args) {
       if (is_method != 0) {
@@ -5728,13 +5731,10 @@ function try_emit_raw_syscall_call_elf_c(
       if (pipeline_asm_emit_expr_elf_for_call_args(arena, elf_ctx, arg_ref, ctx, ta) != 0) {
         return 0 - 1;
       }
-      off[i] = cur + 16;
-      if (off[i] < 16) { off[i] = 16; }
-      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off[i], ta) != 0) { return 0 - 1; }
-      cur = off[i];
+      off[i] = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+      if (off[i] < 0) { return 0 - 1; }
       i = i + 1;
     }
-    call_dispatch_store_i32_le(ctx, 4, cur + 16);
     if (ta == 0) {
       /* Reload into syscall homes: a1..a6 first (rdi/rsi/rdx/r10/r8/r9), then
        * nr LAST so rax ends holding the syscall number. */
