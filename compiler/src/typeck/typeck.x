@@ -2041,18 +2041,27 @@ expr_ref: i32, ctx: *PipelineDepCtx, vbuf: *u8, vnlen: i32): i32 {
 }
 
 /**
-* See implementation.
-*/
+ * Find the struct-layout slot whose name equals nm[0..nlen).
+ * @param module *Module — module that owns struct_layouts; null is not searched
+ * @param nm *u8 — type-name bytes; not required to be NUL-terminated
+ * @param nlen i32 — byte count compared by typeck_layout_name_equal
+ * @return i32 — layout index, or -1 when no layout matches
+ * PLATFORM: SHARED — pipeline_module_num_struct_layouts_at is export-extern.
+ * The asm backend rejects that call outside unsafe. The -E path allows it.
+ */
 export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nlen: i32): i32 {
-  let k: i32 = 0;
-  let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
-  while (k < nsl) {
-    if (typeck_layout_name_equal(module, k, nm, nlen)) {
-      return k;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let k: i32 = 0;
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl) {
+      if (typeck_layout_name_equal(module, k, nm, nlen)) {
+        return k;
+      }
+      k = k + 1;
     }
-    k = k + 1;
+    return - 1;
   }
-  return - 1;
 }
 
 /** Exported function `typeck_x_named_builtin_align`.
@@ -23528,7 +23537,11 @@ export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *Module):
 #[no_mangle]
 export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32,
 dep_return_type_ref: i32, caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  return get_dep_return_type_in_caller_arena(from_dep_index, dep_return_type_ref, caller_arena, ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // The early export-extern declaration makes this call an extern call on the asm path.
+  unsafe {
+    return get_dep_return_type_in_caller_arena(from_dep_index, dep_return_type_ref, caller_arena, ctx);
+  }
 }
 
 /**
@@ -23664,8 +23677,12 @@ export function pipeline_typeck_find_func_return_type_in_module_by_name_call_str
 export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
   mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32,
   want_arity: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
-  return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-    mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // The early export-extern declaration makes this call an extern call on the asm path.
+  unsafe {
+    return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out);
+  }
 }
 
 /**
