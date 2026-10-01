@@ -5,7 +5,7 @@
 // parser_onefunc_scratch_empty was one of them. A throwaway link of this
 // list, ahead of the weak egg symbol, emitted those helpers (scratch span
 // 212, 23 prefix names grew, parser rc 0, T001 0, CG002 0).
-// Two exact names stay on this list. Do not batch-move them into
+// One exact name stays on this list. Do not batch-move it into
 // asm_parser_emit_heavy_safe_helper.
 // parser_expr_wrap_in_return left this list in w1577. Its 24-byte body
 // returned 0, and parse_into_buf treats that 0 as failure, so a non-void
@@ -18,6 +18,12 @@
 // wrap_block_ref_as_expr left this list in w1581. Its 24-byte body returned
 // 0, and a bare block statement aborts the function on that 0, so ld
 // reports an undefined main. Host-cc of `{ 10 } return 7` exits 7.
+// try_skip_allow_padding_struct left this list in w1582. skip_heavy
+// returned 1, then the thin-stub emitter saw the leftover cname row and
+// wrote a 24-byte call to parser_try_skip_allow_padding_struct_glue with
+// no arguments. The .x body is that glue call with the Lexer and the slice.
+// try_skip_allow_padding_struct_buf stays. safe_helper returns 1 for it
+// before this list runs, and the probe already emits the 348-byte body.
 // asm_skip_heavy_module_func_body calls this symbol on the EMIT_HEAVY
 // second pass. g05_relink_env.sh compiles this file with the current
 // product and links it ahead of pabi. The egg copy stays weak and is not
@@ -41,6 +47,11 @@ export extern "C" function pipeline_module_func_name_equal_at(module: *u8, fi: i
  * and both loop paths abort the function, so the program has no main.
  * wrap_block_ref_as_expr is intentionally absent. The stub returned 0,
  * and a bare block statement aborts the function on that 0.
+ * try_skip_allow_padding_struct is intentionally absent. The stub path
+ * emitted an argument-less call to the glue. The .x body passes the
+ * Lexer and the slice.
+ * try_skip_allow_padding_struct_buf stays. safe_helper emits that body
+ * before this function is consulted.
  * The onefunc_ / copy_onefunc_ / set_onefunc_ prefix fence is not here.
  * PLATFORM: SHARED — sole linked body; egg weak copy still lists the old six.
  */
@@ -63,9 +74,13 @@ export function asm_parser_emit_heavy_force_stub(m: *u8, func_index: i32): i32 {
     // plain `let x: f64 = 1.5` path stores that 0 as the init (w1579).
     // parser_expr_wrap_in_return is emitted. A ret0 body returns 0, and
     // parse_into_buf treats that 0 as failure (w1577 fmt dep prerun).
-    if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct", 29) != 0) {
-      return 1;
-    }
+    // try_skip_allow_padding_struct is emitted. Returning 1 here made
+    // skip_heavy hand the name to the thin-stub emitter, which wrote a
+    // 24-byte call to parser_try_skip_allow_padding_struct_glue and did
+    // not pass the Lexer or the slice (w1582). The .x body is that call.
+    // try_skip_allow_padding_struct_buf stays on this list. safe_helper
+    // returns 1 for that name first, so this compare does not run, and
+    // the probe body is already 348 bytes.
     if (pipeline_module_func_name_equal_at(m, func_index, "try_skip_allow_padding_struct_buf", 33) != 0) {
       return 1;
     }

@@ -486,13 +486,15 @@ fi
 # w1564: parser EMIT_HEAVY force-stub list. The egg
 # asm_parser_emit_heavy_force_stub also stubs every onefunc_ /
 # copy_onefunc_ / set_onefunc_ name. skip_heavy calls it with
-# R_X86_64_PLT32, so this overlay is the linked body. The thin keeps two
-# names (try_skip_allow_padding_struct and its buf twin), drops those
-# three prefixes, emits parser_expr_wrap_in_return (w1577: a ret0 stub
-# aborted fmt), emits parser_alloc_float_lit (w1579: a ret0 stub dropped
-# a plain f64 literal), emits parser_alloc_true_bool_lit (w1580: a ret0
-# stub dropped main from a loop), and emits wrap_block_ref_as_expr
-# (w1581: a ret0 stub dropped main from a bare block).
+# R_X86_64_PLT32, so this overlay is the linked body. The thin keeps one
+# name (try_skip_allow_padding_struct_buf), drops those three prefixes,
+# emits parser_expr_wrap_in_return (w1577: a ret0 stub aborted fmt),
+# emits parser_alloc_float_lit (w1579: a ret0 stub dropped a plain f64
+# literal), emits parser_alloc_true_bool_lit (w1580: a ret0 stub dropped
+# main from a loop), emits wrap_block_ref_as_expr (w1581: a ret0 stub
+# dropped main from a bare block), and emits
+# try_skip_allow_padding_struct (w1582: the stub path was a 24-byte
+# argument-less call to the glue). safe_helper already emits the buf twin.
 # A failed compile is logged and blocks the link. PLATFORM: SHARED.
 _PABI_PARSER_FORCE_STUB=""
 if [ "${XLANG_PARSER_FORCE_STUB_OVERLAY:-1}" = "1" ]; then
