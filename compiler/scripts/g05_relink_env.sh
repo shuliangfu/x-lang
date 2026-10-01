@@ -966,6 +966,11 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
 fi
+# w1590: deref load uses the pointer pointee width. First-wins over the egg.
+# A missing object keeps the previous list. PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o $_PABI_SELFHOST"
+fi
 # w1012: true-pack ARRAY i8 INDEX esz=1 + sext8 emit_index. First-wins.
 # bake_elems + bake_struct are the Darwin/Win baker twins; on Linux they
 # first-win the bake face when modlet.o cannot rebuild (T001). They
