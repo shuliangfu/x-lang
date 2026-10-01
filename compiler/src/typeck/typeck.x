@@ -3705,6 +3705,11 @@ out_type_ref: *i32): i32 {
  * Single authority for both import-list and const-import sugar hops (G.7).
  * Also stamps base as TYPE_NAMED(base_name) when base is still untyped so the
  * outer `binding.Enum.Variant` hop can peel via layout_named.
+ * The enum-name compare loads each side into its own local. An inline
+ * `byte_at(...) != field_name[i]` is emitted as `index != field_name[i]`,
+ * so a dep enum name never matches and `token.TokenKind.TOKEN_RETURN`
+ * hard-fails as an unknown field. Same-module `Color.RED` does not use
+ * this compare.
  *
  * @param dep_mod *Module — dependency with module enum table
  * @param arena *ASTArena — caller arena for named type alloc
@@ -3738,7 +3743,13 @@ field_name_len: i32): i32 {
       if (el == field_name_len && el > 0) {
         bi = 0;
         while (bi < el) {
-          if (pipeline_module_enum_name_byte_at(dep_mod, ek, bi) != field_name[bi]) {
+          // Keep the call result and the index in different locals.
+          // Inline `byte_at(...) != field_name[bi]` reuses the result
+          // register for `bi` before the compare, so the name never matches.
+          // PLATFORM: SHARED.
+          let got: i32 = pipeline_module_enum_name_byte_at(dep_mod, ek, bi) as i32;
+          let want: i32 = field_name[bi] as i32;
+          if (got != want) {
             break;
           }
           bi = bi + 1;
