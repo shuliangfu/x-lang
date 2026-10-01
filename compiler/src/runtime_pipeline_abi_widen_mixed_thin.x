@@ -15,6 +15,13 @@
 // cltq. A wide integer on either side stays a full 64-bit subtract. i32
 // still sign-extends. The rax-minus-rbx direction is in this object too,
 // so a literal on the right takes the same zero-extend.
+// w1598: an add of two i32-stamped literals, or of a u32 and a literal, stored
+// into a u32 still used that 32-bit add and then cltq. The 32-bit add already
+// zero-extends. cltq makes a sum at or above 2^31 negative before the 8-byte
+// store. When this add is a u32 let's initializer, or the right-hand side of
+// an assign to a u32 variable, zero-extend and skip cltq. An i32 destination
+// still sign-extends. An add that is not stored in a u32 still sign-extends.
+// A wide integer stays on the 64-bit add.
 // LINUX links this object ahead of the egg. Do not rebuild the pabi egg.
 // Darwin and Windows keep the previous body until they relink.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX installs the object.
@@ -56,6 +63,12 @@ export extern function pipeline_block_resolve_var_type_ref(arena: *u8, block_ref
 export extern function pipeline_module_func_body_ref_at(mod: *u8, func_index: i32): i32;
 export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_block_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function ast_ast_block_num_lets(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_block_let_init_ref(arena: *u8, block_ref: i32, index: i32): i32;
+export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, index: i32): i32;
+export extern function ast_ast_block_num_expr_stmts(arena: *u8, block_ref: i32): i32;
+export extern function pipeline_block_expr_stmt_ref(arena: *u8, block_ref: i32, index: i32): i32;
 
 /**
  * Type kind of one operand, or -1 when it has no type ref.
@@ -193,12 +206,212 @@ function w1591_sxt_rbx(elf_ctx: *u8, ta: i32): i32 {
 }
 
 /**
+ * True when this block stores the add of left_ref and right_ref into a u32.
+ * A let whose initializer is that add, or an assign whose right-hand side is
+ * that add and whose left-hand side is a u32 variable, counts. Other
+ * destinations stay on the signed tail. The walk is capped so a corrupt
+ * count cannot run away.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ctx *u8 — emit context; null skips the assign walk
+ * @param block_ref i32 — block that may own the let or the assign; <=0 returns 0
+ * @param left_ref i32 — add's left expression
+ * @param right_ref i32 — add's right expression
+ * @return i32 — 1 when the stored result is u32, else 0
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32): i32 {
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let init: i32 = 0;
+  let init_kind: i32 = 0;
+  let tr: i32 = 0;
+  let tk: i32 = 0;
+  let er: i32 = 0;
+  let rhs: i32 = 0;
+  let rhs_kind: i32 = 0;
+  let lhs: i32 = 0;
+  let lhs_kind: i32 = 0;
+  let child_l: i32 = 0;
+  let child_r: i32 = 0;
+  if (arena == (0 as *u8) || block_ref <= 0 || left_ref <= 0 || right_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    n = ast_ast_block_num_lets(arena, block_ref);
+  }
+  if (n < 0) {
+    n = 0;
+  }
+  if (n > 4096) {
+    n = 4096;
+  }
+  i = 0;
+  while (i < n) {
+    init = 0;
+    unsafe {
+      init = pipeline_block_let_init_ref(arena, block_ref, i);
+    }
+    if (init > 0) {
+      init_kind = 0;
+      unsafe {
+        init_kind = pipeline_expr_kind_ord_at(arena, init);
+      }
+      // EXPR_ADD = 4. The initializer is this add, not a wider expression.
+      if (init_kind == 4) {
+        child_l = 0;
+        child_r = 0;
+        unsafe {
+          child_l = pipeline_expr_binop_left_ref_at(arena, init);
+          child_r = pipeline_expr_binop_right_ref_at(arena, init);
+        }
+        if (child_l == left_ref && child_r == right_ref) {
+          tr = 0;
+          unsafe {
+            tr = pipeline_block_let_type_ref(arena, block_ref, i);
+          }
+          if (tr > 0) {
+            tk = 0;
+            unsafe {
+              tk = pipeline_type_kind_ord_at(arena, tr);
+            }
+            // TYPE_U32 = 3. The slot must keep the low 32 bits.
+            if (tk == 3) {
+              return 1;
+            }
+          }
+        }
+      }
+    }
+    i = i + 1;
+  }
+  if (ctx == (0 as *u8)) {
+    return 0;
+  }
+  n = 0;
+  unsafe {
+    n = ast_ast_block_num_expr_stmts(arena, block_ref);
+  }
+  if (n < 0) {
+    n = 0;
+  }
+  if (n > 4096) {
+    n = 4096;
+  }
+  i = 0;
+  while (i < n) {
+    er = 0;
+    unsafe {
+      er = pipeline_block_expr_stmt_ref(arena, block_ref, i);
+    }
+    if (er > 0) {
+      init_kind = 0;
+      unsafe {
+        init_kind = pipeline_expr_kind_ord_at(arena, er);
+      }
+      // EXPR_ASSIGN = 28. Left is the variable, right is the value.
+      if (init_kind == 28) {
+        rhs = 0;
+        unsafe {
+          rhs = pipeline_expr_binop_right_ref_at(arena, er);
+        }
+        if (rhs > 0) {
+          rhs_kind = 0;
+          unsafe {
+            rhs_kind = pipeline_expr_kind_ord_at(arena, rhs);
+          }
+          if (rhs_kind == 4) {
+            child_l = 0;
+            child_r = 0;
+            unsafe {
+              child_l = pipeline_expr_binop_left_ref_at(arena, rhs);
+              child_r = pipeline_expr_binop_right_ref_at(arena, rhs);
+            }
+            if (child_l == left_ref && child_r == right_ref) {
+              lhs = 0;
+              unsafe {
+                lhs = pipeline_expr_binop_left_ref_at(arena, er);
+              }
+              if (lhs > 0) {
+                lhs_kind = 0;
+                unsafe {
+                  lhs_kind = pipeline_expr_kind_ord_at(arena, lhs);
+                }
+                // EXPR_VAR = 3. Field assigns stay on the signed tail.
+                if (lhs_kind == 3) {
+                  tr = 0;
+                  unsafe {
+                    tr = glue_var_decl_type_ref_elf_c(arena, ctx, lhs);
+                  }
+                  if (tr > 0) {
+                    tk = 0;
+                    unsafe {
+                      tk = pipeline_type_kind_ord_at(arena, tr);
+                    }
+                    if (tk == 3) {
+                      return 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * True when the add of these two operands is stored into a u32.
+ * The operand block ref is tried first, then the emit scope, because a
+ * literal often has no block ref of its own.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ctx *u8 — emit context; null still checks lets
+ * @param left_ref i32 — add's left expression
+ * @param right_ref i32 — add's right expression
+ * @return i32 — 1 when the stored result is u32, else 0
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+  let block_l: i32 = 0;
+  let block_r: i32 = 0;
+  let block_s: i32 = 0;
+  if (arena == (0 as *u8) || left_ref <= 0 || right_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    block_l = pipeline_expr_block_ref_at(arena, left_ref);
+    block_r = pipeline_expr_block_ref_at(arena, right_ref);
+    block_s = pipeline_asm_emit_ctx_scope_block_get();
+  }
+  if (block_l > 0) {
+    if (w1598_block_has_u32_add(arena, ctx, block_l, left_ref, right_ref) != 0) {
+      return 1;
+    }
+  }
+  if (block_r > 0 && block_r != block_l) {
+    if (w1598_block_has_u32_add(arena, ctx, block_r, left_ref, right_ref) != 0) {
+      return 1;
+    }
+  }
+  if (block_s > 0 && block_s != block_l && block_s != block_r) {
+    if (w1598_block_has_u32_add(arena, ctx, block_s, left_ref, right_ref) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
  * Emit integer or float ADD of the values already in rax and rbx.
  * Same float, pointer-scale, and 32-bit arms as the egg. A narrow
  * integer next to a wide integer uses the 64-bit add and does not cltq.
  * A narrow literal is sign-extended in rbx first. An i32 variable is
  * sign-extended in rax; that cdqe is a no-op when the slot load already
- * sign-extended.
+ * sign-extended. A 32-bit add stored into a u32 is zero-extended instead,
+ * so a sum at or above 2^31 does not become a negative i64 in that slot.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -265,6 +478,13 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   }
   if (rc != 0) {
     return rc;
+  }
+  // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
+  // a sum at or above 2^31 negative in the 8-byte slot. i32 still cltqs.
+  if (w1598_add_stored_in_u32(arena, ctx, left_ref, right_ref) != 0) {
+    unsafe {
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+    }
   }
   unsafe {
     return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
