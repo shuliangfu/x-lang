@@ -21,7 +21,15 @@
 // ta 0 and 1, leaves both-f64, both-f32, and integer×integer on the existing
 // paths, and converts the integer side before addsd/subsd/mulsd/divsd.
 // f32×integer stays -2. Do not edit runtime_pipeline_abi.x for this symbol.
+// w1595: an i32 on the left hides an i64 variable from the pair helper, so
+// the product stayed on `imul %ebx,%eax` plus cltq and lost the high half.
+// A left i32 literal is parked in rbx and the wide value is in rax. Every
+// other hidden-width case leaves the i32 in rax and the i64 in rbx. Both
+// shapes emit the 64-bit multiply and skip cltq. u32 and u8 stay on the
+// 32-bit imul. A wide left already takes the 64-bit arm.
 // PLATFORM: SHARED freestanding emit · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
+// LINUX installs this object. Darwin and Windows keep the previous body
+// until they relink.
 
 export extern function glue_binop_operand_is_64bit_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32;
 export extern function glue_binop_operand_is_unsigned_elf_c(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32;
@@ -337,15 +345,160 @@ function w1499_emit_rem_for(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, r
 }
 
 /**
- * Integer/float MUL of rax by rbx (operands already loaded).
- * 64-bit width: x86 `imul %rbx,%rax` (48 0f af c3); arm64 `mul x0,x0,x1`
- * (9b017c00). Otherwise the 32-bit encoder plus i32 sxt, as before.
- * @return i32 — 0 ok, non-zero encode failure
+ * Type kind of one operand, or -1 when it has no type ref.
+ * Resolved type wins. A VAR with an empty stamp uses its declaration.
+ * The pair helper stops at the first typed operand, so a right-hand i64
+ * next to a left-hand i32 is invisible there. This predicate reads each
+ * side on its own. Pointers stay kind 9 and are not wide integers.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param ctx *u8 — emit context for the VAR declaration; null skips that fallback
+ * @param expr_ref i32 — operand expression; <=0 returns -1
+ * @return i32 — type kind, or -1
  * PLATFORM: SHARED freestanding emit.
+ */
+function w1595_operand_kind(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
+  let tr: i32 = 0;
+  let kind: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (tr <= 0 && ctx != (0 as *u8)) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+    }
+    if (tr <= 0) {
+      return 0 - 1;
+    }
+    kind = pipeline_type_kind_ord_at(arena, tr);
+  }
+  return kind;
+}
+
+/**
+ * True when the operand is a 64-bit integer, not a pointer.
+ * u64, i64, usize, and isize count. Kind 9 stays on the pointer path.
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — emit context
+ * @param expr_ref i32 — one operand
+ * @return i32 — 1 when the operand is a wide integer, else 0
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1595_is_wide_int(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
+  let kind: i32 = 0;
+  kind = w1595_operand_kind(arena, ctx, expr_ref);
+  if (kind == 4 || kind == 5 || kind == 6 || kind == 7) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * True when expr is an INT_LIT that fits in i32.
+ * The mul literal shortcut parks that immediate in rbx with a
+ * zero-extending mov. A wide literal is not this case.
+ * @param arena *u8 — AST arena
+ * @param expr_ref i32 — expression ref
+ * @return i32 — 1 when it is an i32-fit literal, else 0
+ * PLATFORM: SHARED freestanding emit.
+ */
+function w1595_is_narrow_lit(arena: *u8, expr_ref: i32): i32 {
+  let ko: i32 = 0;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  }
+  if (ko != 0) {
+    return 0;
+  }
+  if (w1499_expr_is_wide_int_lit(arena, expr_ref) != 0) {
+    return 0;
+  }
+  return 1;
+}
+
+/**
+ * Sign-extend the i32 in rbx to 64 bits and restore rax.
+ * The lit encoder writes mov imm32 to ebx, which zero-extends.
+ * cdqe runs on rax, so rbx moves through rax around the saved value.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, -1 encode failure
+ * PLATFORM: SHARED — x86_64 cdqe and arm64 sxtw.
+ */
+function w1595_sxt_rbx(elf_ctx: *u8, ta: i32): i32 {
+  unsafe {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Emit rax = rax * rbx at 64-bit width and leave the high half in place.
+ * x86 bytes are 48 0f af c3 (`imulq %rbx, %rax`). arm64 is `mul x0, x0, x1`
+ * (word 0x9B017C00). No following cltq.
+ * @param elf_ctx *u8 — encoder context; null is rejected by append
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, -1 encode failure
+ * PLATFORM: SHARED — x86_64 REX.W imul and arm64 MUL X.
+ */
+function w1595_emit_wide_mul(elf_ctx: *u8, ta: i32): i32 {
+  if (ta == 1) {
+    unsafe {
+      return backend_enc_append_u32_le_c(elf_ctx, 2600565760 as u32);
+    }
+  }
+  unsafe {
+    if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u8_c(elf_ctx, 175) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u8_c(elf_ctx, 195);
+  }
+}
+
+/**
+ * Integer or float MUL of the values already in rax and rbx.
+ * Same both-f64 and both-f32 arms as before. A wide operand still uses
+ * the 64-bit multiply. When the pair helper misses a right-hand i64
+ * because the left operand is an i32, sign-extend that i32 and multiply
+ * at 64 bits with no cltq. A left i32 literal is the value in rbx; every
+ * other i32 left is the value in rax. u32 and u8 stay on the 32-bit imul.
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — encoder context
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left expression; rax for a variable, rbx for an i32 literal
+ * @param right_ref i32 — right expression; rbx for a variable
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @return i32 — 0 ok, nonzero encode failure
+ * PLATFORM: SHARED — x86_64 imulq and arm64 MUL X. LINUX links this body.
  */
 #[no_mangle]
 export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
   let rc: i32 = 0;
+  let is_64bit: i32 = 0;
+  let left_kind: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
@@ -353,16 +506,32 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f32_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_mulss_rax_rbx_arch(elf_ctx, ta);
     }
-    if ((ta == 0 || ta == 1) && glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref) != 0) {
-      if (ta == 1) {
-        // mul x0, x0, x1
-        return backend_enc_append_u32_le_c(elf_ctx, 2600565760 as u32);
+    is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+  }
+  // Left i32 literal: rbx holds the immediate, rax holds the wide value.
+  // Sign-extend rbx before imulq. cdqe on rax would wipe the wide half.
+  if ((ta == 0 || ta == 1) && w1595_is_narrow_lit(arena, left_ref) != 0 && w1595_is_wide_int(arena, ctx, right_ref) != 0) {
+    if (w1595_sxt_rbx(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    return w1595_emit_wide_mul(elf_ctx, ta);
+  }
+  // i32 in rax, hidden i64 in rbx. The slot load is often already
+  // sign-extended; cdqe keeps a negative i32 negative. Skip cltq.
+  if ((ta == 0 || ta == 1) && is_64bit == 0 && w1595_is_wide_int(arena, ctx, right_ref) != 0) {
+    left_kind = w1595_operand_kind(arena, ctx, left_ref);
+    if (left_kind == 0) {
+      unsafe {
+        if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
       }
-      // imul %rbx, %rax
-      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) { return 0 - 1; }
-      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
-      if (backend_enc_append_u8_c(elf_ctx, 175) != 0) { return 0 - 1; }
-      return backend_enc_append_u8_c(elf_ctx, 195);
+      return w1595_emit_wide_mul(elf_ctx, ta);
+    }
+  }
+  unsafe {
+    if ((ta == 0 || ta == 1) && is_64bit != 0) {
+      return w1595_emit_wide_mul(elf_ctx, ta);
     }
     rc = backend_enc_imul_rbx_rax_arch(elf_ctx, ta);
   }
