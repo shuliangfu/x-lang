@@ -2111,7 +2111,45 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-_X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} codegen_x.o x_frontend_link_alias.o"
+# w1622: the seven CTFE faces live in the same residual seed, below the
+# SLOTS_ONLY cut. The slot object above does not define them. Host-cc
+# typeck_x.o does, because assemble pastes the seed into typeck_gen.c.
+# A pure-asm typeck_x.o does not. Compile seeds/typeck_ctfe_tu.c only when
+# compiler/typeck_x.pure_asm matches typeck_x.o, and place that object
+# after the slot object (slot duplicates in the CTFE object lose).
+# No stamp: do not compile it and do not put it on the link. The early
+# ensure flag exits before the crash-log wipe. Its stdout is discarded
+# so this script's eval output stays assignment-only. Does not set
+# XLANG_TYPECK_FROM_X and does not edit the residual seed (a seed edit
+# would make the next ensure splice and host-cc typeck_gen.c).
+# PLATFORM: LINUX — Darwin and Windows have no typeck stamp.
+_TYPECK_CTFE=""
+case "$UNAME_S" in
+  Linux)
+    if [ "${XLANG_TYPECK_CTFE:-1}" = "1" ]; then
+      if sh scripts/g05_ensure_relink_prereqs.sh --typeck-x-pure-asm-kept >/dev/null; then
+        mkdir -p build_asm/selfhost_pabi
+        _tctfe_h=build_asm/selfhost_pabi/typeck_expr_layout.h
+        _tctfe_o=build_asm/selfhost_pabi/typeck_ctfe.o
+        if ! python3 scripts/assemble_typeck_gen_from_x.py \
+            --write-expr-layout typeck_gen.c --layout-out "$_tctfe_h"; then
+          echo "g05_relink_env: typeck expr layout slice failed" >&2
+          exit 1
+        fi
+        if ! $G05_CC $_BASE_CFLAGS \
+            -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
+            -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+            -Ibuild_asm/selfhost_pabi \
+            -c -o "$_tctfe_o" seeds/typeck_ctfe_tu.c; then
+          echo "g05_relink_env: typeck CTFE compile failed" >&2
+          exit 1
+        fi
+        _TYPECK_CTFE="$_tctfe_o"
+      fi
+    fi
+    ;;
+esac
+_X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o"
 _DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）

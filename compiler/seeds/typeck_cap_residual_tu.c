@@ -7,8 +7,10 @@
  * leaves the slot accessors and typeck_set_allow_legacy_extern_calls
  * undefined. This file is not a second implementation: the bodies stay in
  * those two seeds. TYPECK_CAP_RESIDUAL_SLOTS_ONLY leaves the CTFE half out
- * of this object. The product link does not reference those CTFE faces from
- * the pure-asm typeck object. The host-cc paste still compiles them.
+ * of this object. seeds/typeck_ctfe_tu.c includes the same residual without
+ * that macro. g05 links the CTFE object only when typeck_x.pure_asm matches
+ * typeck_x.o. With no stamp, the host-cc paste in typeck_gen.c is still the
+ * CTFE definition, and this slot object is the companion on the link.
  *
  * PLATFORM: SHARED — same slot and allow-legacy bodies the host-cc
  * typeck_x.o already contains. The g05 hook that links this object is
