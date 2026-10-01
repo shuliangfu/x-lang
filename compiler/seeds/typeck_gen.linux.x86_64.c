@@ -5814,14 +5814,11 @@ int32_t typeck_get_field_type_ref_from_layout_deps(struct ast_Module * module, s
     if (((field_name_len ==18) && typeck_name_equal(field_name, field_name_len, &((nm_num_struct_layouts_pool)[0]), 18))) {
       return typeck_ensure_i32_type_ref(arena);
     }
-    int32_t u8_inline = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
-    if ((u8_inline !=0)) {
-      return u8_inline;
-    }
-    int32_t i32_arr_inline = typeck_expr_inline_array_field_type_ref(arena, field_name, field_name_len);
-    if ((i32_arr_inline !=0)) {
-      return i32_arr_inline;
-    }
+    /* PLATFORM: SHARED — declared layout type wins. The u8[64] / i32[16]
+     * spelling heuristic used to run first, so a user field named name
+     * (or var_name, call_arg_refs, and the other spelling hits) became that array even when the
+     * struct declared *u8. Those names stay as fallbacks only on the
+     * Expr / Type / Func / Param / StructLayout gates below. */
     int32_t r = typeck_get_field_type_ref_from_layout(module, type_name, type_name_len, field_name, field_name_len);
     if ((r == 0)) {
       int32_t off_loc = typeck_get_field_offset_from_layout(module, type_name, type_name_len, field_name, field_name_len);

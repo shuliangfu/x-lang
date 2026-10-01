@@ -5923,7 +5923,22 @@ field_name_len: i32): i32 {
   return 0;
 }
 
-/* See implementation. */
+/**
+ * Field type from this module's layout, then dependency modules.
+ * A declared field type wins over the spelling heuristic. A field named
+ * name is [64]u8 only when no layout type is stored and the owner is one
+ * of the compiler AST names handled below (Expr, Type, Func, Param,
+ * StructLayout).
+ * @param module *Module — layouts searched first; null yields no local hit
+ * @param arena *ASTArena — arena that owns synthesized type refs
+ * @param ctx *PipelineDepCtx — dependency modules; null skips that walk
+ * @param type_name *u8 — struct name bytes
+ * @param type_name_len i32 — byte length of type_name
+ * @param field_name *u8 — field name bytes
+ * @param field_name_len i32 — byte length of field_name
+ * @return i32 — type ref, or 0 when none applies
+ * PLATFORM: SHARED — type-ref lookup only; emit is unchanged.
+ */
 export function get_field_type_ref_from_layout_deps(module: *Module, arena: *ASTArena,
 ctx: *PipelineDepCtx, type_name: *u8, type_name_len: i32, field_name: *u8,
 field_name_len: i32): i32 {
@@ -5957,15 +5972,9 @@ field_name_len: i32): i32 {
     18)) {
       return ensure_i32_type_ref(arena);
     }
-    let u8_inline: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
-    if (u8_inline != 0) {
-      return u8_inline;
-    }
-    let i32_arr_inline: i32 = typeck_expr_inline_array_field_type_ref(arena, field_name,
-    field_name_len);
-    if (i32_arr_inline != 0) {
-      return i32_arr_inline;
-    }
+    // Declared layout type wins. The u8[64] / i32[16] spelling heuristic
+    // stays on the Expr / Type / Func / Param / StructLayout gates below,
+    // so a user field named name keeps the type written in the struct.
     let r: i32 = get_field_type_ref_from_layout(module, type_name, type_name_len, field_name,
     field_name_len);
     if (r != 0) {
