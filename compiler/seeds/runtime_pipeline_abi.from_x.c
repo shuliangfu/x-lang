@@ -25749,6 +25749,14 @@ void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *ds
 }
 #endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1703 PLATFORM: WINDOWS leftover.
+ * The egg's pipeline_block_expr_stmt_ref calls the same arena_sidecar_get
+ * as pipeline_block_append_expr_stmt, so both use one g_w275 table.
+ * A same-TU body reads this TU's private table and sees expr_stmt_refs
+ * length 0. The prototype above the counter stays. This body stays for
+ * builds that do not set both macros. */
+#else
 int32_t pipeline_block_expr_stmt_ref(void *a, int32_t br, int32_t ei) {
   W277_Sidecar *sc;
   W277_Block *b;
@@ -25762,6 +25770,7 @@ int32_t pipeline_block_expr_stmt_ref(void *a, int32_t br, int32_t ei) {
   pr = (int32_t *)grow_vec_at(&sc->expr_stmt_refs, abs);
   return pr ? *pr : 0;
 }
+#endif
 
 uint8_t pipeline_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
   W277_Sidecar *sc;
