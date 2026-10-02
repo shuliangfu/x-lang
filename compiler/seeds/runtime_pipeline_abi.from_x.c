@@ -13558,336 +13558,28 @@ int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /*
- * leftover rest WIN leftover emit_block_body first-wins.
- * SAT pipeline_asm_emit_block_body_sync_elf is SAT T (wave153
- * `#ifndef FROM_X`); leftover rest FROM_X was ABSENT so SAT body
- * used `num_locals - nlets` and SAT let names. Function-body lets
- * worked; `unsafe { let y }` had nlets=1 after WAVE277 redirect but
- * no slot (mega fill skipped regions) → slot_base < 0 CG002
- * (letinit_lit / addrof). .x uses backend_block_slot_base_for
- * (block_slot_get). G.7 complete leftover rest body: fill (now
- * walks WAVE277 children) + slot_base from block_slot_get + SAT
- * emit_block_inits (global T; emit_expr already redirected to
- * leftover rest rec) + stmt_order. SAT emit_if / while / for are
- * SAT global T — leftover rest UNDEFs them. Do not leftover rest
- * second WAVE277 / glue_fixed_array / mega.
- * POSIX FROM_X stays ABSENT (.x thin owns body_sync).
- * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ * PLATFORM: WINDOWS leftover-PE hybrid.
+ * Do not define pipeline_asm_emit_block_body_sync_elf or
+ * backend_emit_block_body_sync_elf in this translation unit.
+ * A same-TU definition binds every call from
+ * pipeline_backend_asm_codegen_ast_to_elf_mega_body_c and hides the
+ * strong symbols that already implement statement-order lets.
+ * Authority: static w1010_body_sync_level in
+ * compiler/src/runtime_pipeline_abi_block_body_sync_let_order_thin.c.
+ * That twin's exported pipeline_asm_emit_block_body_sync_elf pushes one
+ * defer-mask level and calls w1010. backend_emit_block_body_sync_elf is
+ * the same twin, or the Windows cache-clear overlay that forwards to it.
+ * POSIX FROM_X stays absent; the .x thin owns body_sync there.
+ * The removed body filled slots, emitted every let through
+ * pipeline_asm_emit_block_inits_elf_c, then skipped statement kind 1.
  */
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
-extern uint8_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
-extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
-extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
-extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t ei);
-extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
-extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
-extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
-extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
-extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
-extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
-extern int32_t pipeline_asm_emit_block_inits_elf_c(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
-                                                  int32_t ta, int32_t slot_base);
-extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
-extern int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block, int32_t if_idx,
-                                                  void *ctx, int32_t ta, int32_t stmt_i);
-extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t wi,
-                                               void *ctx, int32_t ta);
-extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
-                                             void *ctx, int32_t ta);
-extern int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta);
-extern int32_t pipeline_block_num_labeled_stmts(void *arena, int32_t block_ref);
-extern int32_t pipeline_block_labeled_is_goto(void *arena, int32_t block_ref, int32_t li);
-extern int32_t pipeline_block_labeled_label_len(void *arena, int32_t block_ref, int32_t li);
-extern void pipeline_block_labeled_label_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
-extern int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block_ref, int32_t li);
-extern void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
-extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
-extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
-extern int32_t pipeline_block_labeled_return_expr_ref(void *arena, int32_t block_ref, int32_t li);
-extern void *pipeline_asm_ctx_layout(void *ctx);
-extern void *pipeline_asm_emit_module_ref_c(void);
-extern int32_t pipeline_asm_emit_func_index_c(void);
-extern int32_t pipeline_module_func_return_type_at(void *module, int32_t func_index);
-extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
-extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty_ref,
-                                                      int32_t src_ty_ref, int32_t ta);
-extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
-extern int32_t pipeline_block_region_with_arena_cap_ref(void *arena, int32_t block_ref, int32_t ri);
-extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
-extern int32_t glue_wa_scope_alloc_off_c(void *ctx);
-extern void glue_wa_scope_push_c(int32_t wa_off);
-extern void glue_wa_scope_pop_c(void);
-extern int32_t glue_emit_with_arena_init_elf(void *arena, void *elf_ctx, void *ctx, int32_t wa_off, int32_t cap_ref,
-                                            int32_t ta);
-extern int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t ta);
-extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t if_idx);
-extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t if_idx);
-extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t if_idx);
-extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t cap);
-extern int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
-extern int glue_block_stmt_order_has_return(void *arena, int32_t block_ref);
-
-int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
-  int32_t slot_base;
-  int32_t nso;
-  int32_t si;
-  int32_t k;
-  int32_t idx;
-  int32_t er;
-  int32_t inner;
-  int32_t ncfg;
-  int32_t is_g;
-  int32_t nlen;
-  int32_t ret_ref;
-  int32_t tj_len;
-  int32_t fi;
-  int32_t rty;
-  int32_t sty;
-  int32_t wa_cap;
-  int32_t wa_off;
-  int32_t cond;
-  int32_t else_br;
-  int32_t else_len;
-  int32_t done_len;
-  void *mod;
-  uint8_t *ly;
-  uint8_t name_buf[256];
-  uint8_t else_lbl[256];
-  uint8_t done_lbl[256];
-  if (!arena || !elf_ctx || !ctx || block_ref <= 0)
-    return -1;
-  /* SAT glue_block_body_bind_module_dep_from_ctx / glue_asm_ctx_set_scope_block
-   * are SAT local t — leftover rest must not UNDEF them. mega_body already
-   * bound the module; leftover rest VAR slots are name-keyed.
-   * PLATFORM: WINDOWS leftover-PE hybrid. */
-  pipeline_asm_fill_local_slots(ctx, arena, block_ref);
-  slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, block_ref);
-  if (slot_base < 0)
-    slot_base = 0;
-  if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, block_ref, ctx, ta, slot_base) != 0)
-    return -1;
-  nso = ast_ast_block_num_stmt_order(arena, block_ref);
-  for (si = 0; si < nso; si++) {
-    k = ast_ast_block_stmt_order_kind(arena, block_ref, si);
-    idx = ast_ast_block_stmt_order_idx(arena, block_ref, si);
-    /* 1 = let (already emit_block_inits). */
-    if (k == 1)
-      continue;
-    if (k == 2) {
-      ncfg = ast_ast_block_num_expr_stmts(arena, block_ref);
-      if (idx < 0 || idx >= ncfg)
-        continue;
-      er = ast_pipeline_block_expr_stmt_ref(arena, block_ref, idx);
-      if (er <= 0)
-        continue;
-      /* RETURN: leftover rest final_expr RETURN-only skip of stmt_order. */
-      if (pipeline_expr_kind_ord_at(arena, er) == 41)
-        continue;
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0)
-        return -1;
-      continue;
-    }
-    if (k == 3) {
-      ncfg = ast_ast_block_num_loops(arena, block_ref);
-      if (idx < 0 || idx >= ncfg)
-        continue;
-      if (backend_emit_while_loop_elf_sync(arena, elf_ctx, block_ref, idx, ctx, ta) != 0)
-        return -1;
-      continue;
-    }
-    if (k == 4) {
-      ncfg = ast_ast_block_num_for_loops(arena, block_ref);
-      if (idx < 0 || idx >= ncfg)
-        continue;
-      if (backend_emit_for_loop_elf_sync(arena, elf_ctx, block_ref, idx, ctx, ta) != 0)
-        return -1;
-      continue;
-    }
-    if (k == 5) {
-      ncfg = ast_ast_block_num_if_stmts(arena, block_ref);
-      if (idx < 0 || idx >= ncfg)
-        continue;
-      /* leftover rest WIN leftover body_sync k==5 IF
-       * (`{ if true { x = 1; } e }`). SAT leftover SAT T leftover unique
-       * remaining-wave pipeline_asm_emit_block_if_stmt_elf `#ifndef FROM_X`
-       * ABSENT on FROM_X WIN leftover — UNDEF. leftover unique leftover_emit_match_arm_block_stmts_except_last
-       * k==5 dest-parks MATCH arm independently. G.7 complete: emit cond+jz
-       * + leftover rest WIN leftover body_sync recurse then/else. Do not
-       * leftover_emit_if twin. Do not leftover rest remaining-wave leftover unique
-       * remaining-wave pipeline_asm_emit_block_if_stmt_elf. Do not
-       * glue_asm_ctx_set_scope_block (SAT local t leftover unique remaining-wave).
-       * Do not leftover rest remaining-wave leftover unique leftover_emit_match_arm_result.
-       * Do not leftover rest T SAT emit_block_body_sync.
-       * PLATFORM: WINDOWS leftover-PE. */
-      cond = ast_pipeline_block_if_cond_ref(arena, block_ref, idx);
-      inner = ast_pipeline_block_if_then_body_ref(arena, block_ref, idx);
-      else_br = ast_pipeline_block_if_else_body_ref(arena, block_ref, idx);
-      if (cond <= 0 || inner <= 0)
-        return -1;
-      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta) != 0)
-        return -1;
-      else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
-      done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
-      if (else_len <= 0 || done_len <= 0)
-        return -1;
-      if (else_br > 0) {
-        if (glue_enc_jz_after_bool_in_eax(elf_ctx, else_lbl, else_len, ta) != 0)
-          return -1;
-      } else {
-        if (glue_enc_jz_after_bool_in_eax(elf_ctx, done_lbl, done_len, ta) != 0)
-          return -1;
-      }
-      backend_ensure_block_local_slots(ctx, arena, inner);
-      if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, inner, ctx, ta) != 0)
-        return -1;
-      if (!glue_block_stmt_order_has_return(arena, inner)) {
-        if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
-          return -1;
-      }
-      if (else_br > 0) {
-        if (backend_enc_label_arch(elf_ctx, else_lbl, else_len, 0, ta) != 0)
-          return -1;
-        backend_ensure_block_local_slots(ctx, arena, else_br);
-        if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, else_br, ctx, ta) != 0)
-          return -1;
-      }
-      if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
-        return -1;
-      continue;
-    }
-    /* leftover rest WIN leftover body_sync k==6 with_arena
-     * (`with_arena { e }` / `{ with_arena { x = 1; } e }`).
-     * SAT leftover recurse skipped Arena64 init/deinit so leftover
-     * rest WIN leftover function-body with_arena and leftover rest
-     * WIN leftover product MATCH/IF dest extra via body_sync dest-
-     * region with_arena never planted heap_arena_init_c. leftover
-     * unique leftover_emit_match_arm_result dest-parks last
-     * independently (k==6 skip last; with_arena leftover unique next).
-     * G.7 complete: same SAT T glue_wa_scope_alloc_off +
-     * glue_emit_with_arena_init/deinit + push/pop as .x thin
-     * body_sync. backend_ensure_block_local_slots SAT T first so
-     * inner lets occupy next_offset before Arena64. Do not
-     * glue_asm_ctx_set_scope_block (SAT local t leftover unique
-     * remaining-wave #ifndef FROM_X). Do not leftover rest
-     * remaining-wave leftover unique leftover_emit_match_arm_result.
-     * Do not leftover rest T SAT emit_block_body_sync.
-     * Do not leftover unique remaining-wave glue_with_arena twins.
-     * PLATFORM: WINDOWS leftover-PE. */
-    if (k == 6) {
-      ncfg = ast_ast_block_num_regions(arena, block_ref);
-      if (idx < 0 || idx >= ncfg)
-        continue;
-      inner = pipeline_block_region_body_ref(arena, block_ref, idx);
-      wa_cap = pipeline_block_region_with_arena_cap_ref(arena, block_ref, idx);
-      if (inner > 0) {
-        backend_ensure_block_local_slots(ctx, arena, inner);
-        if (wa_cap > 0) {
-          wa_off = glue_wa_scope_alloc_off_c(ctx);
-          if (glue_emit_with_arena_init_elf(arena, elf_ctx, ctx, wa_off, wa_cap, ta) != 0)
-            return -1;
-          glue_wa_scope_push_c(wa_off);
-        }
-        if (pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, inner, ctx, ta) != 0)
-          return -1;
-        if (wa_cap > 0) {
-          er = glue_emit_with_arena_deinit_elf(elf_ctx, wa_off, ta);
-          glue_wa_scope_pop_c();
-          if (er != 0)
-            return -1;
-        }
-      }
-      continue;
-    }
-    /* leftover rest WIN leftover body_sync k==7 labeled/goto
-     * (`{ goto L; L: e }` / `{ L: x = 1; e }`). SAT leftover skip
-     * dropped jmp/label so leftover rest WIN leftover product
-     * MATCH/IF dest extra via body_sync lost the side effect after
-     * the label. leftover unique leftover_emit_match_arm_result
-     * dest-parks last independently; this knife is leftover rest
-     * unique leftover rest WIN leftover body_sync. G.7 complete:
-     * same SAT T enc_jmp/enc_label as dest-in-rbx IF extra-arm /
-     * leftover unique leftover_emit_match_arm_block_stmts_except_last.
-     * Labeled return (`L: return e`) as extra leftover (would exit
-     * the function; dest dead; .x thin body_sync SAT rec + promote
-     * + tail-join is leftover rest unique next). Do not leftover
-     * rest remaining-wave leftover unique leftover_emit_match_arm_result.
-     * Do not leftover rest T SAT emit_block_body_sync.
-     * PLATFORM: WINDOWS leftover-PE. */
-    if (k == 7) {
-      ncfg = pipeline_block_num_labeled_stmts(arena, block_ref);
-      if (idx < 0 || idx >= ncfg)
-        continue;
-      is_g = pipeline_block_labeled_is_goto(arena, block_ref, idx);
-      if (is_g != 0) {
-        pipeline_block_labeled_goto_target_copy32(arena, block_ref, idx, name_buf);
-        nlen = pipeline_block_labeled_goto_target_len(arena, block_ref, idx);
-        if (nlen > 0 && nlen <= 255) {
-          if (backend_enc_jmp_arch(elf_ctx, name_buf, nlen, ta) != 0)
-            return -1;
-        }
-        continue;
-      }
-      pipeline_block_labeled_label_copy32(arena, block_ref, idx, name_buf);
-      nlen = pipeline_block_labeled_label_len(arena, block_ref, idx);
-      if (nlen > 0 && nlen <= 255) {
-        if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
-          return -1;
-      }
-      /* leftover rest WIN leftover body_sync labeled return (`L: return e`).
-       * glue_emit_block_final_expr skips when stmt_order has_return, so
-       * labeled return must emit here. G.7 complete: same SAT rec + promote
-       * + cleanup + tail-join as .x thin body_sync. leftover unique leftover_emit_match_arm_result
-       * dest-parks last independently (labeled return dest dead). Do not leftover
-       * rest remaining-wave leftover unique leftover_emit_match_arm_result.
-       * Do not leftover rest T SAT emit_block_body_sync.
-       * PLATFORM: WINDOWS leftover-PE. */
-      ret_ref = pipeline_block_labeled_return_expr_ref(arena, block_ref, idx);
-      if (ret_ref > 0) {
-        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_ref, ctx, ta) != 0)
-          return -1;
-        mod = pipeline_asm_emit_module_ref_c();
-        fi = pipeline_asm_emit_func_index_c();
-        if (mod && fi >= 0) {
-          rty = pipeline_module_func_return_type_at(mod, fi);
-          sty = glue_float_promote_src_ty_ref_c(arena, ret_ref);
-          if (glue_maybe_promote_f32_to_f64_rax_elf_c(arena, elf_ctx, rty, sty, ta) != 0)
-            return -1;
-        }
-        if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0)
-          return -1;
-        ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
-        if (!ly)
-          return -1;
-        tj_len = *(int32_t *)(ly + 1520);
-        if (tj_len > 0 && tj_len <= 255) {
-          if (backend_enc_jmp_arch(elf_ctx, ly + 1392, tj_len, ta) != 0)
-            return -1;
-        }
-      }
-      continue;
-    }
-  }
-  if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0)
-    return -1;
-  return 0;
-}
-
-/* wave703: leftover gcc WAVE153 is FORCE/product authority for
- * backend_emit_block_body_sync_elf (84B) and
- * pipeline_asm_emit_block_body_sync_elf (0x22c6). Mega FORCE asm of
- * both first-won smash (`sub $0x8a8` / `sub $0x5228`); mega .x now
- * export-externs so leftover W is the sole global.
- * PLATFORM: LINUX gold FORCE probe — not product-default mega FORCE. */
-int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx, int32_t ta) {
-  return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
-}
-#endif /* !FROM_X || WIN leftover rest emit_block_body */
+extern int32_t pipeline_asm_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                                    int32_t ta);
+extern int32_t backend_emit_block_body_sync_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                               int32_t ta);
+#endif /* FROM_X && WIN leftover: body_sync stays on the let-order thin */
 
 /*
  * leftover rest WIN leftover store_retval_pair unique.
@@ -17509,8 +17201,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
  * Unique lists the three setters.
  * leftover standalone defines 0 of remaining unique.
  * POSIX .x thin owns the faces (runtime_pipeline_abi.x wave223 @80285).
- * PLATFORM: WINDOWS leftover PE cannot -E that thin; OR WIN_LEFTOVER_GROW_VEC
- * so leftover-PE FROM_X rest compiles the cluster. Same produce point as F7:
+ * PLATFORM: WINDOWS leftover. FROM_X + WIN_LEFTOVER externs the egg faces
+ * (windows_e.c g_pipeline_asm_func_sret_active). !FROM_X keeps wave223.
+ * Same produce point as F7:
  * inserting an OR inside a FALSE outer ifndef is never parsed when FROM_X is
  * set — must close wave178 + enclosing wave154 first.
  * Reopen both after this cluster (wave224 typeck_active / wave261 glue_statics
@@ -17520,9 +17213,9 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
  * is a later extract after remaining wave265).
  * Header does not declare sret get/set (not a dual-decl). Always-compiled
  * proto of sret get/set is absent in this TU. No cluster callees.
- * Getters are not unique (SAT / leftover standalone provide T); leftover rest
- * compiling them is proto+def of the same BSS, required so setters have a
- * cell. Do not convert neighboring wave222 emit_ctx module/dep_pipe (not
+ * Getters are not unique (SAT / leftover standalone provide T). Windows
+ * FROM_X does not compile a second cell. Do not convert neighboring
+ * wave222 emit_ctx module/dep_pipe (not
  * unique) or glue_type_named_layout_size_any_module_elf_c (seed body is a
  * stub; nested rest of wave178) or pipeline_module_*_storage_* (nested
  * wave178 sidecar).
@@ -17530,8 +17223,20 @@ int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int
  * xlang_driver_asm_prepare_entry_elf_emit stays closed (calls debug_trace).
  * PLATFORM: SHARED freestanding emit sret cells · LINUX gold · MACOS co-path.
  */
-#if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1687 PLATFORM: WINDOWS leftover.
+ * The egg windows_e.c get/set pair owns g_pipeline_asm_func_sret_active.
+ * A same-TU wave223 cell hides that flag from the strong expr thin, so a
+ * wide struct return stays a pointer store. Mega calls bind to the egg.
+ * Bodies stay in the #else for the non-FROM_X build. Do not add a third cell. */
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern void pipeline_asm_emit_ctx_sret_active_set(int32_t v);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off);
+extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz);
+#elif !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
 /* XLANG_PABI_EMIT_CTX_SRET_THIN_BEGIN */
 static int32_t g_wave223_sret_active = 0;
 static int32_t g_wave223_sret_home_off = -1;
@@ -17556,7 +17261,21 @@ void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
   g_wave223_sret_ret_sz = sz;
 }
 /* XLANG_PABI_EMIT_CTX_SRET_THIN_END */
-#endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE sret BSS cluster */
+#endif /* WIN leftover uses the egg cell; !FROM_X keeps wave223 */
+
+#if !defined(_WIN32) && !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* PLATFORM: MACOS|LINUX — link face for the shared expr rec.
+ * The writer body is windows_link_stubs.c leftover_emit_struct_lit_into_parked_rbx
+ * (WINDOWS). Darwin arm64 does not take the ta==0 gate. This face calls the
+ * existing struct-lit emitter and does not copy 256 bytes. */
+extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx,
+                                                 int32_t lit_ref, void *ctx, int32_t ta);
+int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref,
+                                                 void *ctx, int32_t ta, int32_t base_off) {
+  (void)base_off;
+  return pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, lit_ref, ctx, ta);
+}
+#endif
 
 /* WIN leftover-PE rest pipeline_typeck_active_module_set_c unique
  * (typeck_x.o UNDEFs it; SAT / leftover rest / leftover standalone
@@ -25487,10 +25206,15 @@ static W277_Region *block_region_at(void *a, int32_t br, int32_t ri) {
 }
 
 /** MEM-C1：块内第 ri 个 region/with_arena 条目的 cap ref；0 表示非 with_arena。 */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_region_with_arena_cap_ref(void *a, int32_t br, int32_t ri);
+#else
 int32_t pipeline_block_region_with_arena_cap_ref(void *a, int32_t br, int32_t ri) {
   W277_Region *rb = block_region_at(a, br, ri);
   return rb && rb->with_arena_cap_ref > 0 ? rb->with_arena_cap_ref : 0;
 }
+#endif
 
 /** LANG-007 v2：块内第 ri 个条目是否为 unsafe { } 块（with_arena_cap_ref==-1）。 */
 int32_t pipeline_block_region_is_unsafe(void *a, int32_t br, int32_t ri) {
@@ -25499,10 +25223,15 @@ int32_t pipeline_block_region_is_unsafe(void *a, int32_t br, int32_t ri) {
 }
 
 /** M-3：读块内第 ri 个 region 的 body 块 ref；无效时 0。 */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_region_body_ref(void *a, int32_t br, int32_t ri);
+#else
 int32_t pipeline_block_region_body_ref(void *a, int32_t br, int32_t ri) {
   W277_Region *rb = block_region_at(a, br, ri);
   return rb ? rb->body_ref : 0;
 }
+#endif
 
 /** M-3：读块内 region 域标签长度；无效时 0。 */
 int32_t pipeline_block_region_label_len(void *a, int32_t br, int32_t ri) {
@@ -25701,10 +25430,15 @@ int32_t pipeline_block_while_cond_ref(void *a, int32_t br, int32_t wi) {
   return wl ? (int32_t)wl->cond_ref : 0;
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_while_body_ref(void *a, int32_t br, int32_t wi);
+#else
 int32_t pipeline_block_while_body_ref(void *a, int32_t br, int32_t wi) {
   W277_WhileLoop *wl = block_while_at(a, br, wi);
   return wl ? (int32_t)wl->body_ref : 0;
 }
+#endif
 
 int32_t pipeline_block_for_init_ref(void *a, int32_t br, int32_t fi) {
   W277_ForLoop *fl = block_for_at(a, br, fi);
@@ -25721,10 +25455,15 @@ int32_t pipeline_block_for_step_ref(void *a, int32_t br, int32_t fi) {
   return fl ? (int32_t)fl->step_ref : 0;
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_for_body_ref(void *a, int32_t br, int32_t fi);
+#else
 int32_t pipeline_block_for_body_ref(void *a, int32_t br, int32_t fi) {
   W277_ForLoop *fl = block_for_at(a, br, fi);
   return fl ? (int32_t)fl->body_ref : 0;
 }
+#endif
 
 /** Block 池：追加 labeled 语句（label 可为空，用于 library 形态 return expr）。 */
 int32_t pipeline_block_append_labeled(void *a, int32_t br, int32_t label_len, int32_t is_goto,
@@ -25763,6 +25502,10 @@ W277_LabeledStmt *pipeline_block_labeled_ptr(void *a, int32_t br, int32_t li) {
   return (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) {
   W277_Sidecar *sc;
   W277_Block *b;
@@ -25776,31 +25519,51 @@ int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) 
   ls = (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
   return ls ? (int32_t)ls->return_expr_ref : 0;
 }
+#endif
 
 /** wave379: count of labeled stmts in block (stmt_order kind=7). PLATFORM: SHARED. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br);
+#else
 int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || !(b = w277_block_at(a, br)))
     return 0;
   return b->num_labeled_stmts;
 }
+#endif
 
 /**
  * wave379: is_goto flag for labeled stmt li (1 = bare `goto target;`, 0 = label def / labeled return).
  * PLATFORM: SHARED — host-C emit stmt_order kind=7.
  */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_labeled_is_goto(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_labeled_is_goto(void *a, int32_t br, int32_t li) {
   W277_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
   return ls ? ls->is_goto : 0;
 }
+#endif
 
 /** wave379: label name length for `L:` definition (0 when bare goto has empty label). */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_labeled_label_len(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_labeled_label_len(void *a, int32_t br, int32_t li) {
   W277_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
   return ls ? ls->label_len : 0;
 }
+#endif
 
 /** wave379/wave586: copy label name into dst (ABI *copy32; payload 128, content ≤255). */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_t *dst);
+#else
 void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LabeledStmt *ls;
   if (!dst)
@@ -25817,14 +25580,24 @@ void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_
     memcpy(dst, ls->label, (size_t)n);
   }
 }
+#endif
 
 /** wave379: goto target name length for `goto T;`. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_labeled_goto_target_len(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_labeled_goto_target_len(void *a, int32_t br, int32_t li) {
   W277_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
   return ls ? ls->goto_target_len : 0;
 }
+#endif
 
 /** wave379/wave586: copy goto target into dst (ABI *copy32; payload 128, content ≤127). */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, uint8_t *dst);
+#else
 void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LabeledStmt *ls;
   if (!dst)
@@ -25841,22 +25614,42 @@ void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, 
     memcpy(dst, ls->goto_target, (size_t)n);
   }
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_const_init_ref(void *a, int32_t br, int32_t ci);
+#else
 int32_t pipeline_block_const_init_ref(void *a, int32_t br, int32_t ci) {
   W277_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->init_ref : 0;
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_const_type_ref(void *a, int32_t br, int32_t ci);
+#else
 int32_t pipeline_block_const_type_ref(void *a, int32_t br, int32_t ci) {
   W277_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->type_ref : 0;
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_const_name_len(void *a, int32_t br, int32_t ci);
+#else
 int32_t pipeline_block_const_name_len(void *a, int32_t br, int32_t ci) {
   W277_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->name_len : 0;
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *dst);
+#else
 void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *dst) {
   W277_ConstDecl *cd;
   int32_t nlen;
@@ -25875,16 +25668,27 @@ void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *
   if (nlen > 0)
     memcpy(dst, cd->name, (size_t)nlen);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_let_init_ref(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_let_init_ref(void *a, int32_t br, int32_t li) {
   W277_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->init_ref : 0;
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_let_type_ref(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_let_type_ref(void *a, int32_t br, int32_t li) {
   W277_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->type_ref : 0;
 }
+#endif
 
 /** M-3：region 内 stamp 须换新 type_ref，禁止 in-place 改共享 T[] 池节点。 */
 int32_t pipeline_block_set_let_type_ref(void *a, int32_t br, int32_t li, int32_t type_ref) {
@@ -25909,11 +25713,20 @@ int32_t pipeline_block_set_const_type_ref(void *a, int32_t br, int32_t ci, int32
   return 0;
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_block_let_name_len(void *a, int32_t br, int32_t li);
+#else
 int32_t pipeline_block_let_name_len(void *a, int32_t br, int32_t li) {
   W277_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->name_len : 0;
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *dst);
+#else
 void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LetDecl *ld;
   int32_t nlen;
@@ -25934,6 +25747,7 @@ void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *ds
   if (nlen > 0)
     memcpy(dst, ld->name, (size_t)nlen);
 }
+#endif
 
 int32_t pipeline_block_expr_stmt_ref(void *a, int32_t br, int32_t ei) {
   W277_Sidecar *sc;
@@ -26892,6 +26706,10 @@ void ast_ast_arena_patch_block_parent_links(void *arena, int32_t block_ref, int3
   pipeline_patch_block_parent_links(arena, block_ref, parent_ref);
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_consts(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_consts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26899,6 +26717,11 @@ int32_t ast_ast_block_num_consts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_consts;
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_lets(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_lets(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26906,6 +26729,11 @@ int32_t ast_ast_block_num_lets(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_lets;
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_loops(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_loops(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26913,6 +26741,11 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_loops;
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_for_loops(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26920,6 +26753,11 @@ int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_for_loops;
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_if_stmts(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26927,7 +26765,12 @@ int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_if_stmts;
 }
+#endif
 /** M-3: typeck/codegen.x reads Block.num_regions via ast_ prefix. */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_regions(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_regions(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26935,9 +26778,14 @@ int32_t ast_ast_block_num_regions(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_regions;
 }
+#endif
 int32_t ast_ast_block_region_body_ref(void *a, int32_t br, int32_t ri) {
   return pipeline_block_region_body_ref(a, br, ri);
 }
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26945,6 +26793,11 @@ int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_expr_stmts;
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_num_stmt_order(void *a, int32_t br);
+#else
 int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
   W277_Block *b;
   if (!a || br <= 0) return 0;
@@ -26952,12 +26805,23 @@ int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
   if (!b) return 0;
   return b->num_stmt_order;
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si);
+#else
 uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
   return pipeline_block_stmt_order_kind(a, br, si);
 }
+#endif
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_ast_block_stmt_order_idx(void *a, int32_t br, int32_t si);
+#else
 int32_t ast_ast_block_stmt_order_idx(void *a, int32_t br, int32_t si) {
   return pipeline_block_stmt_order_idx(a, br, si);
 }
+#endif
 int32_t ast_ast_block_const_init_ref(void *a, int32_t br, int32_t ci) {
   return pipeline_block_const_init_ref(a, br, ci);
 }
@@ -30363,10 +30227,15 @@ int32_t pipeline_module_func_owner_binds_base_at(void *m, int32_t fi, const uint
   return 1;
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
+#else
 int32_t pipeline_module_func_return_type_at(void *m, int32_t fi) {
   W280_Func *f = module_func_at(m, fi);
   return f ? (int32_t)f->return_type_ref : 0;
 }
+#endif
 
 /** 比较 module 函数名与外部 name 字节序列；相等返回 1。 */
 int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, int32_t name_len) {
@@ -30516,35 +30385,70 @@ int32_t pipeline_module_func_body_ref_at(void *m, int32_t func_index) {
  * Why: backend.x declares these as extern; without the asm_ wrapper, the
  *      import would generate a codegen_ prefix symbol → link error.
  */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t func_index);
+#else
 int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t func_index) {
   return pipeline_module_func_is_extern_at(m, func_index);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t func_index);
+#else
 int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t func_index) {
   return pipeline_module_func_body_ref_at(m, func_index);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_asm_module_func_name_len_at(void *m, int32_t func_index);
+#else
 int32_t pipeline_asm_module_func_name_len_at(void *m, int32_t func_index) {
   return pipeline_module_func_name_len_at(m, func_index);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern void pipeline_asm_module_func_name_copy64(void *m, int32_t func_index, uint8_t *dst);
+#else
 void pipeline_asm_module_func_name_copy64(void *m, int32_t func_index, uint8_t *dst) {
   pipeline_module_func_name_copy64(m, func_index, dst);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_asm_module_func_num_params_at(void *m, int32_t func_index);
+#else
 int32_t pipeline_asm_module_func_num_params_at(void *m, int32_t func_index) {
   return pipeline_module_func_num_params_at(m, func_index);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_asm_module_func_param_name_len_at(void *m, int32_t func_index, int32_t param_index);
+#else
 int32_t pipeline_asm_module_func_param_name_len_at(void *m, int32_t func_index,
                                                    int32_t param_index) {
   return pipeline_module_func_param_name_len_at(m, func_index, param_index);
 }
+#endif
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern void pipeline_asm_module_func_param_name_copy32(void *m, int32_t func_index, int32_t param_index, uint8_t *dst);
+#else
 void pipeline_asm_module_func_param_name_copy32(void *m, int32_t func_index,
                                                 int32_t param_index, uint8_t *dst) {
   pipeline_module_func_param_name_copy32(m, func_index, param_index, dst);
 }
+#endif
 
 /* wave1177 G.7: arch_arm64 module_func forwarders (4 fns) migrated from
  * pipeline_glue.c L4530-4545. Colocated with the asm_module_func forwarder
@@ -33555,9 +33459,14 @@ int32_t ast_pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int3
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
+#else
 int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei) {
   return pipeline_block_expr_stmt_ref(a, br, ei);
 }
+#endif
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
@@ -33573,21 +33482,36 @@ int32_t ast_pipeline_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, in
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+#else
 int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
   return pipeline_block_if_cond_ref(a, br, ii);
 }
+#endif
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+#else
 int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
   return pipeline_block_if_then_body_ref(a, br, ii);
 }
+#endif
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
+#else
 int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
   return pipeline_block_if_else_body_ref(a, br, ii);
 }
+#endif
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
@@ -34318,6 +34242,10 @@ int32_t compound_assign_token_to_expr_kind_from_glue(int32_t kind) {
   return W284_EXPR_SHR_ASSIGN;
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+#else
 int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   void *ex;
   int32_t nexprs;
@@ -34332,6 +34260,7 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
   /* Expr.kind @0 LE i32 (W278 / pure LE). */
   return w284_load_i32(ex, 0);
 }
+#endif
 
 /* XLANG_PABI_PARSE_ORCH_THIN_END */
 #endif /* WAVE284_PARSE_ORCH_ALWAYS */

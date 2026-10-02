@@ -24,6 +24,15 @@ export extern function pipeline_asm_emit_expr_if_arm_elf_c(arena: *u8, elf_ctx: 
 export extern function pipeline_asm_emit_match_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_panic_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_struct_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
+export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
+export extern function pipeline_asm_emit_ctx_sret_ret_sz_get(): i32;
+export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
+export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function leftover_emit_struct_lit_into_parked_rbx(arena: *u8, elf_ctx: *u8, lit_ref: i32, ctx: *u8, ta: i32, base_off: i32): i32;
 export extern function pipeline_asm_emit_array_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -121,9 +130,18 @@ function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i3
 /**
  * Freestanding expr ELF recursion with EXPR_ASM (60) slice0.
  * Fast path first; kind dispatch includes asm!("template") → try_emit.
- * Omits XLANG_DEBUG_REGEX_EMIT fprintf (wave106 style).
- * @return i32 — 0 ok; negative error; -99 unhandled from slow
- * PLATFORM: SHARED.
+ * Kind 45 (STRUCT_LIT) reads the global sret cell. When the mega published
+ * active, a home offset, and a return wider than 16 on x86_64, the existing
+ * parked-rbx writer copies u8[256] fields. Otherwise the byte-sized struct-lit
+ * emitter runs. Omits XLANG_DEBUG_REGEX_EMIT fprintf (wave106 style).
+ * @param arena *u8 — AST arena; null is not used (expr_ref <= 0 takes the slow path)
+ * @param elf_ctx *u8 — ELF emit context
+ * @param expr_ref i32 — expression ref; <= 0 skips the kind load
+ * @param ctx *u8 — asm function context passed through to callees
+ * @param ta i32 — target arch; 0 is x86_64, the only arch that takes the wide sret copy
+ * @return i32 — 0 ok; negative error; -99 unhandled from the wide-int helper
+ * PLATFORM: SHARED rec. The 256-byte writer is WINDOWS leftover; other hosts
+ * resolve the same symbol and do not take the ta==0 gate on arm64.
  */
 #[no_mangle]
 export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -132,6 +150,9 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   let ko: i32 = 0 - 1;
   let out_rc: i32 = 0;
   let ns_tag: i32 = 0;
+  let sret_act: i32 = 0;
+  let sret_home: i32 = 0 - 1;
+  let sret_sz: i32 = 0;
   let cell_ko: u8[8];
   let cell_r: u8[8];
   let cell_ns: u8[8];
@@ -181,6 +202,66 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
     }
   }
   if (ko == 45) {
+    /* Same gate as the from_x rec: load the sret home into rbx, push it,
+     * and let the existing parked-rbx writer copy a 256-byte VAR field.
+     * Pipe cells keep each extern result out of a mid-statement store.
+     * PLATFORM: SHARED check. ta==0 selects the x86_64 SysV home. */
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, pipeline_asm_emit_ctx_sret_active_get());
+    }
+    sret_act = w495_cell_i32(&cell_r[0]);
+    unsafe {
+      pipe_store_i32_le(&cell_ko[0], 0, pipeline_asm_emit_ctx_sret_home_off_get());
+    }
+    sret_home = w495_cell_i32(&cell_ko[0]);
+    unsafe {
+      pipe_store_i32_le(&cell_ns[0], 0, pipeline_asm_emit_ctx_sret_ret_sz_get());
+    }
+    sret_sz = w495_cell_i32(&cell_ns[0]);
+    if (sret_act != 0 && sret_home >= 0 && sret_sz > 16 && sret_sz <= 4096 && ta == 0) {
+      unsafe {
+        pipe_store_i32_le(&cell_r[0], 0, backend_enc_load_rbp_to_rax_arch(elf_ctx, sret_home, ta));
+      }
+      r = w495_cell_i32(&cell_r[0]);
+      if (r == 0) {
+        unsafe {
+          pipe_store_i32_le(&cell_r[0], 0, backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta));
+        }
+        r = w495_cell_i32(&cell_r[0]);
+      }
+      if (r == 0) {
+        unsafe {
+          pipe_store_i32_le(&cell_r[0], 0, backend_enc_push_rbx_arch(elf_ctx, ta));
+        }
+        r = w495_cell_i32(&cell_r[0]);
+      }
+      if (r == 0) {
+        unsafe {
+          pipe_store_i32_le(&cell_r[0], 0, leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0));
+        }
+        r = w495_cell_i32(&cell_r[0]);
+        if (r == 0) {
+          unsafe {
+            pipe_store_i32_le(&cell_r[0], 0, backend_enc_pop_rbx_arch(elf_ctx, ta));
+          }
+          r = w495_cell_i32(&cell_r[0]);
+          if (r == 0) {
+            unsafe {
+              pipe_store_i32_le(&cell_r[0], 0, backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta));
+            }
+            r = w495_cell_i32(&cell_r[0]);
+          }
+        } else {
+          unsafe {
+            pipe_store_i32_le(&cell_r[0], 0, backend_enc_pop_rbx_arch(elf_ctx, ta));
+          }
+        }
+      }
+      if (r != 0) {
+        return 0 - 1;
+      }
+      return 0;
+    }
     unsafe {
       return pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
     }
