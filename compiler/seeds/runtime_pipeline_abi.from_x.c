@@ -22318,6 +22318,11 @@ int32_t pipeline_asm_get_return_expr_ref_at(void *a, void *m, int32_t func_index
  * Also run sparse-if rebuild here: leftover-PE product -c path may skip
  * prepare_entry fixup, leaving ifs in Block.num_if_stmts but absent from
  * stmt_order (emit then only sees fallthrough return → RUN=9 for ifelse).
+ * w1710 PLATFORM: WINDOWS leftover. When both FROM_X and
+ * WIN_LEFTOVER_GROW_VEC are set, this TU does not define the rebuild.
+ * The call binds the egg thin, which reads the same sidecar as the
+ * statement-order vector. A same-TU body counted zero kind-5 rows on
+ * its private sidecar and stored nso + num_if_stmts on the shared block.
  * Offsets (W277_Block): num_lets@0x0c, num_loops@0x18, num_for_loops@0x20,
  * num_if_stmts@0x28, num_regions@0x30, num_expr_stmts@0x48,
  * num_stmt_order@0x54.
@@ -26524,6 +26529,17 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
  * Drop kind=2 only when if_in_order>0 (cond fragments); keep fallthrough returns.
  * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
  */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1710 PLATFORM: WINDOWS leftover.
+ * The egg thin owns pipeline_block_stmt_order_rebuild_sparse_ifs.
+ * A same-TU body reads this TU's empty sidecar, counts zero kind-5
+ * rows, and writes num_stmt_order = nso + num_if_stmts on the shared
+ * block. The egg body reads the real sidecar and returns when those
+ * ifs are already in order. The prototype above the counter stays.
+ * Both calls in pipeline_module_fixup_with_arena_stmt_orders bind the
+ * egg as well. This body stays when either macro is unset.
+ */
+#else
 void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   W277_Block *b;
   W277_Sidecar *sc;
@@ -26634,6 +26650,7 @@ void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   }
   /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
 }
+#endif
 
 /** 对 module 全部函数体块执行 with_arena stmt_order 修补（parse 后/typeck 前调用）。 */
 void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *a) {
