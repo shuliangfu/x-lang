@@ -985,12 +985,9 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
  * x19, source in rax, length = the field layout size). ARRAY_LIT (46) and
  * every other kind stay on the scalar store. A qword in rax must not enter
  * the memcpy. Size <= 8 stays on the scalar store.
- * PLATFORM: MACOS|ARM64 for the pair and the >16 memcpy.
- * PLATFORM: WINDOWS x86_64 — a 16-byte TYPE_STRUCT field whose base variable
- * is a pointer (type kind 9) uses the existing let-init slot -3 glue_copy
- * before the RHS value is emitted. A frame local is not kind 9, so
- * OneFuncResult.next_lex on a local stays on the one-GPR store. */
-extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+ * PLATFORM: MACOS|ARM64 for the pair and the >16 memcpy. The one-GPR store
+ * stays for ta != 1. The Windows x86 field assign that the link keeps is
+ * seeds/win_assign_field_override.c (linked first). */
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                        void *ctx, int32_t ta);
 extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
@@ -1014,55 +1011,6 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
     return -1;
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28)
     return -1;
-  /* PLATFORM: WINDOWS x86_64. Pointer base + 16-byte TYPE_STRUCT only.
-   * VAR already glue_copies inside let-init when dest is rbx. FIELD of
-   * that same size does too, after this edit. Emit the destination lvalue
-   * first. A -2 from let-init would mean no RHS emit, but this path has
-   * already written the lvalue, so it must not fall through. Other RHS
-   * kinds and frame locals stay on the scalar store below. */
-  if (ta == 0) {
-    void *mod = pipeline_asm_emit_module_ref_c();
-    int32_t fty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
-    int32_t wide = 0;
-    int32_t fk = 0;
-    int32_t base;
-    int32_t ptr_base = 0;
-    int32_t rko;
-    int32_t pre = 0;
-    if (fty > 0) {
-      wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
-      fk = pipeline_type_kind_ord_at(arena, fty);
-    }
-    if (fk == 8 && wide == 16) {
-      base = pipeline_expr_field_access_base_ref(arena, left_ref);
-      if (base > 0 && pipeline_expr_kind_ord_at(arena, base) == 3) {
-        int32_t bty = glue_var_decl_type_ref_elf_c(arena, ctx, base);
-        int32_t rty = pipeline_expr_resolved_type_ref(arena, base);
-        if (bty > 0 && pipeline_type_kind_ord_at(arena, bty) == 9)
-          ptr_base = 1;
-        if (!ptr_base && rty > 0 && pipeline_type_kind_ord_at(arena, rty) == 9)
-          ptr_base = 1;
-      }
-    }
-    if (ptr_base) {
-      rko = pipeline_expr_kind_ord_at(arena, right_ref);
-      if (rko == 3)
-        pre = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref) >= 0;
-      else if (rko == 44)
-        pre = 1;
-      if (pre) {
-        int32_t irc;
-        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
-          return -1;
-        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-          return -1;
-        irc = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, fty, -3);
-        if (irc == 0)
-          return 0;
-        return -1;
-      }
-    }
-  }
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
     return -1;
   /* PLATFORM: MACOS|ARM64. 9..16 saves x1 before the lvalue overwrites
