@@ -411,6 +411,11 @@ extern int32_t try_inline_const_struct_lit_return_call_to_slot_elf(void *arena, 
 extern void *glue_emit_module_from_ctx(void *ctx);
 extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
 extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
+                                                        int32_t sz, int32_t ta);
 
 int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx, int32_t ta,
                                              int32_t let_ty_ref, int32_t stack_slot_off) {
@@ -475,6 +480,64 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
       return -2;
     modp = glue_emit_module_from_ctx(ctx);
     if (glue_store_retval_pair_to_rbp_elf_c(modp, arena, elf_ctx, let_ty_ref, stack_slot_off, ta, init_ref, ctx) != 0)
+      return -1;
+    return 0;
+  }
+  /* EXPR_VAR is 3. A -2 return makes the let-init caller store one register.
+   * Frame destinations wider than 16 bytes, and dest-in-rbx destinations of
+   * at least 8 bytes, take the source address and call the existing
+   * glue_copy_large_struct_from_rax_ptr_elf_c. That helper emits memcpy.
+   * EXPR_DEREF is 52: emit the pointer, then the same helper when the layout
+   * is wider than 16 bytes. FIELD and INDEX still return -2.
+   * PLATFORM: WINDOWS leftover-PE. Size gates match the Linux leftover. */
+  if (ko == 3 && (ta == 0 || ta == 1)) {
+    int32_t src_off;
+    int32_t ty_ref;
+    src_off = glue_var_expr_stack_off_elf_c(arena, ctx, init_ref);
+    if (src_off < 0)
+      return -2;
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0) {
+      ty_ref = glue_var_decl_type_ref_elf_c(arena, ctx, init_ref);
+      if (ty_ref <= 0)
+        ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+    }
+    if (ty_ref <= 0)
+      return -2;
+    modp = glue_emit_module_from_ctx(ctx);
+    let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > let_sz)
+      let_sz = named_sz;
+    if (let_sz < 8)
+      return -2;
+    if (let_sz <= 16 && !dest_in_rbx)
+      return -2;
+    if (!dest_in_rbx && src_off == stack_slot_off)
+      return 0;
+    if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
+      return -1;
+    if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (ko == 52 && (ta == 0 || ta == 1)) {
+    int32_t ty_ref;
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0)
+      ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (ty_ref <= 0)
+      return -2;
+    modp = glue_emit_module_from_ctx(ctx);
+    let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > let_sz)
+      let_sz = named_sz;
+    if (let_sz <= 16)
+      return -2;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      return -1;
+    if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta) != 0)
       return -1;
     return 0;
   }
