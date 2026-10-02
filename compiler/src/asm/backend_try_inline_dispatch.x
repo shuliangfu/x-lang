@@ -100,6 +100,7 @@ export extern "C" function backend_fold_func_returns_param0_single_field(arena: 
 export extern "C" function backend_fold_func_returns_param0_field_sum(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_load_64_from_rax_arch(elf: *u8, ta: i32): i32;
+export extern "C" function backend_enc_load_zext8_from_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_pop_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
@@ -1671,10 +1672,11 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * be 0 and param0 is method_call_base (UFCS self). Nested CALL(48) or
  * METHOD(49) factory peels via glue_inner_call_arg (UFCS pix map).
  * An 8-byte integer field (u64/i64/usize/isize) or an f64 field is loaded
- * with backend_enc_load_64_from_rax_arch. The signed 32-bit load keeps only
- * the low half, and the f64 return epilogue then moves that half into xmm0.
- * Pointer returns still refuse this fold. u8, bool, u32, and f32 stay on
- * the signed 32-bit load.
+ * with backend_enc_load_64_from_rax_arch. A bool or u8 field is loaded with
+ * backend_enc_load_zext8_from_rax_arch (movzbl). The signed 32-bit load
+ * reads four bytes and then sign-extends, so a one-byte u8 field keeps
+ * adjacent stack and turns values above 127 negative. Pointer returns still
+ * refuse this fold. u32 and f32 stay on the signed 32-bit load.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1789,10 +1791,12 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     }
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0) { return 0 - 1; }
     // PLATFORM: SHARED — pick the load from the field type, then the callee
-    // return type. TypeKind U64=4 I64=5 USIZE=6 ISIZE=7 F64=15 are 8 bytes.
-    // backend_enc_load_32_from_rax_arch is movl plus cdqe (8b 00; 48 98).
-    // That keeps an f64 field's low half; the f64 epilogue then movq's rax
-    // into xmm0. u8, bool, u32, and f32 stay on that 32-bit load.
+    // return type. TypeKind BOOL=1 and U8=2 are one byte: movzbl (0f b6 00).
+    // The callee body already uses that load. movl plus cdqe (8b 00; 48 98)
+    // reads four bytes, so a one-byte u8 store keeps adjacent stack, and
+    // cdqe then sign-extends a byte above 127. U64=4 I64=5 USIZE=6 ISIZE=7
+    // F64=15 stay on the 8-byte load. u32 and f32 stay on the signed 32-bit
+    // load: cdqe does not change EAX, and the f32 epilogue movd's EAX.
     let load_ty: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
     if (load_ty <= 0) {
       load_ty = ret_ty;
@@ -1801,10 +1805,14 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     if (load_ty > 0) {
       load_k = pipeline_type_kind_ord_at(callee_arena, load_ty);
     }
-    if (load_k == 4 || load_k == 5 || load_k == 6 || load_k == 7 || load_k == 15) {
-      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    if (load_k == 1 || load_k == 2) {
+      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
     } else {
-      if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      if (load_k == 4 || load_k == 5 || load_k == 6 || load_k == 7 || load_k == 15) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      } else {
+        if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      }
     }
     return 1;
   }
