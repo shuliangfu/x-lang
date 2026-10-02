@@ -1675,8 +1675,10 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * with backend_enc_load_64_from_rax_arch. A bool or u8 field is loaded with
  * backend_enc_load_zext8_from_rax_arch (movzbl). The signed 32-bit load
  * reads four bytes and then sign-extends, so a one-byte u8 field keeps
- * adjacent stack and turns values above 127 negative. Pointer returns still
- * refuse this fold. u32 and f32 stay on the signed 32-bit load.
+ * adjacent stack and turns values above 127 negative. Pointer returns and
+ * slice returns still refuse this fold: a slice is the pointer in rax and
+ * the length in rdx, and the signed 32-bit load keeps only the low half
+ * of the pointer. u32 and f32 stay on the signed 32-bit load.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1746,18 +1748,30 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     let ret_ref: i32 = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
     if (ret_ref <= 0) { return 0; }
     let off: i32 = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ret_ref);
-    // PLATFORM: SHARED — pointer returns must not use this i32 field-load fold.
+    // PLATFORM: SHARED — pointer and slice returns must not use this
+    // scalar field-load fold. Refuse before any encode.
     // Root (mac L4 cold opt SEGV): expect_ptr_u8 returns *u8 (TYPE_PTR=9) from
     // Option_ptr_u8.value (dual-GP half at +8). Historic load_32 / off-0 path
     // loaded is_some tag (1) as a pointer → ldrb [x0=1]. Soft product kept
     // CALL and stayed green; cold pure-asm inlined the broken path.
-    // G.7: refuse TYPE_PTR returns here (CALL emits dual-GP correctly).
-    // TypeKind: TYPE_PTR = 9 (ast.x / typeck comments).
+    // TYPE_SLICE=11 is the same class. The callee loads the pointer into rax
+    // and the length into rdx. load_32 keeps the low half of the pointer and
+    // leaves rdx stale. The real call already returns that pair. Do not
+    // extend w1545_win_mid_named_sz: X-to-X slice returns stay rax:rdx.
+    // G.7: refuse here (CALL emits the pair). TypeKind: PTR=9, SLICE=11.
     let ret_ty: i32 = pipeline_module_func_return_type_at(callee_mod, fi);
     if (ret_ty > 0) {
       let kord: i32 = pipeline_type_kind_ord_at(callee_arena, ret_ty);
-      if (kord == 9) {
+      if (kord == 9 || kord == 11) {
         return 0;
+      }
+    }
+    // Field type when the function return type is missing. Still before encode.
+    {
+      let field_ty: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
+      if (field_ty > 0) {
+        let field_k: i32 = pipeline_type_kind_ord_at(callee_arena, field_ty);
+        if (field_k == 11) { return 0; }
       }
     }
     let arg_ref: i32 = 0;
