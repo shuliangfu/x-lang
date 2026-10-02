@@ -416,6 +416,8 @@ extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
 extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
                                                         int32_t sz, int32_t ta);
+int32_t pipeline_asm_emit_struct_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                               int32_t ta, int32_t stack_slot_off);
 
 int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx, int32_t ta,
                                              int32_t let_ty_ref, int32_t stack_slot_off) {
@@ -432,8 +434,17 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
     return -2;
   dest_in_rbx = (stack_slot_off == -3) ? 1 : 0;
   ko = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ko == 45 && (stack_slot_off >= 0 || stack_slot_off == -3)) {
+    /* STRUCT_LIT. A -2 return made glue_block_body_emit_let_init emit the
+     * literal into a fresh temp and memcpy that temp into the let slot.
+     * Ubuntu writes the fields into the destination and does not memcpy.
+     * pipeline_asm_emit_struct_let_init_elf_c is that in-place writer.
+     * Slot -3 is dest-in-rbx. Any other negative slot stays -2 so the
+     * caller keeps its own copy. A -1 already wrote a partial literal.
+     * PLATFORM: WINDOWS leftover-PE. */
+    return pipeline_asm_emit_struct_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta, stack_slot_off);
+  }
   if (ko == 45) {
-    /* STRUCT_LIT: leave to existing twin / fallthrough (pipeline_asm_emit_struct_let_init Class U real) */
     return -2;
   }
   if (ko == 48 || ko == 49) {
