@@ -414,6 +414,10 @@ extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf, int32_t off, int32_t t
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
 extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_push_rbx_arch(void *elf, int32_t ta);
+extern int32_t backend_enc_pop_rbx_arch(void *elf, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                       void *ctx, int32_t ta);
 extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t slot_off,
                                                         int32_t sz, int32_t ta);
 int32_t pipeline_asm_emit_struct_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
@@ -499,7 +503,10 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
    * at least 8 bytes, take the source address and call the existing
    * glue_copy_large_struct_from_rax_ptr_elf_c. That helper emits memcpy.
    * EXPR_DEREF is 52: emit the pointer, then the same helper when the layout
-   * is wider than 16 bytes. FIELD and INDEX still return -2.
+   * is wider than 16 bytes. EXPR_FIELD is 44 and is copied only when the
+   * destination is already in rbx and the named layout is 16 bytes: push
+   * rbx, take the source field address, pop rbx, then the same helper.
+   * Any other size returns -2 with no bytes emitted. INDEX still returns -2.
    * PLATFORM: WINDOWS leftover-PE. Size gates match the Linux leftover. */
   if (ko == 3 && (ta == 0 || ta == 1)) {
     int32_t src_off;
@@ -549,6 +556,35 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
     if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
       return -1;
     if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta) != 0)
+      return -1;
+    return 0;
+  }
+  /* EXPR_FIELD is 44. Slot -3 means rbx already holds the destination.
+   * A 16-byte named field (Lexer) copies from the source field address.
+   * Wider and narrower fields return -2 before any emit, so the caller
+   * can keep its one-GPR store. Do not lower the VAR frame-dest gate.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 44 && dest_in_rbx && (ta == 0 || ta == 1)) {
+    int32_t ty_ref;
+    ty_ref = let_ty_ref;
+    if (ty_ref <= 0)
+      ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
+    if (ty_ref <= 0)
+      return -2;
+    modp = glue_emit_module_from_ctx(ctx);
+    let_sz = glue_type_size_simple(modp, arena, ty_ref, 0);
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > let_sz)
+      let_sz = named_sz;
+    if (let_sz != 16)
+      return -2;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, let_sz, ta) != 0)
       return -1;
     return 0;
   }
@@ -949,8 +985,12 @@ int32_t glue_emit_assign_var_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
  * x19, source in rax, length = the field layout size). ARRAY_LIT (46) and
  * every other kind stay on the scalar store. A qword in rax must not enter
  * the memcpy. Size <= 8 stays on the scalar store.
- * PLATFORM: MACOS|ARM64 for the pair and the >16 memcpy. The one-GPR store
- * stays for ta != 1 (WINDOWS leftover-PE and LINUX x86_64). */
+ * PLATFORM: MACOS|ARM64 for the pair and the >16 memcpy.
+ * PLATFORM: WINDOWS x86_64 — a 16-byte TYPE_STRUCT field whose base variable
+ * is a pointer (type kind 9) uses the existing let-init slot -3 glue_copy
+ * before the RHS value is emitted. A frame local is not kind 9, so
+ * OneFuncResult.next_lex on a local stays on the one-GPR store. */
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                        void *ctx, int32_t ta);
 extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
@@ -974,6 +1014,55 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
     return -1;
   if (pipeline_expr_kind_ord_at(arena, expr_ref) != 28)
     return -1;
+  /* PLATFORM: WINDOWS x86_64. Pointer base + 16-byte TYPE_STRUCT only.
+   * VAR already glue_copies inside let-init when dest is rbx. FIELD of
+   * that same size does too, after this edit. Emit the destination lvalue
+   * first. A -2 from let-init would mean no RHS emit, but this path has
+   * already written the lvalue, so it must not fall through. Other RHS
+   * kinds and frame locals stay on the scalar store below. */
+  if (ta == 0) {
+    void *mod = pipeline_asm_emit_module_ref_c();
+    int32_t fty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
+    int32_t wide = 0;
+    int32_t fk = 0;
+    int32_t base;
+    int32_t ptr_base = 0;
+    int32_t rko;
+    int32_t pre = 0;
+    if (fty > 0) {
+      wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+      fk = pipeline_type_kind_ord_at(arena, fty);
+    }
+    if (fk == 8 && wide == 16) {
+      base = pipeline_expr_field_access_base_ref(arena, left_ref);
+      if (base > 0 && pipeline_expr_kind_ord_at(arena, base) == 3) {
+        int32_t bty = glue_var_decl_type_ref_elf_c(arena, ctx, base);
+        int32_t rty = pipeline_expr_resolved_type_ref(arena, base);
+        if (bty > 0 && pipeline_type_kind_ord_at(arena, bty) == 9)
+          ptr_base = 1;
+        if (!ptr_base && rty > 0 && pipeline_type_kind_ord_at(arena, rty) == 9)
+          ptr_base = 1;
+      }
+    }
+    if (ptr_base) {
+      rko = pipeline_expr_kind_ord_at(arena, right_ref);
+      if (rko == 3)
+        pre = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref) >= 0;
+      else if (rko == 44)
+        pre = 1;
+      if (pre) {
+        int32_t irc;
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
+          return -1;
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          return -1;
+        irc = glue_emit_struct_type_let_init_elf_c(arena, elf_ctx, right_ref, ctx, ta, fty, -3);
+        if (irc == 0)
+          return 0;
+        return -1;
+      }
+    }
+  }
   if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta) != 0)
     return -1;
   /* PLATFORM: MACOS|ARM64. 9..16 saves x1 before the lvalue overwrites
