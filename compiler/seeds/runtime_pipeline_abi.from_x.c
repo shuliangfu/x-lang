@@ -9895,9 +9895,15 @@ int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void
  * (PE first-wins does not rewrite intra-object). Egg accessor reads SAT
  * Module layout; leftover rest WAVE280 sidecar has np=2 / name "a" but
  * nloc stays 0 → callee VAR `a` CG002 (add/id red; zero-arg f() green).
- * G.7: complete leftover rest fill + param_home so leftover rest mega_body
- * same-TU uses leftover rest WAVE280 accessors. POSIX FROM_X stays ABSENT
+ * G.7: complete leftover rest fill + param_home so a non-FROM_X host-cc
+ * of this TU still has the WAVE280 faces. POSIX FROM_X stays ABSENT
  * (.x thin owns the faces).
+ * w1732 PLATFORM: WINDOWS leftover — when FROM_X and WIN_LEFTOVER are
+ * both set, the bodies below are not compiled. Same-TU copies never
+ * call w1545_win_mid_named_sz or the hidden-pointer latch, so mega
+ * kept a 9-16 byte named return in rax:rdx. The calls bind
+ * runtime_pipeline_abi_win_param_home_thin.x. The bodies stay when
+ * either macro is unset.
  * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -9915,6 +9921,16 @@ extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
 extern void *pipeline_asm_emit_ctx_arena_get(void);
 extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1732 PLATFORM: WINDOWS leftover.
+ * runtime_pipeline_abi_win_param_home_thin.x owns
+ * pipeline_asm_fill_param_slots and pipeline_asm_emit_param_home_elf_c.
+ * mega_body already declares both and calls them. With no same-TU body,
+ * those relocs bind the thin, which latches a 9-16 byte named return
+ * and saves rcx before the first formal. The bodies below stay when
+ * either macro is unset. POSIX FROM_X does not enter the outer block.
+ */
+#else
 void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
   int32_t off;
   int32_t np;
@@ -10037,6 +10053,7 @@ int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, 
   }
   return 0;
 }
+#endif /* w1732: bodies stay unless FROM_X and WIN_LEFTOVER are both set */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_param_slots unique */
 
 /*
