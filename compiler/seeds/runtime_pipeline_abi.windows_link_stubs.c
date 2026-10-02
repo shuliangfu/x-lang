@@ -1008,9 +1008,18 @@ int32_t glue_emit_assign_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_re
 }
 /* Cap residual glue_emit_index_eff_addr_scaled is #ifndef FROM_X; windows_e
  * emit_index calls these. Prior stubs returned -1 → option `bp[0]` CG002 after
- * ARRAY_LIT fix. Minimal Win body: eff_addr_base + lit add / scaled rbx.
+ * ARRAY_LIT fix. Address fallback stays eff_addr_base + lit add / scaled rbx.
  * try_* return -2 (not-handled) so Cap/windows_e fallthroughs keep working.
- * PLATFORM: WINDOWS leftover-PE. */
+ *
+ * Slice bounds: Linux leftover gcc defines glue_emit_index_bounds_guard_elf_c
+ * and the scaled entry calls it. The PE egg has no guard symbol, so a slice
+ * index such as parser copy_slice_to_name64 never emits xlang_panic_. This
+ * file is the Windows provider of that one symbol. Do not add a second body
+ * in a thin. VAR/FIELD slices reach the guard; CALL/METHOD/INDEX/DEREF
+ * TYPE_SLICE bases are already handled by glue_try_index_rvalue_slice_once_elf_c
+ * in the FROM_X rest (panic included) and must return before the guard.
+ * PLATFORM: WINDOWS leftover-PE. Linux gold keeps the leftover gcc body.
+ */
 extern int32_t glue_emit_index_eff_addr_base_elf_c(void *arena, void *elf_ctx, int32_t ix_ref,
                                                    void *ctx, int32_t ta);
 extern int32_t glue_emit_index_rax_plus_rbx_scaled_elf_c(void *elf_ctx, int32_t esz, int32_t ta);
@@ -1021,6 +1030,129 @@ extern int32_t backend_enc_add_imm_to_rax_arch(void *elf, int32_t imm, int32_t t
 extern int32_t backend_enc_push_rax_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_pop_rax_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf, int32_t ta);
+extern int32_t glue_try_index_rvalue_slice_once_elf_c(void *arena, void *elf_ctx, int32_t ix_ref,
+                                                     int32_t base_ref, int32_t idx_ref, void *ctx,
+                                                     int32_t ta, int32_t esz);
+extern int32_t pipeline_expr_index_proven_in_bounds_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_is_slice_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t pipeline_asm_emit_panic_int_div_zero_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_cmp_rax_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cmp_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jge_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len,
+                                     int32_t is_global, int32_t ta);
+extern int32_t glue_emit_slice_length_to_rbx_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta,
+                                                  int32_t base_ref);
+extern int32_t backend_enc_add_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+
+/* INT lit is kind 0; kind 2 is the other integer lit. Same test as the
+ * Linux leftover guard. Not a second public entry. */
+static int32_t win_stub_index_lit_i32(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 0 || ko == 2) {
+    if (out_imm)
+      *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+/* Slice lo/hi and fixed-array literal OOB emit xlang_panic_(1, 0).
+ * Fixed-array non-literal indexes do not: host -E has no such check, and a
+ * freestanding bag has no T xlang_panic_. proven_in_bounds and any base that
+ * is neither an array nor a slice skip.
+ * PLATFORM: WINDOWS leftover-PE. Linux gold body stays in the leftover gcc
+ * overlay; this is the PE egg's missing definition of the same symbol. */
+int32_t glue_emit_index_bounds_guard_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta,
+                                           int32_t ix_ref, int32_t base_ref, int32_t idx_ref) {
+  int32_t base_ty;
+  int32_t bt_kind;
+  int32_t is_slice;
+  int32_t lit_idx;
+  int32_t array_sz;
+  uint8_t ok_lo[128];
+  uint8_t ok_hi[128];
+  int32_t ok_lo_len;
+  int32_t ok_hi_len;
+
+  if (!arena || !elf_ctx || !ctx || base_ref <= 0 || idx_ref <= 0)
+    return 0;
+
+  if (ix_ref > 0) {
+    if (pipeline_expr_index_proven_in_bounds_at(arena, ix_ref) != 0)
+      return 0;
+    is_slice = (pipeline_expr_index_base_is_slice_at(arena, ix_ref) != 0) ? 1 : 0;
+  } else {
+    is_slice = 0;
+  }
+
+  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (base_ty <= 0)
+    return 0;
+  bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
+  /* TYPE_SLICE = 11, TYPE_ARRAY = 10. Same ords as emit_index in windows_e. */
+  if (is_slice == 0 && bt_kind == 11)
+    is_slice = 1;
+  if (is_slice == 0 && bt_kind != 10)
+    return 0;
+
+  if (win_stub_index_lit_i32(arena, idx_ref, &lit_idx)) {
+    if (lit_idx < 0)
+      return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
+    if (is_slice == 0) {
+      array_sz = pipeline_type_array_size_at(arena, base_ty);
+      if (array_sz > 0 && lit_idx >= array_sz)
+        return pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta);
+      return 0;
+    }
+  }
+
+  /* Fixed-array non-lit: C parity, no runtime panic. */
+  if (is_slice == 0)
+    return 0;
+
+  ok_lo_len = pipeline_asm_emit_next_label_c(ctx, ok_lo, 64);
+  ok_hi_len = pipeline_asm_emit_next_label_c(ctx, ok_hi, 64);
+  if (ok_lo_len <= 0 || ok_hi_len <= 0)
+    return -1;
+
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_mov_imm32_to_rbx_arch(elf_ctx, 0, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_rax_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jge_arch(elf_ctx, ok_lo, ok_lo_len, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, ok_lo, ok_lo_len, 0, ta) != 0)
+    return -1;
+
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+    return -1;
+  if (glue_emit_slice_length_to_rbx_elf_c(arena, elf_ctx, ctx, ta, base_ref) != 0)
+    return -1;
+  if (backend_enc_add_imm_to_rbx_arch(elf_ctx, -1, ta) != 0)
+    return -1;
+  if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_jge_arch(elf_ctx, ok_hi, ok_hi_len, ta) != 0)
+    return -1;
+  if (pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_label_arch(elf_ctx, ok_hi, ok_hi_len, 0, ta) != 0)
+    return -1;
+  return 0;
+}
 int32_t glue_try_index_var_or_field_base_to_rax_elf_c(void *arena, void *elf_ctx, int32_t base_ref,
                                                      void *ctx, int32_t ta) {
   (void)arena; (void)elf_ctx; (void)base_ref; (void)ctx; (void)ta;
@@ -1036,7 +1168,18 @@ int32_t glue_emit_index_eff_addr_scaled_elf_c(void *arena, void *elf_ctx, int32_
                                              int32_t ta, int32_t esz) {
   int32_t iko;
   int32_t lit;
+  int32_t once_rc;
   if (!arena || !elf_ctx || !ctx || ix_ref <= 0 || base_ref <= 0 || idx_ref <= 0)
+    return -1;
+  /* CALL/METHOD/INDEX/DEREF TYPE_SLICE: one materialization, bounds included.
+   * 0 handled, -1 error, -2 fall through to the VAR/FIELD guard below. */
+  once_rc = glue_try_index_rvalue_slice_once_elf_c(arena, elf_ctx, ix_ref, base_ref, idx_ref, ctx,
+                                                  ta, esz);
+  if (once_rc == 0)
+    return 0;
+  if (once_rc == -1)
+    return -1;
+  if (glue_emit_index_bounds_guard_elf_c(arena, elf_ctx, ctx, ta, ix_ref, base_ref, idx_ref) != 0)
     return -1;
   if (glue_emit_index_eff_addr_base_elf_c(arena, elf_ctx, ix_ref, ctx, ta) != 0)
     return -1;
