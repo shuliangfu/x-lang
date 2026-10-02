@@ -18842,6 +18842,35 @@ int32_t glue_binop_rax_frame_spill_depth(void) {
   return g_wave207_rax_frame_spill_n;
 }
 
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
+/* w1717 PLATFORM: SHARED.
+ * runtime_pipeline_abi.x owns g_var_cache_* (thin:
+ * runtime_pipeline_abi_binop_var_slot_cache_thin.x). These g_wave210_*
+ * bodies are a second BSS. The live add's set wrote that BSS while
+ * glue_try_binop_cmp_rbx_rax_elf_c cleared g_var_cache_valid_rbx.
+ * Under FROM_X this TU only declares the accessors, so set and
+ * invalidate bind the mega cache. windows_e.c is the Windows cold -E
+ * of that mega and already defines the same accessors; this guard does
+ * not add a body there. The g_wave210_* bodies stay when FROM_X is unset.
+ */
+extern void glue_binop_var_slot_cache_clear(void);
+extern void glue_binop_var_slot_cache_invalidate_rax(void);
+extern void glue_binop_var_slot_cache_invalidate_rbx(void);
+extern int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx);
+extern int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off);
+extern int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off);
+extern int32_t glue_binop_var_slot_cache_valid_rax_get(void);
+extern int32_t glue_binop_var_slot_cache_valid_rbx_get(void);
+extern int32_t glue_binop_var_slot_cache_rax_off_get(void);
+extern int32_t glue_binop_var_slot_cache_rbx_off_get(void);
+extern void glue_binop_var_slot_cache_set_ctx_key(void *ctx);
+extern void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off);
+extern void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off);
+extern void glue_binop_var_slot_cache_set_valid_rax(int32_t v);
+extern void glue_binop_var_slot_cache_set_valid_rbx(int32_t v);
+extern void glue_binop_var_slot_cache_set_rax_off(int32_t off);
+extern void glue_binop_var_slot_cache_set_rbx_off(int32_t off);
+#else
 static int32_t g_wave210_var_valid_rax = 0;
 static int32_t g_wave210_var_valid_rbx = 0;
 static void *g_wave210_var_ctx = 0;
@@ -18884,6 +18913,7 @@ void glue_binop_var_slot_cache_set_valid_rax(int32_t v) { g_wave210_var_valid_ra
 void glue_binop_var_slot_cache_set_valid_rbx(int32_t v) { g_wave210_var_valid_rbx = v; }
 void glue_binop_var_slot_cache_set_rax_off(int32_t off) { g_wave210_var_rax_off = off; }
 void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { g_wave210_var_rbx_off = off; }
+#endif
 
 void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(void *arena, void *ctx, int32_t right_ref, int32_t ta,
                                                           void *elf_ctx) {
