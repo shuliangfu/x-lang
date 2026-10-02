@@ -687,20 +687,23 @@ extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rdx_arch(void *elf, int32_t off, int32_t ta);
 extern int32_t backend_enc_load_rbp_to_rbx_arch(void *elf, int32_t off, int32_t ta);
-extern int32_t backend_enc_add_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
 extern int32_t pipe_load_i32_le(void *base, int32_t off);
 extern void pipe_store_i32_le(void *base, int32_t off, int32_t v);
 extern int32_t pipe_asm_ctx_off_next_offset(void);
-extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
-extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
-extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+extern int32_t backend_enc_add_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
-extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 
-static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref,
-                                                          void *ctx, int32_t ta, int32_t base_off,
-                                                          int32_t sret_direct) {
+/* Sret / match-dest STRUCT_LIT writer. rbx is already the dest base and
+ * the caller has pushed it. A u8[256] field initialized from a frame VAR
+ * is 256 bytes; the 8-byte store below would keep only the array address.
+ * Copy those 256 bytes with the existing glue_copy slot -3. Refresh rbx
+ * from the parked push first, then add the field offset, so the next
+ * field still pops the dest base. Other fields keep the 8-byte cap.
+ * PLATFORM: WINDOWS x86_64 leftover-PE. ta != 0 does not take the copy. */
+int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref,
+                                                 void *ctx, int32_t ta, int32_t base_off) {
   int32_t nf, fi, iref, foff, fsz, store_off, iko;
   void *mod;
   if (!arena || !elf_ctx || lit_ref <= 0)
@@ -729,24 +732,14 @@ static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf
       return -1;
     iko = pipeline_expr_kind_ord_at(arena, iref);
     if (iko == 45) {
-      if (win_emit_struct_lit_fields_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off,
-                                                     sret_direct) != 0)
+      if (leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off) != 0)
         return -1;
       continue;
     }
-    /* PLATFORM: WINDOWS x86_64. A return struct literal (slot -1, sret_direct)
-     * whose field is exactly u8[256] initialized from a frame VAR must memcpy
-     * 256 bytes into the sret pointer plus this field offset. The source is
-     * the VAR frame slot. The parked frame temp stays on the machine stack:
-     * this branch does not pop it and does not push. The next scalar field
-     * pop/push restores that temp. Size is 256 only. Kind 10 rejects a
-     * 256-byte struct. A frame let (slot >= 0 or -3) passes sret_direct 0
-     * and stays on the 8-byte store below. ta != 0 never takes this branch. */
-    if (sret_direct && ta == 0 && iko == 3) {
+    if (ta == 0 && iko == 3) {
       int32_t fty = 0;
       int32_t wide = 0;
       int32_t src_off = -1;
-      int32_t sret_home = -1;
       if (mod)
         fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
       if (fty > 0 && pipeline_type_kind_ord_at(arena, fty) == 10) {
@@ -757,10 +750,9 @@ static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf
       if (wide == 256)
         src_off = glue_var_expr_stack_off_elf_c(arena, ctx, iref);
       if (wide == 256 && src_off >= 0) {
-        sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
-        if (sret_home == -1)
+        if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
           return -1;
-        if (backend_enc_load_rbp_to_rbx_arch(elf_ctx, sret_home, ta) != 0)
+        if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
           return -1;
         if (store_off != 0 &&
             backend_enc_add_imm_to_rbx_arch(elf_ctx, store_off, ta) != 0)
@@ -771,6 +763,57 @@ static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf
           return -1;
         continue;
       }
+    }
+    fsz = glue_struct_lit_field_store_sz(arena, lit_ref, fi);
+    if (fsz <= 0)
+      continue;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, iref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (fsz > 8)
+      fsz = 8;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, fsz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+static int32_t win_emit_struct_lit_fields_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref,
+                                                          void *ctx, int32_t ta, int32_t base_off) {
+  int32_t nf, fi, iref, foff, fsz, store_off, iko;
+  void *mod;
+  if (!arena || !elf_ctx || lit_ref <= 0)
+    return -1;
+  if (base_off < 0 || base_off > 4096)
+    return -1;
+  mod = glue_emit_module_from_ctx(ctx);
+  if (!mod)
+    mod = pipeline_asm_emit_module_ref_c();
+  nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
+  if (nf < 0)
+    nf = 0;
+  if (nf > 64)
+    return -1;
+  for (fi = 0; fi < nf; fi++) {
+    iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
+    if (iref <= 0)
+      return -1;
+    foff = 0;
+    if (mod)
+      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, lit_ref, fi);
+    if (foff < 0)
+      foff = 0;
+    store_off = foff + base_off;
+    if (store_off > 4096)
+      return -1;
+    iko = pipeline_expr_kind_ord_at(arena, iref);
+    if (iko == 45) {
+      if (win_emit_struct_lit_fields_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off) != 0)
+        return -1;
+      continue;
     }
     fsz = glue_struct_lit_field_store_sz(arena, lit_ref, fi);
     if (fsz <= 0)
@@ -893,20 +936,9 @@ int32_t pipeline_asm_emit_struct_lit_fields_elf_c(void *arena, void *elf_ctx, in
   }
   if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
     return -1;
-  /* Slot -1 is the expression-path wrapper. A frame let passes >= 0 or -3
-   * and must not copy into the sret home. PLATFORM: WINDOWS x86_64. */
-  {
-    int32_t sret_direct = 0;
-    if (stack_slot_off == -1 && ta == 0 &&
-        pipeline_asm_emit_ctx_sret_active_get() != 0 &&
-        pipeline_asm_emit_ctx_sret_ret_sz_get() > 16 &&
-        pipeline_asm_emit_ctx_sret_home_off_get() != -1)
-      sret_direct = 1;
-    if (win_emit_struct_lit_fields_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0,
-                                                   sret_direct) != 0) {
-      (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
-      return -1;
-    }
+  if (win_emit_struct_lit_fields_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0) != 0) {
+    (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
+    return -1;
   }
   if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
     return -1;

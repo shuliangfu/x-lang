@@ -5529,7 +5529,9 @@ extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_r
 static int32_t g_leftover_match_dest_parked = 0;
 static int32_t g_leftover_match_dest_nbytes = 0;
 static int32_t g_leftover_match_dest_tk = 0;
-static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+/* Body lives in windows_link_stubs.c so the PE egg's static copy can be
+ * replaced by that global. PLATFORM: WINDOWS leftover-PE. */
+extern int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                        int32_t ta, int32_t base_off);
 static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
                                                       int32_t ta);
@@ -10712,76 +10714,9 @@ int32_t glue_try_emit_match_subject_field_var_elf_c(void *arena, void *elf_ctx, 
 int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
 
-/*
- * DEST_IN_RBX STRUCT_LIT into parked rbx. Scalar fields store rax at
- * dest+foff. Nested STRUCT_LIT fields recurse at dest+base_off+foff
- * (nest_star_lit SAT implicit dest SEGV 139; nest_star_match dest-parked
- * rec wrote Inner at dest+0 RUN=0). Do not leftover rest T SAT
- * emit_struct_lit. PLATFORM: WINDOWS leftover-PE.
- */
-static int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
-                                                       int32_t ta, int32_t base_off) {
-  int32_t nf;
-  int32_t fi;
-  int32_t iref;
-  int32_t foff;
-  int32_t fsz;
-  int32_t store_off;
-  int32_t iko;
-  void *mod;
-  if (!arena || !elf_ctx || lit_ref <= 0)
-    return -1;
-  /* Nested STRUCT_LIT fields store at dest+base_off. Cap matches
-   * leftover rest ASSIGN dest-width 4096. nest freeze 64. */
-  if (base_off < 0 || base_off > 4096)
-    return -1;
-  mod = glue_emit_module_from_ctx(ctx);
-  if (!mod)
-    mod = pipeline_asm_emit_module_ref_c();
-  nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
-  if (nf < 0)
-    nf = 0;
-  if (nf > 64)
-    return -1;
-  for (fi = 0; fi < nf; fi++) {
-    iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
-    foff = 0;
-    if (mod)
-      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, lit_ref, fi);
-    if (foff < 0)
-      foff = 0;
-    store_off = foff + base_off;
-    if (store_off > 4096)
-      return -1;
-    if (iref <= 0)
-      return -1;
-    iko = pipeline_expr_kind_ord_at(arena, iref);
-    /* Nested STRUCT_LIT: write subfields at dest+store_off. rec ko==45
-     * dest-parked would store Inner at dest+0 (nest_star_match RUN=0).
-     * SAT emit_struct_lit implicit dest overlaps p (nest_star_lit SEGV
-     * 139). G.7 complete this helper — do not leftover rest T SAT
-     * emit_struct_lit. PLATFORM: WINDOWS leftover-PE. */
-    if (iko == 45) {
-      if (leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off) != 0)
-        return -1;
-      continue;
-    }
-    fsz = glue_struct_lit_field_store_sz(arena, lit_ref, fi);
-    if (fsz <= 0)
-      continue;
-    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, iref, ctx, ta) != 0)
-      return -1;
-    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (fsz > 8)
-      fsz = 8;
-    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, fsz, ta) != 0)
-      return -1;
-  }
-  return 0;
-}
+/* leftover_emit_struct_lit_into_parked_rbx is defined in
+ * windows_link_stubs.c. The extern above is the only declaration in this
+ * TU. PLATFORM: WINDOWS leftover-PE. */
 
 /*
  * DEST_IN_RBX MATCH arm ARRAY_LIT: write elems into parked dest.
