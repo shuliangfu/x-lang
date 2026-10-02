@@ -397,6 +397,7 @@ export extern function glue_asm_mangle_import_binding_call_sym_c(
   is_method: i32, sym_flat: *u8
 ): i32;
 export extern function pipeline_module_func_is_extern_at(m: *u8, fi: i32): i32;
+export extern function glue_asm_resolve_call_target_module_c(arena: *u8, call_expr_ref: i32, mod_out: *u8, func_ix_out: *i32, dep_ix_out: *i32): i32;
 export extern function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u8, call: i32): i32;
 export extern function pipeline_typeck_call_arg_effective_type_c(a: *u8, arg_ref: i32): i32;
 export extern function pipeline_dep_ctx_current_func_index(dep: *u8): i32;
@@ -928,7 +929,10 @@ function glue_sysv_arg_stack_words_c(sz: i32, gp_units: i32): i32 {
  *            value there and returns the pointer in rax.
  * Inside one function the value still travels in rax:rdx: the call site
  * reads it back from the hidden buffer and the callee epilogue stores
- * rax:rdx through the saved pointer. Slices / non-named 16B are unchanged.
+ * rax:rdx through the saved pointer. A slice return between two X
+ * functions stays in rax:rdx. An extern callee is gcc, which returns
+ * that 16-byte slice through the hidden pointer in rcx; those calls
+ * use this same caller buffer and do not change the X epilogue.
  * PLATFORM: WINDOWS x86_64 (all helpers return 0 / no-op elsewhere).
  */
 
@@ -1135,11 +1139,64 @@ export function w1545_win_epi_prefix_c(elf_ctx: *u8): i32 {
 }
 
 /**
- * Caller side of a call returning a Win64 by-reference named struct: take a
- * 16-byte frame temp (budget: w1521_win_call_mem_temp_bytes_c +32), let the
- * packer pass its address in rcx, then load rax:rdx from the pointer the
- * callee returns. A path that never loads args (inline) leaves the value in
- * rax:rdx already.
+ * Classify a resolved CALL or METHOD_CALL callee.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param expr_ref i32 — call expression; <=0 returns 0
+ * @return i32 — 1 when the callee is an X body, 2 when it is extern, 0 when unresolved
+ * PLATFORM: SHARED — Windows slice returns and the arm64 by-value gate both use this.
+ */
+function w1545_callee_class(arena: *u8, expr_ref: i32): i32 {
+  let ms: u8[8] = [];
+  let fs: i32[1] = [];
+  let ds: i32[1] = [];
+  let m: *u8 = 0 as *u8;
+  let rc: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0) { return 0; }
+  fs[0] = 0 - 1;
+  ds[0] = 0 - 1;
+  call_dispatch_store_i32_le(&ms[0], 0, 0);
+  call_dispatch_store_i32_le(&ms[0], 4, 0);
+  unsafe {
+    rc = glue_asm_resolve_call_target_module_c(arena, expr_ref, &ms[0], &fs[0], &ds[0]);
+  }
+  if (rc != 0 || fs[0] < 0) { return 0; }
+  m = call_dispatch_load_ptr_le(&ms[0], 0);
+  if (m == 0 as *u8) { return 0; }
+  unsafe {
+    if (pipeline_module_func_is_extern_at(m, fs[0]) != 0) { return 2; }
+  }
+  return 1;
+}
+
+/**
+ * Hidden-return size for an extern callee that returns a slice.
+ * X-to-X slice returns stay in rax:rdx. gcc returns the 16-byte
+ * {data, length} value through the pointer in rcx. TYPE_SLICE is 11.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param expr_ref i32 — CALL or METHOD_CALL whose callee is tested
+ * @param ty i32 — resolved return type; <=0 returns 0
+ * @return i32 — 16 when ty is a slice and the callee is extern, else 0
+ * PLATFORM: WINDOWS x86_64 (0 on any other host).
+ */
+function w1545_win_extern_slice_ret_sz(arena: *u8, expr_ref: i32, ty: i32): i32 {
+  let k: i32 = 0;
+  if (arena == 0 as *u8 || expr_ref <= 0 || ty <= 0) { return 0; }
+  unsafe {
+    if (link_abi_host_is_windows() == 0) { return 0; }
+    k = pipeline_type_kind_ord_at(arena, ty);
+  }
+  // TYPE_SLICE == 11. The header is two words, not a named layout.
+  if (k != 11) { return 0; }
+  if (w1545_callee_class(arena, expr_ref) != 2) { return 0; }
+  return 16;
+}
+
+/**
+ * Caller side of a call returning a Win64 by-reference named struct, or an
+ * extern slice: take a 16-byte frame temp (budget: w1521_win_call_mem_temp_bytes_c
+ * +32), let the packer pass its address in rcx, then load rax:rdx from the
+ * pointer the callee returns. A path that never loads args (inline) leaves
+ * the value in rax:rdx already. X-to-X slice returns do not enter here.
  * @return 1 emitted; 0 not this shape; -1 fail. PLATFORM: WINDOWS x86_64.
  */
 function w1545_win_mid_ret_call(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, is_m: i32): i32 {
@@ -1159,6 +1216,9 @@ function w1545_win_mid_ret_call(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
     ty = pipeline_expr_resolved_type_ref(arena, expr_ref);
   }
   sz = w1545_win_mid_named_sz(arena, ty);
+  if (sz == 0) {
+    sz = w1545_win_extern_slice_ret_sz(arena, expr_ref, ty);
+  }
   if (sz == 0) { return 0; }
   cur = call_dispatch_load_i32_le(ctx, 4);
   if (cur < 8) { cur = 8; }
@@ -1478,6 +1538,9 @@ export function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i3
     let rty: i32 = 0;
     unsafe { rty = pipeline_expr_resolved_type_ref(arena, call); }
     if (w1545_win_mid_named_sz(arena, rty) > 0) {
+      tot = tot + 32;
+    } else if (w1545_win_extern_slice_ret_sz(arena, call, rty) > 0) {
+      // Same 16-byte hidden buffer as a named 9..16 return. PLATFORM: WINDOWS.
       tot = tot + 32;
     }
   }
@@ -3207,25 +3270,9 @@ export extern function glue_asm_resolve_call_target_module_c(arena: *u8, call_ex
  * PLATFORM: SHARED (used on MACOS|ARM64 import METHOD).
  */
 function w1521_callee_is_xlang(arena: *u8, expr_ref: i32): i32 {
-  let ms: u8[8] = [];
-  let fs: i32[1] = [];
-  let ds: i32[1] = [];
-  let m: *u8 = 0 as *u8;
-  let rc: i32 = 0;
-  fs[0] = 0 - 1;
-  ds[0] = 0 - 1;
-  call_dispatch_store_i32_le(&ms[0], 0, 0);
-  call_dispatch_store_i32_le(&ms[0], 4, 0);
-  unsafe {
-    rc = glue_asm_resolve_call_target_module_c(arena, expr_ref, &ms[0], &fs[0], &ds[0]);
-  }
-  if (rc != 0 || fs[0] < 0) { return 0; }
-  m = call_dispatch_load_ptr_le(&ms[0], 0);
-  if (m == 0 as *u8) { return 0; }
-  unsafe {
-    if (pipeline_module_func_is_extern_at(m, fs[0]) != 0) { return 0; }
-  }
-  return 1;
+  // Same resolve as the Windows extern-slice gate. 1 is an X body.
+  if (w1545_callee_class(arena, expr_ref) == 1) { return 1; }
+  return 0;
 }
 let w1521_x8_st: i32[3] = [];
 
