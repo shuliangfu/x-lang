@@ -1670,6 +1670,9 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * CALL(48): one positional arg is the struct. METHOD_CALL(49): extra args must
  * be 0 and param0 is method_call_base (UFCS self). Nested CALL(48) or
  * METHOD(49) factory peels via glue_inner_call_arg (UFCS pix map).
+ * An 8-byte integer field (u64/i64/usize/isize) is loaded with
+ * backend_enc_load_64_from_rax_arch. The signed 32-bit load keeps only
+ * the low half. Pointer returns still refuse this fold.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1783,7 +1786,23 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       return 0 - 1;
     }
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    // PLATFORM: SHARED — pick the load from the field type, then the callee
+    // return type. TypeKind U64=4 I64=5 USIZE=6 ISIZE=7 are 8 bytes.
+    // backend_enc_load_32_from_rax_arch is movl plus cdqe (8b 00; 48 98).
+    // That keeps an i64 field's low half. Other kinds stay on that 32-bit load.
+    let load_ty: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
+    if (load_ty <= 0) {
+      load_ty = ret_ty;
+    }
+    let load_k: i32 = 0;
+    if (load_ty > 0) {
+      load_k = pipeline_type_kind_ord_at(callee_arena, load_ty);
+    }
+    if (load_k == 4 || load_k == 5 || load_k == 6 || load_k == 7) {
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    } else {
+      if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    }
     return 1;
   }
   return 0;
