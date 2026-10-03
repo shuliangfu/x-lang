@@ -25274,16 +25274,20 @@ int32_t pipeline_block_region_is_unsafe(void *a, int32_t br, int32_t ri) {
   return rb && rb->with_arena_cap_ref == -1 ? 1 : 0;
 }
 
-/** M-3：读块内第 ri 个 region 的 body 块 ref；无效时 0。 */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_region_body_ref(void *a, int32_t br, int32_t ri);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left this reader as an extern on leftover, so the egg thin owned
+ * the symbol and called the egg's block_region_at. This TU's
+ * pipeline_block_append_region and pipeline_block_append_unsafe write
+ * body_ref through this TU's block_region_at. The statement walk treats
+ * kind 6 as a region and skips the body when this reader returns <= 0.
+ * unsafe { } is that kind. On the side image the walk bound to the egg,
+ * the row is empty, and the calls inside unsafe were never emitted.
+ * Read the row this TU wrote. The with-arena cap reader, for-body,
+ * let-init, and labeled readers stay as they are. */
 int32_t pipeline_block_region_body_ref(void *a, int32_t br, int32_t ri) {
   W277_Region *rb = block_region_at(a, br, ri);
   return rb ? rb->body_ref : 0;
 }
-#endif
 
 /** M-3：读块内 region 域标签长度；无效时 0。 */
 int32_t pipeline_block_region_label_len(void *a, int32_t br, int32_t ri) {
