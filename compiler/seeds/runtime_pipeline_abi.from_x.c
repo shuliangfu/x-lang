@@ -25608,36 +25608,39 @@ int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
 }
 #endif
 
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left these five row readers as externs on leftover, so the egg
+ * thin owned the symbols and called the egg's pipeline_block_labeled_ptr.
+ * That pointer uses the egg's arena_sidecar_get. This TU's
+ * pipeline_block_append_labeled writes is_goto and the lengths on this
+ * TU's row. pipeline_block_labeled_set_names calls this TU's
+ * pipeline_block_labeled_ptr and writes the name bytes on that same row
+ * (sidecar flag 1). Kind 7 emits backend_enc_jmp_arch
+ * only when is_goto is non-zero and the target length is in 1..255, and
+ * backend_enc_label_arch only when is_goto is 0 and the label length is
+ * in 1..255. On the side image, block 1 stores a goto (is_goto 1, target
+ * length 4) and a label (label length 4, is_goto 0). The egg count reader
+ * sees the shared block header and returns 2, so that reader stays as it
+ * is. The egg is_goto reader returns 0, the walk takes the label arm, and
+ * the egg label-length reader returns 0, so neither encoder runs.
+ * Read the row this TU wrote. The labeled return reader stays as it is.
+ */
 /**
  * wave379: is_goto flag for labeled stmt li (1 = bare `goto target;`, 0 = label def / labeled return).
  * PLATFORM: SHARED — host-C emit stmt_order kind=7.
  */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_labeled_is_goto(void *a, int32_t br, int32_t li);
-#else
 int32_t pipeline_block_labeled_is_goto(void *a, int32_t br, int32_t li) {
   W277_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
   return ls ? ls->is_goto : 0;
 }
-#endif
 
 /** wave379: label name length for `L:` definition (0 when bare goto has empty label). */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_labeled_label_len(void *a, int32_t br, int32_t li);
-#else
 int32_t pipeline_block_labeled_label_len(void *a, int32_t br, int32_t li) {
   W277_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
   return ls ? ls->label_len : 0;
 }
-#endif
 
 /** wave379/wave586: copy label name into dst (ABI *copy32; payload 128, content ≤255). */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_t *dst);
-#else
 void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LabeledStmt *ls;
   if (!dst)
@@ -25654,24 +25657,14 @@ void pipeline_block_labeled_label_copy32(void *a, int32_t br, int32_t li, uint8_
     memcpy(dst, ls->label, (size_t)n);
   }
 }
-#endif
 
 /** wave379: goto target name length for `goto T;`. */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_labeled_goto_target_len(void *a, int32_t br, int32_t li);
-#else
 int32_t pipeline_block_labeled_goto_target_len(void *a, int32_t br, int32_t li) {
   W277_LabeledStmt *ls = pipeline_block_labeled_ptr(a, br, li);
   return ls ? ls->goto_target_len : 0;
 }
-#endif
 
 /** wave379/wave586: copy goto target into dst (ABI *copy32; payload 128, content ≤127). */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, uint8_t *dst);
-#else
 void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LabeledStmt *ls;
   if (!dst)
@@ -25688,7 +25681,6 @@ void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, 
     memcpy(dst, ls->goto_target, (size_t)n);
   }
 }
-#endif
 
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
