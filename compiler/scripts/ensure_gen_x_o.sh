@@ -12,15 +12,16 @@
 #       lexer_x.o      ← src/lexer/lexer.x pure-asm (w1546; no host cc)
 #       parser_x.o     ← src/parser/parser.x pure-asm (w1633; no host cc).
 #                        Not the migrate_x_objs.sh host-cc leaf. That script
-#                        still compiles parser_gen.c. g05 calls this on Linux
-#                        when parser_x.o is missing.
+#                        still compiles parser_gen.c. g05 calls this on every
+#                        host when parser_x.o is missing (w1812).
 #       codegen_x.o    ← src/codegen/codegen.x pure-asm (w1634; no host cc).
 #                        Same split: migrate_x_objs.sh still compiles
-#                        codegen_gen.c. g05 calls this on Linux when
-#                        codegen_x.o is missing.
+#                        codegen_gen.c. g05 calls this on every host when
+#                        codegen_x.o is missing (w1812).
 #       typeck_x.o     ← src/typeck/typeck.x pure-asm (w1635; no host cc).
 #                        migrate_x_objs.sh still compiles typeck_gen.c.
-#                        g05 calls this on Linux when typeck_x.o is missing.
+#                        g05 calls this on every host when typeck_x.o is
+#                        missing (w1812).
 #                        Seven CTFE names stay undefined; typeck_ctfe.o
 #                        owns those bodies. Cap-residual slot names stay
 #                        undefined in the companion already on the link list.
@@ -357,7 +358,7 @@ build_parser_x() {
   # skip_heavy stubs later ordinals when the module is large. It is set
   # only in this subshell, never for a product relink.
   # xlang_panic_ stays undefined here. lexer_x.o owns the weak body.
-  # PLATFORM: LINUX caller. Darwin and Windows do not call this yet.
+  # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
   local out="${1:-parser_x.o}"
   if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/parser/parser.x ]; then
     log "parser_x.o: pure_ld_shared.sh or src/parser/parser.x missing"
@@ -402,7 +403,7 @@ build_codegen_x() {
   # Cap residual names are not in this .x. They stay in the companion
   # object already on the link list. xlang_panic_ stays undefined here.
   # lexer_x.o owns the weak body.
-  # PLATFORM: LINUX caller. Darwin and Windows do not call this yet.
+  # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
   local out="${1:-codegen_x.o}"
   if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/codegen/codegen.x ]; then
     log "codegen_x.o: pure_ld_shared.sh or src/codegen/codegen.x missing"
@@ -465,7 +466,7 @@ build_typeck_x() {
   # the installed object does reference it, and an older compiler's emit
   # of this TU would be rejected without the flag. lexer_x.o owns the
   # weak body.
-  # PLATFORM: LINUX caller. Darwin and Windows do not call this yet.
+  # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
   local out="${1:-typeck_x.o}"
   if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/typeck/typeck.x ]; then
     log "typeck_x.o: pure_ld_shared.sh or src/typeck/typeck.x missing"

@@ -30,13 +30,13 @@ cd "$(dirname "$0")/.."
 # (w1634), and typeck (w1635) rebuild from the .x and stamp. A stamp
 # with no object is not a hard stop, because L4 deletes the .o and
 # keeps the stamp. These flags exit before the crash-log wipe.
-# Darwin and Windows still host-cc a missing parser, codegen, or typeck
-# object. win_host_cc_parser_x.sh is a separate Windows helper and still
-# host-ccs when invoked on its own. Checklist 7.2 stays open.
-# PLATFORM: SHARED — Darwin and Windows g05 use this script.
-# A stamp is written only beside an installed pure-asm object. Darwin
-# and Windows have no codegen_x.pure_asm or typeck_x.pure_asm, so their
-# ensure still host-ccs that gen when the file is newer.
+# w1812: a missing parser, codegen, or typeck object is rebuilt from
+# the .x on every host. parser_gen.c, codegen_gen.c, and typeck_gen.c
+# are not host-cc'd. win_host_cc_parser_x.sh delegates to that rebuild.
+# An existing object is left in place, stamp or not. A newer *_gen.c
+# does not host-cc over it. Checklist 7.2 stays open until the Darwin
+# and Windows objects themselves are those .x products.
+# PLATFORM: SHARED.
 g05_frontend_x_sha256() {
   _fx_file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -4472,17 +4472,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     return 1
   fi
   # parser_x.o cold path.
-  # Linux missing object (w1633): rebuild from src/parser/parser.x via
-  # build_parser_x. No host cc, no -E assemble. L4 deletes the .o and
-  # keeps the stamp, so the rebuild has to run in that case. The helper
-  # was measured against the installed object: same defined and undefined
-  # sets, same .text. Darwin and Windows still pin-cc below; their
-  # compilers have not emitted this module. PLATFORM: LINUX for the
-  # rebuild, SHARED for the stamp check.
-  # w1578: a matching parser_x.pure_asm stamp skips the cc below even
-  # when parser_gen.c is newer. A stamp that does not match the object
-  # stops ensure (exit 2 from the helper).
-  if [ ! -f parser_x.o ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+  # Missing object (w1633 Linux, w1812 Darwin and Windows): rebuild from
+  # src/parser/parser.x via build_parser_x. No host cc, no -E assemble.
+  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
+  # that case. The helper was measured against the installed object:
+  # same defined and undefined sets, same .text. The installed compiler
+  # frame for pipeline_asm_cmp_enum_rhs_tag_c covers the 256-byte name
+  # buffers, so Darwin and Windows can emit this module.
+  # PLATFORM: SHARED.
+  # w1578: a matching parser_x.pure_asm stamp skips a later gen refresh.
+  # A stamp that does not match the object stops ensure (exit 2).
+  if [ ! -f parser_x.o ]; then
     echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh parser_x; then
       echo "g05_ensure: parser_x.o pure-asm failed" >&2
@@ -4492,23 +4492,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: parser_x.o pure-asm stamp failed" >&2
       return 1
     fi
-  elif [ ! -f parser_x.o ]; then
-    # PLATFORM: DARWIN | WINDOWS — pin seed, then the cc below.
-    # Tip -E assemble stays opt-in (XLANG_PARSER_FROM_X=1). Default
-    # restores seeds/parser_gen.linux.x86_64.c over a local gen.
-    if [ "${XLANG_PARSER_FROM_X:-0}" = "1" ] && [ -f scripts/ensure_migrate_gen.sh ]; then
-      echo "g05_ensure: ensure_migrate_gen parser (opt-in XLANG_PARSER_FROM_X=1; tip assemble)"
-      bash scripts/ensure_migrate_gen.sh parser \
-        || echo "g05_ensure: ensure_migrate_gen parser failed (will try pin/local)" >&2
-      if [ ! -s parser_gen.c ] && [ -f seeds/parser_gen.linux.x86_64.c ]; then
-        cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
-        echo "g05_ensure: parser_gen.c ← product pin seed (opt-in assemble empty → pin)"
-      fi
-    elif [ -f seeds/parser_gen.linux.x86_64.c ]; then
-      # Pin-first cold: wipe stale tip-assemble / drifted gitignored gen.
-      cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
-      echo "g05_ensure: parser_gen.c ← product pin seed (cold missing parser_x.o; no tip assemble)"
-    fi
   fi
   _px_rc=0
   g05_parser_x_needs_host_cc || _px_rc=$?
@@ -4517,25 +4500,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     exit 1
   fi
   if [ "$_px_rc" -eq 0 ]; then
-    echo "g05_ensure: cc -c parser_gen.c → parser_x.o (pin/cold)"
-    # shellcheck disable=SC2086
-    $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o parser_x.o parser_gen.c
-    rm -f parser_x.pure_asm
+    # gen.c is newer and there is no pure-asm stamp. The object stays.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: parser_x.o kept; parser_gen.c is not host-cc'd"
   elif g05_parser_x_pure_asm_kept; then
     echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
   # typeck_x.o cold path.
-  # Linux missing object (w1635): rebuild from src/typeck/typeck.x via
-  # build_typeck_x. No host cc, no -E assemble. L4 deletes the .o and
-  # keeps the stamp, so the rebuild has to run in that case. The helper
-  # emits the same defined set as the installed object. Seven CTFE names
-  # and the cap-residual slot names stay undefined; their bodies stay in
-  # the companion objects already on the link list. Layout remainder
-  # sites no longer emit the idiv zero-divisor panic sequence, so the
-  # bytes are not a drop-in and this path does not replace the installed
-  # object. Darwin and Windows still assemble below.
-  # PLATFORM: LINUX for the rebuild, SHARED for the stamp check.
-  if [ ! -f typeck_x.o ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+  # Missing object (w1635 Linux, w1812 Darwin and Windows): rebuild from
+  # src/typeck/typeck.x via build_typeck_x. No host cc, no -E assemble.
+  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
+  # that case. The helper emits the same defined set as the installed
+  # object. Seven CTFE names and the cap-residual slot names stay
+  # undefined; their bodies stay in the companion objects already on the
+  # link list. Layout remainder sites no longer emit the idiv
+  # zero-divisor panic sequence, so the bytes are not a drop-in and this
+  # path does not replace an object that is already present.
+  # PLATFORM: SHARED.
+  if [ ! -f typeck_x.o ]; then
     echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
       echo "g05_ensure: typeck_x.o pure-asm failed" >&2
@@ -4544,20 +4526,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
       echo "g05_ensure: typeck_x.o pure-asm stamp failed" >&2
       return 1
-    fi
-  elif [ ! -f typeck_x.o ]; then
-    # PLATFORM: DARWIN | WINDOWS — assemble, then the cc below.
-    # Tip -E assemble when a product binary exists; archaeology seed
-    # only if assemble cannot run. G.7: do not blind-cp pin over a
-    # fresher .x assemble.
-    if [ -f scripts/ensure_migrate_gen.sh ]; then
-      echo "g05_ensure: ensure_migrate_gen typeck (cold: missing typeck_x.o; prefer .x assemble)"
-      bash scripts/ensure_migrate_gen.sh typeck \
-        || echo "g05_ensure: ensure_migrate_gen typeck failed (will try pin/local)" >&2
-    fi
-    if [ ! -s typeck_gen.c ] && [ -f seeds/typeck_gen.linux.x86_64.c ]; then
-      cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
-      echo "g05_ensure: typeck_gen.c ← archaeology seed (cold egg; no assemble)"
     fi
   fi
   # w1504 (10.30): host-local typeck_gen.c is reused when tip -E typeck.x is
@@ -4573,15 +4541,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # w1612: same stamp as parser_x.pure_asm / codegen_x.pure_asm.
-  # A matching typeck_x.pure_asm skips the cc below even when the
+  # A matching typeck_x.pure_asm leaves the object even when the
   # splice refreshed typeck_gen.c. A stamp that does not match the
-  # object stops ensure. No stamp: splice / mtime cc unchanged.
-  # Linux missing object was rebuilt above and stamped, so the cc
-  # below is skipped. Darwin and Windows missing objects still host-cc
-  # after the assemble above, then the stamp is removed.
-  # PLATFORM: SHARED. The stamp file is written only where the
-  # pure-asm object is installed. Darwin and Windows have no
-  # typeck_x.pure_asm, so this branch does not change their host-cc.
+  # object stops ensure. No stamp: the object stays.
+  # A missing object was rebuilt above and stamped, so the refresh
+  # below does not compile. An existing object is not host-cc'd when
+  # typeck_gen.c is newer.
+  # PLATFORM: SHARED.
   _tgx_rc=0
   g05_frontend_x_needs_host_cc . typeck_x || _tgx_rc=$?
   if [ "$_tgx_rc" -eq 2 ]; then
@@ -4595,23 +4561,21 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     python3 scripts/patch_typeck_gen_lang007.py || true
     _tg_after=$(wc -c < typeck_gen.c | tr -d ' ')
     if [ "$_tg_spliced" = "1" ] || [ "$_tg_before" != "$_tg_after" ] || [ ! -f typeck_x.o ] || [ typeck_gen.c -nt typeck_x.o ]; then
-      echo "g05_ensure: cc -c typeck_gen.c → typeck_x.o (LANG-007 / assemble)"
-      # shellcheck disable=SC2086
-      $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o typeck_x.o typeck_gen.c
-      rm -f typeck_x.pure_asm
+      # gen.c changed or is newer. The object stays. PLATFORM: SHARED.
+      echo "g05_ensure: typeck_x.o kept; typeck_gen.c is not host-cc'd"
     fi
   fi
   # codegen_x.o cold path.
-  # Linux missing object (w1634): rebuild from src/codegen/codegen.x via
-  # build_codegen_x. No host cc, no -E assemble. L4 deletes the .o and
-  # keeps the stamp, so the rebuild has to run in that case. The helper
-  # emits the same defined set as the installed object. Two constant-10
-  # division checks inside format_uint64 are absent on this compiler,
-  # so the bytes are not a drop-in and this path does not replace the
-  # installed object. Darwin and Windows still assemble below.
-  # PLATFORM: LINUX for the rebuild, SHARED for the stamp check.
+  # Missing object (w1634 Linux, w1812 Darwin and Windows): rebuild from
+  # src/codegen/codegen.x via build_codegen_x. No host cc, no -E assemble.
+  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
+  # that case. The helper emits the same defined set as the installed
+  # object. Two constant-10 division checks inside format_uint64 are
+  # absent on this compiler, so the bytes are not a drop-in and this
+  # path does not replace an object that is already present.
+  # PLATFORM: SHARED.
   # Cap residual stays a separate object. It is not inside codegen.x.
-  if [ ! -f codegen_x.o ] && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+  if [ ! -f codegen_x.o ]; then
     echo "g05_ensure: codegen_x.o missing; pure-asm src/codegen/codegen.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
       echo "g05_ensure: codegen_x.o pure-asm failed" >&2
@@ -4621,29 +4585,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: codegen_x.o pure-asm stamp failed" >&2
       return 1
     fi
-  elif [ ! -f codegen_x.o ]; then
-    # PLATFORM: DARWIN | WINDOWS — assemble, then the cc below.
-    # G.7: do not blind-cp pin over a fresher .x assemble.
-    if [ -f scripts/ensure_migrate_gen.sh ]; then
-      echo "g05_ensure: ensure_migrate_gen codegen (cold: missing codegen_x.o; prefer .x assemble)"
-      bash scripts/ensure_migrate_gen.sh codegen \
-        || echo "g05_ensure: ensure_migrate_gen codegen failed (will try pin/local)" >&2
-    fi
-    if [ ! -s codegen_gen.c ] && [ -f seeds/codegen_gen.linux.x86_64.c ]; then
-      cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
-      echo "g05_ensure: codegen_gen.c ← archaeology seed (cold egg; no assemble)"
-    fi
   fi
   # w1610: same stamp as parser_x.pure_asm. A matching
   # codegen_x.pure_asm skips the cc below even when codegen_gen.c is
   # newer. A stamp that does not match the object stops ensure.
-  # No stamp: mtime cc unchanged. Linux missing object was rebuilt
-  # above and stamped, so the cc below is skipped. Darwin and Windows
-  # missing objects still host-cc after the assemble above, then the
-  # stamp is removed.
-  # PLATFORM: SHARED. The stamp file is written only where the
-  # pure-asm object is installed (Ubuntu). Darwin and Windows
-  # have no stamp, so this branch does not change their host-cc.
+  # No stamp: the object stays. A missing object was rebuilt above
+  # and stamped. A newer codegen_gen.c is not host-cc'd.
+  # PLATFORM: SHARED.
   _cgx_rc=0
   g05_frontend_x_needs_host_cc . codegen_x || _cgx_rc=$?
   if [ "$_cgx_rc" -eq 2 ]; then
@@ -4651,10 +4599,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     exit 1
   fi
   if [ "$_cgx_rc" -eq 0 ]; then
-    echo "g05_ensure: cc -c codegen_gen.c → codegen_x.o (assemble / cold)"
-    # shellcheck disable=SC2086
-    $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -c -o codegen_x.o codegen_gen.c
-    rm -f codegen_x.pure_asm
+    # gen.c is newer and there is no pure-asm stamp. The object stays.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: codegen_x.o kept; codegen_gen.c is not host-cc'd"
   elif g05_frontend_x_pure_asm_kept . codegen_x; then
     echo "g05_ensure: codegen_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
