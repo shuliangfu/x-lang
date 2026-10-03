@@ -26894,14 +26894,21 @@ uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
   return pipeline_block_stmt_order_kind(a, br, si);
 }
 #endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_ast_block_stmt_order_idx(void *a, int32_t br, int32_t si);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left this wrapper as an extern on leftover, so the egg thin owned
+ * the symbol and called the egg's pipeline_block_stmt_order_idx. That
+ * reader uses the egg arena_sidecar_get. On the side image that
+ * statement-order vector length is 0, so every index is 0. This TU's
+ * pipeline_block_stmt_order_idx reads the vector
+ * pipeline_block_append_stmt_order writes. Those indexes match source
+ * order (block 109 lets 0..10, then the if, three expr stmts, and one
+ * while; block 93's four whiles are indexes 0..3). The emitter calls
+ * this name. An extern makes every later statement emit index 0, so the
+ * parent-link walk repeats while 0. Forward to this TU's reader. Kind,
+ * for-body, labeled, and let-type stay as they are. */
 int32_t ast_ast_block_stmt_order_idx(void *a, int32_t br, int32_t si) {
   return pipeline_block_stmt_order_idx(a, br, si);
 }
-#endif
 int32_t ast_ast_block_const_init_ref(void *a, int32_t br, int32_t ci) {
   return pipeline_block_const_init_ref(a, br, ci);
 }
