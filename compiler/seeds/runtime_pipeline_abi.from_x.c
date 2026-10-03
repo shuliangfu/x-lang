@@ -25257,16 +25257,21 @@ static W277_Region *block_region_at(void *a, int32_t br, int32_t ri) {
   return (W277_Region *)grow_vec_at(&sc->regions, abs);
 }
 
-/** MEM-C1：块内第 ri 个 region/with_arena 条目的 cap ref；0 表示非 with_arena。 */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_region_with_arena_cap_ref(void *a, int32_t br, int32_t ri);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left this reader as an extern on leftover, so the egg thin owned
+ * the symbol and called the egg's block_region_at. This TU's
+ * pipeline_block_append_with_arena writes with_arena_cap_ref on the same
+ * region row as body_ref. The statement walk loads that ref through this
+ * name and emits heap_arena_init_c / heap_arena64_deinit_c only when it
+ * is > 0. On the side image the append for block 2 stores cap ref 3 and
+ * body ref 1, and every egg read of region 0 returns 0, so the body is
+ * emitted and the arena calls are not. Read the row this TU wrote.
+ * A cap of -1 is unsafe, not with_arena, and still returns 0.
+ * The labeled readers stay as they are. */
 int32_t pipeline_block_region_with_arena_cap_ref(void *a, int32_t br, int32_t ri) {
   W277_Region *rb = block_region_at(a, br, ri);
   return rb && rb->with_arena_cap_ref > 0 ? rb->with_arena_cap_ref : 0;
 }
-#endif
 
 /** LANG-007 v2：块内第 ri 个条目是否为 unsafe { } 块（with_arena_cap_ref==-1）。 */
 int32_t pipeline_block_region_is_unsafe(void *a, int32_t br, int32_t ri) {
