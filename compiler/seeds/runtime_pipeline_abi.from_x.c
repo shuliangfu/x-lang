@@ -25739,15 +25739,22 @@ void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *
 }
 #endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_let_init_ref(void *a, int32_t br, int32_t li);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left this reader as an extern on leftover, so the egg thin owned
+ * the symbol and called the egg's block_let_at. This TU's
+ * pipeline_block_append_let writes init_ref on the same let row as
+ * type_ref. pipeline_asm_emit_block_inits_elf_c loads that ref through
+ * this name and treats 0 as an empty initializer, so it stores nothing.
+ * On the side image the two lets of a for are written here with init
+ * refs 1 and 2, and every egg read of those rows returns 0. The slots
+ * are then read with no zero store. Read the row this TU wrote.
+ * The with-arena cap reader and the labeled readers stay as they are.
+ * for (let i: T = e; ...) is hoisted onto this block; the for init slot
+ * stays empty and is not this reader. */
 int32_t pipeline_block_let_init_ref(void *a, int32_t br, int32_t li) {
   W277_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->init_ref : 0;
 }
-#endif
 
 /* PLATFORM: SHARED, including WINDOWS leftover.
  * w1683 left this reader as an extern on leftover, so the egg thin owned
