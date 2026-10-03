@@ -1681,8 +1681,10 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * the length in rdx, and the signed 32-bit load keeps only the low half
  * of the pointer. A named struct whose layout is 9 to 16 bytes also
  * refuses: that value travels in rax and rdx, and the real return loads
- * both words. Named layouts of 1, 4, or 8 bytes stay on the scalar load.
- * u32 and f32 stay on the signed 32-bit load.
+ * both words. A named layout of exactly 8 bytes is returned in rax, so
+ * it uses the 8-byte load. The signed 32-bit load keeps the low half of
+ * an i64, of two i32 fields, and of an f64 bit pattern. Named layouts of
+ * 1 or 4 bytes stay on the signed 32-bit load. u32 and f32 stay there too.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1781,7 +1783,8 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     // PLATFORM: SHARED — a named layout of 9..16 bytes travels in rax:rdx.
     // The signed 32-bit load keeps the low word and leaves rdx stale.
     // The real return loads both words. Refuse before any encode.
-    // Layouts of at most 8 bytes stay on the scalar load below.
+    // A layout of exactly 8 bytes is one qword in rax. The load below
+    // reads all 8 bytes. Layouts of 1 or 4 bytes stay on the 32-bit load.
     // G.7: refuse here (the return overlay emits the pair). TypeKind NAMED=8.
     {
       let nsz: i32 = 0;
@@ -1839,8 +1842,10 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     // The callee body already uses that load. movl plus cdqe (8b 00; 48 98)
     // reads four bytes, so a one-byte u8 store keeps adjacent stack, and
     // cdqe then sign-extends a byte above 127. U64=4 I64=5 USIZE=6 ISIZE=7
-    // F64=15 stay on the 8-byte load. u32 and f32 stay on the signed 32-bit
-    // load: cdqe does not change EAX, and the f32 epilogue movd's EAX.
+    // F64=15 stay on the 8-byte load. NAMED=8 of layout size 8 is the same
+    // qword: the callee returns it in rax, and cdqe drops the high half.
+    // u32, f32, and named layouts of 1 or 4 bytes stay on the signed
+    // 32-bit load: cdqe does not change EAX, and the f32 epilogue movd's EAX.
     let load_ty: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
     if (load_ty <= 0) {
       load_ty = ret_ty;
@@ -1855,7 +1860,16 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       if (load_k == 4 || load_k == 5 || load_k == 6 || load_k == 7 || load_k == 15) {
         if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
       } else {
-        if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        // Size 8 only. 9..16 already returned above. 1 and 4 stay below.
+        let named8: i32 = 0;
+        if (load_k == 8 && load_ty > 0) {
+          named8 = glue_type_named_layout_size_any_module_elf_c(callee_arena, load_ty);
+        }
+        if (named8 == 8) {
+          if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        } else {
+          if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        }
       }
     }
     return 1;
