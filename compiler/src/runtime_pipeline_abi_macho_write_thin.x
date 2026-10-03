@@ -420,8 +420,11 @@ function w314_sym_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
 // PLATFORM: SHARED — Darwin ingest writer; LINUX gold co-path unused for Mach-O.
 let g_pipe_elf_ws_name: u8[256] = [];
 let g_pipe_elf_ws_name2: u8[256] = [];
-let g_pipe_elf_ws_und_src: u8[1024] = [];
-let g_pipe_elf_ws_und_lens: u8[1024] = [];
+/* 2048 i32 slots (idx * 4). Must match pipe_elf_macho_undef_cap.
+ * 256 slots (1024 bytes) made the Darwin writer return -1 once
+ * parser.x recorded the 257th unique undefined reloc. */
+let g_pipe_elf_ws_und_src: u8[8192] = [];
+let g_pipe_elf_ws_und_lens: u8[8192] = [];
 let g_pipe_elf_ws_hdr32: u8[32] = [];
 let g_pipe_elf_ws_seg: u8[152] = [];
 let g_pipe_elf_ws_seg2: u8[152] = [];

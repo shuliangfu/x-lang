@@ -122,7 +122,12 @@ function pipe_elf_shnx_data(): i32 { return 4; }
  * stack[256] dropped calloc/mmap → PLT32 r_sym=0. Workspace rows stay
  * 128B name + i32 len (wave580). PLATFORM: SHARED ELF writer. */
 function pipe_elf_undef_cap(): i32 { return 2048; }
-function pipe_elf_macho_undef_cap(): i32 { return 256; }
+/* Mach-O unique-undef rows. wave700 raised the ELF twin to 2048 and
+ * left this at 256. parser.x records more than 256 unique undefined
+ * relocs, so pipeline_macho_write_o_to_buf_c returns -1 before appending a byte
+ * (Darwin CG002, out_len=0). Match pipe_elf_undef_cap. The writer
+ * index tables are 2048 i32 slots. PLATFORM: MACOS|DARWIN writer. */
+function pipe_elf_macho_undef_cap(): i32 { return 2048; }
 function pipe_elf_pgo_undef_cap(): i32 { return 32; }
 function pipe_elf_codegen_out_cap(): i32 { return 9437184; }
 
