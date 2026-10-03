@@ -25740,15 +25740,20 @@ int32_t pipeline_block_let_init_ref(void *a, int32_t br, int32_t li) {
 }
 #endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_let_type_ref(void *a, int32_t br, int32_t li);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left this reader as an extern on leftover, so the egg thin owned
+ * the symbol and called the egg's block_let_at. This TU's
+ * pipeline_block_append_let and pipeline_block_set_let_type_ref write
+ * type_ref through this TU's block_let_at. The emitter calls this name
+ * when it sizes a local and when it emits an empty-array or fixed-array
+ * init. On the side image every such call bound to the egg, and that
+ * row is empty, so the type is 0 and an i32[256] local is given one
+ * slot. Read the row this TU wrote. Let-init, for-body, and labeled
+ * readers stay as they are. */
 int32_t pipeline_block_let_type_ref(void *a, int32_t br, int32_t li) {
   W277_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->type_ref : 0;
 }
-#endif
 
 /** M-3：region 内 stamp 须换新 type_ref，禁止 in-place 改共享 T[] 池节点。 */
 int32_t pipeline_block_set_let_type_ref(void *a, int32_t br, int32_t li, int32_t type_ref) {
