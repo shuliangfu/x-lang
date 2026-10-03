@@ -52175,7 +52175,11 @@ export function pipeline_expr_enum_field_tag_via_module(enum_name: *u8, enum_len
  * wave151 pure: G.7 authority (was pipeline_expr_enum_namespace_field_tag).
  * pipeline_expr_var_name_into zeros 256 bytes before copying the name.
  * base_buf matches that contract. The blen > 31 gate still rejects names
- * this table does not compare. PLATFORM: SHARED.
+ * this table does not compare.
+ * Enum.VARIANT keeps the VAR name as the enum name.
+ * module.Enum.VARIANT is one nested FIELD_ACCESS: the inner field name is
+ * the enum name, and that inner base must be a VAR (the module qualifier).
+ * The qualifier name is not compared. PLATFORM: SHARED.
  */
 #[no_mangle]
 export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i32 {
@@ -52184,6 +52188,7 @@ export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i
   let blen: i32 = 0;
   let flen: i32 = 0;
   let base_ref: i32 = 0;
+  let inner_ref: i32 = 0;
   let ko: i32 = 0;
   let tk: i32 = 0;
   let mod_tag: i32 = 0;
@@ -52224,14 +52229,30 @@ export function pipeline_expr_enum_namespace_field_tag(a: *u8, expr_ref: i32): i
     if (base_ref <= 0) {
       return 0 - 1;
     }
-    if (pipeline_expr_kind_ord_at(a, base_ref) != 3) {
-      return 0 - 1;
+    ko = pipeline_expr_kind_ord_at(a, base_ref);
+    // FIELD_ACCESS base is module.Enum. The enum name is that field.
+    // Its base must be a VAR. A bare Enum.VARIANT stays the VAR arm.
+    // PLATFORM: SHARED.
+    if (ko == 44) {
+      inner_ref = pipeline_expr_field_access_base_ref(a, base_ref);
+      if (inner_ref <= 0 || pipeline_expr_kind_ord_at(a, inner_ref) != 3) {
+        return 0 - 1;
+      }
+      blen = pipeline_expr_field_access_name_len(a, base_ref);
+      if (blen <= 0 || blen > 31) {
+        return 0 - 1;
+      }
+      pipeline_expr_field_access_name_into(a, base_ref, &base_buf[0]);
+    } else {
+      if (ko != 3) {
+        return 0 - 1;
+      }
+      blen = pipeline_expr_var_name_len(a, base_ref);
+      if (blen <= 0 || blen > 31) {
+        return 0 - 1;
+      }
+      pipeline_expr_var_name_into(a, base_ref, &base_buf[0]);
     }
-    blen = pipeline_expr_var_name_len(a, base_ref);
-    if (blen <= 0 || blen > 31) {
-      return 0 - 1;
-    }
-    pipeline_expr_var_name_into(a, base_ref, &base_buf[0]);
     flen = pipeline_expr_field_access_name_len(a, expr_ref);
     if (flen <= 0 || flen > 255) {
       return 0 - 1;

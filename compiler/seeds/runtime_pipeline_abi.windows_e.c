@@ -34529,14 +34529,31 @@ int32_t pipeline_expr_enum_namespace_field_tag(uint8_t * a, int32_t expr_ref) {
   if ((base_ref <=0)) {
     return -1;
   }
-  if ((pipeline_expr_kind_ord_at(a, base_ref) !=3)) {
-    return -1;
+  /* FIELD_ACCESS base is module.Enum. Enum name is that field.
+     Inner base must be a VAR. Bare Enum.VARIANT stays the VAR arm.
+     PLATFORM: SHARED. */
+  (void)((ko = pipeline_expr_kind_ord_at(a, base_ref)));
+  if ((ko ==44)) {
+    int32_t inner_ref = 0;
+    (void)((inner_ref = pipeline_expr_field_access_base_ref(a, base_ref)));
+    if (((inner_ref <=0) || (pipeline_expr_kind_ord_at(a, inner_ref) !=3))) {
+      return -1;
+    }
+    (void)((blen = pipeline_expr_field_access_name_len(a, base_ref)));
+    if (((blen <=0) || (blen > 31))) {
+      return -1;
+    }
+    (void)(pipeline_expr_field_access_name_into(a, base_ref, &((base_buf)[0])));
+  } else {
+    if ((ko !=3)) {
+      return -1;
+    }
+    (void)((blen = pipeline_expr_var_name_len(a, base_ref)));
+    if (((blen <=0) || (blen > 31))) {
+      return -1;
+    }
+    (void)(pipeline_expr_var_name_into(a, base_ref, &((base_buf)[0])));
   }
-  (void)((blen = pipeline_expr_var_name_len(a, base_ref)));
-  if (((blen <=0) || (blen > 31))) {
-    return -1;
-  }
-  (void)(pipeline_expr_var_name_into(a, base_ref, &((base_buf)[0])));
   (void)((flen = pipeline_expr_field_access_name_len(a, expr_ref)));
   if (((flen <=0) || (flen > 255))) {
     return -1;
