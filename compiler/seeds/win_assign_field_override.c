@@ -4,8 +4,11 @@
  * Authority twin: runtime_pipeline_abi_assign_field_scalar_thin.x
  * w1509 (终局待办 10.32): compound ops (kinds 29..38) on a scalar field take
  * the value from glue_emit_assign_rhs_to_rax_elf_c, as the twin does.
+ * A named field wider than 16 bytes copies through let-init slot -3 when
+ * the right-hand side is a frame VAR or a FIELD. Exactly 16 bytes on a
+ * frame local stays the one-GPR store.
  * Darwin links this seed too (its pabi body was the same kind-28-only code).
- * PLATFORM: WINDOWS + MACOS|DARWIN.
+ * The wide-field arm is ta == 0 only. PLATFORM: WINDOWS + MACOS|DARWIN.
  */
 #include <stdint.h>
 
@@ -43,23 +46,27 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
   if (ek != 28 && (ek < 29 || ek > 38))
     return -1;
   /* PLATFORM: WINDOWS x86_64. This object is the field-assign body the
-   * link keeps (it is ahead of the pabi stub). A 16-byte TYPE_STRUCT field
-   * whose base variable is a pointer (type kind 9) copies through the
-   * existing let-init slot -3 glue_copy. A frame local is not kind 9, so
-   * OneFuncResult.next_lex on a local stays on the one-GPR store below.
-   * VAR already glue_copies when dest is rbx. FIELD of that size does too.
-   * The destination lvalue is emitted first. Once it is written, a later
-   * failure does not fall through. ta != 0 is unchanged, including Darwin. */
+   * link keeps (it is ahead of the pabi stub). A named layout wider than
+   * 16 bytes does not fit in one GPR. A frame VAR or a FIELD on the
+   * right is copied by the existing let-init (destination already in rbx,
+   * slot -3). Exactly 16 bytes still copies only when the base variable
+   * is a pointer (type kind 9). A frame local of exactly 16 bytes stays
+   * on the one-GPR store below. The destination lvalue is emitted first.
+   * Once it is written, a later failure does not fall through. ta != 0
+   * is unchanged, including Darwin. */
   if (ek == 28 && ta == 0) {
     void *mod = pipeline_asm_emit_module_ref_c();
     int32_t fty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
     int32_t wide = 0;
     int32_t fk = 0;
     int32_t ptr_base = 0;
+    int32_t wide_local = 0;
     if (fty > 0) {
       wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
       fk = pipeline_type_kind_ord_at(arena, fty);
     }
+    if (fk == 8 && wide > 16)
+      wide_local = 1;
     if (fk == 8 && wide == 16) {
       int32_t base = pipeline_expr_field_access_base_ref(arena, left_ref);
       if (base > 0 && pipeline_expr_kind_ord_at(arena, base) == 3) {
@@ -71,7 +78,7 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
           ptr_base = 1;
       }
     }
-    if (ptr_base) {
+    if (wide_local || ptr_base) {
       int32_t rko = pipeline_expr_kind_ord_at(arena, right_ref);
       int32_t pre = 0;
       if (rko == 3)
