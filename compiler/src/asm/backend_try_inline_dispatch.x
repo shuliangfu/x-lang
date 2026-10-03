@@ -1679,12 +1679,15 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * adjacent stack and turns values above 127 negative. Pointer returns and
  * slice returns still refuse this fold: a slice is the pointer in rax and
  * the length in rdx, and the signed 32-bit load keeps only the low half
- * of the pointer. A named struct whose layout is 9 to 16 bytes also
- * refuses: that value travels in rax and rdx, and the real return loads
- * both words. A named layout of exactly 8 bytes is returned in rax, so
- * it uses the 8-byte load. The signed 32-bit load keeps the low half of
- * an i64, of two i32 fields, and of an f64 bit pattern. Named layouts of
- * 1 or 4 bytes stay on the signed 32-bit load. u32 and f32 stay there too.
+ * of the pointer. A named struct whose layout is larger than 8 bytes also
+ * refuses. A layout of 9 to 16 bytes travels in rax and rdx (Windows
+ * x86_64 uses a hidden pointer). A layout above 16 bytes is a hidden
+ * pointer on every ABI this compiler emits, and the signed 32-bit load
+ * writes nothing through that pointer. The real call writes the bytes.
+ * A named layout of exactly 8 bytes is returned in rax, so it uses the
+ * 8-byte load. The signed 32-bit load keeps the low half of an i64, of
+ * two i32 fields, and of an f64 bit pattern. Named layouts of 1 or 4
+ * bytes stay on the signed 32-bit load. u32 and f32 stay there too.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1780,12 +1783,15 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
         if (field_k == 11) { return 0; }
       }
     }
-    // PLATFORM: SHARED — a named layout of 9..16 bytes travels in rax:rdx.
-    // The signed 32-bit load keeps the low word and leaves rdx stale.
-    // The real return loads both words. Refuse before any encode.
+    // PLATFORM: SHARED — a named layout larger than 8 bytes is not a scalar.
+    // 9..16 bytes travel in rax:rdx; Windows x86_64 uses a hidden pointer.
+    // A layout above 16 bytes is a hidden pointer on every ABI here. The
+    // signed 32-bit load keeps one word and writes nothing through that
+    // pointer. Refuse before any encode. The real call writes the bytes.
     // A layout of exactly 8 bytes is one qword in rax. The load below
     // reads all 8 bytes. Layouts of 1 or 4 bytes stay on the 32-bit load.
-    // G.7: refuse here (the return overlay emits the pair). TypeKind NAMED=8.
+    // G.7: refuse here (the real call emits the pair or the hidden
+    // pointer). TypeKind NAMED=8.
     {
       let nsz: i32 = 0;
       if (ret_ty > 0) {
@@ -1803,7 +1809,8 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
           }
         }
       }
-      if (nsz > 8 && nsz <= 16) {
+      // Exactly 8 stays below. 1 and 4 stay below. Larger refuses.
+      if (nsz > 8) {
         return 0;
       }
     }
@@ -1860,7 +1867,8 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       if (load_k == 4 || load_k == 5 || load_k == 6 || load_k == 7 || load_k == 15) {
         if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
       } else {
-        // Size 8 only. 9..16 already returned above. 1 and 4 stay below.
+        // Size 8 only. Larger named layouts already returned above.
+        // 1 and 4 stay below.
         let named8: i32 = 0;
         if (load_k == 8 && load_ty > 0) {
           named8 = glue_type_named_layout_size_any_module_elf_c(callee_arena, load_ty);
