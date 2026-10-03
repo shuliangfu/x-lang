@@ -1256,6 +1256,7 @@ extern int32_t glue_try_index_rvalue_slice_once_elf_c(void *arena, void *elf_ctx
 extern int32_t pipeline_expr_index_proven_in_bounds_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_index_base_is_slice_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref);
 extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
 extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
@@ -1289,6 +1290,12 @@ static int32_t win_stub_index_lit_i32(void *arena, int32_t expr_ref, int32_t *ou
  * Fixed-array non-literal indexes do not: host -E has no such check, and a
  * freestanding bag has no T xlang_panic_. proven_in_bounds and any base that
  * is neither an array nor a slice skip.
+ * The type ref is the same pair glue_emit_index_eff_addr_base_elf_c uses
+ * before it loads a slice data pointer: declaration fallback, then the
+ * expression resolved type. Fallback returns the resolved type when that
+ * type is already > 0, and otherwise the param or let declaration. Reading
+ * only the resolved type returned here while the base still loaded .data,
+ * so a u8[] parameter index never called xlang_panic_.
  * PLATFORM: WINDOWS leftover-PE. Linux gold body stays in the leftover gcc
  * overlay; this is the PE egg's missing definition of the same symbol. */
 int32_t glue_emit_index_bounds_guard_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta,
@@ -1314,7 +1321,10 @@ int32_t glue_emit_index_bounds_guard_elf_c(void *arena, void *elf_ctx, void *ctx
     is_slice = 0;
   }
 
-  base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  /* Match glue_emit_index_eff_addr_base_elf_c. Do not copy the fallback body. */
+  base_ty = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (base_ty <= 0)
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
   if (base_ty <= 0)
     return 0;
   bt_kind = pipeline_type_kind_ord_at(arena, base_ty);
