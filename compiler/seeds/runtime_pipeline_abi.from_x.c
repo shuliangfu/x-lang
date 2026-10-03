@@ -30300,15 +30300,18 @@ int32_t pipeline_module_func_owner_binds_base_at(void *m, int32_t fi, const uint
   return 1;
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover-PE.
+ * w1683 turned this into an extern on leftover rest so the egg thin would
+ * own the symbol. That copy calls the egg's module_func_at and a separate
+ * module_sidecar_get. set_return_type, num_params_at, and name_equal_at in
+ * this TU call this TU's module_func_at. The reader has to as well: an
+ * extern resolves to the other sidecar, the row is null, and the overload
+ * returns 0 for a return type that was stored.
+ */
 int32_t pipeline_module_func_return_type_at(void *m, int32_t fi) {
   W280_Func *f = module_func_at(m, fi);
   return f ? (int32_t)f->return_type_ref : 0;
 }
-#endif
 
 /** 比较 module 函数名与外部 name 字节序列；相等返回 1。 */
 int32_t pipeline_module_func_name_equal_at(void *m, int32_t fi, uint8_t *name, int32_t name_len) {
