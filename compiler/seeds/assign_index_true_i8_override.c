@@ -17,6 +17,12 @@
  * whole element with memcpy: rhs address in rax, element address in rbx,
  * glue_copy slot -3. Windows used to load the rhs value into rax (and rdx)
  * and run one 8-byte store, so 12/16/24-byte elements were partly copied.
+ * A CALL rhs wider than 8 bytes used to emit the call with the source
+ * pointer in rcx and then store that returned pointer as one qword.
+ * The element address is placed in rcx first, with the same sret shift
+ * the frame-slot let-init uses, so the call writes the value into the
+ * element. METHOD and STRUCT_LIT stay on the one-qword store.
+ * PLATFORM: WINDOWS x86_64 for the call arm. ta != 0 is unchanged.
  */
 #include <stdint.h>
 
@@ -43,6 +49,11 @@ extern int32_t glue_copy_large_struct_from_rax_ptr_elf_c(void *elf_ctx, int32_t 
                                                         int32_t sz, int32_t ta);
 extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                        void *ctx, int32_t ta);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
+extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t v);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
 
 int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t left_ref,
                                     int32_t right_ref, void *ctx, int32_t ta) {
@@ -80,6 +91,33 @@ int32_t glue_emit_assign_index_elf_c(void *arena, void *elf_ctx, int32_t expr_re
       if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
         return -1;
       return glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, sz, ta);
+    }
+    /* CALL (48). The element address is already the hidden return slot.
+     * rcx is set before emit, and the sret shift keeps the source pointer
+     * in rdx. A later one-qword store would write the returned pointer
+     * over the first word. METHOD (49) and STRUCT_LIT (45) are not here.
+     * PLATFORM: WINDOWS x86_64. ta != 0 stays on the path below. */
+    if (rkx == 48) {
+      int32_t ety;
+      int32_t erc;
+      ety = pipeline_expr_resolved_type_ref(arena, left_ref);
+      if (glue_emit_index_eff_addr_scaled_elf_c(arena, elf_ctx, left_ref, base_ref, idx_ref, ctx, ta,
+                                               sz) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+      pipeline_asm_set_call_expected_ret_ty_c(ety > 0 ? ety : 0);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      erc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, right_ref, ctx, ta);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      if (erc != 0)
+        return -1;
+      return 0;
     }
   }
   if (ek != 28) {
