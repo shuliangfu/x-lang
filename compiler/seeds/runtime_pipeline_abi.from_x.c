@@ -30461,70 +30461,44 @@ int32_t pipeline_module_func_body_ref_at(void *m, int32_t func_index) {
  * Why: backend.x declares these as extern; without the asm_ wrapper, the
  *      import would generate a codegen_ prefix symbol → link error.
  */
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t func_index);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 externed these asm_ forwarders on leftover rest so the egg thin
+ * would own the symbols. That copy calls the egg's module_func_at and a
+ * separate module_sidecar_get. The plain pipeline_module_func_* readers
+ * in this TU call this TU's module_func_at, which is the sidecar the
+ * parser writes. Codegen's mega calls the asm_ names. An extern resolves
+ * to the other sidecar, name_len is 0, and the export-symbol build
+ * returns -1 before any instruction byte is stored.
+ */
 int32_t pipeline_asm_module_func_is_extern_at(void *m, int32_t func_index) {
   return pipeline_module_func_is_extern_at(m, func_index);
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t func_index);
-#else
 int32_t pipeline_asm_module_func_body_ref_at(void *m, int32_t func_index) {
   return pipeline_module_func_body_ref_at(m, func_index);
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_asm_module_func_name_len_at(void *m, int32_t func_index);
-#else
 int32_t pipeline_asm_module_func_name_len_at(void *m, int32_t func_index) {
   return pipeline_module_func_name_len_at(m, func_index);
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern void pipeline_asm_module_func_name_copy64(void *m, int32_t func_index, uint8_t *dst);
-#else
 void pipeline_asm_module_func_name_copy64(void *m, int32_t func_index, uint8_t *dst) {
   pipeline_module_func_name_copy64(m, func_index, dst);
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_asm_module_func_num_params_at(void *m, int32_t func_index);
-#else
 int32_t pipeline_asm_module_func_num_params_at(void *m, int32_t func_index) {
   return pipeline_module_func_num_params_at(m, func_index);
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_asm_module_func_param_name_len_at(void *m, int32_t func_index, int32_t param_index);
-#else
 int32_t pipeline_asm_module_func_param_name_len_at(void *m, int32_t func_index,
                                                    int32_t param_index) {
   return pipeline_module_func_param_name_len_at(m, func_index, param_index);
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern void pipeline_asm_module_func_param_name_copy32(void *m, int32_t func_index, int32_t param_index, uint8_t *dst);
-#else
 void pipeline_asm_module_func_param_name_copy32(void *m, int32_t func_index,
                                                 int32_t param_index, uint8_t *dst) {
   pipeline_module_func_param_name_copy32(m, func_index, param_index, dst);
 }
-#endif
 
 /* wave1177 G.7: arch_arm64 module_func forwarders (4 fns) migrated from
  * pipeline_glue.c L4530-4545. Colocated with the asm_module_func forwarder
