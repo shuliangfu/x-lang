@@ -25682,40 +25682,34 @@ void pipeline_block_labeled_goto_target_copy32(void *a, int32_t br, int32_t li, 
   }
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_const_init_ref(void *a, int32_t br, int32_t ci);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left these four const row readers as externs on leftover, so the
+ * egg thin owned the symbols and called the egg's block_const_at. That
+ * pointer uses the egg's arena_sidecar_get. This TU's
+ * pipeline_block_append_const writes the name, type_ref, and init_ref on
+ * this TU's row (sidecar create flag 1). block_const_at reads that same
+ * row (flag 0, sidecar already created). On the side image, block 1
+ * stores one const: name length 1, type ref 2, init ref 1. The egg count
+ * reader sees the shared block header and returns 1, so that reader stays
+ * as it is. The egg init, type, and name-length readers return 0, so the
+ * local is not named and codegen stops after the frame. Read the row this
+ * TU wrote. The labeled return reader stays as it is.
+ */
 int32_t pipeline_block_const_init_ref(void *a, int32_t br, int32_t ci) {
   W277_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->init_ref : 0;
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_const_type_ref(void *a, int32_t br, int32_t ci);
-#else
 int32_t pipeline_block_const_type_ref(void *a, int32_t br, int32_t ci) {
   W277_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->type_ref : 0;
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_const_name_len(void *a, int32_t br, int32_t ci);
-#else
 int32_t pipeline_block_const_name_len(void *a, int32_t br, int32_t ci) {
   W277_ConstDecl *cd = block_const_at(a, br, ci);
   return cd ? (int32_t)cd->name_len : 0;
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *dst);
-#else
 void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *dst) {
   W277_ConstDecl *cd;
   int32_t nlen;
@@ -25734,7 +25728,6 @@ void pipeline_block_const_name_copy64(void *a, int32_t br, int32_t ci, uint8_t *
   if (nlen > 0)
     memcpy(dst, cd->name, (size_t)nlen);
 }
-#endif
 
 /* PLATFORM: SHARED, including WINDOWS leftover.
  * w1683 left this reader as an extern on leftover, so the egg thin owned
