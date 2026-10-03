@@ -40,6 +40,15 @@ export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32,
 export extern function pipeline_asm_emit_set_call_sret_reg_shift_c(shift: i32): void;
 export extern function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, tr: i32): i32;
+export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function pipeline_asm_emit_func_index_c(): i32;
+export extern function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
+export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -207,9 +216,122 @@ function w1521_rs_copy_to_dest(elf_ctx: *u8, home: i32, sz: i32): i32 {
 }
 
 /**
+ * 1 when ty is a named layout of 9 to 16 bytes.
+ * That value travels in rax and rdx. Layouts of at most 8 bytes, and
+ * any type whose layout size is not in that range, return 0 so the
+ * scalar load stays in place.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ty i32 — type ref; <=0 returns 0
+ * @return i32 — 1 when both words must be loaded, else 0
+ * PLATFORM: SHARED — same pair on Windows, Linux, and macOS.
+ */
+function w1521_rs_ty_mid(arena: *u8, ty: i32): i32 {
+  let k: i32 = 0;
+  let sz: i32 = 0;
+  if (arena == (0 as *u8) || ty <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_type_kind_ord_at(arena, ty);
+  }
+  if (k != 8) {
+    return 0;
+  }
+  unsafe {
+    sz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
+  }
+  if (sz > 8 && sz <= 16) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * A FIELD or VAR return operand of a named layout of 9..16 bytes.
+ * That value travels in rax and rdx. The scalar load keeps the low word
+ * and leaves rdx holding the incoming argument pointer, so the Windows
+ * epilogue stores that pointer as the high half. A call operand stays
+ * on the ordinary expr path: the callee writes the pair. Layouts of at
+ * most 8 bytes stay on the scalar load. Layouts above 16 stay on the
+ * hidden-buffer copy.
+ * The field's resolved type is checked first, then the struct-layout
+ * field type. When neither is a 9..16 byte named layout, the function
+ * return type is checked. On Windows the w1545 hidden-pointer latch is
+ * the same fact the epilogue already trusts, so a latched slot also
+ * selects the pair.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param op i32 — return operand; not a field or local, or <=0, returns 0
+ * @return i32 — 1 when the operand must be loaded as a 9..16 byte pair, else 0
+ * PLATFORM: SHARED — Windows stores the pair through the hidden pointer;
+ * Linux and macOS return the same pair in rax:rdx or x0:x1.
+ */
+function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
+  let ty: i32 = 0;
+  let k: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  let fi: i32 = 0;
+  let slot: i32 = 0;
+  if (arena == (0 as *u8) || op <= 0) {
+    return 0;
+  }
+  unsafe {
+    k = pipeline_expr_kind_ord_at(arena, op);
+  }
+  // EXPR_FIELD_ACCESS = 44. EXPR_VAR = 3. A call (48/49) is not an address.
+  if (k != 44 && k != 3) {
+    return 0;
+  }
+  if (k == 44) {
+    unsafe {
+      ty = pipeline_expr_resolved_type_ref(arena, op);
+    }
+    if (w1521_rs_ty_mid(arena, ty) != 0) {
+      return 1;
+    }
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+      ty = glue_field_access_field_type_ref_c(arena, mod, op);
+    }
+    if (w1521_rs_ty_mid(arena, ty) != 0) {
+      return 1;
+    }
+  }
+  unsafe {
+    mod = pipeline_asm_emit_module_ref_c();
+    fi = pipeline_asm_emit_func_index_c();
+  }
+  if (mod == (0 as *u8) || fi < 0) {
+    return 0;
+  }
+  unsafe {
+    ty = pipeline_module_func_return_type_at(mod, fi);
+  }
+  if (w1521_rs_ty_mid(arena, ty) != 0) {
+    return 1;
+  }
+  // PLATFORM: WINDOWS — latch is set only for a 9..16 named result.
+  // Off Windows the slot stays negative and this arm does not fire.
+  unsafe {
+    slot = w1545_win_ret_slot_for_c(mod, fi);
+  }
+  if (slot > 0) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * EXPR_RETURN ELF emit: operand into rax/x0, arm64 sret copy, then jmp
  * function tail_join (AsmFuncCtxLayout name at 1392, length at 1520).
- * @return 0 ok; -1 encoder/null/missing tail_join. PLATFORM: MACOS|ARM64.
+ * A 9..16 byte named field is loaded with pipeline_asm_deref_struct16
+ * so both words are in rax and rdx before the epilogue.
+ * @param arena *u8 — AST arena; null returns -1
+ * @param elf_ctx *u8 — ELF codegen context; null returns -1
+ * @param expr_ref i32 — EXPR_RETURN; <=0 returns -1
+ * @param ctx *u8 — AsmFuncCtx; null returns -1
+ * @param ta i32 — target arch token
+ * @return i32 — 0 ok; -1 encoder, null, or missing tail_join
+ * PLATFORM: MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
  */
 #[no_mangle]
 export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -260,6 +382,29 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       }
       if (w1521_rs_copy_x86(elf_ctx, home, rsz) < 0) {
         return 0 - 1;
+      }
+    } else if (w1521_rs_mid_named_field(arena, ret_op) != 0) {
+      // Address of the field or local, then the existing 16-byte pair load.
+      // A failed address falls through to the scalar expr path. Do not
+      // scalar-load a successful address: that drops the high word.
+      // PLATFORM: SHARED.
+      unsafe {
+        rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      }
+      if (rc == 0) {
+        unsafe {
+          rc = pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+      } else {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
       }
     } else {
       unsafe {

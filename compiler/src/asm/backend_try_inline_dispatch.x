@@ -83,6 +83,7 @@ export extern "C" function pipeline_asm_emit_func_index_c(): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(mod: *u8, pctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function pipeline_expr_field_access_layout_offset(arena: *u8, mod: *u8, fa: i32): i32;
+export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
 export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
 export extern "C" function glue_with_arena_scope_active_c(): i32;
 export extern "C" function glue_with_arena_scope_top_off_c(): i32;
@@ -1678,7 +1679,10 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * adjacent stack and turns values above 127 negative. Pointer returns and
  * slice returns still refuse this fold: a slice is the pointer in rax and
  * the length in rdx, and the signed 32-bit load keeps only the low half
- * of the pointer. u32 and f32 stay on the signed 32-bit load.
+ * of the pointer. A named struct whose layout is 9 to 16 bytes also
+ * refuses: that value travels in rax and rdx, and the real return loads
+ * both words. Named layouts of 1, 4, or 8 bytes stay on the scalar load.
+ * u32 and f32 stay on the signed 32-bit load.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1772,6 +1776,32 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       if (field_ty > 0) {
         let field_k: i32 = pipeline_type_kind_ord_at(callee_arena, field_ty);
         if (field_k == 11) { return 0; }
+      }
+    }
+    // PLATFORM: SHARED — a named layout of 9..16 bytes travels in rax:rdx.
+    // The signed 32-bit load keeps the low word and leaves rdx stale.
+    // The real return loads both words. Refuse before any encode.
+    // Layouts of at most 8 bytes stay on the scalar load below.
+    // G.7: refuse here (the return overlay emits the pair). TypeKind NAMED=8.
+    {
+      let nsz: i32 = 0;
+      if (ret_ty > 0) {
+        let nk: i32 = pipeline_type_kind_ord_at(callee_arena, ret_ty);
+        if (nk == 8) {
+          nsz = glue_type_named_layout_size_any_module_elf_c(callee_arena, ret_ty);
+        }
+      }
+      if (nsz <= 8) {
+        let nft: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
+        if (nft > 0) {
+          let nfk: i32 = pipeline_type_kind_ord_at(callee_arena, nft);
+          if (nfk == 8) {
+            nsz = glue_type_named_layout_size_any_module_elf_c(callee_arena, nft);
+          }
+        }
+      }
+      if (nsz > 8 && nsz <= 16) {
+        return 0;
       }
     }
     let arg_ref: i32 = 0;
