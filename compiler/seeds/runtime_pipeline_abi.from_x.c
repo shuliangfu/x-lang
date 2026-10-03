@@ -25519,15 +25519,20 @@ int32_t pipeline_block_for_step_ref(void *a, int32_t br, int32_t fi) {
   return fl ? (int32_t)fl->step_ref : 0;
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_for_body_ref(void *a, int32_t br, int32_t fi);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 left this reader as an extern on leftover, so the egg thin owned
+ * the symbol and called the egg's block_for_at. This TU's
+ * pipeline_block_append_for writes body_ref on the same for row as
+ * init_ref, cond_ref, and step_ref. Those three readers are already
+ * compiled here. backend_emit_for_loop_elf_sync loads the body through
+ * ast_ast_block_for_body_ref, which forwards here, and treats a ref <= 0
+ * as an empty success. On the side image a for whose condition and step
+ * are emitted still has no body. Read the row this TU wrote.
+ * Let-init, with-arena cap, and labeled readers stay as they are. */
 int32_t pipeline_block_for_body_ref(void *a, int32_t br, int32_t fi) {
   W277_ForLoop *fl = block_for_at(a, br, fi);
   return fl ? (int32_t)fl->body_ref : 0;
 }
-#endif
 
 /** Block 池：追加 labeled 语句（label 可为空，用于 library 形态 return expr）。 */
 int32_t pipeline_block_append_labeled(void *a, int32_t br, int32_t label_len, int32_t is_goto,
