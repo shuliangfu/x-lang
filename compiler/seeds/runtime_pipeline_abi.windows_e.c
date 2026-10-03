@@ -7986,6 +7986,17 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(uint8_t * ctx, uint8_t * dep
     {
       uint8_t * m = pipe_load_ptr_slot(dep_mods, g);
       uint8_t * a = pipe_load_ptr_slot(dep_ars, g);
+      /* Unparsed dep slot: no funcs and no layouts. Publishing it makes
+       * load_and_sync skip the disk parse. Null means not loaded.
+       * PLATFORM: SHARED. */
+      if ((m !=0)) {
+        if ((pipeline_module_num_funcs(m) ==0)) {
+          if ((pipeline_module_num_struct_layouts_at(m) ==0)) {
+            m = 0;
+            a = 0;
+          }
+        }
+      }
       (void)(ast_pipeline_dep_ctx_set_module(ctx, mapped, m));
       (void)(ast_pipeline_dep_ctx_set_arena(ctx, mapped, a));
       uint8_t * p = pipe_load_ptr_slot(dep_paths, g);
@@ -11691,32 +11702,53 @@ int32_t resolve_path_probe_dot_x_and_mod(uint8_t * ctx, int32_t off) {
     return -1;
   }
   if (((off + 4) <=512)) {
+    uint8_t * path = 0;
+    int32_t fd = -1;
+    /* Historical .su, then product .x. PLATFORM: SHARED. */
     (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46));
     (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 1), 115));
     (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 2), 117));
     (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 3), 0));
-    uint8_t * path = 0;
-    int32_t fd = -1;
     (void)((path = pipeline_dep_ctx_path_buf_ptr(ctx)));
     (void)((fd = std_fs_fs_open_read(path)));
     if ((fd >=0)) {
       (void)(std_fs_fs_close(fd));
       return 0;
     }
-    (((off + 8) <=512) ? ({   (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 1), 109));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 2), 111));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 3), 100));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 4), 46));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 5), 115));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 6), 117));
-  (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 7), 0));
-  (void)((path = pipeline_dep_ctx_path_buf_ptr(ctx)));
-  (void)((fd = std_fs_fs_open_read(path)));
-  ((fd >=0) ? ({   (void)(std_fs_fs_close(fd));
-  return 0;
- }) : 0);
- }) : 0);
+    (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46));
+    (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 1), 120));
+    (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 2), 0));
+    (void)((path = pipeline_dep_ctx_path_buf_ptr(ctx)));
+    (void)((fd = std_fs_fs_open_read(path)));
+    if ((fd >=0)) {
+      (void)(std_fs_fs_close(fd));
+      return 0;
+    }
+    if (((off + 8) <=512)) {
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 1), 109));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 2), 111));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 3), 100));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 4), 46));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 5), 115));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 6), 117));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 7), 0));
+      (void)((path = pipeline_dep_ctx_path_buf_ptr(ctx)));
+      (void)((fd = std_fs_fs_open_read(path)));
+      if ((fd >=0)) {
+        (void)(std_fs_fs_close(fd));
+        return 0;
+      }
+      /* Product /mod.x. off+7 stays NUL from /mod.su. */
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 5), 120));
+      (void)(pipeline_dep_ctx_set_path_buf_byte(ctx, (off + 6), 0));
+      (void)((path = pipeline_dep_ctx_path_buf_ptr(ctx)));
+      (void)((fd = std_fs_fs_open_read(path)));
+      if ((fd >=0)) {
+        (void)(std_fs_fs_close(fd));
+        return 0;
+      }
+    }
   }
   return -1;
 }

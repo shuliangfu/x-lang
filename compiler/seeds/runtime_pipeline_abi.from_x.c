@@ -2480,8 +2480,22 @@ void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *c
         g = xlang_find_loaded_import_index(path_c, dep_paths, ndep);
         if (g < 0)
             continue;
-        ast_pipeline_dep_ctx_set_module(ctx, mapped, (struct ast_Module *)dep_mods[g]);
-        ast_pipeline_dep_ctx_set_arena(ctx, mapped, (struct ast_ASTArena *)dep_ars[g]);
+        {
+            void *slot_m = dep_mods[g];
+            void *slot_a = dep_ars[g];
+            /* Unparsed dep slot: no funcs and no layouts. Publishing it
+             * makes load_and_sync skip the disk parse. Null means not loaded.
+             * PLATFORM: SHARED. */
+            extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+            if (slot_m != NULL &&
+                pipeline_module_num_funcs(slot_m) == 0 &&
+                pipeline_module_num_struct_layouts_at(slot_m) == 0) {
+                slot_m = NULL;
+                slot_a = NULL;
+            }
+            ast_pipeline_dep_ctx_set_module(ctx, mapped, (struct ast_Module *)slot_m);
+            ast_pipeline_dep_ctx_set_arena(ctx, mapped, (struct ast_ASTArena *)slot_a);
+        }
         if (dep_paths[g]) {
             int pl = (int)strlen(dep_paths[g]);
             ast_pipeline_dep_ctx_set_import_path(ctx, mapped, (uint8_t *)dep_paths[g], pl);

@@ -8124,6 +8124,8 @@ export function xlang_pipeline_pctx_seed_dep_import_paths_only(ctx: *u8, import_
  * Map one dep prerun ctx slots from dep's own import table (not entry full dep list).
  * Allocates tmp arena/module, parses dep_src, filters dep_mods/ars/paths by import names,
  * writes compact ctx slots [0..mapped). Hard parse fail falls back to full ndep slots.
+ * An allocated dep module with no functions and no struct layouts is not
+ * published (slot stays null) so load_and_sync disk-parses that import.
  * @param ctx *u8 - PipelineDepCtx*; null -> no-op
  * @param dep_mods *u8 - void star-star loaded dep modules base
  * @param dep_ars *u8 - void star-star loaded dep arenas base
@@ -8253,6 +8255,22 @@ export function xlang_pipeline_one_ctx_for_dep_prerun_map_impl(ctx: *u8, dep_mod
     unsafe {
       let m: *u8 = pipe_load_ptr_slot(dep_mods, g);
       let a: *u8 = pipe_load_ptr_slot(dep_ars, g);
+      // Dep-table slots are allocated before that dep is prerun. A slot
+      // with no functions and no struct layouts has not been parsed.
+      // Publishing it makes load_and_sync treat the import as already
+      // loaded and skip the disk parse, so the importer typechecks an
+      // empty module (token.Token then has allow(padding) clear).
+      // Null means not loaded: the caller disk-loads and parses it.
+      // A parsed types-only or function-only module is kept.
+      // PLATFORM: SHARED.
+      if (m != 0 as *u8) {
+        if (pipeline_module_num_funcs(m) == 0) {
+          if (pipeline_module_num_struct_layouts_at(m) == 0) {
+            m = 0 as *u8;
+            a = 0 as *u8;
+          }
+        }
+      }
       ast_pipeline_dep_ctx_set_module(ctx, mapped, m);
       ast_pipeline_dep_ctx_set_arena(ctx, mapped, a);
       let p: *u8 = pipe_load_ptr_slot(dep_paths, g);
@@ -13278,11 +13296,14 @@ export function pipeline_resolve_path_last_off_get_c(): i32 {
 }
 
 /**
- * Probe path_buf at off with historical ".su" then "/mod.su" open_read (host-cc contract).
+ * Probe path_buf at off. Order: ".su", ".x", "/mod.su", "/mod.x".
  * @param ctx *u8 - PipelineDepCtx; null -> -1
- * @param off i32 - suffix write position
+ * @param off i32 - suffix write position; needs 4 bytes for ".x", 8 for "/mod.x"
  * @return i32 - 0 if open_read succeeds, -1 otherwise
- * wave105 pure helper. PLATFORM: SHARED - byte sequence matches former host-cc leaf.
+ * ".su" and "/mod.su" are the historical host-cc names. Product sources are
+ * ".x" (for example src/lexer/token.x) and sometimes mod.x. The first
+ * readable file wins and those bytes stay in path_buf for the disk reader.
+ * PLATFORM: SHARED.
  */
 function resolve_path_probe_dot_x_and_mod(ctx: *u8, off: i32): i32 {
   if (ctx == 0 as *u8) {
@@ -13290,6 +13311,7 @@ function resolve_path_probe_dot_x_and_mod(ctx: *u8, off: i32): i32 {
   }
   if (off + 4 <= 512) {
     unsafe {
+      // Historical ".su".
       pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46 as u8);
       pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 115 as u8);
       pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 117 as u8);
@@ -13307,8 +13329,23 @@ function resolve_path_probe_dot_x_and_mod(ctx: *u8, off: i32): i32 {
       }
       return 0;
     }
+    unsafe {
+      // Product ".x". off+3 is already NUL from the ".su" write.
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off, 46 as u8);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 120 as u8);
+      pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 0 as u8);
+      path = pipeline_dep_ctx_path_buf_ptr(ctx);
+      fd = std_fs_fs_open_read(path);
+    }
+    if (fd >= 0) {
+      unsafe {
+        std_fs_fs_close(fd);
+      }
+      return 0;
+    }
     if (off + 8 <= 512) {
       unsafe {
+        // Historical "/mod.su".
         pipeline_dep_ctx_set_path_buf_byte(ctx, off, 47 as u8);
         pipeline_dep_ctx_set_path_buf_byte(ctx, off + 1, 109 as u8);
         pipeline_dep_ctx_set_path_buf_byte(ctx, off + 2, 111 as u8);
@@ -13319,6 +13356,19 @@ function resolve_path_probe_dot_x_and_mod(ctx: *u8, off: i32): i32 {
         pipeline_dep_ctx_set_path_buf_byte(ctx, off + 7, 0 as u8);
       }
       unsafe {
+        path = pipeline_dep_ctx_path_buf_ptr(ctx);
+        fd = std_fs_fs_open_read(path);
+      }
+      if (fd >= 0) {
+        unsafe {
+          std_fs_fs_close(fd);
+        }
+        return 0;
+      }
+      unsafe {
+        // Product "/mod.x". off+7 is already NUL from the "/mod.su" write.
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 5, 120 as u8);
+        pipeline_dep_ctx_set_path_buf_byte(ctx, off + 6, 0 as u8);
         path = pipeline_dep_ctx_path_buf_ptr(ctx);
         fd = std_fs_fs_open_read(path);
       }
