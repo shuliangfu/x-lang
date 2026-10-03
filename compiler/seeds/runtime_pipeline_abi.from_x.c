@@ -33532,36 +33532,22 @@ int32_t ast_pipeline_block_stmt_order_idx(struct ast_ASTArena *a, int32_t br, in
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 externed these three if-record readers so the egg thin owned the
+ * symbols. That copy calls the egg's block_if_at. This TU's
+ * pipeline_block_append_if writes the if row through this TU's block_if_at.
+ * Codegen calls the ast_ names. An extern resolves to the empty row, cond
+ * and then are 0, and the if emitter returns -1. else 0 is a real if
+ * without an else arm. */
 int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
   return pipeline_block_if_cond_ref(a, br, ii);
 }
-#endif
-#endif /* XLANG_PABI_AST_FORWARDERS_ASM */
-
-#if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
-#else
 int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
   return pipeline_block_if_then_body_ref(a, br, ii);
 }
-#endif
-#endif /* XLANG_PABI_AST_FORWARDERS_ASM */
-
-#if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii);
-#else
 int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *a, int32_t br, int32_t ii) {
   return pipeline_block_if_else_body_ref(a, br, ii);
 }
-#endif
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
