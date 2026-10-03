@@ -73,6 +73,13 @@ export extern "C" function pipeline_expr_var_name_len(a: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_into(a: *u8, er: i32, dst: *u8): void;
 export extern "C" function pipeline_expr_set_index_c(a: *u8, er: i32, base_ref: i32, index_ref: i32, is_slice: i32): void;
 export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref: i32, num_type_args: i32): void;
+/**
+ * Stamp call_resolved_func_index and call_resolved_dep_index to -1.
+ * pipeline_expr_set_common_zeros_c does not write those slots, so a fresh
+ * call keeps the allocation zero. Slot 0 is import 0. This is the existing
+ * pabi writer; do not fold the sentinel into zeros.
+ */
+export extern "C" function pipeline_expr_init_call_resolve_at_ref(a: *u8, expr_ref: i32): void;
 export extern "C" function pipeline_expr_set_struct_lit_finish_c(a: *u8, er: i32, nm: *u8, nlen: i32): void;
 export extern "C" function pipeline_expr_set_method_call_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
 export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
@@ -792,6 +799,10 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
  *
  * Semantic invariants mirrored verbatim (see the C comments):
  *   - args parse fully into staging, THEN append (nested-call slot safety)
+ *   - plain CALL stamps call_resolved_* = -1 after zeros and before
+ *     set_call. pabi zeros leaves the dep slot at the allocation 0, and
+ *     slot 0 is import 0. asm! reuses set_call for option bits and must
+ *     not take this stamp.
  *   - turbofish: real type_refs first; count-only fallback leaves refs empty
  *   - LT with neither `{` nor `(` after the angles leaves `<` for relcompare
  *   - LBRACE converts FIELD_ACCESS only, after the two block-pref checks
@@ -1142,6 +1153,9 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         pipeline_expr_set_common_zeros_c(arena, call_ref);
         pipeline_expr_set_kind(arena, call_ref, EXPR_CALL);
         pipeline_expr_set_line_col(arena, call_ref, 0, 0);
+        // zeros leaves call_resolved_dep_index at the allocation 0, and
+        // slot 0 is import 0. Stamp -1 before the callee is stored.
+        pipeline_expr_init_call_resolve_at_ref(arena, call_ref);
         pipeline_expr_set_call_c(arena, call_ref, callee_ref, pending_n);
         if (pending_n > 0 && pending_refs[0] > 0) {
           ai = 0;
