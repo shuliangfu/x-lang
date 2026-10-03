@@ -559,13 +559,19 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
       return -1;
     return 0;
   }
-  /* EXPR_FIELD is 44. Slot -3 means rbx already holds the destination.
-   * A 16-byte named field (Lexer) copies from the source field address.
-   * Wider and narrower fields return -2 before any emit, so the caller
-   * can keep its one-GPR store. Do not lower the VAR frame-dest gate.
-   * PLATFORM: WINDOWS leftover-PE. */
-  if (ko == 44 && dest_in_rbx && (ta == 0 || ta == 1)) {
+  /* EXPR_FIELD is 44. A named layout wider than 16 bytes does not fit
+   * in one GPR. The one-GPR fallback stores the first qword and leaves
+   * the rest of the local uninitialized. Frame slots and dest-in-rbx
+   * both take the field address and call the existing
+   * glue_copy_large_struct_from_rax_ptr_elf_c. Exactly 16 bytes still
+   * copies only when rbx already holds the destination. Narrower
+   * fields, a 16-byte field in a frame slot, and any other negative
+   * slot return -2 before any emit. Do not lower the VAR frame-dest
+   * gate above. PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 44 && (ta == 0 || ta == 1)) {
     int32_t ty_ref;
+    int32_t wide_field;
+    int32_t mid_rbx;
     ty_ref = let_ty_ref;
     if (ty_ref <= 0)
       ty_ref = pipeline_expr_resolved_type_ref(arena, init_ref);
@@ -576,16 +582,29 @@ int32_t glue_emit_struct_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t
     named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
     if (named_sz > let_sz)
       let_sz = named_sz;
-    if (let_sz != 16)
+    wide_field = 0;
+    if (let_sz > 16 && (dest_in_rbx || stack_slot_off >= 0))
+      wide_field = 1;
+    mid_rbx = 0;
+    if (dest_in_rbx && let_sz == 16)
+      mid_rbx = 1;
+    if (!wide_field && !mid_rbx)
       return -2;
-    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
+    if (dest_in_rbx) {
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
     if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0)
       return -1;
-    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
-      return -1;
-    if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, let_sz, ta) != 0)
-      return -1;
+    if (dest_in_rbx) {
+      if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, -3, let_sz, ta) != 0)
+        return -1;
+    } else {
+      if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, stack_slot_off, let_sz, ta) != 0)
+        return -1;
+    }
     return 0;
   }
   return -2;
