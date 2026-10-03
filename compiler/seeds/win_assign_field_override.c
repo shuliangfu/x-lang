@@ -5,11 +5,11 @@
  * w1509 (终局待办 10.32): compound ops (kinds 29..38) on a scalar field take
  * the value from glue_emit_assign_rhs_to_rax_elf_c, as the twin does.
  * A named field wider than 16 bytes copies through let-init slot -3 when
- * the right-hand side is a frame VAR or a FIELD. A CALL of that width
- * puts the field address in rcx and uses the existing hidden-return
- * shift, so the call writes the value. Exactly 16 bytes on a frame
- * local stays the one-GPR store. METHOD, STRUCT_LIT, and INDEX stay
- * on that store.
+ * the right-hand side is a frame VAR, a FIELD, or a STRUCT_LIT. A CALL
+ * of that width puts the field address in rcx and uses the existing
+ * hidden-return shift, so the call writes the value. Exactly 16 bytes
+ * on a frame local stays the one-GPR store. METHOD and INDEX stay on
+ * that store.
  * Darwin links this seed too (its pabi body was the same kind-28-only code).
  * The wide-field arm is ta == 0 only. PLATFORM: WINDOWS + MACOS|DARWIN.
  */
@@ -56,16 +56,19 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
    * link keeps (it is ahead of the pabi stub). A named layout wider than
    * 16 bytes does not fit in one GPR. A frame VAR or a FIELD on the
    * right is copied by the existing let-init (destination already in rbx,
-   * slot -3). A CALL on the right, for a layout wider than 16 bytes,
-   * places the field address in rcx before the call. The sret shift
-   * keeps the source pointer in rdx, and the call writes the value.
-   * Let-init is not used for that call: its dest-in-rbx arm emits and
-   * then returns -2. METHOD, STRUCT_LIT, and INDEX stay on the
-   * one-GPR store below. Exactly 16 bytes still copies only when the
-   * base variable is a pointer (type kind 9). A frame local of exactly
-   * 16 bytes stays on the one-GPR store below. The destination lvalue
-   * is emitted first. Once it is written, a later failure does not
-   * fall through. ta != 0 is unchanged, including Darwin. */
+   * slot -3). A STRUCT_LIT on the right, for a layout wider than 16
+   * bytes, uses that same let-init: rbx already holds the field, and
+   * the existing writer stores each field there. A CALL on the right,
+   * for a layout wider than 16 bytes, places the field address in rcx
+   * before the call. The sret shift keeps the source pointer in rdx,
+   * and the call writes the value. Let-init is not used for that call:
+   * its dest-in-rbx arm emits and then returns -2. METHOD and INDEX
+   * stay on the one-GPR store below. Exactly 16 bytes still copies
+   * only when the base variable is a pointer (type kind 9). A frame
+   * local of exactly 16 bytes stays on the one-GPR store below. The
+   * destination lvalue is emitted first. Once it is written, a later
+   * failure does not fall through. ta != 0 is unchanged, including
+   * Darwin. */
   if (ek == 28 && ta == 0) {
     void *mod = pipeline_asm_emit_module_ref_c();
     int32_t fty = glue_field_access_field_type_ref_c(arena, mod, left_ref);
@@ -97,6 +100,12 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
         pre = glue_var_expr_stack_off_elf_c(arena, ctx, right_ref) >= 0;
       else if (rko == 44)
         pre = 1;
+      /* STRUCT_LIT (45). wide_local only: the let-init writer stores
+       * each field through rbx. Exactly 16 bytes, including a pointer
+       * base, stays on the one-GPR store below. INDEX (47) stays below:
+       * let-init still returns -2 for it. PLATFORM: WINDOWS x86_64. */
+      else if (wide_local && rko == 45)
+        pre = 1;
       if (pre) {
         int32_t irc;
         if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, left_ref, ctx, ta) != 0)
@@ -112,7 +121,7 @@ int32_t glue_emit_assign_field_elf_c(void *arena, void *elf_ctx, int32_t expr_re
        * set before emit, and the sret shift keeps the source pointer in
        * rdx. A later one-qword store would write the returned pointer
        * over the first word. wide_local only: exactly 16 bytes stays
-       * below. METHOD (49), STRUCT_LIT (45), and INDEX (47) stay below.
+       * below. METHOD (49) and INDEX (47) stay below.
        * PLATFORM: WINDOWS x86_64. ta != 0 does not enter this function's
        * wide gate. */
       if (wide_local && rko == 48) {
