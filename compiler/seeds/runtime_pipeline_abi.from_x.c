@@ -25808,14 +25808,15 @@ void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *ds
     memcpy(dst, ld->name, (size_t)nlen);
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1703 PLATFORM: WINDOWS leftover.
- * The egg's pipeline_block_expr_stmt_ref calls the same arena_sidecar_get
- * as pipeline_block_append_expr_stmt, so both use one g_w275 table.
- * A same-TU body reads this TU's private table and sees expr_stmt_refs
- * length 0. The prototype above the counter stays. This body stays for
- * builds that do not set both macros. */
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1703 left this reader out of the leftover rest TU. The egg copy calls
+ * the egg's arena_sidecar_get. pipeline_block_append_expr_stmt in this TU
+ * writes the ref through this TU's arena_sidecar_get (create flag 1; this
+ * reader uses flag 0 on the same arena key). On the side image the egg
+ * vector length is 0, so every ref is 0. This TU's vector holds the refs
+ * (length 69 on the probe). Block 109 has three expr stmts. The emitter
+ * skips a ref of 0, so the assigns and calls in that block are not
+ * written. stmt-order index stays the egg reader. */
 int32_t pipeline_block_expr_stmt_ref(void *a, int32_t br, int32_t ei) {
   W277_Sidecar *sc;
   W277_Block *b;
@@ -25829,7 +25830,6 @@ int32_t pipeline_block_expr_stmt_ref(void *a, int32_t br, int32_t ei) {
   pr = (int32_t *)grow_vec_at(&sc->expr_stmt_refs, abs);
   return pr ? *pr : 0;
 }
-#endif
 
 uint8_t pipeline_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
   W277_Sidecar *sc;
@@ -33516,14 +33516,13 @@ int32_t ast_pipeline_block_let_type_ref(struct ast_ASTArena *a, int32_t br, int3
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * Codegen calls this name. The egg wrapper forwards to the egg's
+ * pipeline_block_expr_stmt_ref. Forward to this TU's reader, which sees
+ * the vector pipeline_block_append_expr_stmt writes. */
 int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *a, int32_t br, int32_t ei) {
   return pipeline_block_expr_stmt_ref(a, br, ei);
 }
-#endif
 #endif /* XLANG_PABI_AST_FORWARDERS_ASM */
 
 #if !defined(XLANG_PABI_AST_FORWARDERS_ASM)
