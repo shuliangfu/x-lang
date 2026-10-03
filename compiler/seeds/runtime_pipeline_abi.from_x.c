@@ -25482,15 +25482,23 @@ int32_t pipeline_block_while_cond_ref(void *a, int32_t br, int32_t wi) {
   return wl ? (int32_t)wl->cond_ref : 0;
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_while_body_ref(void *a, int32_t br, int32_t wi);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 externed this while-body reader so the egg thin owned the symbol.
+ * That copy calls the egg's block_while_at. This TU's
+ * pipeline_block_append_while writes wl->body_ref through this TU's
+ * block_while_at (arena_sidecar_get create flag 1; the reader uses flag 0
+ * on the same arena key). backend_emit_while_loop_elf_sync reads the body
+ * through ast_ast_block_while_body_ref, which forwards here.
+ * On the side image the egg body ref for block 109 index 0 is 0 while this
+ * TU's cond reader, already compiled above, returns 1300 for that loop.
+ * backend_emit_loop_body_content_elf_sync treats body_ref <= 0 as an empty
+ * success, so the while returns 0 and the emitted function is only the
+ * range check plus an empty spin. for-body stays the egg reader until a
+ * probe shows that miss. num_lets stays the egg reader. */
 int32_t pipeline_block_while_body_ref(void *a, int32_t br, int32_t wi) {
   W277_WhileLoop *wl = block_while_at(a, br, wi);
   return wl ? (int32_t)wl->body_ref : 0;
 }
-#endif
 
 int32_t pipeline_block_for_init_ref(void *a, int32_t br, int32_t fi) {
   W277_ForLoop *fl = block_for_at(a, br, fi);
