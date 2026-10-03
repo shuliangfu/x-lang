@@ -25765,20 +25765,20 @@ int32_t pipeline_block_set_const_type_ref(void *a, int32_t br, int32_t ci, int32
   return 0;
 }
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern int32_t pipeline_block_let_name_len(void *a, int32_t br, int32_t li);
-#else
+/* PLATFORM: SHARED, including WINDOWS leftover.
+ * w1683 externed these two let-name readers so the egg thin owned the
+ * symbols. That copy calls the egg's block_let_at. This TU's
+ * pipeline_block_append_let writes the let row through this TU's
+ * block_let_at. glue_call_arg_resolve_var_stack_off_elf_c walks these two.
+ * On the side image the egg lengths for block 109 are 0 while this TU's
+ * row holds stack_blk, stack_par, and sp. The walk then misses sp and the
+ * VAR emitter returns -1. num_lets stays the egg reader: it reads the
+ * shared block header and already returns the count this TU stored. */
 int32_t pipeline_block_let_name_len(void *a, int32_t br, int32_t li) {
   W277_LetDecl *ld = block_let_at(a, br, li);
   return ld ? (int32_t)ld->name_len : 0;
 }
-#endif
 
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
-extern void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *dst);
-#else
 void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *dst) {
   W277_LetDecl *ld;
   int32_t nlen;
@@ -25799,7 +25799,6 @@ void pipeline_block_let_name_copy64(void *a, int32_t br, int32_t li, uint8_t *ds
   if (nlen > 0)
     memcpy(dst, ld->name, (size_t)nlen);
 }
-#endif
 
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1703 PLATFORM: WINDOWS leftover.
