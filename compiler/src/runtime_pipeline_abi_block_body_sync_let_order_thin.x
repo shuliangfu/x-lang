@@ -60,6 +60,7 @@ export extern function pipeline_module_func_return_type_at(module: *u8, func_ind
 export extern function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_maybe_promote_f32_to_f64_rax_elf_c(arena: *u8, elf_ctx: *u8, dest_ty: i32, src_ty: i32, ta: i32): i32;
 export extern function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_emit_run_language_defers_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
 export extern function glue_asm_block_diverged_set(v: i32): void;
@@ -124,8 +125,11 @@ function w1009_emit_let(
 
 /**
  * Two-pass block body ELF emit with pass1-deferred lets (wave1009).
- * @param dm *u8 — this level's defer mask (0: no deferral)
+ * @param dm *u8 — this level's pass1-let mask (0: no deferral). Not the language defer pool.
  * @return i32 — 0 ok; -1 fail
+ * Language `defer { }` is not a statement-order kind. It is emitted, LIFO,
+ * before the final expression. A trailing return is that final expression,
+ * so the defer body runs before the return load.
  * PLATFORM: SHARED — G.7 twin of pre-wave703 mega body_sync (+ leftover walk).
  */
 function w1009_body_sync_level(
@@ -361,6 +365,12 @@ function w1009_body_sync_level(
         continue;
       }
       si = si + 1;
+    }
+    // PLATFORM: SHARED — language defer pool, before the final expression.
+    // Same order as codegen emit_run_defers. The runner reads
+    // pipeline_block_defer_body_ref and emits each body through this function.
+    if (glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
+      return 0 - 1;
     }
     if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
       return 0 - 1;

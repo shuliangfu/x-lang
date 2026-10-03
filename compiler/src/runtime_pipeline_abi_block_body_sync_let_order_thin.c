@@ -78,6 +78,8 @@ extern int32_t glue_float_promote_src_ty_ref_c(void *arena, int32_t expr_ref);
 extern int32_t glue_maybe_promote_f32_to_f64_rax_elf_c(void *arena, void *elf_ctx, int32_t dest_ty,
                                                       int32_t src_ty, int32_t ta);
 extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_emit_run_language_defers_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                                   int32_t ta);
 extern int32_t glue_emit_block_final_expr_elf(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
                                               int32_t ta);
 extern void glue_block_body_bind_module_dep_from_ctx(void *ctx);
@@ -341,6 +343,15 @@ static int32_t w1010_body_sync_level(void *arena, void *elf_ctx, int32_t block_r
       }
       continue;
     }
+  }
+  /* PLATFORM: WINDOWS — host-gcc twin of the .x thin.
+   * `defer { }` is not a statement-order kind. pipeline_block_append_defer
+   * writes the body ref on this TU's row. glue_emit_run_language_defers_elf
+   * reads that row and emits the body before the final expression, so a
+   * trailing return (the final expression) loads the value after the defer
+   * store. */
+  if (glue_emit_run_language_defers_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
+    return -1;
   }
   if (glue_emit_block_final_expr_elf(arena, elf_ctx, block_ref, ctx, ta) != 0) {
     return -1;
