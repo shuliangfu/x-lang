@@ -7,12 +7,15 @@ const string = import("std.string");
  */
 function main(): i32 {
   let buf: u8[4] = [97, 98, 99, 0];
-  let s: String = string.string_from_slice(&buf[0], 3);
+  let s: String = { length: 0 };
+  if (string.string_from_slice(&buf[0], 3, &s) != 0) { return 1; }
   if (string.length(s) != 3) { return 1; }
   if (string.is_empty(s) != 0) { return 2; }
-  let t: String = string.string_from_slice(&buf[0], 3);
+  let t: String = { length: 0 };
+  if (string.string_from_slice(&buf[0], 3, &t) != 0) { return 3; }
   if (string.string_eq(s, t) != 1) { return 3; }
-  let u: String = string.new();
+  let u: String = { length: 0 };
+  if (string.new(&u) != 0) { return 4; }
   if (string.is_empty(u) != 1) { return 4; }
   if (string.string_eq(s, u) != 0) { return 5; }
   return 0;
