@@ -25,19 +25,29 @@
 const core_opt = import("core.option");
 const core_res = import("core.result");
 
-/** Exported function `none`.
- * Implements `none`.
- * @param ) Option_i32 { return core_opt.none_i32(
- * @return void
+/**
+ * Write a missing i32 option.
+ * Returning Option by value does not asm-emit on the installed product.
+ * @param out *Option_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function none(): Option_i32 { return core_opt.none_i32(); }
+export function none(out: *Option_i32): i32 {
+  core_opt.none_i32(out);
+  return 0;
+}
 
-/** Exported function `some`.
- * Implements `some`.
- * @param x i32): Option_i32 { return core_opt.some_i32(x
- * @return void
+/**
+ * Write a present i32 option.
+ * @param x i32 — stored value
+ * @param out *Option_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function some(x: i32): Option_i32 { return core_opt.some_i32(x); }
+export function some(x: i32, out: *Option_i32): i32 {
+  core_opt.some_i32(out, x);
+  return 0;
+}
 
 /** Exported function `unwrap_or`.
  * Implements `unwrap_or`.
@@ -69,11 +79,21 @@ export function is_none(opt: Option_i32): bool { return core_opt.is_none_i32(opt
  * @param mapped i32
  * @return Option_i32
  */
-export function map(opt: Option_i32, mapped: i32): Option_i32 {
+/**
+ * Map a present i32 option onto mapped, or write none.
+ * @param opt Option_i32 — source option
+ * @param mapped i32 — value stored when opt is present
+ * @param out *Option_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function map(opt: Option_i32, mapped: i32, out: *Option_i32): i32 {
   if (core_opt.is_some_i32(opt)) {
-    return core_opt.some_i32(mapped);
+    core_opt.some_i32(out, mapped);
+    return 0;
   }
-  return core_opt.none_i32();
+  core_opt.none_i32(out);
+  return 0;
 }
 
 /** Exported function `and_then`.
@@ -82,11 +102,22 @@ export function map(opt: Option_i32, mapped: i32): Option_i32 {
  * @param next Option_i32
  * @return Option_i32
  */
-export function and_then(opt: Option_i32, next: Option_i32): Option_i32 {
+/**
+ * Keep next when opt is present. Otherwise write none.
+ * @param opt Option_i32 — gate
+ * @param next Option_i32 — value copied when opt is present
+ * @param out *Option_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function and_then(opt: Option_i32, next: Option_i32, out: *Option_i32): i32 {
   if (core_opt.is_some_i32(opt)) {
-    return next;
+    out.is_some = next.is_some;
+    out.value = next.value;
+    return 0;
   }
-  return core_opt.none_i32();
+  core_opt.none_i32(out);
+  return 0;
 }
 
 /** Exported function `or`.
@@ -95,8 +126,23 @@ export function and_then(opt: Option_i32, next: Option_i32): Option_i32 {
  * @param other Option_i32
  * @return Option_i32
  */
-export function or(opt: Option_i32, other: Option_i32): Option_i32 {
-  return core_opt.or_i32(opt, other);
+/**
+ * Write opt when it is present, otherwise write other.
+ * @param opt Option_i32 — preferred option
+ * @param other Option_i32 — fallback
+ * @param out *Option_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function or(opt: Option_i32, other: Option_i32, out: *Option_i32): i32 {
+  if (opt.is_some) {
+    out.is_some = opt.is_some;
+    out.value = opt.value;
+    return 0;
+  }
+  out.is_some = other.is_some;
+  out.value = other.value;
+  return 0;
 }
 
 /** Exported function `from_result`.
@@ -104,11 +150,20 @@ export function or(opt: Option_i32, other: Option_i32): Option_i32 {
  * @param r Result_i32
  * @return Option_i32
  */
-export function from_result(r: Result_i32): Option_i32 {
+/**
+ * Write some(r.value) when r is ok, otherwise none.
+ * @param r Result_i32 — source result
+ * @param out *Option_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function from_result(r: Result_i32, out: *Option_i32): i32 {
   if (core_res.is_ok_i32(r)) {
-    return core_opt.some_i32(r.value);
+    core_opt.some_i32(out, r.value);
+    return 0;
   }
-  return core_opt.none_i32();
+  core_opt.none_i32(out);
+  return 0;
 }
 
 /** Exported function `from_result`.
@@ -116,11 +171,20 @@ export function from_result(r: Result_i32): Option_i32 {
  * @param r Result_u8
  * @return Option_u8
  */
-export function from_result(r: Result_u8): Option_u8 {
+/**
+ * Write some(r.value) when r is ok, otherwise none.
+ * @param r Result_u8 — source result
+ * @param out *Option_u8 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function from_result(r: Result_u8, out: *Option_u8): i32 {
   if (core_res.is_ok_u8(r)) {
-    return core_opt.some_u8(r.value);
+    core_opt.some_u8(out, r.value);
+    return 0;
   }
-  return core_opt.none_u8();
+  core_opt.none_u8(out);
+  return 0;
 }
 
 /** Exported function `to_result`.
@@ -129,9 +193,26 @@ export function from_result(r: Result_u8): Option_u8 {
  * @param err_if_none i32
  * @return Result_i32
  */
-export function to_result(opt: Option_i32, err_if_none: i32): Result_i32 {
+/**
+ * Write ok(opt.value) when opt is present, otherwise err(err_if_none).
+ * Returning Result by value does not asm-emit on the installed product.
+ * @param opt Option_i32 — source option
+ * @param err_if_none i32 — error stored when opt is missing
+ * @param out *Result_i32 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function to_result(opt: Option_i32, err_if_none: i32, out: *Result_i32): i32 {
   if (core_opt.is_some_i32(opt)) {
-    return core_res.ok_i32(opt.value);
+    out.value = opt.value;
+    out._pad1 = 0;
+    out.err = 0;
+    out._pad2 = 0;
+    return 0;
   }
-  return core_res.err_i32(err_if_none);
+  out.value = 0;
+  out._pad1 = 0;
+  out.err = err_if_none;
+  out._pad2 = 0;
+  return 0;
 }
