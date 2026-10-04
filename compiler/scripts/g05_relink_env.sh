@@ -357,9 +357,9 @@ _PABI_CALL_SPILL="$_G05_PO_OUT"
 _g05_pure_overlay src/runtime_pipeline_abi_frame_size_thin.x \
   build_asm/selfhost_pabi/compute_frame_size.o pipeline_asm_compute_frame_size_c
 _PABI_FRAME_SIZE="$_G05_PO_OUT"
-# w1544: CALL-returned slice deep-copy no longer truncates past its cap
-# (egg copied only the first 1024 bytes; a longer slice is now passed
-# through unchanged, like the host-C twin). Strong T first-wins egg weak
+# w1544/w2056: CALL-returned slice deep-copy, one rule with no size cap:
+# data on the callee's (now popped) stack is copied in full into a malloc
+# block; data anywhere else is aliased. Strong T first-wins egg weak
 # (Darwin) / --allow-multiple-definition (Linux) / weakened pabi_weak T
 # (Windows). Ahead of _PABI_SELFHOST. PLATFORM: SHARED.
 _g05_pure_overlay src/runtime_pipeline_abi_reent_nocap_thin.x \
