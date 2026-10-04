@@ -33,16 +33,17 @@ struct EFI_SYSTEM_TABLE {
 }
 
 // efi_main: UEFI entry point — EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table
-// Returns EFI_STATUS (u64): 0 = EFI_SUCCESS
+// EFI_SUCCESS is 0. The status bits ride in rax, so the return is i64.
 /** Internal function `efi_main`.
  * Implements `efi_main`.
+ * image_handle and system_table are pointer-sized values kept as u64.
  * @param image_handle u64
  * @param system_table u64
- * @return u64
+ * @return i64 — EFI status in rax; 0 is EFI_SUCCESS
  */
 #[used]
 #[no_mangle]
-function efi_main(image_handle: u64, system_table: u64): u64 {
+function efi_main(image_handle: u64, system_table: u64): i64 {
   // In a real UEFI app: call system_table->con_out->output_string(L"Hello UEFI!")
   // For skeleton: just return EFI_SUCCESS
   return 0;
