@@ -196,7 +196,14 @@ export function ws_sha1_final(ctx: *WsSha1Ctx, digest: *u8): void {
 }
 
 /**
- * See implementation.
+ * Encode src as base64 into out, including a trailing NUL.
+ * The padding byte is u8. A bare 61 is i32, and the two ternary arms must match.
+ * @param src *u8 — input bytes; null returns -1
+ * @param src_len i32 — input length; negative returns -1
+ * @param out *u8 — destination; null returns -1
+ * @param out_cap i32 — destination capacity, including the NUL
+ * @return i32 — encoded length excluding NUL, or -1 when the buffer is too small
+ * PLATFORM: SHARED
  */
 export function ws_b64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i32 {
   let i: i32 = 0;
@@ -223,9 +230,9 @@ export function ws_b64_encode(src: *u8, src_len: i32, out: *u8, out_cap: i32): i
     o = o + 1;
     out[o] = WS_B64[((v >> 12) & 63) as i32];
     o = o + 1;
-    out[o] = (rem >= 2) ? WS_B64[((v >> 6) & 63) as i32] : 61;
+    out[o] = (rem >= 2) ? WS_B64[((v >> 6) & 63) as i32] : (61 as u8);
     o = o + 1;
-    out[o] = (rem >= 3) ? WS_B64[(v & 63) as i32] : 61;
+    out[o] = (rem >= 3) ? WS_B64[(v & 63) as i32] : (61 as u8);
     o = o + 1;
   }
   if (o >= out_cap) {
