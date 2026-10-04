@@ -179,15 +179,17 @@ export function write_bytes(h: *u8, ptr: *u8, len: i32): void {
   }
 }
 
-/** Exported function `finish`.
- * Implements `finish`.
- * @param h *u8
- * @return u64
+/**
+ * Finish a SipHash state.
+ * finish_algo already returns u64. A second u64 return does not asm-emit.
+ * @param h *u8 — hasher; null is forwarded to the C helper
+ * @return i64 — hash bits in rax. Low 64 bits match the u64 from the helper.
+ * PLATFORM: SHARED
  */
-export function finish(h: *u8): u64 {
+export function finish(h: *u8): i64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_sip_finish_c(h); }
-  return _rc;
+  return _rc as i64;
 }
 
 /** Exported function `free`.
@@ -201,39 +203,42 @@ export function free(h: *u8): void {
   }
 }
 
-/** Exported function `bytes`.
- * Implements `bytes`.
- * @param ptr *u8
- * @param len i32
- * @return u64
+/**
+ * Hash a byte buffer with SipHash.
+ * @param ptr *u8 — bytes; null is forwarded when len is 0
+ * @param len i32 — byte count
+ * @return i64 — hash bits in rax. Low 64 bits match the u64 from the helper.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this extra u64 return.
  */
-export function bytes(ptr: *u8, len: i32): u64 {
+export function bytes(ptr: *u8, len: i32): i64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_sip_bytes_c(ptr, len); }
-  return _rc;
+  return _rc as i64;
 }
 
-/** Exported function `xxhash64`.
- * Implements `xxhash64`.
- * @param ptr *u8
- * @param len i32
- * @return u64
+/**
+ * Hash a byte buffer with xxHash64 and a zero seed.
+ * @param ptr *u8 — bytes; null is forwarded when len is 0
+ * @param len i32 — byte count
+ * @return i64 — hash bits in rax. Low 64 bits match the u64 from the helper.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this extra u64 return.
  */
-export function xxhash64(ptr: *u8, len: i32): u64 {
+export function xxhash64(ptr: *u8, len: i32): i64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_xxhash64_bytes_c(ptr, len); }
-  return _rc;
+  return _rc as i64;
 }
 
-/** Exported function `xxhash64_seed`.
- * Implements `xxhash64_seed`.
- * @param ptr *u8
- * @param len i32
- * @param seed u64
- * @return u64
+/**
+ * Hash a byte buffer with xxHash64 and an explicit seed.
+ * @param ptr *u8 — bytes; null is forwarded when len is 0
+ * @param len i32 — byte count
+ * @param seed u64 — xxHash seed
+ * @return i64 — hash bits in rax. Low 64 bits match the u64 from the helper.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this extra u64 return.
  */
-export function xxhash64_seed(ptr: *u8, len: i32, seed: u64): u64 {
+export function xxhash64_seed(ptr: *u8, len: i32, seed: u64): i64 {
   let _rc: u64 = 0;
   unsafe { _rc = hash_xxhash64_seed_bytes_c(ptr, len, seed); }
-  return _rc;
+  return _rc as i64;
 }
