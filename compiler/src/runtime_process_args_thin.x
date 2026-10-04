@@ -52,12 +52,14 @@ export function process_args_count_c(): i32 {
 /**
  * Bare process-args face: forward argv[i] from the argv glue.
  * @param i i32 — argv index (0-based; bounds are the glue's concern)
- * @return *u8 — argv[i] bytes (NUL-terminated C string)
- * PLATFORM: SHARED.
+ * @return i64 — pointer bits of argv[i] in rax (NUL-terminated C string).
+ *   Link name unchanged. 0 when the glue returns a null pointer.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this *u8 return.
  */
-export function process_arg_c(i: i32): *u8 {
+export function process_arg_c(i: i32): i64 {
+  let p: *u8 = 0;
   unsafe {
-    return process_xlang_argv_get(i);
+    p = process_xlang_argv_get(i);
   }
-  return 0 as *u8;
+  return p as i64;
 }
