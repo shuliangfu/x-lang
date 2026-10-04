@@ -205,6 +205,7 @@ esac
 case "$(uname -s 2>/dev/null)" in
   Linux)
     case "$OUT" in /*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
+    _kept_stale=""
     for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
       [ -s "$_leaf" ] || continue
       _before=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
@@ -216,8 +217,12 @@ case "$(uname -s 2>/dev/null)" in
         [ "$_after" != "$_before" ] && echo "g05_relink_xlang: refreshed stale $_leaf"
       else
         mv -f "$_leaf.w2055bak" "$_leaf"
-        echo "g05_relink_xlang: WARN stale refresh failed, kept $_leaf" >&2
+        _kept_stale="$_kept_stale $_leaf"
+        echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (asm rebuild failed; programs linking it get the OLD object) !!!!!" >&2
       fi
     done
+    if [ -n "$_kept_stale" ]; then
+      echo "g05_relink_xlang: !!!!! STALE LEAVES KEPT ($(echo $_kept_stale | wc -w)):$_kept_stale !!!!!" >&2
+    fi
     ;;
 esac
