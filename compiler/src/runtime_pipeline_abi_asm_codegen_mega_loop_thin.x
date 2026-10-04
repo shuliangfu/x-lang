@@ -93,7 +93,9 @@ const W328_ELF_RELOC_R_PC32_OFF: i32 = 43581468;
  * @return 0 success, -1 on null/emit failure
  * PLATFORM: SHARED freestanding Cap leave (wave290/328).
  *   LINUX+MACOS x86_64 SysV float return in xmm0; arm64 sret via pure cells.
+ * no_mangle: callers already bind this link name. A module prefix would miss them.
  */
+#[no_mangle]
 export function pipeline_backend_asm_codegen_ast_to_elf_mega_body_c(m: *u8, a: *u8, elf_ctx: *u8, pipeline_ctx: *u8): i32 {
   unsafe {
   let ta: i32 = 0;
