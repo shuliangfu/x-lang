@@ -112,7 +112,8 @@ function main(): i32 {
   let payload: i32 = 512;
   let addr: Ipv4Addr = { a: 127, b: 0, c: 0, d: 1 };
   let lat_buf: i64[4096] = 0;
-  let lat: *i64 = lat_buf;
+  // The buffer is an array. The latency pointer is the address of lane 0.
+  let lat: *i64 = &lat_buf[0];
   let n_samples: i32 = 0;
   let sum: i32 = 0;
   let ci: i32 = 0;
