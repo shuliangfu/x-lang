@@ -329,6 +329,7 @@ export extern function asm_ctx_local_name_len(ctx: *u8, idx: i32): i32;
 export extern function asm_ctx_local_name_byte_at(ctx: *u8, idx: i32, off: i32): u8;
 export extern function asm_ctx_local_name_copy64(ctx: *u8, idx: i32, dst: *u8): void;
 export extern function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
+export extern function asm_ctx_block_slot_get(ctx: *u8, block_ref: i32): i32;
 export extern function pipeline_module_struct_layout_name_len(module: *Module, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_byte_at(module: *Module, idx: i32, off: i32): u8;
 
@@ -3663,6 +3664,52 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
   }
 }
 
+/**
+ * Stack offset of a VAR declared by a let in block_ref.
+ * Whole-function name search returns the first same-named let, so a later
+ * `let i` was compared against the earlier slot and the loop body was skipped.
+ * @param arena *ASTArena — block let names
+ * @param ctx *AsmFuncCtx — local slot table
+ * @param block_ref i32 — block that contains the while
+ * @param var_ref i32 — EXPR_VAR
+ * @return i32 — frame offset, or -1 if this block does not declare the name
+ * PLATFORM: SHARED
+ */
+export function fold_block_var_offset(arena: *ASTArena, ctx: *AsmFuncCtx, block_ref: i32, var_ref: i32): i32 {
+  // PLATFORM: SHARED — let index in this block, not the first same name in the function.
+  unsafe {
+    if (pipeline_expr_kind_ord_at(arena, var_ref) != 3) { return 0 - 1; }
+    let vlen: i32 = pipeline_expr_var_name_len(arena, var_ref);
+    if (vlen <= 0 || vlen > 127) { return 0 - 1; }
+    let vbuf: u8[256] = [];
+    pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
+    let nlet: i32 = ast_ast_block_num_lets(arena, block_ref);
+    let li: i32 = 0;
+    let found: i32 = 0 - 1;
+    while (li < nlet) {
+      let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
+      if (llen == vlen) {
+        let is_match: i32 = 1;
+        let lb: u8[256] = [];
+        pipeline_block_let_name_copy64(arena, block_ref, li, &lb[0]);
+        let kk: i32 = 0;
+        while (kk < vlen) {
+          if (lb[kk] != vbuf[kk]) { is_match = 0; }
+          kk = kk + 1;
+        }
+        if (is_match != 0) { found = li; }
+      }
+      li = li + 1;
+    }
+    if (found < 0) { return 0 - 1; }
+    let base: i32 = asm_ctx_block_slot_get(asm_ctx_key(ctx), block_ref);
+    if (base < 0) { return 0 - 1; }
+    let nconst: i32 = ast_ast_block_num_consts(arena, block_ref);
+    if (nconst < 0) { nconst = 0; }
+    return asm_ctx_slot_offset(ctx, base + nconst + found);
+  }
+}
+
 /** Emit `i >= n` branch to exit (must follow cmp); use imm cmp when n is literal. */
 export function fold_emit_i_ge_n_branch_exit_elf(
   elf_ctx: *ElfCodegenCtx, off_i: i32, off_n: i32, n_is_lit: i32, n_lit: i32,
@@ -3706,14 +3753,22 @@ export function try_fold_count_up_while_elf(
       return 0;
     }
     let i_e: Expr = ast.ast_arena_expr_get(arena, i_ref);
-    // var_name is a fixed array. Passing the field bare loads its first bytes
-    // as the pointer. The address of the first element is the name pointer.
-    let off_i: i32 = local_offset(ctx, &i_e.var_name[0], i_e.var_name_len);
+    // Prefer the let in this block. A whole-function name search binds a
+    // later `let i` to the earlier slot. If this block does not declare it,
+    // keep the previous search so a parameter or parent let still folds.
+    let off_i: i32 = fold_block_var_offset(arena, ctx, block_ref, i_ref);
+    if (off_i < 0) {
+      off_i = local_offset(ctx, &i_e.var_name[0], i_e.var_name_len);
+    }
     if (off_i < 0) { return 0; }
     let off_n: i32 = -1;
     let n_e: Expr = ast.ast_arena_expr_get(arena, n_var_ref);
     if (n_is_lit == 0) {
-      off_n = local_offset(ctx, &n_e.var_name[0], n_e.var_name_len);
+      off_n = fold_block_var_offset(arena, ctx, block_ref, n_var_ref);
+      if (off_n < 0) {
+        // Parameters are not block lets. Fall back to the unique name.
+        off_n = local_offset(ctx, &n_e.var_name[0], n_e.var_name_len);
+      }
       if (off_n < 0) { return 0; }
     }
     let s_ref: i32 = 0;
