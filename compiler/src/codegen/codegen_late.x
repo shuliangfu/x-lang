@@ -11,6 +11,15 @@ const ast = import("ast");
 const codegen_outbuf = import("codegen_outbuf");
 import codegen_outbuf;
 
+// These block helpers stay in the pipeline runtime. ast.x no longer defines them.
+extern function ast_ast_block_num_lets(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_num_consts(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32;
+extern function ast_ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32;
+extern function ast_ast_block_num_regions(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32;
+
 extern function pipeline_dep_ctx_module_at(ctx: *PipelineDepCtx, idx: i32): *Module;
 extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
 extern function pipeline_dep_ctx_ndep(ctx: *PipelineDepCtx): i32;
@@ -392,7 +401,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
     if (ctx.current_block_ref > 0 && ctx.current_block_ref <= arena.num_blocks) {
       let br: i32 = ctx.current_block_ref;
       let li: i32 = 0;
-      let nlets: i32 = ast.ast_block_num_lets(arena, br);
+      let nlets: i32 = ast_ast_block_num_lets(arena, br);
       while (li < nlets) {
         let nl: i32 = pipeline_block_let_name_len(arena, br, li);
         if (nl == name_len && nl > 0) {
@@ -415,7 +424,7 @@ export function codegen_name_is_local_binding(arena: *ASTArena, ctx: *PipelineDe
         li = li + 1;
       }
       let ci: i32 = 0;
-      let nconsts: i32 = ast.ast_block_num_consts(arena, br);
+      let nconsts: i32 = ast_ast_block_num_consts(arena, br);
       while (ci < nconsts) {
         let cl: i32 = pipeline_block_const_name_len(arena, br, ci);
         if (cl == name_len && cl > 0) {
@@ -1020,13 +1029,13 @@ export function codegen_block_contains_return(arena: *ASTArena, block_ref: i32):
       return 0;
     }
     /* final_expr on the block is the implicit return path for expression-bodied blocks. */
-    if (!ast.ref_is_null(ast.ast_block_final_expr_ref(arena, block_ref))) {
+    if (!ast.ref_is_null(ast_ast_block_final_expr_ref(arena, block_ref))) {
       return 1;
     }
     let ji: i32 = 0;
-    let nes: i32 = ast.ast_block_num_expr_stmts(arena, block_ref);
+    let nes: i32 = ast_ast_block_num_expr_stmts(arena, block_ref);
     while (ji < nes) {
-      let se: Expr = ast.ast_arena_expr_get(arena, ast.ast_block_expr_stmt_ref(arena, block_ref, ji));
+      let se: Expr = ast.ast_arena_expr_get(arena, ast_ast_block_expr_stmt_ref(arena, block_ref, ji));
       if ((se.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
         return 1;
       }
@@ -1034,9 +1043,9 @@ export function codegen_block_contains_return(arena: *ASTArena, block_ref: i32):
     }
     /* Cap-T001: return often sits only inside unsafe / region body blocks. */
     let ri: i32 = 0;
-    let nr: i32 = ast.ast_block_num_regions(arena, block_ref);
+    let nr: i32 = ast_ast_block_num_regions(arena, block_ref);
     while (ri < nr) {
-      let rb: i32 = ast.ast_block_region_body_ref(arena, block_ref, ri);
+      let rb: i32 = ast_ast_block_region_body_ref(arena, block_ref, ri);
       if (codegen_block_contains_return(arena, rb) != 0) {
         return 1;
       }
