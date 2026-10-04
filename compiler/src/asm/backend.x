@@ -3546,6 +3546,9 @@ export function fold_parse_count_up_body(
 /**
  * If var_ref is a same-block let bound to an integer literal, write *out_lit and return 1.
  * Used for const-prop of `let n: i32 = 1000000000; while (i < n)`.
+ * A later assignment to that name in the same block means the initializer is not
+ * the value at the loop (`let m = 0; m = n; while (k < m)` must not fold m to 0).
+ * PLATFORM: SHARED.
  */
 export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
 
@@ -3572,13 +3575,43 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
         }
         if (is_match != 0) {
           let init_ref: i32 = pipeline_block_let_init_ref(arena, block_ref, li);
-          if (init_ref > 0 && pipeline_expr_kind_ord_at(arena, init_ref) == 0) {
-            if (out_lit != 0 as *i32) {
-              out_lit[0] = pipeline_expr_int_val_at(arena, init_ref);
-            }
-            return 1;
+          if (init_ref <= 0 || pipeline_expr_kind_ord_at(arena, init_ref) != 0) {
+            return 0;
           }
-          return 0;
+          // Expr statements in this block. Kind 2 is an expression statement;
+          // kind 28 is assignment. A matching left-hand variable kills the fold.
+          let nso: i32 = ast_ast_block_num_stmt_order(arena, block_ref);
+          let si: i32 = 0;
+          while (si < nso) {
+            if (ast_ast_block_stmt_order_kind(arena, block_ref, si) == 2) {
+              let sidx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, si);
+              if (sidx >= 0 && sidx < ast_ast_block_num_expr_stmts(arena, block_ref)) {
+                let er: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, sidx);
+                if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 28) {
+                  let left_ref: i32 = asm_expr_binop_left(arena, er);
+                  if (left_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 3) {
+                    let alen: i32 = pipeline_expr_var_name_len(arena, left_ref);
+                    if (alen == vlen) {
+                      let abuf: u8[256] = [];
+                      pipeline_expr_var_name_into(arena, left_ref, &abuf[0]);
+                      let ak: i32 = 0;
+                      let same: i32 = 1;
+                      while (ak < vlen) {
+                        if (abuf[ak] != vbuf[ak]) { same = 0; }
+                        ak = ak + 1;
+                      }
+                      if (same != 0) { return 0; }
+                    }
+                  }
+                }
+              }
+            }
+            si = si + 1;
+          }
+          if (out_lit != 0 as *i32) {
+            out_lit[0] = pipeline_expr_int_val_at(arena, init_ref);
+          }
+          return 1;
         }
       }
       li = li + 1;
