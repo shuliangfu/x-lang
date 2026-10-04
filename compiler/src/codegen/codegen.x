@@ -39,6 +39,30 @@ const ast = import("ast");
 const codegen_outbuf = import("codegen_outbuf");
 import codegen_outbuf;
 
+// Block counters stay in the pipeline runtime. ast.x no longer defines them.
+extern function ast_ast_block_num_lets(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_num_stmt_order(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_num_consts(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32;
+extern function ast_ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32;
+extern function ast_ast_block_num_regions(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32;
+extern function ast_ast_block_stmt_order_kind(a: *ASTArena, br: i32, si: i32): u8;
+extern function ast_ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32;
+extern function ast_ast_block_num_loops(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_while_cond_ref(a: *ASTArena, br: i32, wi: i32): i32;
+extern function ast_ast_block_while_body_ref(a: *ASTArena, br: i32, wi: i32): i32;
+extern function ast_ast_block_num_for_loops(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_for_init_ref(a: *ASTArena, br: i32, fi: i32): i32;
+extern function ast_ast_block_for_cond_ref(a: *ASTArena, br: i32, fi: i32): i32;
+extern function ast_ast_block_for_step_ref(a: *ASTArena, br: i32, fi: i32): i32;
+extern function ast_ast_block_for_body_ref(a: *ASTArena, br: i32, fi: i32): i32;
+extern function ast_ast_block_num_if_stmts(a: *ASTArena, br: i32): i32;
+extern function ast_ast_block_if_cond_ref(a: *ASTArena, br: i32, ii: i32): i32;
+extern function ast_ast_block_if_then_body_ref(a: *ASTArena, br: i32, ii: i32): i32;
+extern function ast_ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32;
+
 /* See implementation. */
 export extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, idx: i32): i32;
 export extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
@@ -3091,7 +3115,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
             br = ctx.current_block_ref;
           }
           if (!ast.ref_is_null(br) && br > 0 && br <= arena.num_blocks) {
-            let nlets: i32 = ast.ast_block_num_lets(arena, br);
+            let nlets: i32 = ast_ast_block_num_lets(arena, br);
             let li: i32 = 0;
             while (li < nlets) {
               let nl: i32 = pipeline_block_let_name_len(arena, br, li);
@@ -3307,7 +3331,7 @@ export function emit_call_arg_slice_abi(arena: *ASTArena, out: *CodegenOutBuf, a
           br = ctx.current_block_ref;
         }
         if (!ast.ref_is_null(br) && br > 0 && br <= arena.num_blocks) {
-          let nlets: i32 = ast.ast_block_num_lets(arena, br);
+          let nlets: i32 = ast_ast_block_num_lets(arena, br);
           let li: i32 = 0;
           while (li < nlets) {
             let nl: i32 = pipeline_block_let_name_len(arena, br, li);
@@ -3731,7 +3755,7 @@ export function field_access_base_is_pointer_local(arena: *ASTArena, base_ref: i
     if (ast.ref_is_null(br) || br <= 0 || br > arena.num_blocks) {
       return 0;
     }
-    let nlets: i32 = ast.ast_block_num_lets(arena, br);
+    let nlets: i32 = ast_ast_block_num_lets(arena, br);
     let li: i32 = 0;
     while (li < nlets) {
       let nl: i32 = pipeline_block_let_name_len(arena, br, li);
@@ -3870,7 +3894,7 @@ export function block_stmt_order_has_let(arena: *ASTArena, block_ref: i32, let_i
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let nso: i32 = ast.ast_block_num_stmt_order(arena, block_ref);
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, block_ref);
     let si: i32 = 0;
     while (si < nso) {
       if (pipeline_block_stmt_order_kind(arena, block_ref, si) == 1 && pipeline_block_stmt_order_idx(arena, block_ref, si) == let_idx) {
@@ -4287,6 +4311,8 @@ export function codegen_emit_bytes_2(out: *CodegenOutBuf, buf: *u8, len: i32): i
  * @param val i32
  * @return i32
  */
+// no_mangle: codegen_late calls format_uint. A codegen_ prefix misses that call.
+#[no_mangle]
 export function format_uint(out: *CodegenOutBuf, val: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -4343,6 +4369,8 @@ export function format_uint64(out: *CodegenOutBuf, val: u64): i32 {
  * @param val i64
  * @return i32
  */
+// no_mangle: codegen_late calls format_int. A codegen_ prefix misses that call.
+#[no_mangle]
 export function format_int(out: *CodegenOutBuf, val: i64): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6017,6 +6045,8 @@ export function type_is_array_of_fixed_array(arena: *ASTArena, type_ref: i32): i
  * @return i32 — 1 if named declarator required, else 0
  * PLATFORM: SHARED host-C emit
  */
+// no_mangle: codegen_late calls type_uses_named_array_decl. A codegen_ prefix misses that call.
+#[no_mangle]
 export function type_uses_named_array_decl(arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0.
   unsafe {
@@ -6656,6 +6686,8 @@ export function codegen_slice_let_call_returns_slice(arena: *ASTArena, linit_ref
  * Do not fork a second CALL/METHOD wrap, dest-SLICE non-VAR FIELD wrap,
  * or dest-SLICE VAR parent-block const scan.
  */
+// no_mangle: codegen_late calls try_emit_slice_init_from_array_var. A codegen_ prefix misses that call.
+#[no_mangle]
 export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, let_idx: i32, let_type_ref: i32, linit_ref: i32, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -6721,7 +6753,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
             hop = 32;
           } else {
             if (hop > 0) {
-              let nlets_w: i32 = ast.ast_block_num_lets(arena, brw);
+              let nlets_w: i32 = ast_ast_block_num_lets(arena, brw);
               let liw: i32 = 0;
               while (liw < nlets_w && arr_sz <= 0) {
                 let nlen_w: i32 = pipeline_block_let_name_len(arena, brw, liw);
@@ -6748,7 +6780,7 @@ export function try_emit_slice_init_from_array_var(arena: *ASTArena, out: *Codeg
                 liw = liw + 1;
               }
             }
-            let nconst_w: i32 = ast.ast_block_num_consts(arena, brw);
+            let nconst_w: i32 = ast_ast_block_num_consts(arena, brw);
             let ci_c: i32 = 0;
             while (ci_c < nconst_w && arr_sz <= 0) {
               let clen: i32 = pipeline_block_const_name_len(arena, brw, ci_c);
@@ -7342,6 +7374,8 @@ export function try_emit_dest_slice_from_import_const_field(
  * @return i32 — 1 emitted; 0 not applicable; -1 hard fail
  * PLATFORM: SHARED host-C emit
  */
+// no_mangle: codegen_late calls try_emit_dest_slice_from_module_array_var. A codegen_ prefix misses that call.
+#[no_mangle]
 export function try_emit_dest_slice_from_module_array_var(
   arena: *ASTArena,
   out: *CodegenOutBuf,
@@ -7628,7 +7662,7 @@ export function codegen_emit_braced_array_lit_init(arena: *ASTArena, out: *Codeg
               br_br = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
             }
             if (!ast.ref_is_null(br_br) && br_br > 0 && br_br <= arena.num_blocks) {
-              nlets_br = ast.ast_block_num_lets(arena, br_br);
+              nlets_br = ast_ast_block_num_lets(arena, br_br);
             }
           }
           if (!ast.ref_is_null(self_e.resolved_type_ref) && self_e.resolved_type_ref > 0
@@ -12045,9 +12079,9 @@ function codegen_block_has_explicit_return(arena: *ASTArena, block_ref: i32): i3
       return 0;
     }
     let ji: i32 = 0;
-    let nes: i32 = ast.ast_block_num_expr_stmts(arena, block_ref);
+    let nes: i32 = ast_ast_block_num_expr_stmts(arena, block_ref);
     while (ji < nes) {
-      let se_ref: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, ji);
+      let se_ref: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, ji);
       let se: Expr = ast.ast_arena_expr_get(arena, se_ref);
       if ((se.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
         return 1;
@@ -12057,7 +12091,7 @@ function codegen_block_has_explicit_return(arena: *ASTArena, block_ref: i32): i3
       }
       ji = ji + 1;
     }
-    let fr: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+    let fr: i32 = ast_ast_block_final_expr_ref(arena, block_ref);
     if (!ast.ref_is_null(fr)) {
       let fe: Expr = ast.ast_arena_expr_get(arena, fr);
       if ((fe.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
@@ -12068,9 +12102,9 @@ function codegen_block_has_explicit_return(arena: *ASTArena, block_ref: i32): i3
       }
     }
     let ri: i32 = 0;
-    let nr: i32 = ast.ast_block_num_regions(arena, block_ref);
+    let nr: i32 = ast_ast_block_num_regions(arena, block_ref);
     while (ri < nr) {
-      let rb: i32 = ast.ast_block_region_body_ref(arena, block_ref, ri);
+      let rb: i32 = ast_ast_block_region_body_ref(arena, block_ref, ri);
       if (codegen_block_has_explicit_return(arena, rb) != 0) {
         return 1;
       }
@@ -12611,7 +12645,7 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
         if (e.var_name_len == 3 && e.var_name[0] == 109 && e.var_name[1] == 115 && e.var_name[2] == 103 && ctx != 0 as *PipelineDepCtx) {
           let use_l0: bool = false;
           if (ctx.current_block_ref != 0 && ctx.current_block_ref <= arena.num_blocks) {
-            if (ast.ast_block_num_lets(arena, ctx.current_block_ref) >= 1 && pipeline_block_let_name_len(arena, ctx.current_block_ref, 0) == 0) {
+            if (ast_ast_block_num_lets(arena, ctx.current_block_ref) >= 1 && pipeline_block_let_name_len(arena, ctx.current_block_ref, 0) == 0) {
               use_l0 = true;
             }
           }
@@ -15143,7 +15177,7 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
         /* PLATFORM: SHARED — Expr.kind enum cast before == lit (T001). wave323 */
         if (recv_ty <= 0 && (base_mono.kind as i32) == 3 && ctx.current_block_ref > 0) {
           let blk: i32 = ctx.current_block_ref;
-          let nlets: i32 = ast.ast_block_num_lets(arena, blk);
+          let nlets: i32 = ast_ast_block_num_lets(arena, blk);
           let li: i32 = 0;
           while (li < nlets) {
             let lname: u8[256] = [];
@@ -16927,7 +16961,7 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
                 br_nc = pipeline_module_func_body_ref_at(ctx.current_codegen_module, ctx.current_func_index);
               }
               if (!ast.ref_is_null(br_nc) && br_nc > 0 && br_nc <= arena.num_blocks) {
-                nlets_nc = ast.ast_block_num_lets(arena, br_nc);
+                nlets_nc = ast_ast_block_num_lets(arena, br_nc);
               }
             }
             wrap_nc = try_emit_slice_init_from_array_var(arena, out, br_nc, nlets_nc, elem_type_ref, er_nc, ctx);
@@ -17150,24 +17184,27 @@ let g_codegen_skip_wrap_dest: i32 = 0;
  * PLATFORM: SHARED host-C dest-from-region stacked last-wins.
  */
 function emit_run_dest_fromreg_wrapping_defers(arena: *ASTArena, out: *CodegenOutBuf, block_ref: i32, indent: i32, ctx: *PipelineDepCtx): i32 {
-  if (ast.ref_is_null(block_ref) || block_ref <= 0 || block_ref > arena.num_blocks) {
-    return 0;
-  }
-  let so_n: i32 = ast.ast_block_num_stmt_order(arena, block_ref);
-  let final_now: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
-  if (so_n > 0 && ast.ref_is_null(final_now)) {
-    let last_k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
-    if (last_k == 6) {
-      let last_idx: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
-      if (last_idx >= 0 && last_idx < ast.ast_block_num_regions(arena, block_ref)) {
-        let last_body: i32 = ast.ast_block_region_body_ref(arena, block_ref, last_idx);
-        if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body, indent, ctx) != 0) {
-          return -1;
+  // Block counters are pipeline-runtime externs, so the body stays in unsafe.
+  unsafe {
+    if (ast.ref_is_null(block_ref) || block_ref <= 0 || block_ref > arena.num_blocks) {
+      return 0;
+    }
+    let so_n: i32 = ast_ast_block_num_stmt_order(arena, block_ref);
+    let final_now: i32 = ast_ast_block_final_expr_ref(arena, block_ref);
+    if (so_n > 0 && ast.ref_is_null(final_now)) {
+      let last_k: u8 = ast_ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
+      if (last_k == 6) {
+        let last_idx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
+        if (last_idx >= 0 && last_idx < ast_ast_block_num_regions(arena, block_ref)) {
+          let last_body: i32 = ast_ast_block_region_body_ref(arena, block_ref, last_idx);
+          if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body, indent, ctx) != 0) {
+            return -1;
+          }
         }
       }
     }
+    return emit_run_defers(arena, out, block_ref, indent, ctx);
   }
-  return emit_run_defers(arena, out, block_ref, indent, ctx);
 }
 
 /**
@@ -17935,7 +17972,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
     if (block_ref <= 0 || block_ref > arena.num_blocks) {
       return 0;
     }
-    if (ast.ast_block_num_stmt_order(arena, block_ref) > 0) {
+    if (ast_ast_block_num_stmt_order(arena, block_ref) > 0) {
       /* dest-from-region intermediate: last so_k==6 is dest when
        * the block has no final_expr. Wrapping defers used to run
        * AFTER that dest, so GNU stmt-expr last value was (m=1)
@@ -17947,18 +17984,18 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
        * Prefix region + final_expr dest is unchanged (defers
        * still run after prefix stmts, before final_expr).
        * PLATFORM: SHARED host-C dest-from-region stacked last-wins. */
-      let so_n: i32 = ast.ast_block_num_stmt_order(arena, block_ref);
+      let so_n: i32 = ast_ast_block_num_stmt_order(arena, block_ref);
       let last_dest_region: i32 = 0;
-      let final_now: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+      let final_now: i32 = ast_ast_block_final_expr_ref(arena, block_ref);
       if (so_n > 0 && ast.ref_is_null(final_now)) {
-        let last_k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
+        let last_k: u8 = ast_ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
         if (last_k == 6) {
           last_dest_region = 1;
         }
       }
       /* See implementation. */
       let pre_li: i32 = 0;
-      while (pre_li < ast.ast_block_num_lets(arena, block_ref)) {
+      while (pre_li < ast_ast_block_num_lets(arena, block_ref)) {
         if (block_stmt_order_has_let(arena, block_ref, pre_li) == 0) {
           let lname_pre: u8[256] = [];
           pipeline_block_let_name_copy64(arena, block_ref, pre_li, &lname_pre[0]);
@@ -18132,15 +18169,15 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
         pre_li = pre_li + 1;
       }
       let si: i32 = 0;
-      while (si < ast.ast_block_num_stmt_order(arena, block_ref)) {
-        let k: u8 = ast.ast_block_stmt_order_kind(arena, block_ref, si);
-        let idx: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, si);
+      while (si < ast_ast_block_num_stmt_order(arena, block_ref)) {
+        let k: u8 = ast_ast_block_stmt_order_kind(arena, block_ref, si);
+        let idx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, si);
         /* Hoist wrapping defers before dest-from-region dest.
          * skip_wrap_dest: already hoisted inner-first on the caller. */
         if (skip_wrap_dest == 0 && last_dest_region != 0 && si == (so_n - 1)) {
-          let last_idx_h: i32 = ast.ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
-          if (last_idx_h >= 0 && last_idx_h < ast.ast_block_num_regions(arena, block_ref)) {
-            let last_body_h: i32 = ast.ast_block_region_body_ref(arena, block_ref, last_idx_h);
+          let last_idx_h: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
+          if (last_idx_h >= 0 && last_idx_h < ast_ast_block_num_regions(arena, block_ref)) {
+            let last_body_h: i32 = ast_ast_block_region_body_ref(arena, block_ref, last_idx_h);
             if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body_h, indent, ctx) != 0) {
               return -1;
             }
@@ -18150,7 +18187,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
           }
         }
         if (k == 0) {
-          if (idx >= 0 && idx < ast.ast_block_num_consts(arena, block_ref)) {
+          if (idx >= 0 && idx < ast_ast_block_num_consts(arena, block_ref)) {
             let cname_buf: u8[256] = [];
             pipeline_block_const_name_copy64(arena, block_ref, idx, &cname_buf[0]);
             let cname_len: i32 = pipeline_block_const_name_len(arena, block_ref, idx);
@@ -18193,7 +18230,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
              */
             let slice_cinit: i32 = 0;
             if (!ast.ref_is_null(cinit_ref)) {
-              let nlets_c: i32 = ast.ast_block_num_lets(arena, block_ref);
+              let nlets_c: i32 = ast_ast_block_num_lets(arena, block_ref);
               slice_cinit = try_emit_slice_init_from_array_var(arena, out, block_ref, nlets_c, ctype_ref, cinit_ref, ctx);
               if (slice_cinit == 0) {
                 slice_cinit = try_emit_dest_slice_from_module_array_var(arena, out, ctype_ref, cinit_ref, ctx);
@@ -18212,7 +18249,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 1) {
-          if (idx >= 0 && idx < ast.ast_block_num_lets(arena, block_ref)) {
+          if (idx >= 0 && idx < ast_ast_block_num_lets(arena, block_ref)) {
             let lname_buf: u8[256] = [];
             pipeline_block_let_name_copy64(arena, block_ref, idx, &lname_buf[0]);
             let lname_len: i32 = pipeline_block_let_name_len(arena, block_ref, idx);
@@ -18630,8 +18667,8 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 2) {
-          if (idx >= 0 && idx < ast.ast_block_num_expr_stmts(arena, block_ref)) {
-            let ex_ref: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, idx);
+          if (idx >= 0 && idx < ast_ast_block_num_expr_stmts(arena, block_ref)) {
+            let ex_ref: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, idx);
             let st: Expr = ast.ast_arena_expr_get(arena, ex_ref);
             if ((st.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
               if (emit_return_stmt_with_context(arena, out, indent, st.unary_operand_ref, ctx, fn_ret_void) != 0) {
@@ -18669,9 +18706,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 3) {
-          if (idx >= 0 && idx < ast.ast_block_num_loops(arena, block_ref)) {
-            let w_cr: i32 = ast.ast_block_while_cond_ref(arena, block_ref, idx);
-            let w_br: i32 = ast.ast_block_while_body_ref(arena, block_ref, idx);
+          if (idx >= 0 && idx < ast_ast_block_num_loops(arena, block_ref)) {
+            let w_cr: i32 = ast_ast_block_while_cond_ref(arena, block_ref, idx);
+            let w_br: i32 = ast_ast_block_while_body_ref(arena, block_ref, idx);
             if (codegen_emit_indent(out, indent) != 0) {
               return -1;
             }
@@ -18698,11 +18735,11 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 4) {
-          if (idx >= 0 && idx < ast.ast_block_num_for_loops(arena, block_ref)) {
-            let fl_ir: i32 = ast.ast_block_for_init_ref(arena, block_ref, idx);
-            let fl_cr: i32 = ast.ast_block_for_cond_ref(arena, block_ref, idx);
-            let fl_sr: i32 = ast.ast_block_for_step_ref(arena, block_ref, idx);
-            let fl_br: i32 = ast.ast_block_for_body_ref(arena, block_ref, idx);
+          if (idx >= 0 && idx < ast_ast_block_num_for_loops(arena, block_ref)) {
+            let fl_ir: i32 = ast_ast_block_for_init_ref(arena, block_ref, idx);
+            let fl_cr: i32 = ast_ast_block_for_cond_ref(arena, block_ref, idx);
+            let fl_sr: i32 = ast_ast_block_for_step_ref(arena, block_ref, idx);
+            let fl_br: i32 = ast_ast_block_for_body_ref(arena, block_ref, idx);
             if (codegen_emit_indent(out, indent) != 0) {
               return -1;
             }
@@ -18749,10 +18786,10 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 5) {
-          if (idx >= 0 && idx < ast.ast_block_num_if_stmts(arena, block_ref)) {
-            let if_cond_r: i32 = ast.ast_block_if_cond_ref(arena, block_ref, idx);
-            let if_then_r: i32 = ast.ast_block_if_then_body_ref(arena, block_ref, idx);
-            let if_else_r: i32 = ast.ast_block_if_else_body_ref(arena, block_ref, idx);
+          if (idx >= 0 && idx < ast_ast_block_num_if_stmts(arena, block_ref)) {
+            let if_cond_r: i32 = ast_ast_block_if_cond_ref(arena, block_ref, idx);
+            let if_then_r: i32 = ast_ast_block_if_then_body_ref(arena, block_ref, idx);
+            let if_else_r: i32 = ast_ast_block_if_else_body_ref(arena, block_ref, idx);
             if (codegen_emit_indent(out, indent) != 0) {
               return -1;
             }
@@ -18799,12 +18836,12 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
            * See implementation.
            * See implementation.
            */
-          if (idx >= 0 && idx < ast.ast_block_num_regions(arena, block_ref)) {
-            let reg_body: i32 = ast.ast_block_region_body_ref(arena, block_ref, idx);
+          if (idx >= 0 && idx < ast_ast_block_num_regions(arena, block_ref)) {
+            let reg_body: i32 = ast_ast_block_region_body_ref(arena, block_ref, idx);
             let need_scope: i32 = 0;
             if (!ast.ref_is_null(reg_body) && reg_body > 0 && reg_body <= arena.num_blocks) {
-              if (ast.ast_block_num_lets(arena, reg_body) > 0
-                  || ast.ast_block_num_consts(arena, reg_body) > 0) {
+              if (ast_ast_block_num_lets(arena, reg_body) > 0
+                  || ast_ast_block_num_consts(arena, reg_body) > 0) {
                 need_scope = 1;
               }
             }
@@ -18911,7 +18948,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
           return -1;
         }
       }
-      let final_ref: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+      let final_ref: i32 = ast_ast_block_final_expr_ref(arena, block_ref);
       if (emit_block_final_expr(arena, out, block_ref, final_ref, indent, ctx, fn_ret_void) != 0) {
         return -1;
       }
@@ -18919,7 +18956,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
     }
     /* See implementation. */
     let i: i32 = 0;
-    while (i < ast.ast_block_num_consts(arena, block_ref)) {
+    while (i < ast_ast_block_num_consts(arena, block_ref)) {
       let cname_fb: u8[256] = [];
       pipeline_block_const_name_copy64(arena, block_ref, i, &cname_fb[0]);
       let cname_len_fb: i32 = pipeline_block_const_name_len(arena, block_ref, i);
@@ -18963,7 +19000,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       i = i + 1;
     }
     i = 0;
-    while (i < ast.ast_block_num_lets(arena, block_ref)) {
+    while (i < ast_ast_block_num_lets(arena, block_ref)) {
       let lname_fb: u8[256] = [];
       pipeline_block_let_name_copy64(arena, block_ref, i, &lname_fb[0]);
       let lname_len_fb: i32 = pipeline_block_let_name_len(arena, block_ref, i);
@@ -19191,8 +19228,8 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
     }
     /* See implementation. */
     i = 0;
-    while (i < ast.ast_block_num_expr_stmts(arena, block_ref)) {
-      let ex_fb: i32 = ast.ast_block_expr_stmt_ref(arena, block_ref, i);
+    while (i < ast_ast_block_num_expr_stmts(arena, block_ref)) {
+      let ex_fb: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, i);
       let st: Expr = ast.ast_arena_expr_get(arena, ex_fb);
       if ((st.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
         if (emit_return_stmt_with_context(arena, out, indent, st.unary_operand_ref, ctx, fn_ret_void) != 0) {
@@ -19239,9 +19276,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       i = i + 1;
     }
     i = 0;
-    while (i < ast.ast_block_num_loops(arena, block_ref)) {
-      let w_cr: i32 = ast.ast_block_while_cond_ref(arena, block_ref, i);
-      let w_br: i32 = ast.ast_block_while_body_ref(arena, block_ref, i);
+    while (i < ast_ast_block_num_loops(arena, block_ref)) {
+      let w_cr: i32 = ast_ast_block_while_cond_ref(arena, block_ref, i);
+      let w_br: i32 = ast_ast_block_while_body_ref(arena, block_ref, i);
       if (codegen_emit_indent(out, indent) != 0) {
         return -1;
       }
@@ -19269,11 +19306,11 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       i = i + 1;
     }
     i = 0;
-    while (i < ast.ast_block_num_for_loops(arena, block_ref)) {
-      let fl_ir: i32 = ast.ast_block_for_init_ref(arena, block_ref, i);
-      let fl_cr: i32 = ast.ast_block_for_cond_ref(arena, block_ref, i);
-      let fl_sr: i32 = ast.ast_block_for_step_ref(arena, block_ref, i);
-      let fl_br: i32 = ast.ast_block_for_body_ref(arena, block_ref, i);
+    while (i < ast_ast_block_num_for_loops(arena, block_ref)) {
+      let fl_ir: i32 = ast_ast_block_for_init_ref(arena, block_ref, i);
+      let fl_cr: i32 = ast_ast_block_for_cond_ref(arena, block_ref, i);
+      let fl_sr: i32 = ast_ast_block_for_step_ref(arena, block_ref, i);
+      let fl_br: i32 = ast_ast_block_for_body_ref(arena, block_ref, i);
       if (codegen_emit_indent(out, indent) != 0) {
         return -1;
       }
@@ -19331,7 +19368,7 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       }
     }
     /* See implementation. */
-    let final_ref_plain: i32 = ast.ast_block_final_expr_ref(arena, block_ref);
+    let final_ref_plain: i32 = ast_ast_block_final_expr_ref(arena, block_ref);
     if (emit_block_final_expr(arena, out, block_ref, final_ref_plain, indent, ctx, fn_ret_void) != 0) {
       return -1;
     }
