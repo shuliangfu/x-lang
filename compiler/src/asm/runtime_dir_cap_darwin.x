@@ -98,27 +98,27 @@ function dir_store_ptr(p: *u8, v: *u8): void {
 /**
  * Load a pointer from the stream.
  * @param p source address
- * @return *u8 — the stored pointer
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — pointer bits in rax
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a *u8 return.
  */
-function dir_load_ptr(p: *u8): *u8 {
+function dir_load_ptr(p: *u8): i64 {
   let v: *u8 = 0;
   unsafe {
     let dst: *u8 = &v as *u8;
     memcpy(dst, p, 8);
   }
-  return v;
+  return v as i64;
 }
 
 /**
  * Read one byte. The index is the constant 0 after advancing the pointer,
  * because a parameter used as a subscript is emitted as an extra load.
  * @param p address of the byte
- * @return u8 — that byte
- * PLATFORM: MACOS|DARWIN
+ * @return i32 — the byte in eax
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a u8 return.
  */
-function dir_load_u8(p: *u8): u8 {
-  return p[0];
+function dir_load_u8(p: *u8): i32 {
+  return p[0] as i32;
 }
 
 /**
@@ -126,25 +126,25 @@ function dir_load_u8(p: *u8): u8 {
  * Split from the loads so neither function stores at the frame edge.
  * @param lo low byte
  * @param hi high byte
- * @return u16 — lo + (hi << 8)
- * PLATFORM: MACOS|DARWIN
+ * @return i32 — lo + (hi << 8), low 16 bits
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a u16 return.
  */
-function dir_u16_pack(lo: i32, hi: i32): u16 {
-  return (lo + (hi << 8)) as u16;
+function dir_u16_pack(lo: i32, hi: i32): i32 {
+  return lo + (hi << 8);
 }
 
 /**
  * Little-endian u16 from two bytes. d_reclen is not always 2-aligned
  * inside a packed dirent, so this does not use a halfword load.
  * @param p address of the first byte
- * @return u16 — the value
- * PLATFORM: MACOS|DARWIN
+ * @return i32 — the value in eax
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a u16 return.
  */
-function dir_load_u16(p: *u8): u16 {
+function dir_load_u16(p: *u8): i32 {
   let p1: *u8 = p + 1;
-  let b0: u8 = dir_load_u8(p);
-  let b1: u8 = dir_load_u8(p1);
-  return dir_u16_pack(b0 as i32, b1 as i32);
+  let b0: i32 = dir_load_u8(p);
+  let b1: i32 = dir_load_u8(p1);
+  return dir_u16_pack(b0, b1);
 }
 
 /**
@@ -161,11 +161,11 @@ export function runtime_dir_cap_darwin_x_doc_anchor(): i32 {
  * Open a directory. Empty path and regular files return null.
  * The stream is 1096 bytes. The buffer is 8192 bytes.
  * @param name NUL-terminated path
- * @return *u8 — opaque stream, or null
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — stream pointer bits in rax, or 0; link name unchanged
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a *u8 return.
  */
 #[no_mangle]
-export function xlang_dir_opendir(name: *u8): *u8 {
+export function xlang_dir_opendir(name: *u8): i64 {
   if name == 0 {
     return 0;
   }
@@ -197,7 +197,7 @@ export function xlang_dir_opendir(name: *u8): *u8 {
     dir_store_ptr(buf_slot, buf);
     let cap_slot: *u8 = d + 16;
     dir_store_u64(cap_slot, cap);
-    return d;
+    return d as i64;
   }
   return 0;
 }
@@ -229,7 +229,7 @@ function dir_pos_before_len(dirp: *u8): i32 {
 function dir_fill(dirp: *u8, fd: i32): i32 {
   let buf_slot: *u8 = dirp + 8;
   let cap_slot: *u8 = dirp + 16;
-  let buf: *u8 = dir_load_ptr(buf_slot);
+  let buf: *u8 = dir_load_ptr(buf_slot) as *u8;
   let cap: u64 = dir_load_u64(cap_slot);
   let basep: *u8 = dirp + 40;
   unsafe {
@@ -252,29 +252,29 @@ function dir_fill(dirp: *u8, fd: i32): i32 {
  * Returns the stream pointer itself when the record must be skipped
  * (inode 0 or empty name). Returns null when d_reclen is 0.
  * @param dirp stream
- * @return *u8 — dirent, the stream (skip), or null
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — dirent, the stream (skip), or 0
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a *u8 return.
  */
-function dir_parse(dirp: *u8): *u8 {
+function dir_parse(dirp: *u8): i64 {
   let pos_slot: *u8 = dirp + 32;
   let pos: u64 = dir_load_u64(pos_slot);
   let buf_slot: *u8 = dirp + 8;
-  let buf: *u8 = dir_load_ptr(buf_slot);
+  let buf: *u8 = dir_load_ptr(buf_slot) as *u8;
   let pos_i: i32 = pos as i32;
   let entp: *u8 = buf + pos_i;
   let reclen_p: *u8 = entp + 16;
-  let reclen: u16 = dir_load_u16(reclen_p);
+  let reclen: i32 = dir_load_u16(reclen_p);
   if reclen == 0 {
     return 0;
   }
   let ino: u64 = dir_load_u64(entp);
   let name_p: *u8 = entp + 21;
-  let name0: u8 = dir_load_u8(name_p);
+  let name0: i32 = dir_load_u8(name_p);
   let step: u64 = reclen as u64;
   let next: u64 = pos + step;
   dir_store_u64(pos_slot, next);
   if ino == 0 || name0 == 0 {
-    return dirp;
+    return dirp as i64;
   }
   let dest: *u8 = dirp + 48;
   let ncopy: u64 = step;
@@ -284,7 +284,7 @@ function dir_parse(dirp: *u8): *u8 {
   unsafe { memcpy(dest, entp, ncopy); }
   let term: *u8 = dirp + 1092;
   term[0] = 0;
-  return dest;
+  return dest as i64;
 }
 
 /**
@@ -294,11 +294,11 @@ function dir_parse(dirp: *u8): *u8 {
  * The loop only calls helpers. A single function that both refills and
  * parses writes past its frame and corrupts the caller.
  * @param dirp stream from xlang_dir_opendir
- * @return *u8 — dirent, or null at end
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — dirent pointer bits in rax, or 0; link name unchanged
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a *u8 return.
  */
 #[no_mangle]
-export function xlang_dir_readdir(dirp: *u8): *u8 {
+export function xlang_dir_readdir(dirp: *u8): i64 {
   if dirp == 0 {
     return 0;
   }
@@ -312,12 +312,12 @@ export function xlang_dir_readdir(dirp: *u8): *u8 {
         return 0;
       }
     }
-    let got: *u8 = dir_parse(dirp);
+    let got: *u8 = dir_parse(dirp) as *u8;
     if got == 0 {
       return 0;
     }
     if got != dirp {
-      return got;
+      return got as i64;
     }
   }
   return 0;
@@ -339,7 +339,7 @@ export function xlang_dir_closedir(dirp: *u8): i32 {
     unsafe { close(fd); }
   }
   let buf_slot: *u8 = dirp + 8;
-  let buf: *u8 = dir_load_ptr(buf_slot);
+  let buf: *u8 = dir_load_ptr(buf_slot) as *u8;
   unsafe {
     free(buf);
     free(dirp);
@@ -351,14 +351,14 @@ export function xlang_dir_closedir(dirp: *u8): i32 {
  * Next entry's name. The pointer is 21 bytes into the dirent returned
  * by xlang_dir_readdir, and stays valid until the next read or close.
  * @param dirp stream from xlang_dir_opendir
- * @return *u8 — name, or null
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — name pointer bits in rax, or 0; link name unchanged
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a *u8 return.
  */
 #[no_mangle]
-export function xlang_dir_readdir_name_c(dirp: *u8): *u8 {
-  let ent: *u8 = xlang_dir_readdir(dirp);
+export function xlang_dir_readdir_name_c(dirp: *u8): i64 {
+  let ent: *u8 = xlang_dir_readdir(dirp) as *u8;
   if ent == 0 {
     return 0;
   }
-  return ent + 21;
+  return (ent + 21) as i64;
 }
