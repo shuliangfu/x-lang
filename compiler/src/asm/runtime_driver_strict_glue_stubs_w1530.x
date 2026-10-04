@@ -86,6 +86,7 @@ export function runtime_driver_strict_glue_stubs_x_doc_anchor(): i32 {
  * PLATFORM: MACOS|DARWIN
  */
 #[cfg(target_os = "macos")]
+#[no_mangle]
 function w1530_host_write(fd: i32, buf: *u8, n: i32): i32 {
   unsafe {
     return write(fd, buf, n as usize) as i32;
@@ -102,6 +103,7 @@ function w1530_host_write(fd: i32, buf: *u8, n: i32): i32 {
  * PLATFORM: LINUX
  */
 #[cfg(target_os = "linux")]
+#[no_mangle]
 function w1530_host_write(fd: i32, buf: *u8, n: i32): i32 {
   unsafe {
     return write(fd, buf, n as usize) as i32;
@@ -118,6 +120,7 @@ function w1530_host_write(fd: i32, buf: *u8, n: i32): i32 {
  * PLATFORM: WINDOWS
  */
 #[cfg(target_os = "windows")]
+#[no_mangle]
 function w1530_host_write(fd: i32, buf: *u8, n: i32): i32 {
   unsafe {
     return _write(fd, buf, n as u32);
@@ -132,6 +135,7 @@ function w1530_host_write(fd: i32, buf: *u8, n: i32): i32 {
  * @return i32 — 1 when the path matches
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function w1530_path_class(path: *u8, mode: i32): i32 {
 
   if (path == 0 as *u8) {
@@ -1702,6 +1706,7 @@ export function preprocess_eval_condition_c(cond: *u8, cond_len: i32): i32 {
  * @return i32 — path length
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function w1530_fill_copy(module_ptr: *u8, dep_j: i32): i32 {
   let i: i32 = 0;
   let n: i32 = 0;
@@ -1730,6 +1735,7 @@ function w1530_fill_copy(module_ptr: *u8, dep_j: i32): i32 {
  * @return i32 — 0
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function w1530_fill_set(ctx: *u8, dep_j: i32): i32 {
   let n: i32 = 0;
   let p: *u8 = 0 as *u8;

@@ -444,7 +444,14 @@ export function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, c
  */
 #[no_mangle]
 export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
-  let chunks: i32 = n_lit / lanes;
+  // lanes is 4 or 8 (glue_simd_loop_pick_lanes_c). Shift instead of `/`:
+  // a variable divisor emits a zero check that calls xlang_panic_, which
+  // g05 pure asm rejects (w2055).
+  let lane_sh: i32 = 0;
+  if (lanes == 4) { lane_sh = 2; }
+  if (lanes == 8) { lane_sh = 3; }
+  if (lane_sh == 0) { return 0; }
+  let chunks: i32 = n_lit >> lane_sh;
   if (chunks <= 0) { return 0; }
   if ((chunks * lanes) != n_lit) { return 0; }
   let chunk: i32 = 0;
@@ -635,7 +642,8 @@ export function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, elf_ctx: *u
     if (glue_simd_loop_pick_lanes_c(feats, binop_ko, &lanes) != 0) { return 0; }
     if (n_is_const != 0) {
       if (n_lit > 0) {
-        if ((n_lit % lanes) == 0) {
+        // lanes is 4 or 8; mask instead of `%` (no zero-check panic, w2055).
+        if ((n_lit & (lanes - 1)) == 0) {
           if (n_lit <= array_n) {
             if (glue_var_is_array_i32_n_c(arena, dst_base, n_lit) != 0) {
               return glue_emit_full_const_peel_c(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
