@@ -20,9 +20,42 @@
 // See implementation.
 // See implementation.
 
+// Both imports stay. The const import keeps allow(padding) on Token for
+// the installed compiler. The bare import is what the pin egg's library
+// typeck uses to resolve Token and TokenKind.
+// PLATFORM: SHARED.
 const token = import("token");
+import token;
 
 /* See implementation. */
+
+/**
+ * Copy a Token and replace only kind.
+ *
+ * The pinned stage0 egg segfaults in glue_type_size_simple when codegen
+ * emits an imported enum field store (assigning Token.kind).
+ * Kind is written only inside this struct literal. Callers that used to
+ * store kind go through here so line, col, and the ident payload stay.
+ *
+ * @param t Token — source value; not modified
+ * @param k TokenKind — kind stored in the returned copy
+ * @return Token — same payload as t, with kind replaced by k
+ * PLATFORM: SHARED — pin egg emits this module. The installed compiler
+ * still fails earlier, on a function that returns Lexer by value.
+ */
+function lexer_tok_with_kind(t: Token, k: TokenKind): Token {
+  // Do not assign t.kind. The pin egg faults on that store.
+  return {
+    kind: k,
+    line: t.line,
+    col: t.col,
+    int_val: t.int_val,
+    float_val: t.float_val,
+    ident: t.ident,
+    ident_len: t.ident_len
+  };
+}
+
 export extern function cfg_eval_expr_c(start: *u8, len: i32): i32;
 
 /** See implementation for details. */
@@ -36,7 +69,7 @@ allow(padding) struct Lexer {
 /** See implementation for details. */
 allow(padding) struct LexerResult {
   next_lex: Lexer;
-  tok: token.Token;
+  tok: Token;
   token_start: usize;
 }
 
@@ -1674,11 +1707,11 @@ export function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i
   return true;
 }
 
-/** Map scanned identifier (data, start, len) to a keyword token.Token, or
+/** Map scanned identifier (data, start, len) to a keyword Token, or
  * TOKEN_IDENT (ident null, ident_len = len) when not a keyword.
  *
  * The keyword chain is split across try_keyword_b/c/d. One function that
- * spells every token.Token literal trips typeck after the 22nd literal
+ * spells every Token literal trips typeck after the 22nd literal
  * (bogus "expected TokenKind, found i32" on a later field). Same limit
  * that split lexer_next_punct_into out of lexer_next_body_into.
  *
@@ -1686,11 +1719,11 @@ export function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i
  * 0=TOKEN_EOF, 1=TOKEN_FUNCTION, ...). Ordinals match the cold seed C
  * tags. PLATFORM: SHARED.
  */
-export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, col0: i32): token.Token  {
+export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, col0: i32): Token  {
   let nlen: i32 = len as i32;
   if (nlen == 8 && match_keyword(data, start, 8, "function" as *u8)) {
-    let t: token.Token = {
-      kind: 1,
+    let t: Token = {
+      kind: (1 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1700,8 +1733,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "let" as *u8)) {
-    let t: token.Token = {
-      kind: 2,
+    let t: Token = {
+      kind: (2 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1711,8 +1744,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "const" as *u8)) {
-    let t: token.Token = {
-      kind: 3,
+    let t: Token = {
+      kind: (3 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1722,8 +1755,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 2 && match_keyword(data, start, 2, "if" as *u8)) {
-    let t: token.Token = {
-      kind: 4,
+    let t: Token = {
+      kind: (4 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1733,8 +1766,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "else" as *u8)) {
-    let t: token.Token = {
-      kind: 5,
+    let t: Token = {
+      kind: (5 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1744,8 +1777,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "while" as *u8)) {
-    let t: token.Token = {
-      kind: 6,
+    let t: Token = {
+      kind: (6 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1755,8 +1788,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "loop" as *u8)) {
-    let t: token.Token = {
-      kind: 7,
+    let t: Token = {
+      kind: (7 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1766,8 +1799,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "for" as *u8)) {
-    let t: token.Token = {
-      kind: 8,
+    let t: Token = {
+      kind: (8 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1777,8 +1810,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "break" as *u8)) {
-    let t: token.Token = {
-      kind: 9,
+    let t: Token = {
+      kind: (9 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1788,8 +1821,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 8 && match_keyword(data, start, 8, "continue" as *u8)) {
-    let t: token.Token = {
-      kind: 10,
+    let t: Token = {
+      kind: (10 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1799,8 +1832,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "return" as *u8)) {
-    let t: token.Token = {
-      kind: 11,
+    let t: Token = {
+      kind: (11 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1810,8 +1843,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "panic" as *u8)) {
-    let t: token.Token = {
-      kind: 12,
+    let t: Token = {
+      kind: (12 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1821,8 +1854,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "defer" as *u8)) {
-    let t: token.Token = {
-      kind: 13,
+    let t: Token = {
+      kind: (13 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1832,8 +1865,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "region" as *u8)) {
-    let t: token.Token = {
-      kind: 16,
+    let t: Token = {
+      kind: (16 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1843,8 +1876,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 10 && match_keyword(data, start, 10, "with_arena" as *u8)) {
-    let t: token.Token = {
-      kind: 17,
+    let t: Token = {
+      kind: (17 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1854,8 +1887,8 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "match" as *u8)) {
-    let t: token.Token = {
-      kind: 18,
+    let t: Token = {
+      kind: (18 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1874,14 +1907,14 @@ export function try_keyword(data: u8[], start: usize, len: usize, line0: i32, co
  * @param len usize — identifier length in bytes
  * @param line0 i32 — token line
  * @param col0 i32 — token column
- * @return token.Token — keyword token or the result of try_keyword_c
+ * @return Token — keyword token or the result of try_keyword_c
  * PLATFORM: SHARED
  */
-function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i32): token.Token  {
+function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i32): Token  {
   let nlen: i32 = len as i32;
   if (nlen == 6 && match_keyword(data, start, 6, "struct" as *u8)) {
-    let t: token.Token = {
-      kind: 19,
+    let t: Token = {
+      kind: (19 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1891,8 +1924,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "type" as *u8)) {
-    let t: token.Token = {
-      kind: 20,
+    let t: Token = {
+      kind: (20 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1902,8 +1935,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "packed" as *u8)) {
-    let t: token.Token = {
-      kind: 21,
+    let t: Token = {
+      kind: (21 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1913,8 +1946,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "soa" as *u8)) {
-    let t: token.Token = {
-      kind: 22,
+    let t: Token = {
+      kind: (22 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1924,8 +1957,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "align" as *u8)) {
-    let t: token.Token = {
-      kind: 46,
+    let t: Token = {
+      kind: (46 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1935,8 +1968,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "enum" as *u8)) {
-    let t: token.Token = {
-      kind: 47,
+    let t: Token = {
+      kind: (47 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1946,8 +1979,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "goto" as *u8)) {
-    let t: token.Token = {
-      kind: 48,
+    let t: Token = {
+      kind: (48 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1957,8 +1990,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "trait" as *u8)) {
-    let t: token.Token = {
-      kind: 49,
+    let t: Token = {
+      kind: (49 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1968,8 +2001,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "impl" as *u8)) {
-    let t: token.Token = {
-      kind: 50,
+    let t: Token = {
+      kind: (50 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1979,8 +2012,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "self" as *u8)) {
-    let t: token.Token = {
-      kind: 51,
+    let t: Token = {
+      kind: (51 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -1990,8 +2023,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 1 && data[start] == 95) {
-    let t: token.Token = {
-      kind: 52,
+    let t: Token = {
+      kind: (52 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2001,8 +2034,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "import" as *u8)) {
-    let t: token.Token = {
-      kind: 53,
+    let t: Token = {
+      kind: (53 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2012,8 +2045,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "extern" as *u8)) {
-    let t: token.Token = {
-      kind: 54,
+    let t: Token = {
+      kind: (54 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2023,8 +2056,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "async" as *u8)) {
-    let t: token.Token = {
-      kind: 55,
+    let t: Token = {
+      kind: (55 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2034,8 +2067,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "await" as *u8)) {
-    let t: token.Token = {
-      kind: 56,
+    let t: Token = {
+      kind: (56 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2045,8 +2078,8 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "run" as *u8)) {
-    let t: token.Token = {
-      kind: 57,
+    let t: Token = {
+      kind: (57 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2065,14 +2098,14 @@ function try_keyword_b(data: u8[], start: usize, len: usize, line0: i32, col0: i
  * @param len usize — identifier length in bytes
  * @param line0 i32 — token line
  * @param col0 i32 — token column
- * @return token.Token — keyword token or the result of try_keyword_d
+ * @return Token — keyword token or the result of try_keyword_d
  * PLATFORM: SHARED
  */
-function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i32): token.Token  {
+function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i32): Token  {
   let nlen: i32 = len as i32;
   if (nlen == 5 && match_keyword(data, start, 5, "spawn" as *u8)) {
-    let t: token.Token = {
-      kind: 58,
+    let t: Token = {
+      kind: (58 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2083,8 +2116,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     return t;
   }
   /** export：e x p o r t */  if (nlen == 6 && match_keyword(data, start, 6, "export" as *u8)) {
-    let t: token.Token = {
-      kind: 131,
+    let t: Token = {
+      kind: (131 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2094,8 +2127,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "i32" as *u8)) {
-    let t: token.Token = {
-      kind: 60,
+    let t: Token = {
+      kind: (60 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2105,8 +2138,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "bool" as *u8)) {
-    let t: token.Token = {
-      kind: 61,
+    let t: Token = {
+      kind: (61 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2116,8 +2149,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 2 && match_keyword(data, start, 2, "u8" as *u8)) {
-    let t: token.Token = {
-      kind: 62,
+    let t: Token = {
+      kind: (62 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2127,8 +2160,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "u32" as *u8)) {
-    let t: token.Token = {
-      kind: 63,
+    let t: Token = {
+      kind: (63 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2138,8 +2171,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "u64" as *u8)) {
-    let t: token.Token = {
-      kind: 64,
+    let t: Token = {
+      kind: (64 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2149,8 +2182,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "i64" as *u8)) {
-    let t: token.Token = {
-      kind: 65,
+    let t: Token = {
+      kind: (65 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2160,8 +2193,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "usize" as *u8)) {
-    let t: token.Token = {
-      kind: 66,
+    let t: Token = {
+      kind: (66 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2171,8 +2204,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "isize" as *u8)) {
-    let t: token.Token = {
-      kind: 67,
+    let t: Token = {
+      kind: (67 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2182,8 +2215,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "true" as *u8)) {
-    let t: token.Token = {
-      kind: 75,
+    let t: Token = {
+      kind: (75 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2193,8 +2226,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "false" as *u8)) {
-    let t: token.Token = {
-      kind: 76,
+    let t: Token = {
+      kind: (76 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2209,8 +2242,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
    * Bytes: n=110 u=117 l=108 l=108. G.7 single keyword table (try_keyword + buf twin).
    * PLATFORM: SHARED.
    */  if (nlen == 4 && match_keyword(data, start, 4, "null" as *u8)) {
-    let t: token.Token = {
-      kind: 132,
+    let t: Token = {
+      kind: (132 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2220,8 +2253,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "f32" as *u8)) {
-    let t: token.Token = {
-      kind: 77,
+    let t: Token = {
+      kind: (77 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2231,8 +2264,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 3 && match_keyword(data, start, 3, "f64" as *u8)) {
-    let t: token.Token = {
-      kind: 78,
+    let t: Token = {
+      kind: (78 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2242,8 +2275,8 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 4 && match_keyword(data, start, 4, "void" as *u8)) {
-    let t: token.Token = {
-      kind: 79,
+    let t: Token = {
+      kind: (79 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2262,14 +2295,14 @@ function try_keyword_c(data: u8[], start: usize, len: usize, line0: i32, col0: i
  * @param len usize — identifier length in bytes
  * @param line0 i32 — token line
  * @param col0 i32 — token column
- * @return token.Token — keyword token, or TOKEN_IDENT when nothing matches
+ * @return Token — keyword token, or TOKEN_IDENT when nothing matches
  * PLATFORM: SHARED
  */
-function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i32): token.Token  {
+function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i32): Token  {
   let nlen: i32 = len as i32;
   if (nlen == 5 && match_keyword(data, start, 5, "i3x4" as *u8)) {
-    let t: token.Token = {
-      kind: 68,
+    let t: Token = {
+      kind: (68 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2279,8 +2312,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "i3x8" as *u8)) {
-    let t: token.Token = {
-      kind: 69,
+    let t: Token = {
+      kind: (69 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2290,8 +2323,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "i3x16" as *u8)) {
-    let t: token.Token = {
-      kind: 70,
+    let t: Token = {
+      kind: (70 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2301,8 +2334,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "u3x4" as *u8)) {
-    let t: token.Token = {
-      kind: 71,
+    let t: Token = {
+      kind: (71 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2312,8 +2345,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 5 && match_keyword(data, start, 5, "u3x8" as *u8)) {
-    let t: token.Token = {
-      kind: 72,
+    let t: Token = {
+      kind: (72 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2323,8 +2356,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 6 && match_keyword(data, start, 6, "u3x16" as *u8)) {
-    let t: token.Token = {
-      kind: 73,
+    let t: Token = {
+      kind: (73 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2334,8 +2367,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
     };
     return t;
   }  if (nlen == 2 && match_keyword(data, start, 2, "as" as *u8)) {
-    let t: token.Token = {
-      kind: 128,
+    let t: Token = {
+      kind: (128 as TokenKind),
       line: line0,
       col: col0,
       int_val: (0 as i64),
@@ -2349,8 +2382,8 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: token.Token = {
-    kind: 59,
+  let t: Token = {
+    kind: (59 as TokenKind),
     line: line0,
     col: col0,
     int_val: (0 as i64),
@@ -2362,151 +2395,151 @@ function try_keyword_d(data: u8[], start: usize, len: usize, line0: i32, col0: i
 
 /* See implementation. */
 export function try_keyword_buf(data: *u8, data_len: i32, start: usize, len: usize, line0: i32, col0:
-i32): token.Token {
+i32): Token {
   let nlen: i32 = len as i32;
   if (nlen == 8 && match_keyword_buf(data, data_len, start, 8, "function" as *u8)) {
-    let t: token.Token = { kind: 1, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (1 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 3 && match_keyword_buf(data, data_len, start, 3, "let" as *u8)) {
-    let t: token.Token = { kind: 2, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (2 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "const" as *u8)) {
-    let t: token.Token = { kind: 3, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (3 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 2 && match_keyword_buf(data, data_len, start, 2, "if" as *u8)) {
-    let t: token.Token = { kind: 4, line: line0, col: col0, int_val: (0 as i64), float_val:
+    let t: Token = { kind: (4 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
       0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "else" as *u8)) {
-    let t: token.Token = { kind: 5, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (5 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 6 && match_keyword_buf(data, data_len, start, 6, "return" as *u8)) {
-    let t: token.Token = { kind: 11, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (11 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 6 && match_keyword_buf(data, data_len, start, 6, "struct" as *u8)) {
-    let t: token.Token = { kind: 19, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (19 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "type" as *u8)) {
-    let t: token.Token = { kind: 20, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (20 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "enum" as *u8)) {
-    let t: token.Token = { kind: 47, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (47 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "match" as *u8)) {
-    let t: token.Token = { kind: 18, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (18 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "true" as *u8)) {
-    let t: token.Token = { kind: 75, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (75 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "false" as *u8)) {
-    let t: token.Token = { kind: 76, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (76 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   /* wave668: `null` → TOKEN_NULL (132). G.7 ≡ try_keyword. PLATFORM: SHARED. */
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "null" as *u8)) {
-    let t: token.Token = { kind: 132, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (132 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 3 && match_keyword_buf(data, data_len, start, 3, "f64" as *u8)) {
-    let t: token.Token = { kind: 78, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (78 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "void" as *u8)) {
-    let t: token.Token = { kind: 79, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (79 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 3 && match_keyword_buf(data, data_len, start, 3, "i32" as *u8)) {
-    let t: token.Token = { kind: 60, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (60 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 4 && match_keyword_buf(data, data_len, start, 4, "bool" as *u8)) {
-    let t: token.Token = { kind: 61, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (61 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 2 && match_keyword_buf(data, data_len, start, 2, "u8" as *u8)) {
-    let t: token.Token = { kind: 62, line: line0, col: col0, int_val: (0 as i64), float_val:
+    let t: Token = { kind: (62 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
       0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "usize" as *u8)) {
-    let t: token.Token = { kind: 66, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (66 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "isize" as *u8)) {
-    let t: token.Token = { kind: 67, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (67 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 2 && match_keyword_buf(data, data_len, start, 2, "as" as *u8)) {
-    let t: token.Token = { kind: 128, line: line0, col: col0, int_val: (0 as i64), float_val:
+    let t: Token = { kind: (128 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
       0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 6 && match_keyword_buf(data, data_len, start, 6, "import" as *u8)) {
-    let t: token.Token = { kind: 53, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (53 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 6 && match_keyword_buf(data, data_len, start, 6, "extern" as *u8)) {
-    let t: token.Token = { kind: 54, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (54 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "async" as *u8)) {
-    let t: token.Token = { kind: 55, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (55 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "await" as *u8)) {
-    let t: token.Token = { kind: 56, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (56 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 3 && match_keyword_buf(data, data_len, start, 3, "run" as *u8)) {
-    let t: token.Token = { kind: 57, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (57 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 5 && match_keyword_buf(data, data_len, start, 5, "spawn" as *u8)) {
-    let t: token.Token = { kind: 58, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (58 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 6 && match_keyword_buf(data, data_len, start, 6, "export" as *u8)) {
-    let t: token.Token = { kind: 131, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (131 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
   if (nlen == 1 && start < (data_len as usize) && data[start] == 95) {
-    let t: token.Token = { kind: 52, line: line0, col: col0, int_val: (0 as i64),
+    let t: Token = { kind: (52 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     return t;
   }
@@ -2514,7 +2547,7 @@ i32): token.Token {
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: token.Token = { kind: 59, line: line0, col: col0, int_val: (0 as i64),
+  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
   return t;
 }
@@ -2633,8 +2666,8 @@ export function lexer_try_cfg_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   }
   p = p + (1 as usize);
   let l2: Lexer = { pos: p, line: l.line, col: l.col };
-  let tok: token.Token = {
-    kind: 24,
+  let tok: Token = {
+    kind: (24 as TokenKind),
     line: line0,
     col: col0,
     int_val: enabled as i64,
@@ -2671,8 +2704,8 @@ export function lexer_try_repr_c_attr_into(out: *LexerResult, l: Lexer, data: u8
   let col0: i32 = l.col;
   let np: usize = l.pos + (10 as usize);
   let l2: Lexer = { pos: np, line: line0, col: col0 };
-  let tok: token.Token = {
-    kind: 25,
+  let tok: Token = {
+    kind: (25 as TokenKind),
     line: line0,
     col: col0,
     int_val: (0 as i64),
@@ -2716,8 +2749,8 @@ export function lexer_try_repr_compatible_attr_into(out: *LexerResult, l: Lexer,
   let col0: i32 = l.col;
   let np: usize = l.pos + (19 as usize);
   let l2: Lexer = { pos: np, line: line0, col: col0 };
-  let tok: token.Token = {
-    kind: 26,
+  let tok: Token = {
+    kind: (26 as TokenKind),
     line: line0,
     col: col0,
     int_val: (0 as i64),
@@ -2754,8 +2787,8 @@ export function lexer_try_soa_attr_into(out: *LexerResult, l: Lexer, data: u8[])
   l2 = advance_one(l2, 111);
   l2 = advance_one(l2, 97);
   l2 = advance_one(l2, 93);
-  let tok: token.Token = {
-    kind: 23,
+  let tok: Token = {
+    kind: (23 as TokenKind),
     line: line0,
     col: col0,
     int_val: (0 as i64),
@@ -2794,8 +2827,8 @@ export function lexer_try_alloc_attr_into(out: *LexerResult, l: Lexer, data: u8[
   l2 = advance_one(l2, 111);
   l2 = advance_one(l2, 99);
   l2 = advance_one(l2, 93);
-  let tok: token.Token = {
-    kind: 27,
+  let tok: Token = {
+    kind: (27 as TokenKind),
     line: line0,
     col: col0,
     int_val: (0 as i64),
@@ -2833,8 +2866,8 @@ export function lexer_try_used_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   l2 = advance_one(l2, 101);
   l2 = advance_one(l2, 100);
   l2 = advance_one(l2, 93);
-  let tok: token.Token = {
-    kind: 31,
+  let tok: Token = {
+    kind: (31 as TokenKind),
     line: line0,
     col: col0,
     int_val: (0 as i64),
@@ -2861,7 +2894,7 @@ export function lexer_try_naked_attr_into(out: *LexerResult, l: Lexer, data: u8[
   l2 = advance_one(l2, 97); l2 = advance_one(l2, 107); l2 = advance_one(l2, 101);
   l2 = advance_one(l2, 100); l2 = advance_one(l2, 93);
   write_next_lex_into(out, l2);
-  write_tok_into(out, { kind: 29, line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
+  write_tok_into(out, { kind: (29 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
   out.token_start = (0 as usize); return 1;
 }
 
@@ -2878,7 +2911,7 @@ export function lexer_try_entry_attr_into(out: *LexerResult, l: Lexer, data: u8[
   l2 = advance_one(l2, 110); l2 = advance_one(l2, 116); l2 = advance_one(l2, 114);
   l2 = advance_one(l2, 101); l2 = advance_one(l2, 93);
   write_next_lex_into(out, l2);
-  write_tok_into(out, { kind: 30, line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
+  write_tok_into(out, { kind: (30 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
   out.token_start = (0 as usize); return 1;
 }
 
@@ -2897,7 +2930,7 @@ export function lexer_try_no_mangle_attr_into(out: *LexerResult, l: Lexer, data:
   l2 = advance_one(l2, 97); l2 = advance_one(l2, 110); l2 = advance_one(l2, 103);
   l2 = advance_one(l2, 108); l2 = advance_one(l2, 101); l2 = advance_one(l2, 93);
   write_next_lex_into(out, l2);
-  write_tok_into(out, { kind: 32, line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
+  write_tok_into(out, { kind: (32 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
   out.token_start = (0 as usize); return 1;
 }
 
@@ -2916,7 +2949,7 @@ export function lexer_try_interrupt_attr_into(out: *LexerResult, l: Lexer, data:
   l2 = advance_one(l2, 114); l2 = advance_one(l2, 114); l2 = advance_one(l2, 117);
   l2 = advance_one(l2, 112); l2 = advance_one(l2, 116); l2 = advance_one(l2, 93);
   write_next_lex_into(out, l2);
-  write_tok_into(out, { kind: 35, line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
+  write_tok_into(out, { kind: (35 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
   out.token_start = (0 as usize); return 1;
 }
 
@@ -2933,7 +2966,7 @@ export function lexer_try_send_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   l2 = advance_one(l2, 101); l2 = advance_one(l2, 110); l2 = advance_one(l2, 100);
   l2 = advance_one(l2, 93);
   write_next_lex_into(out, l2);
-  write_tok_into(out, { kind: 36, line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
+  write_tok_into(out, { kind: (36 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
   out.token_start = (0 as usize); return 1;
 }
 
@@ -2950,7 +2983,7 @@ export function lexer_try_sync_attr_into(out: *LexerResult, l: Lexer, data: u8[]
   l2 = advance_one(l2, 121); l2 = advance_one(l2, 110); l2 = advance_one(l2, 99);
   l2 = advance_one(l2, 93);
   write_next_lex_into(out, l2);
-  write_tok_into(out, { kind: 37, line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
+  write_tok_into(out, { kind: (37 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 });
   out.token_start = (0 as usize); return 1;
 }
 
@@ -3140,8 +3173,8 @@ export function skip_whitespace_and_comments_buf(lex: Lexer, data: *u8, len: i32
 export function lexer_next_slice(lex: Lexer, data: u8[]): LexerResult {
   let l: Lexer = skip_whitespace_and_comments(lex, data);
   if (l.pos >= data.length) {
-    let t: token.Token = {
-      kind: 0,
+    let t: Token = {
+      kind: (0 as TokenKind),
       line: l.line,
       col: l.col,
       int_val: (0 as i64),
@@ -3152,8 +3185,8 @@ export function lexer_next_slice(lex: Lexer, data: u8[]): LexerResult {
     return { next_lex: l, tok: t, token_start: (0 as usize) }
   }
   if (data[l.pos] == 0) {
-    let t: token.Token = {
-      kind: 0,
+    let t: Token = {
+      kind: (0 as TokenKind),
       line: l.line,
       col: l.col,
       int_val: (0 as i64),
@@ -3166,7 +3199,7 @@ export function lexer_next_slice(lex: Lexer, data: u8[]): LexerResult {
   /* See implementation. */
   let attr_out: LexerResult = {
     next_lex: l,
-    tok: { kind: 0, line: l.line, col: l.col, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
+    tok: { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 },
     token_start: (0 as usize)
   };
   if (lexer_try_cfg_attr_into(&attr_out, l, data) != 0) {
@@ -3371,7 +3404,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
             continue;
           }
           lexer_note_invalid_escape(esc_line, esc_col);
-          let tok_eof_hex: token.Token = { kind: 0, line: esc_line, col: esc_col, int_val: (0 as i64),
+          let tok_eof_hex: Token = { kind: (0 as TokenKind), line: esc_line, col: esc_col, int_val: (0 as i64),
             float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
           write_next_lex_into(out, l);
           write_tok_into(out, tok_eof_hex);
@@ -3379,7 +3412,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
           return;
         }
         lexer_note_invalid_escape(esc_line, esc_col);
-        let tok_eof_esc: token.Token = { kind: 0, line: esc_line, col: esc_col, int_val: (0 as i64),
+        let tok_eof_esc: Token = { kind: (0 as TokenKind), line: esc_line, col: esc_col, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_esc);
@@ -3391,7 +3424,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     if (l.pos >= data.length) {
       // wave271: silent TOKEN_EOF here swallowed the rest of the module (no main / soft P001).
       lexer_note_unclosed_string(line0, col0);
-      let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+      let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
@@ -3400,7 +3433,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     }
     let slen: i32 = (l.pos - start) as i32;
     l = advance_one(l, 34);
-    let tok_str: token.Token = { kind: 130, line: line0, col: col0, int_val: (0 as i64),
+    let tok_str: Token = { kind: (130 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: slen };
     write_next_lex_into(out, l);
     write_tok_into(out, tok_str);
@@ -3416,7 +3449,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       l = advance_one(l, data[l.pos]);
     }
     let len: usize = l.pos - start;
-    let tok: token.Token = try_keyword(data, start, len, line0, col0);
+    let tok: Token = try_keyword(data, start, len, line0, col0);
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -3450,7 +3483,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave278: `_` not followed by hex digit → sticky L008 (not soft XP003 / L004-only).
       if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3459,7 +3492,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       }
       if (hex_digits == 0) {
         lexer_note_incomplete_hex(line0, col0);
-        let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
@@ -3469,14 +3502,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
       if (l.pos < data.length && is_alpha(data[l.pos])) {
         lexer_note_invalid_type_suffix(l.line, l.col);
-        let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
         out.token_start = start;
         return;
       }
-      let tok: token.Token = { kind: 80, line: line0, col: col0, int_val: hval as i64,
+      let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: hval as i64,
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
@@ -3505,7 +3538,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave278: invalid `_` digit separator → sticky L008.
       if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3514,7 +3547,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       }
       if (bin_digits == 0) {
         lexer_note_incomplete_bin(line0, col0);
-        let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
@@ -3524,14 +3557,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
       if (l.pos < data.length && is_alpha(data[l.pos])) {
         lexer_note_invalid_type_suffix(l.line, l.col);
-        let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
         out.token_start = start;
         return;
       }
-      let tok_b: token.Token = { kind: 80, line: line0, col: col0, int_val: bval as i64,
+      let tok_b: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: bval as i64,
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_b);
@@ -3560,7 +3593,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave278: invalid `_` digit separator → sticky L008.
       if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3569,7 +3602,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       }
       if (oct_digits == 0) {
         lexer_note_incomplete_oct(line0, col0);
-        let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
@@ -3579,14 +3612,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
       if (l.pos < data.length && is_alpha(data[l.pos])) {
         lexer_note_invalid_type_suffix(l.line, l.col);
-        let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
         out.token_start = start;
         return;
       }
-      let tok_o: token.Token = { kind: 80, line: line0, col: col0, int_val: oval as i64,
+      let tok_o: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: oval as i64,
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_o);
@@ -3609,7 +3642,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     // wave278: trailing/invalid `_` after decimal digits → sticky L008.
     if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3639,7 +3672,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave278: invalid `_` in fraction digits → sticky L008.
       if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3649,7 +3682,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave274: incomplete exp after fraction → L005 + TOKEN_EOF (not silent exp=0 float).
       // wave275: also covers empty-frac scientific `1.e` / `1.e+` (was host-cc soft residual).
       if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
-        let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
@@ -3659,14 +3692,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
       if (l.pos < data.length && is_alpha(data[l.pos])) {
         lexer_note_invalid_type_suffix(l.line, l.col);
-        let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
         out.token_start = start;
         return;
       }
-      let tok: token.Token = { kind: 81, line: line0, col: col0, int_val: (0 as i64),
+      let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: fval, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
@@ -3703,7 +3736,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave278: invalid `_` in exponent digits → sticky L008.
       if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3712,7 +3745,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       }
       if (exp_digits == 0) {
         lexer_note_incomplete_exp(e_line, e_col);
-        let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof);
@@ -3737,14 +3770,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
       if (l.pos < data.length && is_alpha(data[l.pos])) {
         lexer_note_invalid_type_suffix(l.line, l.col);
-        let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sfx);
         out.token_start = start;
         return;
       }
-      let tok: token.Token = { kind: 81, line: line0, col: col0, int_val: (0 as i64),
+      let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: fval, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
@@ -3754,14 +3787,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
     if (l.pos < data.length && is_alpha(data[l.pos])) {
       lexer_note_invalid_type_suffix(l.line, l.col);
-      let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+      let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof_sfx);
       out.token_start = start;
       return;
     }
-    let tok: token.Token = { kind: 80, line: line0, col: col0, int_val: ival,
+    let tok: Token = { kind: (80 as TokenKind), line: line0, col: col0, int_val: ival,
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
@@ -3792,7 +3825,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     // wave278: invalid `_` in leading-dot fraction → sticky L008.
     if (l.pos < data.length && data[l.pos] == 95) {
         lexer_note_invalid_digit_sep(l.line, l.col);
-        let tok_eof_sep: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+        let tok_eof_sep: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
           float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
         write_next_lex_into(out, l);
         write_tok_into(out, tok_eof_sep);
@@ -3801,7 +3834,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     }
     // wave274: incomplete exp after leading-dot float → L005 + TOKEN_EOF.
     if (lexer_apply_optional_exponent(l, data, fval, &l, &fval) != 0) {
-      let tok_eof: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+      let tok_eof: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof);
@@ -3811,14 +3844,14 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     // wave279: alphabetic type suffix after complete numeric → sticky L009 (not soft XP003).
     if (l.pos < data.length && is_alpha(data[l.pos])) {
       lexer_note_invalid_type_suffix(l.line, l.col);
-      let tok_eof_sfx: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+      let tok_eof_sfx: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
         float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
       write_next_lex_into(out, l);
       write_tok_into(out, tok_eof_sfx);
       out.token_start = start;
       return;
     }
-    let tok: token.Token = { kind: 81, line: line0, col: col0, int_val: (0 as i64),
+    let tok: Token = { kind: (81 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: fval, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
@@ -3835,9 +3868,9 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
  * Caller has observed first character `c` at data[l.pos] and has not advanced yet.
  * Split out of lexer_next_body_into so each function stays under typeck body limits
  * (large if-chain + fallthrough previously reported bogus TokenKind/? errors).
- * Stores use `(N as token.TokenKind)`. A bare i32 assigned to TokenKind fails
+ * Stores use `(N as TokenKind)`. A bare i32 assigned to TokenKind fails
  * typeck in this chain. Struct-literal ordinals stay bare integers: spelling
- * `token.TokenKind.VARIANT` in a literal still hits codegen entry emission -6.
+ * `TokenKind.VARIANT` in a literal still hits codegen entry emission -6.
  * PLATFORM: SHARED — pure lex logic; no FFI.
  */
 export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c: u8): void {
@@ -3845,44 +3878,44 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   let line0: i32 = l.line;
   let col0: i32 = l.col;
   l = advance_one(l, c);
-  let tok: token.Token = { kind: 0, line: line0, col: col0, int_val: (0 as i64),
+  let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-  if (c == 40) { tok.kind = (82 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 40) { tok = lexer_tok_with_kind(tok, (82 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 41) { tok.kind = (83 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 41) { tok = lexer_tok_with_kind(tok, (83 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 123) { tok.kind = (84 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 123) { tok = lexer_tok_with_kind(tok, (84 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 125) { tok.kind = (85 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 125) { tok = lexer_tok_with_kind(tok, (85 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 91) { tok.kind = (86 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 91) { tok = lexer_tok_with_kind(tok, (86 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 93) { tok.kind = (87 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 93) { tok = lexer_tok_with_kind(tok, (87 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 44) { tok.kind = (90 as token.TokenKind); write_next_lex_into(out, l); write_tok_into(out,
+  if (c == 44) { tok = lexer_tok_with_kind(tok, (90 as TokenKind)); write_next_lex_into(out, l); write_tok_into(out,
     tok); out.token_start = start; return; }
-  if (c == 58) { tok.kind = (91 as token.TokenKind); write_next_lex_into(out, l); write_tok_into(out,
+  if (c == 58) { tok = lexer_tok_with_kind(tok, (91 as TokenKind)); write_next_lex_into(out, l); write_tok_into(out,
     tok); out.token_start = start; return; }
   if (c == 46) {
     /* See implementation. */
     if (l.pos + (1 as usize) < data.length && data[l.pos] == 46 && data[l.pos + (1 as usize)] == 46) {
       l = advance_one(l, 46);
       l = advance_one(l, 46);
-      tok.kind = (94 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (94 as TokenKind));
     } else {
-      tok.kind = (92 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (92 as TokenKind));
     }
     write_next_lex_into(out, l); write_tok_into(out,
     tok); out.token_start = start; return; }
-  if (c == 59) { tok.kind = (95 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 59) { tok = lexer_tok_with_kind(tok, (95 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
   if (c == 43) {
     /* See implementation. */
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (106 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (106 as TokenKind));
     } else {
-      tok.kind = (96 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (96 as TokenKind));
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
@@ -3892,7 +3925,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 45) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
-      tok.kind = (88 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (88 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
@@ -3900,13 +3933,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (107 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (107 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (97 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (97 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -3915,9 +3948,9 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 42) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (108 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (108 as TokenKind));
     } else {
-      tok.kind = (98 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (98 as TokenKind));
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
@@ -3927,9 +3960,9 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 47) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (109 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (109 as TokenKind));
     } else {
-      tok.kind = (99 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (99 as TokenKind));
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
@@ -3939,9 +3972,9 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 37) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (110 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (110 as TokenKind));
     } else {
-      tok.kind = (100 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (100 as TokenKind));
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
@@ -3951,21 +3984,21 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 94) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (113 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (113 as TokenKind));
     } else {
-      tok.kind = (103 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (103 as TokenKind));
     }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
     return;
   }
-  if (c == 126) { tok.kind = (116 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 126) { tok = lexer_tok_with_kind(tok, (116 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
   if (c == 38) {
     if (l.pos < data.length && data[l.pos] == 38) {
       l = advance_one(l, 38);
-      tok.kind = (124 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (124 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
@@ -3973,13 +4006,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (111 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (111 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (101 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (101 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -3988,7 +4021,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 124) {
     if (l.pos < data.length && data[l.pos] == 124) {
       l = advance_one(l, 124);
-      tok.kind = (125 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (125 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
@@ -3996,13 +4029,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (112 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (112 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (102 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (102 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -4011,7 +4044,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 60) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (122 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (122 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
@@ -4021,16 +4054,16 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       l = advance_one(l, 60);
       if (l.pos < data.length && data[l.pos] == 61) {
         l = advance_one(l, 61);
-        tok.kind = (114 as token.TokenKind);
+        tok = lexer_tok_with_kind(tok, (114 as TokenKind));
       } else {
-        tok.kind = (104 as token.TokenKind);
+        tok = lexer_tok_with_kind(tok, (104 as TokenKind));
       }
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (120 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (120 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -4039,7 +4072,7 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 62) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (123 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (123 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
@@ -4049,16 +4082,16 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
       l = advance_one(l, 62);
       if (l.pos < data.length && data[l.pos] == 61) {
         l = advance_one(l, 61);
-        tok.kind = (115 as token.TokenKind);
+        tok = lexer_tok_with_kind(tok, (115 as TokenKind));
       } else {
-        tok.kind = (105 as token.TokenKind);
+        tok = lexer_tok_with_kind(tok, (105 as TokenKind));
       }
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (121 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (121 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -4067,26 +4100,26 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   if (c == 33) {
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (119 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (119 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (126 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (126 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
     return;
   }
-  if (c == 63) { tok.kind = (127 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 63) { tok = lexer_tok_with_kind(tok, (127 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
-  if (c == 64) { tok.kind = (129 as token.TokenKind); write_next_lex_into(out, l);
+  if (c == 64) { tok = lexer_tok_with_kind(tok, (129 as TokenKind)); write_next_lex_into(out, l);
     write_tok_into(out, tok); out.token_start = start; return; }
   if (c == 61) {
     if (l.pos < data.length && data[l.pos] == 62) {
       l = advance_one(l, 62);
-      tok.kind = (89 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (89 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
@@ -4094,13 +4127,13 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
     }
     if (l.pos < data.length && data[l.pos] == 61) {
       l = advance_one(l, 61);
-      tok.kind = (118 as token.TokenKind);
+      tok = lexer_tok_with_kind(tok, (118 as TokenKind));
       write_next_lex_into(out, l);
       write_tok_into(out, tok);
       out.token_start = start;
       return;
     }
-    tok.kind = (117 as token.TokenKind);
+    tok = lexer_tok_with_kind(tok, (117 as TokenKind));
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
     out.token_start = start;
@@ -4117,8 +4150,8 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
   let ill_col: i32 = l.col;
   let ill_start: usize = l.pos;
   lexer_note_illegal_char(ill_line, ill_col);
-  let unk: token.Token = {
-    kind: 0,
+  let unk: Token = {
+    kind: (0 as TokenKind),
     line: ill_line,
     col: ill_col,
     int_val: (0 as i64),
@@ -4146,17 +4179,12 @@ export function write_next_lex_into(out: *LexerResult, l: Lexer): void {
 /** Exported function `write_tok_into`.
  * Write path helper `write_tok_into`.
  * @param out *LexerResult
- * @param t token.Token
+ * @param t Token
  * @return void
  */
-export function write_tok_into(out: *LexerResult, t: token.Token): void {
-  out.tok.kind = t.kind;
-  out.tok.line = t.line;
-  out.tok.col = t.col;
-  out.tok.int_val = t.int_val;
-  out.tok.float_val = t.float_val;
-  out.tok.ident = t.ident;
-  out.tok.ident_len = t.ident_len;
+export function write_tok_into(out: *LexerResult, t: Token): void {
+  // Whole-token store. Copying kind by field faults the pin egg.
+  out.tok = t;
 }
 
 /** Exported function `lexer_next_impl`.
@@ -4169,14 +4197,14 @@ export function write_tok_into(out: *LexerResult, t: token.Token): void {
 export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void {
   let l: Lexer = skip_whitespace_and_comments(lex, data);
   if (l.pos >= data.length) {
-    let t: token.Token = { kind: 0, line: l.line, col: l.col, int_val: (0 as i64),
+    let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, t);
     return;
   }
   if (data[l.pos] == 0) {
-    let t: token.Token = { kind: 0, line: l.line, col: l.col, int_val: (0 as i64),
+    let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, t);
