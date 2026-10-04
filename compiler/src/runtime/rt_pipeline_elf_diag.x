@@ -56,6 +56,7 @@ function rt_elf_byte_at(base: *u8, off: i32): i32 {
   return p[0] as i32;
 }
 
+#[no_mangle]
 export function rt_elf_load_i32_le(base: *u8, off: i32): i32 {
   let a: i32 = 0;
   if (base == 0 as *u8) {
