@@ -84,7 +84,8 @@ export function uuid_new_v4_c(out: *u8): i32 {
  */
 export function uuid_new_v7_c(out: *u8): i32 {
   let ms: i64 = 0;
-  let rand_a: u16 = 0;
+  /* rand_a is i32. A u16 shift-or of two bytes crashes the pin egg. */
+  let rand_a: i32 = 0;
   let rand_buf: u8[2] = [0, 0];
   let tail: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   if (out == 0) { return -1; }
@@ -100,16 +101,16 @@ export function uuid_new_v7_c(out: *u8): i32 {
       }
       uuid_v7_last_ms = ms;
       unsafe { if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; } }
-      rand_a = ((rand_buf[0] as u16) | ((rand_buf[1] as u16) << 8)) & 4095;
-      uuid_v7_seq = rand_a;
+      rand_a = ((rand_buf[0] as i32) | ((rand_buf[1] as i32) << 8)) & 4095;
+      uuid_v7_seq = rand_a as u16;
     } else {
-      rand_a = uuid_v7_seq;
+      rand_a = uuid_v7_seq as i32;
     }
   } else {
     uuid_v7_last_ms = ms;
     unsafe { if (random_fill_bytes_c(&rand_buf[0], 2) != 2) { return -1; } }
-    rand_a = ((rand_buf[0] as u16) | ((rand_buf[1] as u16) << 8)) & 4095;
-    uuid_v7_seq = rand_a;
+    rand_a = ((rand_buf[0] as i32) | ((rand_buf[1] as i32) << 8)) & 4095;
+    uuid_v7_seq = rand_a as u16;
   }
   out[0] = ((ms >> 40) & 255) as u8;
   out[1] = ((ms >> 32) & 255) as u8;
