@@ -542,88 +542,10 @@ export function asm_local_slot_reg_offset(arena: *u8, type_ref: i32, off: i32, i
   }
 }
 
-/**
- * Resolve a local name from the current emit scope, then its ancestors.
- * Scans each block's own const/let slot range [min_slot, min_slot+nconst+nlet)
- * back-to-front. On a miss, walks pipeline_block_parent_block_ref_at.
- * Whole-function end-scan runs only when no ancestor block owns the name
- * (parameters and other non-block locals).
- * A miss must not return the last same-named sibling: fill_block_locals_tree
- * appends every branch's `let start` into one table, and a while/for body
- * does not declare the enclosing let's start/line0/col0. End-scan then loads
- * the last sibling, so `nlen = l.pos - start` spans the file prefix and the
- * lexer reports L012 at 0:0. A hit in the current block returns immediately,
- * so a scope that already names the let is unchanged.
- * @param ctx *u8 — AsmFuncCtx*; null-safe via the unscoped fallback
- * @param arena *u8 — AST arena; null skips the parent walk
- * @param name *u8 — name bytes; not retained
- * @param name_len i32 — byte length; compared exactly
- * @return i32 — frame offset, or asm_ctx_local_find_offset when no block owns it
- * PLATFORM: SHARED — pure-asm VAR load of block-local lets.
- */
-#[no_mangle]
-export function asm_ctx_local_find_offset_scoped(ctx: *u8, arena: *u8, name: *u8, name_len: i32): i32 {
-  // wave376: Cap-T001 whole-body unsafe (export-extern / PREFER_ASM).
-  // PLATFORM: SHARED — asm typeck contract.
-  unsafe {
-    let br: i32 = asm_ctx_scope_block_ref_at(ctx);
-    let depth: i32 = 0;
-    let min_slot: i32 = 0;
-    let nconst: i32 = 0;
-    let nlet: i32 = 0;
-    let end_slot: i32 = 0;
-    let count: i32 = 0;
-    let i: i32 = 0;
-    let nlen: i32 = 0;
-    let k: i32 = 0;
-    let ok: i32 = 0;
-    let nb: u8[256] = [];
-    if (br <= 0 || arena == (0 as *u8)) {
-      return asm_ctx_local_find_offset(ctx, name, name_len);
-    }
-    while (br > 0 && depth < 128) {
-      min_slot = asm_ctx_block_slot_get(ctx, br);
-      if (min_slot >= 0) {
-        nconst = ast_ast_block_num_consts(arena, br);
-        nlet = ast_ast_block_num_lets(arena, br);
-        if (nconst < 0) { nconst = 0; }
-        if (nlet < 0) { nlet = 0; }
-        end_slot = min_slot + nconst + nlet;
-        count = asm_ctx_local_count(ctx);
-        if (end_slot > count) {
-          end_slot = count;
-        }
-        i = end_slot - 1;
-        while (i >= min_slot) {
-          nlen = asm_ctx_local_name_len(ctx, i);
-          if (nlen == name_len) {
-            asm_ctx_local_name_copy64(ctx, i, &nb[0]);
-            k = 0;
-            ok = 1;
-            while (k < name_len) {
-              unsafe {
-                if (nb[k] != name[k]) {
-                  ok = 0;
-                }
-              }
-              if (ok == 0) {
-                break;
-              }
-              k = k + 1;
-            }
-            if (ok != 0) {
-              return asm_ctx_local_offset_at(ctx, i);
-            }
-          }
-          i = i - 1;
-        }
-      }
-      br = pipeline_block_parent_block_ref_at(arena, br);
-      depth = depth + 1;
-    }
-    return asm_ctx_local_find_offset(ctx, name, name_len);
-  }
-}
+// w2057: asm_ctx_local_find_offset_scoped moved to
+//   runtime_pipeline_abi_asm_locals_thin.x (PREFER_ASM both ends). This thin is
+//   HARD BAN reinject (wave391), so the w1546 parent-block walk never reached the
+//   product while the definition lived here.
 
 /**
  * Patch parent links for every function body in module.
