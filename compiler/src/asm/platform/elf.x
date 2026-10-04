@@ -145,6 +145,28 @@ allow(padding) struct ElfCodegenCtx {
   sym_name_data: u8[131072];
 }
 
+/**
+ * Lookup names for `import platform.elf`.
+ * A call `elf.elf_to_u8` is resolved by this short name, then the caller
+ * emits the link symbol `platform_elf_` plus that name. The bodies below
+ * keep those link symbols with no_mangle. These externs are not a second
+ * implementation. PLATFORM: SHARED.
+ */
+export extern function elf_to_u8(val: i32): u8;
+export extern function elf_u32_byte_at(val: i64, byte_idx: i32): u8;
+export extern function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32;
+export extern function elf_section_code_len(ctx: *ElfCodegenCtx): i32;
+export extern function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32;
+export extern function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32;
+export extern function elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32;
+export extern function elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32): i32;
+export extern function elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
+export extern function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i32): i32;
+export extern function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8;
+export extern function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32;
+export extern function elf_name_eq_arr_to_pool(name: u8[256], name_len: i32, pool: *u8, pool_len: i32): i32;
+export extern function elf_read_u32_le(ctx: *ElfCodegenCtx, off: i32): i32;
+
 /** Exported function `elf_to_u8`.
  * Implements `elf_to_u8`.
  * @param val i32
