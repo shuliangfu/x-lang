@@ -210,11 +210,19 @@ case "$(uname -s 2>/dev/null)" in
       [ -s "$_leaf" ] || continue
       _before=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
       cp -f "$_leaf" "$_leaf.w2055bak"
-      if XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 \
-          && [ -s "$_leaf" ]; then
+      XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1
+      _erc=$?
+      if [ "$_erc" = 3 ]; then
+        # Not a catalog leaf (exit 3): the product never ensures it; leave it.
+        mv -f "$_leaf.w2055bak" "$_leaf"
+        continue
+      fi
+      if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
         rm -f "$_leaf.w2055bak"
         _after=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
-        [ "$_after" != "$_before" ] && echo "g05_relink_xlang: refreshed stale $_leaf"
+        if [ "$_after" != "$_before" ]; then
+          echo "g05_relink_xlang: refreshed stale $_leaf"
+        fi
       else
         mv -f "$_leaf.w2055bak" "$_leaf"
         _kept_stale="$_kept_stale $_leaf"
