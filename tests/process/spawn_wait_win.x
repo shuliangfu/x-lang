@@ -31,7 +31,8 @@ function main(): i32 {
   argv.s2 = &a_exit[0];
   argv.s3 = &a_zero[0];
   argv.s4 = 0 as *u8;
-  let argv_ptr: *u8 = &argv.s0;
+  /* s0 is already *u8, so its address is **u8. The bits are the argv slot. */
+  let argv_ptr: *u8 = (&argv.s0) as *u8;
   pid = process.spawn_io(&cmd[0], argv_ptr, &io);
   if (pid <= 0) { return 0; }
   code = process.waitpid(pid);
