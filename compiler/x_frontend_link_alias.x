@@ -483,58 +483,67 @@ function pipeline_dep_ctx_ndep_u8_ptr_reti32(ctx: *u8): i32 {
  * Callers that were emitted with the signature suffix resolve this symbol.
  * The unsuffixed body stays in the pipeline object. This face only forwards.
  * It does not check null. The symbol stays weak so another definition can win.
- * This returns *u8 and takes two arguments. It is not the i32 one-argument
+ * Callers see *u8 with two arguments. The body returns those bits as i64.
+ * It is not the i32 one-argument
  * forwarder, not the void three-argument forwarder, and not the i32
  * two-argument forwarder.
  * @param ctx *u8 — dependency context; null is forwarded, not checked here
  * @param i i32 — dependency index forwarded unchanged
- * @return *u8 — the module pointer pipeline_dep_ctx_module_at returns
+ * @return i64 — the module pointer bits. Callers still declare *u8.
+ *   The installed type checker rejects a pointer return. i64 uses rax,
+ *   the same register as *u8, so the link convention is unchanged.
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
  * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
-function pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(ctx: *u8, i: i32): *u8 {
-  unsafe { let v: *u8 = pipeline_dep_ctx_module_at(ctx, i); return v; }
-  return 0 as *u8;
+function pipeline_dep_ctx_module_at_u8_ptr_i32_retu8_ptr(ctx: *u8, i: i32): i64 {
+  unsafe { let v: *u8 = pipeline_dep_ctx_module_at(ctx, i); return v as i64; }
+  return 0 as i64;
 }
 /**
  * X-ABI mangled face of pipeline_asm_emit_dep_pipe_c.
  * Callers that were emitted with the signature suffix resolve this symbol.
  * The unsuffixed body stays in the pipeline object. This face only forwards.
  * It does not check null. The symbol stays weak so another definition can win.
- * This returns *u8 and takes no arguments. It is not the *u8 two-argument
+ * Callers see *u8 with no arguments. The body returns those bits as i64.
+ * It is not the *u8 two-argument
  * forwarder, not the i32 one-argument forwarder, not the void three-argument
  * forwarder, and not the i32 two-argument forwarder.
- * @return *u8 — the pointer pipeline_asm_emit_dep_pipe_c returns
+ * @return i64 — the pointer bits. Callers still declare *u8.
+ *   The installed type checker rejects a pointer return. i64 uses rax,
+ *   the same register as *u8, so the link convention is unchanged.
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
  * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
-function pipeline_asm_emit_dep_pipe_c_retu8_ptr(): *u8 {
-  unsafe { let v: *u8 = pipeline_asm_emit_dep_pipe_c(); return v; }
-  return 0 as *u8;
+function pipeline_asm_emit_dep_pipe_c_retu8_ptr(): i64 {
+  unsafe { let v: *u8 = pipeline_asm_emit_dep_pipe_c(); return v as i64; }
+  return 0 as i64;
 }
 /**
  * X-ABI mangled face of pipeline_module_import_path_byte_at.
  * Callers that were emitted with the signature suffix resolve this symbol.
  * The unsuffixed body stays in the pipeline object. This face only forwards.
  * It does not check null. The symbol stays weak so another definition can win.
- * This returns u8 and takes three arguments. It is not the zero-argument
+ * Callers see u8 with three arguments. The body returns that byte as i32.
+ * It is not the zero-argument
  * *u8 forwarder, not the *u8 two-argument forwarder, not the i32
  * one-argument forwarder, not the void three-argument forwarder, and not
  * the i32 two-argument forwarder.
  * @param m *u8 — module pointer; null is forwarded, not checked here
  * @param i i32 — import index forwarded unchanged
  * @param j i32 — byte offset forwarded unchanged
- * @return u8 — the byte pipeline_module_import_path_byte_at returns
+ * @return i32 — the byte in the low 8 bits. Callers still declare u8.
+ *   The installed type checker rejects a u8 return. i32 leaves that
+ *   byte in eax, which is what a u8 return reads.
  * #[no_mangle] keeps the signature-suffixed link name.
  * The installer weakens this symbol by name. Do not make it strong.
  * PLATFORM: SHARED — pure asm.
  */
 #[no_mangle]
-function pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(m: *u8, i: i32, j: i32): u8 {
-  unsafe { let v: u8 = pipeline_module_import_path_byte_at(m, i, j); return v; }
-  return 0 as u8;
+function pipeline_module_import_path_byte_at_u8_ptr_i32_i32_retu8(m: *u8, i: i32, j: i32): i32 {
+  unsafe { let v: u8 = pipeline_module_import_path_byte_at(m, i, j); return v as i32; }
+  return 0;
 }
