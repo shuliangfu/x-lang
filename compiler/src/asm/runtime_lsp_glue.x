@@ -1594,10 +1594,10 @@ export function lsp_json_escape_ident(s: *u8, esc: *u8, esc_cap: i32): i32 {
  * Implements `lsp_hash_source`.
  * @param src *u8
  * @param len i32
- * @return u32
+ * @return i32 — low 32 hash bits in eax; #[no_mangle] link name unchanged
  */
 #[no_mangle]
-export function lsp_hash_source(src: *u8, len: i32): u32 {
+export function lsp_hash_source(src: *u8, len: i32): i32 {
   if (src == 0) { return 0; }
   // Live pad: the golden multiply stores at the frame edge.
   let pad: u8[64] = [];
@@ -1625,5 +1625,7 @@ export function lsp_hash_source(src: *u8, len: i32): u32 {
   }
   // Fold the high half with a shift. Dividing by 2^32 looks like a
   // zero divisor because the check only sees the low 32 bits.
-  return (h ^ (h >> 32)) as u32;
+  // PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
+  // The low 32 bits are the same in eax.
+  return (h ^ (h >> 32)) as i32;
 }
