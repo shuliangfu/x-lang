@@ -194,3 +194,30 @@ case "$(uname -s 2>/dev/null)" in
     done
     ;;
 esac
+
+# w2055: Linux leaves were only ever built when missing. A source change in a
+# leaf module (80fd8b8ee: core/option out-pointer returns) left the old object
+# in place and user programs linked the stale ABI (L2 opt exit 134). Rebuild
+# only leaves the std module script reports stale (ensure without FORCE), with
+# the product's asm backend so no host C compiler runs. Keep the old leaf when
+# the rebuild fails.
+# PLATFORM: LINUX only (Darwin leaves are refreshed by their own gate).
+case "$(uname -s 2>/dev/null)" in
+  Linux)
+    case "$OUT" in /*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
+    for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
+      [ -s "$_leaf" ] || continue
+      _before=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
+      cp -f "$_leaf" "$_leaf.w2055bak"
+      if XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 \
+          && [ -s "$_leaf" ]; then
+        rm -f "$_leaf.w2055bak"
+        _after=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
+        [ "$_after" != "$_before" ] && echo "g05_relink_xlang: refreshed stale $_leaf"
+      else
+        mv -f "$_leaf.w2055bak" "$_leaf"
+        echo "g05_relink_xlang: WARN stale refresh failed, kept $_leaf" >&2
+      fi
+    done
+    ;;
+esac
