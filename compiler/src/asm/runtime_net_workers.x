@@ -57,7 +57,7 @@ export function thread_set_affinity_self_c(cpu_index: i32): i32 {
 // uintptr_t so .x can pass it to thread_create_c.
 // ---------------------------------------------------------------------------
 
-export extern "C" function xlang_net_worker_accept_entry_ptr_impl_c(): u64;
+export extern "C" function xlang_net_worker_accept_entry_ptr_impl_c(): i64;
 
 /**
  * Returns the address of the accept worker thread entry function
@@ -67,9 +67,10 @@ export extern "C" function xlang_net_worker_accept_entry_ptr_impl_c(): u64;
  * The actual thread body (infinite accept_many + close loop) lives in the C
  * rest side because .x cannot express the `void *(*)(void *)` C ABI signature.
  *
- * @return function pointer to xlang_net_worker_accept_loop, as uintptr_t
+ * @return i64 — function pointer bits in rax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u64 return.
  */
 #[no_mangle]
-export function xlang_net_worker_accept_entry_ptr_c(): u64 {
+export function xlang_net_worker_accept_entry_ptr_c(): i64 {
   unsafe { return xlang_net_worker_accept_entry_ptr_impl_c(); }
 }
