@@ -12,7 +12,10 @@ function main(): i32 {
   if (net.tls_is_available()) { return 1; }
   let name: *u8 = net.tls_backend_name();
   if (name == 0 as *u8) { return 2; }
-  if (*name != 115) { return 3; }
+  /* The backend name byte is u8. Reading it needs an unsafe block. */
+  let name0: u8 = 0 as u8;
+  unsafe { name0 = *name; }
+  if (name0 != (115 as u8)) { return 3; }
   debug.assert_eq_i32(tls_last_error(), 0);
   let bad: TcpStream = { fd: -1 };
   let tls: TlsStream = tls_connect_client(bad, 0 as *u8);
