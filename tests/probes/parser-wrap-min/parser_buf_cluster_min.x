@@ -34,8 +34,10 @@ extern function parse_expr_into(arena: *u8, lex: Lexer, source: u8[], out: *Pars
  * @return void
  */
 function parse_primary_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_primary_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_primary_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_unary_into_buf`.
@@ -48,8 +50,10 @@ function parse_primary_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out
  * @return void
  */
 function parse_unary_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_unary_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_unary_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_cast_into_buf`.
@@ -62,8 +66,10 @@ function parse_unary_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: 
  * @return void
  */
 function parse_cast_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_cast_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_cast_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_term_into_buf`.
@@ -76,8 +82,10 @@ function parse_cast_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *
  * @return void
  */
 function parse_term_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_term_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_term_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_addsub_into_buf`.
@@ -90,8 +98,10 @@ function parse_term_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *
  * @return void
  */
 function parse_addsub_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_addsub_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_addsub_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_shift_into_buf`.
@@ -104,8 +114,10 @@ function parse_addsub_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out:
  * @return void
  */
 function parse_shift_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_shift_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_shift_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_relcompare_into_buf`.
@@ -118,8 +130,10 @@ function parse_shift_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: 
  * @return void
  */
 function parse_relcompare_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_relcompare_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_relcompare_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_compare_into_buf`.
@@ -132,8 +146,10 @@ function parse_relcompare_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, 
  * @return void
  */
 function parse_compare_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_compare_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_compare_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_bitand_into_buf`.
@@ -146,8 +162,10 @@ function parse_compare_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out
  * @return void
  */
 function parse_bitand_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_bitand_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_bitand_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_bitxor_into_buf`.
@@ -160,8 +178,10 @@ function parse_bitand_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out:
  * @return void
  */
 function parse_bitxor_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_bitxor_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_bitxor_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_bitor_into_buf`.
@@ -174,8 +194,10 @@ function parse_bitxor_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out:
  * @return void
  */
 function parse_bitor_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_bitor_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_bitor_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_logor_into_buf`.
@@ -188,8 +210,10 @@ function parse_bitor_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: 
  * @return void
  */
 function parse_logor_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_logor_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_logor_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_ternary_into_buf`.
@@ -202,8 +226,10 @@ function parse_logor_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: 
  * @return void
  */
 function parse_ternary_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_ternary_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_ternary_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_assign_into_buf`.
@@ -216,8 +242,10 @@ function parse_ternary_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out
  * @return void
  */
 function parse_assign_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_assign_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_assign_into(arena, lex, slice, out); }
 }
 
 /** Internal function `parse_expr_into_buf`.
@@ -230,8 +258,10 @@ function parse_assign_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out:
  * @return void
  */
 function parse_expr_into_buf(arena: *u8, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  parse_expr_into(arena, lex, slice, out);
+  /* Extern slice and parse calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { parse_expr_into(arena, lex, slice, out); }
 }
 
 /** Internal function `main`.
