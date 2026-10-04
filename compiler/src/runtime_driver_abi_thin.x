@@ -248,8 +248,14 @@ let g_driver_path_last_preprocess_len: i64[1] = [0];
 // phase 0=parse 1=typeck 2=codegen. Hybrid thin owns acc_ms/start_sec/active cells;
 // cold seed keeps C static BSS. flush Cap (diag_reportf floats) reads via
 // driver_compile_phase_acc_ms_get + driver_compile_phase_timing_clear.
-let g_compile_phase_acc_ms: f64[3] = [0.0, 0.0, 0.0];
-let g_compile_phase_start_sec: f64[3] = [0.0, 0.0, 0.0];
+// PLATFORM: SHARED — the pinned stage0 egg cannot prepare an f64 array modlet.
+// Scalar cells are the same zeros. Indexed loads branch on the phase.
+let g_compile_phase_acc_ms_0: f64 = 0.0;
+let g_compile_phase_acc_ms_1: f64 = 0.0;
+let g_compile_phase_acc_ms_2: f64 = 0.0;
+let g_compile_phase_start_sec_0: f64 = 0.0;
+let g_compile_phase_start_sec_1: f64 = 0.0;
+let g_compile_phase_start_sec_2: f64 = 0.0;
 let g_compile_phase_active: i32[3] = [0, 0, 0];
 
 // See implementation.
@@ -1115,16 +1121,22 @@ export function driver_compile_phase_acc_ms_get(phase: i32): f64 {
   if (driver_compile_phase_index_ok(phase) == 0) {
     return 0.0;
   }
-  return g_compile_phase_acc_ms[phase];
+  if (phase == 0) {
+    return g_compile_phase_acc_ms_0;
+  }
+  if (phase == 1) {
+    return g_compile_phase_acc_ms_1;
+  }
+  return g_compile_phase_acc_ms_2;
 }
 
 /** Clear phase timing accumulators and active flags (same cells as cold seed memset).
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C twin; FROM_X rest flush Cap uses this. */
 #[no_mangle]
 export function driver_compile_phase_timing_clear(): void {
-  g_compile_phase_acc_ms[0] = 0.0;
-  g_compile_phase_acc_ms[1] = 0.0;
-  g_compile_phase_acc_ms[2] = 0.0;
+  g_compile_phase_acc_ms_0 = 0.0;
+  g_compile_phase_acc_ms_1 = 0.0;
+  g_compile_phase_acc_ms_2 = 0.0;
   g_compile_phase_active[0] = 0;
   g_compile_phase_active[1] = 0;
   g_compile_phase_active[2] = 0;
