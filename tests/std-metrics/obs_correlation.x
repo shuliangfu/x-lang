@@ -26,15 +26,26 @@ function buf_prefix_eq(buf: *u8, buf_len: i32, expect: *u8, expect_len: i32): i3
  * @return i32
  */
 function main(): i32 {
+  /* Context, label, and registry are written through an out pointer. */
   let tr: Trace = trace.new();
   let sp: Span = { id: 0 };
-  let obs: ObservabilityCtx = metrics.obs_ctx_empty();
-  let obs2: ObservabilityCtx = metrics.obs_ctx_empty();
+  let obs: ObservabilityCtx = {
+    trace_handle: 0, span_id: 0, trace_id_len: 0, span_id_len: 0,
+    trace_id_hex: [], span_id_hex: []
+  };
+  let obs2: ObservabilityCtx = {
+    trace_handle: 0, span_id: 0, trace_id_len: 0, span_id_len: 0,
+    trace_id_hex: [], span_id_hex: []
+  };
+  metrics.obs_ctx_empty(&obs);
+  metrics.obs_ctx_empty(&obs2);
   let ctx: Context = context.background();
   let kv: u8[128] = [];
   let kv_len: i32 = 0;
-  let lbl: Label = metrics.label_empty();
-  let reg: Registry = metrics.registry_new();
+  let lbl: Label = { key_len: 0, val_len: 0, key: [], val: [] };
+  metrics.label_empty(&lbl);
+  let reg: Registry = { counter_n: 0, gauge_n: 0, hist_n: 0 };
+  metrics.registry_new(&reg);
   let out: u8[256] = [];
   let n: i32 = 0;
   let req: u8[14] = [114, 101, 113, 117, 101, 115, 116, 115, 95, 116, 111, 116, 97, 108];
@@ -46,7 +57,7 @@ function main(): i32 {
   sp = trace.start(&tr, 0, &span_name[0], 4);
   if (sp.id == 0) { return 1; }
 
-  obs = metrics.obs_ctx_from_trace(&tr, sp);
+  metrics.obs_ctx_from_trace(&tr, sp, &obs);
   if (obs.trace_id_len != 32) { return 2; }
   if (obs.span_id_len <= 0) { return 3; }
 
@@ -55,7 +66,7 @@ function main(): i32 {
   if (buf_prefix_eq(&kv[0], kv_len, &kv_pre[0], 9) == 0) { return 5; }
 
   if (metrics.obs_ctx_attach_context(ctx, obs) != 0) { return 6; }
-  obs2 = metrics.obs_ctx_from_context(ctx, &tr);
+  metrics.obs_ctx_from_context(ctx, &tr, &obs2);
   if (obs2.span_id != obs.span_id) { return 7; }
   if (obs2.trace_id_len != 32) { return 8; }
 
