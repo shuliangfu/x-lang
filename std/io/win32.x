@@ -29,10 +29,8 @@ allow(padding) struct IoBatchBuf { ptr: *u8; length: usize; handle: usize; }
 export const IO_FIXED_MAX: u32 = 8 as u32;
 export const IO_READV_BUF_MAX: i32 = 16;
 
-let io_fixed_ptr: [8]*u8 = [
-  0 as *u8, 0 as *u8, 0 as *u8, 0 as *u8,
-  0 as *u8, 0 as *u8, 0 as *u8, 0 as *u8,
-];
+/* Null slots. An element list of `0 as *u8` fails modlet prepare on both compilers. */
+let io_fixed_ptr: [8]*u8 = [];
 let io_fixed_len: [8]usize = [
   0, 0, 0, 0,
   0, 0, 0, 0,
