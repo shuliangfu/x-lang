@@ -8,5 +8,8 @@ p3: *u8, l3: usize, nr: u32): i32;
  * Returns the extern result (typically 0 or platform errno-style).
  */
 function main(): i32 {
-  return io_register_buffers_4(0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 0);
+  // The nine-arg helper is an extern. The call stays in an unsafe block.
+  // Bind the result so the unsafe block is a value, not the return expression.
+  let r: i32 = unsafe { io_register_buffers_4(0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 0 as *u8, 0, 0) };
+  return r;
 }
