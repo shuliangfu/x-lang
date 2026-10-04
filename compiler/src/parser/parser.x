@@ -679,8 +679,12 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
 /* Anti-loop state for lparen→if/while/for re-sync.
  * Same keyword start pos rewound many times = infinite parse_if re-entry
  * (spinner keeps animating; Ctrl+C used to feel stuck on large-stack workers).
- * PLATFORM: SHARED monofile BSS. */
-let g_lparen_ctrl_last_pos: usize[1] = [0 as usize];
+ * PLATFORM: SHARED monofile BSS.
+ * The one-element usize array is initialized with a bare 0. A cast element
+ * (`0 as usize`) makes the pinned stage0 egg fail modlet prepare. The bare
+ * 0 is the same zero pattern.
+ */
+let g_lparen_ctrl_last_pos: usize[1] = [0];
 let g_lparen_ctrl_hits: i32[1] = [0];
 
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
@@ -1494,6 +1498,117 @@ export function expr_set_common_zeros(e: *Expr): void {
   }
 }
 
+/**
+ * Copy every Expr field and replace only kind.
+ *
+ * The pinned stage0 egg segfaults in glue_type_size_simple when codegen
+ * emits an imported enum field store (`e.kind = ExprKind.X`). Kind is
+ * written only inside a struct literal. The four name arrays are copied
+ * by element: a literal that embeds those arrays fails the installed
+ * compiler inside this module. Callers that used to store kind go through
+ * this function so the rest of the expr stays intact.
+ *
+ * @param e Expr — source value; not modified
+ * @param k ExprKind — kind stored in the returned copy
+ * @return Expr — same payload as e, with kind replaced by k
+ * PLATFORM: SHARED — pin egg and the installed product compiler.
+ */
+function parser_expr_with_kind(e: Expr, k: ExprKind): Expr {
+  // Arrays stay out of the literal. A full Expr literal fails the installed
+  // compiler inside this module. Element stores are ordinary byte copies.
+  let out: Expr = {
+    kind: k,
+    resolved_type_ref: e.resolved_type_ref,
+    line: e.line,
+    col: e.col,
+    int_val: e.int_val,
+    float_val: e.float_val,
+    var_name_len: e.var_name_len,
+    binop_left_ref: e.binop_left_ref,
+    binop_right_ref: e.binop_right_ref,
+    unary_operand_ref: e.unary_operand_ref,
+    if_cond_ref: e.if_cond_ref,
+    if_then_ref: e.if_then_ref,
+    if_else_ref: e.if_else_ref,
+    block_ref: e.block_ref,
+    match_matched_ref: e.match_matched_ref,
+    match_arm_base: e.match_arm_base,
+    match_num_arms: e.match_num_arms,
+    field_access_base_ref: e.field_access_base_ref,
+    field_access_field_len: e.field_access_field_len,
+    field_access_is_enum_variant: e.field_access_is_enum_variant,
+    field_access_offset: e.field_access_offset,
+    field_access_soa_stride: e.field_access_soa_stride,
+    index_base_ref: e.index_base_ref,
+    index_index_ref: e.index_index_ref,
+    index_base_is_slice: e.index_base_is_slice,
+    call_callee_ref: e.call_callee_ref,
+    call_arg_base: e.call_arg_base,
+    call_num_args: e.call_num_args,
+    call_num_type_args: e.call_num_type_args,
+    method_call_base_ref: e.method_call_base_ref,
+    method_call_name_len: e.method_call_name_len,
+    method_call_arg_base: e.method_call_arg_base,
+    method_call_num_args: e.method_call_num_args,
+    const_folded_val: e.const_folded_val,
+    const_folded_valid: e.const_folded_valid,
+    index_proven_in_bounds: e.index_proven_in_bounds,
+    struct_lit_struct_name_len: e.struct_lit_struct_name_len,
+    struct_lit_field_base: e.struct_lit_field_base,
+    struct_lit_num_fields: e.struct_lit_num_fields,
+    array_lit_elem_base: e.array_lit_elem_base,
+    array_lit_num_elems: e.array_lit_num_elems,
+    float_bits_lo: e.float_bits_lo,
+    float_bits_hi: e.float_bits_hi,
+    enum_variant_tag: e.enum_variant_tag,
+    as_operand_ref: e.as_operand_ref,
+    as_target_type_ref: e.as_target_type_ref,
+    call_resolved_func_index: e.call_resolved_func_index,
+    call_resolved_dep_index: e.call_resolved_dep_index
+  };
+  let i: i32 = 0;
+  while (i < 256) {
+    out.var_name[i] = e.var_name[i];
+    out.field_access_field_name[i] = e.field_access_field_name[i];
+    out.method_call_name[i] = e.method_call_name[i];
+    out.struct_lit_struct_name[i] = e.struct_lit_struct_name[i];
+    i = i + 1;
+  }
+  return out;
+}
+
+/**
+ * Copy every Type field and replace only kind.
+ *
+ * Same pin-egg constraint as parser_expr_with_kind: an imported TypeKind
+ * field store (`t.kind = TypeKind.X`) faults in glue_type_size_simple.
+ * name and region_label are copied by element so a kind change does not
+ * clear the spelling. A literal that embeds both arrays fails the
+ * installed compiler inside this module.
+ *
+ * @param t Type — source value; not modified
+ * @param k TypeKind — kind stored in the returned copy
+ * @return Type — same payload as t, with kind replaced by k
+ * PLATFORM: SHARED — pin egg and the installed product compiler.
+ */
+function parser_type_with_kind(t: Type, k: TypeKind): Type {
+  // name and region_label are copied by element. A literal that embeds both
+  // arrays fails the installed compiler inside this module.
+  let out: Type = {
+    kind: k,
+    name_len: t.name_len,
+    elem_type_ref: t.elem_type_ref,
+    array_size: t.array_size,
+    region_label_len: t.region_label_len
+  };
+  let i: i32 = 0;
+  while (i < 256) {
+    out.name[i] = t.name[i];
+    out.region_label[i] = t.region_label[i];
+    i = i + 1;
+  }
+  return out;
+}
 
 /**
  * See implementation.
@@ -1506,7 +1621,7 @@ export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
-  e.kind = ExprKind.EXPR_BOOL_LIT;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_BOOL_LIT);
   e.int_val = 1;
   e.line = 0;
   e.col = 0;
@@ -1528,7 +1643,7 @@ export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
-  e.kind = ExprKind.EXPR_FLOAT_LIT;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_FLOAT_LIT);
   e.float_val = fval;
   e.line = 0;
   e.col = 0;
@@ -1561,7 +1676,7 @@ export function parser_alloc_int_lit(arena: *ASTArena, ival: i64): i32 {
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
-  e.kind = ExprKind.EXPR_LIT;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_LIT);
   e.int_val = ival;
   e.line = 0;
   e.col = 0;
@@ -1624,7 +1739,7 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
     return 0;
   }
   let rwe: Expr = ast.ast_arena_expr_get(arena, wrap);
-  rwe.kind = ExprKind.EXPR_RETURN;
+  rwe = parser_expr_with_kind(rwe, ExprKind.EXPR_RETURN);
   rwe.line = 0;
   rwe.col = 0;
   rwe.int_val = 0;
@@ -2783,7 +2898,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       let re: Expr = ast.ast_arena_expr_get(arena, ret_ref);
-      re.kind = ExprKind.EXPR_RETURN;
+      re = parser_expr_with_kind(re, ExprKind.EXPR_RETURN);
       re.line = 0;
       re.col = 0;
       expr_set_common_zeros(&re);
@@ -3049,7 +3164,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         cond_expr_ref = ast.ast_arena_expr_alloc(arena);
         if (cond_expr_ref != 0) {
           let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
-          ce.kind = ExprKind.EXPR_BOOL_LIT;
+          ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
           ce.int_val = 1;
           ce.line = 0;
           ce.col = 0;
@@ -3648,7 +3763,7 @@ export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_re
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
   expr_set_common_zeros(&e);
-  e.kind = ExprKind.EXPR_BLOCK;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_BLOCK);
   e.block_ref = block_ref;
   e.resolved_type_ref = type_ref;
   e.line = 0;
@@ -3718,7 +3833,7 @@ function if_stmt_parts_to_if_expr(arena: *ASTArena, cond_ref: i32, then_blk: i32
   }
   let ie: Expr = ast.ast_arena_expr_get(arena, if_ref);
   expr_set_common_zeros(&ie);
-  ie.kind = ExprKind.EXPR_IF;
+  ie = parser_expr_with_kind(ie, ExprKind.EXPR_IF);
   ie.resolved_type_ref = type_ref;
   ie.line = 0;
   ie.col = 0;
@@ -4228,7 +4343,7 @@ function parser_string_lit_append_byte(arena: *ASTArena, head_ref: i32, b: u8, l
     }
     let ch0: Expr = ast.ast_arena_expr_get(arena, ov);
     expr_set_common_zeros(&ch0);
-    ch0.kind = ExprKind.EXPR_STRING_LIT;
+    ch0 = parser_expr_with_kind(ch0, ExprKind.EXPR_STRING_LIT);
     ch0.line = e.line;
     ch0.col = e.col;
     ch0.int_val = 0;
@@ -4250,7 +4365,7 @@ function parser_string_lit_append_byte(arena: *ASTArena, head_ref: i32, b: u8, l
       ast.ast_arena_expr_set(arena, cur, chw);
       let chn: Expr = ast.ast_arena_expr_get(arena, ov);
       expr_set_common_zeros(&chn);
-      chn.kind = ExprKind.EXPR_STRING_LIT;
+      chn = parser_expr_with_kind(chn, ExprKind.EXPR_STRING_LIT);
       chn.line = e.line;
       chn.col = e.col;
       chn.int_val = 0;
@@ -4529,7 +4644,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       let arr_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (arr_ref != 0) {
         let ae0: Expr = ast.ast_arena_expr_get(arena, arr_ref);
-        ae0.kind = ExprKind.EXPR_ARRAY_LIT;
+        ae0 = parser_expr_with_kind(ae0, ExprKind.EXPR_ARRAY_LIT);
         ae0.resolved_type_ref = 0;
         ae0.line = 0;
         ae0.col = 0;
@@ -4540,7 +4655,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             let er: i32 = ast.ast_arena_expr_alloc(arena);
             if (er != 0) {
               let ee: Expr = ast.ast_arena_expr_get(arena, er);
-              ee.kind = ExprKind.EXPR_LIT;
+              ee = parser_expr_with_kind(ee, ExprKind.EXPR_LIT);
               ee.resolved_type_ref = 0;
               ee.line = 0;
               ee.col = 0;
@@ -4692,7 +4807,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let str_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (str_ref != 0) {
           let se: Expr = ast.ast_arena_expr_get(arena, str_ref);
-          se.kind = ExprKind.EXPR_STRING_LIT;
+          se = parser_expr_with_kind(se, ExprKind.EXPR_STRING_LIT);
           se.resolved_type_ref = 0;
           se.line = r.tok.line;
           se.col = r.tok.col;
@@ -4742,7 +4857,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let bool_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (bool_ref != 0) {
           let be: Expr = ast.ast_arena_expr_get(arena, bool_ref);
-          be.kind = ExprKind.EXPR_BOOL_LIT;
+          be = parser_expr_with_kind(be, ExprKind.EXPR_BOOL_LIT);
           be.resolved_type_ref = 0;
           be.line = 0;
           be.col = 0;
@@ -6496,7 +6611,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             set_onefunc_fail(out, lex); return;
           }
           let re_mid: Expr = ast.ast_arena_expr_get(arena, ret_mid_ref);
-          re_mid.kind = ExprKind.EXPR_RETURN;
+          re_mid = parser_expr_with_kind(re_mid, ExprKind.EXPR_RETURN);
           re_mid.line = 0;
           re_mid.col = 0;
           expr_set_common_zeros(&re_mid);
@@ -6526,7 +6641,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             set_onefunc_fail(out, lex); return;
           }
           let re_fin: Expr = ast.ast_arena_expr_get(arena, bare_fin);
-          re_fin.kind = ExprKind.EXPR_RETURN;
+          re_fin = parser_expr_with_kind(re_fin, ExprKind.EXPR_RETURN);
           re_fin.line = 0;
           re_fin.col = 0;
           expr_set_common_zeros(&re_fin);
@@ -7093,7 +7208,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           cond_expr_ref = ast.ast_arena_expr_alloc(arena);
           if (cond_expr_ref != 0) {
             let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
-            ce.kind = ExprKind.EXPR_BOOL_LIT;
+            ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
             ce.int_val = 1;
             ce.line = 0;
             ce.col = 0;
@@ -7346,7 +7461,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     }
     let bre: Expr = ast.ast_arena_expr_get(arena, bare_ret);
-    bre.kind = ExprKind.EXPR_RETURN;
+    bre = parser_expr_with_kind(bre, ExprKind.EXPR_RETURN);
     bre.line = 0;
     bre.col = 0;
     expr_set_common_zeros(&bre);
@@ -9147,7 +9262,7 @@ export function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, la
   vec_ref = ast.ast_arena_type_alloc(arena);
   if (vec_ref != 0) {
     let tv: Type = ast.ast_arena_type_get(arena, vec_ref);
-    tv.kind = TypeKind.TYPE_VECTOR;
+    tv = parser_type_with_kind(tv, TypeKind.TYPE_VECTOR);
     tv.elem_type_ref = elem_tr_v;
     tv.array_size = lanes;
     tv.name_len = 0;
@@ -9696,7 +9811,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1001 }
       }
       let t_fb: Type = ast.ast_arena_type_get(arena, type_ref);
-      t_fb.kind = TypeKind.TYPE_I32;
+      t_fb = parser_type_with_kind(t_fb, TypeKind.TYPE_I32);
       t_fb.name_len = 0;
       t_fb.elem_type_ref = 0;
       t_fb.array_size = 0;
@@ -9712,7 +9827,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     e = ast.ast_arena_expr_get(arena, expr_ref);
     /* See implementation. */
     if (res.return_var_name_len > 0) {
-      e.kind = ExprKind.EXPR_VAR;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_VAR);
       e.var_name_len = res.return_var_name_len;
       let rvi: i32 = 0;
       while (rvi < res.return_var_name_len && rvi < 64) {
@@ -9724,7 +9839,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       e.int_val = 0;
       e.resolved_type_ref = 0;
     } else {
-      e.kind = ExprKind.EXPR_LIT;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_LIT);
       e.resolved_type_ref = type_ref;
       e.int_val = res.return_val;
     }
@@ -9782,7 +9897,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let mre: Expr = ast.ast_arena_expr_get(arena, mul_right_ref);
-      mre.kind = ExprKind.EXPR_LIT;
+      mre = parser_expr_with_kind(mre, ExprKind.EXPR_LIT);
       mre.resolved_type_ref = type_ref;
       mre.line = 0;
       mre.col = 0;
@@ -9818,7 +9933,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
-      me.kind = ExprKind.EXPR_MUL;
+      me = parser_expr_with_kind(me, ExprKind.EXPR_MUL);
       me.resolved_type_ref = type_ref;
       me.line = 0;
       me.col = 0;
@@ -9861,7 +9976,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1005 }
       }
       let bt: Type = ast.ast_arena_type_get(arena, bool_type_ref);
-      bt.kind = TypeKind.TYPE_BOOL;
+      bt = parser_type_with_kind(bt, TypeKind.TYPE_BOOL);
       bt.name_len = 0;
       bt.elem_type_ref = 0;
       bt.array_size = 0;
@@ -9871,7 +9986,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ce: Expr = ast.ast_arena_expr_get(arena, cond_ref);
-      ce.kind = ExprKind.EXPR_BOOL_LIT;
+      ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
       ce.resolved_type_ref = bool_type_ref;
       ce.line = 0;
       ce.col = 0;
@@ -9912,7 +10027,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let te: Expr = ast.ast_arena_expr_get(arena, then_ref);
-      te.kind = ExprKind.EXPR_LIT;
+      te = parser_expr_with_kind(te, ExprKind.EXPR_LIT);
       te.resolved_type_ref = type_ref;
       te.line = 0;
       te.col = 0;
@@ -9948,7 +10063,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ee: Expr = ast.ast_arena_expr_get(arena, else_ref);
-      ee.kind = ExprKind.EXPR_LIT;
+      ee = parser_expr_with_kind(ee, ExprKind.EXPR_LIT);
       ee.resolved_type_ref = type_ref;
       ee.line = 0;
       ee.col = 0;
@@ -9984,7 +10099,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ie: Expr = ast.ast_arena_expr_get(arena, if_expr_ref);
-      ie.kind = ExprKind.EXPR_IF;
+      ie = parser_expr_with_kind(ie, ExprKind.EXPR_IF);
       ie.resolved_type_ref = type_ref;
       ie.line = 0;
       ie.col = 0;
@@ -10031,7 +10146,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         let lpr: i32 = ast.ast_arena_expr_alloc(arena);
         if (lpr != 0) {
           let lpe: Expr = ast.ast_arena_expr_get(arena, lpr);
-          lpe.kind = ExprKind.EXPR_VAR;
+          lpe = parser_expr_with_kind(lpe, ExprKind.EXPR_VAR);
           lpe.resolved_type_ref = left_param_type_ref;
           lpe.line = 0;
           lpe.col = 0;
@@ -10080,7 +10195,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         let rpr: i32 = ast.ast_arena_expr_alloc(arena);
         if (rpr != 0) {
           let rpe: Expr = ast.ast_arena_expr_get(arena, rpr);
-          rpe.kind = ExprKind.EXPR_VAR;
+          rpe = parser_expr_with_kind(rpe, ExprKind.EXPR_VAR);
           rpe.resolved_type_ref = right_param_type_ref;
           rpe.line = 0;
           rpe.col = 0;
@@ -10128,7 +10243,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let mle: Expr = ast.ast_arena_expr_get(arena, mul_left_ref);
-        mle.kind = ExprKind.EXPR_LIT;
+        mle = parser_expr_with_kind(mle, ExprKind.EXPR_LIT);
         mle.resolved_type_ref = type_ref;
         mle.line = 0;
         mle.col = 0;
@@ -10164,7 +10279,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let mre: Expr = ast.ast_arena_expr_get(arena, mul_r_ref);
-        mre.kind = ExprKind.EXPR_LIT;
+        mre = parser_expr_with_kind(mre, ExprKind.EXPR_LIT);
         mre.resolved_type_ref = type_ref;
         mre.line = 0;
         mre.col = 0;
@@ -10200,7 +10315,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
-        me.kind = ExprKind.EXPR_MUL;
+        me = parser_expr_with_kind(me, ExprKind.EXPR_MUL);
         me.resolved_type_ref = type_ref;
         me.line = 0;
         me.col = 0;
@@ -10238,7 +10353,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let re: Expr = ast.ast_arena_expr_get(arena, right_ref);
-        re.kind = ExprKind.EXPR_LIT;
+        re = parser_expr_with_kind(re, ExprKind.EXPR_LIT);
         re.resolved_type_ref = type_ref;
         re.line = 0;
         re.col = 0;
@@ -10275,7 +10390,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ae: Expr = ast.ast_arena_expr_get(arena, add_ref);
-      ae.kind = ExprKind.EXPR_ADD;
+      ae = parser_expr_with_kind(ae, ExprKind.EXPR_ADD);
       ae.resolved_type_ref = type_ref;
       ae.line = 0;
       ae.col = 0;
@@ -10315,7 +10430,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let oe: Expr = ast.ast_arena_expr_get(arena, operand_ref);
-      oe.kind = ExprKind.EXPR_LIT;
+      oe = parser_expr_with_kind(oe, ExprKind.EXPR_LIT);
       oe.resolved_type_ref = type_ref;
       oe.line = 0;
       oe.col = 0;
@@ -10351,7 +10466,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ne: Expr = ast.ast_arena_expr_get(arena, neg_ref);
-      ne.kind = ExprKind.EXPR_NEG;
+      ne = parser_expr_with_kind(ne, ExprKind.EXPR_NEG);
       ne.resolved_type_ref = type_ref;
       ne.line = 0;
       ne.col = 0;
@@ -10390,7 +10505,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       let callee_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (callee_ref != 0) {
         let ve: Expr = ast.ast_arena_expr_get(arena, callee_ref);
-        ve.kind = ExprKind.EXPR_VAR;
+        ve = parser_expr_with_kind(ve, ExprKind.EXPR_VAR);
         ve.resolved_type_ref = 0;
         ve.line = 0;
         ve.col = 0;
@@ -10435,7 +10550,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         if (call_ref != 0) {
           let ce: Expr = ast.ast_arena_expr_get(arena, call_ref);
           expr_set_common_zeros(&ce);
-          ce.kind = ExprKind.EXPR_CALL;
+          ce = parser_expr_with_kind(ce, ExprKind.EXPR_CALL);
           ce.resolved_type_ref = type_ref;
           ce.line = 0;
           ce.col = 0;
@@ -10456,10 +10571,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
               ae.line = 0;
               ae.col = 0;
               if (res.call_num_args > 0 && arg_i < res.call_num_args) {
-                ae.kind = ExprKind.EXPR_LIT;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_LIT);
                 ae.int_val = pipeline_onefunc_call_arg_val_at(call_pool, arg_i);
               } else {
-                ae.kind = ExprKind.EXPR_VAR;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_VAR);
                 ae.var_name_len = pipeline_onefunc_param_name_len(call_pool, arg_i);
                 let k: i32 = 0;
                 while (k < ae.var_name_len && k < 64) {
@@ -11993,7 +12108,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         continue;
       }
       let t_fb: Type = ast.ast_arena_type_get(arena, type_ref);
-      t_fb.kind = TypeKind.TYPE_I32;
+      t_fb = parser_type_with_kind(t_fb, TypeKind.TYPE_I32);
       t_fb.name_len = 0;
       t_fb.elem_type_ref = 0;
       t_fb.array_size = 0;
@@ -12016,7 +12131,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     e = ast.ast_arena_expr_get(arena, expr_ref);
     if (res.return_var_name_len > 0) {
       /* See implementation. */
-      e.kind = ExprKind.EXPR_VAR;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_VAR);
       e.var_name_len = res.return_var_name_len;
       let rvi: i32 = 0;
       while (rvi < res.return_var_name_len && rvi < 64) {
@@ -12028,7 +12143,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       e.int_val = 0;
       e.resolved_type_ref = 0;
     } else {
-      e.kind = ExprKind.EXPR_LIT;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_LIT);
       e.int_val = res.return_val;
       e.resolved_type_ref = type_ref;
     }
@@ -12086,7 +12201,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let mre: Expr = ast.ast_arena_expr_get(arena, mul_right_ref);
-      mre.kind = ExprKind.EXPR_LIT;
+      mre = parser_expr_with_kind(mre, ExprKind.EXPR_LIT);
       mre.resolved_type_ref = type_ref;
       mre.line = 0;
       mre.col = 0;
@@ -12122,7 +12237,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
-      me.kind = ExprKind.EXPR_BINOP;
+      me = parser_expr_with_kind(me, ExprKind.EXPR_BINOP);
       me.resolved_type_ref = type_ref;
       me.line = 0;
       me.col = 0;
@@ -12166,7 +12281,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1005 }
       }
       let bt: Type = ast.ast_arena_type_get(arena, bool_type_ref);
-      bt.kind = TypeKind.TYPE_BOOL;
+      bt = parser_type_with_kind(bt, TypeKind.TYPE_BOOL);
       bt.name_len = 0;
       bt.elem_type_ref = 0;
       bt.array_size = 0;
@@ -12176,7 +12291,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ce: Expr = ast.ast_arena_expr_get(arena, cond_ref);
-      ce.kind = ExprKind.EXPR_BOOL_LIT;
+      ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
       ce.resolved_type_ref = bool_type_ref;
       ce.line = 0;
       ce.col = 0;
@@ -12217,7 +12332,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let te: Expr = ast.ast_arena_expr_get(arena, then_ref);
-      te.kind = ExprKind.EXPR_LIT;
+      te = parser_expr_with_kind(te, ExprKind.EXPR_LIT);
       te.resolved_type_ref = type_ref;
       te.line = 0;
       te.col = 0;
@@ -12253,7 +12368,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ee: Expr = ast.ast_arena_expr_get(arena, else_ref);
-      ee.kind = ExprKind.EXPR_LIT;
+      ee = parser_expr_with_kind(ee, ExprKind.EXPR_LIT);
       ee.resolved_type_ref = type_ref;
       ee.line = 0;
       ee.col = 0;
@@ -12289,7 +12404,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ie: Expr = ast.ast_arena_expr_get(arena, if_expr_ref);
-      ie.kind = ExprKind.EXPR_IF;
+      ie = parser_expr_with_kind(ie, ExprKind.EXPR_IF);
       ie.resolved_type_ref = type_ref;
       ie.line = 0;
       ie.col = 0;
@@ -12336,7 +12451,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         let lpr_buf: i32 = ast.ast_arena_expr_alloc(arena);
         if (lpr_buf != 0) {
           let lpe_buf: Expr = ast.ast_arena_expr_get(arena, lpr_buf);
-          lpe_buf.kind = ExprKind.EXPR_VAR;
+          lpe_buf = parser_expr_with_kind(lpe_buf, ExprKind.EXPR_VAR);
           lpe_buf.resolved_type_ref = left_param_type_ref_buf;
           lpe_buf.line = 0;
           lpe_buf.col = 0;
@@ -12383,7 +12498,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         let rpr_buf: i32 = ast.ast_arena_expr_alloc(arena);
         if (rpr_buf != 0) {
           let rpe_buf: Expr = ast.ast_arena_expr_get(arena, rpr_buf);
-          rpe_buf.kind = ExprKind.EXPR_VAR;
+          rpe_buf = parser_expr_with_kind(rpe_buf, ExprKind.EXPR_VAR);
           rpe_buf.resolved_type_ref = right_param_type_ref_buf;
           rpe_buf.line = 0;
           rpe_buf.col = 0;
@@ -12429,7 +12544,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
           return { ok: -1, main_idx: -1 }
         }
         let re_buf: Expr = ast.ast_arena_expr_get(arena, right_ref_buf);
-        re_buf.kind = ExprKind.EXPR_LIT;
+        re_buf = parser_expr_with_kind(re_buf, ExprKind.EXPR_LIT);
         re_buf.resolved_type_ref = type_ref;
         re_buf.line = 0;
         re_buf.col = 0;
@@ -12466,7 +12581,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ae_buf: Expr = ast.ast_arena_expr_get(arena, add_ref_buf);
-      ae_buf.kind = ExprKind.EXPR_ADD;
+      ae_buf = parser_expr_with_kind(ae_buf, ExprKind.EXPR_ADD);
       ae_buf.resolved_type_ref = type_ref;
       ae_buf.line = 0;
       ae_buf.col = 0;
@@ -12506,7 +12621,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       let callee_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (callee_ref != 0) {
         let ve: Expr = ast.ast_arena_expr_get(arena, callee_ref);
-        ve.kind = ExprKind.EXPR_VAR;
+        ve = parser_expr_with_kind(ve, ExprKind.EXPR_VAR);
         ve.resolved_type_ref = 0;
         ve.line = 0;
         ve.col = 0;
@@ -12551,7 +12666,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         if (call_ref != 0) {
           let ce: Expr = ast.ast_arena_expr_get(arena, call_ref);
           expr_set_common_zeros(&ce);
-          ce.kind = ExprKind.EXPR_CALL;
+          ce = parser_expr_with_kind(ce, ExprKind.EXPR_CALL);
           ce.resolved_type_ref = type_ref;
           ce.line = 0;
           ce.col = 0;
@@ -12571,10 +12686,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
               ae.line = 0;
               ae.col = 0;
               if (res.call_num_args > 0 && arg_i < res.call_num_args) {
-                ae.kind = ExprKind.EXPR_LIT;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_LIT);
                 ae.int_val = pipeline_onefunc_call_arg_val_at(call_pool_buf, arg_i);
               } else {
-                ae.kind = ExprKind.EXPR_VAR;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_VAR);
                 ae.var_name_len = pipeline_onefunc_param_name_len(call_pool_buf, arg_i);
                 let k: i32 = 0;
                 while (k < ae.var_name_len && k < 64) {
