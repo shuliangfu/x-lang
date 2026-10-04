@@ -460,8 +460,21 @@ export function peephole_peephole_elf_run(elf_ctx: *u8): i32 {
   return 0;
 }
 
-// peephole.x owns peephole_run and peephole_elf_run. A second strong copy
-// here returned 0 and blocked this object from linking next to that file.
+// w2055: the g05 relink does not link peephole.x, so these strong
+// definitions must stay here. Without them the only definitions are the
+// weak return -1 stubs from gen_asm_full_link_stubs.pl, and every ELF
+// build fails right after codegen (CG002 even for `return 7`).
+/** user_asm_seed_bridge calls unprefixed peephole_run. */
+#[no_mangle]
+export function peephole_run(out_buf: *u8): i32 {
+  return peephole_peephole_run(out_buf);
+}
+
+/** Unprefixed ELF peephole. */
+#[no_mangle]
+export function peephole_elf_run(elf_ctx: *u8): i32 {
+  return peephole_peephole_elf_run(elf_ctx);
+}
 
 /** Weak semanticTokens fallback until lsp_diag_x.o provides the strong one. */
 #[no_mangle]
