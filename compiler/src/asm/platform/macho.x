@@ -80,7 +80,8 @@ export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let m: i32 = 0;
-    let sym_buf: u8[128] = [];
+    // PLATFORM: SHARED — must be u8[256] to match elf_name_eq_arr_to_pool.
+    let sym_buf: u8[256] = [];
     macho_reloc_sym_name_buf(ctx, r, &sym_buf[0]);
     while (m < ctx.num_syms) {
       if (elf.elf_name_eq_arr_to_pool(sym_buf, pipeline_elf_ctx_reloc_name_len(ctx as *u8,
@@ -95,13 +96,13 @@ export function macho_reloc_sym_defined(ctx: *ElfCodegenCtx, r: i32): i32 {
 
 /** Exported function `macho_rel_name_eq`.
  * Implements `macho_rel_name_eq`.
- * @param a u8[128]
+ * @param a u8[256] — same width as elf_name_eq_arr_to_pool; copy64 writes at most 64 bytes
  * @param a_len i32
  * @param b_ptr *u8
  * @param b_len i32
  * @return i32
  */
-export function macho_rel_name_eq(a: u8[128], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
+export function macho_rel_name_eq(a: u8[256], a_len: i32, b_ptr: *u8, b_len: i32): i32 {
   if (a_len != b_len) {
     return 0;
   }
@@ -158,7 +159,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
       let us: i32 = 0;
       while (us < nu) {
         let sr: i32 = und_src_reloc[us];
-        let rx_buf: u8[128] = [];
+        let rx_buf: u8[256] = [];
         let sr_buf: u8[128] = [];
         macho_reloc_sym_name_buf(ctx, rx, &rx_buf[0]);
         macho_reloc_sym_name_buf(ctx, sr, &sr_buf[0]);
@@ -497,7 +498,7 @@ export function write_macho_o_to_buf(ctx: *ElfCodegenCtx, out: *CodegenOutBuf): 
       let sym_idx: i32 = 0;
       let m: i32 = 0;
       let found_def: i32 = 0;
-      let r_sym_buf2: u8[128] = [];
+      let r_sym_buf2: u8[256] = [];
       macho_reloc_sym_name_buf(ctx, r, &r_sym_buf2[0]);
       while (m < ctx.num_syms) {
         if (elf.elf_name_eq_arr_to_pool(r_sym_buf2, pipeline_elf_ctx_reloc_name_len(ctx as
