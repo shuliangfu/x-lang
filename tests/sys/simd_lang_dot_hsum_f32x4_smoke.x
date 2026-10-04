@@ -11,11 +11,17 @@ const simd = import("std.simd.builtin");
 function main(): i32 {
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let b: Vec4f = [1.0, 1.0, 1.0, 1.0];
-  let hs: f32 = simd.hsum_f32x4(a);
+  let hs: f32 = 0.0;
+  if (simd.hsum_f32x4(a, &hs) != 0) {
+    return 1;
+  }
   if (hs < 9.99 || hs > 10.01) {
     return 1;
   }
-  let d: f32 = simd.dot_f32x4(a, b);
+  let d: f32 = 0.0;
+  if (simd.dot_f32x4(a, b, &d) != 0) {
+    return 2;
+  }
   if (d < 9.99 || d > 10.01) {
     return 2;
   }
