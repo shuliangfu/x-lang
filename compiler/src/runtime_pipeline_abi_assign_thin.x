@@ -2303,7 +2303,10 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
                   rc = backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta);
                 }
                 if (rc == 0) {
-                  rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+                  // x86 dual-GP high half. Extern store; must sit in unsafe.
+                  unsafe {
+                    rc = glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx);
+                  }
                 }
               }
               if (rc != 0) {
@@ -2343,7 +2346,10 @@ export function pipeline_asm_emit_assign_elf_c(arena: *u8, elf_ctx: *u8, expr_re
               asg_thin_store_i32_le(ctx, asg_thin_ctx_off_next_offset(), dst_spill);
             }
             if (ta == 1) {
-              rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+              // ARM64 dest lives in x19. Extern mov; must sit in unsafe.
+              unsafe {
+                rc = glue_arm64_mov_x19_to_x0_elf_c(elf_ctx);
+              }
             } else {
               unsafe {
                 rc = backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta);
