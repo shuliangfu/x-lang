@@ -528,7 +528,11 @@ export function link_abi_generated_c_needs_libc_heap(c_path: *u8): i32 {
   let n: i32 = labi_fs_heap_c_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_heap_c_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_heap_c_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -563,7 +567,11 @@ export function link_abi_user_o_needs_libc_heap(user_o: *u8): i32 {
   let n: i32 = labi_fs_heap_o_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_fs_heap_o_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_fs_heap_o_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -601,7 +609,11 @@ export function link_abi_user_o_needs_freestanding_nostdlib_face(user_o: *u8): i
   let n: i32 = labi_fs_memcpy_face_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_fs_memcpy_face_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_fs_memcpy_face_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -721,7 +733,11 @@ export function link_abi_generated_c_needs_fs(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_fs_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_fs_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_fs_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -757,7 +773,11 @@ export function link_abi_generated_c_needs_random(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_random_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_random_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_random_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -793,7 +813,11 @@ export function link_abi_generated_c_needs_time(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_time_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_time_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_time_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -829,7 +853,11 @@ export function link_abi_generated_c_needs_runtime(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_runtime_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_runtime_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_runtime_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -930,7 +958,11 @@ export function link_abi_generated_c_needs_zlib(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_zlib_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_zlib_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_zlib_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -966,7 +998,11 @@ export function link_abi_generated_c_needs_zstd(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_zstd_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_zstd_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_zstd_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1002,7 +1038,11 @@ export function link_abi_generated_c_needs_brotli(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_brotli_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_brotli_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_brotli_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1104,7 +1144,11 @@ export function link_abi_generated_c_needs_core_slice(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_core_slice_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_core_slice_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_core_slice_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1140,7 +1184,11 @@ export function link_abi_generated_c_needs_db_kv(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_db_kv_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_db_kv_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_db_kv_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1176,7 +1224,11 @@ export function link_abi_generated_c_needs_db_arrow(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_db_arrow_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_db_arrow_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_db_arrow_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1405,7 +1457,11 @@ export function link_abi_generated_c_needs_win32(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_win32_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_win32_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_win32_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1441,7 +1497,11 @@ export function link_abi_generated_c_needs_win32_wsa(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_win32_wsa_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_win32_wsa_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_win32_wsa_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1536,7 +1596,11 @@ export function xlang_generated_c_needs_async_scheduler(c_path: *u8): i32 {
   let n: i32 = labi_fs_gen_async_scheduler_needle_count();
   let i: i32 = 0;
   while (i < n) {
-    let needle: *u8 = labi_fs_gen_async_scheduler_needle_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let needle: *u8 = 0 as *u8;
+    unsafe {
+      needle = labi_fs_gen_async_scheduler_needle_at(i);
+    }
     if (needle != 0 as *u8) {
       if (needle[0] != 0) {
         let hit: i32 = 0;
@@ -1579,7 +1643,11 @@ export function xlang_freestanding_user_o_needs_io(user_o: *u8): i32 {
   let n: i32 = labi_fs_io_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_fs_io_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_fs_io_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
