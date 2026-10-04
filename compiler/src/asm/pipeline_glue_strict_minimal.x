@@ -1045,25 +1045,6 @@ export function pipeline_typeck_resolve_call_func_index_for_emit_c(m: *u8, a: *u
   return pipeline_typeck_resolve_call_func_index_c(m, a, call_expr_ref);
 }
 
-// pipeline_asm_init_is_empty_array_lit_c: see function docblock below.
-/** Exported function `pipeline_asm_init_is_empty_array_lit_c`.
- * Implements `pipeline_asm_init_is_empty_array_lit_c`.
- * @param arena *u8
- * @param init_ref i32
- * @return i32
- */
-#[no_mangle]
-export function pipeline_asm_init_is_empty_array_lit_c(arena: *u8, init_ref: i32): i32 {
-  if (arena == 0 as *u8) { return 0; }
-  if (init_ref <= 0) { return 0; }
-  unsafe {
-    // EXPR_ARRAY_LIT=46
-    if (pipeline_expr_kind_ord_at(arena, init_ref) != 46) { return 0; }
-    if (pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0) { return 1; }
-  }
-  return 0;
-}
-
 // G-02f-210：layout metrics → size/align glue
 /** Exported function `typeck_x_type_size_from_layout_glue`.
  * Implements `typeck_x_type_size_from_layout_glue`.
@@ -1265,70 +1246,6 @@ export function glue_name_bytes_eq_c(name: *u8, name_len: i32, lit: *u8, lit_len
     i = i + 1;
   }
   return 1;
-}
-
-// pipeline_asm_build_import_binding_call_sym_c: see function docblock below.
-/** Exported function `pipeline_asm_build_import_binding_call_sym_c`.
- * Implements `pipeline_asm_build_import_binding_call_sym_c`.
- * @param pre *u8
- * @param pre_len i32
- * @param field_name *u8
- * @param field_len i32
- * @param out_name *u8
- * @return i32
- */
-#[no_mangle]
-export function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
-  if (field_name == 0) { return 0 - 1; }
-  if (field_len <= 0) { return 0 - 1; }
-  if (out_name == 0) { return 0 - 1; }
-  let pos: i32 = 0;
-  let pi: i32 = 0;
-  let same_prefix: i32 = 0;
-  if (pre != 0) {
-    if (pre_len > 0) {
-      if (field_len >= pre_len) {
-        same_prefix = 1;
-        pi = 0;
-        while (pi < pre_len) {
-          if (field_name[pi] != pre[pi]) {
-            same_prefix = 0;
-            pi = pre_len;
-          } else {
-            pi = pi + 1;
-          }
-        }
-      }
-    }
-  }
-  pi = 0;
-  if (pre != 0) {
-    if (pre_len > 0) {
-      if (same_prefix == 0) {
-        while (pi < pre_len) {
-          if (pos < 63) {
-            out_name[pos] = pre[pi];
-            pos = pos + 1;
-            pi = pi + 1;
-          } else {
-            pi = pre_len;
-          }
-        }
-      }
-    }
-  }
-  pi = 0;
-  while (pi < field_len) {
-    if (pos < 63) {
-      out_name[pos] = field_name[pi];
-      pos = pos + 1;
-      pi = pi + 1;
-    } else {
-      pi = field_len;
-    }
-  }
-  if (pos <= 0) { return 0 - 1; }
-  return pos;
 }
 
 // pipeline_typeck_is_read_ptr_slice_callee_c: see function docblock below.

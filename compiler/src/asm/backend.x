@@ -165,10 +165,8 @@ export extern function pipeline_expr_struct_lit_init_ref(arena: *ASTArena, expr_
 export extern function pipeline_expr_struct_lit_num_fields(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_array_lit_elem_ref(arena: *ASTArena, expr_ref: i32, idx: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *ASTArena, expr_ref: i32): i32;
-export extern function pipeline_asm_init_is_empty_array_lit_c(arena: *ASTArena, init_ref: i32): i32;
 export extern function pipeline_asm_enc_local_slot_ptr_or_addr_elf_c(arena: *ASTArena, elf_ctx: *ElfCodegenCtx, expr_ref: i32, stack_off: i32, ta: i32, ctx: *u8): i32;
 export extern function pipeline_asm_arch_emit_local_slot_ptr_or_addr_text_c(arena: *ASTArena, out: *CodegenOutBuf, expr_ref: i32, stack_off: i32, ta: i32, ctx: *u8): i32;
-export extern function pipeline_asm_build_import_binding_call_sym_c(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32;
 export extern function pipeline_expr_field_access_name_len(arena: *ASTArena, expr_ref: i32): i32;
 export extern function pipeline_expr_field_access_name_into(arena: *ASTArena, expr_ref: i32, out: *u8): void;
 export extern function pipeline_expr_field_access_base_ref(arena: *ASTArena, expr_ref: i32): i32;
@@ -351,10 +349,14 @@ export function asm_cmp_cc_when_rhs_imm_in_rbx(cc: i32): i32 {
  * @return i32
  */
 export function asm_init_is_empty_array_lit(arena: *ASTArena, init_ref: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
+  // EXPR_ARRAY_LIT is 46. An empty list is the zero-fill form.
+  if (arena == 0 as *ASTArena) { return 0; }
+  if (init_ref <= 0) { return 0; }
   unsafe {
-    return pipeline_asm_init_is_empty_array_lit_c(arena, init_ref);
+    if (pipeline_expr_kind_ord_at(arena, init_ref) != 46) { return 0; }
+    if (pipeline_expr_array_lit_num_elems_at(arena, init_ref) == 0) { return 1; }
   }
+  return 0;
 }
 
 /** Exported function `enc_label_arch`.
@@ -1258,10 +1260,58 @@ export function asm_c_prefix_redundant_with_name(prefix: *u8, prefix_len: i32, n
 
 /** Concat C prefix bytes + field name into out_name (max 63); return length 1..63 on success, -1 on failure. */
 export function asm_build_import_binding_call_sym(pre: *u8, pre_len: i32, field_name: *u8, field_len: i32, out_name: *u8): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
-  unsafe {
-    return pipeline_asm_build_import_binding_call_sym_c(pre, pre_len, field_name, field_len, out_name);
+  // Copy the prefix, then the field, into a 63-byte name. Skip the prefix
+  // when the field already starts with it.
+  if (field_name == 0) { return 0 - 1; }
+  if (field_len <= 0) { return 0 - 1; }
+  if (out_name == 0) { return 0 - 1; }
+  let pos: i32 = 0;
+  let pi: i32 = 0;
+  let same_prefix: i32 = 0;
+  if (pre != 0) {
+    if (pre_len > 0) {
+      if (field_len >= pre_len) {
+        same_prefix = 1;
+        pi = 0;
+        while (pi < pre_len) {
+          if (field_name[pi] != pre[pi]) {
+            same_prefix = 0;
+            pi = pre_len;
+          } else {
+            pi = pi + 1;
+          }
+        }
+      }
+    }
   }
+  pi = 0;
+  if (pre != 0) {
+    if (pre_len > 0) {
+      if (same_prefix == 0) {
+        while (pi < pre_len) {
+          if (pos < 63) {
+            out_name[pos] = pre[pi];
+            pos = pos + 1;
+            pi = pi + 1;
+          } else {
+            pi = pre_len;
+          }
+        }
+      }
+    }
+  }
+  pi = 0;
+  while (pi < field_len) {
+    if (pos < 63) {
+      out_name[pos] = field_name[pi];
+      pos = pos + 1;
+      pi = pi + 1;
+    } else {
+      pi = field_len;
+    }
+  }
+  if (pos <= 0) { return 0 - 1; }
+  return pos;
 }
 
 /** Number of "." segments in import path buffer (matches typeck_import_path_segment_count). */
