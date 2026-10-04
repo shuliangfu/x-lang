@@ -35234,7 +35234,7 @@ struct xlang_slice_uint8_t pipeline_source_slice(uint8_t *data, int32_t len) {
  * @param len byte length; <=0 or >INT32_MAX -> no-op
  * PLATFORM: SHARED — Darwin / Ubuntu product -o collect-deps; leftover PE rest ALWAYS T.
  */
-extern struct lexer_Lexer lexer_init(void);
+extern void lexer_init(struct lexer_Lexer *out);
 extern void parser_collect_imports_buf(struct lexer_Lexer lex, uint8_t *data, int32_t len, void *module,
                                        struct parser_CollectImportsResult *out);
 void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t len) {
@@ -35246,7 +35246,7 @@ void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t 
   if (len > 2147483647)
     return;
   n = (int32_t)len;
-  lex = lexer_init();
+  lexer_init(&lex);
   import_res.lex = lex;
   parser_collect_imports_buf(lex, data, n, module, &import_res);
 }

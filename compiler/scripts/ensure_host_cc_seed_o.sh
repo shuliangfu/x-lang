@@ -14522,6 +14522,20 @@ ensure_enc_dispatch_pure() {
 # Failure logs build_asm/g05_xasm_crash.log and returns 1 (no C fallback);
 # g05_ensure refuses to continue when the object lacks the anchor.
 # PLATFORM: SHARED.
+# w2055: an anchor only proves which source built the object, not which
+# compiler. A cold chain links a new ./xlang each generation, so an object
+# older than the active compiler is stale even when its .x is untouched and
+# its anchor is present. Returns 0 when the object is at least as new as the
+# compiler that rt_prefer_try_x_to_o would use. PLATFORM: SHARED.
+r3_o_newer_than_active_compiler() {
+  local _o="$1" _c=""
+  if [ -x ./xlang ]; then _c=./xlang
+  elif [ -x ./xlang-c ]; then _c=./xlang-c
+  elif [ -x ./bootstrap_xlangc ]; then _c=./bootstrap_xlangc
+  else return 1; fi
+  [ -f "$_o" ] && [ ! "$_c" -nt "$_o" ]
+}
+
 ensure_call_dispatch_full_x() {
   local o="src/asm/backend_call_dispatch.o"
   local x_src="src/asm/backend_call_dispatch.x"
@@ -14531,7 +14545,8 @@ ensure_call_dispatch_full_x() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
-    && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor"; then
+    && r3_prefer_nm_has_sym "$o" "backend_call_dispatch_x_w1524_anchor" \
+    && r3_o_newer_than_active_compiler "$o"; then
     log "skip up-to-date $o (call dispatch full .x w1524)"
     return 0
   fi
@@ -14574,7 +14589,8 @@ ensure_r3_full_x_pure_w1525() {
     return 1
   fi
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
-    && r3_prefer_nm_has_sym "$o" "$anchor_sym"; then
+    && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
+    && r3_o_newer_than_active_compiler "$o"; then
     log "skip up-to-date $o (full .x pure asm w1525)"
     return 0
   fi
