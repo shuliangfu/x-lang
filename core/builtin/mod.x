@@ -37,10 +37,22 @@ export function abort(): void { panic(); }
 export function min_i32(a: i32, b: i32): i32 { return if (a < b) { a } else { b }; }
 /** `max_i32`: see signature for params/returns; contracts in body. */
 export function max_i32(a: i32, b: i32): i32 { return if (a > b) { a } else { b }; }
-/** `min_u32`: see signature for params/returns; contracts in body. */
-export function min_u32(a: u32, b: u32): u32 { return if (a < b) { a } else { b }; }
-/** `max_u32`: see signature for params/returns; contracts in body. */
-export function max_u32(a: u32, b: u32): u32 { return if (a > b) { a } else { b }; }
+/**
+ * Smaller of two u32 values.
+ * @param a u32 — first value
+ * @param b u32 — second value
+ * @return i32 — the smaller value in eax. Low 32 bits match u32.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u32 return.
+ */
+export function min_u32(a: u32, b: u32): i32 { return if (a < b) { a as i32 } else { b as i32 }; }
+/**
+ * Larger of two u32 values.
+ * @param a u32 — first value
+ * @param b u32 — second value
+ * @return i32 — the larger value in eax. Low 32 bits match u32.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u32 return.
+ */
+export function max_u32(a: u32, b: u32): i32 { return if (a > b) { a as i32 } else { b as i32 }; }
 
 // --- section ---
 // clz_u32
@@ -73,25 +85,42 @@ export function popcount_u32(x: u32): i32 {
   return c;
 }
 
-/** `bswap_u32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function bswap_u32(x: u32): u32 {
+/**
+ * Reverse the four bytes of a u32.
+ * @param x u32 — value to swap
+ * @return i32 — swapped bytes in eax. Low 32 bits match u32.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u32 return.
+ */
+export function bswap_u32(x: u32): i32 {
   let b0: u32 = (x >> 24) & 255;
   let b1: u32 = (x >> 16) & 255;
   let b2: u32 = (x >> 8) & 255;
   let b3: u32 = x & 255;
-  return (b3 << 24) | (b2 << 16) | (b1 << 8) | b0;
+  return ((b3 << 24) | (b2 << 16) | (b1 << 8) | b0) as i32;
 }
 
-/** `rotl_u32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function rotl_u32(x: u32, count: u32): u32 {
+/**
+ * Rotate a u32 left by count bits.
+ * @param x u32 — value to rotate
+ * @param count u32 — bit count; only the low 5 bits are used
+ * @return i32 — rotated value in eax. Low 32 bits match u32.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u32 return.
+ */
+export function rotl_u32(x: u32, count: u32): i32 {
   let c: u32 = count % 32;
-  if (c == 0) { return x; }
-  return (x << c) | (x >> (32 - c));
+  if (c == 0) { return x as i32; }
+  return ((x << c) | (x >> (32 - c))) as i32;
 }
 
-/** `rotr_u32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function rotr_u32(x: u32, count: u32): u32 {
+/**
+ * Rotate a u32 right by count bits.
+ * @param x u32 — value to rotate
+ * @param count u32 — bit count; only the low 5 bits are used
+ * @return i32 — rotated value in eax. Low 32 bits match u32.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u32 return.
+ */
+export function rotr_u32(x: u32, count: u32): i32 {
   let c: u32 = count % 32;
-  if (c == 0) { return x; }
-  return (x >> c) | (x << (32 - c));
+  if (c == 0) { return x as i32; }
+  return ((x >> c) | (x << (32 - c))) as i32;
 }
