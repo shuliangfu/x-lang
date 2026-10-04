@@ -10,11 +10,10 @@ struct Quad {
 }
 
 impl Quad {
-  /**
-   * Last field of a 16B receiver (offset 12 lives in rdx).
-   * @param self Quad — copied dual-GP receiver
-   * @return i32 — self.d
-   */
+  // Last field of a 16B receiver (offset 12 lives in rdx).
+  // @param self Quad — copied dual-GP receiver
+  // @return i32 — self.d
+  // A block comment here stays open on the installed product lexer.
   function last(self: Quad): i32 {
     return self.d;
   }
