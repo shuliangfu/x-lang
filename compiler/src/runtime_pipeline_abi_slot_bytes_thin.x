@@ -56,6 +56,8 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
  * wave268 pure: G.7 authority (was static asm_slot_bytes_named_in_mod).
  * PLATFORM: SHARED freestanding nest ZST · LINUX gold.
  */
+// w2055: slot.o overrides the pabi copy by this bare name.
+#[no_mangle]
 function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
   let name: u8[256] = [];
@@ -320,6 +322,8 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
  * wave268 pure: G.7 authority (was static asm_local_slot_bytes_mod).
  * PLATFORM: SHARED freestanding stack · LINUX gold · MACOS co-path.
  */
+// w2055: slot.o overrides the pabi copy by this bare name.
+#[no_mangle]
 function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let nt: i32 = 0;
   let ko: i32 = 0;

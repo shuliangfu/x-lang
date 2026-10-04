@@ -14549,7 +14549,8 @@ ensure_call_dispatch_full_x() {
   fi
   printf '%s ensure: call dispatch %s failed (one shot, w1526)\n' \
     "$(date +%H:%M:%S)" "$x_src" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-  rm -f "$tmp_o"
+  # w2055: drop the old object too (see ensure_r3_full_x_pure_w1525).
+  rm -f "$tmp_o" "$o"
   echo "ensure: call dispatch $x_src failed; no retry, no C fallback" >&2
   return 1
 }
@@ -14581,13 +14582,15 @@ ensure_r3_full_x_pure_w1525() {
   rm -f "$tmp_o"
   if ! ( export XLANG_PREFER_ASM_O=1; unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME XLANG_PREFER_ASM_O_ONLY; \
       pure_asm_x_to_o "$tmp_o" "$x_src" ) || [ ! -s "$tmp_o" ]; then
-    rm -f "$tmp_o"
+    # w2055: also drop the old object, so a stale build cannot pass the
+    # anchor check in g05_ensure. PLATFORM: SHARED.
+    rm -f "$tmp_o" "$o"
     echo "ensure: $o pure asm of $x_src failed; no C fallback" >&2
     return 1
   fi
   for sym in "$@"; do
     if ! r3_prefer_nm_has_sym "$tmp_o" "$sym"; then
-      rm -f "$tmp_o"
+      rm -f "$tmp_o" "$o"
       echo "ensure: $o from $x_src lacks $sym; no C fallback" >&2
       return 1
     fi
@@ -14655,7 +14658,11 @@ ensure_r3_prefer_one() {
     # seed rest (slice marker + module_ref accessor) moved into the .x; the
     # seed is deleted. One pure-asm shot, no thin rung, no retry, no cc.
     src/asm/backend_try_inline_dispatch.o)
-      ensure_r3_full_x_pure_w1525 "$o" src/asm/backend_try_inline_dispatch.x \
+      # w2055: on arm64 and Windows x64 the i64 / and % in
+      # glue_const_scalar_binop_eval_i32 get a divide-by-zero check that
+      # calls xlang_panic_; the weak body is in lexer_x.o (same as the
+      # parser, codegen, and typeck objects). PLATFORM: SHARED flag.
+      XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$o" src/asm/backend_try_inline_dispatch.x \
         backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker \
         glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at \
         try_inline_x_plus_k_call_elf || return 1
@@ -14763,9 +14770,17 @@ ensure_r3_prefer() {
     echo "ensure_host_cc_seed_o r3-prefer: empty R3_COLD_SEED_OBJS" >&2
     exit 1
   fi
+  # w2055: one failed member used to stop the loop, so every member after it
+  # kept its old object (Darwin/Win kept a 10-01 call dispatch for days).
+  # Build every member, then fail if any failed. PLATFORM: SHARED.
+  local bad=""
   for o in $list; do
-    ensure_r3_prefer_one "$o" || return 1
+    ensure_r3_prefer_one "$o" || bad="$bad $o"
   done
+  if [ -n "$bad" ]; then
+    echo "ensure_host_cc_seed_o r3-prefer: FAILED:$bad" >&2
+    return 1
+  fi
 }
 
 

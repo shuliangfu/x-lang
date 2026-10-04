@@ -102,6 +102,13 @@ if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_
       *) objcopy --weaken-symbol="$_sym" "$_slot_tmp" ;;
     esac
   done < <(nm "$_slot_tmp" | awk '$2=="T"{print $3}')
+  # w2055: the override only works under the pabi names. A renamed
+  # definition (module prefix) left the buggy pabi copy live, so stop here.
+  if ! nm "$_slot_tmp" | awk '$2=="T"&&$3=="pipe_slot_bytes_named_in_mod"{f++} $2=="T"&&$3=="asm_fixed_array_total_bytes_mod"{f++} $2=="T"&&$3=="pipe_local_slot_bytes_mod"{f++} END{exit f!=3}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_slot_src lacks a strong slot sizer name" >&2
+    rm -f "$_slot_tmp"
+    exit 1
+  fi
   mv -f "$_slot_tmp" "$_slot_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_slot_dst (named_in_mod+fixed_array strong)"
 fi
