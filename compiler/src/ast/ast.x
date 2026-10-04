@@ -826,19 +826,6 @@ export function expr_init_call_resolve(arena: *ASTArena, expr_ref: i32): void {
   }
 }
 
-/** Exported function `ast_expr_apply_call_resolve`.
- * Implements `ast_expr_apply_call_resolve`.
- * @param arena *ASTArena
- * @param call_expr_ref i32
- * @param dep_ix i32
- * @param func_ix i32
- * @return void
- */
-export function ast_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void {
-  unsafe {
-    pipeline_expr_apply_call_resolve(arena, call_expr_ref, dep_ix, func_ix);
-  }
-}
 
 /* See implementation. */
 export extern function ast_arena_expr_get(arena: *ASTArena, ref: i32): Expr;
@@ -871,22 +858,6 @@ export function ast_name_bytes_equal(a_nm: *u8, a_len: i32, b_nm: *u8, b_len: i3
   return true;
 }
 
-/** Exported function `ast_block_final_expr_ref`.
- * Implements `ast_block_final_expr_ref`.
- * @param a *ASTArena
- * @param body_ref i32
- * @return i32
- */
-export function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
-  if (body_ref <= 0 || body_ref > a.num_blocks) {
-    return 0;
-  }
-  let blk: Block;
-  unsafe {
-    blk = ast_arena_block_get(a, body_ref);
-  }
-  return blk.final_expr_ref;
-}
 
 /**
  * See implementation.
@@ -894,120 +865,12 @@ export function ast_block_final_expr_ref(a: *ASTArena, body_ref: i32): i32 {
  */
 export extern function implicit_tail_expr_disallowed_by_glue(a: *ASTArena, expr_ref: i32): bool;
 
-/** Exported function `ast_expr_disallows_implicit_tail`.
- * Implements `ast_expr_disallows_implicit_tail`.
- * @param a *ASTArena
- * @param expr_ref i32
- * @return bool
- */
-export function ast_expr_disallows_implicit_tail(a: *ASTArena, expr_ref: i32): bool {
-  unsafe {
-    return implicit_tail_expr_disallowed_by_glue(a, expr_ref);
-  }
-}
 
-/** Exported function `ast_block_num_consts`.
- * Implements `ast_block_num_consts`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_consts(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  /* See implementation. */
-  let blk_nc: Block;
-  unsafe {
-    blk_nc = ast_arena_block_get(a, br);
-  }
-  return blk_nc.num_consts;
-}
 
-/** Exported function `ast_block_num_lets`.
- * Implements `ast_block_num_lets`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_lets(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nl: Block;
-  unsafe {
-    blk_nl = ast_arena_block_get(a, br);
-  }
-  return blk_nl.num_lets;
-}
 
-/** Exported function `ast_block_num_loops`.
- * Implements `ast_block_num_loops`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_loops(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nlp: Block;
-  unsafe {
-    blk_nlp = ast_arena_block_get(a, br);
-  }
-  return blk_nlp.num_loops;
-}
 
-/** Exported function `ast_block_num_for_loops`.
- * Implements `ast_block_num_for_loops`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_for_loops(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nfp: Block;
-  unsafe {
-    blk_nfp = ast_arena_block_get(a, br);
-  }
-  return blk_nfp.num_for_loops;
-}
 
-/** Exported function `ast_block_num_if_stmts`.
- * Implements `ast_block_num_if_stmts`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_if_stmts(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nif: Block;
-  unsafe {
-    blk_nif = ast_arena_block_get(a, br);
-  }
-  return blk_nif.num_if_stmts;
-}
 
-/** Exported function `ast_block_num_regions`.
- * Implements `ast_block_num_regions`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_regions(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nr: Block;
-  unsafe {
-    blk_nr = ast_arena_block_get(a, br);
-  }
-  return blk_nr.num_regions;
-}
 
 /**
  * Number of labeled/goto stmts in the block (wave379 stmt_order kind=7).
@@ -1027,364 +890,26 @@ export function ast_block_num_labeled_stmts(a: *ASTArena, br: i32): i32 {
   return blk_nl.num_labeled_stmts;
 }
 
-/** Exported function `ast_block_region_body_ref`.
- * Implements `ast_block_region_body_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ri i32
- * @return i32
- */
-export function ast_block_region_body_ref(a: *ASTArena, br: i32, ri: i32): i32 {
-  unsafe {
-    return pipeline_block_region_body_ref(a, br, ri);
-  }
-}
 
-/** Exported function `ast_block_num_expr_stmts`.
- * Implements `ast_block_num_expr_stmts`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_expr_stmts(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nes: Block;
-  unsafe {
-    blk_nes = ast_arena_block_get(a, br);
-  }
-  return blk_nes.num_expr_stmts;
-}
 
-/** Exported function `ast_block_num_stmt_order`.
- * Implements `ast_block_num_stmt_order`.
- * @param a *ASTArena
- * @param br i32
- * @return i32
- */
-export function ast_block_num_stmt_order(a: *ASTArena, br: i32): i32 {
-  if (br <= 0 || br > a.num_blocks) {
-    return 0;
-  }
-  let blk_nso: Block;
-  unsafe {
-    blk_nso = ast_arena_block_get(a, br);
-  }
-  return blk_nso.num_stmt_order;
-}
 
-/** Exported function `ast_block_stmt_order_kind`.
- * Implements `ast_block_stmt_order_kind`.
- * @param a *ASTArena
- * @param br i32
- * @param si i32
- * @return u8
- */
-export function ast_block_stmt_order_kind(a: *ASTArena, br: i32, si: i32): u8 {
-  unsafe {
-    return pipeline_block_stmt_order_kind(a, br, si);
-  }
-}
 
-/** Exported function `ast_block_stmt_order_idx`.
- * Implements `ast_block_stmt_order_idx`.
- * @param a *ASTArena
- * @param br i32
- * @param si i32
- * @return i32
- */
-export function ast_block_stmt_order_idx(a: *ASTArena, br: i32, si: i32): i32 {
-  unsafe {
-    return pipeline_block_stmt_order_idx(a, br, si);
-  }
-}
 
-/** Exported function `ast_block_const_init_ref`.
- * Implements `ast_block_const_init_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ci i32
- * @return i32
- */
-export function ast_block_const_init_ref(a: *ASTArena, br: i32, ci: i32): i32 {
-  unsafe {
-    return pipeline_block_const_init_ref(a, br, ci);
-  }
-}
 
-/** Exported function `ast_block_const_type_ref`.
- * Implements `ast_block_const_type_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ci i32
- * @return i32
- */
-export function ast_block_const_type_ref(a: *ASTArena, br: i32, ci: i32): i32 {
-  unsafe {
-    return pipeline_block_const_type_ref(a, br, ci);
-  }
-}
 
-/** Exported function `ast_block_let_init_ref`.
- * Implements `ast_block_let_init_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param li i32
- * @return i32
- */
-export function ast_block_let_init_ref(a: *ASTArena, br: i32, li: i32): i32 {
-  unsafe {
-    return pipeline_block_let_init_ref(a, br, li);
-  }
-}
 
-/** Exported function `ast_block_let_type_ref`.
- * Implements `ast_block_let_type_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param li i32
- * @return i32
- */
-export function ast_block_let_type_ref(a: *ASTArena, br: i32, li: i32): i32 {
-  unsafe {
-    return pipeline_block_let_type_ref(a, br, li);
-  }
-}
 
-/** Exported function `ast_block_expr_stmt_ref`.
- * Implements `ast_block_expr_stmt_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ei i32
- * @return i32
- */
-export function ast_block_expr_stmt_ref(a: *ASTArena, br: i32, ei: i32): i32 {
-  unsafe {
-    return pipeline_block_expr_stmt_ref(a, br, ei);
-  }
-}
 
-/** Exported function `ast_block_while_cond_ref`.
- * Implements `ast_block_while_cond_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param wi i32
- * @return i32
- */
-export function ast_block_while_cond_ref(a: *ASTArena, br: i32, wi: i32): i32 {
-  unsafe {
-    return pipeline_block_while_cond_ref(a, br, wi);
-  }
-}
 
-/** Exported function `ast_block_while_body_ref`.
- * Implements `ast_block_while_body_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param wi i32
- * @return i32
- */
-export function ast_block_while_body_ref(a: *ASTArena, br: i32, wi: i32): i32 {
-  unsafe {
-    return pipeline_block_while_body_ref(a, br, wi);
-  }
-}
 
-/** Exported function `ast_block_for_init_ref`.
- * Implements `ast_block_for_init_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param fi i32
- * @return i32
- */
-export function ast_block_for_init_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  unsafe {
-    return pipeline_block_for_init_ref(a, br, fi);
-  }
-}
 
-/** Exported function `ast_block_for_cond_ref`.
- * Implements `ast_block_for_cond_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param fi i32
- * @return i32
- */
-export function ast_block_for_cond_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  unsafe {
-    return pipeline_block_for_cond_ref(a, br, fi);
-  }
-}
 
-/** Exported function `ast_block_for_step_ref`.
- * Implements `ast_block_for_step_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param fi i32
- * @return i32
- */
-export function ast_block_for_step_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  unsafe {
-    return pipeline_block_for_step_ref(a, br, fi);
-  }
-}
 
-/** Exported function `ast_block_for_body_ref`.
- * Implements `ast_block_for_body_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param fi i32
- * @return i32
- */
-export function ast_block_for_body_ref(a: *ASTArena, br: i32, fi: i32): i32 {
-  unsafe {
-    return pipeline_block_for_body_ref(a, br, fi);
-  }
-}
 
-/** Exported function `ast_block_if_cond_ref`.
- * Implements `ast_block_if_cond_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ii i32
- * @return i32
- */
-export function ast_block_if_cond_ref(a: *ASTArena, br: i32, ii: i32): i32 {
-  unsafe {
-    return pipeline_block_if_cond_ref(a, br, ii);
-  }
-}
 
-/** Exported function `ast_block_if_then_body_ref`.
- * Implements `ast_block_if_then_body_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ii i32
- * @return i32
- */
-export function ast_block_if_then_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
-  unsafe {
-    return pipeline_block_if_then_body_ref(a, br, ii);
-  }
-}
 
-/** Exported function `ast_block_if_else_body_ref`.
- * Implements `ast_block_if_else_body_ref`.
- * @param a *ASTArena
- * @param br i32
- * @param ii i32
- * @return i32
- */
-export function ast_block_if_else_body_ref(a: *ASTArena, br: i32, ii: i32): i32 {
-  unsafe {
-    return pipeline_block_if_else_body_ref(a, br, ii);
-  }
-}
 
-/**
- * See implementation.
- */
-export function ast_block_resolve_var_to_type_ref(a: *ASTArena, block_ref: i32, vname: *u8, vlen: i32): i32 {
-  unsafe {
-    return pipeline_block_resolve_var_type_ref(a, block_ref, vname, vlen);
-  }
-}
 
-/**
- * See implementation.
- * See implementation.
- */
-export function ast_arena_patch_block_parent_links(arena: *ASTArena, block_ref: i32, parent_ref: i32): void {
-  let stack_blk: i32[256] = [];
-  let stack_par: i32[256] = [];
-  let sp: i32 = 0;
-  let cur: i32 = 0;
-  let par: i32 = 0;
-  let wb: i32 = 0;
-  let fb: i32 = 0;
-  let tb: i32 = 0;
-  let eb: i32 = 0;
-  let rgb: i32 = 0;
-  let i: i32 = 0;
-  if (block_ref <= 0 || block_ref > arena.num_blocks) {
-    return;
-  }
-  stack_blk[sp] = block_ref;
-  stack_par[sp] = parent_ref;
-  sp = sp + 1;
-  while (sp > 0) {
-    sp = sp - 1;
-    cur = stack_blk[sp];
-    par = stack_par[sp];
-    if (cur <= 0 || cur > arena.num_blocks) {
-      continue;
-    }
-    if (par != 0) {
-      let b_head: Block;
-      unsafe {
-        b_head = ast_arena_block_get(arena, cur);
-      }
-      if (b_head.parent_block_ref == 0) {
-        b_head.parent_block_ref = par;
-        unsafe {
-          ast_arena_block_set(arena, cur, b_head);
-        }
-      }
-    }
-    let b: Block;
-    unsafe {
-      b = ast_arena_block_get(arena, cur);
-    }
-    i = 0;
-    while (i < b.num_loops) {
-      wb = ast_block_while_body_ref(arena, cur, i);
-      if (wb > 0 && sp < 256) {
-        stack_blk[sp] = wb;
-        stack_par[sp] = cur;
-        sp = sp + 1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < b.num_for_loops) {
-      fb = ast_block_for_body_ref(arena, cur, i);
-      if (fb > 0 && sp < 256) {
-        stack_blk[sp] = fb;
-        stack_par[sp] = cur;
-        sp = sp + 1;
-      }
-      i = i + 1;
-    }
-    i = 0;
-    while (i < b.num_if_stmts) {
-      tb = ast_block_if_then_body_ref(arena, cur, i);
-      if (tb > 0 && sp < 256) {
-        stack_blk[sp] = tb;
-        stack_par[sp] = cur;
-        sp = sp + 1;
-      }
-      eb = ast_block_if_else_body_ref(arena, cur, i);
-      if (eb > 0 && sp < 256) {
-        stack_blk[sp] = eb;
-        stack_par[sp] = cur;
-        sp = sp + 1;
-      }
-      i = i + 1;
-    }
-    /* See implementation. */
-    i = 0;
-    while (i < b.num_regions) {
-      rgb = ast_block_region_body_ref(arena, cur, i);
-      if (rgb > 0 && sp < 256) {
-        stack_blk[sp] = rgb;
-        stack_par[sp] = cur;
-        sp = sp + 1;
-      }
-      i = i + 1;
-    }
-  }
-}
 
 /* See implementation. */
 export extern function ast_arena_block_set(arena: *ASTArena, ref: i32, b: Block): void;
