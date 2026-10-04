@@ -942,11 +942,12 @@ export function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
   let copied: usize = 0;
   while (copied < len) {
     let chunk: usize = len - copied;
-    if (chunk > 262144) {
-      chunk = 262144;
+    // 262144 is i32. usize and i32 cannot be compared.
+    if (chunk > (262144 as usize)) {
+      chunk = 262144 as usize;
     }
     let nr: isize = fs_libc_read(fd_in, &buf[0], chunk);
-    if (nr <= 0) {
+    if (nr <= (0 as isize)) {
       break;
     }
     let nw: isize = fs_libc_write(fd_out, &buf[0], nr as usize);
@@ -954,7 +955,8 @@ export function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
       return -1;
     }
     copied = copied + (nr as usize);
-    if ((nr) < chunk) {
+    // nr is isize and chunk is usize.
+    if (nr < (chunk as isize)) {
       break;
     }
   }
