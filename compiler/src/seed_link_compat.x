@@ -16,7 +16,6 @@ export extern "C" function lsp_io_std_heap_std_heap_free(ptr: *u8): void;
 export extern "C" function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
 export extern "C" function std_heap_free(ptr: *u8): void;
 export extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
-export extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
@@ -160,68 +159,9 @@ export function ast_pipeline_module_struct_layout_set_packed(module: *u8, idx: i
   }
 }
 
-/** Exported function `backend_asm_ctx_slot_offset`.
- * Implements `backend_asm_ctx_slot_offset`.
- * @param ctx *u8
- * @param slot_idx i32
- * @return i32
- */
-#[no_mangle]
-export function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
-  unsafe {
-    let r: i32 = asm_ctx_local_offset_at(ctx, slot_idx);
-    return r;
-  }
-  return 0;
-}
-
-/* See implementation. */
-
-#[no_mangle]
-export function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
-                                                  out_cap: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_lsp_build_semantic_tokens_response`.
- * Purpose: implements `lsp_diag_lsp_build_semantic_tokens_response`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
-                                                     out_cap: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_hover_at`.
- * Purpose: implements `lsp_diag_hover_at`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
-                           out_cap: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_references_at`.
- * Purpose: implements `lsp_diag_references_at`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
-                                out_cols: *i32, max_refs: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_definition_at`.
- * Purpose: implements `lsp_diag_definition_at`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
-                                out_col: *i32): i32 {
-  return 0 - 1;
-}
+// backend.x owns backend_asm_ctx_slot_offset. lsp_diag_x.o owns the five
+// lsp_diag_* queries. The copies here were a second strong definition
+// (the lsp ones only returned -1).
 
 /* See implementation. */
 
