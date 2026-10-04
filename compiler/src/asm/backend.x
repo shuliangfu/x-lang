@@ -26,9 +26,11 @@
 const ast = import("ast");
 const codegen_outbuf_abi = import("codegen_outbuf_abi");
 const types = import("asm.types");
-const x86_64 = import("arch.x86_64");
-const arm64 = import("arch.arm64");
-const riscv64 = import("arch.riscv64");
+// Import the arch file stem. A dotted path prefixes calls with arch_,
+// while the encoder object exports the stem only.
+const x86_64 = import("x86_64");
+const arm64 = import("arm64");
+const riscv64 = import("riscv64");
 const elf = import("platform.elf");
 const backend_enc_dispatch = import("backend_enc_dispatch");
 
