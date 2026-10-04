@@ -18,23 +18,41 @@
 //
 // See implementation.
 
-/** Exported function `math_pi_c`.
- * Implements `math_pi_c`.
- * @return f64
+/**
+ * Write pi into the caller slot.
+ * A literal f64 return does not asm-emit on the installed product. f64 uses xmm0, not rax.
+ * @param out *f64 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function math_pi_c(): f64 {
-  return 3.14159265358979323846 as f64;
+export function math_pi_c(out: *f64): i32 {
+  let x: f64 = 3.14159265358979323846 as f64;
+  out[0] = x;
+  return 0;
 }
 
-/** Exported function `math_e_c`.
- * Implements `math_e_c`.
- * @return f64
+/**
+ * Write e into the caller slot.
+ * @param out *f64 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED — the installed product cannot asm-emit this f64 literal return.
  */
-export function math_e_c(): f64 {
-  return 2.7182818284590452354 as f64;
+export function math_e_c(out: *f64): i32 {
+  let x: f64 = 2.7182818284590452354 as f64;
+  out[0] = x;
+  return 0;
 }
 
-/** 2π。 */
-export function math_tau_c(): f64 {
-  return math_pi_c() * 2.0;
+/**
+ * Write tau (2 * pi) into the caller slot.
+ * @param out *f64 — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
+ */
+export function math_tau_c(out: *f64): i32 {
+  let p: f64 = 0.0;
+  math_pi_c(&p);
+  let t: f64 = p * 2.0;
+  out[0] = t;
+  return 0;
 }

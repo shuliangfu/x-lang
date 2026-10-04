@@ -30,8 +30,8 @@
  * Ubuntu x86_64 / Windows MSYS2); on Linux the link line includes
  * -lm via runtime_math_libm.o (see tests/lib/build-std-c-o.sh).
  *
- * Constant intrinsics: math_pi_c / math_e_c / math_tau_c return the
- * corresponding double-precision mathematical constants.
+ * Constant intrinsics: math_pi_c / math_e_c / math_tau_c write the
+ * corresponding double-precision constants through an out pointer.
  *
  * Special functions (STD-115): erf / erfc / log1p / expm1 exposed via
  * math_*_c wrappers for numerical and statistical use cases.
@@ -45,9 +45,9 @@
  * typeck enforcement (post-bootstrap) will reject unwrapped calls.
  */
 
-extern "C" function math_pi_c(): f64;
-extern "C" function math_e_c(): f64;
-extern "C" function math_tau_c(): f64;
+extern "C" function math_pi_c(out: *f64): i32;
+extern "C" function math_e_c(out: *f64): i32;
+extern "C" function math_tau_c(out: *f64): i32;
 extern "C" function math_floor_c(x: f64): f64;
 extern "C" function math_ceil_c(x: f64): f64;
 extern "C" function math_trunc_c(x: f64): f64;
@@ -75,7 +75,7 @@ extern "C" function math_fmax_c(a: f64, b: f64): f64;
  */
 export function pi(): f64 {
   let rc: f64 = 0.0;
-  unsafe { rc = math_pi_c(); }
+  unsafe { math_pi_c(&rc); }
   return rc;
 }
 
@@ -85,14 +85,14 @@ export function pi(): f64 {
  */
 export function e(): f64 {
   let rc: f64 = 0.0;
-  unsafe { rc = math_e_c(); }
+  unsafe { math_e_c(&rc); }
   return rc;
 }
 
 /** 2π。 */
 export function tau(): f64 {
   let rc: f64 = 0.0;
-  unsafe { rc = math_tau_c(); }
+  unsafe { math_tau_c(&rc); }
   return rc;
 }
 
