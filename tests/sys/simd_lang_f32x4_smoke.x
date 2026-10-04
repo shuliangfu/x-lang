@@ -11,18 +11,27 @@ const simd = import("std.simd.builtin");
 function main(): i32 {
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let b: Vec4f = [1.0, 1.0, 1.0, 1.0];
-  let s: Vec4f = simd.add_f32x4(a, b);
+  let s: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.add_f32x4(a, b, &s[0]) != 0) {
+    return 1;
+  }
   if (s[0] < 1.99 || s[0] > 2.01) {
     return 1;
   }
   if (s[3] < 4.99 || s[3] > 5.01) {
     return 2;
   }
-  let p: Vec4f = simd.mul_f32x4(s, b);
+  let p: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.mul_f32x4(s, b, &p[0]) != 0) {
+    return 3;
+  }
   if (p[0] < 1.99 || p[0] > 2.01) {
     return 3;
   }
-  let d: Vec4f = simd.sub_f32x4(p, b);
+  let d: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.sub_f32x4(p, b, &d[0]) != 0) {
+    return 4;
+  }
   if (d[0] < 0.99 || d[0] > 1.01) {
     return 4;
   }
