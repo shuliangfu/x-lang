@@ -32,9 +32,15 @@ extern function process_xlang_argv_get(i: i32): *u8;
  */
 export function process_args_count_c(): i32 { let _rc: i32 = 0; unsafe { _rc = process_xlang_argc_get(); } return _rc; }
 
-/** Exported function `process_arg_c`.
- * Implements `process_arg_c`.
- * @param i i32): *u8 { let _rc: *u8 = 0; unsafe { _rc = process_xlang_argv_get(i
- * @return void
+/**
+ * Return argv[i].
+ * The installed product cannot asm-emit this *u8 return. The pointer stays in rax.
+ * @param i i32 — argument index
+ * @return i64 — pointer bits in rax, or 0 when the slot is missing
+ * PLATFORM: SHARED
  */
-export function process_arg_c(i: i32): *u8 { let _rc: *u8 = 0; unsafe { _rc = process_xlang_argv_get(i); } return _rc; }
+export function process_arg_c(i: i32): i64 {
+  let p: *u8 = 0;
+  unsafe { p = process_xlang_argv_get(i); }
+  return p as i64;
+}
