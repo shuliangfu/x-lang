@@ -516,12 +516,21 @@ export struct StackStr {
   data: u8[32];
   length: i32;
 }
-/** Exported function `stack_str_new`.
- * Implements `stack_str_new`.
- * @return StackStr
+/**
+ * Write an empty stack string.
+ * StackStr is 32 data bytes plus a length, so returning it by value does not asm-emit.
+ * @param out *StackStr — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function stack_str_new(): StackStr {
-  return { data: [], length: 0 };
+export function stack_str_new(out: *StackStr): i32 {
+  let i: i32 = 0;
+  while (i < 32) {
+    out.data[i] = 0;
+    i = i + 1;
+  }
+  out.length = 0;
+  return 0;
 }
 /** Exported function `stack_str_len`.
  * Query helper `stack_str_len`.
@@ -574,15 +583,21 @@ export function stack_str_append_char(s: *StackStr, c: u8): i32 {
   return 0;
 }
 // See implementation.
-/** Exported function `new`.
- * Implements `new`.
- * @return String
+/**
+ * Write an empty string.
+ * String is 256 data bytes plus a length, so returning it by value does not asm-emit.
+ * @param out *String — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function new(): String {
-  return {
-    data: [],
-    length: 0
+export function new(out: *String): i32 {
+  let i: i32 = 0;
+  while (i < 256) {
+    out.data[i] = 0;
+    i = i + 1;
   }
+  out.length = 0;
+  return 0;
 }
 /** Exported function `len`.
  * Implements `len`.
@@ -614,31 +629,34 @@ export function string_is_empty_ptr(s: *String): i32 {
   if (s.length <= 0) { return 1; }
   return 0;
 }
-/** Exported function `string_from_char`.
- * Implements `string_from_char`.
- * @param c u8
- * @return String
+/**
+ * Write a one-character string.
+ * @param c u8 — the character stored at index 0
+ * @param out *String — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function string_from_char(c: u8): String {
-  let s: String = new();
-  let _discard: i32 = string_append_char(&s, c);
-  return s;
+export function string_from_char(c: u8, out: *String): i32 {
+  new(out);
+  return string_append_char(out, c);
 }
-/** Exported function `string_from_slice`.
- * Implements `string_from_slice`.
- * @param ptr *u8
- * @param len i32
- * @return String
+/**
+ * Copy up to 256 bytes into a string.
+ * @param ptr *u8 — source bytes; ignored when len is not positive
+ * @param len i32 — source length, clamped to 256
+ * @param out *String — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function string_from_slice(ptr: *u8, len: i32): String {
-  let s: String = new();
+export function string_from_slice(ptr: *u8, len: i32, out: *String): i32 {
   let n: i32 = len;
+  new(out);
   if (n > 256) { n = 256; }
   if (n > 0) {
-    string_copy_c(&s.data[0], ptr, n);
+    string_copy_c(&out.data[0], ptr, n);
   }
-  s.length = n;
-  return s;
+  out.length = n;
+  return 0;
 }
 /** Exported function `string_get`.
  * Implements `string_get`.
