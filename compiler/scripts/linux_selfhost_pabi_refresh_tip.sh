@@ -112,4 +112,37 @@ if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_
   mv -f "$_slot_tmp" "$_slot_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_slot_dst (named_in_mod+fixed_array strong)"
 fi
+# 4. w2055 collect-deps import scan: cimp.o keeps
+#    xlang_module_collect_imports_from_buf strong ahead of the pabi copy,
+#    whose old C body calls the struct-returning lexer_init(). Rebuild when
+#    the thin or the compiler is newer, or the name is not strong.
+_cimp_src=src/runtime_pipeline_abi_collect_imports_thin.x
+_cimp_dst="$OUT/cimp.o"
+if [ -f "$_cimp_src" ] && { [ ! -s "$_cimp_dst" ] || [ "$_cimp_src" -nt "$_cimp_dst" ] \
+    || [ "$XL" -nt "$_cimp_dst" ] \
+    || ! nm "$_cimp_dst" | awk '$2=="T"&&$3=="xlang_module_collect_imports_from_buf"{f=1} END{exit !f}'; }; then
+  _cimp_tmp="$OUT/cimp.tmp.o"
+  rm -f "$_cimp_dst"
+  if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_cimp_src" -o "$_cimp_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_cimp_src failed" >&2
+    rm -f "$_cimp_tmp"
+    exit 1
+  fi
+  while read -r _sym; do
+    [ -n "$_sym" ] || continue
+    [ "$_sym" = xlang_module_collect_imports_from_buf ] || objcopy --weaken-symbol="$_sym" "$_cimp_tmp"
+  done < <(nm "$_cimp_tmp" | awk '$2=="T"{print $3}')
+  if ! nm "$_cimp_tmp" | awk '$2=="T"&&$3=="xlang_module_collect_imports_from_buf"{f=1} END{exit !f}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_cimp_src lacks strong xlang_module_collect_imports_from_buf" >&2
+    rm -f "$_cimp_tmp"
+    exit 1
+  fi
+  if nm -u "$_cimp_tmp" | awk '$2=="lexer_init"{f=1} END{exit !f}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_cimp_src still calls lexer_init" >&2
+    rm -f "$_cimp_tmp"
+    exit 1
+  fi
+  mv -f "$_cimp_tmp" "$_cimp_dst"
+  echo "linux_selfhost_pabi_refresh_tip: $_cimp_dst (collect imports strong)"
+fi
 echo "linux_selfhost_pabi_refresh_tip: OK"

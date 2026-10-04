@@ -1071,6 +1071,12 @@ if [ -n "$_PABI_SELFHOST" ]; then
     fi
   done
 fi
+# w2055: collect-deps import scan ahead of the pabi copy (old C body calls
+# the struct-returning lexer_init). Built by linux_selfhost_pabi_refresh_tip.sh.
+# PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/cimp.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/cimp.o $_PABI_SELFHOST"
+fi
 # w1023: nested ARRAY_LIT local let-init → array_lit_flat. PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/vector_let_init_nested_override.c ]; then
   mkdir -p build_asm/selfhost_pabi

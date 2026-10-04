@@ -288,26 +288,5 @@ export function pipeline_source_slice(data: *u8, len: i32): SliceU8 {
   return parser_slice_from_buf(data, len);
 }
 
-/**
- * Collect top-level import paths from source bytes into module.
- * Thin wrap of parser_collect_imports_buf (*u8 ABI).
- * PLATFORM: SHARED Soft Cap (wave532 opaque CollectImportsResult).
- * The collect-deps caller uses the unprefixed C name. A module prefix
- * leaves the seed body linked: that body calls lexer_init, and the
- * current lexer_init writes its return bytes through rdi, which is
- * still the module pointer, so num_imports becomes 1 with an empty path.
- */
-#[no_mangle]
-export function xlang_module_collect_imports_from_buf(module: *u8, data: *u8, len: i64): void {
-  /* Soft Cap: inline lexer_init semantics (pos0/line1/col1) — Ubuntu tip drops
-   * Lexer sret mid-assign UND; ban CollectImportsResult{ bytes: [] } hang. */
-  let lex: Lexer = Lexer{ pos: 0 as usize, line: 1, col: 1 };
-  let import_res: CollectImportsResult;
-  let n: i32 = 0;
-  if (module == (0 as *u8) || data == (0 as *u8) || len <= 0) { return; }
-  if (len > 2147483647) { return; }
-  n = len as i32;
-  unsafe { memset(&import_res as *u8, 0, W532_COLLECT_SZ as usize); }
-  w532_lex_store(&import_res as *u8, 0, lex);
-  unsafe { parser_collect_imports_buf(lex, data, n, module, &import_res); }
-}
+// xlang_module_collect_imports_from_buf moved to
+// runtime_pipeline_abi_collect_imports_thin.x (w2055).
