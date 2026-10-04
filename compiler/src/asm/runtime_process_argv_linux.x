@@ -358,10 +358,11 @@ export function process_args_count_c(): i32 {
  * Weak fallback for std/process/process.x process_arg_c.
  * The ensure path weakens this name so the strong process.x body wins.
  * @param i i32 — argument index
- * @return *u8 — process_xlang_argv_get
- * PLATFORM: LINUX x86_64.
+ * @return i64 — argument pointer bits in rax, or 0; link name unchanged
+ * PLATFORM: LINUX — the installed product cannot asm-emit this *u8 return.
  */
 #[no_mangle]
-export function process_arg_c(i: i32): *u8 {
-  return process_xlang_argv_get(i);
+export function process_arg_c(i: i32): i64 {
+  let p: *u8 = process_xlang_argv_get(i);
+  return p as i64;
 }
