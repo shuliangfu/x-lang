@@ -931,9 +931,11 @@ export function onefunc_result_layout_prime(): void {
   // OneFuncResult.name is u8[256]. A shorter array is an assignment mismatch.
   let z64: u8[256] = [];
   /* See implementation. */
+  let init_lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&init_lex);
   let _prime: OneFuncResult = {
     ok: false,
-    next_lex: lexer.lexer_init(),
+    next_lex: init_lex,
     name: z64,
     name_len: 0,
     num_params: 0
@@ -1181,9 +1183,11 @@ export function onefunc_scratch_empty(): OneFuncResult {
   let z_call: u8[256] = [];
   let z_ret: u8[256] = [];
   // One store per field. Do not drop a field to shorten the literal.
+  let init_lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&init_lex);
   return {
     ok: false,
-    next_lex: lexer.lexer_init(),
+    next_lex: init_lex,
     name: z_name,
     name_len: 0,
     num_params: 0,
@@ -3878,7 +3882,8 @@ export function parse(source: u8[]): ParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let arena_heap_bytes: usize = pipeline_sizeof_arena();
-  let lex: Lexer = lexer.lexer_init();
+  let lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
   let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
@@ -5260,7 +5265,8 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
   unsafe {
   let depth: i32 = 1;
   while (depth > 0) {
-    let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    lexer.lexer_next_buf(&r, lex, data, len);
     if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) { depth = depth + 1; }
     else if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
       depth = depth - 1;
@@ -5335,7 +5341,8 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
   unsafe {
   let depth: i32 = 1;
   while (depth > 0) {
-    let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    lexer.lexer_next_buf(&r, lex, data, len);
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) { depth = depth + 1; }
     else if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       depth = depth - 1;
@@ -8223,7 +8230,8 @@ export function module_append_enum_variants_and_skip_body_into_buf(module: *Modu
   let depth: i32 = 1;
   let slen: usize = len as usize;
   while (depth > 0) {
-    let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    lexer.lexer_next_buf(&r, lex, data, len);
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       depth = depth - 1;
       if (depth == 0) {
@@ -9449,7 +9457,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   /* wave421/wave425: trait registry + stash arena for ret kinds (parse_into twin of buf). */
   xlang_trait_reg_reset_c(arena);
   /* See implementation. */
-  let lex: Lexer = lexer.lexer_init();
+  let lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
   let main_idx: i32 = -1;
   /* skip_one_impl leaves the lexer inside `{...}`; this nest counts those
    * bodies so the matching `}` is an impl closer, not unexpected junk. */
@@ -9756,7 +9765,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
      */
     let pe_fn: i32 = module.pending_export;
     module.pending_export = 0;
-    let lex_at_function: Lexer = lexer.lexer_init();
+    let lex_at_function: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+    lexer.lexer_init(&lex_at_function);
     lex_at_function = current_tok_lex;
     lex_from_next_into(&lex, r);
     // OneFuncResult.name and the wire-dummy formals are u8[256].
@@ -11649,7 +11659,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   parser_sig_type_hard_reset_c();
   /* wave421/wave425: trait method + impl-seen tables; stash arena for ret kinds. */
   xlang_trait_reg_reset_c(arena);
-  let lex: Lexer = lexer.lexer_init();
+  let lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
   let main_idx: i32 = -1;
   /* skip_one_impl leaves the lexer inside `{...}`; this nest counts those
    * bodies so the matching `}` is an impl closer, not unexpected junk. */
@@ -11999,7 +12010,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
      */
     let pe_fn_buf: i32 = module.pending_export;
     module.pending_export = 0;
-    let lex_at_function_buf: Lexer = lexer.lexer_init();
+    let lex_at_function_buf: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+    lexer.lexer_init(&lex_at_function_buf);
     lex_at_function_buf = current_tok_lex_buf;
     lex_from_next_into(&lex, r);
     /* See implementation. */

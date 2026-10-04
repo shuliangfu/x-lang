@@ -38,23 +38,25 @@ export function main(): i32 {
   unsafe {
     sl = lexer.lexer_slice_from_raw(&src[0], 11);
   }
-  let lex: lexer.Lexer = lexer.lexer_init();
-  let r: lexer.LexerResult = lexer.lexer_next_slice(lex, sl);
+  let lex: lexer.Lexer = { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
+  let r: lexer.LexerResult = { next_lex: lex, tok: { kind: (0 as token.TokenKind), line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  lexer.lexer_next_slice(&r, lex, sl);
   if (r.tok.kind != (2 as token.TokenKind)) { return 1; }
   lex = r.next_lex;
-  r = lexer.lexer_next_slice(lex, sl);
+  lexer.lexer_next_slice(&r, lex, sl);
   if (r.tok.kind != (59 as token.TokenKind)) { return 2; }
   lex = r.next_lex;
-  r = lexer.lexer_next_slice(lex, sl);
+  lexer.lexer_next_slice(&r, lex, sl);
   if (r.tok.kind != (117 as token.TokenKind)) { return 3; }
   lex = r.next_lex;
-  r = lexer.lexer_next_slice(lex, sl);
+  lexer.lexer_next_slice(&r, lex, sl);
   if (r.tok.kind != (80 as token.TokenKind)) { return 4; }
   lex = r.next_lex;
-  r = lexer.lexer_next_slice(lex, sl);
+  lexer.lexer_next_slice(&r, lex, sl);
   if (r.tok.kind != (95 as token.TokenKind)) { return 5; }
   lex = r.next_lex;
-  r = lexer.lexer_next_slice(lex, sl);
+  lexer.lexer_next_slice(&r, lex, sl);
   if (r.tok.kind != (0 as token.TokenKind)) { return 6; }
   return 0;
 }
