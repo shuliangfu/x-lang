@@ -137,44 +137,45 @@ export function diag_kind_contains(kind: *u8, needle: *u8): i32 {
   return 0;
 }
 
+// PLATFORM: SHARED — installed product cannot asm-emit a *u8 or usize return; rax still holds the bits.
 /** Exported function `diag_color_prefix`.
  * Implements `diag_color_prefix`.
  * @param plain *u8
  * @param color *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  */
 #[no_mangle]
-export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
+export function diag_color_prefix(plain: *u8, color: *u8): i64 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
-      return color;
+      return (color) as i64;
     }
-    return plain;
+    return (plain) as i64;
   }
-  return plain;
+  return (plain) as i64;
 }
 
 // ---- G-02f-336 context / code-table gates ----
 
 /** Exported function `diag_get_file`.
  * Implements `diag_get_file`.
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  */
 #[no_mangle]
-export function diag_get_file(): *u8 {
+export function diag_get_file(): i64 {
   unsafe {
-    return diag_ctx_get_file();
+    return (diag_ctx_get_file() as *u8) as i64;
   }
 }
 
 /** Exported function `diag_get_source`.
  * Implements `diag_get_source`.
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  */
 #[no_mangle]
-export function diag_get_source(): *u8 {
+export function diag_get_source(): i64 {
   unsafe {
-    return diag_ctx_get_source();
+    return (diag_ctx_get_source() as *u8) as i64;
   }
 }
 
@@ -203,37 +204,37 @@ export function diag_code_is_known(code: *u8): i32 {
 /**
  * Kind word for a known diagnostic code, or null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_kind(code: *u8): *u8 {
+export function diag_code_kind(code: *u8): i64 {
   unsafe {
-    return diag_entry_kind(code);
+    return (diag_entry_kind(code) as *u8) as i64;
   }
 }
 /**
  * Summary for a known diagnostic code, or null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_summary(code: *u8): *u8 {
+export function diag_code_summary(code: *u8): i64 {
   unsafe {
-    return diag_entry_summary(code);
+    return (diag_entry_summary(code) as *u8) as i64;
   }
 }
 /**
  * Details for a known diagnostic code, or null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_details(code: *u8): *u8 {
+export function diag_code_details(code: *u8): i64 {
   unsafe {
-    return diag_entry_details(code);
+    return (diag_entry_details(code) as *u8) as i64;
   }
 }
 
@@ -436,15 +437,15 @@ export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
  * Implements `diag_snap_load_ptr`.
  * @param snap *u8
  * @param off i32
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  */
 #[no_mangle]
-export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
+export function diag_snap_load_ptr(snap: *u8, off: i32): i64 {
   // The eight live multiplies store past a short frame. The pad widens it.
   let pad: u8[128] = [];
   pad[0] = 0;
   if (snap == 0 as *u8) {
-    return 0 as *u8;
+    return (0 as *u8) as i64;
   }
   unsafe {
     let q: *u8 = snap + off;
@@ -459,24 +460,24 @@ export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
     let a5: usize = a4 + (q[5] as usize) * (m4 * m);
     let a6: usize = a5 + (q[6] as usize) * (m4 * m2);
     let a7: usize = a6 + (q[7] as usize) * (m4 * m2 * m);
-    return a7 as *u8;
+    return (a7 as *u8) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `diag_snap_load_usize`.
  * Implements `diag_snap_load_usize`.
  * @param snap *u8
  * @param off i32
- * @return usize
+ * @return i64 — usize bits in rax; link name unchanged
  */
 #[no_mangle]
-export function diag_snap_load_usize(snap: *u8, off: i32): usize {
+export function diag_snap_load_usize(snap: *u8, off: i32): i64 {
   // Same frame widen as diag_snap_load_ptr. PLATFORM: SHARED.
   let pad: u8[128] = [];
   pad[0] = 0;
   if (snap == 0 as *u8) {
-    return 0;
+    return (0) as i64;
   }
   unsafe {
     let q: *u8 = snap + off;
@@ -491,9 +492,9 @@ export function diag_snap_load_usize(snap: *u8, off: i32): usize {
     let a5: usize = a4 + (q[5] as usize) * (m4 * m);
     let a6: usize = a5 + (q[6] as usize) * (m4 * m2);
     let a7: usize = a6 + (q[7] as usize) * (m4 * m2 * m);
-    return a7;
+    return (a7) as i64;
   }
-  return 0;
+  return (0) as i64;
 }
 
 /** Exported function `diag_snap_load_i32`.
@@ -537,8 +538,8 @@ export function diag_push_snap_save(snapshot: *u8): void {
     return;
   }
   unsafe {
-    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file());
-    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source());
+    diag_snap_store_ptr(snapshot, 0, diag_ctx_get_file() as *u8);
+    diag_snap_store_ptr(snapshot, 8, diag_ctx_get_source() as *u8);
     diag_snap_store_usize(snapshot, 16, diag_ctx_get_source_len() as usize);
     diag_snap_store_i32(snapshot, 24, diag_ctx_get_use_color());
   }
@@ -567,10 +568,10 @@ export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len
   diag_push_snap_save(snapshot);
   unsafe {
     if (p == 0 as *u8) {
-      p = diag_ctx_get_file();
+      p = diag_ctx_get_file() as *u8;
     }
     if (s == 0 as *u8) {
-      s = diag_ctx_get_source();
+      s = diag_ctx_get_source() as *u8;
       sl = diag_ctx_get_source_len();
     }
     diag_ctx_set_all(p, s, sl, diag_should_color());
@@ -588,9 +589,9 @@ export function diag_restore(snapshot: *u8): void {
     return;
   }
   unsafe {
-    let p: *u8 = diag_snap_load_ptr(snapshot, 0);
-    let s: *u8 = diag_snap_load_ptr(snapshot, 8);
-    let sl: usize = diag_snap_load_usize(snapshot, 16);
+    let p: *u8 = diag_snap_load_ptr(snapshot, 0) as *u8;
+    let s: *u8 = diag_snap_load_ptr(snapshot, 8) as *u8;
+    let sl: usize = diag_snap_load_usize(snapshot, 16) as usize;
     let c: i32 = diag_snap_load_i32(snapshot, 24);
     diag_ctx_set_all(p, s, sl as i64, c);
   }
@@ -625,20 +626,20 @@ export function diag_should_color(): i32 {
  * Return the ANSI reset sequence when color is on, otherwise "".
  * The use_color flag stays in the seed and is read through
  * diag_ctx_get_use_color. The reset bytes are "\x1b[0m".
- * @return *u8 — reset sequence or an empty string
+ * @return i64 — pointer bits in rax; link name unchanged — reset sequence or an empty string
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_color_reset(): *u8 {
+export function diag_color_reset(): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
-      return "\x1b[0m";
+      return ("\x1b[0m") as i64;
     }
-    return "";
+    return ("") as i64;
   }
-  return "";
+  return ("") as i64;
 }
 
 /**
@@ -727,7 +728,7 @@ export function diag_extract_line(line_no: i32, line_start_out: *u8, line_len_ou
     return 0 - 1;
   }
   unsafe {
-    src = diag_ctx_get_source();
+    src = diag_ctx_get_source() as *u8;
     len64 = diag_ctx_get_source_len();
   }
   if (src == 0 as *u8) {
@@ -807,7 +808,7 @@ export function diag_print_header(kind: *u8, code: *u8, msg: *u8, kind_color: *u
     rs = "";
   }
   unsafe {
-    err = diag_stderr();
+    err = diag_stderr() as *u8;
     if (k[0] == 0) {
       diag_io_fputs(m, err);
       diag_io_fputc(err, 10);
@@ -846,14 +847,14 @@ export function diag_print_code_table(out: *u8): void {
   pad[0] = 0;
   unsafe {
     if (o == 0 as *u8) {
-      o = diag_stdout();
+      o = diag_stdout() as *u8;
     }
     diag_io_fprint_code_table_hdr(o);
     n = diag_code_table_len();
     while (i < n) {
-      let c: *u8 = diag_code_table_code_at(i);
-      let k: *u8 = diag_code_table_kind_at(i);
-      let s: *u8 = diag_code_table_summary_at(i);
+      let c: *u8 = diag_code_table_code_at(i) as *u8;
+      let k: *u8 = diag_code_table_kind_at(i) as *u8;
+      let s: *u8 = diag_code_table_summary_at(i) as *u8;
       diag_io_fprint_code_table_row(o, c, k, s);
       i = i + 1;
     }
@@ -876,11 +877,11 @@ export function diag_print_known_codes(out: *u8): void {
   pad[0] = 0;
   unsafe {
     if (o == 0 as *u8) {
-      o = diag_stdout();
+      o = diag_stdout() as *u8;
     }
     n = diag_code_table_len();
     while (i < n) {
-      let c: *u8 = diag_code_table_code_at(i);
+      let c: *u8 = diag_code_table_code_at(i) as *u8;
       if (i != 0) {
         diag_io_fputs(", ", o);
       }
@@ -910,9 +911,9 @@ export function diag_print_code_explain(out: *u8, code: *u8): void {
   pad[0] = 0;
   unsafe {
     if (o == 0 as *u8) {
-      o = diag_stdout();
+      o = diag_stdout() as *u8;
     }
-    let ec: *u8 = diag_entry_code(code);
+    let ec: *u8 = diag_entry_code(code) as *u8;
     if (ec == 0 as *u8) {
       diag_io_fprint_unknown_code(o, code);
       diag_io_fputs("Known codes: ", o);
@@ -922,19 +923,19 @@ export function diag_print_code_explain(out: *u8, code: *u8): void {
     diag_io_fputs(ec, o);
     diag_io_fputc(o, 10);
     diag_io_fputs("Kind: ", o);
-    let k: *u8 = diag_entry_kind(code);
+    let k: *u8 = diag_entry_kind(code) as *u8;
     if (k != 0 as *u8) {
       diag_io_fputs(k, o);
     }
     diag_io_fputc(o, 10);
     diag_io_fputs("Summary: ", o);
-    let s: *u8 = diag_entry_summary(code);
+    let s: *u8 = diag_entry_summary(code) as *u8;
     if (s != 0 as *u8) {
       diag_io_fputs(s, o);
     }
     diag_io_fputc(o, 10);
     diag_io_fputs("Details: ", o);
-    let d: *u8 = diag_entry_details(code);
+    let d: *u8 = diag_entry_details(code) as *u8;
     if (d != 0 as *u8) {
       diag_io_fputs(d, o);
     }
@@ -963,7 +964,7 @@ export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8,
   pad[0] = 0;
   unsafe {
     if (actual_file == 0 as *u8) {
-      actual_file = diag_ctx_get_file();
+      actual_file = diag_ctx_get_file() as *u8;
     }
     if (diag_json_enabled() != 0) {
       diag_report_json(actual_file, line, col, kind, code, msg);
@@ -1009,33 +1010,33 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
   line_start_slot[0] = 0;
   line_len_slot[0] = 0;
   unsafe {
-    err = diag_stderr();
+    err = diag_stderr() as *u8;
     if (actual_file == 0 as *u8) {
-      actual_file = diag_ctx_get_file();
+      actual_file = diag_ctx_get_file() as *u8;
     }
-    kind_color = diag_color_prefix("", "\x1b[1;37m");
-    caret_color = diag_color_prefix("", "\x1b[37m");
+    kind_color = diag_color_prefix("", "\x1b[1;37m") as *u8;
+    caret_color = diag_color_prefix("", "\x1b[37m") as *u8;
     if (kind != 0 as *u8) {
       if (kind[0] != 0) {
         if (diag_kind_contains(kind, "error") != 0) {
-          kind_color = diag_color_prefix("", "\x1b[1;31m");
-          caret_color = diag_color_prefix("", "\x1b[31m");
+          kind_color = diag_color_prefix("", "\x1b[1;31m") as *u8;
+          caret_color = diag_color_prefix("", "\x1b[31m") as *u8;
         } else {
           if (diag_kind_contains(kind, "warning") != 0) {
-            kind_color = diag_color_prefix("", "\x1b[1;33m");
-            caret_color = diag_color_prefix("", "\x1b[33m");
+            kind_color = diag_color_prefix("", "\x1b[1;33m") as *u8;
+            caret_color = diag_color_prefix("", "\x1b[33m") as *u8;
           } else {
             if (diag_kind_is_exact(kind, "info") != 0) {
-              kind_color = diag_color_prefix("", "\x1b[1;36m");
-              caret_color = diag_color_prefix("", "\x1b[36m");
+              kind_color = diag_color_prefix("", "\x1b[1;36m") as *u8;
+              caret_color = diag_color_prefix("", "\x1b[36m") as *u8;
             } else {
               if (diag_kind_is_exact(kind, "note") != 0) {
-                kind_color = diag_color_prefix("", "\x1b[1;34m");
-                caret_color = diag_color_prefix("", "\x1b[34m");
+                kind_color = diag_color_prefix("", "\x1b[1;34m") as *u8;
+                caret_color = diag_color_prefix("", "\x1b[34m") as *u8;
               } else {
                 if (diag_kind_is_exact(kind, "help") != 0 || diag_kind_is_exact(kind, "hint") != 0) {
-                  kind_color = diag_color_prefix("", "\x1b[1;32m");
-                  caret_color = diag_color_prefix("", "\x1b[32m");
+                  kind_color = diag_color_prefix("", "\x1b[1;32m") as *u8;
+                  caret_color = diag_color_prefix("", "\x1b[32m") as *u8;
                 }
               }
             }
@@ -1043,8 +1044,8 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
         }
       }
     }
-    path_color = diag_color_prefix("", "\x1b[34m");
-    reset = diag_color_reset();
+    path_color = diag_color_prefix("", "\x1b[34m") as *u8;
+    reset = diag_color_reset() as *u8;
     if (line > 0) {
       if (diag_extract_line(line, &line_start_slot[0], &line_len_slot[0]) == 0) {
         have_line = 1;
@@ -1061,8 +1062,8 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
     if (have_line == 0 || line <= 0 || col <= 0) {
       return;
     }
-    line_start = diag_snap_load_ptr(&line_start_slot[0], 0);
-    line_len_u = diag_snap_load_usize(&line_len_slot[0], 0);
+    line_start = diag_snap_load_ptr(&line_start_slot[0], 0) as *u8;
+    line_len_u = diag_snap_load_usize(&line_len_slot[0], 0) as usize;
     width = diag_line_digits(line);
     diag_io_fprint_gutter_blank(err, width);
     diag_io_fprint_src_line(err, line, line_start, line_len_u as i32);
@@ -1323,8 +1324,8 @@ export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code
     m = "";
   }
   unsafe {
-    err = diag_stderr();
-    sev = diag_json_severity(kind);
+    err = diag_stderr() as *u8;
+    sev = diag_json_severity(kind) as *u8;
     diag_io_fputs("{\"severity\":", err);
     diag_json_write_str(err, sev);
     diag_io_fputs(",\"code\":", err);
@@ -1351,34 +1352,34 @@ export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code
  * keep their names. Exact help and hint both become "help".
  * Anything else, including a null or empty kind, is "error".
  * @param kind *u8 — severity word, or null
- * @return *u8 — static severity literal
+ * @return i64 — pointer bits in rax; link name unchanged — static severity literal
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_json_severity(kind: *u8): *u8 {
+export function diag_json_severity(kind: *u8): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
   if (kind == 0 as *u8) {
-    return "error";
+    return ("error") as i64;
   }
   unsafe {
     if (kind[0] == 0) {
-      return "error";
+      return ("error") as i64;
     }
     if (diag_kind_contains(kind, "warning") != 0) {
-      return "warning";
+      return ("warning") as i64;
     }
     if (diag_kind_is_exact(kind, "info") != 0) {
-      return "info";
+      return ("info") as i64;
     }
     if (diag_kind_is_exact(kind, "note") != 0) {
-      return "note";
+      return ("note") as i64;
     }
     if (diag_kind_is_exact(kind, "help") != 0 || diag_kind_is_exact(kind, "hint") != 0) {
-      return "help";
+      return ("help") as i64;
     }
   }
-  return "error";
+  return ("error") as i64;
 }
 
 /**
@@ -1392,11 +1393,11 @@ export function diag_json_severity(kind: *u8): *u8 {
  * @param code *u8 — unknown code, or null
  * @param out *u8 — destination, or null to query only
  * @param out_cap i64 — byte capacity of out
- * @return *u8 — out, the table code, or null
+ * @return i64 — pointer bits in rax; link name unchanged — out, the table code, or null
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
+export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): i64 {
   let n: i64 = 0;
   let code_len: i32 = 0;
   let best_dist: i32 = 999;
@@ -1405,12 +1406,12 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
   let pad: u8[32] = [];
   pad[0] = 0;
   if (code == 0 as *u8) {
-    return 0 as *u8;
+    return (0 as *u8) as i64;
   }
   unsafe {
     n = diag_code_table_len();
     if (n <= 0) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
     while (code_len < 256) {
       if (code[code_len] == 0) {
@@ -1419,10 +1420,10 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
       code_len = code_len + 1;
     }
     if (code_len <= 0) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
     while (i < n) {
-      let cand: *u8 = diag_code_table_code_at(i);
+      let cand: *u8 = diag_code_table_code_at(i) as *u8;
       if (cand != 0 as *u8) {
         let d: i32 = diag_levenshtein_ci(code, cand);
         if (d < best_dist) {
@@ -1433,13 +1434,13 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
       i = i + 1;
     }
     if (best == 0 as *u8) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
     if (best_dist > 3) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
     if (best_dist > code_len + 1) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
     if (out != 0 as *u8 && out_cap > 0) {
       let lim: i64 = out_cap - 1;
@@ -1455,11 +1456,11 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
       out[j as i32] = 0;
     }
     if (out != 0 as *u8) {
-      return out;
+      return (out) as i64;
     }
-    return best;
+    return (best) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 // ---- G-02f-386：ctx color / code_table_has / json state → seed impl ----
@@ -1501,7 +1502,7 @@ export function diag_code_table_has(code: *u8): i32 {
   unsafe {
     n = diag_code_table_len();
     while (i < n) {
-      if (diag_code_eq(code, diag_code_table_code_at(i)) != 0) {
+      if (diag_code_eq(code, diag_code_table_code_at(i) as *u8) != 0) {
         return 1;
       }
       i = i + 1;
@@ -2245,15 +2246,15 @@ export function diag_io_fprint_code_table_row(out: *u8, code: *u8, kind: *u8, su
  * Return the current diagnostic file path.
  * The context record stays in the seed. Offset 0 is the path pointer,
  * loaded in host byte order through diag_snap_load_ptr.
- * @return *u8 — path, or null when none is set
+ * @return i64 — pointer bits in rax; link name unchanged — path, or null when none is set
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_ctx_get_file(): *u8 {
+export function diag_ctx_get_file(): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
   unsafe {
-    return diag_snap_load_ptr(diag_ctx_base(), 0);
+    return (diag_snap_load_ptr(diag_ctx_base(), 0) as *u8) as i64;
   }
 }
 
@@ -2261,15 +2262,15 @@ export function diag_ctx_get_file(): *u8 {
  * Return the current diagnostic source pointer.
  * The context record stays in the seed. Offset 8 is the source pointer,
  * loaded in host byte order through diag_snap_load_ptr.
- * @return *u8 — source bytes, or null when none is set
+ * @return i64 — pointer bits in rax; link name unchanged — source bytes, or null when none is set
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_ctx_get_source(): *u8 {
+export function diag_ctx_get_source(): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
   unsafe {
-    return diag_snap_load_ptr(diag_ctx_base(), 8);
+    return (diag_snap_load_ptr(diag_ctx_base(), 8) as *u8) as i64;
   }
 }
 
@@ -2319,239 +2320,239 @@ export function diag_ctx_set_all(path: *u8, source: *u8, source_len: i64, use_co
  * Index is 0-based. A negative or out-of-range index returns null.
  * The strings are the diagnostic code table. Count is 43.
  * @param i i64
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_table_code_at(i: i64): *u8 {
+export function diag_code_table_code_at(i: i64): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
-  if (i == 0) { return "P001"; }
-  if (i == 1) { return "T001"; }
-  if (i == 2) { return "ARG001"; }
-  if (i == 3) { return "ARG002"; }
-  if (i == 4) { return "IO001"; }
-  if (i == 5) { return "PRC001"; }
-  if (i == 6) { return "BLD001"; }
-  if (i == 7) { return "PP001"; }
-  if (i == 8) { return "PP002"; }
-  if (i == 9) { return "L001"; }
-  if (i == 10) { return "L002"; }
-  if (i == 11) { return "L003"; }
-  if (i == 12) { return "L004"; }
-  if (i == 13) { return "L005"; }
-  if (i == 14) { return "L006"; }
-  if (i == 15) { return "L007"; }
-  if (i == 16) { return "L008"; }
-  if (i == 17) { return "L009"; }
-  if (i == 18) { return "L010"; }
-  if (i == 19) { return "L011"; }
-  if (i == 20) { return "L012"; }
-  if (i == 21) { return "IMP001"; }
-  if (i == 22) { return "IMP002"; }
-  if (i == 23) { return "IMP003"; }
-  if (i == 24) { return "IMP004"; }
-  if (i == 25) { return "XP001"; }
-  if (i == 26) { return "XP002"; }
-  if (i == 27) { return "XP003"; }
-  if (i == 28) { return "XP004"; }
-  if (i == 29) { return "XP005"; }
-  if (i == 30) { return "XP006"; }
-  if (i == 31) { return "XP007"; }
-  if (i == 32) { return "XP008"; }
-  if (i == 33) { return "XT001"; }
-  if (i == 34) { return "CG001"; }
-  if (i == 35) { return "CG002"; }
-  if (i == 36) { return "CG003"; }
-  if (i == 37) { return "CG004"; }
-  if (i == 38) { return "CHK001"; }
-  if (i == 39) { return "CHK002"; }
-  if (i == 40) { return "FMT001"; }
-  if (i == 41) { return "SMOKE001"; }
-  if (i == 42) { return "SMOKE002"; }
-  return 0 as *u8;
+  if (i == 0) { return ("P001") as i64; }
+  if (i == 1) { return ("T001") as i64; }
+  if (i == 2) { return ("ARG001") as i64; }
+  if (i == 3) { return ("ARG002") as i64; }
+  if (i == 4) { return ("IO001") as i64; }
+  if (i == 5) { return ("PRC001") as i64; }
+  if (i == 6) { return ("BLD001") as i64; }
+  if (i == 7) { return ("PP001") as i64; }
+  if (i == 8) { return ("PP002") as i64; }
+  if (i == 9) { return ("L001") as i64; }
+  if (i == 10) { return ("L002") as i64; }
+  if (i == 11) { return ("L003") as i64; }
+  if (i == 12) { return ("L004") as i64; }
+  if (i == 13) { return ("L005") as i64; }
+  if (i == 14) { return ("L006") as i64; }
+  if (i == 15) { return ("L007") as i64; }
+  if (i == 16) { return ("L008") as i64; }
+  if (i == 17) { return ("L009") as i64; }
+  if (i == 18) { return ("L010") as i64; }
+  if (i == 19) { return ("L011") as i64; }
+  if (i == 20) { return ("L012") as i64; }
+  if (i == 21) { return ("IMP001") as i64; }
+  if (i == 22) { return ("IMP002") as i64; }
+  if (i == 23) { return ("IMP003") as i64; }
+  if (i == 24) { return ("IMP004") as i64; }
+  if (i == 25) { return ("XP001") as i64; }
+  if (i == 26) { return ("XP002") as i64; }
+  if (i == 27) { return ("XP003") as i64; }
+  if (i == 28) { return ("XP004") as i64; }
+  if (i == 29) { return ("XP005") as i64; }
+  if (i == 30) { return ("XP006") as i64; }
+  if (i == 31) { return ("XP007") as i64; }
+  if (i == 32) { return ("XP008") as i64; }
+  if (i == 33) { return ("XT001") as i64; }
+  if (i == 34) { return ("CG001") as i64; }
+  if (i == 35) { return ("CG002") as i64; }
+  if (i == 36) { return ("CG003") as i64; }
+  if (i == 37) { return ("CG004") as i64; }
+  if (i == 38) { return ("CHK001") as i64; }
+  if (i == 39) { return ("CHK002") as i64; }
+  if (i == 40) { return ("FMT001") as i64; }
+  if (i == 41) { return ("SMOKE001") as i64; }
+  if (i == 42) { return ("SMOKE002") as i64; }
+  return (0 as *u8) as i64;
 }
 /**
  * Kind word at this table index.
  * Index is 0-based. A negative or out-of-range index returns null.
  * The strings are the diagnostic code table. Count is 43.
  * @param i i64
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_table_kind_at(i: i64): *u8 {
+export function diag_code_table_kind_at(i: i64): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
-  if (i == 0) { return "parse error"; }
-  if (i == 1) { return "typeck error"; }
-  if (i == 2) { return "usage error"; }
-  if (i == 3) { return "argument error"; }
-  if (i == 4) { return "io error"; }
-  if (i == 5) { return "process error"; }
-  if (i == 6) { return "build error"; }
-  if (i == 7) { return "preprocess error"; }
-  if (i == 8) { return "preprocess error"; }
-  if (i == 9) { return "lexer error"; }
-  if (i == 10) { return "lexer error"; }
-  if (i == 11) { return "lexer error"; }
-  if (i == 12) { return "lexer error"; }
-  if (i == 13) { return "lexer error"; }
-  if (i == 14) { return "lexer error"; }
-  if (i == 15) { return "lexer error"; }
-  if (i == 16) { return "lexer error"; }
-  if (i == 17) { return "lexer error"; }
-  if (i == 18) { return "lexer error"; }
-  if (i == 19) { return "lexer error"; }
-  if (i == 20) { return "lexer error"; }
-  if (i == 21) { return "import error"; }
-  if (i == 22) { return "preprocess error"; }
-  if (i == 23) { return "import error"; }
-  if (i == 24) { return "import error"; }
-  if (i == 25) { return "pipeline error"; }
-  if (i == 26) { return "pipeline error"; }
-  if (i == 27) { return "pipeline error"; }
-  if (i == 28) { return "pipeline error"; }
-  if (i == 29) { return "pipeline error"; }
-  if (i == 30) { return "pipeline error"; }
-  if (i == 31) { return "pipeline error"; }
-  if (i == 32) { return "pipeline error"; }
-  if (i == 33) { return "typeck error"; }
-  if (i == 34) { return "codegen error"; }
-  if (i == 35) { return "codegen error"; }
-  if (i == 36) { return "codegen error"; }
-  if (i == 37) { return "codegen error"; }
-  if (i == 38) { return "check error"; }
-  if (i == 39) { return "check error"; }
-  if (i == 40) { return "fmt error"; }
-  if (i == 41) { return "info"; }
-  if (i == 42) { return "info"; }
-  return 0 as *u8;
+  if (i == 0) { return ("parse error") as i64; }
+  if (i == 1) { return ("typeck error") as i64; }
+  if (i == 2) { return ("usage error") as i64; }
+  if (i == 3) { return ("argument error") as i64; }
+  if (i == 4) { return ("io error") as i64; }
+  if (i == 5) { return ("process error") as i64; }
+  if (i == 6) { return ("build error") as i64; }
+  if (i == 7) { return ("preprocess error") as i64; }
+  if (i == 8) { return ("preprocess error") as i64; }
+  if (i == 9) { return ("lexer error") as i64; }
+  if (i == 10) { return ("lexer error") as i64; }
+  if (i == 11) { return ("lexer error") as i64; }
+  if (i == 12) { return ("lexer error") as i64; }
+  if (i == 13) { return ("lexer error") as i64; }
+  if (i == 14) { return ("lexer error") as i64; }
+  if (i == 15) { return ("lexer error") as i64; }
+  if (i == 16) { return ("lexer error") as i64; }
+  if (i == 17) { return ("lexer error") as i64; }
+  if (i == 18) { return ("lexer error") as i64; }
+  if (i == 19) { return ("lexer error") as i64; }
+  if (i == 20) { return ("lexer error") as i64; }
+  if (i == 21) { return ("import error") as i64; }
+  if (i == 22) { return ("preprocess error") as i64; }
+  if (i == 23) { return ("import error") as i64; }
+  if (i == 24) { return ("import error") as i64; }
+  if (i == 25) { return ("pipeline error") as i64; }
+  if (i == 26) { return ("pipeline error") as i64; }
+  if (i == 27) { return ("pipeline error") as i64; }
+  if (i == 28) { return ("pipeline error") as i64; }
+  if (i == 29) { return ("pipeline error") as i64; }
+  if (i == 30) { return ("pipeline error") as i64; }
+  if (i == 31) { return ("pipeline error") as i64; }
+  if (i == 32) { return ("pipeline error") as i64; }
+  if (i == 33) { return ("typeck error") as i64; }
+  if (i == 34) { return ("codegen error") as i64; }
+  if (i == 35) { return ("codegen error") as i64; }
+  if (i == 36) { return ("codegen error") as i64; }
+  if (i == 37) { return ("codegen error") as i64; }
+  if (i == 38) { return ("check error") as i64; }
+  if (i == 39) { return ("check error") as i64; }
+  if (i == 40) { return ("fmt error") as i64; }
+  if (i == 41) { return ("info") as i64; }
+  if (i == 42) { return ("info") as i64; }
+  return (0 as *u8) as i64;
 }
 /**
  * Summary sentence at this table index.
  * Index is 0-based. A negative or out-of-range index returns null.
  * The strings are the diagnostic code table. Count is 43.
  * @param i i64
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_table_summary_at(i: i64): *u8 {
+export function diag_code_table_summary_at(i: i64): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
-  if (i == 0) { return "Parser detected invalid syntax or unrecoverable parse failure."; }
-  if (i == 1) { return "Type checker rejected a construct after successful parse."; }
-  if (i == 2) { return "CLI command or option is missing a required argument."; }
-  if (i == 3) { return "CLI argument value is unknown or unsupported."; }
-  if (i == 4) { return "A file operation failed before the requested compiler step could continue."; }
-  if (i == 5) { return "A child process or system-level process operation failed."; }
-  if (i == 6) { return "An external build or link step failed before producing a usable artifact."; }
-  if (i == 7) { return "Preprocessor found an unclosed conditional directive."; }
-  if (i == 8) { return "Preprocessor failed before producing a usable source buffer."; }
-  if (i == 9) { return "Lexer found an unclosed block comment."; }
-  if (i == 10) { return "Lexer found an unclosed string literal."; }
-  if (i == 11) { return "Lexer found an illegal character."; }
-  if (i == 12) { return "Lexer found an incomplete hex literal."; }
-  if (i == 13) { return "Lexer found an incomplete float exponent."; }
-  if (i == 14) { return "Lexer found an incomplete binary literal."; }
-  if (i == 15) { return "Lexer found an incomplete octal literal."; }
-  if (i == 16) { return "Lexer found an invalid digit separator."; }
-  if (i == 17) { return "Lexer found an invalid type suffix on a numeric literal."; }
-  if (i == 18) { return "Lexer found an invalid escape sequence in a string literal."; }
-  if (i == 19) { return "Lexer found a string literal that exceeds AST storage capacity."; }
-  if (i == 20) { return "Lexer found an identifier that exceeds AST name storage capacity."; }
-  if (i == 21) { return "Import path could not be opened from the resolved candidate path."; }
-  if (i == 22) { return "Imported module failed during preprocessing before parse."; }
-  if (i == 23) { return "Imported module failed to parse after preprocessing."; }
-  if (i == 24) { return "Import pipeline failed in a later dependency-resolution stage."; }
-  if (i == 25) { return ".x pipeline parse stage failed before building a usable module."; }
-  if (i == 26) { return ".x pipeline parse commit failed while committing a parsed function."; }
-  if (i == 27) { return ".x pipeline terminated with a non-zero runtime status code."; }
-  if (i == 28) { return ".x pipeline path resolution trace for a failed import or entry lookup."; }
-  if (i == 29) { return ".x pipeline failed while allocating required runtime structures."; }
-  if (i == 30) { return ".x pipeline failed while allocating output or dependency context state."; }
-  if (i == 31) { return ".x pipeline refused an input buffer that exceeds parser size limits."; }
-  if (i == 32) { return ".x dependency sub-pipeline failed while prerunning an imported module."; }
-  if (i == 33) { return ".x pipeline type checking failed for a specific function."; }
-  if (i == 34) { return "Code generation could not emit C output because no main entry was available."; }
-  if (i == 35) { return "ASM object emission failed before producing a usable .o payload."; }
-  if (i == 36) { return "Code generator failed while emitting a specific function body."; }
-  if (i == 37) { return "Code generation produced an empty output buffer after a non-failing pipeline."; }
-  if (i == 38) { return "`xlang check` failed without a more specific structured diagnostic."; }
-  if (i == 39) { return "`xlang check` found no .x files to inspect."; }
-  if (i == 40) { return "`xlang fmt` failed or found no format candidates."; }
-  if (i == 41) { return "Parse-stage smoke summary: source parsed successfully."; }
-  if (i == 42) { return "Typeck-stage smoke summary: type checking passed."; }
-  return 0 as *u8;
+  if (i == 0) { return ("Parser detected invalid syntax or unrecoverable parse failure.") as i64; }
+  if (i == 1) { return ("Type checker rejected a construct after successful parse.") as i64; }
+  if (i == 2) { return ("CLI command or option is missing a required argument.") as i64; }
+  if (i == 3) { return ("CLI argument value is unknown or unsupported.") as i64; }
+  if (i == 4) { return ("A file operation failed before the requested compiler step could continue.") as i64; }
+  if (i == 5) { return ("A child process or system-level process operation failed.") as i64; }
+  if (i == 6) { return ("An external build or link step failed before producing a usable artifact.") as i64; }
+  if (i == 7) { return ("Preprocessor found an unclosed conditional directive.") as i64; }
+  if (i == 8) { return ("Preprocessor failed before producing a usable source buffer.") as i64; }
+  if (i == 9) { return ("Lexer found an unclosed block comment.") as i64; }
+  if (i == 10) { return ("Lexer found an unclosed string literal.") as i64; }
+  if (i == 11) { return ("Lexer found an illegal character.") as i64; }
+  if (i == 12) { return ("Lexer found an incomplete hex literal.") as i64; }
+  if (i == 13) { return ("Lexer found an incomplete float exponent.") as i64; }
+  if (i == 14) { return ("Lexer found an incomplete binary literal.") as i64; }
+  if (i == 15) { return ("Lexer found an incomplete octal literal.") as i64; }
+  if (i == 16) { return ("Lexer found an invalid digit separator.") as i64; }
+  if (i == 17) { return ("Lexer found an invalid type suffix on a numeric literal.") as i64; }
+  if (i == 18) { return ("Lexer found an invalid escape sequence in a string literal.") as i64; }
+  if (i == 19) { return ("Lexer found a string literal that exceeds AST storage capacity.") as i64; }
+  if (i == 20) { return ("Lexer found an identifier that exceeds AST name storage capacity.") as i64; }
+  if (i == 21) { return ("Import path could not be opened from the resolved candidate path.") as i64; }
+  if (i == 22) { return ("Imported module failed during preprocessing before parse.") as i64; }
+  if (i == 23) { return ("Imported module failed to parse after preprocessing.") as i64; }
+  if (i == 24) { return ("Import pipeline failed in a later dependency-resolution stage.") as i64; }
+  if (i == 25) { return (".x pipeline parse stage failed before building a usable module.") as i64; }
+  if (i == 26) { return (".x pipeline parse commit failed while committing a parsed function.") as i64; }
+  if (i == 27) { return (".x pipeline terminated with a non-zero runtime status code.") as i64; }
+  if (i == 28) { return (".x pipeline path resolution trace for a failed import or entry lookup.") as i64; }
+  if (i == 29) { return (".x pipeline failed while allocating required runtime structures.") as i64; }
+  if (i == 30) { return (".x pipeline failed while allocating output or dependency context state.") as i64; }
+  if (i == 31) { return (".x pipeline refused an input buffer that exceeds parser size limits.") as i64; }
+  if (i == 32) { return (".x dependency sub-pipeline failed while prerunning an imported module.") as i64; }
+  if (i == 33) { return (".x pipeline type checking failed for a specific function.") as i64; }
+  if (i == 34) { return ("Code generation could not emit C output because no main entry was available.") as i64; }
+  if (i == 35) { return ("ASM object emission failed before producing a usable .o payload.") as i64; }
+  if (i == 36) { return ("Code generator failed while emitting a specific function body.") as i64; }
+  if (i == 37) { return ("Code generation produced an empty output buffer after a non-failing pipeline.") as i64; }
+  if (i == 38) { return ("`xlang check` failed without a more specific structured diagnostic.") as i64; }
+  if (i == 39) { return ("`xlang check` found no .x files to inspect.") as i64; }
+  if (i == 40) { return ("`xlang fmt` failed or found no format candidates.") as i64; }
+  if (i == 41) { return ("Parse-stage smoke summary: source parsed successfully.") as i64; }
+  if (i == 42) { return ("Typeck-stage smoke summary: type checking passed.") as i64; }
+  return (0 as *u8) as i64;
 }
 /**
  * Details paragraph at this table index.
  * Index is 0-based. A negative or out-of-range index returns null.
  * The strings are the diagnostic code table. Count is 43.
  * @param i i64
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_code_table_details_at(i: i64): *u8 {
+export function diag_code_table_details_at(i: i64): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
-  if (i == 0) { return "Used for parser-side syntax errors and parser fatal conditions such as out-of-memory. Typical action: inspect the reported token/statement boundary and surrounding source line."; }
-  if (i == 1) { return "Used for regular C-path type checking failures such as mismatched types, invalid assignments, or non-bool conditions. Typical action: compare inferred and expected types at the caret location."; }
-  if (i == 2) { return "Used when a command such as `--explain` or another CLI option is present but the required value is missing. Typical action: re-run with the required operand shown in the usage hint."; }
-  if (i == 3) { return "Used when a user-provided CLI argument cannot be recognized, such as an unknown diagnostic code for `--explain`. Typical action: inspect the suggested valid values and retry with one of them."; }
-  if (i == 4) { return "Used for common runtime file-operation failures such as open, read, write, rename, or temp-file setup. Typical action: inspect the path in the diagnostic and verify permissions, existence, and parent directories."; }
-  if (i == 5) { return "Used for waitpid, system(), or child-process termination failures in compiler helper paths. Typical action: inspect the named tool or script and any paired stderr emitted before this summary."; }
-  if (i == 6) { return "Used for compiler/linker/tool invocations and runtime object build failures summarized at the driver layer. Typical action: inspect the failing tool name, exit status, and any preceding build stderr."; }
-  if (i == 7) { return "Used when `#if` / `#elseif` / `#else` nesting does not terminate cleanly before end-of-file. Typical action: inspect nearby conditional compilation directives and ensure every `#if` is closed."; }
-  if (i == 8) { return "Used for directive errors or generic preprocess failures that are not covered by a more specific code. Typical action: inspect the reported source file and nearby conditional compilation directives."; }
-  if (i == 9) { return "Used when a nested `/* ... */` block comment reaches end-of-file with nesting depth still greater than zero. Typical action: add the matching `*/` closers for every true nest-open `/*` (path globs like `src/*.x` do not nest-open)."; }
-  if (i == 10) { return "Used when a double-quoted string reaches end-of-file without a closing quote. Typical action: add the matching `\"` at the end of the string (multi-line strings are allowed if closed)."; }
-  if (i == 11) { return "Used when a source byte is not a recognized token introducer (for example `$`, bare `'`, or other non-ASCII/punct noise). Typical action: remove or replace the illegal character; character literals are not part of the product lexical surface."; }
-  if (i == 12) { return "Used when a hex integer introducer `0x` or `0X` is not followed by at least one hex digit (0-9, a-f, A-F). Typical action: complete the literal (e.g. `0x0`, `0xFF`) or remove the incomplete `0x` prefix."; }
-  if (i == 13) { return "Used when a float exponent introducer `e` or `E` (optionally followed by `+` or `-`) is not followed by at least one decimal digit. Typical action: complete the exponent (e.g. `1e0`, `1.5e+2`) or remove the incomplete exponent suffix."; }
-  if (i == 14) { return "Used when a binary integer introducer `0b` or `0B` is not followed by at least one binary digit (0 or 1). Typical action: complete the literal (e.g. `0b0`, `0b1010`) or remove the incomplete `0b` prefix."; }
-  if (i == 15) { return "Used when an octal integer introducer `0o` or `0O` is not followed by at least one octal digit (0-7). Typical action: complete the literal (e.g. `0o0`, `0o52`) or remove the incomplete `0o` prefix."; }
-  if (i == 16) { return "Used when `_` appears in a numeric literal without a following valid digit for that radix (trailing `_`, consecutive `__`, or `_` before a non-digit). Typical action: remove the underscore or place it only between digits (e.g. `1_000`, `0x2_A`)."; }
-  if (i == 17) { return "Used when a complete integer or float literal is immediately followed by alphabetic characters (for example `42u32`, `0x2Ai64`, `1.5f32`, or `42foo`). The language has no C/Rust-style type suffixes on numerics; use context type coerce (e.g. `let n: u32 = 42`) or `as T`. Typical action: remove the suffix or rewrite with `as` / annotated `let`."; }
-  if (i == 18) { return "Used when a string escape is not one of the product set `\\n \\t \\r \\0 \\\\ \\\" \\xHH` (for example `\\q`, incomplete `\\x`, or `\\xG`). Typical action: use a supported escape or write the byte as `\\xHH`."; }
-  if (i == 19) { return "Used when a decoded string literal (including C-style adjacent concatenation) would exceed 127 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. Typical action: shorten the literal, split into multiple strings with runtime concat (std.string), or await a future larger AST string pool."; }
-  if (i == 20) { return "Used when a non-keyword identifier span is longer than 255 bytes (AST name[256] content cap). Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. Typical action: shorten the identifier, or await a future larger AST name layout."; }
-  if (i == 21) { return "Used when an import target cannot be opened after path resolution. Typical action: verify the import name, library roots, and the resolved on-disk file path shown in the diagnostic."; }
-  if (i == 22) { return "Used when an imported file was found but preprocessing of that import failed. Typical action: inspect the imported file for conditional-compilation errors such as unclosed directives."; }
-  if (i == 23) { return "Used when an import file was read and preprocessed successfully but parse still failed. Typical action: inspect the imported module with the reported parser diagnostics."; }
-  if (i == 24) { return "Used for import-side failures such as path normalization limits, unresolved dependency closure, or imported module type-check failure summaries. Typical action: inspect the paired import diagnostics emitted earlier."; }
-  if (i == 25) { return "Used when the .x pipeline cannot finish parse/module construction. Typical action: inspect the preceding parse diagnostics and the failing module entry."; }
-  if (i == 26) { return "Used for stricter .x parse/commit failures after a function was tentatively parsed but could not be committed into the module. Typical action: inspect nearby function boundaries and parse-recovery logs."; }
-  if (i == 27) { return "Used for generic .x pipeline summary failures reported as `pipeline failed rc=...` after a deeper stage returned an error code. Typical action: inspect preceding parser/typeck/import/codegen diagnostics."; }
-  if (i == 28) { return "Used for the follow-up `resolve path tried:` diagnostic that lists the concrete path attempted before pipeline failure. Typical action: inspect the shown path and verify library roots and import naming."; }
-  if (i == 29) { return "Used for allocation failures covering arena/module buffers, ELF context, or dependency-side arena/module storage before the pipeline can proceed. Typical action: inspect memory pressure and the specific pipeline stage."; }
-  if (i == 30) { return "Used when `CodegenOutBuf`, `PipelineDepCtx`, or dependency-local output/context buffers cannot be allocated. Typical action: inspect memory pressure and whether a large-output path is being exercised."; }
-  if (i == 31) { return "Used for `source too large for parser` failures when the source buffer exceeds the current `int32_t` parser boundary. Typical action: reduce input size or change the parser limit handling."; }
-  if (i == 32) { return "Used for `pipeline failed for import` summaries emitted after a dependency prerun returns non-zero. Typical action: inspect earlier diagnostics for the referenced import path and its transitive dependencies."; }
-  if (i == 33) { return "Used when .x type checking fails inside a concrete function, often with function index/name attached. Typical action: inspect the named function body and any accompanying type diagnostics."; }
-  if (i == 34) { return "Used when executable-oriented C emission requires a `main` function but the module only contains library items or no callable entry. Typical action: add a `main` entry or switch to a library/module emission path."; }
-  if (i == 35) { return "Used for `asm_codegen_elf_o failed` summaries where the backend or ELF writer returned a failing status or produced an empty object buffer. Typical action: inspect paired ELF context notes and earlier backend diagnostics."; }
-  if (i == 36) { return "Used for `failed to emit function` summaries tied to a concrete function name or index. Typical action: inspect that function body and any preceding backend/type diagnostics for unsupported constructs."; }
-  if (i == 37) { return "Used when the C-path `.x -E` pipeline returns success but the codegen output buffer is empty, indicating a codegen/pipeline wiring gap rather than a reported typeck/codegen error. Typical action: inspect the CodegenOutBuf wiring and any earlier typeck/codegen diagnostics."; }
-  if (i == 38) { return "Fallback check-mode code used when compilation/check failed but no detailed parser/typeck/import diagnostic was emitted. Typical action: inspect prior stderr output and the target file path."; }
-  if (i == 39) { return "Used when the provided path set, or the current directory, contains no discoverable .x sources. Typical action: verify input paths and whether ignored filters removed all candidates."; }
-  if (i == 40) { return "Used for format-mode failures such as missing input files, unreadable files, or no .x files found. Typical action: verify the path list, file accessibility, and whether `--check` reported unformatted files."; }
-  if (i == 41) { return "Emitted as an info-level smoke marker after a successful parse/typeck pass on the no-`-o` smoke path. Only emitted when structured smoke output is opted in (`--diag-json` or `XLANG_SMOKE_DIAG=1`); the legacy `parse OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker)."; }
-  if (i == 42) { return "Emitted as an info-level smoke marker after type checking succeeds on the no-`-o` smoke path. Only emitted when structured smoke output is opted in (`--diag-json` or `XLANG_SMOKE_DIAG=1`); the legacy `typeck OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker)."; }
-  return 0 as *u8;
+  if (i == 0) { return ("Used for parser-side syntax errors and parser fatal conditions such as out-of-memory. Typical action: inspect the reported token/statement boundary and surrounding source line.") as i64; }
+  if (i == 1) { return ("Used for regular C-path type checking failures such as mismatched types, invalid assignments, or non-bool conditions. Typical action: compare inferred and expected types at the caret location.") as i64; }
+  if (i == 2) { return ("Used when a command such as `--explain` or another CLI option is present but the required value is missing. Typical action: re-run with the required operand shown in the usage hint.") as i64; }
+  if (i == 3) { return ("Used when a user-provided CLI argument cannot be recognized, such as an unknown diagnostic code for `--explain`. Typical action: inspect the suggested valid values and retry with one of them.") as i64; }
+  if (i == 4) { return ("Used for common runtime file-operation failures such as open, read, write, rename, or temp-file setup. Typical action: inspect the path in the diagnostic and verify permissions, existence, and parent directories.") as i64; }
+  if (i == 5) { return ("Used for waitpid, system(), or child-process termination failures in compiler helper paths. Typical action: inspect the named tool or script and any paired stderr emitted before this summary.") as i64; }
+  if (i == 6) { return ("Used for compiler/linker/tool invocations and runtime object build failures summarized at the driver layer. Typical action: inspect the failing tool name, exit status, and any preceding build stderr.") as i64; }
+  if (i == 7) { return ("Used when `#if` / `#elseif` / `#else` nesting does not terminate cleanly before end-of-file. Typical action: inspect nearby conditional compilation directives and ensure every `#if` is closed.") as i64; }
+  if (i == 8) { return ("Used for directive errors or generic preprocess failures that are not covered by a more specific code. Typical action: inspect the reported source file and nearby conditional compilation directives.") as i64; }
+  if (i == 9) { return ("Used when a nested `/* ... */` block comment reaches end-of-file with nesting depth still greater than zero. Typical action: add the matching `*/` closers for every true nest-open `/*` (path globs like `src/*.x` do not nest-open).") as i64; }
+  if (i == 10) { return ("Used when a double-quoted string reaches end-of-file without a closing quote. Typical action: add the matching `\"` at the end of the string (multi-line strings are allowed if closed).") as i64; }
+  if (i == 11) { return ("Used when a source byte is not a recognized token introducer (for example `$`, bare `'`, or other non-ASCII/punct noise). Typical action: remove or replace the illegal character; character literals are not part of the product lexical surface.") as i64; }
+  if (i == 12) { return ("Used when a hex integer introducer `0x` or `0X` is not followed by at least one hex digit (0-9, a-f, A-F). Typical action: complete the literal (e.g. `0x0`, `0xFF`) or remove the incomplete `0x` prefix.") as i64; }
+  if (i == 13) { return ("Used when a float exponent introducer `e` or `E` (optionally followed by `+` or `-`) is not followed by at least one decimal digit. Typical action: complete the exponent (e.g. `1e0`, `1.5e+2`) or remove the incomplete exponent suffix.") as i64; }
+  if (i == 14) { return ("Used when a binary integer introducer `0b` or `0B` is not followed by at least one binary digit (0 or 1). Typical action: complete the literal (e.g. `0b0`, `0b1010`) or remove the incomplete `0b` prefix.") as i64; }
+  if (i == 15) { return ("Used when an octal integer introducer `0o` or `0O` is not followed by at least one octal digit (0-7). Typical action: complete the literal (e.g. `0o0`, `0o52`) or remove the incomplete `0o` prefix.") as i64; }
+  if (i == 16) { return ("Used when `_` appears in a numeric literal without a following valid digit for that radix (trailing `_`, consecutive `__`, or `_` before a non-digit). Typical action: remove the underscore or place it only between digits (e.g. `1_000`, `0x2_A`).") as i64; }
+  if (i == 17) { return ("Used when a complete integer or float literal is immediately followed by alphabetic characters (for example `42u32`, `0x2Ai64`, `1.5f32`, or `42foo`). The language has no C/Rust-style type suffixes on numerics; use context type coerce (e.g. `let n: u32 = 42`) or `as T`. Typical action: remove the suffix or rewrite with `as` / annotated `let`.") as i64; }
+  if (i == 18) { return ("Used when a string escape is not one of the product set `\\n \\t \\r \\0 \\\\ \\\" \\xHH` (for example `\\q`, incomplete `\\x`, or `\\xG`). Typical action: use a supported escape or write the byte as `\\xHH`.") as i64; }
+  if (i == 19) { return ("Used when a decoded string literal (including C-style adjacent concatenation) would exceed 127 semantic bytes stored in Expr.var_name. Prior soft residual silently truncated. Typical action: shorten the literal, split into multiple strings with runtime concat (std.string), or await a future larger AST string pool.") as i64; }
+  if (i == 20) { return ("Used when a non-keyword identifier span is longer than 255 bytes (AST name[256] content cap). Prior soft residual could silent-clamp names or fail with opaque XP003/typeck mismatch. Typical action: shorten the identifier, or await a future larger AST name layout.") as i64; }
+  if (i == 21) { return ("Used when an import target cannot be opened after path resolution. Typical action: verify the import name, library roots, and the resolved on-disk file path shown in the diagnostic.") as i64; }
+  if (i == 22) { return ("Used when an imported file was found but preprocessing of that import failed. Typical action: inspect the imported file for conditional-compilation errors such as unclosed directives.") as i64; }
+  if (i == 23) { return ("Used when an import file was read and preprocessed successfully but parse still failed. Typical action: inspect the imported module with the reported parser diagnostics.") as i64; }
+  if (i == 24) { return ("Used for import-side failures such as path normalization limits, unresolved dependency closure, or imported module type-check failure summaries. Typical action: inspect the paired import diagnostics emitted earlier.") as i64; }
+  if (i == 25) { return ("Used when the .x pipeline cannot finish parse/module construction. Typical action: inspect the preceding parse diagnostics and the failing module entry.") as i64; }
+  if (i == 26) { return ("Used for stricter .x parse/commit failures after a function was tentatively parsed but could not be committed into the module. Typical action: inspect nearby function boundaries and parse-recovery logs.") as i64; }
+  if (i == 27) { return ("Used for generic .x pipeline summary failures reported as `pipeline failed rc=...` after a deeper stage returned an error code. Typical action: inspect preceding parser/typeck/import/codegen diagnostics.") as i64; }
+  if (i == 28) { return ("Used for the follow-up `resolve path tried:` diagnostic that lists the concrete path attempted before pipeline failure. Typical action: inspect the shown path and verify library roots and import naming.") as i64; }
+  if (i == 29) { return ("Used for allocation failures covering arena/module buffers, ELF context, or dependency-side arena/module storage before the pipeline can proceed. Typical action: inspect memory pressure and the specific pipeline stage.") as i64; }
+  if (i == 30) { return ("Used when `CodegenOutBuf`, `PipelineDepCtx`, or dependency-local output/context buffers cannot be allocated. Typical action: inspect memory pressure and whether a large-output path is being exercised.") as i64; }
+  if (i == 31) { return ("Used for `source too large for parser` failures when the source buffer exceeds the current `int32_t` parser boundary. Typical action: reduce input size or change the parser limit handling.") as i64; }
+  if (i == 32) { return ("Used for `pipeline failed for import` summaries emitted after a dependency prerun returns non-zero. Typical action: inspect earlier diagnostics for the referenced import path and its transitive dependencies.") as i64; }
+  if (i == 33) { return ("Used when .x type checking fails inside a concrete function, often with function index/name attached. Typical action: inspect the named function body and any accompanying type diagnostics.") as i64; }
+  if (i == 34) { return ("Used when executable-oriented C emission requires a `main` function but the module only contains library items or no callable entry. Typical action: add a `main` entry or switch to a library/module emission path.") as i64; }
+  if (i == 35) { return ("Used for `asm_codegen_elf_o failed` summaries where the backend or ELF writer returned a failing status or produced an empty object buffer. Typical action: inspect paired ELF context notes and earlier backend diagnostics.") as i64; }
+  if (i == 36) { return ("Used for `failed to emit function` summaries tied to a concrete function name or index. Typical action: inspect that function body and any preceding backend/type diagnostics for unsupported constructs.") as i64; }
+  if (i == 37) { return ("Used when the C-path `.x -E` pipeline returns success but the codegen output buffer is empty, indicating a codegen/pipeline wiring gap rather than a reported typeck/codegen error. Typical action: inspect the CodegenOutBuf wiring and any earlier typeck/codegen diagnostics.") as i64; }
+  if (i == 38) { return ("Fallback check-mode code used when compilation/check failed but no detailed parser/typeck/import diagnostic was emitted. Typical action: inspect prior stderr output and the target file path.") as i64; }
+  if (i == 39) { return ("Used when the provided path set, or the current directory, contains no discoverable .x sources. Typical action: verify input paths and whether ignored filters removed all candidates.") as i64; }
+  if (i == 40) { return ("Used for format-mode failures such as missing input files, unreadable files, or no .x files found. Typical action: verify the path list, file accessibility, and whether `--check` reported unformatted files.") as i64; }
+  if (i == 41) { return ("Emitted as an info-level smoke marker after a successful parse/typeck pass on the no-`-o` smoke path. Only emitted when structured smoke output is opted in (`--diag-json` or `XLANG_SMOKE_DIAG=1`); the legacy `parse OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker).") as i64; }
+  if (i == 42) { return ("Emitted as an info-level smoke marker after type checking succeeds on the no-`-o` smoke path. Only emitted when structured smoke output is opted in (`--diag-json` or `XLANG_SMOKE_DIAG=1`); the legacy `typeck OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker).") as i64; }
+  return (0 as *u8) as i64;
 }
 /**
  * Canonical code spelling for a matching row.
  * Comparison is diag_code_eq, so the match is case-insensitive.
  * A null or unknown code returns null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_entry_code(code: *u8): *u8 {
+export function diag_entry_code(code: *u8): i64 {
   let n: i64 = 0;
   let i: i64 = 0;
   let pad: u8[32] = [];
@@ -2559,25 +2560,25 @@ export function diag_entry_code(code: *u8): *u8 {
   unsafe {
     n = diag_code_table_len();
     while (i < n) {
-      let c: *u8 = diag_code_table_code_at(i);
+      let c: *u8 = diag_code_table_code_at(i) as *u8;
       if (diag_code_eq(code, c) != 0) {
-        return diag_code_table_code_at(i);
+        return (diag_code_table_code_at(i) as *u8) as i64;
       }
       i = i + 1;
     }
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 /**
  * Kind word for a matching row.
  * Comparison is diag_code_eq, so the match is case-insensitive.
  * A null or unknown code returns null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_entry_kind(code: *u8): *u8 {
+export function diag_entry_kind(code: *u8): i64 {
   let n: i64 = 0;
   let i: i64 = 0;
   let pad: u8[32] = [];
@@ -2585,25 +2586,25 @@ export function diag_entry_kind(code: *u8): *u8 {
   unsafe {
     n = diag_code_table_len();
     while (i < n) {
-      let c: *u8 = diag_code_table_code_at(i);
+      let c: *u8 = diag_code_table_code_at(i) as *u8;
       if (diag_code_eq(code, c) != 0) {
-        return diag_code_table_kind_at(i);
+        return (diag_code_table_kind_at(i) as *u8) as i64;
       }
       i = i + 1;
     }
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 /**
  * Summary for a matching row.
  * Comparison is diag_code_eq, so the match is case-insensitive.
  * A null or unknown code returns null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_entry_summary(code: *u8): *u8 {
+export function diag_entry_summary(code: *u8): i64 {
   let n: i64 = 0;
   let i: i64 = 0;
   let pad: u8[32] = [];
@@ -2611,25 +2612,25 @@ export function diag_entry_summary(code: *u8): *u8 {
   unsafe {
     n = diag_code_table_len();
     while (i < n) {
-      let c: *u8 = diag_code_table_code_at(i);
+      let c: *u8 = diag_code_table_code_at(i) as *u8;
       if (diag_code_eq(code, c) != 0) {
-        return diag_code_table_summary_at(i);
+        return (diag_code_table_summary_at(i) as *u8) as i64;
       }
       i = i + 1;
     }
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 /**
  * Details for a matching row.
  * Comparison is diag_code_eq, so the match is case-insensitive.
  * A null or unknown code returns null.
  * @param code *u8
- * @return *u8
+ * @return i64 — pointer bits in rax; link name unchanged
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_entry_details(code: *u8): *u8 {
+export function diag_entry_details(code: *u8): i64 {
   let n: i64 = 0;
   let i: i64 = 0;
   let pad: u8[32] = [];
@@ -2637,40 +2638,40 @@ export function diag_entry_details(code: *u8): *u8 {
   unsafe {
     n = diag_code_table_len();
     while (i < n) {
-      let c: *u8 = diag_code_table_code_at(i);
+      let c: *u8 = diag_code_table_code_at(i) as *u8;
       if (diag_code_eq(code, c) != 0) {
-        return diag_code_table_details_at(i);
+        return (diag_code_table_details_at(i) as *u8) as i64;
       }
       i = i + 1;
     }
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /**
  * Return the stderr stream handle.
  * The handle is fd + 1 stored in a pointer. stderr is fd 2, so the
  * pointer value is 3. A null handle is not used for this stream.
- * @return *u8 — opaque handle for fd 2
+ * @return i64 — pointer bits in rax; link name unchanged — opaque handle for fd 2
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_stderr(): *u8 {
+export function diag_stderr(): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
-  return ((2 + 1) as usize) as *u8;
+  return (((2 + 1) as usize) as *u8) as i64;
 }
 
 /**
  * Return the stdout stream handle.
  * The handle is fd + 1 stored in a pointer. stdout is fd 1, so the
  * pointer value is 2. A null handle is not used for this stream.
- * @return *u8 — opaque handle for fd 1
+ * @return i64 — pointer bits in rax; link name unchanged — opaque handle for fd 1
  * PLATFORM: SHARED.
  */
 #[no_mangle]
-export function diag_stdout(): *u8 {
+export function diag_stdout(): i64 {
   let pad: u8[32] = [];
   pad[0] = 0;
-  return ((1 + 1) as usize) as *u8;
+  return (((1 + 1) as usize) as *u8) as i64;
 }
