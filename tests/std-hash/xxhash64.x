@@ -25,8 +25,9 @@ function u64_hi(v: u64): u32 {
  */
 function main(): i32 {
   let buf: u8[3] = [97, 98, 99];
-  let empty: u64 = hash.xxhash64(0 as *u8, 0);
-  let one: u64 = hash.xxhash64(&buf[0], 3);
+  /* xxhash64 returns the word in rax as i64. */
+  let empty: u64 = hash.xxhash64(0 as *u8, 0) as u64;
+  let one: u64 = hash.xxhash64(&buf[0], 3) as u64;
   let hx: *u8 = hash.start_algo(2);
   let inc: u64 = 0;
   if (u64_lo(empty) != 1373170073 as u32) { return 1; }
