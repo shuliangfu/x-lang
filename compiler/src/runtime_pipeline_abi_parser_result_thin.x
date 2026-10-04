@@ -292,7 +292,12 @@ export function pipeline_source_slice(data: *u8, len: i32): SliceU8 {
  * Collect top-level import paths from source bytes into module.
  * Thin wrap of parser_collect_imports_buf (*u8 ABI).
  * PLATFORM: SHARED Soft Cap (wave532 opaque CollectImportsResult).
+ * The collect-deps caller uses the unprefixed C name. A module prefix
+ * leaves the seed body linked: that body calls lexer_init, and the
+ * current lexer_init writes its return bytes through rdi, which is
+ * still the module pointer, so num_imports becomes 1 with an empty path.
  */
+#[no_mangle]
 export function xlang_module_collect_imports_from_buf(module: *u8, data: *u8, len: i64): void {
   /* Soft Cap: inline lexer_init semantics (pos0/line1/col1) — Ubuntu tip drops
    * Lexer sret mid-assign UND; ban CollectImportsResult{ bytes: [] } hang. */
