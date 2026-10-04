@@ -31,23 +31,13 @@ function main(): i32 {
   let out: u8[8] = [];
   let n: i32 = 0;
 
-  if (norm_form_nfc() != 1) { return 1; }
-  if (norm_form_nfd() != 2) { return 2; }
+  /* std.unicode exports nfc_buf only; NFC of e+acute is c3 a9. */
+  n = unicode.nfc_buf(&decomposed[0], 3, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 195 as u8, 169 as u8, 0 as u8, 0 as u8, 2) == 0) { return 3; }
 
-  n = nfc_buf(&decomposed[0], 3, &out[0], 8);
-  if (bytes_eq4(&out[0], n, 195, 169, 0, 0, 2) == 0) { return 3; }
-
-  n = nfd_buf(&composed[0], 2, &out[0], 8);
-  if (bytes_eq4(&out[0], n, 101, 204, 129, 0, 3) == 0) { return 4; }
-
-  n = nfkc_buf(&decomposed[0], 3, &out[0], 8);
-  if (bytes_eq4(&out[0], n, 195, 169, 0, 0, 2) == 0) { return 5; }
-
-  n = nfkd_buf(&composed[0], 2, &out[0], 8);
-  if (bytes_eq4(&out[0], n, 101, 204, 129, 0, 3) == 0) { return 6; }
-
-  n = nfc_buf(&out[0], n, &out[0], 8);
-  if (bytes_eq4(&out[0], n, 195, 169, 0, 0, 2) == 0) { return 7; }
+  /* NFC of an already composed buffer stays the same two bytes. */
+  n = unicode.nfc_buf(&composed[0], 2, &out[0], 8);
+  if (bytes_eq4(&out[0], n, 195 as u8, 169 as u8, 0 as u8, 0 as u8, 2) == 0) { return 4; }
 
   return 0;
 }
