@@ -20,12 +20,14 @@
 
 const option = import("core.option");
 
-extern function core_slice_i32_from_ptr_c(data: *i32, len: usize): []i32;
-extern function core_subslice_i32_c(data: *i32, total_len: usize, start: usize, len: usize): []i32;
-extern function core_slice_u8_from_ptr_c(data: *u8, len: usize): []u8;
-extern function core_subslice_u8_c(data: *u8, total_len: usize, start: usize, len: usize): []u8;
-extern function core_slice_u64_from_ptr_c(data: *u64, len: usize): []u64;
-extern function core_subslice_u64_c(data: *u64, total_len: usize, start: usize, len: usize): []u64;
+// PLATFORM: SHARED — the glue writes the 16-byte slice through out.
+// The installed product cannot asm-emit a struct return.
+extern function core_slice_i32_from_ptr_c(out: *[]i32, data: *i32, len: usize): void;
+extern function core_subslice_i32_c(out: *[]i32, data: *i32, total_len: usize, start: usize, len: usize): void;
+extern function core_slice_u8_from_ptr_c(out: *[]u8, data: *u8, len: usize): void;
+extern function core_subslice_u8_c(out: *[]u8, data: *u8, total_len: usize, start: usize, len: usize): void;
+extern function core_slice_u64_from_ptr_c(out: *[]u64, data: *u64, len: usize): void;
+extern function core_subslice_u64_c(out: *[]u64, data: *u64, total_len: usize, start: usize, len: usize): void;
 
 /* note */
 export struct Split_i32 {
@@ -80,7 +82,7 @@ export function last_i32(s: []i32): Option_i32 {
 /** `subslice_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function subslice_i32(s: []i32, start: usize, len: usize): []i32 {
   let r: []i32;
-  unsafe { r = core_subslice_i32_c(s.data, s.length, start, len); }
+  unsafe { core_subslice_i32_c(&r, s.data, s.length, start, len); }
   return r;
 }
 
@@ -105,13 +107,13 @@ export function chunks_len_i32(s: []i32, chunk_size: usize): usize {
 export function chunk_i32(s: []i32, chunk_size: usize, index: usize): []i32 {
   if (chunk_size == 0 as usize) {
     let empty0: []i32;
-    unsafe { empty0 = core_slice_i32_from_ptr_c(s.data, 0 as usize); }
+    unsafe { core_slice_i32_from_ptr_c(&empty0, s.data, 0 as usize); }
     return empty0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
     let empty1: []i32;
-    unsafe { empty1 = core_slice_i32_from_ptr_c(s.data, 0 as usize); }
+    unsafe { core_slice_i32_from_ptr_c(&empty1, s.data, 0 as usize); }
     return empty1;
   }
   let n: usize = chunk_size;
@@ -148,7 +150,7 @@ export function first_u8(s: []u8): Option_u8 {
 /** `subslice_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function subslice_u8(s: []u8, start: usize, len: usize): []u8 {
   let r: []u8;
-  unsafe { r = core_subslice_u8_c(s.data, s.length, start, len); }
+  unsafe { core_subslice_u8_c(&r, s.data, s.length, start, len); }
   return r;
 }
 
@@ -173,13 +175,13 @@ export function chunks_len_u8(s: []u8, chunk_size: usize): usize {
 export function chunk_u8(s: []u8, chunk_size: usize, index: usize): []u8 {
   if (chunk_size == 0 as usize) {
     let empty0: []u8;
-    unsafe { empty0 = core_slice_u8_from_ptr_c(s.data, 0 as usize); }
+    unsafe { core_slice_u8_from_ptr_c(&empty0, s.data, 0 as usize); }
     return empty0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
     let empty1: []u8;
-    unsafe { empty1 = core_slice_u8_from_ptr_c(s.data, 0 as usize); }
+    unsafe { core_slice_u8_from_ptr_c(&empty1, s.data, 0 as usize); }
     return empty1;
   }
   let n: usize = chunk_size;
@@ -219,7 +221,7 @@ export function last_u64(s: []u64): Option_u64 {
 /** `subslice_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function subslice_u64(s: []u64, start: usize, len: usize): []u64 {
   let r: []u64;
-  unsafe { r = core_subslice_u64_c(s.data, s.length, start, len); }
+  unsafe { core_subslice_u64_c(&r, s.data, s.length, start, len); }
   return r;
 }
 
@@ -244,13 +246,13 @@ export function chunks_len_u64(s: []u64, chunk_size: usize): usize {
 export function chunk_u64(s: []u64, chunk_size: usize, index: usize): []u64 {
   if (chunk_size == 0 as usize) {
     let empty0: []u64;
-    unsafe { empty0 = core_slice_u64_from_ptr_c(s.data, 0 as usize); }
+    unsafe { core_slice_u64_from_ptr_c(&empty0, s.data, 0 as usize); }
     return empty0;
   }
   let off: usize = index * chunk_size;
   if (off >= s.length) {
     let empty1: []u64;
-    unsafe { empty1 = core_slice_u64_from_ptr_c(s.data, 0 as usize); }
+    unsafe { core_slice_u64_from_ptr_c(&empty1, s.data, 0 as usize); }
     return empty1;
   }
   let n: usize = chunk_size;
