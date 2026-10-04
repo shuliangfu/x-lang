@@ -785,7 +785,11 @@ export function link_abi_user_o_needs_std_net(user_o: *u8): i32 {
   let n: i32 = labi_od_net_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_net_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_net_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -842,7 +846,11 @@ export function link_abi_user_o_needs_std_thread(user_o: *u8): i32 {
   let n: i32 = labi_od_thread_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_thread_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_thread_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -896,7 +904,11 @@ export function link_abi_user_o_needs_std_vec(user_o: *u8): i32 {
   let n: i32 = labi_od_vec_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_vec_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_vec_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -964,7 +976,11 @@ export function link_abi_user_o_needs_std_http(user_o: *u8): i32 {
   let n: i32 = labi_od_http_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_http_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_http_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1025,7 +1041,11 @@ export function link_abi_user_o_needs_std_set(user_o: *u8): i32 {
   let n: i32 = labi_od_set_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_set_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_set_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1075,7 +1095,11 @@ export function link_abi_user_o_needs_std_map(user_o: *u8): i32 {
   let n: i32 = labi_od_map_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_map_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_map_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1127,7 +1151,11 @@ export function link_abi_user_o_needs_std_queue(user_o: *u8): i32 {
   let n: i32 = labi_od_queue_api_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_queue_api_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_queue_api_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1182,7 +1210,11 @@ export function link_abi_user_o_needs_std_test(user_o: *u8): i32 {
   let n: i32 = labi_od_test_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_test_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_test_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1234,7 +1266,11 @@ export function link_abi_user_o_needs_core_mem(user_o: *u8): i32 {
   let n: i32 = labi_od_core_mem_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_core_mem_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_core_mem_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1285,7 +1321,11 @@ export function link_abi_user_o_needs_core_slice(user_o: *u8): i32 {
   let n: i32 = labi_od_core_slice_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_core_slice_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_core_slice_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1344,7 +1384,11 @@ export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
   let n: i32 = labi_od_page_mmap_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_page_mmap_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_page_mmap_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1396,7 +1440,11 @@ export function link_abi_user_o_needs_std_sys_linux(user_o: *u8): i32 {
   let n: i32 = labi_od_sys_linux_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_sys_linux_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_sys_linux_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1445,7 +1493,11 @@ export function link_abi_user_o_needs_std_sys_macos(user_o: *u8): i32 {
   let n: i32 = labi_od_sys_macos_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_sys_macos_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_sys_macos_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1498,7 +1550,11 @@ export function link_abi_user_o_needs_std_sys(user_o: *u8): i32 {
   let n: i32 = labi_od_sys_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_sys_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_sys_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1551,7 +1607,11 @@ export function link_abi_user_o_needs_std_heap_api(user_o: *u8): i32 {
   let n: i32 = labi_od_heap_api_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_heap_api_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_heap_api_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1606,7 +1666,11 @@ export function link_abi_user_o_needs_heap_user_syms(user_o: *u8): i32 {
   let n: i32 = labi_od_heap_user_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_heap_user_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_heap_user_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1659,7 +1723,11 @@ export function link_abi_user_o_needs_async_scheduler(user_o: *u8): i32 {
   let n: i32 = labi_od_async_scheduler_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_async_scheduler_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_async_scheduler_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1793,7 +1861,11 @@ export function link_abi_obj_needs_zlib(obj_o: *u8): i32 {
   let n: i32 = labi_od_zlib_undef_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_zlib_undef_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_zlib_undef_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1842,7 +1914,11 @@ export function link_abi_obj_needs_zstd(obj_o: *u8): i32 {
   let n: i32 = labi_od_zstd_undef_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_zstd_undef_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_zstd_undef_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1890,7 +1966,11 @@ export function link_abi_obj_needs_brotli(obj_o: *u8): i32 {
   let n: i32 = labi_od_brotli_undef_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_brotli_undef_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_brotli_undef_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -1971,7 +2051,11 @@ export function labi_user_needs_runtime_time_os(user_o: *u8): i32 {
   let n: i32 = labi_od_runtime_time_os_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_runtime_time_os_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_runtime_time_os_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -2022,7 +2106,11 @@ export function labi_user_needs_runtime_random_fill(user_o: *u8): i32 {
   let n: i32 = labi_od_runtime_random_fill_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_runtime_random_fill_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_runtime_random_fill_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -2073,7 +2161,11 @@ export function labi_user_needs_runtime_env_os(user_o: *u8): i32 {
   let n: i32 = labi_od_runtime_env_os_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_runtime_env_os_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_runtime_env_os_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
@@ -2134,7 +2226,11 @@ export function labi_user_needs_runtime_process_argv(user_o: *u8): i32 {
   let n: i32 = labi_od_runtime_process_argv_sym_count();
   let i: i32 = 0;
   while (i < n) {
-    let sym: *u8 = labi_od_runtime_process_argv_sym_at(i);
+    // PLATFORM: SHARED — extern symbol-table FFI must run inside unsafe.
+    let sym: *u8 = 0 as *u8;
+    unsafe {
+      sym = labi_od_runtime_process_argv_sym_at(i);
+    }
     if (sym != 0 as *u8) {
       if (sym[0] != 0) {
         let hit: i32 = 0;
