@@ -12,34 +12,41 @@ const string = import("std.string");
 function main(): i32 {
   if (string.string_empty() != 0) { return 1; }
   
-  let s: String = string.new();
+  let s: String = { length: 0 };
+  if (string.new(&s) != 0) { return 3; }
   if (string.length(s) != 0) { return 3; }
   if (string.is_empty(s) != 1) { return 4; }
   
   let one_byte: u8[1] = [97];
-  let s1: String = string.string_from_slice(&one_byte[0], 1);
+  let s1: String = { length: 0 };
+  if (string.string_from_slice(&one_byte[0], 1, &s1) != 0) { return 5; }
   if (string.length(s1) != 1) { return 5; }
-  if (string.string_get(s1, 0) != 97) { return 6; }
+  if (string.string_get(s1, 0) != (97 as u8)) { return 6; }
   
   let slice_empty: u8[1] = [0];
-  let s2: String = string.string_from_slice(&slice_empty[0], 0);
+  let s2: String = { length: 0 };
+  if (string.string_from_slice(&slice_empty[0], 0, &s2) != 0) { return 7; }
   if (string.length(s2) != 0) { return 7; }
   
   let slice_ab: u8[3] = [97, 98, 0];
-  let s3: String = string.string_from_slice(&slice_ab[0], 2);
+  let s3: String = { length: 0 };
+  if (string.string_from_slice(&slice_ab[0], 2, &s3) != 0) { return 8; }
   if (string.length(s3) != 2) { return 8; }
-  if (string.string_get(s3, 0) != 97 || string.string_get(s3, 1) != 98) { return 9; }
+  if (string.string_get(s3, 0) != (97 as u8) || string.string_get(s3, 1) != (98 as u8)) { return 9; }
   
-  let s4: String = string.string_from_slice(&slice_ab[0], 2);
+  let s4: String = { length: 0 };
+  if (string.string_from_slice(&slice_ab[0], 2, &s4) != 0) { return 10; }
   if (string.string_eq(s3, s4) != 1) { return 10; }
   let one_c: u8[1] = [99];
-  let s5: String = string.string_from_slice(&one_c[0], 1);
+  let s5: String = { length: 0 };
+  if (string.string_from_slice(&one_c[0], 1, &s5) != 0) { return 11; }
   if (string.string_eq(s3, s5) != 0) { return 11; }
   
   let hay: u8[6] = [97, 98, 99, 100, 101, 0];
-  let h: String = string.string_from_slice(&hay[0], 5);
-  if (string.string_find_char(h, 99) != 2) { return 12; }
-  if (string.string_find_char(h, 122) != (0 - 1)) { return 13; }
+  let h: String = { length: 0 };
+  if (string.string_from_slice(&hay[0], 5, &h) != 0) { return 12; }
+  if (string.string_find_char(h, 99 as u8) != 2) { return 12; }
+  if (string.string_find_char(h, 122 as u8) != (0 - 1)) { return 13; }
   let pref: u8[2] = [97, 98];
   if (string.string_starts_with(h, &pref[0], 2) != 1) { return 14; }
   let bad_pref: u8[2] = [98, 97];
@@ -59,7 +66,7 @@ function main(): i32 {
   if (string.is_empty(v) != 0) { return 22; }
   let v0: StrView = string.view(&hay[0], 0);
   if (string.is_empty(v0) != 1) { return 23; }
-  if (string.string_view_get(v, 2) != 99) { return 24; }
+  if (string.string_view_get(v, 2) != (99 as u8)) { return 24; }
   let v2: StrView = string.view(&hay[0], 5);
   if (string.string_view_eq(v, v2) != 1) { return 25; }
   let v3: StrView = string.view(&hay[0], 4);
@@ -68,7 +75,7 @@ function main(): i32 {
   let out_full: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   let copied: i32 = string.string_copy_to(h, &out_full[0], 8);
   if (copied != 5) { return 27; }
-  if (out_full[0] != 97 || out_full[1] != 98 || out_full[2] != 99) { return 28; }
+  if (out_full[0] != (97 as u8) || out_full[1] != (98 as u8) || out_full[2] != (99 as u8)) { return 28; }
   let out_small: u8[2] = [0, 0];
   let copy_fail: i32 = string.string_copy_to(h, &out_small[0], 2);
   if (copy_fail != (0 - 1)) { return 29; }
