@@ -6,7 +6,8 @@ const async_mod = import("std.async");
  * @return i32
  */
 function main(): i32 {
-  if (POLL_PENDING != 0) { return 1; }
-  if (POLL_READY != 1) { return 2; }
+  /* Import constants must be named through the import binding. */
+  if (async_mod.POLL_PENDING != 0) { return 1; }
+  if (async_mod.POLL_READY != 1) { return 2; }
   return 0;
 }
