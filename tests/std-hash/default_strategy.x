@@ -30,7 +30,8 @@ function main(): i32 {
   if (rs == ra || rs == rx || ra == rx) { return 6; }
 
   // See implementation.
-  let one: u64 = hash.xxhash64(&buf[0], 3);
+  /* xxhash64 returns the word in rax as i64. */
+  let one: u64 = hash.xxhash64(&buf[0], 3) as u64;
   if (one == 0) { return 7; }
 
   return 0;
