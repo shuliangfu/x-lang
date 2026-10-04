@@ -9,7 +9,8 @@ extern function pipeline_module_num_struct_layouts_at(module: *Module): i32;
  */
 function test_while_call(module: *Module): i32 {
   let li: i32 = 0;
-  while (li < pipeline_module_num_struct_layouts_at(module)) {
+  // The layout count is an extern. The call stays in an unsafe block.
+  while (li < unsafe { pipeline_module_num_struct_layouts_at(module) }) {
     li = li + 1;
   }
   return li;
