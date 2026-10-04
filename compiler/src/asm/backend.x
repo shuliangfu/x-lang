@@ -3872,7 +3872,9 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
     let co_stk: u8[512] = [];
     let br_lens: i32[8] = [];
     let co_lens: i32[8] = [];
-    let lbl: u8[256] = [];
+    // arch_emit_* takes u8[128]. copy64 stores at most 64 name bytes.
+    // PLATFORM: SHARED.
+    let lbl: u8[128] = [];
     let ctx: AsmFuncCtx = {
       frame_size: 0, next_offset: 0, num_locals: 0, label_counter: 0,
       module_ref: 0 as *Module,
@@ -3882,7 +3884,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
       loop_label_depth: 0, dep_pipe: 0 as *PipelineDepCtx,
       tail_join_label: lbl, tail_join_label_len: 0
     };
-    let fname_buf: u8[256] = [];
+    let fname_buf: u8[128] = [];
     pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
     pipeline_asm_emit_set_module(module);
     pipeline_asm_emit_set_arena(arena);
@@ -4008,7 +4010,8 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
       loop_label_depth: 0, dep_pipe: 0 as *PipelineDepCtx,
       tail_join_label: lbl2, tail_join_label_len: 0
     };
-    let fname_buf2: u8[256] = [];
+    // enc_label_arch takes u8[128]. PLATFORM: SHARED.
+    let fname_buf2: u8[128] = [];
     pipeline_asm_emit_set_dep_pipe(pipeline_ctx);
     pipeline_asm_emit_set_module(module);
     pipeline_asm_emit_set_arena(arena);
