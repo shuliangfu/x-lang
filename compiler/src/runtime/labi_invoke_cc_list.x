@@ -1159,7 +1159,11 @@ export function invoke_cc_scan_std_module_needs(c_paths: **u8, n: i32, flags: *i
       let nc: i32 = labi_icc_std_need_needle_count(mid);
       let ni: i32 = 0;
       while (ni < nc) {
-        let nd: *u8 = labi_icc_std_need_needle_at(mid, ni);
+        // PLATFORM: SHARED — extern needle-table FFI must run inside unsafe.
+        let nd: *u8 = 0 as *u8;
+        unsafe {
+          nd = labi_icc_std_need_needle_at(mid, ni);
+        }
         ni = ni + 1;
         if (nd == 0 as *u8) {
           continue;
