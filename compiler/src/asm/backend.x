@@ -42,6 +42,9 @@ export extern "C" function ast_ast_block_expr_stmt_ref(arena: *ASTArena, block_r
 export extern "C" function ast_ast_block_num_stmt_order(arena: *ASTArena, block_ref: i32): i32;
 export extern "C" function ast_ast_block_stmt_order_kind(arena: *ASTArena, block_ref: i32, index: i32): u8;
 export extern "C" function ast_ast_block_stmt_order_idx(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern "C" function ast_ast_block_region_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern "C" function ast_ast_block_if_then_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern "C" function ast_ast_block_if_else_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
 export extern "C" function ast_ast_block_num_lets(arena: *ASTArena, block_ref: i32): i32;
 export extern "C" function ast_ast_block_num_consts(arena: *ASTArena, block_ref: i32): i32;
 export extern "C" function ast_ast_block_while_cond_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
@@ -3544,10 +3547,77 @@ export function fold_parse_count_up_body(
 }
 
 /**
+ * Return 1 if block_ref assigns the name in name_buf[0..name_len).
+ * Walks expression statements (order kind 2), if bodies (kind 5), and
+ * unsafe regions (kind 6). An assignment inside unsafe is still a store:
+ * `let n = 0; unsafe { n = count(); } while (i < n)` must not fold n to 0.
+ * The let initializer itself is not an assignment.
+ * @param arena *ASTArena
+ * @param block_ref i32 — block to scan; 0 or negative returns 0
+ * @param name_buf *u8 — name bytes; null returns 0
+ * @param name_len i32 — byte length; not necessarily NUL-terminated
+ * @return i32 — 1 if a matching assignment exists, else 0
+ * PLATFORM: SHARED.
+ */
+export function fold_block_assigns_name(arena: *ASTArena, block_ref: i32, name_buf: *u8, name_len: i32): i32 {
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    if (block_ref <= 0 || name_buf == (0 as *u8) || name_len <= 0) { return 0; }
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, block_ref);
+    let si: i32 = 0;
+    while (si < nso) {
+      let sk: u8 = ast_ast_block_stmt_order_kind(arena, block_ref, si);
+      let sidx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, si);
+      if (sk == 2) {
+        // Kind 2 is an expression statement. Kind 28 is assignment.
+        if (sidx >= 0 && sidx < ast_ast_block_num_expr_stmts(arena, block_ref)) {
+          let er: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, sidx);
+          if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 28) {
+            let left_ref: i32 = asm_expr_binop_left(arena, er);
+            if (left_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 3) {
+              let alen: i32 = pipeline_expr_var_name_len(arena, left_ref);
+              if (alen == name_len) {
+                let abuf: u8[256] = [];
+                pipeline_expr_var_name_into(arena, left_ref, &abuf[0]);
+                let ak: i32 = 0;
+                let same: i32 = 1;
+                while (ak < name_len) {
+                  if (abuf[ak] != name_buf[ak]) { same = 0; }
+                  ak = ak + 1;
+                }
+                if (same != 0) { return 1; }
+              }
+            }
+          }
+        }
+      }
+      if (sk == 5 && sidx >= 0) {
+        let then_br: i32 = ast_ast_block_if_then_body_ref(arena, block_ref, sidx);
+        if (then_br > 0 && fold_block_assigns_name(arena, then_br, name_buf, name_len) != 0) {
+          return 1;
+        }
+        let else_br: i32 = ast_ast_block_if_else_body_ref(arena, block_ref, sidx);
+        if (else_br > 0 && fold_block_assigns_name(arena, else_br, name_buf, name_len) != 0) {
+          return 1;
+        }
+      }
+      if (sk == 6 && sidx >= 0) {
+        let inner: i32 = ast_ast_block_region_body_ref(arena, block_ref, sidx);
+        if (inner > 0 && fold_block_assigns_name(arena, inner, name_buf, name_len) != 0) {
+          return 1;
+        }
+      }
+      si = si + 1;
+    }
+    return 0;
+  }
+}
+
+/**
  * If var_ref is a same-block let bound to an integer literal, write *out_lit and return 1.
  * Used for const-prop of `let n: i32 = 1000000000; while (i < n)`.
- * A later assignment to that name in the same block means the initializer is not
- * the value at the loop (`let m = 0; m = n; while (k < m)` must not fold m to 0).
+ * A later assignment to that name, including one inside unsafe or if, means the
+ * initializer is not the value at the loop (`let m = 0; m = n; while (k < m)`).
  * PLATFORM: SHARED.
  */
 export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_ref: i32, out_lit: *i32): i32 {
@@ -3578,35 +3648,8 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
           if (init_ref <= 0 || pipeline_expr_kind_ord_at(arena, init_ref) != 0) {
             return 0;
           }
-          // Expr statements in this block. Kind 2 is an expression statement;
-          // kind 28 is assignment. A matching left-hand variable kills the fold.
-          let nso: i32 = ast_ast_block_num_stmt_order(arena, block_ref);
-          let si: i32 = 0;
-          while (si < nso) {
-            if (ast_ast_block_stmt_order_kind(arena, block_ref, si) == 2) {
-              let sidx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, si);
-              if (sidx >= 0 && sidx < ast_ast_block_num_expr_stmts(arena, block_ref)) {
-                let er: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, sidx);
-                if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 28) {
-                  let left_ref: i32 = asm_expr_binop_left(arena, er);
-                  if (left_ref > 0 && pipeline_expr_kind_ord_at(arena, left_ref) == 3) {
-                    let alen: i32 = pipeline_expr_var_name_len(arena, left_ref);
-                    if (alen == vlen) {
-                      let abuf: u8[256] = [];
-                      pipeline_expr_var_name_into(arena, left_ref, &abuf[0]);
-                      let ak: i32 = 0;
-                      let same: i32 = 1;
-                      while (ak < vlen) {
-                        if (abuf[ak] != vbuf[ak]) { same = 0; }
-                        ak = ak + 1;
-                      }
-                      if (same != 0) { return 0; }
-                    }
-                  }
-                }
-              }
-            }
-            si = si + 1;
+          if (fold_block_assigns_name(arena, block_ref, &vbuf[0], vlen) != 0) {
+            return 0;
           }
           if (out_lit != 0 as *i32) {
             out_lit[0] = pipeline_expr_int_val_at(arena, init_ref);
