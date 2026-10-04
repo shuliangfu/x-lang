@@ -33,6 +33,20 @@ const arm64 = import("arm64");
 const riscv64 = import("riscv64");
 const elf = import("platform.elf");
 
+// Block queries live on the pipeline block-domain object under the ast_ast_
+// link names. ast.x does not declare these methods, so a qualified call fails
+// typeck. The arena pointer is the same ASTArena* the methods would take.
+// PLATFORM: SHARED.
+export extern "C" function ast_ast_block_num_expr_stmts(arena: *ASTArena, block_ref: i32): i32;
+export extern "C" function ast_ast_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern "C" function ast_ast_block_num_stmt_order(arena: *ASTArena, block_ref: i32): i32;
+export extern "C" function ast_ast_block_stmt_order_kind(arena: *ASTArena, block_ref: i32, index: i32): u8;
+export extern "C" function ast_ast_block_stmt_order_idx(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern "C" function ast_ast_block_num_lets(arena: *ASTArena, block_ref: i32): i32;
+export extern "C" function ast_ast_block_num_consts(arena: *ASTArena, block_ref: i32): i32;
+export extern "C" function ast_ast_block_while_cond_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern "C" function ast_ast_block_while_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+
 // See implementation.
 // See implementation.
 // Dispatch exports are #[no_mangle] backend_enc_*.
@@ -2258,12 +2272,12 @@ export function fold_func_return_operand_ref(arena: *ASTArena, mod: *Module, fun
      * Historic final_expr short-circuit ignored earlier RETURNs → multi-return
      * helpers (e.g. chain_leaf) falsely matched single-field inline.
      */
-    let nes: i32 = ast.ast_block_num_expr_stmts(arena, body_ref);
+    let nes: i32 = ast_ast_block_num_expr_stmts(arena, body_ref);
     let found: i32 = 0;
     let op_ref: i32 = 0;
     let ei: i32 = 0;
     while (ei < nes) {
-      let er: i32 = ast.ast_block_expr_stmt_ref(arena, body_ref, ei);
+      let er: i32 = ast_ast_block_expr_stmt_ref(arena, body_ref, ei);
       if (er > 0 && pipeline_expr_kind_ord_at(arena, er) == 41) {
         let op_e: i32 = pipeline_expr_unary_operand_ref_at(arena, er);
         if (op_e != 0) {
@@ -2368,7 +2382,7 @@ export function try_inline_param0_field_sum_call_elf(
     let callee: Expr = ast.ast_arena_expr_get(arena, e.call_callee_ref);
     if (callee.kind != ExprKind.EXPR_VAR) { return 0; }
     if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    let fi: i32 = asm_module_func_index_by_name(mod_ref, callee.var_name, callee.var_name_len);
+    let fi: i32 = asm_module_func_index_by_name(mod_ref, &callee.var_name[0], callee.var_name_len);
     if (fi < 0) { return 0; }
     if (fold_func_returns_param0_field_sum(arena, mod_ref, fi) == 0) { return 0; }
     let ret_ref: i32 = fold_func_return_operand_ref(arena, mod_ref, fi);
@@ -2383,7 +2397,7 @@ export function try_inline_param0_field_sum_call_elf(
     if (arg_ref <= 0) { return -1; }
     let arg_e: Expr = ast.ast_arena_expr_get(arena, arg_ref);
     if (arg_e.kind != ExprKind.EXPR_VAR) { return 0; }
-    let slot_off: i32 = local_offset(ctx, arg_e.var_name, arg_e.var_name_len);
+    let slot_off: i32 = local_offset(ctx, &arg_e.var_name[0], arg_e.var_name_len);
     if (slot_off < 0) { return 0; }
     if (enc_local_slot_ptr_or_addr_arch(arena, elf_ctx, arg_ref, slot_off, ta, ctx) != 0) { return -1; }
     if (enc_push_rax_arch(elf_ctx, ta) != 0) { return -1; }
@@ -2415,7 +2429,7 @@ export function try_inline_x_plus_k_call_elf(
     if (callee.kind != ExprKind.EXPR_VAR) { return 0; }
     let nargs: i32 = pipeline_expr_call_num_args_at(arena, expr_ref);
     if (nargs != 1) { return 0; }
-    let fi: i32 = asm_module_func_index_by_name(mod_ref, callee.var_name, callee.var_name_len);
+    let fi: i32 = asm_module_func_index_by_name(mod_ref, &callee.var_name[0], callee.var_name_len);
     if (fi < 0) { return 0; }
     let k: i32 = fold_func_x_plus_k_chain(arena, mod_ref, fi, 0);
     if (k < 0) { return 0; }
@@ -2988,15 +3002,15 @@ export function fold_body_has_call_or_nested_loop(arena: *ASTArena, body_ref: i3
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let nso: i32 = ast.ast_block_num_stmt_order(arena, body_ref);
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, body_ref);
     let i: i32 = 0;
     while (i < nso) {
-      let item_kind: u8 = ast.ast_block_stmt_order_kind(arena, body_ref, i);
+      let item_kind: u8 = ast_ast_block_stmt_order_kind(arena, body_ref, i);
       if (item_kind == 3 || item_kind == 4) { return 1; }
       if (item_kind == 2) {
-        let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, i);
-        if (idx >= 0 && idx < ast.ast_block_num_expr_stmts(arena, body_ref)) {
-          let er: i32 = ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
+        let idx: i32 = ast_ast_block_stmt_order_idx(arena, body_ref, i);
+        if (idx >= 0 && idx < ast_ast_block_num_expr_stmts(arena, body_ref)) {
+          let er: i32 = ast_ast_block_expr_stmt_ref(arena, body_ref, idx);
           if (er > 0) {
             let ek: i32 = pipeline_expr_kind_ord_at(arena, er);
             if (ek == 48 || ek == 49) { return 1; }
@@ -3117,7 +3131,7 @@ export function fold_parse_affine_sum_body(
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let nso: i32 = ast.ast_block_num_stmt_order(arena, body_ref);
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, body_ref);
     if (nso != 2) { return 0; }
     let found_s: i32 = 0;
     let found_i: i32 = 0;
@@ -3125,10 +3139,10 @@ export function fold_parse_affine_sum_body(
     let k_v: i32 = 0;
     let j: i32 = 0;
     while (j < nso) {
-      if (ast.ast_block_stmt_order_kind(arena, body_ref, j) != 2) { return 0; }
-      let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, j);
-      if (idx < 0 || idx >= ast.ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
-      let er: i32 = ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
+      if (ast_ast_block_stmt_order_kind(arena, body_ref, j) != 2) { return 0; }
+      let idx: i32 = ast_ast_block_stmt_order_idx(arena, body_ref, j);
+      if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
+      let er: i32 = ast_ast_block_expr_stmt_ref(arena, body_ref, idx);
       if (er <= 0) { return 0; }
       let addend: i32 = 0;
       if (fold_is_assign_var_add_lit(arena, er, i_ref, &addend) != 0 && addend == 1) {
@@ -3213,7 +3227,7 @@ export function fold_block_let_struct_lit_i32_sum(arena: *ASTArena, block_ref: i
     if (vlen <= 0 || vlen > 127) { return 0; }
     let vbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
-    let nlet: i32 = ast.ast_block_num_lets(arena, block_ref);
+    let nlet: i32 = ast_ast_block_num_lets(arena, block_ref);
     let li: i32 = 0;
     while (li < nlet) {
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
@@ -3362,7 +3376,7 @@ export function fold_parse_struct_pair_n2_body(
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    if (ast.ast_block_num_stmt_order(arena, body_ref) != 4) { return 0; }
+    if (ast_ast_block_num_stmt_order(arena, body_ref) != 4) { return 0; }
     let pair_ref: i32 = 0;
     let s_ref: i32 = 0;
     let found_a: i32 = 0;
@@ -3371,10 +3385,10 @@ export function fold_parse_struct_pair_n2_body(
     let found_i: i32 = 0;
     let si: i32 = 0;
     while (si < 4) {
-      if (ast.ast_block_stmt_order_kind(arena, body_ref, si) != 2) { return 0; }
-      let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, si);
-      if (idx < 0 || idx >= ast.ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
-      let er: i32 = ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
+      if (ast_ast_block_stmt_order_kind(arena, body_ref, si) != 2) { return 0; }
+      let idx: i32 = ast_ast_block_stmt_order_idx(arena, body_ref, si);
+      if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
+      let er: i32 = ast_ast_block_expr_stmt_ref(arena, body_ref, idx);
       if (er <= 0) { return 0; }
       let addend: i32 = 0;
       if (fold_is_assign_var_add_lit(arena, er, i_ref, &addend) != 0 && addend == 1) {
@@ -3449,7 +3463,7 @@ export function fold_parse_count_up_const_field_call_body(
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let nso: i32 = ast.ast_block_num_stmt_order(arena, body_ref);
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, body_ref);
     if (nso != 2) { return 0; }
     let found_s: i32 = 0;
     let found_i: i32 = 0;
@@ -3457,10 +3471,10 @@ export function fold_parse_count_up_const_field_call_body(
     let step_v: i32 = 0;
     let j: i32 = 0;
     while (j < nso) {
-      if (ast.ast_block_stmt_order_kind(arena, body_ref, j) != 2) { return 0; }
-      let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, j);
-      if (idx < 0 || idx >= ast.ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
-      let er: i32 = ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
+      if (ast_ast_block_stmt_order_kind(arena, body_ref, j) != 2) { return 0; }
+      let idx: i32 = ast_ast_block_stmt_order_idx(arena, body_ref, j);
+      if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
+      let er: i32 = ast_ast_block_expr_stmt_ref(arena, body_ref, idx);
       if (er <= 0) { return 0; }
       let addend: i32 = 0;
       if (fold_is_assign_var_add_lit(arena, er, i_ref, &addend) != 0 && addend == 1) {
@@ -3492,7 +3506,7 @@ export function fold_parse_count_up_body(
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let nso: i32 = ast.ast_block_num_stmt_order(arena, body_ref);
+    let nso: i32 = ast_ast_block_num_stmt_order(arena, body_ref);
     if (nso != 2) { return 0; }
     let found_s: i32 = 0;
     let found_i: i32 = 0;
@@ -3500,10 +3514,10 @@ export function fold_parse_count_up_body(
     let step_v: i32 = 0;
     let j: i32 = 0;
     while (j < nso) {
-      if (ast.ast_block_stmt_order_kind(arena, body_ref, j) != 2) { return 0; }
-      let idx: i32 = ast.ast_block_stmt_order_idx(arena, body_ref, j);
-      if (idx < 0 || idx >= ast.ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
-      let er: i32 = ast.ast_block_expr_stmt_ref(arena, body_ref, idx);
+      if (ast_ast_block_stmt_order_kind(arena, body_ref, j) != 2) { return 0; }
+      let idx: i32 = ast_ast_block_stmt_order_idx(arena, body_ref, j);
+      if (idx < 0 || idx >= ast_ast_block_num_expr_stmts(arena, body_ref)) { return 0; }
+      let er: i32 = ast_ast_block_expr_stmt_ref(arena, body_ref, idx);
       if (er <= 0) { return 0; }
       let addend: i32 = 0;
       if (fold_is_assign_var_add_lit(arena, er, i_ref, &addend) != 0 && addend == 1) {
@@ -3543,7 +3557,7 @@ export function fold_block_let_init_lit(arena: *ASTArena, block_ref: i32, var_re
     if (vlen <= 0 || vlen > 127) { return 0; }
     let vbuf: u8[256] = [];
     pipeline_expr_var_name_into(arena, var_ref, &vbuf[0]);
-    let nlet: i32 = ast.ast_block_num_lets(arena, block_ref);
+    let nlet: i32 = ast_ast_block_num_lets(arena, block_ref);
     let li: i32 = 0;
     while (li < nlet) {
       let llen: i32 = pipeline_block_let_name_len(arena, block_ref, li);
@@ -3605,8 +3619,8 @@ export function try_fold_count_up_while_elf(
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let cond_ref: i32 = ast.ast_block_while_cond_ref(arena, block_ref, loop_idx);
-    let body_ref: i32 = ast.ast_block_while_body_ref(arena, block_ref, loop_idx);
+    let cond_ref: i32 = ast_ast_block_while_cond_ref(arena, block_ref, loop_idx);
+    let body_ref: i32 = ast_ast_block_while_body_ref(arena, block_ref, loop_idx);
     if (cond_ref <= 0 || body_ref <= 0) { return 0; }
     let i_ref: i32 = 0;
     let n_is_lit: i32 = 0;
@@ -3616,12 +3630,14 @@ export function try_fold_count_up_while_elf(
       return 0;
     }
     let i_e: Expr = ast.ast_arena_expr_get(arena, i_ref);
-    let off_i: i32 = local_offset(ctx, i_e.var_name, i_e.var_name_len);
+    // var_name is a fixed array. Passing the field bare loads its first bytes
+    // as the pointer. The address of the first element is the name pointer.
+    let off_i: i32 = local_offset(ctx, &i_e.var_name[0], i_e.var_name_len);
     if (off_i < 0) { return 0; }
     let off_n: i32 = -1;
     let n_e: Expr = ast.ast_arena_expr_get(arena, n_var_ref);
     if (n_is_lit == 0) {
-      off_n = local_offset(ctx, n_e.var_name, n_e.var_name_len);
+      off_n = local_offset(ctx, &n_e.var_name[0], n_e.var_name_len);
       if (off_n < 0) { return 0; }
     }
     let s_ref: i32 = 0;
@@ -3648,7 +3664,7 @@ export function try_fold_count_up_while_elf(
     let total: i32 = 0;
     if (n_const_ok != 0 && ctx.module_ref != 0 as *Module
         && fold_parse_affine_sum_body(arena, ctx.module_ref, body_ref, i_ref, &affine_s, &affine_k) != 0) {
-      off_sa = local_offset(ctx, s_ea.var_name, s_ea.var_name_len);
+      off_sa = local_offset(ctx, &s_ea.var_name[0], s_ea.var_name_len);
       if (off_sa < 0) { return 0; }
       nm1 = n_const - 1;
       sum_i = nm1 * n_const / 2;
@@ -3667,7 +3683,7 @@ export function try_fold_count_up_while_elf(
       if (n_const_ok != 0 && ctx.module_ref != 0 as *Module
           && fold_parse_struct_pair_n2_body(arena, ctx.module_ref, body_ref, i_ref, &struct_n2_s) != 0) {
         s_e2 = ast.ast_arena_expr_get(arena, struct_n2_s);
-        off_s2 = local_offset(ctx, s_e2.var_name, s_e2.var_name_len);
+        off_s2 = local_offset(ctx, &s_e2.var_name[0], s_e2.var_name_len);
         if (off_s2 < 0) { return 0; }
         prod_n2 = n_const * n_const;
         if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod_n2, ta) != 0) { return -1; }
@@ -3684,7 +3700,7 @@ export function try_fold_count_up_while_elf(
     if (n_const_ok != 0 && ctx.module_ref != 0 as *Module
         && fold_parse_count_up_const_field_call_body(arena, ctx.module_ref, block_ref, body_ref, i_ref, &struct_s, &struct_step) != 0) {
       s_es = ast.ast_arena_expr_get(arena, struct_s);
-      off_ss = local_offset(ctx, s_es.var_name, s_es.var_name_len);
+      off_ss = local_offset(ctx, &s_es.var_name[0], s_es.var_name_len);
       if (off_ss < 0) { return 0; }
       prod_s = n_const * struct_step;
       if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod_s, ta) != 0) { return -1; }
@@ -3696,7 +3712,7 @@ export function try_fold_count_up_while_elf(
     let off_s: i32 = -1;
     let prod: i32 = 0;
     if (simple_body != 0 && has_call == 0 && n_const_ok != 0) {
-      off_s = local_offset(ctx, s_e.var_name, s_e.var_name_len);
+      off_s = local_offset(ctx, &s_e.var_name[0], s_e.var_name_len);
       if (off_s < 0) { return 0; }
       prod = n_const * step_v;
       if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, prod, ta) != 0) { return -1; }
@@ -4116,7 +4132,7 @@ export function asm_codegen_ast_seed_mega(module: *Module, arena: *ASTArena, out
           }
           /* See implementation. */
         } else {
-          let slot_base: i32 = ctx.num_locals - ast.ast_block_num_consts(arena, body_ref) - ast.ast_block_num_lets(arena, body_ref);
+          let slot_base: i32 = ctx.num_locals - ast_ast_block_num_consts(arena, body_ref) - ast_ast_block_num_lets(arena, body_ref);
           if (slot_base < 0) { driver_diagnostic_asm_fail_at(6); return -1; }
           if (emit_block_inits(arena, out, body_ref, &ctx, ta, slot_base) != 0) {
             driver_diagnostic_asm_fail_at(6);
@@ -4251,7 +4267,7 @@ export function asm_codegen_ast_to_elf_seed_mega(module: *Module, arena: *ASTAre
           if (emit_block_body_elf(arena, elf_ctx, body_ref, &ctx, ta) != 0) { return -1; }
           /* See implementation. */
         } else {
-          let slot_base: i32 = ctx.num_locals - ast.ast_block_num_consts(arena, body_ref) - ast.ast_block_num_lets(arena, body_ref);
+          let slot_base: i32 = ctx.num_locals - ast_ast_block_num_consts(arena, body_ref) - ast_ast_block_num_lets(arena, body_ref);
           if (slot_base < 0) { return -1; }
           if (emit_block_inits_elf(arena, elf_ctx, body_ref, &ctx, ta, slot_base) != 0) { return -1; }
         }
