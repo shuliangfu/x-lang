@@ -45,23 +45,23 @@ let CFG_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
 
 /**
  * Host target_os literal ("linux" / "macos" / "windows" / "freebsd").
- * @return *u8 — NUL-terminated static bytes; never null. The pointer
- *   addresses CFG_HOST_OS_LIT, not a stack temporary.
- * PLATFORM: SHARED.
+ * @return i64 — pointer bits of CFG_HOST_OS_LIT in rax; never 0.
+ *   Link name unchanged. Not a stack temporary.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this *u8 return.
  */
 #[no_mangle]
-export function cfg_host_os_lit(): *u8 {
-  return &CFG_HOST_OS_LIT[0];
+export function cfg_host_os_lit(): i64 {
+  return (&CFG_HOST_OS_LIT[0]) as i64;
 }
 
 /**
  * Host target_arch literal for the product pair of this OS
  * ("x86_64" on linux, windows, and freebsd; "aarch64" on macos).
- * @return *u8 — NUL-terminated static bytes; never null. The pointer
- *   addresses CFG_HOST_ARCH_LIT. It must not reuse cfg_host_os_lit's frame.
- * PLATFORM: SHARED.
+ * @return i64 — pointer bits of CFG_HOST_ARCH_LIT in rax; never 0.
+ *   Link name unchanged. It must not reuse cfg_host_os_lit's frame.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this *u8 return.
  */
 #[no_mangle]
-export function cfg_host_arch_lit(): *u8 {
-  return &CFG_HOST_ARCH_LIT[0];
+export function cfg_host_arch_lit(): i64 {
+  return (&CFG_HOST_ARCH_LIT[0]) as i64;
 }
