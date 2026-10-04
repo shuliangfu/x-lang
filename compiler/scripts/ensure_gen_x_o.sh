@@ -397,7 +397,9 @@ build_codegen_x() {
   # pure-asm of src/codegen/codegen.x and src/codegen/codegen_late.x,
   # then ld -r into one object. No host cc of codegen_gen.c and no fallback.
   # The pin egg stops at 16384 patches inside codegen_c_ident_is_keyword.
-  # codegen_late.x holds the rest. codegen_outbuf.x is the shared Buf,
+  # codegen_late.x holds the rest. codegen_format_int_link.x gives the
+  # pipeline runtime its codegen_format_int name (codegen.x keeps format_int
+  # bare for codegen_late; w2055). codegen_outbuf.x is the shared Buf,
   # found through -L src/codegen. Joining into $1 leaves every link list
   # that names codegen_x.o unchanged.
   # $1 is the output path. Default codegen_x.o in cwd (compiler/). A probe
@@ -418,12 +420,14 @@ build_codegen_x() {
   local out="${1:-codegen_x.o}"
   local head="${out}.tu_head"
   local late="${out}.tu_late"
+  local fmtl="${out}.tu_fmt"
   local ld_flags
-  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/codegen/codegen.x ] || [ ! -f src/codegen/codegen_late.x ]; then
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/codegen/codegen.x ] || [ ! -f src/codegen/codegen_late.x ] \
+    || [ ! -f src/codegen/codegen_format_int_link.x ]; then
     log "codegen_x.o: pure_ld_shared.sh or codegen sources missing"
     return 1
   fi
-  rm -f "$out" "$head" "$late"
+  rm -f "$out" "$head" "$late" "$fmtl"
   if (
     # shellcheck disable=SC1091
     . scripts/pure_ld_shared.sh
@@ -438,20 +442,21 @@ build_codegen_x() {
     unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
     ulimit -s 65532 || true
     pure_asm_x_to_o "$head" src/codegen/codegen.x \
-      && pure_asm_x_to_o "$late" src/codegen/codegen_late.x
-  ) && [ -s "$head" ] && [ -s "$late" ]; then
+      && pure_asm_x_to_o "$late" src/codegen/codegen_late.x \
+      && pure_asm_x_to_o "$fmtl" src/codegen/codegen_format_int_link.x
+  ) && [ -s "$head" ] && [ -s "$late" ] && [ -s "$fmtl" ]; then
     case "$(uname -s 2>/dev/null || echo Unknown)" in
       Darwin) ld_flags='-multiply_defined suppress' ;;
       *) ld_flags='--allow-multiple-definition' ;;
     esac
     # shellcheck disable=SC2086
-    if ld -r $ld_flags -o "$out" "$head" "$late"; then
-      rm -f "$head" "$late"
+    if ld -r $ld_flags -o "$out" "$head" "$late" "$fmtl"; then
+      rm -f "$head" "$late" "$fmtl"
       log "codegen_x.o <- pure-asm codegen.x + codegen_late.x ($out)"
       return 0
     fi
   fi
-  rm -f "$out" "$head" "$late"
+  rm -f "$out" "$head" "$late" "$fmtl"
   log "codegen_x.o pure-asm failed (w1830; no cc fallback)"
   return 1
 }

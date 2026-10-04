@@ -13,6 +13,8 @@ export extern "C" function free(ptr: *u8): void;
 export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
 export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
 export extern "C" function diag_snap_load_usize(snap: *u8, off: i32): usize;
+export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
+export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
 export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
 export extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
 
@@ -230,8 +232,45 @@ export function pipeline_parser_get_match_module(): *u8 {
   return m;
 }
 
-// ast.x owns ast_expr_init_match_enum and ast_expr_init_call_resolve.
-// A second strong copy here blocked this bridge from linking beside ast.
+/**
+ * Clear the match fields of one expression.
+ * The g05 product link has no ast.x object, so this copy is the only
+ * definition there (w2055). Remove it when ast.x joins that link.
+ * Offsets in the flat ast_Expr record: matched ref at 320, arm base at
+ * 324, arm count at 328. A null expression is left untouched.
+ * @param e *u8 — expression record, or null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_init_match_enum(e: *u8): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (e == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    diag_snap_store_i32(e, 320, 0);
+    diag_snap_store_i32(e, 324, 0);
+    diag_snap_store_i32(e, 328, 0);
+  }
+}
+
+/**
+ * Reset one call expression to unresolved.
+ * Both resolve slots are written as -1 by the existing pipeline writer.
+ * A null arena or a non-positive expression index is left unchanged.
+ * @param arena *u8 — expression arena, or null
+ * @param expr_ref i32 — expression index
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_init_call_resolve(arena: *u8, expr_ref: i32): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
+  }
+}
 
 /**
  * Read up to count bytes from a file descriptor.

@@ -20,6 +20,7 @@ export extern "C" function lsp_io_std_heap_std_heap_free(ptr: *u8): void;
 export extern "C" function std_sys_os_read_file_into(path: *u8, buf: *u8, cap: i32): i32;
 export extern "C" function std_heap_free(ptr: *u8): void;
 export extern "C" function pipeline_module_struct_layout_set_packed(module: *u8, idx: i32, v: i32): void;
+export extern "C" function asm_ctx_local_offset_at(ctx: *u8, idx: i32): i32;
 
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_field_access_base_ref(arena: *u8, er: i32): i32;
@@ -244,9 +245,26 @@ export function ast_pipeline_module_struct_layout_set_packed(module: *u8, idx: i
   }
 }
 
-// backend.x owns backend_asm_ctx_slot_offset. lsp_diag_x.o owns the five
-// lsp_diag_* queries. The copies here were a second strong definition
-// (the lsp ones only returned -1).
+// lsp_diag_x.o owns the five lsp_diag_* queries. The copies here were a
+// second strong definition (they only returned -1).
+
+/**
+ * Frame offset of one local slot, under the name the pipeline runtime calls.
+ * The g05 product link has no backend.x object, so this forwarder is the
+ * only definition there (w2055). Remove it when backend.x joins that link.
+ * @param ctx *u8 — AsmFuncCtx
+ * @param slot_idx i32 — local slot index
+ * @return i32 — the offset from asm_ctx_local_offset_at
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
+  unsafe {
+    let r: i32 = asm_ctx_local_offset_at(ctx, slot_idx);
+    return r;
+  }
+  return 0;
+}
 
 /* See implementation. */
 
