@@ -10,29 +10,32 @@
 // Constants: arena=16, module=40, dep_ctx=1368.
 // PLATFORM: SHARED.
 
-/** Exported function `lsp_diag_pipeline_sizeof_arena`.
- * Implements `lsp_diag_pipeline_sizeof_arena`.
- * @return usize
+/**
+ * Byte size of the diagnostic pipeline arena.
+ * @return i64 — 16. The low 64 bits match size_t. Link name unchanged.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this usize return.
  */
 #[no_mangle]
-export function lsp_diag_pipeline_sizeof_arena(): usize {
+export function lsp_diag_pipeline_sizeof_arena(): i64 {
   return 16;
 }
 
-/** Exported function `lsp_diag_pipeline_sizeof_module`.
- * Implements `lsp_diag_pipeline_sizeof_module`.
- * @return usize
+/**
+ * Byte size of the diagnostic pipeline module.
+ * @return i64 — 40. The low 64 bits match size_t. Link name unchanged.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this usize return.
  */
 #[no_mangle]
-export function lsp_diag_pipeline_sizeof_module(): usize {
+export function lsp_diag_pipeline_sizeof_module(): i64 {
   return 40;
 }
 
-/** Exported function `lsp_diag_pipeline_sizeof_dep_ctx`.
- * Implements `lsp_diag_pipeline_sizeof_dep_ctx`.
- * @return usize
+/**
+ * Byte size of the diagnostic pipeline dependency context.
+ * @return i64 — 1368. The low 64 bits match size_t. Link name unchanged.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this usize return.
  */
 #[no_mangle]
-export function lsp_diag_pipeline_sizeof_dep_ctx(): usize {
+export function lsp_diag_pipeline_sizeof_dep_ctx(): i64 {
   return 1368;
 }
