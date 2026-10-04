@@ -153,6 +153,7 @@ export extern "C" function abort(): void;
  * @return void — does not return
  * PLATFORM: SHARED
  */
+#[no_mangle]
 export function xlang_panic_(has_msg: i32, msg_val: isize): void {
   unsafe {
     abort();

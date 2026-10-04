@@ -99,6 +99,23 @@ g05_frontend_x_needs_host_cc() {
   return 1
 }
 
+# w2055: drop a frontend object that is older than its .x sources.
+# Objects kept from an earlier compiler carried its link names (module
+# prefix on definitions, bare names at calls) and failed the Windows link.
+# Removing the object and its stamp sends ensure to the pure-asm rebuild.
+# $1 stem (parser_x / typeck_x / codegen_x); the rest are source dirs.
+# PLATFORM: SHARED.
+g05_frontend_x_drop_stale() {
+  _fd_stem="$1"
+  shift
+  [ -f "${_fd_stem}.o" ] || return 0
+  if [ -n "$(find "$@" -name '*.x' -newer "${_fd_stem}.o" 2>/dev/null | head -n 1)" ]; then
+    echo "g05_ensure: ${_fd_stem}.o is older than its .x sources; rebuilding (w2055)"
+    rm -f "${_fd_stem}.o" "${_fd_stem}.pure_asm"
+  fi
+  return 0
+}
+
 g05_parser_x_sha256() {
   g05_frontend_x_sha256 "$1"
 }
@@ -1502,7 +1519,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if printf '%s\n' "$_abx_nm" | grep -q " T _*asm_backend_compat_stubs_x_doc_anchor\$" \
             && printf '%s\n' "$_abx_nm" | grep -q " T _*xlang_format_u32_to_buf\$" \
             && printf '%s\n' "$_abx_nm" | grep -q " T _*pipeline_asm_emit_skip_heavy_stub_elf_c\$" \
-            && printf '%s\n' "$_abx_nm" | grep -q " T _*peephole_peephole_run\$"; then
+            && printf '%s\n' "$_abx_nm" | grep -q " T _*abcs_rd32\$"; then
             _abx_done=1
             break
           fi
@@ -4482,6 +4499,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # PLATFORM: SHARED.
   # w1578: a matching parser_x.pure_asm stamp skips a later gen refresh.
   # A stamp that does not match the object stops ensure (exit 2).
+  g05_frontend_x_drop_stale parser_x src/parser src/lexer src/ast
   if [ ! -f parser_x.o ]; then
     echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh parser_x; then
@@ -4517,6 +4535,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # zero-divisor panic sequence, so the bytes are not a drop-in and this
   # path does not replace an object that is already present.
   # PLATFORM: SHARED.
+  g05_frontend_x_drop_stale typeck_x src/typeck src/parser src/lexer src/ast
   if [ ! -f typeck_x.o ]; then
     echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
@@ -4576,6 +4595,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # path does not replace an object that is already present.
   # PLATFORM: SHARED.
   # Cap residual stays a separate object. It is not inside codegen.x.
+  g05_frontend_x_drop_stale codegen_x src/codegen src/typeck src/parser src/lexer src/ast
   if [ ! -f codegen_x.o ]; then
     echo "g05_ensure: codegen_x.o missing; pure-asm codegen.x + codegen_late.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
