@@ -72,20 +72,24 @@ function cfg_set_freestanding(v: i32): void {
 
 /**
  * Darwin host OS literal for cfg evaluation.
- * @return *u8 — pointer to the stable bytes macos, including the trailing NUL
- * Two calls return the same address. The pointer is not a stack buffer.
- * PLATFORM: MACOS|DARWIN arm64.
+ * @return i64 — pointer bits of the stable bytes macos in rax, including the
+ *   trailing NUL. Two calls return the same address. Not a stack buffer.
+ *   Link name unchanged.
+ * PLATFORM: MACOS|DARWIN arm64. The installed product cannot asm-emit this *u8 return.
  */
-function cfg_host_os_lit(): *u8 {
-  return "macos";
+function cfg_host_os_lit(): i64 {
+  let p: *u8 = "macos";
+  return p as i64;
 }
 
 /**
  * Darwin host architecture literal for cfg evaluation.
- * @return *u8 — pointer to the stable bytes aarch64, including the trailing NUL
- * Two calls return the same address. The pointer is not a stack buffer.
- * PLATFORM: MACOS|DARWIN arm64.
+ * @return i64 — pointer bits of the stable bytes aarch64 in rax, including the
+ *   trailing NUL. Two calls return the same address. Not a stack buffer.
+ *   Link name unchanged.
+ * PLATFORM: MACOS|DARWIN arm64. The installed product cannot asm-emit this *u8 return.
  */
-function cfg_host_arch_lit(): *u8 {
-  return "aarch64";
+function cfg_host_arch_lit(): i64 {
+  let p: *u8 = "aarch64";
+  return p as i64;
 }
