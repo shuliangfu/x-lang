@@ -198,11 +198,11 @@ export function net_worker_call_accept(fd: i32, fds: *u8, n: i32, ms: i32): i32 
  * reference this symbol. Otherwise arg is a NetWorkerArg. The loop
  * accepts and closes until the process exits. One loop.
  * @param arg *u8 — null, or the address of a NetWorkerArg
- * @return *u8 — null
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — always 0; link name unchanged
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit this *u8 return.
  */
 #[no_mangle]
-export function xlang_net_worker_accept_loop(arg: *u8): *u8 {
+export function xlang_net_worker_accept_loop(arg: *u8): i64 {
   if (arg == 0) {
     return 0;
   }
@@ -228,11 +228,11 @@ export function xlang_net_worker_accept_loop(arg: *u8): *u8 {
  * Address of the accept loop, as a pointer-sized integer.
  * dlsym avoids using the function name as a pointer value.
  * A direct null call keeps the loop in the link.
- * @return u64 — address, or 0 if dlsym fails
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — address bits in rax, or 0 if dlsym fails; link name unchanged
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a u64 return.
  */
 #[no_mangle]
-export function xlang_net_worker_accept_entry_ptr_impl_c(): u64 {
+export function xlang_net_worker_accept_entry_ptr_impl_c(): i64 {
   xlang_net_worker_accept_loop(0);
   unsafe {
     let handle: *u8 = net_worker_rtld_default();
@@ -241,16 +241,16 @@ export function xlang_net_worker_accept_entry_ptr_impl_c(): u64 {
     if (fp == 0) {
       return 0;
     }
-    return fp as u64;
+    return fp as i64;
   }
 }
 
 /**
  * Public entry. Same bits as the _impl.
- * @return u64 — address of xlang_net_worker_accept_loop
- * PLATFORM: MACOS|DARWIN
+ * @return i64 — address of xlang_net_worker_accept_loop in rax; link name unchanged
+ * PLATFORM: MACOS|DARWIN — the installed product cannot asm-emit a u64 return.
  */
 #[no_mangle]
-export function xlang_net_worker_accept_entry_ptr_c(): u64 {
+export function xlang_net_worker_accept_entry_ptr_c(): i64 {
   return xlang_net_worker_accept_entry_ptr_impl_c();
 }
