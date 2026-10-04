@@ -134,6 +134,7 @@ export function xlang_sqlite3_exec_c(db_h: i64, sql: *u8, out_errmsg: *i64): i32
  * @return *u8 — callback, or 0
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function sqlite_count_cb_ptr(): *u8 {
   let cb: *u8 = 0;
   let rtld: i64 = 0;

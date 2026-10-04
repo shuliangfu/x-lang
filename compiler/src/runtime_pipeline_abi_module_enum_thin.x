@@ -239,6 +239,7 @@ function pipe_en_entry_size(): i32 {
  * @return i32 - 256
  * PLATFORM: SHARED - ≡ MODULE_ENUM_MAX_VARIANTS.
  */
+#[no_mangle]
 function pipe_en_max_variants(): i32 {
   return 256;
 }

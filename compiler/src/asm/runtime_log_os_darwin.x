@@ -444,6 +444,7 @@ function log_os_async_ready(): i32 {
  * @return i64 — little-endian value
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function log_os_load_i64_at(buf: *u8, off: i32): i64 {
   // A live pad pulls the copy index inside this frame.
   // The unpadded store sat eight bytes past the allocation.
@@ -501,6 +502,7 @@ function log_os_stat_size(path: *u8): i64 {
  * @return i32 — parsed value
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function log_os_atoi(s: *u8): i32 {
   // A live pad pulls the digit accumulator inside this frame.
   // The unpadded store sat eight bytes past the allocation.

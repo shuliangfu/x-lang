@@ -93,6 +93,7 @@ const TOKEN_STAR: i32 = 98;
  * @param source *u8 — opaque slice
  * @return i32 — 1 if a type was consumed; 0 on mismatch
  */
+#[no_mangle]
 function parser_asm_diag_late_skip_param_type(lex_inout: *u8, source: *u8): i32 {
   let kind: i32 = 0;
   let ok: i32 = 0;
@@ -144,6 +145,7 @@ function parser_asm_diag_late_skip_param_type(lex_inout: *u8, source: *u8): i32 
  * @param source *u8 — opaque slice
  * @return i32 — 1 if a type was consumed; 0 on mismatch
  */
+#[no_mangle]
 function parser_asm_diag_late_skip_ret_type(lex_inout: *u8, source: *u8): i32 {
   let kind: i32 = 0;
   let ok: i32 = 0;

@@ -663,6 +663,7 @@ const P12G_TY_SLICE: i32 = 11;
 const P12G_ELEM_PTR_TO_SLICE_NDIMS: i32 = 0 - 2;
 
 /** P12g local: load i32 at base+off (LE; mirror of p12g_store_i32). */
+#[no_mangle]
 function p12g_load_i32(base: *u8, off: i32): i32 {
   let a: usize = 0;
   // Keep the last slot 16 bytes inside the frame.
@@ -822,6 +823,7 @@ export function parser_asm_skip_one_trait_body_into_c(lex_inout: *u8, source: *u
  * [mi][p] via the P1b copy authority, zero-padded to 64, and store the
  * length row. Mirrors xlang_skip_trait_copy_ident_c on the stack image.
  */
+#[no_mangle]
 function p12g_param_copy_name(ent_img: *u8, mi: i32, p: i32, source: *u8, lex_inout: *u8): void {
   let data: *u8 = 0 as *u8;
   let slen: i32 = 0;
@@ -859,6 +861,7 @@ function p12g_param_copy_name(ent_img: *u8, mi: i32, p: i32, source: *u8, lex_in
  * [mi] via the P1b copy authority, zero-padded to 64, and store the length
  * row. Mirrors xlang_skip_trait_copy_ident_c on the stack image.
  */
+#[no_mangle]
 function p12g_ret_copy_name(ent_img: *u8, mi: i32, source: *u8, lex_inout: *u8): void {
   let data: *u8 = 0 as *u8;
   let slen: i32 = 0;
@@ -906,6 +909,7 @@ function p12g_ret_copy_name(ent_img: *u8, mi: i32, source: *u8, lex_inout: *u8):
  * @return void
  * PLATFORM: SHARED — live via g-3 trampoline.
  */
+#[no_mangle]
 function parser_asm_skip_one_trait_method_sig_into_c(lex_inout: *u8, source: *u8, ent_img: *u8, mi: i32): void {
   let kind: i32 = 0;
   let steps: i32 = 0;
@@ -2613,6 +2617,7 @@ export function parser_asm_skip_one_impl_into_c(lex_inout: *u8, source: *u8, fir
  * PLATFORM: SHARED — P12d helper; not a second skip_generic_angle.
  * Language has no address-of for local i32; length is the return value.
  */
+#[no_mangle]
 function parser_asm_skip_tl_peek_impl_for_type(lex: *u8, source: *u8, name64: *u8): i32 {
   let pos0: usize = 0;
   let line0: i32 = 0;
@@ -3543,6 +3548,7 @@ export function xlang_skip_name_is_self_c(nm: *u8, nl: i32): i32 {
  * @return i32 — 1 if equal, 0 otherwise
  * PLATFORM: SHARED — file-local helper for P12i; not a second P6b authority.
  */
+#[no_mangle]
 function skip_named_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
   let i: i32 = 0;
   if (alen != blen) {
@@ -3574,6 +3580,7 @@ function skip_named_bytes_eq(a: *u8, alen: i32, b: *u8, blen: i32): i32 {
  * @return i32 — full name_len from the sidecar (may exceed 64)
  * PLATFORM: SHARED — C trampoline holds gnm[64]; memset every fill.
  */
+#[no_mangle]
 function skip_fill_gnm(arena: *u8, ty_ref: i32, gnm: *u8): i32 {
   let zi: i32 = 0;
   if (gnm == 0 as *u8) {
@@ -3601,6 +3608,7 @@ function skip_fill_gnm(arena: *u8, ty_ref: i32, gnm: *u8): i32 {
  * @return i32 — self_ok / 1 match / 0 mismatch
  * PLATFORM: SHARED — file-local; keep the C twin's Self vs memcmp order.
  */
+#[no_mangle]
 function skip_named_self_or_eq(arena: *u8, ty_ref: i32, for_name: *u8, for_nlen: i32, gnm: *u8, self_ok: i32): i32 {
   let gnl: i32 = 0;
   // Darwin compiles this function alone. Sibling helpers are externs.
@@ -3743,6 +3751,7 @@ export function xlang_skip_impl_self_matches_for_into_c(arena: *u8, pty0: i32, f
  * @return i32 — copied byte count (1..63)
  * PLATFORM: SHARED — file-local dest fill for P12j rewrite_self.
  */
+#[no_mangle]
 function skip_fill_for_copy(for_nm: *u8, for_nl: i32, for_copy: *u8): i32 {
   let n: i32 = 0;
   let zi: i32 = 0;
@@ -4129,6 +4138,7 @@ export function xlang_skip_impl_concrete_implements_trait_into_c(arena: *u8, con
  * @return i32 — 1 found, 0 miss (diag emitted)
  * PLATFORM: SHARED — helper of P12m dest-buffer.
  */
+#[no_mangle]
 function skip_impl_seen_match_or_diag(impl_trait: *u8, impl_trait_len: *i32, for_names: *u8, for_name_lens: *i32, seen_n: i32, trait_nm: *u8, trait_nlen: i32, ta: *u8, ta_len: i32, line: i32, col: i32): i32 {
   let si: i32 = 0;
   let impl_ok: i32 = 0;
@@ -4358,6 +4368,7 @@ export function xlang_generic_bound_check_type_args_into_c(fn_name: *u8, fn_name
  * @return i32 — nlen on copy, 0 on reject
  * PLATFORM: SHARED — file-local helper for P12n; not a second P1b copy_slice.
  */
+#[no_mangle]
 function skip_copy_row64(src: *u8, nlen: i32, out64: *u8): i32 {
   let ci: i32 = 0;
   if (src == 0 as *u8) {
@@ -4841,6 +4852,7 @@ export function xlang_skip_trait_method_name_dest_into_c(trait_nm: *u8, trait_nl
  * @return *u8 — ent at table+ti*stride, or null if missing / rejected
  * PLATFORM: SHARED — P12q helper. C trampoline owns the table.
  */
+#[no_mangle]
 function skip_trait_ent_at(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i32, n: i32): *u8 {
   let ti: i32 = 0;
   let ent: *u8 = 0 as *u8;
@@ -4872,6 +4884,7 @@ function skip_trait_ent_at(trait_nm: *u8, trait_nlen: i32, table: *u8, stride: i
  * @return i32 — 1 in range, 0 otherwise
  * PLATFORM: SHARED — P12q helper.
  */
+#[no_mangle]
 function skip_trait_slot_in_range(ent: *u8, slot: i32): i32 {
   let n_meth: i32 = 0;
   // Darwin compiles this function alone. Sibling helpers are externs.
@@ -5222,6 +5235,7 @@ export function xlang_skip_trait_method_param_name_dest_into_c(trait_nm: *u8, tr
  * @return i32 — N > 0, extra wrap count, or -1 if unused / invalid
  * PLATFORM: SHARED — P12r helper. Matches C twins in skip_tl.inc.
  */
+#[no_mangle]
 function skip_trait_elem_array_dim_at(ent: *u8, dims_base: i32, nd: i32, dim_ix: i32): i32 {
   let extra: i32 = 0;
   // Darwin compiles this function alone. Sibling helpers are externs.
@@ -5430,6 +5444,7 @@ export function xlang_skip_trait_method_param_elem_array_dim_into_c(trait_nm: *u
  * @return i32 — always 1 (hit)
  * PLATFORM: SHARED — P12s helper.
  */
+#[no_mangle]
 function skip_method_on_param_fill_ret(ent: *u8, slot: i32, out_ret_kind: *i32, out_ret_name: *u8, out_ret_name_len: *i32): i32 {
   let rnl: i32 = 0;
   let i: i32 = 0;
@@ -5496,6 +5511,7 @@ function skip_method_on_param_fill_ret(ent: *u8, slot: i32, out_ret_kind: *i32, 
  * @return i32 — 1 granted, 0 no
  * PLATFORM: SHARED — P12s helper. C trampoline owns the table.
  */
+#[no_mangle]
 function skip_method_on_param_try_trait(trait_nm: *u8, trait_nlen: i32, method_nm: *u8, method_nlen: i32, num_args: i32, out_ret_kind: *i32, out_ret_name: *u8, out_ret_name_len: *i32, table: *u8, stride: i32, n: i32): i32 {
   let ent: *u8 = 0 as *u8;
   let mi: i32 = 0;
@@ -5710,6 +5726,7 @@ export function xlang_generic_bound_method_on_param_into_c(fn_name: *u8, fn_name
  * @return i32 — 1 exists (skip inject), 0 inject
  * PLATFORM: SHARED — P12t helper.
  */
+#[no_mangle]
 function skip_hoist_method_exists(module: *u8, arena: *u8, mnm: *u8, mlen: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, gnm: *u8): i32 {
   let fi: i32 = 0;
   let nf: i32 = 0;
@@ -5768,6 +5785,7 @@ function skip_hoist_method_exists(module: *u8, arena: *u8, mnm: *u8, mlen: i32, 
  * @return i32 — 1 injected, 0 skipped
  * PLATFORM: SHARED — P12t helper.
  */
+#[no_mangle]
 function skip_hoist_try_method(module: *u8, arena: *u8, src: *u8, src_len: i32, ent: *u8, mi: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, gnm: *u8): i32 {
   let has_def: i32 = 0;
   let mlen: i32 = 0;
@@ -5831,6 +5849,7 @@ function skip_hoist_try_method(module: *u8, arena: *u8, src: *u8, src_len: i32, 
  * @return i32 — number of injects from this impl row
  * PLATFORM: SHARED — P12t helper.
  */
+#[no_mangle]
 function skip_hoist_try_impl(module: *u8, arena: *u8, src: *u8, src_len: i32, tname: *u8, tlen: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, table: *u8, stride: i32, n: i32, gnm: *u8): i32 {
   let ent: *u8 = 0 as *u8;
   let mi: i32 = 0;
@@ -5983,6 +6002,7 @@ export function xlang_skip_hoist_default_methods_into_c(module: *u8, arena: *u8,
  * @return i32 — module func index, or -1 if no same-name method
  * PLATFORM: SHARED — P12u helper.
  */
+#[no_mangle]
 function skip_trait_check_find_method(module: *u8, arena: *u8, mnm: *u8, mlen: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, gnm: *u8): i32 {
   let fi: i32 = 0;
   let nf: i32 = 0;
@@ -6040,6 +6060,7 @@ function skip_trait_check_find_method(module: *u8, arena: *u8, mnm: *u8, mlen: i
  * @return i32 — 0 ok, -1 one or more diags
  * PLATFORM: SHARED — P12u helper.
  */
+#[no_mangle]
 function skip_trait_check_try_method(module: *u8, arena: *u8, ent: *u8, mi: i32, si: i32, ti: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, gnm: *u8): i32 {
   let mlen: i32 = 0;
   let mnm: *u8 = 0 as *u8;
@@ -6115,6 +6136,7 @@ function skip_trait_check_try_method(module: *u8, arena: *u8, ent: *u8, mi: i32,
  * @return i32 — 0 ok, -1 one or more diags
  * PLATFORM: SHARED — P12u helper.
  */
+#[no_mangle]
 function skip_trait_check_try_impl(module: *u8, arena: *u8, tname: *u8, tlen: i32, si: i32, for_k: i32, for_ptr: i32, for_nm: *u8, for_nl: i32, table: *u8, stride: i32, n: i32, gnm: *u8): i32 {
   let ent: *u8 = 0 as *u8;
   let ti: i32 = -1;
@@ -6323,6 +6345,7 @@ const TOKEN_LBRACKET: i32 = 86;
 const TOKEN_RBRACKET: i32 = 87;
 
 /** P12g local: store i32 at base+off (LE byte writes; mirror of P13c). */
+#[no_mangle]
 function p12g_store_i32(base: *u8, off: i32, v: i32): void {
   let a: usize = 0;
   unsafe {

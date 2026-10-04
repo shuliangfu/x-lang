@@ -387,6 +387,7 @@ function process_store_ptr(argv: **u8, i: i32, v: *u8): void {
  * @return i32 — the word
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function process_load_i32(p: *u8, off: i32): i32 {
   // A live pad pulls the byte index inside this frame.
   // The unpadded store sat eight bytes past the allocation.

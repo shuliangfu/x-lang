@@ -3398,6 +3398,7 @@ function pipe_modlet_data_poke_u32_le(elf_ctx: *u8, off: i32, bits: i32): i32 {
  * @return i32 - 0 ok; -1 poke fail / non-constant elem / span overflow
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64 · ELF .data.
  */
+#[no_mangle]
 function pipe_modlet_bake_array_lit_elems_to_data(
   arena: *u8, elf_ctx: *u8, init_ref: i32, elem_ty: i32, data_base: i32, base_off: i32,
   span_bytes: i32, m: *u8
@@ -3845,6 +3846,7 @@ function pipe_modlet_bake_scalar_imm_to_data(
  * @return i32 - 0 ok; -1 intern/reloc/label fail
  * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64.
  */
+#[no_mangle]
 function pipe_modlet_bake_string_lit_elem_to_data(
   arena: *u8, elf_ctx: *u8, eref: i32, slot_off: i32
 ): i32 {
@@ -4105,6 +4107,7 @@ function pipe_modlet_fnv32_mix(h: i64, b: i32): i64 {
   return x & 4294967295;
 }
 
+#[no_mangle]
 function pipe_modlet_get_n(): i32 {
   unsafe { return pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_n()); }
 }
@@ -4320,6 +4323,7 @@ function pipe_modlet_off_name_len(i: i32): i32 {
  * @return i32 — 1 register 8-byte COMMON; 0 keep other arms / hoist
  * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64.
  */
+#[no_mangle]
 function pipe_modlet_scalar_init_common_imm(
   arena: *u8, init_ref: i32, tk: i32, is_const: i32, out_imm: *i32
 ): i32 {
@@ -5687,6 +5691,7 @@ unsafe { pipe_store_i32_le( &g_pipeline_asm_modlet[0], pipe_modlet_off_cell_size
  * wave139 pure: was static pipeline_asm_modlet_reset in modlet.c.
  * PLATFORM: SHARED - O(1); called once per mega emit.
  */
+#[no_mangle]
 function pipeline_asm_modlet_reset(): void {
   pipe_modlet_set_n(0);
   g_pipe_modlet_strpool_seq = 0;

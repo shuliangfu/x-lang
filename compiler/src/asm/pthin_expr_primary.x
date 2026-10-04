@@ -298,6 +298,7 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
  * @param want_len i32 — required spelling length
  * @return i32 — 1 if data is live, ident_len==want_len, and the span fits
  */
+#[no_mangle]
 function parser_asm_primary_ident_span_ok(data: *u8, length: usize, token_start: usize, ident_len: i32, want_len: i32): i32 {
   if (data == 0 as *u8 || ident_len != want_len || ident_len <= 0) {
     return 0;
@@ -315,6 +316,7 @@ function parser_asm_primary_ident_span_ok(data: *u8, length: usize, token_start:
  * @param i i32 — byte offset within the IDENT
  * @return u8 — data[token_start + i]
  */
+#[no_mangle]
 function parser_asm_primary_ident_byte(data: *u8, token_start: usize, i: i32): u8 {
   let c: u8 = 0;
   unsafe {
@@ -1517,6 +1519,7 @@ export function parser_asm_string_lit_decode_span_x_into_c(arena: *u8, head_ref:
  * @return i32 — 1 handled; 0 not STRING
  * PLATFORM: SHARED — P4bh STRING arm. Decode authority is P4bm.
  */
+#[no_mangle]
 function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1583,6 +1586,7 @@ function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: 
  * PLATFORM: SHARED — P4bk 有则补全 of P4bh remaining parse_primary.
  * Do not `break` out of a while in this helper (P4bh parse-drop).
  */
+#[no_mangle]
 function parser_asm_primary_break_continue_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1627,6 +1631,7 @@ function parser_asm_primary_break_continue_x_into_c(arena: *u8, lex_inout: *u8, 
  * @return i32 — 1 handled; 0 not RETURN
  * PLATFORM: SHARED — P4bh RETURN arm.
  */
+#[no_mangle]
 function parser_asm_primary_return_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1675,6 +1680,7 @@ function parser_asm_primary_return_x_into_c(arena: *u8, lex_inout: *u8, source: 
  * @return i32 — 1 handled; 0 not PANIC
  * PLATFORM: SHARED — P4bh PANIC arm.
  */
+#[no_mangle]
 function parser_asm_primary_panic_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1731,6 +1737,7 @@ function parser_asm_primary_panic_x_into_c(arena: *u8, lex_inout: *u8, source: *
  * @return i32 — 1 handled; 0 not LPAREN
  * PLATFORM: SHARED — P4bh paren arm. Suffix loop is P4bf (G.7).
  */
+#[no_mangle]
 function parser_asm_primary_paren_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let eok: i32 = 0;
@@ -1769,6 +1776,7 @@ function parser_asm_primary_paren_x_into_c(arena: *u8, lex_inout: *u8, source: *
  * @return i32 — 1 handled; 0 not LBRACKET
  * PLATFORM: SHARED — P4bh array arm.
  */
+#[no_mangle]
 function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1839,6 +1847,7 @@ function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *
  * @return i32 — 1 handled; 0 not LBRACE
  * PLATFORM: SHARED — P4bh LBRACE arm.
  */
+#[no_mangle]
 function parser_asm_primary_lbrace_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let bok: i32 = 0;
@@ -2179,6 +2188,7 @@ export function parser_asm_finish_struct_lit_from_type_ident_x_into_c(arena: *u8
  * @return i32 — nibble, or -1 if not hex
  * PLATFORM: SHARED — G.7 single nibble table.
  */
+#[no_mangle]
 function parser_asm_primary_hex_val_x(h: u8): i32 {
   if (h >= 48 && h <= 57) {
     return (h as i32) - 48;
@@ -2206,6 +2216,7 @@ function parser_asm_primary_hex_val_x(h: u8): i32 {
  * @return i32 — decoded length wi (>=0); 0 on null buf
  * PLATFORM: SHARED — P4bo template face. Do not dest-buffer append_byte.
  */
+#[no_mangle]
 function parser_asm_primary_asm_template_decode_x(source: *u8, q0: usize, nlen: i32, tmpl_buf: *u8, line: i32, col: i32): i32 {
   let ri: i32 = 0;
   let wi: i32 = 0;
@@ -2307,6 +2318,7 @@ function parser_asm_primary_asm_template_decode_x(source: *u8, q0: usize, nlen: 
  * @return i32 — new packed length, or -1 if base+1+rlen >= 128
  * PLATFORM: SHARED — P4bo register pack. Do not FORCE pabi mega.
  */
+#[no_mangle]
 function parser_asm_primary_asm_pack_reg_x(source: *u8, lex_inout: *u8, regs_buf: *u8, regs_len: i32): i32 {
   let kind: i32 = 0;
   let q0: usize = 0;
@@ -2381,6 +2393,7 @@ function parser_asm_primary_asm_pack_reg_x(source: *u8, lex_inout: *u8, regs_buf
  * @return i32 — bitmask, or -1 on failure
  * PLATFORM: SHARED — P4bo options list. G.7 bit table = asm_option_bit_buf.
  */
+#[no_mangle]
 function parser_asm_primary_asm_parse_options_x(lex_inout: *u8, source: *u8): i32 {
   let kind: i32 = 0;
   let bits: i32 = 0;
@@ -2443,6 +2456,7 @@ function parser_asm_primary_asm_parse_options_x(lex_inout: *u8, source: *u8): i3
  * @return i32 — 1=in, 2=out/lateout, 0=fail
  * PLATFORM: SHARED — P4bo one operand. No nested while.
  */
+#[no_mangle]
 function parser_asm_primary_asm_parse_operand_x(arena: *u8, lex_inout: *u8, source: *u8, regs_buf: *u8, regs_len_io: *i32, pref: i32): i32 {
   let kind: i32 = 0;
   let data: *u8 = 0 as *u8;
@@ -2814,6 +2828,7 @@ export function parser_asm_primary_parse_unsafe_x_into_c(arena: *u8, lex_inout: 
  * @return i32 — 1 prefer block; 0 not a stmt head
  * PLATFORM: SHARED — P4bq helper; sequential ifs (no giant ||).
  */
+#[no_mangle]
 function parser_asm_primary_lbrace_stmt_kind_is_block_x(kind: i32): i32 {
   if (kind == TOKEN_LET) {
     return 1;
@@ -3000,6 +3015,7 @@ export function parser_asm_primary_empty_ident_braces_x_into_c(lex_inout: *u8, s
  * @return i32 — 1 consumed (check out_ok); 0 follower is not `!` (cursor restored)
  * PLATFORM: SHARED — P4br helper. Sequential ifs; 4 lets (no nested while).
  */
+#[no_mangle]
 function parser_asm_ident_pre_dispatch_try_asm_x(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let pos0: usize = 0;

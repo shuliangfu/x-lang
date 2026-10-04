@@ -121,6 +121,7 @@ function pipe_elf_shnx_data(): i32 { return 4; }
 /* wave700: 256 -> 2048. Twin of mega pipe_elf_undef_cap. Leftover write_o
  * stack[256] dropped calloc/mmap → PLT32 r_sym=0. Workspace rows stay
  * 128B name + i32 len (wave580). PLATFORM: SHARED ELF writer. */
+#[no_mangle]
 function pipe_elf_undef_cap(): i32 { return 2048; }
 /* Mach-O unique-undef rows. wave700 raised the ELF twin to 2048 and
  * left this at 256. parser.x records more than 256 unique undefined
@@ -142,6 +143,7 @@ function pipe_elf_reloc_heap_esz(): i32 { return 12; }
 // Field offsets inside PipelineElfCtxAccess
 function pipe_elf_off_code_len(): i32 { return 0; }
 function pipe_elf_off_labels(): i32 { return 4; }
+#[no_mangle]
 function pipe_elf_off_num_labels(): i32 { return 17301508; }
 function pipe_elf_off_patches(): i32 { return 17301512; }
 function pipe_elf_off_num_patches(): i32 { return 34865160; }
@@ -2373,14 +2375,17 @@ function pipe_elf_shstr_std_size(): i32 {
   return 63;
 }
 
+#[no_mangle]
 function pipe_elf_ws_undef_name_row(i: i32): *u8 {
   return &g_pipe_elf_ws_undef_names[0] + ((i * 128) as usize);
 }
 
+#[no_mangle]
 function pipe_elf_ws_undef_len_at(i: i32): i32 {
   return pipe_elf_bss_load_i32(&g_pipe_elf_ws_undef_lens[0], i);
 }
 
+#[no_mangle]
 function pipe_elf_ws_undef_len_set(i: i32, v: i32): void {
   pipe_elf_bss_store_i32(&g_pipe_elf_ws_undef_lens[0], i, v);
 }

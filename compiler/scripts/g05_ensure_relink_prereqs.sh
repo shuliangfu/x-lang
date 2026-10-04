@@ -1466,7 +1466,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # hosts (format helpers, CodegenOutBuf line append, ELF u32 helpers, block
   # slot and emit forwards). No seed-rest cc and no cc fallback: three failed
   # tries log build_asm/g05_cc_fallback.log and stop g05.
-  # Darwin and Linux weaken the same 14 names the old seed marked weak so the
+  # Darwin and Linux weaken the old seed weak names (12 after aa0526cfb) so the
   # real types / peephole / typeck definitions win; Windows keeps all strong
   # (the old COFF object was all strong too). Calls inside the object go
   # through symbol relocations, so a real strong definition still wins.
@@ -1484,7 +1484,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       _abx_weak=""
       case "$_abx_os" in
         Darwin|Linux)
-          _abx_weak="append_asm_line,format_i32_to_buf,asm_types_append_asm_line,asm_types_format_i32_to_buf,asm_types_format_u32_to_buf,asm_types_format_u32_hex8_to_buf,asm_types_elf_read_u32_le,expr_layout_prime_call_resolved,emit_ldr_sp_slot_to_xreg,backend_asm_codegen_ast_seed_mega,backend_asm_codegen_ast_to_elf_seed_mega,peephole_peephole_run,peephole_peephole_elf_run,typeck_lsp_build_semantic_tokens_response"
+          _abx_weak="append_asm_line,format_i32_to_buf,asm_types_append_asm_line,asm_types_format_i32_to_buf,asm_types_format_u32_to_buf,asm_types_format_u32_hex8_to_buf,asm_types_elf_read_u32_le,expr_layout_prime_call_resolved,emit_ldr_sp_slot_to_xreg,peephole_peephole_run,peephole_peephole_elf_run,typeck_lsp_build_semantic_tokens_response"
           ;;
       esac
       _abx_done=0
@@ -1502,7 +1502,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           if printf '%s\n' "$_abx_nm" | grep -q " T _*asm_backend_compat_stubs_x_doc_anchor\$" \
             && printf '%s\n' "$_abx_nm" | grep -q " T _*xlang_format_u32_to_buf\$" \
             && printf '%s\n' "$_abx_nm" | grep -q " T _*pipeline_asm_emit_skip_heavy_stub_elf_c\$" \
-            && printf '%s\n' "$_abx_nm" | grep -q " T _*peephole_run\$"; then
+            && printf '%s\n' "$_abx_nm" | grep -q " T _*peephole_peephole_run\$"; then
             _abx_done=1
             break
           fi

@@ -49,6 +49,7 @@ export extern function pipe_load_ptr_slot(base: *u8, i: i32): *u8;
  * @param pi i32 — param index
  * @return i32 — 1 if param type kind is TYPE_PTR (9); else 0
  */
+#[no_mangle]
 function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i32): i32 {
   let cell: u8[8];
   unsafe {
@@ -78,6 +79,7 @@ function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i3
  * PLATFORM: SHARED freestanding param slot · LINUX gold · MACOS co-path.
  * G.7: complete this walk (same homes as fill_param_slots; no second mapper).
  */
+#[no_mangle]
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   let pi: i32 = 0;
   let off: i32 = 16;

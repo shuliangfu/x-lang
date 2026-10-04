@@ -273,6 +273,7 @@ function diag_meta_n_set(v: i32): void {
  * @param v *u8 — 512-byte buffer
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function diag_ptrs_set(v: *u8): void {
   let slot: **u8 = &diag_ptrs;
   diag_set_ptr(slot, v);
@@ -499,6 +500,7 @@ function diag_tls_held(): *u8 {
  * @return i32 — 0, or -1 when malloc fails
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function diag_meta_ensure(): i32 {
   // A live pad pulls the edge store inside this frame.
   // The unpadded store sat eight bytes past the allocation.
@@ -568,6 +570,7 @@ function diag_meta_ord_set(i: i32, v: i32): void {
  * @return i32 — order id
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function diag_meta_ord_get(i: i32): i32 {
   // A live pad pulls the scaled index inside this frame.
   // The unpadded store sat eight bytes past the allocation.

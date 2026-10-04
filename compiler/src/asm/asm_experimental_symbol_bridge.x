@@ -68,6 +68,7 @@ export function main_cmd_build(argc: i32, argv: *u8): i32 {
  * Read argv[i] (char** slot i) without pointer-to-pointer syntax.
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function aesb_argv_at(argv: *u8, i: i32): *u8 {
   let tmp: *u8 = 0 as *u8;
   let src: *u8 = argv + i * 8;
@@ -81,6 +82,7 @@ function aesb_argv_at(argv: *u8, i: i32): *u8 {
  * NUL-terminated s equals the 3..5 byte word c0..c4 (unused tail = 0).
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function aesb_word_eq(s: *u8, n: i32, c0: i32, c1: i32, c2: i32, c3: i32, c4: i32): i32 {
   if (((s[0] as i32) & 255) != c0) { return 0; }
   if (((s[1] as i32) & 255) != c1) { return 0; }

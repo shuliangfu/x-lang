@@ -124,6 +124,7 @@ function crypto_hex_byte(s: *u8, i: i32): u8 {
  * @return u32 — big-endian word
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function crypto_hex_u32(s: *u8, i: i32): u32 {
   // A live pad pulls the edge store inside this frame.
   // The unpadded store sat eight bytes past the allocation.
@@ -521,6 +522,7 @@ function crypto_sha256_iv(h: *u32): void {
  * @param n i32 — count
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function crypto_copy_span(dst: *u8, src: *u8, off: i32, n: i32): void {
   // A live pad pulls the copy index inside this frame.
   // The unpadded store sat eight bytes past the allocation.
@@ -610,6 +612,7 @@ function crypto_sha256_out(h: *u32, out: *u8): void {
  * @param rem i32 — leftover byte count
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function crypto_sha256_finish(h: *u32, block: *u8, msg: *u8, len: i32, rem: i32): void {
   // A live pad pulls the edge store inside this frame.
   // The unpadded store sat eight bytes past the allocation.
@@ -691,6 +694,7 @@ export function crypto_sha256_c(msg: *u8, len: i32, out: *u8): void {
  * @param n i32 — count
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function crypto_copy_at(dst: *u8, dst_off: i32, src: *u8, n: i32): void {
   // A live pad pulls the copy index inside this frame.
   // The unpadded store sat eight bytes past the allocation.

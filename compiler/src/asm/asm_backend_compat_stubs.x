@@ -50,6 +50,7 @@ export function asm_backend_compat_stubs_x_doc_anchor(): i32 {
  * Little-endian i32 read at byte offset (CodegenOutBuf / AsmFuncCtx fields).
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function abcs_rd32(p: *u8, off: i32): i32 {
   let q: *u8 = p + off;
   let b0: i32 = (q[0] as i32) & 255;
@@ -63,6 +64,7 @@ function abcs_rd32(p: *u8, off: i32): i32 {
  * Little-endian i32 write at byte offset.
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function abcs_wr32(p: *u8, off: i32, v: i32): void {
   let q: *u8 = p + off;
   q[0] = (v & 255) as u8;

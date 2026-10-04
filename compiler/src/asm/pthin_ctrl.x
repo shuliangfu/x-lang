@@ -283,6 +283,7 @@ export extern "C" function parser_asm_rewind_following_stmt_kind_c(kind: i32): i
  * @param c u8 — source byte
  * @return i32 — 1 if ident-continue; 0 otherwise
  */
+#[no_mangle]
 function parser_asm_ctrl_ident_continue(c: u8): i32 {
   if (c >= 97 && c <= 122) {
     return 1;
@@ -343,6 +344,7 @@ const EXPR_FIELD_ACCESS: i32 = 44;
  * @param klen i32 — expected length; <= 0 is 0
  * @return i32 — 1 if the span fits and every byte matches
  */
+#[no_mangle]
 function parser_asm_ctrl_bytes_eq(data: *u8, len: usize, i: usize, kw: *u8, klen: i32): i32 {
   let n: usize = 0;
   let j: i32 = 0;
@@ -599,6 +601,7 @@ export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: 
  * @param i usize — first keyword byte
  * @return i32 — 1 if standalone `if`
  */
+#[no_mangle]
 function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
   let a: u8 = 0;
   let b: u8 = 0;
@@ -626,6 +629,7 @@ function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
  * @param i usize — first keyword byte
  * @return i32 — 1 if standalone `else`
  */
+#[no_mangle]
 function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
   let a: u8 = 0;
   let b: u8 = 0;
@@ -659,6 +663,7 @@ function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
  * @param i usize — current byte
  * @return usize — advanced cursor, or i if not a comment/quote
  */
+#[no_mangle]
 function parser_asm_ctrl_skip_comment_or_quote(data: *u8, len: usize, i: usize): usize {
   let c: u8 = 0;
   let n: u8 = 0;
@@ -726,6 +731,7 @@ function parser_asm_ctrl_skip_comment_or_quote(data: *u8, len: usize, i: usize):
  * @param start usize — first byte of the condition
  * @return usize — index of `{`, or `len` if none
  */
+#[no_mangle]
 function parser_asm_ctrl_find_then_lbrace(data: *u8, len: usize, start: usize): usize {
   let i: usize = start;
   let par: i32 = 0;
@@ -881,6 +887,7 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
  * @param kind i32 — peeked token kind
  * @return i32 — 1 for RETURN/IF/WHILE/FOR/MATCH/RBRACE/LET/CONST
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_stmt_kw(kind: i32): i32 {
   if (kind == TOKEN_RETURN || kind == TOKEN_IF || kind == TOKEN_WHILE || kind == TOKEN_FOR ||
       kind == TOKEN_MATCH || kind == TOKEN_RBRACE || kind == TOKEN_LET || kind == TOKEN_CONST) {
@@ -895,6 +902,7 @@ function parser_asm_ctrl_realign_stmt_kw(kind: i32): i32 {
  * @param kind i32 — peeked token kind at a backscan offset
  * @return i32 — 1 for RETURN/IF/WHILE/FOR/MATCH/LET/CONST
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_back_kw(kind: i32): i32 {
   if (kind == TOKEN_RETURN || kind == TOKEN_IF || kind == TOKEN_WHILE || kind == TOKEN_FOR ||
       kind == TOKEN_MATCH || kind == TOKEN_LET || kind == TOKEN_CONST) {
@@ -915,6 +923,7 @@ function parser_asm_ctrl_realign_back_kw(kind: i32): i32 {
  * @param kind i32 — the peeked token kind (caller cached it)
  * @return void
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_finish_peek(lex_inout: *u8, source: *u8, kind: i32): void {
   let ts: usize = 0;
   let il: i32 = 0;
@@ -939,6 +948,7 @@ function parser_asm_ctrl_realign_finish_peek(lex_inout: *u8, source: *u8, kind: 
  * @param kw_id i32 — table id
  * @return i32 — keyword byte length
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_len(kw_id: i32): i32 {
   if (kw_id == 0) {
     return 6;
@@ -977,6 +987,7 @@ function parser_asm_ctrl_realign_scan_kw_len(kw_id: i32): i32 {
  * @param kw_id i32 — table id (0..7)
  * @return i32 — 1 if every byte matches
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_bytes_at(data: *u8, scan: usize, kw_id: i32): i32 {
   unsafe {
     if (kw_id == 0) {
@@ -1042,6 +1053,7 @@ function parser_asm_ctrl_realign_scan_kw_bytes_at(data: *u8, scan: usize, kw_id:
  * @param kw_id i32 — table id (0..7)
  * @return i32 — expected kind after the verify re-lex
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_kind(kw_id: i32): i32 {
   if (kw_id == 0) {
     return TOKEN_RETURN;
@@ -1083,6 +1095,7 @@ function parser_asm_ctrl_realign_scan_kw_kind(kw_id: i32): i32 {
  * @param kw_id i32 — table id (0..7)
  * @return i32 — 1 if the byte-level checks pass (caller then re-lexes)
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_at(data: *u8, len: usize, scan: usize, scan_end: usize, kw_id: i32): i32 {
   let klen: usize = 0;
   let prev: u8 = 0;
@@ -1567,6 +1580,7 @@ export function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: 
  * @return i32 — new EXPR_IF ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — P5f helper.
  */
+#[no_mangle]
 function skip_if_expr_finish(arena: *u8, type_ref: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32 {
   let if_ref: i32 = 0;
   if (arena == 0 as *u8) {
@@ -1702,6 +1716,7 @@ export function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, so
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — P5g helper. Not a second wrap authority.
  */
+#[no_mangle]
 function skip_match_wrap_prep(arena: *u8, kind: i32): i32 {
   let ref: i32 = 0;
   if (arena == 0 as *u8) {

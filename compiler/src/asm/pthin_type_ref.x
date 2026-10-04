@@ -411,6 +411,7 @@ export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_
  * @param want_len i32 — required spelling length
  * @return i32 — 1 if data is live, ident_len==want_len, and the span fits
  */
+#[no_mangle]
 function parser_asm_type_ref_ident_span_ok(data: *u8, length: usize, token_start: usize, ident_len: i32, want_len: i32): i32 {
   if (data == 0 as *u8 || ident_len != want_len || ident_len <= 0) {
     return 0;
@@ -428,6 +429,7 @@ function parser_asm_type_ref_ident_span_ok(data: *u8, length: usize, token_start
  * @param i i32 — byte offset within the IDENT
  * @return u8 — data[token_start + i]
  */
+#[no_mangle]
 function parser_asm_type_ref_ident_byte(data: *u8, token_start: usize, i: i32): u8 {
   let c: u8 = 0;
   unsafe {
@@ -568,6 +570,7 @@ export function parser_asm_type_ref_ident_is_dyn_buf_c(data: *u8, length: usize,
  * @return i32 — 1 if the six bytes are `Linear`; 0 otherwise
  * PLATFORM: SHARED — buf-path sibling of ident_is_dyn (G.7 spelling family).
  */
+#[no_mangle]
 function parser_asm_type_ref_ident_is_linear(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
   let span: i32 = 0;
   let c0: u8 = 0;
@@ -1696,6 +1699,7 @@ export function parser_asm_parse_linear_type_x_into_c(arena: *u8, lex_inout: *u8
  * @return i32 — elem_ord, or -1 if kind is not a vec token
  * PLATFORM: SHARED — P3l. Do not "fix" F32X4=13.
  */
+#[no_mangle]
 function parser_asm_builtin_vec_token_elem_ord(kind: i32): i32 {
   if (kind == TOKEN_U32X4 || kind == TOKEN_U32X8 || kind == TOKEN_U32X16) {
     return 3;
@@ -1716,6 +1720,7 @@ function parser_asm_builtin_vec_token_elem_ord(kind: i32): i32 {
  * @return i32 — 4, 8, or 16
  * PLATFORM: SHARED — P3l lanes table. Do not merge with IDENT pack.
  */
+#[no_mangle]
 function parser_asm_builtin_vec_token_lanes(kind: i32): i32 {
   if (kind == TOKEN_I32X8 || kind == TOKEN_U32X8) {
     return 8;

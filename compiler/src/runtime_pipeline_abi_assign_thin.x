@@ -185,6 +185,7 @@ export extern function glue_store_retval_pair_to_rbp_elf_c(m: *u8, arena: *u8, e
  * G.7 same pattern as driver_abi_store_i32_le (wave19); local copy - not exported.
  * PLATFORM: SHARED LP64 little-endian.
  */
+#[no_mangle]
 function asg_thin_store_i32_le(base: *u8, off: i32, v: i32): void {
   if (base == 0 as *u8) {
     return;
@@ -209,6 +210,7 @@ function asg_thin_store_i32_le(base: *u8, off: i32, v: i32): void {
  * G.7 pair of asg_thin_store_i32_le; local - not exported.
  * PLATFORM: SHARED LP64 little-endian.
  */
+#[no_mangle]
 function asg_thin_load_i32_le(base: *u8, off: i32): i32 {
   if (base == 0 as *u8) {
     return 0;
@@ -235,10 +237,12 @@ function asg_thin_load_i32_le(base: *u8, off: i32): i32 {
  * @return i32 - 4
  * PLATFORM: SHARED LP64 — matches backend.x layout + call_dispatch comment.
  */
+#[no_mangle]
 function asg_thin_ctx_off_next_offset(): i32 {
   return 4;
 }
 
+#[no_mangle]
 function asg_thin_align_next_offset(ctx: *u8): void {
   if (ctx == 0 as *u8) {
     return;

@@ -108,6 +108,7 @@ export function user_asm_seed_bridge_x_doc_anchor(): i32 {
  * Little-endian i32 read at byte offset.
  * PLATFORM: SHARED
  */
+#[no_mangle]
 function uasb_rd32(p: *u8, off: i32): i32 {
   let q: *u8 = p + off;
   let b0: i32 = (q[0] as i32) & 255;

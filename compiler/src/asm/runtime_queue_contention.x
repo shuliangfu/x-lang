@@ -94,6 +94,7 @@ export function queue_smoke_at(q: *QueueSmokeState, i: i32): i32 {
  *  @param x i32 — value to store
  *  PLATFORM: SHARED
  */
+#[no_mangle]
 function queue_smoke_store_i32(buf: *i32, i: i32, x: i32): void {
   buf[i] = x;
 }

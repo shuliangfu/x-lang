@@ -82,6 +82,7 @@ export function core_slice_u64_from_ptr_c(out: *XlangSliceU64, data: *u64, len: 
  * @return the clamped count in rax; low 64 bits, never negative
  * PLATFORM: SHARED — the product cannot asm-emit a usize return.
  */
+#[no_mangle]
 function slice_glue_clamp_len(total_len: usize, start: usize, len: usize): i64 {
   let avail: usize = 0;
   if (start >= total_len) { return 0; }

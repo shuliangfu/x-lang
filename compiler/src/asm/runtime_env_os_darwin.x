@@ -258,6 +258,7 @@ function env_os_key_eq(ent: *u8, name: *u8, nlen: i32): i32 {
  * @return i32 — 1 when the key is acceptable
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function env_os_name_ok(name: *u8): i32 {
   if (name == 0) {
     return 0;

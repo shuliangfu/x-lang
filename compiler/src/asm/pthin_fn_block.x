@@ -646,6 +646,7 @@ export function parser_asm_tok_is_modifier_soa_c(kind: i32, ident_len: i32, next
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — P6d helper. Not a second wrap authority.
  */
+#[no_mangle]
 function skip_lib_wrap_prep(arena: *u8, kind: i32): i32 {
   let ref: i32 = 0;
   if (arena == 0 as *u8) {
@@ -670,6 +671,7 @@ function skip_lib_wrap_prep(arena: *u8, kind: i32): i32 {
  * @return i32 — new type ref, or 0 on null/alloc/init fail
  * PLATFORM: SHARED — P6d helper. Writer = pipeline_type_init_primitive_kind_at.
  */
+#[no_mangle]
 function skip_lib_type_bool(arena: *u8): i32 {
   let ref: i32 = 0;
   let ok: i32 = 0;
@@ -700,6 +702,7 @@ function skip_lib_type_bool(arena: *u8): i32 {
  * PLATFORM: SHARED — P6d helper. Writer = init_named_at / primitive_kind_at.
  * Do not reuse init_compound (P3e TYPE_DYN ban).
  */
+#[no_mangle]
 function skip_lib_type_named(arena: *u8, name: *u8, nlen: i32): i32 {
   let ref: i32 = 0;
   let n: i32 = 0;
@@ -839,6 +842,7 @@ export function parser_asm_library_bool_eq_shape_wrap_into_c(arena: *u8, param_n
  * @return i32 — 1 (always; malformed is recovered)
  * PLATFORM: SHARED — P6e helper. Not a second parse authority.
  */
+#[no_mangle]
 function skip_layout_angle_list(lex_inout: *u8, source: *u8, pack: *u8): i32 {
   let kind: i32 = 0;
   let il: i32 = 0;
@@ -1112,6 +1116,7 @@ export function parser_asm_parse_struct_record_layout_x_into_c(arena: *u8, modul
  * @return i32 — expr ref, or 0 on alloc failure
  * PLATFORM: SHARED — product P6f B-minus.
  */
+#[no_mangle]
 function parser_asm_block_lit_init_ref_x(arena: *u8, int_val: i32): i32 {
   let ref: i32 = 0;
   if (arena == 0 as *u8) {
@@ -1143,6 +1148,7 @@ function parser_asm_block_lit_init_ref_x(arena: *u8, int_val: i32): i32 {
  * @return i32 — 1 ok, 0 fail
  * PLATFORM: SHARED — product P6f B-minus.
  */
+#[no_mangle]
 function parser_asm_block_append_one_const_x(arena: *u8, block_ref: i32, pool: *u8, src_i: i32, type_ref: i32, name_scratch: *u8): i32 {
   let const_decl_ty: i32 = 0;
   let cinit_ref: i32 = 0;
@@ -1187,6 +1193,7 @@ function parser_asm_block_append_one_const_x(arena: *u8, block_ref: i32, pool: *
  * @return i32 — 1 ok, 0 fail
  * PLATFORM: SHARED — product P6f B-minus.
  */
+#[no_mangle]
 function parser_asm_block_append_one_let_x(arena: *u8, block_ref: i32, pool: *u8, src_i: i32, type_ref: i32, name_scratch: *u8): i32 {
   let let_decl_ty: i32 = 0;
   let init_ref: i32 = 0;
@@ -1316,6 +1323,7 @@ export function parser_asm_append_block_lets_from_res_x_into_c(arena: *u8, block
  * @return i32 — new block_ref, or 0 on null/alloc/init fail
  * PLATFORM: SHARED — product P6g helper.
  */
+#[no_mangle]
 function parser_asm_library_init_block_x(arena: *u8, eq_ref: i32): i32 {
   let block_ref: i32 = 0;
   let rc: i32 = 0;
@@ -1351,6 +1359,7 @@ function parser_asm_library_init_block_x(arena: *u8, eq_ref: i32): i32 {
  * @return i32 — 1 ok (including skipped), 0 on null
  * PLATFORM: SHARED — product P6g helper. Name-match stays P6b.
  */
+#[no_mangle]
 function parser_asm_library_maybe_layout_x(module: *u8, type_name: *u8, tnlen: i32, field_name: *u8, flen: i32): i32 {
   let idx: i32 = 0;
   let exists: i32 = 0;
@@ -1395,6 +1404,7 @@ function parser_asm_library_maybe_layout_x(module: *u8, type_name: *u8, tnlen: i
  * @return i32 — 1 ok, 0 fail
  * PLATFORM: SHARED — product P6g helper.
  */
+#[no_mangle]
 function parser_asm_library_register_x(module: *u8, name: *u8, nlen: i32, pname: *u8, pnlen: i32, token_ty: i32, bool_ty: i32, block_ref: i32): i32 {
   let fi: i32 = 0;
   if (module == 0 as *u8 || name == 0 as *u8 || pname == 0 as *u8) {
@@ -1487,6 +1497,7 @@ export function parser_asm_parse_one_function_library_finish_x_into_c(arena: *u8
  * @return i32 — 1 allowed, 0 otherwise
  * PLATFORM: SHARED — product P6h helper.
  */
+#[no_mangle]
 function parser_asm_onefunc_buf_return_type_ok_x(kind: i32): i32 {
   if (kind == TOKEN_I32) {
     return 1;
@@ -1525,6 +1536,7 @@ function parser_asm_onefunc_buf_return_type_ok_x(kind: i32): i32 {
  * @return i32 — 4 on success, 0 on null
  * PLATFORM: SHARED — product P6h helper.
  */
+#[no_mangle]
 function parser_asm_onefunc_buf_fill_self_name_x(buf: *u8): i32 {
   if (buf == 0 as *u8) {
     return 0;
@@ -1546,6 +1558,7 @@ function parser_asm_onefunc_buf_fill_self_name_x(buf: *u8): i32 {
  * @return i32 — 1 match, 0 otherwise
  * PLATFORM: SHARED — product P6h helper.
  */
+#[no_mangle]
 function parser_asm_onefunc_buf_is_self_name_x(buf: *u8, nlen: i32): i32 {
   if (buf == 0 as *u8) {
     return 0;
@@ -1583,6 +1596,7 @@ function parser_asm_onefunc_buf_is_self_name_x(buf: *u8, nlen: i32): i32 {
  * @return i32 — 1 more params, 2 done (RPAREN consumed), 0 fail
  * PLATFORM: SHARED — product P6h helper. type_ref = primary ptr shim.
  */
+#[no_mangle]
 function parser_asm_onefunc_buf_parse_one_param_x(arena: *u8, lex_inout: *u8, source: *u8, pool: *u8, pname_buf: *u8, num_params: *i32): i32 {
   let kind: i32 = 0;
   let plen: i32 = 0;

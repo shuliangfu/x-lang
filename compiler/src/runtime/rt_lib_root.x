@@ -124,6 +124,7 @@ function rt_lib_root_one_row(lib_key: *u8, out_arr: **u8, bufs: *u8, i: i32): vo
  *   i — next row; n — row count, already clamped to 16.
  * Returns: n.
  */
+#[no_mangle]
 function rt_lib_root_fill(lib_key: *u8, out_arr: **u8, bufs: *u8, i: i32, n: i32): i32 {
   if (i >= n) {
     return n;

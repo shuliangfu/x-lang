@@ -95,6 +95,7 @@ let g_w157_walk_stack: i32[8192] = [];
  * @param expr_ref i32 - expression pool ref; <=0 no-op
  * wave157 pure helper. PLATFORM: SHARED.
  */
+#[no_mangle]
 function w157_sum_expr_call_spill_bytes(arena: *u8, expr_ref: i32): void {
   let ko: i32 = 0;
   let i: i32 = 0;

@@ -98,6 +98,7 @@ export extern "C" function mbedtls_ssl_set_bio(ssl: *u8, bio: *u8, f_send: *u8, 
  * @return i32 — errno, or 0 when the slot is missing
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function tls_errno(): i32 {
   let slot: *i32 = 0;
   unsafe {
@@ -115,6 +116,7 @@ function tls_errno(): i32 {
  * @return i32 — file descriptor
  * PLATFORM: MACOS|DARWIN
  */
+#[no_mangle]
 function tls_load_fd(ctx: *u8): i32 {
   let slot: *i32 = ctx as *i32;
   return slot[0];
