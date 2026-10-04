@@ -21,8 +21,10 @@ extern function parse_into_try_skip_allow_buf(lex: Lexer, data: *u8, len: i32): 
  * @return void
  */
 function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
-  let slice: u8[] = parser_slice_from_buf(data, len);
-  skip_balanced_parens_into(out, lex, slice);
+  /* Extern slice and skip calls need an unsafe block. */
+  let slice: u8[] = [];
+  unsafe { slice = parser_slice_from_buf(data, len); }
+  unsafe { skip_balanced_parens_into(out, lex, slice); }
 }
 
 /** Internal function `parse_into_try_skip_allow_from_buf`.
@@ -33,7 +35,10 @@ function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8,
  * @return WrapResult
  */
 function parse_into_try_skip_allow_from_buf(lex: Lexer, data: *u8, len: i32): WrapResult {
-  return parse_into_try_skip_allow_buf(lex, data, len);
+  /* The extern result is a struct. Read it in unsafe, then return that local. */
+  let r: WrapResult = { lex: { pos: 0 }, skipped: 0, _pad: [] };
+  unsafe { r = parse_into_try_skip_allow_buf(lex, data, len); }
+  return r;
 }
 
 /** Internal function `main`.
