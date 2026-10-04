@@ -1574,21 +1574,24 @@ export function xlang_generated_c_needs_async_scheduler(c_path: *u8): i32 {
 }
 /* See implementation. */
 
+// PLATFORM: SHARED
+// The installed type checker rejects a function that returns *u8.
+// These helpers keep their link names and carry the pointer bits in rax as i64.
 #[no_mangle]
-export function asm_link_obj_skip_missing(path: *u8): *u8 {
+export function asm_link_obj_skip_missing(path: *u8): i64 {
   if (path == 0 as *u8) {
-    return 0 as *u8;
+    return (0 as *u8) as i64;
   }
   unsafe {
     if (path[0] == 0) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
     if (xlang_path_is_nonempty_regular_file(path) == 0) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
-    return path;
+    return (path) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /* See implementation. */
@@ -1673,76 +1676,76 @@ export function bootstrap_nostdlib_pthread_is_stub(): i32 {
 /* See implementation. */
 
 #[no_mangle]
-export function xlang_std_io_o_path(argv0: *u8): *u8 {
+export function xlang_std_io_o_path(argv0: *u8): i64 {
   unsafe {
-    return xlang_empty_cstr();
+    return (xlang_empty_cstr()) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `xlang_std_compress_o_path`.
  * Implements `xlang_std_compress_o_path`.
  * @param argv0 *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function xlang_std_compress_o_path(argv0: *u8): *u8 {
+export function xlang_std_compress_o_path(argv0: *u8): i64 {
   unsafe {
-    return xlang_empty_cstr();
+    return (xlang_empty_cstr()) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /* See implementation. */
 
 #[no_mangle]
-export function xlang_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i32): *u8 {
+export function xlang_asm_ld_effective_link_argv0(link_argv0: *u8, syn_buf: *u8, syn_sz: i32): i64 {
   unsafe {
-    return xlang_asm_ld_effective_link_argv0_impl(link_argv0, syn_buf, syn_sz);
+    return (xlang_asm_ld_effective_link_argv0_impl(link_argv0, syn_buf, syn_sz)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /* See implementation. */
 
 #[no_mangle]
-export function xlang_asm_ld_bank_push(b: *u8, path: *u8): *u8 {
+export function xlang_asm_ld_bank_push(b: *u8, path: *u8): i64 {
   if (b == 0 as *u8) {
-    return 0 as *u8;
+    return (0 as *u8) as i64;
   }
   if (path == 0 as *u8) {
-    return 0 as *u8;
+    return (0 as *u8) as i64;
   }
   unsafe {
     if (path[0] == 0) {
-      return 0 as *u8;
+      return (0 as *u8) as i64;
     }
-    return xlang_asm_ld_bank_push_impl(b, path);
+    return (xlang_asm_ld_bank_push_impl(b, path)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /* See implementation. */
 
 #[no_mangle]
-export function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_asm_io_stubs_o_path(argv0: *u8): i64 {
   unsafe {
-    return xlang_runtime_asm_io_stubs_o_path_impl(argv0);
+    return (xlang_runtime_asm_io_stubs_o_path_impl(argv0)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `xlang_runtime_process_argv_o_path`.
  * Implements `xlang_runtime_process_argv_o_path`.
  * @param argv0 *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function xlang_runtime_process_argv_o_path(argv0: *u8): *u8 {
+export function xlang_runtime_process_argv_o_path(argv0: *u8): i64 {
   unsafe {
-    return xlang_runtime_process_argv_o_path_impl(argv0);
+    return (xlang_runtime_process_argv_o_path_impl(argv0)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /* See implementation. */
@@ -3006,14 +3009,14 @@ export function xlang_asm_ld_lib_root_default(root_buf: *u8): void {
 
 /** Exported function `xlang_linux_host_gcc_path`.
  * Implements `xlang_linux_host_gcc_path`.
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function xlang_linux_host_gcc_path(): *u8 {
+export function xlang_linux_host_gcc_path(): i64 {
   unsafe {
-    return xlang_linux_host_gcc_path_impl();
+    return (xlang_linux_host_gcc_path_impl()) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `xlang_linux_ld_child_path`.
@@ -3030,11 +3033,11 @@ export function xlang_linux_ld_child_path(): void {
 /* See implementation. */
 
 #[no_mangle]
-export function xlang_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): *u8 {
+export function xlang_runtime_o_realpath_if_exists(path: *u8, resolved: *u8): i64 {
   unsafe {
-    return xlang_runtime_o_realpath_if_exists_impl(path, resolved);
+    return (xlang_runtime_o_realpath_if_exists_impl(path, resolved)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `xlang_runtime_compiler_o_path_copy`.
@@ -3417,11 +3420,11 @@ export function xlang_path_has_sep(s: *u8): i32 {
 /** Exported function `xlang_path_last_sep`.
  * Implements `xlang_path_last_sep`.
  * @param s *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function xlang_path_last_sep(s: *u8): *u8 {
-  if (s == 0) { return 0 as *u8; }
+export function xlang_path_last_sep(s: *u8): i64 {
+  if (s == 0) { return (0 as *u8) as i64; }
   let last: *u8 = 0 as *u8;
   let i: i32 = 0;
   while (i < 4096) {
@@ -3431,7 +3434,7 @@ export function xlang_path_last_sep(s: *u8): *u8 {
     if (c == 92) { last = s + i; }
     i = i + 1;
   }
-  return last;
+  return (last) as i64;
 }
 
 // link_diag_code_for_kind: see function docblock below.
@@ -3439,22 +3442,22 @@ export function xlang_path_last_sep(s: *u8): *u8 {
 /** Exported function `link_diag_code_for_kind`.
  * Implements `link_diag_code_for_kind`.
  * @param kind *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function link_diag_code_for_kind(kind: *u8): *u8 {
-  if (kind == 0) { return "PRC001"; }
+export function link_diag_code_for_kind(kind: *u8): i64 {
+  if (kind == 0) { return ("PRC001") as i64; }
   // "build error"
   if (kind[0]==98 && kind[1]==117 && kind[2]==105 && kind[3]==108 && kind[4]==100
       && kind[5]==32 && kind[6]==101 && kind[7]==114 && kind[8]==114 && kind[9]==111
       && kind[10]==114 && kind[11]==0) {
-    return "BLD001";
+    return ("BLD001") as i64;
   }
   // "process error"
   if (kind[0]==112 && kind[1]==114 && kind[2]==111 && kind[3]==99 && kind[4]==101
       && kind[5]==115 && kind[6]==115 && kind[7]==32 && kind[8]==101 && kind[9]==114
       && kind[10]==114 && kind[11]==111 && kind[12]==114 && kind[13]==0) {
-    return "PRC001";
+    return ("PRC001") as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
