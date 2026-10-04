@@ -97,17 +97,17 @@ export function process_xlang_argc_get(): i32 {
  * Read argv[i]. A negative index, a null vector, or an index past
  * argc returns null.
  * @param i i32 — argument index; negative is rejected
- * @return *u8 — NUL-terminated argument, or null
- * PLATFORM: WINDOWS x86_64.
+ * @return i64 — argument pointer bits in rax, or 0; link name unchanged
+ * PLATFORM: WINDOWS — the installed product cannot asm-emit this *u8 return.
  */
 #[no_mangle]
-export function process_xlang_argv_get(i: i32): *u8 {
+export function process_xlang_argv_get(i: i32): i64 {
   let bound: **u8 = 0;
   if (xlang_process_argv == 0 || i < 0 || i >= xlang_process_argc) {
     return 0;
   }
   bound = xlang_process_argv;
-  return bound[i];
+  return bound[i] as i64;
 }
 
 /**
@@ -125,10 +125,10 @@ export function process_args_count_c(): i32 {
  * Weak fallback for std/process/process.x process_arg_c.
  * The ensure path weakens this name so the strong process.x body wins.
  * @param i i32 — argument index
- * @return *u8 — process_xlang_argv_get
- * PLATFORM: WINDOWS x86_64.
+ * @return i64 — argument pointer bits in rax, or 0; link name unchanged
+ * PLATFORM: WINDOWS — the installed product cannot asm-emit this *u8 return.
  */
 #[no_mangle]
-export function process_arg_c(i: i32): *u8 {
+export function process_arg_c(i: i32): i64 {
   return process_xlang_argv_get(i);
 }
