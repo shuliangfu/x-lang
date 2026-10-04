@@ -40,12 +40,13 @@ export function xlang_sha256_block(H: *u32, block: *u8): void {
  * Implements `xlang_sha256_rotr32`.
  * @param x u32
  * @param n u32
- * @return u32
+ * @return i32 — low 32 bits in eax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
  */
 #[no_mangle]
-export function xlang_sha256_rotr32(x: u32, n: u32): u32 {
+export function xlang_sha256_rotr32(x: u32, n: u32): i32 {
   unsafe {
-    return xlang_sha256_rotr32_impl(x, n);
+    return xlang_sha256_rotr32_impl(x, n) as i32;
   }
 }
 
@@ -54,12 +55,13 @@ export function xlang_sha256_rotr32(x: u32, n: u32): u32 {
  * @param x u32
  * @param y u32
  * @param z u32
- * @return u32
+ * @return i32 — low 32 bits in eax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
  */
 #[no_mangle]
-export function xlang_sha256_ch(x: u32, y: u32, z: u32): u32 {
+export function xlang_sha256_ch(x: u32, y: u32, z: u32): i32 {
   unsafe {
-    return xlang_sha256_ch_impl(x, y, z);
+    return xlang_sha256_ch_impl(x, y, z) as i32;
   }
 }
 
@@ -68,12 +70,13 @@ export function xlang_sha256_ch(x: u32, y: u32, z: u32): u32 {
  * @param x u32
  * @param y u32
  * @param z u32
- * @return u32
+ * @return i32 — low 32 bits in eax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
  */
 #[no_mangle]
-export function xlang_sha256_maj(x: u32, y: u32, z: u32): u32 {
+export function xlang_sha256_maj(x: u32, y: u32, z: u32): i32 {
   unsafe {
-    return xlang_sha256_maj_impl(x, y, z);
+    return xlang_sha256_maj_impl(x, y, z) as i32;
   }
 }
 
@@ -94,11 +97,12 @@ export function crypto_i32_sub_c(a: i32, b: i32): i32 {
  * Implements `crypto_rotl32_c`.
  * @param x u32
  * @param n u32
- * @return u32
+ * @return i32 — low 32 bits in eax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
  */
 #[no_mangle]
-export function crypto_rotl32_c(x: u32, n: u32): u32 {
+export function crypto_rotl32_c(x: u32, n: u32): i32 {
   unsafe {
-    return crypto_rotl32_impl(x, n);
+    return crypto_rotl32_impl(x, n) as i32;
   }
 }
