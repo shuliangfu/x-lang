@@ -90,26 +90,33 @@ export function stable_by_key(ptr: *KeyTag, len: i32): void {
   sort_impl.stable_key_tag(ptr as *sort_impl.SortKeyTag, len);
 }
 
-/** Exported function `cmp_desc_fn`.
- * Comparison/utility `cmp_desc_fn`.
- * @return usize
+/**
+ * Return the descending i32 comparator address.
+ * The installed product cannot asm-emit this usize return. The address stays in rax.
+ * @return i64 — function pointer bits
+ * PLATFORM: SHARED
  */
-export function cmp_desc_fn(): usize {
-  return sort_impl.cmp_desc_fn();
+export function cmp_desc_fn(): i64 {
+  let f: usize = sort_impl.cmp_desc_fn();
+  return f as i64;
 }
 
-/** Exported function `cmp_asc_fn`.
- * Comparison/utility `cmp_asc_fn`.
- * @return usize
+/**
+ * Return the ascending i32 comparator address.
+ * @return i64 — function pointer bits in rax
+ * PLATFORM: SHARED
  */
-export function cmp_asc_fn(): usize {
-  return sort_impl.cmp_asc_fn();
+export function cmp_asc_fn(): i64 {
+  let f: usize = sort_impl.cmp_asc_fn();
+  return f as i64;
 }
 
-/** Exported function `cmp_key_fn`.
- * Comparison/utility `cmp_key_fn`.
- * @return usize
+/**
+ * Return the key-tag comparator address.
+ * @return i64 — function pointer bits in rax
+ * PLATFORM: SHARED
  */
-export function cmp_key_fn(): usize {
-  return sort_impl.cmp_key_fn();
+export function cmp_key_fn(): i64 {
+  let f: usize = sort_impl.cmp_key_fn();
+  return f as i64;
 }
