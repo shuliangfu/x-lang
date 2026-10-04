@@ -14,10 +14,14 @@
 #                        Not the migrate_x_objs.sh host-cc leaf. That script
 #                        still compiles parser_gen.c. g05 calls this on every
 #                        host when parser_x.o is missing (w1812).
-#       codegen_x.o    ← src/codegen/codegen.x pure-asm (w1634; no host cc).
-#                        Same split: migrate_x_objs.sh still compiles
-#                        codegen_gen.c. g05 calls this on every host when
-#                        codegen_x.o is missing (w1812).
+#       codegen_x.o    ← src/codegen/codegen.x + codegen_late.x pure-asm,
+#                        then ld -r (w1830; no host cc). The pin egg's
+#                        patch table fills up before codegen_c_ident_is_keyword,
+#                        so the rest of the bodies live in codegen_late.x.
+#                        One object keeps every existing link list.
+#                        migrate_x_objs.sh still compiles codegen_gen.c.
+#                        g05 calls this on every host when codegen_x.o is
+#                        missing (w1812).
 #       typeck_x.o     ← src/typeck/typeck.x pure-asm (w1635; no host cc).
 #                        migrate_x_objs.sh still compiles typeck_gen.c.
 #                        g05 calls this on every host when typeck_x.o is
@@ -389,11 +393,17 @@ build_parser_x() {
 }
 
 build_codegen_x() {
-  # w1634 (checklist 7.2, codegen cold rebuild): one pure-asm emit of
-  # src/codegen/codegen.x. No host cc of codegen_gen.c and no fallback.
+  # w1634 (checklist 7.2, codegen cold rebuild) plus w1830:
+  # pure-asm of src/codegen/codegen.x and src/codegen/codegen_late.x,
+  # then ld -r into one object. No host cc of codegen_gen.c and no fallback.
+  # The pin egg stops at 16384 patches inside codegen_c_ident_is_keyword.
+  # codegen_late.x holds the rest. codegen_outbuf.x is the shared Buf,
+  # found through -L src/codegen. Joining into $1 leaves every link list
+  # that names codegen_x.o unchanged.
   # $1 is the output path. Default codegen_x.o in cwd (compiler/). A probe
   # passes an absolute path whose name does not contain "main"; that
-  # substring prefixes every T symbol. This function removes only $1.
+  # substring prefixes every T symbol. Temp objects use a suffix that
+  # does not contain "main". This function removes only $1 and those temps.
   #
   # Flags match the emit that produced the installed object: entry module
   # only, full bodies, DCE left on. The library defines no function named
@@ -403,13 +413,17 @@ build_codegen_x() {
   # Cap residual names are not in this .x. They stay in the companion
   # object already on the link list. xlang_panic_ stays undefined here.
   # lexer_x.o owns the weak body.
+  # ld -r flags match arch_ld_r_multidef_flags.
   # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
   local out="${1:-codegen_x.o}"
-  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/codegen/codegen.x ]; then
-    log "codegen_x.o: pure_ld_shared.sh or src/codegen/codegen.x missing"
+  local head="${out}.tu_head"
+  local late="${out}.tu_late"
+  local ld_flags
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/codegen/codegen.x ] || [ ! -f src/codegen/codegen_late.x ]; then
+    log "codegen_x.o: pure_ld_shared.sh or codegen sources missing"
     return 1
   fi
-  rm -f "$out"
+  rm -f "$out" "$head" "$late"
   if (
     # shellcheck disable=SC1091
     . scripts/pure_ld_shared.sh
@@ -423,13 +437,22 @@ build_codegen_x() {
     unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
     unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
     ulimit -s 65532 || true
-    pure_asm_x_to_o "$out" src/codegen/codegen.x
-  ) && [ -s "$out" ]; then
-    log "codegen_x.o <- pure-asm src/codegen/codegen.x ($out)"
-    return 0
+    pure_asm_x_to_o "$head" src/codegen/codegen.x \
+      && pure_asm_x_to_o "$late" src/codegen/codegen_late.x
+  ) && [ -s "$head" ] && [ -s "$late" ]; then
+    case "$(uname -s 2>/dev/null || echo Unknown)" in
+      Darwin) ld_flags='-multiply_defined suppress' ;;
+      *) ld_flags='--allow-multiple-definition' ;;
+    esac
+    # shellcheck disable=SC2086
+    if ld -r $ld_flags -o "$out" "$head" "$late"; then
+      rm -f "$head" "$late"
+      log "codegen_x.o <- pure-asm codegen.x + codegen_late.x ($out)"
+      return 0
+    fi
   fi
-  rm -f "$out"
-  log "codegen_x.o pure-asm failed (w1634; no cc fallback)"
+  rm -f "$out" "$head" "$late"
+  log "codegen_x.o pure-asm failed (w1830; no cc fallback)"
   return 1
 }
 

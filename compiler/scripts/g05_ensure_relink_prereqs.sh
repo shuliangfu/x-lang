@@ -4567,7 +4567,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   fi
   # codegen_x.o cold path.
   # Missing object (w1634 Linux, w1812 Darwin and Windows): rebuild from
-  # src/codegen/codegen.x via build_codegen_x. No host cc, no -E assemble.
+  # src/codegen/codegen.x and codegen_late.x via build_codegen_x, then
+  # ld -r into this one object (w1830). No host cc, no -E assemble.
   # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
   # that case. The helper emits the same defined set as the installed
   # object. Two constant-10 division checks inside format_uint64 are
@@ -4576,7 +4577,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # PLATFORM: SHARED.
   # Cap residual stays a separate object. It is not inside codegen.x.
   if [ ! -f codegen_x.o ]; then
-    echo "g05_ensure: codegen_x.o missing; pure-asm src/codegen/codegen.x (no host-cc)"
+    echo "g05_ensure: codegen_x.o missing; pure-asm codegen.x + codegen_late.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
       echo "g05_ensure: codegen_x.o pure-asm failed" >&2
       return 1
