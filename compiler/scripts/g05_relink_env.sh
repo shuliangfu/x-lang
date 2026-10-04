@@ -596,10 +596,17 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
   if [ -f "$_cap_x" ] && [ -x ./xlang_asm ]; then
     mkdir -p build_asm/selfhost_pabi
     rm -f "$_cap_o" "$_cap_o.tmp.o"
+    # macOS has no timeout(1); perl alarm gives the same 240s cap there
+    # (SIGALRM exit >= 128 is logged as a crash below).
+    if command -v timeout >/dev/null 2>&1; then
+      _cap_to="timeout 240"
+    else
+      _cap_to="perl -e alarm(240);exec(@ARGV)"
+    fi
     _cap_try=1
     while [ "$_cap_try" -le 3 ]; do
       _cap_rc=0
-      timeout 240 ./xlang_asm -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
+      $_cap_to ./xlang_asm -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
         >/dev/null 2>&1 || _cap_rc=$?
       if [ "$_cap_rc" -eq 0 ] && [ -s "$_cap_o.tmp.o" ]; then
         mv -f "$_cap_o.tmp.o" "$_cap_o"
