@@ -8,7 +8,8 @@ const debug = import("core.debug");
  */
 function main(): i32 {
   let a: i32[4] = [3, 1, 4, 2];
-  let cmp_fn: usize = sort.cmp_desc_fn();
+  /* cmp_desc_fn returns the function address in rax as i64. */
+  let cmp_fn: usize = sort.cmp_desc_fn() as usize;
   sort.cmp(&a[0], 4, cmp_fn);
   debug.assert_eq_i32(a[0], 4);
   debug.assert_eq_i32(a[1], 3);
