@@ -883,7 +883,11 @@ export function rt_xe_step_prerun(): i32 {
   // parse_x ret 1 → this lane). Absent/empty → no-op → bare emission.
   {
     let ln_buf: u8[64] = [];
-    let ln_len: i32 = xlang_driver_x_emit_lib_name_into(&ln_buf[0], 64);
+    // PLATFORM: SHARED — extern lib-name FFI must run inside unsafe.
+    let ln_len: i32 = 0;
+    unsafe {
+      ln_len = xlang_driver_x_emit_lib_name_into(&ln_buf[0], 64);
+    }
     if (ln_len > 0) {
       unsafe {
         xlang_pipeline_pctx_set_entry_lib_prefix(pctx, &ln_buf[0], ln_len);
