@@ -836,6 +836,44 @@ export extern function ast_arena_expr_set(arena: *ASTArena, ref: i32, e: Expr): 
 /* See implementation. */
 export extern function ast_arena_block_get(arena: *ASTArena, ref: i32): Block;
 
+/**
+ * Lookup names for `import ast`.
+ * A call `ast.ast_block_if_cond_ref` is resolved by this short name, then
+ * the caller emits `ast_` plus that name. The bodies live in the block
+ * domain thin under those link symbols. These externs are not a second
+ * implementation. PLATFORM: SHARED.
+ * The arena parameter is *ASTArena, the type callers pass. The thin body
+ * takes the same pointer as *u8.
+ */
+export extern function ast_block_num_consts(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_lets(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_loops(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_for_loops(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_if_stmts(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_regions(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_expr_stmts(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_num_stmt_order(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_region_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_stmt_order_kind(arena: *ASTArena, block_ref: i32, index: i32): u8;
+export extern function ast_block_stmt_order_idx(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_const_init_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_const_type_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_let_init_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_let_type_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_expr_stmt_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_final_expr_ref(arena: *ASTArena, block_ref: i32): i32;
+export extern function ast_block_while_cond_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_while_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_for_init_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_for_cond_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_for_step_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_for_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_if_cond_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_if_then_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_block_if_else_body_ref(arena: *ASTArena, block_ref: i32, index: i32): i32;
+export extern function ast_expr_disallows_implicit_tail(arena: *ASTArena, expr_ref: i32): i32;
+export extern function ast_expr_apply_call_resolve(arena: *ASTArena, call_expr_ref: i32, dep_ix: i32, func_ix: i32): void;
+
 /** Exported function `ast_name_bytes_equal`.
  * Implements `ast_name_bytes_equal`.
  * @param a_nm *u8

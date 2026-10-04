@@ -19222,7 +19222,8 @@ export function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i
     if (dbg != 0 as *u8) {
       // Debug only; residual used fprintf — keep gate, omit host I/O in pure.
     }
-    if (ast.ast_expr_disallows_implicit_tail(arena, tail_ref)) {
+    // The helper returns i32. A nonzero value means this tail is not implicit.
+    if (ast.ast_expr_disallows_implicit_tail(arena, tail_ref) != 0) {
       return false;
     }
     if (tail_kind == 26) {
