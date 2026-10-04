@@ -11,8 +11,7 @@
 // format_i32_to_buf, asm_types_append_asm_line, asm_types_format_i32_to_buf,
 // asm_types_format_u32_to_buf, asm_types_format_u32_hex8_to_buf,
 // asm_types_elf_read_u32_le, expr_layout_prime_call_resolved,
-// emit_ldr_sp_slot_to_xreg, backend_asm_codegen_ast_seed_mega,
-// backend_asm_codegen_ast_to_elf_seed_mega, peephole_peephole_run,
+// emit_ldr_sp_slot_to_xreg, peephole_peephole_run,
 // peephole_peephole_elf_run, typeck_lsp_build_semantic_tokens_response.
 // Pointers to C structs are passed as *u8; struct fields are read by byte
 // offset (CodegenOutBuf.length at 9437184; AsmFuncCtx next_offset at 4,
@@ -40,8 +39,6 @@ export extern "C" function backend_emit_if_then_block_body_text(arena: *u8, out:
 export extern "C" function backend_emit_expr(arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32): i32;
 export extern "C" function pipeline_asm_emit_loop_body_content_elf_c(arena: *u8, elf_ctx: *u8, body_ref: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function pipeline_asm_emit_call_args_text_c(arena: *u8, out: *u8, expr_ref: i32, ctx: *u8, target_arch: i32, nargs: i32): i32;
-export extern "C" function backend_asm_codegen_ast(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32;
-export extern "C" function backend_asm_codegen_ast_to_elf(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32;
 
 /** Doc anchor (keeps the TU non-empty for cold tooling). */
 #[no_mangle]
@@ -445,21 +442,9 @@ export function pipeline_asm_emit_call_args_text(arena: *u8, out: *u8, expr_ref:
   }
 }
 
-/** Weak seed_mega names forward to backend_asm_codegen_ast*. */
-#[no_mangle]
-export function backend_asm_codegen_ast_seed_mega(module: *u8, arena: *u8, out_buf: *u8, ctx: *u8): i32 {
-  unsafe {
-    return backend_asm_codegen_ast(module, arena, out_buf, ctx);
-  }
-}
-
-/** Weak seed_mega ELF name. */
-#[no_mangle]
-export function backend_asm_codegen_ast_to_elf_seed_mega(module: *u8, arena: *u8, elf_ctx: *u8, ctx: *u8): i32 {
-  unsafe {
-    return backend_asm_codegen_ast_to_elf(module, arena, elf_ctx, ctx);
-  }
-}
+// backend.x owns backend_asm_codegen_ast_seed_mega and
+// backend_asm_codegen_ast_to_elf_seed_mega. A second strong copy here
+// forwarded to the un-suffixed names and collided with that object.
 
 /** Weak fallback when build_asm/peephole.o is a text stub. */
 #[no_mangle]
@@ -473,17 +458,8 @@ export function peephole_peephole_elf_run(elf_ctx: *u8): i32 {
   return 0;
 }
 
-/** user_asm_seed_bridge calls unprefixed peephole_run. */
-#[no_mangle]
-export function peephole_run(out_buf: *u8): i32 {
-  return peephole_peephole_run(out_buf);
-}
-
-/** Unprefixed ELF peephole. */
-#[no_mangle]
-export function peephole_elf_run(elf_ctx: *u8): i32 {
-  return peephole_peephole_elf_run(elf_ctx);
-}
+// peephole.x owns peephole_run and peephole_elf_run. A second strong copy
+// here returned 0 and blocked this object from linking next to that file.
 
 /** Weak semanticTokens fallback until lsp_diag_x.o provides the strong one. */
 #[no_mangle]
