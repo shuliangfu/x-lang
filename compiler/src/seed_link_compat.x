@@ -30,6 +30,8 @@ export extern "C" function pipeline_asm_module_func_name_len_at(mod: *u8, fi: i3
 export extern "C" function pipeline_asm_module_func_name_copy64(mod: *u8, fi: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, func_idx: i32, param_ix: i32): i32;
 export extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, func_idx: i32, param_ix: i32, dst: *u8): void;
+export extern "C" function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): i64;
+export extern "C" function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): i64;
 
 /* ---- typeck/lsp name bridge ---- */
 
@@ -129,6 +131,34 @@ export function typeck_lsp_diag_references_at(source: *u8, source_len: i32, line
 export function typeck_lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32, out_col: *i32): i32 {
   unsafe {
     return lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
+  }
+}
+
+/**
+ * Forward the mangled std.io read name to io_read.
+ * handle is the file descriptor. ptr/len are the buffer. timeout_ms is ignored by the stub.
+ * Returns the byte count, or a negative error, narrowed to i32.
+ * The cold seed keeps a weak copy of this name. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_read_usize_u8_ptr_usize_u32(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
+  unsafe {
+    let n: i64 = io_read(handle as i32, ptr, len, timeout_ms);
+    return n as i32;
+  }
+}
+
+/**
+ * Forward the mangled std.io write name to io_write.
+ * handle is the file descriptor. ptr/len are the buffer. timeout_ms is ignored by the stub.
+ * Returns the byte count, or a negative error, narrowed to i32.
+ * The cold seed keeps a weak copy of this name. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_write_usize_u8_ptr_usize_u32(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
+  unsafe {
+    let n: i64 = io_write(handle as i32, ptr, len, timeout_ms);
+    return n as i32;
   }
 }
 
