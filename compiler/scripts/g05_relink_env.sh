@@ -2048,8 +2048,9 @@ case "$UNAME_S" in
       _PABI_ELF_LAYOUT_64K="$_G05_PO_OUT"
       if [ "$_PABI_LINK_O" = "build_asm/selfhost_pabi/pabi_alias.o" ]; then
         _pabi_elf64=build_asm/selfhost_pabi/pabi_alias.elf64k.o
+        # stdout of this script is eval'd by g05; keep tool chatter on stderr.
         if ! python3 scripts/patch_pabi_elf_emachine_64k.py \
-            "$_PABI_LINK_O" "$_pabi_elf64"; then
+            "$_PABI_LINK_O" "$_pabi_elf64" >&2; then
           echo "g05_relink_env: elf 64k egg patch failed" >&2
           exit 1
         fi
