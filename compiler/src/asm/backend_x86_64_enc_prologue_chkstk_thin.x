@@ -8,6 +8,33 @@ export extern "C" function x86_enc_u8(elf_ctx: *u8, b: i32): i32;
 export extern "C" function x86_enc_bytes(elf_ctx: *u8, p: *u8, n: i32): i32;
 
 /**
+ * Emit one byte through the extern encoder.
+ * @param elf_ctx emit context
+ * @param b byte value; only the low 8 bits are encoded
+ * @return i32 — 0 on success, nonzero on failure
+ * PLATFORM: LINUX|UBUNTU / WINDOWS — extern encoder FFI must run inside unsafe.
+ */
+function chkstk_enc_u8(elf_ctx: *u8, b: i32): i32 {
+  let r: i32 = 0;
+  unsafe { r = x86_enc_u8(elf_ctx, b); }
+  return r;
+}
+
+/**
+ * Emit n bytes through the extern encoder.
+ * @param elf_ctx emit context
+ * @param p first byte; must stay live for the call
+ * @param n byte count
+ * @return i32 — 0 on success, nonzero on failure
+ * PLATFORM: LINUX|UBUNTU / WINDOWS — extern encoder FFI must run inside unsafe.
+ */
+function chkstk_enc_bytes(elf_ctx: *u8, p: *u8, n: i32): i32 {
+  let r: i32 = 0;
+  unsafe { r = x86_enc_bytes(elf_ctx, p, n); }
+  return r;
+}
+
+/**
  * Emit push rbp; mov rbp,rsp; push rbx; then allocate frame_sz bytes.
  * When the aligned frame is larger than 4096, probe in 4096-byte steps
  * so Windows commits guard pages before RSP crosses them. A single
@@ -36,21 +63,21 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
     return 0 - 1;
   }
   // push rbp
-  if (x86_enc_u8(elf_ctx, 85) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 85) != 0) {
     return 0 - 1;
   }
   // mov rbp, rsp
-  if (x86_enc_u8(elf_ctx, 72) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 72) != 0) {
     return 0 - 1;
   }
-  if (x86_enc_u8(elf_ctx, 137) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 137) != 0) {
     return 0 - 1;
   }
-  if (x86_enc_u8(elf_ctx, 229) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 229) != 0) {
     return 0 - 1;
   }
   // push rbx
-  if (x86_enc_u8(elf_ctx, 83) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 83) != 0) {
     return 0 - 1;
   }
   fs = frame_sz;
@@ -75,32 +102,32 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
     sub7[4] = ((u >> 8) & 255) as u8;
     sub7[5] = ((u >> 16) & 255) as u8;
     sub7[6] = ((u >> 24) & 255) as u8;
-    return x86_enc_bytes(elf_ctx, &(sub7[0]), 7);
+    return chkstk_enc_bytes(elf_ctx, &(sub7[0]), 7);
   }
   // Large frame: mov eax, aligned; then probe loop; then sub rsp, rax.
   // mov eax, imm32
-  if (x86_enc_u8(elf_ctx, 184) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 184) != 0) {
     return 0 - 1;
   }
   u = aligned as u32;
-  if (x86_enc_u8(elf_ctx, (u & 255) as i32) != 0) {
+  if (chkstk_enc_u8(elf_ctx, (u & 255) as i32) != 0) {
     return 0 - 1;
   }
-  if (x86_enc_u8(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+  if (chkstk_enc_u8(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
     return 0 - 1;
   }
-  if (x86_enc_u8(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+  if (chkstk_enc_u8(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
     return 0 - 1;
   }
-  if (x86_enc_u8(elf_ctx, ((u >> 24) & 255) as i32) != 0) {
+  if (chkstk_enc_u8(elf_ctx, ((u >> 24) & 255) as i32) != 0) {
     return 0 - 1;
   }
   // jmp check (rel8). Body of page: 7+5+5 = 17 bytes; jae is 2; so
   // jmp skips 17 bytes → eb 11.
-  if (x86_enc_u8(elf_ctx, 235) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 235) != 0) {
     return 0 - 1;
   }
-  if (x86_enc_u8(elf_ctx, 17) != 0) {
+  if (chkstk_enc_u8(elf_ctx, 17) != 0) {
     return 0 - 1;
   }
   // page: sub rsp, 0x1000
@@ -111,7 +138,7 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   sub7[4] = 16;
   sub7[5] = 0;
   sub7[6] = 0;
-  if (x86_enc_bytes(elf_ctx, &(sub7[0]), 7) != 0) {
+  if (chkstk_enc_bytes(elf_ctx, &(sub7[0]), 7) != 0) {
     return 0 - 1;
   }
   // or qword [rsp], 0 — touch the guard page. 48 83 0c 24 00
@@ -120,7 +147,7 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   or5[2] = 12;
   or5[3] = 36;
   or5[4] = 0;
-  if (x86_enc_bytes(elf_ctx, &(or5[0]), 5) != 0) {
+  if (chkstk_enc_bytes(elf_ctx, &(or5[0]), 5) != 0) {
     return 0 - 1;
   }
   // sub eax, 0x1000
@@ -129,7 +156,7 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   sub5[2] = 16;
   sub5[3] = 0;
   sub5[4] = 0;
-  if (x86_enc_bytes(elf_ctx, &(sub5[0]), 5) != 0) {
+  if (chkstk_enc_bytes(elf_ctx, &(sub5[0]), 5) != 0) {
     return 0 - 1;
   }
   // check: cmp eax, 0x1000
@@ -138,7 +165,7 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   cmp5[2] = 16;
   cmp5[3] = 0;
   cmp5[4] = 0;
-  if (x86_enc_bytes(elf_ctx, &(cmp5[0]), 5) != 0) {
+  if (chkstk_enc_bytes(elf_ctx, &(cmp5[0]), 5) != 0) {
     return 0 - 1;
   }
   // jae page — back 17+5+2 = 24 bytes from next insn → 73 e8
@@ -146,14 +173,14 @@ export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
   // rel8 = -24 = 0xe8.
   jae2[0] = 115;
   jae2[1] = 232;
-  if (x86_enc_bytes(elf_ctx, &(jae2[0]), 2) != 0) {
+  if (chkstk_enc_bytes(elf_ctx, &(jae2[0]), 2) != 0) {
     return 0 - 1;
   }
   // sub rsp, rax (remainder in eax, zero-extended)
   subrax[0] = 72;
   subrax[1] = 41;
   subrax[2] = 196;
-  if (x86_enc_bytes(elf_ctx, &(subrax[0]), 3) != 0) {
+  if (chkstk_enc_bytes(elf_ctx, &(subrax[0]), 3) != 0) {
     return 0 - 1;
   }
   return 0;
