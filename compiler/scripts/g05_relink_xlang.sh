@@ -209,7 +209,7 @@ case "$(uname -s 2>/dev/null)" in
     for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
       [ -s "$_leaf" ] || continue
       _before=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
-      cp -f "$_leaf" "$_leaf.w2055bak"
+      cp -fp "$_leaf" "$_leaf.w2055bak"
       _erc=0
       XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 || _erc=$?
       if [ "$_erc" = 3 ]; then
