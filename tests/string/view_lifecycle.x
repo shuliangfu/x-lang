@@ -8,10 +8,11 @@ const heap = import("std.heap");
  */
 function main(): i32 {
   // See implementation.
-  let s: String = string.new();
-  let _: i32 = string.string_append_char(&s, 97);
-  let _: i32 = string.string_append_char(&s, 98);
-  let _: i32 = string.string_append_char(&s, 99);
+  let s: String = { length: 0 };
+  if (string.new(&s) != 0) { return 1; }
+  let _: i32 = string.string_append_char(&s, 97 as u8);
+  let _: i32 = string.string_append_char(&s, 98 as u8);
+  let _: i32 = string.string_append_char(&s, 99 as u8);
   let sv: StrView = string_view_from_string(&s);
   let expect_abc: u8[3] = [97, 98, 99];
   let exp: StrView = string.view(&expect_abc[0], 3);
@@ -21,7 +22,8 @@ function main(): i32 {
   if (string.string_view_eq(sub, string.view(&expect_bc[0], 2)) != 1) { return 2; }
 
   // See implementation.
-  let ss: StackStr = string.stack_str_new();
+  let ss: StackStr = { length: 0 };
+  if (string.stack_str_new(&ss) != 0) { return 3; }
   if (string.stack_str_from_slice(&ss, &expect_abc[0], 3) != 0) { return 3; }
   let ss_v: StrView = string.stack_str_view(&ss);
   if (string.string_view_eq(ss_v, exp) != 1) { return 4; }
@@ -35,7 +37,7 @@ function main(): i32 {
     heap.arena64_deinit(&arena);
     return 6;
   }
-  if (string.string_view_get(joined, 4) != 101) {
+  if (string.string_view_get(joined, 4) != (101 as u8)) {
     heap.arena64_deinit(&arena);
     return 7;
   }
