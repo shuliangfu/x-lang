@@ -1401,7 +1401,10 @@ export function labi_od_push_test_monofile_companions(
   la: *i32,
   max_la: i32
 ): void {
-  labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  // PLATFORM: SHARED — extern companion push must run inside unsafe.
+  unsafe {
+    labi_std_append_test_monofile_companions(link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+  }
 }
 
 /**
