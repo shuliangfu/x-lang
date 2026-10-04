@@ -53,10 +53,13 @@ export function len_i32(s: []i32): usize { return s.length; }
 
 /** `get_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function get_i32(s: []i32, i: usize): Option_i32 {
+  let r: Option_i32 = { is_some: false, value: 0 };
   if (i >= s.length) {
-    return option.none_i32();
+    option.none_i32(&r);
+    return r;
   }
-  return option.some_i32(s.data[i]);
+  option.some_i32(&r, s.data[i]);
+  return r;
 }
 
 /** `get_i32_unchecked`: purpose/params/returns per signature; panics or error codes follow local contracts. */
@@ -75,7 +78,11 @@ export function first_i32(s: []i32): Option_i32 {
 
 /** `last_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function last_i32(s: []i32): Option_i32 {
-  if (s.length == 0 as usize) { return option.none_i32(); }
+  if (s.length == 0 as usize) {
+    let n: Option_i32 = { is_some: false, value: 0 };
+    option.none_i32(&n);
+    return n;
+  }
   return get_i32(s, s.length - 1 as usize);
 }
 
@@ -127,10 +134,13 @@ export function len_u8(s: []u8): usize { return s.length; }
 
 /** `get_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function get_u8(s: []u8, i: usize): Option_u8 {
+  let r: Option_u8 = { is_some: false, value: 0 };
   if (i >= s.length) {
-    return option.none_u8();
+    option.none_u8(&r);
+    return r;
   }
-  return option.some_u8(s.data[i]);
+  option.some_u8(&r, s.data[i]);
+  return r;
 }
 
 /** `get_u8_unchecked`: purpose/params/returns per signature; panics or error codes follow local contracts. */
@@ -195,10 +205,13 @@ export function len_u64(s: []u64): usize { return s.length; }
 
 /** `get_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function get_u64(s: []u64, i: usize): Option_u64 {
+  let r: Option_u64 = { is_some: false, value: 0 };
   if (i >= s.length) {
-    return option.none_u64();
+    option.none_u64(&r);
+    return r;
   }
-  return option.some_u64(s.data[i]);
+  option.some_u64(&r, s.data[i]);
+  return r;
 }
 
 /** `is_empty_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
@@ -214,7 +227,11 @@ export function first_u64(s: []u64): Option_u64 {
 
 /** `last_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function last_u64(s: []u64): Option_u64 {
-  if (s.length == 0 as usize) { return option.none_u64(); }
+  if (s.length == 0 as usize) {
+    let n: Option_u64 = { is_some: false, value: 0 };
+    option.none_u64(&n);
+    return n;
+  }
   return get_u64(s, s.length - 1 as usize);
 }
 
