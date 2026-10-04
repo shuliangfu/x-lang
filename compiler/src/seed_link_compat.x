@@ -10,6 +10,10 @@ export extern "C" function lsp_io_lsp_alloc(size: usize): *u8;
 export extern "C" function lsp_io_lsp_free(ptr: *u8): void;
 export extern "C" function lsp_io_lsp_is_null(ptr: *u8): i32;
 export extern "C" function lsp_main_impl(): i32;
+export extern "C" function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern "C" function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8, out_cap: i32): i32;
+export extern "C" function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32, out_cols: *i32, max_refs: i32): i32;
+export extern "C" function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32, out_col: *i32): i32;
 export extern "C" function lsp_io_std_heap_std_heap_alloc(size: usize): *u8;
 export extern "C" function lsp_io_std_heap_std_heap_alloc_zeroed(size: usize): *u8;
 export extern "C" function lsp_io_std_heap_std_heap_free(ptr: *u8): void;
@@ -75,6 +79,57 @@ export function typeck_lsp_main_impl(): i32 {
     return r;
   }
   return 0;
+}
+
+/**
+ * Forward a diagnostics-response query to the LSP diagnostic object.
+ * Params match lsp_diag_lsp_build_diagnostics_response.
+ * Returns that function's result. The cold seed keeps a weak copy of this name.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8, out_cap: i32): i32 {
+  unsafe {
+    return lsp_diag_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
+  }
+}
+
+/**
+ * Forward a hover query to the LSP diagnostic object.
+ * Returns that function's result.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8, out_cap: i32): i32 {
+  unsafe {
+    return lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
+  }
+}
+
+/**
+ * Forward a references query to the LSP diagnostic object.
+ * out_lines and out_cols receive the matches. max_refs is the capacity.
+ * Returns that function's result.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32, out_cols: *i32, max_refs: i32): i32 {
+  unsafe {
+    return lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
+  }
+}
+
+/**
+ * Forward a definition query to the LSP diagnostic object.
+ * out_line and out_col receive the match.
+ * Returns that function's result.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32, out_col: *i32): i32 {
+  unsafe {
+    return lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
+  }
 }
 
 /** Exported function `typeck_std_heap_alloc`.
