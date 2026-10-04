@@ -32,70 +32,72 @@ const x86_64 = import("x86_64");
 const arm64 = import("arm64");
 const riscv64 = import("riscv64");
 const elf = import("platform.elf");
-const backend_enc_dispatch = import("backend_enc_dispatch");
 
 // See implementation.
 // See implementation.
-export extern "C" function enc_dispatch_backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i32, store_size: i32, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern "C" function enc_dispatch_backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+// Dispatch exports are #[no_mangle] backend_enc_*.
+// A qualified call would prefix that name again. The enc_* wrappers below
+// are also no_mangle so this file's stem does not emit the same backend_enc_* name.
+export extern "C" function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern "C" function backend_enc_add_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_and_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_cltd_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cmp_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+export extern "C" function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32;
+export extern "C" function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32;
+export extern "C" function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_imul_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_jeq_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jge_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jmp_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jnz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_jz_arch(elf_ctx: *u8, label: *u8, label_len: i32, ta: i32): i32;
+export extern "C" function backend_enc_label_arch(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32, ta: i32): i32;
+export extern "C" function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_edx_to_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_imm32_to_rbx_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
+export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_rbx_to_ecx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_or_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_prologue_arch(elf_ctx: *u8, frame_sz: i32, ta: i32): i32;
+export extern "C" function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_rax_plus_rbx_scale1_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_rax_plus_rbx_scale4_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_rax_plus_rbx_scale8_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_rem_mod_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_rem_mod_unsigned_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_ret_imm32_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32;
+export extern "C" function backend_enc_sar_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_sar_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_setz_movzbl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_shl_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_shl_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_shr_cl_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_shr_cl_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx: *u8, elem_sz: i32, ta: i32): i32;
+export extern "C" function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, offset: i32, store_size: i32, ta: i32): i32;
+export extern "C" function backend_enc_sub_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_test_eax_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern "C" function backend_enc_xor_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32;
 
 /** Diagnostic: print unsupported ExprKind from runtime (helps locate rc=-6). */
 export extern function driver_diagnostic_asm_unsupported_expr(kind: i32): void;
@@ -364,11 +366,16 @@ export function asm_init_is_empty_array_lit(arena: *ASTArena, init_ref: i32): i3
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_label_arch(elf_ctx: *ElfCodegenCtx, name: u8[128], name_len: i32, is_func: i32, ta: i32): i32 {
   let use_len: i32 = name_len;
   let use_ptr: *u8 = &name[0];
   /* See implementation. */
-  return backend_enc_dispatch.backend_enc_label_arch(elf_ctx as *u8, use_ptr, use_len, is_func, ta);
+  // The label helper is an extern. The call stays in an unsafe block.
+  unsafe {
+    return backend_enc_label_arch(elf_ctx as *u8, use_ptr, use_len, is_func, ta);
+  }
 }
 /** Exported function `enc_prologue_arch`.
  * Implements `enc_prologue_arch`.
@@ -377,10 +384,12 @@ export function enc_label_arch(elf_ctx: *ElfCodegenCtx, name: u8[128], name_len:
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_prologue_arch(elf_ctx: *ElfCodegenCtx, frame_sz: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_prologue_arch(elf_ctx as *u8, frame_sz, ta);
+    return backend_enc_prologue_arch(elf_ctx as *u8, frame_sz, ta);
   }
 }
 /** Exported function `enc_epilogue_arch`.
@@ -389,10 +398,12 @@ export function enc_prologue_arch(elf_ctx: *ElfCodegenCtx, frame_sz: i32, ta: i3
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_epilogue_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_epilogue_arch(elf_ctx as *u8, ta);
+    return backend_enc_epilogue_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_ret_imm32_arch`.
@@ -402,10 +413,12 @@ export function enc_epilogue_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_ret_imm32_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_ret_imm32_arch(elf_ctx as *u8, imm32, ta);
+    return backend_enc_ret_imm32_arch(elf_ctx as *u8, imm32, ta);
   }
 }
 
@@ -416,17 +429,21 @@ export function enc_ret_imm32_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32)
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_imm32_to_rbx_arch(elf_ctx: *ElfCodegenCtx, imm32: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_imm32_to_rbx_arch(elf_ctx as *u8, imm32, ta);
+    return backend_enc_mov_imm32_to_rbx_arch(elf_ctx as *u8, imm32, ta);
   }
 }
 /** Move 64-bit immediate into rax/x0; used by EXPR_FLOAT_LIT (double bit pattern). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_imm64_to_rax_arch(elf_ctx: *ElfCodegenCtx, lo: i32, hi: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_imm64_to_rax_arch(elf_ctx as *u8, lo, hi, ta);
+    return backend_enc_mov_imm64_to_rax_arch(elf_ctx as *u8, lo, hi, ta);
   }
 }
 /** Exported function `enc_push_rax_arch`.
@@ -435,10 +452,12 @@ export function enc_mov_imm64_to_rax_arch(elf_ctx: *ElfCodegenCtx, lo: i32, hi: 
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_push_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_push_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_push_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_pop_rax_arch`.
@@ -447,10 +466,12 @@ export function enc_push_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_pop_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_pop_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_pop_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_pop_rbx_arch`.
@@ -459,10 +480,12 @@ export function enc_pop_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_pop_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_pop_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_pop_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_add_rax_rbx_arch`.
@@ -471,17 +494,21 @@ export function enc_pop_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_add_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_add_rax_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_add_rax_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** w0/eax = w0 - w1 (left in w0, right/imm in w1); arm64 has enc_sub_rax_rbx, x86/rv via C glue. */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_sub_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_sub_rax_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_sub_rax_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_sub_rbx_rax_then_mov_arch`.
@@ -490,10 +517,12 @@ export function enc_sub_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_sub_rbx_rax_then_mov_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx as *u8, ta);
+    return backend_enc_sub_rbx_rax_then_mov_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_imul_rbx_rax_arch`.
@@ -502,10 +531,12 @@ export function enc_sub_rbx_rax_then_mov_arch(elf_ctx: *ElfCodegenCtx, ta: i32):
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_imul_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_imul_rbx_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_imul_rbx_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_mov_rax_to_rbx_arch`.
@@ -514,10 +545,12 @@ export function enc_imul_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_rax_to_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_rax_to_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_mov_rax_to_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_not_eax_arch`.
@@ -526,10 +559,12 @@ export function enc_mov_rax_to_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_not_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_not_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_not_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_and_rbx_rax_arch`.
@@ -538,10 +573,12 @@ export function enc_not_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_and_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_and_rbx_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_and_rbx_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_or_rbx_rax_arch`.
@@ -550,10 +587,12 @@ export function enc_and_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_or_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_or_rbx_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_or_rbx_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_xor_rbx_rax_arch`.
@@ -562,10 +601,12 @@ export function enc_or_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_xor_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_xor_rbx_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_xor_rbx_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_mov_rbx_to_ecx_arch`.
@@ -574,10 +615,12 @@ export function enc_xor_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_rbx_to_ecx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_rbx_to_ecx_arch(elf_ctx as *u8, ta);
+    return backend_enc_mov_rbx_to_ecx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_shl_cl_eax_arch`.
@@ -586,10 +629,12 @@ export function enc_mov_rbx_to_ecx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_shl_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_shl_cl_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_shl_cl_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_shr_cl_eax_arch`.
@@ -598,10 +643,12 @@ export function enc_shl_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_shr_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_shr_cl_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_shr_cl_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_sar_cl_eax_arch`.
@@ -610,10 +657,12 @@ export function enc_shr_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_sar_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_sar_cl_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_sar_cl_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_cltd_arch`.
@@ -622,10 +671,12 @@ export function enc_sar_cl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_cltd_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_cltd_arch(elf_ctx as *u8, ta);
+    return backend_enc_cltd_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_idiv_rbx_arch`.
@@ -634,10 +685,12 @@ export function enc_cltd_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_idiv_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_idiv_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_idiv_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_mov_edx_to_eax_arch`.
@@ -646,52 +699,66 @@ export function enc_idiv_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_edx_to_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_edx_to_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_mov_edx_to_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** MOD: arm64 uses sdiv+msub (do not let idiv clobber dividend); x86 is cltd+idiv+edx->eax. */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_rem_mod_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_rem_mod_arch(elf_ctx as *u8, ta);
+    return backend_enc_rem_mod_arch(elf_ctx as *u8, ta);
   }
 }
 /** shlq %cl, %rax (64-bit logical left shift for i64/u64/usize/isize). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_shl_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_shl_cl_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_shl_cl_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** shrq %cl, %rax (64-bit logical right shift). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_shr_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_shr_cl_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_shr_cl_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** sarq %cl, %rax (64-bit arithmetic right shift). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_sar_cl_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_sar_cl_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_sar_cl_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** divl %ebx (32-bit unsigned division; x86_64 emits xor_edx_edx then divl). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_div_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_div_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_div_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Unsigned MOD (x86_64: xor_edx_edx+divl+edx->eax; arm64 fallback). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_rem_mod_unsigned_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_rem_mod_unsigned_arch(elf_ctx as *u8, ta);
+    return backend_enc_rem_mod_unsigned_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_neg_eax_arch`.
@@ -700,10 +767,12 @@ export function enc_rem_mod_unsigned_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_neg_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_neg_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_neg_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_test_eax_eax_arch`.
@@ -712,10 +781,12 @@ export function enc_neg_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_test_eax_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_test_eax_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_test_eax_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_setz_movzbl_eax_arch`.
@@ -724,10 +795,12 @@ export function enc_test_eax_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_setz_movzbl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_setz_movzbl_eax_arch(elf_ctx as *u8, ta);
+    return backend_enc_setz_movzbl_eax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_cmp_rbx_rax_arch`.
@@ -736,10 +809,12 @@ export function enc_setz_movzbl_eax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_cmp_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_cmp_rbx_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_cmp_rbx_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_cmp_rax_rbx_arch`.
@@ -748,10 +823,12 @@ export function enc_cmp_rbx_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_cmp_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_cmp_rax_rbx_arch(elf_ctx as *u8, ta);
+    return backend_enc_cmp_rax_rbx_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_cmp_w0_imm12_arch`.
@@ -761,17 +838,21 @@ export function enc_cmp_rax_rbx_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_cmp_w0_imm12_arch(elf_ctx: *ElfCodegenCtx, imm12: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_cmp_w0_imm12_arch(elf_ctx as *u8, imm12, ta);
+    return backend_enc_cmp_w0_imm12_arch(elf_ctx as *u8, imm12, ta);
   }
 }
 /** Only cset into w0 (cmp must already have run). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_cset_w0_from_cc_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_cset_w0_from_cc_arch(elf_ctx as *u8, cc, ta);
+    return backend_enc_cset_w0_from_cc_arch(elf_ctx as *u8, cc, ta);
   }
 }
 /** Exported function `enc_cmp_setcc_movzbl_arch`.
@@ -781,10 +862,12 @@ export function enc_cset_w0_from_cc_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_cmp_setcc_movzbl_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_cmp_setcc_movzbl_arch(elf_ctx as *u8, cc, ta);
+    return backend_enc_cmp_setcc_movzbl_arch(elf_ctx as *u8, cc, ta);
   }
 }
 /** Exported function `enc_store_rax_to_rbp_arch`.
@@ -794,10 +877,12 @@ export function enc_cmp_setcc_movzbl_arch(elf_ctx: *ElfCodegenCtx, cc: i32, ta: 
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_store_rax_to_rbp_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_store_rax_to_rbp_arch(elf_ctx as *u8, offset, ta);
+    return backend_enc_store_rax_to_rbp_arch(elf_ctx as *u8, offset, ta);
   }
 }
 /** Exported function `enc_load_rbp_to_rax_arch`.
@@ -807,10 +892,12 @@ export function enc_store_rax_to_rbp_arch(elf_ctx: *ElfCodegenCtx, offset: i32, 
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_load_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_load_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
+    return backend_enc_load_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
   }
 }
 /** Exported function `enc_load_rbp_to_rbx_arch`.
@@ -820,10 +907,12 @@ export function enc_load_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, t
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_load_rbp_to_rbx_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_load_rbp_to_rbx_arch(elf_ctx as *u8, offset, ta);
+    return backend_enc_load_rbp_to_rbx_arch(elf_ctx as *u8, offset, ta);
   }
 }
 /** Exported function `enc_lea_rbp_to_rax_arch`.
@@ -833,10 +922,12 @@ export function enc_load_rbp_to_rbx_arch(elf_ctx: *ElfCodegenCtx, offset: i32, t
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_lea_rbp_to_rax_arch(elf_ctx: *ElfCodegenCtx, offset: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_lea_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx as *u8, offset, ta);
   }
 }
 /**
@@ -891,31 +982,39 @@ export function enc_local_slot_ptr_or_addr_arch(arena: *ASTArena, elf_ctx: *ElfC
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_rax_plus_rbx_scale4_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale4_arch(elf_ctx as *u8, ta);
+    return backend_enc_rax_plus_rbx_scale4_arch(elf_ctx as *u8, ta);
   }
 }
 /** INDEX scale: rbx*1 (u8). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_rax_plus_rbx_scale1_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale1_arch(elf_ctx as *u8, ta);
+    return backend_enc_rax_plus_rbx_scale1_arch(elf_ctx as *u8, ta);
   }
 }
 /** INDEX scale: rbx*8 (pointer / wide int). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_rax_plus_rbx_scale8_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_rax_plus_rbx_scale8_arch(elf_ctx as *u8, ta);
+    return backend_enc_rax_plus_rbx_scale8_arch(elf_ctx as *u8, ta);
   }
 }
 /** Store rax to [rbx]; width elem_sz in {1,4,8} (INDEX assign). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_store_rax_to_rbx_indirect_arch(elf_ctx: *ElfCodegenCtx, elem_sz: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx as *u8, elem_sz, ta);
+    return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx as *u8, elem_sz, ta);
   }
 }
 /** Exported function `enc_load_32_from_rax_arch`.
@@ -924,17 +1023,21 @@ export function enc_store_rax_to_rbx_indirect_arch(elf_ctx: *ElfCodegenCtx, elem
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_load_32_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_load_32_from_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_load_32_from_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** u8 INDEX load: movzbl/ldrb/lbu (zero-extend into destination register). */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_load_zext8_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_load_zext8_from_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_add_imm_to_rax_arch`.
@@ -944,10 +1047,12 @@ export function enc_load_zext8_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): 
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_add_imm_to_rax_arch(elf_ctx: *ElfCodegenCtx, imm: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_add_imm_to_rax_arch(elf_ctx as *u8, imm, ta);
+    return backend_enc_add_imm_to_rax_arch(elf_ctx as *u8, imm, ta);
   }
 }
 /** Exported function `enc_load_64_from_rax_arch`.
@@ -956,10 +1061,12 @@ export function enc_add_imm_to_rax_arch(elf_ctx: *ElfCodegenCtx, imm: i32, ta: i
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_load_64_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_load_64_from_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_load_64_from_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_store_rax_to_rbx_offset_arch`.
@@ -970,10 +1077,12 @@ export function enc_load_64_from_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_store_rax_to_rbx_offset_arch(elf_ctx: *ElfCodegenCtx, offset: i32, store_size: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_store_rax_to_rbx_offset_arch(elf_ctx as *u8, offset, store_size, ta);
+    return backend_enc_store_rax_to_rbx_offset_arch(elf_ctx as *u8, offset, store_size, ta);
   }
 }
 /** Exported function `enc_mov_rbx_to_rax_arch`.
@@ -982,10 +1091,12 @@ export function enc_store_rax_to_rbx_offset_arch(elf_ctx: *ElfCodegenCtx, offset
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_rbx_to_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_rbx_to_rax_arch(elf_ctx as *u8, ta);
+    return backend_enc_mov_rbx_to_rax_arch(elf_ctx as *u8, ta);
   }
 }
 /** Exported function `enc_jz_arch`.
@@ -996,24 +1107,30 @@ export function enc_mov_rbx_to_rax_arch(elf_ctx: *ElfCodegenCtx, ta: i32): i32 {
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_jz_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_jz_arch(elf_ctx as *u8, &label[0], label_len, ta);
+    return backend_enc_jz_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
 /** After cmp, branch on equal (match arm); arm64 beq, x86 je. */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_jeq_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_jeq_arch(elf_ctx as *u8, &label[0], label_len, ta);
+    return backend_enc_jeq_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
 /** After cmp, branch when i>=n (counted-while opt); arm64 b.ge / x86 jge / riscv bge a0,a1. */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_jge_arch(elf_ctx as *u8, &label[0], label_len, ta);
+    return backend_enc_jge_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
 /** Exported function `enc_jnz_arch`.
@@ -1024,10 +1141,12 @@ export function enc_jge_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len:
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_jnz_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_jnz_arch(elf_ctx as *u8, &label[0], label_len, ta);
+    return backend_enc_jnz_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
 /** Exported function `enc_jmp_arch`.
@@ -1038,10 +1157,12 @@ export function enc_jnz_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len:
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_jmp_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_jmp_arch(elf_ctx as *u8, &label[0], label_len, ta);
+    return backend_enc_jmp_arch(elf_ctx as *u8, &label[0], label_len, ta);
   }
 }
 /** Exported function `enc_mov_rax_to_arg_reg_arch`.
@@ -1051,10 +1172,12 @@ export function enc_jmp_arch(elf_ctx: *ElfCodegenCtx, label: u8[128], label_len:
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_mov_rax_to_arg_reg_arch(elf_ctx: *ElfCodegenCtx, k: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_mov_rax_to_arg_reg_arch(elf_ctx as *u8, k, ta);
+    return backend_enc_mov_rax_to_arg_reg_arch(elf_ctx as *u8, k, ta);
   }
 }
 /** Exported function `enc_call_arch`.
@@ -1065,10 +1188,12 @@ export function enc_mov_rax_to_arg_reg_arch(elf_ctx: *ElfCodegenCtx, k: i32, ta:
  * @param ta i32
  * @return i32
  */
+// no_mangle: keep enc_* so it does not collide with the dispatch export backend_enc_*.
+#[no_mangle]
 export function enc_call_arch(elf_ctx: *ElfCodegenCtx, name: u8[128], name_len: i32, ta: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return backend_enc_dispatch.backend_enc_call_arch(elf_ctx as *u8, &name[0], name_len, ta);
+    return backend_enc_call_arch(elf_ctx as *u8, &name[0], name_len, ta);
   }
 }
 
