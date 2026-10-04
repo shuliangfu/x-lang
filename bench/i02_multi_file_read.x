@@ -58,7 +58,8 @@ function main(): i32 {
     let ci: i32 = 0;
     while (ci < chunks_per_file) {
       let nw: isize = fs.write(fd, &buf[0], chunk as usize);
-      if (nw != chunk) {
+      // write returns isize; chunk is i32. Compare both as isize.
+      if (nw != (chunk as isize)) {
         fs.close(fd);
         return 2;
       }
