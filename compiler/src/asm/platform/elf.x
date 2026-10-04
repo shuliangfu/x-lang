@@ -150,7 +150,9 @@ allow(padding) struct ElfCodegenCtx {
  * @param val i32
  * @return u8
  */
-export function elf_to_u8(val: i32): u8 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_to_u8(val: i32): u8 {
   return val as u8;
 }
 
@@ -160,7 +162,9 @@ export function elf_to_u8(val: i32): u8 {
  * @param byte_idx i32
  * @return u8
  */
-export function elf_u32_byte_at(val: i64, byte_idx: i32): u8 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_u32_byte_at(val: i64, byte_idx: i32): u8 {
   let u: u32 = val as u32;
   if (byte_idx == 0) {
     return (u & 255) as u8;
@@ -230,7 +234,9 @@ export function elf_ctx_reset(ctx: *ElfCodegenCtx): void {
  * @param ctx *ElfCodegenCtx
  * @return i32
  */
-export function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     if (pipeline_elf_pgo_hot_enabled() != 0 && ctx.emit_hot != 0) {
@@ -247,7 +253,9 @@ export function elf_section_code_len(ctx: *ElfCodegenCtx): i32 {
  * @param n i32
  * @return i32
  */
-export function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return pipeline_elf_ctx_append_bytes(ctx as *u8, ptr, n);
@@ -259,10 +267,12 @@ export function append_elf_bytes(ctx: *ElfCodegenCtx, ptr: *u8, n: i32): i32 {
  * @param ctx *ElfCodegenCtx
  * @return i32
  */
-export function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
   let pad: u8[1] = [0];
-  while (elf_section_code_len(ctx) % 4 != 0) {
-    if (append_elf_bytes(ctx, pad, 1) != 0) {
+  while (platform_elf_elf_section_code_len(ctx) % 4 != 0) {
+    if (platform_elf_append_elf_bytes(ctx, pad, 1) != 0) {
       return -1;
     }
   }
@@ -276,10 +286,12 @@ export function elf_pad_code_to_4(ctx: *ElfCodegenCtx): i32 {
  * @param name_len i32
  * @return i32
  */
-export function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
-    return pipeline_elf_ctx_add_label(ctx as *u8, name, name_len, elf_section_code_len(ctx));
+    return pipeline_elf_ctx_add_label(ctx as *u8, name, name_len, platform_elf_elf_section_code_len(ctx));
   }
 }
 
@@ -290,7 +302,9 @@ export function elf_add_label(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i3
  * @param name_len i32
  * @return i32
  */
-export function elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return pipeline_elf_ctx_ensure_label(ctx as *u8, name, name_len);
@@ -305,12 +319,16 @@ export function elf_ensure_label_slot(ctx: *ElfCodegenCtx, name: *u8, name_len: 
  * @param name_len i32
  * @return i32
  */
-export function elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32): i32 {
-  return elf_add_patch_with_bits(ctx, rel32_offset, name, name_len, 0);
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_add_patch(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32): i32 {
+  return platform_elf_elf_add_patch_with_bits(ctx, rel32_offset, name, name_len, 0);
 }
 
 /* See implementation. */
-export function elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32,
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_add_patch_with_bits(ctx: *ElfCodegenCtx, rel32_offset: i32, name: *u8, name_len: i32,
 imm_bits: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
@@ -326,7 +344,9 @@ imm_bits: i32): i32 {
  * @param name_len i32
  * @return i32
  */
-export function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: extern FFI must be in unsafe.
   unsafe {
     return pipeline_elf_ctx_append_reloc(ctx as *u8, offset, name, name_len);
@@ -338,7 +358,9 @@ export function elf_add_reloc(ctx: *ElfCodegenCtx, offset: i32, name: *u8, name_
 * See implementation.
 * See implementation.
 */
-export function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
   let off: i32 = 0;
   let i: i32 = 0;
   while (i < sym_idx) {
@@ -353,7 +375,9 @@ export function elf_sym_name_ptr(ctx: *ElfCodegenCtx, sym_idx: i32): *u8 {
 * See implementation.
 * See implementation.
 */
-export function elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_add_sym(ctx: *ElfCodegenCtx, name: *u8, name_len: i32, offset: i32): i32 {
 
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -418,7 +442,9 @@ export function elf_name_eq(a: u8[128], a_len: i32, b: u8[128], b_len: i32): i32
 * See implementation.
 * See implementation.
 */
-export function elf_name_eq_arr_to_pool(name: u8[256], name_len: i32, pool: *u8, pool_len: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_name_eq_arr_to_pool(name: u8[256], name_len: i32, pool: *u8, pool_len: i32): i32 {
   if (name_len != pool_len) {
     return 0;
   }
@@ -448,7 +474,7 @@ export function elf_reloc_target_is_defined(ctx: *ElfCodegenCtx, reloc_idx: i32)
     pipeline_elf_ctx_reloc_sym_name_copy64(ctx as *u8, reloc_idx, &r_sym_buf[0]);
     let rlen: i32 = pipeline_elf_ctx_reloc_name_len(ctx as *u8, reloc_idx);
     while (m < ctx.num_syms) {
-      if (elf_name_eq_arr_to_pool(r_sym_buf, rlen, elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
+      if (platform_elf_elf_name_eq_arr_to_pool(r_sym_buf, rlen, platform_elf_elf_sym_name_ptr(ctx, m), ctx.syms[m].name_len) != 0) {
         return 1;
       }
       m = m + 1;
@@ -484,7 +510,9 @@ export function elf_infer_patch_imm_bits_from_code(ctx: *ElfCodegenCtx, rel32_of
 * See implementation.
 * See implementation.
 */
-export function elf_read_u32_le(ctx: *ElfCodegenCtx, off: i32): i32 {
+// no_mangle: import platform.elf prefixes calls with platform_elf_.
+#[no_mangle]
+export function platform_elf_elf_read_u32_le(ctx: *ElfCodegenCtx, off: i32): i32 {
   if (off < 0 || off + 3 >= ctx.code_len) {
     return 0;
   }
@@ -509,10 +537,10 @@ export function elf_write_u32_le(ctx: *ElfCodegenCtx, off: i32, word: i32): void
   if (off < 0 || off + 3 >= ctx.code_len) {
     return;
   }
-  ctx.code_data[off] = elf_u32_byte_at(word, 0);
-  ctx.code_data[off + 1] = elf_u32_byte_at(word, 1);
-  ctx.code_data[off + 2] = elf_u32_byte_at(word, 2);
-  ctx.code_data[off + 3] = elf_u32_byte_at(word, 3);
+  ctx.code_data[off] = platform_elf_elf_u32_byte_at(word, 0);
+  ctx.code_data[off + 1] = platform_elf_elf_u32_byte_at(word, 1);
+  ctx.code_data[off + 2] = platform_elf_elf_u32_byte_at(word, 2);
+  ctx.code_data[off + 3] = platform_elf_elf_u32_byte_at(word, 3);
 }
 
 /** Exported function `elf_resolve_patches`.
