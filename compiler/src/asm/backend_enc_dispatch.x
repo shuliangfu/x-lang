@@ -1263,36 +1263,6 @@ export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32
   }
 }
 
-/** Exported function `backend_enc_cmp_w0_imm12_arch`.
- * Comparison/utility `backend_enc_cmp_w0_imm12_arch`.
- * @param elf_ctx *u8
- * @param imm12 i32
- * @param ta i32
- * @return i32
- */
-#[no_mangle]
-export function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32 {
-  // See implementation.
-  unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx, imm12); }
-  if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
-  return arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx, imm12);
-  }
-}
-
-/** Exported function `backend_enc_cset_w0_from_cc_arch`.
- * Implements `backend_enc_cset_w0_from_cc_arch`.
- * @param elf_ctx *u8
- * @param cc i32
- * @param ta i32
- * @return i32
- */
-#[no_mangle]
-export function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
-  if (ta == 1) { return arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx, cc); }
-  return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
-}
-
 // backend_enc_store_rax_to_rbp_arch: see function docblock below.
 /** Exported function `backend_enc_store_rax_to_rbp_arch`.
  * Implements `backend_enc_store_rax_to_rbp_arch`.
@@ -3146,38 +3116,6 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
 }
 
 /* See implementation. */
-
-// arch_arm64_enc_enc_cmp_w0_imm12: see function docblock below.
-/** Exported function `arch_arm64_enc_enc_cmp_w0_imm12`.
- * Comparison/utility `arch_arm64_enc_enc_cmp_w0_imm12`.
- * @param elf_ctx *u8
- * @param imm12 i32
- * @return i32
- */
-#[no_mangle]
-export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
-  // See implementation.
-  unsafe {
-  let imm: i32 = imm12 & 4095;
-  return arch_arm64_enc_enc_u32_le(elf_ctx, ((1895825439 as u32) | (imm * 1024)) as i32);
-  }
-}
-
-// arm64 cset w0,cond — 0x1a9f07e0 | (cond<<12)
-/** Exported function `arch_arm64_enc_enc_cset_w0_from_cc`.
- * Implements `arch_arm64_enc_enc_cset_w0_from_cc`.
- * @param elf_ctx *u8
- * @param cc i32
- * @return i32
- */
-#[no_mangle]
-export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
-  unsafe {
-    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((446629856 as u32) | (c * 4096)) as i32);
-  }
-  return 0 - 1;
-}
 
 // arch_arm64_enc_enc_add_sp_imm12: see function docblock below.
 /** Exported function `arch_arm64_enc_enc_add_sp_imm12`.

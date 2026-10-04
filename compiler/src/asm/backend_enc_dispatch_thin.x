@@ -9496,6 +9496,74 @@ export extern "C" function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label
 export extern "C" function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
 
 /**
+ * Compare w0 with a 12-bit immediate and leave the flags for a later cset.
+ * ARM64 (ta == 1) appends cmp w0, #imm12. RISC-V (ta == 2) forwards to the
+ * rbx/rax compare. Any other ta appends the x86 cmp eax, imm32.
+ * @param elf_ctx *u8 — emit context
+ * @param imm12 i32 — immediate; ARM64 uses the low 12 bits
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, any other value is x86_64
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32 {
+  // The arch helpers are extern or local encoders. Keep the calls in unsafe.
+  unsafe {
+    if (ta == 1) { return arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx, imm12); }
+    if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
+    return arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx, imm12);
+  }
+}
+
+/**
+ * Set w0 from the current condition flags.
+ * ARM64 (ta == 1) appends cset w0. Any other ta uses cmp_setcc + movzbl.
+ * @param elf_ctx *u8 — emit context
+ * @param cc i32 — condition code
+ * @param ta i32 — 1 is ARM64, any other value uses the integer setcc path
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx, cc); }
+  return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+}
+
+/**
+ * Append ARM64 `cmp w0, #imm12`. The immediate is masked to 12 bits.
+ * @param elf_ctx *u8 — emit context
+ * @param imm12 i32 — immediate, low 12 bits only
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
+  // 0x7100001F is cmp w0, #0. The imm12 field sits at bits 10..21.
+  unsafe {
+    let imm: i32 = imm12 & 4095;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((1895825439 as u32) | (imm * 1024)) as i32);
+  }
+}
+
+/**
+ * Append ARM64 `cset w0, cond`. The condition field comes from the shared encoder.
+ * @param elf_ctx *u8 — emit context
+ * @param cc i32 — condition code
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
+  // 0x1A9F07E0 is cset w0, eq. The cond field is multiplied by 4096.
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((446629856 as u32) | (c * 4096)) as i32);
+  }
+  return 0 - 1;
+}
+
+/**
  * Load x0 from [x29, #offset].
  * A negative offset forwards to arch_arm64_enc_enc_lea_rbp_to_rax.
  * An aligned offset through 32760 appends one LDR word. offset*128 is
