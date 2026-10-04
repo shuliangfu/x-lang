@@ -109,9 +109,10 @@ export extern "C" function thread_set_name_self_impl(name: *u8, len: i32): i32;
 /**
  * Bridge: return address of thread_dummy_entry (C function pointer target).
  * The actual function stays in rest C (Windows __stdcall trampoline uses it).
- * @return function address as uintptr
+ * @return function address bits in rax
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u64 return.
  */
-export extern "C" function thread_dummy_entry_ptr_impl(): u64;
+export extern "C" function thread_dummy_entry_ptr_impl(): i64;
 
 /**
  * Bridge: start fixed-size worker thread pool (non-Windows only).
@@ -306,10 +307,11 @@ export function thread_set_name_self_c(name: *u8, len: i32): i32 {
 /**
  * Exported function `thread_dummy_entry_ptr_c`.
  * Return address of thread_dummy_entry (for pipeline tests).
- * @return function address as uintptr
+ * @return function address bits in rax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u64 return.
  */
 #[no_mangle]
-export function thread_dummy_entry_ptr_c(): u64 {
+export function thread_dummy_entry_ptr_c(): i64 {
   unsafe {
     return thread_dummy_entry_ptr_impl();
   }
@@ -429,8 +431,11 @@ export function std_thread_thread_set_qos_class_self_c(qos_class: i32): i32 {
   return thread_set_qos_class_self_c(qos_class);
 }
 
-/** std.thread glue wrapper → thin thread_dummy_entry_ptr_c. */
+/** std.thread glue wrapper → thin thread_dummy_entry_ptr_c.
+ * @return function address bits in rax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a u64 return.
+ */
 #[no_mangle]
-export function std_thread_thread_dummy_entry_ptr_c(): u64 {
+export function std_thread_thread_dummy_entry_ptr_c(): i64 {
   return thread_dummy_entry_ptr_c();
 }
