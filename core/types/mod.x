@@ -80,9 +80,27 @@ export function align_of_f32(): i32 { return 4; }
 export function align_of_f64(): i32 { return 8; }
 
 /**
- /* note */
- /* note */
+ * Generic byte-size query.
+ * The compiler folds size_of<T>() to that type's size before this body runs.
+ * Unfolded, the body returns 0.
+ * @return i32 — 0 when the call is not folded
+ * PLATFORM: SHARED
  */
 export function size_of<T>(): i32 { return 0; }
-/** `align_of`: see signature for params/returns; contracts in body. */
+
+/**
+ * Generic alignment query.
+ * The compiler folds align_of<T>() to that type's alignment before this body runs.
+ * Unfolded, the body returns 0.
+ * @return i32 — 0 when the call is not folded
+ * PLATFORM: SHARED
+ */
 export function align_of<T>(): i32 { return 0; }
+
+/**
+ * Concrete function after the generic queries.
+ * The installed product does not asm-emit a generic that ends the file.
+ * @return i32 — always 0
+ * PLATFORM: SHARED
+ */
+export function types_layout_anchor(): i32 { return 0; }
