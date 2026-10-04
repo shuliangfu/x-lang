@@ -1018,8 +1018,10 @@ function w1545_pend_rcx_emit(elf_ctx: *u8, expr_ref: i32): i32 {
  * the current emit (module, func index) so stubs never pick it up.
  */
 let w1545_epi_mod: *u8 = 0 as *u8;
-let w1545_epi_fi: i32[1] = [0 - 1];
-let w1545_epi_off: i32[1] = [0 - 1];
+// PLATFORM: SHARED — the pinned stage0 egg cannot prepare a subtraction in a
+// module array. -1 is the same unset sentinel (readers treat <= 0 as unset).
+let w1545_epi_fi: i32[1] = [-1];
+let w1545_epi_off: i32[1] = [-1];
 let w1545_epi_sz: i32[1] = [0];
 
 /** Latch (or clear with off < 0) the hidden return slot. PLATFORM: WINDOWS x86_64. */
