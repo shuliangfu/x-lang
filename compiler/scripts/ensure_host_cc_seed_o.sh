@@ -10525,7 +10525,9 @@ for n, (start, name) in enumerate(orig):
         tstart = fn[tk][0] - 1
         if tstart > 0 and "w1155 short call" in lines[tstart - 1]:
             tstart -= 1
-        extra += "".join(lines[tstart:fn[tk][0] - 1])
+        # Keep the #[no_mangle] line: since w1555 an asm -c entry module
+        # prefixes export names with the file name (t342_w1155_342).
+        extra += "".join(lines[tstart:fn[tk][0]])
         extra += "".join(split_tail(lines[fn[tk][0]:tend]))
         attached.append(tname)
     blob = body + extra
