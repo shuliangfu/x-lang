@@ -124,7 +124,8 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
             if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0) {
               return 0 - 1;
             }
-            if (backend_enc_append_u32_le_c(elf_ctx, 2852209651 as u32) != 0) {
+            /* w2060: mov x19, x1 — was 0xAA0143F3 (orr lsl#16) */
+            if (backend_enc_append_u32_le_c(elf_ctx, 2852193267 as u32) != 0) {
               return 0 - 1;
             }
             if (store_off > 0) {
@@ -140,7 +141,8 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           continue;
         }
         unsafe {
-          if (backend_enc_append_u32_le_c(elf_ctx, 2848827360 as u32) != 0) {
+          /* w2060: stp x0,x1,[sp,#-0x10]! — was 0xA9CDA7E0 (ldp pre-index) SEGV nested struct lit */
+          if (backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32) != 0) {
             return 0 - 1;
           }
           if (backend_enc_append_u32_le_c(elf_ctx, 4181724147 as u32) != 0) {
