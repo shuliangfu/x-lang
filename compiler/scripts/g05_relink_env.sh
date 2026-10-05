@@ -2326,15 +2326,34 @@ esac
 # Windows still links the w1549 image, whose typeck_x.o already contains
 # the paste. Does not rebuild the pabi egg and does not set XLANG_TYPECK_FROM_X.
 # PLATFORM: LINUX|MACOS
+# w2055: when the CTFE object below is linked it already defines the slot
+# prefix (seeds/typeck_ctfe_tu.c includes the whole residual). Then this
+# object is compiled with TYPECK_ALLOW_LEGACY_ONLY and carries only the
+# allow-legacy helpers, so no name is defined twice. Darwin ld64 rejects
+# duplicate definitions; Linux only tolerated them via
+# --allow-multiple-definition. Same number of cc compiles either way.
+_TYPECK_CTFE_WANT=0
+case "$UNAME_S" in
+  Linux|Darwin)
+    if [ "${XLANG_TYPECK_CTFE:-1}" = "1" ] && \
+        sh scripts/g05_ensure_relink_prereqs.sh --typeck-x-pure-asm-kept >/dev/null; then
+      _TYPECK_CTFE_WANT=1
+    fi
+    ;;
+esac
 _TYPECK_CAP_RESIDUAL=""
 case "$UNAME_S" in
   Linux|Darwin)
     if [ "${XLANG_TYPECK_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _tcap_o=build_asm/selfhost_pabi/typeck_cap_residual.o
+      _tcap_def=""
+      if [ "$_TYPECK_CTFE_WANT" = "1" ]; then
+        _tcap_def="-DTYPECK_ALLOW_LEGACY_ONLY=1"
+      fi
       if ! $G05_CC $_BASE_CFLAGS \
           -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
-          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $_tcap_def \
           -c -o "$_tcap_o" seeds/typeck_cap_residual_tu.c; then
         echo "g05_relink_env: typeck cap residual compile failed" >&2
         exit 1
@@ -2348,7 +2367,7 @@ esac
 # typeck_x.o does, because assemble pastes the seed into typeck_gen.c.
 # A pure-asm typeck_x.o does not. Compile seeds/typeck_ctfe_tu.c only when
 # compiler/typeck_x.pure_asm matches typeck_x.o, and place that object
-# after the slot object (slot duplicates in the CTFE object lose).
+# after the allow-legacy object (the slot prefix comes only from here).
 # No stamp: do not compile it and do not put it on the link. The early
 # ensure flag exits before the crash-log wipe. Its stdout is discarded
 # so this script's eval output stays assignment-only. Does not set
@@ -2359,26 +2378,24 @@ esac
 _TYPECK_CTFE=""
 case "$UNAME_S" in
   Linux|Darwin)
-    if [ "${XLANG_TYPECK_CTFE:-1}" = "1" ]; then
-      if sh scripts/g05_ensure_relink_prereqs.sh --typeck-x-pure-asm-kept >/dev/null; then
-        mkdir -p build_asm/selfhost_pabi
-        _tctfe_h=build_asm/selfhost_pabi/typeck_expr_layout.h
-        _tctfe_o=build_asm/selfhost_pabi/typeck_ctfe.o
-        if ! python3 scripts/assemble_typeck_gen_from_x.py \
-            --write-expr-layout typeck_gen.c --layout-out "$_tctfe_h"; then
-          echo "g05_relink_env: typeck expr layout slice failed" >&2
-          exit 1
-        fi
-        if ! $G05_CC $_BASE_CFLAGS \
-            -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
-            -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
-            -Ibuild_asm/selfhost_pabi \
-            -c -o "$_tctfe_o" seeds/typeck_ctfe_tu.c; then
-          echo "g05_relink_env: typeck CTFE compile failed" >&2
-          exit 1
-        fi
-        _TYPECK_CTFE="$_tctfe_o"
+    if [ "$_TYPECK_CTFE_WANT" = "1" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      _tctfe_h=build_asm/selfhost_pabi/typeck_expr_layout.h
+      _tctfe_o=build_asm/selfhost_pabi/typeck_ctfe.o
+      if ! python3 scripts/assemble_typeck_gen_from_x.py \
+          --write-expr-layout typeck_gen.c --layout-out "$_tctfe_h"; then
+        echo "g05_relink_env: typeck expr layout slice failed" >&2
+        exit 1
       fi
+      if ! $G05_CC $_BASE_CFLAGS \
+          -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
+          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+          -Ibuild_asm/selfhost_pabi \
+          -c -o "$_tctfe_o" seeds/typeck_ctfe_tu.c; then
+        echo "g05_relink_env: typeck CTFE compile failed" >&2
+        exit 1
+      fi
+      _TYPECK_CTFE="$_tctfe_o"
     fi
     ;;
 esac

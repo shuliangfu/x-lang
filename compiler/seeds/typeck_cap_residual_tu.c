@@ -12,12 +12,20 @@
  * typeck_x.o. With no stamp, the host-cc paste in typeck_gen.c is still the
  * CTFE definition, and this slot object is the companion on the link.
  *
+ * When g05 also links the CTFE object (seeds/typeck_ctfe_tu.c), that object
+ * already defines the slot prefix. g05 then compiles this file with
+ * TYPECK_ALLOW_LEGACY_ONLY so it carries only the allow-legacy helpers and
+ * no name is defined twice (Darwin ld64 rejects duplicate definitions;
+ * Linux only tolerated them through --allow-multiple-definition).
+ *
  * PLATFORM: SHARED — same slot and allow-legacy bodies the host-cc
  * typeck_x.o already contains. The g05 hook that links this object is
  * Linux-only until other hosts leave host-cc typeck_gen.c.
  */
 #include <stdint.h>
 
+#ifndef TYPECK_ALLOW_LEGACY_ONLY
 #define TYPECK_CAP_RESIDUAL_SLOTS_ONLY 1
 #include "typeck_cap_residual.from_x.c"
+#endif
 #include "typeck_allow_legacy.from_x.c"

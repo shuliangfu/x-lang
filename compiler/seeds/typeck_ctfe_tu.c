@@ -6,8 +6,9 @@
  * which is what host-cc typeck_x.o compiles. seeds/typeck_cap_residual_tu.c
  * defines TYPECK_CAP_RESIDUAL_SLOTS_ONLY and so does not emit the seven
  * CTFE faces. This file includes the seed without that macro, so the
- * object also contains the slot-prefix globals. Link it after the slot
- * object: those duplicates lose, and the seven CTFE globals win.
+ * object also contains the slot-prefix globals. When g05 links this object
+ * it compiles typeck_cap_residual_tu.c with TYPECK_ALLOW_LEGACY_ONLY, so the
+ * slot prefix is defined only here and no name is defined twice.
  *
  * struct ast_Expr is not written here. The compiler adds -I of a header
  * sliced from typeck_gen.c (enum ast_TypeKind through the end of
