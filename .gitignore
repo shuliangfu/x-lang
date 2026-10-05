@@ -332,3 +332,6 @@ compiler/xlang-*
 !compiler/scripts/
 # Added by code-review-graph
 .code-review-graph/
+
+# g05 pure-asm sha256 stamps (ensure local markers; do not commit)
+*.pure_asm
