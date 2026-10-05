@@ -145,7 +145,7 @@ struct parser_asm_lexer parser_asm_skip_balanced_parens_buf_c(struct parser_asm_
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(&lex, data, len));
   while (depth > 0) {
-    struct parser_asm_lexer_result r = lexer_next_buf(lex, data, len);
+    struct parser_asm_lexer_result r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LPAREN)
       depth++;
     else if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
@@ -234,7 +234,7 @@ struct parser_asm_lexer parser_asm_skip_balanced_braces_buf_c(struct parser_asm_
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_full_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_balanced_delim_mega_full_deep_buf_audit_c(&lex, data, len));
   while (depth > 0) {
-    struct parser_asm_lexer_result r = lexer_next_buf(lex, data, len);
+    struct parser_asm_lexer_result r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LBRACE)
       depth++;
     else if (r.tok.kind == (int32_t)TOKEN_RBRACE) {

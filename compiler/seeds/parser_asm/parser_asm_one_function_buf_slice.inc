@@ -11,7 +11,18 @@
 #ifndef PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED
 #define PARSER_ASM_ONE_FUNCTION_BUF_SLICE_INCLUDED
 
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void lexer_next_buf(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+#ifndef PARSER_ASM_LEXER_NEXT_BUF_V
+#define PARSER_ASM_LEXER_NEXT_BUF_V 1
+/* lexer_next_buf writes its result through out (e5ba88d9d). A by-value
+ * call only matched on x86-64/Win64 by luck; arm64 passes sret in x8. */
+static inline struct parser_asm_lexer_result parser_asm_lexer_next_buf_v(struct parser_asm_lexer lex, uint8_t *data,
+                                                                         int32_t len) {
+  struct parser_asm_lexer_result r;
+  lexer_next_buf(&r, lex, data, len);
+  return r;
+}
+#endif
 extern void parser_lex_from_next_into_glue(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 extern int32_t pipeline_onefunc_num_lets(uint8_t *out);
 extern int32_t pipeline_onefunc_num_consts(uint8_t *out);
@@ -177,10 +188,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   out->return_var_name_len = 0;
   out->return_expr_ref = 0;
   out->num_params = 0;
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_FUNCTION) {
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
   }
   if (r.tok.kind != (int32_t)TOKEN_IDENT) {
     parser_asm_set_onefunc_fail_c(out, lex);
@@ -912,13 +923,13 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   }
   ret_type_ref = out->func_return_type_ref;
 #else
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
   }
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   out->num_params = 0;
   if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
     parser_lex_from_next_into_glue(&lex, r);
@@ -974,7 +985,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       }
       out->num_params = param_idx + 1;
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       /*
        * wave676 Cap residual: do not accept bare `name)` as untyped formal.
        * Prior soft residual: RPAREN without `: Type` → param_type_ref left 0 →
@@ -999,7 +1010,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
             break;
           }
           parser_lex_from_next_into_glue(&lex, r);
-          r = lexer_next_buf(lex, data, len);
+          r = parser_asm_lexer_next_buf_v(lex, data, len);
           if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
             parser_lex_from_next_into_glue(&lex, r);
             break;
@@ -1018,7 +1029,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         return;
       }
       pipeline_onefunc_set_param_type_ref(out_pool, param_idx, param_type_ref);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
         parser_lex_from_next_into_glue(&lex, r);
         break;
@@ -1028,14 +1039,14 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         return;
       }
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_RPAREN) {
         parser_lex_from_next_into_glue(&lex, r);
         break;
       }
     }
   }
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   /* wave676: missing return `: Type` after `)` was silent set_onefunc_fail. */
   if (r.tok.kind != (int32_t)TOKEN_COLON) {
     extern void parser_report_untyped_formal_p011_c(int32_t line, int32_t col, int32_t kind);
@@ -1044,7 +1055,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     return;
   }
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (!parser_asm_onefunc_buf_return_type_ok_c(r.tok.kind)) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
@@ -1055,7 +1066,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     return;
   }
   out->func_return_type_ref = ret_type_ref;
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
@@ -1120,7 +1131,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
    * LET/CONST → re-enter parse_body_lets_into + stmt_order kind 0/1 (wave477).
    * Else → expr_stmt (assign / call) via parse_expr_into + ';'.
    */
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   while (r.tok.kind != (int32_t)TOKEN_RETURN && r.tok.kind != (int32_t)TOKEN_RBRACE &&
          r.tok.kind != (int32_t)TOKEN_EOF) {
     /*
@@ -1161,7 +1172,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         st_b5 = data[r.token_start + 5];
       if (st_b0 == 115 && st_b1 == 116 && st_b2 == 97 && st_b3 == 116 && st_b4 == 105 && st_b5 == 99) {
         struct parser_asm_lexer lex_st = parser_asm_lex_at_token_from_result_c(r);
-        struct parser_asm_lexer_result st_r2 = lexer_next_buf(lex_st, data, len);
+        struct parser_asm_lexer_result st_r2 = parser_asm_lexer_next_buf_v(lex_st, data, len);
         if (st_r2.tok.kind == (int32_t)TOKEN_LET || st_r2.tok.kind == (int32_t)TOKEN_CONST) {
           struct parser_asm_top_level_let_result tl_res;
           memset(&tl_res, 0, sizeof(tl_res));
@@ -1176,7 +1187,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
           }
           /* Whole `static let/const ...;` consumed; emit nothing into the frame. */
           lex = tl_res.next_lex;
-          r = lexer_next_buf(lex, data, len);
+          r = parser_asm_lexer_next_buf_v(lex, data, len);
           continue;
         }
       }
@@ -1204,7 +1215,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       }
       out->num_if_stmts = pipeline_onefunc_num_if_stmts(out_pool);
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_WHILE) {
@@ -1214,7 +1225,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       int32_t cond_ref;
       int32_t while_idx;
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       /* docs/03: bare `while cond { }` or `while (cond) { }`. */
       if (r.tok.kind == (int32_t)TOKEN_LPAREN) {
         parser_lex_from_next_into_glue(&lex, r);
@@ -1257,7 +1268,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->num_loops = pipeline_onefunc_num_whiles(out_pool);
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
       lex = block_res.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_FOR) {
@@ -1272,13 +1283,13 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       struct parser_asm_parse_expr_result expr_res_fc;
       struct parser_asm_parse_expr_result expr_res_fs;
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       /* init: empty | let …; | expr */
       if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
         if (r.tok.kind == (int32_t)TOKEN_LET) {
@@ -1303,7 +1314,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
           out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
           init_ref = 0;
           for_past_init_semi = 1;
-          r = lexer_next_buf(lex, data, len);
+          r = parser_asm_lexer_next_buf_v(lex, data, len);
         } else {
           struct parser_asm_lexer init_start;
           init_start = parser_asm_lex_at_token_from_result_c(r);
@@ -1315,7 +1326,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
           }
           init_ref = expr_res_fi.expr_ref;
           lex = expr_res_fi.next_lex;
-          r = lexer_next_buf(lex, data, len);
+          r = parser_asm_lexer_next_buf_v(lex, data, len);
         }
       }
       if (!for_past_init_semi) {
@@ -1324,7 +1335,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
           return;
         }
         parser_lex_from_next_into_glue(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
       /* cond: empty → true (INT_LIT 1); else expr before ';' */
       if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
@@ -1338,14 +1349,14 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         }
         for_cond_ref = expr_res_fc.expr_ref;
         lex = expr_res_fc.next_lex;
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
       if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       /* step: empty | expr before ')' */
       if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
         struct parser_asm_lexer step_start;
@@ -1358,14 +1369,14 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         }
         step_ref = expr_res_fs.expr_ref;
         lex = expr_res_fs.next_lex;
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
       if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_LBRACE) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
@@ -1405,7 +1416,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->num_for_loops = pipeline_onefunc_num_fors(out_pool);
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
       lex = block_res_f.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       continue;
     }
     if (r.tok.kind == (int32_t)TOKEN_MATCH) {
@@ -1421,10 +1432,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         return;
       }
       lex = match_mid_res.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
         parser_lex_from_next_into_glue(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
       match_ex_i = pipeline_onefunc_push_body_expr_stmt(out_pool, match_mid_res.expr_ref);
       if (match_ex_i < 0) {
@@ -1478,7 +1489,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         push_mi++;
       }
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       continue;
     }
     /* Mid-body expr_stmt (assign / call / …); require trailing ';'. */
@@ -1494,7 +1505,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
         return;
       }
       lex = expr_stmt_res.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
@@ -1511,7 +1522,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       }
       out->num_src_body_expr_stmts = pipeline_onefunc_num_body_expr_stmts(out_pool);
       out->num_src_stmt_order = pipeline_onefunc_num_src_stmt_order(out_pool);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       continue;
     }
   }
@@ -1520,39 +1531,39 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     return;
   }
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   /** `return if (cond) { int } else { int }`：与 parse_one_function_impl legacy has_if_expr 对齐。 */
   if (r.tok.kind == (int32_t)TOKEN_IF) {
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind != (int32_t)TOKEN_LPAREN) {
       parser_asm_set_onefunc_fail_c(out, lex);
       return;
     }
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_TRUE || r.tok.kind == (int32_t)TOKEN_FALSE) {
       out->if_cond_true = (r.tok.kind == (int32_t)TOKEN_TRUE) ? 1 : 0;
       out->if_cond_expr_ref = 0;
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     } else {
       out->if_cond_true = 0;
       out->if_cond_expr_ref = 0;
       while (r.tok.kind != (int32_t)TOKEN_RPAREN && r.tok.kind != (int32_t)TOKEN_EOF) {
         parser_lex_from_next_into_glue(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
       if (r.tok.kind != (int32_t)TOKEN_RPAREN) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind != (int32_t)TOKEN_INT) {
       parser_asm_set_onefunc_fail_c(out, lex);
@@ -1560,20 +1571,20 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     }
     out->if_then_val = r.tok.int_val;
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind != (int32_t)TOKEN_ELSE) {
       parser_asm_set_onefunc_fail_c(out, lex);
       return;
     }
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind != (int32_t)TOKEN_INT) {
       parser_asm_set_onefunc_fail_c(out, lex);
@@ -1582,10 +1593,10 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     out->if_else_val = r.tok.int_val;
     out->has_if_expr = 1;
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind != (int32_t)TOKEN_RBRACE && r.tok.kind != (int32_t)TOKEN_SEMICOLON) {
       parser_asm_set_onefunc_fail_c(out, lex);
@@ -1593,7 +1604,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     }
     if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
@@ -1644,7 +1655,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     memset(out->return_var_name, 0, sizeof(out->return_var_name));
     out->return_val = 0;
     lex = match_ret_res.next_lex;
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     /*
      * Compound after match (e.g. `return match x {…} + 2`): free path builds
      * match primary + binop via parse_expr/cond; re-parse from match_start.
@@ -1664,11 +1675,11 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       }
       out->return_expr_ref = expr_out.expr_ref;
       lex = expr_out.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
       parser_asm_set_onefunc_fail_c(out, lex);
@@ -1739,7 +1750,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     out->return_var_name_len = rvn;
     out->return_val = 0;
     parser_lex_from_next_into_glue(&lex, r);
-    r_after = lexer_next_buf(lex, data, len);
+    r_after = parser_asm_lexer_next_buf_v(lex, data, len);
     /*
      * wave472: Name `{` → STRUCT_LIT return (not bare VAR). Peek after name;
      * if LBRACE, finish_struct_lit into return_expr_ref (commit already
@@ -1784,14 +1795,14 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       out->return_var_name_len = 0;
       memset(out->return_var_name, 0, sizeof(out->return_var_name));
       lex = lit_out.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
       if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
         parser_lex_from_next_into_glue(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
         if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
           parser_asm_set_onefunc_fail_c(out, lex);
           return;
@@ -1834,14 +1845,14 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
       memset(out->return_var_name, 0, sizeof(out->return_var_name));
       out->return_val = 0;
       lex = expr_out.next_lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
       }
       if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
         parser_lex_from_next_into_glue(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
         if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
           parser_asm_set_onefunc_fail_c(out, lex);
           return;
@@ -1858,7 +1869,7 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
     }
     if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
         parser_asm_set_onefunc_fail_c(out, lex);
         return;
@@ -1879,14 +1890,14 @@ void parser_asm_parse_one_function_buf_into_c(struct parser_asm_onefunc_result *
   }
   ret_val = r.tok.int_val;
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_RBRACE) {
     parser_asm_set_onefunc_fail_c(out, lex);
     return;
   }
   if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind != (int32_t)TOKEN_RBRACE) {
       parser_asm_set_onefunc_fail_c(out, lex);
       return;

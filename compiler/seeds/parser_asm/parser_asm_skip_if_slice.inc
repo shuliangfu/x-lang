@@ -89,22 +89,22 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_core_buf_c(struct parser_a
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_core_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_if_stmt_deep_buf_audit_c(&lex, data, len));
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_cond_expr_deep_buf_audit_c(&lex, data, len));
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LPAREN)
     return r;
   lex = parser_asm_skip_balanced_parens_buf_c(r.next_lex, data, len);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
     lex = parser_asm_skip_balanced_braces_buf_c(r.next_lex, data, len);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
   } else {
     while (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_EOF) {
       parser_asm_lex_from_result_val_into(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
     if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
       parser_asm_lex_from_result_val_into(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     }
   }
   return r;
@@ -995,21 +995,21 @@ struct parser_asm_lexer_result parser_asm_skip_one_if_statement_buf_c(struct par
   while (r.tok.kind == (int32_t)TOKEN_ELSE) {
     parser_asm_lex_from_result_val_into(&lex, r);
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_skip_one_if_else_chain_buf_audit_c(&lex, data, len));
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_IF) {
       parser_asm_lex_from_result_val_into(&lex, r);
       r = parser_asm_skip_one_if_core_buf_c(lex, data, len);
     } else if (r.tok.kind == (int32_t)TOKEN_LBRACE) {
       lex = parser_asm_skip_balanced_braces_buf_c(r.next_lex, data, len);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
     } else {
       while (r.tok.kind != (int32_t)TOKEN_SEMICOLON && r.tok.kind != (int32_t)TOKEN_EOF) {
         parser_asm_lex_from_result_val_into(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
       if (r.tok.kind == (int32_t)TOKEN_SEMICOLON) {
         parser_asm_lex_from_result_val_into(&lex, r);
-        r = lexer_next_buf(lex, data, len);
+        r = parser_asm_lexer_next_buf_v(lex, data, len);
       }
     }
   }

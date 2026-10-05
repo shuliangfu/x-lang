@@ -1870,6 +1870,37 @@ case "$UNAME_S" in
     elif [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
     fi
+    # w2055 (Windows twin of the Darwin/Linux enum sidecar): pabi_weak keeps
+    # the old C bodies of pipeline_expr_enum_namespace_field_tag (32-byte
+    # base_buf; pipeline_expr_var_name_into zeros 256 bytes, which reaches the
+    # saved rbp, return address and home slots) and pipeline_asm_cmp_enum_rhs_tag_c.
+    # Compile the thin with the current product (pure asm), require both
+    # strong T, weaken the pabi_weak copies below, link the thin first, and
+    # record both names for the post-link map check. win_patch_body_sync_jmp
+    # folds the same-TU egg callers W→T. Any failure stops the relink.
+    # PLATFORM: WINDOWS.
+    _PABI_WIN_ENUM_NS=""
+    _wen_x=src/runtime_pipeline_abi_enum_ns_tag_thin.x
+    _wen_o=build_asm/selfhost_pabi/enum_ns_tag_win.o
+    if [ -f "$_wen_x" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      rm -f "$_wen_o" "$_wen_o.tmp.o"
+      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wen_x" -o "$_wen_o.tmp.o" >/dev/null 2>&1; then
+        rm -f "$_wen_o.tmp.o"
+        echo "g05_relink_env: $_wen_x failed (Windows enum ns tag)" >&2
+        exit 1
+      fi
+      for _wen_s in pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c; do
+        if ! nm "$_wen_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wen_s}\$"; then
+          rm -f "$_wen_o.tmp.o"
+          echo "g05_relink_env: $_wen_x lacks strong $_wen_s (Windows enum ns tag)" >&2
+          exit 1
+        fi
+      done
+      mv -f "$_wen_o.tmp.o" "$_wen_o"
+      _PABI_WIN_ENUM_NS="$_wen_o"
+      _PABI_SELFHOST="$_wen_o $_PABI_SELFHOST"
+    fi
     # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
@@ -1889,7 +1920,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_STRUCT_LIT_FIELD" ] \
       || [ -n "$_PABI_MODLET_FLOAT_IMM" ] \
       || [ -n "$_PABI_INDEX_BASE_FIELD" ] \
-      || [ -n "$_PABI_ASSIGN_VAR" ]; then
+      || [ -n "$_PABI_ASSIGN_VAR" ] \
+      || [ -n "$_PABI_WIN_ENUM_NS" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -2042,6 +2074,17 @@ case "$UNAME_S" in
         if [ -n "$_PABI_NAMED_SIZE" ]; then
           "$_oc" --weaken-symbol=glue_type_size_simple \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        # w2055: weaken the egg enum ns tag / cmp rhs tag copies so the thin
+        # first-wins; a failed weaken stops the relink. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_ENUM_NS" ]; then
+          for _wen_s in pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c; do
+            if ! "$_oc" --weaken-symbol="$_wen_s" build_asm/selfhost_pabi/pabi_weak.o; then
+              echo "g05_relink_env: weaken pabi_weak $_wen_s failed (Windows)" >&2
+              exit 1
+            fi
+            _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wen_s=$_PABI_WIN_ENUM_NS"
+          done
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

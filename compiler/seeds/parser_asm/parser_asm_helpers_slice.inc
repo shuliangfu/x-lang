@@ -579,11 +579,11 @@ int32_t parser_asm_parse_peek_function_name_buf_c(struct parser_asm_lexer lex, u
   if (!data || !out)
     return 0;
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_peek_function_name_buf_audit_c(&lex, data, len));
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_FUNCTION)
     return 0;
   parser_asm_lex_from_result_val_into(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_SPAWN) {
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_spawn_kw_audit_c((int32_t)TOKEN_SPAWN));
     out[0] = (uint8_t)'s';

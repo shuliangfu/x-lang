@@ -30,7 +30,18 @@ typedef struct {
   int32_t num_module_enums;
 } parser_asm_x_module_hdr_t;
 
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void lexer_next_buf(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+#ifndef PARSER_ASM_LEXER_NEXT_BUF_V
+#define PARSER_ASM_LEXER_NEXT_BUF_V 1
+/* lexer_next_buf writes its result through out (e5ba88d9d). A by-value
+ * call only matched on x86-64/Win64 by luck; arm64 passes sret in x8. */
+static inline struct parser_asm_lexer_result parser_asm_lexer_next_buf_v(struct parser_asm_lexer lex, uint8_t *data,
+                                                                         int32_t len) {
+  struct parser_asm_lexer_result r;
+  lexer_next_buf(&r, lex, data, len);
+  return r;
+}
+#endif
 extern int32_t parser_asm_stretch_parse_into_buf_preamble_peek_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len);
 extern int32_t parser_asm_stretch_top_level_let_buf_audit_c(void *lex_inout, uint8_t *data, int32_t len,
                                                             int32_t is_const);
@@ -932,11 +943,11 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
   /* wave468: stash full-file source for default hoist. */
   g_xlang_seed_trait_src_data = data;
   g_xlang_seed_trait_src_len = len;
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_TRAIT)
     return -1;
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_IDENT)
     return -1;
   if (g_xlang_trait_reg_n >= XLANG_TRAIT_REG_MAX)
@@ -947,13 +958,13 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
   if (ent->name_len <= 0)
     return -1;
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_LBRACE)
     return -1;
   lex = r.next_lex;
   guard = 0;
   while (guard++ < 512) {
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
       lex_out->pos = r.next_lex.pos;
       lex_out->line = r.next_lex.line;
@@ -971,7 +982,7 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
       int32_t fn_line = r.tok.line;
       int32_t fn_col = r.tok.col;
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (r.tok.kind == (int32_t)TOKEN_IDENT && ent->num_methods < XLANG_TRAIT_METH_MAX) {
         int32_t pii;
         mi_reg = ent->num_methods;
@@ -1932,7 +1943,7 @@ static int32_t parser_asm_seed_register_trait_c(struct parser_asm_lexer lex, uin
           } else if (r.tok.kind == (int32_t)TOKEN_EOF)
             return -1;
           parser_lex_from_next_into_glue(&lex, r);
-          r = lexer_next_buf(lex, data, len);
+          r = parser_asm_lexer_next_buf_v(lex, data, len);
         }
       }
       continue;
@@ -2696,7 +2707,7 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
   memset(trait_nm, 0, sizeof(trait_nm));
   memset(for_nm, 0, sizeof(for_nm));
 
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind != (int32_t)TOKEN_IMPL)
     return -1;
   impl_line = r.tok.line;
@@ -2704,12 +2715,12 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
   parser_lex_from_next_into_glue(&lex, r);
 
   /* Header: impl Trait for Type | impl Type */
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind))
     return -1;
   if (r.tok.kind == (int32_t)TOKEN_STAR) {
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind) || r.tok.kind == (int32_t)TOKEN_STAR)
       return -1;
   }
@@ -2717,17 +2728,17 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
   if (r.tok.kind == (int32_t)TOKEN_IDENT)
     xlang_trait_reg_copy_ident_c(data, len, r.token_start, r.tok.ident_len, trait_nm, &trait_nlen);
   parser_lex_from_next_into_glue(&lex, r);
-  r = lexer_next_buf(lex, data, len);
+  r = parser_asm_lexer_next_buf_v(lex, data, len);
   if (r.tok.kind == (int32_t)TOKEN_FOR) {
     is_trait_impl = (trait_nlen > 0) ? 1 : 0;
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind))
       return -1;
     if (r.tok.kind == (int32_t)TOKEN_STAR) {
       for_is_ptr = 1;
       parser_lex_from_next_into_glue(&lex, r);
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       if (!parser_asm_seed_impl_type_start_kind_c(r.tok.kind) || r.tok.kind == (int32_t)TOKEN_STAR)
         return -1;
     }
@@ -2739,7 +2750,7 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
       for_kind = parser_asm_seed_trait_token_to_type_kind_c(r.tok.kind);
     }
     parser_lex_from_next_into_glue(&lex, r);
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
   } else {
     /* Inherent impl: clear trait name so we do not false-check. */
     trait_nlen = 0;
@@ -2763,7 +2774,7 @@ static int32_t parser_asm_seed_parse_impl_and_add_c(void *arena, void *module, s
     else if (trait_nlen > 0)
       pipeline_module_parse_impl_owner_set(trait_nm, trait_nlen);
     fn_start = body;
-    r = lexer_next_buf(body, data, len);
+    r = parser_asm_lexer_next_buf_v(body, data, len);
     if (r.tok.kind == (int32_t)TOKEN_RBRACE) {
       lex_out->pos = r.next_lex.pos;
       lex_out->line = r.next_lex.line;
@@ -3662,7 +3673,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_into_buf_loop_toplevel_buf_audit_c(&iter_start, data, len));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_into_loop_iter_deep_buf_audit_c(&iter_start, data, len));
     PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_parse_into_loop_entry_full_deep_buf_audit_c(&iter_start, data, len));
-    r = lexer_next_buf(lex, data, len);
+    r = parser_asm_lexer_next_buf_v(lex, data, len);
     lex_at_function = lex;
     parser_lex_from_next_into_glue(&lex, r);
     func_is_async = 0;
@@ -3671,7 +3682,7 @@ struct parser_asm_seed_parse_into_result parser_asm_seed_parse_into_buf_c(void *
       PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_async_fn_prefix_buf_audit_c(&iter_start, data, len));
       parser_lex_from_next_into_glue(&lex, r);
       lex_at_function = lex;
-      r = lexer_next_buf(lex, data, len);
+      r = parser_asm_lexer_next_buf_v(lex, data, len);
       parser_lex_from_next_into_glue(&lex, r);
     }
     if (r.tok.kind == (int32_t)TOKEN_ATTR_SOA) {

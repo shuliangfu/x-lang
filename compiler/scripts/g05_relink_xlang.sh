@@ -85,9 +85,23 @@ g05_force_cc() {
 run_g05_cc_residual() {
   # shellcheck disable=SC2086
   echo "g05_relink_xlang: $CC ... -o $OUT  ($n_objs objs; CC residual)"
+  # w2055: Windows links through this path; with WINNERS set it writes a
+  # GNU ld map and runs the same winner check. PLATFORM: WINDOWS.
+  _cmap=""
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ -n "$WINNERS" ]; then
+        _cmap="build_asm/$(basename "$OUT").ldmap"
+        rm -f "$_cmap"
+      fi
+      ;;
+  esac
   # shellcheck disable=SC2086
-  $CC $CFLAGS -o "$OUT" $OBJS
+  $CC $CFLAGS ${_cmap:+-Wl,-Map=$_cmap} -o "$OUT" $OBJS
   echo "g05_relink_xlang: OK CC residual $OUT" >&2
+  if [ -n "$_cmap" ]; then
+    g05_check_link_winners "$_cmap" || exit 1
+  fi
 }
 
 # w2055: read the link map (Darwin ld64 -map or GNU ld -Map) and prove each

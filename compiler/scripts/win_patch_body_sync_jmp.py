@@ -372,6 +372,10 @@ def main() -> int:
         "glue_emit_index_eff_addr_base_elf_c",
         "pipeline_asm_fill_param_slots",
         "pipeline_asm_emit_return_elf_impl",
+        # w2055: enum ns tag / cmp rhs tag thin (egg 32-byte base_buf).
+        # PLATFORM: WINDOWS.
+        "pipeline_expr_enum_namespace_field_tag",
+        "pipeline_asm_cmp_enum_rhs_tag_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
