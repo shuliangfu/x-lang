@@ -11817,6 +11817,23 @@ pthin_stretch_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ] || [ ! -x "$ocopy" ]; then
     return 1
   fi
+  # w2060: prefer whole-TU pure_asm_x_to_o (split ld -r hits Lxml COMMON dups).
+  if [ -f scripts/pure_ld_shared.sh ]; then
+    rm -f "$o"
+    if (
+      # shellcheck disable=SC1091
+      . scripts/pure_ld_shared.sh
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "src/asm/pthin_stretch.x"
+    ) && [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "15" ]; then
+        return 0
+      fi
+      rm -f "$o"
+    fi
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinstr.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -12130,6 +12147,23 @@ pthin_imports_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: prefer whole-TU pure_asm_x_to_o (split ld -r hits Lxml COMMON dups).
+  if [ -f scripts/pure_ld_shared.sh ]; then
+    rm -f "$o"
+    if (
+      # shellcheck disable=SC1091
+      . scripts/pure_ld_shared.sh
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "src/asm/pthin_imports.x"
+    ) && [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "7" ]; then
+        return 0
+      fi
+      rm -f "$o"
+    fi
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinimp.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
