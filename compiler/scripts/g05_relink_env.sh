@@ -1339,11 +1339,20 @@ if [ "$UNAME_S" = "Darwin" ] \
   # w2055: Mach-O writer. pabi_weak keeps the pre-w1814 C writer whose
   # unique-undef cap is 256 with 1024-byte index tables; parser.x has more
   # than 256 unique undefined relocs, so the writer returns -1 (CG002,
-  # out_len=0). The thin owns its 2048-slot tables and cap.
+  # out_len=0). The thin owns its 2048-slot tables; the cap is the next
+  # sidecar.
   g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_macho_write_thin.x \
     build_asm/selfhost_pabi/macho_write_a64.o \
     "_pipeline_macho_write_o_to_buf_c _platform_macho_write_macho_o_to_buf" \
     "macho writer"
+  # w2055: Mach-O unique-undef cap. pabi_weak keeps a copy of
+  # pipe_elf_macho_undef_cap that returns 256; the writer above calls the
+  # cap and sizes its tables to 2048. The cap has one definition, in its
+  # own thin. PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_macho_undef_cap_thin.x \
+    build_asm/selfhost_pabi/macho_undef_cap_a64.o \
+    "_pipe_elf_macho_undef_cap" \
+    "macho undef cap"
   # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
   # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
   # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only

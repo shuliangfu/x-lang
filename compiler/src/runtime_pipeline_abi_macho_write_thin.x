@@ -21,6 +21,7 @@ export extern "C" function memset(dst: *u8, c: i32, n: usize): *u8;
 export extern function pipe_elf_align4(n: i32): i32;
 export extern function pipe_elf_bss_load_i32(blob: *u8, idx: i32): i32;
 export extern function pipe_elf_bss_store_i32(blob: *u8, idx: i32, v: i32): void;
+export extern function pipe_elf_macho_undef_cap(): i32;
 export extern function pipe_elf_name_eq(a: *u8, a_len: i32, b: *u8, b_len: i32): i32;
 export extern function pipe_elf_off_code_len(): i32;
 export extern function pipe_elf_off_e_machine(): i32;
@@ -127,15 +128,13 @@ function w314_bss_store(blob: *u8, idx: i32, v: i32): void {
 }
 
 /**
- * Unique-undef row cap. The writer owns the two index tables below
- * (g_pipe_elf_ws_und_src / g_pipe_elf_ws_und_lens, 8192 bytes = 2048
- * i32 slots), so the cap lives here next to them. w2055: the extern
- * pipe_elf_macho_undef_cap resolved to the stale pabi copy (256) on
- * Darwin, and parser.x has more than 256 unique undefined relocs.
- * PLATFORM: MACOS|DARWIN writer.
+ * pipe_elf_macho_undef_cap via unsafe (T001). PLATFORM: SHARED. wave370.
+ * Defined once in runtime_pipeline_abi_macho_undef_cap_thin.x.
  */
 function w314_undef_cap(): i32 {
-  return 2048;
+  unsafe {
+    return pipe_elf_macho_undef_cap();
+  }
 }
 
 /**
@@ -422,7 +421,7 @@ function w314_sym_shndx_at(ctx_bytes: *u8, idx: i32): i32 {
 // PLATFORM: SHARED — Darwin ingest writer; LINUX gold co-path unused for Mach-O.
 let g_pipe_elf_ws_name: u8[256] = [];
 let g_pipe_elf_ws_name2: u8[256] = [];
-/* 2048 i32 slots (idx * 4). Must match w314_undef_cap.
+/* 2048 i32 slots (idx * 4). Must match pipe_elf_macho_undef_cap.
  * 256 slots (1024 bytes) made the Darwin writer return -1 once
  * parser.x recorded the 257th unique undefined reloc. */
 let g_pipe_elf_ws_und_src: u8[8192] = [];

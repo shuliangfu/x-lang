@@ -84365,7 +84365,10 @@ function pipe_elf_shnx_data(): i32 { return 4; }
  * Workspace rows are 128B name + 4B len (wave580 layout).
  * PLATFORM: SHARED. */
 function pipe_elf_undef_cap(): i32 { return 2048; }
-function pipe_elf_macho_undef_cap(): i32 { return 256; }
+/* pipe_elf_macho_undef_cap: single definition in
+ * runtime_pipeline_abi_macho_undef_cap_thin.x (w2055; the old 256 here is
+ * what the stale pabi copy still returns). */
+export extern function pipe_elf_macho_undef_cap(): i32;
 function pipe_elf_pgo_undef_cap(): i32 { return 32; }
 function pipe_elf_codegen_out_cap(): i32 { return 9437184; }
 
