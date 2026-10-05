@@ -331,6 +331,7 @@ export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, er: i32): 
 export extern function pipeline_block_let_type_ref(arena: *u8, block_ref: i32, idx: i32): i32;
 export extern function pipeline_typeck_resolve_type_alias_ref_c(arena: *u8, tr: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_struct_lit_fields_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32): i32;
 export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, er: i32): i32;
 /** Resolve local VAR frame offset by name (scoped). PLATFORM: SHARED. */
@@ -1388,7 +1389,10 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
 
 /**
  * PLATFORM: MACOS|ARM64 — address of host-indirect MEMORY arg into rax/x0.
- * VAR: lea. Nested CALL/METHOD: sret into frame temp (save/restore outer x8), then lea.
+ * VAR/FIELD/INDEX/DEREF: copy into frame temp, then lea.
+ * STRUCT_LIT (45): emit fields into the byref temp, then lea (do not use x8
+ * sret + emit_expr — that left the temp uninitialized; w2060 tip lexer).
+ * Nested CALL/METHOD: sret into frame temp (save/restore outer x8), then lea.
  * Root (ErrorChain nested chain_wrap SEGV): bare lvalue_eff_addr on CALL fails;
  * outer let sret in x8 must survive inner materialize (≡ store_memory_by_value).
  * G.7: one materialize for import METHOD is_mem=2. @return 0 ok; -1 fail.
@@ -1434,6 +1438,18 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
       // lands at off+k. The Win64 mirror uses off-k because rbp slots grow down.
       if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off + k, ta) != 0) { return 0 - 1; }
       k = k + 8;
+    }
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+  }
+  // w2060: EXPR_STRUCT_LIT (kind 45). emit_expr_rec with x8 preset does not
+  // write the byref temp — STRUCT_LIT lowering uses its own frame slot — so
+  // the pointer passed to the callee was an uninitialized temp (tip lexer
+  // write_tok_into(Token{kind:32,...}) left tok.kind as garbage → #[no_mangle]
+  // parse skip; tip+bak-lexer hybrid restored bare _register). Materialize
+  // fields into `off`, then lea. PLATFORM: MACOS|ARM64.
+  if (ko == 45) {
+    if (pipeline_asm_emit_struct_lit_fields_elf_c(arena, elf_ctx, arg_ref, ctx, ta, off) != 0) {
+      return 0 - 1;
     }
     return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
   }
