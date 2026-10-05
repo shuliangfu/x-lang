@@ -2112,13 +2112,14 @@ esac
 # codegen_gen.c. A pure-asm codegen_x.o leaves them undefined. Link the
 # same seed as its own object after codegen_x.o. With a host-cc
 # codegen_x.o the symbols are duplicated and the earlier copy wins.
-# Linux only this wave: Darwin and Windows still link the w1549 image,
-# whose codegen_x.o already contains the paste. Does not rebuild the
+# Linux and Darwin (w2060: Darwin's codegen_x.o is pure asm since 7.2, so
+# its g1 link had these names undefined). Windows still links the w1549
+# image, whose codegen_x.o already contains the paste. Does not rebuild the
 # pabi egg and does not set XLANG_CODEGEN_FROM_X.
-# PLATFORM: LINUX
+# PLATFORM: LINUX|MACOS
 _CODEGEN_CAP_RESIDUAL=""
 case "$UNAME_S" in
-  Linux)
+  Linux|Darwin)
     if [ "${XLANG_CODEGEN_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _cap_o=build_asm/selfhost_pabi/codegen_cap_residual.o
@@ -2138,13 +2139,14 @@ esac
 # seeds/typeck_allow_legacy.from_x.c. A pure-asm typeck_x.o leaves them
 # undefined. Link the same seeds as one object immediately after
 # typeck_x.o. With a host-cc typeck_x.o the symbols are duplicated and
-# the earlier copy wins. Linux only: Darwin and Windows still link the
-# w1549 image, whose typeck_x.o already contains the paste. Does not
-# rebuild the pabi egg and does not set XLANG_TYPECK_FROM_X.
-# PLATFORM: LINUX
+# the earlier copy wins. Linux and Darwin (w2060: Darwin's typeck_x.o is
+# pure asm since 7.2 and its g1 link missed typeck_get_allow_legacy_extern_calls).
+# Windows still links the w1549 image, whose typeck_x.o already contains
+# the paste. Does not rebuild the pabi egg and does not set XLANG_TYPECK_FROM_X.
+# PLATFORM: LINUX|MACOS
 _TYPECK_CAP_RESIDUAL=""
 case "$UNAME_S" in
-  Linux)
+  Linux|Darwin)
     if [ "${XLANG_TYPECK_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _tcap_o=build_asm/selfhost_pabi/typeck_cap_residual.o
@@ -2170,10 +2172,11 @@ esac
 # so this script's eval output stays assignment-only. Does not set
 # XLANG_TYPECK_FROM_X and does not edit the residual seed (a seed edit
 # would make the next ensure splice and host-cc typeck_gen.c).
-# PLATFORM: LINUX — Darwin and Windows have no typeck stamp.
+# PLATFORM: LINUX|MACOS — w2060: Darwin has the pure-asm typeck stamp since
+# 7.2 and its g1 link missed the typeck_fold_* faces. Windows has no stamp.
 _TYPECK_CTFE=""
 case "$UNAME_S" in
-  Linux)
+  Linux|Darwin)
     if [ "${XLANG_TYPECK_CTFE:-1}" = "1" ]; then
       if sh scripts/g05_ensure_relink_prereqs.sh --typeck-x-pure-asm-kept >/dev/null; then
         mkdir -p build_asm/selfhost_pabi

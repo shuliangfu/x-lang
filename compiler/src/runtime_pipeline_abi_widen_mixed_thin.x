@@ -87,6 +87,7 @@ export extern function pipeline_block_while_body_ref(arena: *u8, block_ref: i32,
 export extern function pipeline_block_for_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
 export extern function pipeline_block_if_then_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
 export extern function pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
+export extern function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, op_kind: i32): i32;
 
 /**
  * Type kind of one operand, or -1 when it has no type ref.
@@ -223,322 +224,10 @@ function w1591_sxt_rbx(elf_ctx: *u8, ta: i32): i32 {
   return 0;
 }
 
-/**
- * True when this block stores the binop of left_ref and right_ref into a u32.
- * A let whose initializer is that binop, or an assign whose right-hand side
- * is that binop and whose left-hand side is a u32 variable, counts. Other
- * destinations stay on the signed tail. Nested while, for, and if bodies
- * are scanned after this block. The walk is capped so a corrupt count
- * cannot run away.
- * @param arena *u8 — AST arena; null returns 0
- * @param ctx *u8 — emit context; null skips the assign walk
- * @param block_ref i32 — block that may own the let or the assign; <=0 returns 0
- * @param left_ref i32 — binop's left expression
- * @param right_ref i32 — binop's right expression
- * @param depth i32 — 0 at the function body; each nested body adds one; above 16 returns 0
- * @param op_kind i32 — expression kind of the binop; 4 is add, 6 is mul
- * @return i32 — 1 when the stored result is u32, else 0
- * PLATFORM: SHARED freestanding emit.
- */
-function w1598_block_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32, depth: i32, op_kind: i32): i32 {
-  let n: i32 = 0;
-  let i: i32 = 0;
-  let init: i32 = 0;
-  let init_kind: i32 = 0;
-  let tr: i32 = 0;
-  let tk: i32 = 0;
-  let er: i32 = 0;
-  let rhs: i32 = 0;
-  let rhs_kind: i32 = 0;
-  let lhs: i32 = 0;
-  let lhs_kind: i32 = 0;
-  let child_l: i32 = 0;
-  let child_r: i32 = 0;
-  if (arena == (0 as *u8) || block_ref <= 0 || left_ref <= 0 || right_ref <= 0 || depth > 16) {
-    return 0;
-  }
-  unsafe {
-    n = ast_ast_block_num_lets(arena, block_ref);
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 4096) {
-    n = 4096;
-  }
-  i = 0;
-  while (i < n) {
-    init = 0;
-    unsafe {
-      init = pipeline_block_let_init_ref(arena, block_ref, i);
-    }
-    if (init > 0) {
-      init_kind = 0;
-      unsafe {
-        init_kind = pipeline_expr_kind_ord_at(arena, init);
-      }
-      // op_kind selects the binop (4 add, 6 mul). A wider expression
-      // around it is not this operation.
-      if (init_kind == op_kind) {
-        child_l = 0;
-        child_r = 0;
-        unsafe {
-          child_l = pipeline_expr_binop_left_ref_at(arena, init);
-          child_r = pipeline_expr_binop_right_ref_at(arena, init);
-        }
-        if (child_l == left_ref && child_r == right_ref) {
-          tr = 0;
-          unsafe {
-            tr = pipeline_block_let_type_ref(arena, block_ref, i);
-          }
-          if (tr > 0) {
-            tk = 0;
-            unsafe {
-              tk = pipeline_type_kind_ord_at(arena, tr);
-            }
-            // TYPE_U32 = 3. The slot must keep the low 32 bits.
-            if (tk == 3) {
-              return 1;
-            }
-          }
-        }
-      }
-    }
-    i = i + 1;
-  }
-  if (ctx == (0 as *u8)) {
-    return w1598_nested_has_u32_add(arena, ctx, block_ref, left_ref, right_ref, depth, op_kind);
-  }
-  n = 0;
-  unsafe {
-    n = ast_ast_block_num_expr_stmts(arena, block_ref);
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 4096) {
-    n = 4096;
-  }
-  i = 0;
-  while (i < n) {
-    er = 0;
-    unsafe {
-      er = pipeline_block_expr_stmt_ref(arena, block_ref, i);
-    }
-    if (er > 0) {
-      init_kind = 0;
-      unsafe {
-        init_kind = pipeline_expr_kind_ord_at(arena, er);
-      }
-      // EXPR_ASSIGN = 28. Left is the variable, right is the value.
-      if (init_kind == 28) {
-        rhs = 0;
-        unsafe {
-          rhs = pipeline_expr_binop_right_ref_at(arena, er);
-        }
-        if (rhs > 0) {
-          rhs_kind = 0;
-          unsafe {
-            rhs_kind = pipeline_expr_kind_ord_at(arena, rhs);
-          }
-          if (rhs_kind == op_kind) {
-            child_l = 0;
-            child_r = 0;
-            unsafe {
-              child_l = pipeline_expr_binop_left_ref_at(arena, rhs);
-              child_r = pipeline_expr_binop_right_ref_at(arena, rhs);
-            }
-            if (child_l == left_ref && child_r == right_ref) {
-              lhs = 0;
-              unsafe {
-                lhs = pipeline_expr_binop_left_ref_at(arena, er);
-              }
-              if (lhs > 0) {
-                lhs_kind = 0;
-                unsafe {
-                  lhs_kind = pipeline_expr_kind_ord_at(arena, lhs);
-                }
-                // EXPR_VAR = 3. Field assigns stay on the signed tail.
-                if (lhs_kind == 3) {
-                  tr = 0;
-                  unsafe {
-                    tr = glue_var_decl_type_ref_elf_c(arena, ctx, lhs);
-                  }
-                  if (tr > 0) {
-                    tk = 0;
-                    unsafe {
-                      tk = pipeline_type_kind_ord_at(arena, tr);
-                    }
-                    if (tk == 3) {
-                      return 1;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    i = i + 1;
-  }
-  return w1598_nested_has_u32_add(arena, ctx, block_ref, left_ref, right_ref, depth, op_kind);
-}
-
-/**
- * True when a nested while, for, or if body stores this binop into a u32.
- * The parent block's lets and assigns are already scanned. Each nested
- * body adds one to depth. At 16 the walk stops, so a body that points at
- * its parent cannot run away.
- * @param arena *u8 — AST arena; null returns 0
- * @param ctx *u8 — emit context; forwarded into each nested body
- * @param block_ref i32 — parent block; <=0 returns 0
- * @param left_ref i32 — binop's left expression
- * @param right_ref i32 — binop's right expression
- * @param depth i32 — depth of the parent; >=16 returns 0
- * @param op_kind i32 — expression kind of the binop; 4 is add, 6 is mul
- * @return i32 — 1 when a nested body stores the binop into a u32, else 0
- * PLATFORM: SHARED freestanding emit.
- */
-function w1598_nested_has_u32_add(arena: *u8, ctx: *u8, block_ref: i32, left_ref: i32, right_ref: i32, depth: i32, op_kind: i32): i32 {
-  let n: i32 = 0;
-  let i: i32 = 0;
-  let child: i32 = 0;
-  if (arena == (0 as *u8) || block_ref <= 0 || left_ref <= 0 || right_ref <= 0 || depth >= 16) {
-    return 0;
-  }
-  unsafe {
-    n = ast_ast_block_num_loops(arena, block_ref);
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 4096) {
-    n = 4096;
-  }
-  i = 0;
-  while (i < n) {
-    child = 0;
-    unsafe {
-      child = pipeline_block_while_body_ref(arena, block_ref, i);
-    }
-    // A body that is this block would cycle. Skip it.
-    if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
-        return 1;
-      }
-    }
-    i = i + 1;
-  }
-  n = 0;
-  unsafe {
-    n = ast_ast_block_num_for_loops(arena, block_ref);
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 4096) {
-    n = 4096;
-  }
-  i = 0;
-  while (i < n) {
-    child = 0;
-    unsafe {
-      child = pipeline_block_for_body_ref(arena, block_ref, i);
-    }
-    if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
-        return 1;
-      }
-    }
-    i = i + 1;
-  }
-  n = 0;
-  unsafe {
-    n = ast_ast_block_num_if_stmts(arena, block_ref);
-  }
-  if (n < 0) {
-    n = 0;
-  }
-  if (n > 4096) {
-    n = 4096;
-  }
-  i = 0;
-  while (i < n) {
-    child = 0;
-    unsafe {
-      child = pipeline_block_if_then_body_ref(arena, block_ref, i);
-    }
-    if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
-        return 1;
-      }
-    }
-    child = 0;
-    unsafe {
-      child = pipeline_block_if_else_body_ref(arena, block_ref, i);
-    }
-    if (child > 0 && child != block_ref) {
-      if (w1598_block_has_u32_add(arena, ctx, child, left_ref, right_ref, depth + 1, op_kind) != 0) {
-        return 1;
-      }
-    }
-    i = i + 1;
-  }
-  return 0;
-}
-
-/**
- * True when the binop of these two operands is stored into a u32.
- * An operand block is tried first. A literal has no block ref, so the
- * current function body is scanned after that, including nested while,
- * for, and if bodies. The mul overlay calls this by the bare name.
- * @param arena *u8 — AST arena; null returns 0
- * @param ctx *u8 — emit context; null still checks lets
- * @param left_ref i32 — binop's left expression
- * @param right_ref i32 — binop's right expression
- * @param op_kind i32 — expression kind of the binop; 4 is add, 6 is mul
- * @return i32 — 1 when the stored result is u32, else 0
- * PLATFORM: SHARED freestanding emit. LINUX — both overlays link this name.
- */
-#[no_mangle]
-export function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, op_kind: i32): i32 {
-  let block_l: i32 = 0;
-  let block_r: i32 = 0;
-  let block_f: i32 = 0;
-  let fi: i32 = 0;
-  let mod: *u8 = 0 as *u8;
-  if (arena == (0 as *u8) || left_ref <= 0 || right_ref <= 0) {
-    return 0;
-  }
-  unsafe {
-    block_l = pipeline_expr_block_ref_at(arena, left_ref);
-    block_r = pipeline_expr_block_ref_at(arena, right_ref);
-    mod = pipeline_asm_emit_module_ref_c();
-    fi = pipeline_asm_emit_func_index_c();
-    // Index 0 is the first function. A negative index means emit has not
-    // entered a function, so there is no body to scan.
-    if (mod != (0 as *u8) && fi >= 0) {
-      block_f = pipeline_module_func_body_ref_at(mod, fi);
-    }
-  }
-  if (block_l > 0) {
-    if (w1598_block_has_u32_add(arena, ctx, block_l, left_ref, right_ref, 0, op_kind) != 0) {
-      return 1;
-    }
-  }
-  if (block_r > 0 && block_r != block_l) {
-    if (w1598_block_has_u32_add(arena, ctx, block_r, left_ref, right_ref, 0, op_kind) != 0) {
-      return 1;
-    }
-  }
-  if (block_f > 0 && block_f != block_l && block_f != block_r) {
-    if (w1598_block_has_u32_add(arena, ctx, block_f, left_ref, right_ref, 0, op_kind) != 0) {
-      return 1;
-    }
-  }
-  return 0;
-}
+// w2060: w1598_add_stored_in_u32 and its two scan helpers moved to
+// runtime_pipeline_abi_binop_wide_thin.x, which all three platforms link.
+// This overlay is Linux only, so Darwin and Windows had no body for the
+// name the shared mul overlay calls. PLATFORM: SHARED (definition there).
 
 /**
  * Unsigned width of a narrow add or subtract, or 0 when the signed path stays.
@@ -632,6 +321,7 @@ function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
  */
 #[no_mangle]
 export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
+  let stored_u32: i32 = 0;
   let rc: i32 = 0;
   let is_64bit: i32 = 0;
   let left_kind: i32 = 0;
@@ -699,7 +389,11 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
   // a sum at or above 2^31 negative in the 8-byte slot. i32 still cltqs.
   // EXPR_ADD is kind 4. Mul passes 6 from the other overlay.
-  if (w1598_add_stored_in_u32(arena, ctx, left_ref, right_ref, 4) != 0) {
+  // The scan is an extern since w2060 moved it, so the call sits in unsafe.
+  unsafe {
+    stored_u32 = w1598_add_stored_in_u32(arena, ctx, left_ref, right_ref, 4);
+  }
+  if (stored_u32 != 0) {
     unsafe {
       return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
     }

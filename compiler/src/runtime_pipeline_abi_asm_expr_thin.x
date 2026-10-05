@@ -32,7 +32,18 @@ export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i
 export extern function backend_enc_push_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rbx_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
-export extern function leftover_emit_struct_lit_into_parked_rbx(arena: *u8, elf_ctx: *u8, lit_ref: i32, ctx: *u8, ta: i32, base_off: i32): i32;
+export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
+export extern function pipeline_expr_struct_lit_num_fields(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_struct_lit_init_ref(arena: *u8, expr_ref: i32, fi: i32): i32;
+export extern function pipeline_expr_struct_lit_field_offset_at(arena: *u8, mod: *u8, expr_ref: i32, fi: i32): i32;
+export extern function pipeline_expr_struct_lit_field_type_ref_at(arena: *u8, mod: *u8, expr_ref: i32, fi: i32): i32;
+export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
+export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_ref: i32): i32;
+export extern function backend_enc_add_imm_to_rbx_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
+export extern function backend_enc_lea_rbp_to_rax_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
+export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32;
+export extern function glue_struct_lit_field_store_sz(arena: *u8, expr_ref: i32, fi: i32): i32;
+export extern function backend_enc_store_rax_to_rbx_offset_arch(elf_ctx: *u8, off: i32, load_sz: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_array_lit_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_addr_of_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -508,4 +519,174 @@ export function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref:
   unsafe {
     return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
   }
+}
+
+/**
+ * Sret / match-dest STRUCT_LIT writer for the Darwin rec overlay. rbx is
+ * already the dest base and the caller has pushed it. Same steps as the
+ * Windows leftover writer in seeds/runtime_pipeline_abi.windows_link_stubs.c:
+ * a nested STRUCT_LIT recurses at its field offset; on x86_64 (ta 0) a
+ * 256-byte array field initialized from a frame VAR is copied in full with
+ * glue_copy slot -3; any other field is emitted into rax, rbx is refreshed
+ * from the parked push, and at most 8 bytes are stored at the field offset.
+ * Before this the Darwin overlay only declared the name and the Darwin link
+ * had no body for it (Windows-only seed).
+ * @param arena *u8 — AST arena; null returns -1
+ * @param elf_ctx *u8 — emit buffer; null returns -1
+ * @param lit_ref i32 — STRUCT_LIT expression; <=0 returns -1
+ * @param ctx *u8 — emit context
+ * @param ta i32 — target arch; 0 is x86_64
+ * @param base_off i32 — offset of this literal inside the parked dest, 0..4096
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: MACOS|DARWIN (this overlay is linked on Darwin only).
+ */
+#[no_mangle]
+export function leftover_emit_struct_lit_into_parked_rbx(arena: *u8, elf_ctx: *u8, lit_ref: i32, ctx: *u8, ta: i32, base_off: i32): i32 {
+  let nf: i32 = 0;
+  let fi: i32 = 0;
+  let iref: i32 = 0;
+  let foff: i32 = 0;
+  let fsz: i32 = 0;
+  let store_off: i32 = 0;
+  let iko: i32 = 0;
+  let fty: i32 = 0;
+  let wide: i32 = 0;
+  let src_off: i32 = 0;
+  let fk: i32 = 0;
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || lit_ref <= 0) {
+    return 0 - 1;
+  }
+  if (base_off < 0 || base_off > 4096) {
+    return 0 - 1;
+  }
+  unsafe {
+    mod = glue_emit_module_from_ctx(ctx);
+  }
+  if (mod == (0 as *u8)) {
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+    }
+  }
+  unsafe {
+    nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
+  }
+  if (nf < 0) {
+    nf = 0;
+  }
+  if (nf > 64) {
+    return 0 - 1;
+  }
+  fi = 0;
+  while (fi < nf) {
+    unsafe {
+      iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
+    }
+    if (iref <= 0) {
+      return 0 - 1;
+    }
+    foff = 0;
+    if (mod != (0 as *u8)) {
+      unsafe {
+        foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, lit_ref, fi);
+      }
+    }
+    if (foff < 0) {
+      foff = 0;
+    }
+    store_off = foff + base_off;
+    if (store_off > 4096) {
+      return 0 - 1;
+    }
+    unsafe {
+      iko = pipeline_expr_kind_ord_at(arena, iref);
+    }
+    if (iko == 45) {
+      if (leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, iref, ctx, ta, store_off) != 0) {
+        return 0 - 1;
+      }
+      fi = fi + 1;
+      continue;
+    }
+    if (ta == 0 && iko == 3) {
+      fty = 0;
+      wide = 0;
+      src_off = 0 - 1;
+      if (mod != (0 as *u8)) {
+        unsafe {
+          fty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, lit_ref, fi);
+        }
+      }
+      fk = 0;
+      if (fty > 0) {
+        unsafe {
+          fk = pipeline_type_kind_ord_at(arena, fty);
+        }
+      }
+      if (fty > 0 && fk == 10) {
+        unsafe {
+          wide = glue_fixed_array_total_bytes_c(arena, fty, 0);
+        }
+        if (wide <= 0) {
+          unsafe {
+            wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
+          }
+        }
+      }
+      if (wide == 256) {
+        unsafe {
+          src_off = glue_var_expr_stack_off_elf_c(arena, ctx, iref);
+        }
+      }
+      if (wide == 256 && src_off >= 0) {
+        unsafe {
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0) {
+            return 0 - 1;
+          }
+          if (store_off != 0) {
+            if (backend_enc_add_imm_to_rbx_arch(elf_ctx, store_off, ta) != 0) {
+              return 0 - 1;
+            }
+          }
+          if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0) {
+            return 0 - 1;
+          }
+          if (glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, 256, ta) != 0) {
+            return 0 - 1;
+          }
+        }
+        fi = fi + 1;
+        continue;
+      }
+    }
+    unsafe {
+      fsz = glue_struct_lit_field_store_sz(arena, lit_ref, fi);
+    }
+    if (fsz <= 0) {
+      fi = fi + 1;
+      continue;
+    }
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, iref, ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (fsz > 8) {
+      fsz = 8;
+    }
+    unsafe {
+      if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, fsz, ta) != 0) {
+        return 0 - 1;
+      }
+    }
+    fi = fi + 1;
+  }
+  return 0;
 }
