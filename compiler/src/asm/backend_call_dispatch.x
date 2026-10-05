@@ -443,6 +443,40 @@ export function backend_call_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
+/**
+ * Shared #[no_mangle] → bare link-name gate for def emit and CALL/import.
+ * Returns 1 when func_ix must keep the source/mid name with no module prefix.
+ * Def and CALL must agree: bare def + prefixed CALL is UNDEF at link.
+ * Not a formal-leaf special case — any #[no_mangle] on any host.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_asm_func_link_is_bare_nomangle_c(m: *u8, func_ix: i32): i32 {
+  if (m == 0 as *u8) { return 0; }
+  if (func_ix < 0) { return 0; }
+  unsafe {
+    if (pipeline_module_func_is_no_mangle_at(m, func_ix) != 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Module-prefix byte length for a CALL/import link name.
+ * When #[no_mangle], returns 0 so CALL matches the bare export.
+ * Otherwise returns proposed_plen unchanged.
+ * PLATFORM: SHARED — same predicate as glue_asm_func_link_is_bare_nomangle_c.
+ */
+#[no_mangle]
+export function glue_asm_link_prefix_len_after_nomangle_c(m: *u8, func_ix: i32, proposed_plen: i32): i32 {
+  if (glue_asm_func_link_is_bare_nomangle_c(m, func_ix) != 0) {
+    return 0;
+  }
+  return proposed_plen;
+}
+
+
 
 // See implementation.
 let g_pipeline_asm_emit_call_f32_xmm: i32 = 0;
@@ -2556,13 +2590,18 @@ export function glue_asm_build_call_export_sym_c(
               plen = plen + 1;
             }
             if (plen > 0) {
+              // PLATFORM: SHARED — same bare gate as export sym builder.
+              let call_plen: i32 = plen;
+              if (use_fi >= 0) {
+                call_plen = glue_asm_link_prefix_len_after_nomangle_c(dep_mod, use_fi, plen);
+              }
               if (use_fi >= 0) {
                 mid_len = glue_asm_build_func_overload_mid_c(dep_mod, da, use_fi, &mid[0], 256);
                 if (mid_len > 0) {
-                  return glue_asm_build_import_binding_call_sym(&prefix[0], plen, &mid[0], mid_len, out);
+                  return glue_asm_build_import_binding_call_sym(&prefix[0], call_plen, &mid[0], mid_len, out);
                 }
               }
-              return glue_asm_build_import_binding_call_sym(&prefix[0], plen, &cname[0], clen, out);
+              return glue_asm_build_import_binding_call_sym(&prefix[0], call_plen, &cname[0], clen, out);
             }
           }
         }
@@ -2630,6 +2669,7 @@ export function glue_asm_build_call_export_sym_c(
   }
   return 0 - 1;
 }
+
 
 // glue_asm_build_dep_export_sym_c: see function docblock below.
 /**
@@ -2735,8 +2775,8 @@ export function glue_asm_build_dep_export_sym_c(name: *u8, name_len: i32, out: *
  * Same param-sig siblings append `_ret_<T>` (align seed glue_asm_build_func_export_sym_c_impl).
  * Why: dot(Vec4f){ mul(a,b) } must call std_simd_mul_f32x4_f32x4, not bare std_simd_mul
  * (STD-SIMD-INTRINSIC BLD001 on Ubuntu when .x used glue_type_kind_to_suffix for TYPE_VECTOR).
- * Entry module only: #[no_mangle] copies the source name with no module prefix.
- * Overload suffixes still follow. A non-empty dep path does not take this skip.
+ * #[no_mangle] always copies the source name with no module prefix (entry and
+ * dep co-emit). Overload suffixes still follow. PLATFORM: SHARED.
  * @param m *u8 — owning Module
  * @param a *u8 — arena for param/return type_refs
  * @param func_ix i32 — function index in m
@@ -2758,22 +2798,10 @@ export function glue_asm_build_func_export_sym_c(m: *u8, a: *u8, func_ix: i32, o
     if (fname_len > 255) { return 0 - 1; }
     let fname: u8[256] = [];
     pipeline_asm_module_func_name_copy64(m, func_ix, &fname[0]);
-    // PLATFORM: SHARED — #[no_mangle] on the entry module skips the prefix
-    // and still keeps overload suffixes (emit_func: prefix length 0, then
-    // the link name). Dep co-emit keeps the dep prefix.
-    let dep_live_nm: i32 = 0;
-    let dep_path_nm: *u8 = driver_get_current_dep_path_for_codegen();
-    if (dep_path_nm != 0 as *u8) {
-      if (dep_path_nm[0] != 0) {
-        dep_live_nm = 1;
-      }
-    }
-    let bare_nomangle: i32 = 0;
-    if (dep_live_nm == 0) {
-      if (pipeline_module_func_is_no_mangle_at(m, func_ix) != 0) {
-        bare_nomangle = 1;
-      }
-    }
+    // PLATFORM: SHARED — same bare gate as CALL/import (see
+    // glue_asm_func_link_is_bare_nomangle_c). Entry and dep co-emit alike.
+    // Overload suffixes still apply after the bare stem.
+    let bare_nomangle: i32 = glue_asm_func_link_is_bare_nomangle_c(m, func_ix);
     let pos: i32 = 0;
     if (bare_nomangle != 0) {
       let cj: i32 = 0;
@@ -8293,7 +8321,9 @@ export function glue_asm_mangle_import_binding_call_sym_c(
           if (use_fi < pipeline_module_num_funcs(res_mod)) {
             mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, &mid[0], 64);
             if (mid_len > 0) {
-              sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, &mid[0], mid_len, sym_flat);
+              // PLATFORM: SHARED — same bare gate as export sym builder.
+              let mpre: i32 = glue_asm_link_prefix_len_after_nomangle_c(res_mod, use_fi, pre_len);
+              sym_len = glue_asm_build_import_binding_call_sym(pre_buf, mpre, &mid[0], mid_len, sym_flat);
               if (sym_len <= 0) { mid_len = 0 - 1; }
             }
           }
@@ -8345,14 +8375,24 @@ export function glue_asm_mangle_import_binding_call_sym_c(
             pi = pi + 1;
           }
           if (alen > field_len) {
-            let pos: i32 = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, &mid[0], alen, sym_flat);
+            let fpre: i32 = pre_len;
+            if (use_fi >= 0) {
+              fpre = glue_asm_link_prefix_len_after_nomangle_c(res_mod, use_fi, pre_len);
+            }
+            let pos: i32 = glue_asm_build_import_binding_call_sym(pre_buf, fpre, &mid[0], alen, sym_flat);
             if (pos > 0) { sym_len = pos; }
           }
         }
       }
     }
     if (sym_len <= 0) {
-      sym_len = glue_asm_build_import_binding_call_sym(pre_buf, pre_len, field_name, field_len, sym_flat);
+      let fpre2: i32 = pre_len;
+      if (res_mod != 0 as *u8) {
+        if (use_fi >= 0) {
+          fpre2 = glue_asm_link_prefix_len_after_nomangle_c(res_mod, use_fi, pre_len);
+        }
+      }
+      sym_len = glue_asm_build_import_binding_call_sym(pre_buf, fpre2, field_name, field_len, sym_flat);
     }
     return sym_len;
   }
