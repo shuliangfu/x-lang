@@ -29544,6 +29544,7 @@ function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, 
       }
       unsafe {
         rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+        glue_binop_var_slot_cache_invalidate_rax();
       }
       return rc;
     }
@@ -29560,6 +29561,7 @@ function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, 
       }
       unsafe {
         rc = backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+        glue_binop_var_slot_cache_invalidate_rax();
       }
       return rc;
     }
@@ -29587,6 +29589,8 @@ function glue_emit_cmp_finish_rbx_rax_elf_c(arena: *u8, ctx: *u8, elf_ctx: *u8, 
   }
   unsafe {
     rc = backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+    /* Defense: enc already invalidates; keep finish consistent if enc twin lags. */
+    glue_binop_var_slot_cache_invalidate_rax();
   }
   return rc;
 }

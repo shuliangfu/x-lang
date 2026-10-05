@@ -1255,12 +1255,15 @@ export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
-  // See implementation.
+  /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060 T001). PLATFORM: SHARED. */
+  let rc: i32 = 0 - 1;
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  if (ta == 2) { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    if (ta == 1) { rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+    else if (ta == 2) { rc = arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+    else { rc = arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+    glue_binop_var_slot_cache_invalidate_rax();
   }
+  return rc;
 }
 
 // backend_enc_store_rax_to_rbp_arch: see function docblock below.

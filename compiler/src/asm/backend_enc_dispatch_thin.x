@@ -1341,14 +1341,21 @@ export function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32
  */
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
-  if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+  /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060: lko==void||rko==void
+   * reused ord_void in x0 after cset left 0 → false T001 on i32+i32). Twin of
+   * backend_enc_call_arch invalidate. PLATFORM: SHARED. */
+  let rc: i32 = 0 - 1;
+  unsafe {
+    if (ta == 1) {
+      rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    } else if (ta == 2) {
+      rc = arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    } else {
+      rc = arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    }
+    glue_binop_var_slot_cache_invalidate_rax();
   }
-  if (ta == 2) {
-    unsafe { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  }
-  unsafe { return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  return 0 - 1;
+  return rc;
 }
 
 /** Exported function `backend_enc_store_rax_to_rbp_arch`.
