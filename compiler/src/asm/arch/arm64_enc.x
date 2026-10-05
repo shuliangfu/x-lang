@@ -1109,7 +1109,9 @@ export function enc_load_x29_pos_to_rax(ctx: *ElfCodegenCtx, off_pos: i32): i32 
     off = 0;
   }
   /* w2060: scaled LDR X truncates off/8 (e.g. 4→0). Unaligned 8B field
-   * after i32 pad: two LDR W + orr. Twin of enc_store unaligned split. */
+   * after i32 pad: two LDR W + orr. Twin of product enc_load_rbp_to_rax.
+   * Do NOT clamp LDR W imm12 to #0x3ffc; ORR must be lsl#32 (0xAA018000).
+   * Off > 16380 or >32760 (X) → lea+ldr (enc_lea_rbp_to_rax). */
   if ((off & 7) != 0) {
     let imm12_lo: i32 = 0;
     let imm12_hi: i32 = 0;
@@ -1117,31 +1119,35 @@ export function enc_load_x29_pos_to_rax(ctx: *ElfCodegenCtx, off_pos: i32): i32 
       return 0 - 1;
     }
     imm12_lo = off / 4;
-    if (imm12_lo > 4095) {
-      imm12_lo = 4095;
-    }
-    /* ldr w0, [x29, #off] — 0xB9400000 | imm<<10 | Rn=29 (NOT 0xB9000000 STR W) */
-    if (enc_u32_le(ctx, 3107979264 | (imm12_lo << 10) | (29 << 5)) != 0) {
-      return 0 - 1;
-    }
     imm12_hi = (off + 4) / 4;
-    if (imm12_hi > 4095) {
-      imm12_hi = 4095;
+    if (imm12_lo <= 4095 && imm12_hi <= 4095) {
+      /* ldr w0, [x29, #off] — 0xB9400000 | imm<<10 | Rn=29 */
+      if (enc_u32_le(ctx, 3107979264 | (imm12_lo << 10) | (29 << 5)) != 0) {
+        return 0 - 1;
+      }
+      /* ldr w1, [x29, #off+4] */
+      if (enc_u32_le(ctx, 3107979264 | (imm12_hi << 10) | (29 << 5) | 1) != 0) {
+        return 0 - 1;
+      }
+      /* orr x0, x0, x1, lsl #32 — 0xAA018000 */
+      return enc_u32_le(ctx, 0 - 1442742272);
     }
-    /* ldr w1, [x29, #off+4] — 0xB9400000 | … | Rt=1 */
-    if (enc_u32_le(ctx, 3107979264 | (imm12_hi << 10) | (29 << 5) | 1) != 0) {
+    if (enc_lea_rbp_to_rax(ctx, off) != 0) {
       return 0 - 1;
     }
-    /* orr x0, x0, x1, lsl #32 — 0xAA012000 */
-    return enc_u32_le(ctx, 0 - 1442766848);
+    /* ldr x0, [x0] */
+    return enc_u32_le(ctx, 0 - 113246208);
   }
   let imm12: i32 = off >> 3;
-  if (imm12 > 4095) {
-    imm12 = 4095;
+  if (imm12 <= 4095) {
+    let base: i32 = 0 - 113246720;
+    let tail: i32 = 928 | (imm12 << 10);
+    return enc_u32_le(ctx, base | tail);
   }
-  let base: i32 = 0 - 113246720;
-  let tail: i32 = 928 | (imm12 << 10);
-  return enc_u32_le(ctx, base | tail);
+  if (enc_lea_rbp_to_rax(ctx, off) != 0) {
+    return 0 - 1;
+  }
+  return enc_u32_le(ctx, 0 - 113246208);
 }
 
 /**

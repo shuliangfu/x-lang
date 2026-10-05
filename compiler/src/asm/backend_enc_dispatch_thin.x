@@ -427,12 +427,23 @@ export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if ((offset % 4) != 0) {
     return 0 - 1;
   }
-  if ((offset / 4) > 4095) {
+  let imm12: i32 = offset / 4;
+  /* w2060: do not refuse or clamp large FP stores — lea x16=x29+off; str w0,[x16].
+   * Hard -1 left mega-frame i32 spills incomplete (pair of load_rbp P001). */
+  if (imm12 > 4095) {
+    unsafe {
+      if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, 29, offset) != 0) {
+        return 0 - 1;
+      }
+    }
+    /* str w0, [x16] — 0xB9000200 */
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 3103785472 as i32);
+    }
     return 0 - 1;
   }
   unsafe {
     /* 0xB9000000 | ((offset/4)<<10) | (29<<5) | 0 = (3103785888 as u32) | imm | 928 */
-    let imm12: i32 = offset / 4;
     let word: i32 = (3103785888 as i32) | (imm12 * 1024) | 928;
     return arch_arm64_enc_enc_u32_le(elf_ctx, word);
   }
