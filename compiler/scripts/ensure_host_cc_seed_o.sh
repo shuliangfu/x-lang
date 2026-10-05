@@ -11964,9 +11964,12 @@ PY
   return 0
 }
 
-# w1147: src/asm/pthin_helpers.x exits 139 as one translation unit.
-# Compile the thirteen functions separately and ld -r. Direct xlang_asm,
-# not pure_asm_x_to_o. Sibling calls sit in unsafe.
+# w1147: src/asm/pthin_helpers.x used to exit 139 as one TU, so Darwin
+# compiled thirteen functions and ld -r. Tip at 55e493afe+ emits the
+# whole file cleanly via pure_asm_x_to_o; the split path now fails ld -r
+# with duplicate Lxml COMMONs across pieces (g1 relink then misses
+# parser_asm_struct_field_name_tok_kind_c). Try whole-TU first; keep the
+# thirteen-piece path as fallback.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 pthin_helpers_darwin_pure() {
   local o="${1:-}"
@@ -11980,6 +11983,31 @@ pthin_helpers_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU pure-asm (avoids Lxml COMMON collision on ld -r).
+  if [ -f scripts/pure_ld_shared.sh ]; then
+    rm -f "$o"
+    if (
+      # shellcheck disable=SC1091
+      . scripts/pure_ld_shared.sh
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
+      if [ "$n" = "13" ]; then
+        for c in _parser_asm_import_path_dot_segment_len_kind_c           _parser_asm_import_path_dot_segment_copy_buf_c           _parser_asm_struct_field_name_tok_kind_c           _parser_asm_struct_field_continues_tok_kind_c           _parser_asm_lexer_pos_before_run_c           _parser_asm_parser_match_kw_immediately_before_buf_c           _parser_asm_lexer_token_run_len_kind_c           _parser_asm_lex_at_token_pos_c           _parser_asm_rewind_following_stmt_kind_c           _parser_asm_struct_field_name_from_kind_c           _parser_asm_ident_is_unsafe_stmt_kind_c           _parser_asm_align_lex_to_keyword_prefix_into_c           _parser_asm_parse_block_return_end_tail_into_c; do
+          if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+            rm -f "$o"
+            break
+          fi
+        done
+        if [ -s "$o" ]; then
+          return 0
+        fi
+      fi
+      rm -f "$o"
+    fi
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinhlp.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
