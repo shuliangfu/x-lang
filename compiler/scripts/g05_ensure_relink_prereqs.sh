@@ -4365,7 +4365,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   # G-02f-11 / G-02f-335～346：diag.o
-  # 默认整 seed；PREFER_X_O=1 时 diag_thin.x（76 门闩：+ code_table/entry/stdio）+ seed-rest ld -r
+  # w2060: always try diag_thin.x + seed-rest (snap_* live only in thin);
+  # full seed alone omits diag_snap_* / diag_store_ptr_le. PREFER_X_O=0
+  # still needs the hybrid. PLATFORM: SHARED.
   _diag=seeds/diag.from_x.c
   _diag_thin_x=src/diag_thin.x
   _diag_o=src/diag.o
@@ -4373,7 +4375,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
       || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; }; then
       _diag_done=0
-      if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_diag_thin_x" ]; then
+      if [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
         _diag_rest_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_rest.XXXXXX") || true
         # w1140: Darwin arm64 compiles eight pure-asm pieces. Other hosts
