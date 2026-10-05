@@ -104,6 +104,17 @@ export function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i
     if (w1523_arm64_enc_u32_le(elf_ctx, base | (chunk << 10)) != 0) {
       return 0 - 1;
     }
+    /* w2060 Darwin: probe after each large sub sp chunk (4080≈page).
+     * Raw 26×sub #0xff0 without touch skips the guard → tip mega
+     * parse_into_buf / parse_one_function_impl stack corruption.
+     * STR XZR,[SP] = 0xF90003FF. ADD path (epilogue) does not probe. */
+    if (is_sub != 0) {
+      if (chunk >= 256) {
+        if (w1523_arm64_enc_u32_le(elf_ctx, 0 - 117439489) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
     left = left - chunk;
   }
   return 0;
