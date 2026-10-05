@@ -64,7 +64,15 @@ hsum() {
 strip_to() {
   # $1 in, $2 out: drop symbol tables so only code/data are compared.
   rm -f "$2"
-  if [ "$(uname -s)" = Darwin ]; then cp "$1" "$2" && strip -S -x "$2" 2>/dev/null
+  # w2060: Darwin strip re-signs ad hoc with the output file name as the
+  # code-signature Identifier (g2.xa.s vs g3.xa.s), so identical binaries
+  # compared unequal. Strip under one fixed base name, then move.
+  if [ "$(uname -s)" = Darwin ]; then
+    _st_dir="$(dirname "$2")/.strip_tmp"
+    rm -rf "$_st_dir" && mkdir -p "$_st_dir" \
+      && cp "$1" "$_st_dir/xlang_asm" && strip -S -x "$_st_dir/xlang_asm" 2>/dev/null \
+      && mv "$_st_dir/xlang_asm" "$2"
+    rm -rf "$_st_dir"
   else strip -o "$2" "$1" 2>/dev/null; fi
   [ -s "$2" ] || cp "$1" "$2"
 }
