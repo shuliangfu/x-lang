@@ -14,10 +14,11 @@
 // Product install: ensure_rt_preamble_prefer (pure-asm this file + BSS
 // rename). No seed, no host cc, no gcc -E.
 // PLATFORM: SHARED — same object on POSIX and Windows.
-// Row counts: io_net 218, fs_path 21 (the real table sizes). The io_net
-// writer used to loop to runtime_driver_abi's fixed 224 and read six slots
-// past the table (the first six fs_path rows on Darwin); w1495 loops to 218.
-// Skip ranges below keep their historical row numbers.
+// Row counts: io_net 218, fs_path 21 — exported as driver_preamble_*_lines_n
+// beside the tables (single authority; seed externs them; thin reads them).
+// The io_net writer used to loop to runtime_driver_abi's fixed 224 and read
+// six slots past the table (the first six fs_path rows on Darwin); w1495
+// loops to 218. Skip ranges below keep their historical row numbers.
 
 export extern "C" function codegen_get_preamble_skip_mask(): i32;
 export extern "C" function driver_preamble_io_net_line_at(i: i32): *u8;
@@ -30,15 +31,21 @@ export extern "C" function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern function strlen(s: *u8): usize;
 export extern function memcpy(d: *u8, s: *u8, n: usize): *u8;
 
-// Cap-giant-string tables (w1495). Renamed onto the C names at install:
-//   driver_preamble_io_net_lines  (218 pointer slots)
-//   driver_preamble_fs_path_lines (21 pointer slots)
-// Keep these two lets first and in this order: ensure renames them by
-// name+index. rt_pre_arena (third) is not renamed; add no other lets.
+// Cap-giant-string tables (w1495) + row-count authority (w2060).
+// Renamed onto the C names at install (ensure renames by name+index):
+//   driver_preamble_io_net_lines    (218 pointer slots)
+//   driver_preamble_fs_path_lines   (21 pointer slots)
+//   driver_preamble_io_net_lines_n  (i32 count = 218)
+//   driver_preamble_fs_path_lines_n (i32 count = 21)
+// Keep these four lets first and in this order. rt_pre_arena (fifth) is
+// not renamed. Counts are the single authority for seed extern and thin
+// line_at/count bounds — do not hardcode 218/21/224 elsewhere.
 let driver_preamble_io_net_lines: i64[218] = [];
 let driver_preamble_fs_path_lines: i64[21] = [];
+let driver_preamble_io_net_lines_n: i32 = 218;
+let driver_preamble_fs_path_lines_n: i32 = 21;
 // Backing store for the 38 rows longer than 120 bytes (bytes + NULs).
-// Third let, not renamed (stays a local common).
+// Fifth let, not renamed (stays a local common).
 let rt_pre_arena: u8[28114] = [];
 
 // CODEGEN_PREAMBLE_SKIP_* bit layout (codegen.h; keep numeric literals in .x):

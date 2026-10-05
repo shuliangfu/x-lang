@@ -13104,10 +13104,12 @@ rt_fs_open_pure_thin() {
 # Cap-giant-string tables into the .x and deleted seeds/rt_preamble.from_x.c.
 # The two writers (w843) and labi_rt_preamble_slice_marker (w861) were
 # already there. The tables are the first two module lets (pointer slots,
-# filled from literals on first use); rt_preamble_rename_bss renames their
-# Lxml COMMONs onto driver_preamble_io_net_lines / driver_preamble_fs_path_lines,
-# which runtime_driver_abi's *_lines_raw() read. The third let (row arena)
-# stays a local COMMON. The unused *_lines_n counts are gone.
+# filled from literals on first use); counts are the next two i32 lets.
+# rt_preamble_rename_bss renames their Lxml COMMONs onto
+# driver_preamble_io_net_lines / driver_preamble_fs_path_lines /
+# driver_preamble_io_net_lines_n / driver_preamble_fs_path_lines_n,
+# which runtime_driver_abi's *_lines_raw() / cold line_at and thin bounds
+# read. The fifth let (row arena) stays a local COMMON.
 # No host cc, no seed, no full-seed fallback. XLANG_G05_PREFER_X_O is
 # ignored. Do not gcc -E this TU. Do not rebuild runtime_driver_no_c.o
 # from this path. Failure leaves the previous .o in place and returns 1.
@@ -13159,7 +13161,8 @@ ensure_rt_preamble_prefer() {
   ); } && rt_preamble_rename_bss "$thin"; then
     for s in write_io_net_abi_inline write_fs_path_map_error_abi_inline \
       labi_rt_preamble_slice_marker driver_preamble_io_net_lines \
-      driver_preamble_fs_path_lines; do
+      driver_preamble_fs_path_lines driver_preamble_io_net_lines_n \
+      driver_preamble_fs_path_lines_n; do
       if ! r3_prefer_nm_has_sym "$thin" "$s"; then
         echo "ensure: rt-preamble pure-asm object lacks $s" >&2
         rm -f "$thin"
@@ -13179,12 +13182,13 @@ ensure_rt_preamble_prefer() {
   return 1
 }
 
-# rt_preamble: rename the two table lets (0 and 1); the row arena (2)
-# stays a local COMMON. Names and order must match the .x.
+# rt_preamble: rename table lets (0,1) and count lets (2,3); the row
+# arena (4) stays a local COMMON. Names and order must match the .x.
 # PLATFORM: SHARED.
 rt_preamble_rename_bss() {
-  rt_slice_rename_bss "$1" rt-preamble 3 \
-    driver_preamble_io_net_lines driver_preamble_fs_path_lines
+  rt_slice_rename_bss "$1" rt-preamble 5 \
+    driver_preamble_io_net_lines driver_preamble_fs_path_lines \
+    driver_preamble_io_net_lines_n driver_preamble_fs_path_lines_n
 }
 
 # src/runtime/rt_stack.x only. w1496 (终局待办 5.4) moved

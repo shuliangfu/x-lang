@@ -192,6 +192,12 @@ export extern "C" function driver_preamble_io_net_lines_raw(): *u8;
 /** Always-seed Cap-giant-string data residual: address of driver_preamble_fs_path_lines[].
  * PLATFORM: SHARED — same pattern as io_net_lines_raw. */
 export extern "C" function driver_preamble_fs_path_lines_raw(): *u8;
+/** Always-seed residual: address of driver_preamble_io_net_lines_n (rt_preamble authority).
+ * PLATFORM: SHARED — pure thin bounds; no hardcoded N. */
+export extern "C" function driver_preamble_io_net_lines_n_raw(): *i32;
+/** Always-seed residual: address of driver_preamble_fs_path_lines_n (rt_preamble authority).
+ * PLATFORM: SHARED — pure thin bounds; no hardcoded N. */
+export extern "C" function driver_preamble_fs_path_lines_n_raw(): *i32;
 /** Always-seed Cap-global-bss data residual: address of driver_arena_static[] (rt_arena_buf TU).
  * Wave37 pure slot/size wraps this; pure does not own the 128MiB array body.
  * PLATFORM: SHARED — base address only. */
@@ -2777,43 +2783,34 @@ export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32)
 }
 
 // ---- Wave20 Cap residual pure: rt_preamble line_at/count bridge (PLATFORM: SHARED) ----
-// Cap-giant-string data authority stays in seeds/rt_preamble.from_x.c
-//   (driver_preamble_io_net_lines[] / fs_path_lines[] + _n). .x cannot host giant string tables.
-// Hybrid pure owns the public line_at/count surface used by rt_preamble.x write_* loops.
-// Always-seed residual: driver_preamble_*_lines_raw() = base of pointer table (LP64 *u8 slots).
+// Cap-giant-string table slots live in rt_preamble.x (w1495); counts
+// driver_preamble_*_lines_n are the single authority beside those arrays
+// (w2060). Hybrid pure owns the public line_at/count surface used by
+// rt_preamble.x write_* loops.
+// Always-seed residual: *_lines_raw() = table base; *_lines_n_raw() = &count.
 // Index via G.7 xlang_ptr_slot_get (same authority as defines_set_at / work_p).
-// Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c
-// (wave29 re-count: io_net=224 / fs_path=21; was 219 after preamble rows grew).
-// When adding/removing a table row, update N here in the same commit as the C table.
-// Cold seed keeps C line_at/count twins (uses *_lines_n from sizeof); FROM_X rest drops pure-dup (H↓).
-// Wave22 pure: driver_preamble_fputs (g05 FILE* cast helper). Still seed: giant string text tables.
-
-/**
- * Fixed io_net preamble line count (must match driver_preamble_io_net_lines_n).
- * @return i32 — 224 (wave29; sizeof table / sizeof slot)
- * PLATFORM: SHARED — wave20 pure; wave29 N sync with seeds/rt_preamble.from_x.c.
- */
-function driver_abi_preamble_io_net_n(): i32 {
-  return 224;
-}
-
-/** Fixed fs_path preamble line count (must match driver_preamble_fs_path_lines_n).
- * PLATFORM: SHARED — wave20 pure; keep in sync with seeds/rt_preamble.from_x.c. */
-function driver_abi_preamble_fs_path_n(): i32 {
-  return 21;
-}
+// Cold seed keeps C line_at/count twins (extern *_lines_n); FROM_X rest drops
+// pure-dup (H↓). Wave22 pure: driver_preamble_fputs. No hardcoded 224/218/21.
 
 /** Return the i-th io_net Cap-giant-string preamble line (C string as *u8).
  * Out-of-range or negative i → null. Null table base → null.
- * Wave20 pure: bounds + G.7 xlang_ptr_slot_get on always-seed raw base.
+ * Wave20 pure: bounds from rt_preamble *_lines_n + G.7 xlang_ptr_slot_get.
  * extern calls (raw + ptr_slot) require unsafe (same as wave16 work_p_get).
  * PLATFORM: SHARED — pure authority under PREFER hybrid; cold seed keeps C index. */
 #[no_mangle]
 export function driver_preamble_io_net_line_at(i: i32): *u8 {
+  let n: i32 = 0;
   if (i < 0) {
     return 0 as *u8;
   }
-  if (i >= driver_abi_preamble_io_net_n()) {
+  unsafe {
+    let np: *i32 = driver_preamble_io_net_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0 as *u8;
+    }
+    n = *np;
+  }
+  if (i >= n) {
     return 0 as *u8;
   }
   unsafe {
@@ -2827,25 +2824,40 @@ export function driver_preamble_io_net_line_at(i: i32): *u8 {
 }
 
 /**
- * Number of io_net Cap-giant-string preamble lines (224).
- * @return i32 — fixed N; must match seeds/rt_preamble.from_x.c table size
- * Wave20 pure; wave29 N sync. PLATFORM: SHARED.
+ * Number of io_net Cap-giant-string preamble lines.
+ * @return i32 — authority driver_preamble_io_net_lines_n from rt_preamble.x
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function driver_preamble_io_net_line_count(): i32 {
-  return driver_abi_preamble_io_net_n();
+  unsafe {
+    let np: *i32 = driver_preamble_io_net_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0;
+    }
+    return *np;
+  }
+  return 0;
 }
 
 /** Return the i-th fs_path Cap-giant-string preamble line (C string as *u8).
  * Out-of-range or negative i → null. Null table base → null.
- * Wave20 pure: bounds + G.7 xlang_ptr_slot_get on always-seed raw base.
+ * Wave20 pure: bounds from rt_preamble *_lines_n + G.7 xlang_ptr_slot_get.
  * extern calls require unsafe. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_preamble_fs_path_line_at(i: i32): *u8 {
+  let n: i32 = 0;
   if (i < 0) {
     return 0 as *u8;
   }
-  if (i >= driver_abi_preamble_fs_path_n()) {
+  unsafe {
+    let np: *i32 = driver_preamble_fs_path_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0 as *u8;
+    }
+    n = *np;
+  }
+  if (i >= n) {
     return 0 as *u8;
   }
   unsafe {
@@ -2858,11 +2870,18 @@ export function driver_preamble_fs_path_line_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-/** Number of fs_path Cap-giant-string preamble lines (21).
- * Wave20 pure. PLATFORM: SHARED. */
+/** Number of fs_path Cap-giant-string preamble lines.
+ * Authority driver_preamble_fs_path_lines_n from rt_preamble.x. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_preamble_fs_path_line_count(): i32 {
-  return driver_abi_preamble_fs_path_n();
+  unsafe {
+    let np: *i32 = driver_preamble_fs_path_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0;
+    }
+    return *np;
+  }
+  return 0;
 }
 
 // ---- Wave21 Cap residual pure: driver_entry_fmt_argv_slot (PLATFORM: SHARED) ----

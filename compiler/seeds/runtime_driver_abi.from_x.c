@@ -2286,11 +2286,10 @@ size_t driver_module_static_size(void) {
  * PLATFORM: SHARED — table text authority remains rt_preamble.from_x.c.
  */
 extern const char *const driver_preamble_io_net_lines[];
-/* w1495/w2060: counts live with the .x tables (218/21); seed no longer
- * imports missing *_lines_n commons. PLATFORM: SHARED. */
-static const int32_t driver_preamble_io_net_lines_n = 218;
+/* w2060: counts are single authority in rt_preamble.x (renamed commons). */
+extern const int32_t driver_preamble_io_net_lines_n;
 extern const char *const driver_preamble_fs_path_lines[];
-static const int32_t driver_preamble_fs_path_lines_n = 21;
+extern const int32_t driver_preamble_fs_path_lines_n;
 
 /* Always seed: Cap-giant-string data residual (base of pointer table for pure line_at). */
 uint8_t *driver_preamble_io_net_lines_raw(void) {
@@ -2299,6 +2298,15 @@ uint8_t *driver_preamble_io_net_lines_raw(void) {
 
 uint8_t *driver_preamble_fs_path_lines_raw(void) {
     return (uint8_t *)(void *)driver_preamble_fs_path_lines;
+}
+
+/* Always seed: address of authority counts for pure thin bounds (no hardcoded N). */
+int32_t *driver_preamble_io_net_lines_n_raw(void) {
+    return (int32_t *)&driver_preamble_io_net_lines_n;
+}
+
+int32_t *driver_preamble_fs_path_lines_n_raw(void) {
+    return (int32_t *)&driver_preamble_fs_path_lines_n;
 }
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
