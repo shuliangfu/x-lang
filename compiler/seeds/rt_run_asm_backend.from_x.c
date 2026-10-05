@@ -541,6 +541,24 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     xlang_pipeline_fill_ctx_path_buffers(pctx, entry_dir, lib_roots_arr, n_lib_roots);
     /*
+     * w2060: this cold body does not fill the driver_asm work slots, so
+     * asm_asm_codegen_elf_o finds no entry path in slot 0 and would emit
+     * every entry export bare (parse_into_buf, not parser_parse_into_buf).
+     * Seed the entry lib prefix on pctx from input_path here; the .x
+     * setter and the path-to-name map stay the one authority.
+     * PLATFORM: SHARED.
+     */
+    if (input_path && input_path[0]) {
+        extern const char *xlang_entry_lib_name_from_path(const char *path);
+        extern void xlang_pipeline_pctx_set_entry_lib_prefix(void *ctx, const void *name, int32_t name_len);
+        const char *entry_lib = xlang_entry_lib_name_from_path(input_path);
+        if (entry_lib && entry_lib[0]) {
+            size_t entry_lib_len = strlen(entry_lib);
+            if (entry_lib_len > 0 && entry_lib_len < 63)
+                xlang_pipeline_pctx_set_entry_lib_prefix(pctx, entry_lib, (int32_t)entry_lib_len);
+        }
+    }
+    /*
      * 入口 pipeline 阶段 use_asm_backend=0：与 xlang check 同走 parse+merge+typeck（+ 可选 C codegen 填 out_buf），
      * 避免 use_asm_backend=1 时在 typeck_merge / typeck_x_ast 上对 core.option 等 dep 崩溃（134/139）。
      * 真 .o/.Mach-O 由下方 asm_asm_codegen_elf_o 在 use_asm_backend=1 时 emit。

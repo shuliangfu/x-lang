@@ -311,6 +311,27 @@ g05_obj_defines() {
   nm -gU "$_g05_obj" 2>/dev/null | grep -E " [TWtw] (_)?${_g05_sym}\$" >/dev/null
 }
 
+# w2060: a frontend object must carry the module-prefixed link names the
+# g05 product link resolves (parser_parse_into_buf, not parse_into_buf).
+# A compiler whose entry lib prefix is lost emits every export bare; the
+# stamp still matches, ensure said OK, and relink stopped on 60+ UNDEFs.
+# $1 = object, rest = required names. Missing object or name: stop ensure.
+# PLATFORM: SHARED.
+g05_frontend_link_names_gate() {
+  _fl_obj="$1"
+  shift
+  if [ ! -s "$_fl_obj" ]; then
+    echo "g05_ensure: ERROR $_fl_obj is missing or empty after the frontend rebuild" >&2
+    exit 1
+  fi
+  for _fl_sym in "$@"; do
+    if ! g05_obj_defines "$_fl_obj" "$_fl_sym"; then
+      echo "g05_ensure: ERROR $_fl_obj does not define $_fl_sym (entry exports emitted without the module prefix?)" >&2
+      exit 1
+    fi
+  done
+}
+
 # w1534 (checklist 6.1): P9a lexer-step bridge is one pure-asm emit.
 # No host cc of seeds/parser_asm_lex_step_bridge.from_x.c and no -E fallback.
 # The seed file stays for the prove harnesses. Missing object or symbol
@@ -3469,6 +3490,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         && [ -f "$_pthin_p1_seed" ] && [ -f "$_pthin_p1b_x" ] \
         && [ -f "$_pthin_p6_seed" ] && [ -f "$_pthin_p6b_x" ] \
         && [ -f "$_pthin_p3_seed" ] && [ -f "$_pthin_p3b_x" ]; then
+        _cb_full=0
         _bx_p12b=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p12b.XXXXXX") || true
         _bx_p12=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p12.XXXXXX") || true
         _bx_p1b=$(mktemp "${TMPDIR:-/tmp}/g05_bx_p1b.XXXXXX") || true
@@ -4262,6 +4284,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
                 && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
                 && [ "$_cb_p9a_ok" = "1" ] && [ "$_cb_p4ub_ok" = "1" ] && [ "$_cb_p4bb_ok" = "1" ] && [ "$_cb_p2b_ok" = "1" ] && [ "$_cb_p18b_ok" = "1" ] && [ "$_cb_p17_ok" = "1" ] && [ "$_cb_p13_ok" = "1" ] && [ "$_cb_p14_ok" = "1" ] && [ "$_cb_p20_ok" = "1" ] && [ "$_cb_p10_ok" = "1" ] && [ "$_cb_p16_ok" = "1" ]; then
                 echo "g05_ensure: parser_asm_thin_glue.o ← Class CB pure-asm pieces + helpers + as_suffix + ternary + simd + library + imports + stretch + ctrl + primary + stretch_audit + unary + binop + let_alias + body_tl + diag_late + try_skip_allow + skip_if + foundation + glue + diag_pipeline (w1330)"
+                _cb_full=1
               elif [ "$_cb_p19_ok" = "1" ] && [ "$_cb_p4as_ok" = "1" ] && [ "$_cb_p4t_ok" = "1" ] \
                 && [ "$_cb_p7_ok" = "1" ] && [ "$_cb_p15_ok" = "1" ] && [ "$_cb_p11_ok" = "1" ] \
                 && [ "$_cb_p9_ok" = "1" ] && [ "$_cb_p5_ok" = "1" ] && [ "$_cb_p4p_ok" = "1" ] \
@@ -4346,6 +4369,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
               echo "g05_ensure: parser_asm_thin_glue.o ← Class CB type_ref+FN_BLOCK+skip_tl peel"
             fi
             _pthin_done=1
+            # w2060: Darwin links this glue as the product parser. A lane
+            # below w1330 leaves parser_asm_* bodies (primary, type_ref,
+            # stretch_audit, ...) undefined, and relink then stops on
+            # dozens of UNDEFs after ensure printed OK. Stop here instead.
+            # PLATFORM: MACOS|DARWIN arm64.
+            if [ "${_cb_full:-0}" != "1" ] \
+              && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+              && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+              echo "g05_ensure: ERROR parser_asm_thin_glue.o Class CB is partial (a pthin piece failed); not the w1330 product lane" >&2
+              exit 1
+            fi
           fi
         fi
         rm -f "$_bx_p12b" "$_bx_p12" "$_bx_p1b" "$_bx_p1" "$_bx_bridge" "$_ca_p6b" "$_ca_p6" \
@@ -4526,6 +4560,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   elif g05_parser_x_pure_asm_kept; then
     echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
+  g05_frontend_link_names_gate parser_x.o parser_parse_into_buf \
+    parser_collect_imports_buf parser_diag_fail_at_token_kind
   # typeck_x.o cold path.
   # Missing object (w1635 Linux, w1812 Darwin and Windows): rebuild from
   # src/typeck/typeck.x via build_typeck_x. No host cc, no -E assemble.
@@ -4586,6 +4622,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: typeck_x.o kept; typeck_gen.c is not host-cc'd"
     fi
   fi
+  g05_frontend_link_names_gate typeck_x.o typeck_get_field_offset_from_layout_deps \
+    typeck_check_expr_impl_mega typeck_ensure_u8_type_ref typeck_find_or_alloc_ptr_type_ref
   # codegen_x.o cold path.
   # Missing object (w1634 Linux, w1812 Darwin and Windows): rebuild from
   # src/codegen/codegen.x and codegen_late.x via build_codegen_x, then

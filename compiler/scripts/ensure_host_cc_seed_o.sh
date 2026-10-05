@@ -9518,6 +9518,32 @@ rt_run_asm_backend_darwin_pure() {
   return 0
 }
 
+# w2060: whole-TU pure-asm for a Darwin pthin .x before the per-function
+# split. A split ld -r can fail on Lxml duplicate symbols and leave no
+# object. $1 = out.o, $2 = .x, $3 = expected strong T count. Returns 0
+# only when $1 is non-empty and holds exactly $3 T symbols; otherwise
+# removes $1 and returns 1 so the caller can try its split.
+# PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+pthin_whole_tu_prefer() {
+  local o="$1" xsrc="$2" expect="$3" n
+  [ -n "$o" ] && [ -f "$xsrc" ] && [ -f scripts/pure_ld_shared.sh ] || return 1
+  rm -f "$o"
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+    pure_asm_x_to_o "$o" "$xsrc"
+  ) >/dev/null 2>&1 && [ -s "$o" ]; then
+    n="$(nm "$o" 2>/dev/null | awk '$2=="T"' | wc -l | tr -d ' ')"
+    if [ "$n" = "$expect" ]; then
+      return 0
+    fi
+  fi
+  rm -f "$o"
+  return 1
+}
+
 # w1163 / w1323: the whole file segfaults. Split into four pieces.
 # Direct xlang_asm, not pure_asm_x_to_o.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
@@ -9534,6 +9560,11 @@ pthin_let_alias_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 4; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinla.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -9659,6 +9690,11 @@ pthin_skip_if_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 4; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinskipif.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -9774,6 +9810,11 @@ pthin_diag_pipeline_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 3; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthindiag.XXXXXX")" || return 1
   obj="$dir/tu.o"
   try=0
@@ -9829,6 +9870,11 @@ pthin_glue_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 1; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinglue.XXXXXX")" || return 1
   obj="$dir/tu.o"
   try=0
@@ -9881,6 +9927,11 @@ pthin_foundation_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 2; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinfound.XXXXXX")" || return 1
   obj="$dir/tu.o"
@@ -9935,6 +9986,11 @@ pthin_expr_binop_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 4; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinbn.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -10049,6 +10105,11 @@ pthin_expr_unary_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 3; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinun.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -10158,6 +10219,11 @@ pthin_try_skip_allow_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 3; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinallow.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -10275,6 +10341,11 @@ pthin_body_tl_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 13; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinbtl.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -10404,7 +10475,8 @@ PY
 pthin_stretch_audit_darwin_pure() {
   local o="${1:-}"
   local xsrc="src/asm/pthin_stretch_audit.x"
-  local dir c try src obj n batch
+  local dir c try src obj n batch ocopy
+  ocopy="/opt/homebrew/opt/llvm/bin/llvm-objcopy"
   local -a files
   if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
     return 1
@@ -10574,6 +10646,17 @@ PY
       rm -f "$o"
       return 1
     fi
+    # w2060: this .x has no module lets, so its D Lxml symbols are
+    # per-piece literal data. Localize them so the batch ld -r does not
+    # stop on duplicate symbols (same rule as pthin_stretch_darwin_pure).
+    nm "$obj" | awk '$2=="D" && $3 ~ /^_Lxml_/ {print $3}' > "$dir/loc"
+    if [ -s "$dir/loc" ]; then
+      if [ ! -x "$ocopy" ] || ! "$ocopy" --localize-symbols="$dir/loc" "$obj"; then
+        rm -rf "$dir"
+        rm -f "$o"
+        return 1
+      fi
+    fi
     files+=("$obj")
     if [ "${#files[@]}" -eq 250 ]; then
       if ! ld -r -o "$dir/b${batch}.o" "${files[@]}"; then
@@ -10635,6 +10718,11 @@ pthin_skip_tl_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 63; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinsk.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -10857,6 +10945,11 @@ pthin_expr_primary_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 37; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinpr.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -11069,6 +11162,11 @@ pthin_type_ref_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 31; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinty.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -11277,6 +11375,11 @@ pthin_ctrl_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 31; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinct.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -11492,6 +11595,11 @@ pthin_fn_block_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 25; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinfb.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -11658,6 +11766,11 @@ pthin_lex_skip_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 19; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinlex.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -12001,6 +12114,11 @@ pthin_helpers_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 13; then
+    return 0
+  fi
   # w2060: whole-TU pure-asm (avoids Lxml COMMON collision on ld -r).
   if [ -f scripts/pure_ld_shared.sh ]; then
     rm -f "$o"
@@ -12271,6 +12389,11 @@ pthin_library_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 5; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinlib.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -12377,6 +12500,11 @@ pthin_diag_late_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 4; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthindiag.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -12482,6 +12610,11 @@ pthin_expr_as_suffix_darwin_pure() {
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
   fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 4; then
+    return 0
+  fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinas.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
 import sys
@@ -12586,6 +12719,11 @@ pthin_simd_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 7; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinsimd.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
@@ -12709,6 +12847,11 @@ pthin_expr_ternary_darwin_pure() {
   fi
   if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
     return 1
+  fi
+  # w2060: whole-TU first. A split ld -r can hit Lxml duplicate symbols
+  # and leave no object; the T count gate below is the same contract.
+  if pthin_whole_tu_prefer "$o" "$xsrc" 4; then
+    return 0
   fi
   dir="$(mktemp -d "${TMPDIR:-/tmp}/pthinterm.XXXXXX")" || return 1
   if ! python3 - "$xsrc" "$dir" << 'PY'
