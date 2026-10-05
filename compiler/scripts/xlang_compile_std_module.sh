@@ -954,7 +954,7 @@ for x_path in "$@"; do
       strip_pref_probe=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|\.x$||' -e 's|/|_|g')
       has_prefixed=0
       if [ -n "$strip_pref_probe" ] && command -v nm >/dev/null 2>&1; then
-        if nm "$tmp_dir/try_${idx}.o" 2>/dev/null | grep -q " T ${strip_pref_probe}_"; then
+        if nm "$tmp_dir/try_${idx}.o" 2>/dev/null | grep -qE " T _?${strip_pref_probe}_"; then
           has_prefixed=1
         fi
       fi
@@ -989,7 +989,7 @@ for x_path in "$@"; do
       std)  mod_pref="std_${mod_leaf}_" ;;
       *)    mod_pref="std_${mod_leaf}_" ;;
     esac
-    if [ -n "$mod_leaf" ] && ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
+    if [ -n "$mod_leaf" ] && ! nm "$obj" 2>/dev/null | grep -qE " T _?${mod_pref}"; then
       if command -v objcopy >/dev/null 2>&1; then
         nm "$obj" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
           [ -n "$sym" ] || continue
@@ -1016,7 +1016,7 @@ for x_path in "$@"; do
           fi
         done
       fi
-      if ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
+      if ! nm "$obj" 2>/dev/null | grep -qE " T _?${mod_pref}"; then
         # 重命名失败：放弃 direct .o，改走 C/KEEP_C 前缀路径
         use_direct_o=0
         emit_ok=0

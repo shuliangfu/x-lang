@@ -1214,6 +1214,47 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _PABI_SELFHOST="$_pps_o $_PABI_SELFHOST"
   fi
+  # w2055 (Darwin twin of the Linux cimp.o): collect-deps import scan.
+  # pabi_weak keeps an old C xlang_module_collect_imports_from_buf that calls
+  # the struct-returning lexer_init(); since e5ba88d9d lexer_init(out: *Lexer)
+  # writes through x0, so the scan sees num_imports 1 with an empty path
+  # (IMP001 ./.x). Compile the thin with the current product, weaken the pabi
+  # copy, and let the thin win. A failed compile stops the relink.
+  # PLATFORM: MACOS|DARWIN.
+  _cimp_x=src/runtime_pipeline_abi_collect_imports_thin.x
+  _cimp_o=build_asm/selfhost_pabi/cimp_a64.o
+  if [ "$UNAME_S" = "Darwin" ] && [ -f "$_cimp_x" ] && [ -x ./xlang_asm ] \
+    && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    if [ ! -s "$_cimp_o" ] || [ "$_cimp_x" -nt "$_cimp_o" ] || [ ./xlang_asm -nt "$_cimp_o" ]; then
+      rm -f "$_cimp_o"
+      if XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_cimp_x" -o "$_cimp_o.tmp.o" >/dev/null 2>&1 \
+        && nm -m "$_cimp_o.tmp.o" 2>/dev/null | grep -v weak \
+          | grep -q 'external _xlang_module_collect_imports_from_buf$' \
+        && ! nm -u "$_cimp_o.tmp.o" 2>/dev/null | grep -qx '_lexer_init'; then
+        mv -f "$_cimp_o.tmp.o" "$_cimp_o"
+      else
+        rm -f "$_cimp_o.tmp.o"
+        echo "g05_relink_env: $_cimp_x failed (Darwin cimp)" >&2
+        exit 1
+      fi
+    fi
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep 'external.* _xlang_module_collect_imports_from_buf$' | grep -qv weak; then
+      "$_oc" --weaken-symbol=_xlang_module_collect_imports_from_buf \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+    fi
+    _PABI_SELFHOST="$_cimp_o $_PABI_SELFHOST"
+  fi
   # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
   # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
   # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only

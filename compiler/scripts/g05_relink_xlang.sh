@@ -201,17 +201,29 @@ esac
 # only leaves the std module script reports stale (ensure without FORCE), with
 # the product's asm backend so no host C compiler runs. Keep the old leaf when
 # the rebuild fails.
-# PLATFORM: LINUX only (Darwin leaves are refreshed by their own gate).
+# w2055: Darwin too. Its leaves were never refreshed either (core/option
+# kept the by-value ABI, L2 opt hit expect_i32's panic), and its default
+# leaf backend is C plus the host compiler, so refresh here with asm.
+# PLATFORM: LINUX|DARWIN.
 case "$(uname -s 2>/dev/null)" in
-  Linux)
+  Linux|Darwin)
     case "$OUT" in /*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
     _kept_stale=""
+    # The refresh must not fall back to the module script's C path: a cc
+    # that always fails sits first on PATH, so an asm failure keeps the old
+    # leaf instead of adding a host compiler run.
+    _nocc_dir=$(mktemp -d 2>/dev/null || echo "/tmp/g05_nocc.$$")
+    mkdir -p "$_nocc_dir"
+    for _ccn in cc gcc clang; do
+      printf '#!/bin/sh\necho "g05_relink_xlang: host $0 blocked during leaf refresh" >&2\nexit 1\n' > "$_nocc_dir/$_ccn"
+      chmod +x "$_nocc_dir/$_ccn"
+    done
     for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
       [ -s "$_leaf" ] || continue
-      _before=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
+      _before=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
       cp -fp "$_leaf" "$_leaf.w2055bak"
       _erc=0
-      XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 || _erc=$?
+      PATH="$_nocc_dir:$PATH" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 || _erc=$?
       if [ "$_erc" = 3 ]; then
         # Not a catalog leaf (exit 3): the product never ensures it; leave it.
         mv -f "$_leaf.w2055bak" "$_leaf"
@@ -219,7 +231,7 @@ case "$(uname -s 2>/dev/null)" in
       fi
       if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
         rm -f "$_leaf.w2055bak"
-        _after=$(stat -c %Y "$_leaf" 2>/dev/null || echo 0)
+        _after=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
         if [ "$_after" != "$_before" ]; then
           echo "g05_relink_xlang: refreshed stale $_leaf"
         fi
@@ -229,6 +241,7 @@ case "$(uname -s 2>/dev/null)" in
         echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (asm rebuild failed; programs linking it get the OLD object) !!!!!" >&2
       fi
     done
+    rm -rf "$_nocc_dir"
     if [ -n "$_kept_stale" ]; then
       echo "g05_relink_xlang: !!!!! STALE LEAVES KEPT ($(echo $_kept_stale | wc -w)):$_kept_stale !!!!!" >&2
     fi
