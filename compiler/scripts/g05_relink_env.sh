@@ -851,6 +851,8 @@ esac
 # and do not gcc -E them onto a page. Built by
 # scripts/linux_selfhost_pabi_sidecars.sh. Absent directory → old list.
 # PLATFORM: LINUX — ELF sidecars. Darwin and Windows leave this empty.
+# w2055: sym=object pairs the relink must prove won (Darwin ld map check).
+_G05_LINK_WINNERS=""
 _PABI_SELFHOST=""
 if [ "$UNAME_S" = "Linux" ] && [ -f build_asm/selfhost_pabi/READY ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/slot.o build_asm/selfhost_pabi/esz.o build_asm/selfhost_pabi/loc.o build_asm/selfhost_pabi/lea.o build_asm/selfhost_pabi/rec.o build_asm/selfhost_pabi/two.o build_asm/selfhost_pabi/one.o build_asm/selfhost_pabi/as.o build_asm/selfhost_pabi/sizeof.o"
@@ -1077,6 +1079,33 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/cimp.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/cimp.o $_PABI_SELFHOST"
 fi
+# w2055: enum namespace tag ahead of the pabi copies (32-byte buffer that
+# pipeline_expr_var_name_into zeros 256 bytes into). Built by
+# linux_selfhost_pabi_refresh_tip.sh. The pabi copies of the cimp and enum
+# names are weakened in the pabi link object; a failed weaken stops the
+# relink, and each name goes into _G05_LINK_WINNERS for the post-link map
+# check. PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/enum_ns_tag.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/enum_ns_tag.o $_PABI_SELFHOST"
+fi
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  for _lw in "xlang_module_collect_imports_from_buf=build_asm/selfhost_pabi/cimp.o" \
+      "pipeline_expr_enum_namespace_field_tag=build_asm/selfhost_pabi/enum_ns_tag.o" \
+      "pipeline_asm_cmp_enum_rhs_tag_c=build_asm/selfhost_pabi/enum_ns_tag.o"; do
+    _lw_s="${_lw%%=*}"; _lw_o="${_lw#*=}"
+    if [ ! -s "$_lw_o" ]; then
+      echo "g05_relink_env: missing $_lw_o for $_lw_s (Linux)" >&2
+      exit 1
+    fi
+    if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_lw_s}$"; then
+      if ! objcopy --weaken-symbol="$_lw_s" "$_PABI_LINK_O"; then
+        echo "g05_relink_env: weaken $_lw_s in $_PABI_LINK_O failed (Linux)" >&2
+        exit 1
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_lw_s=$_lw_o"
+  done
+fi
 # w1023: nested ARRAY_LIT local let-init → array_lit_flat. PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/vector_let_init_nested_override.c ]; then
   mkdir -p build_asm/selfhost_pabi
@@ -1250,11 +1279,71 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
         | grep 'external.* _xlang_module_collect_imports_from_buf$' | grep -qv weak; then
-      "$_oc" --weaken-symbol=_xlang_module_collect_imports_from_buf \
-        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      if ! "$_oc" --weaken-symbol=_xlang_module_collect_imports_from_buf \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken pabi_weak collect_imports copy failed" >&2
+        exit 1
+      fi
     fi
     _PABI_SELFHOST="$_cimp_o $_PABI_SELFHOST"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _xlang_module_collect_imports_from_buf=$_cimp_o"
   fi
+  # w2055: enum namespace FIELD_ACCESS tag and compare RHS enum tag. pabi_weak
+  # keeps pre-w1653 C bodies of pipeline_expr_enum_namespace_field_tag and
+  # pipeline_asm_cmp_enum_rhs_tag_c with a 32-byte base_buf;
+  # pipeline_expr_var_name_into zeros 256 bytes, and the stack guard aborts
+  # the compiler on parser.x. Same pattern as cimp: compile the thin with
+  # the current product, weaken the pabi copies, link the thin first. A
+  # failed compile or weaken stops the relink. PLATFORM: MACOS|DARWIN.
+  # g05_darwin_pabi_thin_sidecar THIN_X OUT_O "SYM..." TAG: compile THIN_X
+  # with the current product (pure asm), require a strong def of every SYM,
+  # weaken the stale pabi_weak copies, link OUT_O first and record each SYM
+  # in _G05_LINK_WINNERS for the post-link map check. Any failure stops the
+  # relink. PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar() {
+    _ts_x="$1"; _ts_o="$2"; _ts_syms="$3"; _ts_tag="$4"
+    [ "$UNAME_S" = "Darwin" ] && [ -f "$_ts_x" ] && [ -x ./xlang_asm ] \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ] || return 0
+    if [ ! -s "$_ts_o" ] || [ "$_ts_x" -nt "$_ts_o" ] || [ ./xlang_asm -nt "$_ts_o" ]; then
+      rm -f "$_ts_o"
+      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1; then
+        rm -f "$_ts_o.tmp.o"
+        echo "g05_relink_env: $_ts_x failed (Darwin $_ts_tag)" >&2
+        exit 1
+      fi
+      for _ts_s in $_ts_syms; do
+        if ! nm -m "$_ts_o.tmp.o" 2>/dev/null | grep -v weak | grep -q "external $_ts_s\$"; then
+          rm -f "$_ts_o.tmp.o"
+          echo "g05_relink_env: $_ts_x lacks strong $_ts_s (Darwin $_ts_tag)" >&2
+          exit 1
+        fi
+      done
+      mv -f "$_ts_o.tmp.o" "$_ts_o"
+    fi
+    for _ts_s in $_ts_syms; do
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep "external.* $_ts_s\$" | grep -qv weak; then
+        if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="$_ts_s" build_asm/selfhost_pabi/pabi_weak.o; then
+          echo "g05_relink_env: weaken pabi_weak $_ts_s copy failed (Darwin $_ts_tag)" >&2
+          exit 1
+        fi
+      fi
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_ts_s=$_ts_o"
+    done
+    _PABI_SELFHOST="$_ts_o $_PABI_SELFHOST"
+  }
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_enum_ns_tag_thin.x \
+    build_asm/selfhost_pabi/enum_ns_tag_a64.o \
+    "_pipeline_expr_enum_namespace_field_tag _pipeline_asm_cmp_enum_rhs_tag_c" \
+    "enum ns tag"
+  # w2055: Mach-O writer. pabi_weak keeps the pre-w1814 C writer whose
+  # unique-undef cap is 256 with 1024-byte index tables; parser.x has more
+  # than 256 unique undefined relocs, so the writer returns -1 (CG002,
+  # out_len=0). The thin owns its 2048-slot tables and cap.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_macho_write_thin.x \
+    build_asm/selfhost_pabi/macho_write_a64.o \
+    "_pipeline_macho_write_o_to_buf_c _platform_macho_write_macho_o_to_buf" \
+    "macho writer"
   # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
   # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
   # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only
@@ -2313,3 +2402,4 @@ echo "G05_ASM_GLUE_DUP_LDFLAGS='$(_sq "$_ASM_GLUE_DUP_LDFLAGS")'"
 echo "G05_USER_ASM_LINK='$(_sq "$_USER_ASM_LINK")'"
 echo "G05_UNAME_S='$(_sq "$UNAME_S")'"
 echo "G05_UNAME_M='$(_sq "$UNAME_M")'"
+echo "G05_LINK_WINNERS='$(_sq "${_G05_LINK_WINNERS# }")'"

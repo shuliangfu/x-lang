@@ -381,7 +381,7 @@ build_parser_x() {
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
     unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
     unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
-    ulimit -s 65532 || true
+    ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
     pure_asm_x_to_o "$out" src/parser/parser.x
   ) && [ -s "$out" ]; then
     log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
@@ -440,7 +440,7 @@ build_codegen_x() {
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
     unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
     unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
-    ulimit -s 65532 || true
+    ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
     pure_asm_x_to_o "$head" src/codegen/codegen.x \
       && pure_asm_x_to_o "$late" src/codegen/codegen_late.x \
       && pure_asm_x_to_o "$fmtl" src/codegen/codegen_format_int_link.x
@@ -513,7 +513,7 @@ build_typeck_x() {
     unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
     unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
     unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
-    ulimit -s 65532 || true
+    ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
     pure_asm_x_to_o "$out" src/typeck/typeck.x
   ) && [ -s "$out" ]; then
     log "typeck_x.o <- pure-asm src/typeck/typeck.x ($out)"

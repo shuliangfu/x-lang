@@ -145,4 +145,51 @@ if [ -f "$_cimp_src" ] && { [ ! -s "$_cimp_dst" ] || [ "$_cimp_src" -nt "$_cimp_
   mv -f "$_cimp_tmp" "$_cimp_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_cimp_dst (collect imports strong)"
 fi
+# 5. w2055 enum namespace tag: the pabi copies of
+#    pipeline_expr_enum_namespace_field_tag and pipeline_asm_cmp_enum_rhs_tag_c
+#    pass a 32-byte buffer to pipeline_expr_var_name_into, which zeros 256
+#    bytes (silent stack overrun). enum_ns_tag.o keeps both names strong
+#    ahead of the pabi copy; g05_relink_env.sh weakens the pabi copies and
+#    the relink map check proves the thin won. Same thin as Darwin.
+_ens_src=src/runtime_pipeline_abi_enum_ns_tag_thin.x
+_ens_dst="$OUT/enum_ns_tag.o"
+_ens_syms="pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c"
+if [ ! -f "$_ens_src" ]; then
+  echo "linux_selfhost_pabi_refresh_tip: $_ens_src missing" >&2
+  exit 1
+fi
+_ens_strong() {
+  for _s in $_ens_syms; do
+    nm "$1" | awk -v s="$_s" '$2=="T"&&$3==s{f=1} END{exit !f}' || return 1
+  done
+  return 0
+}
+if [ ! -s "$_ens_dst" ] || [ "$_ens_src" -nt "$_ens_dst" ] || [ "$XL" -nt "$_ens_dst" ] \
+    || ! _ens_strong "$_ens_dst"; then
+  _ens_tmp="$OUT/enum_ns_tag.tmp.o"
+  rm -f "$_ens_dst"
+  if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_ens_src" -o "$_ens_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_ens_src failed" >&2
+    rm -f "$_ens_tmp"
+    exit 1
+  fi
+  while read -r _sym; do
+    [ -n "$_sym" ] || continue
+    case " $_ens_syms " in
+      *" $_sym "*) ;;
+      *) if ! objcopy --weaken-symbol="$_sym" "$_ens_tmp"; then
+           echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_ens_tmp failed" >&2
+           rm -f "$_ens_tmp"
+           exit 1
+         fi ;;
+    esac
+  done < <(nm "$_ens_tmp" | awk '$2=="T"{print $3}')
+  if ! _ens_strong "$_ens_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_ens_src lacks a strong enum tag name" >&2
+    rm -f "$_ens_tmp"
+    exit 1
+  fi
+  mv -f "$_ens_tmp" "$_ens_dst"
+  echo "linux_selfhost_pabi_refresh_tip: $_ens_dst (enum ns tag strong)"
+fi
 echo "linux_selfhost_pabi_refresh_tip: OK"

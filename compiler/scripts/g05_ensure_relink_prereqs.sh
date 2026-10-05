@@ -4442,7 +4442,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # would drop the 18 symbols. PLATFORM: SHARED.
   bash scripts/ensure_host_cc_seed_o.sh try-xfla-prefer || {
     echo "g05_ensure: x_frontend pure-asm failed; C bodies are gone, no seed fallback" >&2
-    return 1
+    exit 1
   }
   # Track L：driver 叶子 + lsp_io_std_heap 构建链退役 — 仅 .x→.o 或 seeds/* 冷启动
   # 不再读取工作区 pinned driver_*_gen.c / lsp_io_std_heap_gen.c
@@ -4486,7 +4486,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   rm -f lexer_x.o
   if ! bash scripts/ensure_gen_x_o.sh lexer_x; then
     echo "g05_ensure: lexer_x.o pure-asm failed" >&2
-    return 1
+    exit 1
   fi
   # parser_x.o cold path.
   # Missing object (w1633 Linux, w1812 Darwin and Windows): rebuild from
@@ -4504,11 +4504,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh parser_x; then
       echo "g05_ensure: parser_x.o pure-asm failed" >&2
-      return 1
+      exit 1
     fi
     if ! g05_stamp_parser_x_pure_asm .; then
       echo "g05_ensure: parser_x.o pure-asm stamp failed" >&2
-      return 1
+      exit 1
     fi
   fi
   _px_rc=0
@@ -4540,11 +4540,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
       echo "g05_ensure: typeck_x.o pure-asm failed" >&2
-      return 1
+      exit 1
     fi
     if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
       echo "g05_ensure: typeck_x.o pure-asm stamp failed" >&2
-      return 1
+      exit 1
     fi
   fi
   # w1504 (10.30): host-local typeck_gen.c is reused when tip -E typeck.x is
@@ -4600,11 +4600,11 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: codegen_x.o missing; pure-asm codegen.x + codegen_late.x (no host-cc)"
     if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
       echo "g05_ensure: codegen_x.o pure-asm failed" >&2
-      return 1
+      exit 1
     fi
     if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
       echo "g05_ensure: codegen_x.o pure-asm stamp failed" >&2
-      return 1
+      exit 1
     fi
   fi
   # w1610: same stamp as parser_x.pure_asm. A matching

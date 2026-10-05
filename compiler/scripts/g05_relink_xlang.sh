@@ -56,6 +56,9 @@ CFLAGS="${G05_CFLAGS:-}"
 
 OUT="${G05_OUT:-xlang}"
 OBJS="${G05_OBJS:-}"
+# w2055: "sym=object" pairs whose strong sidecar must beat a weakened pabi
+# copy. Darwin pure-ld writes a link map and the check below reads it.
+WINNERS="${G05_LINK_WINNERS:-}"
 XLANG_C="${G05_XLANG_C:-xlang-c}"
 BOOTSTRAP="${G05_BOOTSTRAP:-bootstrap_xlangc}"
 
@@ -87,6 +90,57 @@ run_g05_cc_residual() {
   echo "g05_relink_xlang: OK CC residual $OUT" >&2
 }
 
+# w2055: read the link map (Darwin ld64 -map or GNU ld -Map) and prove each
+# "sym=object" pair in WINNERS resolved to that object. A miss means the
+# weakened pabi copy won.
+g05_check_link_winners() {
+  python3 - "$1" $WINNERS <<'PYEOF'
+import os, re, sys
+mp = sys.argv[1]
+objs, syms, sec = {}, {}, None
+for line in open(mp, encoding="utf-8", errors="replace"):
+    if line.startswith("# Object files:"):
+        sec = "o"; continue
+    if line.startswith("# Sections:"):
+        sec = None; continue
+    if line.startswith("# Symbols:"):
+        sec = "s"; continue
+    if sec == "o":
+        m = re.match(r"\[\s*(\d+)\]\s+(.*)$", line.rstrip("\n"))
+        if m:
+            objs[m.group(1)] = m.group(2)
+    elif sec == "s":
+        m = re.match(r"0x[0-9A-Fa-f]+\s+0x[0-9A-Fa-f]+\s+\[\s*(\d+)\]\s+(\S+)$", line.rstrip("\n"))
+        if m:
+            syms.setdefault(m.group(2), []).append(m.group(1))
+if not objs:
+    # GNU ld -Map: an input-section line names the object; the symbol lines
+    # under it (address + name) are the definitions that won.
+    syms, cur, pend = {}, None, False
+    for line in open(mp, encoding="utf-8", errors="replace"):
+        t = line.rstrip("\n")
+        m = re.match(r"^ (\.\S+)?\s+0x[0-9a-fA-F]+\s+0x[0-9a-fA-F]+\s+(\S+\.o)\s*$", t)
+        if m and (m.group(1) or pend):
+            cur = m.group(2); pend = False; continue
+        if re.match(r"^ \.\S+\s*$", t):
+            pend = True; continue
+        pend = False
+        m = re.match(r"^\s+0x[0-9a-fA-F]+\s+([A-Za-z_][\w.$]*)\s*$", t)
+        if m and cur:
+            k = "g%d" % len(objs)
+            objs[k] = cur
+            syms.setdefault(m.group(1), []).append(k)
+bad = 0
+for pair in sys.argv[2:]:
+    sym, _, want = pair.partition("=")
+    got = [objs.get(i, "?") for i in syms.get(sym, [])]
+    ok = len(got) == 1 and os.path.realpath(got[0]) == os.path.realpath(want)
+    print("g05_relink_xlang: winner %s -> %s %s" % (sym, ",".join(got) or "missing", "OK" if ok else "FAIL (want %s)" % want), file=sys.stderr)
+    bad += not ok
+sys.exit(1 if bad else 0)
+PYEOF
+}
+
 # pure-ld required when freestanding-eligible and not forced to CC residual.
 run_g05_pure_ld_required() {
   entry=""
@@ -104,9 +158,22 @@ run_g05_pure_ld_required() {
     # Darwin / Linux-with-libc freestanding (nostartfiles-style).
     tail="$(pure_ld_default_libc_tail)"
   fi
+  _map=""
+  if [ -n "$WINNERS" ]; then
+    _map="build_asm/$(basename "$OUT").ldmap"
+    rm -f "$_map"
+    case "$(uname -s 2>/dev/null)" in
+      Darwin) extra="$extra -map $_map" ;;
+      Linux) extra="$extra -Map=$_map" ;;
+      *) _map="" ;;
+    esac
+  fi
   echo "g05_relink_xlang: pure-ld → $OUT  ($n_objs objs)" >&2
   if pure_ld_try_link "$OUT" "$OBJS" "$entry" "$tail" "$extra" ""; then
     echo "g05_relink_xlang: OK pure-ld $OUT" >&2
+    if [ -n "$_map" ]; then
+      g05_check_link_winners "$_map" || exit 1
+    fi
     return 0
   fi
   echo "g05_relink_xlang: FAIL pure-ld for $OUT (no silent CC fallback; set XLANG_G05_FORCE_CC=1 for escape)" >&2
