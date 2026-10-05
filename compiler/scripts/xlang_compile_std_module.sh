@@ -908,6 +908,21 @@ if "$XLANG_BIN" -x -E -lib-name "" "$probe_x" >"$probe_c" 2>"$probe_err" \
   && ! grep -q 'IO001' "$probe_err"; then
   LIB_NAME_SUPPORTED=1
 fi
+# w2060: the asm backend honors -lib-name "" (rt_run_asm_backend.x records
+# it; the entry prefix stays empty). The -x -E probe above needs the C emit
+# lane, which the Linux product cannot run, so bare-impl files never got
+# -lib-name "" and came out double-prefixed. Probe the asm lane too: an
+# export under -lib-name "" must keep its bare name. PLATFORM: SHARED.
+if [ "$LIB_NAME_SUPPORTED" != "1" ] && command -v nm >/dev/null 2>&1; then
+  probe_ax="$tmp_dir/probe_asm.x"
+  probe_ao="$tmp_dir/probe_asm.o"
+  printf 'export function probe_fn(): i32 { return 0; }\n' > "$probe_ax"
+  if "$XLANG_BIN" -backend asm -lib-name "" -c "$probe_ax" -o "$probe_ao" >/dev/null 2>"$probe_err" \
+    && nm "$probe_ao" 2>/dev/null | grep -qE ' T _?probe_fn$'; then
+    LIB_NAME_SUPPORTED=1
+  fi
+  rm -f "$probe_ax" "$probe_ao"
+fi
 
 obj_files=""
 idx=0
