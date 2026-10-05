@@ -403,10 +403,10 @@ if [ "${XLANG_REENT_SUM_OVERLAY:-1}" = "1" ]; then
           pipeline_glue_asm_sum_block_call_spill_bytes \
           glue_asm_sum_block_call_spill_bytes; do
         if nm "$_PABI_REENT_SUM" 2>/dev/null | grep -qE " T ${_hsym}\$"; then
-          "$_oc" --localize-symbol="${_hsym}" "$_PABI_REENT_SUM" 2>/dev/null || true
+          "$_oc" --localize-symbol="${_hsym}" "$_PABI_REENT_SUM" || { echo "g05_relink_env: ERROR objcopy failed at line 406" >&2; exit 1; }
         fi
         if nm "$_PABI_REENT_SUM" 2>/dev/null | grep -qE " T _${_hsym}\$"; then
-          "$_oc" --localize-symbol="_${_hsym}" "$_PABI_REENT_SUM" 2>/dev/null || true
+          "$_oc" --localize-symbol="_${_hsym}" "$_PABI_REENT_SUM" || { echo "g05_relink_env: ERROR objcopy failed at line 409" >&2; exit 1; }
         fi
       done
       if ! nm "$_PABI_REENT_SUM" 2>/dev/null \
@@ -886,7 +886,7 @@ fi
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_RETURN_SRET" ] && [ -s "$_PABI_LINK_O" ] \
   && command -v objcopy >/dev/null 2>&1; then
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipeline_asm_emit_return_elf_impl$"; then
-    objcopy --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_PABI_LINK_O" 2>/dev/null || true
+    objcopy --weaken-symbol=pipeline_asm_emit_return_elf_impl "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 889" >&2; exit 1; }
   fi
 fi
 # w1558: egg allow-list is already weak. If a rebuild leaves it strong,
@@ -894,7 +894,7 @@ fi
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_PARSER_MEGA_ALLOW" ] && [ -s "$_PABI_LINK_O" ] \
   && command -v objcopy >/dev/null 2>&1; then
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T asm_parser_bootstrap_mega_emit_allowed$"; then
-    objcopy --weaken-symbol=asm_parser_bootstrap_mega_emit_allowed "$_PABI_LINK_O" 2>/dev/null || true
+    objcopy --weaken-symbol=asm_parser_bootstrap_mega_emit_allowed "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 897" >&2; exit 1; }
   fi
 fi
 # w1564: egg force-stub is already weak. If a rebuild leaves it strong,
@@ -902,7 +902,7 @@ fi
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_PARSER_FORCE_STUB" ] && [ -s "$_PABI_LINK_O" ] \
   && command -v objcopy >/dev/null 2>&1; then
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T asm_parser_emit_heavy_force_stub$"; then
-    objcopy --weaken-symbol=asm_parser_emit_heavy_force_stub "$_PABI_LINK_O" 2>/dev/null || true
+    objcopy --weaken-symbol=asm_parser_emit_heavy_force_stub "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 905" >&2; exit 1; }
   fi
 fi
 # w1565: egg thin-delegate predicate is already weak. If a rebuild leaves
@@ -910,7 +910,7 @@ fi
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_PARSER_THIN_DELEGATE" ] && [ -s "$_PABI_LINK_O" ] \
   && command -v objcopy >/dev/null 2>&1; then
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T asm_parser_func_is_thin_delegate$"; then
-    objcopy --weaken-symbol=asm_parser_func_is_thin_delegate "$_PABI_LINK_O" 2>/dev/null || true
+    objcopy --weaken-symbol=asm_parser_func_is_thin_delegate "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 913" >&2; exit 1; }
   fi
 fi
 # w1572: egg undef cap and the three workspace accessors are already weak.
@@ -921,7 +921,7 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_ELF_UNDEF_CAP" ] && [ -s "$_PABI_LIN
   for _csym in pipe_elf_undef_cap pipe_elf_ws_undef_name_row \
       pipe_elf_ws_undef_len_at pipe_elf_ws_undef_len_set; do
     if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_csym}$"; then
-      objcopy --weaken-symbol="$_csym" "$_PABI_LINK_O" 2>/dev/null || true
+      objcopy --weaken-symbol="$_csym" "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 924" >&2; exit 1; }
     fi
   done
 fi
@@ -931,7 +931,7 @@ fi
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_NAMED_SIZE" ] && [ -s "$_PABI_LINK_O" ] \
   && command -v objcopy >/dev/null 2>&1; then
   if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T glue_type_size_simple$"; then
-    objcopy --weaken-symbol=glue_type_size_simple "$_PABI_LINK_O" 2>/dev/null || true
+    objcopy --weaken-symbol=glue_type_size_simple "$_PABI_LINK_O" || { echo "g05_relink_env: ERROR objcopy failed at line 934" >&2; exit 1; }
   fi
 fi
 # w1584: egg slice-reent sum is a strong T that returns 0 after adding the
@@ -1175,13 +1175,12 @@ if [ "$UNAME_S" = "Darwin" ] \
   # SIGSEGV in glue_load_var_as_value_to_rax_rdx_elf_c. pabi.o is a libtool
   # archive here (inject skip) and FORCE pabi is banned, so re-emit the thin
   # with the current product and let it first-win over weakened pabi_weak.
-  # Rebuilt when missing or older than the thin .x / frame overlay (w1500: frame_size_thin.x).
+  # Rebuilt on every relink (w2060; was: missing or older than the thin .x).
   # PLATFORM: MACOS|DARWIN.
   _pps_x=src/runtime_pipeline_abi_param_ptr_slot_thin.x
   _pps_o=build_asm/selfhost_pabi/param_ptr_slot_a64.o
   if [ -f "$_pps_x" ] && [ -x ./xlang_asm ]; then
-    if [ ! -s "$_pps_o" ] || [ "$_pps_x" -nt "$_pps_o" ] \
-      || [ src/runtime_pipeline_abi_frame_size_thin.x -nt "$_pps_o" ]; then
+    # w2060: always rebuild with the current product (see cimp below).
       rm -f "$_pps_o"
       for _pps_try in 1 2 3 4 5 6 7 8; do
         _pps_rc=0
@@ -1198,7 +1197,6 @@ if [ "$UNAME_S" = "Darwin" ] \
         fi
         rm -f "$_pps_o.tmp.o"
       done
-    fi
   fi
   if [ -s "$_pps_o" ]; then
     _oc=""
@@ -1215,7 +1213,7 @@ if [ "$UNAME_S" = "Darwin" ] \
       for _psym in _w189_param_at_is_type_ptr _w189_stack_off_is_emit_param_ptr_slot \
         _glue_local_var_slot_needs_ptr_load_elf_c; do
         if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_psym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_psym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          "$_oc" --weaken-symbol="$_psym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1218" >&2; exit 1; }
         fi
       done
       # Apple ld treats the first symbol of a non-subsections __text (the
@@ -1234,7 +1232,7 @@ if [ "$UNAME_S" = "Darwin" ] \
             build_asm/selfhost_pabi/pabi_weak_base.o "$_pw" 2>/dev/null; then
           for _psym in _w189_param_at_is_type_ptr _w189_stack_off_is_emit_param_ptr_slot \
             _glue_local_var_slot_needs_ptr_load_elf_c; do
-            "$_oc" --weaken-symbol="$_psym" "$_pw.tmp.o" 2>/dev/null || true
+            "$_oc" --weaken-symbol="$_psym" "$_pw.tmp.o" || { echo "g05_relink_env: ERROR objcopy failed at line 1237" >&2; exit 1; }
           done
           mv -f "$_pw.tmp.o" "$_pw"
         fi
@@ -1254,7 +1252,9 @@ if [ "$UNAME_S" = "Darwin" ] \
   _cimp_o=build_asm/selfhost_pabi/cimp_a64.o
   if [ "$UNAME_S" = "Darwin" ] && [ -f "$_cimp_x" ] && [ -x ./xlang_asm ] \
     && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-    if [ ! -s "$_cimp_o" ] || [ "$_cimp_x" -nt "$_cimp_o" ] || [ ./xlang_asm -nt "$_cimp_o" ]; then
+    # w2060: always rebuild (as on Windows). An mtime test kept objects
+    # compiled by an earlier product whenever ./xlang_asm was restored with
+    # an older mtime (cp -p), so a broken product's sidecars reached the link.
       rm -f "$_cimp_o"
       if XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_cimp_x" -o "$_cimp_o.tmp.o" >/dev/null 2>&1 \
         && nm -m "$_cimp_o.tmp.o" 2>/dev/null | grep -v weak \
@@ -1266,7 +1266,6 @@ if [ "$UNAME_S" = "Darwin" ] \
         echo "g05_relink_env: $_cimp_x failed (Darwin cimp)" >&2
         exit 1
       fi
-    fi
     _oc=""
     if command -v llvm-objcopy >/dev/null 2>&1; then
       _oc=llvm-objcopy
@@ -1304,7 +1303,7 @@ if [ "$UNAME_S" = "Darwin" ] \
     _ts_x="$1"; _ts_o="$2"; _ts_syms="$3"; _ts_tag="$4"
     [ "$UNAME_S" = "Darwin" ] && [ -f "$_ts_x" ] && [ -x ./xlang_asm ] \
       && [ -s build_asm/selfhost_pabi/pabi_weak.o ] || return 0
-    if [ ! -s "$_ts_o" ] || [ "$_ts_x" -nt "$_ts_o" ] || [ ./xlang_asm -nt "$_ts_o" ]; then
+    # w2060: always rebuild with the current product (see cimp above).
       rm -f "$_ts_o"
       if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1; then
         rm -f "$_ts_o.tmp.o"
@@ -1319,7 +1318,6 @@ if [ "$UNAME_S" = "Darwin" ] \
         fi
       done
       mv -f "$_ts_o.tmp.o" "$_ts_o"
-    fi
     for _ts_s in $_ts_syms; do
       if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
           | grep "external.* $_ts_s\$" | grep -qv weak; then
@@ -1353,6 +1351,49 @@ if [ "$UNAME_S" = "Darwin" ] \
     build_asm/selfhost_pabi/macho_undef_cap_a64.o \
     "_pipe_elf_macho_undef_cap" \
     "macho undef cap"
+  # w2055: assignment through a pointer. pabi_weak keeps the pre-wave324
+  # pipeline_asm_emit_assign_elf_c: for `*p = s` with a struct s it loads s
+  # into x0/x1 and stores only 8 bytes, so the rest of the struct is lost.
+  # lexer.x hands Token back through an out pointer (e5ba88d9d), so every
+  # lexer built by that body is broken. The thin has the wave324 DEREF path;
+  # Linux already injects it into pabi. PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_assign_thin.x \
+    build_asm/selfhost_pabi/assign_a64.o \
+    "_pipeline_asm_emit_assign_elf_c" \
+    "assign"
+  # w2055: INDEX assign-address cache. The assign thin above asks
+  # glue_index_assign_addr_cache_hit before an INDEX store; the pabi_weak
+  # copy still answers from the wave156 cache, which nothing clears at an
+  # if/else join, so the else arm stores through a stale x1 (call_spill
+  # thin, EXC_BAD_ACCESS). The guard thin always misses; Linux already
+  # links it. PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_w156_guard_thin.x \
+    build_asm/selfhost_pabi/w156_guard_a64.o \
+    "_glue_index_assign_addr_cache_hit" \
+    "w156 guard"
+  # w2060 A1: struct let-init winner only. The assign thin hands
+  # `*p = <struct expr>` to glue_emit_struct_type_let_init_elf_c with the
+  # destination in a register (-3); the pabi_weak copy returns -2 for a
+  # struct literal/call/field/index/deref rhs and the caller stores only
+  # 8 bytes. Thin defines let_init only; fields/lit/struct_let_init stay
+  # as extern → pabi leftover (bodies archived for w2061 if sret remains).
+  # PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_struct_let_init_thin.x \
+    build_asm/selfhost_pabi/struct_let_init_a64.o \
+    "_glue_emit_struct_type_let_init_elf_c" \
+    "struct let init"
+  # w2060: AAPCS64 >16B param home. Leftover copies from the stack (SysV
+  # MEMORY); tip callers pass a GP pointer. Thin homes byref. PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_arm64_param_home_thin.x \
+    build_asm/selfhost_pabi/arm64_param_home_a64.o \
+    "_pipeline_asm_emit_param_home_elf_c" \
+    "arm64 param home"
+  # w2060: struct-lit field CALL/wide copy. Leftover win_emit truncates to 8B.
+  # Pure-asm thin via tip product (g05_darwin_pabi_thin_sidecar). PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_struct_lit_fields_thin.x \
+    build_asm/selfhost_pabi/struct_lit_fields_a64.o \
+    "_win_emit_struct_lit_fields_into_parked_rbx" \
+    "struct lit fields" 
   # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
   # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
   # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only
@@ -1372,7 +1413,7 @@ if [ "$UNAME_S" = "Darwin" ] \
     if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
       for _bsym in _pipeline_asm_emit_block_body_sync_elf _backend_emit_block_body_sync_elf; do
         if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_bsym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_bsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          "$_oc" --weaken-symbol="$_bsym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1416" >&2; exit 1; }
         fi
       done
     fi
@@ -1397,7 +1438,7 @@ if [ "$UNAME_S" = "Darwin" ] \
         _pipeline_asm_index_elem_byte_sz _pipeline_asm_emit_index_elf_c \
         _glue_emit_index_load_arms_elf_c; do
         if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_isym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_isym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          "$_oc" --weaken-symbol="$_isym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1441" >&2; exit 1; }
         fi
       done
     fi
@@ -1429,7 +1470,7 @@ if [ "$UNAME_S" = "Darwin" ] \
     if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
       for _asym in _glue_emit_assign_index_elf_c; do
         if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_asym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_asym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          "$_oc" --weaken-symbol="$_asym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1473" >&2; exit 1; }
         fi
       done
     fi
@@ -1459,7 +1500,7 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
       if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "_glue_emit_assign_field_elf_c" | grep -qv weak; then
-        "$_oc" --weaken-symbol=_glue_emit_assign_field_elf_c build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        "$_oc" --weaken-symbol=_glue_emit_assign_field_elf_c build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1503" >&2; exit 1; }
       fi
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/assign_field_seed.o $_PABI_SELFHOST"
@@ -1480,7 +1521,7 @@ if [ "$UNAME_S" = "Darwin" ] \
       for _fsym in _glue_array_lit_force_esz_from_elem_type_c \
                    _pipeline_asm_array_lit_elem_byte_sz_c; do
         if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_fsym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_fsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+          "$_oc" --weaken-symbol="$_fsym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1524" >&2; exit 1; }
         fi
       done
     fi
@@ -1910,6 +1951,99 @@ case "$UNAME_S" in
       _PABI_WIN_ENUM_NS="$_wen_o"
       _PABI_SELFHOST="$_wen_o $_PABI_SELFHOST"
     fi
+    # w2055: assignment through a pointer (Windows twin of the Darwin assign
+    # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
+    # whose deref path (win_assign_deref_override) stores rax only, so
+    # `*p = s` writes the first 8 bytes of a struct and drops the rest.
+    # lexer.x hands Token back through an out pointer (e5ba88d9d). Compile the
+    # thin with the current product (pure asm), require a strong T, weaken the
+    # pabi_weak copy below, link the thin first, record it for the post-link
+    # map check; win_patch_body_sync_jmp folds same-TU egg callers W→T.
+    # Any failure stops the relink. PLATFORM: WINDOWS.
+    _PABI_WIN_ASSIGN=""
+    _was_x=src/runtime_pipeline_abi_assign_thin.x
+    _was_o=build_asm/selfhost_pabi/assign_win.o
+    if [ -f "$_was_x" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      rm -f "$_was_o" "$_was_o.tmp.o"
+      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_was_x" -o "$_was_o.tmp.o" >/dev/null 2>&1; then
+        rm -f "$_was_o.tmp.o"
+        echo "g05_relink_env: $_was_x failed (Windows assign)" >&2
+        exit 1
+      fi
+      if ! nm "$_was_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T pipeline_asm_emit_assign_elf_c\$"; then
+        rm -f "$_was_o.tmp.o"
+        echo "g05_relink_env: $_was_x lacks strong pipeline_asm_emit_assign_elf_c (Windows assign)" >&2
+        exit 1
+      fi
+      mv -f "$_was_o.tmp.o" "$_was_o"
+      _PABI_WIN_ASSIGN="$_was_o"
+      _PABI_SELFHOST="$_was_o $_PABI_SELFHOST"
+    fi
+    # w2055: INDEX assign-address cache (Windows twin of the Darwin w156
+    # guard sidecar). The assign thin asks glue_index_assign_addr_cache_hit
+    # before an INDEX store; the pabi_weak copy still answers from the
+    # wave156 cache, which nothing clears at an if/else join, so an else
+    # arm can store through a stale address. The guard thin always misses.
+    # Compile it with the current product (pure asm), require a strong T,
+    # weaken the pabi_weak copy below, record it for the map check. Any
+    # failure stops the relink. PLATFORM: WINDOWS.
+    _PABI_WIN_W156=""
+    _wgd_x=src/runtime_pipeline_abi_w156_guard_thin.x
+    _wgd_o=build_asm/selfhost_pabi/w156_guard_win.o
+    if [ -f "$_wgd_x" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      rm -f "$_wgd_o" "$_wgd_o.tmp.o"
+      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wgd_x" -o "$_wgd_o.tmp.o" >/dev/null 2>&1; then
+        rm -f "$_wgd_o.tmp.o"
+        echo "g05_relink_env: $_wgd_x failed (Windows w156 guard)" >&2
+        exit 1
+      fi
+      if ! nm "$_wgd_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T glue_index_assign_addr_cache_hit\$"; then
+        rm -f "$_wgd_o.tmp.o"
+        echo "g05_relink_env: $_wgd_x lacks strong glue_index_assign_addr_cache_hit (Windows w156 guard)" >&2
+        exit 1
+      fi
+      mv -f "$_wgd_o.tmp.o" "$_wgd_o"
+      _PABI_WIN_W156="$_wgd_o"
+      _PABI_SELFHOST="$_wgd_o $_PABI_SELFHOST"
+    fi
+    # w2060 A1: Windows twin of the Darwin struct let-init sidecar.
+    # Thin file carries only glue_emit_struct_type_let_init_elf_c (let_init
+    # winner). fields/lit/struct_let_init stay as extern → pabi leftover.
+    # Do not weaken anything inside the thin. Weaken only the pabi_weak egg
+    # copy of let_init below; objcopy failure exits 1. Map-check the winner.
+    # PLATFORM: WINDOWS.
+    _PABI_WIN_SLI=""
+    _wsl_x=src/runtime_pipeline_abi_struct_let_init_thin.x
+    _wsl_o=build_asm/selfhost_pabi/struct_let_init_win.o
+    if [ -f "$_wsl_x" ]; then
+      mkdir -p build_asm/selfhost_pabi
+      rm -f "$_wsl_o" "$_wsl_o.tmp.o"
+      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wsl_x" -o "$_wsl_o.tmp.o" >/dev/null 2>&1; then
+        rm -f "$_wsl_o.tmp.o"
+        echo "g05_relink_env: $_wsl_x failed (Windows struct let init)" >&2
+        exit 1
+      fi
+      for _wsl_s in glue_emit_struct_type_let_init_elf_c; do
+        if ! nm "$_wsl_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsl_s}\$"; then
+          rm -f "$_wsl_o.tmp.o"
+          echo "g05_relink_env: $_wsl_x lacks strong $_wsl_s (Windows struct let init)" >&2
+          exit 1
+        fi
+      done
+      # A1: thin must not define/weaken the other three family symbols.
+      for _wsl_bad in pipeline_asm_emit_struct_let_init_elf_c pipeline_asm_emit_struct_lit_fields_elf_c pipeline_asm_emit_struct_lit_elf_c; do
+        if nm "$_wsl_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsl_bad}\$"; then
+          rm -f "$_wsl_o.tmp.o"
+          echo "g05_relink_env: $_wsl_x must not define $_wsl_bad (Windows A1 let_init-only)" >&2
+          exit 1
+        fi
+      done
+      mv -f "$_wsl_o.tmp.o" "$_wsl_o"
+      _PABI_WIN_SLI="$_wsl_o"
+      _PABI_SELFHOST="$_wsl_o $_PABI_SELFHOST"
+    fi
     # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
@@ -1930,7 +2064,10 @@ case "$UNAME_S" in
       || [ -n "$_PABI_MODLET_FLOAT_IMM" ] \
       || [ -n "$_PABI_INDEX_BASE_FIELD" ] \
       || [ -n "$_PABI_ASSIGN_VAR" ] \
-      || [ -n "$_PABI_WIN_ENUM_NS" ]; then
+      || [ -n "$_PABI_WIN_ENUM_NS" ] \
+      || [ -n "$_PABI_WIN_ASSIGN" ] \
+      || [ -n "$_PABI_WIN_W156" ] \
+      || [ -n "$_PABI_WIN_SLI" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -1942,7 +2079,7 @@ case "$UNAME_S" in
         cp -f src/runtime_pipeline_abi.o build_asm/selfhost_pabi/pabi_weak.o
         for _bsym in pipeline_asm_emit_block_body_sync_elf backend_emit_block_body_sync_elf; do
           if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
-            "$_oc" --weaken-symbol="$_bsym" build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+            "$_oc" --weaken-symbol="$_bsym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 2082" >&2; exit 1; }
           fi
         done
         if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
@@ -2093,6 +2230,35 @@ case "$UNAME_S" in
               exit 1
             fi
             _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wen_s=$_PABI_WIN_ENUM_NS"
+          done
+        fi
+        # w2055: weaken the egg assign copy so the thin first-wins; a failed
+        # weaken stops the relink. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_ASSIGN" ]; then
+          if ! "$_oc" --weaken-symbol=pipeline_asm_emit_assign_elf_c build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak pipeline_asm_emit_assign_elf_c failed (Windows)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_assign_elf_c=$_PABI_WIN_ASSIGN"
+        fi
+        # w2055: weaken the egg INDEX assign-address cache hit so the guard
+        # thin first-wins; a failed weaken stops the relink. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_W156" ]; then
+          if ! "$_oc" --weaken-symbol=glue_index_assign_addr_cache_hit build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak glue_index_assign_addr_cache_hit failed (Windows)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_index_assign_addr_cache_hit=$_PABI_WIN_W156"
+        fi
+        # w2060: weaken the egg struct let-init family so the thin first-wins;
+        # a failed weaken stops the relink. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_SLI" ]; then
+          for _wsl_s in glue_emit_struct_type_let_init_elf_c; do
+            if ! "$_oc" --weaken-symbol="$_wsl_s" build_asm/selfhost_pabi/pabi_weak.o; then
+              echo "g05_relink_env: weaken pabi_weak $_wsl_s failed (Windows)" >&2
+              exit 1
+            fi
+            _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wsl_s=$_PABI_WIN_SLI"
           done
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.

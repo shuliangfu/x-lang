@@ -1108,11 +1108,37 @@ export function enc_load_x29_pos_to_rax(ctx: *ElfCodegenCtx, off_pos: i32): i32 
   if (off < 0) {
     off = 0;
   }
+  /* w2060: scaled LDR X truncates off/8 (e.g. 4→0). Unaligned 8B field
+   * after i32 pad: two LDR W + orr. Twin of enc_store unaligned split. */
+  if ((off & 7) != 0) {
+    let imm12_lo: i32 = 0;
+    let imm12_hi: i32 = 0;
+    if ((off & 3) != 0) {
+      return 0 - 1;
+    }
+    imm12_lo = off / 4;
+    if (imm12_lo > 4095) {
+      imm12_lo = 4095;
+    }
+    /* ldr w0, [x29, #off] — 0xB9400000 | imm<<10 | Rn=29 (NOT 0xB9000000 STR W) */
+    if (enc_u32_le(ctx, 3107979264 | (imm12_lo << 10) | (29 << 5)) != 0) {
+      return 0 - 1;
+    }
+    imm12_hi = (off + 4) / 4;
+    if (imm12_hi > 4095) {
+      imm12_hi = 4095;
+    }
+    /* ldr w1, [x29, #off+4] — 0xB9400000 | … | Rt=1 */
+    if (enc_u32_le(ctx, 3107979264 | (imm12_hi << 10) | (29 << 5) | 1) != 0) {
+      return 0 - 1;
+    }
+    /* orr x0, x0, x1, lsl #32 — 0xAA012000 */
+    return enc_u32_le(ctx, 0 - 1442766848);
+  }
   let imm12: i32 = off >> 3;
   if (imm12 > 4095) {
     imm12 = 4095;
   }
-/** See implementation for details. */
   let base: i32 = 0 - 113246720;
   let tail: i32 = 928 | (imm12 << 10);
   return enc_u32_le(ctx, base | tail);
@@ -1504,7 +1530,35 @@ export function enc_store_rax_to_rbx_offset(ctx: *ElfCodegenCtx, offset: i32, st
     }
     return enc_u32_le(ctx, 3103784960 | (imm12 << 10) | (1 << 5));
   }
-  /* str x0, [x1, #offset] — offset must be a multiple of 8 */
+  /* 8B store to x1+offset. Scaled STR X needs offset%8==0; a struct
+   * field can sit at 4 (i32 pad then 8B nested). Integer offset/8 would
+   * emit STR X at #0 and clobber the pad (w2060 blkcopy t_ncall_4).
+   * Split into two STR W when unaligned. PLATFORM: MACOS|ARM64. */
+  if ((offset & 7) != 0) {
+    let imm12_lo: i32 = 0;
+    let imm12_hi: i32 = 0;
+    if ((offset & 3) != 0) {
+      return 0 - 1;
+    }
+    imm12_lo = offset / 4;
+    if (imm12_lo > 4095) {
+      imm12_lo = 4095;
+    }
+    /* str w0, [x1, #offset] */
+    if (enc_u32_le(ctx, 3103784960 | (imm12_lo << 10) | (1 << 5)) != 0) {
+      return 0 - 1;
+    }
+    /* lsr x0, x0, #32 */
+    if (enc_u32_le(ctx, 3546348544) != 0) {
+      return 0 - 1;
+    }
+    imm12_hi = (offset + 4) / 4;
+    if (imm12_hi > 4095) {
+      imm12_hi = 4095;
+    }
+    /* str w0, [x1, #offset+4] */
+    return enc_u32_le(ctx, 3103784960 | (imm12_hi << 10) | (1 << 5));
+  }
   let imm12: i32 = offset / 8;
   if (imm12 > 4095) {
     imm12 = 4095;

@@ -71,7 +71,7 @@ export function arm64_enc_frame_size_load(): i32 {
   return w1523_arm64_enc_frame_size;
 }
 
-/** Move SP by imm bytes in chunks of at most 4095.
+/** Move SP by imm bytes in chunks of at most 4080.
  * A negative imm is treated as 0.
  * sub sp,sp,#c is 0xD10003FF | (c << 10). add sp,sp,#c is 0x910003FF | (c << 10).
  * @param elf_ctx *u8 emit context
@@ -92,10 +92,14 @@ export function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i
   if (left < 0) {
     left = 0;
   }
+  /* AAPCS64: SP must stay 16-byte aligned. imm12 max for ADD/SUB is 4095,
+   * but 4095%16==15 misaligns SP after each chunk and crashes on stp/ldp.
+   * Use 4080 (0xFF0) — largest 12-bit multiple of 16. w2060 Darwin parser
+   * pure-asm SEGV (parser_parse_into_buf) traced to repeated sub sp,#0xfff. */
   while (left > 0) {
     let chunk: i32 = left;
-    if (chunk > 4095) {
-      chunk = 4095;
+    if (chunk > 4080) {
+      chunk = 4080;
     }
     if (w1523_arm64_enc_u32_le(elf_ctx, base | (chunk << 10)) != 0) {
       return 0 - 1;
@@ -105,7 +109,7 @@ export function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i
   return 0;
 }
 
-/** ADD Xd, Xn, #imm with chunks of at most 4095.
+/** ADD Xd, Xn, #imm with chunks of at most 4080 (match SP).
  * When rd differs from rn, mov xd,xn (0xAA0003E0 | rn << 16 | rd) comes first.
  * A negative imm emits SUB chunks. INT_MIN is refused.
  * add xd,xd,#c is 0x91000000. sub xd,xd,#c is 0xD1000000.
@@ -147,10 +151,13 @@ export function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, i
     }
   }
   let rdrd: i32 = (rd << 5) | rd;
+  /* Match arm64_enc_addsub_sp_imm_chunks: 4080 not 4095. Tip parse_into_buf
+   * did sub sp,#0xff0 then add x16,#0xfff — frame locals drifted and
+   * return stmts were not seen (implicit tail return). */
   while (left > 0) {
     let chunk: i32 = left;
-    if (chunk > 4095) {
-      chunk = 4095;
+    if (chunk > 4080) {
+      chunk = 4080;
     }
     if (w1523_arm64_enc_u32_le(elf_ctx, base | (chunk << 10) | rdrd) != 0) {
       return 0 - 1;
@@ -193,10 +200,11 @@ export function arm64_enc_x19_sp_off(elf_ctx: *u8, off: i32, is_ldr: i32): i32 {
     return 0 - 1;
   }
   let left: i32 = off;
+  /* Same 4080 chunk as SP adjust — keep [sp+#off] address math aligned. */
   while (left > 0) {
     let chunk: i32 = left;
-    if (chunk > 4095) {
-      chunk = 4095;
+    if (chunk > 4080) {
+      chunk = 4080;
     }
     if (w1523_arm64_enc_u32_le(elf_ctx, (0 - 1862270448) | (chunk << 10)) != 0) {
       return 0 - 1;

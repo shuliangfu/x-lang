@@ -268,6 +268,7 @@ export extern function pipeline_module_num_struct_layouts_at(m: *u8): i32;
 export extern function pipeline_module_struct_layout_name_len(m: *u8, idx: i32): i32;
 export extern function pipeline_module_struct_layout_name_into(m: *u8, idx: i32, out: *u8): void;
 export extern function pipeline_module_struct_layout_num_fields(m: *u8, li: i32): i32;
+export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
 export extern function pipeline_module_struct_layout_field_name_len(m: *u8, li: i32, j: i32): i32;
 export extern function pipeline_module_struct_layout_field_name_into(m: *u8, li: i32, j: i32, out: *u8): void;
 export extern function pipeline_module_struct_layout_field_type_ref(m: *u8, li: i32, j: i32): i32;
@@ -1374,11 +1375,11 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
     return 0 - 1;
   }
   ko = pipeline_expr_kind_ord_at(arena, arg_ref);
-  // EXPR_VAR = 3
-  if (ko == 3) {
-    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta);
-  }
-  // Nested CALL/METHOD (48/49) or other non-lvalue: materialize then lea.
+  // w2060: AAPCS64 byref requires a caller-owned copy (ABI). Passing the
+  // lvalue address lets a cc/x-lang callee mutate the caller local. Mirror
+  // w1521_win_mem_arg_addr_to_rax_c: temp slot + qword copy + lea.
+  // FIELD/INDEX/DEREF still use lvalue_eff_addr for the *source* of the copy
+  // (not materialize-into-temp, which left x0 on a scratch; check_mark rc=100).
   nbytes = (sz + 7) & (0 - 8);
   cur = call_dispatch_load_i32_le(ctx, 4);
   off = cur;
@@ -1387,6 +1388,22 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
   sum = save_off + 8;
   if (sum < off) { return 0 - 1; }
   call_dispatch_store_i32_le(ctx, 4, sum);
+  if (ko == 3 || ko == 44 || ko == 47 || ko == 52) {
+    let k: i32 = 0;
+    while (k < nbytes) {
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, arg_ref, ctx, ta) != 0) { return 0 - 1; }
+      if (k != 0) {
+        if (backend_enc_add_imm_to_rax_arch(elf_ctx, k, ta) != 0) { return 0 - 1; }
+      }
+      if (w1521_load64_from_rax(elf_ctx, ta) != 0) { return 0 - 1; }
+      // A64 frame slots grow up from x29 (lea off == x29+off), so qword k
+      // lands at off+k. The Win64 mirror uses off-k because rbp slots grow down.
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off + k, ta) != 0) { return 0 - 1; }
+      k = k + 8;
+    }
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+  }
+  // Nested CALL/METHOD (48/49) or other non-lvalue: sret/materialize into temp, then lea.
   // Save incoming x8 (outer let/call sret dest) before inner IRLR overwrite.
   if (glue_arm64_mov_x8_to_x0_elf_c(elf_ctx) != 0) { return 0 - 1; }
   if (backend_enc_store_rax_to_rbp_arch(elf_ctx, save_off, ta) != 0) { return 0 - 1; }
@@ -1419,6 +1436,111 @@ function glue_emit_arm64_host_mem_arg_addr_to_rax_c(
  * @return 1 when this arg size travels by reference on Windows x86_64.
  * PLATFORM: WINDOWS x86_64 (0 elsewhere).
  */
+
+/**
+ * AAPCS64 HFA: 1..4 fields, all TYPE_F32(14) or all TYPE_F64(15).
+ * @return i32 — nregs 1..4 if HFA, else 0. Does not allocate.
+ * PLATFORM: MACOS|ARM64 AAPCS64.
+ */
+function glue_aapcs64_hfa_nregs_c(arena: *u8, ctx: *u8, ty: i32): i32 {
+  let m: *u8 = 0 as *u8;
+  let nm: u8[256] = [];
+  let nlen: i32 = 0;
+  let li: i32 = 0;
+  let nf: i32 = 0;
+  let j: i32 = 0;
+  let fty: i32 = 0;
+  let ftk: i32 = 0;
+  let want: i32 = 0;
+  if (arena == (0 as *u8)) { return 0; }
+  if (ty <= 0) { return 0; }
+  unsafe {
+    if (pipeline_type_kind_ord_at(arena, ty) != 8) { return 0; }
+  }
+  if (ctx != (0 as *u8)) {
+    unsafe {
+      m = glue_emit_module_from_ctx(ctx);
+    }
+  }
+  if (m == (0 as *u8)) {
+    unsafe {
+      m = pipeline_asm_emit_module_ref_c();
+    }
+  }
+  if (m == (0 as *u8)) { return 0; }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, ty, &nm[0]);
+  }
+  if (nlen <= 0 || nlen > 255) { return 0; }
+  li = glue_asm_fmt_any_find_layout(m, &nm[0], nlen);
+  if (li < 0) { return 0; }
+  unsafe {
+    nf = pipeline_module_struct_layout_num_fields(m, li);
+  }
+  if (nf < 1 || nf > 4) { return 0; }
+  j = 0;
+  while (j < nf) {
+    unsafe {
+      fty = pipeline_module_struct_layout_field_type_ref(m, li, j);
+      ftk = pipeline_type_kind_ord_at(arena, fty);
+    }
+    if (ftk != 14 && ftk != 15) { return 0; }
+    if (j == 0) {
+      want = ftk;
+    } else {
+      if (ftk != want) { return 0; }
+    }
+    j = j + 1;
+  }
+  return nf;
+}
+
+
+/**
+ * AAPCS64: aggregate arg travels by reference (caller copy + GP pointer).
+ * True when sz > 16 and the type is not an HFA (1..4 homogeneous f32/f64).
+ * Call only from ta==1 branches; SysV must not call this.
+ * @return 1 byref, 0 otherwise. PLATFORM: MACOS|ARM64 AAPCS64.
+ */
+function glue_aapcs64_arg_is_byref_c(arena: *u8, ctx: *u8, ty: i32, sz: i32): i32 {
+  if (sz <= 16) { return 0; }
+  if (glue_aapcs64_hfa_nregs_c(arena, ctx, ty) != 0) { return 0; }
+  return 1;
+}
+
+/**
+ * Frame temp bytes for AAPCS64 byref args (caller copy + x8 save pad).
+ * align8(sz)+8 per byref arg. Used by call_spill st[6]. PLATFORM: MACOS|ARM64.
+ */
+#[no_mangle]
+export function glue_aapcs64_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32 {
+  let j: i32 = 0;
+  let tot: i32 = 0;
+  if (arena == 0 as *u8 || call <= 0) { return 0; }
+  if (nargs <= 0) { return 0; }
+  unsafe {
+    while (j < nargs) {
+      let ar: i32 = 0;
+      let pty: i32 = 0;
+      if (is_method != 0) {
+        ar = pipeline_expr_method_call_arg_ref(arena, call, j);
+        pty = 0;
+      } else {
+        ar = pipeline_expr_call_arg_ref(arena, call, j);
+        pty = glue_call_param_type_ref_at(arena, call, j);
+      }
+      if (ar > 0) {
+        let sz: i32 = glue_sysv_arg_byte_size_c(arena, 0 as *u8, pty, ar);
+        if (glue_aapcs64_arg_is_byref_c(arena, 0 as *u8, pty, sz) != 0) {
+          tot = tot + ((sz + 7) & (0 - 8)) + 8;
+        }
+      }
+      j = j + 1;
+    }
+  }
+  return tot;
+}
+
 function w1521_win_mem_byref_sz(sz: i32): i32 {
   if (sz <= 16) { return 0; }
   unsafe {
@@ -3579,11 +3701,29 @@ export function pipeline_asm_emit_call_args_elf_c(
         let sz_i: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty_i, ar_i);
         spill_off[i] = 0 - 1;
         arg_sz_a[i] = sz_i;
-        is_mem_a[i] = glue_sysv_arg_is_memory_by_value_c(sz_i);
+        /* w2060: AAPCS64 byref via glue_aapcs64_arg_is_byref_c (sz>16, not HFA).
+         * HFA stays in V regs. Matches host-C METHOD is_mem=2. ta==1 only here. */
+        is_mem_a[i] = 0;
+        if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty_i, sz_i) != 0) {
+          is_mem_a[i] = 2;
+        }
         fp_slot[i] = 0 - 1;
-        if (is_mem_a[i] != 0) {
+        if (is_mem_a[i] == 2) {
+          gp_units[i] = 1;
+          if (gp_cur + 1 <= reg_max) {
+            gp_start[i] = gp_cur;
+            gp_cur = gp_cur + 1;
+          } else {
+            gp_start[i] = 0 - 1;
+          }
+        } else if (glue_aapcs64_hfa_nregs_c(arena, ctx, pty_i) != 0) {
+          let hn: i32 = glue_aapcs64_hfa_nregs_c(arena, ctx, pty_i);
+          gp_units[i] = hn;
           gp_start[i] = 0 - 1;
-          gp_units[i] = 0;
+          if (fp_cur + hn <= 8) {
+            fp_slot[i] = fp_cur;
+            fp_cur = fp_cur + hn;
+          }
         } else if (glue_arg_ref_is_f64_width_c(arena, ctx, ar_i, pty_i) != 0
             || (pty_i <= 0 && glue_arg_ref_is_sse_float_c(arena, ar_i, pty_i) != 0)) {
           /* AAPCS64 FP class: f64 scalars pass in v0-v7 (fmov dK of the rax
@@ -3622,6 +3762,18 @@ export function pipeline_asm_emit_call_args_elf_c(
           let arg_ref: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref != 0) {
             let home_off: i32 = 0 - 1;
+            /* w2060: >16B byref — lea / materialize address into rax. */
+            if (is_mem_a[i] == 2) {
+              if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
+                    arena, elf_ctx, ctx, arg_ref, arg_sz_a[i], ta) != 0) {
+                return 0 - 1;
+              }
+              let so_br: i32 = glue_sysv_spill_rax_rdx_to_frame_c(elf_ctx, ctx, ta, 1);
+              if (so_br < 0) { return 0 - 1; }
+              spill_off[i] = so_br;
+              i = i + 1;
+              continue;
+            }
             if (fp_slot[i] < 0 && gp_units[i] == 1
                 && pipeline_expr_kind_ord_at(arena, arg_ref) == 3) {
               let arg_ty_h: i32 = pipeline_expr_resolved_type_ref(arena, arg_ref);
@@ -3667,7 +3819,18 @@ export function pipeline_asm_emit_call_args_elf_c(
         if (gp_start[i] < 0 && fp_slot[i] < 0) {
           let arg_ref2: i32 = pipeline_expr_call_arg_ref(arena, expr_ref, i);
           if (arg_ref2 != 0) {
-            if (is_mem_a[i] != 0) {
+            if (is_mem_a[i] == 2) {
+              /* w2060: overflow byref — pointer word on stack. */
+              let poff: i32 = glue_call_stk_extra_align(stk_pos, 8, ta);
+              if (glue_emit_arm64_host_mem_arg_addr_to_rax_c(
+                    arena, elf_ctx, ctx, arg_ref2, arg_sz_a[i], ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_store_arg_sp_offset_arch(elf_ctx, poff, 8, ta) != 0) {
+                return 0 - 1;
+              }
+              stk_pos = glue_call_stk_extra_advance(poff, 8, ta);
+            } else if (is_mem_a[i] != 0) {
               let moff: i32 = glue_call_stk_extra_align(stk_pos, arg_sz_a[i], ta);
               let stored: i32 = pipeline_asm_store_memory_by_value_to_sp_elf_c(
                 arena, elf_ctx, ctx, arg_ref2, arg_sz_a[i], ta, moff);
@@ -4956,21 +5119,32 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                               is_mem_m[i_m] = 1;
                               gp_start_m[i_m] = 0 - 1;
                               gp_units_m[i_m] = 0;
-                            } else if (x_callee_m != 0) {
-                              // w1521: xlang callee param home reads stack words.
-                              is_mem_m[i_m] = 3;
-                              gp_start_m[i_m] = 0 - 1;
-                              gp_units_m[i_m] = 0;
                             } else {
-                              // arm64 large composite: 1 GP + lea at emit.
-                              is_mem_m[i_m] = 2;
-                              if (gp_cur_m + 1 <= reg_max_m) {
-                                gp_start_m[i_m] = gp_cur_m;
-                                gp_units_m[i_m] = 1;
-                                gp_cur_m = gp_cur_m + 1;
+                              // w2060: ta==1 — HFA -> V regs; else byref helper.
+                              let hn_m: i32 = glue_aapcs64_hfa_nregs_c(arena, ctx, pty_m);
+                              if (hn_m != 0) {
+                                is_mem_m[i_m] = 0;
+                                is_sse_m[i_m] = 1;
+                                is_f64_m[i_m] = 1;
+                                if (xmm_cur_m + hn_m <= 8) {
+                                  gp_start_m[i_m] = xmm_cur_m;
+                                  gp_units_m[i_m] = hn_m;
+                                  xmm_cur_m = xmm_cur_m + hn_m;
+                                } else {
+                                  return 0 - 1;
+                                }
+                              } else if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty_m, sz_m) != 0) {
+                                is_mem_m[i_m] = 2;
+                                if (gp_cur_m + 1 <= reg_max_m) {
+                                  gp_start_m[i_m] = gp_cur_m;
+                                  gp_units_m[i_m] = 1;
+                                  gp_cur_m = gp_cur_m + 1;
+                                } else {
+                                  gp_start_m[i_m] = 0 - 1;
+                                  gp_units_m[i_m] = 1;
+                                }
                               } else {
-                                gp_start_m[i_m] = 0 - 1;
-                                gp_units_m[i_m] = 1;
+                                return 0 - 1;
                               }
                             }
                           } else if (gp_cur_m + u_m <= reg_max_m) {
@@ -5403,13 +5577,39 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           if (u_u < 1) { u_u = 1; }
           if (u_u > 2) { u_u = 2; }
           if (glue_sysv_arg_is_memory_by_value_c(sz_u) != 0) {
-            /* wave606: X-to-X MEMORY is stack-only on SysV and AAPCS64.
-             * Do not lea into GP (callee param_home reads stack words).
-             * Import METHOD keeps is_mem=2 (host-C AAPCS64 pointer).
-             * PLATFORM: LINUX+MACOS x86_64 SysV · MACOS|ARM64 AAPCS64. */
-            is_mem_u[i_u] = 1;
-            gp_start_u[i_u] = 0 - 1;
-            gp_units_u[i_u] = 0;
+            if (ta == 1) {
+              /* w2060: HFA -> V; byref via helper. */
+              let hn_u: i32 = glue_aapcs64_hfa_nregs_c(arena, ctx, pty_u);
+              if (hn_u != 0) {
+                is_mem_u[i_u] = 0;
+                is_sse_u[i_u] = 1;
+                is_f64_u[i_u] = 1;
+                if (xmm_cur_u + hn_u <= 8) {
+                  gp_start_u[i_u] = xmm_cur_u;
+                  gp_units_u[i_u] = hn_u;
+                  xmm_cur_u = xmm_cur_u + hn_u;
+                } else {
+                  return 0 - 1;
+                }
+              } else if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty_u, sz_u) != 0) {
+                is_mem_u[i_u] = 2;
+                if (gp_cur_u + 1 <= reg_max_u) {
+                  gp_start_u[i_u] = gp_cur_u;
+                  gp_units_u[i_u] = 1;
+                  gp_cur_u = gp_cur_u + 1;
+                } else {
+                  gp_start_u[i_u] = 0 - 1;
+                  gp_units_u[i_u] = 1;
+                }
+              } else {
+                return 0 - 1;
+              }
+            } else {
+              /* wave606: X-to-X MEMORY stack-only on SysV x86_64. */
+              is_mem_u[i_u] = 1;
+              gp_start_u[i_u] = 0 - 1;
+              gp_units_u[i_u] = 0;
+            }
           } else if (gp_cur_u + u_u <= reg_max_u) {
             gp_start_u[i_u] = gp_cur_u;
             gp_units_u[i_u] = u_u;
@@ -8288,6 +8488,8 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
 function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32): i32 {
   // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
   // body-less extern calls in this function sit in one unsafe block.
+  // w2060: AAPCS64 passes aggregates >16B by reference (one GP / one
+  // stack slot holding a pointer), not SysV MEMORY by-value words.
   unsafe {
   let nw: i32 = 0;
   let gp: i32 = 0;
@@ -8298,10 +8500,19 @@ function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32
     let ar: i32 = pipeline_expr_call_arg_ref(arena, call, j);
     let pty: i32 = glue_call_param_type_ref_at(arena, call, j);
     let sz: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty, ar);
-    let u: i32 = glue_sysv_arg_gp_units_from_size_c(sz);
-    let w: i32 = glue_sysv_arg_stack_words_c(sz, u);
-    if (glue_sysv_arg_is_memory_by_value_c(sz) != 0) {
-      nw = nw + w;
+    if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty, sz) != 0) {
+      if (gp + 1 <= reg_max) {
+        gp = gp + 1;
+      } else {
+        nw = nw + 1;
+      }
+    } else if (glue_aapcs64_hfa_nregs_c(arena, ctx, pty) != 0) {
+      let hn_s: i32 = glue_aapcs64_hfa_nregs_c(arena, ctx, pty);
+      if (fp + hn_s <= 8) {
+        fp = fp + hn_s;
+      } else {
+        nw = nw + hn_s;
+      }
     } else if (glue_arg_ref_is_f64_width_c(arena, ctx, ar, pty) != 0
         || (pty <= 0 && glue_arg_ref_is_sse_float_c(arena, ar, pty) != 0)) {
       if (fp < 8) {
@@ -8309,13 +8520,19 @@ function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32
       } else {
         nw = nw + 1;
       }
-    } else if (u > 0 && gp + u <= reg_max) {
-      gp = gp + u;
     } else {
-      if (w > 0) {
-        nw = nw + w;
+      let u: i32 = glue_sysv_arg_gp_units_from_size_c(sz);
+      let w: i32 = glue_sysv_arg_stack_words_c(sz, u);
+      if (u < 1) { u = 1; }
+      if (u > 2) { u = 2; }
+      if (u > 0 && gp + u <= reg_max) {
+        gp = gp + u;
       } else {
-        nw = nw + 1;
+        if (w > 0) {
+          nw = nw + w;
+        } else {
+          nw = nw + 1;
+        }
       }
     }
     j = j + 1;

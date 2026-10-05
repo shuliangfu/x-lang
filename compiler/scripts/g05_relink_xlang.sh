@@ -217,7 +217,7 @@ case "$(uname -s 2>/dev/null)" in
       OUT="${OUT}.exe"
     fi
     if [ -f scripts/win_patch_body_sync_jmp.py ] && [ -f "$OUT" ]; then
-      python3 scripts/win_patch_body_sync_jmp.py "$OUT" || true
+      python3 scripts/win_patch_body_sync_jmp.py "$OUT" || { echo "g05_relink_xlang: win_patch_body_sync_jmp failed" >&2; exit 1; }
     fi
     ;;
 esac
@@ -325,6 +325,12 @@ case "$(uname -s 2>/dev/null)" in
     rm -rf "$_nocc_dir"
     if [ -n "$_kept_stale" ]; then
       echo "g05_relink_xlang: !!!!! STALE LEAVES KEPT ($(echo $_kept_stale | wc -w)):$_kept_stale !!!!!" >&2
+      # w2060: formal gate — any STALE LEAF KEPT is a hard fail (old leaf must not ship).
+      # Escape only with XLANG_G05_ALLOW_STALE_LEAF=1 for local diagnosis.
+      if [ "${XLANG_G05_ALLOW_STALE_LEAF:-0}" != "1" ]; then
+        echo "g05_relink_xlang: FAIL on STALE LEAF KEPT (set XLANG_G05_ALLOW_STALE_LEAF=1 to warn-only)" >&2
+        exit 1
+      fi
     fi
     ;;
 esac

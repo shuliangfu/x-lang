@@ -77,6 +77,7 @@ export extern function pipeline_expr_struct_lit_value_bytes(a: *u8, m: *u8, expr
 export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i32): i32;
 /** w1521: Win64 by-ref >16B call-arg temp bytes (bcd). PLATFORM: WINDOWS x86_64. */
 export extern function w1521_win_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
+export extern function glue_aapcs64_call_mem_temp_bytes_c(arena: *u8, call: i32, nargs: i32, is_method: i32): i32;
 export extern function glue_call_param_type_ref_at(arena: *u8, call_expr_ref: i32, param_index: i32): i32;
 export extern function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32;
 export extern function glue_sysv_arg_gp_units_from_size_c(sz: i32): i32;
@@ -404,6 +405,12 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       w1500_cs_st[6] = w1500_cs_st[6] + ((op + 7) & (0 - 8)) + 16;
     }
     op = 0;
+    // w2060: AAPCS64 byref caller-copy temps (st[6]). PLATFORM: MACOS|ARM64.
+    unsafe {
+      op = glue_aapcs64_call_mem_temp_bytes_c(arena, expr_ref, n, 0);
+      w1500_cs_st[6] = w1500_cs_st[6] + op;
+      op = 0;
+    }
     if (need > 0 || n == 0) {
       need = need + 1;
     }
@@ -461,6 +468,13 @@ function w1500_cs_expr(arena: *u8, expr_ref: i32): void {
       // w1546: import METHOD and UFCS park arg0 the same way as CALL.
       // PLATFORM: LINUX+WINDOWS x86_64.
       w1500_cs_st[0] = w1500_cs_st[0] + 16;
+    } else {
+      // w2060: AAPCS64 byref caller-copy temps for METHOD. PLATFORM: MACOS|ARM64.
+      unsafe {
+        op = glue_aapcs64_call_mem_temp_bytes_c(arena, expr_ref, n, 1);
+        w1500_cs_st[6] = w1500_cs_st[6] + op;
+        op = 0;
+      }
     }
     w1500_cs_st[0] = w1500_cs_st[0] + need * 8;
     return;

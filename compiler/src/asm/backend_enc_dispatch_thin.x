@@ -9581,6 +9581,9 @@ export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
 export function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
   // 4181722016 is ldr x0, [x29, #0]. 128 scales a byte offset into imm12.
   // 4181721088 is ldr x0, [x0]. 32760 is 4095*8.
+  // w2060: off%8!=0 must NOT use scaled LDR X (truncates >>3). Twin of
+  // enc_load_x29_pos_to_rax: ONLY (off&7)!=0 && (off&3)==0 → two LDR W + orr;
+  // 8-aligned (incl. >32760) and other cases → scaled or lea+ldr. Never STR W.
   if (offset < 0) {
     unsafe { return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
     return 0 - 1;
@@ -9589,6 +9592,22 @@ export function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i
     if (offset <= 32760) {
       return backend_enc_append_u32_le_c(elf_ctx, (4181722016 as u32) | ((offset as u32) * 128));
     }
+  }
+  if ((offset & 7) != 0 && (offset & 3) == 0) {
+    let imm12_lo: i32 = offset / 4;
+    let imm12_hi: i32 = (offset + 4) / 4;
+    if (imm12_lo > 4095) { imm12_lo = 4095; }
+    if (imm12_hi > 4095) { imm12_hi = 4095; }
+    /* ldr w0, [x29, #off] — 0xB9400000 = 3107979264 */
+    if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_lo as u32) * 1024) | (928 as u32)) != 0) {
+      return 0 - 1;
+    }
+    /* ldr w1, [x29, #off+4] */
+    if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_hi as u32) * 1024) | (928 as u32) | (1 as u32)) != 0) {
+      return 0 - 1;
+    }
+    /* orr x0, x0, x1, lsl #32 — 0xAA012000 = -1442766848 as i32 bits via u32 */
+    return backend_enc_append_u32_le_c(elf_ctx, 2852200448 as u32);
   }
   unsafe {
     if (arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset) != 0) {
@@ -9819,6 +9838,32 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
   if (store_size != 1) {
     if (store_size != 2) {
       if (store_size != 4) {
+        /* 8B STR X needs off%8==0. Field at 4 (i32 pad + nested 8B)
+         * would truncate >>3 to #0 and clobber pad (w2060 t_ncall_4).
+         * Split into two STR W. PLATFORM: MACOS|ARM64. */
+        if ((off & 7) != 0) {
+          if ((off & 3) != 0) {
+            return 0 - 1;
+          }
+          imm12 = (u >> 2) as i32;
+          if (imm12 > 4095) {
+            imm12 = 4095;
+          }
+          /* str w0, [x1, #offset] */
+          if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32)) != 0) {
+            return 0 - 1;
+          }
+          /* lsr x0, x0, #32 */
+          if (backend_enc_append_u32_le_c(elf_ctx, 3546348544 as u32) != 0) {
+            return 0 - 1;
+          }
+          imm12 = ((u + 4) >> 2) as i32;
+          if (imm12 > 4095) {
+            imm12 = 4095;
+          }
+          /* str w0, [x1, #offset+4] */
+          return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32));
+        }
         imm12 = (u >> 3) as i32;
         if (imm12 > 4095) {
           imm12 = 4095;

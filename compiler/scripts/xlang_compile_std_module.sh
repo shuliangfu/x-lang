@@ -587,6 +587,25 @@ case "${1:-}" in
       # (Mac wrappers + runtime_string_fast; G.7 single vehicle, no dual formal_mod body).
       _str_sh="$(dirname "$0")/xlang_compile_std_string_o.sh"
       [ -f "$_str_sh" ] || _str_sh="./xlang_compile_std_string_o.sh"
+      # w2060: ensure without FORCE skips an up-to-date string.o, same rule as
+      # formal_mod (wave826). g05 leaf refresh runs ensure with host cc
+      # blocked; this vehicle needs cc, so an unconditional rebuild always
+      # failed and reported STALE LEAF KEPT even when nothing changed.
+      # A newer source or FORCE=1 still rebuilds. PLATFORM: SHARED.
+      if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
+        _str_stale=0
+        for _s in ../std/string/mod.x ../std/string/string.x \
+            seeds/runtime_string_fast.from_x.c "$_str_sh"; do
+          if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
+            _str_stale=1
+            break
+          fi
+        done
+        if [ "$_str_stale" = "0" ]; then
+          echo "xlang_compile_std_module: skip up-to-date $out_o (string_formal)" >&2
+          exit 0
+        fi
+      fi
       # Dedicated script ignores out path; always writes $ROOT/std/string/string.o
       exec sh "$_str_sh"
     fi

@@ -376,6 +376,13 @@ def main() -> int:
         # PLATFORM: WINDOWS.
         "pipeline_expr_enum_namespace_field_tag",
         "pipeline_asm_cmp_enum_rhs_tag_c",
+        # w2055: assign thin (egg deref assign stores rax only).
+        # PLATFORM: WINDOWS.
+        "pipeline_asm_emit_assign_elf_c",
+        # w2055: w156 guard thin (egg INDEX assign-address cache hit).
+        # PLATFORM: WINDOWS.
+        "glue_index_assign_addr_cache_hit",
+        "glue_emit_struct_type_let_init_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
