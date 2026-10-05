@@ -816,6 +816,14 @@ case "$UNAME_S" in
       _g05_pure_overlay src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
         build_asm/selfhost_pabi/body_sync_let_order.o pipeline_asm_emit_block_body_sync_elf
     fi
+    # w2060: empty ARRAY_LIT [] on fixed T[N] must zero-fill (C ={}). Egg
+    # glue_block_body_emit_let_init early-returned with no stores. Tip stack
+    # reuse then skipped parse_one_function_impl name consume (XT001).
+    # Strong thin first-wins. PLATFORM: MACOS|DARWIN + LINUX.
+    if [ "${XLANG_EMIT_LET_INIT_EMPTY_FIXED_OVERLAY:-1}" = "1" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.x \
+        build_asm/selfhost_pabi/emit_let_init.o glue_block_body_emit_let_init
+    fi
     ;;
 esac
 # wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
@@ -974,6 +982,11 @@ fi
 # PLATFORM: LINUX
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
+fi
+# w2060: empty [] fixed T[N] zero-fill emit_let_init. First-wins.
+# PLATFORM: LINUX
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
 fi
 # w1590: deref load uses the pointer pointee width. First-wins over the egg.
 # A missing object keeps the previous list. PLATFORM: LINUX
@@ -1418,6 +1431,32 @@ if [ "$UNAME_S" = "Darwin" ] \
       done
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/body_sync_let_order.o $_PABI_SELFHOST"
+  fi
+  # w2060: empty [] fixed T[N] zero-fill. Strong thin; weaken egg copy.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -F "_glue_block_body_emit_let_init" | grep -qv weak; then
+        "$_oc" --weaken-symbol=_glue_block_body_emit_let_init \
+          build_asm/selfhost_pabi/pabi_weak.o || {
+          echo "g05_relink_env: ERROR weaken emit_let_init failed" >&2
+          exit 1
+        }
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_block_body_emit_let_init=build_asm/selfhost_pabi/emit_let_init.o"
+    _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
   fi
   # w1012: true-pack ARRAY i8 (INDEX esz=1 + sext8 load). Strong tip over
   # weak pabi emit_index; weaken leftover strong index_elem_byte_sz_c.

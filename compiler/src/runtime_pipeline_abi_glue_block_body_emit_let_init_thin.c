@@ -145,7 +145,13 @@ int32_t glue_block_body_emit_let_init(uint8_t *arena, uint8_t *elf_ctx, int32_t 
       return -1;
     }
     if (glue_block_let_is_fixed_array_type(arena, block_ref, idx) != 0) {
-      return 0;
+      /* w2060: empty [] on fixed T[N] → zero-fill (glue_emit_fixed_array). */
+      arr_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, init_ref, ctx, ta,
+                                                        tref_empty, slot_off);
+      if (arr_st == 0) {
+        return 0;
+      }
+      return -1;
     }
     if (glue_array_temp_bytes_for_let_init(arena, tref_empty, 0) > 0) {
       rc = glue_emit_array_let_empty_init(arena, elf_ctx, ctx, ta, slot_off);

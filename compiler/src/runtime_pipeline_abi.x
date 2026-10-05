@@ -54034,7 +54034,18 @@ function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32,
         return 0 - 1;
       }
       if (glue_block_let_is_fixed_array_type(arena, block_ref, idx) != 0) {
-        return 0;
+        /* w2060: empty ARRAY_LIT `[]` on fixed T[N] must zero-fill the slot
+         * (C `{0}` / `= {}`). Prior early-return left stack garbage; tip
+         * reuse of the same frame then skipped `if (storage[0]==0)` name
+         * consume in parse_one_function_impl (kind stayed IDENT=59).
+         * G.7: same authority as non-empty fixed let-init.
+         * PLATFORM: SHARED freestanding emit. */
+        arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, tref_empty, slot_off);
+        if (arr_st == 0) {
+          return 0;
+        }
+        return 0 - 1;
       }
       if (glue_array_temp_bytes_for_let_init(arena, tref_empty, 0) > 0) {
         rc = glue_emit_array_let_empty_init(arena, elf_ctx, ctx, ta, slot_off);
