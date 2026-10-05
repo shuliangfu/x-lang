@@ -107,12 +107,25 @@ for g in 1 2 3; do
   done
   rm -f build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.x \
         build_asm/seed_host/asm_full_link_stubs.x.syms build_asm/g05_xasm_crash.log
-  timeout "$ETO" ${TR:+$TR "$OUT/g${g}_ensure.tr"} sh scripts/g05_ensure_relink_prereqs.sh > "$OUT/g${g}_ensure.log" 2>&1
+  # w2060: record the compilers this stage really runs (path + sha) and
+  # require them to be the previous stage product (g1 ← v1, g2 ← g1.xa,
+  # g3 ← g2.xa). pure_asm_x_to_o prefers ./xlang over ./xlang_asm.
+  if [ "$g" = 1 ]; then prev="$OUT/v1.xa"; else prev="$OUT/g$((g - 1)).xa"; fi
+  cinfo="g$g compilers: prev=$prev sha=$(hsum "$prev")"
+  for cb in xlang xlang.exe xlang_asm xlang_asm.exe; do
+    [ -f "$cb" ] || continue
+    cinfo="$cinfo | $PWD/$cb sha=$(hsum "$cb")"
+    cmp -s "$cb" "$prev" || { say "$cinfo"; die 3 "g$g compiler $cb is not $prev"; }
+  done
+  say "$cinfo"
+  echo "v2v3: $cinfo" > "$OUT/g${g}_ensure.log"
+  timeout "$ETO" ${TR:+$TR "$OUT/g${g}_ensure.tr"} sh scripts/g05_ensure_relink_prereqs.sh >> "$OUT/g${g}_ensure.log" 2>&1
   erc=$?
   [ "$erc" = 0 ] || die 3 "g$g ensure rc=$erc"
   if [ -s build_asm/g05_xasm_crash.log ]; then die 3 "g$g compiler crash log not empty"; fi
+  echo "v2v3: $cinfo" > "$OUT/g${g}_relink.log"
   timeout "$RTO" ${TR:+$TR "$OUT/g${g}_relink.tr"} bash -c 'set -a; eval "$(sh scripts/g05_relink_env.sh 2>/dev/null)"; set +a; sh scripts/g05_relink_xlang.sh' \
-    > "$OUT/g${g}_relink.log" 2>&1
+    >> "$OUT/g${g}_relink.log" 2>&1
   rrc=$?
   [ "$rrc" = 0 ] || die 3 "g$g relink rc=$rrc"
   [ xlang_asm -nt "$OUT/g${g}_marker" ] || die 3 "g$g xlang_asm not relinked (stale)"
