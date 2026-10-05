@@ -26,10 +26,15 @@
 #   XLANG_V2V3_OUT          output dir (default /tmp/xlang_v2v3)
 #   XLANG_V2V3_ENSURE_TO    ensure timeout seconds per stage (default 5400)
 #   XLANG_V2V3_RELINK_TO    relink timeout seconds per stage (default 900)
+#   XLANG_V2V3_TRACE=1      item 8.3: Linux records every execve of ensure and
+#                           relink with strace -f; any C compiler basename
+#                           (cc, gcc, clang, cc1, ...) fails the run (exit 5)
+#                           after all three stages; calls go to g*.cc.txt
 #
 # Output: OUT_DIR/g{1,2,3}.xa (+ .s stripped), g*_ensure.log, g*_relink.log,
 #         OUT_DIR/v2v3.txt summary. Last line is V2V3 OK or V2V3 FAIL <why>.
-# Exit:   0 v2 == v3; 2 setup; 3 ensure/relink/stale stage; 4 v2 != v3.
+# Exit:   0 v2 == v3; 2 setup; 3 ensure/relink/stale stage; 4 v2 != v3;
+#         5 a C compiler was executed (XLANG_V2V3_TRACE=1 only).
 #
 # PLATFORM: Linux gold gate today. Darwin uses the same ensure/relink
 #   scripts; Windows is not covered here.
@@ -42,6 +47,9 @@ OUT="${1:-${XLANG_V2V3_OUT:-/tmp/xlang_v2v3}}"
 ETO="${XLANG_V2V3_ENSURE_TO:-5400}"
 RTO="${XLANG_V2V3_RELINK_TO:-900}"
 PABI="$C/src/runtime_pipeline_abi.o"
+TRACE="${XLANG_V2V3_TRACE:-0}"
+# Same compiler basename rule as check_default_no_host_cc.sh.
+ccre='^(cc|c89|c99|gcc|g\+\+|c\+\+|clang|clang\+\+|cpp|tcc|cc1|cc1plus|cl|[A-Za-z0-9_.-]*-(gcc|g\+\+|cc|clang|clang\+\+))(-[0-9.]+)?(\.exe)?$'
 
 mkdir -p "$OUT" || exit 2
 S="$OUT/v2v3.txt"
@@ -62,6 +70,18 @@ strip_to() {
 }
 
 cd "$C" || exit 2
+TR=; ALLHIT=
+if [ "$TRACE" = 1 ]; then
+  [ "$(uname -s)" = Linux ] || die 2 "XLANG_V2V3_TRACE=1 is Linux only (strace)"
+  command -v strace >/dev/null 2>&1 || die 2 "strace not installed"
+  TR="strace -f -qq -e trace=execve -o"
+fi
+# $1 trace file: print C compiler basenames that were executed, comma list.
+cc_hits() {
+  grep -oE 'execve\("[^"]+"' "$1" | sed 's/^execve("//; s/"$//' | sort -u |
+    while read -r p; do b=${p##*/}; echo "$b" | grep -qE "$ccre" && echo "$b"; done |
+    sort -u | tr '\n' ','
+}
 [ -x xlang_asm ] || die 2 "no compiler/xlang_asm (v1)"
 [ -f "$PABI" ] || die 2 "no src/runtime_pipeline_abi.o"
 cp -p "$PABI" "$OUT/pabi_start.o" || die 2 "cannot save runtime_pipeline_abi.o"
@@ -79,15 +99,24 @@ for g in 1 2 3; do
   done
   rm -f build_asm/seed_host/asm_full_link_stubs.o build_asm/seed_host/asm_full_link_stubs.x \
         build_asm/seed_host/asm_full_link_stubs.x.syms build_asm/g05_xasm_crash.log
-  timeout "$ETO" sh scripts/g05_ensure_relink_prereqs.sh > "$OUT/g${g}_ensure.log" 2>&1
+  timeout "$ETO" ${TR:+$TR "$OUT/g${g}_ensure.tr"} sh scripts/g05_ensure_relink_prereqs.sh > "$OUT/g${g}_ensure.log" 2>&1
   erc=$?
   [ "$erc" = 0 ] || die 3 "g$g ensure rc=$erc"
   if [ -s build_asm/g05_xasm_crash.log ]; then die 3 "g$g compiler crash log not empty"; fi
-  timeout "$RTO" bash -c 'set -a; eval "$(sh scripts/g05_relink_env.sh 2>/dev/null)"; set +a; sh scripts/g05_relink_xlang.sh' \
+  timeout "$RTO" ${TR:+$TR "$OUT/g${g}_relink.tr"} bash -c 'set -a; eval "$(sh scripts/g05_relink_env.sh 2>/dev/null)"; set +a; sh scripts/g05_relink_xlang.sh' \
     > "$OUT/g${g}_relink.log" 2>&1
   rrc=$?
   [ "$rrc" = 0 ] || die 3 "g$g relink rc=$rrc"
   [ xlang_asm -nt "$OUT/g${g}_marker" ] || die 3 "g$g xlang_asm not relinked (stale)"
+  if [ -n "$TR" ]; then
+    nex=$(cat "$OUT/g${g}_ensure.tr" "$OUT/g${g}_relink.tr" | grep -c 'execve(')
+    hit=$(cat "$OUT/g${g}_ensure.tr" "$OUT/g${g}_relink.tr" > "$OUT/g${g}.tr" && cc_hits "$OUT/g${g}.tr")
+    say "g$g execve=$nex cc=${hit:-none}"
+    if [ -n "$hit" ]; then
+      ALLHIT="$ALLHIT g$g:$hit"
+      grep -E 'execve\("[^"]*/(cc|gcc|clang|cc1|c\+\+|g\+\+|[A-Za-z0-9_.-]*-gcc)(-[0-9.]+)?"' "$OUT/g${g}.tr" > "$OUT/g${g}.cc.txt"
+    fi
+  fi
   nnew=$(find . -name '*.o' -newer "$OUT/g${g}_marker" | wc -l | tr -d ' ')
   cp -p xlang_asm "$OUT/g${g}.xa"
   strip_to "$OUT/g${g}.xa" "$OUT/g${g}.xa.s"
@@ -97,5 +126,6 @@ done
 cp -p "$OUT/pabi_start.o" "$PABI"
 if cmp -s "$OUT/g1.xa.s" "$OUT/g2.xa.s"; then say "info stage1 == v2"; else say "info stage1 != v2 (expected when v1 is older)"; fi
 cmp -s "$OUT/g2.xa.s" "$OUT/g3.xa.s" || die 4 "v2 != v3"
+[ -z "$ALLHIT" ] || die 5 "C compiler executed:$ALLHIT (see g*.cc.txt)"
 say "V2V3 OK"
 exit 0
