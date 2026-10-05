@@ -49,6 +49,7 @@ export extern "C" function driver_asm_work_p_get(i: i32): *u8;
 export extern "C" function xlang_entry_lib_name_from_path(input_path: *u8): *u8;
 export extern "C" function xlang_pipeline_pctx_set_entry_lib_prefix(ctx: *u8, name: *u8, name_len: i32): void;
 export extern "C" function xlang_pipeline_pctx_entry_lib_prefix_into(ctx: *u8, out: *u8, cap: i32): i32;
+export extern "C" function xlang_driver_x_emit_lib_name_into(out: *u8, cap: i32): i32;
 export extern "C" function driver_skip_codegen_dep_0_get(): i32;
 export extern "C" function driver_freestanding_get(): i32;
 export extern "C" function pipeline_codegen_dep_skip_asm_user_std_io(path: *u8): i32;
@@ -1011,7 +1012,9 @@ function uasb_emit_deps(module: *u8, elf_ctx: *u8, pctx: *u8): i32 {
  * is ap_path(); this file does not call ap_path, because a later rebuild
  * of rt_run_asm_backend.x would rename that helper. The dep path stays
  * null for the whole entry emit so definitions and same-module calls
- * share one prefix. A prefix already stored (-lib-name) is left as-is.
+ * share one prefix. A prefix already stored is left as-is. An explicit
+ * -lib-name (rt_emit_state slot) wins over the path; an explicit empty
+ * name keeps exports bare (w2060).
  * @param module *u8 — entry Module *; required by the backend
  * @param arena *u8 — AST arena for the entry module
  * @param ctx *u8 — PipelineDepCtx *; null skips the prefix seed
@@ -1044,6 +1047,20 @@ export function asm_asm_codegen_elf_o(module: *u8, arena: *u8, ctx: *u8, elf_ctx
     if (ctx != 0 as *u8) {
       let have_buf: u8[128] = [];
       let have_n: i32 = xlang_pipeline_pctx_entry_lib_prefix_into(ctx, &have_buf[0], 128);
+      // w2060: an explicit -lib-name wins over the path. A name seeds the
+      // prefix; an explicit empty name (-1) keeps the entry exports bare.
+      let opt_buf: u8[64] = [];
+      let opt_n: i32 = 0;
+      if (have_n <= 0) {
+        opt_n = xlang_driver_x_emit_lib_name_into(&opt_buf[0], 64);
+        if (opt_n > 0) {
+          xlang_pipeline_pctx_set_entry_lib_prefix(ctx, &opt_buf[0], opt_n);
+          have_n = opt_n;
+        }
+        if (opt_n < 0) {
+          have_n = 1;
+        }
+      }
       if (have_n <= 0) {
         let ipath: *u8 = driver_asm_work_p_get(0);
         if (ipath != 0 as *u8) {

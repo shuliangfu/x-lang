@@ -188,6 +188,9 @@ export extern function driver_asm_try_c_typeck_precheck(
   input_path: *u8, src: *u8, lib_roots: *u8, n_lib: i32): i32;
 export extern function driver_asm_use_compiler_impl_c(): i32;
 export extern function driver_asm_work_reset(): void;
+/* w2060: argv reader and the -lib-name slot (rt_emit_state.x authority). */
+export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
+export extern "C" function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void;
 export extern function driver_asm_work_p_get(i: i32): *u8;
 export extern function driver_asm_work_p_set(i: i32, v: *u8): void;
 export extern function driver_asm_work_i_get(i: i32): i32;
@@ -2202,6 +2205,51 @@ export function rt_ab_step_finish(): i32 {
   return 0;
 }
 
+/** w2060: record "-lib-name <v>" from argv into the rt_emit_state slot so
+ * asm_asm_codegen_elf_o uses it instead of the path-derived entry prefix.
+ * An empty value ("-lib-name \"\"") is stored as an explicit empty name
+ * (bare exports, as xlang_compile_std_module.sh --bare-impl expects). A
+ * flag-shaped value is ignored. The cold seed body never filled the path
+ * slot, so it emitted bare names for every entry; this body fills it, so
+ * the explicit flag has to be honored here. PLATFORM: SHARED. */
+function rt_ab_capture_lib_name(argc: i32, argv: *u8): void {
+  let buf: u8[128] = [];
+  let i: i32 = 1;
+  let n: i32 = 0;
+  let hit: i32 = 0;
+  if (argv == 0 as *u8) {
+    return;
+  }
+  while (i + 1 < argc) {
+    hit = 0;
+    unsafe {
+      n = driver_get_argv_i(argc, argv, i, &buf[0], 128);
+    }
+    if (n == 9) {
+      if (buf[0] == 45 && buf[1] == 108 && buf[2] == 105 && buf[3] == 98 && buf[4] == 45
+          && buf[5] == 110 && buf[6] == 97 && buf[7] == 109 && buf[8] == 101) {
+        hit = 1;
+      }
+    }
+    if (hit != 0) {
+      unsafe {
+        n = driver_get_argv_i(argc, argv, i + 1, &buf[0], 128);
+      }
+      if (n == 0) {
+        unsafe { xlang_driver_x_emit_set_lib_name(&buf[0], 0); }
+      }
+      if (n > 0 && n < 64) {
+        if (buf[0] != 45) {
+          unsafe { xlang_driver_x_emit_set_lib_name(&buf[0], n); }
+        }
+      }
+      i = i + 2;
+    } else {
+      i = i + 1;
+    }
+  }
+}
+
 /** Public entry: run -backend asm pipeline via work slots and eight steps. Seeds path/out/lib/target/argv then read_pp through finish.
  * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
@@ -2236,6 +2284,7 @@ export function driver_run_asm_backend(
     driver_asm_work_p_set(ap_lib(), lib);
     driver_asm_work_i_set(ai_nlib(), nlib);
     driver_asm_work_i_set(ai_argc(), argc);
+    rt_ab_capture_lib_name(argc, argv);
     ndef = driver_asm_collect_defines(argc, argv);
     defs = driver_asm_defines_as_u8();
     driver_asm_work_i_set(ai_ndef(), ndef);

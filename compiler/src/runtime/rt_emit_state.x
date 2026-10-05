@@ -539,8 +539,9 @@ export function xlang_pipeline_pctx_entry_lib_prefix_into(ctx: *u8, out: *u8, ca
 
 /**
  * Store the -lib-name value for the X-pipeline -E/-o emit lane.
- * parse_x (main.x) calls this. Clears the stored name first. A null
- * buf, len <= 0, or len >= 64 leaves it empty.
+ * parse_x (main.x) and rt_run_asm_backend.x call this. Clears the stored
+ * name first. len == 0 with a buf stores an explicit empty name (w2060).
+ * A null buf, len < 0, or len >= 64 leaves it unset.
  * w1493: moved from seeds/rt_emit_state.from_x.c (deleted).
  * @param buf *u8 — name bytes (not NUL-terminated)
  * @param len i32 — byte count
@@ -556,7 +557,12 @@ export function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void {
   if (buf == 0 as *u8) {
     return;
   }
-  if (len <= 0) {
+  if (len == 0) {
+    // w2060: explicit empty -lib-name → bare exports (marker -1).
+    nslot[0] = 0 - 1;
+    return;
+  }
+  if (len < 0) {
     return;
   }
   if (len >= 64) {
@@ -574,7 +580,8 @@ export function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void {
  * Copy the stored -lib-name into `out` (at most cap - 1 bytes plus NUL).
  * driver_run_x_emit_c (rt_run_x_emit.x) reads it to seed the ctx prefix.
  * Returns the byte count copied. Returns 0 for a null out or cap <= 0,
- * and writes an empty string when no name is stored.
+ * and writes an empty string when no name is stored. Returns -1 (empty
+ * string) for an explicit empty -lib-name (w2060).
  * w1493: moved from seeds/rt_emit_state.from_x.c (deleted).
  * @param out *u8 — destination buffer
  * @param cap i32 — destination capacity in bytes
@@ -594,7 +601,12 @@ export function xlang_driver_x_emit_lib_name_into(out: *u8, cap: i32): i32 {
     return 0;
   }
   n = nslot[0];
-  if (n <= 0) {
+  if (n < 0) {
+    // w2060: explicit empty -lib-name. Callers that test > 0 skip it.
+    out[0] = 0;
+    return 0 - 1;
+  }
+  if (n == 0) {
     out[0] = 0;
     return 0;
   }
