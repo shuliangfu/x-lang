@@ -9596,18 +9596,22 @@ export function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i
   if ((offset & 7) != 0 && (offset & 3) == 0) {
     let imm12_lo: i32 = offset / 4;
     let imm12_hi: i32 = (offset + 4) / 4;
-    if (imm12_lo > 4095) { imm12_lo = 4095; }
-    if (imm12_hi > 4095) { imm12_hi = 4095; }
-    /* ldr w0, [x29, #off] — 0xB9400000 = 3107979264 */
-    if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_lo as u32) * 1024) | (928 as u32)) != 0) {
-      return 0 - 1;
+    /* w2060: LDR W scaled imm12 max 4095 (byte off 16380). Clamping both
+     * halves to #0x3ffc made tip parse_into_buf reload arena as 0 (P001).
+     * ORR was also lsl#8 (0xAA012000) not lsl#32 (0xAA018000). */
+    if (imm12_lo <= 4095 && imm12_hi <= 4095) {
+      /* ldr w0, [x29, #off] — 0xB9400000 = 3107979264 */
+      if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_lo as u32) * 1024) | (928 as u32)) != 0) {
+        return 0 - 1;
+      }
+      /* ldr w1, [x29, #off+4] */
+      if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_hi as u32) * 1024) | (928 as u32) | (1 as u32)) != 0) {
+        return 0 - 1;
+      }
+      /* orr x0, x0, x1, lsl #32 — 0xAA018000 */
+      return backend_enc_append_u32_le_c(elf_ctx, 2852225024 as u32);
     }
-    /* ldr w1, [x29, #off+4] */
-    if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_hi as u32) * 1024) | (928 as u32) | (1 as u32)) != 0) {
-      return 0 - 1;
-    }
-    /* orr x0, x0, x1, lsl #32 — 0xAA012000 = -1442766848 as i32 bits via u32 */
-    return backend_enc_append_u32_le_c(elf_ctx, 2852200448 as u32);
+    /* else fall through to lea + ldr x0,[x0] */
   }
   unsafe {
     if (arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset) != 0) {
@@ -9803,35 +9807,34 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
   let imm_hi: i32 = ((u + 8) >> 3) as i32;
   let imm12: i32 = off;
   let base: u32 = 4177526784 as u32;
+  /* w2060: do not clamp scaled imm12 to 4095 (silent wrong slot).
+   * Same family as enc_load_rbp_to_rax P001. Out of range → fail. */
   if (store_size >= 16) {
-    if (imm_lo > 4095) {
-      imm_lo = 4095;
+    if (imm_lo > 4095 || imm_hi > 4095) {
+      return 0 - 1;
     }
     if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (608 as u32)) != 0) {
       return 0 - 1;
-    }
-    if (imm_hi > 4095) {
-      imm_hi = 4095;
     }
     return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (608 as u32) | (1 as u32));
   }
   if (store_size == 1) {
     if (imm12 > 4095) {
-      imm12 = 4095;
+      return 0 - 1;
     }
     base = 956301312 as u32;
   }
   if (store_size == 2) {
     imm12 = (u >> 1) as i32;
     if (imm12 > 4095) {
-      imm12 = 4095;
+      return 0 - 1;
     }
     base = 2030043136 as u32;
   }
   if (store_size == 4) {
     imm12 = (u >> 2) as i32;
     if (imm12 > 4095) {
-      imm12 = 4095;
+      return 0 - 1;
     }
     base = 3103784960 as u32;
   }
@@ -9847,7 +9850,7 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
           }
           imm12 = (u >> 2) as i32;
           if (imm12 > 4095) {
-            imm12 = 4095;
+            return 0 - 1;
           }
           /* str w0, [x1, #offset] */
           if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32)) != 0) {
@@ -9859,14 +9862,14 @@ export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset:
           }
           imm12 = ((u + 4) >> 2) as i32;
           if (imm12 > 4095) {
-            imm12 = 4095;
+            return 0 - 1;
           }
           /* str w0, [x1, #offset+4] */
           return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32));
         }
         imm12 = (u >> 3) as i32;
         if (imm12 > 4095) {
-          imm12 = 4095;
+          return 0 - 1;
         }
         base = 4177526784 as u32;
       }
