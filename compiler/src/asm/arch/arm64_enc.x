@@ -135,6 +135,8 @@ export function enc_prologue(ctx: *ElfCodegenCtx, frame_size: i32): i32 {
 export function enc_epilogue(ctx: *ElfCodegenCtx): i32 {
   let fs: i32 = ctx.current_frame_size;
   if (fs < 0) { fs = 0; }
+  /* mov sp, x29 — wave414: re-anchor SP before [sp] x19/fp/lr restore */
+  if (enc_u32_le(ctx, 0 - 1862270017) != 0) { return -1; }
   let x19_off: i32 = fs - 16;
   if (x19_off >= 16) {
     if (enc_x19_sp_off(ctx, x19_off, 1) != 0) { return -1; }

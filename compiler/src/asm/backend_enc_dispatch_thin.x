@@ -10919,6 +10919,9 @@ export function arch_arm64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
 /**
  * Emit an ARM64 function epilogue for the frame stored by the prologue.
  * A negative stored size is cleared to 0.
+ * wave414 FP-at-bottom: reset SP from x29 before x19/fp/lr restore.
+ * Body emit may leave SP below FP via unpaired push temps; restoring
+ * from drifted SP aliased callee/caller slots (tip into_buf XT001).
  * x19 is restored when its slot is at least 16.
  * Then ldp x29,x30,[sp], add sp by the stored size, and ret.
  * The frame size is loaded again in the add block.
@@ -10931,6 +10934,12 @@ export function arch_arm64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
  */
 #[no_mangle]
 export function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32 {
+  /* mov sp, x29 — ADD SP, X29, #0 = 0x910003BF. Re-anchor before [sp] restore. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1862270017) != 0) {
+      return 0 - 1;
+    }
+  }
   unsafe {
     let fs0: i32 = arm64_enc_frame_size_load();
     let neg: u32 = (fs0 as u32) >> 31;
