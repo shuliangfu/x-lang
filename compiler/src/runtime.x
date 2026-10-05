@@ -48,7 +48,6 @@ export extern "C" function driver_build_build_x_impl(): i32;
 export extern "C" function driver_fs_open_write_impl(path: *u8, path_len: i32): i32;
 export extern "C" function driver_source_has_generic_syntax_impl(path: *u8, path_len: i32): i32;
 export extern "C" function driver_source_has_compound_assign_syntax_impl(path: *u8, path_len: i32): i32;
-export extern "C" function driver_run_asm_backend_impl(input_path: *u8, out_path: *u8, lib_roots_arr: *u8, n_lib_roots: i32, target: *u8, argc: i32, argv: *u8): i32;
 export extern "C" function driver_compile_parse_argv_scan_c_impl(argc: i32, argv_opaque: *u8, state: *u8): void;
 export extern "C" function driver_compile_argv_copy_path_c_impl(state: *u8, arg_buf: *u8, plen: i32): void;
 export extern "C" function driver_compile_argv_is_help_c_impl(argc: i32, argv_opaque: *u8): i32;
@@ -569,24 +568,9 @@ export function driver_source_has_compound_assign_syntax(path: *u8, path_len: i3
   return 0 - 1;
 }
 
-/** Exported function `driver_run_asm_backend`.
- * Implements `driver_run_asm_backend`.
- * @param input_path *u8
- * @param out_path *u8
- * @param lib_roots_arr *u8
- * @param n_lib_roots i32
- * @param target *u8
- * @param argc i32
- * @param argv *u8
- * @return i32
- */
-#[no_mangle]
-export function driver_run_asm_backend(input_path: *u8, out_path: *u8, lib_roots_arr: *u8, n_lib_roots: i32, target: *u8, argc: i32, argv: *u8): i32 {
-  unsafe {
-    return driver_run_asm_backend_impl(input_path, out_path, lib_roots_arr, n_lib_roots, target, argc, argv);
-  }
-  return 0 - 1;
-}
+/* w2060: driver_run_asm_backend lives only in src/runtime/rt_run_asm_backend.x
+ * (authority). The old wrapper here forwarded to driver_run_asm_backend_impl,
+ * which no object defines; deleted as a dead duplicate. */
 
 /** Exported function `driver_compile_parse_argv_scan_c`.
  * Implements `driver_compile_parse_argv_scan_c`.

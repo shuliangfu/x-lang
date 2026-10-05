@@ -1126,6 +1126,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
       bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
       || echo "g05_ensure: try-rt-prefer failed (non-fatal if unused)" >&2
+    # w2060: driver_run_asm_backend must be the src/runtime/rt_run_asm_backend.x
+    # body (fills the driver_asm work slots → entry exports keep the module
+    # prefix). A stale or cold-seed leaf stops ensure here. PLATFORM: SHARED.
+    if [ -f src/runtime_driver_no_c.o ]; then
+      if bash scripts/ensure_host_cc_seed_o.sh rt-abk-authority-check src/runtime_driver_no_c.o; then
+        echo "g05_ensure: rt-abk authority OK (src/runtime_driver_no_c.o ← rt_run_asm_backend.x) (w2060)"
+      else
+        echo "g05_ensure: ERROR src/runtime_driver_no_c.o lacks the rt_run_asm_backend.x body of driver_run_asm_backend (cold seed?) (w2060)" >&2
+        exit 1
+      fi
+    fi
     # 7.4.4 配套基建 (2026-09-10): G05_OBJS also links the five STANDALONE rt
     # seed slices (rt_arena_buf/rt_emit_state/rt_preamble/rt_stack/rt_parse_diag
     # via _RT_SEED_SLICE_OBJS) but nothing in the g05 chain refreshed them —

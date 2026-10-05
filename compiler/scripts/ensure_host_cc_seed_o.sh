@@ -9504,17 +9504,58 @@ rt_run_asm_backend_darwin_pure() {
   if [ ! -s "$o" ]; then
     return 1
   fi
-  n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "75" ]; then
+  # w2060: no fixed T count (the stale 75 failed the tip .x silently and
+  # let the cold seed body win). Structural authority check instead.
+  if ! rt_abk_authority_check "$o"; then
     rm -f "$o"
     return 1
   fi
-  for c in _ap_path _ai_ec _az_slen _driver_run_asm_backend; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
+  return 0
+}
+
+# w2060: true when object $1 carries the tip rt_run_asm_backend.x body of
+# driver_run_asm_backend, not the cold seed body. The .x body defines T
+# driver_run_asm_backend and the ap_path work-slot accessor, references
+# driver_asm_work_reset and driver_asm_work_p_set (it fills the slots that
+# asm_asm_codegen_elf_o reads for the entry module prefix), and carries
+# module-prefixed rt_run_asm_backend_* locals. The cold seed body has none
+# of those. Leading underscores are stripped (Mach-O vs ELF/COFF).
+# PLATFORM: SHARED.
+rt_abk_authority_check() {
+  local o="${1:-}" syms c
+  [ -s "$o" ] || return 1
+  syms="$(nm "$o" 2>/dev/null | awk 'NF>=2 { t=$(NF-1); n=$NF; sub(/^_/, "", n); print t, n }')" || return 1
+  for c in driver_run_asm_backend ap_path; do
+    printf '%s\n' "$syms" | awk -v s="$c" '$1=="T" && $2==s { f=1 } END { exit f ? 0 : 1 }' || return 1
   done
+  for c in driver_asm_work_reset driver_asm_work_p_set; do
+    printf '%s\n' "$syms" | awk -v s="$c" '($1=="U" || $1=="T") && $2==s { f=1 } END { exit f ? 0 : 1 }' || return 1
+  done
+  printf '%s\n' "$syms" | awk '$2 ~ /^rt_run_asm_backend_rt_ab_/ { f=1 } END { exit f ? 0 : 1 }' || return 1
+  return 0
+}
+
+# w2060: pure-asm the tip rt_run_asm_backend.x on any host. Darwin arm64
+# keeps the whole-TU retry; other hosts use pure_asm_x_to_o with
+# XLANG_PREFER_ASM_O=1 and no -E+cc fallback. PLATFORM: SHARED.
+rt_run_asm_backend_pure_any() {
+  local o="${1:-}"
+  local xsrc="src/runtime/rt_run_asm_backend.x"
+  [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+    rt_run_asm_backend_darwin_pure "$o"
+    return $?
+  fi
+  rm -f "$o"
+  if ! ( export XLANG_PREFER_ASM_O=1; pure_asm_x_to_o "$o" "$xsrc" ); then
+    rm -f "$o"
+    return 1
+  fi
+  if ! rt_abk_authority_check "$o"; then
+    rm -f "$o"
+    return 1
+  fi
   return 0
 }
 
@@ -9537,10 +9578,19 @@ pthin_whole_tu_prefer() {
   ) >/dev/null 2>&1 && [ -s "$o" ]; then
     n="$(nm "$o" 2>/dev/null | awk '$2=="T"' | wc -l | tr -d ' ')"
     if [ "$n" = "$expect" ]; then
+      echo "pthin-whole-tu: OK $xsrc T=$n (w2060)" >&2
       return 0
     fi
   fi
   rm -f "$o"
+  # w2060 manager ruling: the formal gate takes every Darwin pthin as a
+  # whole TU. Split + Lxml localize is a debug-only fallback behind
+  # XLANG_PTHIN_WHOLE_TU_STRICT=0. PLATFORM: MACOS|DARWIN arm64.
+  if [ "${XLANG_PTHIN_WHOLE_TU_STRICT:-1}" = "1" ]; then
+    echo "pthin-whole-tu: ERROR $xsrc whole TU failed (T=${n:-none}, want $expect); split fallback refused (w2060)" >&2
+    exit 1
+  fi
+  echo "pthin-whole-tu: FALLBACK split $xsrc (XLANG_PTHIN_WHOLE_TU_STRICT=0) (w2060)" >&2
   return 1
 }
 
@@ -16485,42 +16535,29 @@ ensure_rt_prefer_one() {
             fi
           fi
           if [ -n "$_rt_abk_o" ] && [ -f "$_rt_run_asm_backend_seed" ]; then
-            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_run_asm_backend_x" ]; then
-              _rt_abk_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_abk_thin.XXXXXX") || true
-              _rt_abk_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_abk_rest.XXXXXX") || true
-              _rt_abk_pure=0
-              # w1164: the first pure-asm tries segfault. Darwin retries
-              # the whole translation unit. Other hosts keep rt_prefer_try.
-              # PLATFORM: MACOS|DARWIN arm64 for the pure path.
-              if [ -n "$_rt_abk_thin_o" ] && [ -n "$_rt_abk_rest_o" ] \
-                && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-                && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
-                && [ -f scripts/ensure_host_cc_seed_o.sh ] \
-                && bash scripts/ensure_host_cc_seed_o.sh rt-run-asm-backend-pure "$_rt_abk_thin_o"; then
-                _rt_abk_pure=1
-              fi
-              if [ -n "$_rt_abk_thin_o" ] && [ -n "$_rt_abk_rest_o" ] \
-                && { [ "$_rt_abk_pure" = "1" ] \
-                  || rt_prefer_try_x_to_o "$_rt_run_asm_backend_x" "$_rt_abk_thin_o"; } \
-                && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_ASM_BACKEND_FROM_X \
-                     -c -o "$_rt_abk_rest_o" "$_rt_run_asm_backend_seed" \
-                && pure_ld_partial_merge "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null; then
-                _rt_abk_ok=1
-                if [ "$_rt_abk_pure" = "1" ]; then
-                  echo "rt-prefer: R2 run_asm_backend ← pure-asm seventy-five symbols (w1164)"
-                else
-                  echo "rt-prefer: R2 run_asm_backend ← full .x + rest marker (R2 full H=0)"
-                fi
-              fi
-              rm -f "$_rt_abk_thin_o" "$_rt_abk_rest_o"
+            # w2060: src/runtime/rt_run_asm_backend.x is the only authority
+            # for driver_run_asm_backend. Pure-asm it on every host (any
+            # PREFER_X_O), merge the seed rest marker (-DFROM_X, a decl only),
+            # and verify the merged object. No cold seed body and no -E+cc
+            # fallback: the cold body leaves the driver_asm work slots empty,
+            # so entry exports lose the module prefix (parser_*/typeck_* U).
+            _rt_abk_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_abk_thin.XXXXXX") || true
+            _rt_abk_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_abk_rest.XXXXXX") || true
+            if [ -n "$_rt_abk_thin_o" ] && [ -n "$_rt_abk_rest_o" ] \
+              && [ -f "$_rt_run_asm_backend_x" ] \
+              && rt_run_asm_backend_pure_any "$_rt_abk_thin_o" \
+              && $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_ASM_BACKEND_FROM_X \
+                   -c -o "$_rt_abk_rest_o" "$_rt_run_asm_backend_seed" \
+              && pure_ld_partial_merge "$_rt_abk_o" "$_rt_abk_thin_o" "$_rt_abk_rest_o" 2>/dev/null \
+              && rt_abk_authority_check "$_rt_abk_o"; then
+              _rt_abk_ok=1
+              echo "rt-prefer: R2 run_asm_backend ← pure-asm $_rt_run_asm_backend_x (authority; seed rest is marker only) (w2060)"
             fi
+            rm -f "$_rt_abk_thin_o" "$_rt_abk_rest_o"
             if [ "$_rt_abk_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_abk_o" "$_rt_run_asm_backend_seed"; then
-                _rt_abk_ok=1
-                echo "rt-prefer: rest run_asm_backend ← $_rt_run_asm_backend_seed (G-02f-315 seed slice)"
-              fi
+              rm -f "$_rt_abk_o"
+              echo "rt-prefer: ERROR R2 run_asm_backend: pure-asm $_rt_run_asm_backend_x failed or lacks the authority body; cold seed body is not a fallback (w2060)" >&2
+              exit 1
             fi
           fi
           if [ -n "$_rt_rcp_o" ] && [ -f "$_rt_run_compiler_parsed_seed" ]; then
@@ -31322,14 +31359,25 @@ case "$MODE" in
     exit $?
     ;;
   rt-run-asm-backend-pure|rt_run_asm_backend_darwin_pure)
-    # w1164: seventy-five pure-asm symbols of src/runtime/rt_run_asm_backend.x.
+    # w2060: pure-asm src/runtime/rt_run_asm_backend.x (the authority body)
+    # and verify it with rt_abk_authority_check. No fixed symbol count.
     # Does not write runtime_driver_no_c.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: SHARED (Darwin arm64 retries whole TU). cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o rt-run-asm-backend-pure: need <out.o>" >&2
       exit 2
     fi
-    rt_run_asm_backend_darwin_pure "$1"
+    rt_run_asm_backend_pure_any "$1"
+    exit $?
+    ;;
+  rt-abk-authority-check)
+    # w2060: exit 0 when <obj> carries the rt_run_asm_backend.x body of
+    # driver_run_asm_backend (not the cold seed body). PLATFORM: SHARED.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o rt-abk-authority-check: need <obj>" >&2
+      exit 2
+    fi
+    rt_abk_authority_check "$1"
     exit $?
     ;;
   pthin-let-alias-pure|pthin_let_alias_darwin_pure)
