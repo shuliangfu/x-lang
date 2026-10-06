@@ -2526,10 +2526,22 @@ case "$UNAME_S" in
     # object defines it. XLANG_WIN_BAKE_TIP=0 leaves the stack off, so
     # the override stays and still beats the egg. Do not switch
     # assign_index_thin.x on. PLATFORM: WINDOWS.
+    # w2060: pipeline_asm_index_elem_byte_sz_c and its two siblings.
+    # The first strong T is index_elem_true_i8.o (-DXLANG_WIN_TRUE_PACK),
+    # ahead of _WIN_ASSIGN_OVERRIDES. The non-D
+    # src/win_index_elem_byte_sz_override.o is the Cap residual: the
+    # installed image's thunk matches the true-pack object, and the
+    # _c symbol is 1696 bytes later, not the residual 1680. The early
+    # skip above cannot see a true-pack object this same script has not
+    # compiled yet, so drop a leftover residual object here once the
+    # stack is actually on. XLANG_WIN_BAKE_TIP=0 leaves the residual
+    # linked, and it still beats the egg. Do not drop the -D compile.
+    # PLATFORM: WINDOWS.
     if [ "$_WIN_TRUE_PACK" = "1" ]; then
       _win_asg_kept=""
       for _wov in $_WIN_ASSIGN_OVERRIDES; do
-        if [ "$_wov" = "src/win_assign_index_override.o" ]; then
+        if [ "$_wov" = "src/win_assign_index_override.o" ] \
+          || [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
           continue
         fi
         _win_asg_kept="${_win_asg_kept}${_win_asg_kept:+ }$_wov"

@@ -4937,6 +4937,17 @@ case "$(uname -s 2>/dev/null)" in
         && [ "$_src" = "seeds/win_assign_index_override.c" ]; then
         continue
       fi
+      # w2060: do not host-cc the non-D index-elem object while the
+      # true-pack stack is on (the default). The live PE strong T is
+      # index_elem_true_i8.o, built later with -DXLANG_WIN_TRUE_PACK.
+      # This non-D compile is the Cap residual (named i8/i16/u16 return
+      # 4). XLANG_WIN_BAKE_TIP=0 still builds it, and that T beats the
+      # egg. If the later true-pack gcc fails, the egg T remains.
+      # PLATFORM: WINDOWS.
+      if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
+        && [ "$_src" = "seeds/win_index_elem_byte_sz_override.c" ]; then
+        continue
+      fi
       if [ -f "$_src" ]; then
         if [ ! -s "$_out" ] || [ "$_src" -nt "$_out" ]; then
           echo "g05_ensure: cc -c $_out (Win assign override)" >&2
