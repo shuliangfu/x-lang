@@ -857,6 +857,13 @@ esac
 # glue_emit_vector_type_let_init_elf_c is the windows_link_stubs body,
 # and that body matches the override (605 bytes; call rel32 ignored).
 # The override object defines only that one T.
+# w2060: do not link src/win_m8_tail_override.o. The egg defines the four
+# asm_*_m8_tail_thin_delegate_c_name symbols from windows_link_stubs.c.
+# Each matches the override once call rel32 and trailing nops are
+# ignored (357, 373, 373, and 507 bytes). The backend and pipeline
+# static tables match (1440 and 96 bytes; pointer relocs ignored).
+# The driver and typeck tables are empty. The override defines only
+# those four T symbols. Do not switch a thin on for them.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
@@ -869,7 +876,7 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
-    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_splat_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_m8_tail_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_splat_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue
