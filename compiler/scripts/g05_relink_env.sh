@@ -150,14 +150,16 @@ case "$UNAME_S" in
   exit 1
   ;;
 esac
-# PLATFORM: LINUX | WINDOWS — arch_x86_64_enc_enc_cltd still emits cltd
-# (99) in the linked encoder object. idiv %rbx is 64-bit (48 f7 fb), so
-# the live sign-extend has to be cqo (48 99). This one-symbol object is
-# linked first. Linux: ahead of backend_x86_64_enc_c.o. Windows: ahead of
-# backend_enc_dispatch.o (PE first strong definition wins). Darwin is
-# arm64 and must not link this COFF/ELF object. Rebuilding the whole x86
-# encoder TU changes its other symbols. Absent file keeps the previous
-# sign-extend.
+# PLATFORM: LINUX | WINDOWS — idiv %rbx is 64-bit (48 f7 fb), so the
+# live sign-extend has to be cqo (48 99), not cltd (99). This one-symbol
+# object is linked first. Linux: ahead of backend_x86_64_enc_c.o.
+# Windows: ahead of backend_x86_64_enc_c.o and backend_enc_dispatch.o
+# (PE first strong definition wins). Both of those objects also define
+# arch_x86_64_enc_enc_cltd. Darwin is arm64 and must not link this
+# object. Do not rebuild either encoder TU: their other symbols stay.
+# Linux: an absent file keeps the previous sign-extend. Windows rebuilds
+# src/asm/backend_x86_64_enc_cltd_cqo_thin.x after _g05_pure_overlay is
+# defined, and exits 1 if that object is missing.
 case "$UNAME_S" in
   Linux|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     if [ -s build_asm/selfhost_pabi/cltd_cqo.o ]; then
@@ -342,6 +344,34 @@ _g05_pure_overlay() {
     echo "g05_relink_env: ERROR pure overlay $_po_x did not build (T $_po_sym)" >&2
   fi
 }
+# w2060: Windows cqo unit. The on-disk cltd_cqo.o is a Sep 28 leftover
+# (frame 0x868) that still appends 0x48 then 0x99. backend_enc_dispatch.o
+# and backend_x86_64_enc_c.o each have their own strong T of
+# arch_x86_64_enc_enc_cltd. Three REL32 sites in the dispatch object name
+# that symbol, so PE first-wins has to see this object first. Rebuild the
+# tip thin every relink. That thin appends the same two bytes and does
+# not divide. A missing object exits 1. The path was prepended above when
+# a leftover existed; if it was absent, prepend it once here. Linux still
+# uses its prebuilt copy. Darwin does not link this object.
+# PLATFORM: WINDOWS | MSYS | MINGW.
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    _g05_pure_overlay src/asm/backend_x86_64_enc_cltd_cqo_thin.x \
+      build_asm/selfhost_pabi/cltd_cqo.o \
+      arch_x86_64_enc_enc_cltd
+    if [ ! -s build_asm/selfhost_pabi/cltd_cqo.o ]; then
+      echo "g05_relink_env: ERROR Windows cltd_cqo .x did not build" >&2
+      exit 1
+    fi
+    case "$_USER_ASM_LINK" in
+      *build_asm/selfhost_pabi/cltd_cqo.o*)
+        ;;
+      *)
+        _USER_ASM_LINK="build_asm/selfhost_pabi/cltd_cqo.o $_USER_ASM_LINK"
+        ;;
+    esac
+    ;;
+esac
 # w1041/w1497: call_spill budget ((n+1)*8, x86 exact per-arg GP units, widest
 # GP for the Windows outgoing area). w1500: pure .x (was host-cc seed).
 # Strong T first-wins; HARD BAN tip reinject of w157 thin (Darwin BRANCH26).
