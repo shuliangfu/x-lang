@@ -457,6 +457,23 @@ def main() -> int:
             # weaken misses one COMDAT — still jmp extras to tip.
             # PLATFORM: WINDOWS. bake_array keeps the no-W skip above.
             patched += _patch_extra_t_to_primary(data, secs, name, strong)
+    # w2060: module INDEX cold lea. The egg defines only a local
+    # pipe_modlet_lea_named_binding_addr_to_rax_cold, so the W gate above
+    # never sees this name. The tip thin is one strong T that calls
+    # pipe_modlet_lea_named_binding_addr_to_rax (the live table). Fold
+    # every local t onto that T. Skip when that T is missing or not unique.
+    # PLATFORM: WINDOWS.
+    _lea_cold = "pipe_modlet_lea_named_binding_addr_to_rax_cold"
+    _lea_ents = syms.get(_lea_cold, [])
+    _lea_t = [a for a, k in _lea_ents if k == "T"]
+    _lea_loc = [a for a, k in _lea_ents if k == "t"]
+    if len(_lea_t) == 1 and _lea_loc:
+        for _a in _lea_loc:
+            patched += _patch_jmp(data, secs, _lea_cold + "(t)", _a, _lea_t[0])
+    else:
+        print(
+            f"win_patch_body_sync_jmp: skip {_lea_cold}(t) (overlay not linked)"
+        )
     if patched:
         exe.write_bytes(data)
     print(f"win_patch_body_sync_jmp: patched={patched}")

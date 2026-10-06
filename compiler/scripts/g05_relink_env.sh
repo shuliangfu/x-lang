@@ -1853,8 +1853,10 @@ if [ "$UNAME_S" = "Darwin" ] \
   fi
   _PABI_LINK_O="build_asm/selfhost_pabi/pabi_weak.o"
 fi
-# PLATFORM: WINDOWS | MSYS | MINGW — first strong cold lea wins.
-# elem_const.o is the folder. The egg no longer defines it.
+# PLATFORM: WINDOWS | MSYS | MINGW.
+# elem_const.o is the folder. The egg global is U, and a local _cold
+# remains. The tip thin divides integers, so it is not a g05 input.
+# The cold lea is rebuilt below.
 # Return 3 stores the high half the egg baker reads from out_hi.
 # Return 4 is the f32 word, including an f32 ADD, SUB, MUL, or DIV.
 # The egg baker does not sign-fill it. 1.0f + 2.0f is 00004040.
@@ -1865,9 +1867,22 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/elem_const.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/elem_const.o $_PABI_SELFHOST"
     fi
-    if [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
-      _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
+    # w2060: cold lea forwarder. The egg's only copy is the local
+    # pipe_modlet_lea_named_binding_addr_to_rax_cold, and that body calls
+    # pipeline_asm_modlet_find_cold. One same-TU call lands on that entry.
+    # There is no global of this name to weaken. Rebuild the tip thin
+    # every relink (one strong T that calls the live resolver). A missing
+    # object exits 1. win_patch_body_sync_jmp folds the local t onto this
+    # T. Linux does not link this object. Darwin still uses its prebuilt
+    # copy. PLATFORM: WINDOWS | MSYS | MINGW.
+    _g05_pure_overlay src/runtime_pipeline_abi_modlet_lea_cold_fwd_thin.x \
+      build_asm/selfhost_pabi/lea_cold_fwd.o \
+      pipe_modlet_lea_named_binding_addr_to_rax_cold
+    if [ ! -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
+      echo "g05_relink_env: ERROR Windows lea_cold_fwd .x did not build" >&2
+      exit 1
     fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     # w2060: STRUCT_LIT baker. The egg has U
     # pipe_modlet_bake_struct_lit_to_data and a local _cold copy, so the
     # strong T has to come from this object. The on-disk bake_struct.o was
