@@ -3,8 +3,11 @@
 // left func_name_len_storage stale → parse_one_function_impl skipped IDENT
 // consume → TOKEN_LPAREN expect got IDENT=59 (XT001 on 2nd function).
 // Fix: call glue_emit_fixed_array_type_let_init_elf_c (wave363 zero path).
-// BSS vn avoids tip u8[256] smash (w1010 class). Darwin/Linux tip overlay.
-// PLATFORM: SHARED freestanding · LINUX gold · MACOS|DARWIN · WINDOWS twin .c.
+// BSS vn avoids tip u8[256] smash (w1010 class). All three hosts tip-compile
+// this .x. f32 stores call backend_enc_store_eax_to_rbp_arch. The Windows
+// host reloads elf_ctx before the null compare, so that call is not the
+// w1010 -1 path and this file does not inline the movl.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS|DARWIN · WINDOWS.
 
 export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
 export extern function backend_enc_store_eax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;

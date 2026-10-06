@@ -439,36 +439,31 @@ _g05_pure_overlay src/runtime_pipeline_abi_field_cap_residual_load_thin.x \
 # Strong T first-wins weakened pabi_weak egg T; post-link jmp W→T.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux tip .x already clear.
 _PABI_BB_CACHE=""
-# w1488: Windows let-order / emit_let_init host-gcc twins (w1009/w1010) were
-# only ever built by hand; a cold build_asm lost them and the egg block_inits
-# hoisted CALL let inits above earlier stmts (let y=id(x) before side(&x)).
-# Rebuild from the in-repo .c twins every relink. The let-order twin's
-# backend_emit_block_body_sync_elf also clears the VAR-slot cache, so the
-# w1486 cache-clear overlay is skipped when it builds.
-# PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux keep tip .x objects.
+# w2060: Windows let-order / emit_let_init compile from the same .x Darwin
+# and Linux already overlay. The host-gcc .c twins stayed for two old PE
+# symptoms: store_eax returned -1 after a null compare that did not reload
+# elf_ctx, and the egg body_sync forwarder left the VAR-slot cache stale.
+# The installed Windows compiler reloads elf_ctx (probe_store_eax_null),
+# and backend_emit_block_body_sync_elf clears the cache when
+# link_abi_host_is_windows() is set. A missing object exits 1. No host-cc
+# of the .c twins. _PABI_WIN_LET_ORDER stays set so the w1486 cache-clear
+# overlay (still class (c)) does not compile.
+# PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux use the block below.
 _PABI_WIN_LET_ORDER=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    mkdir -p build_asm/selfhost_pabi
-    rm -f build_asm/selfhost_pabi/body_sync_let_order.o build_asm/selfhost_pabi/emit_let_init.o
-    if [ "${XLANG_WIN_LET_ORDER_TWIN:-1}" = "1" ] \
-        && [ -f src/runtime_pipeline_abi_block_body_sync_let_order_thin.c ]; then
-      # shellcheck disable=SC2086
-      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-          build_asm/selfhost_pabi/body_sync_let_order.o \
-          src/runtime_pipeline_abi_block_body_sync_let_order_thin.c 2>/dev/null; then
-        _PABI_WIN_LET_ORDER=1
-      else
-        rm -f build_asm/selfhost_pabi/body_sync_let_order.o
-      fi
+    _g05_pure_overlay src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
+      build_asm/selfhost_pabi/body_sync_let_order.o pipeline_asm_emit_block_body_sync_elf
+    if [ ! -s build_asm/selfhost_pabi/body_sync_let_order.o ]; then
+      echo "g05_relink_env: ERROR Windows body_sync let-order .x did not build" >&2
+      exit 1
     fi
-    if [ "${XLANG_WIN_EMIT_LET_INIT_TWIN:-1}" = "1" ] \
-        && [ -f src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.c ]; then
-      # shellcheck disable=SC2086
-      $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-          build_asm/selfhost_pabi/emit_let_init.o \
-          src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.c 2>/dev/null \
-        || rm -f build_asm/selfhost_pabi/emit_let_init.o
+    _PABI_WIN_LET_ORDER=1
+    _g05_pure_overlay src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.x \
+      build_asm/selfhost_pabi/emit_let_init.o glue_block_body_emit_let_init
+    if [ ! -s build_asm/selfhost_pabi/emit_let_init.o ]; then
+      echo "g05_relink_env: ERROR Windows emit_let_init .x did not build" >&2
+      exit 1
     fi
     ;;
 esac
@@ -808,8 +803,8 @@ esac
 # block's mask and an outer pass1-deferred `let` (`let m2 = msg;` after an if
 # holding its own let) was emitted by neither pass. The object used to be a
 # leftover (Sep 25); compile its source with the current product every relink
-# so the per-level mask reaches the product. Windows builds the host-gcc twin
-# of the same file above. PLATFORM: MACOS|DARWIN + LINUX.
+# so the per-level mask reaches the product. Windows compiles the same .x
+# in the MINGW block above. PLATFORM: MACOS|DARWIN + LINUX.
 case "$UNAME_S" in
   Darwin|Linux)
     if [ "${XLANG_BODY_SYNC_LET_ORDER_OVERLAY:-1}" = "1" ]; then

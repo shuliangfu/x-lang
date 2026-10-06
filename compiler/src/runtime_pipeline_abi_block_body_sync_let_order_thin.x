@@ -3,10 +3,11 @@
 //   skips stmt_order k==1 → `let a=1; a=7; let x=a` hoists x=a before a=7.
 // G.7: pass0 consts + pure lets; pass1 deferred at stmt_order.
 // BSS buffers avoid tip asm smash on u8[512] stack frames (wave703 class).
-// Darwin/Linux: tip-compile this .x → body_sync_let_order.o (first-wins).
-// Windows (w1010): host-gcc twin .c first-wins; mega same-TU still calls
-//   leftover — g05 post-link win_patch_body_sync_jmp redirects leftover
-//   entry to the twin (`jmp` rel32).
+// Darwin/Linux/Windows: tip-compile this .x → body_sync_let_order.o
+// (first-wins). The Windows host-gcc .c twin is not a build input.
+// Mega same-TU still calls the leftover; g05 post-link
+// win_patch_body_sync_jmp redirects that entry here.
+// Windows backend_emit clears the VAR-slot cache (egg forwarder does not).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS|DARWIN · WINDOWS.
 
 export extern function pipeline_asm_fill_local_slots(ctx: *u8, arena: *u8, block_ref: i32): void;
@@ -64,6 +65,8 @@ export extern function glue_emit_run_language_defers_elf(arena: *u8, elf_ctx: *u
 export extern function glue_emit_block_final_expr_elf(arena: *u8, elf_ctx: *u8, block_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_block_body_bind_module_dep_from_ctx(ctx: *u8): void;
 export extern function glue_asm_block_diverged_set(v: i32): void;
+export extern function glue_binop_var_slot_cache_clear(): void;
+export extern function link_abi_host_is_windows(): i32;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 
 // File-level BSS — tip asm smash on large stack arrays (wave703 class).
@@ -407,9 +410,19 @@ export function pipeline_asm_emit_block_body_sync_elf(
 }
 
 /**
- * backend.x entry: bind module/dep then body_sync.
- * @return i32 — body_sync rc
- * PLATFORM: SHARED — wave1009 twin of pre-wave703 wrapper.
+ * backend.x entry: on Windows, drop the VAR-slot register cache, then bind
+ * module/dep and run body_sync.
+ * The egg forwarder never clears that cache, and mega reuses one context, so
+ * the next function would reload a stale rbx. Then-blocks enter here too;
+ * the former Windows host-gcc twin cleared on every entry.
+ * Darwin and Linux do not clear here.
+ * @param arena *u8 — AST arena, passed through to body_sync
+ * @param elf_ctx *u8 — emit context, passed through to body_sync
+ * @param block_ref i32 — block whose body is emitted
+ * @param ctx *u8 — asm function context; bind reads the module from it
+ * @param ta i32 — target arch, passed through to body_sync
+ * @return i32 — body_sync status; 0 ok, -1 fail
+ * PLATFORM: SHARED entry. The cache clear runs only on WINDOWS.
  */
 #[no_mangle]
 export function backend_emit_block_body_sync_elf(
@@ -417,6 +430,10 @@ export function backend_emit_block_body_sync_elf(
 ): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    // PLATFORM: WINDOWS — egg body_sync leaves the VAR-slot cache stale.
+    if (link_abi_host_is_windows() != 0) {
+      glue_binop_var_slot_cache_clear();
+    }
     glue_asm_block_diverged_set(0);
     glue_block_body_bind_module_dep_from_ctx(ctx);
     return pipeline_asm_emit_block_body_sync_elf(arena, elf_ctx, block_ref, ctx, ta);
