@@ -105,6 +105,12 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "glue_emit_binop_add_rax_rbx_elf_c",
     "glue_emit_binop_sub_rbx_minus_rax_elf_c",
     "glue_emit_binop_sub_rax_minus_rbx_elf_c",
+    # w2060: 9..16 named-field pair. The egg rec is dual T. demote keeps
+    # the cap-band external and leaves the earlier body as static t.
+    # Same-TU relocs still enter that t. Fold it onto the helpers T once
+    # the external has been weakened. The private pair helper is not an
+    # egg symbol and stays out of this list. PLATFORM: WINDOWS.
+    "pipeline_asm_emit_expr_elf_rec",
 )
 
 # w1504 (10.30): egg copies of the i32 literal probe skip the wide check, so
@@ -407,6 +413,10 @@ def main() -> int:
         "glue_emit_binop_sub_rbx_minus_rax_elf_c",
         "glue_emit_binop_sub_rax_minus_rbx_elf_c",
         "glue_float_promote_src_ty_ref_c",
+        # w2060: helpers expr rec. The cap-band egg copy becomes W after
+        # weaken and still calls fast with one qword. Fold that W onto the
+        # helpers T. The static twin is folded above. PLATFORM: WINDOWS.
+        "pipeline_asm_emit_expr_elf_rec",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

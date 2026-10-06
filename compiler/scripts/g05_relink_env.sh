@@ -756,7 +756,8 @@ esac
 # (runtime_pipeline_abi_asm_expr_thin.x, no new file) now emits wide INT_LIT
 # as imm64 before the fast path; compile it with the current product every
 # relink and weaken the leftover rec/emit_expr_elf_c below.
-# Linux keeps its w739 rec, Windows its egg rec (both emit imm64 already).
+# Linux and Windows link asm_expr_helpers_thin.x for the 9..16 field pair.
+# Darwin keeps this full thin. All three already emit wide imm64.
 # PLATFORM: MACOS|DARWIN.
 _PABI_ASM_EXPR=""
 case "$UNAME_S" in
@@ -2285,6 +2286,77 @@ case "$UNAME_S" in
     fi
     _PABI_WIN_WIDEN="$_wwm_o"
     _PABI_SELFHOST="$_wwm_o $_PABI_SELFHOST"
+    # w2060: 9..16 named-field pair load. Linux rebuilds rec.o from this
+    # helpers thin. Darwin links the full asm_expr thin (HARD BAN here:
+    # frame smash). The Windows egg defines pipeline_asm_emit_expr_elf_rec
+    # twice. demote-all-dual below keeps the cap-band external, which calls
+    # fast and does not call pipeline_asm_deref_struct16_rax_ptr_elf_c, and
+    # leaves the earlier body static. That static range has no such call
+    # either. Compile this thin every relink with no PREFER. Require the
+    # one strong rec and an undefined reference to the pair helper. Reject
+    # xlang_panic_. Another strong T that the egg already defines is
+    # weakened in this object so it cannot first-win that egg body.
+    # Private helpers stay strong. Link this object first. The egg external
+    # is weakened after demote. win_patch_body_sync_jmp folds that W and
+    # the static twin onto this T. A missing object exits 1. The egg file
+    # is not edited. PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_REC=""
+    _wrec_x=src/runtime_pipeline_abi_asm_expr_helpers_thin.x
+    _wrec_o=build_asm/selfhost_pabi/asm_expr_helpers_win.o
+    _wrec_s=pipeline_asm_emit_expr_elf_rec
+    _wrec_need=pipeline_asm_deref_struct16_rax_ptr_elf_c
+    if [ ! -f "$_wrec_x" ]; then
+      echo "g05_relink_env: $_wrec_x missing (Windows expr rec)" >&2
+      exit 1
+    fi
+    _g05_pure_overlay "$_wrec_x" "$_wrec_o" "$_wrec_s"
+    if [ ! -s "$_wrec_o" ]; then
+      echo "g05_relink_env: ERROR Windows expr rec .x did not build" >&2
+      exit 1
+    fi
+    if ! nm "$_wrec_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wrec_s}\$"; then
+      echo "g05_relink_env: $_wrec_x lacks strong $_wrec_s (Windows expr rec)" >&2
+      exit 1
+    fi
+    if ! nm -u "$_wrec_o" 2>/dev/null | tr -d '\r' | grep -q "${_wrec_need}\$"; then
+      echo "g05_relink_env: $_wrec_x does not call $_wrec_need (Windows expr rec)" >&2
+      exit 1
+    fi
+    if nm -u "$_wrec_o" 2>/dev/null | tr -d '\r' | grep -q 'xlang_panic_$'; then
+      echo "g05_relink_env: $_wrec_x references xlang_panic_ (Windows expr rec)" >&2
+      exit 1
+    fi
+    _wrec_egg=src/runtime_pipeline_abi.o
+    if [ ! -s "$_wrec_egg" ]; then
+      _wrec_egg=build_asm/selfhost_pabi/pabi_weak.o
+    fi
+    _wrec_list=build_asm/selfhost_pabi/asm_expr_helpers_win.tlist
+    nm "$_wrec_o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}' > "$_wrec_list"
+    while read -r _wrec_extra; do
+      [ -n "$_wrec_extra" ] || continue
+      [ "$_wrec_extra" = "$_wrec_s" ] && continue
+      if [ -s "$_wrec_egg" ] && nm "$_wrec_egg" 2>/dev/null | tr -d '\r' \
+          | awk -v s="$_wrec_extra" '$NF==s && $1 ~ /^[0-9a-fA-F]+$/ {f=1} END{exit !f}'; then
+        _wrec_oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then
+          _wrec_oc=llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then
+          _wrec_oc=objcopy
+        fi
+        if [ -z "$_wrec_oc" ] || ! "$_wrec_oc" --weaken-symbol="$_wrec_extra" "$_wrec_o"; then
+          echo "g05_relink_env: weaken $_wrec_extra in $_wrec_o failed (Windows expr rec)" >&2
+          rm -f "$_wrec_list"
+          exit 1
+        fi
+      fi
+    done < "$_wrec_list"
+    rm -f "$_wrec_list"
+    if ! nm "$_wrec_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wrec_s}\$"; then
+      echo "g05_relink_env: $_wrec_o lost strong $_wrec_s (Windows expr rec)" >&2
+      exit 1
+    fi
+    _PABI_WIN_REC="$_wrec_o"
+    _PABI_SELFHOST="$_wrec_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -2456,7 +2528,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_WIN_SLI" ] \
       || [ -n "$_PABI_WIN_FCA" ] \
       || [ -n "$_PABI_WIN_CIMP" ] \
-      || [ -n "$_PABI_WIN_WIDEN" ]; then
+      || [ -n "$_PABI_WIN_WIDEN" ] \
+      || [ -n "$_PABI_WIN_REC" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -2680,6 +2753,19 @@ case "$UNAME_S" in
             fi
             _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wwm_s=$_PABI_WIN_WIDEN"
           done
+        fi
+        # w2060: weaken the egg expr rec so the helpers thin first-wins.
+        # demote-all-dual has already made the earlier twin static and left
+        # the cap-band external. That external calls fast and does not call
+        # the 9..16 pair helper. A failed weaken stops the relink. The egg
+        # file is not edited. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_REC" ]; then
+          if ! "$_oc" --weaken-symbol=pipeline_asm_emit_expr_elf_rec \
+              build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak pipeline_asm_emit_expr_elf_rec failed (Windows expr rec)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_expr_elf_rec=$_PABI_WIN_REC"
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

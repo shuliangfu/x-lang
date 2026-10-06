@@ -159,8 +159,8 @@ function w1504_emit_wide_int_lit(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i3
  *   named field or the address could not be formed (caller uses fast);
  *   -1 when the pair encoder failed
  * PLATFORM: SHARED — rax:rdx on x86_64, x0:x1 on arm64, same deref helper.
- * Linux links the same body from asm_expr_helpers_thin.x. Keep the two
- * copies the same. Darwin links this file.
+ * Linux and Windows link the same body from asm_expr_helpers_thin.x.
+ * Keep the two copies the same. Darwin links this file.
  */
 function w1738_named16_field_pair(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let ty: i32 = 0;

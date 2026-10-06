@@ -1,11 +1,13 @@
 // Thin pure: asm_expr HELPERS leaf (pipeline_asm_emit_expr_elf_rec only).
-// G.7: the Linux rec body must match pipeline_asm_emit_expr_elf_rec in
-// asm_expr_thin.x. Darwin links that full thin. Linux links this file.
-// The full thin stays HARD BAN PREFER on Linux (frame smash).
+// G.7: the Linux and Windows rec body must match pipeline_asm_emit_expr_elf_rec
+// in asm_expr_thin.x. Darwin links that full thin. Linux and Windows link
+// this file. The full thin stays HARD BAN PREFER (frame smash).
 // w1738: the 9..16 named-field pair load is copied here. The Linux egg
 // fast path does not call pipeline_asm_deref_struct16_rax_ptr_elf_c
-// (measured: zero calls in that function). Do not also copy the w1504
-// wide-int pre-check; the Linux fast path already emits that imm64.
+// (measured: zero calls in that function). The Windows egg has two rec
+// bodies; neither relocation range calls that helper, and the cap-band
+// copy calls fast. Do not also copy the w1504 wide-int pre-check; the
+// Linux fast path already emits that imm64.
 // wave431: LINUX -E PREFER (pure-asm product opt=255; -E L2 5/5).
 //   MACOS still uses full asm_expr_thin PREFER_ASM.
 // wave495: tipU heal; helpers PREFER L2 FAIL → LINUX stayed -E+$CC.
@@ -14,7 +16,7 @@
 //   Do not fall back to -E for this TU. Full emit_expr_elf_c tip still BAN.
 // wave752: tip classify — live tip leftover gcc W wrapper; full tip -c
 //   smash; HARD BAN PREFER tip (helpers PREFER already on LINUX).
-// PLATFORM: SHARED freestanding · LINUX gold · MACOS.
+// PLATFORM: SHARED freestanding · LINUX gold · WINDOWS · MACOS.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -80,8 +82,8 @@ function w495_cell_i32(base: *u8): i32 {
  * Only the field's own type is consulted. The function return type is not:
  * a nested block must not borrow the enclosing function's result size.
  * Layouts of at most 8 bytes stay on the fast path.
- * This is the Linux copy of w1738_named16_field_pair in asm_expr_thin.x.
- * Keep the two bodies the same. Darwin links the other file.
+ * This is the Linux and Windows copy of w1738_named16_field_pair in
+ * asm_expr_thin.x. Keep the two bodies the same. Darwin links the other file.
  * @param arena *u8 — AST arena; null returns 0
  * @param elf_ctx *u8 — ELF emit context
  * @param expr_ref i32 — EXPR_FIELD_ACCESS; <=0 returns 0
@@ -91,7 +93,7 @@ function w495_cell_i32(base: *u8): i32 {
  *   named field or the address could not be formed (caller uses fast);
  *   -1 when the pair encoder failed
  * PLATFORM: SHARED — rax:rdx on x86_64, x0:x1 on arm64, same deref helper.
- * Linux links this helpers object. Darwin links asm_expr_thin.x.
+ * Linux and Windows link this helpers object. Darwin links asm_expr_thin.x.
  */
 function w1738_named16_field_pair(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
   let ty: i32 = 0;
@@ -177,9 +179,9 @@ function w1738_named16_field_pair(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: 
  * @param ctx *u8 — asm function context passed through to callees
  * @param ta i32 — target arch; 0 is x86_64, 1 is arm64, 2 is RISC-V
  * @return i32 — 0 ok; negative error; -99 unhandled from slow
- * PLATFORM: SHARED body. Linux links this helpers object. Darwin links
- * the same pre-check from asm_expr_thin.x. Do not PREFER the full thin
- * on Linux (frame smash).
+ * PLATFORM: SHARED body. Linux and Windows link this helpers object.
+ * Darwin links the same pre-check from asm_expr_thin.x. Do not PREFER
+ * the full thin (frame smash).
  */
 #[no_mangle]
 export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
