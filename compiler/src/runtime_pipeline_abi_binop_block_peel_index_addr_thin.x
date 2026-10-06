@@ -16,6 +16,7 @@ export extern function glue_binop_index_addr_as_elf_c(arena: *u8, expr_ref: i32)
 export extern function glue_binop_index_addr_field_elf_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_binop_index_addr_deref_elf_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_binop_index_ko47_clobbers_rbx(arena: *u8, expr_ref: i32): i32;
+export extern function glue_binop_ptr_arith_clobbers_rbx(arena: *u8, expr_ref: i32): i32;
 
 /**
  * wave149 pure: G.7 authority (was pipeline_asm_emit_binop.c::glue_binop_operand_index_addr_clobbers_rbx_elf_c).
@@ -49,6 +50,12 @@ export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, exp
     }
     if (pipeline_expr_kind_ord_at(arena, expr_ref) == 47) {
       return glue_binop_index_ko47_clobbers_rbx(arena, expr_ref);
+    }
+    /* *(p + j) / *(p - j): same park as the mega walker.
+     * Body decision lives in glue_binop_ptr_arith_clobbers_rbx (G.7).
+     * PLATFORM: SHARED · LINUX PREFER this thin · MACOS skip. */
+    if (glue_binop_ptr_arith_clobbers_rbx(arena, expr_ref) != 0) {
+      return 1;
     }
     return 0;
   }

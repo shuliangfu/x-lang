@@ -47737,6 +47737,13 @@ export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, exp
     if (ko == 47) {
       return glue_binop_index_ko47_clobbers_rbx(arena, expr_ref);
     }
+    /* *(p + j) / *(p - j): DEREF load emits scaled ptr arith into rbx.
+     * Reachable through AS and DEREF peels above. Park with the
+     * existing preserve (arm64 mov rbx → x2). The scale does not write x2.
+     * PLATFORM: SHARED. */
+    if (glue_binop_ptr_arith_clobbers_rbx(arena, expr_ref) != 0) {
+      return 1;
+    }
     return 0;
   }
 }
@@ -48736,6 +48743,54 @@ export function glue_expr_type_is_ptr_c(arena: *u8, expr_ref: i32): i32 {
       return 0;
     }
     if (pipeline_type_kind_ord_at(arena, tr) == 9) {
+      return 1;
+    }
+    return 0;
+  }
+}
+
+/**
+ * 1 when expr is pointer arithmetic that writes rbx before the compare.
+ * ADD with exactly one TYPE_PTR side (ptr+int or int+ptr), or SUB of
+ * ptr-int. glue_try_emit_ptr_arith_scaled_elf_c spills the pointer,
+ * mov_rax_to_rbx's the offset, then mul_imm_to_rbx (arm64 mov w3, #esz;
+ * mul w1, w1, w3). That sequence writes x1 and w3, not x2.
+ * Integer add/sub and ptr-ptr return 0; the load_operand -2 fallback
+ * already parks those. A call inside the offset still clobbers the
+ * arm64 x2 park; x86 push rbx survives it. Do not add a second spill.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param expr_ref i32 — candidate ADD (kind 4) or SUB (kind 5)
+ * @return i32 — 1 when the compare-left in rbx must be parked, else 0
+ * PLATFORM: SHARED — MACOS|ARM64 park is mov x2, x1 · LINUX|x86_64 push rbx.
+ */
+#[no_mangle]
+export function glue_binop_ptr_arith_clobbers_rbx(arena: *u8, expr_ref: i32): i32 {
+  unsafe {
+    let ko: i32 = 0;
+    let left_ref: i32 = 0;
+    let right_ref: i32 = 0;
+    let lp: i32 = 0;
+    let rp: i32 = 0;
+    if ((arena == (0 as *u8)) || expr_ref <= 0) {
+      return 0;
+    }
+    ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+    if (ko != 4 && ko != 5) {
+      return 0;
+    }
+    left_ref = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    right_ref = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    if (left_ref <= 0 || right_ref <= 0) {
+      return 0;
+    }
+    lp = glue_expr_type_is_ptr_c(arena, left_ref);
+    rp = glue_expr_type_is_ptr_c(arena, right_ref);
+    /* ADD: ptr+int or int+ptr. Both-pointer is not this scale path. */
+    if (ko == 4 && lp != rp) {
+      return 1;
+    }
+    /* SUB: ptr-int only. int-ptr is rejected; ptr-ptr is an element count. */
+    if (ko == 5 && lp != 0 && rp == 0) {
       return 1;
     }
     return 0;

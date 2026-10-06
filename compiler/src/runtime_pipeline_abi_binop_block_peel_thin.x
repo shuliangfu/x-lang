@@ -53,6 +53,7 @@ export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function glue_expr_is_x_as_cast_at_c(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_as_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_binop_ptr_arith_clobbers_rbx(arena: *u8, expr_ref: i32): i32;
 export extern function glue_binop_as_needs_full_emit_elf_c(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_as_elf_impl(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_expr_index_base_is_slice_at(arena: *u8, expr_ref: i32): i32;
@@ -496,6 +497,13 @@ export function glue_binop_operand_index_addr_clobbers_rbx_elf_c(arena: *u8, exp
     }
     if (ko == 47) {
       return glue_binop_index_ko47_clobbers_rbx(arena, expr_ref);
+    }
+    /* *(p + j) / *(p - j): DEREF load emits scaled ptr arith into rbx.
+     * Decision is glue_binop_ptr_arith_clobbers_rbx in the mega (G.7).
+     * Darwin injects this full thin; the scale does not write the x2 park.
+     * PLATFORM: SHARED · MACOS PREFER this thin. */
+    if (glue_binop_ptr_arith_clobbers_rbx(arena, expr_ref) != 0) {
+      return 1;
     }
     return 0;
   }
