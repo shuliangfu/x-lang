@@ -343,8 +343,9 @@ case "$(uname -s 2>/dev/null)" in
     for _ccn in cc gcc clang; do
       _ccv_real=$(command -v "$_ccn" 2>/dev/null || true)
       if [ -n "$_ccv_real" ]; then
-        printf '#!/bin/sh\necho "g05_relink_xlang: cc-vehicle exec %s $*" >&2\nexec "%s" "$@"\n' \
-          "$_ccn" "$_ccv_real" > "$_ccv_dir/$_ccn"
+        # Log to a file: the vehicles send cc stderr to their own temp files.
+        printf '#!/bin/sh\necho "cc-vehicle exec %s $*" >> "%s/calls"\nexec "%s" "$@"\n' \
+          "$_ccn" "$_ccv_dir" "$_ccv_real" > "$_ccv_dir/$_ccn"
       else
         printf '#!/bin/sh\necho "g05_relink_xlang: cc-vehicle %s not installed" >&2\nexit 1\n' \
           "$_ccn" > "$_ccv_dir/$_ccn"
@@ -361,9 +362,12 @@ case "$(uname -s 2>/dev/null)" in
           cp -fp "$_leaf" "$_leaf.w2055bak"
           _before=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
           _erc=0
+          : > "$_ccv_dir/calls"
           PATH="$_ccv_dir:$PATH" FORCE="$_ccv_force" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_ccv_x" \
             bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >"$_ccv_dir/log" 2>&1 || _erc=$?
           sed -e 's/^/  /' "$_ccv_dir/log" | cut -c1-240
+          sed -e 's/^/  g05_relink_xlang: /' "$_ccv_dir/calls" | cut -c1-240
+          echo "g05_relink_xlang: cc-vehicle $_leaf cc-calls=$(wc -l < "$_ccv_dir/calls" | tr -d ' ') rc=$_erc"
           if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
             rm -f "$_leaf.w2055bak"
             _after=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
