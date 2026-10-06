@@ -76,6 +76,26 @@ fi
 
 n_objs=$(printf '%s\n' "$OBJS" | wc -w | tr -d ' ')
 
+# w2060: snapshot this stage's compiler before the link replaces it. The two
+# host-cc leaf vehicles below (std/fs/fs.o, std/string/string.o) are rebuilt
+# by the compiler that runs this stage (g1 <- v1, g2 <- g1, g3 <- g2), the
+# same compiler that built every other object of the stage. Same preference
+# as pure_asm_x_to_o: ./xlang, then ./xlang_asm. PLATFORM: LINUX|DARWIN.
+_G05_STAGE_X=""
+_G05_STAGE_X_FROM=""
+for _sx_cand in xlang xlang_asm; do
+  if [ -x "$_sx_cand" ] && [ -s "$_sx_cand" ]; then
+    _G05_STAGE_X="$(mktemp "${TMPDIR:-/tmp}/g05_stage_x.XXXXXX" 2>/dev/null || echo "/tmp/g05_stage_x.$$")"
+    if cp -p "$_sx_cand" "$_G05_STAGE_X" && chmod +x "$_G05_STAGE_X"; then
+      _G05_STAGE_X_FROM="$PWD/$_sx_cand"
+    else
+      rm -f "$_G05_STAGE_X"
+      _G05_STAGE_X=""
+    fi
+    break
+  fi
+done
+
 g05_force_cc() {
   [ "${XLANG_G05_FORCE_CC:-0}" = "1" ] || [ "${XLANG_SEED_LINK_FORCE_CC:-0}" = "1" ]
 }
@@ -299,8 +319,66 @@ case "$(uname -s 2>/dev/null)" in
       printf '#!/bin/sh\necho "g05_relink_xlang: host $0 blocked during leaf refresh" >&2\nexit 1\n' > "$_nocc_dir/$_ccn"
       chmod +x "$_nocc_dir/$_ccn"
     done
+    # w2060 (manager ruling A): std/fs/fs.o and std/string/string.o have no
+    # asm vehicle; their dedicated scripts (xlang_compile_std_fs_formal.sh,
+    # xlang_compile_std_string_o.sh) compile the product's emitted C with the
+    # host cc lines they already carry. Host cc is allowed for those two
+    # scripts only, through a logging wrapper; every other leaf keeps the
+    # always-failing cc above. Freshness is one rule on every host: a leaf is
+    # STALE when the shared script's own source check says so, or when this
+    # stage's compiler is newer than the leaf (so g1, g2 and g3 each rebuild
+    # it with their own compiler). A missing leaf is skipped (refresh only,
+    # same as every other leaf). A failed rebuild restores the old leaf and
+    # stops the relink: no ALLOW escape. PLATFORM: LINUX|DARWIN.
+    _ccv_x="${_G05_STAGE_X:-$_refresh_x}"
+    _ccv_from="${_G05_STAGE_X_FROM:-$_refresh_x}"
+    if command -v sha256sum >/dev/null 2>&1; then
+      _ccv_sha=$(sha256sum "$_ccv_x" | cut -c1-16)
+    else
+      _ccv_sha=$(shasum -a 256 "$_ccv_x" | cut -c1-16)
+    fi
+    _ccv_hostcc=$(cd .. && git ls-files 'compiler/*.c' 2>/dev/null | wc -l | tr -d ' ')
+    _ccv_dir=$(mktemp -d 2>/dev/null || echo "/tmp/g05_ccv.$$")
+    mkdir -p "$_ccv_dir"
+    for _ccn in cc gcc clang; do
+      _ccv_real=$(command -v "$_ccn" 2>/dev/null || true)
+      if [ -n "$_ccv_real" ]; then
+        printf '#!/bin/sh\necho "g05_relink_xlang: cc-vehicle exec %s $*" >&2\nexec "%s" "$@"\n' \
+          "$_ccn" "$_ccv_real" > "$_ccv_dir/$_ccn"
+      else
+        printf '#!/bin/sh\necho "g05_relink_xlang: cc-vehicle %s not installed" >&2\nexit 1\n' \
+          "$_ccn" > "$_ccv_dir/$_ccn"
+      fi
+      chmod +x "$_ccv_dir/$_ccn"
+    done
     for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
       [ -s "$_leaf" ] || continue
+      case "$_leaf" in
+        ../std/fs/fs.o|../std/string/string.o)
+          _ccv_force=0
+          [ "$_ccv_x" -nt "$_leaf" ] && _ccv_force=1
+          echo "g05_relink_xlang: cc-vehicle $_leaf compiler=$_ccv_from sha=$_ccv_sha force=$_ccv_force host-cc=$_ccv_hostcc"
+          cp -fp "$_leaf" "$_leaf.w2055bak"
+          _before=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
+          _erc=0
+          PATH="$_ccv_dir:$PATH" FORCE="$_ccv_force" XLANG_FORCE_LINK_BACKEND=asm XLANG="$_ccv_x" \
+            bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >"$_ccv_dir/log" 2>&1 || _erc=$?
+          sed -e 's/^/  /' "$_ccv_dir/log" | cut -c1-240
+          if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
+            rm -f "$_leaf.w2055bak"
+            _after=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
+            if [ "$_after" != "$_before" ]; then
+              echo "g05_relink_xlang: refreshed stale $_leaf (cc-vehicle, $_ccv_from)"
+            fi
+            continue
+          fi
+          mv -f "$_leaf.w2055bak" "$_leaf"
+          echo "g05_relink_xlang: FAIL cc-vehicle rebuild of $_leaf rc=$_erc (old leaf restored)" >&2
+          rm -rf "$_ccv_dir" "$_nocc_dir"
+          if [ -n "$_G05_STAGE_X" ]; then rm -f "$_G05_STAGE_X"; fi
+          exit 1
+          ;;
+      esac
       _before=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
       cp -fp "$_leaf" "$_leaf.w2055bak"
       _erc=0
@@ -322,7 +400,7 @@ case "$(uname -s 2>/dev/null)" in
         echo "g05_relink_xlang: !!!!! STALE LEAF KEPT: $_leaf (asm rebuild failed; programs linking it get the OLD object) !!!!!" >&2
       fi
     done
-    rm -rf "$_nocc_dir"
+    rm -rf "$_nocc_dir" "$_ccv_dir"
     if [ -n "$_kept_stale" ]; then
       echo "g05_relink_xlang: !!!!! STALE LEAVES KEPT ($(echo $_kept_stale | wc -w)):$_kept_stale !!!!!" >&2
       # w2060: formal gate — any STALE LEAF KEPT is a hard fail (old leaf must not ship).
@@ -334,3 +412,5 @@ case "$(uname -s 2>/dev/null)" in
     fi
     ;;
 esac
+if [ -n "$_G05_STAGE_X" ]; then rm -f "$_G05_STAGE_X"; fi
+exit 0
