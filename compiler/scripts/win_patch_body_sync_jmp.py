@@ -111,6 +111,12 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     # the external has been weakened. The private pair helper is not an
     # egg symbol and stays out of this list. PLATFORM: WINDOWS.
     "pipeline_asm_emit_expr_elf_rec",
+    # w2060: store-retval pair. The egg copy is dual T. demote keeps the
+    # cap-band external and leaves the earlier body as static t. Same-TU
+    # relocs still enter that t. Fold it onto this thin once the external
+    # has been weakened. The private cell loader is not an egg symbol and
+    # stays out of this list. PLATFORM: WINDOWS.
+    "glue_store_retval_pair_to_rbp_elf_c",
 )
 
 # w1504 (10.30): egg copies of the i32 literal probe skip the wide check, so
@@ -417,6 +423,11 @@ def main() -> int:
         # weaken and still calls fast with one qword. Fold that W onto the
         # helpers T. The static twin is folded above. PLATFORM: WINDOWS.
         "pipeline_asm_emit_expr_elf_rec",
+        # w2060: store-retval pair. The cap-band egg copy becomes W after
+        # weaken and still copies only CALL, METHOD, and INDEX. Fold that W
+        # onto this thin. The static twin is folded above. The private cell
+        # loader stays out of this list. PLATFORM: WINDOWS.
+        "glue_store_retval_pair_to_rbp_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

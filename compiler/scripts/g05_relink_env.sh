@@ -2357,6 +2357,82 @@ case "$UNAME_S" in
     fi
     _PABI_WIN_REC="$_wrec_o"
     _PABI_SELFHOST="$_wrec_o $_PABI_SELFHOST"
+    # w2060: store a wide retval into the let slot. The Windows egg defines
+    # glue_store_retval_pair_to_rbp_elf_c twice. demote-all-dual below keeps
+    # the cap-band external, which copies a value wider than 16 bytes only
+    # for CALL, METHOD, and INDEX, and leaves the earlier body static.
+    # The tip function also copies STRUCT_LIT, FIELD, and VAR. Compile this
+    # thin every relink with no PREFER. Require the one strong export and
+    # undefined references to the copy helper and the kind loader, so a
+    # dropped kind test that deletes the copy fails the relink. Reject
+    # xlang_panic_. Another strong T that the egg already defines is
+    # weakened in this object. The private cell loader stays strong. Link
+    # this object first. The egg external is weakened after demote.
+    # win_patch_body_sync_jmp folds that W and the static twin onto this T.
+    # A missing object exits 1. The egg file is not edited. Linux and Darwin
+    # are not switched here. PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_STORE=""
+    _wsp_x=src/runtime_pipeline_abi_store_retval_pair_thin.x
+    _wsp_o=build_asm/selfhost_pabi/store_retval_pair_win.o
+    _wsp_s=glue_store_retval_pair_to_rbp_elf_c
+    _wsp_copy=glue_copy_large_struct_from_rax_ptr_elf_c
+    _wsp_kind=pipeline_expr_kind_ord_at
+    if [ ! -f "$_wsp_x" ]; then
+      echo "g05_relink_env: $_wsp_x missing (Windows store pair)" >&2
+      exit 1
+    fi
+    _g05_pure_overlay "$_wsp_x" "$_wsp_o" "$_wsp_s"
+    if [ ! -s "$_wsp_o" ]; then
+      echo "g05_relink_env: ERROR Windows store pair .x did not build" >&2
+      exit 1
+    fi
+    if ! nm "$_wsp_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsp_s}\$"; then
+      echo "g05_relink_env: $_wsp_x lacks strong $_wsp_s (Windows store pair)" >&2
+      exit 1
+    fi
+    if ! nm -u "$_wsp_o" 2>/dev/null | tr -d '\r' | grep -q "${_wsp_copy}\$"; then
+      echo "g05_relink_env: $_wsp_x does not call $_wsp_copy (Windows store pair)" >&2
+      exit 1
+    fi
+    if ! nm -u "$_wsp_o" 2>/dev/null | tr -d '\r' | grep -q "${_wsp_kind}\$"; then
+      echo "g05_relink_env: $_wsp_x does not call $_wsp_kind (Windows store pair)" >&2
+      exit 1
+    fi
+    if nm "$_wsp_o" 2>/dev/null | tr -d '\r' | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: $_wsp_x references xlang_panic_ (Windows store pair)" >&2
+      exit 1
+    fi
+    _wsp_egg=src/runtime_pipeline_abi.o
+    if [ ! -s "$_wsp_egg" ]; then
+      _wsp_egg=build_asm/selfhost_pabi/pabi_weak.o
+    fi
+    _wsp_list=build_asm/selfhost_pabi/store_retval_pair_win.tlist
+    nm "$_wsp_o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}' > "$_wsp_list"
+    while read -r _wsp_extra; do
+      [ -n "$_wsp_extra" ] || continue
+      [ "$_wsp_extra" = "$_wsp_s" ] && continue
+      if [ -s "$_wsp_egg" ] && nm "$_wsp_egg" 2>/dev/null | tr -d '\r' \
+          | awk -v s="$_wsp_extra" '$NF==s && $1 ~ /^[0-9a-fA-F]+$/ {f=1} END{exit !f}'; then
+        _wsp_oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then
+          _wsp_oc=llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then
+          _wsp_oc=objcopy
+        fi
+        if [ -z "$_wsp_oc" ] || ! "$_wsp_oc" --weaken-symbol="$_wsp_extra" "$_wsp_o"; then
+          echo "g05_relink_env: weaken $_wsp_extra in $_wsp_o failed (Windows store pair)" >&2
+          rm -f "$_wsp_list"
+          exit 1
+        fi
+      fi
+    done < "$_wsp_list"
+    rm -f "$_wsp_list"
+    if ! nm "$_wsp_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wsp_s}\$"; then
+      echo "g05_relink_env: $_wsp_o lost strong $_wsp_s (Windows store pair)" >&2
+      exit 1
+    fi
+    _PABI_WIN_STORE="$_wsp_o"
+    _PABI_SELFHOST="$_wsp_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -2529,7 +2605,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_WIN_FCA" ] \
       || [ -n "$_PABI_WIN_CIMP" ] \
       || [ -n "$_PABI_WIN_WIDEN" ] \
-      || [ -n "$_PABI_WIN_REC" ]; then
+      || [ -n "$_PABI_WIN_REC" ] \
+      || [ -n "$_PABI_WIN_STORE" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -2766,6 +2843,19 @@ case "$UNAME_S" in
             exit 1
           fi
           _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_expr_elf_rec=$_PABI_WIN_REC"
+        fi
+        # w2060: weaken the egg store-retval copy so this thin first-wins.
+        # demote-all-dual has already made the earlier twin static and left
+        # the cap-band external. That external copies a value wider than
+        # 16 bytes only for CALL, METHOD, and INDEX. A failed weaken stops
+        # the relink. The egg file is not edited. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_STORE" ]; then
+          if ! "$_oc" --weaken-symbol=glue_store_retval_pair_to_rbp_elf_c \
+              build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak glue_store_retval_pair_to_rbp_elf_c failed (Windows store pair)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_store_retval_pair_to_rbp_elf_c=$_PABI_WIN_STORE"
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.
