@@ -450,6 +450,15 @@ def main() -> int:
         # weaken. Fold that W onto this thin, which returns 0.
         # PLATFORM: WINDOWS.
         "asm_parser_func_is_thin_delegate",
+        # w2060: field-access load width. The egg copy is one external T
+        # inside the demote cap, so demote leaves it external. There is no
+        # static twin. Six same-TU REL32 calls enter it, including
+        # glue_emit_assign_field_elf_c and
+        # pipeline_asm_emit_field_access_elf_fast_c, which are not folded.
+        # The field_cap thin is already linked ahead. After weaken, fold
+        # that W onto the thin. The other field_cap exports have no
+        # same-TU reloc and stay out of this list. PLATFORM: WINDOWS.
+        "pipeline_expr_field_access_load_byte_sz",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

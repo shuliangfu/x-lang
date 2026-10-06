@@ -3095,7 +3095,8 @@ PY
       || [ -n "$_PABI_WIN_WIDEN" ] \
       || [ -n "$_PABI_WIN_REC" ] \
       || [ -n "$_PABI_WIN_STORE" ] \
-      || [ -n "$_PABI_WIN_IDX" ]; then
+      || [ -n "$_PABI_WIN_IDX" ] \
+      || [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -3371,6 +3372,18 @@ PY
             exit 1
           fi
           _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_try_index_var_or_field_base_to_rbx_elf_c=$_PABI_WIN_IDX"
+        fi
+        # w2060: weaken the egg field-access load width so the field_cap
+        # thin first-wins. One external T sits in the demote cap, so demote
+        # leaves it external. Six same-TU REL32 calls still enter it. There
+        # is no static twin. A failed weaken stops the relink. The egg file
+        # is not edited. PLATFORM: WINDOWS.
+        if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
+          if ! "$_oc" --weaken-symbol=pipeline_expr_field_access_load_byte_sz \
+              build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak pipeline_expr_field_access_load_byte_sz failed (Windows field load width)" >&2
+            exit 1
+          fi
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.
