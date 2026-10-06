@@ -4,8 +4,10 @@
 // G-02f-308/452 / P2 runtime rest: libc open for a path that was copied by
 // rt_fs_path_copy_nul. w1135 keeps the 512-byte buffer in this file and the
 // copy loop in rt_fs_open.x. One translation unit cannot hold both.
-// O_CREAT / O_TRUNC match std/fs/posix.x. The slice marker stays in the C rest.
-// PLATFORM: SHARED — cfg selects the flag values. Darwin is 512 and 1024.
+// O_CREAT / O_TRUNC match std/fs/posix.x and runtime_io_abi.x.
+// The slice marker stays in the C rest.
+// PLATFORM: SHARED — cfg selects the flag values.
+// Linux is 64 and 512. Darwin is 512 and 1024. Windows is 256 and 512.
 
 export extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 export extern "C" function rt_fs_path_copy_nul(path: *u8, path_len: i32, path_buf: *u8): i32;
@@ -22,6 +24,15 @@ export const RT_FS_O_TRUNC: i32 = 512;
 export const RT_FS_O_CREAT: i32 = 512;
 #[cfg(target_os = "macos")]
 export const RT_FS_O_TRUNC: i32 = 1024;
+
+// MSVCRT _O_CREAT is 0x0100 and _O_TRUNC is 0x0200 (w64devkit fcntl.h).
+// Same numbers as RIO_O_CREAT / RIO_O_TRUNC. Without them, Windows
+// typeck of driver_fs_open_write fails and try-rt-prefer host-cc's
+// the whole seeds/rt_fs_open.from_x.c. PLATFORM: WINDOWS.
+#[cfg(target_os = "windows")]
+export const RT_FS_O_CREAT: i32 = 256;
+#[cfg(target_os = "windows")]
+export const RT_FS_O_TRUNC: i32 = 512;
 
 /**
  * Open path[0..path_len) read-only via libc open.
