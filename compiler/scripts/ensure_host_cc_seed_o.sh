@@ -13224,11 +13224,16 @@ rt_elf_diag_pure_thin() {
   # shellcheck disable=SC2086
   if ld -r -o "$o" $objs; then
     rm -rf "$dir"
-    if nm "$o" | awk '$2=="T" && $3=="_labi_rt_pipeline_elf_diag_slice_marker" { found=1 } END { exit found ? 0 : 1 }'; then
+    # Mach-O nm prints a leading underscore. ELF and COFF print the bare
+    # C name. Require the note entry, and reject the slice marker, in
+    # either spelling. The underscore-only note check discarded a good
+    # thin on Linux and Windows and host-cc'd the full seed.
+    # PLATFORM: SHARED.
+    if nm "$o" | awk '$2=="T" && ($3=="labi_rt_pipeline_elf_diag_slice_marker" || $3=="_labi_rt_pipeline_elf_diag_slice_marker") { found=1 } END { exit found ? 0 : 1 }'; then
       rm -f "$o"
       return 1
     fi
-    if nm "$o" | awk '$2=="T" && $3=="_runtime_pipeline_elf_ctx_diag_note" { found=1 } END { exit found ? 0 : 1 }'; then
+    if nm "$o" | awk '$2=="T" && ($3=="runtime_pipeline_elf_ctx_diag_note" || $3=="_runtime_pipeline_elf_ctx_diag_note") { found=1 } END { exit found ? 0 : 1 }'; then
       return 0
     fi
   fi
