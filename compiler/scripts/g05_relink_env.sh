@@ -1347,6 +1347,17 @@ if [ "$UNAME_S" = "Darwin" ] \
     build_asm/selfhost_pabi/enum_ns_tag_a64.o \
     "_pipeline_expr_enum_namespace_field_tag _pipeline_asm_cmp_enum_rhs_tag_c" \
     "enum ns tag"
+  # w2060: dep prerun parse-skip-typeck (std.io.driver / std.net deps). The
+  # Class BR compaction left 8-byte ret0 copies of both names in pabi_weak:
+  # the dep slot was never parsed, so importer typeck saw an empty module
+  # and failed `driver.f()` with T001 (std/fs/mod.x submit_read_batch).
+  # Ubuntu and Windows pabi keep the real bodies of both (checked w2060);
+  # only the Darwin Mach-O compaction stubbed them, so only Darwin overlays.
+  # PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dep_prerun_skip_typeck_thin.x \
+    build_asm/selfhost_pabi/dep_prerun_skip_typeck_a64.o \
+    "_xlang_pipeline_dep_prerun_parse_skip_typeck _xlang_pipeline_dep_prerun_parse_skip_typeck_impl" \
+    "dep prerun skip typeck"
   # w2055: Mach-O writer. pabi_weak keeps the pre-w1814 C writer whose
   # unique-undef cap is 256 with 1024-byte index tables; parser.x has more
   # than 256 unique undefined relocs, so the writer returns -1 (CG002,

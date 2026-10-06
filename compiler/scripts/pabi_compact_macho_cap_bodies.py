@@ -141,6 +141,10 @@ def want_compact(name: str) -> bool:
     # Class BR: Cap skip_typeck／bootstrap／dep-skip helpers (product L2 leaves
     # XLANG_ASM_* skip／heavy unset). Always-miss ret0 is correct for L2.
     # Avoid diag／vsnprintf (BO) and product should_skip_emit_* (live dep skip).
+    # w2060: dep_prerun_parse_skip_typeck(_impl) are NOT predicates — a ret0 stub
+    # reports success without parsing (std.io.driver/std.net slot left empty ->
+    # T001). Ubuntu/Windows keep the real bodies; Darwin overlays the tip body
+    # from src/runtime_pipeline_abi_dep_prerun_skip_typeck_thin.x.
     if name in (
         "_asm_skip_typeck_entry_whitelist",
         "_asm_parser_bootstrap_mega_emit_allowed",
@@ -153,8 +157,6 @@ def want_compact(name: str) -> bool:
         "_pipeline_codegen_dep_skip_asm_user_std_process",
         "_pipeline_codegen_dep_skip_asm_user_std_fmt",
         "_pipeline_asm_user_dep_skip_x_typeck",
-        "_xlang_pipeline_dep_prerun_parse_skip_typeck_impl",
-        "_xlang_pipeline_dep_prerun_parse_skip_typeck",
         "_pipeline_should_skip_x_typeck_c",
         "_xlang_asm_user_std_dep_skip_x_typeck",
         "_pipeline_parser_try_skip_result_copy_into_c",
