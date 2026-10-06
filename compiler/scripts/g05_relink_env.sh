@@ -872,6 +872,11 @@ esac
 # (3712 bytes; pointer relocs ignored; 232 strings). The override
 # defines only those three T symbols. The parser thin-delegate overlay
 # stays linked ahead and still returns 0. Do not switch another thin on.
+# w2060: do not link src/win_wpo_collect_walk_override.o. The egg T
+# asm_wpo_collect_walk in src/runtime_pipeline_abi.o is 22 bytes: push
+# rbp, save the four register args, pop, ret. The override is that same
+# sequence plus trailing nops, and it defines only that one T. Same-TU
+# calls already use the egg copy. Do not switch asm_wpo_thin.x on.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
@@ -884,7 +889,7 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
-    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_splat_override.o src/win_simd_select_shuffle_fma_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_splat_override.o src/win_simd_select_shuffle_fma_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue
