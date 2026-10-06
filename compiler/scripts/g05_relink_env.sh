@@ -1410,6 +1410,67 @@ if [ "$UNAME_S" = "Darwin" ]; then
     exit 1
   fi
 fi
+# w2060: call-arg packer. Darwin pabi_weak keeps a strong
+# _pipeline_asm_emit_expr_elf_for_call_args at a non-zero offset. That
+# symbol is not the __text atom (_pabi_weak_text_base). The measured
+# egg body is 1708 bytes; the tip thin is the wave216 packer, including
+# fixed-array FIELD arguments decaying to the element address. Two BR26
+# sites in _glue_enc_local_slot_ptr_or_addr_elf_c and the two stubdead
+# branches name this symbol. Rebuild the thin on every Darwin relink.
+# XLANG_PREFER_ASM_O=1 makes the body's (n + 7) / 8 alignment a real
+# divide: the linked product skips its divisor panic emit when that
+# variable is 1. Reject an xlang_panic_ reference. Weaken every other
+# strong T so first-wins cannot pick up a second global. Do not inject
+# this object into runtime_pipeline_abi.o, and do not call
+# g05_darwin_pabi_thin_sidecar. Linux keeps its mtime one.o rebuild.
+# Windows rebuilds this thin in its own case. The link block below
+# weakens the egg copy and prepends this object when pabi_weak.o exists.
+# PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  _dfca_x=src/runtime_pipeline_abi_for_call_args_thin.x
+  _dfca_o=build_asm/selfhost_pabi/for_call_args_a64.o
+  _dfca_s=_pipeline_asm_emit_expr_elf_for_call_args
+  if [ ! -f "$_dfca_x" ] || [ ! -x ./xlang_asm ]; then
+    echo "g05_relink_env: $_dfca_x or ./xlang_asm missing (Darwin call-arg packer)" >&2
+    exit 1
+  fi
+  mkdir -p build_asm/selfhost_pabi
+  rm -f "$_dfca_o" "$_dfca_o.tmp.o"
+  if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1; then
+    rm -f "$_dfca_o.tmp.o"
+    echo "g05_relink_env: $_dfca_x failed (Darwin call-arg packer)" >&2
+    exit 1
+  fi
+  _dfca_oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _dfca_oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _dfca_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _dfca_oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _dfca_oc=objcopy
+  fi
+  for _dfca_g in $(nm "$_dfca_o.tmp.o" 2>/dev/null | awk '$2=="T"{print $3}'); do
+    [ "$_dfca_g" = "$_dfca_s" ] && continue
+    if [ -z "$_dfca_oc" ] || ! "$_dfca_oc" --weaken-symbol="$_dfca_g" "$_dfca_o.tmp.o"; then
+      rm -f "$_dfca_o.tmp.o"
+      echo "g05_relink_env: weaken $_dfca_g in $_dfca_x failed (Darwin call-arg packer)" >&2
+      exit 1
+    fi
+  done
+  if ! nm "$_dfca_o.tmp.o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
+    rm -f "$_dfca_o.tmp.o"
+    echo "g05_relink_env: $_dfca_x lacks strong $_dfca_s (Darwin call-arg packer)" >&2
+    exit 1
+  fi
+  if nm "$_dfca_o.tmp.o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="xlang_panic_") e=1} END{exit e?0:1}'; then
+    rm -f "$_dfca_o.tmp.o"
+    echo "g05_relink_env: ERROR Darwin call-arg packer references xlang_panic_" >&2
+    exit 1
+  fi
+  mv -f "$_dfca_o.tmp.o" "$_dfca_o"
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -1563,6 +1624,35 @@ EOF
     fi
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_try_index_var_or_field_base_to_rbx_elf_c=$_idx_o"
     _PABI_SELFHOST="$_idx_o $_idx_rest_o $_PABI_SELFHOST"
+  fi
+  # w2060: call-arg packer. The rebuild above already exited 1 when the
+  # tip thin did not produce this object. The egg symbol is strong and
+  # is not the __text atom, so weaken that copy and link the thin first.
+  # Mach-O BR26 sites follow the strong definition. The egg file is not
+  # edited. PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/for_call_args_a64.o ]; then
+    _dfca_o=build_asm/selfhost_pabi/for_call_args_a64.o
+    _dfca_s=_pipeline_asm_emit_expr_elf_for_call_args
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep "external.* ${_dfca_s}\$" | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="${_dfca_s}" \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken pabi_weak ${_dfca_s} failed (Darwin call-arg packer)" >&2
+        exit 1
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_dfca_s}=${_dfca_o}"
+    _PABI_SELFHOST="${_dfca_o} $_PABI_SELFHOST"
   fi
   # w1007: Cap residual struct field load_sz → 4 (LDRSW / esz-4 cells).
   # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.
