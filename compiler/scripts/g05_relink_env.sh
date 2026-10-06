@@ -887,6 +887,17 @@ esac
 # bytes ahead in both objects. The override's only global T is that
 # function. Same-TU stub calls already enter the egg copy. Do not
 # switch a thin on.
+# w2060: do not link src/win_simd_select_shuffle_fma_override.o. The
+# egg defines pipeline_asm_simd_try_inline_shuffle_call_elf_c,
+# pipeline_asm_simd_try_inline_select_call_elf_c, and
+# pipeline_asm_simd_try_inline_fma3_call_elf_c from
+# windows_link_stubs.c. In the linked image each matches the override:
+# shuffle 1370 bytes / 284 insns, select 1918 bytes / 389 insns, fma
+# 1245 bytes / 261 insns. Call targets are the same symbols. The string
+# LEAs load the same literals (shuffle 5, select 5, fma 1). The
+# override's only global T symbols are those three. The egg select call
+# to splat is already bound inside the TU. Same-TU vector-let-init
+# calls already enter the egg copies. Do not switch a thin on.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
@@ -899,7 +910,7 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
-    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_select_shuffle_fma_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue

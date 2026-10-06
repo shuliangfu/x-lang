@@ -4915,10 +4915,13 @@ esac
 # function is already the egg T in src/runtime_pipeline_abi.o.
 # w2060: win_simd_splat_override.c is not a build input. Its one
 # global T is already the egg T from windows_link_stubs.c.
+# w2060: win_simd_select_shuffle_fma_override.c is not a build input.
+# Its three global T symbols are already the egg T symbols from
+# windows_link_stubs.c.
 # PLATFORM: WINDOWS | MSYS | MINGW.
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _pair in       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_simd_select_shuffle_fma_override.c|src/win_simd_select_shuffle_fma_override.o"       "seeds/win_wpo_pgo_emit_override.c|src/win_wpo_pgo_emit_override.o"       "seeds/win_index_elem_byte_sz_override.c|src/win_index_elem_byte_sz_override.o"
+    for _pair in       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_wpo_pgo_emit_override.c|src/win_wpo_pgo_emit_override.o"       "seeds/win_index_elem_byte_sz_override.c|src/win_index_elem_byte_sz_override.o"
     do
       _src="${_pair%%|*}"
       _out="${_pair#*|}"
