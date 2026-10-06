@@ -96,6 +96,15 @@ _STATIC_T_TO_OVERLAY: tuple[str, ...] = (
     "glue_emit_index_eff_addr_base_elf_c",
     "pipeline_asm_fill_param_slots",
     "pipeline_asm_emit_return_elf_impl",
+    # w2060: widen_mixed arithmetic exports. demote-all-dual keeps the
+    # cap-band external and leaves the earlier body as static t.
+    # Same-TU relocs still enter that t, so fold it onto the overlay T
+    # once the external has been weakened. glue_float_promote_src_ty_ref_c
+    # has a single egg definition and stays out of this list.
+    # PLATFORM: WINDOWS.
+    "glue_emit_binop_add_rax_rbx_elf_c",
+    "glue_emit_binop_sub_rbx_minus_rax_elf_c",
+    "glue_emit_binop_sub_rax_minus_rbx_elf_c",
 )
 
 # w1504 (10.30): egg copies of the i32 literal probe skip the wide check, so
@@ -390,6 +399,14 @@ def main() -> int:
         # weaken, same-TU relocs still enter that body, so fold W onto the
         # tip T. Not a local-t name. PLATFORM: WINDOWS.
         "xlang_module_collect_imports_from_buf",
+        # w2060: mixed-width add/sub and f32 promote. The three arithmetic
+        # exports are dual T; demote keeps the cap-band external, and the
+        # relink weaken turns that external into W. glue_float_promote is
+        # a single W. The static twins are folded above. PLATFORM: WINDOWS.
+        "glue_emit_binop_add_rax_rbx_elf_c",
+        "glue_emit_binop_sub_rbx_minus_rax_elf_c",
+        "glue_emit_binop_sub_rax_minus_rbx_elf_c",
+        "glue_float_promote_src_ty_ref_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

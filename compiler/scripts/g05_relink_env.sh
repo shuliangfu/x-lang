@@ -1220,8 +1220,8 @@ fi
 # pipeline_w1591_*, pipeline_w1594_*, and pipeline_w1597_* are absent
 # from pabi_weak.o. w1598_add_stored_in_u32 stays undefined here and is
 # defined by the existing binop_wide overlay. A missing object exits 1.
-# No new weaken. Windows keeps the previous body. The if below still
-# prepends the object only when pabi_weak.o exists.
+# No new weaken. Windows rebuilds this thin in its own case. The if
+# below still prepends the object only when pabi_weak.o exists.
 # PLATFORM: MACOS|DARWIN.
 if [ "$UNAME_S" = "Darwin" ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_widen_mixed_thin.x \
@@ -1267,7 +1267,7 @@ if [ "$UNAME_S" = "Darwin" ] \
   # w2060: mixed-width ADD/SUB and f32 promote. The four exports are
   # already weak in pabi_weak.o. The Darwin rebuild above exits 1 when
   # the tip thin did not produce this object. Linux rebuilds the same
-  # path in its own block. Windows keeps the previous body.
+  # path in its own block. Windows rebuilds this thin in its own case.
   # PLATFORM: MACOS|DARWIN.
   if [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o $_PABI_SELFHOST"
@@ -2163,6 +2163,43 @@ case "$UNAME_S" in
     mv -f "$_wci_o.tmp.o" "$_wci_o"
     _PABI_WIN_CIMP="$_wci_o"
     _PABI_SELFHOST="$_wci_o $_PABI_SELFHOST"
+    # w2060: mixed-width ADD/SUB and f32 promote. Linux and Darwin already
+    # rebuild this thin with _g05_pure_overlay (no PREFER). The egg defines
+    # each arithmetic export twice. demote-all-dual below keeps the cap-band
+    # external and turns the earlier body into a static symbol; same-TU
+    # calls still enter that static body. glue_float_promote_src_ty_ref_c
+    # is one external. Compile the tip thin every relink, require the four
+    # export T symbols, and reject xlang_panic_. Helper T names
+    # pipeline_w1591_*, pipeline_w1594_*, and pipeline_w1597_* are absent
+    # from the egg, so they stay strong. w1598_add_stored_in_u32 stays
+    # undefined here and is defined by the binop_wide overlay. Weaken the
+    # four egg externals after demote. win_patch_body_sync_jmp folds the
+    # weakened external, and folds the static twin of the three arithmetic
+    # names. A missing object exits 1. The egg file is not edited.
+    # PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_WIDEN=""
+    _wwm_x=src/runtime_pipeline_abi_widen_mixed_thin.x
+    _wwm_o=build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o
+    _g05_pure_overlay "$_wwm_x" "$_wwm_o" glue_emit_binop_sub_rbx_minus_rax_elf_c
+    if [ ! -s "$_wwm_o" ]; then
+      echo "g05_relink_env: ERROR Windows widen_mixed .x did not build" >&2
+      exit 1
+    fi
+    for _wwm_s in glue_emit_binop_add_rax_rbx_elf_c \
+      glue_emit_binop_sub_rbx_minus_rax_elf_c \
+      glue_emit_binop_sub_rax_minus_rbx_elf_c \
+      glue_float_promote_src_ty_ref_c; do
+      if ! nm "$_wwm_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wwm_s}\$"; then
+        echo "g05_relink_env: $_wwm_x lacks strong $_wwm_s (Windows widen_mixed)" >&2
+        exit 1
+      fi
+    done
+    if nm "$_wwm_o" 2>/dev/null | tr -d '\r' | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: $_wwm_x references xlang_panic_ (Windows widen_mixed)" >&2
+      exit 1
+    fi
+    _PABI_WIN_WIDEN="$_wwm_o"
+    _PABI_SELFHOST="$_wwm_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -2332,7 +2369,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_WIN_W156" ] \
       || [ -n "$_PABI_WIN_SLI" ] \
       || [ -n "$_PABI_WIN_FCA" ] \
-      || [ -n "$_PABI_WIN_CIMP" ]; then
+      || [ -n "$_PABI_WIN_CIMP" ] \
+      || [ -n "$_PABI_WIN_WIDEN" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -2538,6 +2576,24 @@ case "$UNAME_S" in
             exit 1
           fi
           _G05_LINK_WINNERS="$_G05_LINK_WINNERS xlang_module_collect_imports_from_buf=$_PABI_WIN_CIMP"
+        fi
+        # w2060: weaken the egg mixed-width add/sub and f32 promote copies
+        # so the thin first-wins. demote-all-dual has already made the
+        # earlier arithmetic twin static and left the cap-band external.
+        # glue_float_promote_src_ty_ref_c has one definition. A failed
+        # weaken stops the relink. The egg file is not edited.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_WIDEN" ]; then
+          for _wwm_s in glue_emit_binop_add_rax_rbx_elf_c \
+            glue_emit_binop_sub_rbx_minus_rax_elf_c \
+            glue_emit_binop_sub_rax_minus_rbx_elf_c \
+            glue_float_promote_src_ty_ref_c; do
+            if ! "$_oc" --weaken-symbol="$_wwm_s" build_asm/selfhost_pabi/pabi_weak.o; then
+              echo "g05_relink_env: weaken pabi_weak $_wwm_s failed (Windows widen_mixed)" >&2
+              exit 1
+            fi
+            _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wwm_s=$_PABI_WIN_WIDEN"
+          done
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

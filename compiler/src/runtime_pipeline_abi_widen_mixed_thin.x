@@ -35,9 +35,17 @@
 // already returned on the 64-bit add. u8 times u8 is not this object.
 // LINUX and Darwin link this object ahead of the egg. Do not rebuild the
 // pabi egg. Darwin pabi_weak already holds weak copies of the four exports,
-// so the strong sidecar wins without a new weaken. Windows keeps the
-// previous body until that link is measured.
-// PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX and MACOS|DARWIN install the object.
+// so the strong sidecar wins without a new weaken. Windows rebuilds the
+// same thin. The egg defines each arithmetic export twice. demote-all-dual
+// keeps the cap-band definition and leaves the earlier body static, and
+// same-TU calls still enter that static body. The relink weakens the
+// surviving external and folds both that weak definition and the static
+// twin onto this object. glue_float_promote_src_ty_ref_c is a single egg
+// definition, so only the weak fold applies. Helper names pipeline_w1591_*,
+// pipeline_w1594_*, and pipeline_w1597_* are absent from the egg.
+// w1598_add_stored_in_u32 stays undefined here and is defined by the
+// binop_wide overlay.
+// PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX, MACOS|DARWIN, and WINDOWS install the object.
 
 export extern function glue_binop_operand_is_scalar_f64_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
 export extern function glue_binop_operand_is_scalar_f32_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
@@ -319,7 +327,7 @@ function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
  * @param right_ref i32 — right expression; rbx for a variable
  * @param ta i32 — 0 is x86_64, 1 is arm64
  * @return i32 — 0 ok, nonzero encode failure
- * PLATFORM: SHARED — x86_64 REX.W add and arm64 ADD X.
+ * PLATFORM: SHARED — x86_64 REX.W add and arm64 ADD X. LINUX, MACOS|DARWIN, and WINDOWS link this body.
  */
 #[no_mangle]
 export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
@@ -478,7 +486,7 @@ function w1597_finish_narrow(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, 
  * @param right_ref i32 — right expression, already in rax
  * @param ta i32 — 0 is x86_64, 1 is arm64
  * @return i32 — 0 ok, nonzero encode failure
- * PLATFORM: SHARED — x86_64 subq and arm64 SUB X. LINUX and MACOS|DARWIN link this body.
+ * PLATFORM: SHARED — x86_64 subq and arm64 SUB X. LINUX, MACOS|DARWIN, and WINDOWS link this body.
  */
 #[no_mangle]
 export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
@@ -548,7 +556,7 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
  * @param right_ref i32 — right expression, already in rbx
  * @param ta i32 — 0 is x86_64, 1 is arm64
  * @return i32 — 0 ok, nonzero encode failure
- * PLATFORM: SHARED — x86_64 subq %rbx,%rax and arm64 SUB X0,X0,X1. LINUX and MACOS|DARWIN link this body.
+ * PLATFORM: SHARED — x86_64 subq %rbx,%rax and arm64 SUB X0,X0,X1. LINUX, MACOS|DARWIN, and WINDOWS link this body.
  */
 #[no_mangle]
 export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
@@ -615,7 +623,7 @@ export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8
  * @param arena *u8 — AST arena; null returns 0
  * @param expr_ref i32 — source expression; <=0 returns 0
  * @return i32 — type ref, or 0 when none applies
- * PLATFORM: SHARED — type ref only; the convert stays in the promote helper.
+ * PLATFORM: SHARED — type ref only; the convert stays in the promote helper. LINUX, MACOS|DARWIN, and WINDOWS link this body.
  */
 #[no_mangle]
 export function glue_float_promote_src_ty_ref_c(arena: *u8, expr_ref: i32): i32 {
