@@ -1330,6 +1330,38 @@ if [ "$UNAME_S" = "Darwin" ]; then
     exit 1
   fi
 fi
+# w2060: wide STRUCT_LIT / FIELD / VAR store. pabi_weak's
+# _glue_store_retval_pair_to_rbp_elf_c is weak and is not the __text
+# atom. Its sz>16 gate copies kinds 45, 47, 48, and 49. A kind below
+# 45, including FIELD 44 and VAR 3, branches into
+# glue_load_var_as_value_to_rax_rdx_elf_c. The tip thin copies 48, 49,
+# 47, 45, 44, and 3. Rebuild that thin every Darwin relink with no
+# PREFER. A missing object, an xlang_panic_ reference, or a missing
+# copy/kind undef stops the relink. Linux and Windows already link this
+# file. Do not use g05_darwin_pabi_thin_sidecar: that helper sets
+# XLANG_PREFER_ASM_O. The if below still prepends the object only when
+# pabi_weak.o exists. PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  unset XLANG_PREFER_ASM_O
+  _g05_pure_overlay src/runtime_pipeline_abi_store_retval_pair_thin.x \
+    build_asm/selfhost_pabi/store_retval_pair_a64.o \
+    glue_store_retval_pair_to_rbp_elf_c
+  _dstore_o=build_asm/selfhost_pabi/store_retval_pair_a64.o
+  if [ ! -s "$_dstore_o" ]; then
+    echo "g05_relink_env: ERROR Darwin store_retval_pair .x did not build" >&2
+    exit 1
+  fi
+  if nm "$_dstore_o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="xlang_panic_") e=1} END{exit e?0:1}'; then
+    echo "g05_relink_env: ERROR Darwin store_retval_pair references xlang_panic_" >&2
+    exit 1
+  fi
+  for _dstore_need in glue_copy_large_struct_from_rax_ptr_elf_c pipeline_expr_kind_ord_at; do
+    if ! nm -u "$_dstore_o" 2>/dev/null | awk -v n="$_dstore_need" '{s=$NF; sub(/^_/,"",s); if (s==n) f=1} END{exit f?0:1}'; then
+      echo "g05_relink_env: ERROR Darwin store_retval_pair lacks undef $_dstore_need" >&2
+      exit 1
+    fi
+  done
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -1369,6 +1401,34 @@ if [ "$UNAME_S" = "Darwin" ] \
   # PLATFORM: MACOS|DARWIN.
   if [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o $_PABI_SELFHOST"
+  fi
+  # w2060: wide store pair. The rebuild above already exited 1 when the
+  # tip thin did not produce this object. Weaken a strong pabi_weak
+  # copy. The measured copy is already weak and is not the __text atom,
+  # so that weaken waits. The private
+  # _pipeline_w2060_store_pair_cell_i32 is this object's text atom and
+  # is absent from pabi_weak; leave it strong. PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/store_retval_pair_a64.o ]; then
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep 'external.* _glue_store_retval_pair_to_rbp_elf_c$' | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol=_glue_store_retval_pair_to_rbp_elf_c \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken pabi_weak _glue_store_retval_pair_to_rbp_elf_c failed (Darwin store pair)" >&2
+        exit 1
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_store_retval_pair_to_rbp_elf_c=build_asm/selfhost_pabi/store_retval_pair_a64.o"
+    _PABI_SELFHOST="build_asm/selfhost_pabi/store_retval_pair_a64.o $_PABI_SELFHOST"
   fi
   # w1007: Cap residual struct field load_sz → 4 (LDRSW / esz-4 cells).
   # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.
