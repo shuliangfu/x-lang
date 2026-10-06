@@ -477,7 +477,15 @@ _load_driver_leaf_base_cflags_via_make() {
 # pointer returns before free. The linux cold seed spells that guard as a
 # statement-expression temp and uses a 0x30-byte frame. Linux and Darwin
 # objects use the direct compare. The cold seed is not a Windows build
-# input for this leaf. The nest-1..64 xlang_slice_* layouts
+# input for this leaf. The same binary -E of src/preprocess/preprocess.x
+# compiles to the same T set as the Linux and Darwin objects: the pp_*
+# helpers, parse_copy_cond_from_line, parse_directive_into,
+# preprocess_apply_directive_kind, preprocess_line_keeping, preprocess_x,
+# and preprocess_x_buf. Those bodies call preprocess_if_stack_* and
+# preprocess_eval_condition_c. The linux cold seed exports
+# preprocess_parse_copy_cond_from_line and preprocess_parse_directive_into
+# instead of the pp_* helpers. The cold seed is not a Windows build input
+# for this leaf. The nest-1..64 xlang_slice_* layouts
 # in that -E dump are the shared prelude. The unsuffixed ./xlang-c on a
 # Windows tree can be a different PE that rejects these files with P001, so
 # pick_xlang does not use it for these leaves.
@@ -486,7 +494,7 @@ driver_leaf_windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
     Windows_NT*|MINGW*|MSYS*|CYGWIN*)
       case "${DRIVER_LEAF_OUT_BASE:-}" in
-        driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o) return 1 ;;
+        driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o|preprocess_x.o) return 1 ;;
       esac
       return 0
       ;;
@@ -498,13 +506,14 @@ driver_leaf_windows_leftover_pe_cannot_e() {
 # PLATFORM: SHARED — on Windows leftover-PE, returns 1 to force cold seed fallback.
 # PLATFORM: WINDOWS — driver_fmt_x.o, driver_check_x.o, driver_test_x.o,
 # driver_build_x.o, driver_run_x.o, driver_compile_x.o, driver_emit_x.o,
-# and lsp_io_std_heap_x.o use xlang-c.exe, not an unsuffixed ./xlang-c.
+# lsp_io_std_heap_x.o, and preprocess_x.o use xlang-c.exe, not an
+# unsuffixed ./xlang-c.
 pick_xlang() {
   if driver_leaf_windows_leftover_pe_cannot_e; then
     return 1
   fi
   case "${DRIVER_LEAF_OUT_BASE:-}" in
-    driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o)
+    driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o|preprocess_x.o)
       case "$(uname -s 2>/dev/null)" in
         Windows_NT*|MINGW*|MSYS*|CYGWIN*)
           if [ -x ./xlang-c.exe ]; then
@@ -782,9 +791,10 @@ driver_leaf_build() {
   fi
 
   # PLATFORM: WINDOWS — fmt.x, check.x, test.x, build.x, run.x, compile.x,
-  # emit.x, and lsp_io_std_heap.x are compiled by xlang-c.exe -E above. The
-  # linux cold seed is not a build input for these leaves. Other leaves stay
-  # on the leftover-PE cold path. Darwin and Linux are unchanged.
+  # emit.x, lsp_io_std_heap.x, and preprocess.x are compiled by xlang-c.exe
+  # -E above. The linux cold seed is not a build input for these leaves.
+  # Other leaves stay on the leftover-PE cold path. Darwin and Linux are
+  # unchanged.
   case "${DRIVER_LEAF_OUT_BASE:-}" in
     driver_fmt_x.o)
       case "$(uname -s 2>/dev/null)" in
@@ -846,6 +856,14 @@ driver_leaf_build() {
       case "$(uname -s 2>/dev/null)" in
         Windows_NT*|MINGW*|MSYS*|CYGWIN*)
           echo "driver_leaf_x_to_o: lsp_io_std_heap_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    preprocess_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: preprocess_x.o -E failed; no cold seed on Windows" >&2
           return 1
           ;;
       esac

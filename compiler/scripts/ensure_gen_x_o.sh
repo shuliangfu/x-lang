@@ -31,7 +31,8 @@
 #                        undefined in the companion already on the link list.
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
-#       preprocess_x.o ← preprocess_gen.c
+#       preprocess_x.o ← src/preprocess/preprocess.x on Windows (no cold
+#                        seed). Darwin and Linux keep the gen.c fallback.
 #     wave295 B′: _x_stubs2.o host left (dead dual; not product g05 / stage2 link)
 #   Membership for rebuild_leaves try-gen-x is catalog-owned:
 #     DRIVER_SEED_LSP_X_OBJS · DRIVER_SEED_PIPELINE_X_OBJS
@@ -593,12 +594,20 @@ build_driver_x() {
 build_preprocess_x() {
   # Makefile: plain CFLAGS -c (no PIPELINE_GEN_CFLAGS on this leaf).
   # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
-  # Fall back to preprocess_gen.c (archaeology) only if Track L fails.
+  # Darwin and Linux fall back to preprocess_gen.c if Track L fails.
+  # PLATFORM: WINDOWS — the product -E of preprocess.x is the build input.
+  # preprocess_gen.c is the linux cold seed and is not compiled here.
   if [ -f scripts/driver_leaf_x_to_o.sh ]; then
     if bash scripts/driver_leaf_x_to_o.sh ensure preprocess_x.o 2>/dev/null; then
       log "preprocess_x.o ← Track L (.x → -E → .o; wave328)"
       return 0
     fi
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        log "preprocess_x.o -E failed; no cold seed on Windows"
+        return 1
+        ;;
+    esac
     log "Track L failed for preprocess_x.o; falling back to preprocess_gen.c (archaeology)"
   fi
   if [ ! -f preprocess_gen.c ]; then

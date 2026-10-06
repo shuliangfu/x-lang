@@ -5099,7 +5099,9 @@ ensure_asm_gen_driver_x_objs() {
   #      recursive re-entry (parent chain of ensure_host_cc_seed_o.sh try-heat
   #      pipeline_x.o with no gcc, frozen hybrid log_bytes) until kill.
   # Seed/g05 already owns pipeline_x.o / driver_x.o / preprocess_x.o on the
-  # hybrid host; reuse when present, else direct cc -c of pinned gen.c.
+  # hybrid host; reuse when present. A missing pipeline_x.o or driver_x.o is
+  # still cc -c of the pinned gen.c. A missing preprocess_x.o is
+  # driver_leaf -E of preprocess.x, not cc of preprocess_gen.c.
   # PLATFORM: SHARED Linux/Darwin — post-Makefile phys-del: shell try-heat is the
   # authority (wave930). Do NOT gate try-heat on MF presence (that forced raw
   # cc -c after phys-del). VIA_MAKE + MF still escapes for parity / debug.
@@ -5110,7 +5112,7 @@ ensure_asm_gen_driver_x_objs() {
       cp -f driver_x.o "$GEN_DIR/driver_x.o"
       cp -f preprocess_x.o "$GEN_DIR/preprocess_x.o"
     else
-      echo " win: cc -c gen_driver/*_x.o (missing seed objs; no nested make/try-heat)"
+      echo " win: cc -c pipeline_x.o driver_x.o; preprocess_x.o from preprocess.x (no nested make/try-heat)"
       "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -I.. \
         -Dstd_io_driver_driver_read_ptr_len=xlang_io_read_ptr_len \
         -Dstd_io_driver_driver_read_ptr=xlang_io_read_ptr \
@@ -5118,7 +5120,9 @@ ensure_asm_gen_driver_x_objs() {
       "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -include src/x_stubs.h \
         -Dstd_fs_fs_read=fs_posix_read_c -Dstd_fs_fs_write=fs_posix_write_c -Dstd_fs_fs_close=fs_posix_close_c \
         -c "$GEN_DIR/driver_gen.c" -o "$GEN_DIR/driver_x.o"
-      "$CC" $CFLAGS $PIPELINE_GEN_CFLAGS -c "$GEN_DIR/preprocess_gen.c" -o "$GEN_DIR/preprocess_x.o"
+      # PLATFORM: WINDOWS — same Track L as driver_leaf. The linux cold
+      # seed's preprocess_parse_* names are not this object.
+      bash scripts/driver_leaf_x_to_o.sh ensure "$GEN_DIR/preprocess_x.o"
       cp -f "$GEN_DIR/pipeline_x.o" pipeline_x.o 2>/dev/null || true
       cp -f "$GEN_DIR/driver_x.o" driver_x.o 2>/dev/null || true
       cp -f "$GEN_DIR/preprocess_x.o" preprocess_x.o 2>/dev/null || true
