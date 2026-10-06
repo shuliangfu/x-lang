@@ -5698,8 +5698,110 @@ function pipeline_asm_modlet_reset(): void {
 }
 
 /**
+ * High half for one scalar COMMON seed immediate.
+ * init_imm is one 32-bit two's-complement word. A non-negative word
+ * always has high half 0. A negative word sign-extends (high half -1)
+ * only for a signed cell: i32, i64, isize, or Cap residual i8/i16.
+ * Unsigned cells stay zero-extended, including u32 all-ones, whose
+ * low word is negative when read as i32. u8, u32, u64, usize, and
+ * Cap residual u16 take this path. Any other kind, or a missing
+ * module, arena, or name, keeps the historic zero high half.
+ * The lookup matches the modlet name against top-level lets. The
+ * 32-bit table cannot hold an i64 outside that word; this function
+ * does not invent the missing half.
+ * @param imm i32 — folded init_imm; may be negative
+ * @param name *u8 — modlet name bytes; not NUL-terminated
+ * @param name_len i32 — name length; <= 0 returns 0
+ * @return i32 — 0 or -1, passed as hi to backend_enc_mov_imm64_to_rax_arch
+ * PLATFORM: SHARED — main-entry COMMON seed. Library .data bake stays
+ * on pipe_modlet_bake_scalar_imm_to_data.
+ */
+function pipe_modlet_seed_imm_hi(imm: i32, name: *u8, name_len: i32): i32 {
+  let mod: *u8 = (0 as *u8);
+  let arena: *u8 = (0 as *u8);
+  let nlets: i32 = 0;
+  let tl: i32 = 0;
+  if (imm >= 0) {
+    return 0;
+  }
+  if (name == (0 as *u8) || name_len <= 0 || name_len > 255) {
+    return 0;
+  }
+  unsafe { mod = pipeline_asm_emit_module_ref_c(); }
+  unsafe { arena = pipeline_asm_emit_ctx_arena_get(); }
+  if (mod == (0 as *u8) || arena == (0 as *u8)) {
+    return 0;
+  }
+  unsafe { nlets = pipe_mod_get_num_top_level_lets(mod); }
+  tl = 0;
+  while (tl < nlets) {
+    let nlen: i32 = 0;
+    unsafe { nlen = pipeline_module_top_level_let_name_len(mod, tl); }
+    if (nlen == name_len) {
+      let same: i32 = 1;
+      let k: i32 = 0;
+      while (k < nlen) {
+        let b: i32 = 0;
+        unsafe { b = pipeline_module_top_level_let_name_byte_at(mod, tl, k); }
+        if (b != (name[k] as i32)) {
+          same = 0;
+          break;
+        }
+        k = k + 1;
+      }
+      if (same != 0) {
+        let tr: i32 = 0;
+        let tk: i32 = 0;
+        unsafe { tr = pipeline_module_top_level_let_type_ref(mod, tl); }
+        if (tr <= 0) {
+          return 0;
+        }
+        unsafe { tk = pipeline_type_kind_ord_at(arena, tr); }
+        // u8=2, u32=3, u64=4, usize=6. Bit 31 stays in the low word.
+        if (tk == 2 || tk == 3 || tk == 4 || tk == 6) {
+          return 0;
+        }
+        // i32=0, i64=5, isize=7.
+        if (tk == 0 || tk == 5 || tk == 7) {
+          return 0 - 1;
+        }
+        // TYPE_NAMED=8. Only Cap residual i8/i16 sign-extend.
+        // u16 and every other spelling stay zero-extended.
+        if (tk == 8) {
+          let nm: u8[8] = [];
+          let nl: i32 = 0;
+          unsafe { nl = pipeline_type_named_name_into(arena, tr, &(nm[0])); }
+          if (nl == 2) {
+            if (nm[0] == 105) {
+              if (nm[1] == 56) {
+                return 0 - 1;
+              }
+            }
+          }
+          if (nl == 3) {
+            if (nm[0] == 105) {
+              if (nm[1] == 49) {
+                if (nm[2] == 54) {
+                  return 0 - 1;
+                }
+              }
+            }
+          }
+        }
+        return 0;
+      }
+    }
+    tl = tl + 1;
+  }
+  return 0;
+}
+
+/**
  * Seed COMMON cells once on hoist-target entry.
  * Scalar cells: non-zero init_imm (historic wave139).
+ * A signed negative word is sign-extended by pipe_modlet_seed_imm_hi
+ * so `let GP: i32 = -3` compares equal to -3. Unsigned words, including
+ * u32 all-ones, stay zero-extended.
  * TYPE_ARRAY ARRAY_LIT cells: prepare emits zero BSS; write LIT elems
  * into COMMON so dest-SLICE / INDEX LEA sees the source payload
  * (`let A:[2]i32=[10,32]` and `const A:[2]i32=[10,32]`). Empty
@@ -5740,15 +5842,19 @@ export function pipeline_asm_modlet_seed_nonzero_inits_elf_c(elf_ctx: *u8, ta: i
     unsafe { imm = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_init_imm(i)); }
     if (imm != 0) {
       let rc: i32 = 0;
+      let nlen: i32 = 0;
+      let nbase: i32 = 0;
+      let hi: i32 = 0;
+      unsafe { nlen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i)); }
+      nbase = pipe_modlet_off_name(i);
+      // Signed negatives need hi=-1. Unsigned bit 31 stays hi=0.
+      hi = pipe_modlet_seed_imm_hi(imm, &g_pipeline_asm_modlet[nbase], nlen);
       unsafe {
-        unsafe { rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta); }
+        unsafe { rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, hi, ta); }
       }
       if (rc != 0) {
         return 0 - 1;
       }
-      let nlen: i32 = 0;
-      unsafe { nlen = pipe_load_i32_le(&g_pipeline_asm_modlet[0], pipe_modlet_off_name_len(i)); }
-      let nbase: i32 = pipe_modlet_off_name(i);
       if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, &g_pipeline_asm_modlet[nbase], nlen, ta) != 0) {
         return 0 - 1;
       }
