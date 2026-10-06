@@ -45,6 +45,10 @@
 // pipeline_w1594_*, and pipeline_w1597_* are absent from the egg.
 // w1598_add_stored_in_u32 stays undefined here and is defined by the
 // binop_wide overlay.
+// w2060: i8, i16, and u16 wrap in that same overlay. This file calls
+// glue_binop_named_pair_wrap_id after a narrow add or sub, and
+// sign-extends a named left operand before a 64-bit add or sub with a
+// wide integer. The byte sequences stay in binop_wide.
 // PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX, MACOS|DARWIN, and WINDOWS install the object.
 
 export extern function glue_binop_operand_is_scalar_f64_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
@@ -98,6 +102,10 @@ export extern function pipeline_block_for_body_ref(arena: *u8, block_ref: i32, i
 export extern function pipeline_block_if_then_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
 export extern function pipeline_block_if_else_body_ref(arena: *u8, block_ref: i32, index: i32): i32;
 export extern function w1598_add_stored_in_u32(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32, op_kind: i32): i32;
+export extern function glue_binop_named_narrow_id(arena: *u8, ctx: *u8, expr_ref: i32): i32;
+export extern function glue_binop_named_pair_wrap_id(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32;
+export extern function glue_emit_named_narrow_wrap_rax(elf_ctx: *u8, ta: i32, id: i32): i32;
+export extern function glue_emit_named_narrow_wrap_rbx(elf_ctx: *u8, ta: i32, id: i32): i32;
 
 /**
  * Type kind of one operand, or -1 when it has no type ref.
@@ -319,7 +327,10 @@ function w1597_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
  * sign-extended. A 32-bit add stored into a u32 is zero-extended instead,
  * so a sum at or above 2^31 does not become a negative i64 in that slot.
  * A same-width u8 add, or a u8 next to a narrow literal, is masked to
- * 8 bits so 200 + 100 becomes 44. A u8 plus a wide integer stays 64-bit.
+ * 8 bits so 200 + 100 becomes 44. A same-width i8, i16, or u16 add
+ * wraps at that width (100+100 as i8 is -56). A u8 plus a wide integer
+ * stays 64-bit. A named narrow left plus a wide integer is sign- or
+ * zero-extended and added at 64 bits, so the high half survives.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -337,6 +348,7 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   let left_kind: i32 = 0;
   let lit_mixed: i32 = 0;
   let uk: i32 = 0;
+  let nid: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_addsd_rax_rbx_arch(elf_ctx, ta);
@@ -370,11 +382,21 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   }
   // i32 on the left hides the i64 from the pair helper. The variable
   // path leaves the i32 in rax and the i64 in rbx. Skip the later cltq.
-  if (w1591_is_narrow_lit(arena, left_ref) == 0 && w1591_is_wide_int(arena, ctx, right_ref) != 0 && w1591_is_narrow_int(arena, ctx, left_ref) != 0) {
+  unsafe {
+    nid = glue_binop_named_narrow_id(arena, ctx, left_ref);
+  }
+  if (w1591_is_narrow_lit(arena, left_ref) == 0 && w1591_is_wide_int(arena, ctx, right_ref) != 0 && (w1591_is_narrow_int(arena, ctx, left_ref) != 0 || nid != 0)) {
     left_kind = w1591_operand_kind(arena, ctx, left_ref);
     if (left_kind == 0) {
       unsafe {
         if (glue_enc_sxt_i32_result_to_rax_elf_c(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+      }
+    }
+    if (nid != 0) {
+      unsafe {
+        if (glue_emit_named_narrow_wrap_rax(elf_ctx, ta, nid) != 0) {
           return 0 - 1;
         }
       }
@@ -395,6 +417,15 @@ export function glue_emit_binop_add_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   uk = w1597_unsigned_kind(arena, ctx, left_ref, right_ref);
   if (uk == 2) {
     return w1597_zxt_rax(elf_ctx, ta, uk);
+  }
+  /* i8 100+100 is 200 in w0. Sign-extend to -56. u16 masks to 16 bits. */
+  unsafe {
+    nid = glue_binop_named_pair_wrap_id(arena, ctx, left_ref, right_ref);
+  }
+  if (nid != 0) {
+    unsafe {
+      return glue_emit_named_narrow_wrap_rax(elf_ctx, ta, nid);
+    }
   }
   // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
   // a sum at or above 2^31 negative in the 8-byte slot. i32 still cltqs.
@@ -462,9 +493,19 @@ function w1594_emit_wide_sub_rbx_minus_rax(elf_ctx: *u8, ta: i32): i32 {
  */
 function w1597_finish_narrow(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
   let uk: i32 = 0;
+  let nid: i32 = 0;
   uk = w1597_unsigned_kind(arena, ctx, left_ref, right_ref);
   if (uk != 0) {
     return w1597_zxt_rax(elf_ctx, ta, uk);
+  }
+  /* u16 0-1 is all-ones in the low word. Keep 65535. i8/i16 sign-extend. */
+  unsafe {
+    nid = glue_binop_named_pair_wrap_id(arena, ctx, left_ref, right_ref);
+  }
+  if (nid != 0) {
+    unsafe {
+      return glue_emit_named_narrow_wrap_rax(elf_ctx, ta, nid);
+    }
   }
   unsafe {
     return glue_binop_maybe_sxt_i32_result_elf_c(arena, ctx, left_ref, right_ref, elf_ctx, ta);
@@ -477,6 +518,8 @@ function w1597_finish_narrow(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, 
  * integer is sign-extended and subtracted at 64 bits, with no following
  * cltq. i32 minus i32 still uses that cltq. A u32 or u8 minus the same
  * width, or minus a narrow literal, is zero-extended and does not cltq.
+ * i8, i16, and u16 do the same at their own width. A named narrow left
+ * next to a wide integer is extended and subtracted at 64 bits.
  * A wide left already takes the 64-bit arm; a narrow literal in rbx is
  * sign-extended first so -1 stays negative.
  * @param arena *u8 — AST arena
@@ -494,6 +537,7 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
   let is_64bit: i32 = 0;
   let left_kind: i32 = 0;
   let mixed: i32 = 0;
+  let nid: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subsd_rbx_rax_arch(elf_ctx, ta);
@@ -513,14 +557,24 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
   // i32 on the left hides the i64, so is_64bit stays 0. x86 then-mov is
   // already subq; cltq below would discard the high half.
   mixed = 0;
+  nid = 0;
   if (is_64bit == 0 && w1591_is_wide_int(arena, ctx, right_ref) != 0) {
     left_kind = w1591_operand_kind(arena, ctx, left_ref);
-    if (w1591_is_narrow_lit(arena, left_ref) != 0 || left_kind == 0) {
+    unsafe {
+      nid = glue_binop_named_narrow_id(arena, ctx, left_ref);
+    }
+    if (w1591_is_narrow_lit(arena, left_ref) != 0 || left_kind == 0 || nid != 0) {
       mixed = 1;
     }
   }
   if (mixed != 0) {
-    if (w1591_sxt_rbx(elf_ctx, ta) != 0) {
+    if (nid != 0) {
+      unsafe {
+        if (glue_emit_named_narrow_wrap_rbx(elf_ctx, ta, nid) != 0) {
+          return 0 - 1;
+        }
+      }
+    } else if (w1591_sxt_rbx(elf_ctx, ta) != 0) {
       return 0 - 1;
     }
     return w1594_emit_wide_sub_rbx_minus_rax(elf_ctx, ta);
@@ -547,7 +601,9 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
  * Same float, pointer-scale, and 64-bit arms as the egg. The right-hand
  * literal path lands here: subl already wraps at 32 bits, and the egg then
  * sign-extended because the literal is an unstamped i32. A u32 or u8 result
- * is zero-extended instead. i32 still sign-extends. A wide operand returns
+ * is zero-extended instead. i32 still sign-extends. i8, i16, and u16
+ * wrap at their width. A named narrow left next to a wide integer is
+ * extended first and subtracted at 64 bits. A wide operand returns
  * before that extend.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
@@ -562,6 +618,7 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
 export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
   let rc: i32 = 0;
   let is_64bit: i32 = 0;
+  let nid: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_subsd_rax_rbx_arch(elf_ctx, ta);
@@ -573,6 +630,16 @@ export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8
       return 0 - 1;
     }
     is_64bit = glue_binop_operand_is_64bit_elf_c(arena, ctx, left_ref, right_ref);
+    /* i8 on the left hides the i64. Extend the named value, then sub at 64 bits. */
+    if (is_64bit == 0 && w1591_is_wide_int(arena, ctx, right_ref) != 0) {
+      nid = glue_binop_named_narrow_id(arena, ctx, left_ref);
+      if (nid != 0) {
+        if (glue_emit_named_narrow_wrap_rax(elf_ctx, ta, nid) != 0) {
+          return 0 - 1;
+        }
+        is_64bit = 1;
+      }
+    }
     if (is_64bit != 0) {
       // Same bytes as the egg. x86: subq %rbx,%rax (48 29 d8).
       // arm64: SUB X0, X0, X1 (00 00 01 CB).

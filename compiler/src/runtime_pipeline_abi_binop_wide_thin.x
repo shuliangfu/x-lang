@@ -39,6 +39,11 @@
 // u32 variable, zero-extend and skip cltq. The store scan is
 // w1598_add_stored_in_u32 in the widen-mixed overlay, called with kind 6.
 // An i32 destination still sign-extends. A wide multiply stays on imulq.
+// w2060: i8, i16, and u16 are TYPE_NAMED, so the u8/u32 mask never saw them.
+// A same-width add, sub, or mul kept the 32-bit result. i8 100+100 stayed
+// 200, i16 20000+20000 stayed 40000, u16 0-1 stayed -1. After the narrow
+// op, sign-extend i8/i16 to 64 bits or zero-extend u16. A wide integer on
+// either side is not this wrap. u8 and u32 stay on their existing masks.
 // PLATFORM: SHARED freestanding emit · MACOS|ARM64 · LINUX x86_64 · WINDOWS x86_64.
 // LINUX installs this object. Darwin and Windows keep the previous body
 // until they relink.
@@ -91,6 +96,7 @@ export extern function pipeline_asm_emit_panic_int_div_zero_elf_c(elf_ctx: *u8, 
 export extern function pipeline_asm_emit_next_label_c(ctx: *u8, buf: *u8, buf_size: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_int64_val_at(arena: *u8, expr_ref: i32): i64;
@@ -452,6 +458,194 @@ function w1595_is_narrow_lit(arena: *u8, expr_ref: i32): i32 {
 }
 
 /**
+ * Width id of a TYPE_NAMED i8, i16, or u16 operand.
+ * Those three have no TypeKind of their own. Kind 8 plus the spelling
+ * is the same test typeck_int_family_id uses: 10 is i8, 11 is i16,
+ * 12 is u16. Any other type, including u8 and i32, returns 0.
+ * The name copy writes at most 255 bytes and does not clear the buffer,
+ * so only the returned length is read.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param ctx *u8 — emit context; null skips the VAR declaration fallback
+ * @param expr_ref i32 — operand; <=0 returns 0
+ * @return i32 — 10, 11, 12, or 0
+ * PLATFORM: SHARED — type kind and name bytes only.
+ */
+#[no_mangle]
+export function glue_binop_named_narrow_id(arena: *u8, ctx: *u8, expr_ref: i32): i32 {
+  let tr: i32 = 0;
+  let kind: i32 = 0;
+  let nlen: i32 = 0;
+  let nm: u8[256] = [];
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  unsafe {
+    tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    if (tr <= 0 && ctx != (0 as *u8)) {
+      tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+    }
+    if (tr <= 0) {
+      return 0;
+    }
+    kind = pipeline_type_kind_ord_at(arena, tr);
+  }
+  if (kind != 8) {
+    return 0;
+  }
+  unsafe {
+    nlen = pipeline_type_named_name_into(arena, tr, &nm[0]);
+  }
+  /* "i8" */
+  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) {
+    return 10;
+  }
+  /* "i16" */
+  if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) {
+    return 11;
+  }
+  /* "u16" */
+  if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) {
+    return 12;
+  }
+  return 0;
+}
+
+/**
+ * Same-width i8, i16, or u16 pair that must wrap after a narrow binop.
+ * Both sides the same named width, or one named width and a narrow
+ * literal, return that id. A wide integer on either side returns 0 so
+ * the mixed 64-bit arm keeps the full sum. u8, u32, and i32 return 0.
+ * @param arena *u8 — AST arena
+ * @param ctx *u8 — emit context
+ * @param left_ref i32 — left operand
+ * @param right_ref i32 — right operand
+ * @return i32 — 10, 11, 12, or 0
+ * PLATFORM: SHARED — type test only; the extend is glue_emit_named_narrow_wrap_rax.
+ */
+#[no_mangle]
+export function glue_binop_named_pair_wrap_id(arena: *u8, ctx: *u8, left_ref: i32, right_ref: i32): i32 {
+  let id_l: i32 = 0;
+  let id_r: i32 = 0;
+  if (w1595_is_wide_int(arena, ctx, left_ref) != 0) {
+    return 0;
+  }
+  if (w1595_is_wide_int(arena, ctx, right_ref) != 0) {
+    return 0;
+  }
+  id_l = glue_binop_named_narrow_id(arena, ctx, left_ref);
+  id_r = glue_binop_named_narrow_id(arena, ctx, right_ref);
+  if (id_l != 0 && id_l == id_r) {
+    return id_l;
+  }
+  if (id_l != 0 && w1595_is_narrow_lit(arena, right_ref) != 0) {
+    return id_l;
+  }
+  if (id_r != 0 && w1595_is_narrow_lit(arena, left_ref) != 0) {
+    return id_r;
+  }
+  return 0;
+}
+
+/**
+ * Extend the low 8 or 16 bits of rax to a full 64-bit GP.
+ * Id 10 sign-extends i8 (x86 movsbq %al,%rax; arm64 sxtb x0,w0).
+ * Id 11 sign-extends i16 (x86 movswq %ax,%rax; arm64 sxth x0,w0).
+ * Id 12 zero-extends u16 (x86 and $0xffff,%eax; arm64 uxth w0,w0).
+ * A 32-bit add of 100+100 leaves 200; the i8 extend makes that -56
+ * in the 8-byte slot. A w-register write would clear the high half
+ * of a negative i8, so the arm64 signed forms write x0, not w0.
+ * Other ta values emit nothing and return 0, matching the u8 mask.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param id i32 — 10, 11, or 12 from glue_binop_named_narrow_id
+ * @return i32 — 0 ok, -1 when id is unknown or the encoder fails
+ * PLATFORM: SHARED — x86_64 and arm64. Other ta is a no-op.
+ */
+#[no_mangle]
+export function glue_emit_named_narrow_wrap_rax(elf_ctx: *u8, ta: i32, id: i32): i32 {
+  if (id != 10 && id != 11 && id != 12) {
+    return 0 - 1;
+  }
+  if (ta != 0 && ta != 1) {
+    return 0;
+  }
+  unsafe {
+    if (ta == 0 && id == 10) {
+      /* movsbq %al, %rax — 48 0f be c0 */
+      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 190) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    if (ta == 0 && id == 11) {
+      /* movswq %ax, %rax — 48 0f bf c0 */
+      if (backend_enc_append_u8_c(elf_ctx, 72) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 191) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    if (ta == 0 && id == 12) {
+      /* and $0xffff, %eax — 25 ff ff 00 00. Writing eax clears rax[63:32]. */
+      if (backend_enc_append_u8_c(elf_ctx, 37) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 255) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 255) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 0);
+    }
+    if (ta == 1 && id == 10) {
+      /* sxtb x0, w0 — 00 1c 40 93 */
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 28) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 64) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 147);
+    }
+    if (ta == 1 && id == 11) {
+      /* sxth x0, w0 — 00 3c 40 93 */
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 60) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 64) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 147);
+    }
+    /* uxth w0, w0 — 00 3c 00 53. Writing w0 clears x0[63:32]. */
+    if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 60) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 83);
+  }
+}
+
+/**
+ * Extend the low 8 or 16 bits of rbx, leaving rax unchanged.
+ * The value moves through rax because the extend helpers write rax.
+ * @param elf_ctx *u8 — encoder context
+ * @param ta i32 — 0 is x86_64, 1 is arm64
+ * @param id i32 — 10, 11, or 12
+ * @return i32 — 0 ok, -1 encode failure
+ * PLATFORM: SHARED — push/mov around glue_emit_named_narrow_wrap_rax.
+ */
+#[no_mangle]
+export function glue_emit_named_narrow_wrap_rbx(elf_ctx: *u8, ta: i32, id: i32): i32 {
+  unsafe {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (glue_emit_named_narrow_wrap_rax(elf_ctx, ta, id) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
  * Sign-extend the i32 in rbx to 64 bits and restore rax.
  * The lit encoder writes mov imm32 to ebx, which zero-extends.
  * cdqe runs on rax, so rbx moves through rax around the saved value.
@@ -545,6 +739,8 @@ function w1596_zxt_rax(elf_ctx: *u8, ta: i32, kind: i32): i32 {
  * same-width multiply, stay on the existing arms. A 32-bit product stored
  * into a u32 is zero-extended instead of sign-extended, so a product at or
  * above 2^31 stays unsigned in that slot. An i32 destination still cltqs.
+ * A same-width i8, i16, or u16 product wraps at that width before the
+ * u32 store scan. u8 times u8 is unchanged.
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — encoder context
  * @param ctx *u8 — emit context
@@ -560,6 +756,7 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   let is_64bit: i32 = 0;
   let left_kind: i32 = 0;
   let stored_u32: i32 = 0;
+  let nid: i32 = 0;
   unsafe {
     if ((ta == 0 || ta == 1) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, left_ref) != 0) && (glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, right_ref) != 0)) {
       return backend_enc_mulsd_rax_rbx_arch(elf_ctx, ta);
@@ -605,6 +802,13 @@ export function glue_emit_binop_mul_rax_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx:
   }
   if (rc != 0) {
     return rc;
+  }
+  /* i8/i16/u16 product. 100*3 leaves 300; i8 keeps 44. u8 mul stays 32-bit. */
+  nid = glue_binop_named_pair_wrap_id(arena, ctx, left_ref, right_ref);
+  if (nid != 0) {
+    unsafe {
+      return glue_emit_named_narrow_wrap_rax(elf_ctx, ta, nid);
+    }
   }
   // Stored into a u32: keep the zero-extended low 32 bits. cltq would make
   // a product at or above 2^31 negative in the 8-byte slot. Kind 6 is MUL.
