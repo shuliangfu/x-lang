@@ -441,22 +441,23 @@ _load_driver_leaf_base_cflags_via_make() {
 
 # True when this host's product -E binary is a leftover Windows PE that cannot
 # compile tip .x sources without name mangling (_reti32) or stdout clashes.
-# driver_fmt_x.o, driver_check_x.o, and driver_test_x.o are the exceptions.
-# The product xlang-c.exe -E of src/driver/fmt.x compiles to the same
-# T driver_cmd_fmt / U driver_run_fmt body as the cold seed. The same binary
-# -E of src/driver/check.x compiles to T driver_cmd_check /
+# driver_fmt_x.o, driver_check_x.o, driver_test_x.o, and driver_build_x.o
+# are the exceptions. The product xlang-c.exe -E of src/driver/fmt.x compiles
+# to the same T driver_cmd_fmt / U driver_run_fmt body as the cold seed. The
+# same binary -E of src/driver/check.x compiles to T driver_cmd_check /
 # U driver_run_compiler_check. The same binary -E of src/driver/test.x
-# compiles to T driver_cmd_test / U driver_run_test. The nest-1..64
-# xlang_slice_* layouts in that -E dump are the shared prelude; they are not
-# referenced by cmd_test. The unsuffixed ./xlang-c on a Windows tree can be a
-# different PE that rejects these files with P001, so pick_xlang does not use
-# it for these leaves.
+# compiles to T driver_cmd_test / U driver_run_test. The same binary -E of
+# src/driver/build.x compiles to T build_cmd_build / U driver_build_build_x /
+# U main_run_compiler_x_path_impl. The nest-1..64 xlang_slice_* layouts in
+# that -E dump are the shared prelude. The unsuffixed ./xlang-c on a Windows
+# tree can be a different PE that rejects these files with P001, so pick_xlang
+# does not use it for these leaves.
 # PLATFORM: WINDOWS — 2026-07-31 leftover PE fallback to cold seeds.
 driver_leaf_windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
     Windows_NT*|MINGW*|MSYS*|CYGWIN*)
       case "${DRIVER_LEAF_OUT_BASE:-}" in
-        driver_fmt_x.o|driver_check_x.o|driver_test_x.o) return 1 ;;
+        driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o) return 1 ;;
       esac
       return 0
       ;;
@@ -466,14 +467,14 @@ driver_leaf_windows_leftover_pe_cannot_e() {
 
 # Pick first usable xlang binary for -E preprocessing of driver/lsp leaves.
 # PLATFORM: SHARED — on Windows leftover-PE, returns 1 to force cold seed fallback.
-# PLATFORM: WINDOWS — driver_fmt_x.o, driver_check_x.o, and driver_test_x.o
-# use xlang-c.exe, not an unsuffixed ./xlang-c.
+# PLATFORM: WINDOWS — driver_fmt_x.o, driver_check_x.o, driver_test_x.o, and
+# driver_build_x.o use xlang-c.exe, not an unsuffixed ./xlang-c.
 pick_xlang() {
   if driver_leaf_windows_leftover_pe_cannot_e; then
     return 1
   fi
   case "${DRIVER_LEAF_OUT_BASE:-}" in
-    driver_fmt_x.o|driver_check_x.o|driver_test_x.o)
+    driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o)
       case "$(uname -s 2>/dev/null)" in
         Windows_NT*|MINGW*|MSYS*|CYGWIN*)
           if [ -x ./xlang-c.exe ]; then
@@ -750,9 +751,10 @@ driver_leaf_build() {
     echo "driver_leaf_x_to_o: PREFER_X_O failed for $X_SRC; try cold seed" >&2
   fi
 
-  # PLATFORM: WINDOWS — fmt.x, check.x, and test.x are compiled by xlang-c.exe
-  # -E above. The linux cold seed is not a build input for these leaves. Other
-  # leaves stay on the leftover-PE cold path. Darwin and Linux are unchanged.
+  # PLATFORM: WINDOWS — fmt.x, check.x, test.x, and build.x are compiled by
+  # xlang-c.exe -E above. The linux cold seed is not a build input for these
+  # leaves. Other leaves stay on the leftover-PE cold path. Darwin and Linux
+  # are unchanged.
   case "${DRIVER_LEAF_OUT_BASE:-}" in
     driver_fmt_x.o)
       case "$(uname -s 2>/dev/null)" in
@@ -774,6 +776,14 @@ driver_leaf_build() {
       case "$(uname -s 2>/dev/null)" in
         Windows_NT*|MINGW*|MSYS*|CYGWIN*)
           echo "driver_leaf_x_to_o: driver_test_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_build_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_build_x.o -E failed; no cold seed on Windows" >&2
           return 1
           ;;
       esac
