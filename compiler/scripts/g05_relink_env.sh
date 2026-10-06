@@ -836,9 +836,12 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-# wave767 Class R: Win PE assign overrides FIRST (allow-multiple first-wins).
-# field + index. var and deref scalar are the egg T. Built by g05_ensure
+# wave767 Class R: Win PE assign overrides (allow-multiple first-wins).
+# field stays. var and deref scalar are the egg T. Built by g05_ensure
 # when seeds present.
+# w2060: index is not in this list while the true-pack stack is on.
+# assign_index_true_i8.o is an earlier strong T of
+# glue_emit_assign_index_elf_c. See the filter after _WIN_TRUE_PACK.
 # w2060: do not link src/win_struct_let_init_override.o. The egg T
 # pipeline_asm_emit_struct_let_init_elf_c is the windows_link_stubs body,
 # and that body matches the override (129 bytes; call rel32 ignored).
@@ -2494,6 +2497,26 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ] \
       && [ -s build_asm/selfhost_pabi/array_lit_esz_true_i8.o ]; then
       _WIN_TRUE_PACK=1
+    fi
+    # w2060: glue_emit_assign_index_elf_c. The first strong T on the PE
+    # link is assign_index_true_i8.o, the same gcc -c -O2 seed Linux and
+    # Darwin already compile. It is inside _PABI_SELFHOST, ahead of
+    # _WIN_ASSIGN_OVERRIDES. PE --allow-multiple-definition is first-wins,
+    # so src/win_assign_index_override.o is a later T and does not run.
+    # Installed Windows objects: T in assign_index_true_i8.o, T in the
+    # override, T in the egg, W in pabi_weak.o. No earlier selfhost
+    # object defines it. XLANG_WIN_BAKE_TIP=0 leaves the stack off, so
+    # the override stays and still beats the egg. Do not switch
+    # assign_index_thin.x on. PLATFORM: WINDOWS.
+    if [ "$_WIN_TRUE_PACK" = "1" ]; then
+      _win_asg_kept=""
+      for _wov in $_WIN_ASSIGN_OVERRIDES; do
+        if [ "$_wov" = "src/win_assign_index_override.o" ]; then
+          continue
+        fi
+        _win_asg_kept="${_win_asg_kept}${_win_asg_kept:+ }$_wov"
+      done
+      _WIN_ASSIGN_OVERRIDES="$_win_asg_kept"
     fi
     if [ "$_WIN_TRUE_PACK" = "1" ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"

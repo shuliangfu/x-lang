@@ -4920,6 +4920,18 @@ case "$(uname -s 2>/dev/null)" in
     do
       _src="${_pair%%|*}"
       _out="${_pair#*|}"
+      # w2060: do not host-cc win_assign_index_override.c while the
+      # true-pack stack is on (the default). g05_relink links
+      # assign_index_true_i8.o ahead of this override, and that object
+      # is the first strong glue_emit_assign_index_elf_c.
+      # XLANG_WIN_BAKE_TIP=0 still builds the override: the true-pack
+      # object is absent, and this T is what beats the egg.
+      # If the later true-pack gcc fails, the egg T is the remaining
+      # definition. PLATFORM: WINDOWS.
+      if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
+        && [ "$_src" = "seeds/win_assign_index_override.c" ]; then
+        continue
+      fi
       if [ -f "$_src" ]; then
         if [ ! -s "$_out" ] || [ "$_src" -nt "$_out" ]; then
           echo "g05_ensure: cc -c $_out (Win assign override)" >&2
