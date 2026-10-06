@@ -156,6 +156,7 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
   let kind_index: i32 = 47;
   let kind_call: i32 = 48;
   let kind_method: i32 = 49;
+  let type_ptr: i32 = 9;
   let type_array: i32 = 10;
   let type_slice: i32 = 11;
   let type_f32: i32 = 14; // GLUE_TYPE_KIND_F32_ORD
@@ -432,6 +433,34 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
           if (br == 0) { return 0; }
           if (br == (0 - 1)) { return 0 - 1; }
           // -2: fall through
+        }
+      }
+    }
+  }
+
+  // --- FIELD_ACCESS fixed TYPE_ARRAY as TYPE_PTR formal: array decay ---
+  // `f(s.a)` / `f(ps.a)` / `f(o.in.a)` with `a: E[N]` and formal `*E`
+  // passes the address of the first element, never the first 8 bytes of
+  // the array. The generic FIELD rvalue path scalar-loads the field, so
+  // take the field lvalue address here. Register and stack (7th+) args
+  // both pack through this function. PLATFORM: SHARED — x86_64 SysV,
+  // x86_64 Win64 (same ta == 0 packer) and ARM64 AAPCS64.
+  if (arena != (0 as *u8) && ctx != (0 as *u8) && elf_ctx != (0 as *u8) && pty > 0) {
+    unsafe { ko = pipeline_expr_kind_ord_at(arena, expr_ref); }
+    if (ko == kind_field) {
+      unsafe { rc = pipeline_type_kind_ord_at(arena, pty); }
+      if (rc == type_ptr) {
+        emit_mod = pipeline_asm_emit_module_ref_c();
+        fty = glue_field_access_field_type_ref_c(arena, emit_mod, expr_ref);
+        is_arr = 0;
+        if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) { is_arr = 1; }
+        unsafe { rty = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+        if (is_arr == 0 && rty > 0) {
+          unsafe { rc = pipeline_type_kind_ord_at(arena, rty); }
+          if (rc == type_array) { is_arr = 1; }
+        }
+        if (is_arr != 0) {
+          return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
         }
       }
     }

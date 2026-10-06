@@ -192,4 +192,44 @@ if [ ! -s "$_ens_dst" ] || [ "$_ens_src" -nt "$_ens_dst" ] || [ "$XL" -nt "$_ens
   mv -f "$_ens_tmp" "$_ens_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_ens_dst (enum ns tag strong)"
 fi
+# 6. w2060 call-arg packer: one.o keeps pipeline_asm_emit_expr_elf_for_call_args
+#    strong ahead of the pabi copy (linux_selfhost_pabi_sidecars.sh built it
+#    once and nothing rebuilt it, so a fix in the thin never reached the
+#    x86_64 product). Rebuild from the thin with the current product when
+#    the thin or the compiler is newer, or the name is not strong; weaken
+#    every other global like the sidecar script does. A failure stops the
+#    ensure (no silent fallback to the old object).
+_fca_src=src/runtime_pipeline_abi_for_call_args_thin.x
+_fca_dst="$OUT/one.o"
+_fca_sym=pipeline_asm_emit_expr_elf_for_call_args
+if [ ! -f "$_fca_src" ]; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fca_src missing" >&2
+  exit 1
+fi
+if [ ! -s "$_fca_dst" ] || [ "$_fca_src" -nt "$_fca_dst" ] || [ "$XL" -nt "$_fca_dst" ] \
+    || ! nm "$_fca_dst" | awk -v s="$_fca_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
+  _fca_tmp="$OUT/one.tmp.o"
+  rm -f "$_fca_tmp"
+  if ! timeout 240 "$XL" -backend asm -c "$_fca_src" -o "$_fca_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_fca_src failed" >&2
+    rm -f "$_fca_tmp"
+    exit 1
+  fi
+  while read -r _sym; do
+    [ -n "$_sym" ] || continue
+    [ "$_sym" = "$_fca_sym" ] && continue
+    if ! objcopy --weaken-symbol="$_sym" "$_fca_tmp"; then
+      echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_fca_tmp failed" >&2
+      rm -f "$_fca_tmp"
+      exit 1
+    fi
+  done < <(nm "$_fca_tmp" | awk '$2=="T"{print $3}')
+  if ! nm "$_fca_tmp" | awk -v s="$_fca_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_fca_src lacks strong $_fca_sym" >&2
+    rm -f "$_fca_tmp"
+    exit 1
+  fi
+  mv -f "$_fca_tmp" "$_fca_dst"
+  echo "linux_selfhost_pabi_refresh_tip: $_fca_dst (call-arg packer strong)"
+fi
 echo "linux_selfhost_pabi_refresh_tip: OK"
