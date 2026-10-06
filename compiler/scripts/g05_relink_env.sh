@@ -1152,6 +1152,90 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_lw_s=$_lw_o"
   done
 fi
+# w2060: INDEX assign-address cache guard. The egg
+# glue_index_assign_addr_cache_hit is a strong T (frame sub $0x68)
+# that still answers from the wave156 cache. Eight R_X86_64_PLT32
+# sites in that object name it. ensure's
+# pipeline_abi_inject_w156_guard_thin returns without compiling once
+# that T exists, so the always-miss thin never replaced the egg.
+# Darwin rebuilds w156_guard_a64.o and Windows rebuilds
+# w156_guard_win.o on every relink. This is the Linux twin: PREFER=1,
+# one strong T, no xlang_panic_. Link it ahead of the pabi copy.
+# A missing object exits 1. Weaken a strong T only on the build_asm
+# link object. The later elf64k and skip_heavy copies start from that
+# object, so the weaken is kept. Never edit src/runtime_pipeline_abi.o.
+# PLATFORM: LINUX.
+case "$UNAME_S" in
+  Linux)
+    if [ -n "$_PABI_SELFHOST" ]; then
+      _lw156_x=src/runtime_pipeline_abi_w156_guard_thin.x
+      _lw156_o=build_asm/selfhost_pabi/w156_guard.o
+      _lw156_s=glue_index_assign_addr_cache_hit
+      if [ ! -f "$_lw156_x" ]; then
+        echo "g05_relink_env: $_lw156_x missing (Linux w156 guard)" >&2
+        exit 1
+      fi
+      if [ ! -x ./xlang_asm ]; then
+        echo "g05_relink_env: ./xlang_asm missing (Linux w156 guard)" >&2
+        exit 1
+      fi
+      mkdir -p build_asm/selfhost_pabi
+      rm -f "$_lw156_o" "$_lw156_o.tmp.o"
+      if command -v timeout >/dev/null 2>&1; then
+        _lw156_to="timeout 240"
+      else
+        _lw156_to=""
+      fi
+      if ! env XLANG_PREFER_ASM_O=1 $_lw156_to ./xlang_asm -backend asm -c \
+          "$_lw156_x" -o "$_lw156_o.tmp.o" >/dev/null 2>&1; then
+        rm -f "$_lw156_o.tmp.o"
+        echo "g05_relink_env: $_lw156_x failed (Linux w156 guard)" >&2
+        exit 1
+      fi
+      if ! nm "$_lw156_o.tmp.o" 2>/dev/null | grep -q " T ${_lw156_s}\$"; then
+        rm -f "$_lw156_o.tmp.o"
+        echo "g05_relink_env: $_lw156_x lacks strong $_lw156_s (Linux w156 guard)" >&2
+        exit 1
+      fi
+      if nm "$_lw156_o.tmp.o" 2>/dev/null | grep -q 'xlang_panic_'; then
+        rm -f "$_lw156_o.tmp.o"
+        echo "g05_relink_env: $_lw156_x references xlang_panic_ (Linux w156 guard)" >&2
+        exit 1
+      fi
+      if ! command -v objcopy >/dev/null 2>&1; then
+        rm -f "$_lw156_o.tmp.o"
+        echo "g05_relink_env: no objcopy for $_lw156_x (Linux w156 guard)" >&2
+        exit 1
+      fi
+      for _lw156_g in $(nm "$_lw156_o.tmp.o" 2>/dev/null | awk '$2=="T"{print $3}'); do
+        [ "$_lw156_g" = "$_lw156_s" ] && continue
+        if ! objcopy --weaken-symbol="$_lw156_g" "$_lw156_o.tmp.o"; then
+          rm -f "$_lw156_o.tmp.o"
+          echo "g05_relink_env: weaken $_lw156_g in $_lw156_x failed (Linux w156 guard)" >&2
+          exit 1
+        fi
+      done
+      if ! nm "$_lw156_o.tmp.o" 2>/dev/null | grep -q " T ${_lw156_s}\$"; then
+        rm -f "$_lw156_o.tmp.o"
+        echo "g05_relink_env: $_lw156_x lost strong $_lw156_s (Linux w156 guard)" >&2
+        exit 1
+      fi
+      mv -f "$_lw156_o.tmp.o" "$_lw156_o"
+      _PABI_SELFHOST="$_lw156_o $_PABI_SELFHOST"
+      case "$_PABI_LINK_O" in
+        build_asm/*)
+          if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_lw156_s}$"; then
+            if ! objcopy --weaken-symbol="$_lw156_s" "$_PABI_LINK_O"; then
+              echo "g05_relink_env: weaken $_lw156_s in $_PABI_LINK_O failed (Linux w156 guard)" >&2
+              exit 1
+            fi
+          fi
+          ;;
+      esac
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_lw156_s=$_lw156_o"
+    fi
+    ;;
+esac
 # w1023: nested ARRAY_LIT local let-init → array_lit_flat. PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/vector_let_init_nested_override.c ]; then
   mkdir -p build_asm/selfhost_pabi
@@ -1486,8 +1570,8 @@ if [ "$UNAME_S" = "Darwin" ] \
   # glue_index_assign_addr_cache_hit before an INDEX store; the pabi_weak
   # copy still answers from the wave156 cache, which nothing clears at an
   # if/else join, so the else arm stores through a stale x1 (call_spill
-  # thin, EXC_BAD_ACCESS). The guard thin always misses; Linux already
-  # links it. PLATFORM: MACOS|DARWIN.
+  # thin, EXC_BAD_ACCESS). The guard thin always misses. Linux rebuilds
+  # w156_guard.o in the Linux self-host block. PLATFORM: MACOS|DARWIN.
   g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_w156_guard_thin.x \
     build_asm/selfhost_pabi/w156_guard_a64.o \
     "_glue_index_assign_addr_cache_hit" \
@@ -2235,6 +2319,7 @@ case "$UNAME_S" in
     # before an INDEX store; the pabi_weak copy still answers from the
     # wave156 cache, which nothing clears at an if/else join, so an else
     # arm can store through a stale address. The guard thin always misses.
+    # Linux rebuilds w156_guard.o in the Linux self-host block.
     # Compile it with the current product (pure asm), require a strong T,
     # weaken the pabi_weak copy below, record it for the map check. Any
     # failure stops the relink. PLATFORM: WINDOWS.

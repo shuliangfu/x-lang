@@ -10,8 +10,12 @@
 // binop_var_slot_cache / enc_dispatch), so the guard overrides only
 // the hit predicate: never reuse rbx. Always correct (full address
 // recompute); costs a few bytes per repeated INDEX.
-// PRODUCT: LINUX (x86_64 ELF) PREFER. Darwin arm64 unaffected.
-// PLATFORM: LINUX.
+// The egg still defines this name as a strong T, so the ensure inject
+// returns without compiling. Linux g05 rebuilds w156_guard.o on every
+// self-host relink (PREFER=1) and weakens that T only on the build_asm
+// pabi copy. Darwin rebuilds w156_guard_a64.o and Windows rebuilds
+// w156_guard_win.o on every relink. The thin does not divide.
+// PLATFORM: SHARED source; LINUX, MACOS|DARWIN, and WINDOWS sidecars.
 
 /**
  * wave156 INDEX assign-addr cache hit — disabled (always miss).
@@ -21,7 +25,9 @@
  * @param idx_ref i32 - INDEX index (unused)
  * @param esz i32 - element size (unused)
  * @return i32 - always 0 (miss)
- * w1483 pure. PLATFORM: LINUX.
+ * w1483 pure. The egg T is the old cache body, so the ensure inject
+ * does not replace it. Linux g05 links this body ahead of that copy.
+ * PLATFORM: SHARED source; LINUX, MACOS|DARWIN, and WINDOWS sidecars.
  */
 #[no_mangle]
 export function glue_index_assign_addr_cache_hit(arena: *u8, ctx: *u8, base_ref: i32, idx_ref: i32, esz: i32): i32 {

@@ -22913,7 +22913,10 @@ pipeline_abi_inject_for_call_args_thin() {
 # w1483: wave156 INDEX assign-addr cache guard (stale rbx SEGV on x86_64).
 # Strong glue_index_assign_addr_cache_hit (always miss) over base weak.
 # Idempotent: skip when $o already has T for the symbol.
-# PLATFORM: LINUX PREFER (pure-asm). MACOS/WINDOWS: no-op.
+# w2060: the Linux egg T is the old cache body, not this thin, so this
+# inject does not replace it. Do not force-reinject into the egg.
+# g05 links w156_guard.o ahead of the build_asm pabi copy and weakens
+# that copy. PLATFORM: LINUX PREFER (pure-asm). MACOS/WINDOWS: no-op.
 pipeline_abi_inject_w156_guard_thin() {
   local o="$1"
   local thin_x="src/runtime_pipeline_abi_w156_guard_thin.x"
