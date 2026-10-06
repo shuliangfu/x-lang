@@ -864,6 +864,14 @@ esac
 # static tables match (1440 and 96 bytes; pointer relocs ignored).
 # The driver and typeck tables are empty. The override defines only
 # those four T symbols. Do not switch a thin on for them.
+# w2060: do not link src/win_asm_parser_override.o. The egg defines
+# asm_parser_emit_heavy_safe_helper, asm_parser_func_is_thin_delegate,
+# and asm_parser_m8_tail_thin_delegate_c_name from windows_link_stubs.c.
+# Each matches the override once call rel32 and trailing nops are
+# ignored (9776, 168, and 357 bytes). The 116-row table matches
+# (3712 bytes; pointer relocs ignored; 232 strings). The override
+# defines only those three T symbols. The parser thin-delegate overlay
+# stays linked ahead and still returns 0. Do not switch another thin on.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux ignore.
 _WIN_ASSIGN_OVERRIDES=""
 case "$UNAME_S" in
@@ -876,7 +884,7 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
-    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_splat_override.o src/win_simd_select_shuffle_fma_override.o src/win_asm_parser_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_simd_splat_override.o src/win_simd_select_shuffle_fma_override.o src/win_wpo_collect_walk_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue
