@@ -33,9 +33,11 @@
 // width and skip cltq. A u32 sum still uses the store scan, so a sum that
 // is not stored in a u32 still sign-extends. A u8 plus a wide integer
 // already returned on the 64-bit add. u8 times u8 is not this object.
-// LINUX links this object ahead of the egg. Do not rebuild the pabi egg.
-// Darwin and Windows keep the previous body until they relink.
-// PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX installs the object.
+// LINUX and Darwin link this object ahead of the egg. Do not rebuild the
+// pabi egg. Darwin pabi_weak already holds weak copies of the four exports,
+// so the strong sidecar wins without a new weaken. Windows keeps the
+// previous body until that link is measured.
+// PLATFORM: SHARED — x86_64 and arm64 encoders; LINUX and MACOS|DARWIN install the object.
 
 export extern function glue_binop_operand_is_scalar_f64_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
 export extern function glue_binop_operand_is_scalar_f32_elf_c(arena: *u8, ctx: *u8, expr_ref: i32): i32;
@@ -476,7 +478,7 @@ function w1597_finish_narrow(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, 
  * @param right_ref i32 — right expression, already in rax
  * @param ta i32 — 0 is x86_64, 1 is arm64
  * @return i32 — 0 ok, nonzero encode failure
- * PLATFORM: SHARED — x86_64 subq and arm64 SUB X. LINUX links this body.
+ * PLATFORM: SHARED — x86_64 subq and arm64 SUB X. LINUX and MACOS|DARWIN link this body.
  */
 #[no_mangle]
 export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {
@@ -546,7 +548,7 @@ export function glue_emit_binop_sub_rbx_minus_rax_elf_c(arena: *u8, elf_ctx: *u8
  * @param right_ref i32 — right expression, already in rbx
  * @param ta i32 — 0 is x86_64, 1 is arm64
  * @return i32 — 0 ok, nonzero encode failure
- * PLATFORM: SHARED — x86_64 subq %rbx,%rax and arm64 SUB X0,X0,X1. LINUX links this body.
+ * PLATFORM: SHARED — x86_64 subq %rbx,%rax and arm64 SUB X0,X0,X1. LINUX and MACOS|DARWIN link this body.
  */
 #[no_mangle]
 export function glue_emit_binop_sub_rax_minus_rbx_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, left_ref: i32, right_ref: i32, ta: i32): i32 {

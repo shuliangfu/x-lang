@@ -1212,6 +1212,26 @@ if [ "$UNAME_S" = "Darwin" ]; then
     exit 1
   fi
 fi
+# w2060: mixed-width integer ADD and SUB, plus the f32 promote.
+# Linux already rebuilds this thin. Darwin pabi_weak.o keeps weak
+# copies of the four exports, and none of them is the __text atom.
+# Rebuild the tip thin every Darwin relink with the same pure overlay
+# Linux uses (no PREFER). The thin does not divide. Helper names
+# pipeline_w1591_*, pipeline_w1594_*, and pipeline_w1597_* are absent
+# from pabi_weak.o. w1598_add_stored_in_u32 stays undefined here and is
+# defined by the existing binop_wide overlay. A missing object exits 1.
+# No new weaken. Windows keeps the previous body. The if below still
+# prepends the object only when pabi_weak.o exists.
+# PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_widen_mixed_thin.x \
+    build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o \
+    glue_emit_binop_sub_rbx_minus_rax_elf_c
+  if [ ! -s build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o ]; then
+    echo "g05_relink_env: ERROR Darwin widen_mixed .x did not build" >&2
+    exit 1
+  fi
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -1243,6 +1263,14 @@ if [ "$UNAME_S" = "Darwin" ] \
   # PLATFORM: MACOS|DARWIN.
   if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
+  fi
+  # w2060: mixed-width ADD/SUB and f32 promote. The four exports are
+  # already weak in pabi_weak.o. The Darwin rebuild above exits 1 when
+  # the tip thin did not produce this object. Linux rebuilds the same
+  # path in its own block. Windows keeps the previous body.
+  # PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o ]; then
+    _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o $_PABI_SELFHOST"
   fi
   # w1007: Cap residual struct field load_sz → 4 (LDRSW / esz-4 cells).
   # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.
