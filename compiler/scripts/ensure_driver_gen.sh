@@ -285,11 +285,97 @@ ensure_preprocess_gen() {
   log "preprocess_gen.c OK ($(bytes_of preprocess_gen.c) bytes)"
 }
 
+# Compile driver_x.o from tip src/main.x. No cold seed and no driver_gen.c.
+# Product lane matches the regen above: -x -E -lib-name main, strip co-emitted
+# dep bodies, post_E_fixup, then the file-scope driver_get_argv_i pin.
+# The pin is required because -E emits that extern after the first call and
+# post_E_fixup then treats the name as already declared.
+# PLATFORM: WINDOWS — driver_leaf calls this so a cold g05 does not cc the seed.
+# Darwin and Linux keep their existing driver_x lane.
+emit_driver_x_o() {
+  local out="${1:?emit-o needs an output .o}"
+  local prod="" b tmp stripped fixed decl cc_o td
+  local cc_bin="${CC:-cc}"
+  td="$(mktemp -d "${TMPDIR:-/tmp}/driver_x_emit.XXXXXX")" || return 1
+  tmp="$td/main.c"
+  stripped="$td/stripped.c"
+  fixed="$td/fixed.c"
+  decl="$td/decl.c"
+  cc_o="$td/driver_x.o"
+  for b in ./xlang_asm ./xlang_asm.exe ./xlang ./xlang.exe ./xlang-c ./xlang-c.exe; do
+    if [ -x "$b" ]; then
+      prod="$b"
+      break
+    fi
+  done
+  if [ -z "$prod" ]; then
+    log "emit-o: no xlang binary for src/main.x"
+    rm -rf "$td"
+    return 1
+  fi
+  log "emit-o: $prod -x -E -lib-name main"
+  # run_with_timeout swallows the status. The marker check below is the gate.
+  run_with_timeout "$prod" -x -E -lib-name main "${MAIN_X_E_DIRS[@]}" src/main.x >"$tmp" 2>"$td/e.err" || true
+  if ! { [ -s "$tmp" ] && grep -q 'argc < 3' "$tmp" \
+      && grep -q 'main_eq_minus_E(arg_buf, len) !=0' "$tmp"; }; then
+    log "emit-o: -E output missing main.x markers"
+    rm -rf "$td"
+    return 1
+  fi
+  if ! python3 scripts/gen_strip_dep_bodies.py main "$tmp" "$stripped" \
+      || ! python3 scripts/post_E_fixup.py "$stripped" "$fixed"; then
+    log "emit-o: strip or post_E_fixup failed"
+    rm -rf "$td"
+    return 1
+  fi
+  if ! python3 - "$fixed" "$decl" <<'PYEOF'
+import sys
+src_path, dst_path = sys.argv[1], sys.argv[2]
+decl = 'extern int32_t driver_get_argv_i(int32_t argc, uint8_t * argv, int32_t i, uint8_t * buf, int32_t max);'
+lines = open(src_path, encoding='utf-8', errors='replace').read().split('\n')
+last_inc = 0
+for idx, l in enumerate(lines[:400]):
+    if l.startswith('#include'):
+        last_inc = idx
+lines.insert(last_inc + 1, decl)
+open(dst_path, 'w', encoding='utf-8').write('\n'.join(lines))
+PYEOF
+  then
+    log "emit-o: driver_get_argv_i pin failed"
+    rm -rf "$td"
+    return 1
+  fi
+  # Same warning set as the driver_gen.cc leaf. No -D renames: -lib-name main
+  # already emitted the main_ entry names. PLATFORM: WINDOWS.
+  if ! "$cc_bin" -Wall -Wextra -Wno-unused-variable -Wno-unused-parameter \
+      -Wno-unused-function -Wno-parentheses -Wno-sign-compare \
+      -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits \
+      -I. -Iinclude -Isrc -c -o "$cc_o" "$decl"; then
+    log "emit-o: cc failed"
+    rm -rf "$td"
+    return 1
+  fi
+  if ! nm "$cc_o" 2>/dev/null | tr -d '\r' | grep -q ' T main_entry$' \
+      || ! nm "$cc_o" 2>/dev/null | tr -d '\r' | grep -q ' T main_driver_argv_parse_x$'; then
+    log "emit-o: object lacks main_entry or main_driver_argv_parse_x"
+    rm -rf "$td"
+    return 1
+  fi
+  mkdir -p "$(dirname "$out")"
+  mv -f "$cc_o" "$out"
+  rm -rf "$td"
+  log "emit-o: $out <- src/main.x (-lib-name main, no cold seed)"
+  return 0
+}
+
 case "$MODE" in
   all|"")
     ensure_driver_gen
     ensure_preprocess_gen
     echo "ensure-driver-gen OK (driver_gen.c preprocess_gen.c ready)"
+    ;;
+  emit-o)
+    emit_driver_x_o "${2:?emit-o needs an output .o}"
     ;;
   driver|driver_gen.c|main)
     ensure_driver_gen
@@ -299,10 +385,11 @@ case "$MODE" in
     ;;
   -h|--help|help)
     cat <<'EOF'
-Usage: ensure_driver_gen.sh [all|driver|preprocess]
+Usage: ensure_driver_gen.sh [all|driver|preprocess|emit-o OUT.o]
   all (default)   — ensure driver_gen.c + preprocess_gen.c
   driver          — driver_gen.c only (MAIN_X_DEPS freshness + seed/-E + fix dup main)
   preprocess      — preprocess_gen.c only
+  emit-o OUT.o    — compile OUT.o from src/main.x; no cold seed (Windows driver_x)
 Env: XLANG_FORCE_REGEN_GEN=1 XLANG_DRIVER_GEN_TIMEOUT XLANG_C XLANG_X
 EOF
     ;;

@@ -554,10 +554,18 @@ build_driver_x() {
   # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
   # Fall back to driver_gen.c + x_stubs renames (archaeology) only if Track L fails.
   if [ -f scripts/driver_leaf_x_to_o.sh ]; then
-    if bash scripts/driver_leaf_x_to_o.sh ensure driver_x.o 2>/dev/null; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure driver_x.o; then
       log "driver_x.o ← Track L (.x → -E → .o; wave328)"
       return 0
     fi
+    # PLATFORM: WINDOWS — cold driver_gen.c is the (c) host-cc. Track L
+    # either produced the object from src/main.x or the relink stops.
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        log "Track L failed for driver_x.o; no driver_gen.c on Windows"
+        return 1
+        ;;
+    esac
     log "Track L failed for driver_x.o; falling back to driver_gen.c (archaeology)"
   fi
   if [ ! -f driver_gen.c ]; then

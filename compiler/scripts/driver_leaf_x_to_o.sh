@@ -515,6 +515,24 @@ driver_leaf_build() {
     exit 1
   fi
 
+  # PLATFORM: WINDOWS — leftover-PE pick_xlang skips -E and the cold seed
+  # then driver_gen.c is host-cc. The product can -E src/main.x with
+  # -lib-name main. Compile that object here and do not fall through.
+  case "${OUT_O##*/}" in
+    driver_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          if bash scripts/ensure_driver_gen.sh emit-o "$OUT_O"; then
+            echo "driver_leaf_x_to_o: $OUT_O <- src/main.x (-lib-name main)"
+            return 0
+          fi
+          echo "driver_leaf_x_to_o: driver_x.o main.x -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+  esac
+
   CC="${CC:-cc}"
   # wave860: shell-load BASE_CFLAGS via export leaf when unset (G.7).
   # Explicit BASE_CFLAGS= from env (tests / g05) still wins; never dual-compose in Makefile.
