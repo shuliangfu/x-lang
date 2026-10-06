@@ -1,5 +1,11 @@
 // Thin pure: asm_expr HELPERS leaf (pipeline_asm_emit_expr_elf_rec only).
-// G.7: body MUST match pipeline_asm_emit_expr_elf_rec in asm_expr_thin / mega.
+// G.7: the Linux rec body must match pipeline_asm_emit_expr_elf_rec in
+// asm_expr_thin.x. Darwin links that full thin. Linux links this file.
+// The full thin stays HARD BAN PREFER on Linux (frame smash).
+// w1738: the 9..16 named-field pair load is copied here. The Linux egg
+// fast path does not call pipeline_asm_deref_struct16_rax_ptr_elf_c
+// (measured: zero calls in that function). Do not also copy the w1504
+// wide-int pre-check; the Linux fast path already emits that imm64.
 // wave431: LINUX -E PREFER (pure-asm product opt=255; -E L2 5/5).
 //   MACOS still uses full asm_expr_thin PREFER_ASM.
 // wave495: tipU heal; helpers PREFER L2 FAIL → LINUX stayed -E+$CC.
@@ -43,6 +49,13 @@ export extern function pipeline_asm_emit_logor_elf_impl(arena: *u8, elf_ctx: *u8
 export extern function pipeline_expr_enum_namespace_field_tag(arena: *u8, expr_ref: i32): i32;
 export extern function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function backend_emit_expr_elf_slow(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
+export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
+export extern function pipeline_asm_emit_module_ref_c(): *u8;
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx: *u8, ta: i32): i32;
 
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
@@ -61,11 +74,112 @@ function w495_cell_i32(base: *u8): i32 {
 
 
 /**
+ * Load a field whose own named layout is 9 to 16 bytes as an rax:rdx pair.
+ * The fast field path keeps one qword and leaves rdx stale. A one-statement
+ * return of that field is the field node, so the return impl never sees it.
+ * Only the field's own type is consulted. The function return type is not:
+ * a nested block must not borrow the enclosing function's result size.
+ * Layouts of at most 8 bytes stay on the fast path.
+ * This is the Linux copy of w1738_named16_field_pair in asm_expr_thin.x.
+ * Keep the two bodies the same. Darwin links the other file.
+ * @param arena *u8 — AST arena; null returns 0
+ * @param elf_ctx *u8 — ELF emit context
+ * @param expr_ref i32 — EXPR_FIELD_ACCESS; <=0 returns 0
+ * @param ctx *u8 — asm function context for the address
+ * @param ta i32 — target arch
+ * @return i32 — 1 when the pair was emitted; 0 when this is not a 9..16
+ *   named field or the address could not be formed (caller uses fast);
+ *   -1 when the pair encoder failed
+ * PLATFORM: SHARED — rax:rdx on x86_64, x0:x1 on arm64, same deref helper.
+ * Linux links this helpers object. Darwin links asm_expr_thin.x.
+ */
+function w1738_named16_field_pair(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
+  let ty: i32 = 0;
+  let k: i32 = 0;
+  let sz: i32 = 0;
+  let rc: i32 = 0;
+  let cell: u8[8];
+  let mod: *u8 = 0 as *u8;
+  if (arena == (0 as *u8) || expr_ref <= 0) {
+    return 0;
+  }
+  // Resolved type first. TYPE_NAMED = 8. Size is meaningful only above 8.
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_expr_resolved_type_ref(arena, expr_ref));
+  }
+  ty = w495_cell_i32(&cell[0]);
+  if (ty > 0) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, ty));
+    }
+    k = w495_cell_i32(&cell[0]);
+    if (k == 8) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, glue_type_named_layout_size_any_module_elf_c(arena, ty));
+      }
+      sz = w495_cell_i32(&cell[0]);
+    }
+  }
+  // Struct-layout field type when the resolved type is not already 9..16.
+  if (sz <= 8 || sz > 16) {
+    sz = 0;
+    unsafe {
+      mod = pipeline_asm_emit_module_ref_c();
+      pipe_store_i32_le(&cell[0], 0, glue_field_access_field_type_ref_c(arena, mod, expr_ref));
+    }
+    ty = w495_cell_i32(&cell[0]);
+    if (ty > 0) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(arena, ty));
+      }
+      k = w495_cell_i32(&cell[0]);
+      if (k == 8) {
+        unsafe {
+          pipe_store_i32_le(&cell[0], 0, glue_type_named_layout_size_any_module_elf_c(arena, ty));
+        }
+        sz = w495_cell_i32(&cell[0]);
+      }
+    }
+  }
+  if (sz <= 8 || sz > 16) {
+    return 0;
+  }
+  // Address, then the existing pair load. A failed address stays on fast.
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta));
+  }
+  rc = w495_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta));
+  }
+  rc = w495_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 1;
+}
+
+/**
  * Freestanding expr ELF recursion with EXPR_ASM (60) slice0.
- * Fast path first; kind dispatch includes asm!("template") → try_emit.
+ * A named field of 9 to 16 bytes is pair-loaded before the fast path.
+ * The fast path keeps one qword and leaves rdx stale. Layouts outside
+ * that range, and a failed address, fall through to fast. The later
+ * kind-44 arm still handles an enum namespace tag when fast returns -99.
+ * Fast path first for every other kind. Kind dispatch includes
+ * asm!("template") to try_emit.
  * Omits XLANG_DEBUG_REGEX_EMIT fprintf (wave106 style).
+ * @param arena *u8 — AST arena
+ * @param elf_ctx *u8 — ELF emit context
+ * @param expr_ref i32 — expression ref; <= 0 skips the kind load
+ * @param ctx *u8 — asm function context passed through to callees
+ * @param ta i32 — target arch; 0 is x86_64, 1 is arm64, 2 is RISC-V
  * @return i32 — 0 ok; negative error; -99 unhandled from slow
- * PLATFORM: SHARED.
+ * PLATFORM: SHARED body. Linux links this helpers object. Darwin links
+ * the same pre-check from asm_expr_thin.x. Do not PREFER the full thin
+ * on Linux (frame smash).
  */
 #[no_mangle]
 export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -83,6 +197,21 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
       pipe_store_i32_le(&cell_ko[0], 0, pipeline_expr_kind_ord_at(arena, expr_ref));
     }
     ko = w495_cell_i32(&cell_ko[0]);
+  }
+  // EXPR_FIELD_ACCESS = 44. A 9..16 named field is rax:rdx. The fast path
+  // loads one qword. Do not consult the function return type here.
+  // Same pre-check as asm_expr_thin.x. PLATFORM: SHARED.
+  if (ko == 44) {
+    unsafe {
+      pipe_store_i32_le(&cell_r[0], 0, w1738_named16_field_pair(arena, elf_ctx, expr_ref, ctx, ta));
+    }
+    r = w495_cell_i32(&cell_r[0]);
+    if (r == 1) {
+      return 0;
+    }
+    if (r < 0) {
+      return 0 - 1;
+    }
   }
   unsafe {
     /* PLATFORM: SHARED — tip drops mid `r=pipeline_asm_emit_expr_elf_fast()`; pipe cell. */

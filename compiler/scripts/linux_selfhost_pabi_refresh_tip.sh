@@ -237,4 +237,64 @@ if [ ! -s "$_fca_dst" ] || [ "$_fca_src" -nt "$_fca_dst" ] || [ "$XL" -nt "$_fca
   mv -f "$_fca_tmp" "$_fca_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_fca_dst (call-arg packer strong)"
 fi
+# 7. w2060 expr rec: rec.o is the Linux pipeline_asm_emit_expr_elf_rec.
+#    linux_selfhost_pabi_sidecars.sh compiles it once, without PREFER.
+#    The on-disk object (Sep 25) does not call
+#    pipeline_asm_deref_struct16_rax_ptr_elf_c. The egg fast path does
+#    not either, so a 9..16 named field rvalue stayed one qword. Darwin
+#    already loads the pair from asm_expr_thin.x. This helpers thin now
+#    has that pre-check. Rebuild when the thin or the compiler is newer,
+#    the strong name is missing, or the pair helper is not referenced.
+#    No PREFER: the full asm_expr thin is HARD BAN on Linux. Weaken every
+#    other global T. Reject xlang_panic_. A failure leaves the old object
+#    and stops the ensure. The w1504 wide-int pre-check stays out of this
+#    file. PLATFORM: LINUX.
+_rec_src=src/runtime_pipeline_abi_asm_expr_helpers_thin.x
+_rec_dst="$OUT/rec.o"
+_rec_sym=pipeline_asm_emit_expr_elf_rec
+_rec_need=pipeline_asm_deref_struct16_rax_ptr_elf_c
+if [ ! -f "$_rec_src" ]; then
+  echo "linux_selfhost_pabi_refresh_tip: $_rec_src missing" >&2
+  exit 1
+fi
+_rec_has_pair() {
+  nm -u "$1" | awk -v s="$_rec_need" '$2==s{f=1} END{exit !f}'
+}
+if [ ! -s "$_rec_dst" ] || [ "$_rec_src" -nt "$_rec_dst" ] || [ "$XL" -nt "$_rec_dst" ] \
+    || ! nm "$_rec_dst" | awk -v s="$_rec_sym" '$2=="T"&&$3==s{f=1} END{exit !f}' \
+    || ! _rec_has_pair "$_rec_dst"; then
+  _rec_tmp="$OUT/rec.tmp.o"
+  rm -f "$_rec_tmp"
+  if ! timeout 240 "$XL" -backend asm -c "$_rec_src" -o "$_rec_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_rec_src failed" >&2
+    rm -f "$_rec_tmp"
+    exit 1
+  fi
+  while read -r _sym; do
+    [ -n "$_sym" ] || continue
+    [ "$_sym" = "$_rec_sym" ] && continue
+    if ! objcopy --weaken-symbol="$_sym" "$_rec_tmp"; then
+      echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_rec_tmp failed" >&2
+      rm -f "$_rec_tmp"
+      exit 1
+    fi
+  done < <(nm "$_rec_tmp" | awk '$2=="T"{print $3}')
+  if ! nm "$_rec_tmp" | awk -v s="$_rec_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_rec_src lacks strong $_rec_sym" >&2
+    rm -f "$_rec_tmp"
+    exit 1
+  fi
+  if ! _rec_has_pair "$_rec_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: $_rec_src does not call $_rec_need" >&2
+    rm -f "$_rec_tmp"
+    exit 1
+  fi
+  if nm -u "$_rec_tmp" | awk '$2=="xlang_panic_"{f=1} END{exit !f}'; then
+    echo "linux_selfhost_pabi_refresh_tip: $_rec_src emits xlang_panic_" >&2
+    rm -f "$_rec_tmp"
+    exit 1
+  fi
+  mv -f "$_rec_tmp" "$_rec_dst"
+  echo "linux_selfhost_pabi_refresh_tip: $_rec_dst (expr rec 9..16 field pair)"
+fi
 echo "linux_selfhost_pabi_refresh_tip: OK"
