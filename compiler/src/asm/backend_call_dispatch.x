@@ -6910,7 +6910,17 @@ function w1521_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32, 
 let w1521_win_cur_mod: *u8 = 0 as *u8;
 let w1521_win_cur_fi: i32[1] = [0];
 
-/** Record the function whose params are being homed. PLATFORM: WINDOWS x86_64. */
+/**
+ * Record the function whose Windows parameter homes are being filled.
+ * The param-home thin calls this by the short C name before it reads
+ * the sret active flag and home offset. The module prefix would leave
+ * that reloc undefined.
+ * @param mod *u8 — module being homed; null clears the noted module
+ * @param func_index i32 — function index inside mod
+ * @return void — writes the file-scope module pointer and index slot
+ * PLATFORM: WINDOWS — short link name consumed by the param-home thin.
+ */
+#[no_mangle]
 export function w1521_win_note_func_c(mod: *u8, func_index: i32): void {
   w1521_win_cur_mod = mod;
   w1521_win_cur_fi[0] = func_index;
