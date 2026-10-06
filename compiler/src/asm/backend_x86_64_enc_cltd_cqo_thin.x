@@ -1,13 +1,14 @@
 // Link unit for arch_x86_64_enc_enc_cltd.
 // The body is the same two appends as
 // backend_enc_dispatch_thin.x arch_x86_64_enc_enc_cltd.
-// backend_enc_dispatch.o on Windows still emits only 99 (cltd).
-// idiv %rbx in that object is 48 f7 fb, so edx must be the
-// sign of rax, which is cqo (48 99). This file exports that
+// backend_enc_dispatch.o and backend_x86_64_enc_c.o each also
+// define this symbol. This object is linked first, so its body
+// is the one that runs. idiv %rbx is 48 f7 fb, so edx must be
+// the sign of rax, which is cqo (48 99). This file exports that
 // one symbol. Do not add another encoder function here.
-// PLATFORM: WINDOWS. Linux already links its own
-// build_asm/selfhost_pabi/cltd_cqo.o. Darwin is arm64 and
-// does not link this object. Do not rebuild
+// PLATFORM: LINUX | WINDOWS. g05 rebuilds this file into
+// build_asm/selfhost_pabi/cltd_cqo.o on those hosts. Darwin is
+// arm64 and does not link this object. Do not rebuild
 // backend_x86_64_enc_c.o or backend_enc_dispatch.o to pick
 // this up: other symbols in those TUs must stay as they are.
 
@@ -22,8 +23,9 @@ export extern "C" function backend_enc_append_u8_c(elf_ctx: *u8, byte: i32): i32
  * A null context returns -1 from that append.
  * @param elf_ctx *u8 — emit context; null is rejected by append
  * @return i32 — 0 when both bytes are appended, -1 on failure
- * PLATFORM: WINDOWS — COFF link unit. First strong definition
- * wins over the cltd still inside backend_enc_dispatch.o.
+ * PLATFORM: LINUX | WINDOWS — linked ahead of the strong copies
+ * in backend_enc_dispatch.o and backend_x86_64_enc_c.o.
+ * Darwin does not link this object.
  * This body does not compare elf_ctx with 0 and does not divide.
  */
 #[no_mangle]
