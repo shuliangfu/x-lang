@@ -434,11 +434,12 @@ fi
 # _PABI_SELFHOST blocks. PLATFORM: SHARED.
 _g05_pure_overlay src/runtime_pipeline_abi_field_cap_residual_load_thin.x \
   build_asm/selfhost_pabi/field_cap_residual_load.o pipeline_expr_field_access_load_byte_sz
-# w1486: Windows block-entry VAR-slot cache clear (egg body_sync forwarder
-# never clears; mega reuses one ctx so next function hits stale %rbx).
-# Strong T first-wins weakened pabi_weak egg T; post-link jmp W→T.
-# PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux tip .x already clear.
-_PABI_BB_CACHE=""
+# w1486 / w2060: Windows block-entry VAR-slot cache clear lives in
+# backend_emit_block_body_sync_elf in the let-order thin below. That
+# function clears only when link_abi_host_is_windows() is set, then binds
+# and emits. The host-cc overlay that only cleared and forwarded is not a
+# build input. Egg T is weakened when the let-order object exists.
+# PLATFORM: WINDOWS | MSYS | MINGW for the clear; Darwin/Linux do not clear.
 # w2060: Windows let-order / emit_let_init compile from the same .x Darwin
 # and Linux already overlay. The host-gcc .c twins stayed for two old PE
 # symptoms: store_eax returned -1 after a null compare that did not reload
@@ -446,10 +447,8 @@ _PABI_BB_CACHE=""
 # The installed Windows compiler reloads elf_ctx (probe_store_eax_null),
 # and backend_emit_block_body_sync_elf clears the cache when
 # link_abi_host_is_windows() is set. A missing object exits 1. No host-cc
-# of the .c twins. _PABI_WIN_LET_ORDER stays set so the w1486 cache-clear
-# overlay (still class (c)) does not compile.
+# of the .c twins or of the cache-clear overlay.
 # PLATFORM: WINDOWS | MSYS | MINGW only — Darwin/Linux use the block below.
-_PABI_WIN_LET_ORDER=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     _g05_pure_overlay src/runtime_pipeline_abi_block_body_sync_let_order_thin.x \
@@ -458,26 +457,11 @@ case "$UNAME_S" in
       echo "g05_relink_env: ERROR Windows body_sync let-order .x did not build" >&2
       exit 1
     fi
-    _PABI_WIN_LET_ORDER=1
     _g05_pure_overlay src/runtime_pipeline_abi_glue_block_body_emit_let_init_thin.x \
       build_asm/selfhost_pabi/emit_let_init.o glue_block_body_emit_let_init
     if [ ! -s build_asm/selfhost_pabi/emit_let_init.o ]; then
       echo "g05_relink_env: ERROR Windows emit_let_init .x did not build" >&2
       exit 1
-    fi
-    ;;
-esac
-case "$UNAME_S" in
-  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    if [ -z "$_PABI_WIN_LET_ORDER" ] \
-        && [ -f seeds/runtime_pipeline_abi_win_block_body_cache_clear_overlay.c ]; then
-      mkdir -p build_asm/selfhost_pabi
-      # shellcheck disable=SC2086
-      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-          build_asm/selfhost_pabi/block_body_cache_clear.o \
-          seeds/runtime_pipeline_abi_win_block_body_cache_clear_overlay.c 2>/dev/null; then
-        _PABI_BB_CACHE="build_asm/selfhost_pabi/block_body_cache_clear.o"
-      fi
     fi
     ;;
 esac
@@ -2153,7 +2137,6 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/body_sync_let_order.o ] \
       || [ -s build_asm/selfhost_pabi/emit_let_init.o ] \
       || [ "$_WIN_TRUE_PACK" = "1" ] \
-      || [ -n "$_PABI_BB_CACHE" ] \
       || [ -n "$_PABI_TAIL_JMP_OFF" ] \
       || [ -n "$_PABI_BINOP_WIDE" ] \
       || [ -n "$_PABI_MODLET_STRPOOL" ] \
@@ -2245,12 +2228,6 @@ case "$UNAME_S" in
         # PLATFORM: WINDOWS.
         if [ -n "$_PABI_FRAME_SIZE" ]; then
           "$_oc" --weaken-symbol=pipeline_asm_compute_frame_size_c \
-            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
-        fi
-        # w1486: weaken egg body_sync forwarder so cache-clear overlay
-        # first-wins. PLATFORM: WINDOWS.
-        if [ -n "$_PABI_BB_CACHE" ]; then
-          "$_oc" --weaken-symbol=backend_emit_block_body_sync_elf \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1487: weaken egg tail-jmp peer so the off overlay first-wins.
@@ -2673,7 +2650,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o"
-_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_BB_CACHE $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
