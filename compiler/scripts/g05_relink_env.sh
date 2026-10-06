@@ -2716,6 +2716,211 @@ case "$UNAME_S" in
     fi
     _PABI_WIN_FAG="$_wfag_o"
     _PABI_SELFHOST="$_wfag_o $_PABI_SELFHOST"
+    # w2060: module-array INDEX base. The Windows egg defines
+    # glue_try_index_var_or_field_base_to_rbx_elf_c once, as T. That body
+    # is 27 bytes: it homes rcx, rdx, r8, and r9, returns -2, and pops rbp.
+    # Eighteen same-TU REL32 calls name that entry. There is no static
+    # twin. Compile the existing thin every relink with no PREFER. Require
+    # the one strong export and undefined references to _rest, the kind
+    # loader, the stack-offset helper, the modlet load, and mov rax to rbx.
+    # Reject xlang_panic_. Another strong T that the egg already defines
+    # is weakened in this object. The egg entry must stay those 27 bytes;
+    # a different entry stops the relink. Assemble that entry as
+    # glue_try_index_var_or_field_base_to_rbx_elf_rest. The post-link fold
+    # overwrites the egg bytes, so _rest is this separate object and is
+    # not weakened. Link the thin ahead of _rest and ahead of pabi_weak.
+    # The egg external is weakened below. win_patch_body_sync_jmp folds
+    # that W onto this T. The name is not added to the static-t list. A
+    # missing object exits 1. The egg file is not edited. Linux already
+    # links this thin as base.o. Darwin already assembles its own eight-byte
+    # _rest. PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_IDX=""
+    _widx_x=src/runtime_pipeline_abi_index_base_rbx_thin.x
+    _widx_o=build_asm/selfhost_pabi/index_base_rbx_win.o
+    _widx_s=glue_try_index_var_or_field_base_to_rbx_elf_c
+    _widx_rest_s=build_asm/selfhost_pabi/index_base_rbx_rest_win.s
+    _widx_rest_o=build_asm/selfhost_pabi/index_base_rbx_rest_win.o
+    _widx_rest_sym=glue_try_index_var_or_field_base_to_rbx_elf_rest
+    if [ ! -f "$_widx_x" ]; then
+      echo "g05_relink_env: $_widx_x missing (Windows index base)" >&2
+      exit 1
+    fi
+    _g05_pure_overlay "$_widx_x" "$_widx_o" "$_widx_s"
+    if [ ! -s "$_widx_o" ]; then
+      echo "g05_relink_env: ERROR Windows index base .x did not build" >&2
+      exit 1
+    fi
+    if ! nm "$_widx_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_widx_s}\$"; then
+      echo "g05_relink_env: $_widx_x lacks strong $_widx_s (Windows index base)" >&2
+      exit 1
+    fi
+    for _widx_need in glue_try_index_var_or_field_base_to_rbx_elf_rest \
+        pipeline_expr_kind_ord_at glue_var_expr_stack_off_elf_c \
+        pipeline_asm_modlet_load_to_rax_elf_c backend_enc_mov_rax_to_rbx_arch; do
+      if ! nm -u "$_widx_o" 2>/dev/null | tr -d '\r' | grep -q "${_widx_need}\$"; then
+        echo "g05_relink_env: $_widx_x does not call $_widx_need (Windows index base)" >&2
+        exit 1
+      fi
+    done
+    if nm "$_widx_o" 2>/dev/null | tr -d '\r' | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: $_widx_x references xlang_panic_ (Windows index base)" >&2
+      exit 1
+    fi
+    _widx_egg=src/runtime_pipeline_abi.o
+    if [ ! -s "$_widx_egg" ]; then
+      echo "g05_relink_env: $_widx_egg missing (Windows index base)" >&2
+      exit 1
+    fi
+    if ! python3 - "$_widx_egg" "$_widx_s" span <<'PY'
+import re, subprocess, sys
+path, name, mode = sys.argv[1], sys.argv[2], sys.argv[3]
+want = bytes.fromhex("554889e548894d1048895518448945204c894d28b8feffffff5dc3")
+nm = subprocess.check_output(["nm", path], text=True, errors="replace")
+rows = []
+for line in nm.splitlines():
+    parts = line.replace("\r", "").split()
+    if len(parts) < 3:
+        continue
+    try:
+        addr = int(parts[0], 16)
+    except ValueError:
+        continue
+    rows.append((addr, parts[1], parts[-1]))
+hits = [addr for addr, kind, sym in rows if sym == name and kind in "Tt"]
+if len(hits) != 1:
+    sys.stderr.write("g05_relink_env: Windows index base symbol count %d\n" % len(hits))
+    sys.exit(1)
+hit = hits[0]
+if mode == "span":
+    later = [addr for addr, kind, sym in rows if addr > hit]
+    if not later:
+        sys.stderr.write("g05_relink_env: Windows index base has no next symbol\n")
+        sys.exit(1)
+    stop = min(later)
+    if stop - hit != 27:
+        sys.stderr.write("g05_relink_env: Windows index base span is %d\n" % (stop - hit))
+        sys.exit(1)
+else:
+    stop = hit + 27
+dump = subprocess.check_output(
+    ["objdump", "-d", "--start-address=0x%x" % hit, "--stop-address=0x%x" % stop, path],
+    text=True, errors="replace")
+got = bytearray()
+for line in dump.splitlines():
+    m = re.match(r"\s*[0-9a-f]+:\s+((?:[0-9a-f]{2}[ \t]+)+)", line)
+    if not m:
+        continue
+    for b in m.group(1).split():
+        got.append(int(b, 16))
+if bytes(got) != want:
+    sys.stderr.write("g05_relink_env: Windows index base entry bytes changed\n")
+    sys.exit(1)
+PY
+    then
+      echo "g05_relink_env: Windows index base egg entry check failed" >&2
+      exit 1
+    fi
+    cat > "$_widx_rest_s" <<'EOF'
+.globl glue_try_index_var_or_field_base_to_rbx_elf_rest
+.def glue_try_index_var_or_field_base_to_rbx_elf_rest
+.scl 2
+.type 32
+.endef
+glue_try_index_var_or_field_base_to_rbx_elf_rest:
+    push %rbp
+    mov %rsp, %rbp
+    mov %rcx, 0x10(%rbp)
+    mov %rdx, 0x18(%rbp)
+    mov %r8d, 0x20(%rbp)
+    mov %r9, 0x28(%rbp)
+    mov $0xfffffffe, %eax
+    pop %rbp
+    ret
+EOF
+    if ! as -o "$_widx_rest_o" "$_widx_rest_s"; then
+      echo "g05_relink_env: Windows index base _rest assemble failed" >&2
+      exit 1
+    fi
+    if ! nm "$_widx_rest_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_widx_rest_sym}\$"; then
+      echo "g05_relink_env: Windows index base _rest symbol missing" >&2
+      exit 1
+    fi
+    if ! python3 - "$_widx_rest_o" "$_widx_rest_sym" prefix <<'PY'
+import re, subprocess, sys
+path, name, mode = sys.argv[1], sys.argv[2], sys.argv[3]
+want = bytes.fromhex("554889e548894d1048895518448945204c894d28b8feffffff5dc3")
+nm = subprocess.check_output(["nm", path], text=True, errors="replace")
+rows = []
+for line in nm.splitlines():
+    parts = line.replace("\r", "").split()
+    if len(parts) < 3:
+        continue
+    try:
+        addr = int(parts[0], 16)
+    except ValueError:
+        continue
+    rows.append((addr, parts[1], parts[-1]))
+hits = [addr for addr, kind, sym in rows if sym == name and kind in "Tt"]
+if len(hits) != 1:
+    sys.stderr.write("g05_relink_env: Windows index base symbol count %d\n" % len(hits))
+    sys.exit(1)
+hit = hits[0]
+if mode == "span":
+    later = [addr for addr, kind, sym in rows if addr > hit]
+    if not later:
+        sys.stderr.write("g05_relink_env: Windows index base has no next symbol\n")
+        sys.exit(1)
+    stop = min(later)
+    if stop - hit != 27:
+        sys.stderr.write("g05_relink_env: Windows index base span is %d\n" % (stop - hit))
+        sys.exit(1)
+else:
+    stop = hit + 27
+dump = subprocess.check_output(
+    ["objdump", "-d", "--start-address=0x%x" % hit, "--stop-address=0x%x" % stop, path],
+    text=True, errors="replace")
+got = bytearray()
+for line in dump.splitlines():
+    m = re.match(r"\s*[0-9a-f]+:\s+((?:[0-9a-f]{2}[ \t]+)+)", line)
+    if not m:
+        continue
+    for b in m.group(1).split():
+        got.append(int(b, 16))
+if bytes(got) != want:
+    sys.stderr.write("g05_relink_env: Windows index base entry bytes changed\n")
+    sys.exit(1)
+PY
+    then
+      echo "g05_relink_env: Windows index base _rest bytes mismatch" >&2
+      exit 1
+    fi
+    _widx_list=build_asm/selfhost_pabi/index_base_rbx_win.tlist
+    nm "$_widx_o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}' > "$_widx_list"
+    while read -r _widx_extra; do
+      [ -n "$_widx_extra" ] || continue
+      [ "$_widx_extra" = "$_widx_s" ] && continue
+      if [ -s "$_widx_egg" ] && nm "$_widx_egg" 2>/dev/null | tr -d '\r' \
+          | awk -v s="$_widx_extra" '$NF==s && $1 ~ /^[0-9a-fA-F]+$/ {f=1} END{exit !f}'; then
+        _widx_oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then
+          _widx_oc=llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then
+          _widx_oc=objcopy
+        fi
+        if [ -z "$_widx_oc" ] || ! "$_widx_oc" --weaken-symbol="$_widx_extra" "$_widx_o"; then
+          echo "g05_relink_env: weaken $_widx_extra in $_widx_o failed (Windows index base)" >&2
+          rm -f "$_widx_list"
+          exit 1
+        fi
+      fi
+    done < "$_widx_list"
+    rm -f "$_widx_list"
+    if ! nm "$_widx_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_widx_s}\$"; then
+      echo "g05_relink_env: $_widx_o lost strong $_widx_s (Windows index base)" >&2
+      exit 1
+    fi
+    _PABI_WIN_IDX="$_widx_o"
+    _PABI_SELFHOST="$_widx_o $_widx_rest_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -2889,7 +3094,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_WIN_CIMP" ] \
       || [ -n "$_PABI_WIN_WIDEN" ] \
       || [ -n "$_PABI_WIN_REC" ] \
-      || [ -n "$_PABI_WIN_STORE" ]; then
+      || [ -n "$_PABI_WIN_STORE" ] \
+      || [ -n "$_PABI_WIN_IDX" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -3151,6 +3357,19 @@ case "$UNAME_S" in
             exit 1
           fi
           _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_field_call_arg_try_load_agg_from_rax_elf_c=$_PABI_WIN_FAG"
+        fi
+        # w2060: weaken the egg index-base entry so this thin first-wins.
+        # The measured copy is one T. It homes the four register arguments
+        # and returns -2. Eighteen same-TU REL32 calls name it. A failed
+        # weaken stops the relink. The egg file is not edited. _rest is a
+        # separate object and is not weakened. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_IDX" ]; then
+          if ! "$_oc" --weaken-symbol=glue_try_index_var_or_field_base_to_rbx_elf_c \
+              build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak glue_try_index_var_or_field_base_to_rbx_elf_c failed (Windows index base)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_try_index_var_or_field_base_to_rbx_elf_c=$_PABI_WIN_IDX"
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

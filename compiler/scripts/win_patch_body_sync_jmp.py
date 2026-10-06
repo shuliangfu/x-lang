@@ -435,6 +435,13 @@ def main() -> int:
         # The filename-prefixed cell loaders are not egg symbols and stay
         # out of this list. PLATFORM: WINDOWS.
         "glue_field_call_arg_try_load_agg_from_rax_elf_c",
+        # w2060: module-array index base. The egg copy is one T, a 27-byte
+        # entry that homes rcx/rdx/r8/r9 and returns -2. There is no static
+        # twin, so it stays out of _STATIC_T_TO_OVERLAY. Eighteen same-TU
+        # REL32 calls name that entry and still enter it after weaken.
+        # Fold that W onto this thin. The assembled _rest symbol is not an
+        # egg symbol and stays out of this list. PLATFORM: WINDOWS.
+        "glue_try_index_var_or_field_base_to_rbx_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

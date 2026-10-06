@@ -12,8 +12,14 @@
 // this thin with no PREFER, links it ahead of pabi_weak, and weakens the
 // egg name. Mach-O llvm-objcopy has no --add-symbol, so that relink
 // assembles the measured eight-byte entry under the _rest name and stops
-// if the egg entry changes. Windows keeps its own egg entry.
-// PLATFORM: SHARED body. LINUX and MACOS|DARWIN link it. Windows does not.
+// if the egg entry changes. The Windows egg entry is 27 bytes: it homes
+// rcx, rdx, r8, and r9, returns -2, then pops rbp. Eighteen same-TU
+// REL32 calls name that entry. There is no static twin. Windows relink
+// rebuilds this thin with no PREFER, links it ahead of pabi_weak, and
+// weakens the egg name. The post-link fold overwrites those 27 bytes
+// with a jump to this thin, so Windows assembles the same bytes as a
+// separate _rest object and stops if the egg entry changes.
+// PLATFORM: SHARED body. LINUX, MACOS|DARWIN, and WINDOWS link it.
 // Do not PREFER this into runtime_pipeline_abi.o.
 
 export extern function glue_try_index_var_or_field_base_to_rbx_elf_rest(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32;
@@ -37,7 +43,8 @@ export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i
  * @param ta i32 — 0 x86_64, 1 arm64
  * @return i32 — 0 when rbx holds the address, -1 on an encoder error, -2 when this base is not handled
  * PLATFORM: SHARED body. LINUX aliases the egg body as _rest. Darwin's
- * _rest is the measured eight-byte mov w0, #-2; ret entry. Windows does not link this file.
+ * _rest is the measured eight-byte mov w0, #-2; ret entry. Windows _rest
+ * is the measured 27-byte entry that homes rcx, rdx, r8, and r9, then returns -2.
  */
 #[no_mangle]
 export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32 {
