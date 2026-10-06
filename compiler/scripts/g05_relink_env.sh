@@ -481,22 +481,22 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-# w1487: Windows egg tail-jmp peer (pre-w1483, no single-stmt gate) turns
-# whole functions into `jmp callee` (pthin_expr_primary ident/paren/array/
-# lbrace → jmp suffix_loop). Strong T returns 0; weakened pabi_weak egg T;
-# post-link jmp W→T. PLATFORM: WINDOWS | MSYS | MINGW only.
+# w1487 / w2060: Windows tail-jmp comes from the same tip thin Darwin and
+# Linux already inject. That thin has the w1483 single-statement gate, so a
+# body that is not one forwarder stays on the normal prologue path. The
+# host-cc overlay that always returned 0 is not a build input. Missing
+# object exits 1. Egg w499 is still weakened below so this T first-wins.
+# PLATFORM: WINDOWS | MSYS | MINGW only.
 _PABI_TAIL_JMP_OFF=""
 case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    if [ -f seeds/runtime_pipeline_abi_win_tail_jmp_off_overlay.c ]; then
-      mkdir -p build_asm/selfhost_pabi
-      # shellcheck disable=SC2086
-      if $G05_CC $_BASE_CFLAGS -I. -Iinclude -Isrc -Iseeds -c -o \
-          build_asm/selfhost_pabi/tail_jmp_off.o \
-          seeds/runtime_pipeline_abi_win_tail_jmp_off_overlay.c 2>/dev/null; then
-        _PABI_TAIL_JMP_OFF="build_asm/selfhost_pabi/tail_jmp_off.o"
-      fi
+    _g05_pure_overlay src/runtime_pipeline_abi_asm_codegen_mega_emit_tail_jmp_thin.x \
+      build_asm/selfhost_pabi/tail_jmp_off.o w499_mega_try_tail_jmp
+    if [ ! -s build_asm/selfhost_pabi/tail_jmp_off.o ]; then
+      echo "g05_relink_env: ERROR Windows tail-jmp .x did not build" >&2
+      exit 1
     fi
+    _PABI_TAIL_JMP_OFF="build_asm/selfhost_pabi/tail_jmp_off.o"
     ;;
 esac
 # w1497: Windows param-home canonicalize overlay. Egg mega_body calls the

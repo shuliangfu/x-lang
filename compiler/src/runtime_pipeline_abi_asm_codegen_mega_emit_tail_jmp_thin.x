@@ -273,8 +273,9 @@ function w499t_single_stmt(a: *u8, br: i32): i32 {
  * @param i i32 — function index of the forwarder
  * @param body_ref i32 — body block ref; <=0 returns 0
  * @return i32 — 1 emitted, 0 not applicable, -1 emit failure
- * PLATFORM: SHARED — x86_64 product. The Windows host-cc overlay returns
- * 0 and is not this body. ARM64 keeps the fat forwarder (ta != 0).
+ * PLATFORM: SHARED — x86_64 product, including Windows. g05 links this
+ * body; the old Windows host-cc overlay that always returned 0 is not a
+ * build input. ARM64 keeps the fat forwarder (ta != 0).
  */
 #[no_mangle]
 export function w499_mega_try_tail_jmp(
