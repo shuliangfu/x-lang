@@ -997,8 +997,31 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
 fi
+# w2060: Linux deref sidecar. The on-disk object is an Oct 1 leftover and
+# nothing rebuilt it, so a missing file used to keep the egg body. The egg
+# symbol pipeline_asm_emit_deref_elf_c is already weak. The tip thin's four
+# helpers are emitted as pipeline_deref_* and are not defined in the egg,
+# so this does not weaken anything. Rebuild that thin every Linux relink
+# while the self-host pabi set is linked. A missing object exits 1. Windows
+# and Darwin leave _PABI_SELFHOST empty here and do not build this object.
+# Do not rebuild the pabi egg.
+# PLATFORM: LINUX
+case "$UNAME_S" in
+  Linux)
+    if [ -n "$_PABI_SELFHOST" ]; then
+      _g05_pure_overlay src/runtime_pipeline_abi_deref_narrow_thin.x \
+        build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o \
+        pipeline_asm_emit_deref_elf_c
+      if [ ! -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
+        echo "g05_relink_env: ERROR Linux deref_narrow .x did not build" >&2
+        exit 1
+      fi
+    fi
+    ;;
+esac
 # w1590: deref load uses the pointer pointee width. First-wins over the egg.
-# A missing object keeps the previous list. PLATFORM: LINUX
+# The rebuild above exits 1 when this set is linked and the object is missing.
+# PLATFORM: LINUX
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o $_PABI_SELFHOST"
 fi
