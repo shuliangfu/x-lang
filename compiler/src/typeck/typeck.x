@@ -497,6 +497,22 @@ j: i32, out: *u8): void;
  * PLATFORM: SHARED
  */
 export extern function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
+/* Process exit contract counter (runtime_driver_abi_thin.x). */
+export extern function driver_typeck_hard_diag_note(): void;
+/**
+ * Hard typeck diagnostic (T001): count it, then report via lsp_diag_report_typeck.
+ * @param line i32
+ * @param col i32
+ * @param msg *u8 — formatted message
+ * @return void
+ * PLATFORM: SHARED.
+ */
+export function typeck_report_hard_t001(line: i32, col: i32, msg: *u8): void {
+  unsafe {
+    driver_typeck_hard_diag_note();
+    lsp_diag_report_typeck(line, col, msg);
+  }
+}
 /* R2 (8.3.3): field_access/soa authority in typeck.x; host-cc thin C leaves retired
  * (pipeline_typeck_field_access.c / pipeline_typeck_soa.c deleted). Product callers
  * use typeck_* / typeck_soa_* / typeck_reject_bare_import_const directly.
@@ -4553,7 +4569,7 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (ast.ref_is_null(elem_ty) || elem_ty <= 0 || elem_ty > arena.num_types) {
         line_f = pipeline_expr_line_at(arena, expr_ref);
         col_f = pipeline_expr_col_at(arena, expr_ref);
-        lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+        typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
         return -1;
       }
       peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
@@ -4567,7 +4583,7 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (bt_kind == ord_type_slice || bt_kind == ord_type_array || bt_kind == ord_type_vector) {
       line_f = pipeline_expr_line_at(arena, expr_ref);
       col_f = pipeline_expr_col_at(arena, expr_ref);
-      lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+      typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
       return -1;
     }
     if (bt_kind == ord_type_named) {
@@ -4701,7 +4717,7 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (has_struct == 0 && has_enum == 0) {
         line_f = pipeline_expr_line_at(arena, expr_ref);
         col_f = pipeline_expr_col_at(arena, expr_ref);
-        lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+        typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
         return -1;
       }
       line_f = pipeline_expr_line_at(arena, expr_ref);
@@ -4710,13 +4726,13 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_enum_no_variant(line_f, col_f);
         return -1;
       }
-      lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+      typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
       return -1;
     }
     /* Scalar / other first-class types: no fields. */
     line_f = pipeline_expr_line_at(arena, expr_ref);
     col_f = pipeline_expr_col_at(arena, expr_ref);
-    lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+    typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
     return -1;
   }
 }
@@ -5740,10 +5756,28 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
     if (dep_arena == 0 as *ASTArena) {
       dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
     }
-    /* Live buffer beats a null or stale sidecar. Thin twin of driver_dep_arena_buf. */
+    /*
+     * Live buffer beats a null or stale sidecar, but only when it is the arena of
+     * the module the caller resolved. Driver buffers are indexed by the driver's
+     * global dep slot. A dep-prerun ctx is compact-mapped (import order of the dep
+     * module), so its slot i can name a different module than driver slot i; the
+     * driver arena would then decode the ctx module's type_refs against the wrong
+     * pool (std.io.driver -> core.xlang_io_register T001 under dep typeck).
+     * Use the driver arena when the ctx module is that driver module, or when the
+     * ctx slot is null / function-less so callers fell back to the driver module.
+     * Entry ctx keeps the old behaviour (ctx slot i == driver slot i).
+     * PLATFORM: SHARED.
+     */
     alt_arena = typeck_driver_dep_arena_buf(from_dep_index) as *ASTArena;
     if (alt_arena != 0 as *ASTArena) {
-      dep_arena = alt_arena;
+      let ctx_dm: *Module = pipeline_dep_ctx_module_at(ctx, from_dep_index);
+      let drv_dm: *Module = typeck_driver_dep_module_buf(from_dep_index) as *Module;
+      if (dep_arena == 0 as *ASTArena || ctx_dm == 0 as *Module || ctx_dm == drv_dm) {
+        dep_arena = alt_arena;
+      } else if (pipeline_module_num_funcs(ctx_dm) == 0 && drv_dm != 0 as *Module
+          && pipeline_module_num_funcs(drv_dm) > 0) {
+        dep_arena = alt_arena;
+      }
     }
     if (dep_arena == 0 as *ASTArena) {
       return 0;
@@ -13462,7 +13496,7 @@ expect_ref: i32, src_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, "> slice to unbound T[]", 22);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     if (typeck_slice_region_conflict(arena, expect_ref, src_ref) != 0) {
@@ -13492,7 +13526,7 @@ expect_ref: i32, src_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, ">", 1);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     return 0;
@@ -13558,7 +13592,7 @@ op_ref: i32, func_return_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, "> slice as unbound T[]", 22);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     if (typeck_slice_region_conflict(arena, func_return_ref, got_ref) != 0) {
@@ -13588,7 +13622,7 @@ op_ref: i32, func_return_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, ">", 1);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     return 0;
@@ -13969,7 +14003,7 @@ site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
         p = typeck_diag_append_lit(&msg[0], 0, 79,
         "struct stack escape: cannot store address of local struct in outer lifetime", 73);
         msg[p] = 0;
-        lsp_diag_report_typeck(line, col, &msg[0]);
+        typeck_report_hard_t001(line, col, &msg[0]);
         return 0 - 1;
       }
       pi = pi + 1;
@@ -14053,7 +14087,7 @@ left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
     /* "scope borrow escape" len 19 */
     p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14091,7 +14125,7 @@ op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
     p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14246,7 +14280,7 @@ left_ref: i32, ctx: *PipelineDepCtx): i32 {
     /* "allocator region escape" len 24 */
     p = typeck_diag_append_lit(&msg[0], 0, 27, "allocator region escape", 24);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14280,7 +14314,7 @@ return_type_ref: i32): i32 {
     typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
     p = typeck_diag_append_lit(&msg[0], 0, 27, "allocator region escape", 24);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14358,7 +14392,7 @@ param_ref: i32, arg_ref: i32): i32 {
     p = typeck_diag_append_lit(&msg[0], 0, 63,
     "no matching overload (incompatible struct pointer argument)", 56);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14495,7 +14529,7 @@ ctx: *PipelineDepCtx): i32 {
                           p = typeck_diag_append_lit(&msg[0], 0, 95,
                           "struct stack escape: cannot pass address of local struct with outer struct pointer", 78);
                           msg[p] = 0;
-                          lsp_diag_report_typeck(line, col, &msg[0]);
+                          typeck_report_hard_t001(line, col, &msg[0]);
                           return 0 - 1;
                         }
                       }
@@ -18053,7 +18087,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     p = typeck_diag_append_lit(&msg[0], 0, 255, "no impl for type with method ", 29);
     p = typeck_diag_append_lit(&msg[0], p, 255, &method_nm[0], method_nlen);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -21465,7 +21499,7 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
                       p = typeck_diag_append_lit(&msg[0], 0, 95,
                       "struct stack escape: cannot pass address of local struct with outer struct pointer", 78);
                       msg[p] = 0;
-                      lsp_diag_report_typeck(line, col, &msg[0]);
+                      typeck_report_hard_t001(line, col, &msg[0]);
                       return -1;
                     }
                   }
@@ -21601,7 +21635,7 @@ site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     p = typeck_diag_append_lit(&msg[0], p, 255, &ctx.typeck_scope_region_label[0], rlen);
     p = typeck_diag_append_lit(&msg[0], p, 255, "> slice as unbound T[]", 22);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -24738,7 +24772,7 @@ name: *u8, name_len: i32): i32 {
         line = pipeline_expr_line_at(arena, expr_ref);
         col = pipeline_expr_col_at(arena, expr_ref);
       }
-      lsp_diag_report_typeck(line, col, "linear value used after move" as *u8);
+      typeck_report_hard_t001(line, col, "linear value used after move" as *u8);
       return 0 - 1;
     }
     if (g_typeck_linear_moved_n < 128) {

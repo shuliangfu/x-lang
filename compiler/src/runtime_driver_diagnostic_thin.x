@@ -264,6 +264,24 @@ export function driver_diag_copy_bytes(dst: *u8, dst_size: i64, src: *u8, src_le
 
 // ---- Cap residual pure deep-migrate: fixed-msg typeck + pipe orch (body; FROM_X no pure-dup _impl) ----
 export extern "C" function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
+export extern "C" function driver_typeck_hard_diag_note(): void;
+
+/**
+ * Hard typeck diagnostic (T001): count it for the process exit contract,
+ * then report through lsp_diag_report_typeck (stderr / JSON / LSP collect).
+ * @param line i32
+ * @param col i32
+ * @param msg *u8 — formatted message
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_diag_report_hard_t001(line: i32, col: i32, msg: *u8): void {
+  unsafe {
+    driver_typeck_hard_diag_note();
+    lsp_diag_report_typeck(line, col, msg);
+  }
+}
 // pure: XLANG_DEBUG_PIPE truthy (getenv non-empty and != '0'); FROM_X no pure-dup _impl
 
 /** Exported function `driver_diag_env_debug_pipe`.
@@ -326,7 +344,7 @@ export function driver_diagnostic_pipe_marker(id: i32): void {
 #[no_mangle]
 export function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "if condition must be bool (no implicit int-to-bool)");
+    driver_diag_report_hard_t001(line, col, "if condition must be bool (no implicit int-to-bool)");
   }
 }
 
@@ -339,7 +357,7 @@ export function driver_diagnostic_typeck_if_condition_not_bool(line: i32, col: i
 #[no_mangle]
 export function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "while condition must be bool (no implicit int-to-bool)");
+    driver_diag_report_hard_t001(line, col, "while condition must be bool (no implicit int-to-bool)");
   }
 }
 
@@ -352,7 +370,7 @@ export function driver_diagnostic_typeck_while_condition_not_bool(line: i32, col
 #[no_mangle]
 export function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "for condition must be bool (no implicit int-to-bool)");
+    driver_diag_report_hard_t001(line, col, "for condition must be bool (no implicit int-to-bool)");
   }
 }
 
@@ -365,7 +383,7 @@ export function driver_diagnostic_typeck_for_condition_not_bool(line: i32, col: 
 #[no_mangle]
 export function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "pointer dereference requires unsafe block");
+    driver_diag_report_hard_t001(line, col, "pointer dereference requires unsafe block");
   }
 }
 
@@ -378,7 +396,7 @@ export function driver_diagnostic_typeck_deref_outside_unsafe(line: i32, col: i3
 #[no_mangle]
 export function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "extern call requires unsafe block");
+    driver_diag_report_hard_t001(line, col, "extern call requires unsafe block");
   }
 }
 
@@ -391,7 +409,7 @@ export function driver_diagnostic_typeck_extern_call_outside_unsafe(line: i32, c
 #[no_mangle]
 export function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "cannot take address of linear value");
+    driver_diag_report_hard_t001(line, col, "cannot take address of linear value");
   }
 }
 
@@ -404,7 +422,7 @@ export function driver_diagnostic_typeck_linear_addr_of(line: i32, col: i32): vo
 #[no_mangle]
 export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "subscript base must be array, slice or pointer");
+    driver_diag_report_hard_t001(line, col, "subscript base must be array, slice or pointer");
   }
 }
 
@@ -417,7 +435,7 @@ export function driver_diagnostic_typeck_subscript_base(line: i32, col: i32): vo
 #[no_mangle]
 export function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "enum has no variant");
+    driver_diag_report_hard_t001(line, col, "enum has no variant");
   }
 }
 
@@ -430,7 +448,7 @@ export function driver_diagnostic_typeck_enum_no_variant(line: i32, col: i32): v
 #[no_mangle]
 export function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
                            "`?` requires the enclosing function to return the same Result type");
   }
 }
@@ -446,9 +464,9 @@ export function driver_diagnostic_typeck_try_propagate_bad_enclosing(line: i32, 
 export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: i32, is_break: i32): void {
   unsafe {
     if (is_break != 0) {
-      lsp_diag_report_typeck(line, col, "break only allowed inside a loop");
+      driver_diag_report_hard_t001(line, col, "break only allowed inside a loop");
     } else {
-      lsp_diag_report_typeck(line, col, "continue only allowed inside a loop");
+      driver_diag_report_hard_t001(line, col, "continue only allowed inside a loop");
     }
   }
 }
@@ -465,7 +483,7 @@ export function driver_diagnostic_typeck_break_continue_outside(line: i32, col: 
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col, "invalid pointer arithmetic (ptr+ptr / non-offset ops)");
+    driver_diag_report_hard_t001(line, col, "invalid pointer arithmetic (ptr+ptr / non-offset ops)");
   }
 }
 
@@ -480,7 +498,7 @@ export function driver_diagnostic_typeck_invalid_ptr_binop(line: i32, col: i32):
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "invalid float op (no bitwise/mod/shift/unary ~ on f32/f64; use + - * / and unary -)");
   }
 }
@@ -497,7 +515,7 @@ export function driver_diagnostic_typeck_invalid_float_binop(line: i32, col: i32
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "invalid aggregate operation (cmp/arith/unary -/~/! not allowed on array/slice/struct; use scalars or fields)");
   }
 }
@@ -513,7 +531,7 @@ export function driver_diagnostic_typeck_invalid_aggregate_cmp(line: i32, col: i
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "invalid cast (as not allowed for aggregate or float<->pointer; use numeric/ptr casts or fields)");
   }
 }
@@ -528,7 +546,7 @@ export function driver_diagnostic_typeck_invalid_as_cast(line: i32, col: i32): v
 #[no_mangle]
 export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "wrong number of arguments in function call (arity mismatch)");
   }
 }
@@ -543,7 +561,7 @@ export function driver_diagnostic_typeck_call_arity_mismatch(line: i32, col: i32
 #[no_mangle]
 export function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "argument type mismatch in function call");
   }
 }
@@ -560,7 +578,7 @@ export function driver_diagnostic_typeck_call_arg_type_mismatch(line: i32, col: 
 #[no_mangle]
 export function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "unresolved function call (no matching function)");
   }
 }
@@ -575,7 +593,7 @@ export function driver_diagnostic_typeck_call_unresolved(line: i32, col: i32): v
 #[no_mangle]
 export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "subscript index must be an integer type");
   }
 }
@@ -590,7 +608,7 @@ export function driver_diagnostic_typeck_subscript_index(line: i32, col: i32): v
 #[no_mangle]
 export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "logical operand must be bool (no implicit int-to-bool)");
   }
 }
@@ -605,7 +623,7 @@ export function driver_diagnostic_typeck_logical_operand_not_bool(line: i32, col
 #[no_mangle]
 export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "comparison operands have incompatible types");
   }
 }
@@ -620,7 +638,7 @@ export function driver_diagnostic_typeck_comparison_type_mismatch(line: i32, col
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "invalid void operation (void cannot be used in arithmetic or unary -/~)");
   }
 }
@@ -637,7 +655,7 @@ export function driver_diagnostic_typeck_invalid_void_binop(line: i32, col: i32)
 #[no_mangle]
 export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "invalid bool operation (bool cannot be used in arithmetic, bitops, shifts, or unary -/~; use logical ops or `as`)");
   }
 }
@@ -653,7 +671,7 @@ export function driver_diagnostic_typeck_invalid_bool_binop(line: i32, col: i32)
 #[no_mangle]
 export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "cannot assign to const binding (const is immutable; use let for a mutable variable)");
   }
 }
@@ -669,7 +687,7 @@ export function driver_diagnostic_typeck_assign_to_const(line: i32, col: i32): v
 #[no_mangle]
 export function driver_diagnostic_typeck_duplicate_local(line: i32, col: i32): void {
   unsafe {
-    lsp_diag_report_typeck(line, col,
+    driver_diag_report_hard_t001(line, col,
       "duplicate let/const binding (same-block local, parameter clash, or module-scope redecl)");
   }
 }
@@ -807,6 +825,7 @@ export function driver_diagnostic_typeck_func_fail(func_idx: i32, name: *u8, nam
       return;
     }
     driver_check_diag_emitted_note();
+    driver_typeck_hard_diag_note();
     diag_report_with_code(0 as *u8, 0, 0, "typeck error", "XT001", msg, 0 as *u8);
     if (kind == 0 - 6) {
       driver_diag_report_prefixed(0, 0,
@@ -1207,7 +1226,7 @@ export function driver_diagnostic_typeck_call_not_generic(line: i32, col: i32, n
   at = driver_diag_append_name(&msg[0], 240, at, name, name_len);
   at = driver_diag_append_cstr(&msg[0], 240, at, "' is not generic but type arguments were provided");
   unsafe {
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    driver_diag_report_hard_t001(line, col, &msg[0]);
   }
 }
 
@@ -1231,7 +1250,7 @@ export function driver_diagnostic_typeck_call_wrong_num_type_args(line: i32, col
   at = driver_diag_append_cstr(&msg[0], 240, at, " type arguments, got ");
   at = driver_diag_append_i32(&msg[0], 240, at, got_n);
   unsafe {
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    driver_diag_report_hard_t001(line, col, &msg[0]);
   }
 }
 
@@ -1252,7 +1271,7 @@ export function driver_diagnostic_typeck_call_requires_type_args(line: i32, col:
   at = driver_diag_append_name(&msg[0], 280, at, name, name_len);
   at = driver_diag_append_cstr(&msg[0], 280, at, "<Type>(...))");
   unsafe {
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    driver_diag_report_hard_t001(line, col, &msg[0]);
   }
 }
 
@@ -1276,7 +1295,7 @@ export function driver_diagnostic_typeck_struct_padding_before(sname: *u8, sname
   at = driver_diag_append_name(&msg[0], 320, at, fname, fname_len);
   at = driver_diag_append_cstr(&msg[0], 320, at, "'; add explicit padding field or allow(padding)");
   unsafe {
-    lsp_diag_report_typeck(0, 0, &msg[0]);
+    driver_diag_report_hard_t001(0, 0, &msg[0]);
   }
 }
 
@@ -1296,7 +1315,7 @@ export function driver_diagnostic_typeck_struct_padding_trailing(sname: *u8, sna
   at = driver_diag_append_i32(&msg[0], 320, at, gap);
   at = driver_diag_append_cstr(&msg[0], 320, at, " byte(s) implicit trailing padding; add explicit padding field or allow(padding)");
   unsafe {
-    lsp_diag_report_typeck(0, 0, &msg[0]);
+    driver_diag_report_hard_t001(0, 0, &msg[0]);
   }
 }
 
@@ -1317,7 +1336,7 @@ export function driver_diagnostic_typeck_struct_field_bad_size(sname: *u8, sname
   at = driver_diag_append_name(&msg[0], 280, at, fname, fname_len);
   at = driver_diag_append_cstr(&msg[0], 280, at, "' has unknown or invalid type size");
   unsafe {
-    lsp_diag_report_typeck(0, 0, &msg[0]);
+    driver_diag_report_hard_t001(0, 0, &msg[0]);
   }
 }
 
@@ -1527,7 +1546,7 @@ export function driver_diagnostic_typeck_import_const_must_be_qualified(line: i3
       at = driver_diag_append_cstr(&msg[0], 280, at, ".");
       at = driver_diag_append_name(&msg[0], 280, at, name, name_len);
       unsafe {
-        lsp_diag_report_typeck(line, col, &msg[0]);
+        driver_diag_report_hard_t001(line, col, &msg[0]);
       }
       return;
     }
@@ -1535,7 +1554,7 @@ export function driver_diagnostic_typeck_import_const_must_be_qualified(line: i3
   at = driver_diag_append_cstr(&msg[0], 280, at, "' must be qualified as binding.");
   at = driver_diag_append_name(&msg[0], 280, at, name, name_len);
   unsafe {
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    driver_diag_report_hard_t001(line, col, &msg[0]);
   }
 }
 

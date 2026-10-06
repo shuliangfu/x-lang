@@ -227,8 +227,13 @@ export extern "C" function unlink(path: *u8): i32;
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
 // Use i32[1] so &g[0] is a stable *i32 (scalar let address form is less portable in -E).
 // nostdlib: plain BSS (not TLS) — see seed comment on large_stack_thread flag.
+// LSP collector state (runtime_lsp_glue owner); hard-diag counter skips collect mode.
+export extern "C" function lsp_diag_get_enabled(): i32;
 let g_driver_check_only_flag: i32[1] = [0];
 let g_driver_check_diag_emitted_flag: i32[1] = [0];
+// Count of hard typeck diagnostics printed to the user (stderr / JSON).
+// Process exit must be non-zero when this is > 0 (see main_entry).
+let g_driver_typeck_hard_diag_n: i32[1] = [0];
 let g_driver_freestanding_flag: i32[1] = [0];
 let g_driver_sanitize_address_flag: i32[1] = [0];
 let g_driver_fmt_check_only_flag: i32[1] = [0];
@@ -880,6 +885,42 @@ export function driver_check_diag_emitted_note(): void {
     let p: *i32 = driver_check_diag_emitted_flag_slot();
     p[0] = 1;
   }
+}
+
+/**
+ * Record one hard typeck diagnostic before it is reported to the user.
+ * Called by the .x report sites (typeck.x typeck_report_hard_t001,
+ * runtime_driver_diagnostic_thin.x driver_diag_report_hard_t001 / XT001).
+ * LSP collect mode keeps diagnostics in the collector, so it is not counted.
+ * Soft diagnostics suppressed during exploratory dep typeck never reach it.
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_typeck_hard_diag_note(): void {
+  unsafe {
+    if (lsp_diag_get_enabled() != 0) {
+      return;
+    }
+    let p: *i32 = &g_driver_typeck_hard_diag_n[0];
+    if (p[0] < 2147483647) {
+      p[0] = p[0] + 1;
+    }
+  }
+}
+
+/**
+ * Number of hard typeck diagnostics printed so far in this process.
+ * @return i32 — 0 when none
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_typeck_hard_diag_count(): i32 {
+  unsafe {
+    let p: *i32 = &g_driver_typeck_hard_diag_n[0];
+    return p[0];
+  }
+  return 0;
 }
 
 /** Exported function `driver_check_diag_emitted_reset`.

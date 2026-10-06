@@ -127,6 +127,8 @@ export extern function driver_asm_parse_metric_only_from_env(): i32;
 export extern function driver_freestanding_get(): i32;
 export extern function driver_check_only_get(): i32;
 export extern function driver_check_diag_emitted_get(): i32;
+/* T001 rc contract: count of hard typeck diagnostics printed outside LSP. */
+export extern "C" function driver_typeck_hard_diag_count(): i32;
 export extern function driver_x_pipeline_skip_typeck_set(v: i32): void;
 export extern function driver_x_pipeline_skip_codegen_set(v: i32): void;
 export extern function driver_deps_are_std_core_closure_only(dep_paths: *u8, n: i32): i32;
@@ -2250,6 +2252,26 @@ function rt_ab_capture_lib_name(argc: i32, argv: *u8): void {
   }
 }
 
+/**
+ * T001 rc contract: a hard typeck diagnostic printed for the entry or any dep
+ * (counted by driver_typeck_hard_diag_note) fails the compile. Releases the
+ * work state and drops the partial -o output so no stale artifact survives.
+ * @param out_path *u8 — product -o path; may be null (smoke)
+ * @return i32 — 1 when the compile must fail (state already cleaned), else 0
+ */
+function rt_ab_fail_on_hard_diag(out_path: *u8): i32 {
+  unsafe {
+    if (driver_typeck_hard_diag_count() <= 0) {
+      return 0;
+    }
+    driver_asm_work_cleanup();
+    if (out_path != 0 as *u8) {
+      driver_unlink_failed_output(out_path);
+    }
+  }
+  return 1;
+}
+
 /** Public entry: run -backend asm pipeline via work slots and eight steps. Seeds path/out/lib/target/argv then read_pp through finish.
  * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
@@ -2368,11 +2390,17 @@ export function driver_run_asm_backend(
     unsafe { driver_asm_work_cleanup(); }
     return 1;
   }
+  if (rt_ab_fail_on_hard_diag(out_path) != 0) {
+    return 1;
+  }
   unsafe {
     rc = rt_ab_step_pipeline();
   }
   if (rc != 0) {
     unsafe { driver_asm_work_cleanup(); }
+    return 1;
+  }
+  if (rt_ab_fail_on_hard_diag(out_path) != 0) {
     return 1;
   }
   unsafe {

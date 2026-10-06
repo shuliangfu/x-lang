@@ -120,6 +120,8 @@ export extern "C" function driver_x_emit_work_i_set(i: i32, v: i32): void;
 export extern "C" function driver_x_emit_work_z_get(i: i32): usize;
 export extern "C" function driver_x_emit_work_z_set(i: i32, v: usize): void;
 export extern "C" function driver_x_emit_work_cleanup(): void;
+/* T001 rc contract: count of hard typeck diagnostics printed outside LSP. */
+export extern "C" function driver_typeck_hard_diag_count(): i32;
 export extern "C" function typeck_set_allow_legacy_extern_calls(allow: i32): i32;
 /* Used by rt_xe_step_finish before fwrite of -E body (same face as
  * rt_run_compiler_parsed / rt_run_asm_backend). Missing decl → tip T001/XT001
@@ -1246,6 +1248,10 @@ export function driver_run_x_emit_c(): i32 {
   }
   unsafe {
     rc = rt_xe_step_prerun();
+    // A hard T001 printed while typechecking deps must fail the compile.
+    if (rc == 0 && driver_typeck_hard_diag_count() > 0) {
+      rc = 1;
+    }
   }
   if (rc != 0) {
     unsafe {
@@ -1258,6 +1264,9 @@ export function driver_run_x_emit_c(): i32 {
     rc = rt_xe_step_finish();
     driver_x_emit_work_cleanup();
     typeck_set_allow_legacy_extern_calls(old_legacy);
+    if (rc == 0 && driver_typeck_hard_diag_count() > 0) {
+      rc = 1;
+    }
   }
   return rc;
 }
