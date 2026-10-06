@@ -926,6 +926,7 @@ export function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
 export extern "C" function arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_udiv_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32;
@@ -1182,16 +1183,21 @@ export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_div_rbx_arch`.
- * Implements `backend_enc_div_rbx_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Emit unsigned division of rax by rbx, quotient in rax.
+ * arm64 must be `udiv x0, x0, x1`. The signed encoder emits `sdiv`, which
+ * treats a dividend with bit 63 set as negative, so u64 all-ones divided
+ * by 2 becomes 0. x86_64 clears edx and emits `div`. riscv64 keeps its
+ * existing encoder. Signed division stays on backend_enc_idiv_rbx_arch.
+ * @param elf_ctx *u8 — emit context; a null context fails inside append
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED. The arm64 word is MACOS|DARWIN and LINUX|UBUNTU arm64.
  */
 #[no_mangle]
 export function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
+    unsafe { return arch_arm64_enc_enc_udiv_rbx(elf_ctx); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
@@ -4797,6 +4803,23 @@ export function arch_arm64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32 {
   return backend_enc_append_u32_le_c(elf_ctx, 2596342784 as u32);
+}
+
+
+/**
+ * Emit ARM64 `udiv x0, x0, x1`.
+ * The instruction word is 2596341760 (0x9AC10800): the sdiv word with the
+ * signed bit clear. Unsigned division of rax by rbx uses this. Signed
+ * division keeps arch_arm64_enc_enc_idiv_rbx. A null context returns -1
+ * from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_udiv_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2596341760 as u32);
 }
 
 
