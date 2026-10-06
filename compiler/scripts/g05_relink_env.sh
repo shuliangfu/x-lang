@@ -1146,11 +1146,24 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/store_retval_pair.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/store_retval_pair.o $_PABI_SELFHOST"
 fi
+# w2060: named-field aggregate load outside a call. The Linux egg's
+# glue_field_call_arg_try_load_agg_from_rax_elf_c is W and returns 0
+# when pipeline_asm_emit_call_arg_active_c is 0, so a let or assign
+# never takes the 9 to 16 byte pair or the wider-than-16 address path.
+# linux_selfhost_pabi_refresh_tip.sh rebuilds field_agg_load.o on every
+# ensure, with no PREFER. Link it ahead of the egg. A strong T in the
+# link object is weakened. The measured egg is already W. A missing
+# object stops the relink. Darwin's pabi_weak already matches the tip
+# gates, and Windows is not switched. PLATFORM: LINUX.
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/field_agg_load.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/field_agg_load.o $_PABI_SELFHOST"
+fi
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   for _lw in "xlang_module_collect_imports_from_buf=build_asm/selfhost_pabi/cimp.o" \
       "pipeline_expr_enum_namespace_field_tag=build_asm/selfhost_pabi/enum_ns_tag.o" \
       "pipeline_asm_cmp_enum_rhs_tag_c=build_asm/selfhost_pabi/enum_ns_tag.o" \
-      "glue_store_retval_pair_to_rbp_elf_c=build_asm/selfhost_pabi/store_retval_pair.o"; do
+      "glue_store_retval_pair_to_rbp_elf_c=build_asm/selfhost_pabi/store_retval_pair.o" \
+      "glue_field_call_arg_try_load_agg_from_rax_elf_c=build_asm/selfhost_pabi/field_agg_load.o"; do
     _lw_s="${_lw%%=*}"; _lw_o="${_lw#*=}"
     if [ ! -s "$_lw_o" ]; then
       echo "g05_relink_env: missing $_lw_o for $_lw_s (Linux)" >&2

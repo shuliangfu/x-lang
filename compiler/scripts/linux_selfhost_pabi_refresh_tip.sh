@@ -354,4 +354,61 @@ if nm "$_stp_tmp" | awk '$NF=="xlang_panic_"{f=1} END{exit !f}'; then
 fi
 mv -f "$_stp_tmp" "$_stp_dst"
 echo "linux_selfhost_pabi_refresh_tip: $_stp_dst (wide store pair)"
+# 9. w2060 field aggregate load. The Linux egg's
+#    glue_field_call_arg_try_load_agg_from_rax_elf_c is one W that returns
+#    0 when no call argument is active. The tip still sizes the field:
+#    9 to 16 bytes dereferences, wider than 16 returns 0 for the memcpy,
+#    and at most 8 bytes stays a scalar load outside a call. Always rebuild
+#    field_agg_load.o from that tip body. No PREFER. A cp -p restore of an
+#    older ./xlang_asm must not keep the previous object. Require the strong
+#    export, the pair deref, and the qword load. Reject xlang_panic_.
+#    Weaken every other global T. Darwin's pabi_weak already matches the
+#    tip, and Windows is not switched here. PLATFORM: LINUX.
+_fag_src=src/runtime_pipeline_abi_field_agg_load_thin.x
+_fag_dst="$OUT/field_agg_load.o"
+_fag_sym=glue_field_call_arg_try_load_agg_from_rax_elf_c
+_fag_deref=pipeline_asm_deref_struct16_rax_ptr_elf_c
+_fag_load=backend_enc_load_64_from_rax_arch
+if [ ! -f "$_fag_src" ]; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fag_src missing" >&2
+  exit 1
+fi
+_fag_tmp="$OUT/field_agg_load.tmp.o"
+rm -f "$_fag_dst" "$_fag_tmp"
+if ! timeout 240 env -u XLANG_PREFER_ASM_O "$XL" -backend asm -c "$_fag_src" -o "$_fag_tmp"; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fag_src failed" >&2
+  rm -f "$_fag_tmp"
+  exit 1
+fi
+while read -r _sym; do
+  [ -n "$_sym" ] || continue
+  [ "$_sym" = "$_fag_sym" ] && continue
+  if ! objcopy --weaken-symbol="$_sym" "$_fag_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_fag_tmp failed" >&2
+    rm -f "$_fag_tmp"
+    exit 1
+  fi
+done < <(nm "$_fag_tmp" | awk '$2=="T"{print $3}')
+if ! nm "$_fag_tmp" | awk -v s="$_fag_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fag_src lacks strong $_fag_sym" >&2
+  rm -f "$_fag_tmp"
+  exit 1
+fi
+if ! nm -u "$_fag_tmp" | awk -v s="$_fag_deref" '$NF==s{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fag_src does not call $_fag_deref" >&2
+  rm -f "$_fag_tmp"
+  exit 1
+fi
+if ! nm -u "$_fag_tmp" | awk -v s="$_fag_load" '$NF==s{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fag_src does not call $_fag_load" >&2
+  rm -f "$_fag_tmp"
+  exit 1
+fi
+if nm "$_fag_tmp" | awk '$NF=="xlang_panic_"{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_fag_src emits xlang_panic_" >&2
+  rm -f "$_fag_tmp"
+  exit 1
+fi
+mv -f "$_fag_tmp" "$_fag_dst"
+echo "linux_selfhost_pabi_refresh_tip: $_fag_dst (field aggregate load)"
 echo "linux_selfhost_pabi_refresh_tip: OK"
