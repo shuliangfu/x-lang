@@ -2,8 +2,9 @@
 // Ubuntu's pipe_modlet_bake_struct_lit_to_data lives in the Linux
 // modlet thin and folds floats through pipe_modlet_fold_f64_elem_bits.
 // This body calls the Darwin/Windows folder instead. Return 4 is one
-// f32 word. Return 5 is both f64 halves. Do not link this object on
-// Linux, and do not paste that helper here.
+// f32 word. Return 5 is both f64 halves. Do not paste the Linux helper
+// here. g05 rebuilds this file into build_asm/selfhost_pabi/bake_struct.o
+// on Darwin and Windows. Linux does not rebuild this thin.
 // PLATFORM: MACOS|DARWIN / WINDOWS.
 
 export extern "C" function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
@@ -52,7 +53,10 @@ export extern "C" function pipe_modlet_bake_string_lit_elem_to_data(
  * @param elem_base i32 — data offset of this struct; < 0 returns -1
  * @param m *u8 — module that owns the layout; null returns -1
  * @return i32 — 0 when the literal is baked, -1 when it must loud-fail
- * PLATFORM: MACOS|DARWIN / WINDOWS — do not link this object on Linux.
+ * PLATFORM: MACOS|DARWIN / WINDOWS — g05 rebuilds this file on those
+ * hosts. Darwin links the strong sidecar. pabi_weak.o does not define
+ * this name. Windows links this object ahead of the egg. Linux does
+ * not rebuild this thin.
  */
 #[no_mangle]
 export function pipe_modlet_bake_struct_lit_to_data(

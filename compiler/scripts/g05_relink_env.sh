@@ -1193,6 +1193,25 @@ if [ "$UNAME_S" = "Darwin" ]; then
     exit 1
   fi
 fi
+# w2060: STRUCT_LIT baker. The on-disk bake_struct.o is a leftover
+# (frame 0xe50). Rebuild the tip thin every Darwin relink. That thin
+# does not divide. pabi_weak.o does not define
+# pipe_modlet_bake_struct_lit_to_data, so this strong sidecar is the
+# only copy on the Darwin pabi_weak link. No new weaken. The egg keeps
+# its own strong T and is not the link object once pabi_weak.o is
+# selected. A missing object exits 1. Linux does not rebuild this thin.
+# Windows rebuilds it in its own block. The if below still prepends
+# the object only when pabi_weak.o exists.
+# PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_modlet_bake_struct_thin.x \
+    build_asm/selfhost_pabi/bake_struct.o \
+    pipe_modlet_bake_struct_lit_to_data
+  if [ ! -s build_asm/selfhost_pabi/bake_struct.o ]; then
+    echo "g05_relink_env: ERROR Darwin bake_struct .x did not build" >&2
+    exit 1
+  fi
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -1217,9 +1236,10 @@ if [ "$UNAME_S" = "Darwin" ] \
   if [ -s build_asm/selfhost_pabi/bake_elems.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
   fi
-  # STRUCT_LIT elements. The array baker calls this object. A missing
-  # file leaves struct elements unfolded. Do not link it on Linux:
-  # Ubuntu's modlet.o already bakes struct fields.
+  # STRUCT_LIT elements. The array baker calls this object. The
+  # Darwin rebuild above already exited 1 when the tip thin did not
+  # produce it. Ubuntu's modlet.o bakes struct fields, so Linux does
+  # not rebuild this thin.
   # PLATFORM: MACOS|DARWIN.
   if [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
@@ -1956,8 +1976,9 @@ case "$UNAME_S" in
     # pipe_modlet_bake_struct_lit_to_data and a local _cold copy, so the
     # strong T has to come from this object. The on-disk bake_struct.o was
     # a leftover. Rebuild it from the tip thin every relink. One strong T.
-    # A missing object exits 1. Linux must not link this object. Darwin
-    # still uses its prebuilt copy. PLATFORM: WINDOWS | MSYS | MINGW.
+    # A missing object exits 1. Linux does not rebuild this thin. Darwin
+    # rebuilds the same thin before its pabi_weak link.
+    # PLATFORM: WINDOWS | MSYS | MINGW.
     _g05_pure_overlay src/runtime_pipeline_abi_modlet_bake_struct_thin.x \
       build_asm/selfhost_pabi/bake_struct.o pipe_modlet_bake_struct_lit_to_data
     if [ ! -s build_asm/selfhost_pabi/bake_struct.o ]; then
