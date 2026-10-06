@@ -2921,6 +2921,51 @@ PY
     fi
     _PABI_WIN_IDX="$_widx_o"
     _PABI_SELFHOST="$_widx_o $_widx_rest_o $_PABI_SELFHOST"
+    # w2060: param-pointer slot. Darwin already rebuilds this thin.
+    # Linux injects it through pipeline_abi_inject_param_ptr_slot_thin.
+    # The Windows egg defines glue_local_var_slot_needs_ptr_load_elf_c
+    # once, below the demote cap, so demote leaves that external. Four
+    # same-TU REL32 calls name it, from
+    # glue_emit_slice_length_to_rbx_elf_c,
+    # glue_enc_local_slot_ptr_or_addr_rbx_elf_c,
+    # glue_load_var_as_value_to_rax_rdx_elf_c, and
+    # pipeline_asm_emit_var_field_access_elf_c. None of those owners is
+    # folded. w189_param_at_is_type_ptr is one external and has no reloc.
+    # w189_stack_off_is_emit_param_ptr_slot is one in-cap external plus
+    # one static below the cap; neither has a reloc. Compile the existing
+    # thin every relink with no PREFER. Require the three strong T
+    # symbols and reject xlang_panic_. Link the thin ahead of pabi.
+    # Weaken the three egg externals below. The static w189_stack_off
+    # copy stays static and out of the static-t list.
+    # win_patch_body_sync_jmp folds only
+    # glue_local_var_slot_needs_ptr_load_elf_c. A missing object exits 1.
+    # The egg file is not edited. PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_PPS=""
+    _wpps_x=src/runtime_pipeline_abi_param_ptr_slot_thin.x
+    _wpps_o=build_asm/selfhost_pabi/param_ptr_slot_win.o
+    if [ ! -f "$_wpps_x" ]; then
+      echo "g05_relink_env: $_wpps_x missing (Windows param ptr slot)" >&2
+      exit 1
+    fi
+    _g05_pure_overlay "$_wpps_x" "$_wpps_o" glue_local_var_slot_needs_ptr_load_elf_c
+    if [ ! -s "$_wpps_o" ]; then
+      echo "g05_relink_env: ERROR Windows param ptr slot .x did not build" >&2
+      exit 1
+    fi
+    for _wpps_s in glue_local_var_slot_needs_ptr_load_elf_c \
+        w189_param_at_is_type_ptr \
+        w189_stack_off_is_emit_param_ptr_slot; do
+      if ! nm "$_wpps_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wpps_s}\$"; then
+        echo "g05_relink_env: $_wpps_x lacks strong $_wpps_s (Windows param ptr slot)" >&2
+        exit 1
+      fi
+    done
+    if nm "$_wpps_o" 2>/dev/null | tr -d '\r' | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: $_wpps_x references xlang_panic_ (Windows param ptr slot)" >&2
+      exit 1
+    fi
+    _PABI_WIN_PPS="$_wpps_o"
+    _PABI_SELFHOST="$_wpps_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -3096,6 +3141,7 @@ PY
       || [ -n "$_PABI_WIN_REC" ] \
       || [ -n "$_PABI_WIN_STORE" ] \
       || [ -n "$_PABI_WIN_IDX" ] \
+      || [ -n "$_PABI_WIN_PPS" ] \
       || [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
@@ -3384,6 +3430,29 @@ PY
             echo "g05_relink_env: weaken pabi_weak pipeline_expr_field_access_load_byte_sz failed (Windows field load width)" >&2
             exit 1
           fi
+        fi
+        # w2060: weaken the egg param-pointer slot externals so this thin
+        # first-wins. glue_local_var_slot_needs_ptr_load_elf_c is one
+        # external below the demote cap. Four same-TU REL32 calls name it.
+        # The two w189 helpers are externals with no reloc. The static
+        # w189_stack_off twin is left static. A failed weaken stops the
+        # relink. The egg file is not edited. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_PPS" ]; then
+          for _wpps_s in glue_local_var_slot_needs_ptr_load_elf_c \
+              w189_param_at_is_type_ptr \
+              w189_stack_off_is_emit_param_ptr_slot; do
+            if ! nm build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | tr -d '\r' \
+                | grep -q " T ${_wpps_s}\$"; then
+              echo "g05_relink_env: pabi_weak lacks $_wpps_s (Windows param ptr slot)" >&2
+              exit 1
+            fi
+            if ! "$_oc" --weaken-symbol="$_wpps_s" \
+                build_asm/selfhost_pabi/pabi_weak.o; then
+              echo "g05_relink_env: weaken pabi_weak $_wpps_s failed (Windows param ptr slot)" >&2
+              exit 1
+            fi
+            _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wpps_s=$_PABI_WIN_PPS"
+          done
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

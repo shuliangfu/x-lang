@@ -459,6 +459,17 @@ def main() -> int:
         # that W onto the thin. The other field_cap exports have no
         # same-TU reloc and stay out of this list. PLATFORM: WINDOWS.
         "pipeline_expr_field_access_load_byte_sz",
+        # w2060: param-pointer slot. The egg copy is one external T below
+        # the demote cap, 826 bytes. There is no static twin, so it stays
+        # out of _STATIC_T_TO_OVERLAY. Four same-TU REL32 calls name that
+        # entry, from glue_emit_slice_length_to_rbx_elf_c,
+        # glue_enc_local_slot_ptr_or_addr_rbx_elf_c,
+        # glue_load_var_as_value_to_rax_rdx_elf_c, and
+        # pipeline_asm_emit_var_field_access_elf_c. None of those owners
+        # is folded. After weaken, fold that W onto this thin. The two
+        # w189 helpers have no reloc. Their static twin stays out of both
+        # lists. PLATFORM: WINDOWS.
+        "glue_local_var_slot_needs_ptr_load_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
