@@ -442,6 +442,14 @@ def main() -> int:
         # Fold that W onto this thin. The assembled _rest symbol is not an
         # egg symbol and stays out of this list. PLATFORM: WINDOWS.
         "glue_try_index_var_or_field_base_to_rbx_elf_c",
+        # w2060: parser EMIT_HEAVY thin-delegate predicate. The egg copy is
+        # one external T above the demote cap, 168 bytes, and can return 1
+        # from the 116-row table. There is no static twin, so it stays out
+        # of _STATIC_T_TO_OVERLAY. One same-TU REL32 call inside
+        # asm_skip_heavy_module_func_body still enters that entry after
+        # weaken. Fold that W onto this thin, which returns 0.
+        # PLATFORM: WINDOWS.
+        "asm_parser_func_is_thin_delegate",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

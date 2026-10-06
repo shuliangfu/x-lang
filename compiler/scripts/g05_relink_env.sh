@@ -3223,7 +3223,8 @@ PY
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1565: weaken egg thin-delegate predicate so the overlay first-wins.
-        # PLATFORM: WINDOWS.
+        # The one same-TU caller is asm_skip_heavy_module_func_body (REL32).
+        # win_patch names folds that W onto the overlay. PLATFORM: WINDOWS.
         if [ -n "$_PABI_PARSER_THIN_DELEGATE" ]; then
           "$_oc" --weaken-symbol=asm_parser_func_is_thin_delegate \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
