@@ -5,9 +5,12 @@
 // w2055: the Darwin pabi object keeps an old C body from before w1653 with a
 // 32-byte base_buf. pipeline_expr_var_name_into zeros 256 bytes, so that
 // body writes past its frame; Darwin's stack guard aborts the compiler on
-// parser.x (stack buffer overflow in this function). Darwin compiles this
-// file with the current product, weakens the pabi copy, and links it first.
-// PLATFORM: SHARED source; MACOS|DARWIN sidecar.
+// parser.x (stack buffer overflow in this function). Darwin and Windows
+// compile this file on every relink. Linux refresh rebuilds
+// enum_ns_tag.o on every ensure, so a compiler restored with an older
+// mtime does not keep the previous object. Each links ahead of the pabi
+// copy. This thin does not divide.
+// PLATFORM: SHARED source; LINUX, MACOS|DARWIN, and WINDOWS sidecars.
 
 export extern "C" function pipeline_expr_var_name_len(arena: *u8, expr_ref: i32): i32;
 export extern "C" function pipeline_expr_var_name_into(arena: *u8, expr_ref: i32, out64: *u8): void;

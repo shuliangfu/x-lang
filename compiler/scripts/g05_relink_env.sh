@@ -1119,14 +1119,15 @@ if [ -n "$_PABI_SELFHOST" ]; then
   done
 fi
 # w2055: collect-deps import scan ahead of the pabi copy (old C body calls
-# the struct-returning lexer_init). Built by linux_selfhost_pabi_refresh_tip.sh.
-# PLATFORM: LINUX.
+# the struct-returning lexer_init). linux_selfhost_pabi_refresh_tip.sh
+# rebuilds cimp.o on every ensure. PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/cimp.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/cimp.o $_PABI_SELFHOST"
 fi
 # w2055: enum namespace tag ahead of the pabi copies (32-byte buffer that
-# pipeline_expr_var_name_into zeros 256 bytes into). Built by
-# linux_selfhost_pabi_refresh_tip.sh. The pabi copies of the cimp and enum
+# pipeline_expr_var_name_into zeros 256 bytes into).
+# linux_selfhost_pabi_refresh_tip.sh rebuilds enum_ns_tag.o on every ensure.
+# The pabi copies of the cimp and enum
 # names are weakened in the pabi link object; a failed weaken stops the
 # relink, and each name goes into _G05_LINK_WINNERS for the post-link map
 # check. PLATFORM: LINUX.

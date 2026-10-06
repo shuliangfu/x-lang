@@ -114,43 +114,51 @@ if [ -f "$_slot_src" ] && { [ ! -s "$_slot_dst" ] || [ "$_slot_src" -nt "$_slot_
 fi
 # 4. w2055 collect-deps import scan: cimp.o keeps
 #    xlang_module_collect_imports_from_buf strong ahead of the pabi copy,
-#    whose old C body calls the struct-returning lexer_init(). Rebuild when
-#    the thin or the compiler is newer, or the name is not strong.
+#    whose old C body calls the struct-returning lexer_init().
+#    w2060: always rebuild. A newer-than-object test kept a sidecar from
+#    the previous product when ./xlang_asm was restored with an older
+#    mtime (cp -p). Darwin and Windows already rebuild this thin on every
+#    relink. A missing source, a failed compile, a missing strong T, or a
+#    lexer_init reference exits 1. slot.o and one.o stay on their mtime
+#    checks (integer % and /). PLATFORM: LINUX.
 _cimp_src=src/runtime_pipeline_abi_collect_imports_thin.x
 _cimp_dst="$OUT/cimp.o"
-if [ -f "$_cimp_src" ] && { [ ! -s "$_cimp_dst" ] || [ "$_cimp_src" -nt "$_cimp_dst" ] \
-    || [ "$XL" -nt "$_cimp_dst" ] \
-    || ! nm "$_cimp_dst" | awk '$2=="T"&&$3=="xlang_module_collect_imports_from_buf"{f=1} END{exit !f}'; }; then
-  _cimp_tmp="$OUT/cimp.tmp.o"
-  rm -f "$_cimp_dst"
-  if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_cimp_src" -o "$_cimp_tmp"; then
-    echo "linux_selfhost_pabi_refresh_tip: $_cimp_src failed" >&2
-    rm -f "$_cimp_tmp"
-    exit 1
-  fi
-  while read -r _sym; do
-    [ -n "$_sym" ] || continue
-    [ "$_sym" = xlang_module_collect_imports_from_buf ] || objcopy --weaken-symbol="$_sym" "$_cimp_tmp"
-  done < <(nm "$_cimp_tmp" | awk '$2=="T"{print $3}')
-  if ! nm "$_cimp_tmp" | awk '$2=="T"&&$3=="xlang_module_collect_imports_from_buf"{f=1} END{exit !f}'; then
-    echo "linux_selfhost_pabi_refresh_tip: $_cimp_src lacks strong xlang_module_collect_imports_from_buf" >&2
-    rm -f "$_cimp_tmp"
-    exit 1
-  fi
-  if nm -u "$_cimp_tmp" | awk '$2=="lexer_init"{f=1} END{exit !f}'; then
-    echo "linux_selfhost_pabi_refresh_tip: $_cimp_src still calls lexer_init" >&2
-    rm -f "$_cimp_tmp"
-    exit 1
-  fi
-  mv -f "$_cimp_tmp" "$_cimp_dst"
-  echo "linux_selfhost_pabi_refresh_tip: $_cimp_dst (collect imports strong)"
+if [ ! -f "$_cimp_src" ]; then
+  echo "linux_selfhost_pabi_refresh_tip: $_cimp_src missing" >&2
+  exit 1
 fi
+_cimp_tmp="$OUT/cimp.tmp.o"
+rm -f "$_cimp_dst" "$_cimp_tmp"
+if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_cimp_src" -o "$_cimp_tmp"; then
+  echo "linux_selfhost_pabi_refresh_tip: $_cimp_src failed" >&2
+  rm -f "$_cimp_tmp"
+  exit 1
+fi
+while read -r _sym; do
+  [ -n "$_sym" ] || continue
+  [ "$_sym" = xlang_module_collect_imports_from_buf ] || objcopy --weaken-symbol="$_sym" "$_cimp_tmp"
+done < <(nm "$_cimp_tmp" | awk '$2=="T"{print $3}')
+if ! nm "$_cimp_tmp" | awk '$2=="T"&&$3=="xlang_module_collect_imports_from_buf"{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_cimp_src lacks strong xlang_module_collect_imports_from_buf" >&2
+  rm -f "$_cimp_tmp"
+  exit 1
+fi
+if nm -u "$_cimp_tmp" | awk '$2=="lexer_init"{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_cimp_src still calls lexer_init" >&2
+  rm -f "$_cimp_tmp"
+  exit 1
+fi
+mv -f "$_cimp_tmp" "$_cimp_dst"
+echo "linux_selfhost_pabi_refresh_tip: $_cimp_dst (collect imports strong)"
 # 5. w2055 enum namespace tag: the pabi copies of
 #    pipeline_expr_enum_namespace_field_tag and pipeline_asm_cmp_enum_rhs_tag_c
 #    pass a 32-byte buffer to pipeline_expr_var_name_into, which zeros 256
 #    bytes (silent stack overrun). enum_ns_tag.o keeps both names strong
 #    ahead of the pabi copy; g05_relink_env.sh weakens the pabi copies and
 #    the relink map check proves the thin won. Same thin as Darwin.
+#    w2060: always rebuild, same cp -p reason as cimp.o above. The thin
+#    does not divide. A failed compile or a missing strong name exits 1.
+#    PLATFORM: LINUX.
 _ens_src=src/runtime_pipeline_abi_enum_ns_tag_thin.x
 _ens_dst="$OUT/enum_ns_tag.o"
 _ens_syms="pipeline_expr_enum_namespace_field_tag pipeline_asm_cmp_enum_rhs_tag_c"
@@ -164,34 +172,31 @@ _ens_strong() {
   done
   return 0
 }
-if [ ! -s "$_ens_dst" ] || [ "$_ens_src" -nt "$_ens_dst" ] || [ "$XL" -nt "$_ens_dst" ] \
-    || ! _ens_strong "$_ens_dst"; then
-  _ens_tmp="$OUT/enum_ns_tag.tmp.o"
-  rm -f "$_ens_dst"
-  if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_ens_src" -o "$_ens_tmp"; then
-    echo "linux_selfhost_pabi_refresh_tip: $_ens_src failed" >&2
-    rm -f "$_ens_tmp"
-    exit 1
-  fi
-  while read -r _sym; do
-    [ -n "$_sym" ] || continue
-    case " $_ens_syms " in
-      *" $_sym "*) ;;
-      *) if ! objcopy --weaken-symbol="$_sym" "$_ens_tmp"; then
-           echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_ens_tmp failed" >&2
-           rm -f "$_ens_tmp"
-           exit 1
-         fi ;;
-    esac
-  done < <(nm "$_ens_tmp" | awk '$2=="T"{print $3}')
-  if ! _ens_strong "$_ens_tmp"; then
-    echo "linux_selfhost_pabi_refresh_tip: $_ens_src lacks a strong enum tag name" >&2
-    rm -f "$_ens_tmp"
-    exit 1
-  fi
-  mv -f "$_ens_tmp" "$_ens_dst"
-  echo "linux_selfhost_pabi_refresh_tip: $_ens_dst (enum ns tag strong)"
+_ens_tmp="$OUT/enum_ns_tag.tmp.o"
+rm -f "$_ens_dst" "$_ens_tmp"
+if ! timeout 240 env XLANG_PREFER_ASM_O=1 "$XL" -backend asm -c "$_ens_src" -o "$_ens_tmp"; then
+  echo "linux_selfhost_pabi_refresh_tip: $_ens_src failed" >&2
+  rm -f "$_ens_tmp"
+  exit 1
 fi
+while read -r _sym; do
+  [ -n "$_sym" ] || continue
+  case " $_ens_syms " in
+    *" $_sym "*) ;;
+    *) if ! objcopy --weaken-symbol="$_sym" "$_ens_tmp"; then
+         echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_ens_tmp failed" >&2
+         rm -f "$_ens_tmp"
+         exit 1
+       fi ;;
+  esac
+done < <(nm "$_ens_tmp" | awk '$2=="T"{print $3}')
+if ! _ens_strong "$_ens_tmp"; then
+  echo "linux_selfhost_pabi_refresh_tip: $_ens_src lacks a strong enum tag name" >&2
+  rm -f "$_ens_tmp"
+  exit 1
+fi
+mv -f "$_ens_tmp" "$_ens_dst"
+echo "linux_selfhost_pabi_refresh_tip: $_ens_dst (enum ns tag strong)"
 # 6. w2060 call-arg packer: one.o keeps pipeline_asm_emit_expr_elf_for_call_args
 #    strong ahead of the pabi copy (linux_selfhost_pabi_sidecars.sh built it
 #    once and nothing rebuilt it, so a fix in the thin never reached the
