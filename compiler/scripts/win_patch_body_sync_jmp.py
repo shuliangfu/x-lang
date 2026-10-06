@@ -428,6 +428,13 @@ def main() -> int:
         # onto this thin. The static twin is folded above. The private cell
         # loader stays out of this list. PLATFORM: WINDOWS.
         "glue_store_retval_pair_to_rbp_elf_c",
+        # w2060: named-field aggregate load. The egg copy is one T, not a
+        # static twin, so it stays out of _STATIC_T_TO_OVERLAY. It returns
+        # 0 before sizing when no call argument is active. Three same-TU
+        # calls enter that entry. After weaken, fold that W onto this thin.
+        # The filename-prefixed cell loaders are not egg symbols and stay
+        # out of this list. PLATFORM: WINDOWS.
+        "glue_field_call_arg_try_load_agg_from_rax_elf_c",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )

@@ -2518,6 +2518,83 @@ case "$UNAME_S" in
     fi
     _PABI_WIN_STORE="$_wsp_o"
     _PABI_SELFHOST="$_wsp_o $_PABI_SELFHOST"
+    # w2060: named-field aggregate load outside a call. The Windows egg
+    # defines glue_field_call_arg_try_load_agg_from_rax_elf_c once, as T.
+    # That body returns 0 when pipeline_asm_emit_call_arg_active_c is 0,
+    # before it sizes the field, so a let or assign never takes the 9 to
+    # 16 byte pair or the wider-than-16 address path. Three same-TU calls
+    # enter that entry. There is no static twin. Compile the existing thin
+    # every relink with no PREFER. Require the one strong export and
+    # undefined references to the 9 to 16 byte deref and the qword load.
+    # Reject xlang_panic_. Another strong T that the egg already defines
+    # is weakened in this object. The filename-prefixed cell loaders are
+    # not egg symbols and stay strong. Link this object first. The egg
+    # external is weakened below. win_patch_body_sync_jmp folds that W
+    # onto this T. The name is not added to the static-t list. A missing
+    # object exits 1. The egg file is not edited. Darwin already matches
+    # the tip, and Linux already links this thin. PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_FAG=""
+    _wfag_x=src/runtime_pipeline_abi_field_agg_load_thin.x
+    _wfag_o=build_asm/selfhost_pabi/field_agg_load_win.o
+    _wfag_s=glue_field_call_arg_try_load_agg_from_rax_elf_c
+    _wfag_deref=pipeline_asm_deref_struct16_rax_ptr_elf_c
+    _wfag_load=backend_enc_load_64_from_rax_arch
+    if [ ! -f "$_wfag_x" ]; then
+      echo "g05_relink_env: $_wfag_x missing (Windows field aggregate load)" >&2
+      exit 1
+    fi
+    _g05_pure_overlay "$_wfag_x" "$_wfag_o" "$_wfag_s"
+    if [ ! -s "$_wfag_o" ]; then
+      echo "g05_relink_env: ERROR Windows field aggregate load .x did not build" >&2
+      exit 1
+    fi
+    if ! nm "$_wfag_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wfag_s}\$"; then
+      echo "g05_relink_env: $_wfag_x lacks strong $_wfag_s (Windows field aggregate load)" >&2
+      exit 1
+    fi
+    if ! nm -u "$_wfag_o" 2>/dev/null | tr -d '\r' | grep -q "${_wfag_deref}\$"; then
+      echo "g05_relink_env: $_wfag_x does not call $_wfag_deref (Windows field aggregate load)" >&2
+      exit 1
+    fi
+    if ! nm -u "$_wfag_o" 2>/dev/null | tr -d '\r' | grep -q "${_wfag_load}\$"; then
+      echo "g05_relink_env: $_wfag_x does not call $_wfag_load (Windows field aggregate load)" >&2
+      exit 1
+    fi
+    if nm "$_wfag_o" 2>/dev/null | tr -d '\r' | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: $_wfag_x references xlang_panic_ (Windows field aggregate load)" >&2
+      exit 1
+    fi
+    _wfag_egg=src/runtime_pipeline_abi.o
+    if [ ! -s "$_wfag_egg" ]; then
+      _wfag_egg=build_asm/selfhost_pabi/pabi_weak.o
+    fi
+    _wfag_list=build_asm/selfhost_pabi/field_agg_load_win.tlist
+    nm "$_wfag_o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}' > "$_wfag_list"
+    while read -r _wfag_extra; do
+      [ -n "$_wfag_extra" ] || continue
+      [ "$_wfag_extra" = "$_wfag_s" ] && continue
+      if [ -s "$_wfag_egg" ] && nm "$_wfag_egg" 2>/dev/null | tr -d '\r' \
+          | awk -v s="$_wfag_extra" '$NF==s && $1 ~ /^[0-9a-fA-F]+$/ {f=1} END{exit !f}'; then
+        _wfag_oc=""
+        if command -v llvm-objcopy >/dev/null 2>&1; then
+          _wfag_oc=llvm-objcopy
+        elif command -v objcopy >/dev/null 2>&1; then
+          _wfag_oc=objcopy
+        fi
+        if [ -z "$_wfag_oc" ] || ! "$_wfag_oc" --weaken-symbol="$_wfag_extra" "$_wfag_o"; then
+          echo "g05_relink_env: weaken $_wfag_extra in $_wfag_o failed (Windows field aggregate load)" >&2
+          rm -f "$_wfag_list"
+          exit 1
+        fi
+      fi
+    done < "$_wfag_list"
+    rm -f "$_wfag_list"
+    if ! nm "$_wfag_o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wfag_s}\$"; then
+      echo "g05_relink_env: $_wfag_o lost strong $_wfag_s (Windows field aggregate load)" >&2
+      exit 1
+    fi
+    _PABI_WIN_FAG="$_wfag_o"
+    _PABI_SELFHOST="$_wfag_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -2941,6 +3018,18 @@ case "$UNAME_S" in
             exit 1
           fi
           _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_store_retval_pair_to_rbp_elf_c=$_PABI_WIN_STORE"
+        fi
+        # w2060: weaken the egg field-aggregate load so this thin first-wins.
+        # The measured copy is one T. It returns 0 before sizing when no
+        # call argument is active. A failed weaken stops the relink. The
+        # egg file is not edited. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_FAG" ]; then
+          if ! "$_oc" --weaken-symbol=glue_field_call_arg_try_load_agg_from_rax_elf_c \
+              build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak glue_field_call_arg_try_load_agg_from_rax_elf_c failed (Windows field aggregate load)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_field_call_arg_try_load_agg_from_rax_elf_c=$_PABI_WIN_FAG"
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

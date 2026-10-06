@@ -8,14 +8,15 @@
 // The Linux egg is one weak body that returns 0 as soon as
 // pipeline_asm_emit_call_arg_active_c is 0. A let or assign of the field
 // never reaches those size gates. Three R_X86_64_PLT32 sites in that object
-// name this symbol. Darwin's pabi_weak already follows the tip gates, so
-// this file is not a Darwin input. Windows is not switched here.
+// name this symbol. The Windows egg is one strong T with the same early
+// return, and three same-TU calls enter that entry. Darwin's pabi_weak
+// already follows the tip gates, so this file is not a Darwin input.
 // Every extern result goes through a pipe cell. The product drops a direct
 // "name = extern(...)" store. The module pointer uses the pointer cell.
 // This file does not divide or take a remainder. Do not set
 // XLANG_PREFER_ASM_O. The mega function stays the authority. Do not change
 // this control flow apart from the pipe cells.
-// PLATFORM: LINUX link of the SHARED tip body.
+// PLATFORM: LINUX and WINDOWS link of the SHARED tip body. Not Darwin.
 
 export extern function pipeline_asm_emit_call_arg_active_c(): i32;
 export extern function pipeline_asm_emit_ctx_call_param_ty_get(): i32;
@@ -38,8 +39,9 @@ export extern function pipe_store_ptr_slot(base: *u8, i: i32, val: *u8): void;
  * w2060_store_pair_cell_i32, so this object must not reuse that name.
  * @param base *u8 — 8-byte cell; the i32 is at offset 0. Null is not used.
  * @return i32 — the stored value
- * PLATFORM: LINUX. Not an egg symbol. Refresh weakens this global. The
- * weak private still resolves in this TU.
+ * PLATFORM: LINUX and WINDOWS. Not an egg symbol. Linux refresh weakens
+ * this global. Windows leaves the filename-prefixed name strong, because
+ * the egg does not define it. It is not a patch-list symbol.
  */
 function w2060_field_agg_cell_i32(base: *u8): i32 {
   unsafe {
@@ -51,7 +53,9 @@ function w2060_field_agg_cell_i32(base: *u8): i32 {
  * Load one pointer that pipe_store_ptr_slot just wrote at slot 0.
  * @param base *u8 — 8-byte cell; slot 0 is the pointer. Null is not used.
  * @return *u8 — the stored pointer, which may itself be null
- * PLATFORM: LINUX. Not an egg symbol. Refresh weakens this global.
+ * PLATFORM: LINUX and WINDOWS. Not an egg symbol. Linux refresh weakens
+ * this global. Windows leaves the filename-prefixed name strong, because
+ * the egg does not define it. It is not a patch-list symbol.
  */
 function w2060_field_agg_cell_ptr(base: *u8): *u8 {
   unsafe {
@@ -73,7 +77,8 @@ function w2060_field_agg_cell_ptr(base: *u8): *u8 {
  * @param ta i32 — target arch. 0 is x86_64. 1 is arm64.
  * @return i32 — 1 when the pair or the qword load is done. 0 when the
  *   caller should scalar-load or memcpy. -1 when an encoder returns nonzero.
- * PLATFORM: LINUX link of the SHARED tip. Keep the gates identical to
+ * PLATFORM: LINUX and WINDOWS link of the SHARED tip. Darwin is not a
+ * consumer. Keep the gates identical to
  * glue_field_call_arg_try_load_agg_from_rax_elf_c in runtime_pipeline_abi.x.
  */
 #[no_mangle]
