@@ -99,7 +99,13 @@ say "v1 $(wc -c < xlang_asm | tr -d ' ') $(hsum xlang_asm) head=$(git -C "$ROOT"
 for g in 1 2 3; do
   cp -p "$OUT/pabi_start.o" "$PABI"
   touch "$OUT/g${g}_marker"; sleep 1
-  find src -name "*.x" ! -name "*wpo_thin*" -exec touch {} +
+  # w2060: no wildcard argument to find. Windows find.exe (w64devkit) expands
+  # "*.x" itself (CRT argv globbing, quotes do not help) and fails with
+  # "unrecognized: <file>.x", so nothing was touched. Filter with grep.
+  # PLATFORM: SHARED.
+  find src -type f | grep '\.x$' | grep -v 'wpo_thin' | xargs touch
+  ntx=$(find src -type f -newer "$OUT/g${g}_marker" | grep -c '\.x$')
+  [ "$ntx" -gt 0 ] || die 3 "g$g touched no .x"
   for f in typeck_gen.c ast_asm_bare_link_alias.x backend_asm_bare_link_alias.x \
            backend_asm_strict_fallback_alias.x pipeline_bootstrap_orchestration.x \
            typeck_c_module_stubs.x x_frontend_link_alias.x; do
@@ -138,7 +144,7 @@ for g in 1 2 3; do
       grep -E 'execve\("[^"]*/(cc|gcc|clang|cc1|c\+\+|g\+\+|[A-Za-z0-9_.-]*-gcc)(-[0-9.]+)?"' "$OUT/g${g}.tr" > "$OUT/g${g}.cc.txt"
     fi
   fi
-  nnew=$(find . -name '*.o' -newer "$OUT/g${g}_marker" | wc -l | tr -d ' ')
+  nnew=$(find . -type f -newer "$OUT/g${g}_marker" | grep -c '\.o$')
   cp -p xlang_asm "$OUT/g${g}.xa"
   strip_to "$OUT/g${g}.xa" "$OUT/g${g}.xa.s"
   say "g$g fresh $(wc -c < xlang_asm | tr -d ' ') $(hsum xlang_asm) strip $(hsum "$OUT/g${g}.xa.s") new_o=$nnew"

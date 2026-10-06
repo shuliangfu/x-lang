@@ -321,6 +321,7 @@ case "$(uname -s 2>/dev/null)" in
     else
       _ccv_sha=$(shasum -a 256 "$_ccv_x" | cut -c1-16)
     fi
+    _ccv_id="$_ccv_sha@$(stat -c %Y "$_ccv_x" 2>/dev/null || stat -f %m "$_ccv_x" 2>/dev/null || echo 0)"
     _ccv_hostcc=$(cd .. && git ls-files 'compiler/*.c' 2>/dev/null | wc -l | tr -d ' ')
     _ccv_dir=$(mktemp -d "$_G05_TMPROOT/g05_ccv.XXXXXX" 2>/dev/null || echo "$_G05_TMPROOT/g05_ccv.$$")
     mkdir -p "$_ccv_dir"
@@ -340,9 +341,18 @@ case "$(uname -s 2>/dev/null)" in
       [ -s "$_leaf" ] || continue
       case "$_leaf" in
         ../std/fs/fs.o|../std/string/string.o)
+          # w2060: the link above runs before this refresh, so the leaf is
+          # newer than the product that was just linked; with mtime alone the
+          # next stage saw its compiler as older and skipped (g1 rebuilt, g2
+          # skipped, g3 rebuilt). Record which compiler built the leaf
+          # (sha@mtime of this stage's compiler) and rebuild when the record
+          # is missing or names another compiler. PLATFORM: SHARED.
+          _ccv_stamp="build_asm/g05_leaf_stamp/$(echo "$_leaf" | sed 's#^\.\./##; s#/#_#g').id"
+          _ccv_prev=$(cat "$_ccv_stamp" 2>/dev/null || echo none)
           _ccv_force=0
           [ "$_ccv_x" -nt "$_leaf" ] && _ccv_force=1
-          echo "g05_relink_xlang: cc-vehicle $_leaf compiler=$_ccv_from sha=$_ccv_sha force=$_ccv_force host-cc=$_ccv_hostcc"
+          [ "$_ccv_prev" = "$_ccv_id" ] || _ccv_force=1
+          echo "g05_relink_xlang: cc-vehicle $_leaf compiler=$_ccv_from sha=$_ccv_sha force=$_ccv_force id=$_ccv_id prev=$_ccv_prev host-cc=$_ccv_hostcc"
           cp -fp "$_leaf" "$_leaf.w2055bak"
           _before=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
           _erc=0
@@ -353,12 +363,19 @@ case "$(uname -s 2>/dev/null)" in
           sed -e 's/^/  g05_relink_xlang: /' "$_ccv_dir/calls" | cut -c1-240
           echo "g05_relink_xlang: cc-vehicle $_leaf cc-calls=$(wc -l < "$_ccv_dir/calls" | tr -d ' ') rc=$_erc"
           if [ "$_erc" = 0 ] && [ -s "$_leaf" ]; then
-            rm -f "$_leaf.w2055bak"
             _after=$(stat -c %Y "$_leaf" 2>/dev/null || stat -f %m "$_leaf" 2>/dev/null || echo 0)
-            if [ "$_after" != "$_before" ]; then
+            if [ "$_after" != "$_before" ] || ! cmp -s "$_leaf" "$_leaf.w2055bak"; then
+              rm -f "$_leaf.w2055bak"
+              mkdir -p build_asm/g05_leaf_stamp && echo "$_ccv_id" > "$_ccv_stamp"
               echo "g05_relink_xlang: refreshed stale $_leaf (cc-vehicle, $_ccv_from)"
+              continue
             fi
-            continue
+            if [ "$_ccv_force" != 1 ]; then
+              rm -f "$_leaf.w2055bak"
+              continue
+            fi
+            # FORCE=1 must rebuild; an untouched leaf is a skipped rebuild.
+            _erc=nochange
           fi
           mv -f "$_leaf.w2055bak" "$_leaf"
           echo "g05_relink_xlang: FAIL cc-vehicle rebuild of $_leaf rc=$_erc (old leaf restored)" >&2

@@ -18745,8 +18745,12 @@ pipeline_abi_inject_thin_leaf() {
       rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
       return 1
     fi
+    # w2060: feed the C on stdin so the object's STT_FILE name is fixed
+    # ("<stdin>"), not the random mktemp name; otherwise every stage links a
+    # different symbol table (Linux unstripped g2 != g3). Same cc call.
+    # PLATFORM: SHARED.
     # shellcheck disable=SC2086
-    if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$gen_c" 2>/dev/null; then
+    if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -x c -c -o "$thin_o" - <"$gen_c" 2>/dev/null; then
       log "pipeline_abi ${tag} inject: cc thin failed"
       rm -f "$gen_c" "$thin_o" "$base_o" "$restore_o"
       return 1
