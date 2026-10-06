@@ -81,16 +81,23 @@ n_objs=$(printf '%s\n' "$OBJS" | wc -w | tr -d ' ')
 # by the compiler that runs this stage (g1 <- v1, g2 <- g1, g3 <- g2), the
 # same compiler that built every other object of the stage. Same preference
 # as pure_asm_x_to_o: ./xlang, then ./xlang_asm. PLATFORM: LINUX|DARWIN.
+# Windows: keep the .exe name so the copy stays runnable. PLATFORM: SHARED.
 _G05_STAGE_X=""
 _G05_STAGE_X_FROM=""
-for _sx_cand in xlang xlang_asm; do
-  if [ -x "$_sx_cand" ] && [ -s "$_sx_cand" ]; then
-    _G05_STAGE_X="$(mktemp "${TMPDIR:-/tmp}/g05_stage_x.XXXXXX" 2>/dev/null || echo "/tmp/g05_stage_x.$$")"
+_G05_STAGE_DIR=""
+# Windows has no writable /tmp; TEMP is set by the build env. PLATFORM: SHARED.
+_G05_TMPROOT="${TMPDIR:-${TEMP:-/tmp}}"
+for _sx_cand in xlang xlang.exe xlang_asm xlang_asm.exe; do
+  if [ -f "$_sx_cand" ] && [ -x "$_sx_cand" ] && [ -s "$_sx_cand" ]; then
+    _G05_STAGE_DIR="$(mktemp -d "$_G05_TMPROOT/g05_stage_x.XXXXXX" 2>/dev/null || echo "$_G05_TMPROOT/g05_stage_x.$$")"
+    mkdir -p "$_G05_STAGE_DIR"
+    _G05_STAGE_X="$_G05_STAGE_DIR/$_sx_cand"
     if cp -p "$_sx_cand" "$_G05_STAGE_X" && chmod +x "$_G05_STAGE_X"; then
       _G05_STAGE_X_FROM="$PWD/$_sx_cand"
     else
-      rm -f "$_G05_STAGE_X"
+      rm -rf "$_G05_STAGE_DIR"
       _G05_STAGE_X=""
+      _G05_STAGE_DIR=""
     fi
     break
   fi
@@ -268,33 +275,9 @@ case "$(uname -s 2>/dev/null)" in
     ;;
 esac
 
-# w1545: refresh cached formal std/core leaves after the product changes.
-# Leaves are built once and only rebuilt when missing or older than their .x
-# sources, so a calling-convention change in the product (w1545: Windows 9-16
-# byte structs via hidden pointer) leaves callee bodies on the old ABI. On
-# Windows the product's own ensure hook cannot run the bash command line, so
-# the relink step rebuilds every leaf that already exists with the new
-# product (Windows leaves go through the asm backend, no host cc). Keep the
-# old leaf when the rebuild fails.
-# PLATFORM: WINDOWS only (Mach-O/ELF leaves are C-backend objects whose ABI
-# follows the host C compiler, unaffected by product call-lowering changes).
-case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    case "$OUT" in /*|?:*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
-    for _leaf in ../core/*/*.o ../std/*/*.o ../std/*/*/*.o; do
-      [ -s "$_leaf" ] || continue
-      cp -f "$_leaf" "$_leaf.w1545bak"
-      if FORCE=1 XLANG="$_refresh_x" bash scripts/xlang_compile_std_module.sh ensure "$_leaf" >/dev/null 2>&1 \
-          && [ -s "$_leaf" ]; then
-        rm -f "$_leaf.w1545bak"
-        echo "g05_relink_xlang: refreshed $_leaf"
-      else
-        mv -f "$_leaf.w1545bak" "$_leaf"
-        echo "g05_relink_xlang: WARN refresh failed, kept $_leaf" >&2
-      fi
-    done
-    ;;
-esac
+# w1545 (Windows FORCE refresh of every leaf, failures kept with a WARN) is
+# folded into the shared block below (w2060): one freshness rule and a hard
+# fail on every host. PLATFORM: SHARED.
 
 # w2055: Linux leaves were only ever built when missing. A source change in a
 # leaf module (80fd8b8ee: core/option out-pointer returns) left the old object
@@ -305,15 +288,16 @@ esac
 # w2055: Darwin too. Its leaves were never refreshed either (core/option
 # kept the by-value ABI, L2 opt hit expect_i32's panic), and its default
 # leaf backend is C plus the host compiler, so refresh here with asm.
-# PLATFORM: LINUX|DARWIN.
+# w2060: Windows takes the same block (was the w1545 FORCE loop that kept a
+# failed leaf with only a WARN). PLATFORM: LINUX|DARWIN|WINDOWS.
 case "$(uname -s 2>/dev/null)" in
-  Linux|Darwin)
-    case "$OUT" in /*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
+  Linux|Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+    case "$OUT" in /*|?:*) _refresh_x="$OUT" ;; *) _refresh_x="./$OUT" ;; esac
     _kept_stale=""
     # The refresh must not fall back to the module script's C path: a cc
     # that always fails sits first on PATH, so an asm failure keeps the old
     # leaf instead of adding a host compiler run.
-    _nocc_dir=$(mktemp -d 2>/dev/null || echo "/tmp/g05_nocc.$$")
+    _nocc_dir=$(mktemp -d "$_G05_TMPROOT/g05_nocc.XXXXXX" 2>/dev/null || echo "$_G05_TMPROOT/g05_nocc.$$")
     mkdir -p "$_nocc_dir"
     for _ccn in cc gcc clang; do
       printf '#!/bin/sh\necho "g05_relink_xlang: host $0 blocked during leaf refresh" >&2\nexit 1\n' > "$_nocc_dir/$_ccn"
@@ -338,7 +322,7 @@ case "$(uname -s 2>/dev/null)" in
       _ccv_sha=$(shasum -a 256 "$_ccv_x" | cut -c1-16)
     fi
     _ccv_hostcc=$(cd .. && git ls-files 'compiler/*.c' 2>/dev/null | wc -l | tr -d ' ')
-    _ccv_dir=$(mktemp -d 2>/dev/null || echo "/tmp/g05_ccv.$$")
+    _ccv_dir=$(mktemp -d "$_G05_TMPROOT/g05_ccv.XXXXXX" 2>/dev/null || echo "$_G05_TMPROOT/g05_ccv.$$")
     mkdir -p "$_ccv_dir"
     for _ccn in cc gcc clang; do
       _ccv_real=$(command -v "$_ccn" 2>/dev/null || true)
@@ -379,7 +363,7 @@ case "$(uname -s 2>/dev/null)" in
           mv -f "$_leaf.w2055bak" "$_leaf"
           echo "g05_relink_xlang: FAIL cc-vehicle rebuild of $_leaf rc=$_erc (old leaf restored)" >&2
           rm -rf "$_ccv_dir" "$_nocc_dir"
-          if [ -n "$_G05_STAGE_X" ]; then rm -f "$_G05_STAGE_X"; fi
+          if [ -n "$_G05_STAGE_DIR" ]; then rm -rf "$_G05_STAGE_DIR"; fi
           exit 1
           ;;
       esac
@@ -416,5 +400,5 @@ case "$(uname -s 2>/dev/null)" in
     fi
     ;;
 esac
-if [ -n "$_G05_STAGE_X" ]; then rm -f "$_G05_STAGE_X"; fi
+if [ -n "$_G05_STAGE_DIR" ]; then rm -rf "$_G05_STAGE_DIR"; fi
 exit 0

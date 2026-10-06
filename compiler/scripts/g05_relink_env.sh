@@ -2094,6 +2094,58 @@ case "$UNAME_S" in
       _PABI_WIN_SLI="$_wsl_o"
       _PABI_SELFHOST="$_wsl_o $_PABI_SELFHOST"
     fi
+    # w2060: call-arg packer (Windows twin of linux_selfhost_pabi_refresh_tip.sh
+    # step 6). pabi_weak keeps the 10-05 pipeline_asm_emit_expr_elf_for_call_args,
+    # so the tip fix for fixed-array FIELD arguments (decay to the element
+    # address for pointer formals) never reached the Windows product. Compile
+    # the thin with this stage's product (pure asm), require a strong T,
+    # weaken every other global of the thin (first-wins must not pick up
+    # anything else), weaken the pabi_weak copy below, link the thin first,
+    # and record it for the post-link map check; win_patch_body_sync_jmp
+    # folds same-TU egg callers W->T. Any failure stops the relink.
+    # PLATFORM: WINDOWS.
+    _PABI_WIN_FCA=""
+    _wfc_x=src/runtime_pipeline_abi_for_call_args_thin.x
+    _wfc_o=build_asm/selfhost_pabi/for_call_args_win.o
+    _wfc_s=pipeline_asm_emit_expr_elf_for_call_args
+    if [ ! -f "$_wfc_x" ]; then
+      echo "g05_relink_env: $_wfc_x missing (Windows call-arg packer)" >&2
+      exit 1
+    fi
+    mkdir -p build_asm/selfhost_pabi
+    rm -f "$_wfc_o" "$_wfc_o.tmp.o"
+    if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wfc_x" -o "$_wfc_o.tmp.o" >/dev/null 2>&1; then
+      rm -f "$_wfc_o.tmp.o"
+      echo "g05_relink_env: $_wfc_x failed (Windows call-arg packer)" >&2
+      exit 1
+    fi
+    _wfc_oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _wfc_oc=llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _wfc_oc=objcopy
+    fi
+    if [ -z "$_wfc_oc" ]; then
+      rm -f "$_wfc_o.tmp.o"
+      echo "g05_relink_env: no objcopy for $_wfc_x (Windows call-arg packer)" >&2
+      exit 1
+    fi
+    for _wfc_g in $(nm "$_wfc_o.tmp.o" 2>/dev/null | tr -d '\r' | awk '$2=="T"{print $3}'); do
+      [ "$_wfc_g" = "$_wfc_s" ] && continue
+      if ! "$_wfc_oc" --weaken-symbol="$_wfc_g" "$_wfc_o.tmp.o"; then
+        rm -f "$_wfc_o.tmp.o"
+        echo "g05_relink_env: weaken $_wfc_g in $_wfc_x failed (Windows call-arg packer)" >&2
+        exit 1
+      fi
+    done
+    if ! nm "$_wfc_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wfc_s}\$"; then
+      rm -f "$_wfc_o.tmp.o"
+      echo "g05_relink_env: $_wfc_x lacks strong $_wfc_s (Windows call-arg packer)" >&2
+      exit 1
+    fi
+    mv -f "$_wfc_o.tmp.o" "$_wfc_o"
+    _PABI_WIN_FCA="$_wfc_o"
+    _PABI_SELFHOST="$_wfc_o $_PABI_SELFHOST"
     # w1007 Cap residual field load_sz. PLATFORM: WINDOWS.
     if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
@@ -2117,7 +2169,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_WIN_ENUM_NS" ] \
       || [ -n "$_PABI_WIN_ASSIGN" ] \
       || [ -n "$_PABI_WIN_W156" ] \
-      || [ -n "$_PABI_WIN_SLI" ]; then
+      || [ -n "$_PABI_WIN_SLI" ] \
+      || [ -n "$_PABI_WIN_FCA" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -2310,6 +2363,15 @@ case "$UNAME_S" in
             fi
             _G05_LINK_WINNERS="$_G05_LINK_WINNERS $_wsl_s=$_PABI_WIN_SLI"
           done
+        fi
+        # w2060: weaken the egg call-arg packer so the thin first-wins; a
+        # failed weaken stops the relink. PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_FCA" ]; then
+          if ! "$_oc" --weaken-symbol=pipeline_asm_emit_expr_elf_for_call_args build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak pipeline_asm_emit_expr_elf_for_call_args failed (Windows)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_expr_elf_for_call_args=$_PABI_WIN_FCA"
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

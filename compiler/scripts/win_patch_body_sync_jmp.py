@@ -383,6 +383,9 @@ def main() -> int:
         # PLATFORM: WINDOWS.
         "glue_index_assign_addr_cache_hit",
         "glue_emit_struct_type_let_init_elf_c",
+        # w2060: call-arg packer thin (egg for_call_args predates the
+        # fixed-array FIELD decay fix). PLATFORM: WINDOWS.
+        "pipeline_asm_emit_expr_elf_for_call_args",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
