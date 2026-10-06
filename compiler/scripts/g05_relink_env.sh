@@ -1375,6 +1375,41 @@ if [ "$UNAME_S" = "Darwin" ]; then
     fi
   done
 fi
+# w2060: module-level INDEX base. Darwin's
+# glue_try_index_var_or_field_base_to_rbx_elf_c is eight bytes: mov w0,
+# #-2; ret. It is not the __text atom. Callers enter the stubdead
+# branch, and that branch's reloc names this symbol. Linux already
+# links the tip thin as base.o and aliases the egg body as
+# glue_try_index_var_or_field_base_to_rbx_elf_rest. Rebuild the same
+# thin every Darwin relink with no PREFER. Require the strong export,
+# an undefined _rest, and an undefined modlet load. Reject
+# xlang_panic_. A missing object exits 1. The egg file is not edited.
+# Windows keeps its egg entry. PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  unset XLANG_PREFER_ASM_O
+  _g05_pure_overlay src/runtime_pipeline_abi_index_base_rbx_thin.x \
+    build_asm/selfhost_pabi/index_base_rbx_a64.o \
+    glue_try_index_var_or_field_base_to_rbx_elf_c
+  _idx_o=build_asm/selfhost_pabi/index_base_rbx_a64.o
+  if [ ! -s "$_idx_o" ]; then
+    echo "g05_relink_env: ERROR Darwin index base .x did not build" >&2
+    exit 1
+  fi
+  if ! nm "$_idx_o" 2>/dev/null | grep -q ' T _glue_try_index_var_or_field_base_to_rbx_elf_c$'; then
+    echo "g05_relink_env: ERROR Darwin index base lacks strong export" >&2
+    exit 1
+  fi
+  for _idx_need in glue_try_index_var_or_field_base_to_rbx_elf_rest pipeline_asm_modlet_load_to_rax_elf_c backend_enc_mov_rax_to_rbx_arch; do
+    if ! nm -u "$_idx_o" 2>/dev/null | awk -v n="$_idx_need" '{s=$NF; sub(/^_/,"",s); if (s==n) f=1} END{exit f?0:1}'; then
+      echo "g05_relink_env: ERROR Darwin index base lacks undef $_idx_need" >&2
+      exit 1
+    fi
+  done
+  if nm "$_idx_o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="xlang_panic_") e=1} END{exit e?0:1}'; then
+    echo "g05_relink_env: ERROR Darwin index base references xlang_panic_" >&2
+    exit 1
+  fi
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -1442,6 +1477,92 @@ if [ "$UNAME_S" = "Darwin" ] \
     fi
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_store_retval_pair_to_rbp_elf_c=build_asm/selfhost_pabi/store_retval_pair_a64.o"
     _PABI_SELFHOST="build_asm/selfhost_pabi/store_retval_pair_a64.o $_PABI_SELFHOST"
+  fi
+  # w2060: module-level INDEX base. The rebuild above already exited 1
+  # when the tip thin did not produce this object. The measured egg
+  # entry is eight bytes (mov w0, #-2; ret). Mach-O llvm-objcopy cannot
+  # --add-symbol, so assemble that measured entry under the _rest name
+  # the thin calls for locals, fields, and every non-module base. Stop
+  # if the egg span is not 8 or the two instructions differ. Weaken the
+  # egg name so this thin first-wins. The stubdead reloc names that
+  # symbol and follows the strong definition. The egg file is not
+  # edited. PLATFORM: MACOS|DARWIN.
+  if [ -s build_asm/selfhost_pabi/index_base_rbx_a64.o ]; then
+    _idx_o=build_asm/selfhost_pabi/index_base_rbx_a64.o
+    _idx_pw=build_asm/selfhost_pabi/pabi_weak.o
+    _idx_rest_s=build_asm/selfhost_pabi/index_base_rbx_rest_a64.s
+    _idx_rest_o=build_asm/selfhost_pabi/index_base_rbx_rest_a64.o
+    if ! python3 - "$_idx_pw" <<'PY'
+import subprocess, sys
+path = sys.argv[1]
+sym = "_glue_try_index_var_or_field_base_to_rbx_elf_c"
+nm = subprocess.check_output(["nm", path], text=True, errors="replace")
+addrs = []
+hit = None
+for line in nm.splitlines():
+    parts = line.split()
+    if len(parts) < 3:
+        continue
+    try:
+        addr = int(parts[0], 16)
+    except ValueError:
+        continue
+    addrs.append(addr)
+    if parts[-1] == sym:
+        hit = addr
+if hit is None:
+    sys.stderr.write("g05_relink_env: Darwin index base symbol missing\n")
+    sys.exit(1)
+nxt = next(a for a in sorted(set(addrs)) if a > hit)
+if nxt - hit != 8:
+    sys.stderr.write("g05_relink_env: Darwin index base span is not 8\n")
+    sys.exit(1)
+dump = subprocess.check_output(
+    ["objdump", "-d", "--start-address=0x%x" % hit, "--stop-address=0x%x" % nxt, path],
+    text=True, errors="replace")
+if "12800020" not in dump or "d65f03c0" not in dump:
+    sys.stderr.write("g05_relink_env: Darwin index base entry is not mov w0, #-2; ret\n")
+    sys.exit(1)
+PY
+    then
+      echo "g05_relink_env: Darwin index base egg entry check failed" >&2
+      exit 1
+    fi
+    cat > "$_idx_rest_s" <<'EOF'
+.globl _glue_try_index_var_or_field_base_to_rbx_elf_rest
+.p2align 2
+_glue_try_index_var_or_field_base_to_rbx_elf_rest:
+    mov w0, #-2
+    ret
+EOF
+    if ! as -arch arm64 -o "$_idx_rest_o" "$_idx_rest_s"; then
+      echo "g05_relink_env: Darwin index base _rest assemble failed" >&2
+      exit 1
+    fi
+    if ! nm "$_idx_rest_o" 2>/dev/null | grep -q '_glue_try_index_var_or_field_base_to_rbx_elf_rest$'; then
+      echo "g05_relink_env: Darwin index base _rest symbol missing" >&2
+      exit 1
+    fi
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then
+      _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      _oc=objcopy
+    fi
+    if nm -m "$_idx_pw" 2>/dev/null \
+        | grep 'external.* _glue_try_index_var_or_field_base_to_rbx_elf_c$' | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol=_glue_try_index_var_or_field_base_to_rbx_elf_c \
+          "$_idx_pw"; then
+        echo "g05_relink_env: weaken pabi_weak _glue_try_index_var_or_field_base_to_rbx_elf_c failed (Darwin index base)" >&2
+        exit 1
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_try_index_var_or_field_base_to_rbx_elf_c=$_idx_o"
+    _PABI_SELFHOST="$_idx_o $_idx_rest_o $_PABI_SELFHOST"
   fi
   # w1007: Cap residual struct field load_sz → 4 (LDRSW / esz-4 cells).
   # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.

@@ -1,11 +1,19 @@
 // File-level INDEX base address.
-// The gcc body of glue_try_index_var_or_field_base_to_rbx_elf_c returns -2
-// when glue_var_expr_stack_off_elf_c is negative, so `g[i] = v` pushes the
-// value and never stores it. Module-level arrays live in an Lxml COMMON.
-// pipeline_asm_modlet_load_to_rax_elf_c already emits that address for an
-// array cell. Locals, fields, and every other base still call the renamed
-// gcc body.
-// PLATFORM: SHARED — x86_64 and ARM64 both go through the modlet lea.
+// glue_try_index_var_or_field_base_to_rbx_elf_c returns -2 when
+// glue_var_expr_stack_off_elf_c is negative, so a module array `g[i] = v`
+// pushes the value and never stores it. Module-level arrays live in an
+// Lxml COMMON. pipeline_asm_modlet_load_to_rax_elf_c already emits that
+// address for an array cell. Locals, fields, and every other base still
+// call glue_try_index_var_or_field_base_to_rbx_elf_rest.
+// Linux links this file as build_asm/selfhost_pabi/base.o and aliases the
+// egg body under that _rest name. Darwin's linked copy is eight bytes
+// (mov w0, #-2; ret) and is not the __text atom. Callers enter the
+// stubdead branch, whose reloc names this symbol. Darwin relink rebuilds
+// this thin with no PREFER, links it ahead of pabi_weak, and weakens the
+// egg name. Mach-O llvm-objcopy has no --add-symbol, so that relink
+// assembles the measured eight-byte entry under the _rest name and stops
+// if the egg entry changes. Windows keeps its own egg entry.
+// PLATFORM: SHARED body. LINUX and MACOS|DARWIN link it. Windows does not.
 // Do not PREFER this into runtime_pipeline_abi.o.
 
 export extern function glue_try_index_var_or_field_base_to_rbx_elf_rest(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32;
@@ -28,7 +36,8 @@ export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i
  * @param ctx *u8 — asm function context; null is forwarded
  * @param ta i32 — 0 x86_64, 1 arm64
  * @return i32 — 0 when rbx holds the address, -1 on an encoder error, -2 when this base is not handled
- * PLATFORM: SHARED
+ * PLATFORM: SHARED body. LINUX aliases the egg body as _rest. Darwin's
+ * _rest is the measured eight-byte mov w0, #-2; ret entry. Windows does not link this file.
  */
 #[no_mangle]
 export function glue_try_index_var_or_field_base_to_rbx_elf_c(arena: *u8, elf_ctx: *u8, base_ref: i32, ctx: *u8, ta: i32): i32 {
