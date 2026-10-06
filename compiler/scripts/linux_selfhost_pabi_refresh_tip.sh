@@ -297,4 +297,61 @@ if [ ! -s "$_rec_dst" ] || [ "$_rec_src" -nt "$_rec_dst" ] || [ "$XL" -nt "$_rec
   mv -f "$_rec_tmp" "$_rec_dst"
   echo "linux_selfhost_pabi_refresh_tip: $_rec_dst (expr rec 9..16 field pair)"
 fi
+# 8. w2060 wide store: store_retval_pair.o is the Linux
+#    glue_store_retval_pair_to_rbp_elf_c. The on-disk egg is one W whose
+#    wide gate compares only 48, 49, and 47. The tip also copies 45, 44,
+#    and 3. Always rebuild from the same thin Windows links. No PREFER:
+#    this TU does not divide. A cp -p restore of an older ./xlang_asm
+#    must not keep the previous object. Require the strong export, the
+#    copy helper, and the kind loader. Reject xlang_panic_. Weaken every
+#    other global T. The private cell loader is not an egg name; a weak
+#    private still resolves in this TU. A failure deletes the object and
+#    stops the ensure. Darwin is not switched here. PLATFORM: LINUX.
+_stp_src=src/runtime_pipeline_abi_store_retval_pair_thin.x
+_stp_dst="$OUT/store_retval_pair.o"
+_stp_sym=glue_store_retval_pair_to_rbp_elf_c
+_stp_copy=glue_copy_large_struct_from_rax_ptr_elf_c
+_stp_kind=pipeline_expr_kind_ord_at
+if [ ! -f "$_stp_src" ]; then
+  echo "linux_selfhost_pabi_refresh_tip: $_stp_src missing" >&2
+  exit 1
+fi
+_stp_tmp="$OUT/store_retval_pair.tmp.o"
+rm -f "$_stp_dst" "$_stp_tmp"
+if ! timeout 240 "$XL" -backend asm -c "$_stp_src" -o "$_stp_tmp"; then
+  echo "linux_selfhost_pabi_refresh_tip: $_stp_src failed" >&2
+  rm -f "$_stp_tmp"
+  exit 1
+fi
+while read -r _sym; do
+  [ -n "$_sym" ] || continue
+  [ "$_sym" = "$_stp_sym" ] && continue
+  if ! objcopy --weaken-symbol="$_sym" "$_stp_tmp"; then
+    echo "linux_selfhost_pabi_refresh_tip: weaken $_sym in $_stp_tmp failed" >&2
+    rm -f "$_stp_tmp"
+    exit 1
+  fi
+done < <(nm "$_stp_tmp" | awk '$2=="T"{print $3}')
+if ! nm "$_stp_tmp" | awk -v s="$_stp_sym" '$2=="T"&&$3==s{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_stp_src lacks strong $_stp_sym" >&2
+  rm -f "$_stp_tmp"
+  exit 1
+fi
+if ! nm -u "$_stp_tmp" | awk -v s="$_stp_copy" '$NF==s{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_stp_src does not call $_stp_copy" >&2
+  rm -f "$_stp_tmp"
+  exit 1
+fi
+if ! nm -u "$_stp_tmp" | awk -v s="$_stp_kind" '$NF==s{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_stp_src does not call $_stp_kind" >&2
+  rm -f "$_stp_tmp"
+  exit 1
+fi
+if nm "$_stp_tmp" | awk '$NF=="xlang_panic_"{f=1} END{exit !f}'; then
+  echo "linux_selfhost_pabi_refresh_tip: $_stp_src emits xlang_panic_" >&2
+  rm -f "$_stp_tmp"
+  exit 1
+fi
+mv -f "$_stp_tmp" "$_stp_dst"
+echo "linux_selfhost_pabi_refresh_tip: $_stp_dst (wide store pair)"
 echo "linux_selfhost_pabi_refresh_tip: OK"

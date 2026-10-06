@@ -1,16 +1,18 @@
-// Windows link body of glue_store_retval_pair_to_rbp_elf_c.
-// The live Windows egg defines that name twice. demote-all-dual keeps the
-// cap-band copy, which copies a value wider than 16 bytes only for
-// CALL (48), METHOD (49), and INDEX (47). The earlier copy is left static
-// and compares only 48 and 49. The tip function in runtime_pipeline_abi.x
-// also copies STRUCT_LIT (45), FIELD (44), and VAR (3). This file is that
+// Link body of glue_store_retval_pair_to_rbp_elf_c.
+// The tip function in runtime_pipeline_abi.x copies a value wider than 16
+// bytes for CALL (48), METHOD (49), INDEX (47), STRUCT_LIT (45), FIELD (44),
+// and VAR (3). The on-disk eggs do not. Windows demote-all-dual keeps a
+// cap-band copy of 48, 49, and 47. The Linux egg is one weak body with that
+// same three-kind gate. The Darwin arm64 egg matches it. This file is the
 // tip body, routed through pipe cells because the product drops a direct
 // "name = extern(...)" store. ARRAY_LIT (46) stays out, matching the tip.
 // No integer division or remainder, so the product divisor check is not
 // on this path. Do not set XLANG_PREFER_ASM_O for this TU.
-// Linux and Darwin are not switched in this commit. Do not link the full
-// asm_expr thin from here.
-// PLATFORM: WINDOWS link. The control flow matches the SHARED tip function.
+// Linux rebuilds store_retval_pair.o from this file on every refresh and
+// links it ahead of the egg. Windows rebuilds store_retval_pair_win.o on
+// every relink. Darwin is not switched. Do not link the full asm_expr thin
+// from here.
+// PLATFORM: WINDOWS and LINUX link. The control flow matches the SHARED tip.
 
 export extern function glue_type_size_simple(m: *u8, a: *u8, ty_ref: i32, depth: i32): i32;
 export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
@@ -32,7 +34,10 @@ export extern function pipe_store_i32_le(p: *u8, off: i32, v: i32): void;
  * w495_cell_i32 as its own strong T, so a second object must not reuse it.
  * @param base *u8 — 8-byte cell; the i32 is at offset 0. Null is not used.
  * @return i32 — the stored value
- * PLATFORM: WINDOWS. Not an egg symbol. Leave it strong.
+ * PLATFORM: WINDOWS and LINUX. Not an egg symbol. Windows leaves this
+ * strong unless the egg already defines the same name. Linux refresh
+ * weakens every other global in this object; the weak private still
+ * resolves in the TU.
  */
 function w2060_store_pair_cell_i32(base: *u8): i32 {
   unsafe {
@@ -67,8 +72,8 @@ function w2060_store_pair_cell_i32(base: *u8): i32 {
  * @return i32 — 0 on success or when there is nothing to store. -1 when the
  *   context is null or an encoder returns nonzero. The wide-copy helper's
  *   own return is passed through.
- * PLATFORM: WINDOWS link of the SHARED tip body. Linux and Darwin keep the
- * egg body in this commit. Keep this kind set identical to
+ * PLATFORM: WINDOWS and LINUX link of the SHARED tip body. Darwin keeps
+ * the egg body. Keep this kind set identical to
  * glue_store_retval_pair_to_rbp_elf_c in runtime_pipeline_abi.x.
  */
 #[no_mangle]
