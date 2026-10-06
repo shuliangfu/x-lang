@@ -4897,16 +4897,18 @@ case "$(uname -s 2>/dev/null)" in
 esac
 
 # --- Win assign overrides (Class R wave767) ---
-# PE first-wins: build src/win_assign_{field,index,deref}_override.o from seeds when on
+# PE first-wins: build src/win_assign_{field,index}_override.o from seeds when on
 # Windows so g05_relink_env can prepend them. No-op on Darwin/Linux.
 # w2060: win_struct_let_init_override.c is not a build input. Its one
 # function is already the egg T from windows_link_stubs.c.
 # w2060: win_copy_large_struct_override.c is not a build input. Its one
 # function is already the egg T from windows_link_stubs.c.
+# w2060: win_assign_deref_override.c is not a build input. Its one
+# function is already the egg T from windows_link_stubs.c.
 # PLATFORM: WINDOWS | MSYS | MINGW.
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _pair in       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_assign_deref_override.c|src/win_assign_deref_override.o"       "seeds/win_simd_splat_override.c|src/win_simd_splat_override.o"       "seeds/win_vector_type_let_init_override.c|src/win_vector_type_let_init_override.o"       "seeds/win_simd_select_shuffle_fma_override.c|src/win_simd_select_shuffle_fma_override.o"       "seeds/win_asm_parser_override.c|src/win_asm_parser_override.o"       "seeds/win_m8_tail_override.c|src/win_m8_tail_override.o"       "seeds/win_wpo_collect_walk_override.c|src/win_wpo_collect_walk_override.o"       "seeds/win_wpo_pgo_emit_override.c|src/win_wpo_pgo_emit_override.o"       "seeds/win_index_elem_byte_sz_override.c|src/win_index_elem_byte_sz_override.o"
+    for _pair in       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_simd_splat_override.c|src/win_simd_splat_override.o"       "seeds/win_vector_type_let_init_override.c|src/win_vector_type_let_init_override.o"       "seeds/win_simd_select_shuffle_fma_override.c|src/win_simd_select_shuffle_fma_override.o"       "seeds/win_asm_parser_override.c|src/win_asm_parser_override.o"       "seeds/win_m8_tail_override.c|src/win_m8_tail_override.o"       "seeds/win_wpo_collect_walk_override.c|src/win_wpo_collect_walk_override.o"       "seeds/win_wpo_pgo_emit_override.c|src/win_wpo_pgo_emit_override.o"       "seeds/win_index_elem_byte_sz_override.c|src/win_index_elem_byte_sz_override.o"
     do
       _src="${_pair%%|*}"
       _out="${_pair#*|}"
