@@ -1868,6 +1868,18 @@ case "$UNAME_S" in
     if [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
     fi
+    # w2060: STRUCT_LIT baker. The egg has U
+    # pipe_modlet_bake_struct_lit_to_data and a local _cold copy, so the
+    # strong T has to come from this object. The on-disk bake_struct.o was
+    # a leftover. Rebuild it from the tip thin every relink. One strong T.
+    # A missing object exits 1. Linux must not link this object. Darwin
+    # still uses its prebuilt copy. PLATFORM: WINDOWS | MSYS | MINGW.
+    _g05_pure_overlay src/runtime_pipeline_abi_modlet_bake_struct_thin.x \
+      build_asm/selfhost_pabi/bake_struct.o pipe_modlet_bake_struct_lit_to_data
+    if [ ! -s build_asm/selfhost_pabi/bake_struct.o ]; then
+      echo "g05_relink_env: ERROR Windows bake_struct .x did not build" >&2
+      exit 1
+    fi
     # STRUCT_LIT elements. The egg baker calls this object.
     # w1020: PE tip from bake_elems_thin.x is non-deterministic CG002;
     # host-gcc seeds/win_bake_elems_override.c through the same weaken+jmp
