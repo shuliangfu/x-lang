@@ -15431,7 +15431,27 @@ ensure_labi_prefer_one() {
     return 0
   fi
 
+  # w2060: Windows never enters the multi-slice block above.
+  # labi_prefer_pick_xlang fails because windows_leftover_pe_cannot_e
+  # is true, so the pure-asm layers are not compiled and control falls
+  # through to ensure_one of seeds/runtime_link_abi.from_x.c. Linux and
+  # Darwin take the multi-slice (needle tables + FROM_X rest). An 8.2
+  # stage touches every labi .x, which marks this object stale and would
+  # host-cc that monofile. Those .x files are unchanged since the
+  # installed object (284843 bytes on the Windows tree). Keep it.
+  # A missing object fails closed: no monofile seed. Do not flip
+  # windows_leftover_pe_cannot_e. PLATFORM: WINDOWS.
+  if windows_leftover_pe_cannot_e; then
+    if [ -s "$o" ]; then
+      log "labi prefer: keep $o (Windows multi-slice not entered; no monofile seed)"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o try-labi-prefer: Windows multi-slice not entered; no monofile seed for $o" >&2
+    return 1
+  fi
+
   # Cold full seed (ensure_one twin / PREFER=0).
+  # Linux and Darwin only. PLATFORM: LINUX | MACOS.
   if [ -f "$o" ] && [ "$prefer" = "1" ]; then
     FORCE=1
     ensure_one "$o" "$seed"
