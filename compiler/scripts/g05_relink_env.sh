@@ -1173,10 +1173,26 @@ if [ -n "$_PABI_SELFHOST" ] \
 fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
-# live function. Darwin ld has no multidef, so the cold symbol in a copy
-# of pabi is weakened; the original runtime_pipeline_abi.o stays untouched.
-# Windows GNU ld is first-wins, so the forwarder alone is enough.
-# PLATFORM: MACOS|DARWIN — needs both objects. A missing file keeps pabi.
+# live function. Darwin ld has no multidef. pabi_weak.o already holds a
+# weak external of this name, and that symbol is not the __text atom at
+# offset 0, so the strong sidecar wins. The egg runtime_pipeline_abi.o
+# stays untouched. Windows GNU ld is first-wins, so the forwarder alone
+# is enough there.
+# w2060: the on-disk lea_cold_fwd.o is a leftover (frame 0x890). Rebuild
+# the tip thin every Darwin relink. That thin only calls the live
+# resolver and does not divide. A missing object exits 1. No new weaken.
+# Linux does not link this object. Windows rebuilds it in its own block.
+# The if below still needs pabi_weak.o; without that copy the egg stays.
+# PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  _g05_pure_overlay src/runtime_pipeline_abi_modlet_lea_cold_fwd_thin.x \
+    build_asm/selfhost_pabi/lea_cold_fwd.o \
+    pipe_modlet_lea_named_binding_addr_to_rax_cold
+  if [ ! -s build_asm/selfhost_pabi/lea_cold_fwd.o ]; then
+    echo "g05_relink_env: ERROR Darwin lea_cold_fwd .x did not build" >&2
+    exit 1
+  fi
+fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
   && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
@@ -1926,8 +1942,8 @@ case "$UNAME_S" in
     # There is no global of this name to weaken. Rebuild the tip thin
     # every relink (one strong T that calls the live resolver). A missing
     # object exits 1. win_patch_body_sync_jmp folds the local t onto this
-    # T. Linux does not link this object. Darwin still uses its prebuilt
-    # copy. PLATFORM: WINDOWS | MSYS | MINGW.
+    # T. Linux does not link this object. Darwin rebuilds the same thin
+    # before its pabi_weak link. PLATFORM: WINDOWS | MSYS | MINGW.
     _g05_pure_overlay src/runtime_pipeline_abi_modlet_lea_cold_fwd_thin.x \
       build_asm/selfhost_pabi/lea_cold_fwd.o \
       pipe_modlet_lea_named_binding_addr_to_rax_cold

@@ -2,7 +2,9 @@
 // for a module INDEX store. That gcc body misses the live modlet table,
 // then faults in glue_module_func_index_by_name_c. This file is only the
 // cold entry. The live function remains the one authority.
-// PLATFORM: MACOS|DARWIN / WINDOWS. Do not PREFER this into
+// PLATFORM: MACOS|DARWIN / WINDOWS. g05 rebuilds this file into
+// build_asm/selfhost_pabi/lea_cold_fwd.o on those hosts. Linux does
+// not link this object. Do not PREFER this into
 // runtime_pipeline_abi.o. Do not modify that object in place.
 
 export extern function pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx: *u8, m: *u8, name: *u8, name_len: i32, ta: i32): i32;
@@ -17,7 +19,9 @@ export extern function pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx: *u8, m
  * @param name_len i32 — byte count of name
  * @param ta i32 — 0 x86_64, 1 arm64
  * @return i32 — 0 when the address is in rax, -1 otherwise
- * PLATFORM: MACOS|DARWIN / WINDOWS — linked ahead of the gcc cold body.
+ * PLATFORM: MACOS|DARWIN / WINDOWS — strong body linked ahead of the
+ * weak copy in Darwin pabi_weak.o. Windows links this object ahead
+ * of the egg. Linux does not link this object.
  */
 #[no_mangle]
 export function pipe_modlet_lea_named_binding_addr_to_rax_cold(elf_ctx: *u8, m: *u8, name: *u8, name_len: i32, ta: i32): i32 {
