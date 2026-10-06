@@ -5,8 +5,10 @@
 // lexer_init(out: *Lexer) writes through rdi, which still holds the module
 // pointer, so num_imports became 1 with an empty path (IMP001 ./.x).
 // Linux builds this file into build_asm/selfhost_pabi/cimp.o
-// (linux_selfhost_pabi_refresh_tip.sh), which links ahead of the pabi object
-// and wins first. PLATFORM: SHARED source; LINUX sidecar.
+// (linux_selfhost_pabi_refresh_tip.sh). Darwin builds cimp_a64.o.
+// Windows builds cimp_win.o. Each links ahead of the pabi copy.
+// This thin does not call lexer_init and does not divide.
+// PLATFORM: SHARED source; LINUX / MACOS|DARWIN / WINDOWS sidecars.
 
 /** LP64 product Lexer — flat; matches lexer.Lexer. */
 allow(padding) struct Lexer {

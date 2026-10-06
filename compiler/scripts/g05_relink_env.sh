@@ -2097,6 +2097,44 @@ case "$UNAME_S" in
       _PABI_WIN_ENUM_NS="$_wen_o"
       _PABI_SELFHOST="$_wen_o $_PABI_SELFHOST"
     fi
+    # w2060: collect-deps import scan (Windows twin of Darwin cimp_a64.o and
+    # linux_selfhost_pabi_refresh_tip.sh step 4). pabi_weak keeps a strong T
+    # xlang_module_collect_imports_from_buf whose body calls lexer_init.
+    # The tip thin builds a Lexer and calls parser_collect_imports_buf. It
+    # does not divide. Compile it every relink, require that one strong T,
+    # reject a lexer_init reference, weaken the pabi_weak copy below, and
+    # link the thin first. win_patch_body_sync_jmp folds the weakened entry
+    # onto this T. A missing object or a failed weaken exits 1. The egg
+    # file is not edited. Linux and Darwin already rebuild this thin.
+    # PLATFORM: WINDOWS | MSYS | MINGW.
+    _PABI_WIN_CIMP=""
+    _wci_x=src/runtime_pipeline_abi_collect_imports_thin.x
+    _wci_o=build_asm/selfhost_pabi/cimp_win.o
+    _wci_s=xlang_module_collect_imports_from_buf
+    if [ ! -f "$_wci_x" ]; then
+      echo "g05_relink_env: $_wci_x missing (Windows collect-imports)" >&2
+      exit 1
+    fi
+    mkdir -p build_asm/selfhost_pabi
+    rm -f "$_wci_o" "$_wci_o.tmp.o"
+    if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_wci_x" -o "$_wci_o.tmp.o" >/dev/null 2>&1; then
+      rm -f "$_wci_o.tmp.o"
+      echo "g05_relink_env: $_wci_x failed (Windows collect-imports)" >&2
+      exit 1
+    fi
+    if ! nm "$_wci_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q " T ${_wci_s}\$"; then
+      rm -f "$_wci_o.tmp.o"
+      echo "g05_relink_env: $_wci_x lacks strong $_wci_s (Windows collect-imports)" >&2
+      exit 1
+    fi
+    if nm "$_wci_o.tmp.o" 2>/dev/null | tr -d '\r' | grep -q 'lexer_init$'; then
+      rm -f "$_wci_o.tmp.o"
+      echo "g05_relink_env: $_wci_x still references lexer_init (Windows collect-imports)" >&2
+      exit 1
+    fi
+    mv -f "$_wci_o.tmp.o" "$_wci_o"
+    _PABI_WIN_CIMP="$_wci_o"
+    _PABI_SELFHOST="$_wci_o $_PABI_SELFHOST"
     # w2055: assignment through a pointer (Windows twin of the Darwin assign
     # sidecar). pabi_weak keeps the pre-wave324 pipeline_asm_emit_assign_elf_c,
     # whose deref path (win_assign_deref_override) stores rax only, so
@@ -2265,7 +2303,8 @@ case "$UNAME_S" in
       || [ -n "$_PABI_WIN_ASSIGN" ] \
       || [ -n "$_PABI_WIN_W156" ] \
       || [ -n "$_PABI_WIN_SLI" ] \
-      || [ -n "$_PABI_WIN_FCA" ]; then
+      || [ -n "$_PABI_WIN_FCA" ] \
+      || [ -n "$_PABI_WIN_CIMP" ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then
         _oc=llvm-objcopy
@@ -2461,6 +2500,16 @@ case "$UNAME_S" in
             exit 1
           fi
           _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_expr_elf_for_call_args=$_PABI_WIN_FCA"
+        fi
+        # w2060: weaken the egg collect-imports copy so the thin first-wins.
+        # The old body calls lexer_init. A failed weaken stops the relink.
+        # PLATFORM: WINDOWS.
+        if [ -n "$_PABI_WIN_CIMP" ]; then
+          if ! "$_oc" --weaken-symbol=xlang_module_collect_imports_from_buf build_asm/selfhost_pabi/pabi_weak.o; then
+            echo "g05_relink_env: weaken pabi_weak xlang_module_collect_imports_from_buf failed (Windows)" >&2
+            exit 1
+          fi
+          _G05_LINK_WINNERS="$_G05_LINK_WINNERS xlang_module_collect_imports_from_buf=$_PABI_WIN_CIMP"
         fi
         # w1584: weaken egg slice-reent sum so the overlay first-wins.
         # PLATFORM: WINDOWS.

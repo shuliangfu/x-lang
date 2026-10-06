@@ -386,6 +386,10 @@ def main() -> int:
         # w2060: call-arg packer thin (egg for_call_args predates the
         # fixed-array FIELD decay fix). PLATFORM: WINDOWS.
         "pipeline_asm_emit_expr_elf_for_call_args",
+        # w2060: collect-imports thin. The egg T calls lexer_init; after
+        # weaken, same-TU relocs still enter that body, so fold W onto the
+        # tip T. Not a local-t name. PLATFORM: WINDOWS.
+        "xlang_module_collect_imports_from_buf",
         # w1486: backend_emit_block_body_sync_elf cache-clear overlay is
         # already listed first (W→T). PLATFORM: WINDOWS.
     )
