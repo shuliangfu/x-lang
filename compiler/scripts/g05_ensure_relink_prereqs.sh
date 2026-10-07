@@ -4512,11 +4512,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     _leaf_seed="${_leaf_rest2#*|}"
     if [ ! -f "$_leaf_o" ] || { [ -f "$_leaf_x" ] && [ "$_leaf_x" -nt "$_leaf_o" ]; }; then
       if [ -f scripts/driver_leaf_x_to_o.sh ]; then
+        # Stage touch makes $_leaf_x newer than $_leaf_o. A failed rebuild
+        # must not keep the previous object: g2 and g3 would match on it.
+        # PLATFORM: SHARED — Linux, Darwin, and Windows.
         # shellcheck disable=SC2086
         DRIVER_SUBCMD_DIRS="-L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/lsp -L src/preprocess -L src/driver" \
           BASE_CFLAGS="$BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS" \
           bash scripts/driver_leaf_x_to_o.sh "$_leaf_x" "$_leaf_o" "$_leaf_rename" "$_leaf_seed" \
-          || echo "g05_ensure: Track L leaf failed for $_leaf_o" >&2
+          || {
+            echo "g05_ensure: ERROR Track L leaf failed for $_leaf_o" >&2
+            exit 1
+          }
       elif [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && G05_X_O_SYM_RENAME="$_leaf_rename" g05_try_x_to_o "$_leaf_x" "$_leaf_o"; then
         echo "g05_ensure: $_leaf_o ← $_leaf_x (Track L PREFER_X_O)"
       elif [ -f "$_leaf_seed" ]; then
