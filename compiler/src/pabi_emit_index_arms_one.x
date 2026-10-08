@@ -5,8 +5,10 @@
 // same-.o dual T smashes i32. That export stays in
 // pabi_emit_index_elf_one.x. Do not gcc
 // seeds/emit_index_true_i8_override.c into one object with the elf
-// symbol. Darwin still prepends a leftover combined object.
-// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
+// symbol. Darwin rebuilds this file into
+// emit_index_arms_true_i8.o. Do not cc or gcc the seed on Windows,
+// Linux, or Darwin.
+// PLATFORM: SHARED body. Linux, Darwin, and Windows relinks consume this file.
 
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
@@ -121,7 +123,7 @@ function emit_index_enc_sext16_from_rax(elf_ctx: *u8, ta: i32): i32 {
  * Named i8 (esz 1) sign-extends. Other esz 1 zero-extends.
  * Named i16 (esz 2) sign-extends. Other esz 2 zero-extends.
  * Type kind 10 returns 0. Type kind 11 and strides 9..16 deref 16 bytes.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this object. The measured egg has no copy of this name.
  */
 #[no_mangle]
 export function glue_emit_index_load_arms_elf_c(

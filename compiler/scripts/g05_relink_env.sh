@@ -1236,7 +1236,7 @@ fi
 # elf symbol is already W. The measured egg has no arms symbol. A
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
-# emit_index_true_i8.o. Darwin still prepends that leftover only.
+# emit_index_true_i8.o. Darwin rebuilds the same two .x.
 # Do not cc -r the two objects back into one.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -2318,9 +2318,73 @@ EOF
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
   fi
-  if [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
-    _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
+  # w2074: two strong T from two .x files.
+  # g05 used to prepend a leftover emit_index_true_i8.o. That one object
+  # defined glue_emit_index_load_arms_elf_c and
+  # pipeline_asm_emit_index_elf_c. Same-.o dual T of two link winners
+  # smashes i32. Windows and Linux already build
+  # src/pabi_emit_index_arms_one.x and src/pabi_emit_index_elf_one.x.
+  # Three product-mangled helpers stay in the arms object. They are not
+  # a second link winner. emit_index_thin.x stays off. Measured
+  # pabi_weak.o has no arms symbol. It keeps the elf copy weak,
+  # no-dead-strip, at 0x45a88..0x45d30 (next
+  # glue_index_assign_addr_cache_hit). Three external BR26 call the elf
+  # name from other atoms: pipeline_asm_emit_expr_elf_rec at 0xca178,
+  # glue_call_arg_resolve_var_stack_off_elf_c at 0x6b394, and
+  # glue_try_binop_load_operand_elf_c at 0x5f33c. None of those sites is
+  # inside the weak function. The elf object calls the arms name. The
+  # egg elf copy in src/runtime_pipeline_abi.o is weak and is not the
+  # Darwin link object. The egg has no arms symbol. Darwin ld has no
+  # multidef. Rebuild both every Darwin relink while this pabi_weak
+  # block is open. A missing object exits 1. A strong copy in
+  # pabi_weak.o is weakened. Never edit src/runtime_pipeline_abi.o.
+  # Do not cc -r the two objects back into one. Do not prepend the
+  # combined leftover. Both short names are link winners (leading
+  # underscore, ld64 map). Measured arm64 frames: arms helpers 0x120
+  # and export 0x990; elf export 0x8d0. Each is one subtract, under
+  # 0xff0, and none is a smash size. No xlang_panic_ reference.
+  # PLATFORM: MACOS|DARWIN.
+  _g05_pure_overlay src/pabi_emit_index_arms_one.x \
+    build_asm/selfhost_pabi/emit_index_arms_true_i8.o \
+    glue_emit_index_load_arms_elf_c
+  if [ ! -s build_asm/selfhost_pabi/emit_index_arms_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Darwin emit_index arms .x did not build" >&2
+    exit 1
   fi
+  _g05_pure_overlay src/pabi_emit_index_elf_one.x \
+    build_asm/selfhost_pabi/emit_index_elf_true_i8.o \
+    pipeline_asm_emit_index_elf_c
+  if [ ! -s build_asm/selfhost_pabi/emit_index_elf_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Darwin emit_index elf .x did not build" >&2
+    exit 1
+  fi
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc=objcopy
+  fi
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    for _eisym in _glue_emit_index_load_arms_elf_c \
+                  _pipeline_asm_emit_index_elf_c; do
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep -E " ${_eisym}\$" | grep -qv weak; then
+        if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="$_eisym" \
+            build_asm/selfhost_pabi/pabi_weak.o; then
+          echo "g05_relink_env: weaken $_eisym in pabi_weak.o failed (Darwin emit_index)" >&2
+          exit 1
+        fi
+      fi
+    done
+  fi
+  _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_arms_true_i8.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_elf_true_i8.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_emit_index_load_arms_elf_c=build_asm/selfhost_pabi/emit_index_arms_true_i8.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_emit_index_elf_c=build_asm/selfhost_pabi/emit_index_elf_true_i8.o"
   # w2072: one strong T from src/pabi_assign_index_one.x.
   # g05 used to cc seeds/assign_index_true_i8_override.c into
   # assign_index_true_i8.o. That object defined only
@@ -2967,8 +3031,7 @@ case "$UNAME_S" in
       # w2060: two strong T, two objects. Same-.o dual T smashes i32.
       # emit_index_thin.x stays off (HARD BAN PREFER).
       # Do not gcc seeds/emit_index_true_i8_override.c here.
-      # Linux rebuilds the same two .x. Darwin still prepends a leftover
-      # emit_index_true_i8.o only. A missing object exits 1.
+      # Linux and Darwin rebuild the same two .x. A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_emit_index_arms_one.x \
         build_asm/selfhost_pabi/emit_index_arms_true_i8.o \

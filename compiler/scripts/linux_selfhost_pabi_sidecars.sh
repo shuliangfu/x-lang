@@ -275,7 +275,8 @@ fi
 # retargeted. w2064 compiles assign_index from its .x below.
 # w2062: emit_index is two strong T from two .x. One gcc object defined
 # both names. The elf body calls the arms export as an extern.
-# g05_relink_env.sh rebuilds the same two every Linux relink. Do not
+# g05_relink_env.sh rebuilds the same two every Linux relink. Darwin
+# rebuilds the same two .x. Do not
 # gcc seeds/emit_index_true_i8_override.c here.
 # w2063: force_esz and elem_byte_sz are two strong T from two .x.
 # One gcc object defined both names. Same-.o dual T smashes i32.
