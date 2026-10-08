@@ -61,6 +61,21 @@ hsum() {
   if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -c1-16
   else shasum -a 256 "$1" | cut -c1-16; fi
 }
+# w2085: Git bash test -f xlang is true when the only file is xlang.exe.
+# sha256sum and cmp open the literal name and report "No such file", so
+# g2 died after a finished g1 whose xlang.exe, xlang_asm, and xlang_asm.exe
+# were byte-identical to g1.xa. CPython isfile does not add that exec suffix.
+# PLATFORM: WINDOWS. Linux and Darwin keep test -f.
+v2v3_literal_compiler() {
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      python3 -c 'import os, sys; raise SystemExit(0 if os.path.isfile(sys.argv[1]) else 1)' "$1"
+      ;;
+    *)
+      [ -f "$1" ]
+      ;;
+  esac
+}
 strip_to() {
   # $1 in, $2 out: drop symbol tables so only code/data are compared.
   rm -f "$2"
@@ -78,6 +93,11 @@ strip_to() {
 }
 
 cd "$C" || exit 2
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    command -v python3 >/dev/null 2>&1 || die 2 "python3 required for Windows compiler identity"
+    ;;
+esac
 TR=; ALLHIT=
 if [ "$TRACE" = 1 ]; then
   [ "$(uname -s)" = Linux ] || die 2 "XLANG_V2V3_TRACE=1 is Linux only (strace)"
@@ -119,7 +139,7 @@ for g in 1 2 3; do
   if [ "$g" = 1 ]; then prev="$OUT/v1.xa"; else prev="$OUT/g$((g - 1)).xa"; fi
   cinfo="g$g compilers: prev=$prev sha=$(hsum "$prev")"
   for cb in xlang xlang.exe xlang_asm xlang_asm.exe; do
-    [ -f "$cb" ] || continue
+    v2v3_literal_compiler "$cb" || continue
     cinfo="$cinfo | $PWD/$cb sha=$(hsum "$cb")"
     cmp -s "$cb" "$prev" || { say "$cinfo"; die 3 "g$g compiler $cb is not $prev"; }
   done
