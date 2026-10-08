@@ -1359,8 +1359,8 @@ fi
 # the egg. Rebuild every Linux relink. A missing object exits 1.
 # The measured egg copy in src/runtime_pipeline_abi.o is W, and the
 # pabi_alias.o copy is W. A strong T in the build_asm link object is
-# weakened. Never edit src/runtime_pipeline_abi.o. Darwin still gcc's
-# the C seed. The product frame of this .x stays under one page.
+# weakened. Never edit src/runtime_pipeline_abi.o. Darwin rebuilds the
+# same .x. The product frame of this .x stays under one page.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
@@ -2401,32 +2401,52 @@ EOF
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
   fi
-  # w1022: true-pack [N]i8 row stride (named i8→1). Nested local INDEX.
+  # w2071: one strong T from src/pabi_fixed_array_total_bytes_one.x.
+  # g05 used to gcc seeds/fixed_array_total_bytes_true_pack_override.c
+  # into fixed_array_total_bytes_true_pack.o. That object defined only
+  # glue_fixed_array_total_bytes_c. Windows and Linux already build the
+  # same .x. The egg body sends every named type through
+  # glue_type_size_simple. Do not fold this TU into the egg. Measured
+  # pabi_weak.o keeps a weak external copy, no-dead-strip. Twenty-one
+  # external BR26 sites in other atoms call it. None is inside the weak
+  # function at 0x43134. src/runtime_pipeline_abi.o is also weak and is
+  # not the Darwin link object. Darwin ld has no multidef. Rebuild every
+  # Darwin relink while this pabi_weak block is open. A missing object
+  # exits 1. A strong copy in pabi_weak.o is weakened. Never edit
+  # src/runtime_pipeline_abi.o. The short name is a link winner (leading
+  # underscore, ld64 map). The measured arm64 frame of the export is
+  # 0x400, under one page.
   # PLATFORM: MACOS|DARWIN.
-  if [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
-    gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
-      seeds/fixed_array_total_bytes_true_pack_override.c 2>/dev/null || true
+  _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
+    build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
+    glue_fixed_array_total_bytes_c
+  if [ ! -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+    echo "g05_relink_env: ERROR Darwin fixed_array .x did not build" >&2
+    exit 1
   fi
-  if [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
-    _oc=""
-    if command -v llvm-objcopy >/dev/null 2>&1; then
-      _oc=llvm-objcopy
-    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
-    elif command -v objcopy >/dev/null 2>&1; then
-      _oc=objcopy
-    fi
-    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-        | grep -F "_glue_fixed_array_total_bytes_c" | grep -qv weak; then
-        "$_oc" --weaken-symbol=_glue_fixed_array_total_bytes_c \
-          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc=objcopy
+  fi
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _fasym=_glue_fixed_array_total_bytes_c
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " ${_fasym}\$" | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="$_fasym" \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken $_fasym in pabi_weak.o failed (Darwin fixed_array)" >&2
+        exit 1
       fi
     fi
-    _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
   fi
+  _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_fixed_array_total_bytes_c=build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o"
   # w2069: three strong T, three objects. g05 used to gcc
   # seeds/vector_let_init_nested_override.c into
   # vector_let_init_nested.o. That object defined
@@ -2920,7 +2940,7 @@ case "$UNAME_S" in
       # runtime_pipeline_abi.x keeps a different body (named types always
       # go through glue_type_size_simple). Do not gcc
       # seeds/fixed_array_total_bytes_true_pack_override.c here.
-      # Linux rebuilds the same .x. Darwin still compiles that C.
+      # Linux and Darwin rebuild the same .x.
       # A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
