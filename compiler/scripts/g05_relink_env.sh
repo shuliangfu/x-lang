@@ -2497,9 +2497,24 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR Windows elem_byte_sz .x did not build" >&2
         exit 1
       fi
-      if [ -f seeds/emit_index_true_i8_override.c ]; then
-        gcc -c -O2 -o build_asm/selfhost_pabi/emit_index_true_i8.o \
-          seeds/emit_index_true_i8_override.c || true
+      # w2060: two strong T, two objects. Same-.o dual T smashes i32.
+      # emit_index_thin.x stays off (HARD BAN PREFER).
+      # Do not gcc seeds/emit_index_true_i8_override.c here.
+      # A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_emit_index_arms_one.x \
+        build_asm/selfhost_pabi/emit_index_arms_true_i8.o \
+        glue_emit_index_load_arms_elf_c
+      if [ ! -s build_asm/selfhost_pabi/emit_index_arms_true_i8.o ]; then
+        echo "g05_relink_env: ERROR Windows emit_index arms .x did not build" >&2
+        exit 1
+      fi
+      _g05_pure_overlay src/pabi_emit_index_elf_one.x \
+        build_asm/selfhost_pabi/emit_index_elf_true_i8.o \
+        pipeline_asm_emit_index_elf_c
+      if [ ! -s build_asm/selfhost_pabi/emit_index_elf_true_i8.o ]; then
+        echo "g05_relink_env: ERROR Windows emit_index elf .x did not build" >&2
+        exit 1
       fi
       if [ -f seeds/assign_index_true_i8_override.c ]; then
         gcc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
@@ -2524,7 +2539,8 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
       && [ -s build_asm/selfhost_pabi/bake_struct.o ] \
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ] \
-      && [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ] \
+      && [ -s build_asm/selfhost_pabi/emit_index_arms_true_i8.o ] \
+      && [ -s build_asm/selfhost_pabi/emit_index_elf_true_i8.o ] \
       && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ] \
       && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ] \
       && [ -s build_asm/selfhost_pabi/array_lit_esz_true_i8.o ]; then
@@ -2566,7 +2582,8 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
-      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_arms_true_i8.o $_PABI_SELFHOST"
+      _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_elf_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/array_lit_esz_true_i8.o $_PABI_SELFHOST"
