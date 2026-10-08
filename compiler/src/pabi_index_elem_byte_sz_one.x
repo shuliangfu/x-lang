@@ -8,8 +8,11 @@
 // runtime_pipeline_abi.x. File-local helpers stay here. They are not
 // a second link winner. The named i8/i16/u16 checks in the tail are
 // the same bytes as the peeler because the C writes them in both
-// functions. Linux sidecar still gcc's the C.
-// PLATFORM: SHARED body. Windows relink consumes this object.
+// functions. Linux and Darwin rebuild this file into
+// index_elem_true_i8.o. Do not cc or gcc
+// seeds/win_index_elem_byte_sz_override.c into one object on Windows,
+// Linux, or Darwin.
+// PLATFORM: SHARED body. Windows, Linux, and Darwin link this object.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
@@ -513,7 +516,7 @@ function iesz_tail(arena: *u8, expr_ref: i32): i32 {
  * A base whose kind is 44 is tested for .ptr of *Vec_u8 before the
  * ordinary type walk. The early walk returns only a peeler result in
  * 1..7. The resolved-type walk and the tail are separate.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32 {

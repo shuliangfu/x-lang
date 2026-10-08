@@ -1180,8 +1180,8 @@ fi
 # short wrapper is a third object. Rebuild every Linux relink from the
 # same .x Windows builds. A missing object exits 1. Egg copies in the
 # measured pabi are already W. A strong T in the build_asm link object
-# is weakened. Never edit src/runtime_pipeline_abi.o. Darwin still
-# prepends a leftover index_elem_true_i8.o only. Do not cc -r the three
+# is weakened. Never edit src/runtime_pipeline_abi.o. Darwin rebuilds
+# the same three .x. Do not cc -r the three
 # objects back into one. PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_index_elem_from_type_one.x \
@@ -2293,31 +2293,91 @@ EOF
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_block_body_emit_let_init=build_asm/selfhost_pabi/emit_let_init.o"
     _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
   fi
-  # w1012: true-pack ARRAY i8 (INDEX esz=1 + sext8 load). Strong tip over
-  # weak pabi emit_index; weaken leftover strong index_elem_byte_sz_c.
-  # PLATFORM: MACOS|DARWIN.
-  if [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
-    _oc=""
-    if command -v llvm-objcopy >/dev/null 2>&1; then
-      _oc=llvm-objcopy
-    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
-    elif command -v objcopy >/dev/null 2>&1; then
-      _oc=objcopy
-    fi
-    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-      for _isym in _pipeline_asm_index_elem_byte_sz_c _glue_index_elem_byte_sz_from_type_ref_c \
-        _pipeline_asm_index_elem_byte_sz _pipeline_asm_emit_index_elf_c \
-        _glue_emit_index_load_arms_elf_c; do
-        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_isym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_isym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1441" >&2; exit 1; }
-        fi
-      done
-    fi
-    _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+  # w2075: three strong T from three .x files.
+  # g05 used to prepend a leftover index_elem_true_i8.o. That one object
+  # defined glue_index_elem_byte_sz_from_type_ref_c,
+  # pipeline_asm_index_elem_byte_sz_c, and
+  # pipeline_asm_index_elem_byte_sz. Same-.o triple T of three link
+  # winners smashes i32. Windows and Linux already build
+  # src/pabi_index_elem_from_type_one.x,
+  # src/pabi_index_elem_byte_sz_one.x, and
+  # src/pabi_index_elem_wrap_one.x. Five product-mangled helpers stay in
+  # the peeler object. Nine stay in the _c object. They are not a second
+  # link winner. The _c body calls the peeler. The short wrapper calls
+  # the _c name. Measured pabi_weak.o keeps all three copies weak,
+  # no-dead-strip: peeler 0x46604..0x46bb8, _c 0xd124c..0xd17e0, short
+  # name 0x45a5c..0x45a88. Thirteen external BR26 call the peeler from
+  # other atoms (five of them sit in the weak _c body). Five external
+  # BR26 call the _c name from other atoms (two sit in
+  # glue_enc_local_slot_ptr_or_addr_elf_c). None of those sites is
+  # inside the weak function of the same name. The short name has no
+  # branch in pabi_weak.o. backend_try_inline_dispatch.o calls it, and
+  # that object is on the Darwin link. The egg _c copy in
+  # src/runtime_pipeline_abi.o is strong and is not the Darwin link
+  # object. The egg peeler and the egg short name are weak. Darwin ld
+  # has no multidef. Rebuild all three every Darwin relink while this
+  # pabi_weak block is open. A missing object exits 1. A strong copy in
+  # pabi_weak.o is weakened. The old leftover if also weakened the two
+  # emit_index names. Those names are weakened by the w2074 block.
+  # Never edit src/runtime_pipeline_abi.o. Do not cc -r the three
+  # objects back into one. Do not prepend the combined leftover. All
+  # three short names are link winners (leading underscore, ld64 map).
+  # Measured arm64 frames: peeler helpers at most 0x1e0 and export
+  # 0x220; _c helpers at most 0x440 and export 0x270; wrapper 0x60.
+  # Each is one subtract and one matching add, under 0xff0, and none is
+  # a smash size. No xlang_panic_ reference. The leftover object
+  # references ___stack_chk_fail. PLATFORM: MACOS|DARWIN.
+  _g05_pure_overlay src/pabi_index_elem_from_type_one.x \
+    build_asm/selfhost_pabi/index_elem_from_type.o \
+    glue_index_elem_byte_sz_from_type_ref_c
+  if [ ! -s build_asm/selfhost_pabi/index_elem_from_type.o ]; then
+    echo "g05_relink_env: ERROR Darwin index_elem from_type .x did not build" >&2
+    exit 1
   fi
+  _g05_pure_overlay src/pabi_index_elem_byte_sz_one.x \
+    build_asm/selfhost_pabi/index_elem_true_i8.o \
+    pipeline_asm_index_elem_byte_sz_c
+  if [ ! -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Darwin index_elem .x did not build" >&2
+    exit 1
+  fi
+  _g05_pure_overlay src/pabi_index_elem_wrap_one.x \
+    build_asm/selfhost_pabi/index_elem_wrap.o \
+    pipeline_asm_index_elem_byte_sz
+  if [ ! -s build_asm/selfhost_pabi/index_elem_wrap.o ]; then
+    echo "g05_relink_env: ERROR Darwin index_elem wrap .x did not build" >&2
+    exit 1
+  fi
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc=objcopy
+  fi
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    for _iesym in _glue_index_elem_byte_sz_from_type_ref_c \
+                  _pipeline_asm_index_elem_byte_sz_c \
+                  _pipeline_asm_index_elem_byte_sz; do
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep -E " ${_iesym}\$" | grep -qv weak; then
+        if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="$_iesym" \
+            build_asm/selfhost_pabi/pabi_weak.o; then
+          echo "g05_relink_env: weaken $_iesym in pabi_weak.o failed (Darwin index_elem)" >&2
+          exit 1
+        fi
+      fi
+    done
+  fi
+  _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_from_type.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_wrap.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_index_elem_byte_sz_c=build_asm/selfhost_pabi/index_elem_true_i8.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_index_elem_byte_sz_from_type_ref_c=build_asm/selfhost_pabi/index_elem_from_type.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_index_elem_byte_sz=build_asm/selfhost_pabi/index_elem_wrap.o"
   # w2074: two strong T from two .x files.
   # g05 used to prepend a leftover emit_index_true_i8.o. That one object
   # defined glue_emit_index_load_arms_elf_c and
@@ -2979,8 +3039,8 @@ case "$UNAME_S" in
       # u16=2) live in the .x. The egg glue body has no those parks.
       # Do not fold into runtime_pipeline_abi.x. Do not gcc
       # -DXLANG_WIN_TRUE_PACK seeds/win_index_elem_byte_sz_override.c
-      # here. Linux rebuilds the same three .x. Darwin still prepends a
-      # leftover object only. The non-D Cap residual object stays out of
+      # here. Linux and Darwin rebuild the same three .x. The non-D Cap
+      # residual object stays out of
       # this link. A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_index_elem_from_type_one.x \

@@ -271,8 +271,8 @@ fi
 # defined all three names. Same-.o dual T of two link winners smashes
 # i32. The _c body calls the peeler as an extern. g05_relink_env.sh
 # rebuilds the same three every Linux relink. Do not gcc
-# seeds/win_index_elem_byte_sz_override.c here. Darwin is not
-# retargeted. w2064 compiles assign_index from its .x below.
+# seeds/win_index_elem_byte_sz_override.c here. Darwin rebuilds the
+# same three .x. w2064 compiles assign_index from its .x below.
 # w2062: emit_index is two strong T from two .x. One gcc object defined
 # both names. The elf body calls the arms export as an extern.
 # g05_relink_env.sh rebuilds the same two every Linux relink. Darwin

@@ -15,11 +15,11 @@
  * w1019: compile tip with -DXLANG_WIN_TRUE_PACK to drop Cap residual
  * INDEX→4 parks (bake tip packs esz=1). Cap residual src/win_index.o
  * stays undeffed so default PE keeps esz=4.
- * Authority: SHARED tip first-wins. Windows and Linux build the three
- * strong names from src/pabi_index_elem_byte_sz_one.x,
+ * Authority: SHARED tip first-wins. Windows, Linux, and Darwin build
+ * the three strong names from src/pabi_index_elem_byte_sz_one.x,
  * src/pabi_index_elem_from_type_one.x, and
- * src/pabi_index_elem_wrap_one.x. Darwin still prepends a leftover
- * object and is not retargeted.
+ * src/pabi_index_elem_wrap_one.x. Do not cc or gcc this file into one
+ * object on those paths.
  * Link FIRST via g05 _WIN_ASSIGN_OVERRIDES / selfhost_pabi.
  * w2061: do not gcc -DXLANG_WIN_TRUE_PACK this file on the Windows
  * true-pack path, and do not gcc it into the Linux

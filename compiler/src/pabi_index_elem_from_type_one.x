@@ -7,8 +7,10 @@
 // runtime_pipeline_abi.x. pipeline_asm_index_elem_byte_sz_c and the
 // short wrapper are other objects: same-.o dual T smashes i32.
 // File-local helpers stay here. They are not a second link winner.
-// Linux sidecar still gcc's the C. Darwin does not retarget this
-// object. PLATFORM: SHARED body. Windows relink consumes this object.
+// Linux and Darwin rebuild this file into index_elem_from_type.o.
+// Do not cc or gcc seeds/win_index_elem_byte_sz_override.c into one
+// object on Windows, Linux, or Darwin.
+// PLATFORM: SHARED body. Windows, Linux, and Darwin link this object.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, ty_ref: i32): i32;
@@ -239,7 +241,7 @@ function iesz_rest(arena: *u8, tr: i32, kind_ord: i32): i32 {
  * TYPE_SLICE overwrite the walking kind with the pointee kind when the
  * pointee does not decide, then fall through. Bare TYPE_SLICE with no
  * pointee returns 16. Bare TYPE_ARRAY with no pointee returns 8.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function glue_index_elem_byte_sz_from_type_ref_c(arena: *u8, tr: i32): i32 {
