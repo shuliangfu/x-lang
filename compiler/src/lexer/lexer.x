@@ -91,8 +91,33 @@ allow(padding) struct LexerBuf {
   length: usize;
 }
 
-/** Copy 16 bytes. Used only to turn LexerBuf into a u8[] in this file. */
+/** Copy bytes. Token stores use 48; LexerBuf uses 16. */
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
+/**
+ * Copy one Token image (48 bytes) onto dst.
+ *
+ * Layout, matching the product store: kind@0, line@4, col@8, int_val@16,
+ * float_val@24, ident@32, ident_len@40, size 48. ident_len is the span
+ * the parser accepts (1..255). A struct assignment (`*dst = src` or
+ * `out.tok = t`) on the Windows bootstrap compiler keeps only the first
+ * 8 bytes, so kind and line move and ident_len stays 0. The name check
+ * then fails, the function is skipped, and the module stays at
+ * num_funcs == 0.
+ *
+ * Field-by-field stores fault the pin egg. This copies the same 48-byte
+ * image a correct struct assignment writes.
+ *
+ * @param dst *Token — destination token; caller does not pass null
+ * @param src *Token — source image; caller does not pass null
+ * @return void
+ * PLATFORM: SHARED. WINDOWS is where the 8-byte assign was measured.
+ */
+function lexer_store_token(dst: *Token, src: *Token): void {
+  unsafe {
+    memcpy((dst as *u8), (src as *u8), (48 as usize));
+  }
+}
 
 /**
  * Cross-TU constructor. Return type is LexerBuf so the Windows caller
@@ -2473,7 +2498,8 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
     float_val: 0.0,
     ident: (0 as *u8),
     ident_len: nlen };
-  unsafe { *out = (t); }
+  // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
+  lexer_store_token(out, &t);
   return;
 }
 
@@ -2662,7 +2688,8 @@ i32): void {
   }
   let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
-  unsafe { *out = (t); }
+  // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
+  lexer_store_token(out, &t);
   return;
 }
 
@@ -4333,7 +4360,9 @@ export function write_next_lex_into(out: *LexerResult, l: Lexer): void {
  */
 export function write_tok_into(out: *LexerResult, t: Token): void {
   // Whole-token store. Copying kind by field faults the pin egg.
-  out.tok = t;
+  // Struct assign keeps 8 bytes on the Windows bootstrap; see lexer_store_token.
+  // PLATFORM: SHARED.
+  lexer_store_token(&out.tok, &t);
 }
 
 /** Exported function `lexer_next_impl`.
