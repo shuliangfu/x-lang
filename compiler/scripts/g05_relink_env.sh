@@ -1064,8 +1064,8 @@ fi
 # helpers are emitted as pipeline_deref_* and are not defined in the egg,
 # so this does not weaken anything. Rebuild that thin every Linux relink
 # while the self-host pabi set is linked. A missing object exits 1.
-# Darwin rebuilds the same thin in its pabi_weak block. Windows does not
-# build this object. Do not rebuild the pabi egg.
+# Darwin rebuilds the same thin in its pabi_weak block. Windows rebuilds
+# it in the MINGW block. Do not rebuild the pabi egg.
 # PLATFORM: LINUX
 case "$UNAME_S" in
   Linux)
@@ -2311,8 +2311,8 @@ EOF
   # The short name is the link winner (leading underscore, ld64 map).
   # Measured arm64 frames: helpers 0x170 and 0x120, export 0x930. Each
   # is one subtract and one matching add, under 0xff0, and none is a
-  # smash size. No xlang_panic_ reference. Windows does not build this
-  # object. PLATFORM: MACOS|DARWIN.
+  # smash size. No xlang_panic_ reference. Windows rebuilds the same
+  # thin in its MINGW block. PLATFORM: MACOS|DARWIN.
   _g05_pure_overlay src/runtime_pipeline_abi_deref_narrow_thin.x \
     build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o \
     pipeline_asm_emit_deref_elf_c
@@ -3045,6 +3045,30 @@ case "$UNAME_S" in
       exit 1
     fi
     _PABI_SELFHOST="build_asm/selfhost_pabi/lea_cold_fwd.o $_PABI_SELFHOST"
+    # w2077: one strong T from src/runtime_pipeline_abi_deref_narrow_thin.x.
+    # The egg has two EXTERNAL pipeline_asm_emit_deref_elf_c (0x1af87 and
+    # 0x87615). Both size a *u8 / *i8 / *i16 load from the widened use
+    # type. demote-all-dual keeps the Cap-band copy and makes the low
+    # one STATIC. No reloc in that object names this symbol. The only
+    # undefined reference is src/runtime_pipeline_abi_const_lit.o, which
+    # is linked when the file is present. PE --allow-multiple-definition
+    # is first-wins, so this object is prepended. Four pipeline_deref_*
+    # helpers stay in this object. They are not in the egg and are not
+    # a second link winner. Measured x86_64 frames: narrow_tag sub
+    # $0x138, the three enc helpers sub $0x108, export sub $0x508. Each
+    # is one subtract, under one page, and none is a smash size. No
+    # xlang_panic_ reloc. Linux and Darwin already rebuild this thin.
+    # A missing object exits 1. Weaken the name on the pabi_weak copy
+    # only. Never edit src/runtime_pipeline_abi.o. Do not record the
+    # helpers. PLATFORM: WINDOWS | MSYS | MINGW.
+    _g05_pure_overlay src/runtime_pipeline_abi_deref_narrow_thin.x \
+      build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o \
+      pipeline_asm_emit_deref_elf_c
+    if [ ! -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
+      echo "g05_relink_env: ERROR Windows deref_narrow .x did not build" >&2
+      exit 1
+    fi
+    _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o $_PABI_SELFHOST"
     # w2060: STRUCT_LIT baker. The egg has U
     # pipe_modlet_bake_struct_lit_to_data and a local _cold copy, so the
     # strong T has to come from this object. The on-disk bake_struct.o was
@@ -4077,6 +4101,12 @@ PY
         done
         if [ -s build_asm/selfhost_pabi/emit_let_init.o ]; then
           "$_oc" --weaken-symbol=glue_block_body_emit_let_init \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        # w2077: the egg's external deref copy loses to the thin.
+        # The low STATIC twin is left for any same-TU disp. PLATFORM: WINDOWS.
+        if [ -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
+          "$_oc" --weaken-symbol=pipeline_asm_emit_deref_elf_c \
             build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
         fi
         # w1018: true-pack tip stack weaken leftovers. PLATFORM: WINDOWS.

@@ -2,10 +2,10 @@
 // The egg body sizes the load from the deref expr's resolved type.
 // A return or a widened let types that expr as i32, so *u8 / *i8 / *i16
 // become a 4-byte mov / ldrsw. This sidecar uses the pointer pointee.
-// LINUX links it ahead of the egg. Do not rebuild the pabi egg.
-// PLATFORM: SHARED — x86_64 and arm64 encoders. Linux and Darwin rebuild
-// this file into runtime_pipeline_abi_deref_narrow_thin.o. Windows does
-// not. Do not rebuild the pabi egg.
+// Linux, Darwin, and Windows link it ahead of the egg copy.
+// Do not rebuild the pabi egg.
+// PLATFORM: SHARED — x86_64 and arm64 encoders. Linux, Darwin, and
+// Windows rebuild this file into runtime_pipeline_abi_deref_narrow_thin.o.
 
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, op: i32, ctx: *u8, ta: i32): i32;
@@ -162,7 +162,8 @@ function deref_enc_sext16(elf_ctx: *u8, ta: i32): i32 {
  * @param ta i32 — 0 is x86_64, 1 is arm64
  * @return i32 — 0 on success, -1 on an encode failure
  * PLATFORM: SHARED — one strong T. Linux and Darwin link this ahead of
- * the weak copy. Windows does not build this file.
+ * the weak copy. Windows links this ahead of the egg's external copy.
+ * PE first-wins. Do not rebuild the pabi egg.
  */
 #[no_mangle]
 export function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
