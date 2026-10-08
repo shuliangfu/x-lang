@@ -48758,6 +48758,9 @@ export function glue_expr_type_is_ptr_c(arena: *u8, expr_ref: i32): i32 {
  * Integer add/sub and ptr-ptr return 0; the load_operand -2 fallback
  * already parks those. A call inside the offset still clobbers the
  * arm64 x2 park; x86 push rbx survives it. Do not add a second spill.
+ * Product Linux injects runtime_pipeline_abi_binop_block_peel_index_addr_thin.x
+ * and does not rebuild this file into the egg. That thin defines the same
+ * body; the two copies must match.
  * @param arena *u8 — AST arena; null returns 0
  * @param expr_ref i32 — candidate ADD (kind 4) or SUB (kind 5)
  * @return i32 — 1 when the compare-left in rbx must be parked, else 0
