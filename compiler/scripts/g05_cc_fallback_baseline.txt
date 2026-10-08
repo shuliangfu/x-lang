@@ -20,7 +20,13 @@ Linux src/asm/pthin_stretch_audit.x
 Linux src/diag_thin.x
 Linux src/x_seed_bridge.x
 #
-# Windows (busybox uname prints Windows_NT): the same two pthin_stretch
-# sources fall back to host cc on the PE product (w1487 cold ensure).
+# Windows (w1487 cold ensure under busybox uname Windows_NT). Git bash
+# uname is MINGW64_NT-* and g05_try_x_to_o stores that as Windows, so the
+# same debt must be listed under both tokens. w2083: pthin_stretch_audit.x
+# still fails whole-file typeck (extern call outside unsafe in
+# w1155_diag3); the audit C twin stays. diag_thin.x is not listed: w2082
+# keeps that object via XLANG_PURE_ASM_ALLOW_U_PANIC.
 Windows_NT src/asm/pthin_stretch.x
 Windows_NT src/asm/pthin_stretch_audit.x
+Windows src/asm/pthin_stretch.x
+Windows src/asm/pthin_stretch_audit.x
