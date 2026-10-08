@@ -66,8 +66,52 @@ export function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, ou
 }
 
 
-/* See implementation. */
-export extern function parser_slice_from_buf(data: *u8, len: i32): u8[];
+/**
+ * 16-byte named slice. Same two words as SliceU8: data pointer, then
+ * byte length. Win64 returns this through a hidden pointer in rcx.
+ * A u8[] return is rax:rdx, and that caller wrote the length through
+ * the source pointer. PLATFORM: SHARED layout. WINDOWS is why the
+ * extern below is not a slice.
+ */
+allow(padding) struct ParserSliceBuf {
+  data: *u8;
+  length: usize;
+}
+
+/** Copy 16 bytes. Used only to turn ParserSliceBuf into a u8[] here. */
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
+/**
+ * Cross-TU constructor. Return type is ParserSliceBuf so the Windows
+ * caller passes the hidden return pointer. Negative len is clamped
+ * by the body in runtime_pipeline_abi_parser_result_thin.x.
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count
+ * @return ParserSliceBuf — {data, length}
+ * PLATFORM: SHARED symbol. WINDOWS return is the hidden pointer.
+ */
+export extern function parser_slice_from_buf(data: *u8, len: i32): ParserSliceBuf;
+
+/**
+ * u8[] view of [data, data+len) for the rest of this file.
+ * The extern returns a named struct (Windows hidden pointer). A slice
+ * return from this function stays in rax:rdx, and this file's callers
+ * are compiled with that same convention. The 16-byte copy is the
+ * layout match of {pointer, length}. It does not copy the source bytes.
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count; negative becomes an empty view
+ * @return u8[] — fat pointer the parser indexes
+ * PLATFORM: SHARED. WINDOWS must not declare the extern as u8[].
+ */
+function parser_slice_view(data: *u8, len: i32): u8[] {
+  let b: ParserSliceBuf = ParserSliceBuf { data: (0 as *u8), length: (0 as usize) };
+  let sl: u8[] = [];
+  unsafe {
+    b = parser_slice_from_buf(data, len);
+    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+  }
+  return sl;
+}
 /* See implementation. */
 export extern function parser_diagnostic_parse_skip(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
 /**
@@ -834,7 +878,7 @@ export function parser_return_kw_immediately_before(source: u8[], ident_start: u
 export function parser_match_kw_immediately_before_buf(data: *u8, len: i32, ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parser_match_kw_immediately_before(slice, ident_start);
   }
   return false;  // unreachable — typeck after unsafe block
@@ -875,7 +919,7 @@ export function advance_past_stmt_semicolon_into(r_out: *LexerResult, lex: Lexer
 export function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return advance_past_stmt_semicolon_into(r_out, lex, slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -914,7 +958,7 @@ export function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, s
 export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return advance_past_cond_rparen_into(r_out, lex, slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -2340,7 +2384,7 @@ function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer,
 export function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_expr_with_leading_int_as_into(arena, lex_start, slice, out);
   }
 }
@@ -3997,7 +4041,7 @@ export function first_token_kind(source: u8[]): i32 {
 export function first_token_kind_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return first_token_kind(slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -4032,7 +4076,7 @@ export function diag_first_ident_len(source: u8[]): i32 {
 export function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_first_ident_len(slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -4086,7 +4130,7 @@ export function diag_skip_let_const(lex: Lexer, source: u8[]): LexerResult {
 export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_skip_let_const(lex, slice);
   }
 }
@@ -4103,7 +4147,7 @@ export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerR
 export function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   diag_skip_let_const_into(out, lex, slice);
   }
 }
@@ -5191,7 +5235,7 @@ export function body_skip_let_const_then_if(lex: Lexer, source: u8[]): LexerResu
 export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return body_skip_let_const_then_if(lex, slice);
   }
 }
@@ -5208,7 +5252,7 @@ export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32)
 export function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   body_skip_let_const_then_if_into(out, lex, slice);
   }
 }
@@ -5285,7 +5329,7 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
 export function skip_balanced_parens_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_balanced_parens(lex, slice);
   }
 }
@@ -5362,7 +5406,7 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
 export function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_balanced_braces(lex, slice);
   }
 }
@@ -5481,7 +5525,7 @@ export function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
 export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_function_full_into(out, lex, slice);
   }
 }
@@ -5492,7 +5536,7 @@ export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *
 export function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_function_full(lex, slice);
   }
 }
@@ -5581,7 +5625,7 @@ export function skip_one_if_core_into(out: *LexerResult, lex: Lexer, source: u8[
 export function skip_one_if_core_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_if_core(lex, slice);
   }
 }
@@ -5591,7 +5635,7 @@ export function skip_one_if_core_buf(lex: Lexer, data: *u8, len: i32): LexerResu
 export function skip_one_if_statement_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_if_statement(lex, slice);
   }
 }
@@ -5608,7 +5652,7 @@ export function skip_one_if_statement_buf(lex: Lexer, data: *u8, len: i32): Lexe
 export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_if_core_into(out, lex, slice);
   }
 }
@@ -5625,7 +5669,7 @@ export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *
 export function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_if_statement_into(out, lex, slice);
   }
 }
@@ -5660,7 +5704,7 @@ export function diag_lex_after_imports(source: u8[]): Lexer {
 export function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_lex_after_imports(slice);
   }
 }
@@ -5693,7 +5737,7 @@ export function diag_after_imports_then_structs(lex: Lexer, source: u8[]): Lexer
 export function diag_after_imports_then_structs_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_after_imports_then_structs(lex, slice);
   }
 }
@@ -5724,7 +5768,7 @@ export function diag_fail_at_token_kind(source: u8[]): i32 {
 export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_fail_at_token_kind(slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -5916,7 +5960,7 @@ export function struct_field_name_from_tok(r: LexerResult, source: u8[], out: *u
 export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return struct_field_name_from_tok(r, slice, out);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -8000,7 +8044,7 @@ export function import_path_dot_segment_copy(source: u8[], token_start: usize, s
 export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   import_path_dot_segment_copy(slice, token_start, seg_len, path_buf, path_len);
   }
 }
@@ -8068,7 +8112,7 @@ export function skip_imports(lex: Lexer, source: u8[]): Lexer {
 export function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_imports(lex, slice);
   }
 }
@@ -8103,7 +8147,7 @@ export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: 
 export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Module, out: *CollectImportsResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   collect_imports(lex, slice, module, out);
   }
 }
@@ -8301,7 +8345,7 @@ function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, s
 function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_enum_register_into(module, out, lex, slice);
   }
 }
@@ -8442,7 +8486,7 @@ function skip_one_impl(lex: Lexer, source: u8[]): Lexer {
 export function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_enum_into(out, lex, slice);
   }
 }
@@ -8452,7 +8496,7 @@ export function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: 
 export function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_enum(lex, slice);
   }
 }
@@ -8469,7 +8513,7 @@ export function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_trait_into(out, lex, slice);
   }
 }
@@ -8478,7 +8522,7 @@ function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): 
 export function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_trait(lex, slice);
   }
 }
@@ -8495,7 +8539,7 @@ export function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_impl_into(out, lex, slice);
   }
 }
@@ -8504,7 +8548,7 @@ function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): v
 export function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_impl(lex, slice);
   }
 }
@@ -8667,7 +8711,7 @@ function parse_one_extern_skip_into(out: *ExternParseResult, arena: *ASTArena, l
 function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_one_extern_skip_into(out, arena, lex, slice);
   }
 }
@@ -8761,7 +8805,7 @@ function parse_one_extern_and_add_into(arena: *ASTArena, module: *Module, lex: L
 function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_extern_into(out, lex, slice);
   }
 }
@@ -8770,7 +8814,7 @@ function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32):
 export function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_extern(lex, slice);
   }
 }
@@ -9071,7 +9115,7 @@ function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexe
 function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_one_function_library(arena, module, lex, slice);
   }
 }
@@ -9100,7 +9144,7 @@ function parse_into_try_skip_allow(lex: Lexer, r: LexerResult, source: u8[]): Tr
 function parse_into_try_skip_allow_buf(lex: Lexer, r: LexerResult, data: *u8, len: i32): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_into_try_skip_allow(lex, r, slice);
   }
 }
@@ -9126,7 +9170,7 @@ function try_skip_allow_padding_struct(lex: Lexer, source: u8[]): TrySkipAllowRe
 export function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return try_skip_allow_padding_struct(lex, slice);
   }
 }
@@ -9143,7 +9187,7 @@ export function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i3
 function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_struct_into(out, lex, slice);
   }
 }
@@ -9152,7 +9196,7 @@ function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32):
 export function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_struct(lex, slice);
   }
 }
@@ -9194,7 +9238,7 @@ function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *
 export function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerResult, out: *u8, out_len: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return consume_qualified_type_ident_name(slice, r, out, out_len);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -9382,7 +9426,7 @@ export function parse_one_function_library_into(out: *LibraryParseResult, arena:
 export function parse_one_function_library_into_buf(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_one_function_library_into(out, arena, module, lex, slice);
   }
 }
@@ -9419,7 +9463,7 @@ export function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Le
 export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_into_try_skip_allow_into(out, lex, r, slice);
   }
 }
@@ -10868,7 +10912,7 @@ export function parse_one_type_alias_into(arena: *ASTArena, module: *Module, lex
 export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_primary_into(arena, lex, slice, out);
   }
 }
@@ -10886,7 +10930,7 @@ export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_unary_into(arena, lex, slice, out);
   }
 }
@@ -10904,7 +10948,7 @@ export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_cast_into(arena, lex, slice, out);
   }
 }
@@ -10922,7 +10966,7 @@ export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_term_into(arena, lex, slice, out);
   }
 }
@@ -10940,7 +10984,7 @@ export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_addsub_into(arena, lex, slice, out);
   }
 }
@@ -10958,7 +11002,7 @@ export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_shift_into(arena, lex, slice, out);
   }
 }
@@ -10976,7 +11020,7 @@ export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_relcompare_into(arena, lex, slice, out);
   }
 }
@@ -10994,7 +11038,7 @@ export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u
 export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_compare_into(arena, lex, slice, out);
   }
 }
@@ -11012,7 +11056,7 @@ export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_bitand_into(arena, lex, slice, out);
   }
 }
@@ -11030,7 +11074,7 @@ export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_bitxor_into(arena, lex, slice, out);
   }
 }
@@ -11048,7 +11092,7 @@ export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_bitor_into(arena, lex, slice, out);
   }
 }
@@ -11066,7 +11110,7 @@ export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_logand_into(arena, lex, slice, out);
   }
 }
@@ -11084,7 +11128,7 @@ export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_logor_into(arena, lex, slice, out);
   }
 }
@@ -11102,7 +11146,7 @@ export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_ternary_into(arena, lex, slice, out);
   }
 }
@@ -11120,7 +11164,7 @@ export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_assign_into(arena, lex, slice, out);
   }
 }
@@ -11138,7 +11182,7 @@ export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_expr_into(arena, lex, slice, out);
   }
 }
@@ -11157,7 +11201,7 @@ export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   finish_struct_lit_from_type_ident_into(arena, lit_ref, lex_in_brace, slice, out);
   }
 }
@@ -11175,7 +11219,7 @@ export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit
 export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_cond_expr_into(arena, lex_start, slice, out);
   }
 }
@@ -11197,7 +11241,7 @@ export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, dat
 export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_if_stmt_into(arena, lex_at_if, slice, type_ref, out_cond, out_then, out_else, lex_out);
   }
   return false;  // unreachable — typeck after unsafe block
@@ -11217,7 +11261,7 @@ export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data:
 export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseBlockResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_block_into(arena, lex_after_lbrace, slice, type_ref, out);
   }
 }
@@ -11236,7 +11280,7 @@ export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, 
 export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_if_expr_into(arena, lex_at_if, slice, type_ref, out);
   }
 }
@@ -11254,7 +11298,7 @@ export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data:
 export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_match_subject_into(arena, lex, slice, out);
   }
 }
@@ -11272,7 +11316,7 @@ export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data:
 export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_match_into(arena, lex, slice, out);
   }
 }
@@ -11290,7 +11334,7 @@ export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_at_simd_builtin_into(arena, r0, slice, out);
   }
 }
@@ -11307,7 +11351,7 @@ export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult
 export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_as_suffix_into(arena, slice, out);
   }
 }
@@ -11325,7 +11369,7 @@ export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, 
 export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_type_ref_for_arena_into(arena, lex, slice, out_lex);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11346,7 +11390,7 @@ export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, 
 export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, bracket_start: usize, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer, r_out: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, slice, lex_out, r_out);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11369,7 +11413,7 @@ export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, b
 export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_struct_record_layout_into(arena, module, lex, slice, out_lex, allow_pad, force_soa, repr_compat);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11387,7 +11431,7 @@ export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *M
 export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: i32, result: *LibraryParseScanResult): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_one_function_library_scan(lex, slice, result);
   }
   return false;  // unreachable — typeck after unsafe block
@@ -11405,7 +11449,7 @@ export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: 
 export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8, len: i32, r: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return alloc_pointee_type_ref_from_tok(arena, slice, r);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11423,7 +11467,7 @@ export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8,
 export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena, data: *u8, len: i32, r: LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parser_vector_type_ref_from_ident_spelling(arena, slice, r);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11444,7 +11488,7 @@ export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena,
 export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_one_top_level_let_into(arena, module, lex, slice, is_const, out);
   }
 }
@@ -11462,7 +11506,7 @@ export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Modu
 export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out: *TypeAliasResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_one_type_alias_into(arena, module, lex, slice, out);
   }
 }
@@ -11479,7 +11523,7 @@ export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module,
 export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_balanced_parens_into(out, lex, slice);
   }
 }
@@ -11496,7 +11540,7 @@ export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, dat
 export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_balanced_braces_into(out, lex, slice);
   }
 }
@@ -11515,7 +11559,7 @@ export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, dat
 export function module_append_enum_variants_and_skip_body_slice_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   module_append_enum_variants_and_skip_body_into(module, enum_idx, out, lex, slice);
   }
 }
@@ -11893,7 +11937,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       if (module.num_funcs > num_funcs_before_extern_buf) {
         let fi_ext_buf: i32 = num_funcs_before_extern_buf;
         if (pipeline_module_func_is_extern_at(module, fi_ext_buf) == 0) {
-          let slice_ext_buf: u8[] = parser_slice_from_buf(data, len);
+          let slice_ext_buf: u8[] = parser_slice_view(data, len);
           let r_brace_buf: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&r_brace_buf, lex, slice_ext_buf);
           if (r_brace_buf.tok.kind == token.TokenKind.TOKEN_LBRACE) {
@@ -12027,8 +12071,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     onefunc_res_wire_dummy_call_binop(&res, empty64_buf);
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
-    let slice_for_impl: u8[] = parser_slice_from_buf(data, len);
-    slice_for_impl = parser_slice_from_buf(data, len);
+    let slice_for_impl: u8[] = parser_slice_view(data, len);
+    slice_for_impl = parser_slice_view(data, len);
     /* See implementation. */
     // LibraryParseResult.name is u8[256].
     let empty64_lib_buf_first: u8[256] = [];
