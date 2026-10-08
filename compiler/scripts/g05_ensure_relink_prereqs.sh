@@ -4434,10 +4434,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           && bash scripts/ensure_host_cc_seed_o.sh diag-thin-pure "$_diag_thin_o"; then
           _diag_pure=1
         fi
+        # w2082: whole-file emit is a complete object with one U xlang_panic_
+        # from bounds checks. Windows measurement: pure_asm_x_to_o returns 0
+        # with this flag (57784 bytes, definitions W, externs w). Without the
+        # flag pure_asm deletes the object, ensure logs a cc fallback, and
+        # the full C seed drops diag_snap_* / diag_store_ptr_le. The weak
+        # body is W xlang_panic_ in lexer_x.o. Darwin arm64 takes the
+        # eight-piece path above and does not use this call. A newer
+        # compiler that folds the checks still accepts the flag.
+        # PLATFORM: SHARED flag. Measured on WINDOWS x86_64.
         # shellcheck disable=SC2086
         if [ -n "$_diag_thin_o" ] && [ -n "$_diag_rest_o" ] \
           && { [ "$_diag_pure" = "1" ] \
-            || G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o"; } \
+            || XLANG_PURE_ASM_ALLOW_U_PANIC=1 G05_X_O_WEAK=1 g05_try_x_to_o "$_diag_thin_x" "$_diag_thin_o"; } \
           && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
                -c -o "$_diag_rest_o" "$_diag" \
           && pure_ld_partial_merge "$_diag_o" "$_diag_thin_o" "$_diag_rest_o" 2>/dev/null; then
