@@ -267,9 +267,42 @@ fi
 # w1012: true-pack ARRAY i8 (INDEX esz=1 + sext8 + assign tip + force_esz).
 # Host-gcc twins first-wins over pabi. Shared C seeds (same as Darwin tip /
 # Windows src/*_override.o). Do not PREFER into runtime_pipeline_abi.o.
+# w2061: index-elem is three strong T from three .x. One gcc object
+# defined all three names. Same-.o dual T of two link winners smashes
+# i32. The _c body calls the peeler as an extern. g05_relink_env.sh
+# rebuilds the same three every Linux relink. Do not gcc
+# seeds/win_index_elem_byte_sz_override.c here. Darwin is not
+# retargeted. emit_index, assign_index, and force_esz stay gcc below.
 # PLATFORM: LINUX.
-echo "linux_selfhost_pabi_sidecars: w1012 true_i8 tips"
-gcc -c -O2 -o "$OUT/index_elem_true_i8.o" seeds/win_index_elem_byte_sz_override.c
+echo "linux_selfhost_pabi_sidecars: w2061 index_elem three .x"
+_ie_xl=./xlang_asm
+if [ ! -x "$_ie_xl" ]; then
+  _ie_xl=./xlang
+fi
+_ie_one() {
+  local src="$1"
+  local dst="$2"
+  local sym="$3"
+  echo "linux_selfhost_pabi_sidecars: $src"
+  timeout 240 "$_ie_xl" -backend asm -c -o "$dst" "$src"
+  if ! nm "$dst" | grep -q " T ${sym}\$"; then
+    echo "linux_selfhost_pabi_sidecars: $src lacks strong $sym" >&2
+    exit 1
+  fi
+  if nm "$dst" | grep -q 'xlang_panic_'; then
+    echo "linux_selfhost_pabi_sidecars: $src references xlang_panic_" >&2
+    exit 1
+  fi
+}
+_ie_one src/pabi_index_elem_from_type_one.x \
+  "$OUT/index_elem_from_type.o" \
+  glue_index_elem_byte_sz_from_type_ref_c
+_ie_one src/pabi_index_elem_byte_sz_one.x \
+  "$OUT/index_elem_true_i8.o" \
+  pipeline_asm_index_elem_byte_sz_c
+_ie_one src/pabi_index_elem_wrap_one.x \
+  "$OUT/index_elem_wrap.o" \
+  pipeline_asm_index_elem_byte_sz
 gcc -c -O2 -o "$OUT/emit_index_true_i8.o" seeds/emit_index_true_i8_override.c
 gcc -c -O2 -o "$OUT/assign_index_true_i8.o" seeds/assign_index_true_i8_override.c
 gcc -c -O2 -o "$OUT/force_esz_true_i8.o" seeds/force_esz_true_i8_override.c

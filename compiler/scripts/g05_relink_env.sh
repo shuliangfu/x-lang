@@ -1140,8 +1140,60 @@ if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
     || [ -s build_asm/selfhost_pabi/modlet.o ]; }; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
 fi
-if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+# w2061: three strong T, three objects. The sidecar used to gcc
+# seeds/win_index_elem_byte_sz_override.c into one object. That object
+# defined glue_index_elem_byte_sz_from_type_ref_c,
+# pipeline_asm_index_elem_byte_sz_c, and pipeline_asm_index_elem_byte_sz.
+# Same-.o dual T of two link winners smashes i32. The _c body calls
+# the peeler as an extern, so the peeler is linked ahead of it. The
+# short wrapper is a third object. Rebuild every Linux relink from the
+# same .x Windows builds. A missing object exits 1. Egg copies in the
+# measured pabi are already W. A strong T in the build_asm link object
+# is weakened. Never edit src/runtime_pipeline_abi.o. Darwin still
+# prepends a leftover index_elem_true_i8.o only. Do not cc -r the three
+# objects back into one. PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  _g05_pure_overlay src/pabi_index_elem_from_type_one.x \
+    build_asm/selfhost_pabi/index_elem_from_type.o \
+    glue_index_elem_byte_sz_from_type_ref_c
+  if [ ! -s build_asm/selfhost_pabi/index_elem_from_type.o ]; then
+    echo "g05_relink_env: ERROR Linux index_elem from_type .x did not build" >&2
+    exit 1
+  fi
+  _g05_pure_overlay src/pabi_index_elem_byte_sz_one.x \
+    build_asm/selfhost_pabi/index_elem_true_i8.o \
+    pipeline_asm_index_elem_byte_sz_c
+  if [ ! -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Linux index_elem .x did not build" >&2
+    exit 1
+  fi
+  _g05_pure_overlay src/pabi_index_elem_wrap_one.x \
+    build_asm/selfhost_pabi/index_elem_wrap.o \
+    pipeline_asm_index_elem_byte_sz
+  if [ ! -s build_asm/selfhost_pabi/index_elem_wrap.o ]; then
+    echo "g05_relink_env: ERROR Linux index_elem wrap .x did not build" >&2
+    exit 1
+  fi
   _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_from_type.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_wrap.o $_PABI_SELFHOST"
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      for _ie_s in pipeline_asm_index_elem_byte_sz_c \
+        glue_index_elem_byte_sz_from_type_ref_c \
+        pipeline_asm_index_elem_byte_sz; do
+        if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_ie_s}$"; then
+          if ! objcopy --weaken-symbol="$_ie_s" "$_PABI_LINK_O"; then
+            echo "g05_relink_env: weaken $_ie_s in $_PABI_LINK_O failed (Linux index_elem)" >&2
+            exit 1
+          fi
+        fi
+      done
+      ;;
+  esac
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_index_elem_byte_sz_c=build_asm/selfhost_pabi/index_elem_true_i8.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_index_elem_byte_sz_from_type_ref_c=build_asm/selfhost_pabi/index_elem_from_type.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_index_elem_byte_sz=build_asm/selfhost_pabi/index_elem_wrap.o"
 fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
@@ -2485,8 +2537,9 @@ case "$UNAME_S" in
       # u16=2) live in the .x. The egg glue body has no those parks.
       # Do not fold into runtime_pipeline_abi.x. Do not gcc
       # -DXLANG_WIN_TRUE_PACK seeds/win_index_elem_byte_sz_override.c
-      # here. Linux sidecar still gcc's that C. The non-D Cap residual
-      # object stays out of this link. A missing object exits 1.
+      # here. Linux rebuilds the same three .x. Darwin still prepends a
+      # leftover object only. The non-D Cap residual object stays out of
+      # this link. A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_index_elem_from_type_one.x \
         build_asm/selfhost_pabi/index_elem_from_type.o \
