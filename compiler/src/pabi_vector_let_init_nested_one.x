@@ -1,11 +1,11 @@
-// One strong pipeline_asm_emit_vector_let_init_elf_c for the Windows
-// true-pack link. Body is seeds/vector_let_init_nested_override.c.
+// One strong pipeline_asm_emit_vector_let_init_elf_c.
+// Body is seeds/vector_let_init_nested_override.c.
 // The mangled Cap residual name and the Darwin stubdead name are the
 // same body, but each is its own object: same-.o dual T smashes i32.
 // runtime_pipeline_abi.x only export-externs this short name. Do not
-// fold this TU into the egg. Do not gcc the seed on the Windows path.
-// Linux and Darwin still compile the C. PLATFORM: SHARED body.
-// Windows relink consumes this object.
+// fold this TU into the egg. Do not gcc the seed on the Windows or
+// Linux path. Darwin still compiles the C. PLATFORM: SHARED body.
+// Linux and Windows relinks consume this object.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
@@ -380,7 +380,7 @@ function vlet_nested_body(
  * @return i32 — 0 stored, -1 hard failure or not an ARRAY_LIT
  * The mangled name and stubdead live in their own objects and call
  * this symbol. They are not defined here.
- * PLATFORM: SHARED — Windows true-pack links this object first.
+ * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function pipeline_asm_emit_vector_let_init_elf_c(

@@ -1206,8 +1206,8 @@ fi
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
 # emit_index_true_i8.o. Darwin still prepends that leftover only.
-# Do not cc -r the two objects back into one. vector_let and
-# bake_elems stay on the gcc path.
+# Do not cc -r the two objects back into one. bake_elems stays
+# on the gcc path.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_emit_index_arms_one.x \
@@ -1285,8 +1285,8 @@ fi
 # src/runtime_pipeline_abi.o. Do not keep the combined leftover as
 # the only definition. Darwin still prepends that leftover only.
 # Do not cc -r the two objects back into one. Do not PREFER
-# runtime_pipeline_abi_fnptr_array_esz_thin.x. vector_let and
-# bake_elems stay on the gcc path.
+# runtime_pipeline_abi_fnptr_array_esz_thin.x. bake_elems stays
+# on the gcc path.
 # File-local helpers stay strong in their object.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -1332,7 +1332,7 @@ fi
 # pabi_alias.o copy is W. A strong T in the build_asm link object is
 # weakened. Never edit src/runtime_pipeline_abi.o. Darwin still gcc's
 # the C seed. The product frame of this .x stays under one page.
-# vector_let and bake_elems stay on the gcc path.
+# bake_elems stays on the gcc path.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
@@ -1507,15 +1507,66 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-# w1023: nested ARRAY_LIT local let-init → array_lit_flat. PLATFORM: LINUX.
-if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/vector_let_init_nested_override.c ]; then
-  mkdir -p build_asm/selfhost_pabi
-  gcc -c -O2 -o build_asm/selfhost_pabi/vector_let_init_nested.o \
-    seeds/vector_let_init_nested_override.c || true
-fi
-if [ -n "$_PABI_SELFHOST" ] \
-  && [ -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
+# w2067: three strong T, three objects. g05 used to gcc
+# seeds/vector_let_init_nested_override.c into
+# vector_let_init_nested.o. That object defined
+# pipeline_asm_emit_vector_let_init_elf_c, the mangled Cap residual
+# name, and the stubdead name. Same-.o dual T of two link winners
+# smashes i32. The mangled object and the stubdead object each
+# tail-call the short name. File-local helpers stay in the short-name
+# object. They are not a second link winner. Windows already builds
+# the same three .x. Rebuild every Linux relink. A missing object
+# exits 1. The measured egg copy of the short name in
+# src/runtime_pipeline_abi.o is W, and the pabi_alias.o copy is W.
+# The mangled name and the stubdead name are not in those objects,
+# and no Linux object references them. Linux x86_64 g05 passes
+# --gc-sections, so those two objects drop when nothing calls them.
+# Only the short name is a link winner. Do not add the other two
+# names to _G05_LINK_WINNERS. A strong T in the build_asm link object
+# is weakened. Never edit src/runtime_pipeline_abi.o. Darwin still
+# gcc's the C seed into one object. Do not cc -r the three objects
+# back into one. bake_elems stays on the gcc path.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  _g05_pure_overlay src/pabi_vector_let_init_nested_one.x \
+    build_asm/selfhost_pabi/vector_let_init_nested.o \
+    pipeline_asm_emit_vector_let_init_elf_c
+  if [ ! -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
+    echo "g05_relink_env: ERROR Linux vector_let .x did not build" >&2
+    exit 1
+  fi
+  _g05_pure_overlay src/pabi_vector_let_init_mangled_one.x \
+    build_asm/selfhost_pabi/vector_let_init_mangled.o \
+    pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32
+  if [ ! -s build_asm/selfhost_pabi/vector_let_init_mangled.o ]; then
+    echo "g05_relink_env: ERROR Linux vector_let mangled .x did not build" >&2
+    exit 1
+  fi
+  _g05_pure_overlay src/pabi_vector_let_init_stubdead_one.x \
+    build_asm/selfhost_pabi/vector_let_init_stubdead.o \
+    pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32_pabi_stubdead
+  if [ ! -s build_asm/selfhost_pabi/vector_let_init_stubdead.o ]; then
+    echo "g05_relink_env: ERROR Linux vector_let stubdead .x did not build" >&2
+    exit 1
+  fi
   _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_nested.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_mangled.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_stubdead.o $_PABI_SELFHOST"
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      for _vl_s in pipeline_asm_emit_vector_let_init_elf_c \
+        pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32 \
+        pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32_pabi_stubdead; do
+        if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_vl_s}$"; then
+          if ! objcopy --weaken-symbol="$_vl_s" "$_PABI_LINK_O"; then
+            echo "g05_relink_env: weaken $_vl_s in $_PABI_LINK_O failed (Linux vector_let)" >&2
+            exit 1
+          fi
+        fi
+      done
+      ;;
+  esac
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_vector_let_init_elf_c=build_asm/selfhost_pabi/vector_let_init_nested.o"
 fi
 # w2066: one strong T from src/pabi_fixed_array_let_init_module_var_one.x.
 # g05 used to gcc seeds/fixed_array_let_init_module_var_override.c.
@@ -1527,8 +1578,8 @@ fi
 # egg copy in src/runtime_pipeline_abi.o is W, and the pabi_alias.o
 # copy is W. A strong T in the build_asm link object is weakened.
 # Never edit src/runtime_pipeline_abi.o. Darwin still gcc's the C seed.
-# The product frame of this .x stays under one page. vector_let and
-# bake_elems stay on the gcc path.
+# The product frame of this .x stays under one page. bake_elems stays
+# on the gcc path.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
@@ -2798,8 +2849,9 @@ case "$UNAME_S" in
       # The mangled name and stubdead each forward from their own object.
       # Same-.o dual T smashes i32. File-local helpers stay with the
       # short name. Do not gcc seeds/vector_let_init_nested_override.c
-      # here. Linux and Darwin still compile that C. A missing object
-      # exits 1. PLATFORM: WINDOWS | MSYS | MINGW.
+      # here. Linux rebuilds the same three .x. Darwin still compiles
+      # that C. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_vector_let_init_nested_one.x \
         build_asm/selfhost_pabi/vector_let_init_nested.o \
         pipeline_asm_emit_vector_let_init_elf_c

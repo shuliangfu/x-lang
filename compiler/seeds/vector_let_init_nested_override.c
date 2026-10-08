@@ -22,11 +22,11 @@
  * The Win pabi twin in runtime_pipeline_abi.windows_link_stubs.c is not
  * rebuilt (pabi ban); this file links first on all targets (10.26 merge).
  *
- * w2060: Windows true-pack builds the short name from
+ * w2067: Windows and Linux build the short name from
  * src/pabi_vector_let_init_nested_one.x. The mangled name and stubdead
- * forward from their own objects. Do not gcc this file on that path.
- * Linux and Darwin still compile this C. Do not put the three strong
- * names in one product object (same-.o dual T smashes i32).
+ * forward from their own objects. Do not gcc this file on those paths.
+ * Darwin still compiles this C into one object. Do not put the three
+ * strong names in one product object (same-.o dual T smashes i32).
  */
 #include <stdint.h>
 
