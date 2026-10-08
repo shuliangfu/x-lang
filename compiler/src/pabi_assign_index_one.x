@@ -1,12 +1,12 @@
-// One strong glue_emit_assign_index_elf_c for the Windows true-pack
-// link. Body matches seeds/assign_index_true_i8_override.c.
+// One strong glue_emit_assign_index_elf_c. Body matches
+// seeds/assign_index_true_i8_override.c.
 // Helpers are file-local so each frame stays under one page. One product
 // function of the whole body is a multi-page frame, and the store tail
 // alone lands on the smash size 0xba0.
 // Do not PREFER runtime_pipeline_abi_assign_index_thin.x (different
-// dispatcher, HARD BAN). Do not gcc the seed on the Windows true-pack path.
-// Linux and Darwin still compile the C seed into this symbol.
-// PLATFORM: SHARED body. Windows relink is the build that consumes it.
+// dispatcher, HARD BAN). Do not gcc the seed on the Windows or Linux path.
+// Darwin still compiles the C seed into this symbol.
+// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
@@ -405,7 +405,7 @@ function assign_index_one_tail(
  * emits a CALL into that element via sret. arm64 spills a 9..16 byte pair
  * and copies a >16 byte lvalue instead of one qword store.
  * Pipe cells hold extern results. Do not write `x = extern()`.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function glue_emit_assign_index_elf_c(

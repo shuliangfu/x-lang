@@ -272,7 +272,7 @@ fi
 # i32. The _c body calls the peeler as an extern. g05_relink_env.sh
 # rebuilds the same three every Linux relink. Do not gcc
 # seeds/win_index_elem_byte_sz_override.c here. Darwin is not
-# retargeted. assign_index stays gcc below.
+# retargeted. w2064 compiles assign_index from its .x below.
 # w2062: emit_index is two strong T from two .x. One gcc object defined
 # both names. The elf body calls the arms export as an extern.
 # g05_relink_env.sh rebuilds the same two every Linux relink. Do not
@@ -317,7 +317,13 @@ _ie_one src/pabi_emit_index_arms_one.x \
 _ie_one src/pabi_emit_index_elf_one.x \
   "$OUT/emit_index_elf_true_i8.o" \
   pipeline_asm_emit_index_elf_c
-gcc -c -O2 -o "$OUT/assign_index_true_i8.o" seeds/assign_index_true_i8_override.c
+# w2064: one strong T. g05 rebuilds the same .x every Linux relink.
+# Do not gcc seeds/assign_index_true_i8_override.c. Do not PREFER
+# runtime_pipeline_abi_assign_index_thin.x. Darwin still cc's the C.
+# PLATFORM: LINUX.
+_ie_one src/pabi_assign_index_one.x \
+  "$OUT/assign_index_true_i8.o" \
+  glue_emit_assign_index_elf_c
 _ie_one src/pabi_force_esz_one.x \
   "$OUT/force_esz_true_i8.o" \
   glue_array_lit_force_esz_from_elem_type_c

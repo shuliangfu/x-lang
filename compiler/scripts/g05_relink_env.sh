@@ -1206,7 +1206,7 @@ fi
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
 # emit_index_true_i8.o. Darwin still prepends that leftover only.
-# Do not cc -r the two objects back into one. assign_index stays
+# Do not cc -r the two objects back into one. fixed_array stays
 # on the gcc path. PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_emit_index_arms_one.x \
@@ -1241,16 +1241,37 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_emit_index_load_arms_elf_c=build_asm/selfhost_pabi/emit_index_arms_true_i8.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_emit_index_elf_c=build_asm/selfhost_pabi/emit_index_elf_true_i8.o"
 fi
-# w1508 (10.33): rebuild the index-assign seed every relink (no leftover .o).
-if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/assign_index_true_i8_override.c ]; then
-  if ! gcc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
-      seeds/assign_index_true_i8_override.c; then
-    echo "g05_relink_env: assign_index_true_i8 cc failed" >&2
-    rm -f build_asm/selfhost_pabi/assign_index_true_i8.o
+# w2064: one strong T from src/pabi_assign_index_one.x.
+# The sidecar used to gcc seeds/assign_index_true_i8_override.c.
+# That object defined only glue_emit_assign_index_elf_c. Windows
+# already builds the same .x. File-local helpers stay in that one
+# object. They are not a second link winner. Rebuild every Linux
+# relink. A missing object exits 1. The measured egg copy in
+# pabi_alias.o is T, and the egg src/runtime_pipeline_abi.o copy is T.
+# A strong T in the build_asm link object is weakened. Never edit
+# src/runtime_pipeline_abi.o. Darwin still cc's the C seed.
+# Do not PREFER runtime_pipeline_abi_assign_index_thin.x.
+# Product frames of this .x stay under one page. PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  _g05_pure_overlay src/pabi_assign_index_one.x \
+    build_asm/selfhost_pabi/assign_index_true_i8.o \
+    glue_emit_assign_index_elf_c
+  if [ ! -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Linux assign_index .x did not build" >&2
+    exit 1
   fi
-fi
-if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T glue_emit_assign_index_elf_c$"; then
+        if ! objcopy --weaken-symbol="glue_emit_assign_index_elf_c" "$_PABI_LINK_O"; then
+          echo "g05_relink_env: weaken glue_emit_assign_index_elf_c in $_PABI_LINK_O failed (Linux assign_index)" >&2
+          exit 1
+        fi
+      fi
+      ;;
+  esac
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_emit_assign_index_elf_c=build_asm/selfhost_pabi/assign_index_true_i8.o"
 fi
 # w2063: two strong T, two objects. The sidecar used to gcc
 # seeds/force_esz_true_i8_override.c into one object. That object
@@ -1263,7 +1284,7 @@ fi
 # src/runtime_pipeline_abi.o. Do not keep the combined leftover as
 # the only definition. Darwin still prepends that leftover only.
 # Do not cc -r the two objects back into one. Do not PREFER
-# runtime_pipeline_abi_fnptr_array_esz_thin.x. assign_index stays
+# runtime_pipeline_abi_fnptr_array_esz_thin.x. fixed_array stays
 # on the gcc path. File-local helpers stay strong in their object.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -2699,7 +2720,8 @@ case "$UNAME_S" in
       # File-local helpers stay in that one object. They are not a second
       # link winner. assign_index_thin.x stays off (HARD BAN PREFER).
       # Do not gcc seeds/assign_index_true_i8_override.c here.
-      # Linux and Darwin still compile that C. A missing object exits 1.
+      # Linux rebuilds the same .x. Darwin still compiles that C.
+      # A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_assign_index_one.x \
         build_asm/selfhost_pabi/assign_index_true_i8.o \
@@ -2777,7 +2799,8 @@ case "$UNAME_S" in
     fi
     # w2060: glue_emit_assign_index_elf_c. The first strong T on the PE
     # link is assign_index_true_i8.o, built from pabi_assign_index_one.x.
-    # Linux and Darwin still gcc the C seed into the same filename.
+    # Linux rebuilds the same .x into the same filename.
+    # Darwin still compiles the C seed into that filename.
     # It is inside _PABI_SELFHOST, ahead of
     # _WIN_ASSIGN_OVERRIDES. PE --allow-multiple-definition is first-wins,
     # so src/win_assign_index_override.o is a later T and does not run.
