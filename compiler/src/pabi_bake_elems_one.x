@@ -6,8 +6,8 @@
 // flow in one function. That one function's frame is smash size
 // 0xb40, so this TU splits the work into file-local helpers. Do not
 // PREFER the thin. Do not fold this TU into the egg. Do not gcc the
-// seed on the Windows path. Linux still compiles the C. Darwin still
-// builds the thin. PLATFORM: SHARED body. Windows relink consumes it.
+// seed on the Windows or Linux path. Darwin still prepends a leftover
+// object. PLATFORM: SHARED body. Linux and Windows relinks consume it.
 
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
@@ -254,8 +254,8 @@ function bake_elems_one_elem(
  * count or element count past the span returns -1. Named i8 is 1 byte.
  * Named i16 and u16 are 2 bytes. A named stride outside 1/2/4/8 stays
  * when it is positive. File-local helpers keep each frame off the
- * smash sizes. PLATFORM: SHARED — one strong T. Windows links this
- * ahead of the egg.
+ * smash sizes. PLATFORM: SHARED — one strong T. Linux and Windows
+ * link this ahead of the egg.
  */
 #[no_mangle]
 export function pipe_modlet_bake_array_lit_elems_to_data(

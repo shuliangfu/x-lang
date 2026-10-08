@@ -1105,13 +1105,27 @@ if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/runtime_pipeline_abi
   _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_widen_mixed_thin.o $_PABI_SELFHOST"
 fi
 # w1012: true-pack ARRAY i8 INDEX esz=1 + sext8 emit_index. First-wins.
-# bake_elems + bake_struct are the Darwin/Win baker twins; on Linux they
-# first-win the bake face when modlet.o cannot rebuild (T001). They
-# cross-call; both must link. Prefer ahead of other pabi sidecars.
-# PLATFORM: LINUX
+# bake_elems + bake_struct cross-call; both must link when the struct
+# baker is present. PLATFORM: LINUX
 # w1021: module STRUCT_LIT-in-ARRAY CG002 when bake_struct was parked
-# (.o.off) and bake_elems orphan-gated. Restore bake_struct; rebuild
-# bake_elems from SHARED host-gcc seed (same as Win). PLATFORM: LINUX.
+# (.o.off). Restore that object before the baker is considered.
+# w2068: one strong T from src/pabi_bake_elems_one.x. g05 used to gcc
+# seeds/win_bake_elems_override.c into bake_elems.o when bake_struct.o
+# was present. That object defined only
+# pipe_modlet_bake_array_lit_elems_to_data. Windows already builds the
+# same .x. File-local helpers stay in this object. They are not a
+# second link winner. The .x calls pipe_modlet_bake_struct_lit_to_data.
+# Orphan tip (no bake_struct.o and no modlet.o) would pure-ld UNDEF, so
+# rebuild only when one of those objects is present. A missing object
+# then exits 1. The measured pabi_alias.o copy is T. The measured
+# src/runtime_pipeline_abi.o copy is T. The measured pabi_weak.o copy
+# is W. bake_struct.o references this symbol, so --gc-sections keeps
+# the object. A strong T in the build_asm link object is weakened.
+# Never edit src/runtime_pipeline_abi.o. Do not PREFER
+# runtime_pipeline_abi_modlet_bake_elems_thin.x (frame 0xb40). Do not
+# fold this TU into the egg. Darwin still prepends a leftover
+# bake_elems.o only. The product frame stays under one page.
+# PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ]; then
   if [ ! -s build_asm/selfhost_pabi/bake_struct.o ] \
     && [ -s build_asm/selfhost_pabi/bake_struct.o.off ]; then
@@ -1119,9 +1133,24 @@ if [ -n "$_PABI_SELFHOST" ]; then
       build_asm/selfhost_pabi/bake_struct.o
   fi
   if [ -s build_asm/selfhost_pabi/bake_struct.o ] \
-    && [ -f seeds/win_bake_elems_override.c ]; then
-    gcc -c -O2 -o build_asm/selfhost_pabi/bake_elems.o \
-      seeds/win_bake_elems_override.c || true
+    || [ -s build_asm/selfhost_pabi/modlet.o ]; then
+    _g05_pure_overlay src/pabi_bake_elems_one.x \
+      build_asm/selfhost_pabi/bake_elems.o \
+      pipe_modlet_bake_array_lit_elems_to_data
+    if [ ! -s build_asm/selfhost_pabi/bake_elems.o ]; then
+      echo "g05_relink_env: ERROR Linux bake_elems .x did not build" >&2
+      exit 1
+    fi
+    case "$_PABI_LINK_O" in
+      build_asm/*)
+        if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T pipe_modlet_bake_array_lit_elems_to_data$"; then
+          if ! objcopy --weaken-symbol="pipe_modlet_bake_array_lit_elems_to_data" "$_PABI_LINK_O"; then
+            echo "g05_relink_env: weaken pipe_modlet_bake_array_lit_elems_to_data in $_PABI_LINK_O failed (Linux bake_elems)" >&2
+            exit 1
+          fi
+        fi
+        ;;
+    esac
   fi
 fi
 # w1017: elem_const tip first-wins folder when modlet.o is stale (T001 on
@@ -1132,13 +1161,15 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_struct.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
 fi
-# bake_elems U-calls bake_struct. Orphan tip (no bake_struct.o and no
-# modlet.o) → pure-ld UNDEF. Skip alone; weak egg bake_array remains.
+# bake_elems calls bake_struct. Orphan tip (no bake_struct.o and no
+# modlet.o) would pure-ld UNDEF. Skip alone; the egg baker remains.
+# The symbol is a link winner only when this object is actually linked.
 # PLATFORM: LINUX
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/bake_elems.o ] \
   && { [ -s build_asm/selfhost_pabi/bake_struct.o ] \
     || [ -s build_asm/selfhost_pabi/modlet.o ]; }; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipe_modlet_bake_array_lit_elems_to_data=build_asm/selfhost_pabi/bake_elems.o"
 fi
 # w2061: three strong T, three objects. The sidecar used to gcc
 # seeds/win_index_elem_byte_sz_override.c into one object. That object
@@ -1206,8 +1237,7 @@ fi
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
 # emit_index_true_i8.o. Darwin still prepends that leftover only.
-# Do not cc -r the two objects back into one. bake_elems stays
-# on the gcc path.
+# Do not cc -r the two objects back into one.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_emit_index_arms_one.x \
@@ -1285,8 +1315,7 @@ fi
 # src/runtime_pipeline_abi.o. Do not keep the combined leftover as
 # the only definition. Darwin still prepends that leftover only.
 # Do not cc -r the two objects back into one. Do not PREFER
-# runtime_pipeline_abi_fnptr_array_esz_thin.x. bake_elems stays
-# on the gcc path.
+# runtime_pipeline_abi_fnptr_array_esz_thin.x.
 # File-local helpers stay strong in their object.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -1332,7 +1361,6 @@ fi
 # pabi_alias.o copy is W. A strong T in the build_asm link object is
 # weakened. Never edit src/runtime_pipeline_abi.o. Darwin still gcc's
 # the C seed. The product frame of this .x stays under one page.
-# bake_elems stays on the gcc path.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
@@ -1525,7 +1553,7 @@ esac
 # names to _G05_LINK_WINNERS. A strong T in the build_asm link object
 # is weakened. Never edit src/runtime_pipeline_abi.o. Darwin still
 # gcc's the C seed into one object. Do not cc -r the three objects
-# back into one. bake_elems stays on the gcc path.
+# back into one.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_vector_let_init_nested_one.x \
@@ -1578,8 +1606,7 @@ fi
 # egg copy in src/runtime_pipeline_abi.o is W, and the pabi_alias.o
 # copy is W. A strong T in the build_asm link object is weakened.
 # Never edit src/runtime_pipeline_abi.o. Darwin still gcc's the C seed.
-# The product frame of this .x stays under one page. bake_elems stays
-# on the gcc path.
+# The product frame of this .x stays under one page.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
@@ -2720,7 +2747,7 @@ case "$UNAME_S" in
     # w2060: one strong T from src/pabi_bake_elems_one.x. File-local
     # helpers stay in that object. They are not a second link winner.
     # Do not PREFER the thin. Do not gcc seeds/win_bake_elems_override.c
-    # here. Linux still compiles that C. Darwin still builds the thin.
+    # here. Linux rebuilds the same .x. Darwin still prepends a leftover.
     # A missing object exits 1. Default ON; set XLANG_WIN_BAKE_TIP=0
     # for Cap residual. INDEX tip is three .x objects, not -D gcc.
     # PLATFORM: WINDOWS.
@@ -2729,7 +2756,7 @@ case "$UNAME_S" in
       mkdir -p build_asm/selfhost_pabi
       # w2060: one strong T from src/pabi_bake_elems_one.x.
       # The egg keeps a different body. The thin stays off.
-      # Linux still compiles the C seed. A missing object exits 1.
+      # Linux rebuilds the same .x. A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_bake_elems_one.x \
         build_asm/selfhost_pabi/bake_elems.o \
