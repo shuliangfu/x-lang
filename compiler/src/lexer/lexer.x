@@ -106,7 +106,12 @@ export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
  * num_funcs == 0.
  *
  * Field-by-field stores fault the pin egg. This copies the same 48-byte
- * image a correct struct assignment writes.
+ * image a correct struct assignment writes. The pointer is not retained.
+ *
+ * A caller that passes the address of a block-local Token together with
+ * an outer *Token must wrap the call in unsafe. Bootstrap typeck rejects
+ * that pair outside unsafe (T001 stack escape). A by-value parameter is
+ * not a block local, so write_tok_into does not need the wrapper.
  *
  * @param dst *Token — destination token; caller does not pass null
  * @param src *Token — source image; caller does not pass null
@@ -2499,7 +2504,10 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
     ident: (0 as *u8),
     ident_len: nlen };
   // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
-  lexer_store_token(out, &t);
+  // `&t` is a block local. Passing it with outer *Token is T001 unless
+  // the call is in unsafe. The callee copies 48 bytes and drops the pointer.
+  // PLATFORM: SHARED.
+  unsafe { lexer_store_token(out, &t); }
   return;
 }
 
@@ -2689,7 +2697,10 @@ i32): void {
   let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
   // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
-  lexer_store_token(out, &t);
+  // `&t` is a block local. Passing it with outer *Token is T001 unless
+  // the call is in unsafe. The callee copies 48 bytes and drops the pointer.
+  // PLATFORM: SHARED.
+  unsafe { lexer_store_token(out, &t); }
   return;
 }
 
