@@ -2551,10 +2551,33 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR Windows fixed_array .x did not build" >&2
         exit 1
       fi
-      # w1023: nested ARRAY_LIT → array_lit_flat. PLATFORM: WINDOWS.
-      if [ -f seeds/vector_let_init_nested_override.c ]; then
-        gcc -c -O2 -o build_asm/selfhost_pabi/vector_let_init_nested.o \
-          seeds/vector_let_init_nested_override.c || true
+      # w1023: nested ARRAY_LIT → array_lit_flat.
+      # w2060: short name from src/pabi_vector_let_init_nested_one.x.
+      # The mangled name and stubdead each forward from their own object.
+      # Same-.o dual T smashes i32. File-local helpers stay with the
+      # short name. Do not gcc seeds/vector_let_init_nested_override.c
+      # here. Linux and Darwin still compile that C. A missing object
+      # exits 1. PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_vector_let_init_nested_one.x \
+        build_asm/selfhost_pabi/vector_let_init_nested.o \
+        pipeline_asm_emit_vector_let_init_elf_c
+      if [ ! -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
+        echo "g05_relink_env: ERROR Windows vector_let .x did not build" >&2
+        exit 1
+      fi
+      _g05_pure_overlay src/pabi_vector_let_init_mangled_one.x \
+        build_asm/selfhost_pabi/vector_let_init_mangled.o \
+        pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32
+      if [ ! -s build_asm/selfhost_pabi/vector_let_init_mangled.o ]; then
+        echo "g05_relink_env: ERROR Windows vector_let mangled .x did not build" >&2
+        exit 1
+      fi
+      _g05_pure_overlay src/pabi_vector_let_init_stubdead_one.x \
+        build_asm/selfhost_pabi/vector_let_init_stubdead.o \
+        pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32_pabi_stubdead
+      if [ ! -s build_asm/selfhost_pabi/vector_let_init_stubdead.o ]; then
+        echo "g05_relink_env: ERROR Windows vector_let stubdead .x did not build" >&2
+        exit 1
       fi
       # w1024: module VAR → local fixed-array.
       # w2060: one strong T from src/pabi_fixed_array_let_init_module_var_one.x.
@@ -2629,6 +2652,12 @@ case "$UNAME_S" in
       fi
       if [ -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
         _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_nested.o $_PABI_SELFHOST"
+      fi
+      if [ -s build_asm/selfhost_pabi/vector_let_init_mangled.o ]; then
+        _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_mangled.o $_PABI_SELFHOST"
+      fi
+      if [ -s build_asm/selfhost_pabi/vector_let_init_stubdead.o ]; then
+        _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_stubdead.o $_PABI_SELFHOST"
       fi
       if [ -s build_asm/selfhost_pabi/fixed_array_let_init_module_var.o ]; then
         _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_let_init_module_var.o $_PABI_SELFHOST"
