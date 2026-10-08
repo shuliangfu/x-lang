@@ -4696,13 +4696,14 @@ esac
 # same seed as its own object after codegen_x.o. With a host-cc
 # codegen_x.o the symbols are duplicated and the earlier copy wins.
 # Linux and Darwin (w2060: Darwin's codegen_x.o is pure asm since 7.2, so
-# its g1 link had these names undefined). Windows still links the w1549
-# image, whose codegen_x.o already contains the paste. Does not rebuild the
-# pabi egg and does not set XLANG_CODEGEN_FROM_X.
-# PLATFORM: LINUX|MACOS
+# its g1 link had these names undefined). w2084: Windows g1 rebuilt
+# codegen_x.o pure-asm (stamp kept) and the link missed these names.
+# The w1549 paste is no longer the object on the link. Does not rebuild
+# the pabi egg and does not set XLANG_CODEGEN_FROM_X.
+# PLATFORM: LINUX|MACOS|WINDOWS
 _CODEGEN_CAP_RESIDUAL=""
 case "$UNAME_S" in
-  Linux|Darwin)
+  Linux|Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT)
     if [ "${XLANG_CODEGEN_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _cap_o=build_asm/selfhost_pabi/codegen_cap_residual.o
@@ -4724,9 +4725,9 @@ esac
 # typeck_x.o. With a host-cc typeck_x.o the symbols are duplicated and
 # the earlier copy wins. Linux and Darwin (w2060: Darwin's typeck_x.o is
 # pure asm since 7.2 and its g1 link missed typeck_get_allow_legacy_extern_calls).
-# Windows still links the w1549 image, whose typeck_x.o already contains
-# the paste. Does not rebuild the pabi egg and does not set XLANG_TYPECK_FROM_X.
-# PLATFORM: LINUX|MACOS
+# w2084: Windows typeck_x.o is pure-asm too (stamp kept) and missed the same
+# names. Does not rebuild the pabi egg and does not set XLANG_TYPECK_FROM_X.
+# PLATFORM: LINUX|MACOS|WINDOWS
 # w2055: when the CTFE object below is linked it already defines the slot
 # prefix (seeds/typeck_ctfe_tu.c includes the whole residual). Then this
 # object is compiled with TYPECK_ALLOW_LEGACY_ONLY and carries only the
@@ -4735,7 +4736,7 @@ esac
 # --allow-multiple-definition. Same number of cc compiles either way.
 _TYPECK_CTFE_WANT=0
 case "$UNAME_S" in
-  Linux|Darwin)
+  Linux|Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT)
     if [ "${XLANG_TYPECK_CTFE:-1}" = "1" ] && \
         sh scripts/g05_ensure_relink_prereqs.sh --typeck-x-pure-asm-kept >/dev/null; then
       _TYPECK_CTFE_WANT=1
@@ -4744,7 +4745,7 @@ case "$UNAME_S" in
 esac
 _TYPECK_CAP_RESIDUAL=""
 case "$UNAME_S" in
-  Linux|Darwin)
+  Linux|Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT)
     if [ "${XLANG_TYPECK_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _tcap_o=build_asm/selfhost_pabi/typeck_cap_residual.o
@@ -4774,11 +4775,13 @@ esac
 # so this script's eval output stays assignment-only. Does not set
 # XLANG_TYPECK_FROM_X and does not edit the residual seed (a seed edit
 # would make the next ensure splice and host-cc typeck_gen.c).
-# PLATFORM: LINUX|MACOS — w2060: Darwin has the pure-asm typeck stamp since
-# 7.2 and its g1 link missed the typeck_fold_* faces. Windows has no stamp.
+# PLATFORM: LINUX|MACOS|WINDOWS — w2060: Darwin has the pure-asm typeck
+# stamp since 7.2. w2084: Windows stamp matches too; the g1 link missed
+# the typeck_fold_* faces. PE --allow-multiple-definition is first-wins,
+# same as the Linux flag already on this link.
 _TYPECK_CTFE=""
 case "$UNAME_S" in
-  Linux|Darwin)
+  Linux|Darwin|MINGW*|MSYS*|CYGWIN*|Windows_NT)
     if [ "$_TYPECK_CTFE_WANT" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _tctfe_h=build_asm/selfhost_pabi/typeck_expr_layout.h
@@ -4800,7 +4803,22 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-_X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o"
+# w2084: thunks for the call spellings measured on the Windows g1 link.
+# See src/asm/win_v1_frontend_call_alias.s. Empty on Linux and Darwin.
+# PLATFORM: WINDOWS
+_WIN_V1_CALL_ALIAS=""
+case "$UNAME_S" in
+  MINGW*|MSYS*|CYGWIN*|Windows_NT)
+    mkdir -p build_asm/selfhost_pabi
+    _walias_o=build_asm/selfhost_pabi/win_v1_frontend_call_alias.o
+    if ! $G05_CC -c -o "$_walias_o" src/asm/win_v1_frontend_call_alias.s; then
+      echo "g05_relink_env: win v1 call alias assemble failed" >&2
+      exit 1
+    fi
+    _WIN_V1_CALL_ALIAS="$_walias_o"
+    ;;
+esac
+_X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
 _DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）

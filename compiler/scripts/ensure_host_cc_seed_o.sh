@@ -15010,7 +15010,18 @@ ensure_r3_prefer_one() {
     fi
     # 2) thin / primary .x
     if [ "$ok" != "1" ] && [ -f "$x_src" ]; then
-      if r3_prefer_try_step "$o" "$x_src" "$rest_csv" "$nm_sym" "$seed" "$xlang_bin"; then
+      # w2084: runtime_driver_abi_thin.x divides (t/10, u/256). Windows
+      # measurement: pure_asm_x_to_o returns 0 with this flag (85502 bytes,
+      # T driver_typeck_hard_diag_note / _count). Without the flag the thin
+      # is deleted, prefer falls through to the C seed, and those bodies
+      # never reach the link. The weak body is in lexer_x.o. Other leaves
+      # keep the reject. PLATFORM: SHARED flag. Measured on WINDOWS x86_64.
+      if [ "$o" = "src/runtime_driver_abi.o" ]; then
+        if XLANG_PURE_ASM_ALLOW_U_PANIC=1 \
+          r3_prefer_try_step "$o" "$x_src" "$rest_csv" "$nm_sym" "$seed" "$xlang_bin"; then
+          ok=1
+        fi
+      elif r3_prefer_try_step "$o" "$x_src" "$rest_csv" "$nm_sym" "$seed" "$xlang_bin"; then
         ok=1
       fi
     fi
