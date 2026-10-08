@@ -916,7 +916,8 @@ case "$UNAME_S" in
     # object below, ahead of asm_wpo_thin.o.
     # w2079: do not link src/win_assign_field_override.o. g05 rebuilds
     # src/pabi_assign_field_one.x and appends that object below, ahead
-    # of the egg. PLATFORM: WINDOWS.
+    # of the egg. Darwin rebuilds the same .x in its own block.
+    # PLATFORM: WINDOWS.
     for _wov in src/win_assign_index_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
@@ -2549,16 +2550,34 @@ EOF
   fi
   _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_emit_assign_index_elf_c=build_asm/selfhost_pabi/assign_index_true_i8.o"
-  # w1509 (10.32): the pabi field-assign body only took plain `=` (kind 28),
-  # so `p.x += 4` failed with CG002. Build the shared field-assign seed (same
-  # body plus compound ops) every relink and weaken the pabi copy.
+  # w2080: field assign from src/pabi_assign_field_one.x. The egg
+  # body is shorter. This object is the seeds/win_assign_field_override.c
+  # body. pabi_weak.o still holds a strong copy, so that copy is
+  # weakened below and this object is prepended. assign_field_thin.x
+  # is a different dispatcher and stays off. The scalar thin is a
+  # different symbol. Four file-local helpers stay in this object.
+  # They are not a second link winner. Measured arm64 frames, one
+  # prologue subtract each: cell 0x60, flags 0x950, wide 0xc90,
+  # scalar 0x8d0, export 0x560. The export also subtracts 0x20 around
+  # one call and adds it back. All prologue frames are under one page.
+  # None is 0xb40 or 0xba0. No xlang_panic_. The wide gate is
+  # ek == 28 and ta == 0, so Darwin (ta != 0) stays on the scalar
+  # store. A missing object exits 1. Do not record link winners.
+  # Do not gcc seeds/win_assign_field_override.c. Do not PREFER this
+  # file into the egg. Never edit src/runtime_pipeline_abi.o.
+  # PLATFORM: MACOS | DARWIN.
   rm -f build_asm/selfhost_pabi/assign_field_seed.o
-  if [ -f seeds/win_assign_field_override.c ]; then
-    if ! cc -c -O2 -o build_asm/selfhost_pabi/assign_field_seed.o \
-        seeds/win_assign_field_override.c; then
-      echo "g05_relink_env: assign_field_seed cc failed" >&2
-      rm -f build_asm/selfhost_pabi/assign_field_seed.o
-    fi
+  _g05_pure_overlay src/pabi_assign_field_one.x \
+    build_asm/selfhost_pabi/assign_field_seed.o \
+    glue_emit_assign_field_elf_c
+  if [ ! -s build_asm/selfhost_pabi/assign_field_seed.o ]; then
+    echo "g05_relink_env: ERROR Darwin assign_field .x did not build" >&2
+    exit 1
+  fi
+  if nm build_asm/selfhost_pabi/assign_field_seed.o 2>/dev/null \
+      | grep -q 'xlang_panic_'; then
+    echo "g05_relink_env: Darwin assign_field references xlang_panic_" >&2
+    exit 1
   fi
   if [ -s build_asm/selfhost_pabi/assign_field_seed.o ]; then
     _oc=""
@@ -3313,8 +3332,8 @@ case "$UNAME_S" in
     # 0x958, wide 0xab8, scalar 0x918, export 0x448. All are under one
     # page. None is 0xb40 or 0xba0. No xlang_panic_. A missing object
     # exits 1. Do not weaken the egg. Do not record link winners.
-    # Do not gcc seeds/win_assign_field_override.c. Darwin still
-    # compiles that seed. Never edit src/runtime_pipeline_abi.o.
+    # Do not gcc seeds/win_assign_field_override.c. Darwin rebuilds
+    # the same .x. Never edit src/runtime_pipeline_abi.o.
     # PLATFORM: WINDOWS | MSYS | MINGW.
     _g05_pure_overlay src/pabi_assign_field_one.x \
       build_asm/selfhost_pabi/assign_field_win.o \

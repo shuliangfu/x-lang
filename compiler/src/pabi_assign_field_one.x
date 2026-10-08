@@ -6,10 +6,11 @@
 // different symbol. File-local helpers keep each frame under one page.
 // One product function of the whole body spills a multi-page frame.
 // Pipe cells hold extern results. Do not write x = extern().
-// PLATFORM: WINDOWS | MSYS | MINGW. g05 rebuilds this file into
-// build_asm/selfhost_pabi/assign_field_win.o. Darwin still compiles
-// seeds/win_assign_field_override.c. Do not PREFER this file into
-// runtime_pipeline_abi.o. Do not gcc that seed on Windows.
+// PLATFORM: WINDOWS | MSYS | MINGW | MACOS | DARWIN. Windows g05
+// rebuilds this file into build_asm/selfhost_pabi/assign_field_win.o.
+// Darwin g05 rebuilds it into build_asm/selfhost_pabi/assign_field_seed.o
+// and weakens the pabi_weak copy. Do not PREFER this file into
+// runtime_pipeline_abi.o. Do not gcc seeds/win_assign_field_override.c.
 
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_c(
@@ -466,7 +467,8 @@ function assign_field_one_scalar(
  * a CALL through sret, and an INDEX through memcpy. Exactly 16 bytes uses
  * let-init only when the base is a pointer and the RHS is a frame VAR or
  * a FIELD. ta != 0 stays on the one-GPR store. Pipe cells hold extern
- * results. PLATFORM: WINDOWS — one strong T, linked ahead of the egg.
+ * results. PLATFORM: WINDOWS | DARWIN — one strong T. Windows links
+ * this object ahead of the egg. Darwin weakens the pabi_weak copy.
  */
 #[no_mangle]
 export function glue_emit_assign_field_elf_c(
