@@ -837,8 +837,9 @@ case "$UNAME_S" in
     ;;
 esac
 # wave767 Class R: Win PE assign overrides (allow-multiple first-wins).
-# field stays. var and deref scalar are the egg T. Built by g05_ensure
-# when seeds present.
+# w2079: field is src/pabi_assign_field_one.x, appended below. var and
+# deref scalar are the egg T. Index and the non-D elem object are built
+# by g05_ensure only when XLANG_WIN_BAKE_TIP=0.
 # w2060: index is not in this list while the true-pack stack is on.
 # assign_index_true_i8.o is an earlier strong T of
 # glue_emit_assign_index_elf_c. See the filter after _WIN_TRUE_PACK.
@@ -912,8 +913,11 @@ case "$UNAME_S" in
     fi
     # w2078: do not link src/win_wpo_pgo_emit_override.o. g05 rebuilds
     # src/runtime_pipeline_abi_wpo_pgo_emit_thin.x and appends that
-    # object below, ahead of asm_wpo_thin.o. PLATFORM: WINDOWS.
-    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_index_elem_byte_sz_override.o; do
+    # object below, ahead of asm_wpo_thin.o.
+    # w2079: do not link src/win_assign_field_override.o. g05 rebuilds
+    # src/pabi_assign_field_one.x and appends that object below, ahead
+    # of the egg. PLATFORM: WINDOWS.
+    for _wov in src/win_assign_index_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue
@@ -3298,6 +3302,33 @@ case "$UNAME_S" in
       done
       _WIN_ASSIGN_OVERRIDES="$_win_asg_kept"
     fi
+    # w2079: field assign from src/pabi_assign_field_one.x. The egg T
+    # glue_emit_assign_field_elf_c is a shorter body (first diff at
+    # byte 5). This object is the seeds/win_assign_field_override.c
+    # body, appended onto _WIN_ASSIGN_OVERRIDES so it stays ahead of
+    # the egg. assign_field_thin.x is a different dispatcher and stays
+    # off. The scalar thin is a different symbol. Four file-local
+    # helpers stay in this object. They are not a second link winner.
+    # Measured x86_64 frames, one subtract each: cell 0x68, flags
+    # 0x958, wide 0xab8, scalar 0x918, export 0x448. All are under one
+    # page. None is 0xb40 or 0xba0. No xlang_panic_. A missing object
+    # exits 1. Do not weaken the egg. Do not record link winners.
+    # Do not gcc seeds/win_assign_field_override.c. Darwin still
+    # compiles that seed. Never edit src/runtime_pipeline_abi.o.
+    # PLATFORM: WINDOWS | MSYS | MINGW.
+    _g05_pure_overlay src/pabi_assign_field_one.x \
+      build_asm/selfhost_pabi/assign_field_win.o \
+      glue_emit_assign_field_elf_c
+    if [ ! -s build_asm/selfhost_pabi/assign_field_win.o ]; then
+      echo "g05_relink_env: ERROR Windows assign_field .x did not build" >&2
+      exit 1
+    fi
+    if nm build_asm/selfhost_pabi/assign_field_win.o 2>/dev/null | tr -d '\r' \
+        | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: Windows assign_field references xlang_panic_" >&2
+      exit 1
+    fi
+    _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES build_asm/selfhost_pabi/assign_field_win.o"
     # w2078: identity emit order from
     # src/runtime_pipeline_abi_wpo_pgo_emit_thin.x. The egg already has
     # this fill (prepare frame sub $0x30). The on-disk

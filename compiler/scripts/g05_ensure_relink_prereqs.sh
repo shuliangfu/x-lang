@@ -4926,10 +4926,12 @@ esac
 # windows_link_stubs.c.
 # w2078: seeds/win_wpo_pgo_emit_override.c is not a build input.
 # g05_relink rebuilds src/runtime_pipeline_abi_wpo_pgo_emit_thin.x.
-# PLATFORM: WINDOWS | MSYS | MINGW.
+# w2079: seeds/win_assign_field_override.c is not a Windows build input.
+# g05_relink rebuilds src/pabi_assign_field_one.x. Darwin still compiles
+# that seed. PLATFORM: WINDOWS | MSYS | MINGW.
 case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    for _pair in       "seeds/win_assign_field_override.c|src/win_assign_field_override.o"       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_index_elem_byte_sz_override.c|src/win_index_elem_byte_sz_override.o"
+    for _pair in       "seeds/win_assign_index_override.c|src/win_assign_index_override.o"       "seeds/win_index_elem_byte_sz_override.c|src/win_index_elem_byte_sz_override.o"
     do
       _src="${_pair%%|*}"
       _out="${_pair#*|}"
