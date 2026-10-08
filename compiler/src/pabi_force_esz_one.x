@@ -3,8 +3,9 @@
 // The sibling pipeline_asm_array_lit_elem_byte_sz_c is pabi_elem_byte_sz_one.x.
 // Do not compile the two files together. Same-.o dual T smashes i32.
 // Do not PREFER runtime_pipeline_abi_fnptr_array_esz_thin.x.
-// Darwin still prepends a leftover combined force_esz_true_i8.o.
-// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
+// Darwin rebuilds this file into force_esz_true_i8.o. Do not cc or gcc
+// the seed into one object on Windows, Linux, or Darwin.
+// PLATFORM: SHARED body. Linux, Darwin, and Windows relinks consume this file.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
@@ -47,7 +48,7 @@ function w496_cell_ptr(base: *u8): *u8 {
  * @return i32 — stride in bytes, or 0 when the lit should infer it
  * Named i8 returns 1. Named i16 and u16 return 2. Other named types
  * use glue_type_size_simple. TYPE_FN returns 8.
- * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32 {

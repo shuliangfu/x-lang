@@ -4,9 +4,9 @@
  * Cap residual named_builtin / glue_type_size_simple still report 4 for
  * i8/i16/u16 (struct fields). Tip first-wins force_esz + elem_byte_sz so
  * local lit stores pack like module bake. w1014 i8; w1015 i16; w1016 u16.
- * w2063: Windows and Linux build the two names from
+ * w2073: Windows, Linux, and Darwin build the two names from
  * src/pabi_force_esz_one.x and src/pabi_elem_byte_sz_one.x.
- * Darwin still prepends leftover force_esz_true_i8.o.
+ * Do not cc or gcc this file into one object on those paths.
  * Do not gcc this file into one Linux object. Do not put both
  * strong names in one product object.
  */

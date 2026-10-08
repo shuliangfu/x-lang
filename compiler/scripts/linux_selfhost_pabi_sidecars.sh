@@ -279,8 +279,9 @@ fi
 # gcc seeds/emit_index_true_i8_override.c here.
 # w2063: force_esz and elem_byte_sz are two strong T from two .x.
 # One gcc object defined both names. Same-.o dual T smashes i32.
-# g05_relink_env.sh rebuilds the same two every Linux relink. Do not
-# gcc seeds/force_esz_true_i8_override.c here. Do not PREFER
+# g05_relink_env.sh rebuilds the same two every Linux relink. Darwin
+# rebuilds the same two .x. Do not gcc seeds/force_esz_true_i8_override.c
+# here. Do not PREFER
 # runtime_pipeline_abi_fnptr_array_esz_thin.x. PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: w2061 index_elem three .x"
 _ie_xl=./xlang_asm
