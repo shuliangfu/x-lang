@@ -910,7 +910,10 @@ case "$UNAME_S" in
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
       _skip_src_win_index=1
     fi
-    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_wpo_pgo_emit_override.o src/win_index_elem_byte_sz_override.o; do
+    # w2078: do not link src/win_wpo_pgo_emit_override.o. g05 rebuilds
+    # src/runtime_pipeline_abi_wpo_pgo_emit_thin.x and appends that
+    # object below, ahead of asm_wpo_thin.o. PLATFORM: WINDOWS.
+    for _wov in src/win_assign_field_override.o src/win_assign_index_override.o src/win_index_elem_byte_sz_override.o; do
       if [ "$_skip_src_win_index" = "1" ] \
         && [ "$_wov" = "src/win_index_elem_byte_sz_override.o" ]; then
         continue
@@ -3295,6 +3298,47 @@ case "$UNAME_S" in
       done
       _WIN_ASSIGN_OVERRIDES="$_win_asg_kept"
     fi
+    # w2078: identity emit order from
+    # src/runtime_pipeline_abi_wpo_pgo_emit_thin.x. The egg already has
+    # this fill (prepare frame sub $0x30). The on-disk
+    # asm_wpo_thin.o defines the same three names with a WPO filter and
+    # a depth sort (prepare frame sub $0x288) and is linked later, so
+    # this object is appended onto _WIN_ASSIGN_OVERRIDES, which is
+    # before _PABI_WPO_THIN. Three T stay in this one object, matching
+    # the old gcc override. They are not a second WPO winner. Measured
+    # x86_64 frames: prepare sub $0xa8, count and at sub $0x68. Each is
+    # one subtract, under one page. Cap compare is setl against $0x1000.
+    # No xlang_panic_ reloc. No should_emit call. Lxml commons do not
+    # collide with the egg or the thin. A missing object exits 1. Do not
+    # weaken the egg copy. Do not record link winners. Do not gcc
+    # seeds/win_wpo_pgo_emit_override.c. Never edit
+    # src/runtime_pipeline_abi.o. PLATFORM: WINDOWS | MSYS | MINGW.
+    _g05_pure_overlay src/runtime_pipeline_abi_wpo_pgo_emit_thin.x \
+      build_asm/selfhost_pabi/wpo_pgo_emit_win.o \
+      pipeline_asm_wpo_pgo_emit_order_prepare
+    if [ ! -s build_asm/selfhost_pabi/wpo_pgo_emit_win.o ]; then
+      echo "g05_relink_env: ERROR Windows wpo pgo emit .x did not build" >&2
+      exit 1
+    fi
+    for _wpgo_s in pipeline_asm_wpo_pgo_emit_order_count \
+        pipeline_asm_wpo_pgo_emit_order_at; do
+      if ! nm build_asm/selfhost_pabi/wpo_pgo_emit_win.o 2>/dev/null | tr -d '\r' \
+          | grep -q " T ${_wpgo_s}\$"; then
+        echo "g05_relink_env: Windows wpo pgo emit lacks strong $_wpgo_s" >&2
+        exit 1
+      fi
+    done
+    if nm build_asm/selfhost_pabi/wpo_pgo_emit_win.o 2>/dev/null | tr -d '\r' \
+        | grep -q 'xlang_panic_'; then
+      echo "g05_relink_env: Windows wpo pgo emit references xlang_panic_" >&2
+      exit 1
+    fi
+    if nm build_asm/selfhost_pabi/wpo_pgo_emit_win.o 2>/dev/null | tr -d '\r' \
+        | grep -q 'pipeline_asm_wpo_should_emit_func'; then
+      echo "g05_relink_env: Windows wpo pgo emit calls should_emit" >&2
+      exit 1
+    fi
+    _WIN_ASSIGN_OVERRIDES="$_WIN_ASSIGN_OVERRIDES build_asm/selfhost_pabi/wpo_pgo_emit_win.o"
     if [ "$_WIN_TRUE_PACK" = "1" ]; then
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
