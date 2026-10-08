@@ -1,10 +1,12 @@
-// One strong pipeline_asm_emit_index_elf_c for the Windows true-pack
-// link. The same body lives in runtime_pipeline_abi_emit_index_thin.x.
-// Do not PREFER that thin. Do not compile this file together with
+// One strong pipeline_asm_emit_index_elf_c. Windows and Linux each
+// build this file into its own object. The same body lives in
+// runtime_pipeline_abi_emit_index_thin.x. Do not PREFER that thin.
+// Do not compile this file together with
 // glue_emit_index_load_arms_elf_c: same-.o dual T smashes i32.
 // That export stays in pabi_emit_index_arms_one.x.
-// Do not gcc seeds/emit_index_true_i8_override.c for this symbol.
-// PLATFORM: SHARED body. Windows relink is the build that consumes it.
+// Do not gcc seeds/emit_index_true_i8_override.c into one object with
+// the arms symbol. Darwin still prepends a leftover combined object.
+// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
 
 export extern function glue_emit_index_eff_addr_scaled_elf_c(
   arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32,
@@ -36,7 +38,7 @@ export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
  * @return i32 — -1 when base or index is missing, or the address emit fails;
  *   otherwise the cached-load rc or the load-arm rc
  * A cache hit skips the address emit and the load arms.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function pipeline_asm_emit_index_elf_c(

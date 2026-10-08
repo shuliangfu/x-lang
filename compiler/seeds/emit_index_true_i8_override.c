@@ -6,10 +6,13 @@
  * LDRSH. u8/bool keep zext8; bare esz==2 without named i16 uses zext16.
  * G.7 tip first-wins over weak pabi emit_index (HARD BAN PREFER into mega).
  * w1015: add esz==2 sext16/zext16 arms.
- * w2060: Windows true-pack builds the two strong T from
- * src/pabi_emit_index_arms_one.x and src/pabi_emit_index_elf_one.x.
- * Do not gcc this file on that path. Do not put both symbols in one
- * product .o. The Linux sidecar still compiles this C with no -D.
+ * Authority: SHARED tip first-wins. Windows and Linux build the two
+ * strong names from src/pabi_emit_index_arms_one.x and
+ * src/pabi_emit_index_elf_one.x. Darwin still prepends a leftover
+ * emit_index_true_i8.o and is not retargeted.
+ * w2062: do not gcc this file on the Windows true-pack path, and do
+ * not gcc it into the Linux emit_index objects. Do not put both
+ * strong names in one product object.
  */
 #include <stdint.h>
 

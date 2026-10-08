@@ -272,8 +272,11 @@ fi
 # i32. The _c body calls the peeler as an extern. g05_relink_env.sh
 # rebuilds the same three every Linux relink. Do not gcc
 # seeds/win_index_elem_byte_sz_override.c here. Darwin is not
-# retargeted. emit_index, assign_index, and force_esz stay gcc below.
-# PLATFORM: LINUX.
+# retargeted. assign_index and force_esz stay gcc below.
+# w2062: emit_index is two strong T from two .x. One gcc object defined
+# both names. The elf body calls the arms export as an extern.
+# g05_relink_env.sh rebuilds the same two every Linux relink. Do not
+# gcc seeds/emit_index_true_i8_override.c here. PLATFORM: LINUX.
 echo "linux_selfhost_pabi_sidecars: w2061 index_elem three .x"
 _ie_xl=./xlang_asm
 if [ ! -x "$_ie_xl" ]; then
@@ -303,7 +306,12 @@ _ie_one src/pabi_index_elem_byte_sz_one.x \
 _ie_one src/pabi_index_elem_wrap_one.x \
   "$OUT/index_elem_wrap.o" \
   pipeline_asm_index_elem_byte_sz
-gcc -c -O2 -o "$OUT/emit_index_true_i8.o" seeds/emit_index_true_i8_override.c
+_ie_one src/pabi_emit_index_arms_one.x \
+  "$OUT/emit_index_arms_true_i8.o" \
+  glue_emit_index_load_arms_elf_c
+_ie_one src/pabi_emit_index_elf_one.x \
+  "$OUT/emit_index_elf_true_i8.o" \
+  pipeline_asm_emit_index_elf_c
 gcc -c -O2 -o "$OUT/assign_index_true_i8.o" seeds/assign_index_true_i8_override.c
 gcc -c -O2 -o "$OUT/force_esz_true_i8.o" seeds/force_esz_true_i8_override.c
 
