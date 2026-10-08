@@ -4,6 +4,11 @@
  * Cap residual named_builtin / glue_type_size_simple still report 4 for
  * i8/i16/u16 (struct fields). Tip first-wins force_esz + elem_byte_sz so
  * local lit stores pack like module bake. w1014 i8; w1015 i16; w1016 u16.
+ * w2063: Windows and Linux build the two names from
+ * src/pabi_force_esz_one.x and src/pabi_elem_byte_sz_one.x.
+ * Darwin still prepends leftover force_esz_true_i8.o.
+ * Do not gcc this file into one Linux object. Do not put both
+ * strong names in one product object.
  */
 #include <stdint.h>
 
@@ -26,6 +31,8 @@ extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_re
  * with ./xlang_asm. Do not gcc -DXLANG_WIN_FORCE_ESZ_ONLY on that path.
  * The sibling is src/pabi_elem_byte_sz_one.x. Do not gcc
  * -DXLANG_WIN_ELEM_BYTE_SZ_ONLY on that path either.
+ * w2063: Linux relink builds the same two .x. Do not gcc this file
+ * into one Linux object. Darwin still prepends the leftover.
  */
 #if !defined(XLANG_WIN_ELEM_BYTE_SZ_ONLY)
 int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
@@ -77,6 +84,8 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
  * in its own object.
  * w2060: Windows relink builds it from src/pabi_elem_byte_sz_one.x
  * with ./xlang_asm. Do not gcc -DXLANG_WIN_ELEM_BYTE_SZ_ONLY.
+ * w2063: Linux relink builds the same .x into array_lit_esz_true_i8.o.
+ * Do not gcc this file into one Linux object.
  */
 #if !defined(XLANG_WIN_FORCE_ESZ_ONLY)
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {

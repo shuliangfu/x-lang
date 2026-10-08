@@ -1206,8 +1206,8 @@ fi
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
 # emit_index_true_i8.o. Darwin still prepends that leftover only.
-# Do not cc -r the two objects back into one. assign_index and
-# force_esz stay on the gcc path. PLATFORM: LINUX.
+# Do not cc -r the two objects back into one. assign_index stays
+# on the gcc path. PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_emit_index_arms_one.x \
     build_asm/selfhost_pabi/emit_index_arms_true_i8.o \
@@ -1252,8 +1252,52 @@ fi
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
 fi
-if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+# w2063: two strong T, two objects. The sidecar used to gcc
+# seeds/force_esz_true_i8_override.c into one object. That object
+# defined glue_array_lit_force_esz_from_elem_type_c and
+# pipeline_asm_array_lit_elem_byte_sz_c. Same-.o dual T of two link
+# winners smashes i32. Each name is its own .x. Rebuild every Linux
+# relink from the same .x Windows builds. A missing object exits 1.
+# The measured egg copies in pabi_alias.o are T. A strong T in the
+# build_asm link object is weakened. Never edit
+# src/runtime_pipeline_abi.o. Do not keep the combined leftover as
+# the only definition. Darwin still prepends that leftover only.
+# Do not cc -r the two objects back into one. Do not PREFER
+# runtime_pipeline_abi_fnptr_array_esz_thin.x. assign_index stays
+# on the gcc path. File-local helpers stay strong in their object.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  _g05_pure_overlay src/pabi_force_esz_one.x \
+    build_asm/selfhost_pabi/force_esz_true_i8.o \
+    glue_array_lit_force_esz_from_elem_type_c
+  if [ ! -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Linux force_esz .x did not build" >&2
+    exit 1
+  fi
+  _g05_pure_overlay src/pabi_elem_byte_sz_one.x \
+    build_asm/selfhost_pabi/array_lit_esz_true_i8.o \
+    pipeline_asm_array_lit_elem_byte_sz_c
+  if [ ! -s build_asm/selfhost_pabi/array_lit_esz_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Linux elem_byte_sz .x did not build" >&2
+    exit 1
+  fi
   _PABI_SELFHOST="build_asm/selfhost_pabi/force_esz_true_i8.o $_PABI_SELFHOST"
+  _PABI_SELFHOST="build_asm/selfhost_pabi/array_lit_esz_true_i8.o $_PABI_SELFHOST"
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      for _fe_s in glue_array_lit_force_esz_from_elem_type_c \
+        pipeline_asm_array_lit_elem_byte_sz_c; do
+        if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T ${_fe_s}$"; then
+          if ! objcopy --weaken-symbol="$_fe_s" "$_PABI_LINK_O"; then
+            echo "g05_relink_env: weaken $_fe_s in $_PABI_LINK_O failed (Linux force_esz)" >&2
+            exit 1
+          fi
+        fi
+      done
+      ;;
+  esac
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_array_lit_force_esz_from_elem_type_c=build_asm/selfhost_pabi/force_esz_true_i8.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_array_lit_elem_byte_sz_c=build_asm/selfhost_pabi/array_lit_esz_true_i8.o"
 fi
 # w1022: true-pack [N]i8 row stride for nested INDEX/bake. PLATFORM: LINUX.
 if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
@@ -2608,7 +2652,8 @@ case "$UNAME_S" in
       # w2060: one strong T from src/pabi_force_esz_one.x.
       # fnptr_array_esz_thin.x stays off (HARD BAN PREFER, same-.o dual T).
       # Do not gcc -DXLANG_WIN_FORCE_ESZ_ONLY. A missing object exits 1.
-      # PLATFORM: WINDOWS | MSYS | MINGW.
+      # Linux rebuilds the same .x. Darwin still prepends a leftover
+      # combined object only. PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_force_esz_one.x \
         build_asm/selfhost_pabi/force_esz_true_i8.o \
         glue_array_lit_force_esz_from_elem_type_c
@@ -2620,6 +2665,8 @@ case "$UNAME_S" in
       # fnptr_array_esz_thin.x stays off (HARD BAN PREFER, same-.o dual T).
       # Do not gcc -DXLANG_WIN_ELEM_BYTE_SZ_ONLY. Do not put this symbol
       # in force_esz_true_i8.o. A missing object exits 1.
+      # Linux rebuilds the same .x into array_lit_esz_true_i8.o.
+      # Darwin still prepends the combined leftover only.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_elem_byte_sz_one.x \
         build_asm/selfhost_pabi/array_lit_esz_true_i8.o \

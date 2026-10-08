@@ -1,9 +1,10 @@
-// One strong pipeline_asm_array_lit_elem_byte_sz_c for the Windows
-// true-pack link. The same body lives in fnptr_array_esz_thin.x.
-// Do not PREFER that thin: standalone -c of the whole file is a smash
-// frame and a same-.o dual T. Do not gcc -DXLANG_WIN_ELEM_BYTE_SZ_ONLY.
+// One strong pipeline_asm_array_lit_elem_byte_sz_c.
+// Windows and Linux each build this file into array_lit_esz_true_i8.o.
 // glue_array_lit_force_esz_from_elem_type_c stays in pabi_force_esz_one.x.
-// PLATFORM: SHARED body. Windows relink is the build that consumes it.
+// Do not compile the two files together. Same-.o dual T smashes i32.
+// Do not PREFER runtime_pipeline_abi_fnptr_array_esz_thin.x.
+// Darwin still prepends a leftover combined force_esz_true_i8.o.
+// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
@@ -50,7 +51,7 @@ function w496_cell_ptr(base: *u8): *u8 {
  * @return i32 — stride in bytes; 4 when the lit should use the default
  * Named i8 returns 1. Named i16 and u16 return 2. TYPE_FN returns 8.
  * A nested ARRAY_LIT (expr kind 46) returns count times the inner stride.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function pipeline_asm_array_lit_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32 {
