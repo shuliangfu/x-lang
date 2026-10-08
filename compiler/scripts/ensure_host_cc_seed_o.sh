@@ -14818,7 +14818,15 @@ ensure_call_dispatch_full_x() {
   fi
   mkdir -p "$(dirname "$o")" build_asm
   rm -f "$tmp_o"
-  if rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
+  # w2081: the Windows v1 compiler emits one U xlang_panic_ for the
+  # unsigned divide `imm_bits / 4` in glue_asm_emit_jmp_skip_string_then_lea
+  # (test rbx / jne / call / div, then mask 0x7ffff). The divisor is the
+  # constant 4. Newer Darwin and Linux compilers fold it and emit no
+  # panic reloc. The weak body is W xlang_panic_ in lexer_x.o, the same
+  # opt-in as backend_try_inline_dispatch. Without the flag, pure_asm
+  # deletes a complete object and g1 ensure exits 1.
+  # PLATFORM: SHARED flag; the shape that still emits the check is WINDOWS x86_64.
+  if XLANG_PURE_ASM_ALLOW_U_PANIC=1 rt_prefer_try_x_to_o "$x_src" "$tmp_o" && [ -s "$tmp_o" ] \
     && r3_prefer_nm_has_sym "$tmp_o" "backend_call_dispatch_x_w1524_anchor" \
     && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local_impl" \
     && r3_prefer_nm_has_sym "$tmp_o" "glue_try_std_heap_redirect_sym_local" \
