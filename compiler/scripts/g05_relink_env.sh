@@ -904,7 +904,7 @@ case "$UNAME_S" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     # w1020: when true-pack tip stack is ON (default; XLANG_WIN_BAKE_TIP=0
     # forces Cap residual), skip src/win_index Cap residual twin.
-    # Tip INDEX .o built with -DXLANG_WIN_TRUE_PACK. PLATFORM: WINDOWS.
+    # Tip INDEX objects are the three .x overlays. PLATFORM: WINDOWS.
     _skip_src_win_index=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
       && [ -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
@@ -2462,7 +2462,7 @@ case "$UNAME_S" in
     # Do not PREFER the thin. Do not gcc seeds/win_bake_elems_override.c
     # here. Linux still compiles that C. Darwin still builds the thin.
     # A missing object exits 1. Default ON; set XLANG_WIN_BAKE_TIP=0
-    # for Cap residual. INDEX tip still uses -DXLANG_WIN_TRUE_PACK.
+    # for Cap residual. INDEX tip is three .x objects, not -D gcc.
     # PLATFORM: WINDOWS.
     _WIN_TRUE_PACK=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ]; then
@@ -2478,10 +2478,36 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR Windows bake_elems .x did not build" >&2
         exit 1
       fi
-      if [ -f seeds/win_index_elem_byte_sz_override.c ]; then
-        gcc -c -O2 -DXLANG_WIN_TRUE_PACK \
-          -o build_asm/selfhost_pabi/index_elem_true_i8.o \
-          seeds/win_index_elem_byte_sz_override.c || true
+      # w2060: three strong T, three objects. Same-.o dual T smashes i32.
+      # pipeline_asm_index_elem_byte_sz_c calls
+      # glue_index_elem_byte_sz_from_type_ref_c as an extern. The short
+      # wrapper is a third object. True-pack widths (named i8=1, i16=2,
+      # u16=2) live in the .x. The egg glue body has no those parks.
+      # Do not fold into runtime_pipeline_abi.x. Do not gcc
+      # -DXLANG_WIN_TRUE_PACK seeds/win_index_elem_byte_sz_override.c
+      # here. Linux sidecar still gcc's that C. The non-D Cap residual
+      # object stays out of this link. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_index_elem_from_type_one.x \
+        build_asm/selfhost_pabi/index_elem_from_type.o \
+        glue_index_elem_byte_sz_from_type_ref_c
+      if [ ! -s build_asm/selfhost_pabi/index_elem_from_type.o ]; then
+        echo "g05_relink_env: ERROR Windows index_elem from_type .x did not build" >&2
+        exit 1
+      fi
+      _g05_pure_overlay src/pabi_index_elem_byte_sz_one.x \
+        build_asm/selfhost_pabi/index_elem_true_i8.o \
+        pipeline_asm_index_elem_byte_sz_c
+      if [ ! -s build_asm/selfhost_pabi/index_elem_true_i8.o ]; then
+        echo "g05_relink_env: ERROR Windows index_elem .x did not build" >&2
+        exit 1
+      fi
+      _g05_pure_overlay src/pabi_index_elem_wrap_one.x \
+        build_asm/selfhost_pabi/index_elem_wrap.o \
+        pipeline_asm_index_elem_byte_sz
+      if [ ! -s build_asm/selfhost_pabi/index_elem_wrap.o ]; then
+        echo "g05_relink_env: ERROR Windows index_elem wrap .x did not build" >&2
+        exit 1
       fi
       # w2060: one strong T from src/pabi_force_esz_one.x.
       # fnptr_array_esz_thin.x stays off (HARD BAN PREFER, same-.o dual T).
@@ -2617,15 +2643,12 @@ case "$UNAME_S" in
     # the override stays and still beats the egg. Do not switch
     # assign_index_thin.x on. PLATFORM: WINDOWS.
     # w2060: pipeline_asm_index_elem_byte_sz_c and its two siblings.
-    # The first strong T is index_elem_true_i8.o (-DXLANG_WIN_TRUE_PACK),
-    # ahead of _WIN_ASSIGN_OVERRIDES. The non-D
-    # src/win_index_elem_byte_sz_override.o is the Cap residual: the
-    # installed image's thunk matches the true-pack object, and the
-    # _c symbol is 1696 bytes later, not the residual 1680. The early
-    # skip above cannot see a true-pack object this same script has not
-    # compiled yet, so drop a leftover residual object here once the
-    # stack is actually on. XLANG_WIN_BAKE_TIP=0 leaves the residual
-    # linked, and it still beats the egg. Do not drop the -D compile.
+    # Each strong T is its own object, built from a .x above.
+    # index_elem_true_i8.o is the _c body. from_type is the peeler.
+    # wrap is the short forward. Same-.o dual T smashes i32.
+    # The non-D src/win_index_elem_byte_sz_override.o is the Cap residual.
+    # Drop it once this stack is on. XLANG_WIN_BAKE_TIP=0 leaves the
+    # residual linked, and it still beats the egg.
     # PLATFORM: WINDOWS.
     if [ "$_WIN_TRUE_PACK" = "1" ]; then
       _win_asg_kept=""
@@ -2642,6 +2665,12 @@ case "$UNAME_S" in
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_struct.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/bake_elems.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_true_i8.o $_PABI_SELFHOST"
+      if [ -s build_asm/selfhost_pabi/index_elem_from_type.o ]; then
+        _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_from_type.o $_PABI_SELFHOST"
+      fi
+      if [ -s build_asm/selfhost_pabi/index_elem_wrap.o ]; then
+        _PABI_SELFHOST="build_asm/selfhost_pabi/index_elem_wrap.o $_PABI_SELFHOST"
+      fi
       _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_arms_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_elf_true_i8.o $_PABI_SELFHOST"
       _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"

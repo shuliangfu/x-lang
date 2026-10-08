@@ -17,6 +17,12 @@
  * stays undeffed so default PE keeps esz=4.
  * Authority: SHARED tip first-wins (also Darwin/Linux via g05 sidecar).
  * Link FIRST via g05 _WIN_ASSIGN_OVERRIDES / selfhost_pabi.
+ * w2060: Windows true-pack builds the three strong names from
+ * src/pabi_index_elem_byte_sz_one.x,
+ * src/pabi_index_elem_from_type_one.x, and
+ * src/pabi_index_elem_wrap_one.x. Do not gcc -DXLANG_WIN_TRUE_PACK
+ * this file on that path. Linux sidecar still compiles this C.
+ * Do not put the three strong names in one product object.
  */
 #include <stdint.h>
 

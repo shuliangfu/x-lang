@@ -4944,11 +4944,11 @@ case "$(uname -s 2>/dev/null)" in
         continue
       fi
       # w2060: do not host-cc the non-D index-elem object while the
-      # true-pack stack is on (the default). The live PE strong T is
-      # index_elem_true_i8.o, built later with -DXLANG_WIN_TRUE_PACK.
+      # true-pack stack is on (the default). The live PE strong T
+      # objects are the three .x overlays in g05_relink_env.sh.
       # This non-D compile is the Cap residual (named i8/i16/u16 return
       # 4). XLANG_WIN_BAKE_TIP=0 still builds it, and that T beats the
-      # egg. If the later true-pack gcc fails, the egg T remains.
+      # egg. A missing true-pack .x object exits 1 in the relink.
       # PLATFORM: WINDOWS.
       if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
         && [ "$_src" = "seeds/win_index_elem_byte_sz_override.c" ]; then
