@@ -4,8 +4,8 @@
 // emits dest-in-rbx ARRAY_LIT element loops. Do not fold this TU into
 // that function. The two statics in the C stay file-local helpers in
 // this object. They are not a second link winner. Do not gcc the seed
-// on the Windows or Linux path. Darwin still compiles the C.
-// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
+// on the Windows, Linux, or Darwin path.
+// PLATFORM: SHARED body. Linux, Darwin, and Windows relinks consume this file.
 
 export extern function glue_type_is_fixed_array(arena: *u8, type_ref: i32): i32;
 export extern function glue_struct_lit_store_fixed_array_field_elf_c(
@@ -254,7 +254,7 @@ function fa_modvar_copy_local(
  * The struct-lit store then runs. 0 and -1 return immediately. -2 with
  * a non-local VAR and a real frame slot copies through two spills.
  * Any other store code is returned unchanged when that VAR shape misses.
- * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux, Darwin, and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function glue_emit_fixed_array_type_let_init_elf_c(

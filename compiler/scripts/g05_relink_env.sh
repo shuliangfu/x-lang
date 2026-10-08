@@ -1604,7 +1604,7 @@ fi
 # Rebuild every Linux relink. A missing object exits 1. The measured
 # egg copy in src/runtime_pipeline_abi.o is W, and the pabi_alias.o
 # copy is W. A strong T in the build_asm link object is weakened.
-# Never edit src/runtime_pipeline_abi.o. Darwin still gcc's the C seed.
+# Never edit src/runtime_pipeline_abi.o. Darwin rebuilds the same .x.
 # The product frame of this .x stays under one page.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -2499,32 +2499,52 @@ EOF
   _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_stubdead.o $_PABI_SELFHOST"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_emit_vector_let_init_elf_c=build_asm/selfhost_pabi/vector_let_init_nested.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_emit_vector_let_init_elf_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_i32_reti32_pabi_stubdead=build_asm/selfhost_pabi/vector_let_init_stubdead.o"
-  # w1024: module VAR → local fixed-array (store -2 → COMMON lea+copy).
+  # w2070: one strong T from src/pabi_fixed_array_let_init_module_var_one.x.
+  # g05 used to gcc seeds/fixed_array_let_init_module_var_override.c into
+  # fixed_array_let_init_module_var.o. That object defined only
+  # glue_emit_fixed_array_type_let_init_elf_c. Windows and Linux already
+  # build the same .x. File-local helpers stay in this object. They are
+  # not a second link winner. The egg body emits dest-in-rbx ARRAY_LIT
+  # loops. Do not fold this TU into the egg. Measured pabi_weak.o keeps
+  # a weak external copy, no-dead-strip. Six external BR26 sites in other
+  # atoms call it. src/runtime_pipeline_abi.o is also weak and is not the
+  # Darwin link object. Darwin ld has no multidef. Rebuild every Darwin
+  # relink while this pabi_weak block is open. A missing object exits 1.
+  # A strong copy in pabi_weak.o is weakened. Never edit
+  # src/runtime_pipeline_abi.o. The short name is a link winner (leading
+  # underscore, ld64 map). The measured arm64 frame of the export is
+  # 0x390, under one page.
   # PLATFORM: MACOS|DARWIN.
-  if [ -f seeds/fixed_array_let_init_module_var_override.c ]; then
-    gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
-      seeds/fixed_array_let_init_module_var_override.c 2>/dev/null || true
+  _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
+    build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
+    glue_emit_fixed_array_type_let_init_elf_c
+  if [ ! -s build_asm/selfhost_pabi/fixed_array_let_init_module_var.o ]; then
+    echo "g05_relink_env: ERROR Darwin module_var .x did not build" >&2
+    exit 1
   fi
-  if [ -s build_asm/selfhost_pabi/fixed_array_let_init_module_var.o ]; then
-    _oc=""
-    if command -v llvm-objcopy >/dev/null 2>&1; then
-      _oc=llvm-objcopy
-    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
-    elif command -v objcopy >/dev/null 2>&1; then
-      _oc=objcopy
-    fi
-    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-        | grep -F "_glue_emit_fixed_array_type_let_init_elf_c" | grep -qv weak; then
-        "$_oc" --weaken-symbol=_glue_emit_fixed_array_type_let_init_elf_c \
-          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc=objcopy
+  fi
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _mvsym=_glue_emit_fixed_array_type_let_init_elf_c
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " ${_mvsym}\$" | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="$_mvsym" \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken $_mvsym in pabi_weak.o failed (Darwin module_var)" >&2
+        exit 1
       fi
     fi
-    _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_let_init_module_var.o $_PABI_SELFHOST"
   fi
+  _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_let_init_module_var.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_emit_fixed_array_type_let_init_elf_c=build_asm/selfhost_pabi/fixed_array_let_init_module_var.o"
   # w1502: leftover gcc VAR assign gate (plain ASSIGN only) is strong T in
   # pabi_weak. Weaken it so the pure .x gate wins for same-TU callers too.
   # PLATFORM: MACOS|DARWIN.
@@ -2944,7 +2964,7 @@ case "$UNAME_S" in
       # File-local helpers stay in that object. They are not a second
       # link winner. The egg keeps the dest-in-rbx ARRAY_LIT body.
       # Do not gcc seeds/fixed_array_let_init_module_var_override.c here.
-      # Linux rebuilds the same .x. Darwin still compiles that C.
+      # Linux and Darwin rebuild the same .x.
       # A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
