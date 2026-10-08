@@ -1,10 +1,8 @@
-/* wave645: STRONG platform_macho_write_macho_o_to_buf to override the
- * all-weak G05_X_O_WEAK=1 pabi thin output and the weak experimental
- * bridge stub. cc -r (ld -r) resolves weak-vs-strong correctly: strong
- * wins, no duplicate error. Body matches the .x authority (delegates
- * to pipeline_macho_write_o_to_buf_c).
- * PLATFORM: SHARED (compiled everywhere; harmless on ELF where strong
- * symbols are the default anyway). */
+/* Not a build input. pipeline_abi_inject_modlet_thin compiles
+ * src/pabi_strong_writer.x with ./xlang_asm. Do not cc this file.
+ * Body kept so the old strong-T contract stays readable:
+ * null elf_ctx or out_buf returns -1, else pipeline_macho_write_o_to_buf_c.
+ * PLATFORM: SHARED. */
 #include <stdint.h>
 extern int32_t pipeline_macho_write_o_to_buf_c(void *elf_ctx, void *out_buf);
 int32_t platform_macho_write_macho_o_to_buf(void *elf_ctx, void *out_buf) {

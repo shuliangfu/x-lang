@@ -20368,25 +20368,44 @@ pipeline_abi_inject_modlet_thin() {
   if [ "$had_prefer" = "1" ]; then export XLANG_PABI_THIN_PREFER_ASM="$saved_prefer"; else unset XLANG_PABI_THIN_PREFER_ASM; fi
   if [ "$had_e_repl" = "1" ]; then export XLANG_PABI_THIN_ALLOW_E_REPLACE="$saved_e_repl"; else unset XLANG_PABI_THIN_ALLOW_E_REPLACE; fi
   if [ "$rc" -eq 0 ]; then
-    touch "$stamp"
-    touch "$stamp_prefer"
-    # wave645/646: merge the strong writer .o to override the all-weak
-    # G05_X_O_WEAK=1 platform_macho_write (cc -r weak-vs-strong → strong wins).
-    local strong_x="seeds/pabi_strong_writer.from_x.c"
+    # w2060: one strong T from src/pabi_strong_writer.x. cc -r merges it
+    # over the all-weak G05_X_O_WEAK=1 platform_macho_write. Do not host-cc
+    # seeds/pabi_strong_writer.from_x.c. Do not PREFER macho_write_thin.x.
+    # Stamp only after the merge, so a failed .x rebuild retries.
+    # PLATFORM: SHARED — Linux, Darwin, and Windows.
+    local strong_x="src/pabi_strong_writer.x"
     local strong_o="src/pabi_strong_writer.o"
-    if [ -f "$strong_x" ] && { [ ! -f "$strong_o" ] || [ "$strong_x" -nt "$strong_o" ]; }; then
-      $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$strong_o" "$strong_x" 2>/dev/null || true
+    local strong_ok=0
+    if [ ! -f "$strong_x" ] || [ ! -x ./xlang_asm ]; then
+      log "pipeline_abi w631-modlet: strong writer .x or ./xlang_asm missing"
+      rc=1
+    elif [ ! -s "$strong_o" ] || [ "$strong_x" -nt "$strong_o" ]; then
+      rm -f "$strong_o"
+      if ./xlang_asm -backend asm -c "$strong_x" -o "$strong_o" >/dev/null 2>&1 \
+        && nm "$strong_o" 2>/dev/null | grep -q 'T _*platform_macho_write_macho_o_to_buf$'; then
+        strong_ok=1
+      else
+        rm -f "$strong_o"
+        log "pipeline_abi w631-modlet: strong writer .x failed"
+        rc=1
+      fi
+    else
+      strong_ok=1
     fi
-    if [ -s "$strong_o" ]; then
+    if [ "$strong_ok" = "1" ] && [ -s "$strong_o" ]; then
       local merged_o
       merged_o="$(mktemp "${TMPDIR:-/tmp}/pabi_strong_merge.XXXXXX")"
       if cc -r -nostdlib -o "$merged_o" "$o" "$strong_o" 2>/dev/null; then
         mv -f "$merged_o" "$o"
+        touch "$stamp"
+        touch "$stamp_prefer"
+        log "pipeline_abi w631-modlet: PREFER_ASM replace + strong writer from .x"
       else
         rm -f "$merged_o" 2>/dev/null || true
+        log "pipeline_abi w631-modlet: strong writer cc -r failed"
+        rc=1
       fi
     fi
-    log "pipeline_abi w631-modlet: PREFER_ASM replace + strong writer (ONE-set)"
   fi
   return "$rc"
 }
