@@ -2556,10 +2556,19 @@ case "$UNAME_S" in
         gcc -c -O2 -o build_asm/selfhost_pabi/vector_let_init_nested.o \
           seeds/vector_let_init_nested_override.c || true
       fi
-      # w1024: module VAR → local fixed-array. PLATFORM: WINDOWS.
-      if [ -f seeds/fixed_array_let_init_module_var_override.c ]; then
-        gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
-          seeds/fixed_array_let_init_module_var_override.c || true
+      # w1024: module VAR → local fixed-array.
+      # w2060: one strong T from src/pabi_fixed_array_let_init_module_var_one.x.
+      # File-local helpers stay in that object. They are not a second
+      # link winner. The egg keeps the dest-in-rbx ARRAY_LIT body.
+      # Do not gcc seeds/fixed_array_let_init_module_var_override.c here.
+      # Linux and Darwin still compile that C. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
+        build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
+        glue_emit_fixed_array_type_let_init_elf_c
+      if [ ! -s build_asm/selfhost_pabi/fixed_array_let_init_module_var.o ]; then
+        echo "g05_relink_env: ERROR Windows module_var .x did not build" >&2
+        exit 1
       fi
     fi
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ] \
