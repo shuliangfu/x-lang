@@ -1063,9 +1063,9 @@ fi
 # symbol pipeline_asm_emit_deref_elf_c is already weak. The tip thin's four
 # helpers are emitted as pipeline_deref_* and are not defined in the egg,
 # so this does not weaken anything. Rebuild that thin every Linux relink
-# while the self-host pabi set is linked. A missing object exits 1. Windows
-# and Darwin leave _PABI_SELFHOST empty here and do not build this object.
-# Do not rebuild the pabi egg.
+# while the self-host pabi set is linked. A missing object exits 1.
+# Darwin rebuilds the same thin in its pabi_weak block. Windows does not
+# build this object. Do not rebuild the pabi egg.
 # PLATFORM: LINUX
 case "$UNAME_S" in
   Linux)
@@ -2293,6 +2293,55 @@ EOF
     _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_block_body_emit_let_init=build_asm/selfhost_pabi/emit_let_init.o"
     _PABI_SELFHOST="build_asm/selfhost_pabi/emit_let_init.o $_PABI_SELFHOST"
   fi
+  # w2076: one strong T from src/runtime_pipeline_abi_deref_narrow_thin.x.
+  # Darwin linked the weak copy in pabi_weak.o. That copy is the same
+  # 0x308-byte body as the egg, and the egg sizes a *u8 / *i8 / *i16
+  # load from the widened use type. Linux already rebuilds this thin.
+  # Four pipeline_deref_* helpers stay in this object. They are not
+  # defined anywhere else and are not a second link winner. Measured
+  # pabi_weak.o keeps pipeline_asm_emit_deref_elf_c weak, no-dead-strip,
+  # at 0x462fc..0x46604. Three external BR26 call it from other atoms:
+  # pipeline_asm_emit_expr_elf_rec, glue_call_arg_resolve_var_stack_off_elf_c,
+  # and glue_try_binop_load_operand_elf_c. None of those sites is inside
+  # the weak function. asm_expr_rec.o and const_lit.o also reference it.
+  # The egg copy is weak and is not the Darwin link object. Darwin ld
+  # has no multidef. Rebuild every Darwin relink while this pabi_weak
+  # block is open. A missing object exits 1. A strong copy in
+  # pabi_weak.o is weakened. Never edit src/runtime_pipeline_abi.o.
+  # The short name is the link winner (leading underscore, ld64 map).
+  # Measured arm64 frames: helpers 0x170 and 0x120, export 0x930. Each
+  # is one subtract and one matching add, under 0xff0, and none is a
+  # smash size. No xlang_panic_ reference. Windows does not build this
+  # object. PLATFORM: MACOS|DARWIN.
+  _g05_pure_overlay src/runtime_pipeline_abi_deref_narrow_thin.x \
+    build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o \
+    pipeline_asm_emit_deref_elf_c
+  if [ ! -s build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o ]; then
+    echo "g05_relink_env: ERROR Darwin deref_narrow .x did not build" >&2
+    exit 1
+  fi
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc=objcopy
+  fi
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " _pipeline_asm_emit_deref_elf_c\$" | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol=_pipeline_asm_emit_deref_elf_c \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken _pipeline_asm_emit_deref_elf_c in pabi_weak.o failed (Darwin deref_narrow)" >&2
+        exit 1
+      fi
+    fi
+  fi
+  _PABI_SELFHOST="build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_asm_emit_deref_elf_c=build_asm/selfhost_pabi/runtime_pipeline_abi_deref_narrow_thin.o"
   # w2075: three strong T from three .x files.
   # g05 used to prepend a leftover index_elem_true_i8.o. That one object
   # defined glue_index_elem_byte_sz_from_type_ref_c,
