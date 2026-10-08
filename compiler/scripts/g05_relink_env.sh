@@ -2516,9 +2516,18 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR Windows emit_index elf .x did not build" >&2
         exit 1
       fi
-      if [ -f seeds/assign_index_true_i8_override.c ]; then
-        gcc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
-          seeds/assign_index_true_i8_override.c || true
+      # w2060: one strong T from src/pabi_assign_index_one.x.
+      # File-local helpers stay in that one object. They are not a second
+      # link winner. assign_index_thin.x stays off (HARD BAN PREFER).
+      # Do not gcc seeds/assign_index_true_i8_override.c here.
+      # Linux and Darwin still compile that C. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_assign_index_one.x \
+        build_asm/selfhost_pabi/assign_index_true_i8.o \
+        glue_emit_assign_index_elf_c
+      if [ ! -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
+        echo "g05_relink_env: ERROR Windows assign_index .x did not build" >&2
+        exit 1
       fi
       if [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
         gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
@@ -2547,8 +2556,9 @@ case "$UNAME_S" in
       _WIN_TRUE_PACK=1
     fi
     # w2060: glue_emit_assign_index_elf_c. The first strong T on the PE
-    # link is assign_index_true_i8.o, the same gcc -c -O2 seed Linux and
-    # Darwin already compile. It is inside _PABI_SELFHOST, ahead of
+    # link is assign_index_true_i8.o, built from pabi_assign_index_one.x.
+    # Linux and Darwin still gcc the C seed into the same filename.
+    # It is inside _PABI_SELFHOST, ahead of
     # _WIN_ASSIGN_OVERRIDES. PE --allow-multiple-definition is first-wins,
     # so src/win_assign_index_override.o is a later T and does not run.
     # Installed Windows objects: T in assign_index_true_i8.o, T in the
