@@ -6,9 +6,9 @@
  * → CG002 (Darwin/Win) or SEGV fallthrough (Ubuntu). Twin of lvalue
  * eff-addr module COMMON lea + CALL-arm E* spill copy.
  * Authority: glue_emit_fixed_array_type_let_init_elf_c first-wins.
- * w2060: Windows true-pack builds that symbol from
+ * w2066: Windows and Linux build that symbol from
  * src/pabi_fixed_array_let_init_module_var_one.x. Do not gcc this
- * file on that path. Linux and Darwin still compile this C. Do not
+ * file on those paths. Darwin still compiles this C. Do not
  * fold this body into runtime_pipeline_abi.x (that function emits
  * dest-in-rbx ARRAY_LIT loops). gcc -O2 drops the signed
  * next_offset+32 wrap test; the .x matches that object.

@@ -1206,8 +1206,8 @@ fi
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
 # emit_index_true_i8.o. Darwin still prepends that leftover only.
-# Do not cc -r the two objects back into one. vector_let,
-# module_var, and bake_elems stay on the gcc path.
+# Do not cc -r the two objects back into one. vector_let and
+# bake_elems stay on the gcc path.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_emit_index_arms_one.x \
@@ -1285,8 +1285,8 @@ fi
 # src/runtime_pipeline_abi.o. Do not keep the combined leftover as
 # the only definition. Darwin still prepends that leftover only.
 # Do not cc -r the two objects back into one. Do not PREFER
-# runtime_pipeline_abi_fnptr_array_esz_thin.x. vector_let,
-# module_var, and bake_elems stay on the gcc path.
+# runtime_pipeline_abi_fnptr_array_esz_thin.x. vector_let and
+# bake_elems stay on the gcc path.
 # File-local helpers stay strong in their object.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -1332,7 +1332,7 @@ fi
 # pabi_alias.o copy is W. A strong T in the build_asm link object is
 # weakened. Never edit src/runtime_pipeline_abi.o. Darwin still gcc's
 # the C seed. The product frame of this .x stays under one page.
-# vector_let, module_var, and bake_elems stay on the gcc path.
+# vector_let and bake_elems stay on the gcc path.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
@@ -1517,15 +1517,39 @@ if [ -n "$_PABI_SELFHOST" ] \
   && [ -s build_asm/selfhost_pabi/vector_let_init_nested.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/vector_let_init_nested.o $_PABI_SELFHOST"
 fi
-# w1024: module VAR → local fixed-array let-init. PLATFORM: LINUX.
-if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/fixed_array_let_init_module_var_override.c ]; then
-  mkdir -p build_asm/selfhost_pabi
-  gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
-    seeds/fixed_array_let_init_module_var_override.c || true
-fi
-if [ -n "$_PABI_SELFHOST" ] \
-  && [ -s build_asm/selfhost_pabi/fixed_array_let_init_module_var.o ]; then
+# w2066: one strong T from src/pabi_fixed_array_let_init_module_var_one.x.
+# g05 used to gcc seeds/fixed_array_let_init_module_var_override.c.
+# That object defined only glue_emit_fixed_array_type_let_init_elf_c.
+# File-local helpers stay in this object. They are not a second link
+# winner. Windows already builds the same .x. The egg body emits
+# dest-in-rbx ARRAY_LIT loops. Do not fold this TU into the egg.
+# Rebuild every Linux relink. A missing object exits 1. The measured
+# egg copy in src/runtime_pipeline_abi.o is W, and the pabi_alias.o
+# copy is W. A strong T in the build_asm link object is weakened.
+# Never edit src/runtime_pipeline_abi.o. Darwin still gcc's the C seed.
+# The product frame of this .x stays under one page. vector_let and
+# bake_elems stay on the gcc path.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
+    build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
+    glue_emit_fixed_array_type_let_init_elf_c
+  if [ ! -s build_asm/selfhost_pabi/fixed_array_let_init_module_var.o ]; then
+    echo "g05_relink_env: ERROR Linux module_var .x did not build" >&2
+    exit 1
+  fi
   _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_let_init_module_var.o $_PABI_SELFHOST"
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T glue_emit_fixed_array_type_let_init_elf_c$"; then
+        if ! objcopy --weaken-symbol="glue_emit_fixed_array_type_let_init_elf_c" "$_PABI_LINK_O"; then
+          echo "g05_relink_env: weaken glue_emit_fixed_array_type_let_init_elf_c in $_PABI_LINK_O failed (Linux module_var)" >&2
+          exit 1
+        fi
+      fi
+      ;;
+  esac
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_emit_fixed_array_type_let_init_elf_c=build_asm/selfhost_pabi/fixed_array_let_init_module_var.o"
 fi
 # w959: module INDEX store. Darwin pabi calls the cold lea, which misses
 # the live table and faults. The forwarder is the cold name and calls the
@@ -2802,7 +2826,8 @@ case "$UNAME_S" in
       # File-local helpers stay in that object. They are not a second
       # link winner. The egg keeps the dest-in-rbx ARRAY_LIT body.
       # Do not gcc seeds/fixed_array_let_init_module_var_override.c here.
-      # Linux and Darwin still compile that C. A missing object exits 1.
+      # Linux rebuilds the same .x. Darwin still compiles that C.
+      # A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_fixed_array_let_init_module_var_one.x \
         build_asm/selfhost_pabi/fixed_array_let_init_module_var.o \
