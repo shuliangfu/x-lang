@@ -2456,18 +2456,27 @@ case "$UNAME_S" in
       exit 1
     fi
     # STRUCT_LIT elements. The egg baker calls this object.
-    # w1020: PE tip from bake_elems_thin.x is non-deterministic CG002;
-    # host-gcc seeds/win_bake_elems_override.c through the same weaken+jmp
-    # is stable. Default ON (auto-build tip .o from seeds); set
-    # XLANG_WIN_BAKE_TIP=0 for Cap residual. INDEX tip uses
-    # -DXLANG_WIN_TRUE_PACK. force_esz and elem_byte_sz are two .x
-    # objects (w1020 same-.o dual T). PLATFORM: WINDOWS.
+    # w1020: one function in bake_elems_thin.x is smash frame 0xb40.
+    # w2060: one strong T from src/pabi_bake_elems_one.x. File-local
+    # helpers stay in that object. They are not a second link winner.
+    # Do not PREFER the thin. Do not gcc seeds/win_bake_elems_override.c
+    # here. Linux still compiles that C. Darwin still builds the thin.
+    # A missing object exits 1. Default ON; set XLANG_WIN_BAKE_TIP=0
+    # for Cap residual. INDEX tip still uses -DXLANG_WIN_TRUE_PACK.
+    # PLATFORM: WINDOWS.
     _WIN_TRUE_PACK=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ]; then
       mkdir -p build_asm/selfhost_pabi
-      if [ -f seeds/win_bake_elems_override.c ]; then
-        gcc -c -O2 -o build_asm/selfhost_pabi/bake_elems.o \
-          seeds/win_bake_elems_override.c || true
+      # w2060: one strong T from src/pabi_bake_elems_one.x.
+      # The egg keeps a different body. The thin stays off.
+      # Linux still compiles the C seed. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_bake_elems_one.x \
+        build_asm/selfhost_pabi/bake_elems.o \
+        pipe_modlet_bake_array_lit_elems_to_data
+      if [ ! -s build_asm/selfhost_pabi/bake_elems.o ]; then
+        echo "g05_relink_env: ERROR Windows bake_elems .x did not build" >&2
+        exit 1
       fi
       if [ -f seeds/win_index_elem_byte_sz_override.c ]; then
         gcc -c -O2 -DXLANG_WIN_TRUE_PACK \

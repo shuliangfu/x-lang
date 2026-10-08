@@ -8,6 +8,11 @@
  * True-pack: named i8 → esz 1; named i16/u16 → esz 2 (w1012/w1015/w1016).
  * Cap residual other named stay on force_esz / glue (typically 4).
  * Authority twin of runtime_pipeline_abi_modlet_bake_elems_thin.x.
+ * w2060: Windows true-pack builds pipe_modlet_bake_array_lit_elems_to_data
+ * from src/pabi_bake_elems_one.x. Do not gcc this file on that path.
+ * Linux still compiles this C. Darwin still builds the thin. Do not
+ * fold this body into runtime_pipeline_abi.x (that function lacks the
+ * named i8/i16/u16 strides).
  */
 #include <stdint.h>
 
