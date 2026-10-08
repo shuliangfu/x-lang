@@ -24,7 +24,8 @@ extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_re
  * keep only pipeline_asm_array_lit_elem_byte_sz_c in a separate .o.
  * w2060: Windows relink builds this symbol from src/pabi_force_esz_one.x
  * with ./xlang_asm. Do not gcc -DXLANG_WIN_FORCE_ESZ_ONLY on that path.
- * The sibling below is still the -DXLANG_WIN_ELEM_BYTE_SZ_ONLY object.
+ * The sibling is src/pabi_elem_byte_sz_one.x. Do not gcc
+ * -DXLANG_WIN_ELEM_BYTE_SZ_ONLY on that path either.
  */
 #if !defined(XLANG_WIN_ELEM_BYTE_SZ_ONLY)
 int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
@@ -72,9 +73,10 @@ int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
  * Infer ARRAY_LIT element byte width (force_esz=0 local flat path).
  * True-pack named i8 → 1 so local stores match INDEX tip.
  * PLATFORM: SHARED — twin of fnptr_array_esz_thin.x (w1014).
- * w1020: on Windows tip stack, compile with -DXLANG_WIN_FORCE_ESZ_ONLY so
- * this twin is omitted from the force .o (same-.o dual T PE footgun);
- * build a second .o with -DXLANG_WIN_ELEM_BYTE_SZ_ONLY for local lit.
+ * w1020: same-.o dual T with force_esz smashes i32. This symbol stays
+ * in its own object.
+ * w2060: Windows relink builds it from src/pabi_elem_byte_sz_one.x
+ * with ./xlang_asm. Do not gcc -DXLANG_WIN_ELEM_BYTE_SZ_ONLY.
  */
 #if !defined(XLANG_WIN_FORCE_ESZ_ONLY)
 int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {

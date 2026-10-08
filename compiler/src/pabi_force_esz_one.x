@@ -2,7 +2,7 @@
 // true-pack link. The same body lives in fnptr_array_esz_thin.x.
 // Do not PREFER that thin: standalone -c of the whole file is a smash
 // frame and a same-.o dual T. Do not gcc -DXLANG_WIN_FORCE_ESZ_ONLY.
-// The sibling pipeline_asm_array_lit_elem_byte_sz_c stays on its own -D.
+// The sibling pipeline_asm_array_lit_elem_byte_sz_c is pabi_elem_byte_sz_one.x.
 // PLATFORM: SHARED body. Windows relink is the build that consumes it.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;

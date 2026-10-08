@@ -2460,8 +2460,8 @@ case "$UNAME_S" in
     # host-gcc seeds/win_bake_elems_override.c through the same weaken+jmp
     # is stable. Default ON (auto-build tip .o from seeds); set
     # XLANG_WIN_BAKE_TIP=0 for Cap residual. INDEX tip uses
-    # -DXLANG_WIN_TRUE_PACK. force_esz / elem_byte_sz split into two .o.
-    # PLATFORM: WINDOWS.
+    # -DXLANG_WIN_TRUE_PACK. force_esz and elem_byte_sz are two .x
+    # objects (w1020 same-.o dual T). PLATFORM: WINDOWS.
     _WIN_TRUE_PACK=0
     if [ "${XLANG_WIN_BAKE_TIP:-}" != "0" ]; then
       mkdir -p build_asm/selfhost_pabi
@@ -2485,11 +2485,17 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR Windows force_esz .x did not build" >&2
         exit 1
       fi
-      if [ -f seeds/force_esz_true_i8_override.c ]; then
-        # elem_byte_sz stays its own .o (w1020 same-.o dual T). PLATFORM: WINDOWS.
-        gcc -c -O2 -DXLANG_WIN_ELEM_BYTE_SZ_ONLY \
-          -o build_asm/selfhost_pabi/array_lit_esz_true_i8.o \
-          seeds/force_esz_true_i8_override.c || true
+      # w2060: one strong T from src/pabi_elem_byte_sz_one.x.
+      # fnptr_array_esz_thin.x stays off (HARD BAN PREFER, same-.o dual T).
+      # Do not gcc -DXLANG_WIN_ELEM_BYTE_SZ_ONLY. Do not put this symbol
+      # in force_esz_true_i8.o. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_elem_byte_sz_one.x \
+        build_asm/selfhost_pabi/array_lit_esz_true_i8.o \
+        pipeline_asm_array_lit_elem_byte_sz_c
+      if [ ! -s build_asm/selfhost_pabi/array_lit_esz_true_i8.o ]; then
+        echo "g05_relink_env: ERROR Windows elem_byte_sz .x did not build" >&2
+        exit 1
       fi
       if [ -f seeds/emit_index_true_i8_override.c ]; then
         gcc -c -O2 -o build_asm/selfhost_pabi/emit_index_true_i8.o \
