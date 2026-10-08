@@ -6,6 +6,10 @@
  * reads zeros (sum=3). Module bake padded each row to 8 so INDEX matched
  * by accident. Tip: named i8/u8/bool→1, i16/u16→2; recurse nested arrays.
  * Authority twin of seeds/runtime_pipeline_abi.from_x.c; first-wins.
+ * w2060: Windows true-pack builds glue_fixed_array_total_bytes_c from
+ * src/pabi_fixed_array_total_bytes_one.x. Do not gcc this file on that
+ * path. Linux and Darwin still compile this C. Do not fold this body
+ * into runtime_pipeline_abi.x (that function lacks these named widths).
  */
 #include <stdint.h>
 

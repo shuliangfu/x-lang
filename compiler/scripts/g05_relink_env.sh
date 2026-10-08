@@ -2529,9 +2529,18 @@ case "$UNAME_S" in
         echo "g05_relink_env: ERROR Windows assign_index .x did not build" >&2
         exit 1
       fi
-      if [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
-        gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
-          seeds/fixed_array_total_bytes_true_pack_override.c || true
+      # w2060: one strong T from src/pabi_fixed_array_total_bytes_one.x.
+      # runtime_pipeline_abi.x keeps a different body (named types always
+      # go through glue_type_size_simple). Do not gcc
+      # seeds/fixed_array_total_bytes_true_pack_override.c here.
+      # Linux and Darwin still compile that C. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
+        build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
+        glue_fixed_array_total_bytes_c
+      if [ ! -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+        echo "g05_relink_env: ERROR Windows fixed_array .x did not build" >&2
+        exit 1
       fi
       # w1023: nested ARRAY_LIT → array_lit_flat. PLATFORM: WINDOWS.
       if [ -f seeds/vector_let_init_nested_override.c ]; then
