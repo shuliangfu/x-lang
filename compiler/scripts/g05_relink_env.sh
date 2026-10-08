@@ -1280,7 +1280,7 @@ fi
 # relink. A missing object exits 1. The measured egg copy in
 # pabi_alias.o is T, and the egg src/runtime_pipeline_abi.o copy is T.
 # A strong T in the build_asm link object is weakened. Never edit
-# src/runtime_pipeline_abi.o. Darwin still cc's the C seed.
+# src/runtime_pipeline_abi.o. Darwin rebuilds the same .x.
 # Do not PREFER runtime_pipeline_abi_assign_index_thin.x.
 # Product frames of this .x stay under one page. PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
@@ -2321,35 +2321,54 @@ EOF
   if [ -s build_asm/selfhost_pabi/emit_index_true_i8.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/emit_index_true_i8.o $_PABI_SELFHOST"
   fi
-  # w1508 (10.33): the Darwin .o was a leftover from before w1072; rebuild it
-  # from the seed every relink so compound index ops reach the live body.
-  if [ -f seeds/assign_index_true_i8_override.c ]; then
-    if ! cc -c -O2 -o build_asm/selfhost_pabi/assign_index_true_i8.o \
-        seeds/assign_index_true_i8_override.c; then
-      echo "g05_relink_env: assign_index_true_i8 cc failed" >&2
-      rm -f build_asm/selfhost_pabi/assign_index_true_i8.o
+  # w2072: one strong T from src/pabi_assign_index_one.x.
+  # g05 used to cc seeds/assign_index_true_i8_override.c into
+  # assign_index_true_i8.o. That object defined only
+  # glue_emit_assign_index_elf_c. Windows and Linux already build the
+  # same .x. Five product-mangled helpers stay in that object. They are
+  # not a second link winner. assign_index_thin.x stays off. Measured
+  # pabi_weak.o keeps a weak external copy, no-dead-strip, at 0xc9848.
+  # One external BR26 at 0xc9cb0 sits in pipeline_asm_emit_assign_elf_c
+  # (0xc9b18..0xc9dac), not inside the weak function. The egg copy in
+  # src/runtime_pipeline_abi.o is strong and is not the Darwin link
+  # object. Darwin ld has no multidef. Rebuild every Darwin relink while
+  # this pabi_weak block is open. A missing object exits 1. A strong
+  # copy in pabi_weak.o is weakened. Never edit
+  # src/runtime_pipeline_abi.o. The short name is a link winner (leading
+  # underscore, ld64 map). Measured arm64 frames: export prologue 0x990
+  # with three nested 0x10 slots (deepest 0x9a0); the wide helper is
+  # 0xaa0. All are under one page, and none is the 0xba0 smash size.
+  # PLATFORM: MACOS|DARWIN.
+  _g05_pure_overlay src/pabi_assign_index_one.x \
+    build_asm/selfhost_pabi/assign_index_true_i8.o \
+    glue_emit_assign_index_elf_c
+  if [ ! -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
+    echo "g05_relink_env: ERROR Darwin assign_index .x did not build" >&2
+    exit 1
+  fi
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
+    _oc=/usr/local/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then
+    _oc=objcopy
+  fi
+  if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    _aisym=_glue_emit_assign_index_elf_c
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " ${_aisym}\$" | grep -qv weak; then
+      if [ -z "$_oc" ] || ! "$_oc" --weaken-symbol="$_aisym" \
+          build_asm/selfhost_pabi/pabi_weak.o; then
+        echo "g05_relink_env: weaken $_aisym in pabi_weak.o failed (Darwin assign_index)" >&2
+        exit 1
+      fi
     fi
   fi
-  if [ -s build_asm/selfhost_pabi/assign_index_true_i8.o ]; then
-    _oc=""
-    if command -v llvm-objcopy >/dev/null 2>&1; then
-      _oc=llvm-objcopy
-    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-    elif [ -x /usr/local/opt/llvm/bin/llvm-objcopy ]; then
-      _oc=/usr/local/opt/llvm/bin/llvm-objcopy
-    elif command -v objcopy >/dev/null 2>&1; then
-      _oc=objcopy
-    fi
-    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-      for _asym in _glue_emit_assign_index_elf_c; do
-        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null | grep -F "$_asym" | grep -qv weak; then
-          "$_oc" --weaken-symbol="$_asym" build_asm/selfhost_pabi/pabi_weak.o || { echo "g05_relink_env: ERROR objcopy failed at line 1473" >&2; exit 1; }
-        fi
-      done
-    fi
-    _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
-  fi
+  _PABI_SELFHOST="build_asm/selfhost_pabi/assign_index_true_i8.o $_PABI_SELFHOST"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_emit_assign_index_elf_c=build_asm/selfhost_pabi/assign_index_true_i8.o"
   # w1509 (10.32): the pabi field-assign body only took plain `=` (kind 28),
   # so `p.x += 4` failed with CG002. Build the shared field-assign seed (same
   # body plus compound ops) every relink and weaken the pabi copy.
@@ -2926,7 +2945,7 @@ case "$UNAME_S" in
       # File-local helpers stay in that one object. They are not a second
       # link winner. assign_index_thin.x stays off (HARD BAN PREFER).
       # Do not gcc seeds/assign_index_true_i8_override.c here.
-      # Linux rebuilds the same .x. Darwin still compiles that C.
+      # Linux and Darwin rebuild the same .x.
       # A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_assign_index_one.x \
@@ -3009,7 +3028,7 @@ case "$UNAME_S" in
     # w2060: glue_emit_assign_index_elf_c. The first strong T on the PE
     # link is assign_index_true_i8.o, built from pabi_assign_index_one.x.
     # Linux rebuilds the same .x into the same filename.
-    # Darwin still compiles the C seed into that filename.
+    # Darwin rebuilds the same .x into that filename.
     # It is inside _PABI_SELFHOST, ahead of
     # _WIN_ASSIGN_OVERRIDES. PE --allow-multiple-definition is first-wins,
     # so src/win_assign_index_override.o is a later T and does not run.

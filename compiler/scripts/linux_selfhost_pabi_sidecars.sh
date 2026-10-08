@@ -319,7 +319,7 @@ _ie_one src/pabi_emit_index_elf_one.x \
   pipeline_asm_emit_index_elf_c
 # w2064: one strong T. g05 rebuilds the same .x every Linux relink.
 # Do not gcc seeds/assign_index_true_i8_override.c. Do not PREFER
-# runtime_pipeline_abi_assign_index_thin.x. Darwin still cc's the C.
+# runtime_pipeline_abi_assign_index_thin.x. Darwin rebuilds the same .x.
 # PLATFORM: LINUX.
 _ie_one src/pabi_assign_index_one.x \
   "$OUT/assign_index_true_i8.o" \

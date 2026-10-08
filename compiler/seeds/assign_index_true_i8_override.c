@@ -23,10 +23,9 @@
  * the frame-slot let-init uses, so the call writes the value into the
  * element. METHOD and STRUCT_LIT stay on the one-qword store.
  * PLATFORM: WINDOWS x86_64 for the call arm. ta != 0 is unchanged.
- * w2064: Windows and Linux build glue_emit_assign_index_elf_c from
- * src/pabi_assign_index_one.x. Do not gcc this file on those paths.
- * Darwin still compiles this C. Do not PREFER
- * runtime_pipeline_abi_assign_index_thin.x.
+ * w2072: Windows, Linux, and Darwin build glue_emit_assign_index_elf_c
+ * from src/pabi_assign_index_one.x. Do not cc or gcc this file on those
+ * paths. Do not PREFER runtime_pipeline_abi_assign_index_thin.x.
  */
 #include <stdint.h>
 
