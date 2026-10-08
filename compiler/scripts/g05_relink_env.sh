@@ -1206,8 +1206,9 @@ fi
 # strong T in the build_asm link object is weakened. Never edit
 # src/runtime_pipeline_abi.o. Do not prepend the combined leftover
 # emit_index_true_i8.o. Darwin still prepends that leftover only.
-# Do not cc -r the two objects back into one. fixed_array stays
-# on the gcc path. PLATFORM: LINUX.
+# Do not cc -r the two objects back into one. vector_let,
+# module_var, and bake_elems stay on the gcc path.
+# PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_emit_index_arms_one.x \
     build_asm/selfhost_pabi/emit_index_arms_true_i8.o \
@@ -1284,8 +1285,9 @@ fi
 # src/runtime_pipeline_abi.o. Do not keep the combined leftover as
 # the only definition. Darwin still prepends that leftover only.
 # Do not cc -r the two objects back into one. Do not PREFER
-# runtime_pipeline_abi_fnptr_array_esz_thin.x. fixed_array stays
-# on the gcc path. File-local helpers stay strong in their object.
+# runtime_pipeline_abi_fnptr_array_esz_thin.x. vector_let,
+# module_var, and bake_elems stay on the gcc path.
+# File-local helpers stay strong in their object.
 # PLATFORM: LINUX.
 if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _g05_pure_overlay src/pabi_force_esz_one.x \
@@ -1320,15 +1322,38 @@ if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_array_lit_force_esz_from_elem_type_c=build_asm/selfhost_pabi/force_esz_true_i8.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_array_lit_elem_byte_sz_c=build_asm/selfhost_pabi/array_lit_esz_true_i8.o"
 fi
-# w1022: true-pack [N]i8 row stride for nested INDEX/bake. PLATFORM: LINUX.
-if [ -n "$_PABI_SELFHOST" ] && [ -f seeds/fixed_array_total_bytes_true_pack_override.c ]; then
-  mkdir -p build_asm/selfhost_pabi
-  gcc -c -O2 -o build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
-    seeds/fixed_array_total_bytes_true_pack_override.c || true
-fi
-if [ -n "$_PABI_SELFHOST" ] \
-  && [ -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+# w2065: one strong T from src/pabi_fixed_array_total_bytes_one.x.
+# g05 used to gcc seeds/fixed_array_total_bytes_true_pack_override.c.
+# That object defined only glue_fixed_array_total_bytes_c. Windows
+# already builds the same .x. The egg body is different: named types
+# always go through glue_type_size_simple. Do not fold this TU into
+# the egg. Rebuild every Linux relink. A missing object exits 1.
+# The measured egg copy in src/runtime_pipeline_abi.o is W, and the
+# pabi_alias.o copy is W. A strong T in the build_asm link object is
+# weakened. Never edit src/runtime_pipeline_abi.o. Darwin still gcc's
+# the C seed. The product frame of this .x stays under one page.
+# vector_let, module_var, and bake_elems stay on the gcc path.
+# PLATFORM: LINUX.
+if [ "$UNAME_S" = "Linux" ] && [ -n "$_PABI_SELFHOST" ]; then
+  _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
+    build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \
+    glue_fixed_array_total_bytes_c
+  if [ ! -s build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o ]; then
+    echo "g05_relink_env: ERROR Linux fixed_array .x did not build" >&2
+    exit 1
+  fi
   _PABI_SELFHOST="build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o $_PABI_SELFHOST"
+  case "$_PABI_LINK_O" in
+    build_asm/*)
+      if nm "$_PABI_LINK_O" 2>/dev/null | grep -qE " T glue_fixed_array_total_bytes_c$"; then
+        if ! objcopy --weaken-symbol="glue_fixed_array_total_bytes_c" "$_PABI_LINK_O"; then
+          echo "g05_relink_env: weaken glue_fixed_array_total_bytes_c in $_PABI_LINK_O failed (Linux fixed_array)" >&2
+          exit 1
+        fi
+      fi
+      ;;
+  esac
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_fixed_array_total_bytes_c=build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o"
 fi
 # w1483: arr_struct_lit peers (tip pabi U). Built by
 # linux_selfhost_pabi_sidecars.sh. PLATFORM: LINUX.
@@ -2734,7 +2759,8 @@ case "$UNAME_S" in
       # runtime_pipeline_abi.x keeps a different body (named types always
       # go through glue_type_size_simple). Do not gcc
       # seeds/fixed_array_total_bytes_true_pack_override.c here.
-      # Linux and Darwin still compile that C. A missing object exits 1.
+      # Linux rebuilds the same .x. Darwin still compiles that C.
+      # A missing object exits 1.
       # PLATFORM: WINDOWS | MSYS | MINGW.
       _g05_pure_overlay src/pabi_fixed_array_total_bytes_one.x \
         build_asm/selfhost_pabi/fixed_array_total_bytes_true_pack.o \

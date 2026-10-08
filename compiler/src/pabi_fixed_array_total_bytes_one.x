@@ -1,10 +1,10 @@
-// One strong glue_fixed_array_total_bytes_c for the Windows true-pack
-// link. Body is seeds/fixed_array_total_bytes_true_pack_override.c.
+// One strong glue_fixed_array_total_bytes_c. Body matches
+// seeds/fixed_array_total_bytes_true_pack_override.c.
 // runtime_pipeline_abi.x has the same name and a different body: every
 // TYPE_NAMED goes through glue_type_size_simple, and a null module
 // yields 4. Do not fold this TU into that function. Do not gcc the
-// seed on the Windows path. Linux and Darwin still compile the C.
-// PLATFORM: SHARED body. Windows relink is the build that consumes it.
+// seed on the Windows or Linux path. Darwin still compiles the C.
+// PLATFORM: SHARED body. Linux and Windows relinks consume this file.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
@@ -23,7 +23,7 @@ export extern function glue_type_size_simple(mod: *u8, arena: *u8, type_ref: i32
  * and u16 are 2 bytes. Other named types use glue_type_size_simple when
  * a module is present, else 4. A null module still keeps the five
  * true-pack names.
- * PLATFORM: SHARED — one strong T. Windows links this ahead of the egg.
+ * PLATFORM: SHARED — one strong T. Linux and Windows link this ahead of the egg.
  */
 #[no_mangle]
 export function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32 {
