@@ -2474,11 +2474,19 @@ case "$UNAME_S" in
           -o build_asm/selfhost_pabi/index_elem_true_i8.o \
           seeds/win_index_elem_byte_sz_override.c || true
       fi
+      # w2060: one strong T from src/pabi_force_esz_one.x.
+      # fnptr_array_esz_thin.x stays off (HARD BAN PREFER, same-.o dual T).
+      # Do not gcc -DXLANG_WIN_FORCE_ESZ_ONLY. A missing object exits 1.
+      # PLATFORM: WINDOWS | MSYS | MINGW.
+      _g05_pure_overlay src/pabi_force_esz_one.x \
+        build_asm/selfhost_pabi/force_esz_true_i8.o \
+        glue_array_lit_force_esz_from_elem_type_c
+      if [ ! -s build_asm/selfhost_pabi/force_esz_true_i8.o ]; then
+        echo "g05_relink_env: ERROR Windows force_esz .x did not build" >&2
+        exit 1
+      fi
       if [ -f seeds/force_esz_true_i8_override.c ]; then
-        # Split force_esz / elem_byte_sz into two .o (w1020 PE). PLATFORM: WINDOWS.
-        gcc -c -O2 -DXLANG_WIN_FORCE_ESZ_ONLY \
-          -o build_asm/selfhost_pabi/force_esz_true_i8.o \
-          seeds/force_esz_true_i8_override.c || true
+        # elem_byte_sz stays its own .o (w1020 same-.o dual T). PLATFORM: WINDOWS.
         gcc -c -O2 -DXLANG_WIN_ELEM_BYTE_SZ_ONLY \
           -o build_asm/selfhost_pabi/array_lit_esz_true_i8.o \
           seeds/force_esz_true_i8_override.c || true

@@ -22,6 +22,9 @@ extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_re
  * True-pack named i8 → 1. PLATFORM: SHARED.
  * w1020: compile with -DXLANG_WIN_ELEM_BYTE_SZ_ONLY to omit this and
  * keep only pipeline_asm_array_lit_elem_byte_sz_c in a separate .o.
+ * w2060: Windows relink builds this symbol from src/pabi_force_esz_one.x
+ * with ./xlang_asm. Do not gcc -DXLANG_WIN_FORCE_ESZ_ONLY on that path.
+ * The sibling below is still the -DXLANG_WIN_ELEM_BYTE_SZ_ONLY object.
  */
 #if !defined(XLANG_WIN_ELEM_BYTE_SZ_ONLY)
 int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et) {
