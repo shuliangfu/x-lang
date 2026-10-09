@@ -112,6 +112,28 @@ function parser_slice_view(data: *u8, len: i32): u8[] {
   }
   return sl;
 }
+
+/**
+ * Copy one LexerResult image (72 bytes) onto dst.
+ *
+ * Layout: next_lex at 0 (pos, line, col; 16 bytes), tok at 16 (48 bytes),
+ * token_start at 64. A struct assignment (`dst = src`) on the Windows
+ * bootstrap compiler keeps only the first 8 bytes, so next_lex.pos moves
+ * and tok.kind stays at the previous token. The statement loop then
+ * treats `}` as `{` and parse_block starts past the brace. Struct
+ * literals of this type already emit a 72-byte memcpy. Field-by-field
+ * stores fault the pin egg. The pointer is not retained.
+ *
+ * @param dst *LexerResult — destination; caller does not pass null
+ * @param src *LexerResult — source image; caller does not pass null
+ * @return void
+ * PLATFORM: SHARED. WINDOWS is where the 8-byte assign was measured.
+ */
+function parser_copy_lexer_result(dst: *LexerResult, src: *LexerResult): void {
+  unsafe {
+    memcpy((dst as *u8), (src as *u8), (72 as usize));
+  }
+}
 /* See implementation. */
 export extern function parser_diagnostic_parse_skip(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
 /**
@@ -6500,7 +6522,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      */
     let r_peek: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     lexer.lexer_next_into(&r_peek, lex, source);
-    r = r_peek;
+    parser_copy_lexer_result(&r, &r_peek);
     lex = parser_rewind_lex_for_following_stmt(lex, r_peek);
     let stmt_tok_ready: bool = true;
     /**
