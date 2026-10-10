@@ -886,7 +886,9 @@ export function codegen_emit_async_binding_import_call(arena: *ASTArena, out: *C
       return codegen_emit_async_sched_call_by_name(out, &callee_e.field_access_field_name[0], callee_e.field_access_field_len);
     }
     dep_ix = codegen_resolve_binding_import_dep_index(ctx, arena, call_e.call_callee_ref);
-    if (dep_ix < 0 || dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let ndep_as: i32 = pipeline_dep_ctx_ndep(ctx);
+    if (dep_ix < 0 || dep_ix >= ndep_as) {
       return -1;
     }
     pipeline_dep_ctx_import_path_copy64(ctx, dep_ix, &dep_path[0]);
@@ -7265,7 +7267,9 @@ export function try_emit_dest_slice_from_import_const_field(
       return 0;
     }
     let dep_ix: i32 = codegen_find_dep_index_by_path(ctx, &dep_path[0], dep_path_len);
-    if (dep_ix < 0 || dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let ndep_fa: i32 = pipeline_dep_ctx_ndep(ctx);
+    if (dep_ix < 0 || dep_ix >= ndep_fa) {
       return 0;
     }
     let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
@@ -8096,7 +8100,14 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
     }
     let bare_len: i32 = name_len - bare_off;
     di = 0;
-    while (di < pipeline_dep_ctx_ndep(ctx)) {
+    /* Load ndep before comparing it with the index.
+     * PLATFORM: WINDOWS. The compare keeps the index in rbx and pushes it
+     * in the Win64 home slot. pipeline_dep_ctx_ndep spills rcx (the dep
+     * context) over that push, so the reloaded index is the context
+     * pointer. A negative low half stays signed-less than the count, and
+     * the walk never ends. Measured on compile.x -E. */
+    let ndep_di: i32 = pipeline_dep_ctx_ndep(ctx);
+    while (di < ndep_di) {
       let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, di);
       if (dep_mod != 0 as *Module) {
         let ei: i32 = 0;
@@ -11823,7 +11834,9 @@ export function emit_import_module_const_field(arena: *ASTArena, out: *CodegenOu
       return -1;
     }
     let dep_ix: i32 = codegen_find_dep_index_by_path(ctx, &dep_path[0], dep_path_len);
-    if (dep_ix < 0 || dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let ndep_fld: i32 = pipeline_dep_ctx_ndep(ctx);
+    if (dep_ix < 0 || dep_ix >= ndep_fld) {
       return -1;
     }
     let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
@@ -13323,7 +13336,9 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
         dep_ix = codegen_resolve_binding_import_dep_index(ctx, arena, op.call_callee_ref);
       }
       if (dep_ix >= 0) {
-        if (dep_ix >= pipeline_dep_ctx_ndep(ctx)) {
+        /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+        let ndep_op: i32 = pipeline_dep_ctx_ndep(ctx);
+        if (dep_ix >= ndep_op) {
           return -1;
         }
         target_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
@@ -13553,7 +13568,9 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
             fn_len_q = callee_q.var_name_len;
           }
           let dep_mod_q: *Module = 0 as *Module;
-          if (imp_j >= 0 && imp_j < pipeline_dep_ctx_ndep(ctx)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let ndep_imp: i32 = pipeline_dep_ctx_ndep(ctx);
+          if (imp_j >= 0 && imp_j < ndep_imp) {
             dep_mod_q = pipeline_dep_ctx_module_at(ctx, imp_j);
           }
           let mangled_emitted: i32 = 0;
@@ -13605,7 +13622,9 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
       if (!ast.ref_is_null(callee_ref) && callee_ref > 0 && callee_ref <= arena.num_exprs && ctx != 0 as *PipelineDepCtx && pipeline_dep_ctx_ndep(ctx) > 0) {
         let dep_ix_fast: i32 = pipeline_expr_call_resolved_dep_index_at(arena, expr_ref);
         let callee_fast: Expr = ast.ast_arena_expr_get(arena, callee_ref);
-        if (dep_ix_fast >= 0 && dep_ix_fast < pipeline_dep_ctx_ndep(ctx) && (callee_fast.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee_fast.field_access_field_len > 0) {
+        /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+        let ndep_fast: i32 = pipeline_dep_ctx_ndep(ctx);
+        if (dep_ix_fast >= 0 && dep_ix_fast < ndep_fast && (callee_fast.kind as i32) == (ExprKind.EXPR_FIELD_ACCESS as i32) && callee_fast.field_access_field_len > 0) {
           let dep_mod_chk: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix_fast);
           let field_in_dep: i32 = 0;
           if (dep_mod_chk != 0 as *Module) {
@@ -13737,7 +13756,9 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
                      Asm/Perf: codegen_find_dep_index_by_path is O(ndep); only when binding hits. */
                   let dep_ix_bind: i32 = codegen_find_dep_index_by_path(ctx, &dep_path_bind[0], dep_path_bind_len);
                   let dep_mod_bind: *Module = cur_mod;
-                  if (dep_ix_bind >= 0 && dep_ix_bind < pipeline_dep_ctx_ndep(ctx)) {
+                  /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+                  let ndep_ixb: i32 = pipeline_dep_ctx_ndep(ctx);
+                  if (dep_ix_bind >= 0 && dep_ix_bind < ndep_ixb) {
                     dep_mod_bind = pipeline_dep_ctx_module_at(ctx, dep_ix_bind);
                   }
                   let pre_buf: u8[128] = [];
@@ -15292,7 +15313,9 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
          * See implementation.
          */
         let mc_resolved_ok: i32 = 0;
-        if (dep_ix >= 0 && func_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+        /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+        let ndep_mc: i32 = pipeline_dep_ctx_ndep(ctx);
+        if (dep_ix >= 0 && func_ix >= 0 && dep_ix < ndep_mc) {
           let dep_mod: *Module = pipeline_dep_ctx_module_at(ctx, dep_ix);
           if (dep_mod != 0 as *Module && func_ix < dep_mod.num_funcs) {
             let fn_name: u8[256] = [];
@@ -15455,7 +15478,9 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
                Invariant: dep_path_fb is compared bytewise to each dep import_path; search on unique match. */
             let fb_dep_mod: *Module = 0 as *Module;
             let dj: i32 = 0;
-            while (dj < pipeline_dep_ctx_ndep(ctx)) {
+            /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+            let ndep_dj: i32 = pipeline_dep_ctx_ndep(ctx);
+            while (dj < ndep_dj) {
               let dj_path: u8[256] = [];
               pipeline_dep_ctx_import_path_copy64(ctx, dj, &dj_path[0]);
               let dj_plen: i32 = pipeline_dep_ctx_import_path_len(ctx, dj);
@@ -15472,7 +15497,7 @@ export function codegen_emit_expr(arena: *ASTArena, out: *CodegenOutBuf, expr_re
                 }
                 if (dj_eq != 0) {
                   fb_dep_mod = pipeline_dep_ctx_module_at(ctx, dj);
-                  dj = pipeline_dep_ctx_ndep(ctx);
+                  dj = ndep_dj;
                 }
               }
               dj = dj + 1;

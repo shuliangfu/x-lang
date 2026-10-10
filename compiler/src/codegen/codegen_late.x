@@ -559,7 +559,9 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
       /* See implementation. */
       if (func_ix >= 0) {
         let res_mod: *Module = 0 as *Module;
-        if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+        /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+        let ndep_res: i32 = pipeline_dep_ctx_ndep(ctx);
+        if (dep_ix >= 0 && dep_ix < ndep_res) {
           res_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
         } else {
           res_mod = current_module;
@@ -660,15 +662,19 @@ export function codegen_emit_call_func_name(out: *CodegenOutBuf, arena: *ASTAren
       if (current_module != 0 as *Module) {
         search_mod = current_module;
         search_arena = codegen_arena_for_module(ctx, search_mod, arena);
-      } else if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-        search_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
-        search_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
-        if (search_arena == 0 as *ASTArena) {
-          search_arena = arena;
-        }
       } else {
-        search_mod = current_module;
-        search_arena = codegen_arena_for_module(ctx, search_mod, arena);
+        /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+        let ndep_search: i32 = pipeline_dep_ctx_ndep(ctx);
+        if (dep_ix >= 0 && dep_ix < ndep_search) {
+          search_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
+          search_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+          if (search_arena == 0 as *ASTArena) {
+            search_arena = arena;
+          }
+        } else {
+          search_mod = current_module;
+          search_arena = codegen_arena_for_module(ctx, search_mod, arena);
+        }
       }
       if (search_mod != 0 as *Module && fallback_len > 0) {
         let call_e: Expr = call_e0;
@@ -5204,7 +5210,9 @@ export function codegen_emit_import_dep_function_declarations(module: *Module, o
           let dep_mod: *Module = 0 as *Module;
           let dep_arena: *ASTArena = 0 as *ASTArena;
           let dep_ctx_ix: i32 = dep_ix;
-          if (dep_ix >= 0 && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let ndep_seen: i32 = pipeline_dep_ctx_ndep(ctx);
+          if (dep_ix >= 0 && dep_ix < ndep_seen) {
             dep_mod = pipeline_dep_ctx_module_at(ctx, dep_ix);
             dep_arena = pipeline_dep_ctx_arena_at(ctx, dep_ix);
           }
