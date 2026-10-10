@@ -15185,7 +15185,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         && type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_ar),
         pipeline_type_elem_ref_at(arena, rt_ar))) {
           out_ar = lt_ar;
-        } else if (lko == ord_i64 || rko == ord_i64) {
+        } else if (lko == ord_i64) {
+          /*
+           * Not `lko == ord_i64 || rko == ord_i64`. The & | ^ % arm above
+           * compares an operand kind with ord_lit. That sete overwrites the
+           * register still holding ord_i64, and the chained form does not
+           * reload it, so the compare treats every i32 (ordinal 0) as i64.
+           * The binop result becomes i64: `a & b`, `a % 16`, and `esz & 255`
+           * then fail the i32 use. + - * / << >> do not enter that arm and
+           * stayed i32. Each side is its own compare so ord_i64 is reloaded.
+           * PLATFORM: SHARED. The bootstrap image miscompiled only the chain.
+           */
+          out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64);
+        } else if (rko == ord_i64) {
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64);
         } else if (lko == ord_f32
         && typeck_coerce_init_float_lit_to_decl(arena, bop_r, lt_ar, ord_f32, rk_expr) != 0) {
@@ -15199,12 +15211,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         } else if (rko == ord_f32
         && typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_ar, ord_f32, lk_expr) != 0) {
           out_ar = rt_ar;
-        } else if (lko == ord_f64 || rko == ord_f64) {
+        } else if (lko == ord_f64) {
           /* wave296: usual arithmetic conversion — any f64 operand widens the binop to f64
            * (f32*f64 / f64*f32 must not resolve as f32; freestanding cast/mul need mulsd bits).
+           * Split, not `lko == ord_f64 || rko == ord_f64`. Same sete clobber as ord_i64:
+           * a right-hand i32 is ordinal 0 and would widen to f64. Each compare reloads.
            * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool twin same commit. */
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f64);
-        } else if (lko == ord_f32 || rko == ord_f32) {
+        } else if (rko == ord_f64) {
+          out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f64);
+        } else if (lko == ord_f32) {
+          /* Same reload as ord_f64. Not `lko == ord_f32 || rko == ord_f32`. */
+          out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32);
+        } else if (rko == ord_f32) {
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32);
         } else if (type_refs_equal(arena, lt_ar, rt_ar)) {
           out_ar = lt_ar;
