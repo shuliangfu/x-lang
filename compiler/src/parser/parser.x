@@ -1846,18 +1846,33 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Decide whether a function body's final expression must become EXPR_RETURN.
+ *
+ * A void return type stays unwrapped. Both sides of the kind test are stored
+ * in i32 locals before the compare. A direct `rtw.kind == TypeKind.TYPE_VOID`
+ * is lowered by the Windows self-hosted compiler to the previous TypeKind
+ * ordinal, so an f64 tail skips the wrap and the next generation reports an
+ * implicit return. The i32 form lowers to the real void ordinal.
+ *
+ * @param arena     Arena that owns `type_ref`. Must not be null when `type_ref` is live.
+ * @param res       Parsed function. `has_explicit_return_kw` is the wrap decision for a non-void return.
+ * @param type_ref  Return-type ref. A null ref means do not wrap.
+ * @return          True when the tail expression should be wrapped in EXPR_RETURN.
+ *
+ * PLATFORM: SHARED. The compare shape is required for the Windows self-host;
+ * Darwin and Linux compile the same source.
  */
 export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *OneFuncResult, type_ref: i32): bool {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: SHARED — kind ordinals are compared as i32 so the Windows
+  // self-host does not fold TypeKind.TYPE_VOID onto the previous enumerator.
   unsafe {
   if (ast.ref_is_null(type_ref)) {
     return false;
   }
   let rtw: Type = ast.ast_arena_type_get(arena, type_ref);
-  if (rtw.kind == TypeKind.TYPE_VOID) {
+  let got_kind: i32 = rtw.kind as i32;
+  let void_ord: i32 = TypeKind.TYPE_VOID as i32;
+  if (got_kind == void_ord) {
     return false;
   }
   return res.has_explicit_return_kw;
