@@ -988,7 +988,9 @@ function uasb_emit_deps(module: *u8, elf_ctx: *u8, pctx: *u8): i32 {
         driver_set_current_dep_path_for_codegen(pb);
         let dep_ar: *u8 = pipeline_dep_ctx_arena_at(pctx, j);
         if (dep_mod != 0 as *u8 && dep_ar != 0 as *u8) {
-          if (pipeline_module_num_funcs(dep_mod) > 0) {
+          // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+          let nfunc_co: i32 = pipeline_module_num_funcs(dep_mod);
+          if (nfunc_co > 0) {
             if (backend_asm_codegen_ast_to_elf(dep_mod, dep_ar, elf_ctx, pctx) != 0) {
               driver_set_current_dep_path_for_codegen(0 as *u8);
               return 0 - 1;

@@ -604,7 +604,9 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
               let rdm: *u8 = pipeline_dep_ctx_module_at(rpctx, mdep);
               let rda: *u8 = pipeline_dep_ctx_arena_at(rpctx, mdep);
               if (rdm != 0) {
-                if (mfunc < pipeline_module_num_funcs(rdm)) {
+                // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+                let nfunc_rdm: i32 = pipeline_module_num_funcs(rdm);
+                if (mfunc < nfunc_rdm) {
                   out_fi[0] = mfunc;
                   g02f_store_ptr_at(out_cm, 0, rdm);
                   if (rda != 0) {
@@ -617,7 +619,9 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
           }
           // stale / OOB dep: fall through to name scan
         } else {
-          if (mfunc < pipeline_module_num_funcs(entry_mod)) {
+          // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+          let nfunc_entry: i32 = pipeline_module_num_funcs(entry_mod);
+          if (mfunc < nfunc_entry) {
             out_fi[0] = mfunc;
             return 1;
           }
@@ -1125,7 +1129,9 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
         let fi: i32 = pipeline_asm_emit_func_index_c();
         let vlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (fi >= 0) {
-          if (fi < pipeline_module_num_funcs(mod)) {
+          // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+          let nfunc_fi: i32 = pipeline_module_num_funcs(mod);
+          if (fi < nfunc_fi) {
             if (vlen > 0) {
               if (vlen <= 63) {
                 let vname: u8[256] = [];

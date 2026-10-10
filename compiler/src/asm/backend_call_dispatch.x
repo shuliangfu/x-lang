@@ -2435,8 +2435,12 @@ export function glue_asm_build_call_export_sym_c(
         }
       }
       if (mod != 0 as *u8) {
+        // PLATFORM: WINDOWS — the linked num_funcs homes rcx at [rbp+0x10].
+        // A push of the index immediately before that call aliases the home.
+        // The count is stable for this name scan. Same store-form as the dep scan below.
+        let nfunc_scan: i32 = pipeline_module_num_funcs(mod);
         let efi: i32 = 0;
-        while (efi < pipeline_module_num_funcs(mod)) {
+        while (efi < nfunc_scan) {
           if (pipeline_module_func_name_equal_at(mod, efi, &cname[0], clen) != 0) {
             // PLATFORM: SHARED — do not return the extern spelling on the
             // first hit. A later non-extern with the same source name is
@@ -2504,9 +2508,11 @@ export function glue_asm_build_call_export_sym_c(
         let dep_mod: *u8 = pipeline_dep_ctx_module_at(dep_pipe, dep_ix);
         let dep_arena: *u8 = pipeline_dep_ctx_arena_at(dep_pipe, dep_ix);
         if (dep_mod != 0) {
+          // PLATFORM: WINDOWS — hoist the pure count so the compare does not push over the home.
+          let nfunc_dep: i32 = pipeline_module_num_funcs(dep_mod);
           let saw_non_extern: i32 = 0;
           let fi2: i32 = 0;
-          while (fi2 < pipeline_module_num_funcs(dep_mod)) {
+          while (fi2 < nfunc_dep) {
             if (pipeline_module_func_name_equal_at(dep_mod, fi2, &cname[0], clen) != 0) {
               if (pipeline_module_func_is_extern_at(dep_mod, fi2) == 0) {
                 saw_non_extern = 1;
@@ -2517,7 +2523,7 @@ export function glue_asm_build_call_export_sym_c(
           }
           if (saw_non_extern == 0) {
             fi2 = 0;
-            while (fi2 < pipeline_module_num_funcs(dep_mod)) {
+            while (fi2 < nfunc_dep) {
               if (pipeline_module_func_name_equal_at(dep_mod, fi2, &cname[0], clen) != 0) {
                 if (pipeline_module_func_is_extern_at(dep_mod, fi2) != 0) {
                   if (clen > 0) {
@@ -2561,8 +2567,10 @@ export function glue_asm_build_call_export_sym_c(
             // (STD-091: io_err_cancelled() emitted as std_error_base_fs).
             // PLATFORM: SHARED — typeck stamp/name scan; Ubuntu gold -o.
             use_fi = pipeline_typeck_resolve_call_func_index_for_emit_c(dep_mod, arena, call_expr_ref);
+            // PLATFORM: WINDOWS — one count for both bounds checks below.
+            let nfunc_use: i32 = pipeline_module_num_funcs(dep_mod);
             if (use_fi >= 0) {
-              if (use_fi >= pipeline_module_num_funcs(dep_mod)) {
+              if (use_fi >= nfunc_use) {
                 use_fi = 0 - 1;
               } else {
                 if (pipeline_module_func_is_extern_at(dep_mod, use_fi) != 0) {
@@ -2581,7 +2589,7 @@ export function glue_asm_build_call_export_sym_c(
             if (use_fi < 0) {
               if (r_dep == dep_ix) {
                 if (r_func >= 0) {
-                  if (r_func < pipeline_module_num_funcs(dep_mod)) {
+                  if (r_func < nfunc_use) {
                     if (pipeline_module_func_is_extern_at(dep_mod, r_func) == 0) {
                       if (pipeline_module_func_name_equal_at(dep_mod, r_func, &cname[0], clen) != 0) {
                         if (pipeline_module_func_num_params_at(dep_mod, r_func) == want_np) {
@@ -8286,7 +8294,9 @@ export function glue_asm_mangle_import_binding_call_sym_c(
           }
           use_fi = r_func;
           if (use_fi >= 0) {
-            if (use_fi < pipeline_module_num_funcs(res_mod)) {
+            // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+            let nfunc_res: i32 = pipeline_module_num_funcs(res_mod);
+            if (use_fi < nfunc_res) {
               let ok: i32 = 1;
               if (pipeline_module_func_num_params_at(res_mod, use_fi) != want_np) { ok = 0; }
               if (pipeline_module_func_name_equal_at(res_mod, use_fi, field_name, field_len) == 0) { ok = 0; }
@@ -8344,7 +8354,9 @@ export function glue_asm_mangle_import_binding_call_sym_c(
       }
       if (res_mod != 0 as *u8) {
         if (use_fi >= 0) {
-          if (use_fi < pipeline_module_num_funcs(res_mod)) {
+          // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+          let nfunc_res2: i32 = pipeline_module_num_funcs(res_mod);
+          if (use_fi < nfunc_res2) {
             mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, &mid[0], 64);
             if (mid_len > 0) {
               // PLATFORM: SHARED — same bare gate as export sym builder.

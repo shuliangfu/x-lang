@@ -1514,7 +1514,9 @@ export function pipeline_typeck_reject_addr_of_linear_c(arena: *u8, op_ref: i32,
     }
     let func_ix: i32 = pipeline_dep_ctx_current_func_index(ctx);
     if (func_ix >= 0) {
-      if (func_ix < pipeline_module_num_funcs(module)) {
+      // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+      let nfunc_addr: i32 = pipeline_module_num_funcs(module);
+      if (func_ix < nfunc_addr) {
         let pr: i32 = pipeline_module_func_param_type_ref_for_name(module, func_ix, &vbuf[0], vnlen);
         if (pr > 0) {
           if (pipeline_type_kind_ord_at(arena, pr) == 12) {
@@ -2056,7 +2058,9 @@ export function pipeline_typeck_check_expr_try_propagate_c(module: *u8, arena: *
       func_ix = pipeline_dep_ctx_current_func_index(ctx);
     }
     if (func_ix >= 0) {
-      if (func_ix < pipeline_module_num_funcs(module)) {
+      // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+      let nfunc_try: i32 = pipeline_module_num_funcs(module);
+      if (func_ix < nfunc_try) {
         func_ret = pipeline_module_func_return_type_at(module, func_ix);
         if (func_ret > 0) { enclosing = func_ret; }
       }

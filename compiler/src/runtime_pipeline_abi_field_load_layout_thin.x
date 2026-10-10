@@ -83,8 +83,10 @@ export function field_load_sz_layout_match(a: *u8, m: *u8, base_tr: i32, field_n
       if (pipeline_module_struct_layout_name_len(m, k) == pipe_load_i32_le(&cell[0], 0)) {
         field_load_sz_copy_layout_name(m, k, &layout_name[0], pipe_load_i32_le(&cell[0], 0));
         if (field_load_sz_bytes_eq(&struct_name[0], &layout_name[0], pipe_load_i32_le(&cell[0], 0)) != 0) {
+          // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+          let nfields_lr: i32 = pipeline_module_struct_layout_num_fields(m, k);
           j = 0;
-          while (j < pipeline_module_struct_layout_num_fields(m, k)) {
+          while (j < nfields_lr) {
             if (pipeline_module_struct_layout_field_name_len(m, k, j) == flen) {
               pipeline_module_struct_layout_field_name_into(m, k, j, &fb[0]);
               if (field_load_sz_bytes_eq(&fb[0], field_name, flen) != 0) {

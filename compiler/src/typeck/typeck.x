@@ -2620,8 +2620,10 @@ export function typeck_soa_field_soa_index(module: *Module, arena: *ASTArena, ex
     ftr = 0;
     stride = 0;
     col_base = 0;
+    // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+    let nfields_soa: i32 = pipeline_module_struct_layout_num_fields(layout_mod, li);
     j = 0;
-    while (j < pipeline_module_struct_layout_num_fields(layout_mod, li)) {
+    while (j < nfields_soa) {
       fnlen = pipeline_module_struct_layout_field_name_len(layout_mod, li, j);
       if (fnlen == fl) {
         pipeline_module_struct_layout_field_name_into(layout_mod, li, j, &fb[0]);
@@ -2982,7 +2984,9 @@ field_name: *u8, field_name_len: i32): i32 {
     while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
-        while (j < pipeline_module_struct_layout_num_fields(module, k)) {
+        // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+        let nfields_off: i32 = pipeline_module_struct_layout_num_fields(module, k);
+        while (j < nfields_off) {
           if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
             let stored: i32 = pipeline_module_struct_layout_field_offset_at(module, k, j);
             if (stored != 0) {
@@ -3012,7 +3016,9 @@ field_name: *u8, field_name_len: i32): i32 {
     while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
-        while (j < pipeline_module_struct_layout_num_fields(module, k)) {
+        // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+        let nfields_ty: i32 = pipeline_module_struct_layout_num_fields(module, k);
+        while (j < nfields_ty) {
           if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
             return pipeline_module_struct_layout_field_type_ref(module, k, j);
           }
@@ -6521,9 +6527,10 @@ ctx: *PipelineDepCtx): void {
             need = 1;
           } else {
             weak_entry = false;
+            // PLATFORM: WINDOWS — one pure count for the three compares below.
+            let nfields_ex: i32 = pipeline_module_struct_layout_num_fields(mod, ex);
             /* See implementation. */
-            if (pipeline_module_struct_layout_num_fields(mod,
-            ex) >= 2 && pipeline_module_struct_layout_field_type_ref(mod, ex, 1) == 0) {
+            if (nfields_ex >= 2 && pipeline_module_struct_layout_field_type_ref(mod, ex, 1) == 0) {
               weak_entry = true;
             }
             /* See implementation. */
@@ -6536,8 +6543,7 @@ ctx: *PipelineDepCtx): void {
                 is_expr_nm = true;
               }
             }
-            if (nf_dep > pipeline_module_struct_layout_num_fields(mod,
-            ex) || weak_entry || is_expr_nm) {
+            if (nf_dep > nfields_ex || weak_entry || is_expr_nm) {
               need = 1;
             }
             // wave1220 P5: also re-copy when field counts match but types may differ.
@@ -6547,8 +6553,7 @@ ctx: *PipelineDepCtx): void {
             // count, the old `>` condition skipped the re-copy, leaving wrong field
             // types. Using `>=` ensures dep authority always overwrites struct-lit
             // guesses. PLATFORM: SHARED — typeck only, no runtime impact.
-            if (nf_dep > 0 && nf_dep >= pipeline_module_struct_layout_num_fields(mod,
-            ex) && pipeline_module_struct_layout_num_fields(mod, ex) > 0) {
+            if (nf_dep > 0 && nf_dep >= nfields_ex && nfields_ex > 0) {
               need = 1;
             }
             /* See implementation. */
@@ -12000,8 +12005,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (ctx != 0 as *PipelineDepCtx) {
       func_ix = pipeline_dep_ctx_current_func_index(ctx);
     }
+    // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+    let nfunc_encl: i32 = 0;
+    if (module != 0 as *Module) {
+      nfunc_encl = pipeline_module_num_funcs(module);
+    }
     if (module != 0 as *Module && ctx != 0 as *PipelineDepCtx && func_ix >= 0 &&
-    func_ix < pipeline_module_num_funcs(module)) {
+    func_ix < nfunc_encl) {
       func_ret = pipeline_module_func_return_type_at(module, func_ix);
       if (!ast.ref_is_null(func_ret)) {
         enclosing_return_type_ref = func_ret;
@@ -23343,8 +23353,10 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
       }
     }
     if (func_idx < 0) {
+      // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+      let nfunc_search: i32 = pipeline_module_num_funcs(search_mod);
       j = 0;
-      while (j < pipeline_module_num_funcs(search_mod)) {
+      while (j < nfunc_search) {
         if (pipeline_module_func_name_equal_at(search_mod, j, &cnm[0], cnml) != 0) {
           func_idx = j;
           break;
@@ -23362,8 +23374,10 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
           di = di + 1;
           continue;
         }
+        // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+        let nfunc_dm: i32 = pipeline_module_num_funcs(dm);
         j = 0;
-        while (j < pipeline_module_num_funcs(dm)) {
+        while (j < nfunc_dm) {
           if (pipeline_module_func_name_equal_at(dm, j, &cnm[0], cnml) != 0) {
             func_idx = j;
             search_mod = dm;
