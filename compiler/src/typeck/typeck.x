@@ -18355,16 +18355,28 @@ tgt_ty: i32): i32 {
     }
     /*
      * Pointer to pointer (reinterpret the pointee).
-     * Not `sk == ord_ptr && tk == ord_ptr`. The first compare's sete
-     * overwrites the register holding ord_ptr, and the chained form does
-     * not reload it, so the second compare tests the target kind against
-     * 0. A real pointer target misses. `*u8 as *u64` in the Windows
-     * writev stub then fails as an illegal cast. Each side is its own
-     * compare so ord_ptr is reloaded.
-     * PLATFORM: SHARED. The bootstrap image miscompiled only the chain.
+     * Not a nested `if (sk == ord_ptr) { if (tk == ord_ptr) }`.
+     * That outer compare's sete overwrites the register holding ord_ptr
+     * and leaves 1 on the true path. The inner compare is still in that
+     * path, so it tests the target kind against 1. A real pointer target
+     * misses. `*u8 as *u64` in the Windows writev stub then fails as an
+     * illegal cast. Same-type pointer casts never reach here.
+     * Each side stores its own flag, the same shape as the pointer-binop
+     * check. Each equality reloads ord_ptr. The flags are a different
+     * local from ord_ptr, so the acceptance test does not reread the
+     * clobbered register.
+     * PLATFORM: SHARED. The bootstrap image miscompiled the nested form.
      */
+    let src_is_ptr: i32 = 0;
+    let tgt_is_ptr: i32 = 0;
     if (sk == ord_ptr) {
-      if (tk == ord_ptr) {
+      src_is_ptr = 1;
+    }
+    if (tk == ord_ptr) {
+      tgt_is_ptr = 1;
+    }
+    if (src_is_ptr != 0) {
+      if (tgt_is_ptr != 0) {
         return 1;
       }
     }
