@@ -10777,9 +10777,19 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       if_oi = if_oi + 1;
     }
-    /* See implementation. */
+    /*
+     * Walk regions with the count already stored in n_reg_pool.
+     * PLATFORM: WINDOWS — the bootstrap compiler spills a call's first
+     * argument at 0x10(%rbp) and does not reserve the 32-byte home area.
+     * A call in this condition pushes the index into that slot;
+     * pipeline_onefunc_num_regions overwrites it with the pool pointer.
+     * The index then becomes the pointer's low half, so the loop either
+     * drops every kind-6 stmt_order or grows the vector to that index.
+     * n_reg_pool is the same count fill_regions just consumed. The local
+     * compare matches the const/let walks above and does not call out.
+     */
     let reg_oi: i32 = 0;
-    while (reg_oi < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
+    while (reg_oi < n_reg_pool) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oi) < 0) {
         return { ok: -1, main_idx: -1 }
       }
@@ -12893,8 +12903,16 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       if_oib = if_oib + 1;
     }
+    /*
+     * Walk regions with the count already stored in n_reg_pool2.
+     * PLATFORM: WINDOWS — buf twin of the n_reg_pool walk above. A call in
+     * this condition pushes reg_oib into the callee home slot, and
+     * pipeline_onefunc_num_regions spills its pool pointer over that slot.
+     * Measured on the bootstrap image: the saved index 0 becomes the pool
+     * pointer, and the signed low half either skips the walk or never exits.
+     */
     let reg_oib: i32 = 0;
-    while (reg_oib < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
+    while (reg_oib < n_reg_pool2) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oib) < 0) {
         return { ok: -1, main_idx: -1 }
       }
