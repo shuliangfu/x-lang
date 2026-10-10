@@ -15074,7 +15074,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * adjacent string lits wave282), mul/div/mod/bitops with ptr, int-ptr, etc.
        * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool infer twin same commit.
        */
-      if (lko == ord_ptr || rko == ord_ptr) {
+      /*
+       * Each side is its own compare. A chained `lko == ord_ptr || rko == ord_ptr`
+       * keeps ord_ptr in the register that sete overwrites, so the second
+       * compare tests the right kind against 0. TYPE_I32 is ordinal 0, so
+       * every right-hand i32 took this path and + - * / << & were rejected
+       * as pointer arithmetic (Windows bootstrap image that compiled this
+       * function). The flag is the same predicate. Each equality reloads
+       * ord_ptr. `saw_ptr != 0` is a single compare.
+       * PLATFORM: SHARED — same rejection on every host. The bootstrap image
+       * miscompiled only the chained form.
+       */
+      let saw_ptr: i32 = 0;
+      if (lko == ord_ptr) {
+        saw_ptr = 1;
+      }
+      if (rko == ord_ptr) {
+        saw_ptr = 1;
+      }
+      if (saw_ptr != 0) {
         let line_pb: i32 = pipeline_expr_line_at(arena, expr_ref);
         let col_pb: i32 = pipeline_expr_col_at(arena, expr_ref);
         if (expr_kind == ord_add) {
@@ -15086,11 +15104,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           return -1;
         }
         if (expr_kind == ord_sub) {
-          if (lko == ord_ptr && rko == ord_ptr) {
-            /* Pointer difference yields isize (not a pointer). */
-            out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_isize);
-            pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
-            return 0;
+          /*
+           * Nested compares, not `lko == ord_ptr && rko == ord_ptr`. The same
+           * sete clobber made a real pointer difference fail the second
+           * compare: the right kind was tested against 0, not ord_ptr.
+           * PLATFORM: SHARED.
+           */
+          if (lko == ord_ptr) {
+            if (rko == ord_ptr) {
+              /* Pointer difference yields isize (not a pointer). */
+              out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_isize);
+              pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+              return 0;
+            }
           }
           if (!ast.ref_is_null(out_ar)) {
             pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
