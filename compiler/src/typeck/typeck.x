@@ -18353,9 +18353,20 @@ tgt_ty: i32): i32 {
     if ((s_int != 0 && tk == ord_ptr) || (t_int != 0 && sk == ord_ptr)) {
       return 1;
     }
-    /* pointer ↔ pointer (reinterpret pointee). */
-    if (sk == ord_ptr && tk == ord_ptr) {
-      return 1;
+    /*
+     * Pointer to pointer (reinterpret the pointee).
+     * Not `sk == ord_ptr && tk == ord_ptr`. The first compare's sete
+     * overwrites the register holding ord_ptr, and the chained form does
+     * not reload it, so the second compare tests the target kind against
+     * 0. A real pointer target misses. `*u8 as *u64` in the Windows
+     * writev stub then fails as an illegal cast. Each side is its own
+     * compare so ord_ptr is reloaded.
+     * PLATFORM: SHARED. The bootstrap image miscompiled only the chain.
+     */
+    if (sk == ord_ptr) {
+      if (tk == ord_ptr) {
+        return 1;
+      }
     }
     return 0;
   }
