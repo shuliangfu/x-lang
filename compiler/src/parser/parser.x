@@ -114,6 +114,30 @@ function parser_slice_view(data: *u8, len: i32): u8[] {
 }
 
 /**
+ * Write a u8[] view of [data, data+len) into a caller-owned header.
+ *
+ * The Windows bootstrap compiler lowers `let s: u8[] = call()` by copying
+ * at most 1024 payload bytes into a frame buffer and storing that length.
+ * Parser cursors are absolute indexes into the original buffer, so a file
+ * longer than 1024 bytes then looks like EOF and the top-level let reports
+ * P014 at 0:0. Callers keep `let s: u8[] = []` (not a call) and pass &s.
+ * The 16-byte store is the {data, length} header only.
+ *
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count; negative becomes an empty view
+ * @param dst *u8 — address of the caller u8[] header; caller does not pass null
+ * @return void
+ * PLATFORM: SHARED. WINDOWS bootstrap deep-copy is why this is not a slice return.
+ */
+function parser_slice_view_store(data: *u8, len: i32, dst: *u8): void {
+  let b: ParserSliceBuf = ParserSliceBuf { data: (0 as *u8), length: (0 as usize) };
+  unsafe {
+    b = parser_slice_from_buf(data, len);
+    memcpy(dst, (&b as *u8), (16 as usize));
+  }
+}
+
+/**
  * Copy one LexerResult image (72 bytes) onto dst.
  *
  * Layout: next_lex at 0 (pos, line, col; 16 bytes), tok at 16 (48 bytes),
@@ -2602,7 +2626,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
    * See implementation.
    */
   lexer.lexer_next_into(&r_peek_blk, lex_cur, source);
-  let r: LexerResult = r_peek_blk;
+  let r: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  parser_copy_lexer_result(&r, &r_peek_blk);
   lex_cur = parser_rewind_lex_for_following_stmt(lex_cur, r_peek_blk);
   let stmt_tok_ready: bool = true;
   let pb_break: i32 = 0;
@@ -3522,7 +3547,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         let rpeek_if2: LexerResult = { next_lex: rpeek_fe.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&rpeek_if2, rpeek_fe.next_lex, source);
         if (rpeek_if2.tok.kind == token.TokenKind.TOKEN_RBRACE) {
-          rpeek_fe = rpeek_if2;
+          parser_copy_lexer_result(&rpeek_fe, &rpeek_if2);
         }
       }
       if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
@@ -3555,7 +3580,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           b = ast.ast_arena_block_get(arena, block_ref);
           b.final_expr_ref = if_expr_ref_c;
           ast.ast_arena_block_set(arena, block_ref, b);
-          r = rpeek_fe;
+          parser_copy_lexer_result(&r, &rpeek_fe);
           break;
         }
       }
@@ -3592,7 +3617,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         lex_from_result_ptr_into(&lex_cur, &r);
         let after_ms_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_ms_blk, lex_cur, source);
-        r = after_ms_blk;
+        parser_copy_lexer_result(&r, &after_ms_blk);
       }
       if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
         /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
@@ -3689,7 +3714,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         b = ast.ast_arena_block_get(arena, block_ref);
         b.final_expr_ref = bare_expr;
         ast.ast_arena_block_set(arena, block_ref, b);
-        r = rpeek_fe;
+        parser_copy_lexer_result(&r, &rpeek_fe);
         break;
       }
       if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
@@ -3700,7 +3725,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           b = ast.ast_arena_block_get(arena, block_ref);
           b.final_expr_ref = bare_expr;
           ast.ast_arena_block_set(arena, block_ref, b);
-          r = rpeek_fe2;
+          parser_copy_lexer_result(&r, &rpeek_fe2);
           break;
         }
       }
@@ -3741,7 +3766,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
       /* See implementation. */
-      r = rpeek_fe;
+      parser_copy_lexer_result(&r, &rpeek_fe);
       break;
     }
     /* See implementation. */
@@ -3767,7 +3792,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       lex_from_result_ptr_into(&lex_cur, &r);
       let after_semi_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
       lexer.lexer_next_into(&after_semi_blk, lex_cur, source);
-      r = after_semi_blk;
+      parser_copy_lexer_result(&r, &after_semi_blk);
     }
     ex_pool_i = pipeline_block_append_expr_stmt(arena, block_ref, expr_stmt_res.expr_ref);
     if (ex_pool_i < 0) {
@@ -5536,18 +5561,22 @@ export function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
 }
 
 
-/** Exported function `skip_one_function_full_into_buf`.
- * Implements `skip_one_function_full_into_buf`.
- * @param out *Lexer
- * @param lex Lexer
- * @param data *u8
- * @param len i32
+/**
+ * Skip one whole function starting at `lex`, reading the raw source buffer.
+ * @param out *Lexer — cursor after the function; unchanged when the body cannot be skipped
+ * @param lex Lexer — cursor on the `function` keyword; `pos` is an index into `data`
+ * @param data *u8 — full source buffer; null only when `len` is 0
+ * @param len i32 — byte count of `data`; negative is an empty view
  * @return void
+ * PLATFORM: SHARED. PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+ * That call-return store copies at most 1024 payload bytes into the frame, and
+ * `lex.pos` past that copy cannot see the function's closing brace.
  */
 export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   skip_one_function_full_into(out, lex, slice);
   }
 }
@@ -6560,7 +6589,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             token_start: (0 as usize)
           };
           lexer.lexer_next_into(&r_ret_kw, ret_kw_lex, source);
-          r = r_ret_kw;
+          parser_copy_lexer_result(&r, &r_ret_kw);
           lex = ret_kw_lex;
         }
       }
@@ -7329,7 +7358,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex_from_result_ptr_into(&lex, &r);
           let after_match_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&after_match_semi, lex, source);
-          r = after_match_semi;
+          parser_copy_lexer_result(&r, &after_match_semi);
         }
         if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
           impl_snap.has_final_expr = true;
@@ -7420,7 +7449,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex_from_result_ptr_into(&lex, &r);
         let after_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_semi, lex, source);
-        r = after_semi;
+        parser_copy_lexer_result(&r, &after_semi);
       }
       ex_i = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), expr_stmt_res.expr_ref);
       if (ex_i < 0) {
@@ -8168,8 +8197,11 @@ export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: 
  */
 export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Module, out: *CollectImportsResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // ast.x is longer than that, so the import scan must keep the real length.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   collect_imports(lex, slice, module, out);
   }
 }
@@ -8366,8 +8398,12 @@ function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, s
  */
 function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // CRLF ast.x places TYPE_USIZE at offset 1023, so the capped view keeps
+  // only the leading 'T' and the enum walker stops before TYPE_FN.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   skip_one_enum_register_into(module, out, lex, slice);
   }
 }
@@ -9136,8 +9172,11 @@ function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexe
  */
 function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // The library parse must see the whole import, not the first 1024 bytes.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   return parse_one_function_library(arena, module, lex, slice);
   }
 }
@@ -9198,18 +9237,23 @@ export function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i3
 }
 
 
-/** Internal function `skip_one_struct_into_buf`.
- * Implements `skip_one_struct_into_buf`.
- * @param out *Lexer
- * @param lex Lexer
- * @param data *u8
- * @param len i32
+/**
+ * Skip one struct starting at `lex`, reading the raw source buffer.
+ * @param out *Lexer — cursor after the struct; unchanged when the body cannot be skipped
+ * @param lex Lexer — cursor on or before the `struct` keyword; `pos` is an index into `data`
+ * @param data *u8 — full source buffer; null only when `len` is 0
+ * @param len i32 — byte count of `data`; negative is an empty view
  * @return void
+ * PLATFORM: SHARED. PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+ * That call-return store copies at most 1024 payload bytes into the frame.
+ * A struct past that window is not skipped, and the top-level +1 fallback
+ * then walks into the preceding comment.
  */
 function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: SHARED — header only. The inner skip still sees absolute `lex.pos`.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   skip_one_struct_into(out, lex, slice);
   }
 }
@@ -9447,8 +9491,12 @@ export function parse_one_function_library_into(out: *LibraryParseResult, arena:
  */
 export function parse_one_function_library_into_buf(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // This is the live import entry. The capped view drops every byte of
+  // ast.x past TYPE_USIZE, so later variants never reach the enum table.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   parse_one_function_library_into(out, arena, module, lex, slice);
   }
 }
@@ -9484,8 +9532,11 @@ export function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Le
  */
 export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // This wrapper is the hot import re-view. Keep the caller's full length.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   parse_into_try_skip_allow_into(out, lex, r, slice);
   }
 }
@@ -11429,23 +11480,27 @@ export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, b
 }
 
 
-/** Exported function `parse_struct_record_layout_into_buf`.
- * Implements `parse_struct_record_layout_into_buf`.
- * @param arena *ASTArena
- * @param module *Module
- * @param lex Lexer
- * @param data *u8
- * @param len i32
- * @param out_lex *Lexer
- * @param allow_pad i32
- * @param force_soa i32
- * @param repr_compat i32
- * @return i32
+/**
+ * Parse one struct layout from the raw source buffer into `module`.
+ * @param arena *ASTArena — AST storage; caller does not pass null
+ * @param module *Module — destination module; caller does not pass null
+ * @param lex Lexer — cursor on the struct name; `pos` is an index into `data`
+ * @param data *u8 — full source buffer; null only when `len` is 0
+ * @param len i32 — byte count of `data`; negative is an empty view
+ * @param out_lex *Lexer — cursor after the struct; caller does not pass null
+ * @param allow_pad i32 — non-zero allows explicit padding fields
+ * @param force_soa i32 — non-zero requests the SoA layout
+ * @param repr_compat i32 — non-zero requests the compatible repr
+ * @return i32 — 0 when the layout was recorded, non-zero when the caller should skip
+ * PLATFORM: SHARED. PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+ * That call-return store copies at most 1024 payload bytes into the frame, so a
+ * struct past that window fails and the skip fallback walks into the preceding comment.
  */
 export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: SHARED — header only. Field offsets still come from the inner layout parser.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   return parse_struct_record_layout_into(arena, module, lex, slice, out_lex, allow_pad, force_soa, repr_compat);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11519,8 +11574,12 @@ export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena,
  */
 export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+  // That call-return store copies at most 1024 bytes, and lex.pos is an
+  // index into the original buffer.
   unsafe {
-  let slice: u8[] = parser_slice_view(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   parse_one_top_level_let_into(arena, module, lex, slice, is_const, out);
   }
 }
@@ -12103,8 +12162,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     onefunc_res_wire_dummy_call_binop(&res, empty64_buf);
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
-    let slice_for_impl: u8[] = parser_slice_view(data, len);
-    slice_for_impl = parser_slice_view(data, len);
+    // PLATFORM: WINDOWS — both slice returns copied at most 1024 payload
+    // bytes, so a function body past that window was parsed against a prefix.
+    let slice_for_impl: u8[] = [];
+    parser_slice_view_store(data, len, (&slice_for_impl as *u8));
     /* See implementation. */
     // LibraryParseResult.name is u8[256].
     let empty64_lib_buf_first: u8[256] = [];
