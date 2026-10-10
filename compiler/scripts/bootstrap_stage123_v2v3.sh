@@ -36,8 +36,9 @@
 # Exit:   0 v2 == v3; 2 setup; 3 ensure/relink/stale stage; 4 v2 != v3;
 #         5 a C compiler was executed (XLANG_V2V3_TRACE=1 only).
 #
-# PLATFORM: Linux gold gate today. Darwin uses the same ensure/relink
-#   scripts; Windows is not covered here.
+# PLATFORM: SHARED. Linux is the gold gate. Darwin and Windows use the
+# same ensure/relink scripts. Windows GNU strip writes COFF TimeDateStamp
+# into the compare copy; strip_to clears that and the checksum.
 # wave2058: new.
 
 set -u
@@ -90,6 +91,27 @@ strip_to() {
     rm -rf "$_st_dir"
   else strip -o "$2" "$1" 2>/dev/null; fi
   [ -s "$2" ] || cp "$1" "$2"
+  # PLATFORM: WINDOWS. GNU strip stamps COFF TimeDateStamp on this compare
+  # copy, and the optional-header CheckSum moves with it. The installed
+  # compiler is left unchanged. Zero both fields or two identical images
+  # compare unequal.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      python3 - "$2" << 'PY' || die 2 "windows strip stamp clear failed"
+import struct, sys
+path = sys.argv[1]
+data = bytearray(open(path, "rb").read())
+if len(data) < 0x40 or data[0:2] != b"MZ":
+    raise SystemExit(0)
+e = struct.unpack_from("<I", data, 0x3C)[0]
+if e + 24 + 68 > len(data) or data[e:e+4] != b"PE\0\0":
+    raise SystemExit(0)
+struct.pack_into("<I", data, e + 8, 0)
+struct.pack_into("<I", data, e + 24 + 64, 0)
+open(path, "wb").write(data)
+PY
+      ;;
+  esac
 }
 
 cd "$C" || exit 2
