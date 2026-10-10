@@ -8018,12 +8018,16 @@ export function codegen_type_is_module_user_struct(module: *Module, arena: *ASTA
   }
 }
 
-/** Exported function `codegen_type_is_module_user_enum`.
- * Implements `codegen_type_is_module_user_enum`.
- * @param module *Module
- * @param arena *ASTArena
- * @param type_ref i32
- * @return i32
+/** Return 1 when type_ref names an enum declared on module.
+ *
+ * Callers emit that type as int32_t. A miss falls through to `struct Name`,
+ * which host cc rejects once the enum tag already exists.
+ *
+ * @param module *Module — enum table to scan; null returns 0
+ * @param arena *ASTArena — type pool; null returns 0
+ * @param type_ref i32 — must be TYPE_NAMED; otherwise returns 0
+ * @return i32 — 1 on a full name match, 0 otherwise
+ * PLATFORM: SHARED. The byte compare is split for WINDOWS (see the loop).
  */
 export function codegen_type_is_module_user_enum(module: *Module, arena: *ASTArena, type_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -8048,7 +8052,14 @@ export function codegen_type_is_module_user_enum(module: *Module, arena: *ASTAre
         let eq: bool = true;
         let j: i32 = 0;
         while (j < name_len && j < 64) {
-          if (pipeline_module_enum_name_byte_at(module, ei, j) != ty_nm[j]) {
+          /* Store each byte before the compare.
+           * PLATFORM: WINDOWS. v1 keeps the call result in rbx, then reuses
+           * rbx as the index of ty_nm[j]. The compare becomes the type-name
+           * byte against j, so every enum misses and the field is emitted
+           * as struct. Measured on compile.x -E (ast_Expr.kind). */
+          let enum_b: i32 = pipeline_module_enum_name_byte_at(module, ei, j) as i32;
+          let name_b: i32 = ty_nm[j] as i32;
+          if (enum_b != name_b) {
             eq = false;
             break;
           }
@@ -8117,7 +8128,13 @@ export function codegen_type_dep_enum_prefix_into(ctx: *PipelineDepCtx, arena: *
             let eq: bool = true;
             let j: i32 = 0;
             while (j < bare_len && j < 64) {
-              if (pipeline_module_enum_name_byte_at(dep_mod, ei, j) != ty_nm[bare_off + j]) {
+              /* Same rbx reuse as codegen_type_is_module_user_enum.
+               * PLATFORM: WINDOWS. The index of the type-name byte must not
+               * share a register with the enum byte just returned. */
+              let enum_b: i32 = pipeline_module_enum_name_byte_at(dep_mod, ei, j) as i32;
+              let name_at: i32 = bare_off + j;
+              let name_b: i32 = ty_nm[name_at] as i32;
+              if (enum_b != name_b) {
                 eq = false;
                 break;
               }
