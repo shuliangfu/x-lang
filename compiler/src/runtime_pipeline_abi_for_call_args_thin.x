@@ -272,17 +272,27 @@ export function pipeline_asm_emit_expr_elf_for_call_args(
           if (emit_mod != (0 as *u8) && glue_emit_func_param_is_indirect_array_slot_c(arena, emit_mod, expr_ref) != 0) {
             unsafe { return backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta); }
           }
-          // TYPE_SLICE formal: fat* via local_slot ptr-or-addr (wave401).
+          // TYPE_SLICE formal, or a VAR whose resolved type is TYPE_SLICE:
+          // fat pointer via local_slot ptr-or-addr (wave401).
+          // Two statements, not `||`. The right-hand `==` of one `||` was
+          // compared with the left sete result left in eax. That result is
+          // 0 when the formal is not a slice, and TYPE_I32's ordinal is 0,
+          // so every i32 argument took the address path. Each statement
+          // reloads type_slice on its own.
+          // PLATFORM: SHARED — x86_64 SysV, x86_64 Win64, ARM64.
           {
             let tk_pty: i32 = 0;
             let tk_arg: i32 = 0;
+            let slice_hit: i32 = 0;
             if (pty > 0) {
               unsafe { tk_pty = pipeline_type_kind_ord_at(arena, pty); }
             }
             if (arg_ty > 0) {
               unsafe { tk_arg = pipeline_type_kind_ord_at(arena, arg_ty); }
             }
-            if (tk_pty == type_slice || tk_arg == type_slice) {
+            if (tk_pty == type_slice) { slice_hit = 1; }
+            if (tk_arg == type_slice) { slice_hit = 1; }
+            if (slice_hit != 0) {
               return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, expr_ref, off, ctx, ta);
             }
           }
