@@ -15006,10 +15006,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * G.7: driver_diagnostic_typeck_invalid_void_binop; unary -/~ void same diag.
        * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
        */
-      if (lko == ord_void || rko == ord_void) {
+      /*
+       * Each compare is its own if. A chained `lko == ord_void || rko == ord_void`
+       * is one EXPR_LOGOR whose second equality reused the 0/1 result of the
+       * first sete. That result had overwritten the register holding ord_void,
+       * so the right operand was compared with 0. TYPE_I32 is ordinal 0, so
+       * every right-hand i32 was rejected as void (Windows bootstrap image
+       * that compiled this function). The two ifs are the same predicate and
+       * each equality reloads ord_void.
+       * PLATFORM: SHARED — same rejection on every host. The bootstrap image
+       * miscompiled only the chained form.
+       */
+      if (lko == ord_void) {
         let line_vb: i32 = pipeline_expr_line_at(arena, expr_ref);
         let col_vb: i32 = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_void_binop(line_vb, col_vb);
+        return -1;
+      }
+      if (rko == ord_void) {
+        let line_vb2: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_vb2: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_void_binop(line_vb2, col_vb2);
         return -1;
       }
       /*
@@ -15021,10 +15038,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * remove bool→i32 promotion block below.
        * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
        */
-      if (lko == ord_bool || rko == ord_bool) {
+      /*
+       * Same chained-or lowering as the void check above: the second compare
+       * would test the right kind against 0 or 1, not against ord_bool.
+       * Split so a right-hand bool is still rejected.
+       * PLATFORM: SHARED.
+       */
+      if (lko == ord_bool) {
         let line_bb: i32 = pipeline_expr_line_at(arena, expr_ref);
         let col_bb: i32 = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_bool_binop(line_bb, col_bb);
+        return -1;
+      }
+      if (rko == ord_bool) {
+        let line_bb2: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_bb2: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_bool_binop(line_bb2, col_bb2);
         return -1;
       }
       /* Pointer ± integer is the only legal pointer arithmetic (C-like). */
