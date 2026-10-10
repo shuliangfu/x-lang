@@ -1207,14 +1207,20 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
     if (codegen_emit_bytes_2(out, &lpar[0], 1) != 0) {
       return -1;
     }
-    if (pipeline_module_func_num_params_at(module, fi) == 0) {
+    /* PLATFORM: WINDOWS — the count is a local before the compare.
+     * Oct 6 saves the index with push/pop across
+     * pipeline_module_func_num_params_at. The callee homes rcx over that
+     * push, so the index becomes the module pointer and a negative low
+     * half keeps the loop running until the emit buffer fills. */
+    let nparams_emit: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (nparams_emit == 0) {
       let v: u8[7] = [118, 111, 105, 100, 0, 0, 0];
       if (codegen_emit_bytes_7(out, &v[0], 4) != 0) {
         return -1;
       }
     } else {
       let p: i32 = 0;
-      while (p < pipeline_module_func_num_params_at(module, fi)) {
+      while (p < nparams_emit) {
         if (p > 0) {
           let comma: u8[3] = [44, 32, 0];
           if (codegen_emit_bytes_3(out, &comma[0], 2) != 0) {
@@ -1428,7 +1434,10 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
       let empty_count: i32 = 0;
       let empty_idx: i32 = -1;
       let pi: i32 = 0;
-      while (pi < pipeline_module_func_num_params_at(module, fi)) {
+      /* PLATFORM: WINDOWS — one local for both scans below. The index must
+         not stay live across pipeline_module_func_num_params_at. */
+      let nparams_empty: i32 = pipeline_module_func_num_params_at(module, fi);
+      while (pi < nparams_empty) {
         if (pipeline_module_func_param_name_len_at(module, fi, pi) <= 0) {
           empty_count = empty_count + 1;
           empty_idx = pi;
@@ -1445,7 +1454,7 @@ export function emit_func(arena: *ASTArena, out: *CodegenOutBuf, module: *Module
         ctx.current_func_empty_param_count = empty_count;
         let ei: i32 = 0;
         pi = 0;
-        while (pi < pipeline_module_func_num_params_at(module, fi)) {
+        while (pi < nparams_empty) {
           if (pipeline_module_func_param_name_len_at(module, fi, pi) <= 0) {
             pipeline_dep_ctx_empty_param_append(ctx, pi);
             ei = ei + 1;
@@ -4984,14 +4993,18 @@ export function emit_func_extern_declaration(arena: *ASTArena, out: *CodegenOutB
     if (codegen_emit_bytes_2(out, &lpar[0], 1) != 0) {
       return -1;
     }
-    if (pipeline_module_func_num_params_at(module, fi) == 0) {
+    /* PLATFORM: WINDOWS — the count is a local before the compare.
+     * This is the loop g1 of f44a77b17 smashed: push the param index,
+     * call pipeline_module_func_num_params_at, pop the module pointer. */
+    let nparams_proto: i32 = pipeline_module_func_num_params_at(module, fi);
+    if (nparams_proto == 0) {
       let v: u8[7] = [118, 111, 105, 100, 0, 0, 0];
       if (codegen_emit_bytes_7(out, &v[0], 4) != 0) {
         return -1;
       }
     } else {
       let p: i32 = 0;
-      while (p < pipeline_module_func_num_params_at(module, fi)) {
+      while (p < nparams_proto) {
         if (p > 0) {
           let comma: u8[3] = [44, 32, 0];
           if (codegen_emit_bytes_3(out, &comma[0], 2) != 0) {
