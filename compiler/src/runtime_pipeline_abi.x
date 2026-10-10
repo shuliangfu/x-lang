@@ -67692,6 +67692,7 @@ function w189_param_at_is_type_ptr(arena: *u8, mod: *u8, func_index: i32, pi: i3
 function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index: i32, stack_off: i32): i32 {
   // wave494: no-local — pipe cell; loops in unsafe (T001).
   let pi: i32 = 0;
+  let np_now: i32 = 0;
   let off: i32 = 16;
   let slot_off: i32 = 0;
   let hit: i32 = 0;
@@ -67711,7 +67712,15 @@ function w189_stack_off_is_emit_param_ptr_slot(arena: *u8, mod: *u8, func_index:
     pipe_store_i32_le(&cell[0], 4, pipeline_asm_host_is_arm64_c());
     pipe_store_i32_le(&cell_w[0], 0, pipeline_module_func_num_params_at(mod, func_index));
     pi = 0;
-    while (pi < pipe_load_i32_le(&cell_w[0], 0)) {
+    /* PLATFORM: WINDOWS — pipe_load_i32_le homes its base pointer at 0x10(%rbp).
+     * That slot is the push which saved pi in rbx, so the compare used a stack
+     * address and stayed true. np_now is a plain local. The while condition
+     * reads pi and np_now only.
+     * PLATFORM: SHARED source. Linux and macOS compare the same two locals.
+     * Twin of runtime_pipeline_abi_param_ptr_slot_thin.x. Same commit.
+     */
+    np_now = pipe_load_i32_le(&cell_w[0], 0);
+    while (pi < np_now) {
       pipe_store_i32_le(&cell_w[0], 4, glue_func_param_home_width_c(arena, mod, func_index, pi));
       if (pipe_load_i32_le(&cell_w[0], 4) <= 0) {
         pipe_store_i32_le(&cell_w[0], 4, 8);
