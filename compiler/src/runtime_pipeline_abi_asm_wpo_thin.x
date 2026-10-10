@@ -154,6 +154,11 @@ let g_aw_queue: i32[4096] = [];
  * PLATFORM: SHARED freestanding WPO leave.
  */
 #[no_mangle]
+/**
+ * Zero the WPO reach tables before a new module graph is built.
+ * @return void
+ * PLATFORM: SHARED — caps are read into locals before the clear loops.
+ */
 export function pipeline_asm_wpo_reach_clear(): void {
   unsafe {
     memset(&g_aw_entry[0], 0, 8 as usize);
@@ -171,15 +176,19 @@ export function pipeline_asm_wpo_reach_clear(): void {
   g_aw_root_id = -1;
   g_aw_valid = 0;
   g_aw_pgo_emit_n = 0;
+  // PLATFORM: WINDOWS — finish the cap call before comparing i.
+  // The x86 emit pushes the index and the callee homes rcx over that push.
+  let nfunc_clear: i32 = asm_wpo_max_funcs();
+  let nedge_clear: i32 = asm_wpo_max_edges();
   let i: i32 = 0;
-  while (i < asm_wpo_max_funcs()) {
+  while (i < nfunc_clear) {
     g_aw_func_fi[i] = 0;
     g_aw_pgo_depth[i] = -1;
     g_aw_pgo_emit_order[i] = 0;
     i = i + 1;
   }
   i = 0;
-  while (i < asm_wpo_max_edges()) {
+  while (i < nedge_clear) {
     g_aw_edge_from[i] = 0;
     g_aw_edge_to[i] = 0;
     i = i + 1;
@@ -260,6 +269,13 @@ function asm_wpo_mod_index(m: *u8): i32 {
 }
 
 /** Register module+arena; return index or -1. */
+/**
+ * Register one module in the WPO graph.
+ * @param m *u8 — module pointer; null returns -1
+ * @param a *u8 — arena pointer; null returns -1
+ * @return i32 — module slot, or -1 when the table is full
+ * PLATFORM: SHARED — the cap is read before the full check.
+ */
 function asm_wpo_register_mod(m: *u8, a: *u8): i32 {
   if (m == 0 as *u8 || a == 0 as *u8) {
     return -1;
@@ -268,7 +284,10 @@ function asm_wpo_register_mod(m: *u8, a: *u8): i32 {
   if (ix >= 0) {
     return ix;
   }
-  if (g_aw_nmods >= asm_wpo_max_mods()) {
+  // PLATFORM: WINDOWS — finish the cap call before comparing g_aw_nmods.
+  // The x86 emit pushes the count and the callee homes rcx over that push.
+  let nmod_cap: i32 = asm_wpo_max_mods();
+  if (g_aw_nmods >= nmod_cap) {
     return -1;
   }
   ix = g_aw_nmods;
@@ -293,10 +312,22 @@ function asm_wpo_func_id_of(m: *u8, fi: i32): i32 {
   return -1;
 }
 
-/** Register non-extern func node; -1 on skip/full. */
+/**
+ * Register one non-extern function node.
+ * @param m *u8 — module pointer; null returns -1
+ * @param fi i32 — function index; negative returns -1
+ * @return i32 — function id, or -1 when skipped or the table is full
+ * PLATFORM: SHARED — the cap is read before the full check.
+ */
 function asm_wpo_register_func(m: *u8, fi: i32): i32 {
   unsafe {
-    if (m == 0 as *u8 || fi < 0 || g_aw_nfuncs >= asm_wpo_max_funcs()) {
+    if (m == 0 as *u8 || fi < 0) {
+      return -1;
+    }
+    // PLATFORM: WINDOWS — finish the cap call before comparing g_aw_nfuncs.
+    // The x86 emit pushes the count and the callee homes rcx over that push.
+    let nfunc_cap: i32 = asm_wpo_max_funcs();
+    if (g_aw_nfuncs >= nfunc_cap) {
       return -1;
     }
     if (pipeline_asm_module_func_is_extern_at(m, fi) != 0) {
@@ -357,7 +388,13 @@ function asm_wpo_func_id_by_name(name: *u8, name_len: i32): i32 {
   }
 }
 
-/** Dedup edge from->to. */
+/**
+ * Add one directed edge when it is not already present.
+ * @param from i32 — source function id
+ * @param to i32 — destination function id
+ * @return void — no-op when either id is out of range or the edge table is full
+ * PLATFORM: SHARED — the cap is read before the full check.
+ */
 function asm_wpo_add_edge(from: i32, to: i32): void {
   if (from < 0 || to < 0 || from >= g_aw_nfuncs || to >= g_aw_nfuncs) {
     return;
@@ -369,7 +406,10 @@ function asm_wpo_add_edge(from: i32, to: i32): void {
     }
     i = i + 1;
   }
-  if (g_aw_nedges >= asm_wpo_max_edges()) {
+  // PLATFORM: WINDOWS — finish the cap call before comparing g_aw_nedges.
+  // The x86 emit pushes the count and the callee homes rcx over that push.
+  let nedge_cap: i32 = asm_wpo_max_edges();
+  if (g_aw_nedges >= nedge_cap) {
     return;
   }
   g_aw_edge_from[g_aw_nedges] = from;
@@ -475,8 +515,16 @@ function asm_wpo_call_callee_id(a: *u8, call_expr_ref: i32, caller_mod: *u8, ctx
 
 
 /**
- * Unified recursive walk: is_block!=0 => block_ref walk; else expr_ref walk.
- * depth caps at 64 for expr recursion (match residual).
+ * Walk one block or one expression and record call edges.
+ * @param is_block i32 — non-zero walks a block; zero walks an expression
+ * @param a *u8 — arena; null returns
+ * @param ref i32 — block or expression ref; not positive returns
+ * @param caller_id i32 — caller function id; negative returns
+ * @param caller_mod *u8 — caller module
+ * @param ctx *u8 — dep context passed to nested walks
+ * @param depth i32 — expression recursion depth; capped at 64
+ * @return void
+ * PLATFORM: SHARED — statement-pool counts are read before idx is compared.
  */
 function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, caller_mod: *u8, ctx: *u8, depth: i32): void {
   unsafe {
@@ -500,22 +548,30 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
               let sk: i32 = ast_ast_block_stmt_order_kind(a, block_ref, si);
               let idx: i32 = ast_ast_block_stmt_order_idx(a, block_ref, si);
               let er0: i32 = 0;
-              if (sk == 0 && idx >= 0 && idx < ast_ast_block_num_consts(a, block_ref)) {
+              // PLATFORM: WINDOWS — finish each count call before comparing idx.
+              // The x86 emit pushes the index and the callee homes rcx over that push.
+              let nconst_w: i32 = ast_ast_block_num_consts(a, block_ref);
+              let nlets_w: i32 = ast_ast_block_num_lets(a, block_ref);
+              let nexpr_w: i32 = ast_ast_block_num_expr_stmts(a, block_ref);
+              let nloop_w: i32 = ast_ast_block_num_loops(a, block_ref);
+              let nfor_w: i32 = ast_ast_block_num_for_loops(a, block_ref);
+              let nif_w: i32 = ast_ast_block_num_if_stmts(a, block_ref);
+              if (sk == 0 && idx >= 0 && idx < nconst_w) {
                 er0 = ast_pipeline_block_const_init_ref(a, block_ref, idx);
                 if (er0 > 0) {
                   asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
                 }
-              } else if (sk == 1 && idx >= 0 && idx < ast_ast_block_num_lets(a, block_ref)) {
+              } else if (sk == 1 && idx >= 0 && idx < nlets_w) {
                 er0 = pipeline_block_let_init_ref(a, block_ref, idx);
                 if (er0 > 0) {
                   asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
                 }
-              } else if (sk == 2 && idx >= 0 && idx < ast_ast_block_num_expr_stmts(a, block_ref)) {
+              } else if (sk == 2 && idx >= 0 && idx < nexpr_w) {
                 er0 = ast_pipeline_block_expr_stmt_ref(a, block_ref, idx);
                 if (er0 > 0) {
                   asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
                 }
-              } else if (sk == 3 && idx >= 0 && idx < ast_ast_block_num_loops(a, block_ref)) {
+              } else if (sk == 3 && idx >= 0 && idx < nloop_w) {
                 er0 = ast_ast_block_while_cond_ref(a, block_ref, idx);
                 if (er0 > 0) {
                   asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
@@ -524,7 +580,7 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
                 if (er0 > 0) {
                   asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
                 }
-              } else if (sk == 4 && idx >= 0 && idx < ast_ast_block_num_for_loops(a, block_ref)) {
+              } else if (sk == 4 && idx >= 0 && idx < nfor_w) {
                 er0 = ast_ast_block_for_init_ref(a, block_ref, idx);
                 if (er0 > 0) {
                   asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
@@ -541,7 +597,7 @@ function asm_wpo_collect_walk(is_block: i32, a: *u8, ref: i32, caller_id: i32, c
                 if (er0 > 0) {
                   asm_wpo_collect_walk(1, a, er0, caller_id, caller_mod, ctx, 0);
                 }
-              } else if (sk == 5 && idx >= 0 && idx < ast_ast_block_num_if_stmts(a, block_ref)) {
+              } else if (sk == 5 && idx >= 0 && idx < nif_w) {
                 er0 = ast_pipeline_block_if_cond_ref(a, block_ref, idx);
                 if (er0 > 0) {
                   asm_wpo_collect_walk(0, a, er0, caller_id, caller_mod, ctx, 0);
@@ -1247,7 +1303,10 @@ function asm_wpo_close_std_heap_helpers(): void {
 function asm_wpo_mark_pgo_hot(): void {
   unsafe {
     let i: i32 = 0;
-    while (i < asm_wpo_max_funcs()) {
+    // PLATFORM: WINDOWS — finish the cap call before comparing i.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nfunc_hot: i32 = asm_wpo_max_funcs();
+    while (i < nfunc_hot) {
       g_aw_pgo_hot[i] = 0;
       i = i + 1;
     }
@@ -1310,7 +1369,10 @@ function asm_wpo_mark_pgo_depth_user_from_main(): void {
     return;
   }
   let i: i32 = 0;
-  while (i < asm_wpo_max_funcs()) {
+  // PLATFORM: WINDOWS — finish the cap call before comparing i.
+  // The x86 emit pushes the index and the callee homes rcx over that push.
+  let nfunc_user: i32 = asm_wpo_max_funcs();
+  while (i < nfunc_user) {
     g_aw_pgo_depth[i] = -1;
     i = i + 1;
   }
@@ -1347,7 +1409,10 @@ function asm_wpo_mark_pgo_depth_user_from_main(): void {
 function asm_wpo_mark_pgo_depth(): void {
   unsafe {
     let i: i32 = 0;
-    while (i < asm_wpo_max_funcs()) {
+    // PLATFORM: WINDOWS — finish the cap call before comparing i.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nfunc_depth: i32 = asm_wpo_max_funcs();
+    while (i < nfunc_depth) {
       g_aw_pgo_depth[i] = -1;
       i = i + 1;
     }

@@ -1897,7 +1897,10 @@ dep_ix: i32): i32 {
     if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || nm == 0 as *u8 || nlen <= 0) {
       return -1;
     }
-    if (dep_ix >= typeck_module_num_imports(module)) {
+    // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_const: i32 = typeck_module_num_imports(module);
+    if (dep_ix >= nimp_const) {
       return -1;
     }
     dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
@@ -1922,7 +1925,13 @@ export function typeck_import_last_segment_into(module: *Module, imp_ix: i32, ou
     let start: i32 = 0;
     let i: i32 = 0;
     let seg_len: i32 = 0;
-    if (module == 0 as *Module || out == 0 as *u8 || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || out == 0 as *u8 || imp_ix < 0) {
+      return 0;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing imp_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_last: i32 = typeck_module_num_imports(module);
+    if (imp_ix >= nimp_last) {
       return 0;
     }
     pl = pipeline_module_import_path_len(module, imp_ix);
@@ -1962,7 +1971,13 @@ export function typeck_resolve_dep_index_for_import(module: *Module, ctx: *Pipel
     let dep_i: i32 = 0;
     let nd: i32 = 0;
     let path_buf: u8[128] = [];
-    if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || imp_ix < 0) {
+      return -1;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing imp_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_res: i32 = typeck_module_num_imports(module);
+    if (imp_ix >= nimp_res) {
       return -1;
     }
     plen = pipeline_module_import_path_len(module, imp_ix);
@@ -2012,7 +2027,13 @@ export function typeck_import_const_binding_hint_at(module: *Module, dep_ix: i32
     let import_kind: i32 = 0;
     let bl: i32 = 0;
     let i: i32 = 0;
-    if (module == 0 as *Module || out == 0 as *u8 || dep_ix < 0 || dep_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || out == 0 as *u8 || dep_ix < 0) {
+      return 0;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_hint: i32 = typeck_module_num_imports(module);
+    if (dep_ix >= nimp_hint) {
       return 0;
     }
     import_kind = pipeline_module_import_kind_at(module, dep_ix);
@@ -2362,7 +2383,10 @@ export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, n
       return -1;
     }
     k = 0;
-    while (k < pipeline_module_num_struct_layouts_at(module)) {
+    // PLATFORM: WINDOWS — finish the count call before comparing k.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nsl_soa: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl_soa) {
       ln = pipeline_module_struct_layout_name_len(module, k);
       if (ln == name_len) {
         j = 0;
@@ -2786,7 +2810,10 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     *i32) {
       return - 1;
     }
-    if (li < 0 || li >= pipeline_module_num_struct_layouts_at(module) || depth > 64) {
+    // PLATFORM: WINDOWS — finish the count call before comparing li.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nsl_metrics: i32 = pipeline_module_num_struct_layouts_at(module);
+    if (li < 0 || li >= nsl_metrics || depth > 64) {
       return - 1;
     }
     nf = pipeline_module_struct_layout_num_fields(module, li);
@@ -5789,7 +5816,10 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
       return 0;
     }
     // Bootstrap: dep_index may be >= ndep when slot is still bound.
-    if (from_dep_index >= pipeline_dep_ctx_ndep(ctx)) {
+    // PLATFORM: WINDOWS — finish the count call before comparing from_dep_index.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let ndep_ret: i32 = pipeline_dep_ctx_ndep(ctx);
+    if (from_dep_index >= ndep_ret) {
       if (pipeline_dep_ctx_module_at(ctx, from_dep_index) == 0 as *Module) {
         return 0;
       }
@@ -6722,7 +6752,10 @@ want_apply: i32): i32 {
         }
         return ret;
       }
-      if (dep_i < typeck_module_num_imports(module)) {
+      // PLATFORM: WINDOWS — finish the count call before comparing dep_i.
+      // The x86 emit pushes the index and the callee homes rcx over that push.
+      let nimp_scan: i32 = typeck_module_num_imports(module);
+      if (dep_i < nimp_scan) {
         ret = resolve_call_select_import_return_type(module, arena, callee_expr_ref, callee_ord,
         dep_i, ctx, fn_slot);
         if (ret != 0) {
@@ -7410,7 +7443,13 @@ export function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg:
 ostr: *i32, olen: *i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    if (module == 0 as *Module || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || imp_ix < 0) {
+      return false;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing imp_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_seg: i32 = typeck_module_num_imports(module);
+    if (imp_ix >= nimp_seg) {
       return false;
     }
     let pl: i32 = pipeline_module_import_path_len(module, imp_ix);
@@ -7729,7 +7768,10 @@ func_index_out: *i32): i32 {
     if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
-    if (dep_ix < 0 || dep_ix >= typeck_module_num_imports(module) || callee_ord != ord_var) {
+    // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_sel: i32 = typeck_module_num_imports(module);
+    if (dep_ix < 0 || dep_ix >= nimp_sel || callee_ord != ord_var) {
       return 0;
     }
     import_kind = pipeline_module_import_kind_at(module, dep_ix);
@@ -7822,7 +7864,10 @@ callee_ord: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32): i32 {
       if (ret != 0) {
         return ret;
       }
-      if (dep_i < typeck_module_num_imports(module)) {
+      // PLATFORM: WINDOWS — finish the count call before comparing dep_i.
+      // The x86 emit pushes the index and the callee homes rcx over that push.
+      let nimp_callee: i32 = typeck_module_num_imports(module);
+      if (dep_i < nimp_callee) {
         ret = resolve_call_select_import_return_type(module, arena, callee_expr_ref, callee_ord,
         dep_i, ctx, null_po);
         if (ret != 0) {
@@ -23473,13 +23518,18 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
         return 0;
       }
     }
-    if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-      dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
-      da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
-      if (dm != 0 as *Module) {
-        search_mod = dm;
-        if (da != 0 as *ASTArena) {
-          search_arena = da;
+    if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx) {
+      // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+      // The x86 emit pushes the index and the callee homes rcx over that push.
+      let ndep_fix: i32 = pipeline_dep_ctx_ndep(ctx);
+      if (dep_ix < ndep_fix) {
+        dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
+        da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+        if (dm != 0 as *Module) {
+          search_mod = dm;
+          if (da != 0 as *ASTArena) {
+            search_arena = da;
+          }
         }
       }
     }
