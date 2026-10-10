@@ -17195,7 +17195,9 @@ function emit_run_dest_fromreg_wrapping_defers(arena: *ASTArena, out: *CodegenOu
       let last_k: u8 = ast_ast_block_stmt_order_kind(arena, block_ref, so_n - 1);
       if (last_k == 6) {
         let last_idx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
-        if (last_idx >= 0 && last_idx < ast_ast_block_num_regions(arena, block_ref)) {
+        /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+        let nreg_wrap: i32 = ast_ast_block_num_regions(arena, block_ref);
+        if (last_idx >= 0 && last_idx < nreg_wrap) {
           let last_body: i32 = ast_ast_block_region_body_ref(arena, block_ref, last_idx);
           if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body, indent, ctx) != 0) {
             return -1;
@@ -17995,7 +17997,15 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       }
       /* See implementation. */
       let pre_li: i32 = 0;
-      while (pre_li < ast_ast_block_num_lets(arena, block_ref)) {
+      /* Load every block bound before comparing it with an index.
+       * PLATFORM: WINDOWS. A call in `index < count()` keeps the index
+       * in rbx and pushes it in the Win64 home slot. The callee spills
+       * rcx (the arena) over that push, so the reloaded index is the
+       * arena pointer. Measured on `return 7;`: stmt-order count is 1,
+       * saved index 0 comes back as the arena, the walk is skipped, and
+       * the C body is empty. The same push sits on every bound below. */
+      let nlets_pre: i32 = ast_ast_block_num_lets(arena, block_ref);
+      while (pre_li < nlets_pre) {
         if (block_stmt_order_has_let(arena, block_ref, pre_li) == 0) {
           let lname_pre: u8[256] = [];
           pipeline_block_let_name_copy64(arena, block_ref, pre_li, &lname_pre[0]);
@@ -18169,14 +18179,17 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
         pre_li = pre_li + 1;
       }
       let si: i32 = 0;
-      while (si < ast_ast_block_num_stmt_order(arena, block_ref)) {
+      /* so_n is the count loaded above. Re-calling here pushes si. PLATFORM: WINDOWS. */
+      while (si < so_n) {
         let k: u8 = ast_ast_block_stmt_order_kind(arena, block_ref, si);
         let idx: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, si);
         /* Hoist wrapping defers before dest-from-region dest.
          * skip_wrap_dest: already hoisted inner-first on the caller. */
         if (skip_wrap_dest == 0 && last_dest_region != 0 && si == (so_n - 1)) {
           let last_idx_h: i32 = ast_ast_block_stmt_order_idx(arena, block_ref, so_n - 1);
-          if (last_idx_h >= 0 && last_idx_h < ast_ast_block_num_regions(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nreg_dest: i32 = ast_ast_block_num_regions(arena, block_ref);
+          if (last_idx_h >= 0 && last_idx_h < nreg_dest) {
             let last_body_h: i32 = ast_ast_block_region_body_ref(arena, block_ref, last_idx_h);
             if (emit_run_dest_fromreg_wrapping_defers(arena, out, last_body_h, indent, ctx) != 0) {
               return -1;
@@ -18187,7 +18200,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
           }
         }
         if (k == 0) {
-          if (idx >= 0 && idx < ast_ast_block_num_consts(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nconst_k: i32 = ast_ast_block_num_consts(arena, block_ref);
+          if (idx >= 0 && idx < nconst_k) {
             let cname_buf: u8[256] = [];
             pipeline_block_const_name_copy64(arena, block_ref, idx, &cname_buf[0]);
             let cname_len: i32 = pipeline_block_const_name_len(arena, block_ref, idx);
@@ -18249,7 +18264,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 1) {
-          if (idx >= 0 && idx < ast_ast_block_num_lets(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nlets_k: i32 = ast_ast_block_num_lets(arena, block_ref);
+          if (idx >= 0 && idx < nlets_k) {
             let lname_buf: u8[256] = [];
             pipeline_block_let_name_copy64(arena, block_ref, idx, &lname_buf[0]);
             let lname_len: i32 = pipeline_block_let_name_len(arena, block_ref, idx);
@@ -18667,7 +18684,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 2) {
-          if (idx >= 0 && idx < ast_ast_block_num_expr_stmts(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nexpr_k: i32 = ast_ast_block_num_expr_stmts(arena, block_ref);
+          if (idx >= 0 && idx < nexpr_k) {
             let ex_ref: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, idx);
             let st: Expr = ast.ast_arena_expr_get(arena, ex_ref);
             if ((st.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
@@ -18706,7 +18725,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 3) {
-          if (idx >= 0 && idx < ast_ast_block_num_loops(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nloop_k: i32 = ast_ast_block_num_loops(arena, block_ref);
+          if (idx >= 0 && idx < nloop_k) {
             let w_cr: i32 = ast_ast_block_while_cond_ref(arena, block_ref, idx);
             let w_br: i32 = ast_ast_block_while_body_ref(arena, block_ref, idx);
             if (codegen_emit_indent(out, indent) != 0) {
@@ -18735,7 +18756,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 4) {
-          if (idx >= 0 && idx < ast_ast_block_num_for_loops(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nfor_k: i32 = ast_ast_block_num_for_loops(arena, block_ref);
+          if (idx >= 0 && idx < nfor_k) {
             let fl_ir: i32 = ast_ast_block_for_init_ref(arena, block_ref, idx);
             let fl_cr: i32 = ast_ast_block_for_cond_ref(arena, block_ref, idx);
             let fl_sr: i32 = ast_ast_block_for_step_ref(arena, block_ref, idx);
@@ -18786,7 +18809,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
             }
           }
         } else if (k == 5) {
-          if (idx >= 0 && idx < ast_ast_block_num_if_stmts(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nif_k: i32 = ast_ast_block_num_if_stmts(arena, block_ref);
+          if (idx >= 0 && idx < nif_k) {
             let if_cond_r: i32 = ast_ast_block_if_cond_ref(arena, block_ref, idx);
             let if_then_r: i32 = ast_ast_block_if_then_body_ref(arena, block_ref, idx);
             let if_else_r: i32 = ast_ast_block_if_else_body_ref(arena, block_ref, idx);
@@ -18836,7 +18861,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
            * See implementation.
            * See implementation.
            */
-          if (idx >= 0 && idx < ast_ast_block_num_regions(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nreg_k: i32 = ast_ast_block_num_regions(arena, block_ref);
+          if (idx >= 0 && idx < nreg_k) {
             let reg_body: i32 = ast_ast_block_region_body_ref(arena, block_ref, idx);
             let need_scope: i32 = 0;
             if (!ast.ref_is_null(reg_body) && reg_body > 0 && reg_body <= arena.num_blocks) {
@@ -18887,7 +18914,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
            * PLATFORM: SHARED host-C. wave387: freestanding/default asm kind=7 closed
            * in pipeline_asm_emit_block_body_sync_elf (G.7 labeled pool + enc_jmp/label).
            */
-          if (idx >= 0 && idx < pipeline_block_num_labeled_stmts(arena, block_ref)) {
+          /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+          let nlab_k: i32 = pipeline_block_num_labeled_stmts(arena, block_ref);
+          if (idx >= 0 && idx < nlab_k) {
             let is_g: i32 = pipeline_block_labeled_is_goto(arena, block_ref, idx);
             if (is_g != 0) {
               if (codegen_emit_indent(out, indent) != 0) {
@@ -18956,7 +18985,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
     }
     /* See implementation. */
     let i: i32 = 0;
-    while (i < ast_ast_block_num_consts(arena, block_ref)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let nconst_fb: i32 = ast_ast_block_num_consts(arena, block_ref);
+    while (i < nconst_fb) {
       let cname_fb: u8[256] = [];
       pipeline_block_const_name_copy64(arena, block_ref, i, &cname_fb[0]);
       let cname_len_fb: i32 = pipeline_block_const_name_len(arena, block_ref, i);
@@ -19000,7 +19031,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       i = i + 1;
     }
     i = 0;
-    while (i < ast_ast_block_num_lets(arena, block_ref)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let nlets_fb: i32 = ast_ast_block_num_lets(arena, block_ref);
+    while (i < nlets_fb) {
       let lname_fb: u8[256] = [];
       pipeline_block_let_name_copy64(arena, block_ref, i, &lname_fb[0]);
       let lname_len_fb: i32 = pipeline_block_let_name_len(arena, block_ref, i);
@@ -19228,7 +19261,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
     }
     /* See implementation. */
     i = 0;
-    while (i < ast_ast_block_num_expr_stmts(arena, block_ref)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let nexpr_fb: i32 = ast_ast_block_num_expr_stmts(arena, block_ref);
+    while (i < nexpr_fb) {
       let ex_fb: i32 = ast_ast_block_expr_stmt_ref(arena, block_ref, i);
       let st: Expr = ast.ast_arena_expr_get(arena, ex_fb);
       if ((st.kind as i32) == (ExprKind.EXPR_RETURN as i32)) {
@@ -19276,7 +19311,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       i = i + 1;
     }
     i = 0;
-    while (i < ast_ast_block_num_loops(arena, block_ref)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let nloop_fb: i32 = ast_ast_block_num_loops(arena, block_ref);
+    while (i < nloop_fb) {
       let w_cr: i32 = ast_ast_block_while_cond_ref(arena, block_ref, i);
       let w_br: i32 = ast_ast_block_while_body_ref(arena, block_ref, i);
       if (codegen_emit_indent(out, indent) != 0) {
@@ -19306,7 +19343,9 @@ export function codegen_emit_block(arena: *ASTArena, out: *CodegenOutBuf, block_
       i = i + 1;
     }
     i = 0;
-    while (i < ast_ast_block_num_for_loops(arena, block_ref)) {
+    /* Bound is a local so Win64 does not home rcx over the index. PLATFORM: WINDOWS. */
+    let nfor_fb: i32 = ast_ast_block_num_for_loops(arena, block_ref);
+    while (i < nfor_fb) {
       let fl_ir: i32 = ast_ast_block_for_init_ref(arena, block_ref, i);
       let fl_cr: i32 = ast_ast_block_for_cond_ref(arena, block_ref, i);
       let fl_sr: i32 = ast_ast_block_for_step_ref(arena, block_ref, i);
