@@ -272,6 +272,21 @@ case "$(uname -s 2>/dev/null)" in
   MINGW*|MSYS*|CYGWIN*|Windows_NT*)
     _g05_cp_fresh "$OUT" xlang_asm.exe
     echo "g05_relink_xlang: synced xlang_asm.exe"
+    # MinGW -o writes xlang.exe. The copies above publish xlang_asm,
+    # xlang_asm.exe, the unsuffixed xlang-c, and bootstrap_xlangc.
+    # They do not publish the literal bare xlang, which ./xlang and the
+    # stage identity check both open, nor xlang-c.exe, which the nine
+    # driver leaves exec (pick_xlang). Leaving either name on the previous
+    # image makes the next generation compare or compile with the old
+    # compiler. CPython isfile does not add the Git bash .exe suffix.
+    # _g05_cp_fresh removes only the literal destination; a bare name does
+    # not delete the .exe sibling. PLATFORM: WINDOWS.
+    if python3 -c 'import os,sys; raise SystemExit(0 if os.path.isfile(sys.argv[1]) else 1)' xlang; then
+      _g05_cp_fresh "$OUT" xlang
+      echo "g05_relink_xlang: synced xlang"
+    fi
+    _g05_cp_fresh "$OUT" xlang-c.exe
+    echo "g05_relink_xlang: synced xlang-c.exe"
     ;;
 esac
 
