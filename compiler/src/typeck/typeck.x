@@ -8332,7 +8332,15 @@ export function type_refs_equal_same_kind(arena: *ASTArena, a: i32, b: i32, kind
       return type_refs_equal(arena, ea, eb);
     }
     if (kind_ord == ord_array || kind_ord == ord_vector) {
-      if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b)) {
+      /*
+       * PLATFORM: WINDOWS — both lengths are locals before the compare.
+       * Oct 6 saves the first pipeline_type_array_size_at result with
+       * push/pop. The callee homes rcx over that push, so two equal
+       * lengths compare unequal and `name: z64` rejects u8[256].
+       */
+      let sa_len: i32 = pipeline_type_array_size_at(arena, a);
+      let sb_len: i32 = pipeline_type_array_size_at(arena, b);
+      if (sa_len != sb_len) {
         return false;
       }
       ea = pipeline_type_elem_ref_at(arena, a);
@@ -15225,8 +15233,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       if (ast.ref_is_null(out_ar)) {
+        /*
+         * PLATFORM: WINDOWS — lane counts are locals before the compare.
+         * The same push/pop that rejects equal u8[256] lengths would
+         * reject equal vector lanes. The else-if chain stays on this if.
+         */
+        let vec_lsz: i32 = 0;
+        let vec_rsz: i32 = 0;
+        if (lko == ord_type_vector && rko == ord_type_vector) {
+          vec_lsz = pipeline_type_array_size_at(arena, lt_ar);
+          vec_rsz = pipeline_type_array_size_at(arena, rt_ar);
+        }
         if (lko == ord_type_vector && rko == ord_type_vector
-        && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar)
+        && vec_lsz == vec_rsz
         && type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_ar),
         pipeline_type_elem_ref_at(arena, rt_ar))) {
           out_ar = lt_ar;
@@ -22955,8 +22974,14 @@ max_map: i32, depth: i32): i32 {
         return -1;
       }
       if (fk == ord_array || fk == ord_vector) {
-        if (pipeline_type_array_size_at(formal_arena, formal_ty)
-        != pipeline_type_array_size_at(arg_arena, arg_ty)) {
+        /*
+         * PLATFORM: WINDOWS — both lengths are locals before the compare.
+         * Oct 6's push of the formal length is overwritten by the arg
+         * length call, so equal array patterns fail to unify.
+         */
+        let fsz_u: i32 = pipeline_type_array_size_at(formal_arena, formal_ty);
+        let asz_u: i32 = pipeline_type_array_size_at(arg_arena, arg_ty);
+        if (fsz_u != asz_u) {
           return -1;
         }
       }
