@@ -18349,9 +18349,43 @@ tgt_ty: i32): i32 {
     if (s_num != 0 && t_num != 0) {
       return 1;
     }
-    /* integer ↔ pointer (kernel MMIO / address casts). */
-    if ((s_int != 0 && tk == ord_ptr) || (t_int != 0 && sk == ord_ptr)) {
-      return 1;
+    /*
+     * Integer to pointer, and pointer to integer (kernel MMIO / address).
+     * Not one `||` of two `&&` compares that share ord_ptr.
+     * The first arm loads ord_ptr. sete overwrites that register.
+     * The second arm does not reload it, so a pointer source misses.
+     * Integer to pointer is the first arm and already accepts.
+     * `*u8 as usize` in g02f_store_ptr_at was rejected as an illegal cast.
+     * Each side stores its own flag. Each equality reloads ord_ptr.
+     * The acceptance tests read those flags, not ord_ptr.
+     * Not a nested compare of ord_ptr: that form tests the kind against 1.
+     * PLATFORM: SHARED. The bootstrap image miscompiled the chained form.
+     */
+    let src_as_int: i32 = 0;
+    let tgt_as_ptr: i32 = 0;
+    let tgt_as_int: i32 = 0;
+    let src_as_ptr: i32 = 0;
+    if (s_int != 0) {
+      src_as_int = 1;
+    }
+    if (tk == ord_ptr) {
+      tgt_as_ptr = 1;
+    }
+    if (t_int != 0) {
+      tgt_as_int = 1;
+    }
+    if (sk == ord_ptr) {
+      src_as_ptr = 1;
+    }
+    if (src_as_int != 0) {
+      if (tgt_as_ptr != 0) {
+        return 1;
+      }
+    }
+    if (tgt_as_int != 0) {
+      if (src_as_ptr != 0) {
+        return 1;
+      }
     }
     /*
      * Pointer to pointer (reinterpret the pointee).
