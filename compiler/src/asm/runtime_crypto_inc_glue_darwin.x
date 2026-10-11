@@ -21,7 +21,8 @@
 // (the public wrappers) and this file (SHA-256, HMAC, and the lookup
 // tables), then ld -r. It does not pass
 // seeds/runtime_crypto_inc_glue.from_x.c to host cc.
-// Linux and Windows keep that C seed.
+// Linux uses the same two files. A Linux miss returns 1 and does not
+// exec cc. Windows keeps that C seed.
 //
 // A 64-way if-return does not emit on this compiler, and a C string
 // cannot hold an interior 0 byte, so the AES S-box and the SHA-256 K
@@ -39,7 +40,7 @@
 // image. A missing object after pure-asm faults falls back to the
 // C seed.
 //
-// PLATFORM: MACOS|DARWIN arm64.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 /**
  * Byte copy.

@@ -4718,16 +4718,17 @@ ensure_compress_zlib_darwin_pure() {
   return 0
 }
 
-# Darwin arm64 cold body for runtime_crypto_inc_glue.o.
+# Darwin arm64 and Linux cold body for runtime_crypto_inc_glue.o.
 # Two translation units, then ld -r: the shared wrappers in
 # src/asm/runtime_crypto_inc_glue.x and the SHA-256 / HMAC / table
 # body in src/asm/runtime_crypto_inc_glue_darwin.x. SHA-512 stays a
 # call to ed25519_ref10_sha512. Each half can SIGSEGV on its own.
 # Retry a missing half. A missing object after eight pure-asm faults
-# falls back to the C seed. An object already on disk is left as-is
-# when neither .x is newer. No gcc -E.
-# Linux and Windows keep the seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# falls back to the C seed on Darwin. Linux returns 1 and does not
+# exec cc. An object already on disk is left as-is when neither .x
+# is newer. No gcc -E.
+# Windows keeps the seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object (default runtime_crypto_inc_glue.o, cwd is compiler/).
 ensure_crypto_inc_darwin_pure() {
   local o="${1:-runtime_crypto_inc_glue.o}"
@@ -4810,7 +4811,9 @@ ensure_crypto_inc_darwin_pure() {
         _xlang_sha256_maj_impl \
         _crypto_i32_sub_impl \
         _crypto_rotl32_impl; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_cr_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not. ${_cr_short#_}
+        # is the bare name. PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_cr_short#_}$"; then
           _cr_ok=0
           break
         fi
@@ -4827,6 +4830,12 @@ ensure_crypto_inc_darwin_pure() {
     rm -f "$o"
   done
   rm -f "$thin_o" "$os_o"
+  # Linux miss does not exec cc. Darwin still falls back to the seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o crypto: pure-asm failed for $x_thin + $x_os" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $seed → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -5608,14 +5617,22 @@ ensure_one() {
     fi
   fi
 
-  # w1090: Darwin arm64 SHA-256, HMAC, and lookup tables are the .x, not this seed.
-  # SHA-512 still calls ed25519_ref10_sha512. Linux and Windows keep the seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1090: Darwin arm64 and Linux SHA-256, HMAC, and lookup tables are
+  # the two .x files, not this seed. SHA-512 still calls
+  # ed25519_ref10_sha512. Linux miss does not cc.
+  # Windows keeps the seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
   if [ "$(basename "$seed")" = "runtime_crypto_inc_glue.from_x.c" ] \
     || [ "$(basename "$out")" = "runtime_crypto_inc_glue.o" ]; then
     local cr_s cr_m
     cr_s="$(uname -s 2>/dev/null || echo Unknown)"
     cr_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$cr_s" = "Linux" ] && [ "$cr_m" = "x86_64" ] \
+      && [ -f src/asm/runtime_crypto_inc_glue.x ] \
+      && [ -f src/asm/runtime_crypto_inc_glue_darwin.x ]; then
+      ensure_crypto_inc_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$cr_s" = "Darwin" ] && [ "$cr_m" = "arm64" ] \
       && [ -f src/asm/runtime_crypto_inc_glue_darwin.x ]; then
       ensure_crypto_inc_darwin_pure "$out" || return 1
@@ -26585,12 +26602,19 @@ ensure_runtime_os_prefer_one() {
     fi
   fi
 
-  # w1090: Darwin arm64 whole object is thin .x plus crypto .x. Do not host-cc it.
-  # PLATFORM: MACOS|DARWIN arm64. Linux and Windows fall through.
+  # w1090: Darwin arm64 and Linux whole object is thin .x plus crypto .x.
+  # Linux miss does not host-cc it. Windows falls through.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
   if [ "$o" = "runtime_crypto_inc_glue.o" ]; then
     local cr_s cr_m
     cr_s="$(uname -s 2>/dev/null || echo Unknown)"
     cr_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$cr_s" = "Linux" ] && [ "$cr_m" = "x86_64" ] \
+      && [ -f src/asm/runtime_crypto_inc_glue.x ] \
+      && [ -f src/asm/runtime_crypto_inc_glue_darwin.x ]; then
+      ensure_crypto_inc_darwin_pure "$o" || return 1
+      return 0
+    fi
     if [ "$cr_s" = "Darwin" ] && [ "$cr_m" = "arm64" ] \
       && [ -f src/asm/runtime_crypto_inc_glue_darwin.x ]; then
       ensure_crypto_inc_darwin_pure "$o" || return 1
