@@ -1701,11 +1701,11 @@ ensure_rt_stack_darwin_pure() {
   ensure_rt_stack_prefer
 }
 
-# w1132: Darwin arm64 runtime_asm_build.o merges two pure-asm files.
+# w1132: Darwin arm64 and Linux runtime_asm_build.o merge two pure-asm files.
 # A TU that defines main emits only main, so the entry is a second file.
-# Linux and Windows keep host cc of the C seed.
+# Linux miss does not exec cc. Windows keeps host cc of the C seed.
 # Does not match asm_experimental_symbol_bridge.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_asm_build_darwin_pure() {
   local o="${1:-src/asm/runtime_asm_build.o}"
@@ -1738,7 +1738,9 @@ ensure_asm_build_darwin_pure() {
       local _ab_short _ab_ok
       _ab_ok=1
       for _ab_short in _main _asm_driver_skip_codegen_dep_0_get _asm_driver_set_current_dep_path_for_codegen; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_ab_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_ab_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _ab_ok=0
           break
         fi
@@ -1749,7 +1751,9 @@ ensure_asm_build_darwin_pure() {
         continue
       fi
       for _ab_short in _xlang_forward_main_to_main_entry _driver_skip_codegen_dep_0_get _driver_set_current_dep_path_for_codegen; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_ab_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_ab_short#_}" '($1=="U" || $2=="U") && ($NF==s || $NF=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _ab_ok=0
           break
         fi
@@ -1767,6 +1771,12 @@ ensure_asm_build_darwin_pure() {
     rm -f "$o"
   done
   rm -rf "$tmp"
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o asm-build: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc seed $o (pure-asm missing object)"
     ${CC:-cc} ${CFLAGS:-} -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o "$o" || return 1
@@ -32309,9 +32319,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   asm-build-pure|asm_build_pure)
-    # w1132: Darwin arm64 runtime asm-build object from two .x files.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1132: Darwin arm64 and Linux runtime asm-build object from two .x files.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o asm-build-pure: need <out.o>" >&2
       exit 2

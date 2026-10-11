@@ -131,12 +131,18 @@ if [ ! -f "$BUILD_DIR/asm_experimental_symbol_bridge.o" ]; then
 fi
 
 # runtime_asm_build.o（首链 bootstrap-asm 产物；缺则 ld 失败）。
-# w1132: Darwin arm64 object is the merged pure-asm pair.
-# Linux and Windows stay on host cc of the C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1132: Darwin arm64 and Linux object is the merged pure-asm pair.
+# Linux miss does not cc. Windows stays on host cc of the C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
 _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
 _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+if [ "$_ab_os" = "Linux" ] && [ "$_ab_mach" = "x86_64" ] \
+  && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
+  if [ ! -f src/asm/runtime_asm_build.o ] || [ src/asm/runtime_asm_build.x -nt src/asm/runtime_asm_build.o ] \
+    || [ src/asm/runtime_asm_build_main.x -nt src/asm/runtime_asm_build.o ]; then
+    bash scripts/ensure_host_cc_seed_o.sh asm-build-pure src/asm/runtime_asm_build.o || exit 1
+  fi
+elif [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
   && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
   if [ ! -f src/asm/runtime_asm_build.o ] || [ src/asm/runtime_asm_build.x -nt src/asm/runtime_asm_build.o ] \
     || [ src/asm/runtime_asm_build_main.x -nt src/asm/runtime_asm_build.o ]; then

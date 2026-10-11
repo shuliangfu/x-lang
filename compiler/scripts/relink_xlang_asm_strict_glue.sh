@@ -2103,12 +2103,20 @@ ensure_strict_glue_darwin_stubs_filt_obj() {
 }
 ensure_runtime_asm_build_obj() {
   local o="src/asm/runtime_asm_build.o"
-  # w1132: Darwin arm64 object is the merged pure-asm pair.
+  # w1132: Darwin arm64 and Linux object is the merged pure-asm pair.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
   # Does not match asm_experimental_symbol_bridge.o.
-  # Linux and Windows stay on host cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ab_os" = "Linux" ] && [ "$_ab_mach" = "x86_64" ] \
+    && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_asm_build.x -nt "$o" ] \
+      || [ src/asm/runtime_asm_build_main.x -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh asm-build-pure "$o" || return 1
+    fi
+    return 0
+  fi
   if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
     && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
     if [ ! -f "$o" ] || [ src/asm/runtime_asm_build.x -nt "$o" ] \

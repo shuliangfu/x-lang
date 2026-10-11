@@ -20,8 +20,9 @@
 // src/asm/runtime_asm_build.x. The ensure step merges the two objects.
 // main forwards argc and argv to xlang_forward_main_to_main_entry.
 // This file is not asm_experimental_symbol_bridge.o.
-// Linux and Windows keep host cc of seeds/runtime_asm_build.from_x.c.
-// PLATFORM: MACOS|DARWIN arm64.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps host cc of seeds/runtime_asm_build.from_x.c.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 
 extern "C" function xlang_forward_main_to_main_entry(argc: i32, argv: **u8): i32;
 
@@ -30,7 +31,7 @@ extern "C" function xlang_forward_main_to_main_entry(argc: i32, argv: **u8): i32
  * @param argc i32 — process argc from crt
  * @param argv **u8 — process argv; null is forwarded, not checked here
  * @return i32 — the value xlang_forward_main_to_main_entry returns
- * PLATFORM: MACOS|DARWIN arm64.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
  */
 function main(argc: i32, argv: **u8): i32 {
   unsafe {

@@ -5407,13 +5407,16 @@ ensure_asm_lsp_codegen_extern_obj() {
 
 # 回退链接所需的 C 桩（不依赖 make）
 ensure_runtime_cc_stubs() {
-  # w1132: Darwin arm64 object is the merged pure-asm pair.
+  # w1132: Darwin arm64 and Linux object is the merged pure-asm pair.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
   # Does not match asm_experimental_symbol_bridge.o.
-  # Linux and Windows stay on host cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+  if [ "$_ab_os" = "Linux" ] && [ "$_ab_mach" = "x86_64" ] \
+    && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh asm-build-pure src/asm/runtime_asm_build.o || return 1
+  elif [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
     && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
     bash scripts/ensure_host_cc_seed_o.sh asm-build-pure src/asm/runtime_asm_build.o
   else
