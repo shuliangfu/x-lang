@@ -516,11 +516,11 @@ formal_mod_spec_for_key() {
     # WINDOWS stays on the C path. mod.x keeps the std_compress_zlib_* prefix.
     # libz.x keeps that prefix too: the asm mod calls
     # std_compress_zlib_libz_compress_*_c, so this file does not use -lib-name "".
-    # Facade compress.o stays c_face. gzip libz.x stays on the C path.
+    # Facade compress.o stays c_face.
     std/compress/zlib/zlib.o) printf '%s' "mod|1|../std/compress/zlib/mod.x|../std/compress/zlib/libz.x" ;;
-    # PLATFORM: MACOS|DARWIN|LINUX — gzip mod.x is asm.
-    # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_*.
-    # libz.x stays on the C path. WINDOWS stays on the C path.
+    # PLATFORM: MACOS|DARWIN|LINUX — gzip mod.x and libz.x are asm.
+    # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_* and
+    # std_compress_gzip_libz_*. WINDOWS stays on the C path.
     std/compress/gzip/gzip.o) printf '%s' "mod|1|../std/compress/gzip/mod.x|../std/compress/gzip/libz.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — zstd mod.x is asm.
     # Do not pass -lib-name "". Exports stay std_compress_zstd_zstd_*.
@@ -2036,7 +2036,7 @@ for x_path in "$@"; do
     ../std/compress/gzip/mod.x|std/compress/gzip/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.compress.gzip mod.x.
       # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_*.
-      # A miss stops here. libz.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. libz.x is the other arm. Windows keeps the C path.
       # Do not fall through to cc for this file.
       _gz_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_gz_os" in
@@ -2063,6 +2063,42 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/gz_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/gzip/libz.x|std/compress/gzip/libz.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.gzip libz is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_gzip_libz_compress_*_c names. Undefined symbols are
+      # deflate/inflate family and core_mem_mem_zero. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _gzl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_gzl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/gzip_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_state_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_init_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_init_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_end_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/gzip_lib_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
