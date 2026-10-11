@@ -525,6 +525,45 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/socketio/socketio.x|std/socketio/socketio.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.socketio is one asm leaf.
+      # -lib-name "" keeps sio_append_bytes, sio_append_u32_dec, and
+      # sio_eio_version_c. Undefined symbols are memcpy, memcmp, memset,
+      # strlen, and the http/ws callees. Catalog ensure compiles to
+      # *_main.o first; this return renames that object. A miss stops
+      # here so this file never execs cc. Windows keeps the C path below.
+      _sio_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sio_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sio_log="$(mktemp "${TMPDIR:-/tmp}/std_sio_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sio_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_eio_version_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_transport_polling_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_transport_websocket_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_append_bytes$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_append_u32_dec$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_reconnect_delay_ms_c$'; then
+            rm -f "$_sio_log"
+            if [ "${_merge:-0}" = "1" ] && [ "$out_o" != "$_final_out" ]; then
+              mv -f "$out_o" "$_final_out" || return 1
+              out_o="$_final_out"
+            fi
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sio_log" >&2
+          rm -f "$_sio_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/async/scheduler.x|std/async/scheduler.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.async.scheduler is one marker.
       # The C emit below is what execs cc. -lib-name "" keeps
