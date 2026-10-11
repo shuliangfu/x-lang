@@ -9,8 +9,9 @@
  *
  * PLATFORM: SHARED face; LINUX Cap / POSIX fallback inside the header.
  * Darwin arm64 product body is src/asm/runtime_dir_cap_darwin.x
- * (libSystem __open + __getdirentries64). This seed stays the
- * Linux and Windows body, and the Darwin fallback when pure asm
+ * (libSystem __open + __getdirentries64). Linux x86_64 product body
+ * is src/asm/runtime_dir_cap_linux.x (raw_syscall open/getdents64/close).
+ * This seed stays the Windows body, and the fallback when pure asm
  * leaves no object.
  */
 

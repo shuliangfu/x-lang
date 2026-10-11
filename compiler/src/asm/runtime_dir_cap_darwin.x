@@ -12,7 +12,8 @@
 // a negative fd and this face returns null, matching opendir.
 // The heap stream is 1096 bytes: fd at 0, buf at 8, cap at 16, len at 24,
 // pos at 32, basep at 40, dirent at 48. d_name is 21 bytes into that
-// dirent. Linux and Windows keep the C seed.
+// dirent. Linux x86_64 product body is runtime_dir_cap_linux.x.
+// Windows keeps the C seed.
 // PLATFORM: MACOS|DARWIN arm64.
 
 extern function ___open(path: *u8, flags: i32, mode: i32): i32;

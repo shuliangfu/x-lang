@@ -28,9 +28,10 @@ if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
   _fs_stale=0
   for _s in ../std/fs/mod.x ../std/fs/posix.x std/fs/mod.x std/fs/posix.x \
             seeds/runtime_dir_cap.from_x.c include/xlang_dir_cap.h \
-            src/asm/runtime_dir_cap_darwin.x \
+            src/asm/runtime_dir_cap_darwin.x src/asm/runtime_dir_cap_linux.x \
             ../compiler/seeds/runtime_dir_cap.from_x.c ../compiler/include/xlang_dir_cap.h \
-            ../compiler/src/asm/runtime_dir_cap_darwin.x; do
+            ../compiler/src/asm/runtime_dir_cap_darwin.x \
+            ../compiler/src/asm/runtime_dir_cap_linux.x; do
     if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
       _fs_stale=1
       break
@@ -170,21 +171,29 @@ if ! cc -c $CFLAGS "$gen_c" -o "$raw_o" 2>"$tmp_dir/cc.err"; then
 fi
 fi
 
-# Cap residual 9.1.10: merge xlang_dir_* into fs.o so KEEP_C U opendir faces
-# resolve without libc (G.7 single Cap body in xlang_dir_cap.h).
-# PLATFORM: SHARED face; LINUX Cap / POSIX fallback inside header.
+# Cap residual 9.1.10: merge xlang_dir_* into fs.o so directory walks
+# resolve without libc opendir. Darwin arm64 and Linux x86_64 compile
+# their asm bodies. Windows compiles the C seed, which calls
+# xlang_dir_cap.h. The four export names stay the same.
+# PLATFORM: SHARED face.
 _dir_cap_c="seeds/runtime_dir_cap.from_x.c"
 if [ ! -f "$_dir_cap_c" ]; then
   _dir_cap_c="../compiler/seeds/runtime_dir_cap.from_x.c"
 fi
 if [ -f "$_dir_cap_c" ]; then
   _dir_cap_o="$tmp_dir/runtime_dir_cap.o"
-  # PLATFORM: MACOS|DARWIN arm64 — pure asm. Linux stays cc -c of the seed.
+  # PLATFORM: MACOS|DARWIN arm64 — runtime_dir_cap_darwin.x via dir-cap-pure.
+  # PLATFORM: LINUX x86_64 — runtime_dir_cap_linux.x via -backend asm.
+  # Windows stays cc -c of the seed.
   _dir_os="$(uname -s 2>/dev/null || echo Unknown)"
   _dir_mach="$(uname -m 2>/dev/null || echo unknown)"
   _dir_x="src/asm/runtime_dir_cap_darwin.x"
   if [ ! -f "$_dir_x" ]; then
     _dir_x="../compiler/src/asm/runtime_dir_cap_darwin.x"
+  fi
+  _dir_lx="src/asm/runtime_dir_cap_linux.x"
+  if [ ! -f "$_dir_lx" ]; then
+    _dir_lx="../compiler/src/asm/runtime_dir_cap_linux.x"
   fi
   if [ "$_dir_os" = "Darwin" ] && [ "$_dir_mach" = "arm64" ] && [ -f "$_dir_x" ]; then
     _ensure="scripts/ensure_host_cc_seed_o.sh"
@@ -200,6 +209,41 @@ if [ -f "$_dir_cap_c" ]; then
     if ! bash "$_ensure" dir-cap-pure "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
       echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm failed" >&2
       tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+      exit 1
+    fi
+  elif [ "$_dir_os" = "Linux" ] && [ "$_dir_mach" = "x86_64" ] && [ -f "$_dir_lx" ]; then
+    # Fail closed. A miss must not cc the seed and look green.
+    # Retry: the same class of pure-asm try sometimes dies on the first pass.
+    # PLATFORM: LINUX x86_64.
+    _dc_try=0
+    _dc_ok=0
+    while [ "$_dc_try" -lt 12 ]; do
+      _dc_try=$((_dc_try + 1))
+      rm -f "$_dir_cap_o"
+      if "$XLANG_BIN" -backend asm -c -L .. -o "$_dir_cap_o" "$_dir_lx" \
+          >"$tmp_dir/dir_cap.err" 2>&1 && [ -s "$_dir_cap_o" ]; then
+        _dc_ok=1
+        break
+      fi
+    done
+    if [ "$_dc_ok" != "1" ]; then
+      echo "xlang_compile_std_fs_formal.sh: Linux dir Cap pure-asm failed" >&2
+      tail -40 "$tmp_dir/dir_cap.err" >&2 || true
+      exit 1
+    fi
+    for _dc_sym in xlang_dir_opendir xlang_dir_readdir xlang_dir_closedir \
+        xlang_dir_readdir_name_c runtime_dir_cap_linux_x_doc_anchor; do
+      if ! nm "$_dir_cap_o" 2>/dev/null | grep -qE " T ${_dc_sym}\$"; then
+        echo "xlang_compile_std_fs_formal.sh: Linux dir Cap missing ${_dc_sym}" >&2
+        exit 1
+      fi
+    done
+    if nm "$_dir_cap_o" 2>/dev/null | grep -qE ' U raw_syscall'; then
+      echo "xlang_compile_std_fs_formal.sh: Linux dir Cap left raw_syscall external" >&2
+      exit 1
+    fi
+    if ! nm -u "$_dir_cap_o" 2>/dev/null | awk '{ print $NF }' | grep -qx '__errno_location'; then
+      echo "xlang_compile_std_fs_formal.sh: Linux dir Cap missing __errno_location" >&2
       exit 1
     fi
   else
