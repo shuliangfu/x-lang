@@ -454,6 +454,41 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/simd/simd.x|std/simd/simd.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.simd simd.x is one asm leaf.
+      # -lib-name "" keeps simd_recommend_path_c, simd_hw_available_c,
+      # and simd_str_eq. Undefined symbol is getenv.
+      # The formal C face stays on cc. A miss stops here so this file
+      # never execs cc. Windows keeps the C path below.
+      _simd_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_simd_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _simd_log="$(mktemp "${TMPDIR:-/tmp}/std_simd_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_simd_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_str_eq$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_recommend_path_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_hw_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_env_force_scalar$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_env_force_hw$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_f_zero_c_marker_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_autovec_smoke_c$'; then
+            rm -f "$_simd_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_simd_log" >&2
+          rm -f "$_simd_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/async/scheduler.x|std/async/scheduler.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.async.scheduler is one marker.
       # The C emit below is what execs cc. -lib-name "" keeps
