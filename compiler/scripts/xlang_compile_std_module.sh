@@ -295,6 +295,11 @@ formal_mod_spec_for_key() {
     std/ffi/ffi.o) printf '%s' "mod|1|../std/ffi/mod.x|../std/ffi/ffi.x" ;;
     std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.json is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_json_*.
+    # json.x is the bare impl and keeps -lib-name "" so the exports stay
+    # json_parse_null_c, json_parse_bool_c, and json_parse_string_c.
+    # The merged object has no undefined symbols.
     std/json/json.o) printf '%s' "mod|1|../std/json/mod.x|../std/json/json.x" ;;
     std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
     # PLATFORM: SHARED — std.cli product face (cookbook cli_subcommand).
@@ -2428,6 +2433,68 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_cache_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/json/mod.x|std/json/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.json mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_json_parse_null, std_json_parse, and
+      # std_json_parse_string defined. The parse helpers live in json.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sjson_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sjson_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_json_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse_null$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse_string$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_json_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/json/json.x|std/json/json.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.json.
+      # -lib-name "" keeps json_parse_null_c, json_parse_bool_c, and
+      # json_parse_string_c. Without it the path prefix doubles the
+      # export. The merged object has no undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sjsonx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sjsonx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_json_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_null_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_bool_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_string_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_json_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
