@@ -3278,10 +3278,11 @@ ensure_slice_glue_darwin_pure() {
   return 0
 }
 
-# w1099: Darwin arm64 std/runtime/runtime.o is the .x wrappers.
+# w1099: Darwin arm64 and Linux std/runtime/runtime.o are the .x wrappers.
 # They forward to xlang_panic_ and xlang_crash_evidence_collect_c.
-# Linux and Windows keep the C seed. No gcc -E.
-# PLATFORM: MACOS|DARWIN arm64.
+# Linux miss returns 1 and does not exec cc. Windows keeps the C seed.
+# No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 ensure_std_runtime_fast_darwin_pure() {
   local o="${1:-../std/runtime/runtime.o}"
   local xsrc="src/asm/runtime_std_runtime_fast.x"
@@ -3298,7 +3299,8 @@ ensure_std_runtime_fast_darwin_pure() {
   mkdir -p "$(dirname "$o")"
   # pure_asm_x_to_o rejects any undefined xlang_panic_. This TU's job is
   # to call that symbol, so the emit goes straight to the product compiler.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX. The nm gate accepts the
+  # Darwin leading underscore and the Linux bare name.
   local xl
   if [ -x ./xlang ]; then
     xl=./xlang
@@ -3315,13 +3317,13 @@ ensure_std_runtime_fast_darwin_pure() {
       local _sr_short _sr_ok
       _sr_ok=1
       for _sr_short in \
-        _std_runtime_crash_evidence_collect \
-        _runtime_crash_evidence_collect_c \
-        _std_runtime_runtime_panic \
-        _runtime_panic \
-        _std_runtime_runtime_abort \
-        _runtime_abort; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_sr_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        std_runtime_crash_evidence_collect \
+        runtime_crash_evidence_collect_c \
+        std_runtime_runtime_panic \
+        runtime_panic \
+        std_runtime_runtime_abort \
+        runtime_abort; do
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_sr_short}$"; then
           _sr_ok=0
           break
         fi
@@ -3338,6 +3340,10 @@ ensure_std_runtime_fast_darwin_pure() {
     rm -f "$o"
   done
   if [ ! -s "$o" ]; then
+    if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+      echo "ensure_host_cc_seed_o std-runtime: pure-asm failed for $xsrc" >&2
+      return 1
+    fi
     log "cc -c $seed → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
     $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
@@ -5332,13 +5338,21 @@ ensure_one() {
     fi
   fi
 
-  # w1099: Darwin arm64 std.runtime wrappers are the .x, not this seed.
-  # Linux and Windows keep host-cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1099: Darwin arm64 and Linux std.runtime wrappers are the .x.
+  # Linux miss does not cc. Windows keeps host-cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
   if [ "$(basename "$seed")" = "runtime_std_runtime_fast.from_x.c" ]; then
     local sr_s sr_m
     sr_s="$(uname -s 2>/dev/null || echo Unknown)"
     sr_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$sr_s" = "Linux" ]; then
+      if [ ! -x ./xlang ] || [ ! -f src/asm/runtime_std_runtime_fast.x ]; then
+        echo "ensure_host_cc_seed_o std-runtime: pure-asm needs ./xlang and src/asm/runtime_std_runtime_fast.x" >&2
+        return 1
+      fi
+      ensure_std_runtime_fast_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$sr_s" = "Darwin" ] && [ "$sr_m" = "arm64" ] \
       && [ -f src/asm/runtime_std_runtime_fast.x ]; then
       ensure_std_runtime_fast_darwin_pure "$out" || return 1
@@ -27579,14 +27593,22 @@ ensure_std_core_prefer_one() {
           return 0
         fi
       fi
-      # w1099: Darwin arm64 runtime.o is the panic/abort wrappers.
+      # w1099: Darwin arm64 and Linux runtime.o is the panic/abort wrappers.
       # xlang-c still emits C and host-cc's it, so it is not the first path.
-      # Linux and Windows keep the branches below.
-      # PLATFORM: MACOS|DARWIN arm64.
+      # Linux miss does not cc. Windows keeps the branches below.
+      # PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
       if [ "$x_src" = "src/asm/runtime_std_runtime_fast.x" ]; then
         local sr_s sr_m
         sr_s="$(uname -s 2>/dev/null || echo Unknown)"
         sr_m="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$sr_s" = "Linux" ]; then
+          if [ ! -x ./xlang ] || [ ! -f src/asm/runtime_std_runtime_fast.x ]; then
+            echo "ensure_host_cc_seed_o std-runtime: pure-asm needs ./xlang and src/asm/runtime_std_runtime_fast.x" >&2
+            return 1
+          fi
+          ensure_std_runtime_fast_darwin_pure "$o" || return 1
+          return 0
+        fi
         if [ "$sr_s" = "Darwin" ] && [ "$sr_m" = "arm64" ]; then
           ensure_std_runtime_fast_darwin_pure "$o" || return 1
           return 0
