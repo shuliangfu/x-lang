@@ -178,7 +178,9 @@ formal_mod_spec_for_key() {
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.types.
     # WINDOWS stays on the C path.
     core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
-    # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.mem.
+    # WINDOWS stays on the C path. The .x body is the loop authority;
+    # host __builtin_* is not this leaf.
     core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.debug.
     # WINDOWS stays on the C path.
@@ -1104,6 +1106,37 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/mem_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/builtin/mod.x|core/builtin/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.builtin is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_builtin_* exports defined. Undefined
+      # symbols are core_mem_mem_copy and xlang_panic_. The success path
+      # does not call panic. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _builtin_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_builtin_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/builtin_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_copy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_clz_u32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_bswap_u32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/builtin_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
