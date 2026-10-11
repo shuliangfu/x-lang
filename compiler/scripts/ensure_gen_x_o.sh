@@ -87,7 +87,11 @@ if [ -z "${PIPELINE_GEN_CFLAGS:-}" ]; then
   PIPELINE_GEN_CFLAGS_BASE="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
   PIPELINE_GEN_CFLAGS_CLANG="-Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers -Wno-parentheses-equality"
   PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE"
-  if "$CC" -v 2>&1 | grep -qi clang; then
+  # Same clang fact as the seed catalog. Do not execute cc to learn it.
+  # PLATFORM: SHARED.
+  # shellcheck disable=SC1091
+  . "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/xlang_host_cc_is_clang.sh"
+  if xlang_host_cc_is_clang "$CC"; then
     PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE $PIPELINE_GEN_CFLAGS_CLANG"
   fi
 fi

@@ -884,7 +884,11 @@ case "$(uname -s 2>/dev/null)" in
   Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
   Darwin) CFLAGS="$CFLAGS $DARWIN_MINOS" ;;
 esac
-if cc -v 2>&1 | grep -q clang; then
+# Same clang fact as the seed catalog. Do not execute cc to learn it.
+# PLATFORM: SHARED.
+# shellcheck disable=SC1091
+. "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/xlang_host_cc_is_clang.sh"
+if xlang_host_cc_is_clang cc; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
 fi
 

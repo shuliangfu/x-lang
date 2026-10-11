@@ -245,8 +245,8 @@ if [ -f "$_dir_cap_c" ]; then
       _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
     fi
     # CFLAGS is already set above. Export it so ensure does not load the
-    # seed catalog: that load runs cc -v to see if cc is clang.
-    # dir-cap-pure remains the authority for the seventeen symbols.
+    # seed catalog. dir-cap-pure remains the authority for the seventeen
+    # symbols. The catalog no longer executes cc to identify clang.
     # PLATFORM: MACOS|DARWIN arm64.
     export CFLAGS
     export PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS-}"

@@ -1568,7 +1568,11 @@ fi
 # 与 Makefile PIPELINE_GEN_CFLAGS 对齐：编译 -E 大文件时压制已知告警；Clang 追加额外 -Wno。
 detect_pipeline_gen_cflags() {
   PIPELINE_GEN_CFLAGS="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
-  if "$CC" -v 2>&1 | grep -qi clang; then
+  # Same clang fact as the seed catalog. Do not execute cc to learn it.
+  # PLATFORM: SHARED.
+  # shellcheck disable=SC1091
+  . "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/xlang_host_cc_is_clang.sh"
+  if xlang_host_cc_is_clang "$CC"; then
   PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers"
   fi
 }

@@ -299,12 +299,15 @@ catalog_seed_host_defaults() {
   esac
   catalog_set TARGET "${TARGET:-xlang}"
 
-  # wave925: CC_IS_CLANG mirrors Makefile `:= $(findstring clang,$(shell $(CC) -v 2>&1))`.
-  # Both produce "clang" when CC output contains "clang", empty otherwise.
-  # Set before parsing mk/driver_seed_mode_objs.mk so ifeq resolves correctly.
+  # CC_IS_CLANG is "clang" or empty. Set before parsing
+  # mk/driver_seed_mode_objs.mk so the ifeq resolves.
+  # Identity is xlang_host_cc_is_clang. Do not execute the compiler.
+  # PLATFORM: SHARED.
   local _cc_bin
   _cc_bin=$(catalog_get CC)
-  if "$_cc_bin" -v 2>&1 | grep -q 'clang'; then
+  # shellcheck disable=SC1091
+  . "$ROOT/scripts/xlang_host_cc_is_clang.sh"
+  if xlang_host_cc_is_clang "$_cc_bin"; then
     catalog_set CC_IS_CLANG clang
   else
     catalog_set CC_IS_CLANG ""
@@ -645,7 +648,8 @@ catalog_shell_parse_all() {
   # (DRIVER_SEED_OBJS, SEED_LINK_*, FILTER_*, etc.) but NOT the host-default
   # keys (CC, CFLAGS, TARGET, CC_IS_CLANG, UNAME_*) which depend on the
   # current process environment. So we still call catalog_seed_host_defaults
-  # (cheap: 1 `cc -v` probe + ~20 catalog_set) but skip all catalog_parse_mk
+  # (cheap: clang identity without executing cc, plus ~20 catalog_set)
+  # but skip all catalog_parse_mk
   # calls (expensive: 17 mk files × shell parse). catalog_get is last-wins,
   # so host-default keys appended after the cache take precedence.
   # PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
