@@ -308,6 +308,11 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — std.cache product face (STD-087 lru_pool_smoke).
     # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/config: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.cache is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_cache_*.
+    # cache.x is the bare impl and keeps -lib-name "" so the exports stay
+    # cache_lru_create_c, cache_lru_get_c, and cache_pool_acquire_c.
+    # Undefined symbols are calloc, free, and time_now_monotonic_ns_c.
     std/cache/cache.o) printf '%s' "mod|1|../std/cache/mod.x|../std/cache/cache.x" ;;
     # PLATFORM: SHARED — std.url product face (STD-076 roundtrip).
     # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
@@ -2359,6 +2364,70 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_log_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cache/mod.x|std/cache/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.cache mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_cache_new_lru, std_cache_get, and
+      # std_cache_put defined. Undefined symbols are the cache_*_c
+      # helpers in cache.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scache_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scache_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cache_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_new_lru$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_put$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cache_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cache/cache.x|std/cache/cache.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.cache.
+      # -lib-name "" keeps cache_lru_create_c, cache_lru_get_c, and
+      # cache_pool_acquire_c. Without it the path prefix doubles the
+      # export. Undefined symbols are calloc, free, and
+      # time_now_monotonic_ns_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scachex_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scachex_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cache_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_lru_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_lru_get_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_pool_acquire_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cache_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
