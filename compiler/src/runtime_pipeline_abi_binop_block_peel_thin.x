@@ -46,6 +46,8 @@ export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref:
 export extern function glue_binop_var_slot_cache_clear(): void;
 export extern function pipeline_asm_emit_expr_elf_fast(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx: *u8, ta: i32, ctx: *u8): i32;
+export extern function glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_index_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_deref_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -207,17 +209,36 @@ export function glue_try_binop_load_operand_elf_c(arena: *u8, elf_ctx: *u8, expr
             return 0;
           }
         }
-        /* wave745: mutable file-level let — load the global via emit_expr. */
+        /* wave745: mutable file-level let, or a const the imm fold missed.
+         * emit_expr materializes the value in rax. to_rbx=1 must keep a
+         * live left result there: left-assoc | & ^ + treat a VAR load
+         * into rbx as rax-preserving. Park rax, emit, move to rbx, restore.
+         * PLATFORM: SHARED freestanding emit. Twin of the mega body.
+         */
         glue_binop_var_slot_cache_clear();
+        if (to_rbx != 0) {
+          if (glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta, ctx) != 0) {
+            return -1;
+          }
+        }
         vr = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
-        if (vr == -99) {
-          return -2;
-        }
-        if (vr != 0) {
+        if (vr == -99 || vr != 0) {
+          if (to_rbx != 0) {
+            glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx, ta);
+          }
+          if (vr == -99) {
+            return -2;
+          }
           return -1;
         }
-        if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
-          return -1;
+        if (to_rbx != 0) {
+          if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+            glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx, ta);
+            return -1;
+          }
+          if (glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx, ta) != 0) {
+            return -1;
+          }
         }
         return 0;
       }

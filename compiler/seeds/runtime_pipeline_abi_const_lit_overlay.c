@@ -8,6 +8,9 @@
  *     asm_module_top_level_const_lit_i32 and emits mov-imm of the
  *     initializer. That helper did not test is_const, so mutable
  *     `let g: i32 = 0` became `mov w0, #0` in `x >= g`.
+ *   The emit_expr fallback leaves the loaded global in rax. to_rbx=1
+ *     parks that rax first (glue_binop_preserve_rax_for_rbx_load_elf_c)
+ *     so a left-assoc chain does not lose the previous result.
  *   Store: file-level let is COMMON/DATA; prepare stores g_aw_pgo_emit_n
  *     correctly (adrp+str). count returns via ldr. at() compared against
  *     the folded init 0 → always -1 → emit_one empty success.
@@ -59,6 +62,8 @@ extern void glue_binop_var_slot_cache_clear(void);
 extern int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref,
                                               void *ctx, int32_t ta);
 extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t glue_binop_preserve_rax_for_rbx_load_elf_c(void *elf_ctx, int32_t ta, void *ctx);
+extern int32_t glue_binop_restore_rax_after_rbx_load_elf_c(void *elf_ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, int32_t expr_ref,
                                                         void *ctx, int32_t ta);
 extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
@@ -164,15 +169,32 @@ int32_t glue_try_binop_load_operand_elf_c(void *arena, void *elf_ctx, int32_t ex
         }
         return 0;
       }
-      /* wave745: mutable file-level let — load the global, do not -2. */
+      /* wave745: mutable file-level let, or a const the imm fold missed.
+       * emit_expr materializes the value in rax (Darwin arm64: adrp/ldr x0).
+       * to_rbx=1 must keep a live left result in rax. Left-assoc | & ^ +
+       * treat a VAR load into rbx as rax-preserving; parking after the
+       * load copies the new value over the left result (O_WRONLY|O_CREAT|
+       * O_TRUNC kept only O_TRUNC). Park first, then move, then restore.
+       * PLATFORM: SHARED. */
       glue_binop_var_slot_cache_clear();
+      if (to_rbx != 0) {
+        if (glue_binop_preserve_rax_for_rbx_load_elf_c(elf_ctx, ta, ctx) != 0)
+          return -1;
+      }
       vr = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
-      if (vr == -99)
-        return -2;
-      if (vr != 0)
-        return -1;
-      if (to_rbx != 0 && backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
-        return -1;
+      if (vr == -99 || vr != 0) {
+        if (to_rbx != 0)
+          glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx, ta);
+        return (vr == -99) ? -2 : -1;
+      }
+      if (to_rbx != 0) {
+        if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0) {
+          glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx, ta);
+          return -1;
+        }
+        if (glue_binop_restore_rax_after_rbx_load_elf_c(elf_ctx, ta) != 0)
+          return -1;
+      }
       return 0;
     }
     glue_asm73_evict_cache_if_live_pressure_elf_c(ta, elf_ctx);
