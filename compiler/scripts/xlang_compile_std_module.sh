@@ -427,6 +427,9 @@ formal_mod_spec_for_key() {
     # dynlib_os_close_c, dynlib_os_copy_last_error_c,
     # dynlib_os_win_path_smoke_c, memcpy, and memset.
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — http.x is the bare-impl marker.
+    # -lib-name "" keeps http_f_http_v1_marker_c. mod.x stays on the C path.
+    # WINDOWS stays on the C path.
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.tar is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_tar_*.
@@ -1693,6 +1696,33 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/queue_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/http/http.x|std/http/http.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.http.
+      # -lib-name "" keeps http_f_http_v1_marker_c. A miss stops here.
+      # mod.x stays on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _hx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_hx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/http_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_f_http_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/http_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
