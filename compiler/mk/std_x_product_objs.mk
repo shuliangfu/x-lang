@@ -22,7 +22,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/trace/trace.o \
 	../std/task/task.o \
 	../std/schema/schema.o \
-	../std/elf/elf.o \
 	../std/regex/regex.o \
 	../std/unicode/unicode.o \
 	../std/socketio/socketio.o \

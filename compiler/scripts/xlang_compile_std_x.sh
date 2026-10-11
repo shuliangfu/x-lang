@@ -42,7 +42,7 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 16 (uuid.o moved to formal_mod; was 17 after kv/arrow).
+# Honesty COUNT = 15 (elf.o moved to formal_mod; was 16 after uuid).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
@@ -59,7 +59,6 @@ std_x_key_for_out() {
     ../std/trace/trace.o|std/trace/trace.o|*std/trace/trace.o) printf '%s' "std/trace/trace.o" ;;
     ../std/task/task.o|std/task/task.o|*std/task/task.o) printf '%s' "std/task/task.o" ;;
     ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
-    ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
     ../std/regex/regex.o|std/regex/regex.o|*std/regex/regex.o) printf '%s' "std/regex/regex.o" ;;
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/socketio/socketio.o|std/socketio/socketio.o|*std/socketio/socketio.o) printf '%s' "std/socketio/socketio.o" ;;
@@ -82,7 +81,6 @@ std_x_spec_for_key() {
     std/trace/trace.o) printf '%s' "auto-soft|../std/trace/trace.x" ;;
     std/task/task.o) printf '%s' "auto-soft|../std/task/task.x" ;;
     std/schema/schema.o) printf '%s' "auto|../std/schema/schema.x" ;;
-    std/elf/elf.o) printf '%s' "auto-soft|../std/elf/elf.x" ;;
     std/regex/regex.o) printf '%s' "auto-soft|../std/regex/regex.x" ;;
     std/unicode/unicode.o) printf '%s' "auto-soft|../std/unicode/unicode.x" ;;
     std/socketio/socketio.o) printf '%s' "auto-soft-merge|../std/socketio/socketio.x" ;;
@@ -104,7 +102,6 @@ std_x_all_keys() {
     std/trace/trace.o \
     std/task/task.o \
     std/schema/schema.o \
-    std/elf/elf.o \
     std/regex/regex.o \
     std/unicode/unicode.o \
     std/socketio/socketio.o \
@@ -204,7 +201,6 @@ std/cache/cache.o
 std/trace/trace.o
 std/task/task.o
 std/schema/schema.o
-std/elf/elf.o
 std/regex/regex.o
 std/unicode/unicode.o
 std/socketio/socketio.o
