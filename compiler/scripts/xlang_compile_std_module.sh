@@ -392,10 +392,15 @@ formal_mod_spec_for_key() {
     # Undefined symbols are xlang_db_use_sqlite3_c, xlang_sqlite3_*_c,
     # calloc, free, memcmp, memcpy, and strlen.
     std/db/sqlite/sqlite.o) printf '%s' "mod|1|../std/db/sqlite/mod.x|../std/db/sqlite/sqlite.x" ;;
-    # PLATFORM: SHARED — std.db.kv / std.db.arrow product faces (cookbook db_kv_arrow).
-    # Was std_x bare kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_kv_* /
-    # std_db_arrow_* (import METHOD UNDEF). G.7 complete formal_mod like sqlite.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.db.kv is one asm leaf.
+    # WINDOWS stays on the C path. kv.x takes -lib-name "".
+    # Callers use std_db_kv_open and db_kv_open_c.
+    # Undefined symbols are xlang_kv_mmap_file_c, xlang_kv_msync_c,
+    # xlang_kv_munmap_c, std_sys_mmap_mmap_available, calloc, free,
+    # malloc, memcmp, memcpy, memset, strlen, and xlang_panic_.
     std/db/kv/kv.o) printf '%s' "mod|1|../std/db/kv/mod.x|../std/db/kv/kv.x" ;;
+    # PLATFORM: SHARED — std.db.arrow product face.
+    # Was std_x bare arrow.x only → T arrow_* / no std_db_arrow_* (import METHOD UNDEF).
     std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib is one asm leaf.
     # WINDOWS stays on the C path. dynlib.x takes -lib-name "".
@@ -3381,6 +3386,69 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/db/kv/mod.x|std/db/kv/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.kv mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_db_kv_open, std_db_kv_mmap_available, and
+      # std_db_kv_get defined. The db_kv_* faces live in kv.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _skv_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_skv_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_kv_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_mmap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_get$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_kv_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/kv/kv.x|std/db/kv/kv.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.db.kv.
+      # -lib-name "" keeps db_kv_open_c, db_kv_get_c, and db_kv_smoke_c.
+      # Without it the path prefix doubles the export.
+      # Undefined symbols are the xlang_kv_* mmap faces, libc, and
+      # std_sys_mmap_mmap_available. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _skvx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_skvx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_kv_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_get_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_kv_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
   esac
   # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
   # -o 无 main 时链失败但 XLANG_KEEP_C 保留完整 C；再 cc -c 落地。
@@ -4855,6 +4923,15 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
               printf '%s\n' "$sym" >>"$_exp_list"
             fi
             ;;
+          std_db_kv_*|db_kv_*)
+            # leaf=kv would only keep kv_*_c and std_kv_*.
+            # The product face is std_db_kv_* and the impl face is db_kv_*.
+            case "$out_rel" in
+              std/db/kv/kv.o|*std/db/kv/kv.o)
+                printf '%s\n' "$sym" >>"$_exp_list"
+                ;;
+            esac
+            ;;
           map_*)
             # PLATFORM: MACOS — heap ops.x bare map_* kept for heap_full_alias U→T.
             # leaf_*_c only matches heap_*; map_i32_i32_find_c / map_slot need explicit keep.
@@ -4932,6 +5009,13 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                       if [ "$leaf" = "cli" ]; then
                         printf '%s\n' "$sym" >>"$_mem_exp"
                       fi
+                      ;;
+                    std_db_kv_*|db_kv_*)
+                      case "$out_rel" in
+                        std/db/kv/kv.o|*std/db/kv/kv.o)
+                          printf '%s\n' "$sym" >>"$_mem_exp"
+                          ;;
+                      esac
                       ;;
                     map_*)
                       if [ "$leaf" = "heap" ]; then
