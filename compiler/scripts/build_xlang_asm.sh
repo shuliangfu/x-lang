@@ -904,12 +904,17 @@ ensure_driver_compile_link_obj() {
   local loop_partial="$BUILD_DIR/driver_compile_parse_argv_loop_partial.o"
   local merge_objs=""
   [ -f "$eh_o" ] && [ -s "$eh_o" ] || return 1
-  # w1119: Darwin arm64 alias is pure asm of the existing .x.
-  # Linux and Windows stay on -x -E then host cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1119: Darwin arm64 and Linux alias is pure asm of the existing .x.
+  # Linux miss does not cc. Windows stays on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
   _dc_os="$(uname -s 2>/dev/null || echo Unknown)"
   _dc_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_dc_os" = "Darwin" ] && [ "$_dc_mach" = "arm64" ] \
+  if [ "$_dc_os" = "Linux" ] && [ "$_dc_mach" = "x86_64" ] \
+    && [ -f src/driver_compile_asm_link_alias.x ]; then
+    if [ ! -f "$alias_o" ] || [ src/driver_compile_asm_link_alias.x -nt "$alias_o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh driver-compile-alias-pure "$alias_o" || return 1
+    fi
+  elif [ "$_dc_os" = "Darwin" ] && [ "$_dc_mach" = "arm64" ] \
     && [ -f src/driver_compile_asm_link_alias.x ]; then
     if [ ! -f "$alias_o" ] || [ src/driver_compile_asm_link_alias.x -nt "$alias_o" ]; then
       bash scripts/ensure_host_cc_seed_o.sh driver-compile-alias-pure "$alias_o"

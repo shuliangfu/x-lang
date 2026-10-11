@@ -2620,9 +2620,10 @@ ensure_run_x_link_alias_darwin_pure() {
   return 0
 }
 
-# w1119: Darwin arm64 driver_compile_asm_link_alias.o forwards four driver names.
-# Linux and Windows keep -x -E then host cc. There is no C seed left.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1119: Darwin arm64 and Linux driver_compile_asm_link_alias.o forward four driver names.
+# Linux miss does not exec cc. Windows keeps -x -E then host cc.
+# There is no C seed left.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_driver_compile_alias_darwin_pure() {
   local o="${1:-build_asm/driver_compile_asm_link_alias.o}"
@@ -2651,7 +2652,9 @@ ensure_driver_compile_alias_darwin_pure() {
         _driver_run_compiler_full_x_post_parse \
         _driver_compile_dispatch_asm_backend \
         _driver_compile_dispatch_emit_c_path; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_dc_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_dc_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _dc_ok=0
           break
         fi
@@ -2666,7 +2669,9 @@ ensure_driver_compile_alias_darwin_pure() {
         _run_compiler_full_x_post_parse \
         _compile_dispatch_asm_backend \
         _compile_dispatch_emit_c_path; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_dc_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_dc_short#_}" '($1=="U" || $2=="U") && ($NF==s || $NF=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           echo "ensure_host_cc_seed_o driver-compile-alias: $_dc_short is not undefined" >&2
           rm -f "$o"
           _dc_ok=0
@@ -2682,6 +2687,12 @@ ensure_driver_compile_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o driver-compile-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o driver-compile-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32408,9 +32419,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   driver-compile-alias-pure|driver_compile_alias_pure)
-    # w1119: Darwin arm64 driver compile alias from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1119: Darwin arm64 and Linux driver compile alias from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o driver-compile-alias-pure: need <out.o>" >&2
       exit 2
