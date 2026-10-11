@@ -1,7 +1,8 @@
 /* AUTO: Darwin tip xlang_asm -x -E src/typeck_lsp_io_stub.x
  * PURPOSE: Windows leftover-PE cannot -E; cold seed for cc_inc_tu --auto.
- * Darwin arm64 product body is src/typeck_lsp_io_stub.x via -backend asm.
- * Linux and Windows keep -x -E then host cc. This file stays the cold seed.
+ * Darwin arm64 and Linux product body is src/typeck_lsp_io_stub.x
+ * via -backend asm. A Linux miss does not exec cc.
+ * Windows keeps -x -E then host cc. This file stays the cold seed.
  */
 #include <stdint.h>
 #include <stddef.h>

@@ -2091,10 +2091,10 @@ ensure_build_tool_main_darwin_pure() {
   return 0
 }
 
-# w1126: Darwin arm64 typeck_lsp_io_stub.o is four stubs from the existing .x.
-# Linux and Windows keep -x -E then host cc. The cold seed stays for strict.
+# w1126: Darwin arm64 and Linux typeck_lsp_io_stub.o is four stubs from the existing .x.
+# Linux miss does not exec cc. Windows keeps -x -E then host cc.
 # Does not match asm_xlang_lsp_diag_stub.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_lsp_io_stub_darwin_pure() {
   local o="${1:-build_asm/typeck_lsp_io_stub.o}"
@@ -2123,7 +2123,9 @@ ensure_lsp_io_stub_darwin_pure() {
         _typeck_lsp_alloc \
         _typeck_lsp_free \
         _typeck_lsp_is_null; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_io_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_io_short#_}$"; then
           _io_ok=0
           break
         fi
@@ -2144,6 +2146,12 @@ ensure_lsp_io_stub_darwin_pure() {
     echo "ensure_host_cc_seed_o lsp-io-stub: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o lsp-io-stub: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32229,9 +32237,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   lsp-io-stub-pure|lsp_io_stub_pure)
-    # w1126: Darwin arm64 typeck LSP IO stub from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1126: Darwin arm64 and Linux typeck LSP IO stub from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o lsp-io-stub-pure: need <out.o>" >&2
       exit 2

@@ -28,8 +28,9 @@
 // Darwin arm64 product object is this file via -backend asm.
 // read_message returns -1. alloc returns null. is_null is 1 for null.
 // free does not write. This object is not asm_xlang_lsp_diag_stub.o.
-// Linux and Windows keep -x -E and then host cc.
-// PLATFORM: MACOS|DARWIN for that object path.
+// Linux uses this file. A Linux miss returns 1 and does not exec cc.
+// Windows keeps -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 
 /**
  * lsp.x's typeck-mangled read_message: stub returns -1 (EOF/error).
