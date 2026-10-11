@@ -255,6 +255,10 @@ formal_mod_spec_for_key() {
     std/atomic/atomic.o) printf '%s' "mod|1|../std/atomic/mod.x|../std/atomic/atomic.x" ;;
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
     std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.sort is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_sort_*.
+    # sort.x keeps the path prefix: mod calls std_sort_sort_sort_qsort_*.
+    # Do not pass -lib-name "". Undefined symbol is malloc.
     std/sort/sort.o) printf '%s' "mod|0|../std/sort/mod.x|../std/sort/sort.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.ffi is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_ffi_*.
@@ -1939,6 +1943,69 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_ffi_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sort/mod.x|std/sort/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sort mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_sort_sort_i32_ptr_i32, std_sort_sort_u8_ptr_i32,
+      # and std_sort_stable_i32_ptr_i32 defined. Undefined symbols are the
+      # std_sort_sort_sort_* helpers defined in sort.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssort_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssort_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sort_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_u8_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_stable_i32_ptr_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sort_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sort/sort.x|std/sort/sort.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sort impl keeps the path prefix.
+      # mod.x calls std_sort_sort_sort_qsort_i32 and the u8 and stable twins.
+      # -lib-name "" would drop that prefix and leave the mod undefined.
+      # Undefined symbol is malloc. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssortx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssortx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sort_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_qsort_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_qsort_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_stable_i32_impl$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sort_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
