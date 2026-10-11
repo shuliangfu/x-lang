@@ -291,6 +291,38 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/workers.x|std/net/workers.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.workers is one asm leaf.
+      # -lib-name "" keeps net_run_accept_workers_c, net_worker_arg_fill_c,
+      # and net_worker_arg_slot_ptr_c. Undefined symbols are thread_create_c,
+      # thread_join_c, and xlang_net_worker_accept_entry_ptr_c.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _nw_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_nw_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _nw_log="$(mktemp "${TMPDIR:-/tmp}/std_nw_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_nw_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_run_accept_workers_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_worker_arg_fill_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_worker_arg_slot_ptr_c$'; then
+            rm -f "$_nw_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_nw_log" >&2
+          rm -f "$_nw_log"
+          return 1
+          ;;
+      esac
+      ;;
   esac
   if [ "$xlang_bin" = "auto" ]; then
     # 【Why 根源】run-all 批量回归时 XLANG_COMPILE_STD_USE_C=1 强制走 xlang-c：
