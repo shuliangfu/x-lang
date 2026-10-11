@@ -176,7 +176,9 @@ formal_mod_spec_for_key() {
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
-    # PLATFORM: SHARED — formal std.sys.macos (cfg import / macos_write_*).
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.heap.page_mmap.
+    # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
+    # Import mangle stays std_sys_macos_macos_*.
     std/sys/macos.o) printf '%s' "mod|0|../std/sys/macos.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.types.
     # WINDOWS stays on the C path.
@@ -1467,6 +1469,38 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/page_mmap_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/macos.x|std/sys/macos.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.macos is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_sys_macos_macos_* exports defined.
+      # Undefined symbols are libc write, read, open, close, mmap, munmap,
+      # msync, ftruncate, lseek, and _exit. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/macos_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_anonymous_mmap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/macos_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
