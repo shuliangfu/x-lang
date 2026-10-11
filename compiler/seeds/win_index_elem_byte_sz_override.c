@@ -253,21 +253,6 @@ int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref) {
         }
       }
     }
-    /* TYPE_SLICE `.data` → bare PTR; recover elem stride before peel defaults to 4. */
-    if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
-      int32_t vb = pipeline_expr_field_access_base_ref(arena, base_ref);
-      if (vb > 0 && pipeline_expr_kind_ord_at(arena, vb) == 3) {
-        int32_t sty = glue_var_expr_type_ref_with_decl_fallback_c(arena, vb);
-        if (sty > 0 && pipeline_type_kind_ord_at(arena, sty) == 11) {
-          int32_t elem = pipeline_type_elem_ref_at(arena, sty);
-          if (elem > 0) {
-            int32_t esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem);
-            if (esz > 0 && esz <= 8)
-              return esz;
-          }
-        }
-      }
-    }
     if (pipeline_expr_kind_ord_at(arena, base_ref) == 44) {
       mod = pipeline_asm_emit_module_ref_c();
       tr = glue_field_access_field_type_ref_c(arena, mod, base_ref);
