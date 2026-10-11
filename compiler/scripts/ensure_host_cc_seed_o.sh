@@ -27698,6 +27698,38 @@ ensure_std_core_prefer_one() {
         # Keep alias .o under std/net/ (not TMPDIR) so ld -r sees a stable path.
         _tls_alias_c="../std/net/tls_stub_import_alias.c"
         _tls_alias_o="../std/net/tls_stub_import_alias.o"
+        # PLATFORM: Darwin|Linux — the strong forwards live in
+        # std/net/tls_stub_import_alias.x. A miss exits 1 and does not cc.
+        # Windows keeps the generated C file below.
+        _alias_asm=0
+        case "$uname_s" in
+          Darwin|Linux)
+            _alias_x="../std/net/tls_stub_import_alias.x"
+            if [ ! -x ./xlang ] || [ ! -f "$_alias_x" ]; then
+              echo "net alias: need ./xlang and $_alias_x" >&2
+              return 1
+            fi
+            _alias_log="$(mktemp "${TMPDIR:-/tmp}/std_alias_asm.XXXXXX")"
+            if ./xlang -backend asm -c -L .. -lib-name "" -o "$_tls_alias_o" "$_alias_x" \
+                >"$_alias_log" 2>&1 \
+              && [ -s "$_tls_alias_o" ] \
+              && nm "$_tls_alias_o" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_is_available_c$' \
+              && nm "$_tls_alias_o" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_backend_name_c$' \
+              && nm "$_tls_alias_o" 2>/dev/null | grep -qE ' T _?std_net_tcp_pool_net_tcp_pool_create_c$' \
+              && nm "$_tls_alias_o" 2>/dev/null | grep -qE ' T _?std_net_tcp_pool_net_tcp_pool_smoke_c$'; then
+              rm -f "$_alias_log"
+              objs="$objs $_tls_alias_o"
+              _alias_asm=1
+              echo "net alias: $_tls_alias_o <- $_alias_x (pure-asm)"
+            else
+              echo "net alias: pure-asm failed for $_alias_x" >&2
+              cat "$_alias_log" >&2
+              rm -f "$_alias_log"
+              return 1
+            fi
+            ;;
+        esac
+        if [ "$_alias_asm" != 1 ]; then
         {
           echo '/* net_merge: import-binding aliases for std.net.tls_stub + tcp_pool */'
           echo '#include <stdint.h>'
@@ -27778,6 +27810,7 @@ TEOF
           objs="$objs $_tls_alias_o"
         fi
         rm -f "$_tls_alias_c"
+        fi
       fi
       sh scripts/xlang_compile_std_module.sh ../std/net/mod.o ../std/net/mod.x || return 1
       objs="$objs ../std/net/mod.o"
