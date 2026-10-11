@@ -835,6 +835,7 @@ case "${1:-}" in
       # w1108: Darwin arm64 std/io/io.o is the .x.
       # w1109: Darwin arm64 std/io/driver.o is the .x. Not std/io/io.o.
       # w1110: Darwin arm64 std/compress/compress.o is the .x.
+      # w1111: Darwin arm64 std/runtime/runtime.o is the .x.
       # Other c_face keys stay cc -c. Do not match core/debug/debug.o.
       # PLATFORM: MACOS|DARWIN arm64. Linux and Windows keep the C face.
       _dbg_darwin=0
@@ -847,6 +848,8 @@ case "${1:-}" in
       _drv_x=""
       _cz_darwin=0
       _cz_x=""
+      _rt_darwin=0
+      _rt_x=""
       if [ "$_key" = "std/debug/debug.o" ]; then
         _dbg_os="$(uname -s 2>/dev/null || echo Unknown)"
         _dbg_mach="$(uname -m 2>/dev/null || echo unknown)"
@@ -912,6 +915,21 @@ case "${1:-}" in
           fi
         fi
       fi
+      if [ "$_key" = "std/runtime/runtime.o" ]; then
+        # PLATFORM: MACOS|DARWIN arm64 — four faces from the .x.
+        # Linux and Windows keep formal_surface.c.
+        _rt_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _rt_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$_rt_os" = "Darwin" ] && [ "$_rt_mach" = "arm64" ]; then
+          _rt_x="src/asm/std_runtime_formal_darwin.x"
+          if [ ! -f "$_rt_x" ]; then
+            _rt_x="../compiler/src/asm/std_runtime_formal_darwin.x"
+          fi
+          if [ -f "$_rt_x" ]; then
+            _rt_darwin=1
+          fi
+        fi
+      fi
       if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ] && [ -f "$_csrc" ] && [ ! "$_csrc" -nt "$out_o" ]; then
         _pure_newer=0
         if [ "$_dbg_darwin" = "1" ] && [ -f "$_dbg_x" ] && [ "$_dbg_x" -nt "$out_o" ]; then
@@ -927,6 +945,9 @@ case "${1:-}" in
           _pure_newer=1
         fi
         if [ "$_cz_darwin" = "1" ] && [ -f "$_cz_x" ] && [ "$_cz_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_rt_darwin" = "1" ] && [ -f "$_rt_x" ] && [ "$_rt_x" -nt "$out_o" ]; then
           _pure_newer=1
         fi
         if [ "$_pure_newer" != "1" ]; then
@@ -994,6 +1015,29 @@ case "${1:-}" in
         fi
         echo "xlang_compile_std_module.sh: OK (compress formal pure-asm -> $out_o)"
         exit 0
+      fi
+      if [ "$_rt_darwin" = "1" ]; then
+        # PLATFORM: MACOS|DARWIN arm64. A miss stops here.
+        # Do not fall through to cc for this face.
+        _rt_log="$(mktemp "${TMPDIR:-/tmp}/std_rt_asm.XXXXXX")"
+        if [ ! -x ./xlang ]; then
+          echo "xlang_compile_std_module.sh: runtime formal pure-asm needs ./xlang" >&2
+          exit 1
+        fi
+        if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$_rt_x" \
+            >"$_rt_log" 2>&1 \
+          && [ -s "$out_o" ] \
+          && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_runtime_ready$' \
+          && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_runtime_diag_enabled$' \
+          && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_runtime_panic_hook_collect$'; then
+          rm -f "$_rt_log"
+          echo "xlang_compile_std_module.sh: OK (runtime formal pure-asm -> $out_o)"
+          exit 0
+        fi
+        echo "xlang_compile_std_module.sh: runtime formal pure-asm failed" >&2
+        cat "$_rt_log" >&2
+        rm -f "$_rt_log"
+        exit 1
       fi
       # shellcheck disable=SC2086
       if ! cc -c -fPIE -I.. -I. $DARWIN_MINOS -o "$out_o" "$_csrc"; then
