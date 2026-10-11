@@ -27592,7 +27592,41 @@ ensure_std_core_prefer_one() {
       # 7.2.1 fourth knife: when the map pointed at the .x authority, regen the
       # stable gen via the product -x -E first (both bare wrappers verified);
       # $seed then names the gen file for the shared compile below.
-      if [ -n "$x_src" ] && [ -f "$x_src" ] && [ -x ./xlang_asm ]; then
+      # PLATFORM: MACOS|DARWIN|LINUX — the args thin TU is one asm leaf.
+      # -lib-name "" keeps process_args_count_c and process_arg_c.
+      # Undefined symbols are process_xlang_argc_get and process_xlang_argv_get.
+      # A miss stops here so this TU never execs cc. Windows keeps the
+      # -E + cc path below.
+      _pargs_asm=0
+      _pargs_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_pargs_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ] || [ -z "$x_src" ] || [ ! -f "$x_src" ]; then
+            echo "ensure_host_cc_seed_o: pure-asm needs ./xlang and $x_src" >&2
+            return 1
+          fi
+          # The asm driver links unless -o ends in .o. BSD mktemp needs
+          # the X's at the end, so the suffix is appended after.
+          tmp_args="$(mktemp "${TMPDIR:-/tmp}/proc_args.XXXXXX")"
+          rm -f "$tmp_args"
+          tmp_args="${tmp_args}.o"
+          _pargs_log="$(mktemp "${TMPDIR:-/tmp}/proc_args_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$tmp_args" "$x_src" \
+              >"$_pargs_log" 2>&1 \
+            && [ -s "$tmp_args" ] \
+            && nm "$tmp_args" 2>/dev/null | grep -qE ' T _?process_args_count_c$' \
+            && nm "$tmp_args" 2>/dev/null | grep -qE ' T _?process_arg_c$'; then
+            rm -f "$_pargs_log"
+            _pargs_asm=1
+          else
+            echo "ensure_host_cc_seed_o: pure-asm failed for $x_src" >&2
+            cat "$_pargs_log" >&2
+            rm -f "$_pargs_log" "$tmp_args"
+            return 1
+          fi
+          ;;
+      esac
+      if [ "$_pargs_asm" != "1" ] && [ -n "$x_src" ] && [ -f "$x_src" ] && [ -x ./xlang_asm ]; then
         if ! ./xlang_asm -x -E -L .. "$x_src" >"$seed" 2>/dev/null \
            || ! grep -q '^int32_t process_args_count_c(' "$seed" \
            || ! grep -q '^uint8_t \* process_arg_c(' "$seed"; then
@@ -27600,7 +27634,7 @@ ensure_std_core_prefer_one() {
           return 1
         fi
       fi
-      if [ ! -f "$seed" ]; then
+      if [ "$_pargs_asm" != "1" ] && [ ! -f "$seed" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing seed $seed for $o" >&2
         return 1
       fi
@@ -27622,10 +27656,12 @@ ensure_std_core_prefer_one() {
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing $_proc_alias_c for $o" >&2
         return 1
       fi
-      tmp_args="$(mktemp "${TMPDIR:-/tmp}/proc_args.XXXXXX")"
+      if [ "$_pargs_asm" != "1" ]; then
+        tmp_args="$(mktemp "${TMPDIR:-/tmp}/proc_args.XXXXXX")"
+      fi
       tmp_alias="$(mktemp "${TMPDIR:-/tmp}/proc_alias.XXXXXX")"
       # shellcheck disable=SC2086
-      if ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$tmp_args"; then
+      if [ "$_pargs_asm" != "1" ] && ! $CC $BASE_CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$tmp_args"; then
         rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
