@@ -2218,10 +2218,10 @@ ensure_glue_link_darwin_pure() {
   return 0
 }
 
-# w1124: Darwin arm64 pipeline_asm_typecheck_alias.o keeps the typecheck gates.
-# Linux and Windows keep -x -E then host cc. The C seed is already gone.
-# Does not match pipeline_asm_run_all_alias.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1124: Darwin arm64 and Linux pipeline_asm_typecheck_alias.o keeps the typecheck gates.
+# Linux miss does not exec cc. Windows keeps -x -E then host cc.
+# The C seed is already gone. Does not match pipeline_asm_run_all_alias.o.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_typecheck_alias_darwin_pure() {
   local o="${1:-build_asm/pipeline_asm_typecheck_alias.o}"
@@ -2245,7 +2245,9 @@ ensure_typecheck_alias_darwin_pure() {
     ) && [ -s "$o" ]; then
       local _tc_short _tc_ok
       _tc_ok=1
-      if ! nm "$o" 2>/dev/null | awk '$2=="T" && $3=="_pipeline_impl_typecheck" { n++ } END { exit (n==1)?0:1 }'; then
+      # Darwin nm prefixes '_'. Linux nm does not.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | grep -qE " T _?pipeline_impl_typecheck$"; then
         echo "ensure_host_cc_seed_o typecheck-alias: required text symbol missing" >&2
         rm -f "$o"
         continue
@@ -2259,7 +2261,9 @@ ensure_typecheck_alias_darwin_pure() {
         _typeck_typeck_x_ast \
         _typeck_typeck_x_ast_library \
         _pipeline_typeck_module_for_ctx; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_tc_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u prints the bare name and hides the U column.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " U _?${_tc_short#_}$"; then
           echo "ensure_host_cc_seed_o typecheck-alias: $_tc_short is not undefined" >&2
           rm -f "$o"
           _tc_ok=0
@@ -2275,6 +2279,12 @@ ensure_typecheck_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o typecheck-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o typecheck-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32276,9 +32286,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   typecheck-alias-pure|typecheck_alias_pure)
-    # w1124: Darwin arm64 typecheck alias from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1124: Darwin arm64 and Linux typecheck alias from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o typecheck-alias-pure: need <out.o>" >&2
       exit 2

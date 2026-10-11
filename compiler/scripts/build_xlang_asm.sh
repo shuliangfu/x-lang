@@ -1752,12 +1752,17 @@ EOF
 ensure_pipeline_asm_typecheck_alias_obj() {
   local ALIAS_O
   ALIAS_O="$BUILD_DIR/pipeline_asm_typecheck_alias.o"
-  # w1124: Darwin arm64 alias is pure asm of the existing .x.
-  # Linux and Windows stay on -x -E then host cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1124: Darwin arm64 and Linux alias is pure asm of the existing .x.
+  # Linux miss does not cc. Windows stays on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
   _tc_os="$(uname -s 2>/dev/null || echo Unknown)"
   _tc_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_tc_os" = "Darwin" ] && [ "$_tc_mach" = "arm64" ] \
+  if [ "$_tc_os" = "Linux" ] && [ "$_tc_mach" = "x86_64" ] \
+    && [ -f src/pipeline_asm_typecheck_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_typecheck_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh typecheck-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_tc_os" = "Darwin" ] && [ "$_tc_mach" = "arm64" ] \
     && [ -f src/pipeline_asm_typecheck_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_typecheck_alias.x -nt "$ALIAS_O" ]; then
       bash scripts/ensure_host_cc_seed_o.sh typecheck-alias-pure "$ALIAS_O"

@@ -30,8 +30,9 @@
 // the library face. force_c uses the for-ctx face. Failure records the
 // diagnostic before returning. This object is not
 // pipeline_asm_run_all_alias.o.
-// Linux and Windows keep -x -E and then host cc.
-// PLATFORM: MACOS|DARWIN for that object path.
+// Linux uses this file. A Linux miss returns 1 and does not exec cc.
+// Windows keeps -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 
 /** Driver/typeck gate + diagnostic externs (C side). */
 export extern function driver_typeck_skip_large_entry(): i32;
