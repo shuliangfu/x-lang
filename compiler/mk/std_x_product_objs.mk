@@ -12,7 +12,6 @@
 
 STD_X_PRODUCT_OBJS = \
 	../std/async/scheduler.o \
-	../std/async/future.o \
 	../std/channel/channel.o \
 	../std/backtrace/backtrace.o \
 	../std/url/url.o \

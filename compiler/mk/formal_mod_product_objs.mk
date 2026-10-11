@@ -69,6 +69,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/uuid/uuid.o \
 	../std/elf/elf.o \
 	../std/task/task.o \
+	../std/async/future.o \
 	../std/unicode/unicode.o \
 	../std/channel/channel.o \
 	../std/runtime/runtime.o \

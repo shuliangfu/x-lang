@@ -5241,8 +5241,8 @@ _sx_list_n=$(
   tr ' \t\\\n' ' ' < "$_SX_MK" | tr -s ' ' '\n' | grep -cE '\.\./std/.+\.o' || true
 )
 # Floor tracks mk/std_x_product_objs.mk (post_ship inventory; was 21 pre-retire).
-if [ "${_sx_list_n:-0}" -ne 14 ]; then
-  bad "wave895 expected 14 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
+if [ "${_sx_list_n:-0}" -ne 13 ]; then
+  bad "wave895 expected 13 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
 fi
 if ! grep -q 'include mk/std_x_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/std_x_product_objs.mk (wave895)"
@@ -5339,8 +5339,8 @@ _fm_list_n=$(
   tr ' \t\\\n' ' ' < "$_FM_MK" | tr -s ' ' '\n' | grep -cE '\.\./(std|core)/.+\.o' || true
 )
 # Floor tracks mk/formal_mod_product_objs.mk (post_ship inventory; was 38).
-if [ "${_fm_list_n:-0}" -ne 70 ]; then
-  bad "wave894 expected 70 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
+if [ "${_fm_list_n:-0}" -ne 71 ]; then
+  bad "wave894 expected 71 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
 fi
 if ! grep -q 'include mk/formal_mod_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/formal_mod_product_objs.mk (wave894)"

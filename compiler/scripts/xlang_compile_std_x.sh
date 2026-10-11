@@ -42,14 +42,13 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 14 (task.o moved to formal_mod; was 15 after elf).
+# Honesty COUNT = 13 (future.o moved to formal_mod; was 14 after task).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
   _o="$1"
   case "$_o" in
     ../std/async/scheduler.o|std/async/scheduler.o|*std/async/scheduler.o) printf '%s' "std/async/scheduler.o" ;;
-    ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
     ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
     ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
@@ -70,7 +69,6 @@ std_x_key_for_out() {
 std_x_spec_for_key() {
   case "$1" in
     std/async/scheduler.o) printf '%s' "auto-soft|../std/async/scheduler.x" ;;
-    std/async/future.o) printf '%s' "auto-soft|../std/async/future.x" ;;
     std/channel/channel.o) printf '%s' "auto-soft|../std/channel/channel.x" ;;
     std/backtrace/backtrace.o) printf '%s' "auto-soft|../std/backtrace/backtrace.x" ;;
     std/url/url.o) printf '%s' "auto-soft|../std/url/url.x" ;;
@@ -90,7 +88,6 @@ std_x_spec_for_key() {
 std_x_all_keys() {
   printf '%s\n' \
     std/async/scheduler.o \
-    std/async/future.o \
     std/channel/channel.o \
     std/backtrace/backtrace.o \
     std/url/url.o \
@@ -188,7 +185,6 @@ std_x_check() {
     fi
   done <<'KEYS'
 std/async/scheduler.o
-std/async/future.o
 std/channel/channel.o
 std/backtrace/backtrace.o
 std/url/url.o
@@ -202,15 +198,15 @@ std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 14 ]; then
-    echo "std_x --check: expected 14 keys, counted $_n" >&2
+  if [ "$_n" -ne 13 ]; then
+    echo "std_x --check: expected 13 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (14 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (13 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 

@@ -132,6 +132,7 @@ formal_mod_key_for_out() {
     ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
     ../std/task/task.o|std/task/task.o|*std/task/task.o) printf '%s' "std/task/task.o" ;;
+    ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
     # PLATFORM: SHARED — pure-asm batch residual (2026-08-13): formal export std_* faces.
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
@@ -419,6 +420,13 @@ formal_mod_spec_for_key() {
     # Undefined symbols are calloc, free, time_sleep_ns_c, and the
     # xlang_async_* / ctx_* faces in runtime_scheduler_glue.o.
     std/task/task.o) printf '%s' "mod|1|../std/task/mod.x|../std/task/task.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.async.future is one asm leaf.
+    # WINDOWS stays on the C path. future.x is the bare impl and keeps
+    # -lib-name "" so the exports stay xlang_async_future_create_c,
+    # xlang_async_future_poll_c, and xlang_async_future_smoke_c.
+    # Undefined symbols are xlang_async_run_drain_until_idle and
+    # xlang_io_poll_async_completions, both in runtime_scheduler_glue.o.
+    std/async/future.o) printf '%s' "mod|1|../std/async/future.x" ;;
     # PLATFORM: SHARED — pure-asm std_unicode_* / std_channel_* product faces.
     # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
     # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
@@ -529,6 +537,7 @@ formal_mod_all_keys() {
     std/uuid/uuid.o \
     std/elf/elf.o \
     std/task/task.o \
+    std/async/future.o \
     std/unicode/unicode.o \
     std/channel/channel.o \
     std/runtime/runtime.o \
@@ -3146,6 +3155,36 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/async/future.x|std/async/future.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.async.future is one asm leaf.
+      # -lib-name "" keeps xlang_async_future_create_c,
+      # xlang_async_future_poll_c, and xlang_async_future_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sfut_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sfut_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_fut_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_poll_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_fut_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
   esac
   # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
   # -o 无 main 时链失败但 XLANG_KEEP_C 保留完整 C；再 cc -c 落地。
@@ -4598,6 +4637,15 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
               printf '%s\n' "$sym" >>"$_exp_list"
             fi
             ;;
+          xlang_async_future_*|future_f_*)
+            # leaf=async would only keep async_*_c and std_async_*.
+            # The impl face is xlang_async_future_* and future_f_*.
+            case "$out_rel" in
+              std/async/future.o|*std/async/future.o)
+                printf '%s\n' "$sym" >>"$_exp_list"
+                ;;
+            esac
+            ;;
           map_*)
             # PLATFORM: MACOS — heap ops.x bare map_* kept for heap_full_alias U→T.
             # leaf_*_c only matches heap_*; map_i32_i32_find_c / map_slot need explicit keep.
@@ -4658,6 +4706,13 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                       if [ "$leaf" = "elf" ]; then
                         printf '%s\n' "$sym" >>"$_mem_exp"
                       fi
+                      ;;
+                    xlang_async_future_*|future_f_*)
+                      case "$out_rel" in
+                        std/async/future.o|*std/async/future.o)
+                          printf '%s\n' "$sym" >>"$_mem_exp"
+                          ;;
+                      esac
                       ;;
                     map_*)
                       if [ "$leaf" = "heap" ]; then
