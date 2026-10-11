@@ -231,6 +231,11 @@ formal_mod_spec_for_key() {
     # time_sleep_ns_c, time_format_wall_rfc3339_c, and
     # time_wall_local_offset_min_c.
     std/time/time.o) printf '%s' "mod|1|../std/time/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.random is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_random_*.
+    # random.x is the bare impl and keeps -lib-name "" so the exports
+    # stay random_u32_c, random_u64_c, and random_rng_smoke_c.
+    # Undefined symbols are random_fill_bytes_c and xlang_panic_.
     std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
     std/env/env.o) printf '%s' "mod|0|../std/env/mod.x" ;;
     std/fs/fs.o) printf '%s' "fs_formal|0|" ;;
@@ -1802,6 +1807,70 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_time_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/random/mod.x|std/random/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.random mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_random_fill_bytes, std_random_next, and
+      # std_random_step defined. Undefined symbols are random_fill_bytes_c,
+      # random_u32_c, random_u64_c, random_rng_smoke_c, and xlang_panic_.
+      # random.x defines the three random_*_c names. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sran_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sran_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_random_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_fill_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_next$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_step$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_random_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/random/random.x|std/random/random.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.random.
+      # -lib-name "" keeps random_u32_c, random_u64_c, and
+      # random_rng_smoke_c. Without it the path prefix doubles the export.
+      # Undefined symbol is random_fill_bytes_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sranx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sranx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_random_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?random_u32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?random_u64_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?random_rng_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_random_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
