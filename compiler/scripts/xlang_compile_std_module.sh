@@ -178,6 +178,8 @@ formal_mod_spec_for_key() {
     core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
     # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
     core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.debug.
+    # WINDOWS stays on the C path.
     core/types/types.o) printf '%s' "mod|0|../core/types/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — compile body uses -backend asm and
     # does not fall through to cc. WINDOWS stays on the C path.
@@ -1039,6 +1041,36 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/debug_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/types/mod.x|core/types/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.types is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_types_* defined and nothing undefined.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _types_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_types_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/types_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_size_of_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_align_of_pointer$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_types_layout_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/types_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
