@@ -819,11 +819,12 @@ ensure_path_fast_darwin_pure() {
   return 0
 }
 
-# w1101: Darwin arm64 runtime_sqlite_glue_stub.o is the no-libsqlite3 face.
+# w1101: Darwin arm64 and Linux runtime_sqlite_glue_stub.o are the no-libsqlite3 face.
 # Every call returns -9, or 0 for the column and handle readers.
 # The real sqlite3 forwards are ensure_sqlite_glue_darwin_pure.
-# This hook matches the stub object name only. Linux and Windows keep the C seed.
-# No gcc -E. PLATFORM: MACOS|DARWIN arm64.
+# This hook matches the stub object name only.
+# Linux miss returns 1 and does not exec cc. Windows keeps the C seed.
+# No gcc -E. PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object (default runtime_sqlite_glue_stub.o, cwd is compiler/).
 ensure_sqlite_glue_stub_darwin_pure() {
   local o="${1:-runtime_sqlite_glue_stub.o}"
@@ -870,7 +871,7 @@ ensure_sqlite_glue_stub_darwin_pure() {
         _xlang_sqlite3_db_handle_c \
         _xlang_sqlite3_changes_c \
         _xlang_sqlite3_free_c; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_sq_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_sq_short#_}$"; then
           _sq_ok=0
           break
         fi
@@ -892,6 +893,10 @@ ensure_sqlite_glue_stub_darwin_pure() {
     rm -f "$o"
   done
   if [ ! -s "$o" ]; then
+    if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+      echo "ensure_host_cc_seed_o sqlite-stub: pure-asm failed for $xsrc" >&2
+      return 1
+    fi
     log "cc -c $seed → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
     $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
@@ -5387,14 +5392,22 @@ ensure_one() {
     fi
   fi
 
-  # w1101: Darwin arm64 sqlite stub is the .x, not this seed.
+  # w1101: Darwin arm64 and Linux sqlite stub is the .x, not this seed.
   # Match the stub object only. The real object is w1102.
-  # Linux and Windows keep the seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # Linux miss does not cc. Windows keeps the seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
   if [ "$(basename "$out")" = "runtime_sqlite_glue_stub.o" ]; then
     local sq_s sq_m
     sq_s="$(uname -s 2>/dev/null || echo Unknown)"
     sq_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$sq_s" = "Linux" ]; then
+      if [ ! -x ./xlang ] || [ ! -f src/asm/runtime_sqlite_glue_stub_darwin.x ]; then
+        echo "ensure_host_cc_seed_o sqlite-stub: pure-asm needs ./xlang and src/asm/runtime_sqlite_glue_stub_darwin.x" >&2
+        return 1
+      fi
+      ensure_sqlite_glue_stub_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$sq_s" = "Darwin" ] && [ "$sq_m" = "arm64" ] \
       && [ -f src/asm/runtime_sqlite_glue_stub_darwin.x ]; then
       ensure_sqlite_glue_stub_darwin_pure "$out" || return 1

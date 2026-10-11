@@ -8,8 +8,10 @@
 // or 0 for the column and handle readers. xlang_db_use_sqlite3_c returns
 // 0 so the product does not pull libsqlite3. The real sqlite3 forwards
 // stay in seeds/runtime_sqlite_glue.from_x.c under XLANG_DB_USE_SQLITE3.
-// Linux and Windows keep that seed for the stub object too.
-// PLATFORM: MACOS|DARWIN arm64 product. SHARED return codes.
+// Linux uses this same stub. A miss returns 1 and does not exec cc.
+// Windows keeps that seed for the stub object.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX product. SHARED return codes.
+// WINDOWS stays on the C seed.
 
 /**
  * Report that this object is the stub, not libsqlite3.
