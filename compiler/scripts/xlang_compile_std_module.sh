@@ -505,8 +505,11 @@ formal_mod_spec_for_key() {
     # WINDOWS stays on the C path. mod.x keeps the std_compress_zlib_* prefix.
     # libz.x keeps that prefix too: the asm mod calls
     # std_compress_zlib_libz_compress_*_c, so this file does not use -lib-name "".
-    # Facade compress.o stays c_face. gzip stays on the C path.
+    # Facade compress.o stays c_face. gzip libz.x stays on the C path.
     std/compress/zlib/zlib.o) printf '%s' "mod|1|../std/compress/zlib/mod.x|../std/compress/zlib/libz.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — gzip mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_*.
+    # libz.x stays on the C path. WINDOWS stays on the C path.
     std/compress/gzip/gzip.o) printf '%s' "mod|1|../std/compress/gzip/mod.x|../std/compress/gzip/libz.x" ;;
     # PLATFORM: SHARED — zstd/brotli ≡ gzip: submodule vehicle is the product path.
     # lib.x is extern C FFI (ZSTD_* / BrotliEncoder*/Decoder*); ld -l* is the lib face.
@@ -2010,7 +2013,39 @@ for x_path in "$@"; do
             continue
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
-          cat "$tmp_dir/math_x_asm_${idx}.log" >&2
+          ;;
+      esac
+      ;;
+    ../std/compress/gzip/mod.x|std/compress/gzip/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.gzip mod.x.
+      # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_*.
+      # A miss stops here. libz.x stays on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _gz_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_gz_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/gz_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_state_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_init_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_init_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_end$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/gz_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
