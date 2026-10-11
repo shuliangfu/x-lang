@@ -182,6 +182,8 @@ formal_mod_spec_for_key() {
     # PLATFORM: MACOS|DARWIN|LINUX — compile body uses -backend asm and
     # does not fall through to cc. WINDOWS stays on the C path.
     core/option/option.o) printf '%s' "mod|0|../core/option/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.option.
+    # WINDOWS stays on the C path.
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
@@ -975,6 +977,36 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/option_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/result/mod.x|core/result/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.result is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_result_* defined and only xlang_panic_
+      # undefined. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _res_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_res_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/result_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_ok_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_or_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_and_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/result_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
