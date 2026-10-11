@@ -184,7 +184,11 @@ formal_mod_spec_for_key() {
     # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
     # Import mangle stays std_heap_page_mmap_*.
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
-    std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.sys is mod.x plus mmap.x, one asm leaf.
+    # WINDOWS stays on the C path. Do not pass -lib-name "".
+    # Import mangle stays std_sys_*. mmap.x supplies std_sys_mmap_*.
+    # macos.o supplies std_sys_macos_macos_munmap and msync_sync.
+    std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x|../std/sys/mmap.x" ;;
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.heap.page_mmap.
     # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
@@ -1643,7 +1647,9 @@ for x_path in "$@"; do
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write_available$' \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write$' \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_anonymous_mmap$'; then
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_anonymous_mmap$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_munmap$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_msync_sync$'; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
             if [ -z "$obj_files" ]; then
               obj_files="$obj"
@@ -3308,6 +3314,69 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_cli_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/mod.x|std/sys/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_sys_macos_write_available, std_sys_mmap_available,
+      # and std_sys_munmap defined. mmap.x defines the std_sys_mmap_* faces.
+      # macos.o defines std_sys_macos_macos_munmap and msync_sync.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssys_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssys_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sys_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_write_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_munmap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sys_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/mmap.x|std/sys/mmap.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.mmap is merged into sys.o.
+      # Do not pass -lib-name "". The faces stay std_sys_mmap_*.
+      # Undefined symbols are std_sys_macos_macos_mmap_rw, munmap, and
+      # msync_sync, all defined by macos.o. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _smm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_smm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sys_mmap_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_mmap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_mmap_rw$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_munmap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sys_mmap_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
