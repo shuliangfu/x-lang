@@ -7,7 +7,8 @@
 // translation unit both contains a while and calls dlopen, so this file
 // has no loop. ensure joins the two objects with ld -r.
 //
-// Linux still host-cc's seeds/runtime_dynlib_os.from_x.c. Windows still
+// Linux uses this file together with runtime_dynlib_os_darwin_text.x.
+// A Linux miss returns 1 and does not exec cc. Windows still
 // host-cc's that seed (LoadLibrary). Darwin's cold path does not.
 // The shared thin src/asm/runtime_dynlib_os.x is not compiled here.
 //
@@ -20,7 +21,7 @@
 // Public _c names call the _impl in this file. Both stay strong.
 // A function name is never passed as a pointer.
 //
-// PLATFORM: MACOS|DARWIN arm64.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 /**
  * libSystem dlopen. mode 2 is RTLD_NOW on Darwin arm64.

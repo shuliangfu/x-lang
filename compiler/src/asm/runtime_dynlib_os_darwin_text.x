@@ -7,7 +7,8 @@
 // This compiler exits 139 when one translation unit both contains a while
 // and calls dlopen. The loops stay here. dlopen, dlsym, and dlclose stay
 // in the other file. ensure joins the two objects with ld -r. Neither
-// file is passed to host cc on the Darwin cold path.
+// file is passed to host cc on the Darwin or Linux cold path.
+// A Linux miss returns 1 and does not exec cc. Windows keeps the seed.
 //
 // src/asm/runtime_dynlib_os.x is the shared thin. Darwin does not compile
 // it, so dynlib_win_normalize_path is defined here with the same slash
@@ -16,7 +17,7 @@
 // Each function has one loop. Byte compares use `as u8`. A slot past the
 // frame stores through the caller's saved return address.
 //
-// PLATFORM: MACOS|DARWIN arm64.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 /**
  * Doc anchor so the merged object keeps a named root.
