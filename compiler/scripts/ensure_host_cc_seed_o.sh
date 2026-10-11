@@ -3057,9 +3057,10 @@ ensure_lsp_diag_stub_darwin_pure() {
   return 0
 }
 
-# w1112: Darwin arm64 build_tool_libc_bridge.o forwards shell commands.
-# argv copy is one loop. Linux and Windows keep the C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1112: Darwin arm64 and Linux build_tool_libc_bridge.o forward shell
+# commands through system. argv copy is one loop. Linux miss does not
+# exec cc. Windows keeps the C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object. cwd is compiler/.
 ensure_build_tool_bridge_darwin_pure() {
   local o="${1:-build_tool_libc_bridge.o}"
@@ -3101,7 +3102,9 @@ ensure_build_tool_bridge_darwin_pure() {
         _build_run_asm_build \
         _build_copy_xlang_asm \
         _build_tool_libc_bridge_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_bt_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_bt_short#_}$"; then
           _bt_ok=0
           break
         fi
@@ -3111,7 +3114,9 @@ ensure_build_tool_bridge_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_system" { n++ } END { exit (n==1)?0:1 }'; then
+      # Darwin nm prefixes '_'. Linux nm does not.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm -u "$o" 2>/dev/null | grep -qE "U _?system$"; then
         echo "ensure_host_cc_seed_o build-tool-bridge: system is not undefined" >&2
         rm -f "$o"
         continue
@@ -3122,6 +3127,12 @@ ensure_build_tool_bridge_darwin_pure() {
     echo "ensure_host_cc_seed_o build-tool-bridge: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to the seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o build-tool-bridge: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu $csrc → $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh "$csrc" "$o" || return 1
@@ -32399,9 +32410,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   build-tool-bridge-pure|build_tool_bridge_pure)
-    # w1112: Darwin arm64 build_tool libc bridge from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1112: Darwin arm64 and Linux build_tool libc bridge from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o build-tool-bridge-pure: need <out.o>" >&2
       exit 2

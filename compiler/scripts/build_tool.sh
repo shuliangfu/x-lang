@@ -184,11 +184,15 @@ fi
 
 # shellcheck disable=SC2086
 $CC $CFLAGS -Wno-unused -c build_gen.c -o build_tool.o
-# w1112: Darwin arm64 bridge is the .x. Linux and Windows stay on cc_inc_tu.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1112: Darwin arm64 and Linux bridge is the .x. Linux miss does not cc.
+# Windows stays on cc_inc_tu.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
 _bt_os="$(uname -s 2>/dev/null || echo Unknown)"
 _bt_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_bt_os" = "Darwin" ] && [ "$_bt_mach" = "arm64" ] \
+if [ "$_bt_os" = "Linux" ] && [ "$_bt_mach" = "x86_64" ] \
+  && [ -f src/asm/build_tool_libc_bridge_darwin.x ]; then
+  bash scripts/ensure_host_cc_seed_o.sh build-tool-bridge-pure build_tool_libc_bridge.o || exit 1
+elif [ "$_bt_os" = "Darwin" ] && [ "$_bt_mach" = "arm64" ] \
   && [ -f src/asm/build_tool_libc_bridge_darwin.x ]; then
   bash scripts/ensure_host_cc_seed_o.sh build-tool-bridge-pure build_tool_libc_bridge.o
 else

@@ -8,8 +8,9 @@
 // build_run_asm_build always runs sh scripts/g05_build_xlang_asm.sh.
 // build_copy_xlang_asm copies xlang onto xlang_asm and ignores a
 // failing first copy. argv bytes are copied with one loop.
-// Linux and Windows keep the C seed.
-// PLATFORM: MACOS|DARWIN arm64.
+// Linux uses this file. A Linux miss returns 1 and does not exec cc.
+// Windows keeps the C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 extern function system(cmd: *u8): i32;
 extern function memcpy(dst: *u8, src: *u8, n: u64): *u8;

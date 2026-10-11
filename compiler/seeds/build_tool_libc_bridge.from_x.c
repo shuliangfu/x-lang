@@ -1,6 +1,7 @@
 /* seeds/build_tool_libc_bridge.from_x.c — G-02f-79 product cold-start TU
- * Darwin arm64 product body is src/asm/build_tool_libc_bridge_darwin.x.
- * Linux and Windows keep this C seed.
+ * Darwin arm64 and Linux product body is
+ * src/asm/build_tool_libc_bridge_darwin.x.
+ * A Linux miss does not exec cc. Windows keeps this C seed.
  */
 /**
  * build_tool_libc_bridge.c — build_tool 宿主 libc 桥（G-05）
