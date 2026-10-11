@@ -304,6 +304,11 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — std.url product face (STD-076 roundtrip).
     # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/cache: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.url is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_url_*.
+    # url.x is the bare impl and keeps -lib-name "" so the exports stay
+    # url_parse_c, url_query_encode_c, and url_ipv6_host_smoke_c.
+    # Undefined symbols are inet_ntop, inet_pton, memcpy, memset, and strlen.
     std/url/url.o) printf '%s' "mod|1|../std/url/mod.x|../std/url/url.x" ;;
     # PLATFORM: SHARED — std.security product face (STD-079 roundtrip).
     # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
@@ -2218,6 +2223,70 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_enc_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/url/mod.x|std/url/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.url mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_url_parse, std_url_query_encode, and
+      # std_url_ipv6_host_smoke defined. Undefined symbols are the
+      # url_*_c helpers in url.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _surl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_surl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_url_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_parse$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_query_encode$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_ipv6_host_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_url_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/url/url.x|std/url/url.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.url.
+      # -lib-name "" keeps url_parse_c, url_query_encode_c, and
+      # url_ipv6_host_smoke_c. Without it the path prefix doubles the
+      # export. Undefined symbols are inet_ntop, inet_pton, memcpy,
+      # memset, and strlen. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _surlx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_surlx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_url_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?url_parse_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?url_query_encode_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?url_ipv6_host_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_url_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
