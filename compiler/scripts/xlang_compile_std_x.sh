@@ -454,6 +454,42 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/dns.x|std/net/dns.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.dns is one asm leaf.
+      # -lib-name "" keeps net_resolve_ipv4_c, net_map_gai_error_c,
+      # and net_dns_zero_hints_buf_c. Undefined symbols are the existing
+      # DNS cap entry points. A miss stops here so this file never
+      # execs cc. Windows keeps the C path below.
+      _dns_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dns_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _dns_log="$(mktemp "${TMPDIR:-/tmp}/std_dns_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_dns_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_ai_addconfig_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_fill_hints_inet_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_maybe_wsa_fail_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_zero_hints_buf_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_map_gai_error_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_ex_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv6_ex_c$'; then
+            rm -f "$_dns_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_dns_log" >&2
+          rm -f "$_dns_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/simd/simd.x|std/simd/simd.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.simd simd.x is one asm leaf.
       # -lib-name "" keeps simd_recommend_path_c, simd_hw_available_c,
