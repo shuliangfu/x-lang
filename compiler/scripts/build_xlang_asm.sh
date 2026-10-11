@@ -1785,12 +1785,18 @@ ensure_pipeline_asm_run_all_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_asm_run_all_partial.o"
   SYMS="$BUILD_DIR/pipeline_asm_run_all_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_asm_run_all_alias.o"
-  # w1123: Darwin arm64 alias is pure asm of the existing .x.
-  # Linux and Windows stay on -x -E then host cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1123: Darwin arm64 and Linux alias is asm of the existing .x.
+  # The emit passes -lib-name "". Linux miss does not cc.
+  # Windows stays on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
   _ra_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ra_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_ra_os" = "Darwin" ] && [ "$_ra_mach" = "arm64" ] \
+  if [ "$_ra_os" = "Linux" ] && [ "$_ra_mach" = "x86_64" ] \
+    && [ -f src/pipeline_asm_run_all_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_run_all_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh run-all-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_ra_os" = "Darwin" ] && [ "$_ra_mach" = "arm64" ] \
     && [ -f src/pipeline_asm_run_all_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ src/pipeline_asm_run_all_alias.x -nt "$ALIAS_O" ]; then
       bash scripts/ensure_host_cc_seed_o.sh run-all-alias-pure "$ALIAS_O"
@@ -1806,12 +1812,19 @@ ensure_pipeline_asm_run_all_partial_obj() {
   sh scripts/cc_inc_tu.sh seeds/pipeline_asm_run_all_alias.from_x.c "$ALIAS_O"
   fi
   if [ ! -f "$PARTIAL" ] || [ "$ALIAS_O" -nt "$PARTIAL" ] || [ "$SYMS" -nt "$PARTIAL" ]; then
+  # Linux ld has no -exported_symbols_list. The alias already exports
+  # only the two product names. Darwin keeps the export list.
+  # PLATFORM: LINUX x86_64. MACOS|DARWIN keeps ld -exported_symbols_list.
+  if [ "$_ra_os" = "Linux" ] && [ "$_ra_mach" = "x86_64" ]; then
+    /usr/bin/ld -r -o "$PARTIAL" "$ALIAS_O" || return 1
+  else
   cat > "$SYMS" <<'EOF'
 _pipeline_impl_run_all
 _run_x_pipeline_impl
 EOF
   echo " ld -r -exported_symbols_list $SYMS run_all_alias.o -> $PARTIAL"
   ld -r -exported_symbols_list "$SYMS" -o "$PARTIAL" "$ALIAS_O"
+  fi
   fi
 }
 

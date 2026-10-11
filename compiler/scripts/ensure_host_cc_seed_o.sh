@@ -2292,10 +2292,11 @@ ensure_typecheck_alias_darwin_pure() {
   return 0
 }
 
-# w1123: Darwin arm64 pipeline_asm_run_all_alias.o keeps the early returns.
-# Linux and Windows keep -x -E then host cc. The C seed is already gone.
-# Does not match pipeline_asm_typecheck_alias.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1123: Darwin arm64 and Linux pipeline_asm_run_all_alias.o keep the early returns.
+# The emit passes -lib-name "" so run_x_pipeline_impl stays bare.
+# Linux miss does not exec cc. Windows keeps -x -E then host cc.
+# The C seed is already gone. Does not match pipeline_asm_typecheck_alias.o.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_run_all_alias_darwin_pure() {
   local o="${1:-build_asm/pipeline_asm_run_all_alias.o}"
@@ -2313,16 +2314,19 @@ ensure_run_all_alias_darwin_pure() {
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if (
-      export XLANG_PREFER_ASM_O=1
-      pure_asm_x_to_o "$o" "$xsrc"
-    ) && [ -s "$o" ]; then
+    # -lib-name "" keeps run_x_pipeline_impl bare. Without it the
+    # asm backend emits pipeline_run_x_pipeline_impl.
+    # PLATFORM: MACOS|DARWIN | LINUX.
+    if ./xlang -backend asm -c -L .. -lib-name "" -o "$o" "$xsrc" \
+      && [ -s "$o" ]; then
       local _ra_short _ra_ok
       _ra_ok=1
       for _ra_short in \
         _pipeline_impl_run_all \
         _run_x_pipeline_impl; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_ra_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_ra_short#_}$"; then
           _ra_ok=0
           break
         fi
@@ -2337,7 +2341,9 @@ ensure_run_all_alias_darwin_pure() {
         _pipeline_impl_typecheck \
         _pipeline_impl_should_skip_codegen \
         _pipeline_impl_codegen_chain; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_ra_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " U _?${_ra_short#_}$"; then
           echo "ensure_host_cc_seed_o run-all-alias: $_ra_short is not undefined" >&2
           rm -f "$o"
           _ra_ok=0
@@ -2353,6 +2359,12 @@ ensure_run_all_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o run-all-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o run-all-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32300,9 +32312,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   run-all-alias-pure|run_all_alias_pure)
-    # w1123: Darwin arm64 run-all alias from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1123: Darwin arm64 and Linux run-all alias from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o run-all-alias-pure: need <out.o>" >&2
       exit 2
