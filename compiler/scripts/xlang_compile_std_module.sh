@@ -225,6 +225,11 @@ formal_mod_spec_for_key() {
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.backtrace.
     # WINDOWS stays on the C path. Import mangle stays std_thread_*.
     std/thread/thread.o) printf '%s' "mod|0|../std/thread/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.time is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_time_*.
+    # Undefined symbols are time_now_monotonic_ns_c, time_now_wall_ns_c,
+    # time_sleep_ns_c, time_format_wall_rfc3339_c, and
+    # time_wall_local_offset_min_c.
     std/time/time.o) printf '%s' "mod|1|../std/time/mod.x" ;;
     std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
     std/env/env.o) printf '%s' "mod|0|../std/env/mod.x" ;;
@@ -1764,6 +1769,39 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_bytes_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/time/mod.x|std/time/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.time is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_time_now_monotonic_ns, std_time_sleep_ns,
+      # and std_time_duration_ns defined. Undefined symbols are
+      # time_now_monotonic_ns_c, time_now_wall_ns_c, time_sleep_ns_c,
+      # time_format_wall_rfc3339_c, and time_wall_local_offset_min_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stime_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stime_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_time_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_now_monotonic_ns$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_sleep_ns$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_duration_ns$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_time_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
