@@ -179,6 +179,8 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
     core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
     core/types/types.o) printf '%s' "mod|0|../core/types/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — compile body uses -backend asm and
+    # does not fall through to cc. WINDOWS stays on the C path.
     core/option/option.o) printf '%s' "mod|0|../core/option/mod.x" ;;
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
@@ -946,6 +948,38 @@ for x_path in "$@"; do
   # 保留完整源）。优先 -o + KEEP_C，失败再回退 -E。
   emit_ok=0
   use_direct_o=0
+  # PLATFORM: MACOS|DARWIN|LINUX — core.option is one asm leaf.
+  # The C emit below is what execs cc. This TU already comes out of
+  # -backend asm with core_option_* defined and only xlang_panic_
+  # undefined. A miss stops here. Windows keeps the C path.
+  # Do not fall through to cc for this file.
+  case "$x_path" in
+    ../core/option/mod.x|core/option/mod.x)
+      _opt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_opt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/option_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_some_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_or_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_and_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/option_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+  esac
   # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
   # -o 无 main 时链失败但 XLANG_KEEP_C 保留完整 C；再 cc -c 落地。
   BACKEND_ARGS=""
