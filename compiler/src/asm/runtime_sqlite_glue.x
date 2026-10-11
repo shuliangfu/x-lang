@@ -18,8 +18,9 @@
 //     libsqlite3-dev is absent. Darwin arm64 builds that stub object
 //     from src/asm/runtime_sqlite_glue_stub_darwin.x. Darwin arm64 builds
 //     the real forwards from src/asm/runtime_sqlite_glue_darwin.x.
-//     SQLITE_TRANSIENT is passed as the pointer value -1. Linux and
-//     Windows keep the C seed.
+//     Linux x86_64 builds them from src/asm/runtime_sqlite_glue_linux.x
+//     (RTLD_DEFAULT is 0). SQLITE_TRANSIENT is the pointer value -1.
+//     Windows keeps the C seed.
 //
 // Why rest stays C (G.7): sqlite3 is an extern system library, not an
 // in-tree port. .x cannot expand SQLITE_TRANSIENT or see sqlite3 /

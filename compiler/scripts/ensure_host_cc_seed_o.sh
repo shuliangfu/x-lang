@@ -904,18 +904,25 @@ ensure_sqlite_glue_stub_darwin_pure() {
   return 0
 }
 
-# w1102: Darwin arm64 runtime_sqlite_glue.o calls libsqlite3.
+# w1102: Darwin arm64 and Linux runtime_sqlite_glue.o call libsqlite3.
 # SQLITE_TRANSIENT is the pointer value -1. The row counter is dlsym'd.
-# The stub object is a different file. Linux and Windows keep the C seed.
-# A missing object falls back to cc with -DXLANG_DB_USE_SQLITE3 when
-# sqlite3.h is visible, matching extras_for_extra_cflags. No gcc -E.
-# PLATFORM: MACOS|DARWIN arm64.
+# Darwin RTLD_DEFAULT is -2; Linux RTLD_DEFAULT is 0 (null).
+# The stub object is a different file. Linux miss does not exec cc.
+# Windows keeps the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
 # $1 = output object (default runtime_sqlite_glue.o, cwd is compiler/).
 ensure_sqlite_glue_darwin_pure() {
   local o="${1:-runtime_sqlite_glue.o}"
-  local xsrc="src/asm/runtime_sqlite_glue_darwin.x"
   local seed="seeds/runtime_sqlite_glue.from_x.c"
   local try=0
+  local _qg_os _qg_mach xsrc
+  _qg_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _qg_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_qg_os" = "Linux" ] && [ "$_qg_mach" = "x86_64" ]; then
+    xsrc="src/asm/runtime_sqlite_glue_linux.x"
+  else
+    xsrc="src/asm/runtime_sqlite_glue_darwin.x"
+  fi
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o sqlite-glue: missing $xsrc" >&2
     return 1
@@ -926,9 +933,10 @@ ensure_sqlite_glue_darwin_pure() {
   fi
   mkdir -p "$(dirname "$o")"
   # w1196: some pure-asm tries segfault. Retry before the eight-try
-  # path. A failed retry still falls back to that path and then the
-  # C seed. Symbols stay strong. sqlite3_open stays undefined.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # path. Darwin retry is arm64-only; Linux skips straight to eight-try.
+  # Linux miss does not fall back to the C seed. Symbols stay strong.
+  # sqlite3_open stays undefined.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh sqlite-glue-pure "$o"; then
     log "prefer sqlite glue ← pure-asm twenty-three symbols (w1196)"
@@ -944,29 +952,31 @@ ensure_sqlite_glue_darwin_pure() {
       local _qg_short _qg_ok
       _qg_ok=1
       for _qg_short in \
-        _xlang_db_use_sqlite3_c \
-        _xlang_sqlite3_count_cb \
-        _xlang_sqlite3_open_c \
-        _xlang_sqlite3_close_c \
-        _xlang_sqlite3_exec_c \
-        _xlang_sqlite3_exec_count_c \
-        _xlang_sqlite3_prepare_v2_c \
-        _xlang_sqlite3_step_c \
-        _xlang_sqlite3_finalize_c \
-        _xlang_sqlite3_reset_c \
-        _xlang_sqlite3_clear_bindings_c \
-        _xlang_sqlite3_column_count_c \
-        _xlang_sqlite3_column_int_c \
-        _xlang_sqlite3_column_text_c \
-        _xlang_sqlite3_column_blob_c \
-        _xlang_sqlite3_column_bytes_c \
-        _xlang_sqlite3_bind_int_c \
-        _xlang_sqlite3_bind_text_c \
-        _xlang_sqlite3_errmsg_c \
-        _xlang_sqlite3_db_handle_c \
-        _xlang_sqlite3_changes_c \
-        _xlang_sqlite3_free_c; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_qg_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        xlang_db_use_sqlite3_c \
+        xlang_sqlite3_count_cb \
+        xlang_sqlite3_open_c \
+        xlang_sqlite3_close_c \
+        xlang_sqlite3_exec_c \
+        xlang_sqlite3_exec_count_c \
+        xlang_sqlite3_prepare_v2_c \
+        xlang_sqlite3_step_c \
+        xlang_sqlite3_finalize_c \
+        xlang_sqlite3_reset_c \
+        xlang_sqlite3_clear_bindings_c \
+        xlang_sqlite3_column_count_c \
+        xlang_sqlite3_column_int_c \
+        xlang_sqlite3_column_text_c \
+        xlang_sqlite3_column_blob_c \
+        xlang_sqlite3_column_bytes_c \
+        xlang_sqlite3_bind_int_c \
+        xlang_sqlite3_bind_text_c \
+        xlang_sqlite3_errmsg_c \
+        xlang_sqlite3_db_handle_c \
+        xlang_sqlite3_changes_c \
+        xlang_sqlite3_free_c; do
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="$_qg_short" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _qg_ok=0
           break
         fi
@@ -976,7 +986,9 @@ ensure_sqlite_glue_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_sqlite3_open" { n++ } END { exit (n==1)?0:1 }'; then
+      # Full nm: Darwin nm -u hides the U column. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '($1=="U" || $2=="U") && ($NF=="sqlite3_open" || $NF=="_sqlite3_open") { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o sqlite-glue: sqlite3_open is not undefined" >&2
         rm -f "$o"
         continue
@@ -987,6 +999,12 @@ ensure_sqlite_glue_darwin_pure() {
     echo "ensure_host_cc_seed_o sqlite-glue: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$_qg_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o sqlite-glue: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     if echo '#include <sqlite3.h>' | ${CC:-cc} -E - >/dev/null 2>&1; then
       log "cc -c $seed → $o (pure-asm missing object, sqlite3.h)"
@@ -5891,13 +5909,18 @@ ensure_one() {
     fi
   fi
 
-  # w1102: Darwin arm64 real sqlite forwards are the .x, not this seed.
-  # The stub object name does not match. Linux and Windows keep the seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1102: Darwin arm64 and Linux real sqlite forwards are the .x, not this seed.
+  # The stub object name does not match. Windows keeps the seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   if [ "$(basename "$out")" = "runtime_sqlite_glue.o" ]; then
     local qg_s qg_m
     qg_s="$(uname -s 2>/dev/null || echo Unknown)"
     qg_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$qg_s" = "Linux" ] && [ "$qg_m" = "x86_64" ] \
+      && [ -f src/asm/runtime_sqlite_glue_linux.x ]; then
+      ensure_sqlite_glue_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$qg_s" = "Darwin" ] && [ "$qg_m" = "arm64" ] \
       && [ -f src/asm/runtime_sqlite_glue_darwin.x ]; then
       ensure_sqlite_glue_darwin_pure "$out" || return 1
@@ -31764,8 +31787,10 @@ case "$MODE" in
     exit $?
     ;;
   sqlite-glue-pure|sqlite_glue_retry_pure)
-    # w1196: twenty-three pure-asm symbols of runtime_sqlite_glue_darwin.x.
-    # Does not write runtime_sqlite_glue.o unless that path is passed.
+    # w1196: twenty-three pure-asm symbols of runtime_sqlite_glue_darwin.x
+    # (Darwin arm64 retry). Linux uses the eight-try path in
+    # ensure_sqlite_glue_darwin_pure instead. Does not write
+    # runtime_sqlite_glue.o unless that path is passed.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o sqlite-glue-pure: need <out.o>" >&2

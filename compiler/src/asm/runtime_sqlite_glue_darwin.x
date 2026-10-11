@@ -8,7 +8,8 @@
 // The row-count callback is loaded with dlsym because a function name
 // used as a pointer value makes this compiler exit 139.
 // The no-libsqlite3 stub is a different object and stays in
-// runtime_sqlite_glue_stub_darwin.x. Linux and Windows keep the C seed.
+// runtime_sqlite_glue_stub_darwin.x. Linux uses
+// runtime_sqlite_glue_linux.x (RTLD_DEFAULT is 0). Windows keeps the C seed.
 // PLATFORM: MACOS|DARWIN arm64. SHARED return codes with the C seed.
 
 extern function sqlite3_open(path: *u8, out_db: **u8): i32;
