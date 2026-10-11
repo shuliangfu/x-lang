@@ -204,8 +204,8 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — CORE-010 direct import("core.fmt") product -o (fmt_*_to_buf UNDEF).
     # G.7 complete formal_mod like core/str/mod.o; product import mangle core_fmt_*.
     core/fmt/mod.o) printf '%s' "mod|0|../core/fmt/mod.x" ;;
-    # PLATFORM: SHARED — CORE-005 direct import("core.cmp") product -o (core_cmp_* UNDEF).
-    # G.7 complete formal_mod like core/fmt/mod.o; product import mangle core_cmp_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.builtin.
+    # WINDOWS stays on the C path. CORE-005 import mangle stays core_cmp_*.
     core/cmp/mod.o) printf '%s' "mod|0|../core/cmp/mod.x" ;;
     # PLATFORM: SHARED — tests/std-bytes/arena_external unique UNDEF (from_external*).
     # G.7 complete formal_mod like core/iterator/mod.o; product import mangle std_bytes_*.
@@ -1137,6 +1137,36 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/builtin_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/cmp/mod.x|core/cmp/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.cmp is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_cmp_* exports defined and no undefined
+      # symbols. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cmp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cmp_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/cmp_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_ptr$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cmp_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
