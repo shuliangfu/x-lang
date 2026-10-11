@@ -407,7 +407,7 @@ formal_mod_spec_for_key() {
     std/result/result.o) printf '%s' "mod|0|../std/result/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — datetime mod.x is asm.
     # Do not pass -lib-name "". Exports stay std_datetime_*.
-    # datetime.x stays on the C path. WINDOWS stays on the C path.
+    # datetime.x is the bare impl and keeps -lib-name "". WINDOWS stays on the C path.
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
     std/datetime/datetime.o) printf '%s' "mod|1|../std/datetime/mod.x|../std/datetime/datetime.x" ;;
     # PLATFORM: SHARED — std.db.sqlite product face (cookbook sqlite_available).
@@ -2435,7 +2435,7 @@ for x_path in "$@"; do
     ../std/datetime/mod.x|std/datetime/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.datetime mod.x.
       # Do not pass -lib-name "". Exports stay std_datetime_*.
-      # A miss stops here. datetime.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. datetime.x has its own bare-impl arm. Windows keeps the C path.
       # Do not fall through to cc for this file.
       _dt_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_dt_os" in
@@ -2464,6 +2464,43 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/dt_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/datetime/datetime.x|std/datetime/datetime.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.datetime.
+      # -lib-name "" keeps datetime_*_c faces (mod.x externs). A miss stops here.
+      # Undefined: time_now_wall_* / time_wall_local_offset_min_c, memcmp, xlang_panic_.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _dtx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dtx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/dtx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_now_utc_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_parse_rfc3339_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_parse_offset_min_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_format_rfc3339_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_from_utc_fields_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_from_zoned_fields_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_compare_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_add_duration_ns_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_timezone_from_name_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/dtx_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
