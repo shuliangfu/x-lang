@@ -220,6 +220,9 @@ formal_mod_spec_for_key() {
     std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
     std/env/env.o) printf '%s' "mod|0|../std/env/mod.x" ;;
     std/fs/fs.o) printf '%s' "fs_formal|0|" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.atomic.
+    # WINDOWS stays on the C path. Import mangle stays std_sync_*.
+    # sync.x is the bare-impl marker and keeps -lib-name "".
     std/sync/sync.o) printf '%s' "mod|1|../std/sync/mod.x|../std/sync/sync.x" ;;
     std/queue/queue.o) printf '%s' "mod|1|../std/queue/mod.x|../std/queue/queue.x" ;;
     std/encoding/encoding.o) printf '%s' "mod|1|../std/encoding/mod.x|../std/encoding/encoding.x" ;;
@@ -1367,6 +1370,68 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/atomic_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sync/mod.x|std/sync/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sync mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_sync_* exports defined. Undefined
+      # symbols are the sync_mutex_*_c, sync_rwlock_*_c, sync_condvar_*_c
+      # and sync_lock_diag_*_c externs the bodies call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sy_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sy_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/sync_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_new_mutex$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_lock$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_try_lock$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sync_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sync/sync.x|std/sync/sync.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.sync.
+      # -lib-name "" keeps sync_f_sync_v1_marker_c and
+      # sync_f_sync_lock_diag_v2_marker_c. Without it the path prefix
+      # doubles the export. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _syx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_syx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/sync_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?sync_f_sync_v1_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?sync_f_sync_lock_diag_v2_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sync_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
