@@ -68,6 +68,47 @@ esac
 tmp_dir=$(mktemp -d 2>/dev/null || mktemp -d -t xlangfs)
 trap 'rm -rf "$tmp_dir" 2>/dev/null || true' EXIT INT TERM
 
+# Darwin compiles mod.x and posix.x as two asm entries, then ld -r.
+# User imports skip co-emitting std.fs, so each file has to be its own entry.
+# Fail closed: do not fall back to KEEP_C + cc. Linux stays on the C vehicle
+# until that host is measured. Windows stays on the C vehicle.
+# PLATFORM: MACOS|DARWIN.
+asm_ok=0
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    _fs_mod="../std/fs/mod.x"
+    [ -f "$_fs_mod" ] || _fs_mod="std/fs/mod.x"
+    _fs_posix="../std/fs/posix.x"
+    [ -f "$_fs_posix" ] || _fs_posix="std/fs/posix.x"
+    _fs_L=".."
+    [ -d ../std/fs ] || _fs_L="."
+    if "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/mod.o" "$_fs_mod" \
+        >"$tmp_dir/mod_asm.log" 2>&1 \
+      && [ -s "$tmp_dir/mod.o" ] \
+      && nm "$tmp_dir/mod.o" 2>/dev/null | grep -qE ' T _?std_fs_invalid$' \
+      && "$XLANG_BIN" -backend asm -c -L "$_fs_L" -o "$tmp_dir/posix.o" "$_fs_posix" \
+        >"$tmp_dir/posix_asm.log" 2>&1 \
+      && [ -s "$tmp_dir/posix.o" ] \
+      && nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$' \
+      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
+      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$' \
+      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_readv$' \
+      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U _?xlang_sys_poll$' \
+      && ! nm "$tmp_dir/posix.o" 2>/dev/null | grep -qE ' U __error$' \
+      && ld -r -o "$tmp_dir/fs_formal_raw.o" "$tmp_dir/mod.o" "$tmp_dir/posix.o" \
+        >"$tmp_dir/ld_asm.err" 2>&1; then
+      asm_ok=1
+      raw_o="$tmp_dir/fs_formal_raw.o"
+      echo "xlang_compile_std_fs_formal: mod.o+posix.o <- asm"
+    else
+      echo "xlang_compile_std_fs_formal: pure-asm std.fs failed" >&2
+      cat "$tmp_dir/mod_asm.log" "$tmp_dir/posix_asm.log" "$tmp_dir/ld_asm.err" >&2 || true
+      exit 1
+    fi
+    ;;
+esac
+
+if [ "$asm_ok" != "1" ]; then
 # Vehicle: entry main + import("std.fs") → same co-emit path as tests/fs/main.x.
 # Keep body minimal (match tests/fs/main.x) so typeck/pipeline stays green on mac+Ubuntu.
 vehicle="$tmp_dir/fs_vehicle.x"
@@ -127,6 +168,7 @@ if ! cc -c $CFLAGS "$gen_c" -o "$raw_o" 2>"$tmp_dir/cc.err"; then
   tail -40 "$tmp_dir/cc.err" >&2 || true
   exit 1
 fi
+fi
 
 # Cap residual 9.1.10: merge xlang_dir_* into fs.o so KEEP_C U opendir faces
 # resolve without libc (G.7 single Cap body in xlang_dir_cap.h).
@@ -149,6 +191,12 @@ if [ -f "$_dir_cap_c" ]; then
     if [ ! -f "$_ensure" ]; then
       _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
     fi
+    # CFLAGS is already set above. Export it so ensure does not load the
+    # seed catalog: that load runs cc -v to see if cc is clang.
+    # dir-cap-pure remains the authority for the seventeen symbols.
+    # PLATFORM: MACOS|DARWIN arm64.
+    export CFLAGS
+    export PIPELINE_GEN_CFLAGS="${PIPELINE_GEN_CFLAGS-}"
     if ! bash "$_ensure" dir-cap-pure "$_dir_cap_o" 2>"$tmp_dir/dir_cap.err"; then
       echo "xlang_compile_std_fs_formal.sh: dir Cap pure-asm failed" >&2
       tail -40 "$tmp_dir/dir_cap.err" >&2 || true
