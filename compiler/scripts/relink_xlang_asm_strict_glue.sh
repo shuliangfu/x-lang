@@ -2221,12 +2221,15 @@ ensure_cfg_eval_obj() {
   if [ ! -f "$o" ] || [ "src/lexer/cfg_eval_gen.c" -nt "$o" ] || [ "seeds/cfg_eval_link_alias.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc/ld src/lexer/cfg_eval.o <- cfg_eval_gen.c + cfg_eval_link_alias.from_x.c"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c
-  # w1131: Darwin arm64 alias is pure asm of the .x.
-  # Does not match cfg_eval.o. Linux and Windows stay on the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1131: Darwin arm64 and Linux alias is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ce_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ce_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
+  if [ "$_ce_os" = "Linux" ] && [ "$_ce_mach" = "x86_64" ] \
+    && [ -f src/lexer/cfg_eval_link_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o || return 1
+  elif [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
     && [ -f src/lexer/cfg_eval_link_alias.x ]; then
     bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o
   else

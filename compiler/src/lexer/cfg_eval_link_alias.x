@@ -14,27 +14,49 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// cfg_eval_link_alias — Darwin arm64 product body for the six symbols
-// host cc of seeds/cfg_eval_link_alias.from_x.c emits. Four names forward
-// to the lexer_cfg_* callees. The two host literals are the Darwin strings
-// macos and aarch64. Both pointers stay at the same address across calls.
-// This object is not cfg_eval.o and not cfg_eval_x.o.
-// Linux and Windows keep host cc of the C seed, which picks the host
-// strings with the preprocessor.
-// PLATFORM: MACOS|DARWIN for this object path. SHARED symbol names.
+// cfg_eval_link_alias — Darwin arm64 and Linux product body for the six
+// symbols host cc of seeds/cfg_eval_link_alias.from_x.c emits. Four names
+// forward to the lexer_cfg_* callees. The two host literals are selected by
+// target_os the same way cfg_eval_host_lit.x does (product pairs:
+// linux/x86_64, macos/aarch64, windows/x86_64, freebsd/x86_64). #[no_mangle]
+// keeps the link names bare under src/lexer/ (otherwise the module prefix
+// turns cfg_* into lexer_cfg_* and collapses the forwards). This object is
+// not cfg_eval.o and not cfg_eval_x.o. A Linux miss returns 1 and does not
+// exec cc. Windows keeps host cc of the C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
+// SHARED symbol names.
 
 extern "C" function lexer_cfg_eval_expr_c(start: *u8, len: i32): i32;
 extern "C" function lexer_cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void;
 extern "C" function lexer_cfg_reset_compile_target(): void;
 extern "C" function lexer_cfg_set_freestanding(v: i32): void;
 
+#[cfg(target_os = "linux")]
+let CFG_ALIAS_HOST_OS_LIT: u8[6] = [108, 105, 110, 117, 120, 0];
+#[cfg(target_os = "macos")]
+let CFG_ALIAS_HOST_OS_LIT: u8[6] = [109, 97, 99, 111, 115, 0];
+#[cfg(target_os = "windows")]
+let CFG_ALIAS_HOST_OS_LIT: u8[8] = [119, 105, 110, 100, 111, 119, 115, 0];
+#[cfg(target_os = "freebsd")]
+let CFG_ALIAS_HOST_OS_LIT: u8[8] = [102, 114, 101, 101, 98, 115, 100, 0];
+
+#[cfg(target_os = "linux")]
+let CFG_ALIAS_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
+#[cfg(target_os = "macos")]
+let CFG_ALIAS_HOST_ARCH_LIT: u8[8] = [97, 97, 114, 99, 104, 54, 52, 0];
+#[cfg(target_os = "windows")]
+let CFG_ALIAS_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
+#[cfg(target_os = "freebsd")]
+let CFG_ALIAS_HOST_ARCH_LIT: u8[7] = [120, 56, 54, 95, 54, 52, 0];
+
 /**
  * Forward cfg expression evaluation to lexer_cfg_eval_expr_c.
  * @param start *u8 — expression bytes, forwarded unchanged; null is forwarded
  * @param len i32 — byte length, forwarded unchanged
  * @return i32 — the value lexer_cfg_eval_expr_c returns
- * PLATFORM: MACOS|DARWIN arm64. Linux and Windows stay on the C seed.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
  */
+#[no_mangle]
 function cfg_eval_expr_c(start: *u8, len: i32): i32 {
   unsafe {
     let r: i32 = lexer_cfg_eval_expr_c(start, len);
@@ -47,16 +69,18 @@ function cfg_eval_expr_c(start: *u8, len: i32): i32 {
  * Forward a target triple to lexer_cfg_apply_compile_target_from_triple.
  * @param triple *u8 — triple bytes, forwarded unchanged; null is forwarded
  * @param len i32 — byte length, forwarded unchanged
- * PLATFORM: MACOS|DARWIN arm64.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX.
  */
+#[no_mangle]
 function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void {
   unsafe { lexer_cfg_apply_compile_target_from_triple(triple, len); }
 }
 
 /**
  * Forward a target reset to lexer_cfg_reset_compile_target.
- * PLATFORM: MACOS|DARWIN arm64.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX.
  */
+#[no_mangle]
 function cfg_reset_compile_target(): void {
   unsafe { lexer_cfg_reset_compile_target(); }
 }
@@ -64,32 +88,35 @@ function cfg_reset_compile_target(): void {
 /**
  * Forward the freestanding flag to lexer_cfg_set_freestanding.
  * @param v i32 — flag value, forwarded unchanged
- * PLATFORM: MACOS|DARWIN arm64.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX.
  */
+#[no_mangle]
 function cfg_set_freestanding(v: i32): void {
   unsafe { lexer_cfg_set_freestanding(v); }
 }
 
 /**
- * Darwin host OS literal for cfg evaluation.
- * @return i64 — pointer bits of the stable bytes macos in rax, including the
+ * Host OS literal for cfg evaluation.
+ * @return i64 — pointer bits of CFG_ALIAS_HOST_OS_LIT in rax, including the
  *   trailing NUL. Two calls return the same address. Not a stack buffer.
  *   Link name unchanged.
- * PLATFORM: MACOS|DARWIN arm64. The installed product cannot asm-emit this *u8 return.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. The installed product cannot asm-emit
+ *   this *u8 return.
  */
+#[no_mangle]
 function cfg_host_os_lit(): i64 {
-  let p: *u8 = "macos";
-  return p as i64;
+  return (&CFG_ALIAS_HOST_OS_LIT[0]) as i64;
 }
 
 /**
- * Darwin host architecture literal for cfg evaluation.
- * @return i64 — pointer bits of the stable bytes aarch64 in rax, including the
+ * Host architecture literal for the product pair of this OS.
+ * @return i64 — pointer bits of CFG_ALIAS_HOST_ARCH_LIT in rax, including the
  *   trailing NUL. Two calls return the same address. Not a stack buffer.
  *   Link name unchanged.
- * PLATFORM: MACOS|DARWIN arm64. The installed product cannot asm-emit this *u8 return.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. The installed product cannot asm-emit
+ *   this *u8 return.
  */
+#[no_mangle]
 function cfg_host_arch_lit(): i64 {
-  let p: *u8 = "aarch64";
-  return p as i64;
+  return (&CFG_ALIAS_HOST_ARCH_LIT[0]) as i64;
 }

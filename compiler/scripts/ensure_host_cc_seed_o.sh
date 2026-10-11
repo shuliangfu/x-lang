@@ -1784,10 +1784,10 @@ ensure_asm_build_darwin_pure() {
   return 0
 }
 
-# w1131: Darwin arm64 cfg_eval_link_alias.o is the six cfg faces.
-# Linux and Windows keep host cc of the C seed.
+# w1131: Darwin arm64 and Linux cfg_eval_link_alias.o are the six cfg faces.
+# Linux miss does not exec cc. Windows keeps host cc of the C seed.
 # Does not match cfg_eval.o or cfg_eval_x.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_cfg_eval_alias_darwin_pure() {
   local o="${1:-src/lexer/cfg_eval_link_alias.o}"
@@ -1818,7 +1818,9 @@ ensure_cfg_eval_alias_darwin_pure() {
         _cfg_set_freestanding \
         _cfg_host_os_lit \
         _cfg_host_arch_lit; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_ce_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_ce_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _ce_ok=0
           break
         fi
@@ -1833,7 +1835,9 @@ ensure_cfg_eval_alias_darwin_pure() {
         _lexer_cfg_apply_compile_target_from_triple \
         _lexer_cfg_reset_compile_target \
         _lexer_cfg_set_freestanding; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_ce_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_ce_short#_}" '($1=="U" || $2=="U") && ($NF==s || $NF=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _ce_ok=0
           break
         fi
@@ -1849,6 +1853,12 @@ ensure_cfg_eval_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o cfg-eval-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o cfg-eval-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc seed $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c "$o" || return 1
@@ -28767,12 +28777,15 @@ _cfg_eval_link_x_plus_alias() {
     echo "ensure_host_cc_seed_o try-cfg-eval-ladder: missing seeds/cfg_eval_link_alias.from_x.c" >&2
     return 1
   fi
-  # w1131: Darwin arm64 alias is pure asm of the .x.
-  # Does not match cfg_eval.o. Linux and Windows stay on the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1131: Darwin arm64 and Linux alias is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ce_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ce_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
+  if [ "$_ce_os" = "Linux" ] && [ "$_ce_mach" = "x86_64" ] \
+    && [ -f src/lexer/cfg_eval_link_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o || return 1
+  elif [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
     && [ -f src/lexer/cfg_eval_link_alias.x ]; then
     bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o || return 1
   else
@@ -32333,9 +32346,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   cfg-eval-alias-pure|cfg_eval_alias_pure)
-    # w1131: Darwin arm64 cfg eval link alias from the .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1131: Darwin arm64 and Linux cfg eval link alias from the .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o cfg-eval-alias-pure: need <out.o>" >&2
       exit 2
