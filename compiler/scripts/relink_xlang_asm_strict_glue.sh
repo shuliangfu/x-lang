@@ -953,12 +953,18 @@ asm_strict_backend_selfhosted() {
 
 ensure_backend_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_bare_link_alias.o"
-  # w1116: Darwin arm64 aliases are the .x. Linux and Windows stay on cc.
-  # Does not rebuild the encoder objects.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1116: Darwin arm64 and Linux aliases are the .x. Linux miss does not cc.
+  # Windows stays on the C seed. Does not rebuild the encoder objects.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _bb_os="$(uname -s 2>/dev/null || echo Unknown)"
   _bb_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_bb_os" = "Darwin" ] && [ "$_bb_mach" = "arm64" ] \
+  if [ "$_bb_os" = "Linux" ] && [ "$_bb_mach" = "x86_64" ] \
+    && [ -f backend_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ backend_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-bare-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_bb_os" = "Darwin" ] && [ "$_bb_mach" = "arm64" ] \
     && [ -f backend_asm_bare_link_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ backend_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
       || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
