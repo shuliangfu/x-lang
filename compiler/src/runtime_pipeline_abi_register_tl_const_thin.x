@@ -20,6 +20,7 @@ export extern function asm_ctx_local_append(ctx: *u8, name: *u8, name_len: i32, 
 export extern function asm_ctx_local_count(ctx: *u8): i32;
 export extern function asm_local_slot_reg_offset(a: *u8, type_ref: i32, off: i32, out_next: *i32): i32;
 export extern function pipeline_asm_let_init_stack_reserve_bytes(a: *u8, type_ref: i32, init_ref: i32): i32;
+export extern function asm_module_top_level_const_lit_i32(m: *u8, a: *u8, name: *u8, name_len: i32, out_imm: *i32): i32;
 
 /**
  * Register module top-level lets into a non-hoist function frame.
@@ -87,6 +88,16 @@ export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, 
       if (pipe_load_i32_le(&cell[0], 36) != 0) {
         tl = tl + 1;
         continue;
+      }
+      /* Also skip when tip const_lit folds the name (NEG/BINOP), in case
+       * is_const tipU-misses and would otherwise leave a dead slot. */
+      {
+        let imm_cell: u8[8];
+        pipe_store_i32_le(&cell[0], 36, asm_module_top_level_const_lit_i32(m, a, &name_buf[0], pipe_load_i32_le(&cell[0], 8), &imm_cell[0] as *i32));
+        if (pipe_load_i32_le(&cell[0], 36) != 0) {
+          tl = tl + 1;
+          continue;
+        }
       }
       if (pipe_load_i32_le(&cell[0], 28) > 0) {
         pipe_store_i32_le(&cell[0], 40, pipeline_type_kind_ord_at(a, pipe_load_i32_le(&cell[0], 28)));
