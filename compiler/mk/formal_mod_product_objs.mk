@@ -66,6 +66,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
 	../std/tar/tar.o \
+	../std/uuid/uuid.o \
 	../std/unicode/unicode.o \
 	../std/channel/channel.o \
 	../std/runtime/runtime.o \

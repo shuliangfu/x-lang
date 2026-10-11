@@ -42,7 +42,7 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 17 (kv.o + arrow.o moved to formal_mod; was 19 after sqlite).
+# Honesty COUNT = 16 (uuid.o moved to formal_mod; was 17 after kv/arrow).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
@@ -52,7 +52,6 @@ std_x_key_for_out() {
     ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
     ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
-    ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
@@ -76,7 +75,6 @@ std_x_spec_for_key() {
     std/async/future.o) printf '%s' "auto-soft|../std/async/future.x" ;;
     std/channel/channel.o) printf '%s' "auto-soft|../std/channel/channel.x" ;;
     std/backtrace/backtrace.o) printf '%s' "auto-soft|../std/backtrace/backtrace.x" ;;
-    std/uuid/uuid.o) printf '%s' "auto|../std/uuid/uuid.x" ;;
     std/url/url.o) printf '%s' "auto-soft|../std/url/url.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
     std/config/config.o) printf '%s' "auto-soft|../std/config/config.x" ;;
@@ -99,7 +97,6 @@ std_x_all_keys() {
     std/async/future.o \
     std/channel/channel.o \
     std/backtrace/backtrace.o \
-    std/uuid/uuid.o \
     std/url/url.o \
     std/security/security.o \
     std/config/config.o \
@@ -200,7 +197,6 @@ std/async/scheduler.o
 std/async/future.o
 std/channel/channel.o
 std/backtrace/backtrace.o
-std/uuid/uuid.o
 std/url/url.o
 std/security/security.o
 std/config/config.o

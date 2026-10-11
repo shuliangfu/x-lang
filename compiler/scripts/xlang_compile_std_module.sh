@@ -129,6 +129,7 @@ formal_mod_key_for_out() {
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
+    ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     # PLATFORM: SHARED — pure-asm batch residual (2026-08-13): formal export std_* faces.
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
@@ -394,6 +395,13 @@ formal_mod_spec_for_key() {
     # tar_write_header_c, tar_read_header_c, and tar_append_entry_c.
     # The merged object has no undefined symbols.
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.uuid is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_uuid_*.
+    # uuid.x is the bare impl and keeps -lib-name "" so the exports stay
+    # uuid_parse_c, uuid_format_c, and uuid_smoke_c.
+    # Undefined symbols are core_mem_mem_compare, core_mem_mem_copy,
+    # random_fill_bytes_c, and time_now_wall_ms_c.
+    std/uuid/uuid.o) printf '%s' "mod|1|../std/uuid/mod.x|../std/uuid/uuid.x" ;;
     # PLATFORM: SHARED — pure-asm std_unicode_* / std_channel_* product faces.
     # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
     # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
@@ -501,6 +509,7 @@ formal_mod_all_keys() {
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \
+    std/uuid/uuid.o \
     std/unicode/unicode.o \
     std/channel/channel.o \
     std/runtime/runtime.o \
@@ -2934,6 +2943,66 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_time_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/uuid/mod.x|std/uuid/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.uuid mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_uuid_parse, std_uuid_format, and
+      # std_uuid_version defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _suuid_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_suuid_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_uuid_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_parse$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_format$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_version$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_uuid_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/uuid/uuid.x|std/uuid/uuid.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.uuid face is one asm leaf.
+      # -lib-name "" keeps uuid_parse_c, uuid_format_c, and uuid_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _suuidx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_suuidx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_uuid_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_parse_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_format_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_uuid_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
