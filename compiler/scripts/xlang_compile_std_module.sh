@@ -279,10 +279,10 @@ formal_mod_spec_for_key() {
     # WINDOWS stays on the C path. Import mangle stays std_sync_*.
     # sync.x is the bare-impl marker and keeps -lib-name "".
     std/sync/sync.o) printf '%s' "mod|1|../std/sync/mod.x|../std/sync/sync.x" ;;
-    # PLATFORM: MACOS|DARWIN|LINUX — queue.x is the bare-impl marker.
-    # -lib-name "" keeps queue_f_queue_v1_marker_c and
-    # queue_f_queue_v2_marker_c. mod.x stays on the C path.
-    # WINDOWS stays on the C path.
+    # PLATFORM: MACOS|DARWIN|LINUX — queue mod.x and the queue.x marker are asm.
+    # mod.x does not pass -lib-name "". Exports stay std_queue_*.
+    # queue.x keeps -lib-name "" for queue_f_queue_v1_marker_c and
+    # queue_f_queue_v2_marker_c. WINDOWS stays on the C path.
     std/queue/queue.o) printf '%s' "mod|1|../std/queue/mod.x|../std/queue/queue.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.encoding is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_encoding_*.
@@ -2312,6 +2312,42 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/dt_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/queue/mod.x|std/queue/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.queue mod.x.
+      # Do not pass -lib-name "". Exports stay std_queue_*.
+      # A miss stops here. queue.x keeps its own asm arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _que_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_que_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/que_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_new_retQueue_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_new_retQueue_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_push_back_Queue_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_push_back_Queue_u8_ptr_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_push_front$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_pop_front_Queue_i32_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_pop_front_Queue_u8_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_pop_back$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_with_capacity$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/que_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
