@@ -313,9 +313,11 @@ formal_mod_spec_for_key() {
     core/assert/assert.o) printf '%s' "mod|0|../core/assert/mod.x" ;;
     std/fmt/fmt.o) printf '%s' "c_face|0|../std/fmt/formal_surface.c" ;;
     std/compress/compress.o) printf '%s' "c_face|0|../std/compress/formal_surface.c" ;;
-    # PLATFORM: SHARED — 9.2.2: real std.compress.zlib / gzip (mod + libz).
-    # Facade compress.o stays c_face stub (bare deflate/inflate vs zlib.h if monofile).
-    # Submodule vehicles are the product path: compress2 / deflateInit2 glue + -lz.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zlib is one asm leaf.
+    # WINDOWS stays on the C path. mod.x keeps the std_compress_zlib_* prefix.
+    # libz.x keeps that prefix too: the asm mod calls
+    # std_compress_zlib_libz_compress_*_c, so this file does not use -lib-name "".
+    # Facade compress.o stays c_face. gzip stays on the C path.
     std/compress/zlib/zlib.o) printf '%s' "mod|1|../std/compress/zlib/mod.x|../std/compress/zlib/libz.x" ;;
     std/compress/gzip/gzip.o) printf '%s' "mod|1|../std/compress/gzip/mod.x|../std/compress/gzip/libz.x" ;;
     # PLATFORM: SHARED — zstd/brotli ≡ gzip: submodule vehicle is the product path.
@@ -1501,6 +1503,68 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/macos_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zlib/mod.x|std/compress/zlib/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zlib mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_compress_zlib_deflate and
+      # std_compress_zlib_inflate defined. Undefined symbols are
+      # std_compress_zlib_libz_compress_deflate_c and
+      # std_compress_zlib_libz_compress_inflate_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zlib_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_deflate$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_inflate$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zlib_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zlib/libz.x|std/compress/zlib/libz.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zlib libz is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_zlib_libz_compress_*_c names. Undefined symbols are
+      # libc compress2 and uncompress. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zlx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zlx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zlib_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_libz_compress_deflate_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_libz_compress_inflate_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zlib_lib_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
