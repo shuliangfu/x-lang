@@ -185,6 +185,8 @@ formal_mod_spec_for_key() {
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.option.
     # WINDOWS stays on the C path.
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.result.
+    # WINDOWS stays on the C path. Distinct from std/debug/debug.o (c_face).
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
     # PLATFORM: SHARED — cookbook core_str_index unique UNDEF (bytes_view_index_of*).
@@ -1007,6 +1009,36 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/result_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/debug/mod.x|core/debug/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.debug is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_debug_* defined and only xlang_panic_
+      # undefined. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file. Do not match std/debug.
+      _dbgcore_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dbgcore_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/debug_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_assert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_assert_eq_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_debug_assert$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/debug_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
