@@ -2893,9 +2893,9 @@ ensure_backend_bare_alias_darwin_pure() {
   return 0
 }
 
-# w1115: Darwin arm64 ast_asm_bare_link_alias.o forwards bare ast_block_* names.
-# Linux and Windows keep the generated C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1115: Darwin arm64 and Linux ast_asm_bare_link_alias.o forward bare ast_block_* names.
+# Linux miss does not exec cc. Windows keeps the generated C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_ast_bare_alias_darwin_pure() {
   local o="${1:-build_asm/ast_asm_bare_link_alias.o}"
@@ -2938,7 +2938,9 @@ ensure_ast_bare_alias_darwin_pure() {
         _ast_block_if_then_body_ref \
         _ast_block_if_else_body_ref \
         _ast_block_resolve_var_to_type_ref; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_ab_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_ab_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _ab_ok=0
           break
         fi
@@ -2948,7 +2950,9 @@ ensure_ast_bare_alias_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_ast_ast_block_final_expr_ref" { n++ } END { exit (n==1)?0:1 }'; then
+      # Full nm: Darwin nm -u hides the U column. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '{ s=$NF } (s=="ast_ast_block_final_expr_ref" || s=="_ast_ast_block_final_expr_ref") && ($1=="U" || $2=="U") { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o ast-bare-alias: ast_ast forward is not undefined" >&2
         rm -f "$o"
         continue
@@ -2959,6 +2963,12 @@ ensure_ast_bare_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o ast-bare-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o ast-bare-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc $csrc → $o (pure-asm missing object)"
     ${CC:-cc} -I. -Iinclude -Isrc -c -o "$o" "$csrc" || return 1
@@ -32495,9 +32505,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   ast-bare-alias-pure|ast_bare_alias_pure)
-    # w1115: Darwin arm64 bare ast_block aliases from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1115: Darwin arm64 and Linux bare ast_block aliases from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o ast-bare-alias-pure: need <out.o>" >&2
       exit 2

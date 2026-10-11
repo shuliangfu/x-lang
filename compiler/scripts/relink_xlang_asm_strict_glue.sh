@@ -312,11 +312,18 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
 # strict 链：ast.x 裸名 → pipeline_glue ast_ast_*（typeck_strict_link_partial 去重后缺 ast_block_if_*）。
 ensure_ast_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/ast_asm_bare_link_alias.o"
-  # w1115: Darwin arm64 aliases are the .x. Linux and Windows stay on cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1115: Darwin arm64 and Linux aliases are the .x. Linux miss does not cc.
+  # Windows stays on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+  if [ "$_ab_os" = "Linux" ] && [ "$_ab_mach" = "x86_64" ] \
+    && [ -f ast_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ ast_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh ast-bare-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
     && [ -f ast_asm_bare_link_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ ast_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
       || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
@@ -1841,7 +1848,7 @@ elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
 fi
 # PLATFORM: SHARED — G-02e: std_sys_shim folded into runtime_io_abi (match build_xlang_asm ST_BSTRICT_LINK_EXTRA).
 ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
-ensure_ast_asm_bare_link_alias_obj
+ensure_ast_asm_bare_link_alias_obj || exit 1
 ST_AST_BARE_ALIAS=""
 if ! echo " $ASM_TRY_OBJS " | grep -q 'ast_asm_bare_link_alias.o'; then
   ST_AST_BARE_ALIAS="$BUILD_DIR/ast_asm_bare_link_alias.o"
