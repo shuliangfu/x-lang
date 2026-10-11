@@ -522,9 +522,9 @@ formal_mod_spec_for_key() {
     # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_* and
     # std_compress_gzip_libz_*. WINDOWS stays on the C path.
     std/compress/gzip/gzip.o) printf '%s' "mod|1|../std/compress/gzip/mod.x|../std/compress/gzip/libz.x" ;;
-    # PLATFORM: MACOS|DARWIN|LINUX — zstd mod.x is asm.
-    # Do not pass -lib-name "". Exports stay std_compress_zstd_zstd_*.
-    # lib.x stays on the C path. WINDOWS stays on the C path.
+    # PLATFORM: MACOS|DARWIN|LINUX — zstd mod.x and lib.x are asm.
+    # Do not pass -lib-name "". Exports stay std_compress_zstd_zstd_* and
+    # std_compress_zstd_lib_*. WINDOWS stays on the C path.
     # lib.x is extern C FFI (ZSTD_*); ld -l* is the lib face.
     std/compress/zstd/zstd.o) printf '%s' "mod|1|../std/compress/zstd/mod.x|../std/compress/zstd/lib.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — brotli mod.x is asm.
@@ -2106,7 +2106,7 @@ for x_path in "$@"; do
     ../std/compress/zstd/mod.x|std/compress/zstd/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zstd mod.x.
       # Do not pass -lib-name "". Exports stay std_compress_zstd_zstd_*.
-      # A miss stops here. lib.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. lib.x is the other arm. Windows keeps the C path.
       # Do not fall through to cc for this file.
       _zstd_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_zstd_os" in
@@ -2135,6 +2135,44 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/zstd_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zstd/lib.x|std/compress/zstd/lib.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zstd lib is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_zstd_lib_compress_*_c names. Undefined symbols are
+      # ZSTD_* family and core_mem_mem_zero / core_mem_mem_compare.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zstl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zstl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zstd_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_available_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_state_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_init_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_init_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_end_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zstd_lib_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
