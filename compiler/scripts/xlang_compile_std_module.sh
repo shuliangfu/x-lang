@@ -283,6 +283,8 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — soft residual class-batch 2 formal bodies.
     # runtime: mod wrappers (ready/panic/abort) + runtime.x leaf faces for glue.
     # backtrace: mod.x capture → backtrace_capture_c (platform .o companion on plan).
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.assert.
+    # WINDOWS stays on the C path. Import mangle stays std_backtrace_*.
     # assert: freestanding core.assert (no I/O); panic via host panic face.
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.cmp.
     # WINDOWS stays on the C path. CORE-005 import mangle stays core_assert_*.
@@ -1200,6 +1202,39 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/assert_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/backtrace/mod.x|std/backtrace/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.backtrace is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_backtrace_* exports defined. Undefined
+      # symbols are the three externs the body calls:
+      # backtrace_capture_c, backtrace_symbolicate_c,
+      # xlang_crash_evidence_collect_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _bt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_bt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/backtrace_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_capture$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_symbolicate$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_collect_crash_evidence$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/backtrace_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
