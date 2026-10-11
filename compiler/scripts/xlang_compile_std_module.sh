@@ -170,6 +170,9 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — same dedicated vehicle as fs_formal pattern.
     std/string/string.o) printf '%s' "string_formal|0|" ;;
     std/heap/heap.o) printf '%s' "mod|0|../std/heap/mod.x|../std/heap/libc.x|../std/heap/ops.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.sync.
+    # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
+    # Import mangle stays std_heap_page_mmap_*.
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
@@ -1432,6 +1435,38 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/sync_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/page_mmap.x|std/heap/page_mmap.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap.page_mmap is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_heap_page_mmap_page_mmap_heap_* exports
+      # defined. Undefined symbols are xlang_sys_mmap, xlang_sys_munmap,
+      # and xlang_panic_. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _pm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_pm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/page_mmap_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_init$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_alloc$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/page_mmap_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
