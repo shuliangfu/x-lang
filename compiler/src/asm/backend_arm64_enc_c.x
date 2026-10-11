@@ -120,10 +120,14 @@ export function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i
   return 0;
 }
 
-/** ADD Xd, Xn, #imm with chunks of at most 4080 (match SP).
- * When rd differs from rn, mov xd,xn (0xAA0003E0 | rn << 16 | rd) comes first.
- * A negative imm emits SUB chunks. INT_MIN is refused.
- * add xd,xd,#c is 0x91000000. sub xd,xd,#c is 0xD1000000.
+/** ADD/SUB Xd, Xn, #imm.
+ * When rd differs from rn, mov xd,xn comes first.
+ * A negative imm emits SUB. INT_MIN is refused.
+ * Small |imm| (<=4080) stays one ADD/SUB #imm12 (chunk size matches SP
+ * adjust so frame math stays aligned).
+ * Larger |imm| uses movz/movk into x16 (or x17 when rd is 16) then a
+ * register ADD/SUB. CodegenOutBuf.length sits at 9437184; chunking that
+ * offset was ~2300 adds per access and blew Darwin text by ~6 MiB.
  * @param elf_ctx *u8 emit context
  * @param rd i32 destination register 0..30
  * @param rn i32 source register 0..30
@@ -147,13 +151,13 @@ export function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, i
   if (rn > 30) {
     return 0 - 1;
   }
-  let base: i32 = 0 - 1862270976;
+  let is_sub: i32 = 0;
   let left: i32 = imm;
   if (left < 0) {
     if (left == 0 - 2147483647 - 1) {
       return 0 - 1;
     }
-    base = 0 - 788529152;
+    is_sub = 1;
     left = 0 - left;
   }
   if (rd != rn) {
@@ -161,21 +165,41 @@ export function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, i
       return 0 - 1;
     }
   }
+  if (left == 0) {
+    return 0;
+  }
   let rdrd: i32 = (rd << 5) | rd;
-  /* Match arm64_enc_addsub_sp_imm_chunks: 4080 not 4095. Tip parse_into_buf
-   * did sub sp,#0xff0 then add x16,#0xfff — frame locals drifted and
-   * return stmts were not seen (implicit tail return). */
-  while (left > 0) {
-    let chunk: i32 = left;
-    if (chunk > 4080) {
-      chunk = 4080;
+  if (left > 4080) {
+    /* Scratch: x16, or x17 when rd is already x16. */
+    let scratch: i32 = 16;
+    if (rd == 16) {
+      scratch = 17;
     }
-    if (w1523_arm64_enc_u32_le(elf_ctx, base | (chunk << 10) | rdrd) != 0) {
+    let lo: i32 = left & 65535;
+    let hi: i32 = (left >> 16) & 65535;
+    /* MOVZ Xt, #lo — 0xD2800000 | (lo<<5) | Xt */
+    if (w1523_arm64_enc_u32_le(elf_ctx, (0 - 763363328) | (lo << 5) | scratch) != 0) {
       return 0 - 1;
     }
-    left = left - chunk;
+    if (hi != 0) {
+      /* MOVK Xt, #hi, LSL#16 — 0xF2A00000 | (hi<<5) | Xt */
+      if (w1523_arm64_enc_u32_le(elf_ctx, (0 - 224395264) | (hi << 5) | scratch) != 0) {
+        return 0 - 1;
+      }
+    }
+    if (is_sub != 0) {
+      /* SUB Xd, Xd, Xt — 0xCB000000 | (Xt<<16) | (Xd<<5) | Xd */
+      return w1523_arm64_enc_u32_le(elf_ctx, (0 - 889192448) | (scratch << 16) | rdrd);
+    }
+    /* ADD Xd, Xd, Xt — 0x8B000000 | (Xt<<16) | (Xd<<5) | Xd */
+    return w1523_arm64_enc_u32_le(elf_ctx, (0 - 1962934272) | (scratch << 16) | rdrd);
   }
-  return 0;
+  /* One imm12 chunk (4080 max). Same as SP adjust chunk size. */
+  let base: i32 = 0 - 1862270976;
+  if (is_sub != 0) {
+    base = 0 - 788529152;
+  }
+  return w1523_arm64_enc_u32_le(elf_ctx, base | (left << 10) | rdrd);
 }
 
 /** Save or restore x19 at [sp, #off].
