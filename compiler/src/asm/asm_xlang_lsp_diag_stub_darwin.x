@@ -6,8 +6,9 @@
 //
 // Diagnostics and semantic tokens both write the two bytes '[' ']'.
 // A null buffer or a capacity under 2 returns -1. Cache invalidation
-// forwards to lsp_diag_invalidate_cache. Linux and Windows keep the C seed.
-// PLATFORM: MACOS|DARWIN arm64.
+// forwards to lsp_diag_invalidate_cache. Linux uses this file. A Linux
+// miss returns 1 and does not exec cc. Windows keeps the C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 extern function lsp_diag_invalidate_cache(): void;
 

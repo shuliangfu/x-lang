@@ -341,11 +341,18 @@ ensure_asm_xlang_lsp_diag_stub_obj() {
   strict_glue_info "cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
   sh scripts/cc_inc_tu.sh "$LSP_IO_STUB" "$LSP_IO_O"
   fi
-  # w1113: Darwin arm64 stub is the .x. Linux and Windows stay on cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1113: Darwin arm64 and Linux stub is the .x. Linux miss does not cc.
+  # Windows stays on cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
   _lsp_os="$(uname -s 2>/dev/null || echo Unknown)"
   _lsp_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_lsp_os" = "Darwin" ] && [ "$_lsp_mach" = "arm64" ] \
+  if [ "$_lsp_os" = "Linux" ] && [ "$_lsp_mach" = "x86_64" ] \
+    && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
+    if [ ! -f "$STUB_O" ] || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$STUB_O" ] \
+      || [ "$STUB_C" -nt "$STUB_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-diag-stub-pure "$STUB_O" || return 1
+    fi
+  elif [ "$_lsp_os" = "Darwin" ] && [ "$_lsp_mach" = "arm64" ] \
     && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
     if [ ! -f "$STUB_O" ] || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$STUB_O" ] \
       || [ "$STUB_C" -nt "$STUB_O" ]; then

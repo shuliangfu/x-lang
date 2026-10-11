@@ -2977,10 +2977,10 @@ ensure_lsp_sizes_weak_darwin_pure() {
   return 0
 }
 
-# w1113: Darwin arm64 asm_xlang_lsp_diag_stub.o writes an empty JSON array.
-# Invalidation forwards to lsp_diag_invalidate_cache.
-# Linux and Windows keep the C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1113: Darwin arm64 and Linux asm_xlang_lsp_diag_stub.o write an empty
+# JSON array. Invalidation forwards to lsp_diag_invalidate_cache.
+# Linux miss does not exec cc. Windows keeps the C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object. cwd is compiler/.
 ensure_lsp_diag_stub_darwin_pure() {
   local o="${1:-build_asm/asm_xlang_lsp_diag_stub.o}"
@@ -3019,7 +3019,9 @@ ensure_lsp_diag_stub_darwin_pure() {
         _lsp_build_semantic_tokens_response \
         _lsp_io_lsp_diag_invalidate_cache \
         _lsp_diag_stub_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_lsp_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_lsp_short#_}$"; then
           _lsp_ok=0
           break
         fi
@@ -3029,7 +3031,9 @@ ensure_lsp_diag_stub_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_lsp_diag_invalidate_cache" { n++ } END { exit (n==1)?0:1 }'; then
+      # Darwin nm prefixes '_'. Linux nm does not.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm -u "$o" 2>/dev/null | grep -qE "U _?lsp_diag_invalidate_cache$"; then
         echo "ensure_host_cc_seed_o lsp-diag-stub: invalidate is not undefined" >&2
         rm -f "$o"
         continue
@@ -3040,6 +3044,12 @@ ensure_lsp_diag_stub_darwin_pure() {
     echo "ensure_host_cc_seed_o lsp-diag-stub: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to the seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o lsp-diag-stub: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc $csrc → $o (pure-asm missing object)"
     ${CC:-cc} -c -o "$o" "$csrc" || return 1
@@ -32375,9 +32385,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   lsp-diag-stub-pure|lsp_diag_stub_pure)
-    # w1113: Darwin arm64 LSP diagnostic stub from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1113: Darwin arm64 and Linux LSP diagnostic stub from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o lsp-diag-stub-pure: need <out.o>" >&2
       exit 2

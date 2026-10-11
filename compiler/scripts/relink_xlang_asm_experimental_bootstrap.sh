@@ -499,11 +499,19 @@ if [ -f "$BUILD_DIR/gen_driver/lsp_x.o" ]; then
   ST_LSP_X="$BUILD_DIR/gen_driver/lsp_x.o $BUILD_DIR/gen_driver/lsp_io_x.o $BUILD_DIR/gen_driver/lsp_io_std_heap_x.o $BUILD_DIR/gen_driver/lsp_diag_x.o"
 fi
 # wave297: host scripts/asm_xlang_lsp_diag_stub.c left; seed authority seed-only .o.
-# w1113: Darwin arm64 stub is the .x. Linux and Windows stay on cc.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1113: Darwin arm64 and Linux stub is the .x. Linux miss does not cc.
+# Windows stays on cc.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
 _lsp_os="$(uname -s 2>/dev/null || echo Unknown)"
 _lsp_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_lsp_os" = "Darwin" ] && [ "$_lsp_mach" = "arm64" ] \
+if [ "$_lsp_os" = "Linux" ] && [ "$_lsp_mach" = "x86_64" ] \
+  && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
+  if [ ! -f "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] \
+    || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] \
+    || [ seeds/asm_xlang_lsp_diag_stub.from_x.c -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh lsp-diag-stub-pure "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" || exit 1
+  fi
+elif [ "$_lsp_os" = "Darwin" ] && [ "$_lsp_mach" = "arm64" ] \
   && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
   if [ ! -f "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] \
     || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$BUILD_DIR/asm_xlang_lsp_diag_stub.o" ] \
