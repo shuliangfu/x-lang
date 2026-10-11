@@ -35,14 +35,17 @@ export const HAS_LIT_AHASH: u8[6] = [97, 104, 97, 115, 104, 0];
 export const HAS_LIT_X: u8[2] = [120, 0];
 export const HAS_LIT_XXHASH: u8[7] = [120, 120, 104, 97, 115, 104, 0];
 
-export const XXH64_PRIME1: u64 = 11400714785074694791 as u64;
-export const XXH64_PRIME2: u64 = 14029467366897019727 as u64;
-export const XXH64_PRIME3: u64 = 1609587929392839161 as u64;
-export const XXH64_PRIME4: u64 = 9650029242287828579 as u64;
-export const XXH64_PRIME5: u64 = 2870177450012600261 as u64;
+/** Wide u64 primes as getters: module `export const u64` is baked through
+ * modlet init_imm (i32) + sign/zero-extend, which truncates values above
+ * 32 bits (asm xxhash ≠ C). Local `N as u64` uses movz/movk imm64. */
+export function XXH64_PRIME1(): u64 { return 11400714785074694791 as u64; }
+export function XXH64_PRIME2(): u64 { return 14029467366897019727 as u64; }
+export function XXH64_PRIME3(): u64 { return 1609587929392839161 as u64; }
+export function XXH64_PRIME4(): u64 { return 9650029242287828579 as u64; }
+export function XXH64_PRIME5(): u64 { return 2870177450012600261 as u64; }
 
-export const FNV1A64_OFFSET: u64 = 14695981039346656037 as u64;
-export const FNV1A64_PRIME: u64 = 1099511628211 as u64;
+export function FNV1A64_OFFSET(): u64 { return 14695981039346656037 as u64; }
+export function FNV1A64_PRIME(): u64 { return 1099511628211 as u64; }
 
 export const HASH_SIP_CTX_SIZE: usize = 56;
 export const HASH_UNIFIED_CTX_SIZE: usize = 200;
@@ -170,7 +173,7 @@ export function hash_unified_fnv_write_ptr_c(h: *u8, ptr: *u8, len: i32): void {
   if (h == 0 || ptr == 0 || len <= 0) { return; }
   while (i < len) {
     u.fnv = u.fnv ^ (ptr[i] as u64);
-    u.fnv = u.fnv * FNV1A64_PRIME;
+    u.fnv = u.fnv * FNV1A64_PRIME();
     i = i + 1;
   }
 }
@@ -434,9 +437,9 @@ export function hash_sip_bytes_c(ptr: *u8, len: i32): u64 {
  * @return u64
  */
 export function hash_xxh64_round(acc: u64, input: u64): u64 {
-  acc = acc + input * XXH64_PRIME2;
+  acc = acc + input * XXH64_PRIME2();
   acc = hash_rotl64(acc, 31);
-  acc = acc * XXH64_PRIME1;
+  acc = acc * XXH64_PRIME1();
   return acc;
 }
 
@@ -449,7 +452,7 @@ export function hash_xxh64_round(acc: u64, input: u64): u64 {
 export function hash_xxh64_merge_round(acc: u64, val: u64): u64 {
   val = hash_xxh64_round(0, val);
   acc = acc ^ val;
-  acc = acc * XXH64_PRIME1 + XXH64_PRIME4;
+  acc = acc * XXH64_PRIME1() + XXH64_PRIME4();
   return acc;
 }
 
@@ -460,9 +463,9 @@ export function hash_xxh64_merge_round(acc: u64, val: u64): u64 {
  */
 export function hash_xxh64_avalanche(h64: u64): u64 {
   h64 = h64 ^ (h64 >> 33);
-  h64 = h64 * XXH64_PRIME2;
+  h64 = h64 * XXH64_PRIME2();
   h64 = h64 ^ (h64 >> 29);
-  h64 = h64 * XXH64_PRIME3;
+  h64 = h64 * XXH64_PRIME3();
   h64 = h64 ^ (h64 >> 32);
   return h64;
 }
@@ -475,10 +478,10 @@ export function hash_xxh64_avalanche(h64: u64): u64 {
  */
 export function hash_xxh64_reset(s: *HashXxh64Ctx, seed: u64): void {
   s.seed = seed;
-  s.v1 = seed + XXH64_PRIME1 + XXH64_PRIME2;
-  s.v2 = seed + XXH64_PRIME2;
+  s.v1 = seed + XXH64_PRIME1() + XXH64_PRIME2();
+  s.v2 = seed + XXH64_PRIME2();
   s.v3 = seed;
-  s.v4 = seed - XXH64_PRIME1;
+  s.v4 = seed - XXH64_PRIME1();
   s.total_len = 0;
   s.memsize = 0;
   s.mem64 = 0;
@@ -546,7 +549,7 @@ export function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
     h64 = hash_xxh64_merge_round(h64, s.v3);
     h64 = hash_xxh64_merge_round(h64, s.v4);
   } else {
-    h64 = s.seed + XXH64_PRIME5;
+    h64 = s.seed + XXH64_PRIME5();
   }
   h64 = h64 + s.total_len;
   p = hash_xxh64_mem_base(s);
@@ -557,12 +560,12 @@ export function hash_xxh64_digest(s: *HashXxh64Ctx): u64 {
   }
   if (i + 4 <= (s.memsize as i32)) {
     h64 = h64 ^ (hash_read64le(&p[i]) & 0xffffffff as u64);
-    h64 = hash_rotl64(h64, 23) * XXH64_PRIME2 + XXH64_PRIME3;
+    h64 = hash_rotl64(h64, 23) * XXH64_PRIME2() + XXH64_PRIME3();
     i = i + 4;
   }
   while (i < (s.memsize as i32)) {
-    h64 = h64 ^ ((p[i] as u64) * XXH64_PRIME5);
-    h64 = hash_rotl64(h64, 11) * XXH64_PRIME1;
+    h64 = h64 ^ ((p[i] as u64) * XXH64_PRIME5());
+    h64 = hash_rotl64(h64, 11) * XXH64_PRIME1();
     i = i + 1;
   }
   return hash_xxh64_avalanche(h64);
@@ -663,7 +666,7 @@ export function hash_unified_new_c(algo: i32): *u8 {
     if (algo == HASHER_SIPHASH) {
       hash_sip_init(hash_unified_sip(u));
     } else if (algo == HASHER_AHASH) {
-      u.fnv = FNV1A64_OFFSET;
+      u.fnv = FNV1A64_OFFSET();
     } else if (algo == HASHER_XXHASH) {
       hash_xxh64_reset(hash_unified_xxh(u), 0);
     } else {
