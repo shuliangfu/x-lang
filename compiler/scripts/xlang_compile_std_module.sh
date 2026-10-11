@@ -227,6 +227,9 @@ formal_mod_spec_for_key() {
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
     std/log/log.o) printf '%s' "mod|1|../std/log/mod.x|../std/log/log.x" ;;
     std/test/test.o) printf '%s' "mod|1|../std/test/mod.x|../std/test/test.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.channel.
+    # WINDOWS stays on the C path. Import mangle stays std_atomic_*.
+    # atomic.x is the bare-impl marker and keeps -lib-name "".
     std/atomic/atomic.o) printf '%s' "mod|1|../std/atomic/mod.x|../std/atomic/atomic.x" ;;
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
     std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
@@ -1303,6 +1306,67 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/channel_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/atomic/mod.x|std/atomic/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.atomic mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_atomic_* exports defined. Undefined
+      # symbols are the atomic_load_*_c, atomic_store_*_c, atomic_fetch_*_c,
+      # atomic_compare_exchange_*_c and atomic_fence_*_c externs the bodies
+      # call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _at_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_at_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/atomic_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_load_i32_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_store_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_fetch_add_i32_ptr_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/atomic_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/atomic/atomic.x|std/atomic/atomic.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.atomic.
+      # -lib-name "" keeps atomic_f_atomic_v1_marker_c. Without it the
+      # path prefix doubles the export. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _atx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_atx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/atomic_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?atomic_f_atomic_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/atomic_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
