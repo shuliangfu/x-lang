@@ -2776,12 +2776,19 @@ ensure_backend_asm_bare_link_alias_obj() {
 # strict 非 WPO backend fallback：给 user_asm_seed_bridge 提供 backend_* 强桥接，避免落到 seed weak return -1 桩。
 ensure_backend_asm_strict_fallback_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_strict_fallback_alias.o"
-  # w1117: Darwin arm64 fallback is the .x. Linux and Windows stay on cc.
+  # w1117: Darwin arm64 and Linux fallback is the .x. Linux miss does not cc.
+  # Windows stays on the C seed.
   # Does not match backend_asm_bare_link_alias.o and does not rebuild encoders.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _bf_os="$(uname -s 2>/dev/null || echo Unknown)"
   _bf_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_bf_os" = "Darwin" ] && [ "$_bf_mach" = "arm64" ] \
+  if [ "$_bf_os" = "Linux" ] && [ "$_bf_mach" = "x86_64" ] \
+    && [ -f backend_asm_strict_fallback_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ backend_asm_strict_fallback_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-fallback-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_bf_os" = "Darwin" ] && [ "$_bf_mach" = "arm64" ] \
     && [ -f backend_asm_strict_fallback_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ backend_asm_strict_fallback_alias.x -nt "$ALIAS_O" ] \
       || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$ALIAS_O" ]; then
@@ -4539,12 +4546,20 @@ GEN_DRIVER_X_PIPELINE_COMPANIONS="parser_x.o lexer_x.o codegen_x.o x_frontend_li
 
 # 与 Makefile bootstrap-driver-seed / relink-xlang 对齐：pipeline_x.o 经 glue 引用的 backend 桥与 check/fmt C 实现。
 ensure_bstrict_seed_support_objs() {
-  # w1117: Darwin arm64 fallback is the .x. Linux and Windows stay on cc.
+  # w1117: Darwin arm64 and Linux fallback is the .x. Linux miss does not cc.
+  # Windows stays on the C seed.
   # Does not match backend_asm_bare_link_alias.o and does not rebuild encoders.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _bf2_os="$(uname -s 2>/dev/null || echo Unknown)"
   _bf2_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_bf2_os" = "Darwin" ] && [ "$_bf2_mach" = "arm64" ] \
+  if [ "$_bf2_os" = "Linux" ] && [ "$_bf2_mach" = "x86_64" ] \
+    && [ -f backend_asm_strict_fallback_alias.x ]; then
+    if [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
+      || [ backend_asm_strict_fallback_alias.x -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
+      || [ seeds/backend_asm_strict_fallback_alias.from_x.c -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-fallback-alias-pure "$BUILD_DIR/backend_asm_strict_fallback_alias.o" || return 1
+    fi
+  elif [ "$_bf2_os" = "Darwin" ] && [ "$_bf2_mach" = "arm64" ] \
     && [ -f backend_asm_strict_fallback_alias.x ]; then
     if [ ! -f "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \
       || [ backend_asm_strict_fallback_alias.x -nt "$BUILD_DIR/backend_asm_strict_fallback_alias.o" ] \

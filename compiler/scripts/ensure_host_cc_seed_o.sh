@@ -2755,9 +2755,9 @@ ensure_parse_expr_link_darwin_pure() {
   return 0
 }
 
-# w1117: Darwin arm64 backend_asm_strict_fallback_alias.o forwards to pipeline.
-# Linux and Windows keep the generated C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1117: Darwin arm64 and Linux backend_asm_strict_fallback_alias.o forward to pipeline.
+# Linux miss does not exec cc. Windows keeps the generated C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_backend_fallback_alias_darwin_pure() {
   local o="${1:-build_asm/backend_asm_strict_fallback_alias.o}"
@@ -2785,7 +2785,9 @@ ensure_backend_fallback_alias_darwin_pure() {
       for _bf_short in \
         _backend_asm_codegen_ast \
         _backend_asm_codegen_ast_to_elf; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_bf_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_bf_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _bf_ok=0
           break
         fi
@@ -2795,7 +2797,9 @@ ensure_backend_fallback_alias_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_pipeline_backend_asm_codegen_ast_c" { n++ } END { exit (n==1)?0:1 }'; then
+      # Full nm: Darwin nm -u hides the U column. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '{ s=$NF } (s=="pipeline_backend_asm_codegen_ast_c" || s=="_pipeline_backend_asm_codegen_ast_c") && ($1=="U" || $2=="U") { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o backend-fallback-alias: pipeline forward is not undefined" >&2
         rm -f "$o"
         continue
@@ -2806,6 +2810,12 @@ ensure_backend_fallback_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o backend-fallback-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o backend-fallback-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc $csrc → $o (pure-asm missing object)"
     ${CC:-cc} -I. -Iinclude -Isrc -c -o "$o" "$csrc" || return 1
@@ -32447,9 +32457,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   backend-fallback-alias-pure|backend_fallback_alias_pure)
-    # w1117: Darwin arm64 non-WPO backend fallback from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1117: Darwin arm64 and Linux non-WPO backend fallback from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o backend-fallback-alias-pure: need <out.o>" >&2
       exit 2
