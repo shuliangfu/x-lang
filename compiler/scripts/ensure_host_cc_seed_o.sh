@@ -2159,10 +2159,10 @@ ensure_lsp_io_stub_darwin_pure() {
   return 0
 }
 
-# w1125: Darwin arm64 pipeline_glue_link.o forwards one pipeline entry.
-# Linux and Windows keep -x -E then host cc. The C seed is already gone.
-# Does not match pipeline_run_impl_alias.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1125: Darwin arm64 and Linux pipeline_glue_link.o forwards one pipeline entry.
+# Linux miss does not exec cc. Windows keeps -x -E then host cc.
+# The C seed is already gone. Does not match pipeline_run_impl_alias.o.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_glue_link_darwin_pure() {
   local o="${1:-build_asm/pipeline_glue_link.o}"
@@ -2184,12 +2184,17 @@ ensure_glue_link_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      if ! nm "$o" 2>/dev/null | awk '$2=="T" && $3=="_pipeline_run_x_pipeline" { n++ } END { exit (n==1)?0:1 }'; then
+      # Darwin nm prefixes '_'. Linux nm does not.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | grep -qE " T _?pipeline_run_x_pipeline$"; then
         echo "ensure_host_cc_seed_o glue-link: required text symbol missing" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '$NF=="_pipeline_run_x_pipeline_impl" { n++ } END { exit (n==1)?0:1 }'; then
+      # nm -u on Darwin prints the bare name. Full nm prints the U column
+      # on both hosts.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | grep -qE " U _?pipeline_run_x_pipeline_impl$"; then
         echo "ensure_host_cc_seed_o glue-link: impl forward is not undefined" >&2
         rm -f "$o"
         continue
@@ -2200,6 +2205,12 @@ ensure_glue_link_darwin_pure() {
     echo "ensure_host_cc_seed_o glue-link: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o glue-link: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32251,9 +32262,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   glue-link-pure|glue_link_pure)
-    # w1125: Darwin arm64 pipeline glue link from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1125: Darwin arm64 and Linux pipeline glue link from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o glue-link-pure: need <out.o>" >&2
       exit 2
