@@ -418,6 +418,42 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/io_batch.x|std/net/io_batch.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.io_batch is one asm leaf.
+      # -lib-name "" keeps net_stream_write_batch_c, net_stream_read_batch_c,
+      # and net_stream_read_batch_provided_c.
+      # Undefined symbols are io_write_batch, io_read_batch, and
+      # io_read_batch_provided. A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _iob_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_iob_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _iob_log="$(mktemp "${TMPDIR:-/tmp}/std_iob_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_iob_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_stream_write_batch_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_stream_read_batch_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_stream_read_batch_provided_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_write_batch_w$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_read_batch_w$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_read_batch_provided_w$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_batch_module_anchor$'; then
+            rm -f "$_iob_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_iob_log" >&2
+          rm -f "$_iob_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/async/scheduler.x|std/async/scheduler.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.async.scheduler is one marker.
       # The C emit below is what execs cc. -lib-name "" keeps
