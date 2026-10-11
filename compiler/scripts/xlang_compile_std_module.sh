@@ -516,7 +516,9 @@ formal_mod_spec_for_key() {
     # lib.x stays on the C path. WINDOWS stays on the C path.
     # lib.x is extern C FFI (ZSTD_*); ld -l* is the lib face.
     std/compress/zstd/zstd.o) printf '%s' "mod|1|../std/compress/zstd/mod.x|../std/compress/zstd/lib.x" ;;
-    # PLATFORM: SHARED — brotli ≡ gzip: submodule vehicle is the product path.
+    # PLATFORM: MACOS|DARWIN|LINUX — brotli mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_compress_brotli_brotli_*.
+    # lib.x stays on the C path. WINDOWS stays on the C path.
     # lib.x is extern C FFI (BrotliEncoder*/Decoder*); ld -l* is the lib face.
     std/compress/brotli/brotli.o) printf '%s' "mod|1|../std/compress/brotli/mod.x|../std/compress/brotli/lib.x" ;;
     std/io/driver.o) printf '%s' "c_face|0|../std/io/driver_formal_surface.c" ;;
@@ -2086,6 +2088,42 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/zstd_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/brotli/mod.x|std/compress/brotli/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.brotli mod.x.
+      # Do not pass -lib-name "". Exports stay std_compress_brotli_brotli_*.
+      # A miss stops here. lib.x stays on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _br_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_br_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/br_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_state_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_init_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_init_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_end$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/br_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
