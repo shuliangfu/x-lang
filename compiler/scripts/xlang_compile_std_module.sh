@@ -323,6 +323,9 @@ formal_mod_spec_for_key() {
     # WINDOWS stays on the C path. Import mangle stays std_atomic_*.
     # atomic.x is the bare-impl marker and keeps -lib-name "".
     std/atomic/atomic.o) printf '%s' "mod|1|../std/atomic/mod.x|../std/atomic/atomic.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — hash mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_hash_*.
+    # hash.x stays on the C path. WINDOWS stays on the C path.
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — math.x is the bare-impl file.
     # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
@@ -2198,6 +2201,43 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/ctx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/hash/mod.x|std/hash/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.hash mod.x.
+      # Do not pass -lib-name "". Exports stay std_hash_*.
+      # Pointer returns stay std_hash_start and std_hash_start_algo.
+      # A miss stops here. hash.x stays on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _hash_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_hash_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/hash_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_default_hasher$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_start$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_start_algo$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_finish$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_finish_algo$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_xxhash64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_xxhash64_seed$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_write_u8_ptr_u32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_write_u8_ptr_u64$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/hash_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
