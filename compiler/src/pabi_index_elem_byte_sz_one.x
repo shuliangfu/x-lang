@@ -12,6 +12,8 @@
 // index_elem_true_i8.o. Do not cc or gcc
 // seeds/win_index_elem_byte_sz_override.c into one object on Windows,
 // Linux, or Darwin.
+// Slice `.data` FIELD recovers elem stride before bare-PTR peel (defaults
+// to 4); []u8 must index scale 1. Same recovery as the historic mega body.
 // PLATFORM: SHARED body. Windows, Linux, and Darwin link this object.
 
 export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
@@ -207,6 +209,65 @@ function iesz_vec_field(arena: *u8, base_ref: i32): i32 {
     }
   }
   return ignored - ignored;
+}
+
+/**
+ * FIELD `.data` of a TYPE_SLICE base: recover the element stride.
+ * @param arena *u8 — AST arena
+ * @param base_ref i32 — FIELD expr; caller already saw kind 44
+ * @return i32 — element byte size in 1..8, else 0
+ * glue_field_access_field_type_ref_c returns a bare PTR (kind 9, no
+ * pointee) for slice `.data` so INDEX can fat-deref. The generic PTR
+ * peel then defaults to 4, which wrongly scales []u8 as lsl#2. Walk
+ * FIELD.base → VAR type TYPE_SLICE → elem size before that peel.
+ * PLATFORM: SHARED — local helper, not a link export.
+ */
+function iesz_slice_data_field(arena: *u8, base_ref: i32): i32 {
+  let vb: i32 = 0;
+  let vk: i32 = 0;
+  let sty: i32 = 0;
+  let sk: i32 = 0;
+  let elem: i32 = 0;
+  let esz: i32 = 0;
+  unsafe {
+    vb = pipeline_expr_field_access_base_ref(arena, base_ref);
+  }
+  if (vb <= 0) {
+    return 0;
+  }
+  unsafe {
+    vk = pipeline_expr_kind_ord_at(arena, vb);
+  }
+  if (vk != 3) {
+    return 0;
+  }
+  unsafe {
+    sty = glue_var_expr_type_ref_with_decl_fallback_c(arena, vb);
+  }
+  if (sty <= 0) {
+    return 0;
+  }
+  unsafe {
+    sk = pipeline_type_kind_ord_at(arena, sty);
+  }
+  if (sk != 11) {
+    return 0;
+  }
+  unsafe {
+    elem = pipeline_type_elem_ref_at(arena, sty);
+  }
+  if (elem <= 0) {
+    return 0;
+  }
+  unsafe {
+    esz = glue_index_elem_byte_sz_from_type_ref_c(arena, elem);
+  }
+  if (esz > 0) {
+    if (esz <= 8) {
+      return esz;
+    }
+  }
+  return 0;
 }
 
 /**
@@ -535,6 +596,10 @@ export function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i3
     if (bk == 44) {
       if (iesz_vec_field(arena, base_ref) == 1) {
         return 1;
+      }
+      early = iesz_slice_data_field(arena, base_ref);
+      if (early > 0) {
+        return early;
       }
     }
     tr = iesz_base_tr(arena, base_ref);

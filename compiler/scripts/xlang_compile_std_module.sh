@@ -215,10 +215,13 @@ formal_mod_spec_for_key() {
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.result.
     # WINDOWS stays on the C path. Distinct from std/debug/debug.o (c_face).
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — core.slice is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays core_slice_*.
+    # Undefined: core_option_*, core_slice_*_from_ptr_c / core_subslice_*_c,
+    # xlang_panic_. Slice `.data` []u8 index is scale 1 (index_elem recovery).
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — core.str is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays core_str_*.
-    # core.slice stays on the C path: its u8 index is still a 4-byte load.
     core/str/mod.o) printf '%s' "mod|0|../core/str/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — core.iterator is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays core_iterator_*.
@@ -2766,6 +2769,44 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_option_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/slice/mod.x|core/slice/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.slice is one asm leaf.
+      # Do not pass -lib-name "". Exports stay core_slice_*.
+      # []u8 `.data` index is scale 1 via index_elem slice recovery.
+      # Undefined: core_option_*, core_slice_*_from_ptr_c / core_subslice_*_c,
+      # xlang_panic_. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cslice_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cslice_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/core_slice_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u8_unchecked$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_i32_unchecked$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_split_at_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_subslice_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_chunks_len_u8$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/core_slice_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
