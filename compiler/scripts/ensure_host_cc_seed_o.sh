@@ -1846,10 +1846,10 @@ ensure_cfg_eval_alias_darwin_pure() {
   return 0
 }
 
-# w1130: Darwin arm64 pipeline_phase_parse_only_alias.o is the two parse faces.
-# Linux and Windows keep host cc of the C seed.
+# w1130: Darwin arm64 and Linux pipeline_phase_parse_only_alias.o are the two parse faces.
+# Linux miss does not exec cc. Windows keeps host cc of the C seed.
 # Does not match pipeline_phase_parse_only_partial.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_phase_parse_darwin_pure() {
   local o="${1:-build_asm/pipeline_phase_parse_only_alias.o}"
@@ -1885,7 +1885,9 @@ ensure_phase_parse_darwin_pure() {
       for _pp_short in \
         _pipeline_impl_phase_parse_only \
         _pipeline_impl_phase_parse_load; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_pp_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_pp_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _pp_ok=0
           break
         fi
@@ -1904,7 +1906,9 @@ ensure_phase_parse_darwin_pure() {
         _driver_diagnostic_after_entry_parse_module \
         _driver_diagnostic_entry_module \
         _pipeline_impl_phase_load_deps; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_pp_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_pp_short#_}" '($1=="U" || $2=="U") && ($NF==s || $NF=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _pp_ok=0
           break
         fi
@@ -1920,6 +1924,12 @@ ensure_phase_parse_darwin_pure() {
     echo "ensure_host_cc_seed_o phase-parse: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o phase-parse: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc seed $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh seeds/pipeline_phase_parse_only_alias.from_x.c "$o" || return 1
@@ -32327,9 +32337,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   phase-parse-pure|phase_parse_pure)
-    # w1130: Darwin arm64 phase-parse alias from the .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1130: Darwin arm64 and Linux phase-parse alias from the .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o phase-parse-pure: need <out.o>" >&2
       exit 2

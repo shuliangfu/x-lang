@@ -20,8 +20,10 @@
 // records three diagnostics. The return is -2 times the parse ok flag.
 // phase_parse_load runs that sequence and then load_deps.
 // This object is not pipeline_phase_parse_only_partial.o.
-// Linux and Windows keep host cc of the C seed.
-// PLATFORM: MACOS|DARWIN for this object path. SHARED symbol names.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps host cc of the C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
+// SHARED symbol names.
 
 struct ParseIntoResult {
   ok: i32;
@@ -48,7 +50,7 @@ extern "C" function pipeline_impl_phase_load_deps(module: *u8, arena: *u8, ctx: 
  * @param source_len u64 — source length, narrowed to i32 for the parser
  * @param ctx *u8 — dependency context, kept for the ABI, not read here
  * @return i32 — -2 times the parser ok flag
- * PLATFORM: MACOS|DARWIN arm64. Linux and Windows stay on the C seed.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
  */
 function pipeline_impl_phase_parse_only(module: *u8, arena: *u8, source_data: *u8, source_len: u64, ctx: *u8): i32 {
   unsafe {

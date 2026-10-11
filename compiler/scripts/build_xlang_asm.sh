@@ -1890,13 +1890,18 @@ ensure_pipeline_phase_parse_only_partial_obj() {
   PARTIAL="$BUILD_DIR/pipeline_phase_parse_only_partial.o"
   SYMS="$BUILD_DIR/pipeline_phase_parse_only_export.txt"
   ALIAS_O="$BUILD_DIR/pipeline_phase_parse_only_alias.o"
-  # w1130: Darwin arm64 alias is pure asm of the .x.
-  # The partial export below stays. This hook does not match the partial.
-  # Linux and Windows stay on host cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1130: Darwin arm64 and Linux alias is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
+  # The partial export below stays on Darwin. Linux merges with ld -r.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _pp_os="$(uname -s 2>/dev/null || echo Unknown)"
   _pp_mach="$(uname -m 2>/dev/null || echo unknown)"
-  if [ "$_pp_os" = "Darwin" ] && [ "$_pp_mach" = "arm64" ] \
+  if [ "$_pp_os" = "Linux" ] && [ "$_pp_mach" = "x86_64" ] \
+    && [ -f src/pipeline_phase_parse_only_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_phase_parse_only_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh phase-parse-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_pp_os" = "Darwin" ] && [ "$_pp_mach" = "arm64" ] \
     && [ -f src/pipeline_phase_parse_only_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ src/pipeline_phase_parse_only_alias.x -nt "$ALIAS_O" ]; then
       bash scripts/ensure_host_cc_seed_o.sh phase-parse-pure "$ALIAS_O"
@@ -1917,7 +1922,14 @@ _pipeline_impl_phase_parse_load
 EOF
   fi
   echo " ld -r -exported_symbols_list $SYMS phase_parse_only_alias.o -> $PARTIAL"
+  # GNU ld has no -exported_symbols_list. This object only defines the
+  # two names that list exports, so a plain relocatable link keeps them.
+  # PLATFORM: LINUX x86_64. Darwin keeps the export list.
+  if [ "$_pp_os" = "Linux" ] && [ "$_pp_mach" = "x86_64" ]; then
+  /usr/bin/ld -r -o "$PARTIAL" "$ALIAS_O" || return 1
+  else
   ld -r -exported_symbols_list "$SYMS" -o "$PARTIAL" "$ALIAS_O"
+  fi
   fi
 }
 
