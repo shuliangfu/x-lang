@@ -260,7 +260,14 @@ formal_mod_spec_for_key() {
     # stay random_u32_c, random_u64_c, and random_rng_smoke_c.
     # Undefined symbols are random_fill_bytes_c and xlang_panic_.
     std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
-    std/env/env.o) printf '%s' "mod|0|../std/env/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.env is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_env_*.
+    # env.x is the bare impl and keeps -lib-name "" so the exports stay
+    # args_iter_count_c, env_parse_kv_entry, and
+    # env_platform_encoding_smoke_c.
+    # Undefined symbols are the env_* faces in runtime_env_os.o,
+    # process_args_count_c, process_arg_c, memcpy, strchr, and strlen.
+    std/env/env.o) printf '%s' "mod|1|../std/env/mod.x|../std/env/env.x" ;;
     std/fs/fs.o) printf '%s' "fs_formal|0|" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.atomic.
     # WINDOWS stays on the C path. Import mangle stays std_sync_*.
@@ -3185,6 +3192,65 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/env/mod.x|std/env/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.env mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_env_getenv, std_env_args_iter_count, and
+      # std_env_args_iter_next defined. No -lib-name "". A miss stops here.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _senv_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_senv_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_env_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_getenv$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_args_iter_count$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_args_iter_next$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_env_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/env/env.x|std/env/env.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.env face is one asm leaf.
+      # -lib-name "" keeps args_iter_count_c, env_parse_kv_entry, and
+      # env_platform_encoding_smoke_c. A miss stops here.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _senvx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_senvx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_env_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?args_iter_count_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?env_parse_kv_entry$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?env_platform_encoding_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_env_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
   esac
   # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
   # -o 无 main 时链失败但 XLANG_KEEP_C 保留完整 C；再 cc -c 落地。
@@ -4646,6 +4712,13 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                 ;;
             esac
             ;;
+          args_iter_*|env_cstr_eq|env_parse_kv_entry)
+            # leaf=env keeps env_*_c and std_env_*. These faces have no _c
+            # suffix, or the args_iter_* ABI name.
+            if [ "$leaf" = "env" ]; then
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
           map_*)
             # PLATFORM: MACOS — heap ops.x bare map_* kept for heap_full_alias U→T.
             # leaf_*_c only matches heap_*; map_i32_i32_find_c / map_slot need explicit keep.
@@ -4713,6 +4786,11 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                           printf '%s\n' "$sym" >>"$_mem_exp"
                           ;;
                       esac
+                      ;;
+                    args_iter_*|env_cstr_eq|env_parse_kv_entry)
+                      if [ "$leaf" = "env" ]; then
+                        printf '%s\n' "$sym" >>"$_mem_exp"
+                      fi
                       ;;
                     map_*)
                       if [ "$leaf" = "heap" ]; then

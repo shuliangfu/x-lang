@@ -124,7 +124,8 @@ export function env_platform_encoding_smoke_c(): i32 {
   let kv2: u8[6] = [75, 61, 86, 61, 87, 0];
   let kv3: u8[5] = [78, 79, 69, 81, 0];
   let kv4: u8[6] = [65, 66, 61, 67, 68, 0];
-  let ab_val: u8[3] = [97, 61, 98];
+  // setenv reads a NUL-terminated value. 97,61,98 is "a=b".
+  let ab_val: u8[4] = [97, 61, 98, 0];
 
   if (env_parse_kv_entry(&kv1[0], &key[0], 64, &val[0], 64) != 0) { return 1; }
   if (env_cstr_eq(&key[0], &ENV_LIT_KEY[0]) == 0) { return 2; }
@@ -147,7 +148,8 @@ export function env_platform_encoding_smoke_c(): i32 {
 
   unsafe { env_unsetenv_c(&test_eq[0]); }
   unsafe { if (env_setenv_c(&test_eq[0], &ab_val[0], 1) != 0) { return 13; } }
-  unsafe { gl = env_getenv_c(&test_eq[0], 14, &out[0], 32); }
+  // test_eq is XLANG_ENV_PE_EQ, 15 bytes before the NUL.
+  unsafe { gl = env_getenv_c(&test_eq[0], 15, &out[0], 32); }
   if (gl != 3) { return 14; }
   if (out[0] != 97 || out[1] != 61 || out[2] != 98) { return 15; }
 
