@@ -20400,6 +20400,71 @@ export function asm_import_path_to_c_prefix_into(path: *u8, buf: *u8, buf_cap: i
 }
 
 /**
+ * 记211: fold module-const init to i32 imm (INT_LIT/BOOL, NEG, i32 binop).
+ * Depth-capped; 0 = miss. Twin of overlay w211_fold_const_expr_i32.
+ * PLATFORM: SHARED freestanding.
+ */
+function w211_fold_const_expr_i32(a: *u8, eref: i32, out_imm: *i32, depth: i32): i32 {
+  unsafe {
+    if (a == 0 as *u8 || eref <= 0 || out_imm == 0 as *i32 || depth > 8) {
+      return 0;
+    }
+    let ek: i32 = pipeline_expr_kind_ord_at(a, eref);
+    if (ek == 0 || ek == 2) {
+      *out_imm = pipeline_expr_int_val_at(a, eref);
+      return 1;
+    }
+    if (ek == 22) {
+      let op: i32 = pipeline_expr_unary_operand_ref_at(a, eref);
+      if (w211_fold_const_expr_i32(a, op, out_imm, depth + 1) == 0) {
+        return 0;
+      }
+      *out_imm = 0 - *out_imm;
+      return 1;
+    }
+    if (ek >= 4 && ek <= 13) {
+      let left: i32 = pipeline_expr_binop_left_ref_at(a, eref);
+      let right: i32 = pipeline_expr_binop_right_ref_at(a, eref);
+      let lv: i32 = 0;
+      let rv: i32 = 0;
+      if (w211_fold_const_expr_i32(a, left, &lv, depth + 1) == 0) {
+        return 0;
+      }
+      if (w211_fold_const_expr_i32(a, right, &rv, depth + 1) == 0) {
+        return 0;
+      }
+      if (ek == 4) { *out_imm = lv + rv; return 1; }
+      if (ek == 5) { *out_imm = lv - rv; return 1; }
+      if (ek == 6) { *out_imm = lv * rv; return 1; }
+      if (ek == 7) {
+        if (rv == 0) { *out_imm = 0; return 1; }
+        *out_imm = lv / rv;
+        return 1;
+      }
+      if (ek == 8) {
+        if (rv == 0) { *out_imm = 0; return 1; }
+        *out_imm = lv % rv;
+        return 1;
+      }
+      if (ek == 9) {
+        if (rv < 0 || rv >= 32) { return 0; }
+        *out_imm = lv << rv;
+        return 1;
+      }
+      if (ek == 10) {
+        if (rv < 0 || rv >= 32) { return 0; }
+        *out_imm = lv >> rv;
+        return 1;
+      }
+      if (ek == 11) { *out_imm = lv & rv; return 1; }
+      if (ek == 12) { *out_imm = lv | rv; return 1; }
+      if (ek == 13) { *out_imm = lv ^ rv; return 1; }
+    }
+    return 0;
+  }
+}
+
+/**
  * wave119 pure: if module top-level *const* name is int lit init, write *out_imm.
  * wave745: mutable `let` with an int-lit initializer must miss. load_operand
  * used this helper for any file-level name without a stack slot, so
@@ -20438,10 +20503,8 @@ export function asm_module_top_level_const_lit_i32(m: *u8, a: *u8, name: *u8, na
           }
           let init_ref: i32 = pipeline_module_top_level_let_init_ref(m, tl);
           if (init_ref > 0) {
-            let ek: i32 = pipeline_expr_kind_ord_at(a, init_ref);
-            // kind 0 / 2 = int lit family (≡ historical C)
-            if (ek == 0 || ek == 2) {
-              *out_imm = pipeline_expr_int_val_at(a, init_ref);
+            // 记211: NEG-over-LIT / BINOP (`0-1`) fold — not only INT_LIT/BOOL.
+            if (w211_fold_const_expr_i32(a, init_ref, out_imm, 0) != 0) {
               return 1;
             }
           }
@@ -34607,15 +34670,16 @@ export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, 
         continue;
       }
     }
-    if (is_const != 0 && init_ref > 0 && init_ref <= nexprs) {
-      let init_kind: i32 = 0;
-      unsafe {
-        init_kind = pipeline_expr_kind_ord_at(a, init_ref);
-      }
-      if (init_kind == 0 || init_kind == 2) {
-        tl = tl + 1;
-        continue;
-      }
+    /* 记211: non-hoist frames must not shadow module consts with dead
+     * stack slots. INT_LIT/BOOL already skipped so imm fold wins; NEG-over-LIT
+     * (`const E = -1`) and BINOP (`0-1`) were still registered then never
+     * seeded → Linux early-return loaded garbage (e.g. 32768). Skip every
+     * const; emit falls back to asm_module_top_level_const_lit_i32 / modlet.
+     * PLATFORM: SHARED freestanding — twin of from_x MODLET_IN_REST register.
+     */
+    if (is_const != 0) {
+      tl = tl + 1;
+      continue;
     }
     let off_slot: i32[1] = [];
     off_slot[0] = off;

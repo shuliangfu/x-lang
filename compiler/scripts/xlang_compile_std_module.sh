@@ -372,7 +372,7 @@ formal_mod_spec_for_key() {
     std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — config mod.x is asm.
     # Do not pass -lib-name "". Exports stay std_config_*.
-    # config.x stays on the C path. WINDOWS stays on the C path.
+    # config.x has Darwin+Linux pure-asm arm (记211). WINDOWS stays on the C path.
     # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
     std/config/config.o) printf '%s' "mod|1|../std/config/mod.x|../std/config/config.x" ;;
     # PLATFORM: SHARED — std.cache product face (STD-087 lru_pool_smoke).
@@ -2402,7 +2402,7 @@ for x_path in "$@"; do
     ../std/config/mod.x|std/config/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.config mod.x.
       # Do not pass -lib-name "". Exports stay std_config_*.
-      # A miss stops here. config.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. config.x has its own bare-impl arm (记211). Windows keeps the C path.
       # Do not fall through to cc for this file.
       _cfg_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_cfg_os" in
@@ -2431,6 +2431,43 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/cfg_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/config/config.x|std/config/config.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.config (记211).
+      # -lib-name "" keeps cfg_* faces (mod.x + import METHOD). A miss stops here.
+      # Root fix: tip named-const early-return (NEG/BINOP fold + register skip).
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cfgx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cfgx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/cfgx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_strncpy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_set_raw$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_find_index$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_load_toml_buf_impl$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_load_yaml_buf_impl$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_parse_i32_str$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_normalize_value$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_trim$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_isspace$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_from_handle$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cfgx_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

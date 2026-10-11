@@ -9844,11 +9844,12 @@ void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, 
       if (tk_arr == 10 || ik_arr == 46)
         continue;
     }
-    if (is_const != 0 && init_ref > 0 && init_ref <= cold_arena_num_exprs(a)) {
-      int32_t init_kind = pipeline_expr_kind_ord_at(a, init_ref);
-      if (init_kind == 0 || init_kind == 2)
-        continue;
-    }
+    /* 记211: skip ALL module consts on non-hoist (not only INT_LIT/BOOL).
+     * NEG-over-LIT / BINOP consts used to get unseeded stack slots → Linux
+     * branched `return NAMED_CONST` loaded garbage. Imm fold / modlet path.
+     * PLATFORM: SHARED — twin of tip .x register. */
+    if (is_const != 0)
+      continue;
     slot_off = asm_local_slot_reg_offset(a, type_ref, off, &off);
     if (asm_ctx_local_append((uint8_t *)ctx, name_buf, name_len, slot_off) < 0)
       return;

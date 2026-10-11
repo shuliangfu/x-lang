@@ -30,6 +30,8 @@ extern int32_t pipeline_module_top_level_let_init_ref(void *m, int32_t tl);
 extern int32_t pipeline_module_top_level_let_is_const(void *m, int32_t tl);
 extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
 extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
 
 extern int32_t glue_expr_block_transparent_value_ref_at(void *arena, int32_t expr_ref);
 extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_ref);
@@ -91,6 +93,70 @@ extern int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t
  * @return 1 found const, 0 miss
  * PLATFORM: SHARED leftover gcc sidecar.
  */
+/* 记211: fold INT_LIT/BOOL, NEG-over-LIT (`-1`), and i32 binops of folded
+ * operands (`0-1`). Depth-capped so a miss stays 0 (emit_expr fallback).
+ * PLATFORM: SHARED leftover gcc sidecar — twin of tip .x const_lit.
+ */
+static int32_t w211_fold_const_expr_i32(void *a, int32_t eref, int32_t *out_imm, int32_t depth) {
+  int32_t ek;
+  int32_t op;
+  int32_t left;
+  int32_t right;
+  int32_t lv;
+  int32_t rv;
+  if (!a || eref <= 0 || !out_imm || depth > 8)
+    return 0;
+  ek = pipeline_expr_kind_ord_at(a, eref);
+  if (ek == 0 || ek == 2) {
+    *out_imm = pipeline_expr_int_val_at(a, eref);
+    return 1;
+  }
+  /* EXPR_NEG = 22 — parser normal form for `const E: i32 = -1`. */
+  if (ek == 22) {
+    op = pipeline_expr_unary_operand_ref_at(a, eref);
+    if (w211_fold_const_expr_i32(a, op, out_imm, depth + 1) == 0)
+      return 0;
+    *out_imm = 0 - *out_imm;
+    return 1;
+  }
+  /* ADD=4 SUB=5 MUL=6 DIV=7 MOD=8 … XOR=13 — match pipe_modlet_fold_i32_binop. */
+  if (ek >= 4 && ek <= 13) {
+    left = pipeline_expr_binop_left_ref_at(a, eref);
+    right = pipeline_expr_binop_right_ref_at(a, eref);
+    if (w211_fold_const_expr_i32(a, left, &lv, depth + 1) == 0)
+      return 0;
+    if (w211_fold_const_expr_i32(a, right, &rv, depth + 1) == 0)
+      return 0;
+    if (ek == 4) { *out_imm = lv + rv; return 1; }
+    if (ek == 5) { *out_imm = lv - rv; return 1; }
+    if (ek == 6) { *out_imm = lv * rv; return 1; }
+    if (ek == 7) {
+      if (rv == 0) { *out_imm = 0; return 1; }
+      *out_imm = lv / rv;
+      return 1;
+    }
+    if (ek == 8) {
+      if (rv == 0) { *out_imm = 0; return 1; }
+      *out_imm = lv % rv;
+      return 1;
+    }
+    if (ek == 9) {
+      if (rv < 0 || rv >= 32) return 0;
+      *out_imm = lv << rv;
+      return 1;
+    }
+    if (ek == 10) {
+      if (rv < 0 || rv >= 32) return 0;
+      *out_imm = lv >> rv;
+      return 1;
+    }
+    if (ek == 11) { *out_imm = lv & rv; return 1; }
+    if (ek == 12) { *out_imm = lv | rv; return 1; }
+    if (ek == 13) { *out_imm = lv ^ rv; return 1; }
+  }
+  return 0;
+}
+
 int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int32_t name_len,
                                           int32_t *out_imm) {
   int32_t tl;
@@ -118,11 +184,8 @@ int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int3
     init_ref = pipeline_module_top_level_let_init_ref(m, tl);
     if (init_ref <= 0)
       continue;
-    k = pipeline_expr_kind_ord_at(a, init_ref);
-    if (k == 0 || k == 2) {
-      *out_imm = pipeline_expr_int_val_at(a, init_ref);
+    if (w211_fold_const_expr_i32(a, init_ref, out_imm, 0) != 0)
       return 1;
-    }
   }
   return 0;
 }
