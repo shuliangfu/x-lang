@@ -14,7 +14,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/async/scheduler.o \
 	../std/channel/channel.o \
 	../std/backtrace/backtrace.o \
-	../std/url/url.o \
 	../std/security/security.o \
 	../std/config/config.o \
 	../std/cache/cache.o \
