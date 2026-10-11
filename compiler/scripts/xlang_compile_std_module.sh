@@ -380,9 +380,10 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — std.security product face (STD-079 roundtrip).
     # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/url: mod.x prefix + --bare-impl *_c.
-    # PLATFORM: MACOS|DARWIN|LINUX — security.x is the bare-impl file.
-    # -lib-name "" keeps security_*_c and sec_hkdf_*. mod.x stays on the C path.
-    # WINDOWS stays on the C path. std_x has the same early-out for this file.
+    # PLATFORM: MACOS|DARWIN|LINUX — both source files are asm.
+    # security.x takes -lib-name "" so the exports stay security_*_c and sec_hkdf_*.
+    # mod.x does not, so the exports stay std_security_*.
+    # WINDOWS stays on the C path. std_x early-outs security.x only.
     std/security/security.o) printf '%s' "mod|1|../std/security/mod.x|../std/security/security.x" ;;
     # PLATFORM: SHARED — std.option / std.result product faces (STD-080/081 roundtrip).
     # Wrappers over core.option / core.result; mod.x only (co-emits core bodies).
@@ -1918,7 +1919,8 @@ for x_path in "$@"; do
       # -lib-name "" keeps security_f_zero_c_marker_c, security_mlock_c,
       # security_munlock_c, security_secure_zero_c, security_hkdf_sha256_c,
       # security_smoke_c, sec_hkdf_extract, and sec_hkdf_expand.
-      # A miss stops here. mod.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. mod.x has its own arm and does not pass -lib-name "".
+      # Windows keeps the C path.
       # Do not fall through to cc for this file.
       _sec_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sec_os" in
@@ -1945,6 +1947,38 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/sec_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/security/mod.x|std/security/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.security mod.x.
+      # Do not pass -lib-name "". The exports stay std_security_*.
+      # A miss stops here. security.x is the other arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _secm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_secm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/secm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_key_len$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_err_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_ct_compare$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_secure_zero$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_hkdf$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_sensitive_buf_wipe$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/secm_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

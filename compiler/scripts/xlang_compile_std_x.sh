@@ -419,7 +419,7 @@ std_x_compile_one() {
       # The C emit below is what execs cc. -lib-name "" keeps security_*_c
       # and sec_hkdf_*. Without it the path prefix doubles the export.
       # A miss stops here so this file never execs cc. The formal script
-      # has the same arm. mod.x stays on the C path. Windows keeps the C path.
+      # also early-outs mod.x. Windows keeps the C path.
       _sec_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_sec_os" in
         Darwin|Linux)
