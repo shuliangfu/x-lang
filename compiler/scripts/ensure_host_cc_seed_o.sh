@@ -1242,17 +1242,28 @@ ensure_dir_cap_darwin_pure() {
   return 0
 }
 
-# w1105: Darwin arm64 std_process_* import face is the .x.
-# Wrappers forward to process_*_c. Exit calls libSystem __exit
-# (Mach-O ___exit, three underscores in the .x). Linux and Windows
-# keep the C seed. No gcc -E.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1105: Darwin arm64 and Linux std_process_* import face is the .x.
+# Darwin wrappers forward to process_*_c; exit calls libSystem __exit
+# (Mach-O ___exit, three underscores in the .x).
+# Linux wrappers forward to process_*_c; exit is inline exit_group
+# (syscall 231) in runtime_process_import_alias_linux.x.
+# Linux miss does not exec cc. Windows keeps the C seed. No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_process_import_alias_darwin_pure() {
   local o="${1:-runtime_process_import_alias.o}"
-  local xsrc="src/asm/runtime_process_import_alias_darwin.x"
   local seed="seeds/runtime_process_import_alias.from_x.c"
   local try=0
+  local _pa_os _pa_mach xsrc anchor
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _pa_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_pa_os" = "Linux" ] && [ "$_pa_mach" = "x86_64" ]; then
+    xsrc="src/asm/runtime_process_import_alias_linux.x"
+    anchor="runtime_process_import_alias_linux_x_doc_anchor"
+  else
+    xsrc="src/asm/runtime_process_import_alias_darwin.x"
+    anchor="runtime_process_import_alias_darwin_x_doc_anchor"
+  fi
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o process-alias: missing $xsrc" >&2
     return 1
@@ -1272,30 +1283,32 @@ ensure_process_import_alias_darwin_pure() {
       local _pa_short _pa_ok
       _pa_ok=1
       for _pa_short in \
-        _std_process_exit \
-        _std_process_args_count \
-        _std_process_arg \
-        _std_process_getenv \
-        _std_process_setenv \
-        _std_process_unsetenv \
-        _std_process_getpid \
-        _std_process_getppid \
-        _std_process_getcwd \
-        _std_process_getcwd_ptr \
-        _std_process_getcwd_cached_len \
-        _std_process_chdir \
-        _std_process_self_exe_path \
-        _std_process_self_exe_path_ptr \
-        _std_process_self_exe_path_cached_len \
-        _std_process_spawn \
-        _std_process_spawn_io \
-        _std_process_exec \
-        _std_process_waitpid \
-        _std_process_spawn_simple \
-        _std_process_exec_simple \
-        _std_process_pipe \
-        _runtime_process_import_alias_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_pa_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        std_process_exit \
+        std_process_args_count \
+        std_process_arg \
+        std_process_getenv \
+        std_process_setenv \
+        std_process_unsetenv \
+        std_process_getpid \
+        std_process_getppid \
+        std_process_getcwd \
+        std_process_getcwd_ptr \
+        std_process_getcwd_cached_len \
+        std_process_chdir \
+        std_process_self_exe_path \
+        std_process_self_exe_path_ptr \
+        std_process_self_exe_path_cached_len \
+        std_process_spawn \
+        std_process_spawn_io \
+        std_process_exec \
+        std_process_waitpid \
+        std_process_spawn_simple \
+        std_process_exec_simple \
+        std_process_pipe \
+        "$anchor"; do
+        # Darwin nm prefixes '_'. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="$_pa_short" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _pa_ok=0
           break
         fi
@@ -1305,12 +1318,18 @@ ensure_process_import_alias_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="___exit" { n++ } END { exit (n==1)?0:1 }'; then
-        echo "ensure_host_cc_seed_o process-alias: ___exit is not undefined" >&2
-        rm -f "$o"
-        continue
+      if [ "$_pa_os" = "Darwin" ]; then
+        # Full nm: Darwin nm -u hides the U column.
+        # PLATFORM: MACOS|DARWIN.
+        if ! nm "$o" 2>/dev/null | awk '($1=="U" || $2=="U") && ($NF=="___exit" || $NF=="__exit") { n++ } END { exit (n>=1)?0:1 }'; then
+          echo "ensure_host_cc_seed_o process-alias: ___exit is not undefined" >&2
+          rm -f "$o"
+          continue
+        fi
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_process_args_count_c" { n++ } END { exit (n==1)?0:1 }'; then
+      # Full nm: Darwin nm -u hides the U column. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '($1=="U" || $2=="U") && ($NF=="process_args_count_c" || $NF=="_process_args_count_c") { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o process-alias: process_args_count_c is not undefined" >&2
         rm -f "$o"
         continue
@@ -1321,6 +1340,12 @@ ensure_process_import_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o process-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o process-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $seed → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -5847,13 +5872,18 @@ ensure_one() {
     fi
   fi
 
-  # w1105: Darwin arm64 std_process_* face is the .x, not this seed.
-  # Match runtime_process_import_alias.o only. Linux and Windows keep the seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1105: Darwin arm64 and Linux std_process_* face is the .x, not this seed.
+  # Match runtime_process_import_alias.o only. Windows keeps the seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   if [ "$(basename "$out")" = "runtime_process_import_alias.o" ]; then
     local pa_s pa_m
     pa_s="$(uname -s 2>/dev/null || echo Unknown)"
     pa_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$pa_s" = "Linux" ] && [ "$pa_m" = "x86_64" ] \
+      && [ -f src/asm/runtime_process_import_alias_linux.x ]; then
+      ensure_process_import_alias_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
       && [ -f src/asm/runtime_process_import_alias_darwin.x ]; then
       ensure_process_import_alias_darwin_pure "$out" || return 1
@@ -27051,7 +27081,10 @@ ensure_runtime_os_prefer_one() {
     local pa_s pa_m
     pa_s="$(uname -s 2>/dev/null || echo Unknown)"
     pa_m="$(uname -m 2>/dev/null || echo unknown)"
-    if [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
+    if [ "$pa_s" = "Linux" ] && [ "$pa_m" = "x86_64" ] \
+      && [ -f src/asm/runtime_process_import_alias_linux.x ]; then
+      ensure_process_import_alias_darwin_pure "$o" || return 1
+    elif [ "$pa_s" = "Darwin" ] && [ "$pa_m" = "arm64" ] \
       && [ -f src/asm/runtime_process_import_alias_darwin.x ]; then
       ensure_process_import_alias_darwin_pure "$o" || return 1
       return 0
@@ -27985,6 +28018,10 @@ ensure_std_core_prefer_one() {
          [ src/asm/runtime_process_import_alias_darwin.x -nt "$o" ]; then
         stale=1
       fi
+      if [ -f src/asm/runtime_process_import_alias_linux.x ] &&
+         [ src/asm/runtime_process_import_alias_linux.x -nt "$o" ]; then
+        stale=1
+      fi
 
     fi
     # wave796: net multi-merge source mtime (FORCE thin; G.7 single body).
@@ -28184,9 +28221,9 @@ ensure_std_core_prefer_one() {
       fi
       _proc_alias_c="seeds/runtime_process_import_alias.from_x.c"
       # w1105: Darwin arm64 exit is libSystem __exit (Mach-O ___exit).
-      # The twelfth knife stayed on the seed because no exported definer
-      # existed. Linux and Windows still cc this seed.
-      # PLATFORM: MACOS|DARWIN arm64 pure asm; LINUX|WINDOWS seed.
+      # Linux exit_group is inline in runtime_process_import_alias_linux.x.
+      # Windows still cc this seed.
+      # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64 pure asm; WINDOWS seed.
       if [ ! -f "$_proc_alias_c" ]; then
         echo "ensure_host_cc_seed_o try-std-core-prefer: missing $_proc_alias_c for $o" >&2
         return 1
@@ -28200,11 +28237,14 @@ ensure_std_core_prefer_one() {
         rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
-      # PLATFORM: MACOS|DARWIN arm64 — pure asm. Linux stays cc -c of the seed.
+      # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64 — pure asm.
+      # Linux miss does not cc. Windows stays cc -c of the seed.
       _alias_os="$(uname -s 2>/dev/null || echo Unknown)"
       _alias_mach="$(uname -m 2>/dev/null || echo unknown)"
-      if [ "$_alias_os" = "Darwin" ] && [ "$_alias_mach" = "arm64" ] \
-        && [ -f src/asm/runtime_process_import_alias_darwin.x ]; then
+      if { [ "$_alias_os" = "Linux" ] && [ "$_alias_mach" = "x86_64" ] \
+          && [ -f src/asm/runtime_process_import_alias_linux.x ]; } \
+        || { [ "$_alias_os" = "Darwin" ] && [ "$_alias_mach" = "arm64" ] \
+          && [ -f src/asm/runtime_process_import_alias_darwin.x ]; }; then
         if ! bash scripts/ensure_host_cc_seed_o.sh process-alias-pure "$tmp_alias"; then
           rm -f "$tmp_args" "$tmp_alias"
           return 1
@@ -28216,7 +28256,14 @@ ensure_std_core_prefer_one() {
           return 1
         fi
       fi
-      if ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+      # Linux merge uses ld -r so this leaf does not execve(cc) for -r.
+      # PLATFORM: LINUX. Darwin keeps _std_core_ld_r (libtool fallback).
+      if [ "$_alias_os" = "Linux" ]; then
+        if ! /usr/bin/ld -r -o "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+          rm -f "$tmp_args" "$tmp_alias"
+          return 1
+        fi
+      elif ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
         rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
@@ -32788,9 +32835,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   process-alias-pure|process_alias_pure)
-    # w1105: Darwin arm64 std_process_* face from .x. Does not run the
-    # rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1105: Darwin arm64 and Linux std_process_* face from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o process-alias-pure: need <out.o>" >&2
       exit 2

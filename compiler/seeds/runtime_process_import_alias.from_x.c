@@ -1,4 +1,7 @@
 /* seeds/runtime_process_import_alias.from_x.c — pure-asm product std_process_* face
+ * Darwin arm64 product body is src/asm/runtime_process_import_alias_darwin.x.
+ * Linux x86_64 product body is src/asm/runtime_process_import_alias_linux.x.
+ * Windows keeps host cc of this seed.
  *
  * PLATFORM: SHARED — ld -r into std/process/process.o (process_merge authority).
  *
