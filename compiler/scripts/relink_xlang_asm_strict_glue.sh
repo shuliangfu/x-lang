@@ -2165,10 +2165,19 @@ ensure_lsp_pipeline_ctx_obj
 # PLATFORM: SHARED — match build_xlang_asm ensure_lsp_diag_pipeline_sizes_obj (seed weak sizes).
 ensure_lsp_diag_pipeline_sizes_obj() {
   local o="src/lsp/lsp_diag_pipeline_sizes.o"
-  # w1114: Darwin arm64 sizes are the .x. Linux and Windows stay on cc_inc_tu.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1114: Darwin arm64 and Linux sizes are the .x. Linux miss does not cc.
+  # Windows stays on cc_inc_tu.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
   _sz_os="$(uname -s 2>/dev/null || echo Unknown)"
   _sz_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_sz_os" = "Linux" ] && [ "$_sz_mach" = "x86_64" ] \
+    && [ -f src/asm/lsp_diag_pipeline_sizes_weak_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/lsp_diag_pipeline_sizes_weak_darwin.x -nt "$o" ] \
+      || [ "seeds/lsp_diag_pipeline_sizes_weak.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-sizes-weak-pure "$o" || return 1
+    fi
+    return 0
+  fi
   if [ "$_sz_os" = "Darwin" ] && [ "$_sz_mach" = "arm64" ] \
     && [ -f src/asm/lsp_diag_pipeline_sizes_weak_darwin.x ]; then
     if [ ! -f "$o" ] || [ src/asm/lsp_diag_pipeline_sizes_weak_darwin.x -nt "$o" ] \

@@ -2854,10 +2854,12 @@ ensure_ast_bare_alias_darwin_pure() {
   return 0
 }
 
-# w1114: Darwin arm64 src/lsp/lsp_diag_pipeline_sizes.o returns fixed sizes.
-# arena is 16, module is 40, dep context is 1560. Alloc returns 0.
-# Linux and Windows keep the C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1114: Darwin arm64 and Linux src/lsp/lsp_diag_pipeline_sizes.o
+# return fixed sizes. arena is 16, module is 40, dep context is 1560.
+# Alloc returns 0. The two placeholders are weakened after emit so a
+# linked context object can replace them. Linux miss does not exec cc.
+# Windows keeps the C seed, which uses sizeof.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object. cwd is compiler/.
 ensure_lsp_sizes_weak_darwin_pure() {
   local o="${1:-src/lsp/lsp_diag_pipeline_sizes.o}"
@@ -2898,7 +2900,9 @@ ensure_lsp_sizes_weak_darwin_pure() {
         _lsp_diag_x_alloc_dep_ctx_size \
         _lsp_diag_pipeline_ctx_fill_paths \
         _lsp_diag_sizes_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_sz_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_sz_short#_}$"; then
           _sz_ok=0
           break
         fi
@@ -2913,12 +2917,59 @@ ensure_lsp_sizes_weak_darwin_pure() {
         rm -f "$o"
         continue
       fi
+      # Placeholders stay weak. Sizes stay strong. Darwin nm still
+      # prints T for a weak symbol, so that host checks nm -m.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      _sz_oc="$(pure_asm_find_objcopy)" || {
+        echo "ensure_host_cc_seed_o lsp-sizes-weak: objcopy missing" >&2
+        rm -f "$o"
+        continue
+      }
+      _sz_pref=""
+      if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ]; then
+        _sz_pref="_"
+      fi
+      if ! "$_sz_oc" \
+        --weaken-symbol="${_sz_pref}lsp_diag_x_alloc_dep_ctx_size" \
+        --weaken-symbol="${_sz_pref}lsp_diag_pipeline_ctx_fill_paths" \
+        "$o"; then
+        echo "ensure_host_cc_seed_o lsp-sizes-weak: weaken failed" >&2
+        rm -f "$o"
+        continue
+      fi
+      if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ]; then
+        if ! nm -m "$o" 2>/dev/null | awk '
+          $0 ~ /_lsp_diag_x_alloc_dep_ctx_size$/ && $0 ~ /weak/ { a=1 }
+          $0 ~ /_lsp_diag_pipeline_ctx_fill_paths$/ && $0 ~ /weak/ { f=1 }
+          END { exit (a && f) ? 0 : 1 }'; then
+          echo "ensure_host_cc_seed_o lsp-sizes-weak: placeholders are not weak" >&2
+          rm -f "$o"
+          continue
+        fi
+      else
+        if ! nm "$o" 2>/dev/null | grep -qE " W _?lsp_diag_x_alloc_dep_ctx_size$"; then
+          echo "ensure_host_cc_seed_o lsp-sizes-weak: alloc placeholder is not weak" >&2
+          rm -f "$o"
+          continue
+        fi
+        if ! nm "$o" 2>/dev/null | grep -qE " W _?lsp_diag_pipeline_ctx_fill_paths$"; then
+          echo "ensure_host_cc_seed_o lsp-sizes-weak: fill placeholder is not weak" >&2
+          rm -f "$o"
+          continue
+        fi
+      fi
       log "pure-asm $xsrc → $o"
       return 0
     fi
     echo "ensure_host_cc_seed_o lsp-sizes-weak: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to the seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o lsp-sizes-weak: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu $csrc → $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh "$csrc" "$o" -I. -Iinclude -Isrc || return 1
@@ -32310,9 +32361,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   lsp-sizes-weak-pure|lsp_sizes_weak_pure)
-    # w1114: Darwin arm64 pipeline size stub from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1114: Darwin arm64 and Linux pipeline size stub from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o lsp-sizes-weak-pure: need <out.o>" >&2
       exit 2

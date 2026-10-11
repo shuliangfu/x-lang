@@ -4,10 +4,12 @@
 // lsp_diag_pipeline_sizes_weak_darwin.x — Darwin arm64 body of
 // src/lsp/lsp_diag_pipeline_sizes.o.
 //
-// The three sizes match this host's C seed: arena 16, module 40,
-// dep context 1560. The allocator stub returns 0. Path fill does
-// not write. Linux and Windows keep the C seed, which uses sizeof.
-// PLATFORM: MACOS|DARWIN arm64.
+// The three sizes match the C seed on Darwin and on Linux: arena 16,
+// module 40, dep context 1560. The allocator stub returns 0. Path fill
+// does not write. Linux uses this file. A Linux miss returns 1 and
+// does not exec cc. The two placeholders are weakened after emit.
+// Windows keeps the C seed, which uses sizeof.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 /**
  * Anchor for this Darwin pipeline-size stub.
