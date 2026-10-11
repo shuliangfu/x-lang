@@ -298,10 +298,10 @@ formal_mod_spec_for_key() {
     # stay base64_encode_standard_c, base64_decode_standard_c, and
     # base64_encode_url_c. Undefined symbols are memcpy and memset.
     std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
-    # PLATFORM: MACOS|DARWIN|LINUX — aes_gcm.x, chacha20_aead.x, and
-    # chacha20_poly1305.x are bare-impl files. -lib-name "" keeps the
-    # crypto_aes_gcm_* and crypto_chacha_* names. The other crypto files
-    # stay on the C path. WINDOWS stays on the C path.
+    # PLATFORM: MACOS|DARWIN|LINUX — aes_gcm.x, chacha20_aead.x,
+    # chacha20_poly1305.x, and core.x are bare-impl files. -lib-name ""
+    # keeps the crypto_* names. mod.x and ed25519.x stay on the C path.
+    # WINDOWS stays on the C path.
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.log is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_log_*.
@@ -1817,6 +1817,35 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/ccp_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/core.x|std/crypto/core.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_mem_eq_c and crypto_f_sha256_marker_c.
+      # The compare loop loads one byte per index. A miss stops here.
+      # mod.x and ed25519.x stay on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ccore_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ccore_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ccore_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_mem_eq_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_f_sha256_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ccore_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
