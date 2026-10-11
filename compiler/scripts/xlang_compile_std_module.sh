@@ -256,6 +256,11 @@ formal_mod_spec_for_key() {
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
     std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
     std/sort/sort.o) printf '%s' "mod|0|../std/sort/mod.x|../std/sort/sort.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.ffi is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_ffi_*.
+    # ffi.x is the bare impl and keeps -lib-name "" so the exports
+    # stay ffi_cstr_len_c, ffi_cstring_new_c, and ffi_point_pack_c.
+    # Undefined symbols are malloc, free, memcpy, and strlen.
     std/ffi/ffi.o) printf '%s' "mod|1|../std/ffi/mod.x|../std/ffi/ffi.x" ;;
     std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
@@ -1871,6 +1876,69 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_random_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/ffi/mod.x|std/ffi/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.ffi mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_ffi_cstr_len, std_ffi_cstring_new, and
+      # std_ffi_point_pack defined. Undefined symbols are the ffi_*_c
+      # helpers defined in ffi.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sffi_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sffi_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_ffi_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_cstr_len$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_cstring_new$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_point_pack$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_ffi_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/ffi/ffi.x|std/ffi/ffi.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.ffi.
+      # -lib-name "" keeps ffi_cstr_len_c, ffi_cstring_new_c, and
+      # ffi_point_pack_c. Without it the path prefix doubles the export.
+      # Undefined symbols are malloc, free, memcpy, and strlen.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sffix_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sffix_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_ffi_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_cstr_len_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_cstring_new_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_point_pack_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_ffi_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
