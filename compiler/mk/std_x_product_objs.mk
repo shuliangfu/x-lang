@@ -14,7 +14,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/async/scheduler.o \
 	../std/security/security.o \
 	../std/config/config.o \
-	../std/trace/trace.o \
 	../std/regex/regex.o \
 	../std/unicode/unicode.o \
 	../std/socketio/socketio.o \

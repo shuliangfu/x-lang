@@ -126,6 +126,7 @@ formal_mod_key_for_out() {
     # Was std_x auto-soft kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_*.
     ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
     ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
+    ../std/trace/trace.o|std/trace/trace.o|*std/trace/trace.o) printf '%s' "std/trace/trace.o" ;;
     ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
@@ -406,6 +407,12 @@ formal_mod_spec_for_key() {
     # Undefined symbols are csv_parse_row_c, the json_cursor_* and
     # json_parse_* faces, calloc, free, memcpy, strcmp, and strlen.
     std/schema/schema.o) printf '%s' "mod|1|../std/schema/mod.x|../std/schema/schema.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.trace is trace.x only, one asm leaf.
+    # mod.x still fails: std.io Buffer padding T001 and std.net XP008.
+    # WINDOWS stays on the C path. -lib-name "" keeps trace_*_c.
+    # Undefined symbols are random_fill_bytes_c, time_now_monotonic_ns_c,
+    # calloc, free, and memcpy.
+    std/trace/trace.o) printf '%s' "mod|1|../std/trace/trace.x" ;;
     # PLATFORM: SHARED — std.db.arrow product face.
     # Was std_x bare arrow.x only → T arrow_* / no std_db_arrow_* (import METHOD UNDEF).
     std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
@@ -556,6 +563,7 @@ formal_mod_all_keys() {
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \
     std/schema/schema.o \
+    std/trace/trace.o \
     std/db/arrow/arrow.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
@@ -3514,6 +3522,36 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_sch_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/trace/trace.x|std/trace/trace.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.trace.
+      # -lib-name "" keeps trace_create_c, trace_smoke_c, and
+      # trace_export_text_c. mod.x is not in this leaf.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _strx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_strx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_tr_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_smoke_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_export_text_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_tr_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

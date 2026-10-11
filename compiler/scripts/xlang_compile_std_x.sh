@@ -42,7 +42,7 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 8 (schema.o moved onto the formal asm leaf; was 9 after backtrace).
+# Honesty COUNT = 7 (trace.o moved onto the formal asm leaf; was 8 after schema).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
@@ -51,7 +51,6 @@ std_x_key_for_out() {
     ../std/async/scheduler.o|std/async/scheduler.o|*std/async/scheduler.o) printf '%s' "std/async/scheduler.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
-    ../std/trace/trace.o|std/trace/trace.o|*std/trace/trace.o) printf '%s' "std/trace/trace.o" ;;
     ../std/regex/regex.o|std/regex/regex.o|*std/regex/regex.o) printf '%s' "std/regex/regex.o" ;;
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/socketio/socketio.o|std/socketio/socketio.o|*std/socketio/socketio.o) printf '%s' "std/socketio/socketio.o" ;;
@@ -66,7 +65,6 @@ std_x_spec_for_key() {
     std/async/scheduler.o) printf '%s' "auto-soft|../std/async/scheduler.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
     std/config/config.o) printf '%s' "auto-soft|../std/config/config.x" ;;
-    std/trace/trace.o) printf '%s' "auto-soft|../std/trace/trace.x" ;;
     std/regex/regex.o) printf '%s' "auto-soft|../std/regex/regex.x" ;;
     std/unicode/unicode.o) printf '%s' "auto-soft|../std/unicode/unicode.x" ;;
     std/socketio/socketio.o) printf '%s' "auto-soft-merge|../std/socketio/socketio.x" ;;
@@ -80,7 +78,6 @@ std_x_all_keys() {
     std/async/scheduler.o \
     std/security/security.o \
     std/config/config.o \
-    std/trace/trace.o \
     std/regex/regex.o \
     std/unicode/unicode.o \
     std/socketio/socketio.o \
@@ -172,21 +169,20 @@ std_x_check() {
 std/async/scheduler.o
 std/security/security.o
 std/config/config.o
-std/trace/trace.o
 std/regex/regex.o
 std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 8 ]; then
-    echo "std_x --check: expected 8 keys, counted $_n" >&2
+  if [ "$_n" -ne 7 ]; then
+    echo "std_x --check: expected 7 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (8 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (7 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 

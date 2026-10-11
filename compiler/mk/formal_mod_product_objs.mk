@@ -63,6 +63,7 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/db/sqlite/sqlite.o \
 	../std/db/kv/kv.o \
 	../std/schema/schema.o \
+	../std/trace/trace.o \
 	../std/db/arrow/arrow.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
