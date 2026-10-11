@@ -119,33 +119,17 @@ allow(padding) struct PosixStatBuf {
 /* See implementation. */
 extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
-// PLATFORM: LINUX — KEEP_C preamble has static inline xlang_sys_readv.
-// A direct readv extern uses uint8_t * and conflicts with sys/uio.h.
-#[cfg(target_os = "linux")]
-extern "C" function xlang_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
-// PLATFORM: MACOS|DARWIN — the asm object has no C preamble, so the call is libc readv.
-#[cfg(target_os = "macos")]
+// PLATFORM: POSIX — the asm object calls libc. There is no C preamble in
+// that object, so these uint8_t * declarations never meet the system headers.
 extern "C" function readv(fd: i32, iov: *u8, iovcnt: i32): isize;
 // xlang_sys_writev stays: runtime_asm_io_stubs.o defines it. PLATFORM: POSIX.
 extern "C" function xlang_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
-// PLATFORM: LINUX — preamble inline over the net Cap. Direct poll conflicts
-// with sys/poll.h (struct pollfd * versus uint8_t *).
-#[cfg(target_os = "linux")]
-extern "C" function xlang_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
-// PLATFORM: MACOS|DARWIN — libc poll. nfds is the entry count.
-#[cfg(target_os = "macos")]
+// PLATFORM: POSIX — libc poll. nfds is the entry count (nfds_t).
 extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
-// PLATFORM: LINUX — preamble inlines call libc with the system prototype.
-#[cfg(target_os = "linux")]
-extern "C" function xlang_sys_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-#[cfg(target_os = "linux")]
-extern "C" function xlang_sys_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-// PLATFORM: MACOS|DARWIN — no C preamble in the asm object.
-#[cfg(target_os = "macos")]
+// PLATFORM: POSIX — libc pread/pwrite. The asm object does not include unistd.h.
 extern "C" function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-#[cfg(target_os = "macos")]
 extern "C" function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
 extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 extern "C" function munmap(addr: *u8, len: usize): i32;
@@ -155,16 +139,8 @@ extern "C" function fsync(fd: i32): i32;
 extern "C" function fchmod(fd: i32, mode: u32): i32;
 extern "C" function chmod(path: *u8, mode: u32): i32;
 extern "C" function mkdir(path: *u8, mode: u32): i32;
-// PLATFORM: LINUX — preamble inlines cast to const char * before libc.
-// A direct unlink/rmdir extern conflicts with unistd.h under KEEP_C.
-#[cfg(target_os = "linux")]
-extern "C" function xlang_fs_unlink(path: *u8): i32;
-#[cfg(target_os = "linux")]
-extern "C" function xlang_fs_rmdir(path: *u8): i32;
-// PLATFORM: MACOS|DARWIN — the asm object has no C preamble.
-#[cfg(target_os = "macos")]
+// PLATFORM: POSIX — libc unlink/rmdir. The asm object has no C preamble.
 extern "C" function unlink(path: *u8): i32;
-#[cfg(target_os = "macos")]
 extern "C" function rmdir(path: *u8): i32;
 extern "C" function umask(mask: u32): u32;
 /* Cap residual 9.1.10: POSIX (Linux and Darwin) dir via xlang_dir_cap.h (no libc opendir). */
@@ -229,57 +205,26 @@ export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
   return 0 as isize; // unreachable — typeck workaround
 }
 /**
- * Read `count` bytes at `offset` through the C preamble helper.
- *
- * Linux KEEP_C includes static inline `xlang_sys_pread`, which calls libc
- * with the system prototype. Emitting `extern pread` from this file uses
- * `uint8_t *` and conflicts with unistd.h. `offset` is from the start of
- * the file. Returns the byte count, or a negative error.
- *
- * PLATFORM: LINUX
- */
-#[cfg(target_os = "linux")]
-export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return xlang_sys_pread(fd, buf, count, offset); }
-  return 0 as isize; // unreachable — typeck workaround
-}
-/**
  * Read `count` bytes at `offset` via libc `pread`.
  *
- * The Darwin asm object does not contain the C preamble inline, so this
- * call is the libc symbol. `offset` is from the start of the file.
- * Returns the byte count, or a negative error.
+ * The asm object does not contain the C preamble inline, so this call is
+ * the libc symbol. `offset` is from the start of the file. Returns the
+ * byte count, or a negative error.
  *
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: POSIX
  */
-#[cfg(target_os = "macos")]
 export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pread(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /**
- * Write `count` bytes at `offset` through the C preamble helper.
- *
- * Same KEEP_C constraint as `fs_libc_pread`: the inline calls libc
- * `pwrite` with `const void *`. This does not move the descriptor offset.
- * Returns the byte count, or a negative error.
- *
- * PLATFORM: LINUX
- */
-#[cfg(target_os = "linux")]
-export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return xlang_sys_pwrite(fd, buf, count, offset); }
-  return 0 as isize; // unreachable — typeck workaround
-}
-/**
  * Write `count` bytes at `offset` via libc `pwrite`.
  *
- * Darwin asm has no C preamble. This does not move the descriptor offset.
+ * The asm object has no C preamble. This does not move the descriptor offset.
  * Returns the byte count, or a negative error.
  *
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: POSIX
  */
-#[cfg(target_os = "macos")]
 export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
   unsafe { return pwrite(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
@@ -453,54 +398,24 @@ export function fs_libc_mkdir(path: *u8, mode: u32): i32 {
   return 0; // unreachable — typeck workaround
 }
 /**
- * Remove the directory entry at `path`.
- *
- * Linux KEEP_C uses the preamble inline, which casts to `const char *`
- * before libc `unlink`. A direct extern conflicts with unistd.h.
- * `path` must be NUL-terminated. Returns 0, or -1 on failure.
- *
- * PLATFORM: LINUX
- */
-#[cfg(target_os = "linux")]
-export function fs_libc_unlink(path: *u8): i32 {
-  unsafe { return xlang_fs_unlink(path); }
-  return 0; // unreachable — typeck workaround
-}
-/**
  * Remove the directory entry at `path` via libc `unlink`.
  *
- * Darwin asm has no C preamble. `path` must be NUL-terminated.
+ * The asm object has no C preamble. `path` must be NUL-terminated.
  * Returns 0, or -1 on failure.
  *
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: POSIX
  */
-#[cfg(target_os = "macos")]
 export function fs_libc_unlink(path: *u8): i32 {
   unsafe { return unlink(path); }
   return 0; // unreachable — typeck workaround
 }
 /**
- * Remove an empty directory at `path`.
- *
- * Linux KEEP_C uses the preamble inline. A direct `rmdir` extern
- * conflicts with unistd.h (`uint8_t *` versus `const char *`).
- * Returns 0, or -1 on failure.
- *
- * PLATFORM: LINUX
- */
-#[cfg(target_os = "linux")]
-export function fs_libc_rmdir(path: *u8): i32 {
-  unsafe { return xlang_fs_rmdir(path); }
-  return 0; // unreachable — typeck workaround
-}
-/**
  * Remove an empty directory at `path` via libc `rmdir`.
  *
- * Darwin asm has no C preamble. Returns 0, or -1 on failure.
+ * The asm object has no C preamble. Returns 0, or -1 on failure.
  *
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: POSIX
  */
-#[cfg(target_os = "macos")]
 export function fs_libc_rmdir(path: *u8): i32 {
   unsafe { return rmdir(path); }
   return 0; // unreachable — typeck workaround
@@ -515,26 +430,12 @@ export function fs_libc_umask(mask: u32): u32 {
   return 0 as u32; // unreachable — typeck workaround
 }
 /**
- * Scatter-read `iovcnt` entries from `fd` through the C preamble helper.
- *
- * The inline casts the buffer to `const struct iovec *`. A direct `readv`
- * extern conflicts with sys/uio.h. Returns the byte count, or a negative error.
- *
- * PLATFORM: LINUX
- */
-#[cfg(target_os = "linux")]
-export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return xlang_sys_readv(fd, iov as *u8, iovcnt); }
-  return 0 as isize; // unreachable — typeck workaround
-}
-/**
  * Scatter-read `iovcnt` entries from `fd` via libc `readv`.
  *
- * Darwin asm has no C preamble. Returns the byte count, or a negative error.
+ * The asm object has no C preamble. Returns the byte count, or a negative error.
  *
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: POSIX
  */
-#[cfg(target_os = "macos")]
 export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
   unsafe { return readv(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
@@ -668,28 +569,14 @@ export function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
   return 0; // unreachable — typeck workaround
 }
 /**
- * Wait on `nfds` poll entries through the C preamble helper.
- *
- * The inline takes `int32_t` nfds and calls the net Cap. A direct `poll`
- * extern conflicts with sys/poll.h. `timeout` is milliseconds; negative
- * waits forever. Returns the ready count, or a negative error.
- *
- * PLATFORM: LINUX
- */
-#[cfg(target_os = "linux")]
-export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
-  unsafe { return xlang_sys_poll(fds as *u8, nfds as i32, timeout); }
-  return 0; // unreachable — typeck workaround
-}
-/**
  * Wait on `nfds` poll entries via libc `poll`.
  *
- * Darwin asm has no C preamble. `timeout` is milliseconds; negative waits
- * forever. Returns the ready count, or a negative error.
+ * The asm object has no C preamble. `nfds` is the entry count. `timeout`
+ * is milliseconds; negative waits forever. Returns the ready count, or a
+ * negative error.
  *
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: POSIX
  */
-#[cfg(target_os = "macos")]
 export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
   unsafe { return poll(fds as *u8, nfds, timeout); }
   return 0; // unreachable — typeck workaround
