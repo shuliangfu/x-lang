@@ -3207,11 +3207,12 @@ ensure_std_compress_formal_darwin_pure() {
   return 0
 }
 
-# w1100: Darwin arm64 core/slice/slice.o is the .x slice values.
-# from_ptr and subslice return a 16-byte { data, length }.
+# w1100: Darwin arm64 and Linux core/slice/slice.o are the .x slice values.
+# from_ptr and subslice write a 16-byte { data, length } through out.
 # A start past the end keeps the original pointer and length 0.
-# Linux and Windows keep the C seed. No gcc -E.
-# PLATFORM: MACOS|DARWIN arm64.
+# Linux miss returns 1 and does not exec cc. Windows keeps the C seed.
+# No gcc -E.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object (default ../core/slice/slice.o, cwd is compiler/).
 ensure_slice_glue_darwin_pure() {
   local o="${1:-../core/slice/slice.o}"
@@ -3246,15 +3247,15 @@ ensure_slice_glue_darwin_pure() {
       local _sl_short _sl_ok
       _sl_ok=1
       for _sl_short in \
-        _core_slice_i32_from_ptr_c \
-        _core_slice_u8_from_ptr_c \
-        _core_slice_u64_from_ptr_c \
-        _core_subslice_i32_c \
-        _core_subslice_u8_c \
-        _core_subslice_u64_c \
-        _slice_glue_clamp_len \
-        _runtime_slice_glue_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_sl_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        core_slice_i32_from_ptr_c \
+        core_slice_u8_from_ptr_c \
+        core_slice_u64_from_ptr_c \
+        core_subslice_i32_c \
+        core_subslice_u8_c \
+        core_subslice_u64_c \
+        slice_glue_clamp_len \
+        runtime_slice_glue_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_sl_short}$"; then
           _sl_ok=0
           break
         fi
@@ -3271,6 +3272,10 @@ ensure_slice_glue_darwin_pure() {
     rm -f "$o"
   done
   if [ ! -s "$o" ]; then
+    if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+      echo "ensure_host_cc_seed_o slice-glue: pure-asm failed for $xsrc" >&2
+      return 1
+    fi
     log "cc -c $seed → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
     $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
@@ -5360,13 +5365,21 @@ ensure_one() {
     fi
   fi
 
-  # w1100: Darwin arm64 slice values are the .x, not this seed.
-  # Linux and Windows keep host-cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1100: Darwin arm64 and Linux slice values are the .x, not this seed.
+  # Linux miss does not cc. Windows keeps host-cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
   if [ "$(basename "$seed")" = "runtime_slice_glue.from_x.c" ]; then
     local sl_s sl_m
     sl_s="$(uname -s 2>/dev/null || echo Unknown)"
     sl_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$sl_s" = "Linux" ]; then
+      if [ ! -x ./xlang ] || [ ! -f src/asm/runtime_slice_glue.x ]; then
+        echo "ensure_host_cc_seed_o slice-glue: pure-asm needs ./xlang and src/asm/runtime_slice_glue.x" >&2
+        return 1
+      fi
+      ensure_slice_glue_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$sl_s" = "Darwin" ] && [ "$sl_m" = "arm64" ] \
       && [ -f src/asm/runtime_slice_glue.x ]; then
       ensure_slice_glue_darwin_pure "$out" || return 1
@@ -27614,14 +27627,22 @@ ensure_std_core_prefer_one() {
           return 0
         fi
       fi
-      # w1100: Darwin arm64 slice.o is the 16-byte slice values.
+      # w1100: Darwin arm64 and Linux slice.o is the 16-byte slice values.
       # xlang-c still emits C and host-cc's it, so it is not the first path.
-      # Linux and Windows keep the branches below.
-      # PLATFORM: MACOS|DARWIN arm64.
+      # Linux miss does not cc. Windows keeps the branches below.
+      # PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
       if [ "$x_src" = "src/asm/runtime_slice_glue.x" ]; then
         local sl_s sl_m
         sl_s="$(uname -s 2>/dev/null || echo Unknown)"
         sl_m="$(uname -m 2>/dev/null || echo unknown)"
+        if [ "$sl_s" = "Linux" ]; then
+          if [ ! -x ./xlang ] || [ ! -f src/asm/runtime_slice_glue.x ]; then
+            echo "ensure_host_cc_seed_o slice-glue: pure-asm needs ./xlang and src/asm/runtime_slice_glue.x" >&2
+            return 1
+          fi
+          ensure_slice_glue_darwin_pure "$o" || return 1
+          return 0
+        fi
         if [ "$sl_s" = "Darwin" ] && [ "$sl_m" = "arm64" ]; then
           ensure_slice_glue_darwin_pure "$o" || return 1
           return 0

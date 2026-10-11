@@ -3,13 +3,14 @@
 //
 // runtime_slice_glue.x — 16-byte slice values for core.slice.
 //
-// Darwin arm64 product body for ../core/slice/slice.o. Each constructor
-// writes { data, length } through an out pointer. The installed product
-// cannot asm-emit a struct return or a usize return, and a 16-byte
-// struct uses rax and rdx, so an i64 return would not be the same ABI.
-// Link names stay the same. Linux and Windows keep the C seed, which
-// writes the same out pointer.
-// PLATFORM: SHARED layout; MACOS|DARWIN arm64 prefers this .x.
+// Darwin arm64 and Linux product body for ../core/slice/slice.o.
+// Each constructor writes { data, length } through an out pointer.
+// The installed product cannot asm-emit a struct return or a usize
+// return, and a 16-byte struct uses two return registers, so an i64
+// return would not be the same ABI. Link names stay the same.
+// A Linux miss returns 1 and does not exec cc. Windows keeps the C
+// seed, which writes the same out pointer.
+// PLATFORM: SHARED layout; MACOS|DARWIN arm64 | LINUX prefer this .x.
 
 /* Two-word slice: pointer then element count. */
 export struct XlangSliceI32 {
