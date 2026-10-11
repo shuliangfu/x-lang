@@ -298,9 +298,9 @@ formal_mod_spec_for_key() {
     # stay base64_encode_standard_c, base64_decode_standard_c, and
     # base64_encode_url_c. Undefined symbols are memcpy and memset.
     std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
-    # PLATFORM: MACOS|DARWIN|LINUX — aes_gcm.x is one bare-impl file.
-    # -lib-name "" keeps crypto_aes_gcm_marker_c, crypto_aes_gcm_seal_c,
-    # and crypto_aes_gcm_open_c. The other crypto files stay on the C path.
+    # PLATFORM: MACOS|DARWIN|LINUX — aes_gcm.x and chacha20_aead.x are
+    # bare-impl files. -lib-name "" keeps the crypto_aes_gcm_* and
+    # crypto_chacha_* names. The other crypto files stay on the C path.
     # WINDOWS stays on the C path.
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.log is one asm leaf.
@@ -1757,6 +1757,37 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/aes_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/chacha20_aead.x|std/crypto/chacha20_aead.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_chacha_aead_marker_c and the three
+      # crypto_chacha20_poly1305_* stubs. A miss stops here.
+      # The other crypto files stay on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cca_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cca_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/cca_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha_aead_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha20_poly1305_seal_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha20_poly1305_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha20_poly1305_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cca_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
