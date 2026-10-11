@@ -15,7 +15,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/security/security.o \
 	../std/config/config.o \
 	../std/trace/trace.o \
-	../std/schema/schema.o \
 	../std/regex/regex.o \
 	../std/unicode/unicode.o \
 	../std/socketio/socketio.o \

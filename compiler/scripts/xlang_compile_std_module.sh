@@ -125,6 +125,7 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — cookbook db_kv_arrow unique UNDEF (mmap_available / adopt).
     # Was std_x auto-soft kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_*.
     ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
+    ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
     ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
@@ -399,6 +400,12 @@ formal_mod_spec_for_key() {
     # xlang_kv_munmap_c, std_sys_mmap_mmap_available, calloc, free,
     # malloc, memcmp, memcpy, memset, strlen, and xlang_panic_.
     std/db/kv/kv.o) printf '%s' "mod|1|../std/db/kv/mod.x|../std/db/kv/kv.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.schema is one asm leaf.
+    # WINDOWS stays on the C path. schema.x takes -lib-name "".
+    # Callers use std_schema_text and schema_smoke_c.
+    # Undefined symbols are csv_parse_row_c, the json_cursor_* and
+    # json_parse_* faces, calloc, free, memcpy, strcmp, and strlen.
+    std/schema/schema.o) printf '%s' "mod|1|../std/schema/mod.x|../std/schema/schema.x" ;;
     # PLATFORM: SHARED — std.db.arrow product face.
     # Was std_x bare arrow.x only → T arrow_* / no std_db_arrow_* (import METHOD UNDEF).
     std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
@@ -548,6 +555,7 @@ formal_mod_all_keys() {
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \
+    std/schema/schema.o \
     std/db/arrow/arrow.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
@@ -3445,6 +3453,67 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_kv_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/schema/mod.x|std/schema/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.schema mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_schema_text, std_schema_err_ok, and
+      # std_schema_decode_json defined. The schema_* faces live in schema.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssch_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssch_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sch_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_text$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_err_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_decode_json$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sch_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/schema/schema.x|std/schema/schema.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.schema.
+      # -lib-name "" keeps schema_create_c, schema_decode_json_c, and
+      # schema_smoke_c. CSV rows go through csv_parse_row_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sschx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sschx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sch_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_decode_json_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sch_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
