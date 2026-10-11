@@ -248,6 +248,13 @@ formal_mod_spec_for_key() {
     std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
     std/log/log.o) printf '%s' "mod|1|../std/log/mod.x|../std/log/log.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.test is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_test_*.
+    # test.x is the bare impl and keeps -lib-name "" so the exports
+    # stay test_expect_c, test_expect_eq_i32_c, and test_fuzz_next_c.
+    # Undefined symbols are env_getenv_c, memcpy, strtoul,
+    # test_call_i32_void_c, time_now_monotonic_ns_c, xlang_panic_,
+    # and xlang_sys_write.
     std/test/test.o) printf '%s' "mod|1|../std/test/mod.x|../std/test/test.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.channel.
     # WINDOWS stays on the C path. Import mangle stays std_atomic_*.
@@ -2006,6 +2013,71 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_sort_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/test/mod.x|std/test/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.test mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_test_expect, std_test_expect_eq_i32, and
+      # std_test_fuzz_next defined. Undefined symbols are the test_*_c
+      # helpers defined in test.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stest_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stest_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_test_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_expect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_expect_eq_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_fuzz_next$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_test_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/test/test.x|std/test/test.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.test.
+      # -lib-name "" keeps test_expect_c, test_expect_eq_i32_c, and
+      # test_fuzz_next_c. Without it the path prefix doubles the export.
+      # Undefined symbols are env_getenv_c, memcpy, strtoul,
+      # test_call_i32_void_c, time_now_monotonic_ns_c, xlang_panic_,
+      # and xlang_sys_write. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stestx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stestx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_test_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?test_expect_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?test_expect_eq_i32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?test_fuzz_next_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_test_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
