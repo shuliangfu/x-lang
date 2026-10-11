@@ -2311,11 +2311,19 @@ EOF
 ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   local BR_O="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
   local BR_SRC="seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c"
-  # w1122: Darwin arm64 bridge is pure asm of the existing .x.
-  # Linux and Windows stay on -x -E then host cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1122: Darwin arm64 and Linux bridge is asm of the existing .x.
+  # The emit passes -lib-name "". Linux miss does not cc.
+  # Windows stays on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
   _eb_os="$(uname -s 2>/dev/null || echo Unknown)"
   _eb_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_eb_os" = "Linux" ] && [ "$_eb_mach" = "x86_64" ] \
+    && [ -f src/pipeline_wpo_typecheck_emit_bridge.x ]; then
+    if [ ! -f "$BR_O" ] || [ src/pipeline_wpo_typecheck_emit_bridge.x -nt "$BR_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-emit-bridge-pure "$BR_O" || return 1
+    fi
+    return 0
+  fi
   if [ "$_eb_os" = "Darwin" ] && [ "$_eb_mach" = "arm64" ] \
     && [ -f src/pipeline_wpo_typecheck_emit_bridge.x ]; then
     if [ ! -f "$BR_O" ] || [ src/pipeline_wpo_typecheck_emit_bridge.x -nt "$BR_O" ]; then
