@@ -362,6 +362,11 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — std.db.sqlite product face (cookbook sqlite_available).
     # Was std_x bare sqlite.x only → T db_* / no std_db_sqlite_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http/datetime: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.db.sqlite is one asm leaf.
+    # WINDOWS stays on the C path. sqlite.x takes -lib-name "".
+    # Callers use std_db_sqlite_open_u8_ptr and db_open_c.
+    # Undefined symbols are xlang_db_use_sqlite3_c, xlang_sqlite3_*_c,
+    # calloc, free, memcmp, memcpy, and strlen.
     std/db/sqlite/sqlite.o) printf '%s' "mod|1|../std/db/sqlite/mod.x|../std/db/sqlite/sqlite.x" ;;
     # PLATFORM: SHARED — std.db.kv / std.db.arrow product faces (cookbook db_kv_arrow).
     # Was std_x bare kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_kv_* /
@@ -2771,6 +2776,66 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_dyn_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/sqlite/mod.x|std/db/sqlite/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.sqlite mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_db_sqlite_open_u8_ptr, std_db_sqlite_exec,
+      # and std_db_sqlite_changes defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssql_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssql_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sql_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_open_u8_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_exec$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_changes$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sql_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/sqlite/sqlite.x|std/db/sqlite/sqlite.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.sqlite face is one asm leaf.
+      # -lib-name "" keeps db_open_c, db_exec_c, and db_changes_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssqlx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssqlx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sql_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_exec_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_changes_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sql_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
