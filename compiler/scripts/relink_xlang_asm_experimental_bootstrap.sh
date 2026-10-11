@@ -452,12 +452,19 @@ for o in pipeline_x.o pipeline_bootstrap_orchestration.o preprocess_x.o lexer_x.
 done
 
 PIPELINE_RUN_X_ALIAS_O="src/asm/pipeline_run_x_link_alias.o"
-# w1120: Darwin arm64 alias is pure asm of the existing .x.
-# Linux and Windows stay on the C seed line.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1120: Darwin arm64 and Linux alias is asm of the existing .x.
+# The emit passes -lib-name "". Linux miss does not cc.
+# Windows stays on the C seed line.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
 _rx_os="$(uname -s 2>/dev/null || echo Unknown)"
 _rx_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_rx_os" = "Darwin" ] && [ "$_rx_mach" = "arm64" ] \
+if [ "$_rx_os" = "Linux" ] && [ "$_rx_mach" = "x86_64" ] \
+  && [ -f src/pipeline_run_x_link_alias.x ]; then
+  if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] \
+    || [ src/pipeline_run_x_link_alias.x -nt "$PIPELINE_RUN_X_ALIAS_O" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh run-x-link-alias-pure "$PIPELINE_RUN_X_ALIAS_O" || exit 1
+  fi
+elif [ "$_rx_os" = "Darwin" ] && [ "$_rx_mach" = "arm64" ] \
   && [ -f src/pipeline_run_x_link_alias.x ]; then
   if [ ! -f "$PIPELINE_RUN_X_ALIAS_O" ] \
     || [ src/pipeline_run_x_link_alias.x -nt "$PIPELINE_RUN_X_ALIAS_O" ]; then

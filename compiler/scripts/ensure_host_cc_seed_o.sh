@@ -2538,9 +2538,11 @@ ensure_wpo_strict_alias_darwin_pure() {
   return 0
 }
 
-# w1120: Darwin arm64 src/asm/pipeline_run_x_link_alias.o forwards four bare names.
-# Linux and Windows keep -x -E then host cc. The C seed is already gone.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1120: Darwin arm64 and Linux src/asm/pipeline_run_x_link_alias.o forward four bare names.
+# The emit passes -lib-name "" so the bare names do not collide with the
+# pipeline_ targets. Linux miss does not exec cc. Windows keeps -x -E.
+# The C seed is already gone.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_run_x_link_alias_darwin_pure() {
   local o="${1:-src/asm/pipeline_run_x_link_alias.o}"
@@ -2558,10 +2560,11 @@ ensure_run_x_link_alias_darwin_pure() {
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if (
-      export XLANG_PREFER_ASM_O=1
-      pure_asm_x_to_o "$o" "$xsrc"
-    ) && [ -s "$o" ]; then
+    # -lib-name "" keeps the four exports bare. Without it they
+    # become the pipeline_ targets and the undefined list is empty.
+    # PLATFORM: MACOS|DARWIN | LINUX.
+    if ./xlang -backend asm -c -L .. -lib-name "" -o "$o" "$xsrc" \
+      && [ -s "$o" ]; then
       local _rx_short _rx_ok
       _rx_ok=1
       for _rx_short in \
@@ -2569,7 +2572,9 @@ ensure_run_x_link_alias_darwin_pure() {
         _run_x_pipeline_codegen_one_dep \
         _run_x_pipeline_codegen_deps \
         _run_x_pipeline_codegen_entry; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_rx_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Match the whole field so a pipeline_ prefix is not the bare name.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_rx_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _rx_ok=0
           break
         fi
@@ -2584,7 +2589,9 @@ ensure_run_x_link_alias_darwin_pure() {
         _pipeline_run_x_pipeline_codegen_one_dep \
         _pipeline_run_x_pipeline_codegen_deps \
         _pipeline_run_x_pipeline_codegen_entry; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_rx_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_rx_short#_}" '($1=="U" || $2=="U") && ($NF==s || $NF=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           echo "ensure_host_cc_seed_o run-x-link-alias: $_rx_short is not undefined" >&2
           rm -f "$o"
           _rx_ok=0
@@ -2600,6 +2607,12 @@ ensure_run_x_link_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o run-x-link-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o run-x-link-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32381,9 +32394,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   run-x-link-alias-pure|run_x_link_alias_pure)
-    # w1120: Darwin arm64 run_x link alias from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1120: Darwin arm64 and Linux run_x link alias from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o run-x-link-alias-pure: need <out.o>" >&2
       exit 2

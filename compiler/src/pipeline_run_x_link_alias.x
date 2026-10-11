@@ -25,8 +25,11 @@
 // .inc) to this .x source. PLATFORM: SHARED.
 // Darwin arm64 product object is this file via -backend asm. Each
 // run_x_pipeline_* name forwards once to pipeline_run_x_pipeline_*.
-// Linux and Windows keep -x -E and then host cc.
-// PLATFORM: MACOS|DARWIN for that object path.
+// Linux uses this file with -lib-name "". Without that flag the
+// four exports collide with the pipeline_ targets and nothing stays undefined.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 
 /** pipeline_x.o module-prefixed exports. */
 export extern function pipeline_run_x_pipeline_fill_dep_import_path(module: *u8, ctx: *u8, dep_j: i32): i32;
