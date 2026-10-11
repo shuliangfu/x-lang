@@ -200,8 +200,9 @@ formal_mod_spec_for_key() {
     # WINDOWS stays on the C path. Distinct from std/debug/debug.o (c_face).
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
-    # PLATFORM: SHARED — cookbook core_str_index unique UNDEF (bytes_view_index_of*).
-    # G.7 complete formal_mod like core/slice/mod.o; product import mangle core_str_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — core.str is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays core_str_*.
+    # core.slice stays on the C path: its u8 index is still a 4-byte load.
     core/str/mod.o) printf '%s' "mod|0|../core/str/mod.x" ;;
     # PLATFORM: SHARED — cookbook iter_slice_sum unique UNDEF (iter_i32 / next_i32).
     # G.7 complete formal_mod like core/str/mod.o; product import mangle core_iterator_*.
@@ -1632,6 +1633,37 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_option_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/str/mod.x|core/str/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.str is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_str_bytes_view, core_str_bytes_view_get,
+      # and core_str_bytes_view_eq defined. No undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cstr_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cstr_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/core_str_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view_eq$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/core_str_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
