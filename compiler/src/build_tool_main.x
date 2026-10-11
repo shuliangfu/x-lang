@@ -23,11 +23,12 @@
 // .x source; the ensure lane regenerates via the product -x -E and fixes
 // the emitted main signature to char** (C main requirement; .x has no
 // char type — u8 maps to uint8_t). PLATFORM: SHARED.
-// Darwin arm64 product object is this file via -backend asm.
+// Darwin arm64 and Linux product object is this file via -backend asm.
 // main forwards argc and argv to entry and returns that code.
+// A Linux miss returns 1 and does not exec cc.
 // This object is not build_tool_libc_bridge.o.
-// Linux and Windows keep -x -E and then host cc.
-// PLATFORM: MACOS|DARWIN for that object path.
+// Windows keeps -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 
 /** build_runner entry (compiled separately; C symbol `entry`). */
 export extern function entry(argc: i32, argv: **u8): i32;

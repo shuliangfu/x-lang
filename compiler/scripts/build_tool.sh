@@ -202,13 +202,16 @@ fi
 $CC $CFLAGS -Wno-unused -c build_runner_gen.c -o build_runner.o
 # shellcheck disable=SC2086
 $CC $CFLAGS -Wno-unused -c build_runtime_x_gen.c -o build_runtime_x.o
-# w1127: Darwin arm64 main is pure asm of the existing .x.
+# w1127: Darwin arm64 and Linux main is pure asm of the existing .x.
+# Linux miss does not cc. Windows stays on -x -E then host cc.
 # Does not touch build_tool_libc_bridge.o.
-# Linux and Windows stay on -x -E then host cc.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
 _bm_os="$(uname -s 2>/dev/null || echo Unknown)"
 _bm_mach="$(uname -m 2>/dev/null || echo unknown)"
-if [ "$_bm_os" = "Darwin" ] && [ "$_bm_mach" = "arm64" ] \
+if [ "$_bm_os" = "Linux" ] && [ "$_bm_mach" = "x86_64" ] \
+  && [ -f src/build_tool_main.x ]; then
+  bash scripts/ensure_host_cc_seed_o.sh build-tool-main-pure build_tool_main.o || exit 1
+elif [ "$_bm_os" = "Darwin" ] && [ "$_bm_mach" = "arm64" ] \
   && [ -f src/build_tool_main.x ]; then
   bash scripts/ensure_host_cc_seed_o.sh build-tool-main-pure build_tool_main.o
 elif [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
