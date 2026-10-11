@@ -368,6 +368,12 @@ formal_mod_spec_for_key() {
     # std_db_arrow_* (import METHOD UNDEF). G.7 complete formal_mod like sqlite.
     std/db/kv/kv.o) printf '%s' "mod|1|../std/db/kv/mod.x|../std/db/kv/kv.x" ;;
     std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib is one asm leaf.
+    # WINDOWS stays on the C path. dynlib.x takes -lib-name "".
+    # Callers use std_dynlib_open and dynlib_open_c.
+    # Undefined symbols are dynlib_os_open_c, dynlib_os_sym_c,
+    # dynlib_os_close_c, dynlib_os_copy_last_error_c,
+    # dynlib_os_win_path_smoke_c, memcpy, and memset.
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.tar is one asm leaf.
@@ -2704,6 +2710,67 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_heap_ops_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/dynlib/mod.x|std/dynlib/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_dynlib_open, std_dynlib_sym, and
+      # std_dynlib_last_os_error defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sdyn_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sdyn_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_dyn_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_sym$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_last_os_error$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_dyn_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/dynlib/dynlib.x|std/dynlib/dynlib.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib face is one asm leaf.
+      # -lib-name "" keeps dynlib_open_c, dynlib_last_error_copy_c, and
+      # dynlib_win_path_smoke_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sdynx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sdynx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_dyn_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_last_error_copy_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_win_path_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_dyn_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
