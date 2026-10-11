@@ -213,6 +213,8 @@ formal_mod_spec_for_key() {
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
     std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.backtrace.
+    # WINDOWS stays on the C path. Import mangle stays std_thread_*.
     std/thread/thread.o) printf '%s' "mod|0|../std/thread/mod.x" ;;
     std/time/time.o) printf '%s' "mod|1|../std/time/mod.x" ;;
     std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
@@ -1235,6 +1237,38 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/backtrace_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/thread/mod.x|std/thread/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.thread is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_thread_* exports defined. Undefined
+      # symbols are the thread_*_c and thread_pool_*_c externs the
+      # bodies call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _th_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_th_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/thread_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_id$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_create$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_join$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/thread_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
