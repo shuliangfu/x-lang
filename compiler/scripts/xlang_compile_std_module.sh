@@ -270,8 +270,8 @@ formal_mod_spec_for_key() {
     # PLATFORM: SHARED — std.option / std.result product faces (STD-080/081 roundtrip).
     # Wrappers over core.option / core.result; mod.x only (co-emits core bodies).
     # G.7: mod|0 like channel/core.option (no bare-impl second file).
-    # PLATFORM: MACOS|DARWIN|LINUX — std.result is one asm leaf.
-    # WINDOWS stays on the C path. Import mangle stays std_result_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.option and std.result are asm leaves.
+    # WINDOWS stays on the C path. Import mangle stays std_option_* / std_result_*.
     std/option/option.o) printf '%s' "mod|0|../std/option/mod.x" ;;
     std/result/result.o) printf '%s' "mod|0|../std/result/mod.x" ;;
     # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
@@ -1600,6 +1600,38 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_result_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/option/mod.x|std/option/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.option is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_option_some, std_option_none, and
+      # std_option_to_result defined. Undefined symbols are the
+      # core_option_* and core_result_is_ok_* wrappers it calls.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file. Do not match core/option.
+      _sopt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sopt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_option_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_some$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_none$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_to_result$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_option_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
