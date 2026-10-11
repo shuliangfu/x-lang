@@ -336,9 +336,11 @@ formal_mod_spec_for_key() {
     # Callers use std_csv_parse_row and csv_parse_row_c.
     # The merged object has no undefined symbols.
     std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
-    # PLATFORM: SHARED — std.cli product face (cookbook cli_subcommand).
-    # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
-    # G.7 complete formal_mod like csv/http: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.cli is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_cli_*.
+    # cli.x is the bare impl and keeps -lib-name "" so the exports stay
+    # cli_is_help_c, cli_write_usage_c, and cli_smoke_c.
+    # Undefined symbols are memcpy and std_env_args_iter_next.
     std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
     # PLATFORM: SHARED — std.config product face (STD-086 layer/yaml .x smoke).
     # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
@@ -3251,6 +3253,65 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/cli/mod.x|std/cli/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.cli mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_cli_is_help, std_cli_write_usage, and
+      # std_cli_err_unknown defined. No -lib-name "". A miss stops here.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _scli_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scli_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cli_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_is_help$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_write_usage$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_err_unknown$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cli_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cli/cli.x|std/cli/cli.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.cli face is one asm leaf.
+      # -lib-name "" keeps cli_is_help_c, cli_write_usage_c, and cli_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sclix_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sclix_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cli_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_is_help_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_write_usage_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cli_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
   esac
   # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
   # -o 无 main 时链失败但 XLANG_KEEP_C 保留完整 C；再 cc -c 落地。
@@ -4719,6 +4780,12 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
               printf '%s\n' "$sym" >>"$_exp_list"
             fi
             ;;
+          cli_bytes_eq|cli_copy_lit)
+            # leaf=cli keeps cli_*_c. These two exports have no _c suffix.
+            if [ "$leaf" = "cli" ]; then
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
           map_*)
             # PLATFORM: MACOS — heap ops.x bare map_* kept for heap_full_alias U→T.
             # leaf_*_c only matches heap_*; map_i32_i32_find_c / map_slot need explicit keep.
@@ -4789,6 +4856,11 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                       ;;
                     args_iter_*|env_cstr_eq|env_parse_kv_entry)
                       if [ "$leaf" = "env" ]; then
+                        printf '%s\n' "$sym" >>"$_mem_exp"
+                      fi
+                      ;;
+                    cli_bytes_eq|cli_copy_lit)
+                      if [ "$leaf" = "cli" ]; then
                         printf '%s\n' "$sym" >>"$_mem_exp"
                       fi
                       ;;
