@@ -284,6 +284,8 @@ formal_mod_spec_for_key() {
     # runtime: mod wrappers (ready/panic/abort) + runtime.x leaf faces for glue.
     # backtrace: mod.x capture → backtrace_capture_c (platform .o companion on plan).
     # assert: freestanding core.assert (no I/O); panic via host panic face.
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.cmp.
+    # WINDOWS stays on the C path. CORE-005 import mangle stays core_assert_*.
     # fmt: std.fmt wrappers co-emit core.fmt bodies (monofile entry).
     # compress: std.compress facade co-emits zlib/gzip/brotli/zstd submods.
     # io.driver: nested module path std/io/driver.x → std_io_driver_* surface.
@@ -1167,6 +1169,37 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/cmp_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/assert/mod.x|core/assert/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.assert is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_assert_* exports defined. The only
+      # undefined symbol is xlang_panic_, and the success path does not
+      # call it. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _assert_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_assert_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/assert_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_assert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_assert_eq_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_debug_diag_store$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/assert_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
