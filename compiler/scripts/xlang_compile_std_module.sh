@@ -219,6 +219,16 @@ formal_mod_spec_for_key() {
     # Undefined symbols are the std_heap_* alloc helpers, std_mem_compare,
     # std_string_new, and std_string_view.
     std/bytes/bytes.o) printf '%s' "mod|0|../std/bytes/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.map is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_map_*.
+    # One file: ../std/map/mod.x. Pins are
+    # std_map_insert_Map_i32_i32_ptr_i32_i32,
+    # std_map_get_Map_i32_i32_i32_i32, and std_map_str_insert.
+    # Undefined symbols are memcpy, std_heap_libc_heap_alloc_i32_c,
+    # std_heap_libc_heap_alloc_u64_c, std_heap_libc_heap_alloc_u8_c,
+    # std_heap_libc_heap_copy_u8_at_c, std_heap_libc_heap_free_i32_c,
+    # std_heap_libc_heap_free_u64_c, std_heap_libc_heap_free_u8_c,
+    # std_heap_map_find, and xlang_panic_.
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
     std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
@@ -2495,6 +2505,40 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_json_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/map/mod.x|std/map/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.map is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_map_insert_Map_i32_i32_ptr_i32_i32,
+      # std_map_get_Map_i32_i32_i32_i32, and std_map_str_insert defined.
+      # Undefined symbols are memcpy, the std_heap_libc_heap_* alloc
+      # and free helpers, std_heap_libc_heap_copy_u8_at_c,
+      # std_heap_map_find, and xlang_panic_. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _smap_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_smap_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_map_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_insert_Map_i32_i32_ptr_i32_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_get_Map_i32_i32_i32_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_str_insert$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_map_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
