@@ -1,8 +1,6 @@
 // 记211: tip pure overlay — non-hoist frames must not register module consts.
-// Dead stack slots for NEG-over-LIT / BINOP consts caused Linux branched
-// `return NAMED_CONST` to load garbage. Skip every is_const; imm fold owns it.
+// tipU: mid `x=call()` drops on Ubuntu — all i32 results go through pipe cells.
 // PRODUCT: both ends _g05_pure_overlay first-wins Cap from_x MODLET_IN_REST.
-// wave740 Class A: export-extern calls sit in unsafe (T001).
 // PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -25,85 +23,95 @@ export extern function pipeline_asm_let_init_stack_reserve_bytes(a: *u8, type_re
 
 /**
  * Register module top-level lets into a non-hoist function frame.
- * 记211: skip ALL consts (not only INT_LIT/BOOL).
+ * 记211: skip ALL consts. tipU pipe cells keep call results.
  * PLATFORM: SHARED freestanding · tip pure overlay.
  */
 #[no_mangle]
 export function pipeline_asm_register_module_top_level_lets_c(ctx: *u8, m: *u8, a: *u8, func_index: i32): void {
   unsafe {
+    let cell: u8[64];
+    let name_buf: u8[256];
+    let off_slot: i32[1];
+    let ly: *u8;
+    let tl: i32;
+    let nlets: i32;
+    let off: i32;
+    let nexprs: i32;
+    let hoist: i32;
     if (ctx == 0 as *u8 || m == 0 as *u8 || a == 0 as *u8) {
       return;
     }
-    let nlets: i32 = pipe_load_i32_le(m, 12);
+    pipe_store_i32_le(&cell[0], 0, pipe_load_i32_le(m, 12));
+    nlets = pipe_load_i32_le(&cell[0], 0);
     if (nlets <= 0) {
       return;
     }
-    let ly: *u8 = pipeline_asm_ctx_layout(ctx);
+    ly = pipeline_asm_ctx_layout(ctx);
     if (ly == 0 as *u8) {
       return;
     }
-    let hoist: i32 = pipeline_asm_hoist_target_func_index(m);
+    pipe_store_i32_le(&cell[0], 4, pipeline_asm_hoist_target_func_index(m));
+    hoist = pipe_load_i32_le(&cell[0], 4);
     if (func_index == hoist) {
       return;
     }
-    let off: i32 = pipe_load_i32_le(ly, 4);
-    let nexprs: i32 = pipe_load_i32_le(a, 4);
-    let tl: i32 = 0;
+    off = pipe_load_i32_le(ly, 4);
+    nexprs = pipe_load_i32_le(a, 4);
+    tl = 0;
     while (tl < nlets) {
-      let name_len: i32 = pipeline_module_top_level_let_name_len(m, tl);
-      if (name_len <= 0 || name_len > 255) {
+      pipe_store_i32_le(&cell[0], 8, pipeline_module_top_level_let_name_len(m, tl));
+      if (pipe_load_i32_le(&cell[0], 8) <= 0 || pipe_load_i32_le(&cell[0], 8) > 255) {
         tl = tl + 1;
         continue;
       }
-      let name_buf: u8[256] = [];
-      let k: i32 = 0;
-      while (k < name_len) {
-        let b: i32 = pipeline_module_top_level_let_name_byte_at(m, tl, k);
-        name_buf[k] = b as u8;
-        k = k + 1;
+      pipe_store_i32_le(&cell[0], 12, 0);
+      while (pipe_load_i32_le(&cell[0], 12) < pipe_load_i32_le(&cell[0], 8)) {
+        pipe_store_i32_le(&cell[0], 16, pipeline_module_top_level_let_name_byte_at(m, tl, pipe_load_i32_le(&cell[0], 12)));
+        name_buf[pipe_load_i32_le(&cell[0], 12)] = pipe_load_i32_le(&cell[0], 16) as u8;
+        pipe_store_i32_le(&cell[0], 12, pipe_load_i32_le(&cell[0], 12) + 1);
       }
-      let found: i32 = asm_ctx_local_find_offset(ctx, &name_buf[0], name_len);
-      if (found >= 0) {
+      pipe_store_i32_le(&cell[0], 20, asm_ctx_local_find_offset(ctx, &name_buf[0], pipe_load_i32_le(&cell[0], 8)));
+      if (pipe_load_i32_le(&cell[0], 20) >= 0) {
         tl = tl + 1;
         continue;
       }
-      if (pipeline_asm_modlet_name_is_shared(&name_buf[0], name_len) != 0) {
+      pipe_store_i32_le(&cell[0], 24, pipeline_asm_modlet_name_is_shared(&name_buf[0], pipe_load_i32_le(&cell[0], 8)));
+      if (pipe_load_i32_le(&cell[0], 24) != 0) {
         tl = tl + 1;
         continue;
       }
-      let type_ref: i32 = pipeline_module_top_level_let_type_ref(m, tl);
-      let init_ref: i32 = pipeline_module_top_level_let_init_ref(m, tl);
-      let is_const: i32 = pipeline_module_top_level_let_is_const(m, tl);
-      if (type_ref > 0) {
-        let tk_arr: i32 = pipeline_type_kind_ord_at(a, type_ref);
-        let ik_arr: i32 = 0;
-        if (init_ref > 0 && init_ref <= nexprs) {
-          ik_arr = pipeline_expr_kind_ord_at(a, init_ref);
+      pipe_store_i32_le(&cell[0], 28, pipeline_module_top_level_let_type_ref(m, tl));
+      pipe_store_i32_le(&cell[0], 32, pipeline_module_top_level_let_init_ref(m, tl));
+      pipe_store_i32_le(&cell[0], 36, pipeline_module_top_level_let_is_const(m, tl));
+      /* 记211: skip every module const on non-hoist (pipe cell keeps tipU). */
+      if (pipe_load_i32_le(&cell[0], 36) != 0) {
+        tl = tl + 1;
+        continue;
+      }
+      if (pipe_load_i32_le(&cell[0], 28) > 0) {
+        pipe_store_i32_le(&cell[0], 40, pipeline_type_kind_ord_at(a, pipe_load_i32_le(&cell[0], 28)));
+        pipe_store_i32_le(&cell[0], 44, 0);
+        if (pipe_load_i32_le(&cell[0], 32) > 0 && pipe_load_i32_le(&cell[0], 32) <= nexprs) {
+          pipe_store_i32_le(&cell[0], 44, pipeline_expr_kind_ord_at(a, pipe_load_i32_le(&cell[0], 32)));
         }
-        if (tk_arr == 10 || ik_arr == 46) {
+        if (pipe_load_i32_le(&cell[0], 40) == 10 || pipe_load_i32_le(&cell[0], 44) == 46) {
           tl = tl + 1;
           continue;
         }
       }
-      /* 记211: skip every module const on non-hoist. */
-      if (is_const != 0) {
-        tl = tl + 1;
-        continue;
-      }
-      let off_slot: i32[1] = [];
       off_slot[0] = off;
-      let slot_off: i32 = asm_local_slot_reg_offset(a, type_ref, off, &off_slot[0]);
+      pipe_store_i32_le(&cell[0], 48, asm_local_slot_reg_offset(a, pipe_load_i32_le(&cell[0], 28), off, &off_slot[0]));
       off = off_slot[0];
-      let ap: i32 = asm_ctx_local_append(ctx, &name_buf[0], name_len, slot_off);
-      if (ap < 0) {
+      pipe_store_i32_le(&cell[0], 52, asm_ctx_local_append(ctx, &name_buf[0], pipe_load_i32_le(&cell[0], 8), pipe_load_i32_le(&cell[0], 48)));
+      if (pipe_load_i32_le(&cell[0], 52) < 0) {
         return;
       }
-      let reserve: i32 = pipeline_asm_let_init_stack_reserve_bytes(a, type_ref, init_ref);
-      off = off + reserve;
+      pipe_store_i32_le(&cell[0], 56, pipeline_asm_let_init_stack_reserve_bytes(a, pipe_load_i32_le(&cell[0], 28), pipe_load_i32_le(&cell[0], 32)));
+      off = off + pipe_load_i32_le(&cell[0], 56);
       tl = tl + 1;
     }
     pipe_store_i32_le(ly, 4, off);
-    let nloc: i32 = asm_ctx_local_count(ctx);
-    pipe_store_i32_le(ly, 8, nloc);
+    pipe_store_i32_le(&cell[0], 60, asm_ctx_local_count(ctx));
+    pipe_store_i32_le(ly, 8, pipe_load_i32_le(&cell[0], 60));
   }
 }
