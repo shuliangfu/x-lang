@@ -385,6 +385,39 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/addr.x|std/net/addr.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.addr is one asm leaf.
+      # -lib-name "" keeps net_sockaddr_in_pack_addr_port_c,
+      # net_tcp_local_addr_c, and net_tcp_peer_addr_c.
+      # Undefined symbols are getsockname, getpeername, ntohl, and ntohs.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _addr_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_addr_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _addr_log="$(mktemp "${TMPDIR:-/tmp}/std_addr_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_addr_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_sockaddr_in_buf_ptr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_sockaddr_in_pack_addr_port_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_local_addr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_peer_addr_c$'; then
+            rm -f "$_addr_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_addr_log" >&2
+          rm -f "$_addr_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/async/scheduler.x|std/async/scheduler.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.async.scheduler is one marker.
       # The C emit below is what execs cc. -lib-name "" keeps
