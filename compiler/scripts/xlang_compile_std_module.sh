@@ -244,6 +244,13 @@ formal_mod_spec_for_key() {
     # sync.x is the bare-impl marker and keeps -lib-name "".
     std/sync/sync.o) printf '%s' "mod|1|../std/sync/mod.x|../std/sync/sync.x" ;;
     std/queue/queue.o) printf '%s' "mod|1|../std/queue/mod.x|../std/queue/queue.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.encoding is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_encoding_*.
+    # encoding.x is the bare impl and keeps -lib-name "" so the exports
+    # stay encoding_utf8_valid_c, encoding_hex_encode_c, and
+    # encoding_extra_smoke_c. Undefined symbols are std_base64_* and
+    # std_string_string_capacity, std_string_string_clear,
+    # std_string_string_data_ptr.
     std/encoding/encoding.o) printf '%s' "mod|1|../std/encoding/mod.x|../std/encoding/encoding.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.base64 is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_base64_*.
@@ -2147,6 +2154,70 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_b64_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/encoding/mod.x|std/encoding/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.encoding mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_encoding_utf8_valid, std_encoding_hex_encode,
+      # and std_encoding_extra_smoke defined. Undefined symbols are the
+      # encoding_*_c helpers in encoding.x, plus std_base64_* and
+      # std_string_string_capacity, std_string_string_clear,
+      # std_string_string_data_ptr. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _senc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_senc_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_enc_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_utf8_valid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_hex_encode$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_extra_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_enc_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/encoding/encoding.x|std/encoding/encoding.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.encoding.
+      # -lib-name "" keeps encoding_utf8_valid_c, encoding_hex_encode_c,
+      # and encoding_extra_smoke_c. Without it the path prefix doubles
+      # the export. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sencx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sencx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_enc_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_utf8_valid_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_hex_encode_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_extra_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_enc_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
