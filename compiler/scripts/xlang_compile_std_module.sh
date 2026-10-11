@@ -345,9 +345,10 @@ formal_mod_spec_for_key() {
     # stay ffi_cstr_len_c, ffi_cstring_new_c, and ffi_point_pack_c.
     # Undefined symbols are malloc, free, memcpy, and strlen.
     std/ffi/ffi.o) printf '%s' "mod|1|../std/ffi/mod.x|../std/ffi/ffi.x" ;;
-    # PLATFORM: MACOS|DARWIN|LINUX — context mod.x is asm.
-    # Do not pass -lib-name "". Exports stay std_context_*.
-    # context.x stays on the C path. WINDOWS stays on the C path.
+    # PLATFORM: MACOS|DARWIN|LINUX — context mod.x and context.x are both asm.
+    # mod.x does not pass -lib-name "". Exports stay std_context_*.
+    # context.x keeps -lib-name "" so the exports stay ctx_*_c.
+    # WINDOWS stays on the C path.
     std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.json is one asm leaf.
@@ -2176,7 +2177,7 @@ for x_path in "$@"; do
     ../std/context/mod.x|std/context/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.context mod.x.
       # Do not pass -lib-name "". Exports stay std_context_*.
-      # A miss stops here. context.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. context.x is its own asm arm. Windows keeps the C path.
       # Do not fall through to cc for this file.
       _ctx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ctx_os" in
@@ -2387,6 +2388,42 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/set_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/context/context.x|std/context/context.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.context.
+      # -lib-name "" keeps ctx_glue_background_c, ctx_get_value_c, and ctx_set_value_c.
+      # A miss stops here. mod.x is already asm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ctxi_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ctxi_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ctxi_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_glue_background_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_get_value_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_set_value_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_key_hash$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_with_cancel_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_with_deadline_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_cancel_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_is_cancelled_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_free_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_glue_value_get_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ctxi_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
