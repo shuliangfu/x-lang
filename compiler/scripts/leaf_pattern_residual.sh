@@ -5241,8 +5241,8 @@ _sx_list_n=$(
   tr ' \t\\\n' ' ' < "$_SX_MK" | tr -s ' ' '\n' | grep -cE '\.\./std/.+\.o' || true
 )
 # Floor tracks mk/std_x_product_objs.mk (post_ship inventory; was 21 pre-retire).
-if [ "${_sx_list_n:-0}" -ne 10 ]; then
-  bad "wave895 expected 10 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
+if [ "${_sx_list_n:-0}" -ne 9 ]; then
+  bad "wave895 expected 9 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
 fi
 if ! grep -q 'include mk/std_x_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/std_x_product_objs.mk (wave895)"
