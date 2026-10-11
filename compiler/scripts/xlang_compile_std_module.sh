@@ -259,6 +259,14 @@ formal_mod_spec_for_key() {
     # base64_encode_url_c. Undefined symbols are memcpy and memset.
     std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.log is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_log_*.
+    # log.x is the bare impl and keeps -lib-name "" so the exports stay
+    # log_write_c, log_prefix_copy, and log_write_structured_kv_c.
+    # Undefined symbols are log_apply_env_once_c, log_get_min_level_c,
+    # log_emit_bytes_c, log_set_min_level_c, log_set_sink_mask_c,
+    # log_set_file_sink_c, log_close_file_sink_c, log_set_rotate_c,
+    # log_set_async_enabled_c, and log_async_flush_c.
     std/log/log.o) printf '%s' "mod|1|../std/log/mod.x|../std/log/log.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.test is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_test_*.
@@ -2287,6 +2295,70 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_url_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/log/mod.x|std/log/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.log mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_log_log, std_log_set_min_level, and
+      # std_log_level_info defined. Undefined symbols are the log_*_c
+      # helpers in runtime_log_os and log.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _slog_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_slog_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_log_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_log$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_set_min_level$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_level_info$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_log_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/log/log.x|std/log/log.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.log.
+      # -lib-name "" keeps log_write_c, log_prefix_copy, and
+      # log_write_structured_kv_c. Without it the path prefix doubles
+      # the export. Undefined symbols are log_apply_env_once_c,
+      # log_get_min_level_c, and log_emit_bytes_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _slogx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_slogx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_log_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?log_write_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?log_prefix_copy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?log_write_structured_kv_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_log_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
