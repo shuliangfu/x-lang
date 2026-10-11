@@ -246,6 +246,9 @@ formal_mod_spec_for_key() {
     # std_heap_libc_heap_free_u64_c, std_heap_libc_heap_free_u8_c,
     # std_heap_map_find, and xlang_panic_.
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — set mod.x is the whole object and is asm.
+    # Do not pass -lib-name "". Exports stay std_set_*.
+    # WINDOWS stays on the C path.
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
     std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.backtrace.
@@ -2348,6 +2351,42 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/que_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/set/mod.x|std/set/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.set mod.x is the whole object.
+      # Do not pass -lib-name "". Exports stay std_set_*.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _set_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_set_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/set_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_new_i32_retSet_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_new_i32_retSet_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_insert_Set_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_insert_Set_u64_ptr_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_contains_key_Set_i32_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_remove_Set_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_str_insert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_str_contains$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_hash_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_str_key_cap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/set_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
