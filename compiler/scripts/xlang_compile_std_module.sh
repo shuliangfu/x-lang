@@ -243,10 +243,13 @@ formal_mod_spec_for_key() {
     std/thread/thread.o) printf '%s' "mod|0|../std/thread/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.time is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_time_*.
+    # time.x is the bare impl and keeps -lib-name "" so the exports
+    # stay time_now_wall_sec_c, time_duration_ns_c, and
+    # time_format_timezone_smoke_c.
     # Undefined symbols are time_now_monotonic_ns_c, time_now_wall_ns_c,
     # time_sleep_ns_c, time_format_wall_rfc3339_c, and
     # time_wall_local_offset_min_c.
-    std/time/time.o) printf '%s' "mod|1|../std/time/mod.x" ;;
+    std/time/time.o) printf '%s' "mod|1|../std/time/mod.x|../std/time/time.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.random is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_random_*.
     # random.x is the bare impl and keeps -lib-name "" so the exports
@@ -2901,6 +2904,36 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_csv_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/time/time.x|std/time/time.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.time face is one asm leaf.
+      # -lib-name "" keeps time_now_wall_sec_c, time_duration_ns_c, and
+      # time_format_timezone_smoke_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stimex_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stimex_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_time_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?time_now_wall_sec_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?time_duration_ns_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?time_format_timezone_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_time_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
