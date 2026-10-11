@@ -317,6 +317,10 @@ formal_mod_spec_for_key() {
     # json_parse_null_c, json_parse_bool_c, and json_parse_string_c.
     # The merged object has no undefined symbols.
     std/json/json.o) printf '%s' "mod|1|../std/json/mod.x|../std/json/json.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.csv is one asm leaf.
+    # WINDOWS stays on the C path. csv.x takes -lib-name "".
+    # Callers use std_csv_parse_row and csv_parse_row_c.
+    # The merged object has no undefined symbols.
     std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
     # PLATFORM: SHARED — std.cli product face (cookbook cli_subcommand).
     # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
@@ -2836,6 +2840,67 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_sql_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/csv/mod.x|std/csv/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.csv mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_csv_parse_row, std_csv_write_row, and
+      # std_csv_next_field defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scsv_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scsv_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_csv_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_parse_row$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_write_row$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_next_field$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_csv_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/csv/csv.x|std/csv/csv.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.csv face is one asm leaf.
+      # -lib-name "" keeps csv_parse_row_c, csv_write_row_c, and
+      # csv_next_field_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scsvx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scsvx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_csv_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_parse_row_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_write_row_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_next_field_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_csv_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
