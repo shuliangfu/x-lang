@@ -281,6 +281,8 @@ formal_mod_spec_for_key() {
     # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
     # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
     std/unicode/unicode.o) printf '%s' "mod|1|../std/unicode/mod.x|../std/unicode/unicode.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.thread.
+    # WINDOWS stays on the C path. Import mangle stays std_channel_*.
     std/channel/channel.o) printf '%s' "mod|0|../std/channel/mod.x" ;;
     # PLATFORM: SHARED — soft residual class-batch 2 formal bodies.
     # runtime: mod wrappers (ready/panic/abort) + runtime.x leaf faces for glue.
@@ -1269,6 +1271,38 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/thread_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/channel/mod.x|std/channel/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.channel is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_channel_* exports defined. Undefined
+      # symbols are the channel_i32_*_c and channel_select_*_c externs
+      # the bodies call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ch_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ch_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/channel_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_bounded$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_send$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_recv$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/channel_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
