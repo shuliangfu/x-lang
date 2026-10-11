@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // Sixteen path helpers. This file is the authority.
-// PLATFORM: MACOS|DARWIN arm64 — ensure_host_cc_seed_o.sh pure-asm
-// compiles this file with the current compiler into std/path/path.o.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX — ensure_host_cc_seed_o.sh
+// compiles this file with the asm backend into std/path/path.o.
 // That step does not pass seeds/runtime_path_fast.from_x.c to host cc.
+// A Linux miss returns 1. A Darwin miss can still fall back to the seed.
 // Symbols stay strong. The helpers call only each other.
-// PLATFORM: LINUX|WINDOWS — the same shell still host-cc's the C seed.
-// A Darwin pure-asm fault with no object falls back to that seed.
+// PLATFORM: WINDOWS — path_sep_c is '\\' in the C seed, which stays on cc.
 // Byte compares use `as u8`. This compiler rejects a bare integer
 // against u8. The values are the same bytes as the C seed.
 // runtime_path_fast_x_doc_anchor: see function docblock below.
