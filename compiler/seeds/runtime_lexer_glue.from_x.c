@@ -1,6 +1,7 @@
 /* seeds/runtime_lexer_glue.from_x.c — G-02f-21 product TU
- * Darwin arm64 product body is src/asm/runtime_lexer_glue_darwin.x.
- * Linux and Windows keep this C seed.
+ * Darwin arm64 and Linux product body is
+ * src/asm/runtime_lexer_glue_darwin.x.
+ * A Linux miss does not exec cc. Windows keeps this C seed.
  */
 /**
  * runtime_lexer_glue.c — Lexer 创建/释放（从 src/lexer/lexer.c 迁移）

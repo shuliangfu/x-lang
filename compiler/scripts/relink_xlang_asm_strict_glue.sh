@@ -1957,6 +1957,27 @@ ensure_ast_obj() {
 
 ensure_lexer_obj() {
   local o="src/lexer/lexer.o"
+  # w1111: Darwin arm64 and Linux lexer is the .x. Linux miss does not cc.
+  # Windows stays on cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _lx_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _lx_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_lx_os" = "Linux" ] && [ "$_lx_mach" = "x86_64" ] \
+    && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_lexer_glue_darwin.x -nt "$o" ] \
+      || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lexer-glue-pure "$o" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_lx_os" = "Darwin" ] && [ "$_lx_mach" = "arm64" ] \
+    && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_lexer_glue_darwin.x -nt "$o" ] \
+      || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lexer-glue-pure "$o"
+    fi
+    return 0
+  fi
   if [ ! -f "$o" ] || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc_inc_tu $o <- seeds/runtime_lexer_glue.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o "$o"

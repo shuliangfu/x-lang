@@ -7,8 +7,9 @@
 // then a 512-byte string buffer the creator leaves untouched.
 // end is source plus strlen(source). line and col start at 1.
 // malloc failure returns null. lexer_free is free.
-// Linux and Windows keep the C seed.
-// PLATFORM: MACOS|DARWIN arm64.
+// Linux uses this file. A Linux miss returns 1 and does not exec cc.
+// Windows keeps the C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 
 extern function malloc(n: u64): *u8;
 extern function free(p: *u8): void;

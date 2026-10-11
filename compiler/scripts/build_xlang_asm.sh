@@ -4651,7 +4651,19 @@ ensure_asm_driver_seed_frontend_c_objs() {
   build_xlang_asm_error "LEGACY seed frontend .c missing; use X companions or restore C sources"
   return 1
   fi
+  # w1111: Darwin arm64 and Linux lexer is the .x. Linux miss does not cc.
+  # Windows stays on cc. This arm is the legacy frontend restore only.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _lx_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _lx_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if { [ "$_lx_os" = "Linux" ] && [ "$_lx_mach" = "x86_64" ]; } \
+    || { [ "$_lx_os" = "Darwin" ] && [ "$_lx_mach" = "arm64" ]; }; then
+    if [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lexer-glue-pure "$SEED_DIR/lexer.o" || return 1
+    fi
+  else
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o "$SEED_DIR/lexer.o"
+  fi
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_ast_glue.from_x.c -o "$SEED_DIR/ast_seed.o"
   "$CC" $CFLAGS -c -o "$SEED_DIR/typeck.o" src/typeck/typeck.c
   # G-02a: codegen.c 已物理删除；codegen.o 由 codegen.x 生成（codegen_x.o），编排桩由 codegen_pipeline_stubs.o 提供。

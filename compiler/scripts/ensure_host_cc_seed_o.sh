@@ -3140,9 +3140,9 @@ ensure_build_tool_bridge_darwin_pure() {
   return 0
 }
 
-# w1111: Darwin arm64 src/lexer/lexer.o allocates a 536-byte lexer.
-# Linux and Windows keep the C seed.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1111: Darwin arm64 and Linux src/lexer/lexer.o allocate a 536-byte lexer.
+# Linux miss does not exec cc. Windows keeps the C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the seed.
 # $1 = output object. cwd is compiler/.
 ensure_lexer_glue_darwin_pure() {
   local o="${1:-src/lexer/lexer.o}"
@@ -3180,7 +3180,9 @@ ensure_lexer_glue_darwin_pure() {
         _lexer_new \
         _lexer_free \
         _lexer_glue_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_lx_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Linux nm does not.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | grep -qE " T _?${_lx_short#_}$"; then
           _lx_ok=0
           break
         fi
@@ -3190,12 +3192,14 @@ ensure_lexer_glue_darwin_pure() {
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_malloc" { n++ } END { exit (n==1)?0:1 }'; then
+      # Darwin nm prefixes '_'. Linux nm does not.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm -u "$o" 2>/dev/null | grep -qE "U _?malloc$"; then
         echo "ensure_host_cc_seed_o lexer-glue: malloc is not undefined" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_strlen" { n++ } END { exit (n==1)?0:1 }'; then
+      if ! nm -u "$o" 2>/dev/null | grep -qE "U _?strlen$"; then
         echo "ensure_host_cc_seed_o lexer-glue: strlen is not undefined" >&2
         rm -f "$o"
         continue
@@ -3206,6 +3210,12 @@ ensure_lexer_glue_darwin_pure() {
     echo "ensure_host_cc_seed_o lexer-glue: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to the seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o lexer-glue: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $csrc → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -5833,14 +5843,19 @@ ensure_one() {
     fi
   fi
 
-  # w1111: Darwin arm64 src/lexer/lexer.o is the .x.
-  # Match this seed only. Linux and Windows keep the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1111: Darwin arm64 and Linux src/lexer/lexer.o is the .x.
+  # Match this seed only. Linux miss does not cc. Windows keeps the seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
   if [ "$(basename "$seed")" = "runtime_lexer_glue.from_x.c" ] \
     || [ "$out" = "src/lexer/lexer.o" ]; then
     local lx_s lx_m
     lx_s="$(uname -s 2>/dev/null || echo Unknown)"
     lx_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$lx_s" = "Linux" ] && [ "$lx_m" = "x86_64" ] \
+      && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+      ensure_lexer_glue_darwin_pure "$out" || return 1
+      return 0
+    fi
     if [ "$lx_s" = "Darwin" ] && [ "$lx_m" = "arm64" ] \
       && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
       ensure_lexer_glue_darwin_pure "$out" || return 1
@@ -32424,10 +32439,10 @@ case "$MODE" in
     exit "$_irc"
     ;;
   lexer-glue-pure|lexer_glue_pure)
-    # w1111: Darwin arm64 lexer create/free from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
+    # w1111: Darwin arm64 and Linux lexer create/free from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
     # Match src/lexer/lexer.o only.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o lexer-glue-pure: need <out.o>" >&2
       exit 2

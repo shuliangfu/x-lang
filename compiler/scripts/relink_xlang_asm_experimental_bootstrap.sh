@@ -51,7 +51,20 @@ ensure_async_cps_seed_objs
 # bootstrap-driver-seed 同款 C 种子 .o（experimental 链须 parser/typeck 等；缺则 ld 失败）。
 ensure_asm_driver_seed_c_objs() {
   mkdir -p "$SEED_O"
-  if [ ! -f "$SEED_O/lexer.o" ] || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$SEED_O/lexer.o" ]; then
+  # w1111: Darwin arm64 and Linux lexer is the .x. Linux miss does not cc.
+  # Windows stays on cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _lx_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _lx_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if { [ "$_lx_os" = "Linux" ] && [ "$_lx_mach" = "x86_64" ]; } \
+    || { [ "$_lx_os" = "Darwin" ] && [ "$_lx_mach" = "arm64" ]; }; then
+    if [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+      if [ ! -f "$SEED_O/lexer.o" ] || [ src/asm/runtime_lexer_glue_darwin.x -nt "$SEED_O/lexer.o" ] \
+        || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$SEED_O/lexer.o" ]; then
+        bash scripts/ensure_host_cc_seed_o.sh lexer-glue-pure "$SEED_O/lexer.o" || exit 1
+      fi
+    fi
+  elif [ ! -f "$SEED_O/lexer.o" ] || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$SEED_O/lexer.o" ]; then
   experimental_bootstrap_info "cc_inc_tu $SEED_O/lexer.o"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o "$SEED_O/lexer.o"
   fi
