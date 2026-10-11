@@ -324,6 +324,9 @@ formal_mod_spec_for_key() {
     # atomic.x is the bare-impl marker and keeps -lib-name "".
     std/atomic/atomic.o) printf '%s' "mod|1|../std/atomic/mod.x|../std/atomic/atomic.x" ;;
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — math.x is the bare-impl file.
+    # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
+    # mod.x stays on the C path. WINDOWS stays on the C path.
     std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.sort is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_sort_*.
@@ -1979,6 +1982,35 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/secm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/math/math.x|std/math/math.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.math.
+      # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
+      # A miss stops here. mod.x stays on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _math_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_math_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/math_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_pi_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_e_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_tau_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/math_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
