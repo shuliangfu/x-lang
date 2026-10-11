@@ -245,6 +245,11 @@ formal_mod_spec_for_key() {
     std/sync/sync.o) printf '%s' "mod|1|../std/sync/mod.x|../std/sync/sync.x" ;;
     std/queue/queue.o) printf '%s' "mod|1|../std/queue/mod.x|../std/queue/queue.x" ;;
     std/encoding/encoding.o) printf '%s' "mod|1|../std/encoding/mod.x|../std/encoding/encoding.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.base64 is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_base64_*.
+    # base64.x is the bare impl and keeps -lib-name "" so the exports
+    # stay base64_encode_standard_c, base64_decode_standard_c, and
+    # base64_encode_url_c. Undefined symbols are memcpy and memset.
     std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
     std/log/log.o) printf '%s' "mod|1|../std/log/mod.x|../std/log/log.x" ;;
@@ -2078,6 +2083,70 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_test_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/base64/mod.x|std/base64/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.base64 mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_base64_encode_standard,
+      # std_base64_decode_standard, and std_base64_encode_url defined.
+      # Undefined symbols are the base64_*_c helpers defined in base64.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sb64_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sb64_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_b64_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_encode_standard$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_decode_standard$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_encode_url$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_b64_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/base64/base64.x|std/base64/base64.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.base64.
+      # -lib-name "" keeps base64_encode_standard_c,
+      # base64_decode_standard_c, and base64_encode_url_c.
+      # Without it the path prefix doubles the export.
+      # Undefined symbols are memcpy and memset. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sb64x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sb64x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_b64_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_encode_standard_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_decode_standard_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_encode_url_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_b64_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
