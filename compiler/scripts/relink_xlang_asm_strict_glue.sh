@@ -742,12 +742,19 @@ ensure_pipeline_x_glue_support_partial_obj() {
 
 ensure_asm_pipeline_run_impl_alias_obj() {
   local ALIAS_OBJ="$BUILD_DIR/pipeline_run_impl_alias.o"
-  # w1128: Darwin arm64 alias is pure asm of src/pipeline_run_impl_alias.x.
+  # w1128: Darwin arm64 and Linux alias is asm of src/pipeline_run_impl_alias.x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
   # Does not match pipeline_run_x_link_alias.o.
-  # Linux and Windows stay on host cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ia_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ia_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ia_os" = "Linux" ] && [ "$_ia_mach" = "x86_64" ] \
+    && [ -f src/pipeline_run_impl_alias.x ]; then
+    if [ ! -f "$ALIAS_OBJ" ] || [ src/pipeline_run_impl_alias.x -nt "$ALIAS_OBJ" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh run-impl-alias-pure "$ALIAS_OBJ" || return 1
+    fi
+    return 0
+  fi
   if [ "$_ia_os" = "Darwin" ] && [ "$_ia_mach" = "arm64" ] \
     && [ -f src/pipeline_run_impl_alias.x ]; then
     if [ ! -f "$ALIAS_OBJ" ] || [ src/pipeline_run_impl_alias.x -nt "$ALIAS_OBJ" ]; then

@@ -1625,12 +1625,19 @@ ensure_asm_pipeline_glue_link_obj() {
 # 实验链：run_x_pipeline_impl 别名到 pipeline_run_x_pipeline_impl（无 pipeline_x.o 时）
 ensure_asm_pipeline_run_impl_alias_obj() {
   ALIAS_OBJ="$BUILD_DIR/pipeline_run_impl_alias.o"
-  # w1128: Darwin arm64 alias is pure asm of src/pipeline_run_impl_alias.x.
+  # w1128: Darwin arm64 and Linux alias is asm of src/pipeline_run_impl_alias.x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
   # Does not match pipeline_run_x_link_alias.o.
-  # Linux and Windows stay on host cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _ia_os="$(uname -s 2>/dev/null || echo Unknown)"
   _ia_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ia_os" = "Linux" ] && [ "$_ia_mach" = "x86_64" ] \
+    && [ -f src/pipeline_run_impl_alias.x ]; then
+    if [ ! -f "$ALIAS_OBJ" ] || [ src/pipeline_run_impl_alias.x -nt "$ALIAS_OBJ" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh run-impl-alias-pure "$ALIAS_OBJ" || return 1
+    fi
+    return 0
+  fi
   if [ "$_ia_os" = "Darwin" ] && [ "$_ia_mach" = "arm64" ] \
     && [ -f src/pipeline_run_impl_alias.x ]; then
     if [ ! -f "$ALIAS_OBJ" ] || [ src/pipeline_run_impl_alias.x -nt "$ALIAS_OBJ" ]; then
@@ -6561,7 +6568,7 @@ if [ -f "$BUILD_DIR/main.o" ] && [ -s "$BUILD_DIR/main.o" ] && [ -f "$BUILD_DIR/
   elif [ -n "${XLANG_ASM_STRICT_ORCHESTRATION_LEGACY:-}" ] && ensure_pipeline_asm_orchestration_from_build_o; then
   ensure_pipeline_phase_parse_only_partial_obj
   ensure_pipeline_asm_run_all_partial_obj
-  ensure_asm_pipeline_run_impl_alias_obj
+  ensure_asm_pipeline_run_impl_alias_obj || return 1
   ensure_pipeline_asm_typecheck_alias_obj
   ensure_pipeline_asm_x_bootstrap_partial_obj
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_asm_orchestration_from_build.o"

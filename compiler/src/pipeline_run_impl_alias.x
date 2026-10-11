@@ -20,8 +20,10 @@
 // parse_into_buf returns the 8-byte parse result in one register.
 // parse_into_init swaps the two pointers before the callee.
 // This object is not pipeline_run_x_link_alias.o.
-// Linux and Windows keep host cc of the C seed.
-// PLATFORM: MACOS|DARWIN for this object path. SHARED symbol names.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps host cc of the C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
+// SHARED symbol names. The emit passes -lib-name "" so the parse names stay bare.
 
 struct ParseIntoResult {
   ok: i32;
@@ -42,7 +44,7 @@ extern "C" function run_x_pipeline_impl(module: *u8, arena: *u8, source: *u8, so
  * @param ctx *u8 — dependency context, forwarded unchanged
  * @return i32 — the value run_x_pipeline_impl returns
  * Null pointers are forwarded. This function does not write them.
- * PLATFORM: MACOS|DARWIN arm64. Linux and Windows stay on the C seed.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
  */
 function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source: *u8, source_len: u64, out_buf: *u8, ctx: *u8): i32 {
   unsafe {
