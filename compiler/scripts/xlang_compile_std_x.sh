@@ -355,6 +355,36 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/udp_batch.x|std/net/udp_batch.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.udp_batch is one asm leaf.
+      # -lib-name "" keeps net_udp_recv_many_c and net_udp_send_many_c.
+      # Undefined symbols are net_udp_recv_from_c and net_udp_send_to_c.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _ub_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ub_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _ub_log="$(mktemp "${TMPDIR:-/tmp}/std_ub_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_ub_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_recv_many_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_send_many_c$'; then
+            rm -f "$_ub_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_ub_log" >&2
+          rm -f "$_ub_log"
+          return 1
+          ;;
+      esac
+      ;;
   esac
   if [ "$xlang_bin" = "auto" ]; then
     # 【Why 根源】run-all 批量回归时 XLANG_COMPILE_STD_USE_C=1 强制走 xlang-c：
