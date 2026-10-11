@@ -364,6 +364,11 @@ formal_mod_spec_for_key() {
     std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.tar is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_tar_*.
+    # tar.x is the bare impl and keeps -lib-name "" so the exports stay
+    # tar_write_header_c, tar_read_header_c, and tar_append_entry_c.
+    # The merged object has no undefined symbols.
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
     # PLATFORM: SHARED — pure-asm std_unicode_* / std_channel_* product faces.
     # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
@@ -2539,6 +2544,68 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_map_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/tar/mod.x|std/tar/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.tar mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_tar_write_header, std_tar_read_header, and
+      # std_tar_append_entry defined. The header helpers live in tar.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _star_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_star_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_tar_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_write_header$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_read_header$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_append_entry$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_tar_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/tar/tar.x|std/tar/tar.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.tar.
+      # -lib-name "" keeps tar_write_header_c, tar_read_header_c, and
+      # tar_append_entry_c. Without it the path prefix doubles the
+      # export. The merged object has no undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _starx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_starx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_tar_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_write_header_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_read_header_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_append_entry_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_tar_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
