@@ -214,8 +214,10 @@ formal_mod_spec_for_key() {
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.builtin.
     # WINDOWS stays on the C path. CORE-005 import mangle stays core_cmp_*.
     core/cmp/mod.o) printf '%s' "mod|0|../core/cmp/mod.x" ;;
-    # PLATFORM: SHARED — tests/std-bytes/arena_external unique UNDEF (from_external*).
-    # G.7 complete formal_mod like core/iterator/mod.o; product import mangle std_bytes_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.bytes is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_bytes_*.
+    # Undefined symbols are the std_heap_* alloc helpers, std_mem_compare,
+    # std_string_new, and std_string_view.
     std/bytes/bytes.o) printf '%s' "mod|0|../std/bytes/mod.x" ;;
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
@@ -1728,6 +1730,40 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/core_fmt_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/bytes/mod.x|std/bytes/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.bytes is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_bytes_from_external, std_bytes_append_byte,
+      # and std_bytes_eq defined. Undefined symbols are
+      # std_heap_alloc_i32_retu64_ptr, std_heap_copy_u8_ptr_i32_u8_ptr_i32,
+      # std_heap_free_u8_ptr, std_heap_realloc_u8_ptr_i32, std_mem_compare,
+      # std_string_new, and std_string_view.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sbytes_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sbytes_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_bytes_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_from_external$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_append_byte$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_eq$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_bytes_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
