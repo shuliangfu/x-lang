@@ -414,6 +414,38 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/security/security.x|std/security/security.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.security.security.x is the bare impl.
+      # The C emit below is what execs cc. -lib-name "" keeps security_*_c
+      # and sec_hkdf_*. Without it the path prefix doubles the export.
+      # A miss stops here so this file never execs cc. The formal script
+      # has the same arm. mod.x stays on the C path. Windows keeps the C path.
+      _sec_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sec_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sec_log="$(mktemp "${TMPDIR:-/tmp}/std_sec_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sec_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?security_f_zero_c_marker_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?security_mlock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?security_secure_zero_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sec_hkdf_expand$'; then
+            rm -f "$_sec_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sec_log" >&2
+          rm -f "$_sec_log"
+          return 1
+          ;;
+      esac
+      ;;
   esac
   if [ "$xlang_bin" = "auto" ]; then
     # 【Why 根源】run-all 批量回归时 XLANG_COMPILE_STD_USE_C=1 强制走 xlang-c：
