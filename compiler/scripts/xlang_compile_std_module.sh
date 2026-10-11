@@ -131,6 +131,7 @@ formal_mod_key_for_out() {
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
     ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
     ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
+    ../std/task/task.o|std/task/task.o|*std/task/task.o) printf '%s' "std/task/task.o" ;;
     # PLATFORM: SHARED — pure-asm batch residual (2026-08-13): formal export std_* faces.
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
@@ -411,6 +412,13 @@ formal_mod_spec_for_key() {
     # Undefined symbols are close, fs_open_read_c, fs_posix_read_c,
     # memcpy, and memset.
     std/elf/elf.o) printf '%s' "mod|1|../std/elf/mod.x|../std/elf/elf.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.task is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_task_*.
+    # task.x is the bare impl and keeps -lib-name "" so the exports stay
+    # task_group_create_c, task_group_spawn_c, and task_smoke_c.
+    # Undefined symbols are calloc, free, time_sleep_ns_c, and the
+    # xlang_async_* / ctx_* faces in runtime_scheduler_glue.o.
+    std/task/task.o) printf '%s' "mod|1|../std/task/mod.x|../std/task/task.x" ;;
     # PLATFORM: SHARED — pure-asm std_unicode_* / std_channel_* product faces.
     # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
     # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
@@ -520,6 +528,7 @@ formal_mod_all_keys() {
     std/tar/tar.o \
     std/uuid/uuid.o \
     std/elf/elf.o \
+    std/task/task.o \
     std/unicode/unicode.o \
     std/channel/channel.o \
     std/runtime/runtime.o \
@@ -3074,6 +3083,65 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_elf_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/task/mod.x|std/task/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.task mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_task_new, std_task_spawn, and std_task_join
+      # defined. No -lib-name "". A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stask_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stask_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_task_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_new$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_spawn$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_join$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_task_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/task/task.x|std/task/task.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.task face is one asm leaf.
+      # -lib-name "" keeps task_group_create_c, task_group_spawn_c, and
+      # task_smoke_c. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _staskx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_staskx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_task_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?task_group_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?task_group_spawn_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?task_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_task_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

@@ -20,7 +20,6 @@ STD_X_PRODUCT_OBJS = \
 	../std/config/config.o \
 	../std/cache/cache.o \
 	../std/trace/trace.o \
-	../std/task/task.o \
 	../std/schema/schema.o \
 	../std/regex/regex.o \
 	../std/unicode/unicode.o \
