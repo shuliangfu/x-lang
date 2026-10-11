@@ -42,14 +42,13 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 11 (cache.o stays on the formal asm leaf; was 12 after url).
+# Honesty COUNT = 10 (channel.o stays on the formal asm leaf; was 11 after cache).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
   _o="$1"
   case "$_o" in
     ../std/async/scheduler.o|std/async/scheduler.o|*std/async/scheduler.o) printf '%s' "std/async/scheduler.o" ;;
-    ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
     ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
@@ -67,7 +66,6 @@ std_x_key_for_out() {
 std_x_spec_for_key() {
   case "$1" in
     std/async/scheduler.o) printf '%s' "auto-soft|../std/async/scheduler.x" ;;
-    std/channel/channel.o) printf '%s' "auto-soft|../std/channel/channel.x" ;;
     std/backtrace/backtrace.o) printf '%s' "auto-soft|../std/backtrace/backtrace.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
     std/config/config.o) printf '%s' "auto-soft|../std/config/config.x" ;;
@@ -84,7 +82,6 @@ std_x_spec_for_key() {
 std_x_all_keys() {
   printf '%s\n' \
     std/async/scheduler.o \
-    std/channel/channel.o \
     std/backtrace/backtrace.o \
     std/security/security.o \
     std/config/config.o \
@@ -179,7 +176,6 @@ std_x_check() {
     fi
   done <<'KEYS'
 std/async/scheduler.o
-std/channel/channel.o
 std/backtrace/backtrace.o
 std/security/security.o
 std/config/config.o
@@ -190,15 +186,15 @@ std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 11 ]; then
-    echo "std_x --check: expected 11 keys, counted $_n" >&2
+  if [ "$_n" -ne 10 ]; then
+    echo "std_x --check: expected 10 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (11 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (10 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 
