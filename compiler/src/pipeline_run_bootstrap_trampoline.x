@@ -19,8 +19,10 @@
 // pipeline_impl_run_all. That is the symbol the host cc of
 // seeds/pipeline_run_bootstrap_trampoline.from_x.c emits.
 // This object is not pipeline_run_impl_alias.o.
-// Linux and Windows keep host cc of the C seed.
-// PLATFORM: MACOS|DARWIN for this object path. SHARED symbol names.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps host cc of the C seed, including the strict-link flag.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
+// SHARED symbol names. This .x always forwards to pipeline_impl_run_all.
 
 extern "C" function pipeline_impl_run_all(module: *u8, arena: *u8, source: *u8, source_len: u64, out_buf: *u8, ctx: *u8): i32;
 
@@ -34,7 +36,7 @@ extern "C" function pipeline_impl_run_all(module: *u8, arena: *u8, source: *u8, 
  * @param ctx *u8 — dependency context, forwarded unchanged
  * @return i32 — the value pipeline_impl_run_all returns
  * Null pointers are forwarded. This function does not write them.
- * PLATFORM: MACOS|DARWIN arm64. Linux and Windows stay on the C seed.
+ * PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
  */
 function pipeline_run_x_pipeline_impl(module: *u8, arena: *u8, source: *u8, source_len: u64, out_buf: *u8, ctx: *u8): i32 {
   unsafe {

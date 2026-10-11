@@ -1927,10 +1927,11 @@ ensure_phase_parse_darwin_pure() {
   return 0
 }
 
-# w1129: Darwin arm64 pipeline_run_bootstrap_trampoline.o forwards one entry.
-# Linux and Windows keep host cc of the C seed.
+# w1129: Darwin arm64 and Linux pipeline_run_bootstrap_trampoline.o forward one entry.
+# The .x always calls pipeline_impl_run_all. Linux miss does not exec cc.
+# Windows keeps host cc of the C seed, including the strict-link flag.
 # Does not match pipeline_run_impl_alias.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 # $1 = output object. cwd is compiler/.
 ensure_trampoline_darwin_pure() {
   local o="${1:-build_asm/pipeline_run_bootstrap_trampoline.o}"
@@ -1952,12 +1953,16 @@ ensure_trampoline_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      if ! nm "$o" 2>/dev/null | awk '$2=="T" && $3=="_pipeline_run_x_pipeline_impl" { n++ } END { exit (n==1)?0:1 }'; then
+      # Darwin nm prefixes '_'. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="pipeline_run_x_pipeline_impl" || $3=="_pipeline_run_x_pipeline_impl") { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o trampoline: _pipeline_run_x_pipeline_impl missing" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '$NF=="_pipeline_impl_run_all" { n++ } END { exit (n==1)?0:1 }'; then
+      # Full nm: Darwin nm -u hides the U column. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '($1=="U" || $2=="U") && ($NF=="pipeline_impl_run_all" || $NF=="_pipeline_impl_run_all") { n++ } END { exit (n==1)?0:1 }'; then
         echo "ensure_host_cc_seed_o trampoline: _pipeline_impl_run_all missing" >&2
         rm -f "$o"
         continue
@@ -1968,6 +1973,12 @@ ensure_trampoline_darwin_pure() {
     echo "ensure_host_cc_seed_o trampoline: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o trampoline: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc seed $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh seeds/pipeline_run_bootstrap_trampoline.from_x.c "$o" || return 1
@@ -32330,9 +32341,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   trampoline-pure|trampoline_pure)
-    # w1129: Darwin arm64 bootstrap trampoline from the .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1129: Darwin arm64 and Linux bootstrap trampoline from the .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o trampoline-pure: need <out.o>" >&2
       exit 2

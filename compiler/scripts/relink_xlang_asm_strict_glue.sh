@@ -1731,12 +1731,19 @@ fi
 ensure_pipeline_run_bootstrap_trampoline_obj() {
   local TRAMP_O TRAMP_CFLAGS
   TRAMP_O="$BUILD_DIR/pipeline_run_bootstrap_trampoline.o"
-  # w1129: Darwin arm64 trampoline is pure asm of the .x.
+  # w1129: Darwin arm64 and Linux trampoline is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
   # Does not match pipeline_run_impl_alias.o.
-  # Linux and Windows stay on host cc of the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
   _tr_os="$(uname -s 2>/dev/null || echo Unknown)"
   _tr_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_tr_os" = "Linux" ] && [ "$_tr_mach" = "x86_64" ] \
+    && [ -f src/pipeline_run_bootstrap_trampoline.x ]; then
+    if [ ! -f "$TRAMP_O" ] || [ src/pipeline_run_bootstrap_trampoline.x -nt "$TRAMP_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh trampoline-pure "$TRAMP_O" || return 1
+    fi
+    return 0
+  fi
   if [ "$_tr_os" = "Darwin" ] && [ "$_tr_mach" = "arm64" ] \
     && [ -f src/pipeline_run_bootstrap_trampoline.x ]; then
     if [ ! -f "$TRAMP_O" ] || [ src/pipeline_run_bootstrap_trampoline.x -nt "$TRAMP_O" ]; then
@@ -1804,7 +1811,7 @@ elif [ "$ST_GLUE_OBJ" = "$BUILD_DIR/pipeline_glue_standalone.o" ] && \
 elif [ -f "$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o" ] && ! asm_strict_x_orchestration_ok; then
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o"
 else
-  ensure_pipeline_run_bootstrap_trampoline_obj
+  ensure_pipeline_run_bootstrap_trampoline_obj || exit 1
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_run_bootstrap_trampoline.o"
 fi
 ensure_asm_backend_compat_stubs_obj
