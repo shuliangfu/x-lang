@@ -4874,22 +4874,21 @@ ensure_asm_strict_link_extra_objs() {
   echo "ERROR: src/asm/parser_asm_parse_expr_link.o missing; no seed cc (w1533)" >&2
   return 1
   fi
-  # G-02-B1：优先 .x（-backend asm）；无 xlang 或失败时回退 .c（删 C 前须 Docker Stage2 回归）。
-  if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \
-  && { [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
-  || [ src/asm/pipeline_fill_dep_strict_alias.x -nt src/asm/pipeline_fill_dep_strict_alias.o ]; }; then
-  if [ -x "$XLANG" ] && "$XLANG" build -backend asm -o src/asm/pipeline_fill_dep_strict_alias.o $LIBROOT \
-  src/asm/pipeline_fill_dep_strict_alias.x 2>/dev/null \
-  && [ -s src/asm/pipeline_fill_dep_strict_alias.o ]; then
-  echo " $XLANG -backend asm -> src/asm/pipeline_fill_dep_strict_alias.o (G-02-B1 .x)"
-  elif [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
-  echo " cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c -> src/asm/pipeline_fill_dep_strict_alias.o (fallback)"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
-  fi
+  # w1140: Darwin arm64 and Linux object is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _fd_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _fd_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_fd_os" = "Linux" ] && [ "$_fd_mach" = "x86_64" ] \
+    && [ -f src/asm/pipeline_fill_dep_strict_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh fill-dep-alias-pure src/asm/pipeline_fill_dep_strict_alias.o || return 1
+  elif [ "$_fd_os" = "Darwin" ] && [ "$_fd_mach" = "arm64" ] \
+    && [ -f src/asm/pipeline_fill_dep_strict_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh fill-dep-alias-pure src/asm/pipeline_fill_dep_strict_alias.o
   elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
-  && [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
-  echo " cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c -> src/asm/pipeline_fill_dep_strict_alias.o"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
+    && [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
+    echo " cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c -> src/asm/pipeline_fill_dep_strict_alias.o"
+    sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
   fi
   # preprocess_if_stack_* 由 runtime_pipeline_abi／pipeline orch 提供
   # （ast_pool.c mega left wave309）；bridge 已删除。

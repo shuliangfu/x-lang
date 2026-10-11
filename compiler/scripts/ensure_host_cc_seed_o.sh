@@ -1866,6 +1866,66 @@ ensure_cfg_eval_alias_darwin_pure() {
   return 0
 }
 
+# w1140: Darwin arm64 and Linux pipeline_fill_dep_strict_alias.o forward one name.
+# The emit passes -lib-name "" so the export stays bare.
+# Linux miss does not exec cc. Windows keeps host cc of the C seed.
+# Does not match pipeline_run_x_link_alias.o.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
+# $1 = output object. cwd is compiler/.
+ensure_fill_dep_alias_darwin_pure() {
+  local o="${1:-src/asm/pipeline_fill_dep_strict_alias.o}"
+  local xsrc="src/asm/pipeline_fill_dep_strict_alias.x"
+  local try=0
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o fill-dep-alias: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    # -lib-name "" keeps the export bare. Without it the name gains a
+    # pipeline_ prefix and misses the C seed.
+    # PLATFORM: MACOS|DARWIN | LINUX.
+    if ./xlang -backend asm -c -L .. -lib-name "" -o "$o" "$xsrc" \
+      && [ -s "$o" ]; then
+      # Darwin nm prefixes '_'. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '$2=="T" && ($3=="run_x_pipeline_fill_dep_import_path" || $3=="_run_x_pipeline_fill_dep_import_path") { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o fill-dep-alias: required text symbol missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      # Full nm: Darwin nm -u hides the U column. Match the whole field.
+      # PLATFORM: MACOS|DARWIN | LINUX.
+      if ! nm "$o" 2>/dev/null | awk '($1=="U" || $2=="U") && ($NF=="run_x_pipeline_fill_dep_import_path_c" || $NF=="_run_x_pipeline_fill_dep_import_path_c") { n++ } END { exit (n==1)?0:1 }'; then
+        echo "ensure_host_cc_seed_o fill-dep-alias: required undefined symbol missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o fill-dep-alias: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  # Linux miss does not exec cc. Darwin and Windows still compile the C seed.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o fill-dep-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
+  if [ ! -s "$o" ]; then
+    log "cc seed $o (pure-asm missing object)"
+    sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c "$o" || return 1
+  fi
+  return 0
+}
+
 # w1130: Darwin arm64 and Linux pipeline_phase_parse_only_alias.o are the two parse faces.
 # Linux miss does not exec cc. Windows keeps host cc of the C seed.
 # Does not match pipeline_phase_parse_only_partial.o.
@@ -32355,6 +32415,20 @@ case "$MODE" in
     fi
     set +e
     ensure_cfg_eval_alias_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  fill-dep-alias-pure|fill_dep_alias_pure)
+    # w1140: Darwin arm64 and Linux fill-dep strict alias from the .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o fill-dep-alias-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_fill_dep_alias_darwin_pure "$1"
     _irc=$?
     set -e
     exit "$_irc"

@@ -1845,16 +1845,17 @@ LIBROOT_REL=""
 if [ -f src/asm/asm_build_list.x ]; then
   LIBROOT_REL=$(sed -n 's|^// LIBROOT:[[:space:]]*||p' src/asm/asm_build_list.x | head -1)
 fi
-if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \
-  && { [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
-  || [ src/asm/pipeline_fill_dep_strict_alias.x -nt src/asm/pipeline_fill_dep_strict_alias.o ]; }; then
-  if [ -x "$XLANG_REL" ] && "$XLANG_REL" -backend asm -o src/asm/pipeline_fill_dep_strict_alias.o $LIBROOT_REL \
-  src/asm/pipeline_fill_dep_strict_alias.x 2>/dev/null; then
-  strict_glue_info "$XLANG_REL -backend asm pipeline_fill_dep_strict_alias.x"
-  elif [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
-  strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c (fallback)"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
-  fi
+# w1140: Darwin arm64 and Linux object is pure asm of the .x.
+# Linux miss does not cc. Windows stays on host cc of the C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+_fd_os="$(uname -s 2>/dev/null || echo Unknown)"
+_fd_mach="$(uname -m 2>/dev/null || echo unknown)"
+if [ "$_fd_os" = "Linux" ] && [ "$_fd_mach" = "x86_64" ] \
+  && [ -f src/asm/pipeline_fill_dep_strict_alias.x ]; then
+  bash scripts/ensure_host_cc_seed_o.sh fill-dep-alias-pure src/asm/pipeline_fill_dep_strict_alias.o || exit 1
+elif [ "$_fd_os" = "Darwin" ] && [ "$_fd_mach" = "arm64" ] \
+  && [ -f src/asm/pipeline_fill_dep_strict_alias.x ]; then
+  bash scripts/ensure_host_cc_seed_o.sh fill-dep-alias-pure src/asm/pipeline_fill_dep_strict_alias.o
 elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
   && [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
   strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c"

@@ -1,6 +1,8 @@
 /* seeds/pipeline_fill_dep_strict_alias.from_x.c — G-02f-79 product cold-start TU
  * Promoted from compiler/src/asm/pipeline_fill_dep_strict_alias.inc (alias/stub; retired .inc).
  * Compile: cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c  (or cc_inc_tu wrap).
+ * Darwin arm64 and Linux product body is src/asm/pipeline_fill_dep_strict_alias.x via -backend asm.
+ * Windows keeps host cc of this seed.
  */
 #include <stdint.h>
 
