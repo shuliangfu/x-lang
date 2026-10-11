@@ -1106,11 +1106,68 @@ ensure_atomic_glue_darwin_pure() {
   return 0
 }
 
+# w1104: Linux x86_64 runtime_dir_cap.o is src/asm/runtime_dir_cap_linux.x.
+# open/getdents64/close are raw_syscall builtins. A miss returns 1
+# and does not exec cc. Darwin uses the libSystem .x below.
+# Windows keeps the C seed. No gcc -E.
+# PLATFORM: LINUX x86_64.
+# $1 = output object (default runtime_dir_cap.o, cwd is compiler/).
+ensure_dir_cap_linux_pure() {
+  local o="${1:-runtime_dir_cap.o}"
+  local xsrc="src/asm/runtime_dir_cap_linux.x"
+  local try=0
+  local xl _dc_sym
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Linux" ]; then
+    echo "ensure_host_cc_seed_o dir-cap: Linux pure-asm is not for this host" >&2
+    return 1
+  fi
+  if [ ! -x ./xlang ] || [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o dir-cap: pure-asm needs ./xlang and $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  xl=./xlang
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if "$xl" -backend asm -c -L .. -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+      for _dc_sym in xlang_dir_opendir xlang_dir_readdir xlang_dir_closedir \
+          xlang_dir_readdir_name_c runtime_dir_cap_linux_x_doc_anchor; do
+        if ! nm "$o" 2>/dev/null | grep -qE " T ${_dc_sym}\$"; then
+          echo "ensure_host_cc_seed_o dir-cap: missing ${_dc_sym}" >&2
+          rm -f "$o"
+          continue 2
+        fi
+      done
+      if nm "$o" 2>/dev/null | grep -qE ' U raw_syscall'; then
+        echo "ensure_host_cc_seed_o dir-cap: raw_syscall stayed external" >&2
+        rm -f "$o"
+        continue
+      fi
+      if ! nm -u "$o" 2>/dev/null | awk '{ print $NF }' | grep -qx '__errno_location'; then
+        echo "ensure_host_cc_seed_o dir-cap: missing __errno_location" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o dir-cap: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  echo "ensure_host_cc_seed_o dir-cap: pure-asm failed for $xsrc" >&2
+  return 1
+}
+
 # w1104: Darwin arm64 runtime_dir_cap.o walks directories with libSystem
 # __open and __getdirentries64. The .x names use three leading underscores
 # so the undefined symbols are ___open and ___getdirentries64.
 # O_RDONLY|O_DIRECTORY is 1048576. The stream is 1096 bytes.
-# Linux and Windows keep the C seed. No gcc -E.
+# Linux uses ensure_dir_cap_linux_pure. Windows keeps the C seed. No gcc -E.
 # PLATFORM: MACOS|DARWIN arm64.
 # $1 = output object (default runtime_dir_cap.o, cwd is compiler/).
 ensure_dir_cap_darwin_pure() {
@@ -5429,13 +5486,18 @@ ensure_one() {
     fi
   fi
 
-  # w1104: Darwin arm64 directory walk is the .x, not this seed.
-  # Match runtime_dir_cap.o only. Linux and Windows keep the C seed.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1104: Darwin arm64 and Linux directory walk are the .x, not this seed.
+  # Match runtime_dir_cap.o only. Linux miss does not cc.
+  # Windows keeps the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
   if [ "$(basename "$out")" = "runtime_dir_cap.o" ]; then
     local dc_s dc_m
     dc_s="$(uname -s 2>/dev/null || echo Unknown)"
     dc_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$dc_s" = "Linux" ] && [ "$dc_m" = "x86_64" ]; then
+      ensure_dir_cap_linux_pure "$out" || return 1
+      return 0
+    fi
     if [ "$dc_s" = "Darwin" ] && [ "$dc_m" = "arm64" ] \
       && [ -f src/asm/runtime_dir_cap_darwin.x ]; then
       ensure_dir_cap_darwin_pure "$out" || return 1
@@ -26588,13 +26650,17 @@ ensure_runtime_os_prefer_one() {
     fi
   fi
 
-  # w1104: Darwin arm64 whole object is the directory .x. Do not host-cc it.
-  # Match runtime_dir_cap.o only. PLATFORM: MACOS|DARWIN arm64.
-  # Linux and Windows fall through.
+  # w1104: Darwin arm64 and Linux whole object is the directory .x.
+  # Match runtime_dir_cap.o only. Linux miss does not cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS falls through.
   if [ "$o" = "runtime_dir_cap.o" ]; then
     local dc_s dc_m
     dc_s="$(uname -s 2>/dev/null || echo Unknown)"
     dc_m="$(uname -m 2>/dev/null || echo unknown)"
+    if [ "$dc_s" = "Linux" ] && [ "$dc_m" = "x86_64" ]; then
+      ensure_dir_cap_linux_pure "$o" || return 1
+      return 0
+    fi
     if [ "$dc_s" = "Darwin" ] && [ "$dc_m" = "arm64" ] \
       && [ -f src/asm/runtime_dir_cap_darwin.x ]; then
       ensure_dir_cap_darwin_pure "$o" || return 1

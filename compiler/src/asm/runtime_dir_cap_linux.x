@@ -14,7 +14,9 @@
 //   int fd; pad; buf*; cap; len; pos; glibc dirent
 // where the dirent is 8+8+2+1+256 = 275, rounded to 8 → 280, plus the
 // 40-byte header. A regular file open returns a negative fd and this
-// face returns null. Windows keeps seeds/runtime_dir_cap.from_x.c.
+// face returns null. ensure_host_cc_seed_o.sh builds runtime_dir_cap.o
+// from this file, and a miss does not exec cc.
+// Windows keeps seeds/runtime_dir_cap.from_x.c.
 // Helpers are global text; names start with xlang_dcap_ so they do not
 // collide after ld -r. A raw_syscall call stays in its own function:
 // locals after that builtin in the same body land outside the frame.
