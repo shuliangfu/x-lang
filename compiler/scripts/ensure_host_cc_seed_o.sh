@@ -2458,10 +2458,12 @@ ensure_wpo_emit_bridge_darwin_pure() {
   return 0
 }
 
-# w1121: Darwin arm64 pipeline_wpo_strict_link_alias.o forwards two names.
-# Linux and Windows keep -x -E then host cc. The C seed is already gone.
+# w1121: Darwin arm64 and Linux pipeline_wpo_strict_link_alias.o forward two names.
+# The emit passes -lib-name "" so the emit name stays bare.
+# Linux miss does not exec cc. Windows keeps -x -E then host cc.
+# The C seed is already gone.
 # Does not match pipeline_wpo_typecheck_emit_bridge.o.
-# PLATFORM: MACOS|DARWIN arm64.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 # $1 = output object. cwd is compiler/.
 ensure_wpo_strict_alias_darwin_pure() {
   local o="${1:-build_asm/pipeline_wpo_strict_link_alias.o}"
@@ -2479,16 +2481,20 @@ ensure_wpo_strict_alias_darwin_pure() {
   while [ "$try" -lt 8 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if (
-      export XLANG_PREFER_ASM_O=1
-      pure_asm_x_to_o "$o" "$xsrc"
-    ) && [ -s "$o" ]; then
+    # -lib-name "" keeps run_x_pipeline_typecheck_entry_emit bare.
+    # Without it the asm backend adds a pipeline_ prefix.
+    # PLATFORM: MACOS|DARWIN | LINUX.
+    if ./xlang -backend asm -c -L .. -lib-name "" -o "$o" "$xsrc" \
+      && [ -s "$o" ]; then
       local _wp_short _wp_ok
       _wp_ok=1
       for _wp_short in \
         _pipeline_run_x_pipeline_impl \
         _run_x_pipeline_typecheck_entry_emit; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_wp_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Darwin nm prefixes '_'. Match the whole field so a
+        # pipeline_ prefix does not count as the bare name.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_wp_short#_}" '$2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _wp_ok=0
           break
         fi
@@ -2501,7 +2507,9 @@ ensure_wpo_strict_alias_darwin_pure() {
       for _wp_short in \
         _run_x_pipeline_impl \
         _run_x_pipeline_typecheck_entry_emit_c; do
-        if ! nm -u "$o" 2>/dev/null | awk -v s="$_wp_short" '$NF==s { n++ } END { exit (n==1)?0:1 }'; then
+        # Full nm: Darwin nm -u hides the U column. Match the whole field.
+        # PLATFORM: MACOS|DARWIN | LINUX.
+        if ! nm "$o" 2>/dev/null | awk -v s="${_wp_short#_}" '($1=="U" || $2=="U") && ($NF==s || $NF=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           echo "ensure_host_cc_seed_o wpo-strict-alias: $_wp_short is not undefined" >&2
           rm -f "$o"
           _wp_ok=0
@@ -2517,6 +2525,12 @@ ensure_wpo_strict_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o wpo-strict-alias: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin still falls back to -x -E.
+  # PLATFORM: LINUX.
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o wpo-strict-alias: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc_inc_tu --auto $o (pure-asm missing object)"
     sh scripts/cc_inc_tu.sh --auto "$o" || return 1
@@ -32353,9 +32367,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   wpo-strict-alias-pure|wpo_strict_alias_pure)
-    # w1121: Darwin arm64 WPO strict link alias from the existing .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1121: Darwin arm64 and Linux WPO strict link alias from the existing .x.
+    # Does not run the rest of ensure. Linux miss returns 1 and does not cc.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o wpo-strict-alias-pure: need <out.o>" >&2
       exit 2

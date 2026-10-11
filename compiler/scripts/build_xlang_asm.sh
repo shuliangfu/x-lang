@@ -2358,11 +2358,19 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -ne 1 ] || ! asm_pipeline_wpo_strict_reach_ok; then
   return 0
   fi
-  # w1121: Darwin arm64 alias is pure asm of the existing .x.
-  # Linux and Windows stay on -x -E then host cc.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1121: Darwin arm64 and Linux alias is asm of the existing .x.
+  # The emit passes -lib-name "". Linux miss does not cc.
+  # Windows stays on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
   _wp_os="$(uname -s 2>/dev/null || echo Unknown)"
   _wp_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_wp_os" = "Linux" ] && [ "$_wp_mach" = "x86_64" ] \
+    && [ -f src/pipeline_wpo_strict_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_wpo_strict_link_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-strict-alias-pure "$ALIAS_O" || return 1
+    fi
+    return 0
+  fi
   if [ "$_wp_os" = "Darwin" ] && [ "$_wp_mach" = "arm64" ] \
     && [ -f src/pipeline_wpo_strict_link_alias.x ]; then
     if [ ! -f "$ALIAS_O" ] || [ src/pipeline_wpo_strict_link_alias.x -nt "$ALIAS_O" ]; then
