@@ -169,6 +169,12 @@ formal_mod_spec_for_key() {
     # completeness for entry-only -x -E; dual path caused L4 run-string BLD001.
     # PLATFORM: SHARED — same dedicated vehicle as fs_formal pattern.
     std/string/string.o) printf '%s' "string_formal|0|" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.heap is one asm leaf.
+    # WINDOWS stays on the C path. Do not pass -lib-name "".
+    # Callers use std_heap_map_find, std_heap_libc_heap_alloc_i32_c,
+    # and std_heap_ops_map_i32_i32_find_c. Undefined symbols are calloc,
+    # core_mem_mem_copy, free, getenv, malloc, posix_memalign, realloc,
+    # and xlang_panic_.
     std/heap/heap.o) printf '%s' "mod|0|../std/heap/mod.x|../std/heap/libc.x|../std/heap/ops.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.sync.
     # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
@@ -2606,6 +2612,98 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/std_tar_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/mod.x|std/heap/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_heap_map_find, std_heap_trace_on, and
+      # std_heap_alloc_i32_retu8_ptr defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sheap_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sheap_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_heap_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_map_find$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_trace_on$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_alloc_i32_retu8_ptr$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_heap_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/libc.x|std/heap/libc.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap libc face is one asm leaf.
+      # No -lib-name "". Callers import std_heap_libc_heap_alloc_i32_c,
+      # std_heap_libc_heap_free_i32_c, and
+      # std_heap_libc_heap_copy_u8_at_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sheapc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sheapc_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_heap_libc_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_alloc_i32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_free_i32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_copy_u8_at_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_heap_libc_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/ops.x|std/heap/ops.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap ops face is one asm leaf.
+      # No -lib-name "". The find helper stays
+      # std_heap_ops_map_i32_i32_find_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sheapo_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sheapo_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_heap_ops_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_map_i32_i32_find_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_heap_mem_set_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_heap_mem_compare_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_heap_ops_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
