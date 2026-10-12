@@ -1810,10 +1810,44 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/http/mod.x|std/http/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.http mod.x (记228).
+      # Do not pass -lib-name "". User API stays std_http_*.
+      # http_libc_*/http2_libc_* are #[no_mangle] bare (C emit already bare;
+      # tip asm used to emit std_http_http_libc_* ~250 extras).
+      # http.x has its own bare-impl arm. Miss fail-closed.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _httpm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_httpm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/httpm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_http_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_get_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_parse_status_line_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_response_parse_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_is_https_available_c$' \
+            && ! nm "$obj" 2>/dev/null | grep -qE ' T _?std_http_http_libc_get_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/httpm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/http/http.x|std/http/http.x)
       # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.http.
       # -lib-name "" keeps http_f_http_v1_marker_c. A miss stops here.
-      # mod.x stays on the C path. Windows keeps the C path.
+      # mod.x has its own arm (记228). Windows keeps the C path.
       # Do not fall through to cc for this file.
       _hx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_hx_os" in
