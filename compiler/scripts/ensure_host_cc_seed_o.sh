@@ -1448,6 +1448,76 @@ ensure_std_debug_formal_darwin_pure() {
 }
 
 
+
+# w1111 / 记224: Darwin arm64 + Linux std/simd/simd.o from .x.
+# Twin of formal_surface.c. Tip F32(14) param_home from sK (arm64) required.
+# Windows keeps the C face. Linux miss does not exec cc.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX.
+# $1 = output object. cwd is compiler/.
+ensure_std_simd_formal_darwin_pure() {
+  local o="${1:-../std/simd/simd.o}"
+  local xsrc="src/asm/std_simd_formal_darwin.x"
+  local csrc="../std/simd/formal_surface.c"
+  local try=0
+  local _pa_os
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o simd-formal: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  # Retry before eight-try. Darwin may then use C face. Linux fail-closed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX.
+  if [ -f scripts/ensure_host_cc_seed_o.sh ] \
+    && bash scripts/ensure_host_cc_seed_o.sh simd-formal-retry "$o"; then
+    log "prefer simd formal ← pure-asm (记224)"
+    return 0
+  fi
+  while [ "$try" -lt 8 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      pure_asm_x_to_o "$o" "$xsrc"
+    ) && [ -s "$o" ]; then
+      local _sm_ok
+      _sm_ok=1
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_placeholder$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_hw_available$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_recommend_path$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_splat_f32$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_hsum$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_add_f32x4_f32x4$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?simd_hw_available_c$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?simd_recommend_path_c$'; then _sm_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_simd_formal_darwin_x_doc_anchor$'; then _sm_ok=0; fi
+      if [ "$_sm_ok" != "1" ]; then
+        echo "ensure_host_cc_seed_o simd-formal: required text symbols missing" >&2
+        rm -f "$o"
+        continue
+      fi
+      log "pure-asm $xsrc → $o"
+      return 0
+    fi
+    echo "ensure_host_cc_seed_o simd-formal: pure-asm try $try failed" >&2
+    rm -f "$o"
+  done
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o simd-formal: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
+  if [ ! -s "$o" ]; then
+    log "cc -c $csrc → $o (pure-asm missing object)"
+    # shellcheck disable=SC2086
+    ${CC:-cc} ${CFLAGS:-} -fPIE -I.. -I. -c "$csrc" -o "$o" || return 1
+  fi
+  return 0
+}
+
 # w1107 / 记219: Darwin arm64 + Linux std/async/async.o from .x (scheduler glue U).
 # Windows keeps the C face. Linux miss does not exec cc.
 # PLATFORM: MACOS|DARWIN arm64 | LINUX.
@@ -8553,6 +8623,59 @@ io_formal_retry_pure() {
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
 # write stays undefined. PLATFORM: MACOS|DARWIN arm64.
 # Other hosts return 1. cwd is compiler/.
+
+# w1210 / 记224: std_simd_formal_darwin.x retry (key T + getenv/memcpy U).
+# PLATFORM: MACOS|DARWIN arm64 | LINUX. Other hosts return 1. cwd is compiler/.
+simd_formal_retry_pure() {
+  local o="${1:-}"
+  local xsrc="src/asm/std_simd_formal_darwin.x"
+  local try
+  local _os _mach
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_os" = "Darwin" ]; then
+    if [ "$_mach" != "arm64" ]; then
+      return 1
+    fi
+  elif [ "$_os" != "Linux" ]; then
+    return 1
+  fi
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
+    return 1
+  fi
+  try=0
+  while [ "$try" -lt 12 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if [ -x ./xlang_asm ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    elif [ -x ./xlang ]; then
+      if ./xlang -backend asm -c -L .. -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    else
+      return 1
+    fi
+    rm -f "$o"
+  done
+  if [ ! -s "$o" ]; then
+    return 1
+  fi
+  if ! nm "$o" | grep -qE ' T _?std_simd_formal_darwin_x_doc_anchor$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_simd_placeholder$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_simd_hw_available$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_simd_splat_f32$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_simd_hsum$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?simd_hw_available_c$'; then rm -f "$o"; return 1; fi
+  if ! nm -u "$o" | awk '{ s=$NF } s=="memcpy" || s=="_memcpy" { n++ } END { exit (n>=1)?0:1 }'; then
+    rm -f "$o"
+    return 1
+  fi
+  return 0
+}
+
 debug_formal_retry_pure() {
   local o="${1:-}"
   local xsrc="src/asm/std_debug_formal_darwin.x"
@@ -31829,6 +31952,17 @@ case "$MODE" in
     io_formal_retry_pure "$1"
     exit $?
     ;;
+  simd-formal-retry|simd_formal_retry_pure)
+    # w1210 / 记224: key pure-asm symbols of std_simd_formal_darwin.x.
+    # Does not write std/simd/simd.o unless that path is passed.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o simd-formal-retry: need <out.o>" >&2
+      exit 2
+    fi
+    simd_formal_retry_pure "$1"
+    exit $?
+    ;;
   debug-formal-retry|debug_formal_retry_pure)
     # w1199 / 记217: six pure-asm symbols of std_debug_formal_darwin.x.
     # Does not write std/debug/debug.o unless that path is passed.
@@ -32917,6 +33051,20 @@ case "$MODE" in
     fi
     set +e
     ensure_std_async_formal_darwin_pure "$1"
+    _irc=$?
+    set -e
+    exit "$_irc"
+    ;;
+  simd-formal-pure|simd_formal_pure)
+    # w1111 / 记224: Darwin arm64 + Linux std/simd formal face from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 (no cc).
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
+    if [ "$#" -lt 1 ]; then
+      echo "ensure_host_cc_seed_o simd-formal-pure: need <out.o>" >&2
+      exit 2
+    fi
+    set +e
+    ensure_std_simd_formal_darwin_pure "$1"
     _irc=$?
     set -e
     exit "$_irc"

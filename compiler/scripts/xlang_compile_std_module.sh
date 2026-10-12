@@ -891,6 +891,7 @@ case "${1:-}" in
       _drv_darwin=0
       _drv_x=""
       _cz_darwin=0
+      _sm_darwin=0
       _cz_x=""
       _rt_darwin=0
       _rt_x=""
@@ -969,6 +970,21 @@ case "${1:-}" in
           fi
         fi
       fi
+      if [ "$_key" = "std/simd/simd.o" ]; then
+        # 记224: Linux joins Darwin arm64 pure-asm (INTEGER dual-GP f32x4).
+        # Windows keeps formal_surface.c. Tip F32 param_home from sK required.
+        _sm_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _sm_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_sm_os" = "Darwin" ] && [ "$_sm_mach" = "arm64" ]; } || [ "$_sm_os" = "Linux" ]; then
+          _sm_x="src/asm/std_simd_formal_darwin.x"
+          if [ ! -f "$_sm_x" ]; then
+            _sm_x="../compiler/src/asm/std_simd_formal_darwin.x"
+          fi
+          if [ -f "$_sm_x" ]; then
+            _sm_darwin=1
+          fi
+        fi
+      fi
       if [ "$_key" = "std/runtime/runtime.o" ]; then
         # 记218: Linux joins Darwin arm64 — four faces from the .x.
         # Windows keeps formal_surface.c. Miss is fail-closed (no cc).
@@ -1000,6 +1016,9 @@ case "${1:-}" in
           _pure_newer=1
         fi
         if [ "$_cz_darwin" = "1" ] && [ -f "$_cz_x" ] && [ "$_cz_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_sm_darwin" = "1" ] && [ -f "$_sm_x" ] && [ "$_sm_x" -nt "$out_o" ]; then
           _pure_newer=1
         fi
         if [ "$_rt_darwin" = "1" ] && [ -f "$_rt_x" ] && [ "$_rt_x" -nt "$out_o" ]; then
@@ -1057,6 +1076,18 @@ case "${1:-}" in
           exit 1
         fi
         echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_sm_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" simd-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: simd formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (simd formal pure-asm -> $out_o)"
         exit 0
       fi
       if [ "$_cz_darwin" = "1" ]; then

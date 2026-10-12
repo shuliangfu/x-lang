@@ -163,13 +163,18 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
       home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
     }
     home = cur;
+    /* 记224: F32(14) also arrives in sK (same v-reg as dK). Prior only
+     * homed F64(15) via fmov x0,dK — f32 formals wrongly took the next GP
+     * (store_f32_test read x1). Literal 14/15 avoid named-const adrp miss.
+     * PLATFORM: MACOS|DARWIN|LINUX arm64. */
     is_f64_p = 0;
     unsafe {
       pty_h = pipeline_module_func_param_type_ref_at(mod, func_index, i);
     }
     if (pty_h > 0) {
       unsafe {
-        if (pipeline_type_kind_ord_at(arena, pty_h) == 15) {
+        let pk: i32 = pipeline_type_kind_ord_at(arena, pty_h);
+        if (pk == 15 || pk == 14) {
           is_f64_p = 1;
         }
       }
