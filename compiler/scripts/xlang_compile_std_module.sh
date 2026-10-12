@@ -940,9 +940,11 @@ case "${1:-}" in
         fi
       fi
       if [ "$_key" = "std/io/driver.o" ]; then
+        # 记221: Linux joins Darwin arm64 pure-asm (driver faces return 0).
+        # Windows keeps driver_formal_surface.c.
         _drv_os="$(uname -s 2>/dev/null || echo Unknown)"
         _drv_mach="$(uname -m 2>/dev/null || echo unknown)"
-        if [ "$_drv_os" = "Darwin" ] && [ "$_drv_mach" = "arm64" ]; then
+        if { [ "$_drv_os" = "Darwin" ] && [ "$_drv_mach" = "arm64" ]; } || [ "$_drv_os" = "Linux" ]; then
           _drv_x="src/asm/std_io_driver_formal_darwin.x"
           if [ ! -f "$_drv_x" ]; then
             _drv_x="../compiler/src/asm/std_io_driver_formal_darwin.x"

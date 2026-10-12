@@ -6,14 +6,14 @@
 // Buffer is 24 bytes { ptr, length, handle }. On arm64 a struct larger
 // than 16 bytes arrives as a pointer in the next integer register, so the
 // by-value Buffer parameters are *u8. Array parameters are already pointers.
-// Every face returns 0 and does not call the driver. Linux and Windows
-// keep the C face.
-// PLATFORM: MACOS|DARWIN arm64.
+// Every face returns 0 and does not call the driver.
+// Windows keeps driver_formal_surface.c (记221 Linux pure-asm).
+// PLATFORM: MACOS|DARWIN arm64 | LINUX.
 
 /**
  * Anchor for this Darwin io-driver object.
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_formal_darwin_x_doc_anchor(): i32 {
@@ -24,7 +24,7 @@ export function std_io_driver_formal_darwin_x_doc_anchor(): i32 {
  * Keep a pointer parameter live without loading through it.
  * @param p received address
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function drv_keep(p: *u8): i32 {
   if (p == p) {
@@ -37,7 +37,7 @@ function drv_keep(p: *u8): i32 {
  * Register one buffer. The 24-byte value arrives as a pointer.
  * @param buf address of the caller's Buffer
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_register(buf: *u8): i32 {
@@ -49,7 +49,7 @@ export function std_io_driver_register(buf: *u8): i32 {
  * @param buf address of the caller's Buffer
  * @param timeout_ms timeout in milliseconds
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_submit_read(buf: *u8, timeout_ms: u32): i32 {
@@ -65,7 +65,7 @@ export function std_io_driver_submit_read(buf: *u8, timeout_ms: u32): i32 {
  * @param buf address of the caller's Buffer
  * @param timeout_ms timeout in milliseconds
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_submit_write(buf: *u8, timeout_ms: u32): i32 {
@@ -81,7 +81,7 @@ export function std_io_driver_submit_write(buf: *u8, timeout_ms: u32): i32 {
  * @param bufs table pointer
  * @param nr entry count
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_submit_register_fixed_buffers_buf(bufs: *u8, nr: u32): i32 {
@@ -98,7 +98,7 @@ export function std_io_driver_submit_register_fixed_buffers_buf(bufs: *u8, nr: u
  * @param n entry count
  * @param timeout_ms timeout in milliseconds
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_submit_write_batch(buffers: *u8, n: i32, timeout_ms: u32): i32 {
@@ -119,7 +119,7 @@ export function std_io_driver_submit_write_batch(buffers: *u8, n: i32, timeout_m
  * @param nr entry count
  * @param timeout_ms timeout in milliseconds
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_submit_read_batch_buf(handle: u64, bufs: *u8, nr: i32, timeout_ms: u32): i32 {
@@ -143,7 +143,7 @@ export function std_io_driver_submit_read_batch_buf(handle: u64, bufs: *u8, nr: 
  * @param nr entry count
  * @param timeout_ms timeout in milliseconds
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_driver_submit_write_batch_buf(handle: u64, bufs: *u8, nr: i32, timeout_ms: u32): i32 {

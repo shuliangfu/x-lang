@@ -1581,15 +1581,17 @@ ensure_std_io_formal_darwin_pure() {
   return 0
 }
 
-# w1109: Darwin arm64 std/io/driver.o returns 0 for every driver face.
-# A 24-byte Buffer arrives as a pointer. Linux and Windows keep the C face.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1109 / 记221: Darwin arm64 + Linux std/io/driver.o from .x (faces return 0).
+# Windows keeps the C face. Linux miss does not exec cc. No undefined symbols.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
 ensure_std_io_driver_formal_darwin_pure() {
   local o="${1:-../std/io/driver.o}"
   local xsrc="src/asm/std_io_driver_formal_darwin.x"
   local csrc="../std/io/driver_formal_surface.c"
   local try=0
+  local _pa_os
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o driver-formal: missing $xsrc" >&2
     return 1
@@ -1599,10 +1601,9 @@ ensure_std_io_driver_formal_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
-  # w1201: some pure-asm tries segfault. Retry before the eight-try
-  # path. A failed retry still falls back to that path and then the
-  # C face. Symbols stay strong. No undefined symbols.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1201: some pure-asm tries segfault. Retry before eight-try.
+  # Darwin may then use C face. Linux is fail-closed (no cc).
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh driver-formal-retry "$o"; then
     log "prefer driver formal ← pure-asm nine symbols (w1201)"
@@ -1615,22 +1616,16 @@ ensure_std_io_driver_formal_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      local _drv_short _drv_ok
+      local _drv_ok
       _drv_ok=1
-      for _drv_short in \
-        _std_io_driver_register \
-        _std_io_driver_submit_read \
-        _std_io_driver_submit_write \
-        _std_io_driver_submit_register_fixed_buffers_buf \
-        _std_io_driver_submit_write_batch \
-        _std_io_driver_submit_read_batch_buf \
-        _std_io_driver_submit_write_batch_buf \
-        _std_io_driver_formal_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_drv_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
-          _drv_ok=0
-          break
-        fi
-      done
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_register$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_submit_read$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_submit_write$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_submit_register_fixed_buffers_buf$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_submit_write_batch$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_submit_read_batch_buf$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_submit_write_batch_buf$'; then _drv_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_driver_formal_darwin_x_doc_anchor$'; then _drv_ok=0; fi
       if [ "$_drv_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o driver-formal: required text symbols missing" >&2
         rm -f "$o"
@@ -1647,6 +1642,10 @@ ensure_std_io_driver_formal_darwin_pure() {
     echo "ensure_host_cc_seed_o driver-formal: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o driver-formal: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $csrc → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -8398,22 +8397,35 @@ slice_glue_retry_pure() {
 driver_formal_retry_pure() {
   local o="${1:-}"
   local xsrc="src/asm/std_io_driver_formal_darwin.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+  local try n
+  local _os _mach
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  # 记221: Linux joins Darwin arm64. Other hosts return 1.
+  if [ "$_os" = "Darwin" ]; then
+    if [ "$_mach" != "arm64" ]; then
+      return 1
+    fi
+  elif [ "$_os" != "Linux" ]; then
     return 1
   fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
   try=0
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
+    if [ -x ./xlang_asm ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    elif [ -x ./xlang ]; then
+      if ./xlang -backend asm -c -L .. -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    else
+      return 1
     fi
     rm -f "$o"
   done
@@ -8425,13 +8437,10 @@ driver_formal_retry_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _std_io_driver_formal_darwin_x_doc_anchor _std_io_driver_register \
-    _std_io_driver_submit_read _std_io_driver_submit_write; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
-  done
+  if ! nm "$o" | grep -qE ' T _?std_io_driver_formal_darwin_x_doc_anchor$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_io_driver_register$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_io_driver_submit_read$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_io_driver_submit_write$'; then rm -f "$o"; return 1; fi
   if nm -u "$o" | grep -q .; then
     rm -f "$o"
     return 1
@@ -31760,9 +31769,9 @@ case "$MODE" in
     exit $?
     ;;
   driver-formal-retry|driver_formal_retry_pure)
-    # w1201: nine pure-asm symbols of std_io_driver_formal_darwin.x.
+    # w1201 / 记221: nine pure-asm symbols of std_io_driver_formal_darwin.x.
     # Does not write std/io/driver.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o driver-formal-retry: need <out.o>" >&2
       exit 2
