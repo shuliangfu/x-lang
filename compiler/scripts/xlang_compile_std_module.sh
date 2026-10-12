@@ -1810,6 +1810,65 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/path/mod.x|std/path/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.path mod.x (记235).
+      # Product module.sh still -x -E→cc (cc_calls=1). Tip asm emits
+      # std_path_*; probe is_sep/empty_len/is_absolute match semantics.
+      # Fail-closed; Windows keeps C path.
+      _pathm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_pathm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/pathm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_basename$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_join$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_is_absolute$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/pathm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/process/mod.x|std/process/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.process mod.x (记235).
+      # Same STILL_CC as path (module -x -E→cc). Tip emits std_process_*.
+      # Fail-closed; Windows keeps C path.
+      _procm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_procm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/procm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_exit$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_getpid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_args_count$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_getenv$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/procm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/socketio/mod.x|std/socketio/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.socketio mod.x (记234).
       # Tip asm emits std_socketio_* import face. C path -x -E→cc fails
