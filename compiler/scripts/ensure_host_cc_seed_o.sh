@@ -5970,6 +5970,21 @@ ensure_one() {
     return 0
   fi
 
+  # w1525 / knife 256 (10.2): runtime_io_abi cold seed emptied (orphan #else).
+  # Full .x pure-asm only — never host-cc the broken seed. PLATFORM: SHARED.
+  if [ "$out" = "src/runtime_io_abi.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$out" src/runtime_io_abi.x \
+      runtime_io_abi_x_w1525_anchor runtime_io_abi_slice_marker \
+      runtime_read_file_view_impl xlang_write_path_bytes_impl std_fs_fs_open_write || return 1
+    return 0
+  fi
+
+  # knife 256 / 10.2: diag cold seed emptied; thin+FROM_X rest only. PLATFORM: SHARED.
+  if [ "$out" = "src/diag.o" ]; then
+    ensure_diag_prefer || return 1
+    return 0
+  fi
+
   # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
   # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
   # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
@@ -14738,6 +14753,93 @@ r1_seed_mode_for_o() {
   return 1
 }
 
+
+# knife 256 / 10.2: src/diag.o = diag_thin.x + seed rest with XLANG_L2_DIAG_THIN_FROM_X.
+# Bare cold-cc of seeds/diag.from_x.c hits emptied orphan #else (syntax error).
+# Twin of g05_ensure G-02f-335～346 / w2060. Do not gate on PREFER=1 (sat sets 0).
+# Thin: Darwin arm64 prefers eight-piece xlang_asm (w1140) when present; else
+# egg/tip Track L (-E→cc). PLATFORM: SHARED.
+ensure_diag_prefer() {
+  local o="src/diag.o"
+  local seed="seeds/diag.from_x.c"
+  local thin_x="src/diag_thin.x"
+  local thin_o rest_o
+  local xlang_bin=""
+  if [ ! -f "$seed" ]; then
+    echo "ensure_diag_prefer: missing $seed" >&2
+    return 1
+  fi
+  if [ ! -f "$thin_x" ]; then
+    echo "ensure_diag_prefer: missing $thin_x" >&2
+    return 1
+  fi
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$seed" -nt "$o" ] \
+    && [ ! "$thin_x" -nt "$o" ] \
+    && { [ ! -f src/diag.x ] || [ ! src/diag.x -nt "$o" ]; } \
+    && nm "$o" 2>/dev/null | grep -qE " T _?diag_"; then
+    log "skip up-to-date $o (diag thin+FROM_X rest)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  thin_o="$(mktemp "${TMPDIR:-/tmp}/diag_thin.XXXXXX.o")" || return 1
+  rest_o="$(mktemp "${TMPDIR:-/tmp}/diag_rest.XXXXXX.o")" || { rm -f "$thin_o"; return 1; }
+  # 1) thin
+  local thin_ok=0
+  if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x ./xlang_asm ] \
+    && diag_thin_darwin_pure "$thin_o"; then
+    thin_ok=1
+  fi
+  if [ "$thin_ok" != "1" ]; then
+    if [ -x ./xlang ]; then xlang_bin=./xlang
+    elif [ -x ./xlang-c ]; then xlang_bin=./xlang-c
+    elif [ -x ./bootstrap_xlangc ]; then xlang_bin=./bootstrap_xlangc
+    fi
+    if [ -n "$xlang_bin" ]; then
+      local e_c
+      e_c="$(mktemp "${TMPDIR:-/tmp}/diag_thin_e.XXXXXX.c")" || true
+      if [ -n "$e_c" ] \
+        && "$xlang_bin" -E -L .. "$thin_x" >"$e_c" 2>/dev/null \
+        && [ -s "$e_c" ] \
+        && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$thin_o" "$e_c" 2>/dev/null \
+        && [ -s "$thin_o" ]; then
+        thin_ok=1
+      fi
+      rm -f "$e_c"
+    fi
+  fi
+  if [ "$thin_ok" != "1" ]; then
+    echo "ensure_diag_prefer: thin failed for $thin_x" >&2
+    rm -f "$thin_o" "$rest_o"
+    return 1
+  fi
+  # 2) FROM_X rest (skips emptied cold #else)
+  # shellcheck disable=SC2086
+  if ! $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_L2_DIAG_THIN_FROM_X \
+      -c -o "$rest_o" "$seed"; then
+    echo "ensure_diag_prefer: FROM_X rest cc failed" >&2
+    rm -f "$thin_o" "$rest_o"
+    return 1
+  fi
+  # 3) merge
+  if ! pure_ld_partial_merge "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+    # fallback ld -r
+    if ! ld -r -o "$o" "$thin_o" "$rest_o" 2>/dev/null; then
+      echo "ensure_diag_prefer: merge failed" >&2
+      rm -f "$thin_o" "$rest_o" "$o"
+      return 1
+    fi
+  fi
+  rm -f "$thin_o" "$rest_o"
+  if [ ! -s "$o" ]; then
+    echo "ensure_diag_prefer: empty $o" >&2
+    return 1
+  fi
+  log "diag $o <- $thin_x + FROM_X rest (knife256; no bare cold seed)"
+  return 0
+}
+
 try_ensure_r1_one() {
   local o="$1"
   local seed_mode seed extras_str
@@ -14762,6 +14864,12 @@ try_ensure_r1_one() {
   # PLATFORM: SHARED · pin egg required for true-cold hybrid.
   if [ "$o" = "src/runtime_pipeline_abi.o" ]; then
     ensure_pipeline_abi_prefer_one "$o" || return 1
+    return 0
+  fi
+  # knife 256 / 10.2: diag seed cold bodies emptied (orphan #else); sat PREFER=0
+  # must not bare-cc. Always thin+FROM_X rest (g05 G-02f-335 twin). PLATFORM: SHARED.
+  if [ "$o" = "src/diag.o" ]; then
+    ensure_diag_prefer || return 1
     return 0
   fi
   # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: alias bodies that live in the .x are not in the seed.
@@ -14799,9 +14907,9 @@ try_ensure_r1_one() {
   esac
   if [ -n "$extras_str" ]; then
     # shellcheck disable=SC2086
-    ensure_one "$o" "$seed" $extras_str
+    ensure_one "$o" "$seed" $extras_str || return 1
   else
-    ensure_one "$o" "$seed"
+    ensure_one "$o" "$seed" || return 1
   fi
   return 0
 }
@@ -14857,13 +14965,32 @@ try_ensure_r3_cold_one() {
     ensure_call_dispatch_full_x || return 1
     return 0
   fi
+  # w1525 / knife 256 (10.2): runtime_io_abi seed cold emptied; full .x pure-asm.
+  if [ "$o" = "src/runtime_io_abi.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$o" src/runtime_io_abi.x \
+      runtime_io_abi_x_w1525_anchor runtime_io_abi_slice_marker \
+      runtime_read_file_view_impl xlang_write_path_bytes_impl std_fs_fs_open_write || return 1
+    return 0
+  fi
+  # w1525: simd leaves — cold seed is marker-only (336B); use full .x pure-asm.
+  if [ "$o" = "src/asm/simd_enc.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$o" src/asm/simd_enc.x \
+      simd_enc_x_w1525_anchor simd_enc_slice_marker simd_rbp_disp32 || return 1
+    return 0
+  fi
+  if [ "$o" = "src/asm/simd_loop.o" ]; then
+    ensure_r3_full_x_pure_w1525 "$o" src/asm/simd_loop.x \
+      simd_loop_x_w1525_anchor simd_loop_slice_marker \
+      glue_simd_loop_pick_lanes_c glue_expr_same_var_c || return 1
+    return 0
+  fi
   seed="$(seed_for_o "$o")"
   # Deleted-seed R3 leaves: prefer helper owns the pure-asm body (no C fallback).
   if [ ! -f "$seed" ]; then
     ensure_r3_prefer_one "$o" || return 1
     return 0
   fi
-  ensure_one "$o" "$seed"
+  ensure_one "$o" "$seed" || return 1
   return 0
 }
 
