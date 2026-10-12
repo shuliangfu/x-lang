@@ -347,32 +347,30 @@ _g05_pure_overlay() {
   mkdir -p build_asm/selfhost_pabi
   # Keep prior $_po_o on tipU/CG002 miss (记211: wipe left Ubuntu without overlays).
   rm -f "$_po_o.tmp.o"
-  # knife 254 / 9.2: xlang_asm is the relink *output* and may be mid-cold with
-  # empty-body emit (store_retval_pair dropped all extern U). Prefer last-known
-  # good ./xlang for overlay compile; fall back to ./xlang_asm only if xlang
-  # is absent. PLATFORM: SHARED tip cold · MACOS store_retval gate.
-  _po_bin=""
-  if [ -x ./xlang ]; then
-    _po_bin=./xlang
-  elif [ -x ./xlang_asm ]; then
-    _po_bin=./xlang_asm
-  else
+  # knife256/10.2: try ./xlang then ./xlang_asm (park-fixed tip may emit rio
+  # but miss Cap thins that an older xlang_asm still emits). PLATFORM: SHARED.
+  _po_bins=""
+  [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
+  [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"
+  if [ -z "$_po_bins" ]; then
     echo "g05_relink_env: WARNING pure overlay $_po_x not built (no ./xlang or ./xlang_asm)" >&2
     return 0
   fi
-  for _po_try in 1 2 3; do
-    _po_rc=0
-    "$_po_bin" -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
-    if [ "$_po_rc" -eq 124 ] || [ "$_po_rc" -ge 128 ]; then
-      printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
-        "$(date +%H:%M:%S)" "$_po_rc" "$_po_bin" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
-    fi
-    if [ "$_po_rc" -eq 0 ] \
-      && nm "$_po_o.tmp.o" 2>/dev/null | grep -q "T _*${_po_sym}\$"; then
-      mv -f "$_po_o.tmp.o" "$_po_o"
-      break
-    fi
-    rm -f "$_po_o.tmp.o"
+  for _po_bin in $_po_bins; do
+    for _po_try in 1 2 3; do
+      _po_rc=0
+      "$_po_bin" -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
+      if [ "$_po_rc" -eq 124 ] || [ "$_po_rc" -ge 128 ]; then
+        printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
+          "$(date +%H:%M:%S)" "$_po_rc" "$_po_bin" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      fi
+      if [ "$_po_rc" -eq 0 ] \
+        && nm "$_po_o.tmp.o" 2>/dev/null | grep -q "T _*${_po_sym}\$"; then
+        mv -f "$_po_o.tmp.o" "$_po_o"
+        break 2
+      fi
+      rm -f "$_po_o.tmp.o"
+    done
   done
   if [ -s "$_po_o" ]; then
     _G05_PO_OUT="$_po_o"
