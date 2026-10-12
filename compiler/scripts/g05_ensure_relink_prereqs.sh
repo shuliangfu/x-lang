@@ -4606,11 +4606,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # parser_x.o cold path.
   # Missing object (w1633 Linux, w1812 Darwin and Windows): rebuild from
   # src/parser/parser.x via build_parser_x. No host cc, no -E assemble.
-  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
-  # that case. The helper was measured against the installed object:
-  # same defined and undefined sets, same .text. The installed compiler
-  # frame for pipeline_asm_cmp_enum_rhs_tag_c covers the 256-byte name
-  # buffers, so Darwin and Windows can emit this module.
+  # L4 wipes .o and *.pure_asm (knife256); missing .o → pure-asm rebuild.
+  # Stamp≠.o (seed vs leftover) → drop+pure-asm, never host-cc.
+  # The helper was measured against the installed object: same defined
+  # and undefined sets, same .text. The installed compiler frame for
+  # pipeline_asm_cmp_enum_rhs_tag_c covers the 256-byte name buffers,
+  # so Darwin and Windows can emit this module.
   # PLATFORM: SHARED.
   # w1578: a matching parser_x.pure_asm stamp skips a later gen refresh.
   # A stamp that does not match the object stops ensure (exit 2).
@@ -4629,8 +4630,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _px_rc=0
   g05_parser_x_needs_host_cc || _px_rc=$?
   if [ "$_px_rc" -eq 2 ]; then
-    echo "g05_ensure: ERROR parser_x.pure_asm does not match parser_x.o; refusing to host-cc" >&2
-    exit 1
+    # knife256 / 10.2: stamp≠.o (e.g. Track L cold seed after L4 wipe left
+    # a stale pure_asm stamp). Drop both and rebuild via tip pure-asm —
+    # never host-cc. PLATFORM: SHARED.
+    echo "g05_ensure: parser_x.pure_asm≠parser_x.o; drop+pure-asm rebuild (no host-cc)"
+    rm -f parser_x.o parser_x.pure_asm
+    if ! bash scripts/ensure_gen_x_o.sh parser_x; then
+      echo "g05_ensure: parser_x.o pure-asm rebuild after stamp mismatch failed" >&2
+      exit 1
+    fi
+    if ! g05_stamp_parser_x_pure_asm .; then
+      echo "g05_ensure: parser_x.o pure-asm stamp after mismatch rebuild failed" >&2
+      exit 1
+    fi
+    _px_rc=1
   fi
   if [ "$_px_rc" -eq 0 ]; then
     # gen.c is newer and there is no pure-asm stamp. The object stays.
@@ -4644,13 +4657,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # typeck_x.o cold path.
   # Missing object (w1635 Linux, w1812 Darwin and Windows): rebuild from
   # src/typeck/typeck.x via build_typeck_x. No host cc, no -E assemble.
-  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
-  # that case. The helper emits the same defined set as the installed
-  # object. Seven CTFE names and the cap-residual slot names stay
-  # undefined; their bodies stay in the companion objects already on the
-  # link list. Layout remainder sites no longer emit the idiv
-  # zero-divisor panic sequence, so the bytes are not a drop-in and this
-  # path does not replace an object that is already present.
+  # L4 wipes .o and *.pure_asm (knife256); missing .o → pure-asm rebuild.
+  # Stamp≠.o (seed vs leftover) → drop+pure-asm, never host-cc.
+  # The helper emits the same defined set as the installed object. Seven
+  # CTFE names and the cap-residual slot names stay undefined; their
+  # bodies stay in the companion objects already on the link list. Layout
+  # remainder sites no longer emit the idiv zero-divisor panic sequence,
+  # so the bytes are not a drop-in and this path does not replace an
+  # object that is already present.
   # PLATFORM: SHARED.
   g05_frontend_x_drop_stale typeck_x src/typeck src/parser src/lexer src/ast
   if [ ! -f typeck_x.o ]; then
@@ -4687,8 +4701,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _tgx_rc=0
   g05_frontend_x_needs_host_cc . typeck_x || _tgx_rc=$?
   if [ "$_tgx_rc" -eq 2 ]; then
-    echo "g05_ensure: ERROR typeck_x.pure_asm does not match typeck_x.o; refusing to host-cc" >&2
-    exit 1
+    # knife256 / 10.2: same as parser — stamp≠.o → drop+pure-asm, never host-cc.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: typeck_x.pure_asm≠typeck_x.o; drop+pure-asm rebuild (no host-cc)"
+    rm -f typeck_x.o typeck_x.pure_asm
+    if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
+      echo "g05_ensure: typeck_x.o pure-asm rebuild after stamp mismatch failed" >&2
+      exit 1
+    fi
+    if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
+      echo "g05_ensure: typeck_x.o pure-asm stamp after mismatch rebuild failed" >&2
+      exit 1
+    fi
+    _tgx_rc=1
   fi
   if [ "$_tgx_rc" -eq 1 ] && g05_frontend_x_pure_asm_kept . typeck_x; then
     echo "g05_ensure: typeck_x.o kept (pure-asm stamp matches; no host-cc)"
@@ -4707,11 +4732,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # Missing object (w1634 Linux, w1812 Darwin and Windows): rebuild from
   # src/codegen/codegen.x and codegen_late.x via build_codegen_x, then
   # ld -r into this one object (w1830). No host cc, no -E assemble.
-  # L4 deletes the .o and keeps the stamp, so the rebuild has to run in
-  # that case. The helper emits the same defined set as the installed
-  # object. Two constant-10 division checks inside format_uint64 are
-  # absent on this compiler, so the bytes are not a drop-in and this
-  # path does not replace an object that is already present.
+  # L4 wipes .o and *.pure_asm (knife256); missing .o → pure-asm rebuild.
+  # Stamp≠.o (seed vs leftover) → drop+pure-asm, never host-cc.
+  # The helper emits the same defined set as the installed object. Two
+  # constant-10 division checks inside format_uint64 are absent on this
+  # compiler, so the bytes are not a drop-in and this path does not
+  # replace an object that is already present.
   # PLATFORM: SHARED.
   # Cap residual stays a separate object. It is not inside codegen.x.
   g05_frontend_x_drop_stale codegen_x src/codegen src/typeck src/parser src/lexer src/ast
@@ -4735,8 +4761,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _cgx_rc=0
   g05_frontend_x_needs_host_cc . codegen_x || _cgx_rc=$?
   if [ "$_cgx_rc" -eq 2 ]; then
-    echo "g05_ensure: ERROR codegen_x.pure_asm does not match codegen_x.o; refusing to host-cc" >&2
-    exit 1
+    # knife256 / 10.2: same as parser — stamp≠.o → drop+pure-asm, never host-cc.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: codegen_x.pure_asm≠codegen_x.o; drop+pure-asm rebuild (no host-cc)"
+    rm -f codegen_x.o codegen_x.pure_asm
+    if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
+      echo "g05_ensure: codegen_x.o pure-asm rebuild after stamp mismatch failed" >&2
+      exit 1
+    fi
+    if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
+      echo "g05_ensure: codegen_x.o pure-asm stamp after mismatch rebuild failed" >&2
+      exit 1
+    fi
+    _cgx_rc=1
   fi
   if [ "$_cgx_rc" -eq 0 ]; then
     # gen.c is newer and there is no pure-asm stamp. The object stays.

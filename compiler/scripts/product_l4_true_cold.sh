@@ -230,6 +230,11 @@ log "log file: $LOG"
 _l4_step_begin "1_wipe_o"
 log "step1: wipe ALL .o under compiler/ std/ core/"
 find compiler std core -name '*.o' -type f -delete 2>/dev/null || true
+# knife256 / 10.2: also drop frontend pure-asm stamps. L4 wipe left
+# parser_x.pure_asm / typeck_x.pure_asm / codegen_x.pure_asm while replacing
+# .o via Track L cold seed → g05_frontend_x_needs_host_cc rc=2 refuse.
+# PLATFORM: SHARED tip cold.
+find compiler -name '*.pure_asm' -type f -delete 2>/dev/null || true
 _l4_step_end
 
 # --- 2) Wipe product binaries (must be this-wave) ---
