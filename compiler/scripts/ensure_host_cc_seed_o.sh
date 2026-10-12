@@ -5985,6 +5985,12 @@ ensure_one() {
     return 0
   fi
 
+  # wave852 / knife 256 (10.2): ldpc cold emptied — prefer body, never bare cc.
+  if [ "$out" = "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
+    ensure_ldpc_prefer_one "$out" || return 1
+    return 0
+  fi
+
   # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
   # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
   # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
@@ -14870,6 +14876,12 @@ try_ensure_r1_one() {
   # must not bare-cc. Always thin+FROM_X rest (g05 G-02f-335 twin). PLATFORM: SHARED.
   if [ "$o" = "src/diag.o" ]; then
     ensure_diag_prefer || return 1
+    return 0
+  fi
+  # wave852 / knife 256 (10.2): ldpc cold emptied; always pure-asm .x + FROM_X tail.
+  # Do not gate on PREFER (lsp rebuild sets 0). PLATFORM: SHARED.
+  if [ "$o" = "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
+    ensure_ldpc_prefer_one "$o" || return 1
     return 0
   fi
   # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: alias bodies that live in the .x are not in the seed.
@@ -26802,6 +26814,9 @@ ensure_ldpc_prefer_one() {
     asm_bin="./xlang"
   elif [ -x "./xlang-c" ]; then
     asm_bin="./xlang-c"
+  elif [ -x "./bootstrap_xlangc" ]; then
+    # knife 256 / 10.2: L4 wipe leaves only the pin egg during lsp rebuild.
+    asm_bin="./bootstrap_xlangc"
   fi
   if [ -z "$asm_bin" ]; then
     echo "ensure_host_cc_seed_o try-ldpc-prefer: no asm compiler; C aliases are gone, no fallback" >&2
@@ -26881,7 +26896,7 @@ try_ensure_ldpc_prefer_one() {
   if [ "$o" != "src/lsp/lsp_diag_pipeline_ctx.o" ]; then
     return 3
   fi
-  ensure_ldpc_prefer_one "$o"
+  ensure_ldpc_prefer_one "$o" || return 1
   return 0
 }
 
