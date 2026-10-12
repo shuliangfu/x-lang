@@ -4763,8 +4763,10 @@ ensure_strict_glue_w1530() {
     echo "ensure: $o missing $x_heap or $x_glue; no host cc" >&2
     return 1
   fi
+  # 记250／8.7: also src/runtime_driver_strict_glue_stubs.x (basename surface).
   if [ "${FORCE:-0}" != "1" ] && [ -f "$o" ] \
     && [ ! "$x_heap" -nt "$o" ] && [ ! "$x_glue" -nt "$o" ] \
+    && ! ensure_sibling_x_newer "$o" \
     && strict_glue_w1530_bindings_ok "$o"; then
     log "skip up-to-date $o (strict glue full .x w1530)"
     return 0
@@ -14912,6 +14914,31 @@ ensure_arch_emit_dispatch_pure() {
   return 0
 }
 
+
+# 记250／8.7: sibling .x of OUT (src/foo.o → src/foo.x). Prefer bodies that
+# compile thin.x / glue.x must still rebuild when the object-basename .x is
+# newer. Enc class is excluded (禁令: do not rebuild enc on touch).
+# PLATFORM: SHARED.
+ensure_obj_sibling_x() {
+  local o="$1"
+  case "$o" in
+    *.o) printf '%s\n' "${o%.o}.x" ;;
+    *) printf '%s\n' "" ;;
+  esac
+}
+
+ensure_sibling_x_newer() {
+  local o="$1" sib
+  case "$o" in
+    src/asm/backend_x86_64_enc_c.o|src/asm/backend_arm64_enc_c.o|\
+    src/asm/backend_enc_dispatch.o|src/asm/simd_enc.o|src/asm/simd_loop.o)
+      return 1
+      ;;
+  esac
+  sib="$(ensure_obj_sibling_x "$o")"
+  [ -n "$sib" ] && [ -f "$sib" ] && [ "$sib" -nt "$o" ]
+}
+
 # w853: thin public bodies live only in runtime_driver_diagnostic_thin.x.
 # Product object is pure_asm_x_to_o of that thin plus cc of the asm BSS tail
 # with -DXLANG_L2_RDD_THIN_FROM_X. No gcc -E. No cold full-seed cc.
@@ -14933,6 +14960,9 @@ ensure_rdd_pure() {
   if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
     [ "$seed" -nt "$o" ] && stale=1
     [ "$x_src" -nt "$o" ] && stale=1
+    if [ "$stale" = "0" ] && ensure_sibling_x_newer "$o"; then
+      stale=1
+    fi
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
     fi
@@ -15723,6 +15753,18 @@ ensure_r3_full_x_pure_w1525() {
     echo "ensure: $o missing $x_src; no C fallback" >&2
     return 1
   fi
+  # 记250／8.7: enc class must not rebuild on .x touch (禁令). Missing
+  # object or missing anchor still rebuilds. PLATFORM: SHARED.
+  case "$o" in
+    src/asm/simd_enc.o|src/asm/simd_loop.o)
+      if [ "$FORCE" != "1" ] && [ -f "$o" ] \
+        && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
+        && r3_o_newer_than_active_compiler "$o"; then
+        log "skip up-to-date $o (full .x pure asm w1525; enc touch-ban 8.7)"
+        return 0
+      fi
+      ;;
+  esac
   if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$x_src" -nt "$o" ] \
     && r3_prefer_nm_has_sym "$o" "$anchor_sym" \
     && r3_o_newer_than_active_compiler "$o"; then
@@ -15843,6 +15885,10 @@ ensure_r3_prefer_one() {
       stale=1
     fi
     if [ -n "$full_x" ] && [ "$full_x" != "-" ] && [ -f "$full_x" ] && [ "$full_x" -nt "$o" ]; then
+      stale=1
+    fi
+    # 记250／8.7: also basename .x (e.g. runtime_driver_abi.x vs *_thin.x).
+    if [ "$stale" = "0" ] && ensure_sibling_x_newer "$o"; then
       stale=1
     fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
@@ -16153,6 +16199,10 @@ ensure_labi_prefer_one() {
         break
       fi
     done
+    # 记250／8.7: also src/runtime_link_abi.x (mega surface; layers are labi_*).
+    if [ "$stale" = "0" ] && ensure_sibling_x_newer "$o"; then
+      stale=1
+    fi
     # wave793: project-header mtime (FORCE thin; G.7 single body).
     if [ "$stale" = "0" ] && seed_project_hdrs_newer "$seed" "$o"; then
       stale=1
@@ -26328,7 +26378,12 @@ try_ensure_pipeline_abi_prefer_one() {
 # accept the bare name.
 _ldpc_nm_weak() {
   local obj="$1" sym="$2"
-  nm -m "$obj" 2>/dev/null | grep -E "weak.* (_)?${sym}\$" >/dev/null
+  # Darwin nm -m prints "weak external"; GNU nm uses type W/w.
+  # 记250／8.7: Linux touch rebuild must accept W. PLATFORM: SHARED.
+  if nm -m "$obj" 2>/dev/null | grep -E "weak.* (_)?${sym}\$" >/dev/null; then
+    return 0
+  fi
+  nm "$obj" 2>/dev/null | tr -d '\r' | grep -qE " [Ww] (_)?${sym}\$"
 }
 
 ensure_ldpc_prefer_one() {
@@ -26944,6 +26999,10 @@ ensure_other_l2_prefer_one() {
     stale=0
     [ "$seed" -nt "$o" ] && stale=1
     if [ -f "$x_src" ] && [ "$x_src" -nt "$o" ]; then
+      stale=1
+    fi
+    # 记250／8.7: lsp_diag.o watches runtime_lsp_glue.x; also basename .x.
+    if [ "$stale" = "0" ] && ensure_sibling_x_newer "$o"; then
       stale=1
     fi
     # strict_glue seed #includes runtime_heap_user — refresh when heap seed newer.

@@ -1370,7 +1370,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _xenc_x=src/asm/backend_x86_64_enc_c.x
   _xenc_o=src/asm/backend_x86_64_enc_c.o
   if [ -f "$_xenc_x" ]; then
-    if [ ! -f "$_xenc_o" ] || [ "$_xenc_x" -nt "$_xenc_o" ] \
+    # 记250／8.7: enc touch-ban — rebuild only if missing or anchor absent
+    # (not solely because .x is newer). PLATFORM: SHARED.
+    if [ ! -f "$_xenc_o" ] \
       || ! nm "$_xenc_o" 2>/dev/null | tr -d '\r' | grep -q " [TW] _*backend_x86_64_enc_c_x_doc_anchor\$"; then
       _xenc_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_xenc_os" in MINGW*|MSYS*|CYGWIN*) _xenc_os=Windows ;; esac
@@ -1423,7 +1425,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _aenc_x=src/asm/backend_arm64_enc_c.x
   _aenc_o=src/asm/backend_arm64_enc_c.o
   if [ -f "$_aenc_x" ]; then
-    if [ ! -f "$_aenc_o" ] || [ "$_aenc_x" -nt "$_aenc_o" ] \
+    # 记250／8.7: enc touch-ban — rebuild only if missing or anchor absent
+    # (not solely because .x is newer). PLATFORM: SHARED.
+    if [ ! -f "$_aenc_o" ] \
       || ! nm "$_aenc_o" 2>/dev/null | tr -d '\r' | grep -q " T _*backend_arm64_enc_c_x_doc_anchor\$"; then
       _aenc_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_aenc_os" in MINGW*|MSYS*|CYGWIN*) _aenc_os=Windows ;; esac
@@ -4417,8 +4421,10 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _diag_thin_x=src/diag_thin.x
   _diag_o=src/diag.o
   if [ -f "$_diag" ]; then
+    # 记250／8.7: also src/diag.x (basename surface; thin is diag_thin.x).
     if [ ! -f "$_diag_o" ] || [ "$_diag" -nt "$_diag_o" ] \
-      || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; }; then
+      || { [ -f "$_diag_thin_x" ] && [ "$_diag_thin_x" -nt "$_diag_o" ]; } \
+      || { [ -f src/diag.x ] && [ src/diag.x -nt "$_diag_o" ]; }; then
       _diag_done=0
       if [ -f "$_diag_thin_x" ]; then
         _diag_thin_o=$(mktemp "${TMPDIR:-/tmp}/g05_diag_thin.XXXXXX") || true
