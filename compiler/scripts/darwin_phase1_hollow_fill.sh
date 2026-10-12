@@ -865,23 +865,32 @@ _g_lex_src_data:
 	.globl _g_lex_src_len
 _g_lex_src_len:
 	.quad 0
+	.globl _g_park_log_n
+_g_park_log_n:
+	.quad 0
+	.globl _g_park_log
+_g_park_log:
+	.space 192
 	.text
 	.align 2
 	.globl _lexer_src_park
 _lexer_src_park:
 	// x0=data *u8, w1=len i32.
-	// Poison: Darwin PAGEZERO is 4GiB — reject ptrs with bit32 clear (tip smash
-	// 0x102a etc.). Also ignore tip u8[] return deep-copy (len==1024) when a
-	// longer full-file park already exists — that truncate clobbered */ past 1024.
+	// Reject only true low/PAGEZERO (hi32==0) — NOT tbz #32, which wrongly
+	// drops half of ASLR heaps where (addr>>32) is even (e.g. 0xab500e000).
+	// Never shrink a longer park (tip u8[1024] clamp).
 	// PLATFORM: MACOS arm64.
-	tbz	x0, #32, 1f
+	cbz	x0, 1f
+	lsr	x2, x0, #32
+	cbz	x2, 1f
 	sxtw	x1, w1
-	cmp	x1, #1024
-	b.ne	0f
+	cmp	x1, #0
+	b.le	1f
 	adrp	x2, _g_lex_src_len@PAGE
-	ldr	x2, [x2, _g_lex_src_len@PAGEOFF]
-	cmp	x2, #1024
-	b.gt	1f
+	ldr	x3, [x2, _g_lex_src_len@PAGEOFF]
+	cbz	x3, 0f
+	cmp	x1, x3
+	b.le	1f
 0:
 	adrp	x2, _g_lex_src_data@PAGE
 	str	x0, [x2, _g_lex_src_data@PAGEOFF]
@@ -945,6 +954,13 @@ LEXPARK
 # tip-thin bodies). Strong tip/MH_OBJECT pabi wins when present.
 # PLATFORM: MACOS.
 cat >> "$OUT/m8_reloc_stubs.s" <<'ALIASES'
+	// knife256 / 10.2: tip mangled call faces → short glue (Darwin cold link).
+	.globl _glue_asm_mangle_import_binding_call_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_i32_u8_ptr_reti32
+_glue_asm_mangle_import_binding_call_sym_c_u8_ptr_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_u8_ptr_i32_i32_u8_ptr_reti32:
+	b	_glue_asm_mangle_import_binding_call_sym_c
+	.globl _glue_asm_resolve_call_target_module_c_u8_ptr_i32_u8_ptr_i32_ptr_i32_ptr_reti32
+_glue_asm_resolve_call_target_module_c_u8_ptr_i32_u8_ptr_i32_ptr_i32_ptr_reti32:
+	b	_glue_asm_resolve_call_target_module_c
 	.globl _ast_pipeline_block_append_labeled
 	.weak_definition _ast_pipeline_block_append_labeled
 _ast_pipeline_block_append_labeled:
@@ -1060,6 +1076,56 @@ else
   echo "darwin_phase1_hollow_fill: WARN no objcopy; stubs stay strong (dup risk)" >&2
 fi
 
-echo "$OUT/m8_reloc_stubs.o" >"$OUT/phase1_hollow_fill_objs.txt"
+# knife256/10.2: lex_out in x19 across into_c (stack slot clobber → 0x100000000)
+if [ -f /tmp/fix_extern_slice.s ] || [ -f src/asm/fix_extern_slice_arm64.s ]; then
+  _fxs=src/asm/fix_extern_slice_arm64.s
+  [ -f "$_fxs" ] || _fxs=/tmp/fix_extern_slice.s
+  as -o "$OUT/fix_extern_slice.o" "$_fxs" 2>/dev/null || true
+fi
+
+# knife256/10.2: early park in read_pp (first export fn past tip u8[1024] clamp).
+# Pure-asm authority body; export only read_pp so no_c locals do not dup.
+# Weaken no_c's read_pp so this strong def wins. PLATFORM: MACOS.
+_rt_ab_full="$OUT/rt_ab_full.o"
+_rt_ab_park="$OUT/rt_ab_park.o"
+if bash scripts/ensure_host_cc_seed_o.sh rt-run-asm-backend-pure "$_rt_ab_full"     >/tmp/hollow_rt_ab_pure.log 2>&1   && nm "$_rt_ab_full" 2>/dev/null | grep -q ' T _rt_ab_step_read_pp'   && nm "$_rt_ab_full" 2>/dev/null | grep -q 'lexer_src_park'; then
+  echo '_rt_ab_step_read_pp' >"$OUT/rt_ab_exp.txt"
+  if ld -r -o "$_rt_ab_park" -exported_symbols_list "$OUT/rt_ab_exp.txt" "$_rt_ab_full" 2>/dev/null; then
+    if [ -n "$_oc" ] && [ -f src/runtime_driver_no_c.o ]; then
+      "$_oc" --weaken-symbol=_rt_ab_step_read_pp src/runtime_driver_no_c.o 2>/dev/null         && echo "darwin_phase1_hollow_fill: weakened _rt_ab_step_read_pp in no_c"
+    fi
+    echo "darwin_phase1_hollow_fill: rt_ab_park (early lexer_src_park) OK"
+  else
+    echo "darwin_phase1_hollow_fill: WARN ld -r rt_ab_park failed" >&2
+    rm -f "$_rt_ab_park"
+  fi
+else
+  echo "darwin_phase1_hollow_fill: WARN rt-run-asm-backend-pure skip (see /tmp/hollow_rt_ab_pure.log)" >&2
+  rm -f "$_rt_ab_park"
+fi
+
+# knife256/10.2: lex_set_* 4-byte memcpy (tip i32 str x clobber → 0x100000000)
+# Prefer existing p9a bridge .o from g05; else keep prior artifact.
+_p9a="$OUT/p9a_lex_bridge.o"
+if [ ! -s "$_p9a" ] && [ -f src/asm/parser_asm_lex_step_bridge.x ]; then
+  echo "darwin_phase1_hollow_fill: p9a_lex_bridge.o missing; g05 must supply" >&2
+fi
+
+: >"$OUT/phase1_hollow_fill_objs.txt"
+if [ -s "$_rt_ab_park" ]; then
+  echo "$_rt_ab_park" >>"$OUT/phase1_hollow_fill_objs.txt"
+fi
+if [ -s "$_p9a" ]; then
+  echo "$_p9a" >>"$OUT/phase1_hollow_fill_objs.txt"
+  if [ -n "$_oc" ] && [ -f parser_asm_thin_glue.o ]; then
+    for _s in _parser_asm_lex_set_col_c _parser_asm_lex_set_line_c               _parser_asm_lex_set_pos_c               _parser_asm_parse_one_extern_and_add_into_slice_c; do
+      "$_oc" --weaken-symbol="$_s" parser_asm_thin_glue.o 2>/dev/null || true
+    done
+  fi
+fi
+if [ -s "$OUT/fix_extern_slice.o" ]; then
+  echo "$OUT/fix_extern_slice.o" >>"$OUT/phase1_hollow_fill_objs.txt"
+fi
+echo "$OUT/m8_reloc_stubs.o" >>"$OUT/phase1_hollow_fill_objs.txt"
 echo "darwin_phase1_hollow_fill: OK stubs+bss manifest=$OUT/phase1_hollow_fill_objs.txt"
 exit 0

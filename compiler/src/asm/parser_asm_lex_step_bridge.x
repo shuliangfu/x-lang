@@ -694,9 +694,13 @@ export function parser_asm_lex_set_line_c(lex: *u8, line: i32): void {
   if (lex == 0) {
     return;
   }
+  // knife256/10.2: tip widens i32 field stores to 64-bit (str x), clobbering
+  // col and the next stack slot (lex_out → 0x100000000 / PAGEZERO). Store
+  // exactly 4 bytes at offset 8. PLATFORM: SHARED.
   unsafe {
-    let p: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
-    p.line = line;
+    let slot: *u8 = lex + 8;
+    let src: *u8 = &line as *u8;
+    memcpy(slot, src, 4);
   }
 }
 
@@ -712,9 +716,12 @@ export function parser_asm_lex_set_col_c(lex: *u8, col: i32): void {
   if (lex == 0) {
     return;
   }
+  // knife256/10.2: same as set_line — 4-byte store at offset 12 only.
+  // PLATFORM: SHARED.
   unsafe {
-    let p: *ParserAsmLexLexer = lex as *ParserAsmLexLexer;
-    p.col = col;
+    let slot: *u8 = lex + 12;
+    let src: *u8 = &col as *u8;
+    memcpy(slot, src, 4);
   }
 }
 

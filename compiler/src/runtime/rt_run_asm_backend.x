@@ -5,6 +5,8 @@
 // .x owns driver_run_asm_backend; product PREFER rest is marker only (business H=0).
 // Cap residual (driver_abi): FILE*/pctx fields/host defaults/defines/**u8/work slots/
 //   C frontend precheck (product NO_C always skips).
+
+extern function lexer_src_park(data: *u8, len: i32): void;
 // Steps: read_pp / early / parse / load_deps / open_out / prerun / pipeline / finish.
 // PLATFORM: SHARED — surface short names are the link-name contract (Track L).
 // Comment rule: never put star-slash sequences inside block comments.
@@ -719,6 +721,12 @@ export function rt_ab_step_read_pp(): i32 {
     driver_asm_work_p_set(ap_src(), src);
     driver_asm_work_z_set(az_slen(), src_len);
     diag_set_file(path, src, src_len);
+    // knife256/10.2: park FULL preprocessed source before tip u8[] can
+    // clamp the first lexer_next to 1024 (first export fn sits past 1024
+    // in runtime_io_abi.x → intermittent P001). PLATFORM: SHARED.
+    if (src_len > 0 && src_len < (2147483647 as usize)) {
+      lexer_src_park(src, src_len as i32);
+    }
   }
   return 0;
 }
