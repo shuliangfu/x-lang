@@ -825,6 +825,38 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/string/string.x|std/string/string.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.string string.x (记239).
+      # -lib-name "" → bare xlang_string_*_c (product face; runtime_string_fast
+      # twin). Tip asm green; soft default could still fall to -E+cc.
+      # Product string.o via xlang_compile_std_string_o already pure-asm.
+      # Fail-closed; Windows keeps C.
+      _ssx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssx_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _ssx_log="$(mktemp "${TMPDIR:-/tmp}/std_ssx_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_ssx_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_copy_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_memcmp_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_memchr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_memmem_c$'; then
+            rm -f "$_ssx_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_ssx_log" >&2
+          rm -f "$_ssx_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/regex/regex.x|std/regex/regex.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
       # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
