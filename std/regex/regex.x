@@ -738,7 +738,12 @@ export function regex_min_match_atom_char(atom_start: *u8, atom_end: *u8, str: *
   if (str[0] >= str_end && atom_start + 1 == atom_end && atom_start[0] == 36) { return 1; }
   if (str[0] >= str_end) { return 0; }
   p = atom_start;
-  ch = str[0][0];
+  /* 记230: tip x86 lowers str[0][0] as one deref (byte of the pointer).
+   * Split so both Darwin and Linux load the haystack byte. */
+  {
+    let s0: *u8 = str[0];
+    ch = s0[0];
+  }
   if (p[0] == 94) {
     if (str[0] != haystack_start) { return 0; }
     return 1;

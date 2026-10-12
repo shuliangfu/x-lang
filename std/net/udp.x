@@ -27,6 +27,12 @@ export const SOCK_DGRAM: i32 = 2;
 export const IPPROTO_UDP: i32 = 17;
 export const SOL_SOCKET: i32 = 1;
 export const SO_REUSEADDR: i32 = 2;
+/* 记230: Darwin O_NONBLOCK=4; Linux=2048 (was hardcoded 2048 on both). */
+#[cfg(target_os = "macos")]
+export const O_NONBLOCK: i32 = 4;
+#[cfg(target_os = "linux")]
+export const O_NONBLOCK: i32 = 2048;
+#[cfg(target_os = "windows")]
 export const O_NONBLOCK: i32 = 2048;
 /* See implementation. */
 
@@ -50,6 +56,21 @@ extern "C" function ntohs(netshort: u16): u16;
 
 #[cfg(not(target_os = "windows"))]
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+/* 记230: prefer ioctl(FIONBIO) — Darwin fcntl varargs 3rd-on-stack vs tip x2. */
+#[cfg(not(target_os = "windows"))]
+extern "C" function ioctl(fd: i32, req: u64, arg: *i32): i32;
+
+/* 记230: tip export const u64 with bit31 set sign-extends (0x8004667e →
+ * 0xffffffff8004667e). Build FIONBIO via shift so movz/movk stay zero-ext. */
+#[cfg(target_os = "macos")]
+export function net_fionbio_c(): u64 {
+  return ((0x8004 as u64) * 65536) + (0x667e as u64);
+}
+#[cfg(target_os = "linux")]
+export function net_fionbio_c(): u64 {
+  return 0x5421 as u64;
+}
+
 
 /* See implementation. */
 #[cfg(not(target_os = "windows"))]
@@ -148,14 +169,12 @@ extern function net_udp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u
  */
 #[cfg(not(target_os = "windows"))]
 export function net_udp_set_nonblock_c(fd: i32): i32 {
-  let flags: i32 = 0;
-  unsafe { flags = fcntl(fd, 3, 0); }
-  if (flags < 0) {
-    return -1;
+  let on: i32 = 1;
+  unsafe {
+    if (ioctl(fd, net_fionbio_c(), &on) == 0) {
+      return 0;
+    }
   }
-  unsafe { if (fcntl(fd, 4, flags | O_NONBLOCK) == 0) {
-    return 0;
-  } }
   return -1;
 }
 
