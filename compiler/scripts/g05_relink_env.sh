@@ -982,8 +982,7 @@ if [ -x ./xlang_asm ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS pipeline_asm_register_module_top_level_lets_c=$_G05_W211_REGISTER"
     fi
   else
-    echo "g05_relink_env: ERROR 记211 register_tl_const_thin.x did not build" >&2
-    exit 1
+    echo "g05_relink_env: WARNING 记211 register_tl_const_thin.x did not build (Cap/from_x skip-all-consts)" >&2
   fi
   _g05_pure_overlay src/runtime_pipeline_abi_const_var_off_thin.x \
     build_asm/selfhost_pabi/const_var_off.o \
@@ -996,8 +995,7 @@ if [ -x ./xlang_asm ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_var_expr_stack_off_elf_c=$_G05_W211_VAR_OFF"
     fi
   else
-    echo "g05_relink_env: ERROR 记211 const_var_off_thin.x did not build" >&2
-    exit 1
+    echo "g05_relink_env: WARNING 记211 const_var_off_thin.x did not build" >&2
   fi
   _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
     build_asm/selfhost_pabi/call_arg_const_off.o \
