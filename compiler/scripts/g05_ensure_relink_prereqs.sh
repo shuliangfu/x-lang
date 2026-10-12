@@ -1140,19 +1140,30 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         exit 1
       fi
     fi
-    # knife256 / 10.2: 记253 hollowed R9 seed; force rebuild for asm_codegen_ast.
-    if [ -f src/runtime_driver_no_c.o ] \
-      && ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
-      echo "g05_ensure: runtime_driver_no_c.o missing asm_codegen_ast; FORCE try-rt-prefer"
+    # knife256 / 10.2: 记253 hollowed R9 / dispatch_impl / parsed seeds.
+    # Force rebuild when any product face is missing (hollow stubs must not win).
+    _noc_need_force=0
+    if [ -f src/runtime_driver_no_c.o ]; then
+      nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?asm_codegen_ast$" \
+        || _noc_need_force=1
+      nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?driver_run_compiler_full_x_impl_c$" \
+        || _noc_need_force=1
+      nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$" \
+        || _noc_need_force=1
+    fi
+    if [ "$_noc_need_force" = "1" ]; then
+      echo "g05_ensure: runtime_driver_no_c.o missing asm_codegen_ast/impl_c/parsed; FORCE try-rt-prefer"
       XLANG_HOST_CC_SEED_FORCE=1 XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
         CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
         RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
         bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
-        || { echo "g05_ensure: try-rt-prefer FORCE for asm_codegen_ast failed" >&2; exit 1; }
-      if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
-        echo "g05_ensure: runtime_driver_no_c.o still missing asm_codegen_ast after FORCE" >&2
-        exit 1
-      fi
+        || { echo "g05_ensure: try-rt-prefer FORCE for hollow faces failed" >&2; exit 1; }
+      for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c driver_run_compiler_parsed; do
+        if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$"; then
+          echo "g05_ensure: runtime_driver_no_c.o still missing $_need after FORCE" >&2
+          exit 1
+        fi
+      done
     fi
     # w2060: driver_run_asm_backend must be the src/runtime/rt_run_asm_backend.x
     # body (fills the driver_asm work slots → entry exports keep the module

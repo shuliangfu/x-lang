@@ -5203,8 +5203,34 @@ case "$UNAME_S" in
     # knife 254 / 9.2: m8_reloc_stubs supplies m8_tail delegate names +
     # g_pipeline_elf_reloc_* BSS that pabi_weak / reloc_typed UNDEF after
     # 9.1 hollow. PLATFORM: MACOS tip cold.
+    # knife256 / 10.2: phase1 also stuffed driver_*/cfg_* return-0 stubs for
+    # seed link. Those must NOT bind at g05 — no_c U + weak stub = silent
+    # empty emit (impl_c ret 0). Redefine poison T on a g05 copy.
     if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ]; then
-      _PABI_M8_RELOC_STUBS="build_asm/selfhost_pabi/m8_reloc_stubs.o"
+      _m8_g05=build_asm/selfhost_pabi/m8_reloc_stubs_g05.o
+      cp -f build_asm/selfhost_pabi/m8_reloc_stubs.o "$_m8_g05"
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ]; then
+        _poison_args=()
+        while read -r _ps; do
+          [ -n "$_ps" ] || continue
+          case "$_ps" in
+            _driver_*|_cfg_*)
+              _poison_args+=(--redefine-sym="${_ps}=${_ps}_hollow_phase1_dead")
+              ;;
+          esac
+        done < <(nm -gU "$_m8_g05" 2>/dev/null | awk '/ T /{print $NF}')
+        if [ "${#_poison_args[@]}" -gt 0 ]; then
+          "$_oc" "${_poison_args[@]}" "$_m8_g05" 2>/dev/null \
+            || echo "g05_relink_env: WARN demote driver/cfg hollow stubs failed" >&2
+          echo "g05_relink_env: demoted ${#_poison_args[@]} driver/cfg hollow stubs for g05" >&2
+        fi
+      fi
+      _PABI_M8_RELOC_STUBS="$_m8_g05"
     fi
     ;;
 esac

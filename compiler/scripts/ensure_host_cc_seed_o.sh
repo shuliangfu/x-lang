@@ -18038,9 +18038,25 @@ ensure_rt_prefer_one() {
             if [ "$_rt_di_ok" = "0" ]; then
               # shellcheck disable=SC2086
               # same product NO_C / pipeline / impl flags as runtime rest
-              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed"; then
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_di_o" "$_rt_dispatch_impl_seed" \
+                && nm "$_rt_di_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_full_x_impl_c$"; then
                 _rt_di_ok=1
                 echo "rt-prefer: rest dispatch_impl ← $_rt_dispatch_impl_seed (G-02f-313 seed slice)"
+              else
+                rm -f "$_rt_di_o"
+                echo "rt-prefer: rest dispatch_impl seed lacks full_x_impl_c (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold dispatch_impl bodies. Seed-only
+            # is marker-only; hollow-fill stubs then silently return 0 at g05.
+            # Fall back to pure-asm .x alone (no host-cc). PLATFORM: SHARED.
+            if [ "$_rt_di_ok" = "0" ] && [ -f "$_rt_dispatch_impl_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_dispatch_impl_x" "$_rt_di_o" \
+                && nm "$_rt_di_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_full_x_impl_c$"; then
+                _rt_di_ok=1
+                echo "rt-prefer: rest dispatch_impl ← pure-asm $_rt_dispatch_impl_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: rest dispatch_impl pure-asm failed (full_x_impl_c missing)" >&2
               fi
             fi
           fi
@@ -18142,9 +18158,23 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_rcp_ok" = "0" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed"; then
+              if $CC $BASE_CFLAGS $RUNTIME_DRIVER_NO_C_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_rcp_o" "$_rt_run_compiler_parsed_seed" \
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
                 _rt_rcp_ok=1
                 echo "rt-prefer: rest run_compiler_parsed ← $_rt_run_compiler_parsed_seed (G-02f-316 seed slice cold)"
+              else
+                rm -f "$_rt_rcp_o"
+                echo "rt-prefer: rest run_compiler_parsed seed lacks T (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold parsed body. PLATFORM: SHARED.
+            if [ "$_rt_rcp_ok" = "0" ] && [ -f "$_rt_run_compiler_parsed_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_run_compiler_parsed_x" "$_rt_rcp_o" \
+                && nm "$_rt_rcp_o" 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$"; then
+                _rt_rcp_ok=1
+                echo "rt-prefer: rest run_compiler_parsed ← pure-asm $_rt_run_compiler_parsed_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: rest run_compiler_parsed pure-asm failed (T missing)" >&2
               fi
             fi
           fi
