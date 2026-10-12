@@ -17580,9 +17580,23 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_seed" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_a_o" "$_rt_argv_seed" \
+                && nm "$_rt_a_o" 2>/dev/null | grep -qE " T _?drv_eq_minus_o$"; then
                 _rt_argv_ok=1
                 echo "rt-prefer: R1 argv ← $_rt_argv_seed (G-02f-263 seed slice)"
+              else
+                rm -f "$_rt_a_o"
+                echo "rt-prefer: R1 argv seed lacks drv_eq (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold argv drv_eq_*. PLATFORM: SHARED.
+            if [ "$_rt_argv_ok" = "0" ] && [ -f "$_rt_argv_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_argv_x" "$_rt_a_o" \
+                && nm "$_rt_a_o" 2>/dev/null | grep -qE " T _?drv_eq_minus_o$"; then
+                _rt_argv_ok=1
+                echo "rt-prefer: R1 argv ← pure-asm $_rt_argv_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R1 argv pure-asm failed (drv_eq_minus_o missing)" >&2
               fi
             fi
           fi

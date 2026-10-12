@@ -1146,7 +1146,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     if [ -f src/runtime_driver_no_c.o ]; then
       for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c \
           driver_run_compiler_parsed driver_argv_has_emit_c_flag \
-          driver_compile_parse_argv_impl_c; do
+          driver_compile_parse_argv_impl_c drv_eq_minus_o; do
         nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$" \
           || _noc_need_force=1
       done
@@ -1160,7 +1160,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         || { echo "g05_ensure: try-rt-prefer FORCE for hollow faces failed" >&2; exit 1; }
       for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c \
           driver_run_compiler_parsed driver_argv_has_emit_c_flag \
-          driver_compile_parse_argv_impl_c; do
+          driver_compile_parse_argv_impl_c drv_eq_minus_o; do
         if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$"; then
           echo "g05_ensure: runtime_driver_no_c.o still missing $_need after FORCE" >&2
           exit 1
