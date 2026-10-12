@@ -304,6 +304,9 @@ ensure_parser_gen() {
     need_assemble=1
   elif parser_x_sources_newer_than_gen; then
     need_assemble=1
+  elif [ "$XLANG_PARSER_FROM_X" = "1" ] && ! grep -q 'wave324 parser M4 cold assemble' parser_gen.c 2>/dev/null; then
+    # knife 254 / 9.2: seed/pin local without assemble banner is not tip authority
+    need_assemble=1
   elif [ "$XLANG_PARSER_FROM_X" = "1" ] && ! parser_gen_contract_ok parser_gen.c; then
     need_assemble=1
   fi
@@ -609,6 +612,9 @@ ensure_codegen_gen() {
     need_assemble=1
   elif codegen_x_sources_newer_than_gen; then
     # LANG-005 lesson: unconditional reassemble on source-newer (same as typeck).
+    need_assemble=1
+  elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! grep -q 'wave323 codegen M4 cold assemble' codegen_gen.c 2>/dev/null; then
+    # knife 254 / 9.2: seed/pin local without assemble banner is not tip authority
     need_assemble=1
   elif [ "$XLANG_CODEGEN_FROM_X" = "1" ] && ! codegen_gen_contract_ok codegen_gen.c; then
     need_assemble=1
