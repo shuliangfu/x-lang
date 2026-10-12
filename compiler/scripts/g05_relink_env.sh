@@ -1023,16 +1023,24 @@ if [ -x ./xlang_asm ]; then
   # Darwin: tip const_lit_fold thin wins. Linux: Cap gcc const_lit (NEG/BINOP)
   # — tip fold thin tipU-misses at runtime (early_c=32768); call_arg tip is
   # the Linux delivery path that forces imm after Cap fold.
-  if [ "$UNAME_S" = "Linux" ] && [ -s src/runtime_pipeline_abi_const_lit.o ]; then
-    _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
-    _G05_LINK_WINNERS="$_G05_LINK_WINNERS asm_module_top_level_const_lit_i32=$_PABI_CONST_LIT"
-  elif [ -n "$_G05_W211_CONST_LIT" ]; then
+  if [ -n "$_G05_W211_CONST_LIT" ]; then
     _PABI_CONST_LIT="$_G05_W211_CONST_LIT"
     if [ "$UNAME_S" = "Darwin" ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS _asm_module_top_level_const_lit_i32=$_G05_W211_CONST_LIT"
     else
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS asm_module_top_level_const_lit_i32=$_G05_W211_CONST_LIT"
     fi
+  elif [ -s src/runtime_pipeline_abi_const_lit.o ]; then
+    # knife256/10.2: tip thin miss (Darwin egg) → keep Cap const_lit.o
+    # (Linux gold path already preferred Cap; Darwin co-path needs same).
+    # PLATFORM: SHARED.
+    _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _asm_module_top_level_const_lit_i32=$_PABI_CONST_LIT"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS asm_module_top_level_const_lit_i32=$_PABI_CONST_LIT"
+    fi
+    echo "g05_relink_env: 记211 const_lit ← Cap .o (tip thin miss)" >&2
   else
     echo "g05_relink_env: ERROR 记211 const_lit fold missing (tip thin and Cap .o)" >&2
     exit 1
