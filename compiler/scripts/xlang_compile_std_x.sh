@@ -668,6 +668,68 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/tls_openssl.x|std/net/tls_openssl.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tls_openssl (记236).
+      # Overlay face: -lib-name "" → bare net_tls_*_c (same as tls_stub).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below.
+      _tlo_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tlo_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tlo_log="$(mktemp "${TMPDIR:-/tmp}/std_tlo_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tlo_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_is_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_backend_name_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_openssl_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_close_c$'; then
+            rm -f "$_tlo_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tlo_log" >&2
+          rm -f "$_tlo_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tls_mbedtls.x|std/net/tls_mbedtls.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tls_mbedtls (记236).
+      # Overlay face: -lib-name "" → bare net_tls_*_c (same as tls_stub/openssl).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below. BIO merge stays in archaeology/ensure.
+      _tlm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tlm_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tlm_log="$(mktemp "${TMPDIR:-/tmp}/std_tlm_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tlm_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_is_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_backend_name_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_mbedtls_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_close_c$'; then
+            rm -f "$_tlm_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tlm_log" >&2
+          rm -f "$_tlm_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/regex/regex.x|std/regex/regex.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
       # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
