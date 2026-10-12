@@ -17625,28 +17625,30 @@ ensure_rt_prefer_one() {
               fi
             fi
           fi
-          if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_seed" ]; then
-            # R2 full H=0：PREFER_X_O=1 时 full .x + rest seed (-D，仅 marker) → cc -r 合并
-            if [ "${XLANG_G05_PREFER_X_O:-1}" = "1" ] && [ -f "$_rt_dispatch_thin_x" ]; then
-              _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_thin.XXXXXX") || true
-              _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_rest.XXXXXX") || true
-              if [ -n "$_rt_dt_thin_o" ] && [ -n "$_rt_dt_rest_o" ] \
-                && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o" \
+          if [ -n "$_rt_dt_o" ] && [ -f "$_rt_dispatch_thin_x" ]; then
+            # knife 256 / 10.2: 记253／9.1 emptied the cold #ifndef body in
+            # seeds/rt_dispatch_thin.from_x.c (orphan braces → cc error).
+            # Product authority is the .x on every PREFER setting (sat rebuild
+            # sets PREFER=0). Marker rest optional when seed present.
+            # PLATFORM: SHARED — no host-cc of the emptied cold seed body.
+            _rt_dt_thin_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_thin.XXXXXX") || true
+            _rt_dt_rest_o=$(mktemp "${TMPDIR:-/tmp}/rtpref_dispatch_thin_rest.XXXXXX") || true
+            if [ -n "$_rt_dt_thin_o" ] \
+              && rt_prefer_try_x_to_o "$_rt_dispatch_thin_x" "$_rt_dt_thin_o"; then
+              if [ -n "$_rt_dt_rest_o" ] && [ -f "$_rt_dispatch_thin_seed" ] \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_DISPATCH_THIN_FROM_X \
-                     -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" \
+                     -c -o "$_rt_dt_rest_o" "$_rt_dispatch_thin_seed" 2>/dev/null \
                 && pure_ld_partial_merge "$_rt_dt_o" "$_rt_dt_thin_o" "$_rt_dt_rest_o" 2>/dev/null; then
                 _rt_dt_ok=1
-                echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0)"
+                echo "rt-prefer: rest dispatch_thin ← full .x + rest marker (R2 H=0; knife256)"
+              else
+                cp -f "$_rt_dt_thin_o" "$_rt_dt_o" && _rt_dt_ok=1 \
+                  && echo "rt-prefer: rest dispatch_thin ← pure-asm $_rt_dispatch_thin_x (knife256; no cold seed body)"
               fi
-              rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
             fi
+            rm -f "$_rt_dt_thin_o" "$_rt_dt_rest_o"
             if [ "$_rt_dt_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              # cold / no PREFER：全 C 体；product 冷路径仍带 ASM_USE_COMPILER_IMPL_C 选 full 分派
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_ASM_USE_COMPILER_IMPL_C -c -o "$_rt_dt_o" "$_rt_dispatch_thin_seed"; then
-                _rt_dt_ok=1
-                echo "rt-prefer: rest dispatch_thin ← $_rt_dispatch_thin_seed (G-02f-312 seed slice cold)"
-              fi
+              echo "rt-prefer: ERROR dispatch_thin pure-asm failed; emptied cold seed is not a fallback (knife256)" >&2
             fi
           fi
           if [ -n "$_rt_di_o" ] && [ -f "$_rt_dispatch_impl_seed" ]; then
