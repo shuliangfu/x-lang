@@ -191,6 +191,8 @@ formal_mod_spec_for_key() {
     # Import mangle stays std_sys_*. mmap.x supplies std_sys_mmap_*.
     # macos.o supplies std_sys_macos_macos_munmap and msync_sync.
     std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x|../std/sys/mmap.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — linux.x has pure-asm arm (记216).
+    # WINDOWS stays on the C path.
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.heap.page_mmap.
     # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
@@ -2292,6 +2294,45 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/brotli_lib_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/linux.x|std/sys/linux.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.linux (记216).
+      # Do not pass -lib-name "". Exports stay std_sys_linux_linux_*.
+      # Root: C formal inject remaps open→xlang_formal_bare_open and inlines
+      # xlang_sys_read/write; pure-asm now calls bare_open + libc read/write so
+      # T surface matches C (nr getters / available flags). A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _linux_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_linux_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/linux_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_getpid_arm64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_getpid_amd64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_read_arm64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_write_amd64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_invoke_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_mmap_file_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_getpid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_read_file_into$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_sys_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/linux_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

@@ -29,7 +29,9 @@
 extern function xlang_sys_open(path: *u8, flags: i32, mode: i32): i32;
 
 /* See implementation. */
-extern function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
+/* 记216: C injects inline→xlang_io_read; pure-asm uses libc read (like close).
+ * PLATFORM: SHARED hosted. */
+extern "C" function read(fd: i32, buf: *u8, count: usize): isize;
 
 /* See implementation. */
 extern function xlang_sys_close(fd: i32): i32;
@@ -38,7 +40,8 @@ extern function xlang_sys_close(fd: i32): i32;
 extern function xlang_sys_exit(code: i32): void;
 
 /* See implementation. */
-extern function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
+/* 记216: pure-asm uses libc write. PLATFORM: SHARED hosted. */
+extern "C" function write(fd: i32, buf: *u8, count: usize): isize;
 
 /* See implementation. */
 extern function xlang_sys_openat(dirfd: i32, path: *u8, flags: i32, mode: i32): i32;
@@ -270,7 +273,7 @@ export function linux_syscall_read(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return xlang_sys_read(fd, buf, len as usize) as i32;
+    return read(fd, buf, len as usize) as i32;
   }
 }
 
@@ -294,7 +297,7 @@ export function linux_syscall_write(fd: i32, buf: *u8, len: i32): i32 {
     return -1;
   }
   unsafe {
-    return xlang_sys_write(fd, buf, len as usize) as i32;
+    return write(fd, buf, len as usize) as i32;
   }
 }
 
@@ -536,7 +539,7 @@ export function linux_read_file_openat(dirfd: i32, path: *u8, buf: *u8, cap: i32
     let dst: *u8 = (buf as *u8) + total;
     let r: i32 = 0;
     unsafe {
-      r = xlang_sys_read(fd, dst, chunk as usize) as i32;
+      r = read(fd, dst, chunk as usize) as i32;
     }
     if (r < 0) {
       linux_syscall_close(fd);
@@ -584,7 +587,7 @@ export function linux_read_file_into(path: *u8, buf: *u8, cap: i32): i32 {
     let dst: *u8 = (buf as *u8) + total;
     let r: i32 = 0;
     unsafe {
-      r = xlang_sys_read(fd, dst, chunk as usize) as i32;
+      r = read(fd, dst, chunk as usize) as i32;
     }
     if (r < 0) {
       linux_syscall_close(fd);
@@ -686,8 +689,10 @@ export const LINUX_MS_SYNC: i32 = 4;
 export const LINUX_OPEN_MODE_0644: i32 = 420;
 
 /* See implementation. */
+/* 记216: C formal_mod `#define open xlang_formal_bare_open`. Pure-asm matches.
+ * PLATFORM: SHARED hosted. */
 #[cfg(not(freestanding))]
-extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
+extern "C" function xlang_formal_bare_open(path: *u8, flags: i32, mode: i32): i32;
 #[cfg(not(freestanding))]
 extern "C" function close(fd: i32): i32;
 #[cfg(not(freestanding))]
@@ -716,7 +721,7 @@ export function linux_mmap_rw(path: *u8, min_size: usize, out_size: *usize): *u8
   }
   unsafe {
     let flags: i32 = LINUX_O_RDWR | LINUX_O_CREAT;
-    let fd: i32 = open(path, flags, LINUX_OPEN_MODE_0644);
+    let fd: i32 = xlang_formal_bare_open(path, flags, LINUX_OPEN_MODE_0644);
     if (fd < 0) {
       return 0 as *u8;
     }
