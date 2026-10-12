@@ -1810,6 +1810,175 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/io/backend.x|std/io/backend.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.backend tip-green (记244). Fail-closed; Windows keeps C.
+      _io_backend_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_backend_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_backend_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_backend_handle_from_fd$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_backend_io_backend_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_backend_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/core.x|std/io/core.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.core tip-green (记244). Fail-closed; Windows keeps C.
+      _io_core_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_core_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_core_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_core_xlang_io_complete_read_async$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_core_xlang_io_complete_write_async$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_core_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/driver.x|std/io/driver.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.driver tip-green (记244). Fail-closed; Windows keeps C.
+      _io_driver_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_driver_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_driver_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?driver_read_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?driver_read_ptr_backend$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_driver_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/io_trait.x|std/io/io_trait.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.io_trait tip-green (记244). Fail-closed; Windows keeps C.
+      _io_io_trait_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_io_trait_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_io_trait_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_io_trait_io_trait_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_io_trait_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/read_ptr.x|std/io/read_ptr.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.read_ptr tip-green (记244). Fail-closed; Windows keeps C.
+      _io_read_ptr_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_read_ptr_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_read_ptr_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_read_ptr_io_read_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_read_ptr_io_read_ptr_backend$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_read_ptr_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/stubs.x|std/io/stubs.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.stubs tip-green (记244). Fail-closed; Windows keeps C.
+      _io_stubs_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_stubs_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_stubs_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_stubs_io_provided_buffer_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_stubs_io_read_provided$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_stubs_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/sync.x|std/io/sync.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.sync tip-green (记244). Fail-closed; Windows keeps C.
+      _io_sync_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_sync_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_sync_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_sync_io_libc_read$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_sync_io_libc_write$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_sync_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/freebsd.x|std/sys/freebsd.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.freebsd tip-green (记244). Fail-closed; Windows keeps C.
+      _sys_freebsd_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sys_freebsd_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/sys_freebsd_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_freebsd_freebsd_exit$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_freebsd_freebsd_close$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sys_freebsd_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/linux_io_uring.x|std/sys/linux_io_uring.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.linux_io_uring tip-green (记244). Fail-closed; Windows keeps C.
+      _sys_linux_io_u_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sys_linux_io_u_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/sys_linux_io_u_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_io_uring_io_uring_available$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sys_linux_io_u_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
     ../std/io/mod.x|std/io/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.io mod.x tip-green (记243). Fail-closed; Windows keeps C.
       _io_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
