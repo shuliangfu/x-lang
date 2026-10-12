@@ -236,21 +236,26 @@ Lfast_ret:
 Lfast_unh:
 	mov	w0, #-99
 	ret
+	/* knife256/10.2: MUST NOT return 0 — that drops every call-bearing
+	 * function body (Cap tip-thins empty; rio hollow 4 stubs). Forward to
+	 * the real expr emitter until Cap for_call_args_a64.o first-wins.
+	 * PLATFORM: MACOS arm64. */
 	.globl _pipeline_asm_emit_expr_elf_for_call_args
 	.weak_definition _pipeline_asm_emit_expr_elf_for_call_args
 _pipeline_asm_emit_expr_elf_for_call_args:
-	mov	w0, #0
-	ret
+	b	_pipeline_asm_emit_expr_elf_c
 	.globl _pipeline_asm_emit_lvalue_eff_addr_elf_c
 	.weak_definition _pipeline_asm_emit_lvalue_eff_addr_elf_c
 _pipeline_asm_emit_lvalue_eff_addr_elf_c:
-	mov	w0, #0
-	ret
+	/* Prefer text_c twin when Cap thin absent. */
+	b	_pipeline_asm_emit_lvalue_eff_addr_text_c
 	/* knife256/10.2: return_elf_impl emits operand via emit_expr_elf_c.
 	 * Hollow mov#0 left main without mov w0. Strong. PLATFORM: MACOS. */
 	.globl _pipeline_asm_emit_return_elf_impl
 _pipeline_asm_emit_return_elf_impl:
-	/* x0=arena x1=elf_ctx w2=expr_ref x3=ctx w4=ta */
+	/* x0=arena x1=elf_ctx w2=RETURN expr_ref x3=ctx w4=ta
+	 * Peel unary operand (RETURN child) then emit_expr — matches restored.
+	 * for_call_args must NOT be mov#0 (see forward to emit_expr_elf_c). */
 	cbz	x0, Lret_fail
 	cbz	x1, Lret_fail
 	cbz	x3, Lret_fail
@@ -876,9 +881,10 @@ _g_park_log:
 	.globl _lexer_src_park
 _lexer_src_park:
 	// x0=data *u8, w1=len i32.
-	// Reject only true low/PAGEZERO (hi32==0) — NOT tbz #32, which wrongly
-	// drops half of ASLR heaps where (addr>>32) is even (e.g. 0xab500e000).
-	// Never shrink a longer park (tip u8[1024] clamp).
+	// Reject hi32==0 (true PAGEZERO / null-page) — NOT tbz #32.
+	// Never-shrink only when data pointer UNCHANGED (same buffer grow).
+	// New data pointer always replaces — tip u8[1024] clamp must not
+	// poison a later real source park (IDENT via peek_ident_ptr).
 	// PLATFORM: MACOS arm64.
 	cbz	x0, 1f
 	lsr	x2, x0, #32
@@ -886,9 +892,13 @@ _lexer_src_park:
 	sxtw	x1, w1
 	cmp	x1, #0
 	b.le	1f
+	adrp	x2, _g_lex_src_data@PAGE
+	ldr	x3, [x2, _g_lex_src_data@PAGEOFF]
+	cbz	x3, 0f
+	cmp	x0, x3
+	b.ne	0f
 	adrp	x2, _g_lex_src_len@PAGE
 	ldr	x3, [x2, _g_lex_src_len@PAGEOFF]
-	cbz	x3, 0f
 	cmp	x1, x3
 	b.le	1f
 0:

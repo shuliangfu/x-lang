@@ -27,6 +27,8 @@ extern function parser_asm_stretch_is_type_start_kind_c(kind: i32): i32;
 extern function parser_asm_stretch_skip_balanced_brackets_into_c(lex_inout: *u8, source: *u8): i32;
 extern function parser_asm_stretch_skip_type_suffix_c(lex_inout: *u8, source: *u8): i32;
 extern function parser_asm_stretch_skip_one_param_type_c(lex_inout: *u8, source: *u8): i32;
+export extern "C" function lexer_src_data_store(out: *u8): void;
+export extern "C" function lexer_src_len_store(out: *u8): void;
 
 // 16 bytes. pos at 0, line at 8, col at 12. Same as struct parser_asm_lexer.
 allow(padding) struct ParserAsmLexLexer {
@@ -767,6 +769,14 @@ export function parser_asm_lex_col_c(lex: *u8): i32 {
  */
 #[no_mangle]
 export function parser_asm_lex_source_data_c(source: *u8): *u8 {
+  /* knife256/10.2: prefer park when set — slice.data may be stale/clamp. */
+  unsafe {
+    let parked: *u8 = 0;
+    lexer_src_data_store((&parked as *u8));
+    if (parked != 0) {
+      return parked;
+    }
+  }
   if (source == 0) {
     return 0;
   }
@@ -784,6 +794,13 @@ export function parser_asm_lex_source_data_c(source: *u8): *u8 {
  */
 #[no_mangle]
 export function parser_asm_lex_source_length_c(source: *u8): usize {
+  unsafe {
+    let parked_n: usize = 0;
+    lexer_src_len_store((&parked_n as *u8));
+    if (parked_n != 0) {
+      return parked_n;
+    }
+  }
   if (source == 0) {
     return 0;
   }
@@ -1062,11 +1079,15 @@ export function parser_asm_lex_peek_ident_ptr_c(lex: *u8, source: *u8): *u8 {
   }
   unsafe {
     let r: *ParserAsmLexResult = &raw[0] as *ParserAsmLexResult;
-    if (r.tok.ident != 0) {
-      return r.tok.ident;
-    }
+    /* knife256/10.2: never trust tok.ident after store-not-return (dangling).
+     * Always resolve via source/park + token_start. */
     let s: *ParserAsmLexSlice = source as *ParserAsmLexSlice;
     let data: *u8 = s.data;
+    if (data == 0) {
+      let parked: *u8 = 0;
+      lexer_src_data_store((&parked as *u8));
+      data = parked;
+    }
     if (data == 0) {
       return 0;
     }

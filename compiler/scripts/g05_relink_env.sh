@@ -352,6 +352,9 @@ _g05_pure_overlay() {
   _po_bins=""
   [ -x ./xlang ] && _po_bins="$_po_bins ./xlang"
   [ -x ./xlang_asm ] && _po_bins="$_po_bins ./xlang_asm"
+  # knife256/10.2: park-fixed tip may still hollow-emit Cap thins; restored
+  # is a known-good Cap emitter until tip call-args path is gold.
+  [ -x ./xlang.restored_1952 ] && _po_bins="$_po_bins ./xlang.restored_1952"
   if [ -z "$_po_bins" ]; then
     echo "g05_relink_env: WARNING pure overlay $_po_x not built (no ./xlang or ./xlang_asm)" >&2
     return 0
