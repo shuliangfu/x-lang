@@ -2005,20 +2005,26 @@ if [ "$UNAME_S" = "Darwin" ]; then
   _dfca_s=_pipeline_asm_emit_expr_elf_for_call_args
   # knife 254 / 9.2: prefer ./xlang (last-known good) for mid-cold overlay;
   # xlang_asm is the relink output and may empty-body emit.
-  _dfca_bin=""
-  if [ -x ./xlang ]; then _dfca_bin=./xlang
-  elif [ -x ./xlang_asm ]; then _dfca_bin=./xlang_asm
-  fi
-  if [ ! -f "$_dfca_x" ] || [ -z "$_dfca_bin" ]; then
-    echo "g05_relink_env: $_dfca_x or ./xlang|/xlang_asm missing (Darwin call-arg packer)" >&2
-    exit 1
+  _dfca_bins=""
+  [ -x ./xlang ] && _dfca_bins="$_dfca_bins ./xlang"
+  [ -x ./xlang_asm ] && _dfca_bins="$_dfca_bins ./xlang_asm"
+  if [ ! -f "$_dfca_x" ] || [ -z "$_dfca_bins" ]; then
+    echo "g05_relink_env: WARNING $_dfca_x or bins missing (Darwin call-arg packer; keep egg)" >&2
+    _dfca_bins=""
   fi
   mkdir -p build_asm/selfhost_pabi
   rm -f "$_dfca_o" "$_dfca_o.tmp.o"
-  if ! XLANG_PREFER_ASM_O=1 "$_dfca_bin" -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1; then
+  _dfca_ok=0
+  for _dfca_bin in $_dfca_bins; do
+    if XLANG_PREFER_ASM_O=1 "$_dfca_bin" -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1 \
+      && nm "$_dfca_o.tmp.o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
+      _dfca_ok=1
+      break
+    fi
     rm -f "$_dfca_o.tmp.o"
-    echo "g05_relink_env: $_dfca_x failed via $_dfca_bin (Darwin call-arg packer)" >&2
-    exit 1
+  done
+  if [ "$_dfca_ok" != "1" ]; then
+    echo "g05_relink_env: WARNING $_dfca_x tip miss (Darwin call-arg packer; keep egg)" >&2
   fi
   _dfca_oc=""
   if command -v llvm-objcopy >/dev/null 2>&1; then
@@ -2034,20 +2040,23 @@ if [ "$UNAME_S" = "Darwin" ]; then
     [ "$_dfca_g" = "$_dfca_s" ] && continue
     if [ -z "$_dfca_oc" ] || ! "$_dfca_oc" --weaken-symbol="$_dfca_g" "$_dfca_o.tmp.o"; then
       rm -f "$_dfca_o.tmp.o"
-      echo "g05_relink_env: weaken $_dfca_g in $_dfca_x failed (Darwin call-arg packer)" >&2
-      exit 1
+      echo "g05_relink_env: WARNING weaken $_dfca_g failed (Darwin call-arg packer)" >&2
+      rm -f "$_dfca_o.tmp.o"
+      _dfca_ok=0
+      break
     fi
   done
   if ! nm "$_dfca_o.tmp.o" 2>/dev/null | grep -q " T ${_dfca_s}\$"; then
     rm -f "$_dfca_o.tmp.o"
-    echo "g05_relink_env: $_dfca_x lacks strong $_dfca_s (Darwin call-arg packer)" >&2
-    exit 1
+    echo "g05_relink_env: WARNING $_dfca_x lacks strong $_dfca_s (Darwin call-arg packer; keep egg)" >&2
   fi
   if nm "$_dfca_o.tmp.o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="xlang_panic_") e=1} END{exit e?0:1}'; then
     rm -f "$_dfca_o.tmp.o"
     echo "g05_relink_env: WARNING Darwin call-arg packer references xlang_panic_" >&2
   fi
-  mv -f "$_dfca_o.tmp.o" "$_dfca_o"
+  if [ "$_dfca_ok" = "1" ] && [ -s "$_dfca_o.tmp.o" ]; then
+    mv -f "$_dfca_o.tmp.o" "$_dfca_o"
+  fi
 fi
 if [ "$UNAME_S" = "Darwin" ] \
   && [ -s build_asm/selfhost_pabi/lea_cold_fwd.o ] \
