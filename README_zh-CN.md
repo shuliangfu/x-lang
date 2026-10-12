@@ -11,8 +11,8 @@
 | **编译器二进制** | `xlang` / `xlang_asm`（完整构建后的产品二进制） |
 | **源文件后缀** | `.x` |
 | **项目构建** | `build.x` — 用 X 语言描述构建策略（`xlang build` / `build_tool` / `xlang-build.sh`） |
-| **现阶段（2026-09-23）** | **产品 L4 钉盘 `ecdb5cc1e`**（双端真冷；**日常不升钉**）。tip 在 **`dev`**：**M2** 真减 host-cc（Class AD–BI Cap／stretch／unwind／needle／leftover）· Cap residual **9.1–9.7 ✅** · BC inventory **present 0** · leftover unique **0** · Darwin tip **prefer labi** · Ubuntu tip 全量重链常走 **warm**（SEGV／FAIL）· Win 默认 **LEGACY** · 写 `let x: Trait = a`（**不要**写 `dyn Trait`，**P013**）· **三端 L2 硬闸已启用**（mac + Ubuntu + Windows）。MG Makefile **已删**（0-make）。**尚未完全自举** — 冷启动仍需 seed／宿主 `cc`；真债＝map 外 `from_x`／产品 `.inc`／大户 leftover；`labi_invoke_cc` 未删；mega FORCE 仍禁。 |
-| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [M2 主链](analysis/自举效率方法-M2主链.md) · [终局待办](analysis/终局待办.md) · [自举验证](analysis/自举验证.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [9 月 24 日归档](analysis/自举进度归档/自举进度-归档-2026-09-24.md) · [9 月 23 日归档](analysis/自举进度归档/自举进度-归档-2026-09-23.md) · [9 月 22 日归档](analysis/自举进度归档/自举进度-归档-2026-09-22.md) |
+| **现阶段（2026-10-12）** | **产品 L4 钉盘 `ecdb5cc1e`**（双端真冷；**日常不升钉**）。tip 在 **`dev`**：终局待办 **第1–8章 ✅**（含 **7.1／7.2**、**8.1–8.9**）；mac＋Ubuntu **FORCE** 冷路径 **零 `cc`**（**8.3**）；Windows 零 `cc` **后置**。当前 tip 主刀＝**9.1**（掏空 `seeds/**/*.from_x.c`＋`parser_asm/*.inc` 业务 — **进行中，勿写成 ✅**）；下一⬜＝**9.2**（`parser_gen`／`codegen_gen` 解钉）。host-cc ≈ **231**；tip 冷 L2 在 mac＋Ubuntu 绿。写 `let x: Trait = a`（**不要**写 `dyn Trait`，**P013**）。MG Makefile **已删**（0-make）。**尚未完全自举** — 冷启动仍需 seed／宿主 `cc`（残面）；禁止宣称完全自举。 |
+| **进度仪表盘** | [自举进度](analysis/自举进度.md) · [M2 主链](analysis/自举效率方法-M2主链.md) · [终局待办](analysis/终局待办.md) · [自举验证](analysis/自举验证.md) · [Makefile 映射](analysis/Makefile迁移表.md) · [10 月 11 日归档](analysis/自举进度归档/自举进度-归档-2026-10-11.md) · [10 月 10 日归档](analysis/自举进度归档/自举进度-归档-2026-10-10.md) · [10 月 9 日归档](analysis/自举进度归档/自举进度-归档-2026-10-09.md) |
 | **English** | [README.md](README.md) |
 
 ---
@@ -25,7 +25,7 @@
 4. [仓库结构](#四仓库结构)
 5. [标准库](#五标准库)
 6. [编译器架构](#六编译器架构)
-7. [自举状态](#七自举状态摘要--2026-09-23)
+7. [自举状态](#七自举状态摘要--2026-10-12)
 8. [里程碑](#八里程碑)
 9. [测试与质量](#九测试与质量)
 10. [性能基准测试](#十性能基准测试)
@@ -39,8 +39,8 @@
 | 你是… | 先看 | 再看 |
 |-------|------|------|
 | **应用 / 库作者** | [§二 快速开始](#二快速开始) · Hello World | [§三 CLI](#三编译器用法) · [§五 标准库](#五标准库) · [docs/](docs/README.md) |
-| **工具链 / 编译器贡献者** | [§二](#二快速开始) · [§四 仓库结构](#四仓库结构) · [§十三](#十三贡献) | [§七 自举](#七自举状态摘要--2026-09-23) · 实时 [自举进度](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
-| **放行 / 钉盘审阅** | 文首状态表 · [§七](#七自举状态摘要--2026-09-23) | 仅认 L4 真冷 + 全量 bstrict（**131** 套）；三端 L2 绿 ≠ 升钉 |
+| **工具链 / 编译器贡献者** | [§二](#二快速开始) · [§四 仓库结构](#四仓库结构) · [§十三](#十三贡献) | [§七 自举](#七自举状态摘要--2026-10-12) · 实时 [自举进度](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
+| **放行 / 钉盘审阅** | 文首状态表 · [§七](#七自举状态摘要--2026-10-12) | 仅认 L4 真冷 + 全量 bstrict（**131** 套）；三端 L2 绿 ≠ 升钉 |
 | **要 residual 实时数字** | **别只看本文** — 打开 [自举进度](analysis/自举进度.md) 或 `./xbuild bc-inventory` | README 是快照；冲突时以仪表盘为准 |
 
 **文档职责（禁止混权威）：** 根 README = 产品与上手着陆页；`analysis/自举进度.md` = 自举实时 KPI；`analysis/终局待办.md` = 到终局的勾选；`analysis/自举验证.md` = 闸门手册；`compiler/docs/SELFHOST.md` = 操作手册；`docs/` = 面向用户的语言语法；`AGENTS.md` + skill `xlang-selfhost-product-gate` = 工程纪律。
@@ -113,7 +113,7 @@ Linux 宿主更关心 **内核年代 + 架构 + 目标格式（ELF）** 以及**
 |------|------|------|------|
 | **Ubuntu 24.04 LTS** | x86_64 | **1** | 当前主流 LTS 实验室；CI（`ubuntu-latest` / 24.04 线） |
 | **Ubuntu 22.04 LTS** | x86_64 | **1** | 金标邻近 LTS 实验室；CI `ubuntu-22.04`；Docker gate 常钉 22.04 |
-| **Ubuntu 26.04 LTS**（作为主机使用时） | x86_64 | **1** | 新 LTS 纳入主实验室后与 22.04/24.04 同级 |
+| **Ubuntu 26.04 LTS** | x86_64 | **1** | **金标实验室主机**（`ubuntu-remote-server`）— 主 L4／tip 冷 L2 实验室 |
 | **Alpine Linux** | x86_64 | **2** | **支持宿主**；CI `docker-distro`（`alpine:3.x`）；本地 `scripts/docker-ci-local.sh alpine`；宿主事实见 `XLANG_HOST_ALPINE` / platform linker 文档。宿主 bootstrap 可能不同（musl 时代工具、默认栈等）；产品 freestanding 仍目标 **无 libc**。**非金标实验室**：L4 / 放行钉仍 Ubuntu x86_64；Alpine 上完整 B-strict 自举延后（A-13），**不是不支持** |
 | **Ubuntu 24.04 / 当前** | aarch64 | **2** | CI 探针（`ubuntu-24.04-arm`）；非产品金标实验室 |
 | **Ubuntu 20.04 LTS** | x86_64 | **2** | 后期 LTS；宿主工具链够新时多半可跑 |
@@ -144,7 +144,7 @@ Linux 宿主更关心 **内核年代 + 架构 + 目标格式（ELF）** 以及**
 | Windows 11 / 10 | ARM64 | **2** | 实验 / 尽力；非 CI 主路径 |
 | 纯 MSVC PE 产品路径 | * | **2** | 当前门禁锻炼的是 MinGW hybrid |
 
-Windows 现状是**三端 L2 绿**、默认 **LEGACY** 前端（`XLANG_LEGACY_C_FRONTEND=1`）、leftover-safe override 已进 live，且 leftover unique **0**——不是「完整自举 L4 金标」。详见 [自举状态](#七自举状态摘要--2026-09-23)；有文档时见 [Windows 平台限制与测试指南](analysis/Windows平台限制与测试指南.md)。
+Windows 现状是**三端 L2 绿**、默认 **LEGACY** 前端（`XLANG_LEGACY_C_FRONTEND=1`）、leftover-safe override 已进 live，且 leftover unique **0**——不是「完整自举 L4 金标」。详见 [自举状态](#七自举状态摘要--2026-10-12)；有文档时见 [Windows 平台限制与测试指南](analysis/Windows平台限制与测试指南.md)。
 
 #### 明确不支持（Tier 3 — 勿默认会修）
 
@@ -249,14 +249,14 @@ XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # 产品闸门（约 131
 ./tests/run-freestanding-hello.sh  # Linux x86_64 freestanding S4 烟测
 ```
 
-凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler` / `std` / `core` 下**全部** `.o`，用 `./xbuild bootstrap-driver-seed` 重链二进制 — **不是** `make`）+ **双端** `run-all-bstrict` 全绿。**日常 tip 放行**要求 **三端 L2**（macOS + `ubuntu-server` + `windows-server`，同 tip）。
+凡谈**自举 / 产品放行**，项目要求 **L4 真冷**（擦除 `compiler` / `std` / `core` 下**全部** `.o`，用 `./xbuild bootstrap-driver-seed` 重链二进制 — **不是** `make`）+ **双端** `run-all-bstrict` 全绿。**日常 tip 放行**要求 macOS + `ubuntu-remote-server` 的 **tip 冷 L2**（同 tip；Windows 经 `windows-remote-server`，未后置时）。
 
 详见 [自举效率方法-M2主链](analysis/自举效率方法-M2主链.md) · [自举验证](analysis/自举验证.md) · [SELFHOST.md](compiler/docs/SELFHOST.md)。
 
 > **三端日常 L2 绿 ≠ 升 L4 钉盘。**  
 > **现行产品 L4 钉盘 = `ecdb5cc1e`**（双端真冷；**日常不升钉**）。residual tip 可只跑 **L2** 推进。  
-> **Ubuntu tip 全量重链 SEGV／FAIL → 该 tip 用 warm 作金标**；仍计入三端硬闸（须写明路径）。  
-> 自举收口期间默认 L2/L4 产品节奏下 **`xlang check` 语法闸门暂停**；仅在明确 dogfood check 面时再跑（见 [§七](#七自举状态摘要--2026-09-23)）。
+> **日常产品闸＝mac＋Ubuntu tip 冷 L2**；经理允许时 Windows 可后置。  
+> 自举收口期间默认 L2/L4 产品节奏下 **`xlang check` 语法闸门暂停**；仅在明确 dogfood check 面时再跑（见 [§七](#七自举状态摘要--2026-10-12)）。
 
 ---
 
@@ -421,12 +421,12 @@ xlang/
 
 ---
 
-## 七、自举状态（摘要 · 2026-09-23）
+## 七、自举状态（摘要 · 2026-10-12）
 
 > **实时数字以** [自举进度.md](analysis/自举进度.md) · [终局待办.md](analysis/终局待办.md) · [自举验证.md](analysis/自举验证.md) · inventory `./xbuild bc-inventory` **为准**。  
 > README 只给摘要；**禁止**把 Stage2 / prove / WPO / **三端日常 L2 绿**写成 L4 重钉或「完全自举」。  
 > **Makefile 物理删除已完成**。产品入口仅为 **`./xbuild`**。冷启动走 **`./xbuild bootstrap-driver-seed`**，不是 `make`。  
-> **主刀 = M2**（真减 host-cc／纯 asm）— 见 [M2 主链](analysis/自举效率方法-M2主链.md)。禁：mega FORCE · leftover-first · `-E` 当修 · HARD BAN 分类主刀 · CloudAgent · 默升钉。
+> **当前主刀＝终局第 9 章**（seed／`.inc` 业务掏空；**第1–8章已 ✅**）— 实时见 [自举进度](analysis/自举进度.md) · [终局待办](analysis/终局待办.md)。禁：mega FORCE · leftover-first · `-E` 当修 · CloudAgent · 默升钉 · 未经经理确认开 **9.2**。
 
 ### 产品轨
 
@@ -435,44 +435,44 @@ xlang/
 | **L4 放行钉盘（现行）** | **`ecdb5cc1e`** — 双端 **真冷**；**日常不升钉** |
 | 钉盘谱系（旧 → 新） | `…` → `f7424ae47` → `e8176cbe5` → `b5be5ed97` → **`ecdb5cc1e`** |
 | 产品 bstrict 套件 | **131**（`tests/run-all-bstrict.sh`） |
-| 日常闸门（tip） | **三端 L2 硬闸** — macOS + `ubuntu-server` + `windows-server`，同 tip · `./xbuild l2-matrix`（rv42／opt102／hello／si／f32） |
-| tip 路径（2026-09-23） | Darwin **tip 新链 + prefer labi** · Ubuntu 常 **warm**（tip 全量重链 SEGV／FAIL）· Win **LEGACY**（`XLANG_LEGACY_C_FRONTEND=1`）— 写清路径后均为 **5/5** |
-| residual tip（≠ 钉盘） | BC inventory **present 0** · leftover unique **0** · Cap **9.1–9.7 ✅** · M2 Class AD–BI 真减 host-cc 进行中 · 日常 L2 **不升钉** |
-| host-cc 真债 | map 外 `from_x`／产品 `.inc`／大户 leftover（BI 后 pabi leftover 约 **1.31MB**）— **present 0 ≠ host-cc=0** |
-| 金标主机 | **Ubuntu x86_64**（`ubuntu-server`）；Windows 经 `windows-server`（PVE 实验室，与 Ubuntu 并行） |
+| 日常闸门（tip） | **tip 冷 L2** — macOS + `ubuntu-remote-server`（Windows 经 `windows-remote-server`，经理允许时可后置）· `./xbuild l2-matrix`（rv42／opt102／hello／si／f32） |
+| tip 路径（2026-10-12） | Darwin＋Ubuntu **tip 冷 L2 5/5** · **8.3** FORCE 冷路径 **零 `cc`**（mac＋Ubuntu）· Windows 零 `cc` **后置** · 已剥叶走 prefer／纯 asm |
+| residual tip（≠ 钉盘） | 终局 **第1–8章 ✅**；tip 主刀 **9.1 进行中**（勿写成 ✅）；下一⬜ **9.2**；host-cc ≈ **231**；日常 L2 **不升钉** |
+| host-cc 真债 | host-cc ≈ **231**；**9.1** 收口前仍有部分 `seeds/**/*.from_x.c`／`parser_asm/*.inc` 业务 — **present 0 ≠ host-cc=0** |
+| 金标主机 | **Ubuntu 26.04 x86_64**（`ubuntu-remote-server`）；Windows 经 `windows-remote-server`（PVE 实验室；经理允许时可后置） |
 | 验收二进制 | 本波 `compiler/xlang_asm`（g05／pure-ld）— **禁止** Stage2 `xlang_asm2` 或旧 stage1 |
 | `xlang check` 闸门 | 自举收口期间默认 L2/L4 节奏下 **暂停** |
 | nest 冻帽 | **64** — 禁止抬到 65；禁止默认 FORCE `pipeline_abi` mega |
 
 ### 今天「可用」指什么
 
-在**用户产品路径**（`xlang_asm` → `-o`／运行／freestanding／门禁）上，钉盘已覆盖大量已收口面——网络、struct lit、CTFE、X ABI、TYPE_DYN／vtable（`let x: Trait = a`）、freestanding S4、hosted asm 矩阵、Win leftover-safe live override（Class S–AC）等。
+在**用户产品路径**（`xlang_asm` → `-o`／运行／freestanding／门禁）上，钉盘已覆盖大量已收口面——网络、struct lit、CTFE、X ABI、TYPE_DYN／vtable（`let x: Trait = a`）、freestanding、hosted asm 矩阵等。
 
-**更早钉盘之后**，`dev` tip 已收 Cap residual **9.1–9.7**（standing C＝系统库／语言极限，有意保留）、BC 结构孤儿（**present 0**）、Win PE stub→真体扫、以及一长串 **M2** Cap／stretch／unwind／needle／leftover 减量弧（thin_glue 约 **1.84MB → 343KB**；Class AU 后 Darwin tip **prefer labi**）。
+**截至 2026-10-12**，`dev` tip 已收终局待办 **第1–8章**（产品默认 asm **7.1／7.2**、冷启／`v2==v3` **8.1–8.9**，含 mac＋Ubuntu **FORCE** 冷路径 **零 `cc`**＝**8.3**）。当前 tip 在做 **9.1**（删除／掏空产品 seeds 与 `parser_asm/*.inc` 中仍占位的业务）— **进行中，勿勾 ✅**。9.1 之后下一开项为 **9.2**。
 
-**三端 L2 绿不会自动抬升 L4 钉盘。** Ubuntu tip **warm** 必须标明 warm — 禁止冒充 tip 全量冷链绿。
+**tip 冷 L2 绿不会自动抬升 L4 钉盘。** 钉盘仍为 **`ecdb5cc1e`**，须显式双端 **真冷** 才重钉。
 
 ### 终局三义 + 阶段（MG／BC／PC／8–13）
 
 | 轨道 | 状态 |
 |------|------|
 | **MG**（Makefile 编排） | ✅ 文件层完成 — 0-make；产品入口 `./xbuild` |
-| **BC**（编译器 TU 离 host-cc） | 🟡 inventory **present 0** · Stage 8 gen **30/30 ✅** · 真债＝`.inc`／`from_x`／leftover 真减 |
-| **PC**（产品默认 asm／无 `invoke_cc`） | 🟡 门控已收 · Darwin tip **prefer labi** · `labi_invoke_cc` **未删** · L6／L8 在指针下标 codegen 治本前仍 host-cc |
-| **Stage 9 Cap residual** | ✅ **9.1–9.7 已闭**（standing C 有意） |
+| **BC**（编译器 TU 离 host-cc） | 🟡 inventory **present 0** · Stage 8 gen **30/30 ✅** · 残债＝seed／`.inc` 业务至 **9.1** · host-cc ≈ **231** |
+| **PC**（产品默认 asm／无 `invoke_cc`） | 🟡 **7.1／7.2 ✅** · tip prefer／纯 asm 已剥叶 · `labi_invoke_cc` **未删** · 产品全路径零 `cc` 仍开 |
+| **Stage 9 Cap residual**（旧 Cap 剥皮轨） | ✅ 已闭（standing C 有意；≠ 终局 **第 9 章**） |
 | **Stage 10 语言 L2** | 🟡 主面闭；残 NT／MSVC va／qemu／Win 实机 |
-| **Stage 12 零 cc 冷启** | 🟡 LINK／`.s` 大半 ✅；全路径 `execve(cc)=0` ⬜ |
-| **Stage 13 宣布完成** | 🟡 MG ✅ · BC／PC／`v2==v3` 开 — **未宣布** |
+| **Stage 12 零 cc 冷启** | 🟡 **8.3** mac＋Ubuntu FORCE 冷路径零 `cc` ✅；Windows 后置；宣布路径全零 `cc` 仍开 |
+| **Stage 13 宣布完成** | 🟡 MG ✅ · 第1–8章 ✅ · **9.1** 进行中 · BC／PC／`v2==v3` 残 — **未宣布** |
 
 ### residual inventory（量级）
 
-| 信号 | 值（2026-09-23） |
+| 信号 | 值（2026-10-12） |
 |------|------------------|
 | `./xbuild bc-inventory` present | **0**（结构孤儿已清；不等于零 host-cc） |
 | leftover unique（Win PE 收割） | **0** |
 | R2 真迁 | ~**120/128** |
-| 大户 leftover（Darwin pabi 类） | Class BI 后约 **1.31MB**（仍是 host-cc 面） |
-| labi（needle 表后） | 约 **406KB**（Class BE–BG） |
+| host-cc（产品 inventory） | ≈ **231**（禁止新增 host-cc `.c`） |
+| 终局第 9 章 | **9.1** 进行中 · 下一⬜ **9.2** |
 | 运维陷阱 | 陈旧 `.o` 只比 `.x` 时间戳 → 防法＝**L4 全擦**；禁 mega FORCE／Soft-Cap tip `-E` |
 
 ### 工程轨（量级）
@@ -488,9 +488,9 @@ xlang/
 
 - **未**宣称「编译器已 100% `.x`、无 seed」
 - **未**把「BC present 0」写成「host-cc=0」
-- **未**把「Darwin prefer labi」写成「Ubuntu tip 冷链同路径」
-- **未**把「三端 L2／Ubuntu warm」写成升 L4 钉 — 钉盘仍为 **`ecdb5cc1e`**，须显式双端 **真冷** 才重钉
-- **未**把「Cap 空桩减量」写成「业务已离 C」
+- **未**把「mac＋Ubuntu tip 冷 L2」写成升 L4 钉 — 钉盘仍为 **`ecdb5cc1e`**，须显式双端 **真冷** 才重钉
+- **未**把「**9.1** 进行中」写成「**9.1 ✅**」— 须 tip L2 绿落地后再勾
+- **未**把「空 seed 桩」写成「业务已全部离 C」
 - **未**把「Windows LEGACY 5/5」写成自举完成
 - 终局零 cc 冷启 + `v2==v3` + 删 `labi_invoke_cc` 仍在路线图
 
@@ -500,9 +500,9 @@ xlang/
 
 ### 近端前排
 
-1. **M2 大户／`from_x` 真减 host-cc 续** — Class BI 后（pabi 约 **1310504**）。禁 FORCE hybrid · HARD BAN 分类主刀 · mega FORCE  
-2. **次排** — Ubuntu tip leftover；L6／L8 tip asm 指针下标治本后再扩 prefer  
-3. **立卡（经理另派）** — Soft-Cap `arr_return` · MSVC va · nest **64** · L4／升钉仅点名  
+1. **9.1** — 掏空／删除 `seeds/**/*.from_x.c` 与 `seeds/parser_asm/*.inc` 中仍占位的业务；保留空声明或脚本指名的非业务桩；mac＋Ubuntu tip 冷 L2；**未经经理确认勿开 9.2**  
+2. **9.1 之后下一⬜** — **9.2** `parser_gen`／`codegen_gen` 解钉（仍 pin-first；见 7.2）  
+3. **立卡（经理另派）** — Windows 零 `cc` 臂 · Soft-Cap／MSVC va · nest **64** · L4／升钉仅点名  
 
 ---
 
@@ -515,8 +515,8 @@ xlang/
 | M2 | import、core/std 子集、多目标 | ✅ |
 | M3 | 泛型、trait、模块、std 扩张 | ✅ |
 | M4 | DCE、`-O2`/`-Os`、体积／性能基线 | ✅ 部分 |
-| M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**仍需 seed**；MG ✅ · Cap 9 ✅ · BC／PC 终局 🟡 · 主刀 **M2 真减 host-cc** |
-| **当前** | L4 钉 **`ecdb5cc1e`**；tip `dev` M2 Class BI；三端 L2；Darwin prefer labi；Ubuntu 常 warm；写 `let x: Trait = a` | 见 [仪表盘](analysis/自举进度.md) |
+| M5 | 自举（编译器可重编自身） | 🟡 **产品路径可用 + 自举推进中**；**仍需 seed**；MG ✅ · 终局 **第1–8章 ✅** · **9.1** 进行中 · BC／PC 残 🟡 |
+| **当前** | L4 钉 **`ecdb5cc1e`**（日常不升）；tip `dev` **9.1** 进行中；第1–8章 ✅；host-cc ≈ **231**；mac＋Ubuntu tip 冷 L2；写 `let x: Trait = a` | 见 [仪表盘](analysis/自举进度.md) |
 
 ---
 
@@ -660,7 +660,7 @@ xlang/
 4. 日常 residual 叶 → **L2**（pure-ld + 产品矩阵探针）；自举收口期间**不要**默认跑 `xlang check` 闸门。  
 5. 提交：Conventional Commits（`feat:` / `fix:` / `docs:` …）；`.x` 新注释用**英文**（见 `AGENTS.md` / G.9）。  
 6. **禁止双权威** — seed 与 `.x` 产品面必须**同 commit**对齐。  
-7. **禁止假绿** — 不得仅凭 prove / Stage2 / WPO / 三端 L2 / Ubuntu warm 宣称自举完成。
+7. **禁止假绿** — 不得仅凭 prove / Stage2 / WPO / tip L2 宣称自举完成。
 
 **当前决议** — 自举 / 产品闸门优先于大规模 std 新功能；IR v4 架构已冻结，留给自举后阶段。
 
