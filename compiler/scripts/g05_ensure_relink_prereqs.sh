@@ -3509,8 +3509,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       # Class CB is the Darwin product glue. A successful first-pass hybrid
       # would keep audit and other slices this chapter has not peeled.
       # PLATFORM: MACOS|DARWIN arm64. Linux / Windows keep the first-pass result.
+      # knife 256 / 10.2 cold: save first-pass before Class CB wipe. When
+      # xlang_asm is absent (true cold wipe), Class CB pure-asm pieces fail
+      # and peel is hollow for product — first-pass egg hybrid still carries
+      # trait faces + parser_*_glue for seed-phase1. Restore on partial.
+      _pthin_first_pass=""
       if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
         && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+        if [ "$_pthin_done" = "1" ] && [ -s parser_asm_thin_glue.o ]; then
+          _pthin_first_pass=$(mktemp "${TMPDIR:-/tmp}/g05_pthin_first_pass.XXXXXX") || true
+          if [ -n "$_pthin_first_pass" ]; then
+            cp -f parser_asm_thin_glue.o "$_pthin_first_pass" || _pthin_first_pass=""
+          fi
+        fi
         _pthin_done=0
         rm -f parser_asm_thin_glue.o
       fi
@@ -4403,11 +4414,23 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
             # stretch_audit, ...) undefined, and relink then stops on
             # dozens of UNDEFs after ensure printed OK. Stop here instead.
             # PLATFORM: MACOS|DARWIN arm64.
+            # knife 256 / 10.2: true cold has no xlang_asm → Class CB pure
+            # pieces fail. Prefer first-pass egg hybrid (trait + glue faces)
+            # over exiting with a thin peel; product lane still requires
+            # w1330 when first-pass was not saved.
             if [ "${_cb_full:-0}" != "1" ] \
               && [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
               && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
-              echo "g05_ensure: ERROR parser_asm_thin_glue.o Class CB is partial (a pthin piece failed); not the w1330 product lane" >&2
-              exit 1
+              if [ -n "${_pthin_first_pass:-}" ] && [ -s "$_pthin_first_pass" ]; then
+                cp -f "$_pthin_first_pass" parser_asm_thin_glue.o
+                rm -f "$_pthin_first_pass"
+                _pthin_first_pass=""
+                echo "g05_ensure: Class CB partial; kept first-pass hybrid (knife256 cold seed; trait+glue faces)"
+                _pthin_done=1
+              else
+                echo "g05_ensure: ERROR parser_asm_thin_glue.o Class CB is partial (a pthin piece failed); not the w1330 product lane" >&2
+                exit 1
+              fi
             fi
           fi
         fi
@@ -4418,6 +4441,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
           "$_cb_p7b" "$_cb_p7" "$_cb_p15b" "$_cb_p15" "$_cb_p11b" "$_cb_p11" \
           "$_cb_p9b" "$_cb_p9"
       fi
+      # knife 256 / 10.2: Class CB may fail before any peel; restore first-pass
+      # hybrid rather than hollow thin_c (emptied monothin). PLATFORM: DARWIN.
+      if [ "$_pthin_done" = "0" ] \
+        && [ -n "${_pthin_first_pass:-}" ] && [ -s "$_pthin_first_pass" ]; then
+        cp -f "$_pthin_first_pass" parser_asm_thin_glue.o
+        echo "g05_ensure: Class CB unavailable; kept first-pass hybrid (knife256 cold seed)"
+        _pthin_done=1
+      fi
+      rm -f "${_pthin_first_pass:-}"
+      _pthin_first_pass=""
       if [ "$_pthin_done" = "0" ]; then
         echo "g05_ensure: parser_asm_thin_glue.o ← thin seed (G-02f-10)"
         # shellcheck disable=SC2086

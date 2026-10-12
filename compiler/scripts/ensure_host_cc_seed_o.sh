@@ -5991,6 +5991,12 @@ ensure_one() {
     return 0
   fi
 
+  # knife 256 / 10.2: thin_glue hollow monothin — g05 prefer only.
+  if [ "$out" = "parser_asm_thin_glue.o" ]; then
+    ensure_parser_asm_thin_glue_prefer || return 1
+    return 0
+  fi
+
   # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
   # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
   # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
@@ -14846,6 +14852,60 @@ ensure_diag_prefer() {
   return 0
 }
 
+
+# knife 256 / 10.2: parser_asm_thin_glue.o cold monothin seed is hollowed
+# (记253／9.1 removed #include slices). Bare cc → 336B empty → phase1 UNDEFs
+# for xlang_trait_* / xlang_skip_trait_method_* / parser_*_glue.
+# Build via g05 PREFER hybrid (egg Track L / pure-asm pieces + FROM_X rests).
+# Darwin Class CB may exit partial without xlang_asm; keep the object when
+# nm-gate passes (trait faces + enough T symbols). PLATFORM: SHARED.
+ensure_parser_asm_thin_glue_prefer() {
+  local o="parser_asm_thin_glue.o"
+  local n=0
+  local g05log="${TMPDIR:-/tmp}/xlang_ensure_pthin_g05.log"
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] \
+    && nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_reg_reset_c\$" \
+    && nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_check_impls_complete_c\$" \
+    && nm "$o" 2>/dev/null | grep -qE " T _?xlang_skip_trait_method_slot_c\$"; then
+    n=$(nm "$o" 2>/dev/null | grep -c " T " || true)
+    if [ "${n:-0}" -ge 200 ]; then
+      log "skip up-to-date $o (pthin prefer; T=$n trait faces)"
+      return 0
+    fi
+  fi
+  if [ ! -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    echo "ensure_parser_asm_thin_glue_prefer: missing g05_ensure_relink_prereqs.sh" >&2
+    return 1
+  fi
+  rm -f "$o"
+  (
+    export XLANG_G05_PREFER_X_O=1
+    if [ ! -x ./xlang ] && [ ! -x ./xlang-c ] && [ -x ./bootstrap_xlangc ]; then
+      export XLANG=./bootstrap_xlangc
+    fi
+    # g05 Darwin Class CB keeps first-pass hybrid on partial (knife256).
+    # nm-gate below is the ensure contract; g05 may still fail later steps.
+    bash scripts/g05_ensure_relink_prereqs.sh
+  ) >"$g05log" 2>&1 || true
+  if [ ! -s "$o" ]; then
+    echo "ensure_parser_asm_thin_glue_prefer: missing $o after g05 prefer (log=$g05log)" >&2
+    return 1
+  fi
+  if ! nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_reg_reset_c\$" \
+    || ! nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_check_impls_complete_c\$" \
+    || ! nm "$o" 2>/dev/null | grep -qE " T _?xlang_skip_trait_method_slot_c\$"; then
+    echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (trait faces; log=$g05log)" >&2
+    return 1
+  fi
+  n=$(nm "$o" 2>/dev/null | grep -c " T " || true)
+  if [ "${n:-0}" -lt 100 ]; then
+    echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (T=$n want >=100; log=$g05log)" >&2
+    return 1
+  fi
+  log "parser_asm_thin_glue.o <- g05 prefer hybrid (knife256; T=$n; no hollow thin_c)"
+  return 0
+}
+
 try_ensure_r1_one() {
   local o="$1"
   local seed_mode seed extras_str
@@ -14888,6 +14948,11 @@ try_ensure_r1_one() {
   # Prefer hybrid owns the body; do not bare-cc emptied cold. PLATFORM: SHARED.
   if [ -n "$(other_l2_prefer_spec_for_out "$o")" ]; then
     ensure_other_l2_prefer_one "$o" || return 1
+    return 0
+  fi
+  # knife 256 / 10.2: thin_glue hollow monothin → g05 prefer (trait faces).
+  if [ "$o" = "parser_asm_thin_glue.o" ]; then
+    ensure_parser_asm_thin_glue_prefer || return 1
     return 0
   fi
   # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: alias bodies that live in the .x are not in the seed.
