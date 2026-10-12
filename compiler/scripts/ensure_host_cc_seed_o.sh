@@ -5889,8 +5889,10 @@ ensure_runtime_asm_io_stubs_pure() {
     if (
       export XLANG_PREFER_ASM_O=1
       unset G05_X_O_WEAK G05_X_O_SYM_RENAME
-      # Darwin/Linux weaken the historic io face set; keep minimal for cold.
-      export G05_X_O_WEAK_FUNCS="xlang_sys_write,xlang_sys_read,xlang_sys_writev,xlang_sys_mmap,xlang_sys_munmap,xlang_target_cpu_detect_host"
+      # knife256 / 10.2: Darwin pure-ld has no -multiply_defined. Cold stubs
+      # must be weak vs x_seed_bridge / pabi strong io faces or phase1 dups.
+      # Keep sys_* weak too (historic). PLATFORM: SHARED tip cold.
+      export G05_X_O_WEAK_FUNCS="xlang_sys_write,xlang_sys_read,xlang_sys_writev,xlang_sys_mmap,xlang_sys_munmap,xlang_target_cpu_detect_host,io_read,io_write,io_read_ptr,io_read_ptr_len,io_read_batch,io_read_batch_buf,io_write_batch,io_write_batch_buf,io_register_buffer,io_register_buffers_4,io_unregister_buffers,io_wait_readable,xlang_io_register,xlang_io_register_buf,xlang_io_submit_read,xlang_io_submit_write,std_io_driver_submit_read_batch_buf,std_io_driver_submit_write_batch_buf"
       pure_asm_x_to_o "$o" "$x"
     ) && [ -s "$o" ] \
       && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
@@ -5903,7 +5905,19 @@ ensure_runtime_asm_io_stubs_pure() {
     echo "ensure_host_cc_seed_o: pure-asm failed for $x → $o (w1516; no seed)" >&2
     return 1
   fi
-  log "pure-asm $x → $o (w1516/knife256; no host-cc)"
+  # knife256: post-weaken overlapping io T (egg emit may ignore WEAK_FUNCS).
+  # PLATFORM: MACOS|LINUX tip cold · pure-ld no multidef on Darwin.
+  _oc="$(pure_asm_find_objcopy 2>/dev/null || true)"
+  if [ -n "$_oc" ]; then
+    for _ws in       _io_read _io_write _io_read_ptr _io_read_ptr_len       _io_read_batch _io_read_batch_buf _io_write_batch _io_write_batch_buf       _io_register_buffer _io_register_buffers_4 _io_unregister_buffers       _io_wait_readable _xlang_io_register _xlang_io_register_buf       _xlang_io_submit_read _xlang_io_submit_write       _std_io_driver_submit_read_batch_buf _std_io_driver_submit_write_batch_buf
+    do
+      if nm -m "$o" 2>/dev/null | grep -E " ${_ws}\$" | grep -qv weak; then
+        "$_oc" --weaken-symbol="$_ws" "$o" 2>/dev/null || true
+      fi
+    done
+  fi
+  unset _oc _ws
+  log "pure-asm $x → $o (w1516/knife256; no host-cc; io faces weak)"
   return 0
 }
 

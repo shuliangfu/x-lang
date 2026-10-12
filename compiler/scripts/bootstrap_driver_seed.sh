@@ -278,6 +278,12 @@ bash scripts/bootstrap_driver_seed_host_stubs.sh
 # Linux: BOOTSTRAP_DRIVER_SEED_FILTERED_OBJS empty → no-op.
 _ensure_filtered_objs
 
+# 11a0) knife256 / 10.2: Darwin hollow-fill before phase1 pure-ld (9.1 wipe).
+# Egg pure-asm thins + return-0 m8 stubs; no-op on Linux/Windows.
+if [ -f scripts/darwin_phase1_hollow_fill.sh ]; then
+  bash scripts/darwin_phase1_hollow_fill.sh
+fi
+
 # 11a) phase1 link → xlang-seed-phase1
 # wave934: direct shell invocation (was mk bootstrap-driver-seed-phase1-link).
 bash scripts/bootstrap_driver_seed_link.sh phase1

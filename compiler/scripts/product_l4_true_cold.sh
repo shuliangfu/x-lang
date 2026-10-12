@@ -291,10 +291,19 @@ _l4_step_end
 # --- 5) Cold bootstrap-driver-seed (shell; no Makefile) ---
 _l4_step_begin "5_bootstrap_driver_seed"
 log "step5: bootstrap-driver-seed (shell)"
+# knife256: pipefail so phase1 pure-ld FAIL is not masked by tee exit 0.
+set +e
+set -o pipefail
 (
   cd compiler
   bash scripts/bootstrap_driver_seed.sh
 ) 2>&1 | tee -a "$LOG"
+_boot_rc=$?
+set +o pipefail
+set -e
+if [ "$_boot_rc" -ne 0 ]; then
+  fail "bootstrap-driver-seed exited $_boot_rc"
+fi
 if [ ! -x compiler/xlang ] && [ ! -x compiler/bootstrap_xlangc ]; then
   fail "bootstrap-driver-seed produced neither xlang nor bootstrap_xlangc"
 fi
