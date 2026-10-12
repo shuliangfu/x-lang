@@ -4181,11 +4181,12 @@ export function glue_asm_harvest_call_ret_to_gpr_c(
       return backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx, 0, ta);
     }
   }
-  // f32 xmm harvest remains x86-only: arm64 keeps the GP-bits f32
-  // convention this wave (callee param home / return are f64-only).
-  // PLATFORM: LINUX+MACOS x86_64 SysV.
-  if (ta == 0) {
-    if (kind == 14) {
+  // 记227: f32 harvest on both arches. Was x86-only; arm64 free CALL to
+  // host-C / tip F32 (记226 return_sret leaves s0) left stale x0 (e.g.
+  // arrow sum → bits=len). Import METHOD already harvested s0→w0 on
+  // arm64; free CALL must match. PLATFORM: SHARED.
+  if (kind == 14) {
+    if (ta == 0 || ta == 1) {
       unsafe {
         return backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx, 0, ta);
       }

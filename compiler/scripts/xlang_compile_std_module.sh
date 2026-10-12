@@ -2086,6 +2086,70 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/db/arrow/mod.x|std/db/arrow/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.arrow mod.x (记227).
+      # Do not pass -lib-name "". Exports stay std_db_arrow_*.
+      # Root: tip free-CALL F32 harvest was x86-only; arm64 left stale x0
+      # (sum bits=len). glue_asm_harvest_call_ret_to_gpr_c now fmov w0,s0
+      # on arm64 too (match import METHOD). Miss fail-closed.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _arrowm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_arrowm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/arrowm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_new_f32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_sum$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_append_ArrowColumn_f32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_data_f32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_length_ArrowColumn$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/arrowm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/arrow/arrow.x|std/db/arrow/arrow.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl for std.db.arrow (记227).
+      # -lib-name "" keeps arrow_column_*_c / arrow_batch_*_c.
+      # A miss stops here. mod.x has its own arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _arrowx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_arrowx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/arrowx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_append_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_data_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_i32_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_len_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/arrowx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/vec/mod.x|std/vec/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.vec mod.x (记226).
       # Do not pass -lib-name "". Exports stay std_vec_*.
