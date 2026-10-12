@@ -5247,8 +5247,22 @@ export function lexer_next_into(out: *LexerResult, lex: Lexer, data: u8[]): void
  * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
  */
 export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // knife256 / 10.2: never return u8[] from tip — Darwin tip deep-copies at
+  // most 1024 payload bytes into a frame buffer. That truncated view was
+  // parked over the full source, so a block comment whose */ sits past
+  // byte 1024 (e.g. second /** in runtime_io_abi.x) became L001 unclosed.
+  // Store the {data,len} fat into a local empty slice instead (parser twin:
+  // parser_slice_view_store). PLATFORM: SHARED.
   unsafe {
-    lexer_next_into(out, lex, lexer_slice_from_raw(data, len));
+    let n: i32 = len;
+    let sl: u8[] = [];
+    let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+    if (n < 0) { n = 0; }
+    lexer_src_park(data, n);
+    b.data = data;
+    b.length = (n as usize);
+    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+    lexer_next_into(out, lex, sl);
   }
 }
 
@@ -5264,7 +5278,17 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
  */
 // PLATFORM: SHARED — LexerResult is written through out. The slice path is unchanged.
 export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
+  // knife256 / 10.2: same store-not-return as lexer_next_buf_into (1024 cap).
+  // PLATFORM: SHARED.
   unsafe {
-    lexer_next_slice(out, lex, lexer_slice_from_raw(data, len));
+    let n: i32 = len;
+    let sl: u8[] = [];
+    let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+    if (n < 0) { n = 0; }
+    lexer_src_park(data, n);
+    b.data = data;
+    b.length = (n as usize);
+    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+    lexer_next_slice(out, lex, sl);
   }
 }

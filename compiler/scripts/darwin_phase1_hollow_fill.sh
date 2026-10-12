@@ -869,14 +869,23 @@ _g_lex_src_len:
 	.align 2
 	.globl _lexer_src_park
 _lexer_src_park:
-	// x0=data *u8, w1=len i32. Sticky: ignore null/poison (<4096).
-	mov	x2, #0x1000
-	cmp	x0, x2
-	b.ls	1f
+	// x0=data *u8, w1=len i32.
+	// Poison: Darwin PAGEZERO is 4GiB — reject ptrs with bit32 clear (tip smash
+	// 0x102a etc.). Also ignore tip u8[] return deep-copy (len==1024) when a
+	// longer full-file park already exists — that truncate clobbered */ past 1024.
+	// PLATFORM: MACOS arm64.
+	tbz	x0, #32, 1f
+	sxtw	x1, w1
+	cmp	x1, #1024
+	b.ne	0f
+	adrp	x2, _g_lex_src_len@PAGE
+	ldr	x2, [x2, _g_lex_src_len@PAGEOFF]
+	cmp	x2, #1024
+	b.gt	1f
+0:
 	adrp	x2, _g_lex_src_data@PAGE
 	str	x0, [x2, _g_lex_src_data@PAGEOFF]
 	adrp	x2, _g_lex_src_len@PAGE
-	sxtw	x1, w1
 	str	x1, [x2, _g_lex_src_len@PAGEOFF]
 1:
 	ret
