@@ -359,7 +359,20 @@ extern char *link_abi_getenv(const char *name);
 /** nostdlib 下勿用 glibc ctype 宏（会引用 __ctype_toupper_loc）；本地 ASCII 大写。 */
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_L2_RDABI_THIN_FROM_X removed */
+char driver_ascii_toupper(char c) {
+    if (c >= 'a' && c <= 'z')
+        return (char)(c + ('A' - 'a'));
+    return c;
+}
+/* G-02f：driver_env_flag_truthy 权威定义在 runtime_driver_abi_thin.x；
+ *   PREFER_X_O fallback 时 seed 提供同语义 C 供产品 cc。 */
+int32_t driver_env_flag_truthy(const char *name) {
+    const char *e = link_abi_getenv(name);
+    if (!e) return 0;
+    if (e[0] == 0) return 0;
+    if (e[0] == '0') return 0;
+    return 1;
+}
 #endif
 
 
@@ -380,6 +393,12 @@ int32_t *driver_large_stack_thread_flag_slot(void);
 void driver_current_dep_path_store(const char *path);
 const char *driver_current_dep_path_load(void);
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_print_check_ok_impl(const char *input_path);
+void driver_pipeline_fail_code_rc_impl(int32_t rc);
+void driver_pipeline_fail_code_path_impl(const uint8_t *path);
+void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len);
+void driver_print_x_smoke_parse_empty_impl(void);
+void driver_print_x_smoke_typeck_ok_impl(void);
 #endif
 void driver_bump_stack_limit(void);
 void xlang_driver_bump_stack_limit(int64_t want_bytes);
@@ -404,6 +423,8 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
 /** xlang check：非 0 时 typeck 通过后跳过 codegen 与链接（C 与 X pipeline 共用）。 */
 /* wave1 pure：hybrid thin owns BSS; cold seed keeps statics + flag_slot. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_check_only_flag;
+static int driver_check_diag_emitted_flag;
 #endif
 
 /**
@@ -411,6 +432,13 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 参数：v 非 0 启用。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_check_only_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_check_only_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /**
@@ -418,35 +446,98 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 返回值：1 表示启用，0 表示否。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_check_only_get(void) {
+  (void)(({   {
+    int32_t * p = driver_check_only_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_check_diag_emitted_reset(void) {
+  (void)(({   {
+    int32_t * p = driver_check_diag_emitted_flag_slot();
+    (void)(((p)[0] = 0));
+  }
+ }));
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_check_diag_emitted_note(void) {
+  (void)(({   {
+    int32_t * p = driver_check_diag_emitted_flag_slot();
+    (void)(((p)[0] = 1));
+  }
+ }));
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_check_diag_emitted_get(void) {
+  (void)(({   {
+    int32_t * p = driver_check_diag_emitted_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /** `-freestanding` / XLANG_FREESTANDING：用户程序 nostdlib 静态链（S4）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_freestanding_flag;
 #endif
 
 /** 设置 freestanding 链接模式。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_freestanding_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_freestanding_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /** 查询 freestanding 链接模式。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_freestanding_get(void) {
+  (void)(({   {
+    int32_t * p = driver_freestanding_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /** M-6：`-fsanitize=address` 时强制数组/切片 INDEX 边界检查。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_sanitize_address_flag;
 #endif
 
 /** 设置 sanitize=address 标志。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_sanitize_address_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_sanitize_address_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /**
@@ -455,17 +546,57 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 冷启动保留全 C 体；FROM_X 无 pure-dup env_enabled_impl（H↓）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_sanitize_address_get(void) {
+  (void)(({   {
+    int32_t * p = driver_sanitize_address_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    char *e = link_abi_getenv("XLANG_SANITIZE_ADDRESS");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_fmt_check_only_flag;
 #endif
 
 /** xlang fmt --check：仅校验格式，不写回。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_fmt_check_only_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_fmt_check_only_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /** 查询 fmt --check 模式。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_fmt_check_only_get(void) {
+  (void)(({   {
+    int32_t * p = driver_fmt_check_only_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /* 【Why 根源】MinGW PE 格式不真正支持 XLANG_WEAK：weak 函数被当作普通强符号，
@@ -476,6 +607,9 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * Windows 链接器选中哪个版本，driver_print_check_ok 都不输出逐文件 check OK。
  * 【Asm/Perf】macOS/Linux 上 weak 正常工作，强符号覆盖 weak 默认值，此改动无影响。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+XLANG_WEAK int32_t driver_check_quiet_ok_get(void) {
+  return 1;
+}
 #endif
 
 /**
@@ -483,30 +617,77 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 参数：input_path 被检查文件路径（可为 NULL）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_print_check_ok(const char *input_path) {
+  (void)(({   {
+    if ((driver_check_quiet_ok_get() !=0)) {
+      return;
+    }
+    (void)(driver_print_check_ok_impl(input_path));
+  }
+ }));
+}
 #endif
 
 /** 非 0 时 pipeline_impl_typecheck 跳过 .x typeck。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_x_pipeline_skip_typeck_flag;
 #endif
 
 /** 供 pipeline.x 读取：是否跳过 X typeck。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_x_pipeline_skip_typeck_get(void) {
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_typeck_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /** 设置 X typeck 跳过标志（C 预检后由 runtime 置位/清位）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_x_pipeline_skip_typeck_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_typeck_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /** 非 0 时 pipeline_impl_run_all 跳过 .x C codegen。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_x_pipeline_skip_codegen_flag;
 #endif
 
 /** 供 pipeline.x 读取：是否跳过 X C codegen。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_x_pipeline_skip_codegen_get(void) {
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_codegen_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /** 设置 X C codegen 跳过标志。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_x_pipeline_skip_codegen_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_x_pipeline_skip_codegen_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /**
@@ -514,6 +695,27 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * pure 权威：thin.x driver_typeck_force_c_enabled；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_typeck_force_c_enabled_impl(void) {
+  (void)(({   {
+    char *e = link_abi_getenv("XLANG_TYPECK_FORCE_C");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+
+int32_t driver_typeck_force_c_enabled(void) {
+  return driver_typeck_force_c_enabled_impl();
+}
 #endif
 
 /** 当前线程是否已在 driver_run_thread_on_large_stack 创建的大栈 pthread 内。
@@ -527,6 +729,12 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 【Asm/Perf 性能预期】普通 static int 在 BSS 中，访问为 RIP-relative 一次 load，比 TLS 间接访问快且无 %fs 依赖。 */
 /* wave1 pure：hybrid thin owns large_stack flag BSS; cold seed keeps static + slot. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int g_driver_on_large_stack_thread;
+
+/* G-02f-45 */
+int32_t *driver_large_stack_thread_flag_slot(void) {
+    return (int32_t *)&g_driver_on_large_stack_thread;
+}
 #endif
 
 
@@ -536,6 +744,17 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  */
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_is_large_stack_thread(void) {
+  (void)(({   {
+    int32_t * p = driver_large_stack_thread_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /**
@@ -543,10 +762,71 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 参数：on 非 0 进入，0 退出。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_large_stack_thread_mark(int on) {
+  (void)(({   {
+    int32_t * p = driver_large_stack_thread_flag_slot();
+    (void)(((p)[0] = on));
+  }
+ }));
+}
 #endif
 
 /* wave2 pure：hybrid thin owns entry_source_len BSS; cold seed keeps static + store/load. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+/** 当前 pipeline 入口源码长度；供 .x 按体积跳过大库 merge/typeck。 */
+static size_t g_pipeline_entry_source_len;
+
+/* G-02f-45 / G-02f-243 / G-02f-388：冷路径读 static；FROM_X 权威 = thin.x */
+int32_t driver_pipeline_entry_source_len_i32_impl(void) {
+    if (g_pipeline_entry_source_len > (size_t)0x7fffffff)
+        return 0x7fffffff;
+    return (int32_t)g_pipeline_entry_source_len;
+}
+
+int32_t driver_pipeline_entry_source_len_i32(void) {
+    return driver_pipeline_entry_source_len_i32_impl();
+}
+
+void driver_pipeline_entry_source_len_store_impl(size_t len) {
+    g_pipeline_entry_source_len = len;
+}
+
+void driver_pipeline_entry_source_len_store(size_t len) {
+    driver_pipeline_entry_source_len_store_impl(len);
+}
+
+/* wave13 pure：hybrid thin owns load+debug note (append + diag_report); cold keeps integer twin.
+ * PLATFORM: SHARED — truthy XLANG_DEBUG_PIPE (non-empty and != '0') matches thin driver_env_flag_truthy. */
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
+    /* Class AI: XLANG_DEBUG_PIPE entry_source_len note retired (mirror thin). */
+    return g_pipeline_entry_source_len;
+}
+
+size_t driver_pipeline_entry_source_len_load_and_maybe_debug(void) {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
+}
+
+/**
+ * 记录 pipeline 入口源码字节数（大栈 pthread 进入 pipeline 前调用）。
+ * 参数：len 预处理后的入口源码长度。
+ */
+void driver_set_pipeline_entry_source_len(size_t len) {
+  {
+    driver_pipeline_entry_source_len_store_impl(len);
+  }
+}
+
+/**
+ * 查询当前记录的入口源码长度；XLANG_DEBUG_PIPE=1 时打印。
+ * 返回值：最近一次 driver_set_pipeline_entry_source_len 写入的长度。
+ */
+size_t driver_pipeline_entry_source_len_impl(void) {
+    return driver_pipeline_entry_source_len_load_and_maybe_debug_impl();
+}
+
+size_t driver_pipeline_entry_source_len(void) {
+    return driver_pipeline_entry_source_len_impl();
+}
 #endif
 
 /**
@@ -554,6 +834,17 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * 返回值：len > 150000 时为 1，否则 0。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_typeck_skip_large_entry(void) {
+  (void)(({   {
+    int32_t len = driver_pipeline_entry_source_len_i32_impl();
+    if ((len > 150000)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /**
@@ -561,6 +852,27 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_build_skip_typeck_impl(void) {
+  (void)(({   {
+    char *e = link_abi_getenv("XLANG_ASM_BUILD_SKIP_TYPECK");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+
+int32_t driver_asm_build_skip_typeck(void) {
+  return driver_asm_build_skip_typeck_impl();
+}
 #endif
 
 /**
@@ -568,6 +880,27 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_entry_emit_heavy_impl(void) {
+  (void)(({   {
+    char *e = link_abi_getenv("XLANG_ASM_ENTRY_EMIT_HEAVY");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+
+int32_t driver_asm_entry_emit_heavy(void) {
+  return driver_asm_entry_emit_heavy_impl();
+}
 #endif
 
 /**
@@ -575,6 +908,27 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_entry_module_only_from_env_impl(void) {
+  (void)(({   {
+    char *e = link_abi_getenv("XLANG_ASM_ENTRY_MODULE_ONLY");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+
+int32_t driver_asm_entry_module_only_from_env(void) {
+  return driver_asm_entry_module_only_from_env_impl();
+}
 #endif
 
 /**
@@ -582,28 +936,137 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * pure 权威：thin.x；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_parse_metric_only_from_env_impl(void) {
+  (void)(({   {
+    char *e = link_abi_getenv("XLANG_ASM_PARSE_METRIC_ONLY");
+    if ((e ==((char *)(0)))) {
+      return 0;
+    }
+    if (((e)[0] ==0)) {
+      return 0;
+    }
+    if (((e)[0] ==48)) {
+      return 0;
+    }
+    return 1;
+  }
+ }));
+  return 0;
+}
+
+int32_t driver_asm_parse_metric_only_from_env(void) {
+  return driver_asm_parse_metric_only_from_env_impl();
+}
 #endif
 
 /** -o 可执行文件路径：非 0 时 pipeline 跳过 dep 0 的 codegen。 */
 /* wave1 pure：hybrid thin owns flag BSS; cold seed keeps statics + flag_slot bodies. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int driver_skip_codegen_dep_0_flag;
+
+/* G-02f-41: flag slot implementations (cold full C; FROM_X pure authority = thin.x) */
+int32_t *driver_check_only_flag_slot(void) { return (int32_t *)&driver_check_only_flag; }
+int32_t *driver_check_diag_emitted_flag_slot(void) { return (int32_t *)&driver_check_diag_emitted_flag; }
+int32_t *driver_freestanding_flag_slot(void) { return (int32_t *)&driver_freestanding_flag; }
+int32_t *driver_sanitize_address_flag_slot(void) { return (int32_t *)&driver_sanitize_address_flag; }
+int32_t *driver_fmt_check_only_flag_slot(void) { return (int32_t *)&driver_fmt_check_only_flag; }
+int32_t *driver_x_pipeline_skip_typeck_flag_slot(void) { return (int32_t *)&driver_x_pipeline_skip_typeck_flag; }
+int32_t *driver_x_pipeline_skip_codegen_flag_slot(void) { return (int32_t *)&driver_x_pipeline_skip_codegen_flag; }
+int32_t *driver_skip_codegen_dep_0_flag_slot(void) { return (int32_t *)&driver_skip_codegen_dep_0_flag; }
 #endif
 
 
 /** 设置 skip_codegen_dep_0 标志（driver -o exe 路径）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_skip_codegen_dep_0_set(int32_t v) {
+  (void)(({   {
+    int32_t * p = driver_skip_codegen_dep_0_flag_slot();
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif
 
 /** 查询 skip_codegen_dep_0；pipeline.x dep_j==0 时读取。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_skip_codegen_dep_0_get(void) {
+  (void)(({   {
+    int32_t * p = driver_skip_codegen_dep_0_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif
 
 /* wave2 pure：hybrid thin owns dep-path BSS; cold seed keeps static + store/load. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+/** 当前 codegen 的 dep 逻辑路径（如 std.io.driver），供 .x codegen 前缀 C 符号。 */
+static char driver_current_dep_path_buf[128];
+static const char *driver_current_dep_path_for_codegen;
+
+/* G-02f-46: dep path store/load + print_check_ok diag impl */
+void driver_current_dep_path_store_impl(const char *path) {
+    int i;
+    if (!path || path[0] == 0) {
+        driver_current_dep_path_buf[0] = 0;
+        driver_current_dep_path_for_codegen = NULL;
+        return;
+    }
+    for (i = 0; i < 127 && path[i]; i++)
+        driver_current_dep_path_buf[i] = path[i];
+    driver_current_dep_path_buf[i] = 0;
+    driver_current_dep_path_buf[127] = 0;
+    driver_current_dep_path_for_codegen = driver_current_dep_path_buf;
+}
+
+void driver_current_dep_path_store(const char *path) {
+    driver_current_dep_path_store_impl(path);
+}
+
+const char *driver_current_dep_path_load_impl(void) {
+    return driver_current_dep_path_buf[0] ? driver_current_dep_path_buf : NULL;
+}
+
+const char *driver_current_dep_path_load(void) {
+    return driver_current_dep_path_load_impl();
+}
 #endif
 
 /* wave3 pure：hybrid thin owns format print (append + diag_report*); cold keeps reportf _impl. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_print_check_ok_impl(const char *input_path) {
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "check OK: %s", input_path ? input_path : "?");
+}
+
+void driver_pipeline_fail_code_rc_impl(int32_t rc) {
+    diag_reportf_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP003, NULL,
+                           "pipeline failed rc=%d", (int)rc);
+}
+
+void driver_pipeline_fail_code_path_impl(const uint8_t *path) {
+    diag_reportf_with_code(NULL, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP004, NULL,
+                           "resolve path tried: %s", path ? (const char *)path : "?");
+}
+
+void driver_print_x_smoke_parse_ok_impl(int32_t num_funcs, int32_t main_ix, int64_t codegen_len) {
+    diag_reportf(NULL, 0, 0, "info", NULL,
+                 "parse OK: num_funcs=%d main_idx=%d codegen_bytes=%zu",
+                 (int)num_funcs, (int)main_ix, (size_t)codegen_len);
+}
+
+void driver_print_x_smoke_parse_empty_impl(void) {
+    diag_report_with_code(NULL, 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001,
+                "parse produced no functions in module", NULL);
+}
+
+void driver_print_x_smoke_typeck_ok_impl(void) {
+    diag_report(NULL, 0, 0, "info", "typeck OK", NULL);
+}
 #endif
 
 
@@ -614,6 +1077,19 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
  * wave2 pure：hybrid thin owns; cold keeps store wrapper.
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_set_current_dep_path_for_codegen(const char *path) {
+  (void)(({   {
+    (void)(driver_current_dep_path_store_impl(path));
+  }
+ }));
+}
+/* G-02f-413：cold get → load_impl；FROM_X pure = thin load. */
+const char *driver_get_current_dep_path_for_codegen_impl(void) {
+    return driver_current_dep_path_load_impl();
+}
+const char *driver_get_current_dep_path_for_codegen(void) {
+    return driver_get_current_dep_path_for_codegen_impl();
+}
 #endif
 
 
@@ -623,11 +1099,22 @@ int32_t driver_compile_phase_index_ok(int32_t phase);
 
 /* wave5 pure：hybrid thin owns phase timing BSS; cold seed keeps statics + begin/end _impl. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static double g_compile_phase_acc_ms[XLANG_COMPILE_PHASE_MAX];
+static double g_compile_phase_start_sec[XLANG_COMPILE_PHASE_MAX];
+static int g_compile_phase_active[XLANG_COMPILE_PHASE_MAX];
 #endif
 
 /** 是否启用 XLANG_COMPILE_PHASE_TIMING 阶段计时。 */
 /* pure 权威：thin.x compile_phase_timing_enabled（getenv 非空）；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int compile_phase_timing_enabled_impl(void) {
+  /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off). */
+  return 0;
+}
+
+int compile_phase_timing_enabled(void) {
+  return compile_phase_timing_enabled_impl();
+}
 #endif
 
 
@@ -660,6 +1147,10 @@ double xlang_driver_wall_clock_sec(void)
 /** Wall-clock seconds for phase timing (cold twin of thin pure wave7). */
 /* G-02f-165 / wave7：hybrid thin owns public; cold seed keeps thin twin via OS surface. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+double compile_phase_now_sec(void)
+{
+    return xlang_driver_wall_clock_sec();
+}
 #endif
 
 
@@ -667,10 +1158,27 @@ double xlang_driver_wall_clock_sec(void)
 
 /* G-02f-244：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_compile_phase_index_ok(int32_t phase) {
+    if (phase < 0)
+        return 0;
+    if (phase >= XLANG_COMPILE_PHASE_MAX)
+        return 0;
+    return 1;
+}
 #endif
 
 /* wave5：cold seed getters twin thin pure surface (hybrid uses thin symbols). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+double driver_compile_phase_acc_ms_get(int32_t phase) {
+    if (!driver_compile_phase_index_ok(phase))
+        return 0.0;
+    return g_compile_phase_acc_ms[phase];
+}
+
+void driver_compile_phase_timing_clear(void) {
+    memset(g_compile_phase_acc_ms, 0, sizeof(g_compile_phase_acc_ms));
+    memset(g_compile_phase_active, 0, sizeof(g_compile_phase_active));
+}
 #endif
 
 /**
@@ -679,6 +1187,10 @@ double xlang_driver_wall_clock_sec(void)
  * wave5 pure：hybrid thin owns begin；cold keeps _impl；FROM_X 无 pure-dup。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_compile_phase_timing_begin_impl(int32_t phase) {
+    /* Class AS: Cap phase timing begin retired. */
+    (void)phase;
+}
 #endif
 
 /**
@@ -687,24 +1199,70 @@ double xlang_driver_wall_clock_sec(void)
  * wave5 pure：hybrid thin owns end；cold keeps _impl；FROM_X 无 pure-dup。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_compile_phase_timing_end_impl(int32_t phase) {
+    /* Class AS: Cap phase timing end retired. */
+    (void)phase;
+}
 #endif
 
 /** 打印 parse/typeck/codegen/total 毫秒汇总行并清零；XLANG_COMPILE_PHASE_TIMING 启用时生效。
  * wave6 pure：hybrid thin owns flush（whole-ms append + diag_report）；cold keeps integer-ms twin；
  * FROM_X 无 pure-dup flush _impl。acc 经 driver_compile_phase_acc_ms_get（thin/cold twin）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_compile_phase_timing_flush_impl(void) {
+    /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING flush note retired. */
+}
+
+void driver_compile_phase_timing_flush(void) {
+  (void)(({   {
+    if ((driver_compile_phase_timing_enabled() ==0)) {
+      return;
+    }
+    (void)(driver_compile_phase_timing_flush_impl());
+  }
+ }));
+}
 #endif
 
 /* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_compile_phase_timing_end(int32_t phase) {
+  (void)(({   {
+    if ((driver_compile_phase_timing_enabled() ==0)) {
+      return;
+    }
+    if ((driver_compile_phase_index_ok(phase) ==0)) {
+      return;
+    }
+    (void)(driver_compile_phase_timing_end_impl(phase));
+  }
+ }));
+}
 #endif
 
 /* pure 权威：thin.x driver_compile_phase_timing_enabled；冷启动保留 public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_compile_phase_timing_enabled(void)
+{
+  /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off). */
+  return 0;
+}
 #endif
 
 /* G-02f-244：逻辑源 .x（门闩 → index_ok pure）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_compile_phase_timing_begin(int32_t phase) {
+  (void)(({   {
+    if ((driver_compile_phase_timing_enabled() ==0)) {
+      return;
+    }
+    if ((driver_compile_phase_index_ok(phase) ==0)) {
+      return;
+    }
+    (void)(driver_compile_phase_timing_begin_impl(phase));
+  }
+ }));
+}
 #endif
 
 
@@ -716,17 +1274,57 @@ double xlang_driver_wall_clock_sec(void)
 /* wave4 pure：hybrid thin owns defines_set_at (xlang_ptr_slot_set) + os_define_lit table;
  * cold keeps _impl + public; FROM_X rest drops pure-dup set_at/os_lit _impl. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_defines_set_at_impl(const char **defines, int i, const char *s) {
+    if (!defines || i < 0)
+        return;
+    defines[i] = s;
+}
+
+void driver_defines_set_at(const char **defines, int i, const char *s) {
+    driver_defines_set_at_impl(defines, i, s);
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+const char *driver_os_define_lit_impl(int kind) {
+    if (kind == 1)
+        return "OS_LINUX";
+    if (kind == 2)
+        return "OS_MACOS";
+    if (kind == 3)
+        return "OS_FREEBSD";
+    if (kind == 4)
+        return "OS_WINDOWS";
+    return NULL;
+}
+
+const char *driver_os_define_lit(int kind) {
+    return driver_os_define_lit_impl(kind);
+}
 #endif
 
 /* G-02f-245：逻辑源 .x（真迁 target→OS kind）；seed 保留同语义 C 供产品 cc */
 /* G-02f-401：strstr 字面量体始终 seed；public PREFER 时 thin forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_target_arg_os_kind_impl(const char *target) {
+    if (!target)
+        return 0;
+    if (strstr(target, "linux") != NULL)
+        return 1;
+    if (strstr(target, "darwin") != NULL || strstr(target, "apple") != NULL)
+        return 2;
+    if (strstr(target, "freebsd") != NULL)
+        return 3;
+    if (strstr(target, "windows") != NULL)
+        return 4;
+    return 0;
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_target_arg_os_kind(const char *target) {
+    return driver_target_arg_os_kind_impl(target);
+}
 #endif
 
 /**
@@ -759,8 +1357,57 @@ int xlang_driver_argv_append_uname(const char **defines, int ndefines, int max_d
 
 /* G-02f-245：逻辑源 .x；G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_argv_collect_defines_impl(int argc, char **argv, const char **defines, int max_defines) {
+    int ndefines = 0;
+    const char *target_arg = NULL;
+    int i;
+    if (argv == NULL)
+        return 0;
+    if (defines == NULL)
+        return 0;
+    if (max_defines <= 0)
+        return 0;
+    if (argc <= 0)
+        return 0;
+    for (i = 1; i < argc; i++) {
+        const char *arg = argv[i];
+        if (!arg)
+            continue;
+        if (strcmp(arg, "-D") == 0) {
+            if (i + 1 >= argc)
+                continue;
+            if (ndefines < max_defines)
+                defines[ndefines++] = argv[i + 1];
+            i++;
+        } else if (strncmp(arg, "-D", 2) == 0 && arg[2] != '\0') {
+            if (ndefines < max_defines)
+                defines[ndefines++] = arg + 2;
+        } else if (strcmp(arg, "-target") == 0 && i + 1 < argc) {
+            target_arg = argv[i + 1];
+            i++;
+        } else if (strcmp(arg, "-o") == 0 || strcmp(arg, "-L") == 0 || strcmp(arg, "-O") == 0 ||
+                   strcmp(arg, "-backend") == 0) {
+            if (i + 1 < argc)
+                i++;
+        }
+    }
+    if (target_arg && ndefines < max_defines) {
+        int k = (int)driver_target_arg_os_kind_impl(target_arg);
+        if (k != 0) {
+            const char *lit = driver_os_define_lit_impl(k);
+            if (lit)
+                defines[ndefines++] = lit;
+        }
+    }
+    if (ndefines + 2 <= max_defines)
+        ndefines = xlang_driver_argv_append_uname(defines, ndefines, max_defines);
+    return ndefines;
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_argv_collect_defines(int argc, char **argv, const char **defines, int max_defines) {
+    return driver_argv_collect_defines_impl(argc, argv, defines, max_defines);
+}
 #endif
 
 /** pipeline_gen.c / main.x：module num_funcs 与 main 下标。 */
@@ -770,8 +1417,21 @@ extern int driver_get_module_main_func_index(void *m);
 /** pipeline 失败 rc 诊断；rc==-7 时打印 resolve 尝试路径。 */
 /* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_pipeline_fail_code_impl(int rc, const uint8_t *path) {
+    driver_pipeline_fail_code_rc_impl((int32_t)rc);
+    if (rc != -7) {
+        return;
+    }
+    if (path == NULL) {
+        return;
+    }
+    driver_pipeline_fail_code_path_impl(path);
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_pipeline_fail_code(int rc, const uint8_t *path) {
+    driver_pipeline_fail_code_impl(rc, path);
+}
 #endif
 
 /**
@@ -780,8 +1440,29 @@ extern int driver_get_module_main_func_index(void *m);
  */
 /* G-02f-244/413：实现体始终 seed；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_print_x_smoke_summary_impl(void *module, size_t codegen_len) {
+    int32_t num_funcs;
+    int32_t main_ix;
+    if (module == NULL) {
+        return;
+    }
+    if (driver_check_diag_emitted_get() != 0) {
+        return;
+    }
+    num_funcs = (int32_t)driver_get_module_num_funcs(module);
+    main_ix = (int32_t)driver_get_module_main_func_index(module);
+    driver_print_x_smoke_parse_ok_impl(num_funcs, main_ix, (int64_t)codegen_len);
+    if (num_funcs <= 0) {
+        driver_print_x_smoke_parse_empty_impl();
+        return;
+    }
+    driver_print_x_smoke_typeck_ok_impl();
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_print_x_smoke_summary(void *module, size_t codegen_len) {
+    driver_print_x_smoke_summary_impl(module, codegen_len);
+}
 #endif
 
 /**
@@ -790,8 +1471,25 @@ extern int driver_get_module_main_func_index(void *m);
  */
 /* G-02f-413：实现体始终 seed；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_peek_source_file_impl(const char *path, char *content, size_t cap) {
+    int32_t n;
+    if (path == NULL) {
+        return -1;
+    }
+    if (content == NULL) {
+        return -1;
+    }
+    if (cap <= 1) {
+        return -1;
+    }
+    n = xlang_read_file_into_path(path, content, (size_t)(cap - 1));
+    return (int)n;
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_peek_source_file(const char *path, char *content, size_t cap) {
+    return driver_peek_source_file_impl(path, content, cap);
+}
 #endif
 
 /**
@@ -802,6 +1500,37 @@ extern int driver_get_module_main_func_index(void *m);
 /* pure 权威：thin.x driver_parse_u32_cstr + driver_stack_limit_want_bytes；
  * 冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static int64_t driver_parse_u32_cstr(const char *s) {
+    int64_t n = 0;
+    int i = 0;
+    if (!s || !s[0])
+        return -1;
+    for (i = 0; i < 20 && s[i]; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (c < '0' || c > '9')
+            return -1;
+        n = n * 10 + (int64_t)(c - '0');
+    }
+    if (i == 0)
+        return -1;
+    return n;
+}
+
+int64_t driver_stack_limit_want_bytes_impl(void) {
+    int64_t def = (int64_t)512 * 1024 * 1024;
+    const char *e = link_abi_getenv("XLANG_STACK_LIMIT_MB");
+    int64_t mb;
+    if (!e || !e[0])
+        return def;
+    mb = driver_parse_u32_cstr(e);
+    if (mb < 64 || mb > 8192)
+        return def;
+    return mb * (int64_t)(1024 * 1024);
+}
+
+int64_t driver_stack_limit_want_bytes(void) {
+    return driver_stack_limit_want_bytes_impl();
+}
 #endif
 
 /**
@@ -834,6 +1563,9 @@ void xlang_driver_bump_stack_limit(int64_t want_bytes) {
 /* G-02f-244 / wave9：逻辑源 .x（want pure → permanent OS surface）；seed 冷 twin */
 /* G-02f-402：public PREFER 时 thin owns driver_bump_stack_limit orch */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_bump_stack_limit(void) {
+    xlang_driver_bump_stack_limit(driver_stack_limit_want_bytes_impl());
+}
 #endif
 
 
@@ -871,11 +1603,30 @@ void xlang_driver_call_fn_void_arg(void *(*fn)(void *), void *arg) {
 
 /* pure 权威：thin.x driver_pipeline_no_large_stack_env；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_pipeline_no_large_stack_env_impl(void) {
+    const char *e = link_abi_getenv("XLANG_PIPELINE_NO_LARGE_STACK");
+    if (!e || !e[0] || e[0] == '0')
+        return 0;
+    return 1;
+}
+
+int32_t driver_pipeline_no_large_stack_env(void) {
+  return driver_pipeline_no_large_stack_env_impl();
+}
 #endif
 
 /** 在当前线程直接执行 fn(arg)，并临时标记大栈上下文。 */
 /* G-02f-246 pure 深迁：PREFER thin 真体；冷启动 full C；FROM_X 无 pure-dup */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_run_fn_on_current_large_stack(void *(*fn)(void *), void *arg)
+{
+    if (fn == NULL)
+        return;
+    driver_large_stack_thread_mark(1);
+    driver_bump_stack_limit();
+    xlang_driver_call_fn_void_arg(fn, arg);
+    driver_large_stack_thread_mark(0);
+}
 #endif
 
 /**
@@ -948,6 +1699,30 @@ void xlang_driver_run_thread_on_large_stack_pthread(void *(*fn)(void *), void *a
  * PLATFORM: SHARED orch; OS boundary only in xlang_driver_run_thread_on_large_stack_pthread.
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_run_thread_on_large_stack(void *(*fn)(void *), void *arg) {
+    if (fn == NULL)
+        return;
+    if (driver_is_large_stack_thread()) {
+        xlang_driver_call_fn_void_arg(fn, arg);
+        return;
+    }
+    driver_bump_stack_limit();
+    /*
+     * NL-07 nostdlib: the bootstrap pthread stub runs synchronously on the
+     * current stack, so a 256MiB posix_memalign stack would not take effect;
+     * rely on driver_bump_stack_limit and run the pipeline on the current
+     * thread to avoid a stack-overflow SIGSEGV.
+     */
+    if (bootstrap_nostdlib_pthread_is_stub()) {
+        driver_run_fn_on_current_large_stack(fn, arg);
+        return;
+    }
+    if (driver_pipeline_no_large_stack_env()) {
+        driver_run_fn_on_current_large_stack(fn, arg);
+        return;
+    }
+    xlang_driver_run_thread_on_large_stack_pthread(fn, arg);
+}
 #endif
 
 /**
@@ -958,6 +1733,11 @@ void xlang_driver_run_thread_on_large_stack_pthread(void *(*fn)(void *), void *a
  * PLATFORM: SHARED orch.
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_run_on_large_stack_pthread(void *(*fn)(void *), void *arg) {
+    if (fn == NULL)
+        return;
+    driver_run_thread_on_large_stack(fn, arg);
+}
 #endif
 
 /**
@@ -974,6 +1754,11 @@ uint8_t *driver_stack_esc_gate_thread_fn_ptr(void) {
 }
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_run_stack_esc_gate_on_large_stack(void *arg) {
+    if (arg == NULL)
+        return;
+    driver_run_thread_on_large_stack(driver_stack_esc_gate_thread_fn, arg);
+}
 #endif
 
 /**
@@ -985,6 +1770,13 @@ uint8_t *driver_stack_esc_gate_thread_fn_ptr(void) {
  * pass the value to the same opaque face, so identity/typing still holds.
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void *driver_stdio_stdout(void) {
+    return (void *)xlang_driver_handle_from_fd(1);
+}
+
+void *driver_stdio_stderr(void) {
+    return (void *)xlang_driver_handle_from_fd(2);
+}
 #endif
 
 /**
@@ -995,6 +1787,43 @@ uint8_t *driver_stack_esc_gate_thread_fn_ptr(void) {
  * cold keeps C static for buffers + fmt_argv; FROM_X no pure-dup buffer/fmt slots.
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static char driver_entry_ab[256];
+static char driver_entry_code_buf[256];
+static char driver_entry_suggest[16];
+static char driver_entry_msg[256];
+static char driver_entry_tmp[16];
+static char driver_entry_tmp2[16];
+
+uint8_t *driver_entry_ab_slot(void) {
+    return (uint8_t *)driver_entry_ab;
+}
+
+uint8_t *driver_entry_code_slot(void) {
+    return (uint8_t *)driver_entry_code_buf;
+}
+
+uint8_t *driver_entry_suggest_slot(void) {
+    return (uint8_t *)driver_entry_suggest;
+}
+
+uint8_t *driver_entry_msg_slot(void) {
+    return (uint8_t *)driver_entry_msg;
+}
+
+uint8_t *driver_entry_tmp_slot(void) {
+    return (uint8_t *)driver_entry_tmp;
+}
+
+uint8_t *driver_entry_tmp2_slot(void) {
+    return (uint8_t *)driver_entry_tmp2;
+}
+
+/* Cold only: fixed {"xlang","fmt"} argv for driver_run_fmt (wave21 pure under FROM_X). */
+static char *driver_entry_fmt_argv[2] = {"xlang", "fmt"};
+
+char **driver_entry_fmt_argv_slot(void) {
+    return driver_entry_fmt_argv;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /**
@@ -1151,6 +1980,28 @@ static const char usage_color[] =
 
 /* wave44 pure: hybrid thin owns print_usage color orch; cold twin under #ifndef FROM_X. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_print_usage_write(void) {
+    /* §13 Color policy (see analysis/XLANG 命令行.md §13):
+     *   NO_COLOR (any value, even empty)         -> no color  (https://no-color.org)
+     *   CLICOLOR_FORCE / XLANG_FORCE_COLOR truthy -> force color even when piped
+     *   otherwise                                -> isatty(STDOUT_FILENO)
+     * Forward-declare isatty to avoid pulling <unistd.h> into this TU
+     * (prior note: hand-written extern write + #include <unistd.h> trips Darwin asm). */
+    extern int isatty(int fd);
+    const char *no_color = link_abi_getenv("NO_COLOR");
+    const char *force = link_abi_getenv("CLICOLOR_FORCE");
+    const char *xlang_force = link_abi_getenv("XLANG_FORCE_COLOR");
+    int use_color;
+    if (no_color != (const char *)0) {
+        use_color = 0;
+    } else if ((force != (const char *)0 && force[0] != 0 && force[0] != '0') ||
+               (xlang_force != (const char *)0 && xlang_force[0] != 0 && xlang_force[0] != '0')) {
+        use_color = 1;
+    } else {
+        use_color = isatty(1);
+    }
+    xlang_driver_usage_write_stdout(use_color);
+}
 #endif
 
 /**
@@ -1299,6 +2150,17 @@ int32_t xlang_driver_exec_spawn_wait(uint8_t *exe, int32_t argc, uint8_t *argv_o
 
 /* wave42 pure: hybrid thin owns exec_compiled_body orch; cold twin under #ifndef FROM_X. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_exec_compiled_body(int argc, uint8_t *argv_opaque) {
+    char **argv = (char **)argv_opaque;
+    const char *exe;
+    if (!argv || argc < 1)
+        return 1;
+    exe = driver_exec_scan_out_path(argc, argv);
+    if (driver_exec_path_is_non_exe(exe))
+        return 0;
+    /* 9.4.3: forward user positionals after the .x source path to the child. */
+    return (int)xlang_driver_exec_spawn_wait((uint8_t *)(void *)exe, argc, argv_opaque);
+}
 #endif
 
 /**
@@ -1361,6 +2223,19 @@ int32_t *driver_x_emit_want_extern_slot(void) {
 
 /* wave33 pure: hybrid thin owns clear/bind; cold seed keeps C twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_x_emit_clear_c_path(void) {
+    driver_x_emit_c_path = NULL;
+}
+
+void driver_x_emit_bind_c_path_to_buf(void) {
+    driver_x_emit_c_path = driver_x_emit_path_buf;
+}
+
+void driver_x_emit_bind_lib_root(int i) {
+    if (i < 0 || i >= X_EMIT_MAX_LIB_ROOTS_ABI)
+        return;
+    driver_x_emit_lib_roots[i] = driver_x_emit_lib_bufs[i];
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /**
@@ -1385,6 +2260,21 @@ uint8_t *driver_module_static_base(void) {
 }
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_arena_static_slot(void) {
+    return driver_arena_static;
+}
+
+uint8_t *driver_module_static_slot(void) {
+    return driver_module_static;
+}
+
+size_t driver_arena_static_size(void) {
+    return (size_t)DRIVER_ARENA_STATIC_SIZE_ABI;
+}
+
+size_t driver_module_static_size(void) {
+    return (size_t)DRIVER_MODULE_STATIC_SIZE_ABI;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /**
@@ -1420,9 +2310,41 @@ int32_t *driver_preamble_fs_path_lines_n_raw(void) {
 }
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_preamble_io_net_line_at(int32_t i) {
+    if (i < 0 || i >= driver_preamble_io_net_lines_n)
+        return NULL;
+    return (uint8_t *)(uintptr_t)driver_preamble_io_net_lines[i];
+}
+
+int32_t driver_preamble_io_net_line_count(void) {
+    return driver_preamble_io_net_lines_n;
+}
+
+uint8_t *driver_preamble_fs_path_line_at(int32_t i) {
+    if (i < 0 || i >= driver_preamble_fs_path_lines_n)
+        return NULL;
+    return (uint8_t *)(uintptr_t)driver_preamble_fs_path_lines[i];
+}
+
+int32_t driver_preamble_fs_path_line_count(void) {
+    return driver_preamble_fs_path_lines_n;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+/** Cap residual G.7 authority cold twin：opaque *u8 stream → fd-handle write（error → 负值）。
+ * Shared by rt_preamble + async_liveness/async_cps emit pure (.x). No module-local clones.
+ * Wave22 pure owns this under PREFER hybrid (thin.x + fd-handle fputs_opaque).
+ * PLATFORM: SHARED — single stream-write bridge for product cold seed (9.7.1). */
+int32_t driver_preamble_fputs(uint8_t *s, uint8_t *stream) {
+    int fd;
+    if (s == NULL || stream == NULL)
+        return -1;
+    fd = xlang_driver_handle_to_fd(stream);
+    if (fd < 0)
+        return -1;
+    return (int32_t)xlang_io_write(fd, s, strlen((const char *)(void *)s));
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_run_x_emit R2（平台/巨型布局） ---------- */
@@ -1452,6 +2374,27 @@ extern struct parser_ParseIntoResult parser_parse_into_buf(void *arena, void *mo
 
 /* wave33 pure: hybrid thin owns take/get/lib_root_at; cold seed keeps C twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_x_emit_take_c_path(void) {
+    const char *p = driver_x_emit_c_path;
+    driver_x_emit_c_path = NULL;
+    return (uint8_t *)(void *)p;
+}
+
+int32_t driver_x_emit_take_want_extern(void) {
+    int32_t w = (int32_t)driver_x_emit_c_want_extern;
+    driver_x_emit_c_want_extern = 0;
+    return w;
+}
+
+int32_t driver_x_emit_n_lib_roots_get(void) {
+    return (int32_t)driver_x_emit_n_lib_roots;
+}
+
+uint8_t *driver_x_emit_lib_root_at(int32_t i) {
+    if (i < 0 || i >= driver_x_emit_n_lib_roots)
+        return NULL;
+    return (uint8_t *)(void *)driver_x_emit_lib_roots[i];
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* 9.7.1: stdout writes go through raw fd 1 (unbuffered by nature) — kept as a
@@ -1473,24 +2416,90 @@ int32_t xlang_driver_fwrite_stdout_n(uint8_t *data, int32_t len) {
 
 /* wave39 pure: hybrid thin owns fwrite_stdout; cold twin; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_x_emit_fwrite_stdout(uint8_t *data, int32_t len) {
+    return xlang_driver_fwrite_stdout_n(data, len);
+}
 #endif
 
 /* wave23 pure：hybrid thin owns calloc family; cold seed keeps sizeof twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void *driver_codegen_outbuf_calloc(void) {
+    return calloc(1, sizeof(struct driver_codegen_outbuf_abi));
+}
 #endif
 
 /* wave24 pure：hybrid thin owns free/len/data; cold seed keeps twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_codegen_outbuf_free(void *p) {
+    free(p);
+}
+
+int32_t driver_codegen_outbuf_len(void *p) {
+    if (p == NULL)
+        return 0;
+    return ((struct driver_codegen_outbuf_abi *)p)->length;
+}
+
+uint8_t *driver_codegen_outbuf_data(void *p) {
+    if (p == NULL)
+        return NULL;
+    return ((struct driver_codegen_outbuf_abi *)p)->data;
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void *driver_pipeline_dep_ctx_calloc(void) {
+    return calloc(1, sizeof(struct ast_PipelineDepCtx));
+}
+
+void *driver_ptr_table_calloc(int32_t n) {
+    if (n <= 0)
+        return NULL;
+    return calloc((size_t)n, sizeof(void *));
+}
 #endif
 
 /* wave24 pure：hybrid thin owns free/get/set; cold seed keeps twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_ptr_table_free(void *t) {
+    free(t);
+}
+
+void *driver_ptr_table_get(void *t, int32_t i) {
+    if (t == NULL || i < 0)
+        return NULL;
+    return ((void **)t)[i];
+}
+
+void driver_ptr_table_set(void *t, int32_t i, void *p) {
+    if (t == NULL || i < 0)
+        return;
+    ((void **)t)[i] = p;
+}
 #endif
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void *driver_size_table_calloc(int32_t n) {
+    if (n <= 0)
+        return NULL;
+    return calloc((size_t)n, sizeof(size_t));
+}
+
+void driver_size_table_free(void *t) {
+    free(t);
+}
+
+size_t driver_size_table_get(void *t, int32_t i) {
+    if (t == NULL || i < 0)
+        return 0;
+    return ((size_t *)t)[i];
+}
+
+void driver_size_table_set(void *t, int32_t i, size_t v) {
+    if (t == NULL || i < 0)
+        return;
+    ((size_t *)t)[i] = v;
+}
 #endif
 
 /**
@@ -1593,36 +2602,184 @@ int32_t xlang_parser_parse_into_buf_rc(void *arena, void *module, uint8_t *data,
  * wave273: reset + hard-fail on incomplete hex (L004 sticky pending).
  * wave274: reset + hard-fail on incomplete float exponent (L005 sticky pending). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+extern void lexer_unclosed_block_comment_reset(void);
+extern int32_t lexer_unclosed_block_comment_pending(void);
+extern void lexer_unclosed_string_reset(void);
+extern int32_t lexer_unclosed_string_pending(void);
+extern void lexer_illegal_char_reset(void);
+extern int32_t lexer_illegal_char_pending(void);
+extern void lexer_incomplete_hex_reset(void);
+extern int32_t lexer_incomplete_hex_pending(void);
+extern void lexer_incomplete_exp_reset(void);
+extern int32_t lexer_incomplete_exp_pending(void);
+extern void lexer_incomplete_bin_reset(void);
+extern int32_t lexer_incomplete_bin_pending(void);
+extern void lexer_incomplete_oct_reset(void);
+extern void lexer_invalid_digit_sep_reset(void);
+extern int32_t lexer_invalid_digit_sep_pending(void);
+extern void lexer_invalid_type_suffix_reset(void);
+extern int32_t lexer_invalid_type_suffix_pending(void);
+extern int32_t lexer_incomplete_oct_pending(void);
+int32_t driver_parse_into_buf_rc(void *arena, void *module, uint8_t *data, int32_t len,
+                                 int32_t *out_main_idx) {
+    int32_t rc;
+    if (out_main_idx)
+        *out_main_idx = -1;
+    if (!arena || !module || !data)
+        return -1;
+    lexer_unclosed_block_comment_reset();
+    lexer_unclosed_string_reset();
+    lexer_illegal_char_reset();
+    lexer_incomplete_hex_reset();
+    lexer_incomplete_exp_reset();
+    lexer_incomplete_bin_reset();
+    lexer_incomplete_oct_reset();
+    lexer_invalid_digit_sep_reset();
+    lexer_invalid_type_suffix_reset();
+    rc = xlang_parser_parse_into_buf_rc(arena, module, data, len, out_main_idx);
+    if (lexer_unclosed_block_comment_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_unclosed_string_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_illegal_char_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_hex_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_exp_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_bin_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_incomplete_oct_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_digit_sep_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    if (lexer_invalid_type_suffix_pending() != 0) {
+        if (out_main_idx)
+            *out_main_idx = -1;
+        return -1;
+    }
+    return rc;
+}
 #endif
 
 /* wave23 pure：hybrid thin owns diag snapshot alloc (fixed LP64 size 32). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void *driver_diag_snapshot_alloc(void) {
+    return calloc(1, sizeof(DiagContextSnapshot));
+}
 #endif
 
 /* wave24 pure：hybrid thin owns free; cold seed keeps twin. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_diag_snapshot_free(void *s) {
+    free(s);
+}
 #endif
 
 /* wave35 pure：hybrid thin owns push/restore + typeck set; cold seed keeps C twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_diag_push_file(void *snap, uint8_t *path, uint8_t *src, size_t len) {
+    if (snap == NULL)
+        return;
+    diag_push_file((DiagContextSnapshot *)snap, (const char *)(void *)path,
+                   (const char *)(void *)src, len);
+}
+
+void driver_diag_restore(void *snap) {
+    if (snap == NULL)
+        return;
+    diag_restore((const DiagContextSnapshot *)snap);
+}
+
+void driver_typeck_ndep_set(int32_t n) {
+    typeck_ndep_store((int32_t)((int)n));
+}
+
+void driver_typeck_dep_ptrs_set(int32_t j, void *mod, void *arena) {
+    if (j < 0 || j >= 32)
+        return;
+    typeck_dep_module_set((int32_t)(j), mod);
+    typeck_dep_arena_set((int32_t)(j), arena);
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave15 pure：hybrid thin owns path_max/entry_dir slots; cold keeps C static; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static char g_driver_path_max_slot[4096];
+static char g_driver_entry_dir_slot[512];
+
+uint8_t *driver_path_max_slot(void) {
+    return (uint8_t *)g_driver_path_max_slot;
+}
+
+uint8_t *driver_entry_dir_slot(void) {
+    return (uint8_t *)g_driver_entry_dir_slot;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave33 pure: hybrid thin owns effective_lib_roots; cold seed keeps C twin. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static const char *g_driver_x_emit_dot = ".";
+static const char *g_driver_x_emit_one_root[1];
+
+uint8_t *driver_x_emit_effective_lib_roots(int32_t *n_out) {
+    if (driver_x_emit_n_lib_roots <= 0) {
+        g_driver_x_emit_one_root[0] = g_driver_x_emit_dot;
+        if (n_out)
+            *n_out = 1;
+        return (uint8_t *)(void *)g_driver_x_emit_one_root;
+    }
+    if (n_out)
+        *n_out = (int32_t)driver_x_emit_n_lib_roots;
+    return (uint8_t *)(void *)driver_x_emit_lib_roots;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t *source);
 
 /* wave37 pure：hybrid thin owns pack + call; cold twin under #ifndef FROM_X. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_parser_diag_fail_tok_kind(uint8_t *src, size_t len) {
+    struct xlang_slice_uint8_t s;
+    if (src == NULL)
+        return 0;
+    s.data = src;
+    s.length = len;
+    return parser_diag_fail_at_token_kind(&s);
+}
 #endif
 
 /* wave19 pure under PREFER：dep_ctx i32 field set/get; cold keeps C struct twin; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_pipeline_dep_ctx_set_use_asm(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->use_asm_backend = v;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /*
@@ -1642,10 +2799,119 @@ extern int32_t parser_diag_fail_at_token_kind(struct xlang_slice_uint8_t *source
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+#define DRIVER_X_EMIT_WORK_NP 26
+#define DRIVER_X_EMIT_WORK_NI 17
+#define DRIVER_X_EMIT_WORK_NZ 5
+static uint8_t *g_xe_work_p[DRIVER_X_EMIT_WORK_NP];
+static int32_t g_xe_work_i[DRIVER_X_EMIT_WORK_NI];
+static size_t g_xe_work_z[DRIVER_X_EMIT_WORK_NZ];
+
+void driver_x_emit_work_reset(void) {
+    memset(g_xe_work_p, 0, sizeof g_xe_work_p);
+    memset(g_xe_work_i, 0, sizeof g_xe_work_i);
+    memset(g_xe_work_z, 0, sizeof g_xe_work_z);
+}
+
+uint8_t *driver_x_emit_work_p_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NP)
+        return NULL;
+    return g_xe_work_p[i];
+}
+
+void driver_x_emit_work_p_set(int32_t i, uint8_t *v) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NP)
+        return;
+    g_xe_work_p[i] = v;
+}
+
+int32_t driver_x_emit_work_i_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NI)
+        return 0;
+    return g_xe_work_i[i];
+}
+
+void driver_x_emit_work_i_set(int32_t i, int32_t v) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NI)
+        return;
+    g_xe_work_i[i] = v;
+}
+
+size_t driver_x_emit_work_z_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NZ)
+        return 0;
+    return g_xe_work_z[i];
+}
+
+void driver_x_emit_work_z_set(int32_t i, size_t v) {
+    if (i < 0 || i >= DRIVER_X_EMIT_WORK_NZ)
+        return;
+    g_xe_work_z[i] = v;
+}
+
+void driver_x_emit_work_cleanup(void) {
+    int32_t n = g_xe_work_i[2]; /* ndeps */
+    int32_t i;
+    void *p;
+    void *ds = g_xe_work_p[6];
+    void *dp = g_xe_work_p[7];
+    void *dl = g_xe_work_p[8];
+    void *da = g_xe_work_p[9];
+    void *dm = g_xe_work_p[10];
+    for (i = 0; i < n; i++) {
+        if (da) {
+            p = ((void **)da)[i];
+            free(p);
+        }
+        if (dm) {
+            p = ((void **)dm)[i];
+            free(p);
+        }
+        if (ds) {
+            p = ((void **)ds)[i];
+            free(p);
+        }
+        if (dp) {
+            p = ((void **)dp)[i];
+            free(p);
+        }
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(g_xe_work_p[11]); /* out_buf */
+    if (g_xe_work_p[12])
+        pipeline_dep_ctx_heap_destroy((struct ast_PipelineDepCtx *)(void *)g_xe_work_p[12]);
+    free(g_xe_work_p[3]);  /* arena */
+    free(g_xe_work_p[4]);  /* module */
+    free(g_xe_work_p[1]);  /* src */
+    free(g_xe_work_p[19]); /* kind */
+    free(g_xe_work_p[20]); /* code */
+    free(g_xe_work_p[21]); /* msg */
+    driver_x_emit_work_reset();
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave33 pure: hybrid thin owns try_extern NO_C diag stub; cold seed keeps C twin. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_x_emit_try_extern_via_cparser(uint8_t *input_path) {
+    /*
+     * Product runtime_driver_no_c is XLANG_NO_C_FRONTEND; this TU is not
+     * compiled with that macro, so the body is the fixed no-C refuse
+     * (same as product NO_C). Leftover !XLANG_NO_C_FRONTEND cparser
+     * consume site in rt_run_x_emit.from_x.c retired (residual 7); the
+     * cold seed now also calls this refuse instead of
+     * driver_run_x_emit_c_extern_via_cparser.
+     * PLATFORM: SHARED — consume-site hygiene; mega via_cparser wrapper
+     * retired (never-defined _impl).
+     */
+    (void)input_path;
+    diag_report_with_code(NULL, 0, 0, "build error", XLANG_DIAG_CODE_BUILD_BLD001,
+                          "-x -E -E-extern requires C parser/codegen (rebuild without -DXLANG_NO_C_FRONTEND)",
+                          NULL);
+    return 1;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /**
@@ -1655,14 +2921,47 @@ extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
  * G-02f-243/414：实现体始终 seed（memcmp 字面量）；public PREFER 时 thin pure forward。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_source_scan_top_level_import_impl(const char *src, size_t src_len) {
+    const char *p;
+    const char *end;
+    if (src == NULL)
+        return 0;
+    if (src_len < 8)
+        return 0;
+    p = src;
+    end = src + src_len;
+    while (p + 8 <= end) {
+        if (memcmp(p, "import(\"", 8) == 0)
+            return 1;
+        if (p + 9 <= end && memcmp(p, "= import(", 9) == 0)
+            return 1;
+        p++;
+    }
+    return 0;
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_source_scan_top_level_import(const char *src, size_t src_len) {
+    return driver_source_scan_top_level_import_impl(src, src_len);
+}
 #endif
 
 /* G-02f-243/414：实现体始终 seed；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_source_has_top_level_import_impl(const char *src, size_t src_len) {
+    if (src == NULL) {
+        return 0;
+    }
+    if (src_len < 9) {
+        return 0;
+    }
+    return driver_source_scan_top_level_import_impl(src, src_len);
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_source_has_top_level_import(const char *src, size_t src_len) {
+    return driver_source_has_top_level_import_impl(src, src_len);
+}
 #endif
 
 /**
@@ -1671,6 +2970,19 @@ extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
  * wave2：len BSS 权威 hybrid=thin / cold=seed static；本函数经 store 写入（禁直写 static）。
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static size_t g_driver_path_last_preprocess_len;
+
+void driver_path_last_preprocess_len_store(int64_t len) {
+    g_driver_path_last_preprocess_len = (size_t)len;
+}
+
+int64_t driver_path_last_preprocess_len_impl(void) {
+    return (int64_t)g_driver_path_last_preprocess_len;
+}
+
+int64_t driver_path_last_preprocess_len(void) {
+    return driver_path_last_preprocess_len_impl();
+}
 #endif
 
 /**
@@ -1702,12 +3014,33 @@ char *xlang_driver_path_read_preprocess_malloc(const char *path) {
 
 /* G-02f-244/414：冷启动 public twin；PREFER/FROM_X 时 thin owns public pure orch */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+char *driver_path_read_preprocess_malloc(const char *path) {
+    return xlang_driver_path_read_preprocess_malloc(path);
+}
 #endif
 
 /* G-02f-244/414：实现体始终 seed（IO/preprocess）；public PREFER 时 thin pure forward */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_source_has_top_level_import_path_impl(const char *path) {
+    char *src;
+    int has;
+    int64_t len;
+
+    if (path == NULL)
+        return 0;
+    src = driver_path_read_preprocess_malloc(path);
+    if (!src)
+        return 0;
+    len = driver_path_last_preprocess_len();
+    has = driver_source_has_top_level_import_impl(src, (size_t)len);
+    free(src);
+    return has;
+}
 #endif
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int driver_source_has_top_level_import_path(const char *path) {
+    return driver_source_has_top_level_import_path_impl(path);
+}
 #endif
 
 /* --------------------------------------------------------------------------
@@ -1716,6 +3049,59 @@ char *xlang_driver_path_read_preprocess_malloc(const char *path) {
 
 /* wave19 pure under PREFER：asm-path dep_ctx field set/get; cold C twin; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_pipeline_dep_ctx_set_target_arch(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->target_arch = v;
+}
+
+void driver_pipeline_dep_ctx_set_target_cpu_features(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->target_cpu_features = v;
+}
+
+void driver_pipeline_dep_ctx_set_use_macho_o(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->use_macho_o = v;
+}
+
+void driver_pipeline_dep_ctx_set_use_coff_o(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->use_coff_o = v;
+}
+
+void driver_pipeline_dep_ctx_set_entry_already_parsed(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->entry_already_parsed = v;
+}
+
+void driver_pipeline_dep_ctx_set_asm_entry_module_only(void *ctx, int32_t v) {
+    if (ctx == NULL)
+        return;
+    ((struct ast_PipelineDepCtx *)ctx)->asm_entry_module_only = v;
+}
+
+int32_t driver_pipeline_dep_ctx_get_asm_entry_module_only(void *ctx) {
+    if (ctx == NULL)
+        return 0;
+    return ((struct ast_PipelineDepCtx *)ctx)->asm_entry_module_only;
+}
+
+int32_t driver_pipeline_dep_ctx_get_use_macho_o(void *ctx) {
+    if (ctx == NULL)
+        return 0;
+    return ((struct ast_PipelineDepCtx *)ctx)->use_macho_o;
+}
+
+int32_t driver_pipeline_dep_ctx_get_use_coff_o(void *ctx) {
+    if (ctx == NULL)
+        return 0;
+    return ((struct ast_PipelineDepCtx *)ctx)->use_coff_o;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 extern uint32_t driver_get_pending_target_cpu_features(void);
@@ -1753,16 +3139,45 @@ int32_t xlang_driver_host_prefer_coff(int32_t emit_elf_o) {
 
 /* wave23 pure：hybrid thin owns host_defaults orch; cold seed keeps #ifdef twin. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_asm_pctx_apply_host_defaults(void *ctx, uint8_t *target, int32_t emit_elf_o) {
+    struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)ctx;
+    const char *t = (const char *)(void *)target;
+    if (pctx == NULL)
+        return;
+    pctx->target_arch = 0;
+    if (t && (strstr(t, "aarch64") != NULL || strstr(t, "arm64") != NULL))
+        pctx->target_arch = 1;
+    if (t && strstr(t, "riscv64") != NULL)
+        pctx->target_arch = 2;
+    pctx->target_cpu_features = (int32_t)driver_get_pending_target_cpu_features();
 #if defined(__APPLE__) && defined(__aarch64__)
+    if (!t)
+        pctx->target_arch = 1;
 #endif
+    pctx->use_macho_o = 0;
+    pctx->use_coff_o = 0;
 #if defined(__APPLE__)
+    if (emit_elf_o)
+        pctx->use_macho_o = 1;
 #endif
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if (emit_elf_o)
+        pctx->use_coff_o = 1;
 #endif
+    if (emit_elf_o && t && strstr(t, "windows") != NULL)
+        pctx->use_coff_o = 1;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave40 pure: hybrid thin owns fopen_wb via fd-handle fopen_wb_opaque; cold twin. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_asm_fopen_wb(uint8_t *path) {
+    int fd;
+    if (path == NULL)
+        return NULL;
+    fd = xlang_io_open_write((const char *)(void *)path);
+    return fd < 0 ? NULL : xlang_driver_handle_from_fd(fd);
+}
 #endif
 
 #ifndef XLANG_TMP_PREFIX
@@ -1785,6 +3200,17 @@ int32_t xlang_driver_asm_mkstemp_fdopen_enabled(void) {
 /* wave41 pure: hybrid thin owns mkstemp_fdopen orch; cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — mkstemp+fdopen (MinGW/POSIX); XLANG_TMP_PREFIX is host residual. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_asm_mkstemp_fdopen(uint8_t *path_out64) {
+    int fd;
+    if (path_out64 == NULL)
+        return NULL;
+    snprintf((char *)(void *)path_out64, 64, "%sxlang_asm_XXXXXX", XLANG_TMP_PREFIX);
+    fd = mkstemp((char *)(void *)path_out64);
+    if (fd < 0)
+        return NULL;
+    /* fdopen(fd,"wb") used to consume the fd; the handle owns it now (9.7.1). */
+    return xlang_driver_handle_from_fd(fd);
+}
 #endif
 
 void driver_asm_fclose(uint8_t *fp) {
@@ -1794,24 +3220,73 @@ void driver_asm_fclose(uint8_t *fp) {
 /* wave39 pure: hybrid thin owns asm_fwrite via fd-handle fwrite_opaque + stdout_ptr;
  * cold twin under #ifndef FROM_X；FROM_X 无 pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_asm_fwrite(uint8_t *fp, uint8_t *data, int32_t len) {
+    int fd;
+    long n;
+    if (data == NULL || len <= 0)
+        return 0;
+    fd = fp ? xlang_driver_handle_to_fd(fp) : 1;
+    if (fd < 0)
+        return 1;
+    n = xlang_io_write(fd, data, (size_t)len);
+    return (n == (size_t)len) ? 0 : 1;
+}
 #endif
 
 /* wave40 pure: hybrid thin owns fflush_stdout + write_metric_o; cold twins. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_asm_fflush_stdout(void) {
+    /* Raw fd 1 writes are unbuffered — nothing to flush (9.7.1). */
+}
+
+int32_t driver_asm_write_metric_o(uint8_t *path) {
+    int fd;
+    static const char zero_byte[1] = { 0 };
+    long n;
+    if (path == NULL)
+        return 1;
+    fd = xlang_io_open_write((const char *)(void *)path);
+    if (fd < 0)
+        return 1;
+    n = xlang_io_write(fd, zero_byte, 1);
+    if (n != 1)
+        return 1;
+    if (xlang_proc_close_fd(fd) != 0)
+        return 1;
+    return 0;
+}
 #endif
 
 extern size_t pipeline_sizeof_elf_ctx(void);
 
 /* wave23 pure：hybrid thin owns elf_ctx calloc; cold seed keeps sizeof/malloc twin. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_asm_elf_ctx_calloc(void) {
+    size_t sz = pipeline_sizeof_elf_ctx();
+    void *p;
+    if (sz == 0)
+        return NULL;
+    p = malloc(sz);
+    if (p)
+        memset(p, 0, sz);
+    return (uint8_t *)p;
+}
 #endif
 
 /* wave38 pure: hybrid thin owns elf_ctx_free; cold seed twin; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_asm_elf_ctx_free(uint8_t *p) {
+    free(p);
+}
 #endif
 
 /* wave25 pure: hybrid thin owns asm tmp path BSS; cold seed twin; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static char g_driver_asm_tmp_path_slot[64];
+
+uint8_t *driver_asm_tmp_path_slot(void) {
+    return (uint8_t *)g_driver_asm_tmp_path_slot;
+}
 #else
 extern uint8_t *driver_asm_tmp_path_slot(void);
 #endif
@@ -1820,11 +3295,88 @@ extern uint8_t *driver_asm_tmp_path_slot(void);
  * cold seed keeps C BSS + bodies; FROM_X no pure-dup (avoid dual defines BSS). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 #ifndef MAX_DEFINES
+#define MAX_DEFINES 64
 #endif
+static const char *g_driver_asm_defines[MAX_DEFINES];
+static int32_t g_driver_asm_ndefines;
+
+int32_t driver_asm_collect_defines(int32_t argc, uint8_t *argv) {
+    g_driver_asm_ndefines = 0;
+    memset(g_driver_asm_defines, 0, sizeof g_driver_asm_defines);
+    if (argv == NULL || argc <= 0)
+        return 0;
+    g_driver_asm_ndefines = (int32_t)driver_argv_collect_defines(
+        (int)argc, (char **)(void *)argv, g_driver_asm_defines, MAX_DEFINES);
+    return g_driver_asm_ndefines;
+}
+
+uint8_t *driver_asm_defines_as_u8(void) {
+    if (g_driver_asm_ndefines <= 0)
+        return NULL;
+    return (uint8_t *)(void *)g_driver_asm_defines;
+}
+
+int32_t driver_asm_ndefines_get(void) {
+    return g_driver_asm_ndefines;
+}
+
+static const char *g_driver_asm_dot = ".";
+static const char *g_driver_asm_one_root[1];
+static const char **g_driver_asm_lib_roots_bound;
+static int32_t g_driver_asm_n_lib_bound;
+
+uint8_t *driver_asm_bind_lib_roots(uint8_t *lib_roots, int32_t n, int32_t *n_out) {
+    g_driver_asm_lib_roots_bound = (const char **)(void *)lib_roots;
+    g_driver_asm_n_lib_bound = n;
+    if (n <= 0 || lib_roots == NULL) {
+        g_driver_asm_one_root[0] = g_driver_asm_dot;
+        if (n_out)
+            *n_out = 1;
+        return (uint8_t *)(void *)g_driver_asm_one_root;
+    }
+    if (n_out)
+        *n_out = n;
+    return lib_roots;
+}
+
+uint8_t *driver_asm_argv0(uint8_t *argv) {
+    char **a = (char **)(void *)argv;
+    if (a == NULL || a[0] == NULL)
+        return NULL;
+    return (uint8_t *)(void *)a[0];
+}
+
+int32_t driver_asm_try_c_frontend_early(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
+                                        int32_t n_lib, uint8_t *out_path) {
+    /*
+     * 产品 runtime_driver_no_c 为 XLANG_NO_C_FRONTEND；本层固定走 no-C 继续 pipeline。
+     * 冷启动全 C 体（seeds/rt_run_asm_backend.from_x.c 无 FROM_X）仍含 #if 分支。
+     */
+    (void)input_path;
+    (void)src;
+    (void)lib_roots;
+    (void)n_lib;
+    (void)out_path;
+    return -2;
+}
+
+int32_t driver_asm_try_c_typeck_precheck(uint8_t *input_path, uint8_t *src, uint8_t *lib_roots,
+                                        int32_t n_lib) {
+    (void)input_path;
+    (void)src;
+    (void)lib_roots;
+    (void)n_lib;
+    /* 产品 NO_C：跳过 C typeck 预检。 */
+    return -1;
+}
+
+int32_t driver_asm_use_compiler_impl_c(void) {
 #if defined(XLANG_ASM_USE_COMPILER_IMPL_C)
+    return 1;
 #else
-#define XLANG_TMP_PREFIX "xlang_"
+    return 0;
 #endif
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /*
@@ -1841,6 +3393,102 @@ extern uint8_t *driver_asm_tmp_path_slot(void);
  * reset also clears g_driver_asm_tmp_path_slot[0] (tmp_path BSS cold twin; hybrid = wave25 pure).
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+#define DRIVER_ASM_WORK_NP 25
+#define DRIVER_ASM_WORK_NI 16
+#define DRIVER_ASM_WORK_NZ 4
+static uint8_t *g_asm_work_p[DRIVER_ASM_WORK_NP];
+static int32_t g_asm_work_i[DRIVER_ASM_WORK_NI];
+static size_t g_asm_work_z[DRIVER_ASM_WORK_NZ];
+
+void driver_asm_work_reset(void) {
+    memset(g_asm_work_p, 0, sizeof g_asm_work_p);
+    memset(g_asm_work_i, 0, sizeof g_asm_work_i);
+    memset(g_asm_work_z, 0, sizeof g_asm_work_z);
+    g_driver_asm_tmp_path_slot[0] = 0;
+}
+
+uint8_t *driver_asm_work_p_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NP)
+        return NULL;
+    return g_asm_work_p[i];
+}
+
+void driver_asm_work_p_set(int32_t i, uint8_t *v) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NP)
+        return;
+    g_asm_work_p[i] = v;
+}
+
+int32_t driver_asm_work_i_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NI)
+        return 0;
+    return g_asm_work_i[i];
+}
+
+void driver_asm_work_i_set(int32_t i, int32_t v) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NI)
+        return;
+    g_asm_work_i[i] = v;
+}
+
+size_t driver_asm_work_z_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NZ)
+        return 0;
+    return g_asm_work_z[i];
+}
+
+void driver_asm_work_z_set(int32_t i, size_t v) {
+    if (i < 0 || i >= DRIVER_ASM_WORK_NZ)
+        return;
+    g_asm_work_z[i] = v;
+}
+
+void driver_asm_work_cleanup(void) {
+    int32_t n = g_asm_work_i[1]; /* ndeps */
+    int32_t i;
+    void *p;
+    void *ds = g_asm_work_p[6];
+    void *dp = g_asm_work_p[7];
+    void *dl = g_asm_work_p[8];
+    void *da = g_asm_work_p[9];
+    void *dm = g_asm_work_p[10];
+    for (i = 0; i < n; i++) {
+        if (da) {
+            p = ((void **)da)[i];
+            free(p);
+        }
+        if (dm) {
+            p = ((void **)dm)[i];
+            free(p);
+        }
+        if (ds) {
+            p = ((void **)ds)[i];
+            free(p);
+        }
+        if (dp) {
+            p = ((void **)dp)[i];
+            free(p);
+        }
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(g_asm_work_p[11]); /* out_buf */
+    if (g_asm_work_p[12])
+        pipeline_dep_ctx_heap_destroy((struct ast_PipelineDepCtx *)(void *)g_asm_work_p[12]);
+    if (g_asm_work_p[19])
+        driver_asm_fclose_asm_out((uint8_t *)(void *)g_asm_work_p[19]);
+    free(g_asm_work_p[20]); /* elf */
+    free(g_asm_work_p[3]);  /* arena */
+    free(g_asm_work_p[4]);  /* module */
+    free(g_asm_work_p[1]);  /* src */
+    free(g_asm_work_p[13]); /* kind */
+    free(g_asm_work_p[14]); /* code */
+    free(g_asm_work_p[15]); /* msg */
+    driver_asm_work_reset();
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* ========== Cap residual: rt_run_compiler_parsed R2 full ========== */
@@ -1917,10 +3565,76 @@ extern void codegen_or_preamble_skip_mask(unsigned mask);
  * cold twins below; FROM_X no pure-dup.
  * PLATFORM: SHARED LP64 — offsetof layout must match thin.x constants. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_parsed_input_path(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->input_path;
+}
+uint8_t *driver_parsed_out_path(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->out_path;
+}
+uint8_t *driver_parsed_lib_roots(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->lib_roots_arr;
+}
+int32_t driver_parsed_n_lib_roots(void *p) {
+    if (!p) return 0;
+    return (int32_t)((DriverCompileParsedAbi *)p)->n_lib_roots;
+}
+int32_t driver_parsed_want_asm(void *p) {
+    if (!p) return 0;
+    return (int32_t)((DriverCompileParsedAbi *)p)->want_asm_backend;
+}
+uint8_t *driver_parsed_target(void *p) {
+    if (!p) return NULL;
+    return (uint8_t *)(void *)((DriverCompileParsedAbi *)p)->target;
+}
+static const char g_driver_parsed_opt_default[] = "2";
+uint8_t *driver_parsed_opt_level(void *p) {
+    const char *o;
+    if (!p) return (uint8_t *)(void *)g_driver_parsed_opt_default;
+    o = ((DriverCompileParsedAbi *)p)->opt_level;
+    if (!o) return (uint8_t *)(void *)g_driver_parsed_opt_default;
+    return (uint8_t *)(void *)o;
+}
+int32_t driver_parsed_use_lto(void *p) {
+    if (!p) return 0;
+    return (int32_t)((DriverCompileParsedAbi *)p)->use_lto;
+}
+
+int32_t driver_parsed_try_c_after_pp(uint8_t *input_path, uint8_t *src, size_t src_len,
+                                     uint8_t *lib_roots, int32_t n_lib, uint8_t *out_path,
+                                     int32_t argc, uint8_t *argv, uint8_t *opt_level,
+                                     int32_t use_lto, int32_t ndefines, uint8_t *defines) {
+    /*
+     * PLATFORM: SHARED — product XLANG_NO_C_FRONTEND: always continue .x pipeline
+     * (return -2). Leftover generic-syntax lexer/parse / import-downgrade in
+     * rt_run_compiler_parsed.from_x.c retired (this knife); cold seed no longer
+     * hosts a C frontend branch either. Twin of driver_parsed_try_c_after_pp
+     * in runtime_driver_abi_thin.x.
+     */
+    (void)input_path;
+    (void)src;
+    (void)src_len;
+    (void)lib_roots;
+    (void)n_lib;
+    (void)out_path;
+    (void)argc;
+    (void)argv;
+    (void)opt_level;
+    (void)use_lto;
+    (void)ndefines;
+    (void)defines;
+    return -2;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave19 pure under PREFER：skip_codegen_dep_0; cold C twin; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_pipeline_dep_ctx_set_skip_codegen_dep_0(void *ctx, int32_t v) {
+    if (!ctx) return;
+    ((struct ast_PipelineDepCtx *)ctx)->skip_codegen_dep_0 = (int)v;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave25 pure: hybrid thin owns parsed tmp BSS; cold seed twin; FROM_X no pure-dup.
@@ -1928,6 +3642,17 @@ extern void codegen_or_preamble_skip_mask(unsigned mask);
  * and accommodates Windows long TEMP paths (C:\xlang_tmp\xlang_xlang_x.YZXDC4.c).
  * open_out (always seed) writes only via driver_parsed_tmp_c_buf() accessor. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static char g_driver_parsed_tmp_c[256];
+/* Cold twin: 64-byte slot cleared by parsed work reset (parity). */
+static char g_parsed_tmp_c_slot[64];
+
+uint8_t *driver_parsed_tmp_c_buf(void) {
+    return (uint8_t *)g_driver_parsed_tmp_c;
+}
+
+uint8_t *driver_parsed_tmp_c_slot(void) {
+    return (uint8_t *)g_parsed_tmp_c_slot;
+}
 #else
 extern uint8_t *driver_parsed_tmp_c_buf(void);
 extern uint8_t *driver_parsed_tmp_c_slot(void);
@@ -1944,23 +3669,244 @@ const char *xlang_driver_tmp_prefix(void) {
  * wave25: writes tmp path only via pure/cold driver_parsed_tmp_c_buf().
  * PLATFORM: WINDOWS | POSIX — close mkstemp fd BEFORE rename (BLD001). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+uint8_t *driver_parsed_open_out_file(uint8_t *out_path, uint8_t *tmp_c_out64, int32_t *emit_stdout) {
+    char tmp[128];
+    int fd;
+    /* wave25: never touch BSS static by name — hybrid pure owns the buffer. */
+    char *tbuf = (char *)(void *)driver_parsed_tmp_c_buf();
+    if (emit_stdout)
+        *emit_stdout = 0;
+    if (tbuf)
+        tbuf[0] = 0;
+    if (tmp_c_out64)
+        tmp_c_out64[0] = 0;
+    if (!out_path) {
+        if (emit_stdout)
+            *emit_stdout = 1;
+        /* Emit-to-stdout: encoded std handle; consumers guard fd 1 on close. */
+        return xlang_driver_handle_from_fd(1);
+    }
+    if (!tbuf)
+        return NULL;
+    snprintf(tmp, sizeof(tmp), "%sxlang_x.XXXXXX", XLANG_TMP_PREFIX);
+    fd = mkstemp(tmp);
+    if (fd < 0) {
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "mkstemp", tmp);
+        return NULL;
+    }
+    /* PLATFORM: WINDOWS | POSIX — Windows forbids renaming a file held open by
+     * fdopen/fopen (POSIX allows it). Close the mkstemp fd BEFORE rename, then
+     * reopen the renamed .c path. Without this, rename fails with
+     * STATUS_SHARING_VIOLATION / "Permission denied" (BLD001). */
+    xlang_proc_close_fd(fd);
+    /* Cap 256 matches pure/cold BSS; snprintf enforces NUL. */
+    snprintf(tbuf, 256, "%s.c", tmp);
+    if (rename(tmp, tbuf) != 0) {
+        runtime_diag_errno_path_pair((const char *)(void *)out_path, "build error", "rename", tmp, tbuf);
+        unlink(tmp);
+        return NULL;
+    }
+    fd = xlang_io_open_write(tbuf);
+    if (fd < 0) {
+        runtime_diag_errno_path((const char *)(void *)out_path, "build error", "open", tbuf);
+        unlink(tbuf);
+        return NULL;
+    }
+    if (tmp_c_out64) {
+        size_t n = strlen(tbuf);
+        if (n > 255)
+            n = 255;
+        memcpy(tmp_c_out64, tbuf, n);
+        tmp_c_out64[n] = 0;
+    }
+    return xlang_driver_handle_from_fd(fd);
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave26 pure: hybrid thin owns fclose / fclose_rc / write_out; cold twins; FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_parsed_fclose(uint8_t *fp) {
+    if (!fp || xlang_driver_handle_to_fd(fp) == 1)
+        return;
+    (void)xlang_driver_handle_close(fp);
+}
+
+int32_t driver_parsed_fclose_rc(uint8_t *fp) {
+    if (!fp || xlang_driver_handle_to_fd(fp) == 1)
+        return 0;
+    return xlang_driver_handle_close(fp);
+}
+
+int32_t driver_parsed_write_out(uint8_t *fp, uint8_t *data, int32_t len) {
+    int fd = xlang_driver_handle_to_fd(fp);
+    size_t first_line = 0;
+    int need_preamble;
+    static const char min_preamble[] =
+        "/* generated */\n#include <stdint.h>\n#include <stddef.h>\n#include <stdlib.h>\n#include "
+        "<stdio.h>\n#include <string.h>\n";
+    if (fd < 0 || !data || len < 0)
+        return 1;
+    while (first_line < (size_t)len && data[first_line] != '\n')
+        first_line++;
+    if (first_line < (size_t)len)
+        first_line++;
+    need_preamble =
+        (len > 0 && data[0] != '#' && (len < 2 || data[0] != '/' || data[1] != '*'));
+    if (need_preamble) {
+        if (xlang_io_write(fd, min_preamble, sizeof(min_preamble) - 1) !=
+            (long)(sizeof(min_preamble) - 1))
+            return 1;
+    }
+    if (xlang_io_write(fd, data, first_line) != (long)first_line)
+        return 1;
+    if (write_io_net_abi_inline(fp) != 0)
+        return 1;
+    if (write_fs_path_map_error_abi_inline(fp) != 0)
+        return 1;
+    if (xlang_io_write(fd, data + first_line, (size_t)len - first_line) !=
+        (long)((size_t)len - first_line))
+        return 1;
+    return 0;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave28 pure: hybrid thin owns invoke_cc orch; cold twin; FROM_X no pure-dup.
  * PLATFORM: SHARED — path pack + set/clear user .o + xlang_invoke_cc + fail/KEEP_C. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_level, int32_t use_lto,
+                                uint8_t *argv0, int32_t argc, uint8_t *argv) {
+    const char *c_paths[1];
+    const char *a0 = (const char *)(void *)argv0;
+    const char *opt = opt_level ? (const char *)(void *)opt_level : "2";
+    const char *io_o = xlang_std_io_o_path(a0);
+    const char *fs_o = NULL;
+    const char *process_o = xlang_rel_o_path_from_argv0(a0, "std/process/process.o");
+    const char *string_o = xlang_rel_o_path_from_argv0(a0, "std/string/string.o");
+    const char *heap_o = NULL;
+    const char *path_o = xlang_rel_o_path_from_argv0(a0, "std/path/path.o");
+    const char *runtime_o = xlang_rel_o_path_from_argv0(a0, "std/runtime/runtime.o");
+    const char *runtime_panic_o = xlang_runtime_panic_o_path(a0);
+    const char *net_o = xlang_rel_o_path_from_argv0(a0, "std/net/net.o");
+    const char *thread_o = xlang_rel_o_path_from_argv0(a0, "std/thread/thread.o");
+    const char *time_o = xlang_rel_o_path_from_argv0(a0, "std/time/time.o");
+    const char *random_o = xlang_rel_o_path_from_argv0(a0, "std/random/random.o");
+    const char *env_o = xlang_rel_o_path_from_argv0(a0, "std/env/env.o");
+    const char *sync_o = xlang_rel_o_path_from_argv0(a0, "std/sync/sync.o");
+    const char *encoding_o = xlang_rel_o_path_from_argv0(a0, "std/encoding/encoding.o");
+    const char *base64_o = xlang_rel_o_path_from_argv0(a0, "std/base64/base64.o");
+    const char *crypto_o = xlang_rel_o_path_from_argv0(a0, "std/crypto/crypto.o");
+    const char *log_o = xlang_rel_o_path_from_argv0(a0, "std/log/log.o");
+    const char *atomic_o = xlang_rel_o_path_from_argv0(a0, "std/atomic/atomic.o");
+    const char *channel_o = xlang_rel_o_path_from_argv0(a0, "std/channel/channel.o");
+    const char *backtrace_o = xlang_rel_o_path_from_argv0(a0, "std/backtrace/backtrace.o");
+    const char *hash_o = xlang_rel_o_path_from_argv0(a0, "std/hash/hash.o");
+    const char *math_o = xlang_rel_o_path_from_argv0(a0, "std/math/math.o");
+    const char *sort_o = xlang_rel_o_path_from_argv0(a0, "std/sort/sort.o");
+    const char *ffi_o = xlang_rel_o_path_from_argv0(a0, "std/ffi/ffi.o");
+    const char *db_o = xlang_rel_o_path_from_argv0(a0, "std/db/sqlite/sqlite.o");
+    const char *elf_o = xlang_rel_o_path_from_argv0(a0, "std/elf/elf.o");
+    const char *json_o = xlang_rel_o_path_from_argv0(a0, "std/json/json.o");
+    const char *csv_o = xlang_rel_o_path_from_argv0(a0, "std/csv/csv.o");
+    const char *regex_o = xlang_rel_o_path_from_argv0(a0, "std/regex/regex.o");
+    const char *compress_o = NULL;
+    const char *unicode_o = xlang_rel_o_path_from_argv0(a0, "std/unicode/unicode.o");
+    const char *dynlib_o = xlang_rel_o_path_from_argv0(a0, "std/dynlib/dynlib.o");
+    const char *http_o = xlang_rel_o_path_from_argv0(a0, "std/http/http.o");
+    const char *tar_o = xlang_rel_o_path_from_argv0(a0, "std/tar/tar.o");
+    const char *simd_o = xlang_rel_o_path_from_argv0(a0, "std/simd/simd.o");
+    const char *context_o = xlang_rel_o_path_from_argv0(a0, "std/context/context.o");
+    const char *datetime_o = xlang_rel_o_path_from_argv0(a0, "std/datetime/datetime.o");
+    const char *uuid_o = xlang_rel_o_path_from_argv0(a0, "std/uuid/uuid.o");
+    const char *url_o = xlang_rel_o_path_from_argv0(a0, "std/url/url.o");
+    const char *cli_o = xlang_rel_o_path_from_argv0(a0, "std/cli/cli.o");
+    const char *security_o = xlang_rel_o_path_from_argv0(a0, "std/security/security.o");
+    const char *config_o = xlang_rel_o_path_from_argv0(a0, "std/config/config.o");
+    const char *cache_o = xlang_rel_o_path_from_argv0(a0, "std/cache/cache.o");
+    const char *trace_o = xlang_rel_o_path_from_argv0(a0, "std/trace/trace.o");
+    const char *task_o = xlang_rel_o_path_from_argv0(a0, "std/task/task.o");
+    const char *schema_o = xlang_rel_o_path_from_argv0(a0, "std/schema/schema.o");
+    const char *test_o = xlang_rel_o_path_from_argv0(a0, "std/test/test.o");
+    int cc_ret;
+    if (!tmp_c || !out_path)
+        return 1;
+    c_paths[0] = (const char *)(void *)tmp_c;
+    /* Single authority (G.3/G.4): set user .o files from argv before xlang_invoke_cc
+     * so they are pushed to the cc link line (resolves UNDEF symbols from std .o
+     * that user glue provides, e.g. runtime_atomic_glue.o provides atomic_load_i32_c). */
+    xlang_invoke_cc_set_user_o_files_from_argv((int)argc, (char **)(void *)argv);
+    cc_ret = xlang_invoke_cc(c_paths, 1, (const char *)(void *)out_path, NULL, opt, (int)use_lto, io_o,
+                            fs_o, process_o, string_o, heap_o, path_o, runtime_o, runtime_panic_o, net_o,
+                            thread_o, time_o, random_o, env_o, sync_o, encoding_o, base64_o, crypto_o, log_o,
+                            atomic_o, channel_o, backtrace_o, hash_o, math_o, sort_o, ffi_o, db_o, elf_o, json_o,
+                            csv_o, regex_o, compress_o, unicode_o, dynlib_o, http_o, tar_o, simd_o, context_o,
+                            datetime_o, uuid_o, url_o, cli_o, security_o, config_o, cache_o, trace_o, task_o,
+                            schema_o, test_o, xlang_repo_root_from_argv0(a0), NULL);
+    /* Always clear after invoke to prevent stale pointers across calls. */
+    xlang_invoke_cc_clear_user_o_files();
+    if (cc_ret != 0) {
+        driver_unlink_failed_output((const char *)(void *)out_path);
+        diag_reportf_with_code(NULL, 0, 0, "build error", "BLD001", NULL,
+                               "cc failed, keeping generated C: %s", (const char *)(void *)tmp_c);
+        return 1;
+    }
+    if (!link_abi_getenv("XLANG_KEEP_C"))
+        unlink((const char *)(void *)tmp_c);
+    else
+        diag_reportf(NULL, 0, 0, "note", NULL, "kept generated C: %s", (const char *)(void *)tmp_c);
+    return 0;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* wave31 pure: hybrid thin owns dump_prep + deps_has_* + apply_preamble_skip;
  * cold twins below; FROM_X no pure-dup.
  * PLATFORM: SHARED — mask bits match codegen.h; dump path /tmp dev-only. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
+    /* Class AT: Cap XLANG_DUMP_PREP retired (always no-op). */
+    (void)input_path;
+    (void)src;
+    (void)src_len;
+}
+
+int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps) {
+    int32_t j;
+    char **dp = (char **)(void *)dep_paths;
+    if (!dp || n_deps <= 0)
+        return 0;
+    for (j = 0; j < n_deps; j++) {
+        if (dp[j] && strcmp(dp[j], "std.io.core") == 0)
+            return 1;
+    }
+    return 0;
+}
+
+/** dep 闭包是否含 std.io.driver（co-emit 会 emit submit_*_batch_buf 强符号）。 */
+int32_t driver_parsed_deps_has_std_io_driver(uint8_t *dep_paths, int32_t n_deps) {
+    int32_t j;
+    char **dp = (char **)(void *)dep_paths;
+    if (!dp || n_deps <= 0)
+        return 0;
+    for (j = 0; j < n_deps; j++) {
+        if (dp[j] && strcmp(dp[j], "std.io.driver") == 0)
+            return 1;
+    }
+    return 0;
+}
+
+void driver_parsed_apply_preamble_skip(uint8_t *dep_paths, int32_t n_deps) {
+    codegen_reset_preamble_skip_mask();
+    if (!driver_parsed_deps_has_std_io_core(dep_paths, n_deps)) {
+        codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_STD_IO_CORE_MACROS |
+                                      CODEGEN_PREAMBLE_SKIP_STD_IO_UNDEF_REDEFINE);
+    }
+    /* co-emit driver 时同 TU 已有强符号定义；weak 桩与之冲突（C 同 TU redefinition）。 */
+    if (driver_parsed_deps_has_std_io_driver(dep_paths, n_deps)) {
 #ifndef CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH
+#define CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH 8u
 #endif
+        codegen_or_preamble_skip_mask(CODEGEN_PREAMBLE_SKIP_WEAK_IO_BATCH);
+    }
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /*
@@ -1977,6 +3923,122 @@ const char *xlang_driver_tmp_prefix(void) {
  * z: 0 src_len 1 asz 2 msz
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+#define DRIVER_PARSED_WORK_NP 24
+#define DRIVER_PARSED_WORK_NI 14
+#define DRIVER_PARSED_WORK_NZ 4
+static uint8_t *g_parsed_work_p[DRIVER_PARSED_WORK_NP];
+static int32_t g_parsed_work_i[DRIVER_PARSED_WORK_NI];
+static size_t g_parsed_work_z[DRIVER_PARSED_WORK_NZ];
+
+void driver_parsed_work_reset(void) {
+    memset(g_parsed_work_p, 0, sizeof g_parsed_work_p);
+    memset(g_parsed_work_i, 0, sizeof g_parsed_work_i);
+    memset(g_parsed_work_z, 0, sizeof g_parsed_work_z);
+    g_parsed_tmp_c_slot[0] = 0;
+    g_driver_parsed_tmp_c[0] = 0;
+}
+
+uint8_t *driver_parsed_work_p_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NP)
+        return NULL;
+    return g_parsed_work_p[i];
+}
+void driver_parsed_work_p_set(int32_t i, uint8_t *v) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NP)
+        return;
+    g_parsed_work_p[i] = v;
+}
+int32_t driver_parsed_work_i_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NI)
+        return 0;
+    return g_parsed_work_i[i];
+}
+void driver_parsed_work_i_set(int32_t i, int32_t v) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NI)
+        return;
+    g_parsed_work_i[i] = v;
+}
+size_t driver_parsed_work_z_get(int32_t i) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NZ)
+        return 0;
+    return g_parsed_work_z[i];
+}
+void driver_parsed_work_z_set(int32_t i, size_t v) {
+    if (i < 0 || i >= DRIVER_PARSED_WORK_NZ)
+        return;
+    g_parsed_work_z[i] = v;
+}
+
+/* wave1225: release AST sidecars before free — see thin.x driver_parsed_work_cleanup. */
+extern void ast_pool_arena_release(void *a);
+extern void ast_pool_module_release(void *m);
+
+void driver_parsed_work_cleanup(void) {
+    int32_t n = g_parsed_work_i[1]; /* ndeps */
+    int32_t emit_stdout = g_parsed_work_i[5];
+    int32_t i;
+    void *p;
+    void *ds = g_parsed_work_p[6];
+    void *dp = g_parsed_work_p[7];
+    void *dl = g_parsed_work_p[8];
+    void *da = g_parsed_work_p[9];
+    void *dm = g_parsed_work_p[10];
+    /* Class AI: Cap XLANG_DEBUG_SIDECAR cleanup trace retired. */
+    for (i = 0; i < n; i++) {
+        if (da) {
+            p = ((void **)da)[i];
+            if (p) {
+                ast_pool_arena_release(p);
+                free(p);
+            }
+        }
+        if (dm) {
+            p = ((void **)dm)[i];
+            if (p) {
+                ast_pool_module_release(p);
+                free(p);
+            }
+        }
+        if (ds) {
+            p = ((void **)ds)[i];
+            free(p);
+        }
+        if (dp) {
+            p = ((void **)dp)[i];
+            free(p);
+        }
+    }
+    free(ds);
+    free(dp);
+    free(dl);
+    free(da);
+    free(dm);
+    free(g_parsed_work_p[11]); /* out_buf */
+    if (g_parsed_work_p[12])
+        pipeline_dep_ctx_heap_destroy((struct ast_PipelineDepCtx *)(void *)g_parsed_work_p[12]);
+    if (g_parsed_work_p[19] && !emit_stdout) {
+        driver_parsed_fclose(g_parsed_work_p[19]);
+        if (g_parsed_work_p[20] && g_parsed_work_p[20][0])
+            unlink((const char *)(void *)g_parsed_work_p[20]);
+        else if (g_driver_parsed_tmp_c[0])
+            unlink(g_driver_parsed_tmp_c);
+    }
+    /* wave1225: release-before-free (batch check sidecar leak / address reuse). */
+    if (g_parsed_work_p[3]) {
+        ast_pool_arena_release(g_parsed_work_p[3]);
+        free(g_parsed_work_p[3]);
+    }
+    if (g_parsed_work_p[4]) {
+        ast_pool_module_release(g_parsed_work_p[4]);
+        free(g_parsed_work_p[4]);
+    }
+    free(g_parsed_work_p[1]);  /* src */
+    free(g_parsed_work_p[13]); /* kind */
+    free(g_parsed_work_p[14]); /* code */
+    free(g_parsed_work_p[15]); /* msg */
+    free(g_parsed_work_p[20]); /* tmp_c heap copy if any */
+    driver_parsed_work_reset();
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* ========== Cap residual: rt_dispatch_impl R2 full ========== */
@@ -1989,12 +4051,92 @@ extern int driver_run_compiler_parsed(void *p, int argc, char **argv);
  * lib_root_at + opt_default; cold seed keeps C twins (static bufs + struct pack).
  * PLATFORM: SHARED LP64 — FROM_X no pure-dup. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static char g_dispatch_lib_bufs[X_FULL_MAX_LIB_ROOTS][512];
+static const char *g_dispatch_lib_roots[X_FULL_MAX_LIB_ROOTS];
+static const char g_dispatch_opt_default[] = "2";
+
+uint8_t *driver_dispatch_lib_roots_from_key(uint8_t *lib_key, int32_t *n_out) {
+    int n = driver_lib_roots_from_key(lib_key, g_dispatch_lib_roots, g_dispatch_lib_bufs);
+    if (n_out)
+        *n_out = (int32_t)n;
+    return (uint8_t *)(void *)g_dispatch_lib_roots;
+}
+
+uint8_t *driver_dispatch_lib_root_at(uint8_t *roots, int32_t i) {
+    const char **arr;
+    if (!roots || i < 0 || i >= X_FULL_MAX_LIB_ROOTS)
+        return NULL;
+    arr = (const char **)(void *)roots;
+    return (uint8_t *)(void *)arr[i];
+}
+
+uint8_t *driver_dispatch_opt_default(void) {
+    return (uint8_t *)(void *)g_dispatch_opt_default;
+}
+
+int32_t driver_dispatch_run_compiler_parsed(uint8_t *input_path, uint8_t *out_path,
+                                            uint8_t *lib_roots, int32_t n_lib,
+                                            uint8_t *target, uint8_t *opt_level,
+                                            int32_t use_lto, int32_t argc, uint8_t *argv) {
+    DriverCompileParsedAbi p;
+    int n = n_lib;
+    memset(&p, 0, sizeof p);
+    p.input_path = (const char *)(void *)input_path;
+    p.out_path = out_path ? (const char *)(void *)out_path : NULL;
+    if (n > X_FULL_MAX_LIB_ROOTS)
+        n = X_FULL_MAX_LIB_ROOTS;
+    if (n > 0 && lib_roots)
+        memcpy(p.lib_roots_arr, lib_roots, (size_t)n * sizeof(const char *));
+    p.n_lib_roots = n;
+    p.want_asm_backend = 0;
+    p.target = (target && target[0]) ? (const char *)(void *)target : NULL;
+    p.opt_level = (opt_level && opt_level[0]) ? (const char *)(void *)opt_level : g_dispatch_opt_default;
+    p.use_lto = use_lto != 0;
+    return (int32_t)driver_run_compiler_parsed((void *)&p, (int)argc, (char **)(void *)argv);
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_asm_stub R2（GAS 行表 + OutBuf append） ---------- */
 /* wave14 pure：hybrid thin owns gas_line_at/count + out_append_cstr (LE OutBuf layout);
  * cold seed keeps C table/append; FROM_X no pure-dup (H↓). */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+static const char *const g_asm_stub_gas_lines[] = {
+    ".text",         ".globl main", "main:",       "pushq %rbp", "movq %rsp, %rbp",
+    "subq $0, %rsp", "movl $42, %eax", "movq %rsp, %rbp", "popq %rbp", "ret",
+};
+static const int32_t g_asm_stub_gas_lines_n =
+    (int32_t)(sizeof g_asm_stub_gas_lines / sizeof g_asm_stub_gas_lines[0]);
+
+uint8_t *driver_asm_stub_gas_line_at(int32_t i) {
+    if (i < 0 || i >= g_asm_stub_gas_lines_n)
+        return NULL;
+    return (uint8_t *)(uintptr_t)g_asm_stub_gas_lines[i];
+}
+
+int32_t driver_asm_stub_gas_line_count(void) {
+    return g_asm_stub_gas_lines_n;
+}
+
+int32_t driver_asm_stub_out_append_cstr(void *out, uint8_t *s) {
+    struct driver_codegen_outbuf_abi *ob;
+    size_t n;
+    size_t len;
+    size_t cur;
+    if (!out || !s)
+        return -1;
+    ob = (struct driver_codegen_outbuf_abi *)out;
+    len = strlen((const char *)(void *)s);
+    cur = (size_t)ob->length;
+    if (cur > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
+        return -1;
+    if (cur + len + 1 > (size_t)X_CODEGEN_OUTBUF_CAP_ABI)
+        return -1;
+    memcpy(ob->data + cur, s, len);
+    ob->data[cur + len] = (unsigned char)'\n';
+    n = cur + len + 1;
+    ob->length = (int32_t)n;
+    return 0;
+}
 #endif /* !XLANG_L2_RDABI_THIN_FROM_X */
 
 /* ---------- Cap residual：rt_dispatch_thin R2（sibling path/access/fork） ---------- */
@@ -2066,8 +4208,41 @@ int32_t xlang_driver_sibling_access_spawn(uint8_t *path, int32_t argc, uint8_t *
 
 /* wave43 pure: hybrid thin owns sibling_try_spawn orch; cold twin under #ifndef FROM_X. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
+/**
+ * 与冷启动 seeds/rt_dispatch_thin.from_x.c driver_try_compile_via_shu_c_sibling 同语义。
+ * argv 为 char**（*u8）；成功返回子进程 exit；-1 未委托。
+ * Cold twin：自洽 path build + G.7 basename + residual access_spawn（无 pure BSS）。
+ */
+int32_t driver_dispatch_sibling_try_spawn(int32_t argc, uint8_t *argv) {
+    char xlang_c[512];
+    char **av = (char **)(void *)argv;
+    const char *self;
+    const char *slash;
+    if (argc < 2 || !av || !av[0])
+        return -1;
+    if (driver_argv0_basename_is(av[0], "xlang-c"))
+        return -1;
+    self = av[0];
+    slash = strrchr(self, '/');
 #if defined(_WIN32)
+    {
+        const char *bs = strrchr(self, '\\');
+        if (bs && (!slash || bs > slash))
+            slash = bs;
+    }
 #endif
+    if (slash) {
+        size_t dir_len = (size_t)(slash - self);
+        if (dir_len >= sizeof(xlang_c) - 8)
+            return -1;
+        memcpy(xlang_c, self, dir_len);
+        xlang_c[dir_len] = '\0';
+        strcat(xlang_c, "/xlang-c");
+    } else {
+        strcpy(xlang_c, "xlang-c");
+    }
+    return xlang_driver_sibling_access_spawn((uint8_t *)(void *)xlang_c, argc, argv);
+}
 #endif
 
 int runtime_driver_abi_slice_marker(void) {

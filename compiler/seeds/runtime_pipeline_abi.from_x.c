@@ -539,7 +539,11 @@ void xlang_path_try_realpath_inplace(char *path, size_t path_size);
  * Header declares functions; seed defines them (not a dual-decl). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-/* 记253／9.1: cold #if !defined(FROM_X) body removed */
+static int pipeline_diag_emitted_flag;
+
+int32_t *pipeline_diag_emitted_flag_slot(void) {
+    return (int32_t *)&pipeline_diag_emitted_flag;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 static int pipeline_last_import_open_valid;
 static char pipeline_last_import_open_import[65];
@@ -547,51 +551,147 @@ static char pipeline_last_import_open_resolved[PATH_MAX];
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_emitted_reset(void) {
+  (void)(({   {
+    int32_t * p = pipeline_diag_emitted_flag_slot();
+    (void)(((p)[0] = 0));
+  }
+ }));
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_emitted_note(void) {
+  (void)(({   {
+    int32_t * p = pipeline_diag_emitted_flag_slot();
+    (void)(((p)[0] = 1));
+  }
+ }));
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t pipeline_diag_emitted_get(void) {
+  (void)(({   {
+    int32_t * p = pipeline_diag_emitted_flag_slot();
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 
 /* G-02f-227：逻辑源 .x（真迁）；seed 保留 printf 细文案 + 去重表 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_import_open_fail_once(const char *import_path, const char *resolved_path) {
+    const char *import_key = import_path ? import_path : "?";
+    const char *resolved_key = resolved_path ? resolved_path : "?";
+    if (pipeline_last_import_open_valid &&
+        strcmp(pipeline_last_import_open_import, import_key) == 0 &&
+        strcmp(pipeline_last_import_open_resolved, resolved_key) == 0) {
+        pipeline_diag_emitted_note();
+        return;
+    }
+    snprintf(pipeline_last_import_open_import, sizeof(pipeline_last_import_open_import), "%s", import_key);
+    snprintf(pipeline_last_import_open_resolved, sizeof(pipeline_last_import_open_resolved), "%s", resolved_key);
+    pipeline_last_import_open_valid = 1;
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(resolved_path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP001, NULL,
+                 "cannot open import '%s' (tried %s)",
+                 import_key,
+                 resolved_key);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（含 printf 细文案） */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_preprocess_unclosed_if(const char *path_diag) {
+    pipeline_diag_emitted_note();
+    diag_report_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP001, "unclosed #if", NULL);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_preprocess_fail(const char *path_diag) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
+                 ".x preprocess failed for '%s'",
+                 path_diag ? path_diag : "?");
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave46 Cap residual pure: directive code map in .x; cold twin below. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* 指令级失败码（preprocess_x_buf 负返回值）→ 历史 C 文案。 */
+void pipeline_diag_preprocess_directive_code(const char *path_diag, int32_t code) {
+    const char *msg = NULL;
+    if (code == -2)
+        msg = "#else without #if";
+    else if (code == -3)
+        msg = "#endif without #if";
+    else if (code == -4)
+        msg = "#elseif without #if";
+    else if (code == -5)
+        msg = "#elseif after #else";
+    else if (code == -6)
+        msg = "duplicate #else";
+    else if (code == -7)
+        msg = "#if nesting too deep";
+    else {
+        pipeline_diag_preprocess_fail(path_diag);
+        return;
+    }
+    pipeline_diag_emitted_note();
+    diag_report_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, msg, NULL);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_import_preprocess_fail(const char *import_path, const char *resolved_path) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(resolved_path, 0, 0, "preprocess error", XLANG_DIAG_CODE_IMPORT_IMP002, NULL,
+                 "preprocess failed for import '%s' (%s)",
+                 import_path ? import_path : "?",
+                 resolved_path ? resolved_path : "?");
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_preprocess_alloc_fail(const char *path_diag, const char *what) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(path_diag, 0, 0, "pipeline error", XLANG_DIAG_CODE_X_PIPELINE_XP005, NULL,
+                 "%s allocation failed during .x preprocess",
+                 what ? what : "buffer");
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-225：逻辑源 .x（真迁）；seed 保留 printf 细文案 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_diag_merge_dep_missing(const char *import_path) {
+    pipeline_diag_emitted_note();
+    diag_reportf_with_code(import_path, 0, 0, "import error", XLANG_DIAG_CODE_IMPORT_IMP004, NULL,
+                 "direct import '%s' was not found in the resolved dependency closure",
+                 import_path ? import_path : "?");
+    diag_report(NULL, 0, 0, "note",
+                "dependency closure construction failed before merge_deps completed", NULL);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -606,6 +706,10 @@ static char pipeline_last_import_open_resolved[PATH_MAX];
  * (thin owns T). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int pipeline_asm_debug_enabled(void) {
+  /* Class AW: Cap XLANG_ASM_DEBUG gate retired (always off). */
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE pipeline_asm_debug_enabled unique */
 
 
@@ -652,7 +756,33 @@ extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
  * Windows callers stay extern and the rest+egg merge binds them to the egg.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X removed */
+int pipeline_debug_body_func_match(const char *filter, const char *name) {
+    const char *p;
+    size_t name_len;
+    if (!filter || !filter[0] || filter[0] == '0' || !name || !name[0])
+        return 0;
+    name_len = strlen(name);
+    p = filter;
+    while (*p) {
+        const char *start;
+        const char *end;
+        size_t tok_len;
+        while (*p == ' ' || *p == '\t' || *p == ',')
+            p++;
+        if (!*p)
+            break;
+        start = p;
+        while (*p && *p != ',')
+            p++;
+        end = p;
+        while (end > start && (end[-1] == ' ' || end[-1] == '\t'))
+            end--;
+        tok_len = (size_t)(end - start);
+        if (tok_len > 0 && tok_len == name_len && strncmp(start, name, tok_len) == 0)
+            return 1;
+    }
+    return 0;
+}
 #endif /* !FROM_X — cold debug_trace match. Windows egg owns the body. */
 
 
@@ -661,9 +791,55 @@ extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
  * wave235 G.7: XLANG_DEBUG_BODY_FUNC via link_abi_getenv (not raw getenv).
  * Cold only. Windows FROM_X uses the egg body (see match cluster-head). */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_named_func_bodies_impl(const char *phase, void *module, void *arena) {
+    /* Class AV: Cap XLANG_DEBUG_BODY_FUNC retired. */
+    const char *filter = NULL; (void)phase;
+    int32_t nf;
+    int32_t fi;
+    if (!filter || !filter[0] || filter[0] == '0' || !module || !arena)
+        return;
+    nf = pipeline_module_num_funcs(module);
+    for (fi = 0; fi < nf; fi++) {
+        uint8_t raw_name[256];
+        char name[65];
+        int32_t name_len;
+        int32_t body_ref;
+        memset(raw_name, 0, sizeof(raw_name));
+        memset(name, 0, sizeof(name));
+        name_len = pipeline_module_func_name_len_at(module, fi);
+        if (name_len <= 0 || name_len > 64)
+            continue;
+        pipeline_module_func_name_copy64(module, fi, raw_name);
+        memcpy(name, raw_name, (size_t)name_len);
+        name[name_len] = '\0';
+        if (!pipeline_debug_body_func_match(filter, name))
+            continue;
+        body_ref = pipeline_module_func_body_ref_at(module, fi);
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "body trace: phase=%s fi=%d body_ref=%d name=%s block(c=%d l=%d if=%d reg=%d so=%d fin=%d)",
+                     phase ? phase : "?", (int)fi, (int)body_ref, name,
+                     body_ref > 0 ? (int)ast_ast_block_num_consts(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_lets(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_if_stmts(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_regions(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_num_stmt_order(arena, body_ref) : -1,
+                     body_ref > 0 ? (int)ast_ast_block_final_expr_ref(arena, body_ref) : -1);
+    }
+}
 #endif /* !FROM_X — cold debug_trace impl. Windows egg owns the body. */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_named_func_bodies(const char *phase, void *module, void *arena) {
+  if (module == NULL) {
+    return;
+  }
+  if (arena == NULL) {
+    return;
+  }
+  {
+    pipeline_debug_trace_named_func_bodies_impl(phase, module, arena);
+  }
+}
 #endif /* !FROM_X — cold debug_trace wrapper. Windows egg owns the body. */
 
 /* PLATFORM: WINDOWS — declaration only. The egg defines
@@ -675,16 +851,46 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
 #endif
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_body_x_mega_pre_reset(void *module, void *arena) {
+  {
+    pipeline_debug_trace_named_func_bodies("x_mega_pre_reset", module, arena);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_body_x_mega_post_reset(void *module, void *arena) {
+  {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_reset", module, arena);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_body_x_mega_post_params(void *module, void *arena) {
+  {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_params", module, arena);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_body_x_mega_post_frame(void *module, void *arena) {
+  {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_frame", module, arena);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_body_x_mega_post_locals(void *module, void *arena) {
+  {
+    pipeline_debug_trace_named_func_bodies("x_mega_post_locals", module, arena);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_debug_trace_body_x_mega_pre_emit(void *module, void *arena) {
+  {
+    pipeline_debug_trace_named_func_bodies("x_mega_pre_emit", module, arena);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-240 / wave61：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
@@ -703,6 +909,87 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
  * (separate unique; they call _impl). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_preprocess_raw_to_malloc_impl(const unsigned char *raw, size_t raw_len, char **out_src,
+    size_t *out_src_len, const char *path_diag, const char **defines, int ndefines, int emit_diag) {
+    int di;
+    if (out_src)
+        *out_src = NULL;
+    if (out_src_len)
+        *out_src_len = 0;
+    /* PLATFORM: SHARED — heap scratch: 4MiB floor, grow to raw_len (i32-fit).
+     * PipelineDepCtx embed stays 4MiB (pin). PP002 is OOM / i32 overflow. */
+    if (raw_len > (size_t)2147483647) {
+        if (emit_diag) {
+            diag_reportf_with_code(path_diag, 0, 0, "preprocess error", XLANG_DIAG_CODE_PREPROCESS_PP002, NULL,
+                         "entry file too large for .x preprocessor (%zu > %d): '%s'",
+                         raw_len,
+                         2147483647,
+                         path_diag ? path_diag : "?");
+        }
+        return -1;
+    }
+    size_t scratch_cap = (size_t)XLANG_PIPELINE_CTX_BUF_SIZE;
+    if (raw_len > scratch_cap)
+        scratch_cap = raw_len;
+    uint8_t *scratch = (uint8_t *)malloc(scratch_cap);
+    if (!scratch) {
+        if (emit_diag)
+            pipeline_diag_preprocess_alloc_fail(path_diag, "scratch buffer");
+        return -1;
+    }
+    preprocess_define_reset();
+    for (di = 0; di < ndefines; di++)
+        if (defines && defines[di])
+            preprocess_define_add(defines[di]);
+    int32_t n = preprocess_x_buf(raw, (ptrdiff_t)raw_len, scratch, (int32_t)scratch_cap);
+    if (n < 0) {
+        free(scratch);
+        if (emit_diag) {
+            /* 指令级负码（-2..-7）优先于「栈非空」：duplicate #else 等失败时栈上仍有 #if。 */
+            if (n <= -2)
+                pipeline_diag_preprocess_directive_code(path_diag, n);
+            else if (preprocess_if_stack_len() != 0)
+                pipeline_diag_preprocess_unclosed_if(path_diag);
+            else
+                pipeline_diag_preprocess_fail(path_diag);
+        }
+        return -1;
+    }
+    if (preprocess_if_stack_len() != 0) {
+        free(scratch);
+        if (emit_diag)
+            pipeline_diag_preprocess_unclosed_if(path_diag);
+        return -1;
+    }
+    char *dup = (char *)malloc((size_t)n + 1);
+    if (!dup) {
+        free(scratch);
+        if (emit_diag)
+            pipeline_diag_preprocess_alloc_fail(path_diag, "output buffer");
+        return -1;
+    }
+    memcpy(dup, scratch, (size_t)n);
+    dup[n] = '\0';
+    free(scratch);
+    if (out_src)
+        *out_src = dup;
+    if (out_src_len)
+        *out_src_len = (size_t)n;
+    return 0;
+}
+
+/* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+int xlang_preprocess_raw_to_malloc(const unsigned char *raw, size_t raw_len, char **out_src, size_t *out_src_len,
+    const char *path_diag, const char **defines, int ndefines) {
+  if (raw == NULL && raw_len > 0)
+    return -1;
+  if (ndefines < 0)
+    return -1;
+  {
+    return xlang_preprocess_raw_to_malloc_impl(raw, raw_len, out_src, out_src_len, path_diag, defines, ndefines, 1);
+  }
+  return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -717,6 +1004,63 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
  * driver_dep_seeded_clear_all calls sidecar_clear which writes these arrays. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/** typeck/pipeline 兼容 dep 侧车（pipeline_gen.c get_dep_* / pipeline_set_dep；cold path）。 */
+void *typeck_dep_module_ptrs[32];
+void *typeck_dep_arena_ptrs[32];
+int typeck_ndep;
+
+/* G-02f-33: storage slot for cold get_ndep */
+int32_t *typeck_ndep_slot(void) {
+    return (int32_t *)&typeck_ndep;
+}
+/* wave45 / wave77 cold twin: BSS write for typeck_ndep_store orch.
+ * Pure hybrid owns the cell; cold clamp orch still calls this. PLATFORM: SHARED. */
+void typeck_ndep_store_impl(int32_t n) {
+    typeck_ndep = n;
+}
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void typeck_ndep_store(int32_t n) {
+    typeck_ndep_store_impl((n <= 32) ? ((n < 0) ? 0 : n) : 32);
+}
+
+/* G-02f-40: opaque dep pointer get/set slots for .x API (cold) */
+void *typeck_dep_module_get(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
+    return typeck_dep_module_ptrs[i];
+}
+
+void *typeck_dep_arena_get(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
+    return typeck_dep_arena_ptrs[i];
+}
+
+/* wave63 / wave77 cold twin: base of typeck_dep_module_ptrs for with_sidecar.
+ * Hybrid pure owns pure BSS base. PLATFORM: SHARED — LP64 void* table base ABI. */
+void *typeck_dep_module_ptrs_base(void) {
+    return (void *)typeck_dep_module_ptrs;
+}
+/* wave45 / wave77 cold twin: BSS write for typeck_dep_*_set orch. PLATFORM: SHARED. */
+void typeck_dep_module_set_impl(int32_t i, void *mod) {
+    if (i < 0 || i >= 32)
+        return;
+    typeck_dep_module_ptrs[i] = mod;
+}
+void typeck_dep_arena_set_impl(int32_t i, void *arena) {
+    if (i < 0 || i >= 32)
+        return;
+    typeck_dep_arena_ptrs[i] = arena;
+}
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void typeck_dep_module_set(int32_t i, void *mod) {
+    typeck_dep_module_set_impl(i, mod);
+}
+
+/* G-02f-223：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void typeck_dep_arena_set(int32_t i, void *arena) {
+    typeck_dep_arena_set_impl(i, arena);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -731,36 +1075,71 @@ extern void pipeline_debug_trace_named_func_bodies(const char *phase, void *modu
  * (writes typeck_ndep / typeck_dep_*_ptrs from the wave77 OR block above). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_typeck_dep_sidecar_clear(void) {
+    int i;
+    typeck_ndep = 0;
+    for (i = 0; i < 32; i++) {
+        typeck_dep_arena_ptrs[i] = NULL;
+        typeck_dep_module_ptrs[i] = NULL;
+    }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 
 /** 按 dep 下标取 module 指针；越界返回 NULL。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L1065.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 按 dep 下标取 arena 指针；越界返回 NULL。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L1084.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 当前 dep 数量。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+int32_t get_ndep(void) {
+  (void)(({   {
+    int32_t * p = typeck_ndep_slot();
+    int32_t r = (p)[0];
+    return r;
+  }
+ }));
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_gen.c 别名：与 get_dep_module 相同。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void *typeck_get_dep_module(int32_t i) {
+  return get_dep_module(i);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_gen.c 别名：与 get_dep_arena 相同。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void *typeck_get_dep_arena(int32_t i) {
+  return get_dep_arena(i);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 写入单 dep 槽（pipeline.x 编排 import 加载时调用）。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L1130.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 设置 dep 数量上限 32。 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void pipeline_set_ndep(int32_t n) {
+  (void)(({   {
+    (void)(typeck_ndep_store(n));
+  }
+ }));
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -808,6 +1187,17 @@ void xlang_import_path_to_file_path_impl(const char *lib_root, const char *impor
  * xlang_cstr_offset stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_import_path_to_file_path(const char *lib_root, const char *import_path, char *path, size_t path_size) {
+  if (path == NULL) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  {
+    xlang_import_path_to_file_path_impl(lib_root, import_path, path, path_size);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -831,6 +1221,21 @@ void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t si
 /* G-02f-229：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_get_entry_dir(const char *input_path, char *entry_dir, size_t size) {
+  if (entry_dir == NULL) {
+    return;
+  }
+  if (size == 0) {
+    return;
+  }
+  if (input_path == NULL) {
+    entry_dir[0] = '\0';
+    return;
+  }
+  {
+    xlang_get_entry_dir_impl(input_path, entry_dir, size);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -841,6 +1246,26 @@ void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t si
 /* G-02f-63：真逻辑来自 .x（逐字节扫 / 魔数比较；无 _impl）。 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_cstr_ends_with_dot_x(const char *s) {
+    size_t n;
+    if (s == NULL) {
+        return 0;
+    }
+    n = 0;
+    while (s[n] != 0) {
+        n = n + 1;
+    }
+    if (n < 2) {
+        return 0;
+    }
+    if (s[n - 2] != '.') {
+        return 0;
+    }
+    if (s[n - 1] != 'x') {
+        return 0;
+    }
+    return 1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-63 / wave79: hybrid pure owns xlang_asm_out_buf_is_object_magic
@@ -855,10 +1280,78 @@ void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t si
  * Convert magic with is_object: is_object calls magic. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_asm_out_buf_is_object_magic(const unsigned char *data) {
+    unsigned char b0;
+    unsigned char b1;
+    unsigned char b2;
+    unsigned char b3;
+    if (data == NULL) {
+        return 0;
+    }
+    b0 = data[0];
+    b1 = data[1];
+    b2 = data[2];
+    b3 = data[3];
+    /* MH_MAGIC_64 LE */
+    if (b0 == 0xcf) {
+        if (b1 == 0xfa) {
+            if (b2 == 0xed) {
+                if (b3 == 0xfe) {
+                    return 1;
+                }
+            }
+        }
+    }
+    /* MH_CIGAM_64 */
+    if (b0 == 0xfe) {
+        if (b1 == 0xed) {
+            if (b2 == 0xfa) {
+                if (b3 == 0xcf) {
+                    return 1;
+                }
+            }
+        }
+    }
+    /* ELF */
+    if (b0 == 0x7f) {
+        if (b1 == 'E') {
+            if (b2 == 'L') {
+                if (b3 == 'F') {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_import_path_is_file_path(const char *import_path) {
+  if (import_path == NULL) {
+    return 0;
+  }
+  {
+    if (import_path[0] == 0) {
+      return 0;
+    }
+    if (import_path[0] == '/') {
+      return 1;
+    }
+    if (import_path[0] == '.') {
+      return 1;
+    }
+    if (strchr(import_path, '/') != NULL) {
+      return 1;
+    }
+    if (xlang_cstr_ends_with_dot_x(import_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -873,51 +1366,21 @@ void xlang_get_entry_dir_impl(const char *input_path, char *entry_dir, size_t si
  * PLATFORM: SHARED — POSIX/APPLE realpath face+snprintf; non-POSIX no-op (same as pure harness null). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* Forward: defined in labi_path_io / mega rest (same product bag). */
+extern char *link_abi_realpath_cap(const char *path, char *out);
+void xlang_path_try_realpath_inplace(char *path, size_t path_size) {
+    if (!path || path_size == 0)
+        return;
 #if defined(_POSIX_VERSION) || defined(__APPLE__)
+    {
+        char resolved[1024];
+        if (link_abi_realpath_cap(path, resolved) != NULL)
+            (void)snprintf(path, path_size, "%s", resolved);
+    }
 #else
-static int32_t g_wave210_var_valid_rax = 0;
-static int32_t g_wave210_var_valid_rbx = 0;
-static void *g_wave210_var_ctx = 0;
-static int32_t g_wave210_var_rax_off = 0;
-static int32_t g_wave210_var_rbx_off = 0;
-
-void glue_binop_var_slot_cache_clear(void) {
-  g_wave210_var_valid_rax = 0;
-  g_wave210_var_valid_rbx = 0;
-}
-void glue_binop_var_slot_cache_invalidate_rax(void) { g_wave210_var_valid_rax = 0; }
-void glue_binop_var_slot_cache_invalidate_rbx(void) { g_wave210_var_valid_rbx = 0; }
-int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx) {
-  if (!ctx)
-    return 0;
-  return g_wave210_var_ctx == ctx ? 1 : 0;
-}
-int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off) {
-  return (g_wave210_var_valid_rax && g_wave210_var_ctx == ctx && g_wave210_var_rax_off == off) ? 1 : 0;
-}
-int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off) {
-  return (g_wave210_var_valid_rbx && g_wave210_var_ctx == ctx && g_wave210_var_rbx_off == off) ? 1 : 0;
-}
-int32_t glue_binop_var_slot_cache_valid_rax_get(void) { return g_wave210_var_valid_rax; }
-int32_t glue_binop_var_slot_cache_valid_rbx_get(void) { return g_wave210_var_valid_rbx; }
-int32_t glue_binop_var_slot_cache_rax_off_get(void) { return g_wave210_var_rax_off; }
-int32_t glue_binop_var_slot_cache_rbx_off_get(void) { return g_wave210_var_rbx_off; }
-void glue_binop_var_slot_cache_set_ctx_key(void *ctx) { g_wave210_var_ctx = ctx; }
-void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off) {
-  g_wave210_var_ctx = ctx;
-  g_wave210_var_valid_rax = 1;
-  g_wave210_var_rax_off = off;
-}
-void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off) {
-  g_wave210_var_ctx = ctx;
-  g_wave210_var_valid_rbx = 1;
-  g_wave210_var_rbx_off = off;
-}
-void glue_binop_var_slot_cache_set_valid_rax(int32_t v) { g_wave210_var_valid_rax = v; }
-void glue_binop_var_slot_cache_set_valid_rbx(int32_t v) { g_wave210_var_valid_rbx = v; }
-void glue_binop_var_slot_cache_set_rax_off(int32_t off) { g_wave210_var_rax_off = off; }
-void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { g_wave210_var_rbx_off = off; }
+    (void)path_size;
 #endif
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-231：逻辑源 .x（join pure）；seed 保留同语义 C 供产品 cc */
@@ -937,11 +1400,33 @@ void xlang_resolve_file_import_path_impl(const char *entry_dir, const char *impo
 /* G-02f-231：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_resolve_file_import_path(const char *entry_dir, const char *import_path, char *path, size_t path_size) {
+  if (path == NULL) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  if (import_path == NULL) {
+    path[0] = '\0';
+    return;
+  }
+  {
+    xlang_resolve_file_import_path_impl(entry_dir, import_path, path, path_size);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave76: hybrid pure owns xlang_cstr_offset (&s[off]); cold twin under #ifndef FROM_X.
  * PLATFORM: SHARED — same null / negative-off / s+off semantics as pure. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+const char *xlang_cstr_offset(const char *s, int32_t off) {
+    if (!s)
+        return NULL;
+    if (off < 0)
+        return s;
+    return s + off;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1101,6 +1586,22 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
 /* G-02f-232：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_resolve_import_file_path_multi(const char **lib_roots, int n_lib_roots, const char *entry_dir,
+    const char *import_path, char *path, size_t path_size) {
+  if (path == NULL) {
+    return;
+  }
+  if (path_size == 0) {
+    return;
+  }
+  if (import_path == NULL) {
+    path[0] = '\0';
+    return;
+  }
+  {
+    xlang_resolve_import_file_path_multi_impl(lib_roots, n_lib_roots, entry_dir, import_path, path, path_size);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-34 / wave74: hybrid pure owns driver_dep table BSS + slot/set/at/buf;
@@ -1114,6 +1615,27 @@ void xlang_resolve_import_file_path_multi_impl(const char **lib_roots, int n_lib
  * (not a dual-decl). get_dep_module stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/** pipeline dep 全局槽：arena/module 指针、import 路径注册表、seeded 标记。 */
+static void *driver_dep_arena_ptrs[XLANG_DRIVER_DEP_SLOT_MAX];
+static void *driver_dep_module_ptrs[XLANG_DRIVER_DEP_SLOT_MAX];
+static const char *driver_dep_path_registry[XLANG_DRIVER_DEP_SLOT_MAX];
+static int driver_dep_seeded[XLANG_DRIVER_DEP_SLOT_MAX];
+
+/* G-02f-34: per-slot storage for .x dep_seeded get/set */
+int32_t *driver_dep_seeded_slot(int32_t i) {
+    if (i < 0)
+        i = 0;
+    if (i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        i = XLANG_DRIVER_DEP_SLOT_MAX - 1;
+    return (int32_t *)&driver_dep_seeded[i];
+}
+
+/* G-02f-224：path registry 读槽（供 .x scan 真迁） */
+const char *driver_dep_path_registry_at(int32_t i) {
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        return NULL;
+    return driver_dep_path_registry[i];
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 extern size_t pipeline_sizeof_arena(void);
@@ -1129,10 +1651,23 @@ extern size_t pipeline_sizeof_module(void);
 /* wave74: pure owns BSS write under hybrid; cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_arena_ptr_set_impl(int32_t i, void *arena) {
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        return;
+    driver_dep_arena_ptrs[i] = arena;
+}
+void driver_dep_module_ptr_set_impl(int32_t i, void *module) {
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        return;
+    driver_dep_module_ptrs[i] = module;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_arena_ptr_set(int32_t i, void *arena) {
+    driver_dep_arena_ptr_set_impl(i, arena);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1141,6 +1676,9 @@ extern size_t pipeline_sizeof_module(void);
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_module_ptr_set(int32_t i, void *module) {
+    driver_dep_module_ptr_set_impl(i, module);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1149,10 +1687,34 @@ extern size_t pipeline_sizeof_module(void);
 /* G-02f-224 / wave74：pure path_registry_set under hybrid; cold twin stores non-null only. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_path_registry_set(int32_t i, const char *path) {
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        return;
+    if (!path)
+        return;
+    driver_dep_path_registry[i] = path;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t driver_dep_seeded_get(int32_t i) {
+  if ((i < 0)) {
+    return 0;
+  }
+  if ((i >=32)) {
+    return 0;
+  }
+  (void)(({   {
+    int32_t * p = driver_dep_seeded_slot(i);
+    if (((p)[0] !=0)) {
+      return 1;
+    }
+    return 0;
+  }
+ }));
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1161,6 +1723,19 @@ extern size_t pipeline_sizeof_module(void);
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_seeded_set(int32_t i, int32_t v) {
+  if ((i < 0)) {
+    return;
+  }
+  if ((i >=32)) {
+    return;
+  }
+  (void)(({   {
+    int32_t * p = driver_dep_seeded_slot(i);
+    (void)(((p)[0] = v));
+  }
+ }));
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1170,6 +1745,16 @@ extern size_t pipeline_sizeof_module(void);
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_seed_slots(void *arenas[32], void *modules[32], int32_t n) {
+    int j;
+    for (j = 0; j < XLANG_DRIVER_DEP_SLOT_MAX && j < n; j++) {
+        driver_dep_arena_ptrs[j] = arenas ? arenas[j] : NULL;
+        driver_dep_module_ptrs[j] = modules ? modules[j] : NULL;
+        driver_dep_seeded[j] = 1;
+    }
+    for (; j < XLANG_DRIVER_DEP_SLOT_MAX; j++)
+        driver_dep_seeded[j] = 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1180,6 +1765,28 @@ extern size_t pipeline_sizeof_module(void);
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_publish_slot(int32_t i, void *arena, void *module, const char *import_path) {
+  if ((i < 0)) {
+    return;
+  }
+  if ((i >=32)) {
+    return;
+  }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: dep_publish_slot begin i=%d path=%s",
+                 (int)i, import_path ? import_path : "(null)");
+  (void)(({   {
+    (void)(driver_dep_arena_ptr_set(i, arena));
+    (void)(driver_dep_module_ptr_set(i, module));
+    (void)(driver_dep_seeded_set(i, 1));
+    (void)(driver_dep_path_registry_set(i, import_path));
+  }
+ }));
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: dep_publish_slot end i=%d", (int)i);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1189,11 +1796,28 @@ extern size_t pipeline_sizeof_module(void);
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t driver_dep_slot_for_path_scan(const char *path) {
+    int i;
+    for (i = 0; i < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
+        if (driver_dep_path_registry[i] && strcmp(driver_dep_path_registry[i], path) == 0)
+            return i;
+    }
+    return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-224：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t driver_dep_slot_for_path(const char *path) {
+  if (path == NULL) {
+    return -1;
+  }
+  {
+    return driver_dep_slot_for_path_scan(path);
+  }
+  return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1202,11 +1826,31 @@ extern size_t pipeline_sizeof_module(void);
 /* G-02f-230 / wave74：pure clear_slots under hybrid; cold twin direct-writes static tables. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_seeded_clear_slots_impl(void) {
+    int i;
+    for (i = 0; i < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
+        driver_dep_seeded[i] = 0;
+        driver_dep_path_registry[i] = NULL;
+        driver_dep_arena_ptrs[i] = NULL;
+        driver_dep_module_ptrs[i] = NULL;
+    }
+}
+
+/* G-02f-230：逻辑源 .x（真迁）；产品门闩可走 impl 或与 .x 同语义循环 */
+void driver_dep_seeded_clear_slots(void) {
+    driver_dep_seeded_clear_slots_impl();
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_dep_seeded_clear_all(void) {
+  {
+    driver_dep_seeded_clear_slots_impl();
+    driver_typeck_dep_sidecar_clear();
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1216,19 +1860,67 @@ extern size_t pipeline_sizeof_module(void);
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+uint8_t *driver_dep_arena_buf(int32_t i) {
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        return NULL;
+    if (driver_dep_arena_ptrs[i] == NULL) {
+        size_t sz = pipeline_sizeof_arena();
+        driver_dep_arena_ptrs[i] = malloc(sz);
+        if (!driver_dep_arena_ptrs[i])
+            return NULL;
+        memset(driver_dep_arena_ptrs[i], 0, sz);
+    }
+    return (uint8_t *)driver_dep_arena_ptrs[i];
+}
+
+/**
+ * 获取 dep i 的 module 缓冲；首访 malloc+清零，seeded 槽复用预填指针。
+ * 返回值：module 字节区或 NULL。
+ */
+uint8_t *driver_dep_module_buf(int32_t i) {
+    if (i < 0 || i >= XLANG_DRIVER_DEP_SLOT_MAX)
+        return NULL;
+    if (driver_dep_module_ptrs[i] == NULL) {
+        size_t sz = pipeline_sizeof_module();
+        driver_dep_module_ptrs[i] = malloc(sz);
+        if (!driver_dep_module_ptrs[i])
+            return NULL;
+        memset(driver_dep_module_ptrs[i], 0, sz);
+    }
+    return (uint8_t *)driver_dep_module_ptrs[i];
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_module_buf。 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+uint8_t *typeck_driver_dep_module_buf(int32_t i) {
+  (void)(({   {
+    uint8_t * r = driver_dep_module_buf(i);
+    return r;
+  }
+ }));
+  return ((void *)(0));
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+uint8_t *typeck_driver_dep_arena_buf(int32_t i) {
+  (void)(({   {
+    uint8_t * r = driver_dep_arena_buf(i);
+    return r;
+  }
+ }));
+  return ((void *)(0));
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** typeck.x 导出名：转发 driver_dep_seeded_get。 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t typeck_driver_dep_seeded_get(int32_t i) {
+  return driver_dep_seeded_get(i);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1295,6 +1987,21 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
 extern void pipe_release_tmp_arena_module(void *arena, void *module);
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_find_loaded_import_index(const char *import_path, char **all_paths, int n_all) {
+  if (import_path == NULL) {
+    return -1;
+  }
+  if (all_paths == NULL) {
+    return -1;
+  }
+  if (n_all <= 0) {
+    return -1;
+  }
+  {
+    return xlang_find_loaded_import_index_scan(import_path, all_paths, n_all);
+  }
+  return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1317,6 +2024,11 @@ extern void pipe_release_tmp_arena_module(void *arena, void *module);
  * owns both. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+const char *xlang_dep_prerun_entry_dir_pick(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
+    if (lib_roots && n_lib_roots > 0 && lib_roots[0] && lib_roots[0][0])
+        return lib_roots[0];
+    return main_entry_dir;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-134: hybrid pure owns xlang_find_loaded_import_index_scan
@@ -1324,6 +2036,14 @@ extern void pipe_release_tmp_arena_module(void *arena, void *module);
  * / map_impl / one_ctx — see cluster-head at find_loaded_import_index. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_find_loaded_import_index_scan(const char *import_path, char **all_paths, int n_all) {
+    int i;
+    for (i = 0; i < n_all; i++) {
+        if (all_paths[i] && strcmp(all_paths[i], import_path) == 0)
+            return i;
+    }
+    return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1340,16 +2060,30 @@ extern void pipe_release_tmp_arena_module(void *arena, void *module);
  * already_out — convert the four together because POSIX .x thin owns all. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_merge_deps_path_already_out_scan(const char *path, char *out_paths[], int n_out) {
+    int j;
+    for (j = 0; j < n_out; j++) {
+        if (out_paths[j] && strcmp(out_paths[j], path) == 0)
+            return 1;
+    }
+    return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 /* wave78: hybrid pure owns xlang_fputs_stdout (g05 stdout_ptr + fputs_opaque); cold twin under
  * #ifndef FROM_X. PLATFORM: SHARED — same null-skip + fputs(stdout) semantics as pure. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L2080.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234 / wave309: pure owns xlang_emit_pipeline_glue_include (no-op after
  * 8.3 structure-floor leave — do not emit #include "pipeline_glue.c").
  * Cold twin under #ifndef FROM_X matches pure no-op. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_emit_pipeline_glue_include(void) {
+    /* wave309: product glue shell retired; no include line. */
+    (void)0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1373,6 +2107,15 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
 }
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+const char *xlang_dep_prerun_entry_dir(const char *main_entry_dir, const char **lib_roots, int n_lib_roots) {
+  {
+    if (n_lib_roots <= 0) {
+      return main_entry_dir;
+    }
+    return xlang_dep_prerun_entry_dir_pick(main_entry_dir, lib_roots, n_lib_roots);
+  }
+  return main_entry_dir;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /**
@@ -1381,6 +2124,8 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
  * PLATFORM: SHARED — same order as pure (keywords before std/stem).
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L2136.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** Historical -E surface; wave309 no-op (pipeline_glue.c shell retired). */
@@ -1404,6 +2149,11 @@ int xlang_import_dep_dir_from_path_impl(const char *path, char *dep_dir, size_t 
  * convert the cluster together because POSIX .x thin owns all three. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int driver_asm_fp_is_stdout(uint8_t *fp) {
+    /* Cap residual 9.7.1: stdout identity = opaque handle with fd==1
+     * (NULL stays 0, same as NULL != stdout before). PLATFORM: SHARED. */
+    return (fp && xlang_driver_handle_to_fd(fp) == 1) ? 1 : 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* 产品链与 runtime_driver_abi 同链；driver_abi 为权威定义。弱化避免 Darwin ld 双 T。 */
@@ -1413,11 +2163,24 @@ XLANG_WEAK void driver_asm_fflush_stdout(void) {
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_asm_fclose_file(uint8_t *fp) {
+    /* Cap residual 9.7.1: handle close (std fds 0/1/2 intentionally no-op). */
+    if (fp)
+        (void)xlang_driver_handle_close(fp);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void driver_asm_fclose_asm_out(uint8_t *fp) {
+    /* Cap residual 9.7.1: stdout handle (fd 1) is unbuffered — no flush;
+     * file handles close via Cap. PLATFORM: SHARED. */
+    if (!fp || xlang_driver_handle_to_fd(fp) == 1)
+        ;
+    else
+        (void)xlang_driver_handle_close(fp);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1429,6 +2192,18 @@ XLANG_WEAK void driver_asm_fflush_stdout(void) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_asm_out_buf_is_object(const unsigned char *data, size_t len) {
+  if (data == NULL) {
+    return 0;
+  }
+  if (len < 4) {
+    return 0;
+  }
+  {
+    return xlang_asm_out_buf_is_object_magic(data);
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** ast.x pipeline_dep_ctx_* 与 lib_root sidecar（由 runtime_pipeline_abi 提供；ast_pool.c left wave309）。 */
@@ -1465,6 +2240,28 @@ extern int32_t pipeline_codegen_path_is_std_io_driver_bytes(uint8_t *path);
  * pipeline_resolve_path / read_file stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_dep_ctx_path_bufs_reset(struct ast_PipelineDepCtx *ctx) {
+    if (!ctx)
+        return;
+    ctx->loaded_len = 0;
+    ctx->preprocess_len = 0;
+    ctx->entry_dir_len = 0;
+    ctx->num_lib_roots = 0;
+}
+
+/* G-02f-230 / wave67：hybrid pure owns copy_entry_dir; cold twin under #ifndef FROM_X.
+ * Pure orch: byte copy into entry_dir_buf + LE store entry_dir_len. PLATFORM: SHARED LP64. */
+void pipeline_dep_ctx_copy_entry_dir(struct ast_PipelineDepCtx *ctx, const char *entry_dir) {
+    size_t el;
+    if (!ctx || !entry_dir)
+        return;
+    el = strlen(entry_dir);
+    if (el >= 512)
+        el = 511;
+    memcpy(ctx->entry_dir_buf, entry_dir, el);
+    ctx->entry_dir_buf[el] = '\0';
+    ctx->entry_dir_len = (int32_t)el;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-230：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1488,6 +2285,15 @@ void xlang_pipeline_fill_ctx_path_buffers_impl(struct ast_PipelineDepCtx *ctx, c
 /* G-02f-230：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_pipeline_fill_ctx_path_buffers(struct ast_PipelineDepCtx *ctx, const char *entry_dir,
+    const char **lib_roots, int n_lib_roots) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    xlang_pipeline_fill_ctx_path_buffers_impl(ctx, entry_dir, lib_roots, n_lib_roots);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1522,6 +2328,15 @@ void xlang_pipeline_pctx_seed_dep_slots_impl(struct ast_PipelineDepCtx *ctx, voi
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_pipeline_pctx_seed_dep_slots(struct ast_PipelineDepCtx *ctx, void **dep_mods, void **dep_ar,
+    char **import_paths, int n) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    xlang_pipeline_pctx_seed_dep_slots_impl(ctx, dep_mods, dep_ar, import_paths, n);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1543,6 +2358,14 @@ void xlang_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepC
 /* G-02f-228：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_pipeline_pctx_seed_dep_import_paths_only(struct ast_PipelineDepCtx *ctx, char **import_paths, int n) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    xlang_pipeline_pctx_seed_dep_import_paths_only_impl(ctx, import_paths, n);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1552,6 +2375,21 @@ void xlang_pipeline_pctx_seed_dep_import_paths_only_impl(struct ast_PipelineDepC
 /* G-02f-228：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_pipeline_pctx_update_dep_slots_no_reset(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+                                                         void **dep_ars, char **import_paths, int n) {
+    int i;
+    if (!ctx)
+        return;
+    for (i = 0; i < n; i++) {
+        ast_pipeline_dep_ctx_set_module(ctx, i, (struct ast_Module *)dep_mods[i]);
+        ast_pipeline_dep_ctx_set_arena(ctx, i, (struct ast_ASTArena *)dep_ars[i]);
+        if (import_paths && import_paths[i]) {
+            int pl = (int)strlen(import_paths[i]);
+            ast_pipeline_dep_ctx_set_import_path(ctx, i, (uint8_t *)import_paths[i], pl);
+        }
+    }
+    ast_pipeline_dep_ctx_set_ndep(ctx, n);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1578,6 +2416,11 @@ void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t 
  * driver_pipeline_dep_ctx_set_use_asm; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_dep_ctx_set_use_asm_backend(struct ast_PipelineDepCtx *ctx, int32_t v) {
+    if (!ctx)
+        return;
+    ctx->use_asm_backend = v;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-233 / wave62: hybrid pure owns map_impl; converted with
@@ -1586,6 +2429,82 @@ void xlang_module_collect_imports_from_buf(void *module, uint8_t *data, int64_t 
  * pure orch (ok 0|-2 accept; else full slots). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_pipeline_one_ctx_for_dep_prerun_map_impl(struct ast_PipelineDepCtx *ctx, void **dep_mods,
+                                          void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
+                                          size_t dep_src_len) {
+    int32_t n_imp;
+    int mapped;
+    void *tmp_arena = NULL;
+    void *tmp_module = NULL;
+
+    if (!ctx)
+        return;
+    tmp_arena = malloc(pipeline_sizeof_arena());
+    tmp_module = malloc(pipeline_sizeof_module());
+    if (!tmp_arena || !tmp_module) {
+        pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+        xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+        return;
+    }
+    memset(tmp_arena, 0, pipeline_sizeof_arena());
+    memset(tmp_module, 0, pipeline_sizeof_module());
+    parser_parse_into_init(tmp_module, tmp_arena);
+    {
+        struct xlang_slice_uint8_t dep_slice = { (uint8_t *)dep_src, dep_src_len };
+        struct parser_ParseIntoResult pr = parser_parse_into(tmp_arena, tmp_module, &dep_slice);
+        n_imp = parser_get_module_num_imports(tmp_module);
+    if (pr.ok != 0 && pr.ok != -2) {
+            pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+            xlang_pipeline_pctx_update_dep_slots_no_reset(ctx, dep_mods, dep_ars, dep_paths, ndep);
+            return;
+        }
+        if (n_imp <= 0) {
+            pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+            ast_pipeline_dep_ctx_set_ndep(ctx, 0);
+            return;
+        }
+    }
+    mapped = 0;
+    for (int32_t ii = 0; ii < n_imp; ii++) {
+        uint8_t path_buf[128];
+        char path_c[65];
+        size_t k = 0;
+        int g;
+
+        parser_get_module_import_path(tmp_module, ii, path_buf);
+        while (k < sizeof(path_buf) && path_buf[k]) {
+            path_c[k] = (char)path_buf[k];
+            k++;
+        }
+        path_c[k] = '\0';
+        g = xlang_find_loaded_import_index(path_c, dep_paths, ndep);
+        if (g < 0)
+            continue;
+        {
+            void *slot_m = dep_mods[g];
+            void *slot_a = dep_ars[g];
+            /* Unparsed dep slot: no funcs and no layouts. Publishing it
+             * makes load_and_sync skip the disk parse. Null means not loaded.
+             * PLATFORM: SHARED. */
+            extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+            if (slot_m != NULL &&
+                pipeline_module_num_funcs(slot_m) == 0 &&
+                pipeline_module_num_struct_layouts_at(slot_m) == 0) {
+                slot_m = NULL;
+                slot_a = NULL;
+            }
+            ast_pipeline_dep_ctx_set_module(ctx, mapped, (struct ast_Module *)slot_m);
+            ast_pipeline_dep_ctx_set_arena(ctx, mapped, (struct ast_ASTArena *)slot_a);
+        }
+        if (dep_paths[g]) {
+            int pl = (int)strlen(dep_paths[g]);
+            ast_pipeline_dep_ctx_set_import_path(ctx, mapped, (uint8_t *)dep_paths[g], pl);
+        }
+        mapped = mapped + 1;
+    }
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+    ast_pipeline_dep_ctx_set_ndep(ctx, mapped);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-233：逻辑源 .x（早退 pure）；seed 保留同语义全路径 C 供产品 cc */
@@ -1613,6 +2532,16 @@ void xlang_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, 
  * find_loaded_import_index. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_pipeline_one_ctx_for_dep_prerun(struct ast_PipelineDepCtx *ctx, int j, void **dep_mods,
+                                          void **dep_ars, char **dep_paths, int ndep, const uint8_t *dep_src,
+                                          size_t dep_src_len) {
+  if (ctx == NULL) {
+    return;
+  }
+  {
+    xlang_pipeline_one_ctx_for_dep_prerun_impl(ctx, j, dep_mods, dep_ars, dep_paths, ndep, dep_src, dep_src_len);
+  }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1635,21 +2564,78 @@ void xlang_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, 
  * together because POSIX .x thin owns all four. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_asm_user_std_dep_skip_x_typeck(const char *dep_path) {
+  if (dep_path == NULL) {
+    return 0;
+  }
+  {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_asm_user_dep_skip_x_typeck((uint8_t *)dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** std.net dep：须 co-emit listen/accept_many，seed typeck 对 stream_* 假阳性。 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_asm_user_std_net_dep_path(const char *dep_path) {
+  if (dep_path == NULL) {
+    return 0;
+  }
+  {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_asm_user_std_net_dep_path((uint8_t *)dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** std.io.driver：co-emit submit_* 包装；seed typeck 对 register 假阳性。 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_asm_user_std_io_driver_dep_path(const char *dep_path) {
+  if (dep_path == NULL) {
+    return 0;
+  }
+  {
+    if (dep_path[0] == 0) {
+      return 0;
+    }
+    if (pipeline_codegen_path_is_std_io_driver_bytes((uint8_t *)dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** dep 预跑 parse+skip typeck 路径（std.net / std.io.driver）。 */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_asm_user_dep_parse_skip_typeck_path(const char *dep_path) {
+  {
+    if (xlang_asm_user_std_net_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    if (xlang_asm_user_std_io_driver_dep_path(dep_path) != 0) {
+      return 1;
+    }
+    return 0;
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline.x 编排：entry_dir / resolved / loaded import 与 dep arena/module 槽。 */
@@ -1671,6 +2657,14 @@ void xlang_pipeline_one_ctx_for_dep_prerun_impl(struct ast_PipelineDepCtx *ctx, 
  * pipeline_resolve_path / read_file / loaded_import commit stay closed. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+static char pipeline_entry_dir_buf[512];
+static const char *pipeline_entry_dir = ".";
+static char pipeline_resolved_path_buf[512];
+static void *pipeline_dep_arena_slots[32];
+static void *pipeline_dep_module_slots[32];
+static char *pipeline_loaded_import_buf;
+static size_t pipeline_loaded_import_len;
+static size_t pipeline_loaded_import_cap;
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_run_x_pipeline 由 pipeline_x.o / pipeline_gen.c 提供。 */
@@ -1694,6 +2688,26 @@ extern int32_t pipeline_module_num_funcs(void *module);
  * cold twins under #ifndef FROM_X share seed static buf + pointer. PLATFORM: SHARED. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_entry_dir_copy(const char *path) {
+    if (!path)
+        return;
+    (void)snprintf(pipeline_entry_dir_buf, sizeof(pipeline_entry_dir_buf), "%s", path);
+    pipeline_entry_dir = pipeline_entry_dir_buf;
+}
+
+/* G-02f-231 / wave68：entry_dir 回落为 "." */
+void pipeline_entry_dir_set_dot(void) {
+    pipeline_entry_dir = ".";
+}
+
+/* G-02f-231：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void pipeline_set_entry_dir(const char *path) {
+    if (path && path[0]) {
+        pipeline_entry_dir_copy(path);
+    } else {
+        pipeline_entry_dir_set_dot();
+    }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1703,6 +2717,26 @@ extern int32_t pipeline_module_num_funcs(void *module);
  * cold twins under #ifndef FROM_X share seed static tables. PLATFORM: SHARED LP64. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void pipeline_dep_arena_slot_set(int32_t i, void *p) {
+    if (i < 0 || i >= 32)
+        return;
+    pipeline_dep_arena_slots[i] = p;
+}
+
+void pipeline_dep_module_slot_set(int32_t i, void *p) {
+    if (i < 0 || i >= 32)
+        return;
+    pipeline_dep_module_slots[i] = p;
+}
+
+/** 写入 dep arena/module 槽（collect_deps 预分配缓冲）。 */
+/* G-02f-226：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+void pipeline_set_dep_slots(void *arenas[32], void *modules[32]) {
+    for (int i = 0; i < 32; i++) {
+        pipeline_dep_arena_slots[i] = arenas ? arenas[i] : NULL;
+        pipeline_dep_module_slots[i] = modules ? modules[i] : NULL;
+    }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1712,11 +2746,17 @@ extern int32_t pipeline_module_num_funcs(void *module);
  * Cold uses seed static pointer cell (may point at buf or "." lit). PLATFORM: SHARED. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+const char *pipeline_entry_dir_get(void) {
+    return pipeline_entry_dir ? pipeline_entry_dir : ".";
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-237 / wave69：hybrid pure owns resolved_path_buf_slot (pure BSS 512);
  * cold twin under #ifndef FROM_X. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+char *pipeline_resolved_path_buf_slot(void) {
+    return pipeline_resolved_path_buf;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 将 import 逻辑路径解析为文件系统路径写入内部 buffer。 */
@@ -1724,24 +2764,32 @@ extern int32_t pipeline_module_num_funcs(void *module);
  * Pure orch: G.7 pure multi + pure entry_dir_get (wave68) / pure resolved_path_buf_slot (wave69).
  * PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L2919.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 读 resolved 路径文件并 preprocess，结果写入 loaded buffer。 */
 /* G-02f-238 / wave66：stage 暂存 prep BSS（pure stage_prep / commit_prep). */
 /* wave71: hybrid pure owns stage prep BSS + clear/set/take; cold-only statics under #ifndef FROM_X. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L2958.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave66 / wave72: ensure loaded_import BSS, copy prep, set len, free prep.
  * Same ensure policy as historical commit_prep (cap floor XLANG_PIPELINE_IMPORT_BUF_CAP).
  * hybrid pure owns commit under FROM_X; cold twin under #ifndef. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L2997.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-238 / wave66：hybrid pure owns stage_prep; cold twin under #ifndef FROM_X.
  * Pure orch: pure clear/set (wave71) + pure resolved_path_buf_slot (wave69) + runtime_read_file_view
  *   + G.7 pure xlang_preprocess_raw_to_malloc + pure diags. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L3021.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1750,11 +2798,51 @@ extern int32_t pipeline_module_num_funcs(void *module);
 /* G-02f-226 / wave70：hybrid pure owns slot_at; cold twin under #ifndef FROM_X. PLATFORM: SHARED LP64. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void *pipeline_dep_arena_slot_at(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
+    return pipeline_dep_arena_slots[i];
+}
+
+void *pipeline_get_dep_arena_slot(int32_t i) {
+  if (i < 0) {
+    return NULL;
+  }
+  if (i >= 32) {
+    return NULL;
+  }
+  {
+    return pipeline_dep_arena_slot_at(i);
+  }
+  return NULL;
+}
+
+/** 取 dep module 槽指针。 */
+void *pipeline_dep_module_slot_at(int32_t i) {
+    if (i < 0 || i >= 32)
+        return NULL;
+    return pipeline_dep_module_slots[i];
+}
+
+void *pipeline_get_dep_module_slot(int32_t i) {
+  if (i < 0) {
+    return NULL;
+  }
+  if (i >= 32) {
+    return NULL;
+  }
+  {
+    return pipeline_dep_module_slot_at(i);
+  }
+  return NULL;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 将 loaded import 缓冲 parse 进 module。 */
 /* G-02f-239 / wave72：loaded 缓冲访问 — hybrid pure owns data/len_get; cold twins under #ifndef. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L3116.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-239 / wave64：hybrid pure owns pipeline_parse_into_bytes; cold twin under #ifndef FROM_X.
@@ -1762,6 +2850,8 @@ extern int32_t pipeline_module_num_funcs(void *module);
  * wave72 pure: pipeline_loaded_import_data / len_get (BSS) for loaded_import public.
  * PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L3130.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pipeline_run_x_pipeline 大栈线程参数。 */
@@ -1780,6 +2870,9 @@ typedef struct {
  * cold full-C keeps this cast under #ifndef FROM_X (≡ pure C emit).
  * PLATFORM: SHARED — pure path no longer needs g05 xlang_driver_* harness. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+uint8_t *pipeline_run_x_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)pipeline_run_x_thread_fn;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：跑 pipeline_run_x_pipeline 并写回 ec。 */
@@ -1821,6 +2914,22 @@ typedef struct {
  * are separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void *pipeline_run_x_thread_fn_impl(void *arg) {
+    PipelineRunSuArgs *a = (PipelineRunSuArgs *)arg;
+    if (!a)
+        return NULL;
+    driver_set_pipeline_entry_source_len(a->source_len);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
+    a->result = pipeline_run_x_pipeline(a->module, a->arena, a->source_data, a->source_len, a->out_buf, a->ctx);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
+    return NULL;
+}
+
+void *pipeline_run_x_thread_fn(void *arg) {
+    if (!arg)
+        return NULL;
+    return pipeline_run_x_thread_fn_impl(arg);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -1832,6 +2941,29 @@ typedef struct {
  * pipeline_run_x_thread_fn_impl. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_pipeline_run_x_pipeline_large_stack_impl(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+    void *out_buf, void *ctx) {
+    PipelineRunSuArgs args;
+    driver_set_pipeline_entry_source_len(source_len);
+    args.module = module;
+    args.arena = arena;
+    args.source_data = source_data;
+    args.source_len = source_len;
+    args.out_buf = out_buf;
+    args.ctx = ctx;
+    args.result = -99;
+    driver_run_thread_on_large_stack(pipeline_run_x_thread_fn, &args);
+    if (args.result == -99)
+        return pipeline_run_x_pipeline(module, arena, source_data, source_len, out_buf, ctx);
+    return args.result;
+}
+
+int xlang_pipeline_run_x_pipeline_large_stack(void *module, void *arena, const uint8_t *source_data, size_t source_len,
+    void *out_buf, void *ctx) {
+    if (!module || !arena || !source_data || source_len == 0)
+        return -1;
+    return xlang_pipeline_run_x_pipeline_large_stack_impl(module, arena, source_data, source_len, out_buf, ctx);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -1844,6 +2976,41 @@ typedef struct {
  * pipeline_run_x_thread_fn_impl. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_pipeline_dep_prerun_parse_skip_typeck_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx) {
+    int saved = driver_check_only_get();
+    int saved_entry_only = 0;
+    int ec;
+    struct ast_PipelineDepCtx *pctx = (struct ast_PipelineDepCtx *)one_ctx;
+    driver_check_only_set(1);
+    if (pctx) {
+        saved_entry_only = pctx->asm_entry_module_only;
+        pctx->asm_entry_module_only = 1;
+    }
+    driver_x_pipeline_skip_typeck_set(1);
+    driver_x_pipeline_skip_codegen_set(1);
+    ec = xlang_pipeline_run_x_pipeline_large_stack(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+    /* PLATFORM: SHARED — dep prerun skips typeck, so block parent links stay unbound;
+     * emit-time scope walks (glue_var_decl_type_ref_elf_c) need the parent chain to
+     * resolve block-let local types (u32 >> must emit SHR not SAR). G.7: same
+     * typeck.x patch authority as the light fallback. Mirrors the .x twin. */
+    if (ec == 0)
+        pipeline_typeck_patch_all_body_parent_links_c(dep_mod, dep_arena);
+    driver_x_pipeline_skip_codegen_set(0);
+    driver_x_pipeline_skip_typeck_set(0);
+    if (pctx)
+        pctx->asm_entry_module_only = saved_entry_only;
+    driver_check_only_set(saved ? 1 : 0);
+    return ec;
+}
+
+/* G-02f-239：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+int xlang_pipeline_dep_prerun_parse_skip_typeck(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx) {
+    if (!dep_mod || !dep_arena || !src || len == 0)
+        return -1;
+    return xlang_pipeline_dep_prerun_parse_skip_typeck_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -1856,6 +3023,60 @@ typedef struct {
  * pipeline_run_x_thread_fn_impl. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_pipeline_dep_prerun_typeck_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+    void *one_ctx) {
+    int32_t len_i32;
+    int32_t parse_rc;
+    int32_t load_rc;
+    int32_t tc_rc;
+
+    (void)dep_out;
+    if (!dep_mod || !dep_arena || !src || len == 0 || !one_ctx)
+        return -1;
+    if (len > (size_t)INT32_MAX)
+        return -1;
+    len_i32 = (int32_t)len;
+    parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
+                                                    (uint8_t *)src, len_i32);
+    if (parse_rc != 0) {
+        /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
+        return -2;
+    }
+    load_rc = pipeline_load_and_sync_direct_import_deps_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
+                                                          (struct ast_PipelineDepCtx *)one_ctx);
+    if (load_rc != 0) {
+        /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
+        return load_rc;
+    }
+  /* Class AV: Cap DEBUG note retired. */
+    tc_rc = pipeline_typeck_dep_prerun_module_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
+                                              (struct ast_PipelineDepCtx *)one_ctx);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
+    return tc_rc;
+}
+
+int xlang_pipeline_dep_prerun_typeck_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len, void *dep_out,
+    void *one_ctx) {
+  if (dep_mod == NULL) {
+    return -1;
+  }
+  if (dep_arena == NULL) {
+    return -1;
+  }
+  if (src == NULL) {
+    return -1;
+  }
+  if (len == 0) {
+    return -1;
+  }
+  if (one_ctx == NULL) {
+    return -1;
+  }
+  {
+    return xlang_pipeline_dep_prerun_typeck_only_impl(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+  }
+  return -1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* G-02f-parse_only / wave59：hybrid pure owns _impl; cold twin under #ifndef FROM_X.
@@ -1865,6 +3086,67 @@ typedef struct {
  * pipeline_run_x_thread_fn_impl. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/**
+ * dep 预跑：仅 parse，不做全量 typeck。
+ * 须走 pipeline_parse_set_main_from_buf_c（parse_into_with_init_buf）；直调 parser_parse_into 的 slice
+ * 路径对大库模块（如 std/string/mod.x）常 ok=-2 且仅 ~2 func，co-emit 缺 std_string_* 符号。
+ * XLANG_ASM_DEBUG notes live on cold twin only (pure orch omits diag noise).
+ */
+int xlang_pipeline_dep_prerun_parse_only_impl(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
+    int32_t parse_rc;
+    if (!dep_mod || !dep_arena || !src || len == 0)
+        return -1;
+    if (len > (size_t)INT32_MAX)
+        return -1;
+    if (pipeline_asm_debug_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: dep_prerun_parse_only len=%zu funcs_before=%d",
+                     len, pipeline_module_num_funcs(dep_mod));
+    parser_parse_into_init(dep_mod, dep_arena);
+    parse_rc = pipeline_parse_set_main_from_buf_c((struct ast_Module *)dep_mod, (struct ast_ASTArena *)dep_arena,
+                                                  (uint8_t *)src, (int32_t)len);
+    if (pipeline_asm_debug_enabled())
+        diag_reportf(NULL, 0, 0, "note", NULL,
+                     "asm debug: dep_prerun_parse_only done rc=%d funcs=%d",
+                     (int)parse_rc, pipeline_module_num_funcs(dep_mod));
+    /* PLATFORM: SHARED — parse-only dep prerun leaves block parent links
+     * unbound; emit-time scope walks need them for block-let local types
+     * (u32 >> must emit SHR not SAR). G.7 typeck.x patch authority. Mirrors
+     * the .x twin. */
+    if (parse_rc == 0) {
+        if (pipeline_asm_debug_enabled())
+          diag_reportf(NULL, 0, 0, "note", NULL,
+                       "asm debug: dep_prerun_parse_only patch_parent_links begin funcs=%d",
+                       pipeline_module_num_funcs(dep_mod));
+        pipeline_typeck_patch_all_body_parent_links_c(dep_mod, dep_arena);
+        if (pipeline_asm_debug_enabled())
+          diag_reportf(NULL, 0, 0, "note", NULL,
+                       "asm debug: dep_prerun_parse_only patch_parent_links end");
+        if (pipeline_asm_debug_enabled())
+          diag_reportf(NULL, 0, 0, "note", NULL,
+                       "asm debug: dep_prerun_parse_only returning rc=0");
+    }
+    return (parse_rc == 0) ? 0 : -1;
+}
+
+int xlang_pipeline_dep_prerun_parse_only(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len) {
+  if (dep_mod == NULL) {
+    return -1;
+  }
+  if (dep_arena == NULL) {
+    return -1;
+  }
+  if (src == NULL) {
+    return -1;
+  }
+  if (len == 0) {
+    return -1;
+  }
+  {
+    return xlang_pipeline_dep_prerun_parse_only_impl(dep_mod, dep_arena, src, len);
+  }
+  return -1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /** asm 单模块 -o：dep 预跑走 typeck_only。 */
@@ -1872,6 +3154,11 @@ typedef struct {
  * pipeline_run_x_thread_fn_impl. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_pipeline_dep_prerun_for_asm_module_o(void *dep_mod, void *dep_arena, const uint8_t *src, size_t len,
+    void *dep_out, void *one_ctx) {
+    (void)driver_asm_entry_module_only_from_env;
+    return xlang_pipeline_dep_prerun_typeck_only(dep_mod, dep_arena, src, len, dep_out, one_ctx);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /** ast.x 模块释放；LSP import 列表清理用。 */
@@ -1880,6 +3167,8 @@ extern void ast_module_free(struct ast_Module *mod);
 /** 从绝对/相对源文件 path 提取所在目录写入 dep_dir；供 load_one_import 递归 import 切换 dep_dir。 */
 /* G-02f-223：逻辑源 .x（真迁 pure）；seed 仍可走 _impl 同语义 */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L3478.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 判断 import 路径是否已在 out_paths[0..n_out) 中（asm dep merge 去重）。 */
@@ -1893,6 +3182,21 @@ extern void ast_module_free(struct ast_Module *mod);
  * already calls already_out). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_merge_deps_path_already_out(const char *path, char *out_paths[], int n_out) {
+  if (path == NULL) {
+    return 0;
+  }
+  if (out_paths == NULL) {
+    return 0;
+  }
+  if (n_out <= 0) {
+    return 0;
+  }
+  {
+    return xlang_merge_deps_path_already_out_scan(path, out_paths, n_out);
+  }
+  return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** parser.x：读 module import 路径与 parse_into（dep 传递闭包收集用）。 */
@@ -1929,6 +3233,12 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * Public xlang_preprocess / lsp_free_loaded_imports stay closed this wave. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* G-02f-236：module import 计数（.x 编排） */
+int32_t xlang_module_num_imports(void *module) {
+    if (!module)
+        return 0;
+    return parser_get_module_num_imports(module);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave55 pure in .x; cold twin for non-PREFER product.
@@ -1938,6 +3248,40 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_load_one_direct_resolve_read_preprocess(const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char *import_key, const char **defines, int ndefines, char **out_prep,
+    size_t *out_prep_len) {
+    char resolved[PATH_MAX];
+    XlangRuntimeFileView raw_view;
+    size_t prep_len = 0;
+    char *prep = NULL;
+
+    if (out_prep)
+        *out_prep = NULL;
+    if (out_prep_len)
+        *out_prep_len = 0;
+    if (!import_key || !out_prep || !out_prep_len)
+        return 1;
+    xlang_resolve_import_file_path_multi(lib_roots_arr, n_lib_roots, entry_dir, import_key, resolved,
+        sizeof(resolved));
+    if (runtime_read_file_view(resolved, &raw_view) != 0) {
+        pipeline_diag_import_open_fail_once(import_key, resolved);
+        return 1;
+    }
+    if (xlang_preprocess_raw_to_malloc((const unsigned char *)raw_view.data, raw_view.length, &prep, &prep_len,
+            resolved, ndefines > 0 ? defines : NULL, ndefines) != 0) {
+        runtime_release_file_view(&raw_view);
+        return 1;
+    }
+    runtime_release_file_view(&raw_view);
+    if (!prep) {
+        pipeline_diag_import_preprocess_fail(import_key, resolved);
+        return 1;
+    }
+    *out_prep = prep;
+    *out_prep_len = prep_len;
+    return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
@@ -1946,6 +3290,32 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_load_one_direct_import_at(const char **lib_roots_arr, int n_lib_roots, const char *entry_dir,
+    const char *import_key, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int32_t mi) {
+    size_t prep_len = 0;
+    char *prep = NULL;
+
+    if (!import_key || mi < 0)
+        return 1;
+    if (xlang_load_one_direct_resolve_read_preprocess(lib_roots_arr, n_lib_roots, entry_dir, import_key, defines,
+            ndefines, &prep, &prep_len) != 0)
+        return 1;
+    if (dep_sources)
+        dep_sources[mi] = prep;
+    if (dep_lens)
+        dep_lens[mi] = prep_len;
+    if (dep_paths) {
+        dep_paths[mi] = strdup(import_key);
+        if (!dep_paths[mi]) {
+            free(prep);
+            if (dep_sources)
+                dep_sources[mi] = NULL;
+            return 1;
+        }
+    }
+    return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave51 pure in .x; cold twin for non-PREFER product.
@@ -1953,6 +3323,19 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_load_direct_fail_cleanup(char *dep_sources[], char *dep_paths[], int32_t mi) {
+    while (mi > 0) {
+        mi--;
+        if (dep_sources && dep_sources[mi]) {
+            free(dep_sources[mi]);
+            dep_sources[mi] = NULL;
+        }
+        if (dep_paths && dep_paths[mi]) {
+            free(dep_paths[mi]);
+            dep_paths[mi] = NULL;
+        }
+    }
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-236：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc（cold only under non-FROM_X）.
@@ -1960,12 +3343,57 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_load_direct_imports_for_asm_layout_impl(void *module, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *out_n) {
+    int32_t n_imports = xlang_module_num_imports(module);
+    int mi = 0;
+
+    *out_n = 0;
+    if (n_imports <= 0)
+        return 0;
+    for (int i = 0; i < n_imports && i < XLANG_DRIVER_DEP_SLOT_MAX && mi < XLANG_DRIVER_DEP_SLOT_MAX; i++) {
+        uint8_t path_buf[128];
+        char path_c[65];
+        size_t k = 0;
+
+        parser_get_module_import_path(module, i, path_buf);
+        while (k < sizeof(path_buf) && path_buf[k] && k < 64) {
+            path_c[k] = (char)path_buf[k];
+            k++;
+        }
+        path_c[k] = '\0';
+        if (xlang_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir, path_c, defines, ndefines,
+                dep_sources, dep_lens, dep_paths, mi) != 0) {
+            xlang_load_direct_fail_cleanup(dep_sources, dep_paths, mi);
+            *out_n = 0;
+            return 1;
+        }
+        mi++;
+    }
+    *out_n = mi;
+    return 0;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-236：逻辑源 .x（真迁门闩）；seed 保留同语义 C 供产品 cc.
  * Converted with the load_direct cluster — see cluster-head at module_num_imports. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_load_direct_imports_for_asm_layout(void *module, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *out_n) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (out_n == NULL) {
+    return -1;
+  }
+  {
+    return xlang_load_direct_imports_for_asm_layout_impl(module, lib_roots_arr, n_lib_roots, entry_dir, defines, ndefines, dep_sources, dep_lens, dep_paths, out_n);
+  }
+  return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -1975,6 +3403,8 @@ extern void parser_get_module_import_path(void *module, int32_t idx, uint8_t *pa
  */
 /* wave46 pure in .x; cold twin for non-PREFER product. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L3727.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-235：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -2038,11 +3468,26 @@ int xlang_merge_direct_then_transitive_deps_impl(void *module, int32_t n_imports
  * already_out — convert with already_out / _scan / _dep_paths. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_merge_direct_then_transitive_deps(void *module, int32_t n_imports, char *cls[], size_t clens[], char *cpaths[],
+    int n_closure, char *out_src[], size_t out_lens[], char *out_paths[], int *out_n) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (out_n == NULL) {
+    return -1;
+  }
+  {
+    return xlang_merge_direct_then_transitive_deps_impl(module, n_imports, cls, clens, cpaths, n_closure, out_src, out_lens, out_paths, out_n);
+  }
+  return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
 /* wave46 pure in .x; cold twins for non-PREFER product. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L3820.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* G-02f-234：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -2103,6 +3548,19 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * already_out — convert with already_out / _scan / deps wrapper. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_merge_direct_then_transitive_dep_paths(void *module, int32_t n_imports, char *cpaths[], int n_closure,
+    char *out_paths[], int *out_n) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (out_n == NULL) {
+    return -1;
+  }
+  {
+    return xlang_merge_direct_then_transitive_dep_paths_impl(module, n_imports, cpaths, n_closure, out_paths, out_n);
+  }
+  return -1;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 
@@ -2140,24 +3598,104 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+char *xlang_collect_strdup(const char *s) {
+    if (!s)
+        return NULL;
+    return strdup(s);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave47 pure in .x; cold twin for non-PREFER product.
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* G-02f-238：入口 import → to_load 队列（strdup）；0 成功，1 OOM（已清队列） */
+int xlang_collect_seed_to_load(void *module, char *to_load[], int *to_load_n) {
+    int32_t n_imports;
+    int j;
+
+    if (!to_load || !to_load_n)
+        return 1;
+    *to_load_n = 0;
+    n_imports = xlang_module_num_imports(module);
+    for (j = 0; j < n_imports && j < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; j++) {
+        uint8_t path_buf[128];
+        char path_c[65];
+        size_t k = 0;
+
+        parser_get_module_import_path(module, j, path_buf);
+        while (k < sizeof(path_buf) && path_buf[k]) {
+            path_c[k] = (char)path_buf[k];
+            k++;
+        }
+        path_c[k] = '\0';
+        to_load[*to_load_n] = xlang_collect_strdup(path_c);
+        if (!to_load[*to_load_n]) {
+            while (*to_load_n > 0) {
+                (*to_load_n)--;
+                free(to_load[*to_load_n]);
+                to_load[*to_load_n] = NULL;
+            }
+            return 1;
+        }
+        (*to_load_n)++;
+    }
+    return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave46 pure in .x; cold twin for non-PREFER product.
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* G-02f-238：to_load 是否已有 path */
+int xlang_collect_to_load_has(char *to_load[], int to_load_n, const char *path) {
+    int t;
+    if (!to_load || !path)
+        return 0;
+    for (t = 0; t < to_load_n; t++) {
+        if (to_load[t] && strcmp(to_load[t], path) == 0)
+            return 1;
+    }
+    return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave47 pure in .x; cold twin for non-PREFER product.
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* G-02f-239：从已 parse 的 tmp_module 入队子 import（未 loaded / 未在 to_load） */
+void xlang_collect_enqueue_module_imports(void *tmp_module, char *to_load[], int *to_load_n, char *dep_paths[],
+    int n_loaded) {
+    int n_imp;
+    int jj;
+    if (!tmp_module || !to_load || !to_load_n)
+        return;
+    n_imp = parser_get_module_num_imports(tmp_module);
+    if (n_imp <= 0)
+        return;
+    for (jj = 0; jj < n_imp && jj < XLANG_DRIVER_DEP_SLOT_MAX && *to_load_n < XLANG_DRIVER_DEP_SLOT_MAX; jj++) {
+        uint8_t sub_buf[128];
+        char sub_c[65];
+        size_t kk = 0;
+
+        parser_get_module_import_path(tmp_module, jj, sub_buf);
+        while (kk < sizeof(sub_buf) && sub_buf[kk]) {
+            sub_c[kk] = (char)sub_buf[kk];
+            kk++;
+        }
+        sub_c[kk] = '\0';
+        if (xlang_find_loaded_import_index(sub_c, dep_paths, n_loaded) >= 0)
+            continue;
+        if (xlang_collect_to_load_has(to_load, *to_load_n, sub_c))
+            continue;
+        to_load[*to_load_n] = xlang_collect_strdup(sub_c);
+        if (!to_load[*to_load_n])
+            continue;
+        (*to_load_n)++;
+    }
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave52 pure in .x; cold twin for non-PREFER product.
@@ -2169,6 +3707,29 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_collect_tmp_parse_and_enqueue(void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz,
+    char *prep, size_t prep_len, const char *debug_path, char *to_load[], int *to_load_n, char *dep_paths[],
+    int n_loaded) {
+    if (!tmp_arena || !tmp_module || !prep)
+        return;
+    if (!*tmp_arena) {
+        *tmp_arena = malloc(arena_sz);
+        *tmp_module = malloc(module_sz);
+    }
+    if (*tmp_arena && *tmp_module) {
+        memset(*tmp_arena, 0, arena_sz);
+        memset(*tmp_module, 0, module_sz);
+        {
+            int n_imp;
+            parser_parse_into_init(*tmp_module, *tmp_arena);
+            xlang_module_collect_imports_from_buf(*tmp_module, (uint8_t *)prep, (int64_t)prep_len);
+            n_imp = parser_get_module_num_imports(*tmp_module);
+  /* Class AV: Cap DEBUG note retired. */
+            (void)n_imp;
+            xlang_collect_enqueue_module_imports(*tmp_module, to_load, to_load_n, dep_paths, n_loaded);
+        }
+    }
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave48 pure in .x; cold twin for non-PREFER product.
@@ -2177,6 +3738,33 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_deps_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[], size_t dep_lens[],
+    char *dep_paths[], int *n, char *to_load[], int *to_load_n, void **tmp_arena, void **tmp_module,
+    size_t arena_sz, size_t module_sz) {
+    int mi;
+
+    if (!path_c || !n || !to_load || !to_load_n || !tmp_arena || !tmp_module)
+        return 1;
+    if (xlang_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
+        free(path_c);
+        return 0;
+    }
+    mi = *n;
+    /* G.7: resolve+read+preprocess+store slot is Cap residual load_one_direct_import_at. */
+    if (xlang_load_one_direct_import_at(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines, ndefines,
+            dep_sources, dep_lens, dep_paths, mi) != 0) {
+        free(path_c);
+        return 1;
+    }
+    free(path_c);
+    if (!dep_paths[mi])
+        return 1;
+    (*n) = mi + 1;
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, dep_sources[mi], dep_lens[mi],
+        dep_paths[mi], to_load, to_load_n, dep_paths, *n);
+    return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave50 pure in .x; cold twin for non-PREFER product.
@@ -2185,12 +3773,68 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_deps_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
+    size_t dep_lens[], char *dep_paths[], int *n_deps) {
+    int n = 0;
+    char *to_load[XLANG_DRIVER_DEP_SLOT_MAX];
+    int to_load_n = 0;
+    void *tmp_arena = NULL;
+    void *tmp_module = NULL;
+
+    if (xlang_collect_seed_to_load(module, to_load, &to_load_n) != 0)
+        goto fail_to_load;
+    while (to_load_n > 0 && n < XLANG_DRIVER_DEP_SLOT_MAX) {
+        char *path_c = to_load[--to_load_n];
+        if (xlang_collect_deps_process_one(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines,
+                dep_sources, dep_lens, dep_paths, &n, to_load, &to_load_n, &tmp_arena, &tmp_module, arena_sz,
+                module_sz) != 0)
+            goto fail_to_load;
+    }
+    while (to_load_n > 0) {
+        to_load_n--;
+        free(to_load[to_load_n]);
+    }
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+    *n_deps = n;
+    return 0;
+fail_to_load:
+    while (to_load_n > 0) {
+        to_load_n--;
+        free(to_load[to_load_n]);
+    }
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+    while (n > 0) {
+        n--;
+        free(dep_sources[n]);
+        free(dep_paths[n]);
+    }
+    return 1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc.
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_deps_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_sources[],
+    size_t dep_lens[], char *dep_paths[], int *n_deps) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (n_deps == NULL) {
+    return -1;
+  }
+  if (xlang_module_num_imports(module) <= 0) {
+    *n_deps = 0;
+    return 0;
+  }
+  {
+    return xlang_collect_deps_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_sources, dep_lens, dep_paths, n_deps);
+  }
+  return -1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -2204,6 +3848,29 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_paths_tmp_resolve_parse_enqueue(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir_buf, const char **defines, int ndefines, void **tmp_arena, void **tmp_module,
+    size_t arena_sz, size_t module_sz, char *to_load[], int *to_load_n, char *dep_paths[], int n_loaded) {
+    size_t prep_len = 0;
+    char *prep = NULL;
+
+    if (!path_c || !tmp_arena || !tmp_module)
+        return 1;
+    if (!*tmp_arena) {
+        *tmp_arena = malloc(arena_sz);
+        *tmp_module = malloc(module_sz);
+    }
+    /* Historical: if tmp unavailable, path stays registered and we skip parse. */
+    if (!*tmp_arena || !*tmp_module)
+        return 0;
+    if (xlang_load_one_direct_resolve_read_preprocess(lib_roots_arr, n_lib_roots, entry_dir_buf, path_c, defines,
+            ndefines, &prep, &prep_len) != 0)
+        return 1;
+    xlang_collect_tmp_parse_and_enqueue(tmp_arena, tmp_module, arena_sz, module_sz, prep, prep_len, path_c, to_load,
+        to_load_n, dep_paths, n_loaded);
+    free(prep);
+    return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave49 pure in .x; cold twin for non-PREFER product.
@@ -2212,6 +3879,32 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_paths_process_one(char *path_c, const char **lib_roots_arr, int n_lib_roots,
+    const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n, char *to_load[],
+    int *to_load_n, void **tmp_arena, void **tmp_module, size_t arena_sz, size_t module_sz) {
+    int mi;
+    char *key;
+    int rc;
+
+    if (!path_c || !n || !to_load || !to_load_n || !tmp_arena || !tmp_module)
+        return 1;
+    if (xlang_find_loaded_import_index(path_c, dep_paths, *n) >= 0) {
+        free(path_c);
+        return 0;
+    }
+    mi = *n;
+    key = xlang_collect_strdup(path_c);
+    if (!key) {
+        free(path_c);
+        return 1;
+    }
+    dep_paths[mi] = key;
+    (*n) = mi + 1;
+    rc = xlang_collect_paths_tmp_resolve_parse_enqueue(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines,
+        ndefines, tmp_arena, tmp_module, arena_sz, module_sz, to_load, to_load_n, dep_paths, *n);
+    free(path_c);
+    return rc;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* wave50 pure in .x; cold twin for non-PREFER product.
@@ -2219,12 +3912,64 @@ int xlang_merge_direct_then_transitive_dep_paths_impl(void *module, int32_t n_im
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_dep_paths_transitive_impl(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
+    int n = 0;
+    char *to_load[XLANG_DRIVER_DEP_SLOT_MAX];
+    int to_load_n = 0;
+    void *tmp_arena = NULL;
+    void *tmp_module = NULL;
+
+    if (xlang_collect_seed_to_load(module, to_load, &to_load_n) != 0)
+        goto fail_to_load;
+    while (to_load_n > 0 && n < XLANG_DRIVER_DEP_SLOT_MAX) {
+        char *path_c = to_load[--to_load_n];
+        if (xlang_collect_paths_process_one(path_c, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines,
+                dep_paths, &n, to_load, &to_load_n, &tmp_arena, &tmp_module, arena_sz, module_sz) != 0)
+            goto fail_to_load;
+    }
+    while (to_load_n > 0) {
+        to_load_n--;
+        free(to_load[to_load_n]);
+    }
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+    *n_deps = n;
+    return 0;
+fail_to_load:
+    while (to_load_n > 0) {
+        to_load_n--;
+        free(to_load[to_load_n]);
+    }
+    pipe_release_tmp_arena_module(tmp_arena, tmp_module);
+    while (n > 0) {
+        n--;
+        free(dep_paths[n]);
+    }
+    return 1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* G-02f-237：逻辑源 .x（空 import 早退 pure）；seed 保留同语义 C 供产品 cc.
  * Converted with the collect leftover cluster — see cluster-head at strdup. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int xlang_collect_dep_paths_transitive(void *module, size_t arena_sz, size_t module_sz, const char **lib_roots_arr,
+    int n_lib_roots, const char *entry_dir_buf, const char **defines, int ndefines, char *dep_paths[], int *n_deps) {
+  if (module == NULL) {
+    return -1;
+  }
+  if (n_deps == NULL) {
+    return -1;
+  }
+  if (xlang_module_num_imports(module) <= 0) {
+    *n_deps = 0;
+    return 0;
+  }
+  {
+    return xlang_collect_dep_paths_transitive_impl(module, arena_sz, module_sz, lib_roots_arr, n_lib_roots, entry_dir_buf, defines, ndefines, dep_paths, n_deps);
+  }
+  return -1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -2257,6 +4002,14 @@ extern void pipeline_module_fixup_with_arena_stmt_orders(void *m, void *arena);
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_driver_asm_prepare_entry_elf_emit(void *module, void *arena, void *pctx) {
+  {
+    asm_skip_heavy_set_pipeline_ctx(pctx);
+    pipeline_debug_trace_named_func_bodies("emit_prepare_pre_fixup", module, arena);
+    pipeline_module_fixup_with_arena_stmt_orders(module, arena);
+    pipeline_debug_trace_named_func_bodies("emit_prepare_post_fixup", module, arena);
+  }
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE prepare_entry unique */
 
 
@@ -2278,6 +4031,8 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
  * Cold full-C TU has no pure weak -1 stub — direct call is safe.
  * PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L4397.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** Cold twin Cap-fn-ptr: opaque address of xlang_asm_codegen_elf_o_thread_fn.
@@ -2285,6 +4040,9 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
  * cold full-C keeps this cast under #ifndef FROM_X (≡ pure C emit).
  * PLATFORM: SHARED — pure path no longer needs g05 xlang_driver_* harness. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+uint8_t *xlang_asm_codegen_elf_o_thread_fn_ptr(void) {
+    return (uint8_t *)(void *)xlang_asm_codegen_elf_o_thread_fn;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** pthread 入口：调用 product emit 并将 ec 写入 args->result。 */
@@ -2318,6 +4076,19 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
  * are separate extracts (not this ifndef). */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void *xlang_asm_codegen_elf_o_thread_fn_impl(void *arg) {
+    XlangAsmCodegenElfLargeArgs *a = (XlangAsmCodegenElfLargeArgs *)arg;
+    if (!a)
+        return NULL;
+    a->result = asm_asm_codegen_elf_o(a->module, a->arena, a->ctx, a->elf_ctx, a->out_buf);
+    return NULL;
+}
+
+void *xlang_asm_codegen_elf_o_thread_fn(void *arg) {
+    if (!arg)
+        return NULL;
+    return xlang_asm_codegen_elf_o_thread_fn_impl(arg);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -2328,6 +4099,29 @@ extern int32_t asm_asm_codegen_elf_o(void *module, void *arena, void *ctx, struc
  * xlang_asm_codegen_elf_o_thread_fn_impl. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t xlang_asm_codegen_elf_o_large_stack_impl(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
+    XlangAsmCodegenElfLargeArgs args;
+
+    args.module = module;
+    args.arena = arena;
+    args.ctx = ctx;
+    args.elf_ctx = elf_ctx;
+    args.out_buf = out_buf;
+    args.result = -99;
+    driver_run_thread_on_large_stack(xlang_asm_codegen_elf_o_thread_fn, &args);
+    if (args.result == -99)
+        return asm_asm_codegen_elf_o(module, arena, ctx, elf_ctx, out_buf);
+    return args.result;
+}
+
+/* G-02f-240：逻辑源 .x（边界 pure）；seed 保留同语义 C 供产品 cc */
+int32_t xlang_asm_codegen_elf_o_large_stack(void *module, void *arena, void *ctx,
+    struct platform_elf_ElfCodegenCtx *elf_ctx, void *out_buf) {
+    if (!module || !arena || !out_buf)
+        return -1;
+    return xlang_asm_codegen_elf_o_large_stack_impl(module, arena, ctx, elf_ctx, out_buf);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 
@@ -2347,12 +4141,19 @@ extern int32_t pipeline_module_main_func_index(void *module);
  * PLATFORM: SHARED.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L4509.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /** 释放 xlang_lsp_resolve_and_load_imports 写入的 all_dep_mods / all_dep_paths（不含 entry 模块本身）。 */
 /* wave78: hybrid pure owns xlang_lsp_ptr_slot_clear (G.7 xlang_ptr_slot_set null); cold twin under
  * #ifndef FROM_X. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+void xlang_lsp_ptr_slot_clear(void **arr, int32_t i) {
+    if (!arr || i < 0)
+        return;
+    arr[i] = NULL;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_paths, int n_all) {
@@ -2390,6 +4191,20 @@ void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_path
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void xlang_lsp_free_loaded_imports(struct ast_Module **all_dep_mods, char **all_dep_paths, int n_all) {
+  if (all_dep_mods == NULL) {
+    return;
+  }
+  if (all_dep_paths == NULL) {
+    return;
+  }
+  if (n_all <= 0) {
+    return;
+  }
+  {
+    xlang_lsp_free_loaded_imports_impl((void **)all_dep_mods, all_dep_paths, n_all);
+  }
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* Block-diverged leftover unique (independent ifndef; no seed twin in the
@@ -2421,6 +4236,25 @@ void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_path
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+static int32_t g_wave213_block_diverged = 0;
+
+/**
+ * Stamp block-emit diverged flag (stage10 10.2.1 slice9).
+ * Faithful leftover twin of runtime_pipeline_abi.x @77841.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit.
+ */
+void glue_asm_block_diverged_set(int32_t v) {
+  g_wave213_block_diverged = v ? 1 : 0;
+}
+
+/**
+ * Return 1 when block emit should skip unreachable trailing code.
+ * Faithful leftover twin of runtime_pipeline_abi.x @77856.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit.
+ */
+int32_t glue_asm_block_diverged_get(void) {
+  return g_wave213_block_diverged;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE block_diverged unique */
 
 /**
@@ -2446,31 +4280,60 @@ void xlang_lsp_free_loaded_imports_impl(void **all_dep_mods, char **all_dep_path
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-#if defined(XLANG_USE_X_PIPELINE) && !defined(XLANG_LEGACY_PREPROCESS_C)
-#else
-int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) {
-  W277_Sidecar *sc;
-  W277_Block *b;
-  W277_LabeledStmt *ls;
-  int32_t abs;
-  if (!a || !(sc = arena_sidecar_get(a, 0)) || !(b = w277_block_at(a, br)))
-    return 0;
-  if (li < 0 || li >= b->num_labeled_stmts)
-    return 0;
-  abs = b->labeled_base + li;
-  ls = (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
-  return ls ? (int32_t)ls->return_expr_ref : 0;
+char *xlang_preprocess(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
+    return xlang_preprocess_quiet(source, source_len, defines, ndefines, out_length);
 }
-#endif
+
+char *xlang_preprocess_with_path(const char *source, size_t source_len, const char *path_diag,
+    const char **defines, int ndefines, size_t *out_length) {
+    size_t slen;
+
+    if (out_length)
+        *out_length = 0;
+    if (!source)
+        return NULL;
 #if defined(XLANG_USE_X_PIPELINE) && !defined(XLANG_LEGACY_PREPROCESS_C)
+    slen = source_len ? source_len : strlen(source);
+    {
+        char *out = NULL;
+        size_t olen = 0;
+
+        if (xlang_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, path_diag,
+                ndefines > 0 ? defines : NULL, ndefines, 1) != 0)
+            return NULL;
+        if (out_length)
+            *out_length = olen;
+        return out;
+    }
 #else
-int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || !(b = w277_block_at(a, br)))
-    return 0;
-  return b->num_labeled_stmts;
-}
+    return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
 #endif
+}
+
+char *xlang_preprocess_quiet(const char *source, size_t source_len, const char **defines, int ndefines, size_t *out_length) {
+    size_t slen;
+
+    if (out_length)
+        *out_length = 0;
+    if (!source)
+        return NULL;
+#if defined(XLANG_USE_X_PIPELINE) && !defined(XLANG_LEGACY_PREPROCESS_C)
+    slen = source_len ? source_len : strlen(source);
+    {
+        char *out = NULL;
+        size_t olen = 0;
+
+        if (xlang_preprocess_raw_to_malloc_impl((const unsigned char *)source, slen, &out, &olen, NULL,
+                ndefines > 0 ? defines : NULL, ndefines, 0) != 0)
+            return NULL;
+        if (out_length)
+            *out_length = olen;
+        return out;
+    }
+#else
+    return preprocess_c_fallback(source, source_len, defines, ndefines, out_length);
+#endif
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* Why: The previous `#ifdef _WIN32` block here provided empty/failure stubs
@@ -2524,6 +4387,8 @@ int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
  * omitted; pure thin owns. PLATFORM: SHARED — match runtime_pipeline_abi.x.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L4794.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave101 FROM_X for leftover-PE driver_emit sidecar */
 
 /* Driver-emit leftover unique (surgical extract of nested wave104 emit
@@ -2551,9 +4416,141 @@ int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+#define WAVE104_EMIT_SC_MAX 64
+#define WAVE104_EMIT_ROOTS 32
+#define WAVE104_EMIT_PATH 256
+
+static int32_t wave104_emit_used[WAVE104_EMIT_SC_MAX];
+static uint8_t *wave104_emit_state[WAVE104_EMIT_SC_MAX];
+static int32_t wave104_emit_n[WAVE104_EMIT_SC_MAX];
+static uint8_t wave104_emit_rows[WAVE104_EMIT_SC_MAX * WAVE104_EMIT_ROOTS * WAVE104_EMIT_PATH];
+static int32_t wave104_emit_lens[WAVE104_EMIT_SC_MAX * WAVE104_EMIT_ROOTS];
+
+static int32_t wave104_emit_sc_find(uint8_t *state, int create) {
+  int i;
+  if (!state)
+    return -1;
+  for (i = 0; i < WAVE104_EMIT_SC_MAX; i++) {
+    if (wave104_emit_used[i] && wave104_emit_state[i] == state)
+      return i;
+  }
+  if (!create)
+    return -1;
+  for (i = 0; i < WAVE104_EMIT_SC_MAX; i++) {
+    if (!wave104_emit_used[i]) {
+      wave104_emit_used[i] = 1;
+      wave104_emit_state[i] = state;
+      wave104_emit_n[i] = 0;
+      return i;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Clear -L lib_root list for `state` (keep slot occupied).
+ * Faithful leftover twin of runtime_pipeline_abi.x @12059.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
+void driver_emit_lib_root_reset(uint8_t *state) {
+  int32_t s = wave104_emit_sc_find(state, 0);
+  if (s < 0)
+    return;
+  wave104_emit_n[s] = 0;
+}
+
+/**
+ * Release DriverEmit sidecar for `state` (mark slot free so the table
+ * does not exhaust). Unique leftover twin; leftover standalone already T
+ * reset/append — this face + BSS siblings share leftover rest BSS.
+ * Faithful leftover twin of runtime_pipeline_abi.x @12076.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
+void driver_emit_lib_root_release(uint8_t *state) {
+  int32_t s = wave104_emit_sc_find(state, 0);
+  if (s < 0)
+    return;
+  wave104_emit_used[s] = 0;
+  wave104_emit_n[s] = 0;
+  wave104_emit_state[s] = NULL;
+}
+
+/**
+ * Append one -L lib root path for `state` (create slot on first use).
+ * Faithful leftover twin of runtime_pipeline_abi.x @12096.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
+int32_t driver_emit_append_lib_root(uint8_t *state, uint8_t *path, int32_t len) {
+  int32_t s, n, clen, base;
+  if (!state || !path || len <= 0)
+    return -1;
+  s = wave104_emit_sc_find(state, 1);
+  if (s < 0)
+    return -1;
+  n = wave104_emit_n[s];
+  if (n >= WAVE104_EMIT_ROOTS)
+    return -1;
+  clen = len > 255 ? 255 : len;
+  base = (s * WAVE104_EMIT_ROOTS + n) * WAVE104_EMIT_PATH;
+  memset(&wave104_emit_rows[base], 0, WAVE104_EMIT_PATH);
+  memcpy(&wave104_emit_rows[base], path, (size_t)clen);
+  wave104_emit_lens[s * WAVE104_EMIT_ROOTS + n] = clen;
+  wave104_emit_n[s] = n + 1;
+  return n;
+}
+
+/**
+ * Return stored -L lib_root count for `state`.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave104.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
+int32_t driver_emit_lib_root_count(uint8_t *state) {
+  int32_t s = wave104_emit_sc_find(state, 0);
+  return s < 0 ? 0 : wave104_emit_n[s];
+}
+
+/**
+ * Return stored path length of lib_root `i` for `state`.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave104.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
+int32_t driver_emit_lib_root_len(uint8_t *state, int32_t i) {
+  int32_t s;
+  if (i < 0)
+    return 0;
+  s = wave104_emit_sc_find(state, 0);
+  if (s < 0 || i >= wave104_emit_n[s])
+    return 0;
+  return wave104_emit_lens[s * WAVE104_EMIT_ROOTS + i];
+}
+
+/**
+ * Copy stored lib_root `i` for `state` into `dst` (NUL-padded).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave104.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED emit sidecar.
+ */
+void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, int32_t cap) {
+  int32_t s, n, base, k;
+  if (!dst || cap <= 0)
+    return;
+  memset(dst, 0, (size_t)cap);
+  if (i < 0)
+    return;
+  s = wave104_emit_sc_find(state, 0);
+  if (s < 0 || i >= wave104_emit_n[s])
+    return;
+  n = wave104_emit_lens[s * WAVE104_EMIT_ROOTS + i];
+  if (n >= cap)
+    n = cap - 1;
+  base = (s * WAVE104_EMIT_ROOTS + i) * WAVE104_EMIT_PATH;
+  for (k = 0; k < n; k++)
+    dst[k] = wave104_emit_rows[base + k];
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE driver_emit sidecar unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave101 FROM_X after leftover-PE driver_emit sidecar */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L5273.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave101 FROM_X for leftover-PE pipeline_run_x_pipeline_impl */
 
 /* Run_x_pipeline_impl leftover cluster (surgical extract of nested
@@ -2594,9 +4591,104 @@ int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern void driver_compile_phase_timing_begin(int32_t phase);
+extern void driver_compile_phase_timing_end(int32_t phase);
+extern void driver_compile_phase_timing_flush(void);
+extern void driver_diagnostic_before_codegen(int32_t num_funcs, int32_t out_len);
+extern int32_t driver_check_only_get(void);
+extern int32_t driver_x_pipeline_skip_codegen_get(void);
+extern int32_t run_x_pipeline_last_rc_get(void);
+extern void codegen_out_buf_set_len(void *out, int32_t n);
+extern int32_t pipeline_dep_ctx_asm_entry_module_only(void *ctx);
+extern int32_t pipeline_run_x_pipeline_parse_entry_if_needed(void *module, void *arena, uint8_t *source_data,
+                                                            size_t source_len, void *ctx);
+extern int32_t pipeline_run_x_pipeline_load_deps_after_parse(void *module, void *arena, void *ctx);
+extern int32_t pipeline_run_x_pipeline_typecheck_after_load(void *module, void *arena, void *ctx);
+extern int32_t pipeline_run_x_pipeline_codegen_deps(void *module, void *arena, void *out_buf, void *ctx,
+                                                   int32_t skip_asm_dep_codegen);
+extern int32_t pipeline_run_x_pipeline_codegen_entry(void *module, void *arena, void *out_buf, void *ctx);
+
+int32_t pipeline_run_x_pipeline_impl(void *module, void *arena, uint8_t *source_data, size_t source_len,
+                                     void *out_buf, void *ctx) {
+  int32_t rc;
+  int32_t check_only;
+  int32_t skip_cg;
+  int32_t asm_only;
+  if (!module || !arena || !out_buf || !ctx)
+    return -1;
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run enter len=%zu skip_tk=%d skip_cg=%d",
+                 source_len, (int)driver_x_pipeline_skip_typeck_get(),
+                 (int)driver_x_pipeline_skip_codegen_get());
+  driver_compile_phase_timing_begin(0);
+  if (pipeline_run_x_pipeline_parse_entry_if_needed(module, arena, source_data, source_len, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
+    return -2;
+  }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run after parse_entry");
+  if (pipeline_run_x_pipeline_load_deps_after_parse(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_end(0);
+    driver_compile_phase_timing_flush();
+    return run_x_pipeline_last_rc_get();
+  }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run after load_deps");
+  driver_compile_phase_timing_end(0);
+  driver_compile_phase_timing_begin(1);
+  if (pipeline_run_x_pipeline_typecheck_after_load(module, arena, ctx) != 0) {
+    driver_compile_phase_timing_end(1);
+    driver_compile_phase_timing_flush();
+    return run_x_pipeline_last_rc_get();
+  }
+  if (pipeline_asm_debug_enabled())
+    diag_reportf(NULL, 0, 0, "note", NULL,
+                 "asm debug: pipeline_run after typeck");
+  driver_compile_phase_timing_end(1);
+  check_only = driver_check_only_get();
+  skip_cg = driver_x_pipeline_skip_codegen_get();
+  if (check_only != 0) {
+    driver_compile_phase_timing_flush();
+    if (pipeline_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: pipeline_run exit check_only");
+    return 0;
+  }
+  if (skip_cg != 0) {
+    driver_compile_phase_timing_flush();
+    if (pipeline_asm_debug_enabled())
+      diag_reportf(NULL, 0, 0, "note", NULL,
+                   "asm debug: pipeline_run exit skip_cg");
+    return 0;
+  }
+  codegen_out_buf_set_len(out_buf, 0);
+  driver_diagnostic_before_codegen(pipeline_module_num_funcs((struct ast_Module *)module), 0);
+  driver_compile_phase_timing_begin(2);
+  asm_only = pipeline_dep_ctx_asm_entry_module_only((struct ast_PipelineDepCtx *)ctx);
+  if (pipeline_run_x_pipeline_codegen_deps(module, arena, out_buf, ctx, asm_only) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+    return -6;
+  }
+  if (pipeline_run_x_pipeline_codegen_entry(module, arena, out_buf, ctx) != 0) {
+    driver_compile_phase_timing_end(2);
+    driver_compile_phase_timing_flush();
+    return -6;
+  }
+  driver_compile_phase_timing_end(2);
+  driver_compile_phase_timing_flush();
+  (void)rc;
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE pipeline_run_x_pipeline_impl */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave101 FROM_X after leftover-PE pipeline_run_x_pipeline_impl */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L5925.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave101 FROM_X for leftover-PE unused_hints unique */
 
 /* L6 unused-binding hints leftover unique (surgical extract of the inner
@@ -2630,6 +4722,119 @@ int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
  * PLATFORM: SHARED unused-binding hints · LINUX gold · MACOS co-path. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t pipe_load_i32_le(void *base, int32_t off) {
+  const uint8_t *p;
+  if (!base || off < 0)
+    return 0;
+  p = (const uint8_t *)base + off;
+  return (int32_t)((uint32_t)p[0] | ((uint32_t)p[1] << 8) |
+                   ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24));
+}
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t let_idx);
+extern void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t let_idx, uint8_t *dst);
+extern int32_t ast_pipeline_block_const_name_len(struct ast_ASTArena *a, int32_t br, int32_t ci);
+extern void ast_pipeline_block_const_name_copy64(struct ast_ASTArena *a, int32_t br, int32_t ci, uint8_t *dst);
+extern void driver_diagnostic_hint_unused_binding(int32_t line, int32_t col, const uint8_t *name, int32_t name_len);
+static int32_t wave_l6_unused_hint_enabled(void) {
+  const char *e = link_abi_getenv("XLANG_UNUSED_HINT");
+  return (e && e[0] == '1' && e[1] == '\0') ? 1 : 0;
+}
+
+static int32_t wave_l6_name_eq(const uint8_t *name, int32_t nlen, const uint8_t *buf) {
+  int32_t i;
+  if (!name || !buf || nlen <= 0)
+    return 0;
+  for (i = 0; i < nlen; i++) {
+    if (name[i] != buf[i])
+      return 0;
+  }
+  return 1;
+}
+
+static int32_t wave_l6_binding_is_used(void *a, const uint8_t *name, int32_t nlen) {
+  int32_t nexpr;
+  int32_t er;
+  int32_t ko;
+  int32_t vlen;
+  uint8_t vbuf[256];
+  if (!a || !name || nlen <= 0)
+    return 1;
+  /* ASTArena.num_exprs @ offset 4 */
+  nexpr = pipe_load_i32_le(a, 4);
+  for (er = 1; er <= nexpr; er++) {
+    ko = pipeline_expr_kind_ord_at(a, er);
+    if (ko == 3) {
+      vlen = pipeline_expr_var_name_len(a, er);
+      if (vlen == nlen && vlen > 0 && vlen < 128) {
+        pipeline_expr_var_name_into(a, er, vbuf);
+        if (wave_l6_name_eq(name, nlen, vbuf))
+          return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static int32_t wave_l6_maybe_report(void *a, uint8_t *name, int32_t nlen) {
+  if (!name || nlen <= 0)
+    return 0;
+  if (name[0] == '_')
+    return 0;
+  if (wave_l6_binding_is_used(a, name, nlen))
+    return 0;
+  driver_diagnostic_hint_unused_binding(1, 1, name, nlen);
+  return 1;
+}
+
+static int32_t wave_l6_scan_block(void *a, int32_t br) {
+  int32_t n;
+  int32_t i;
+  int32_t nlen;
+  uint8_t name[256];
+  int32_t nh = 0;
+  if (!a || br <= 0)
+    return 0;
+  n = ast_ast_block_num_lets(a, br);
+  for (i = 0; i < n; i++) {
+    nlen = pipeline_block_let_name_len(a, br, i);
+    if (nlen > 0 && nlen < 128) {
+      pipeline_block_let_name_copy64(a, br, i, name);
+      nh += wave_l6_maybe_report(a, name, nlen);
+    }
+  }
+  n = ast_ast_block_num_consts(a, br);
+  for (i = 0; i < n; i++) {
+    nlen = ast_pipeline_block_const_name_len(a, br, i);
+    if (nlen > 0 && nlen < 128) {
+      ast_pipeline_block_const_name_copy64(a, br, i, name);
+      nh += wave_l6_maybe_report(a, name, nlen);
+    }
+  }
+  return nh;
+}
+
+int32_t pipeline_typeck_unused_binding_hints(void *m, void *a) {
+  int32_t nfuncs;
+  int32_t fi;
+  int32_t br;
+  int32_t nh = 0;
+  if (!m || !a)
+    return 0;
+  if (!wave_l6_unused_hint_enabled())
+    return 0;
+  nfuncs = pipeline_module_num_funcs(m);
+  if (nfuncs <= 0)
+    return 0;
+  for (fi = 0; fi < nfuncs; fi++) {
+    br = pipeline_module_func_body_ref_at(m, fi);
+    if (br > 0)
+      nh += wave_l6_scan_block(a, br);
+  }
+  return nh;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE unused_hints unique */
 
 /* WIN leftover-PE rest pipeline_typeck_wpo_dump_callgraph unique
@@ -2811,11 +5016,15 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE wpo_dump unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave101 FROM_X after leftover-PE unused_hints unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11006.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave122: pipeline_asm_emit_with_arena pure leave cold twins under #ifndef FROM_X.
  * PLATFORM: SHARED — PREFER pure; cold path when PREFER!=1 / hybrid fail. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11180.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave123: pipeline_asm_emit_lea_common pure leave cold twins under #ifndef FROM_X,
@@ -2825,6 +5034,156 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx, uint8_t *ptr, int32_t n);
+extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
+extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+
+/* PLATFORM: LINUX+MACOS x86_64 SysV — lea rax, [rip+disp32] + R_X86_64_PC32. */
+int32_t glue_asm_lea_rax_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = 0x05;
+  lea7[3] = 0;
+  lea7[4] = 0;
+  lea7[5] = 0;
+  lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+  return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, rel32_at, name, name_len);
+}
+
+/* PLATFORM: LINUX+MACOS x86_64 SysV — lea rbx, [rip+disp32] + R_X86_64_PC32. */
+int32_t glue_asm_lea_rbx_common_rip_x86(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  lea7[0] = 0x48;
+  lea7[1] = 0x8d;
+  lea7[2] = 0x1d;
+  lea7[3] = 0;
+  lea7[4] = 0;
+  lea7[5] = 0;
+  lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len((uint8_t *)elf_ctx) - 4;
+  return pipeline_elf_ctx_append_reloc((uint8_t *)elf_ctx, rel32_at, name, name_len);
+}
+
+/* PLATFORM: MACOS|ARM64 AAPCS64 — mov x8, x0 (ORR X8, XZR, X0). */
+int32_t glue_arm64_mov_x0_to_x8_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe8;
+  insn[1] = 0x03;
+  insn[2] = 0x00;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: MACOS|ARM64 AAPCS64 — mov x0, x8 (ORR X0, XZR, X8). */
+int32_t glue_arm64_mov_x8_to_x0_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe0;
+  insn[1] = 0x03;
+  insn[2] = 0x08;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: MACOS|ARM64 AAPCS64 — mov x0, x19 (dest-shadow reverse). */
+int32_t glue_arm64_mov_x19_to_x0_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0xe0;
+  insn[1] = 0x03;
+  insn[2] = 0x13;
+  insn[3] = 0xaa;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: LINUX+MACOS x86_64 SysV — movq %rdx, 8(%rbx) dest-in-rbx 16B hi. */
+int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx) {
+  uint8_t insn[4];
+  if (!elf_ctx)
+    return -1;
+  insn[0] = 0x48;
+  insn[1] = 0x89;
+  insn[2] = 0x53;
+  insn[3] = 0x08;
+  return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, insn, 4);
+}
+
+/* PLATFORM: MACOS|ARM64 — adrp x1 + add pageoff → COMMON in x1 (rbx).
+ * r_type 3 = PAGE_HI21 pcrel=1; 4 = LO12_NC pcrel=0. */
+int32_t glue_asm_lea_rbx_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  adrp4[0] = 0x01;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, name, name_len, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x21;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
+}
+
+/* PLATFORM: MACOS|ARM64 — adrp x0 + add pageoff → COMMON in x0 (rax). */
+int32_t glue_asm_lea_rax_common_adrp_arm64(void *elf_ctx, uint8_t *name, int32_t name_len) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at;
+  int32_t add_at;
+  if (!elf_ctx || !name || name_len <= 0)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  adrp4[0] = 0x00;
+  adrp4[1] = 0x00;
+  adrp4[2] = 0x00;
+  adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, name, name_len, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x00;
+  add4[1] = 0x00;
+  add4[2] = 0x00;
+  add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, name, name_len, 4, 0);
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave124: pipeline_asm_emit_var_decl pure leave cold twins under #ifndef FROM_X,
@@ -2837,9 +5196,54 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * closed (not unique). Callees already leftover-rest / SAT global T. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t asm_ctx_scope_block_ref_at(uint8_t *ctx);
+extern int32_t pipeline_block_resolve_var_type_ref(void *arena, int32_t block_ref, uint8_t *vname, int32_t vlen);
+extern int32_t pipeline_module_func_param_type_ref_for_name(void *module, int32_t func_index, uint8_t *var_name,
+                                                           int32_t name_len);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+
+/* GLUE_EXPR_KIND_VAR == 3 */
+int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  uint8_t vname[256];
+  int32_t vlen;
+  int32_t scope_br;
+  int32_t tr;
+  void *mod;
+  int32_t fi;
+  if (!arena || !ctx || var_expr_ref <= 0 || pipeline_expr_kind_ord_at(arena, var_expr_ref) != 3)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 255)
+    return 0;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  scope_br = asm_ctx_scope_block_ref_at((uint8_t *)ctx);
+  if (scope_br > 0) {
+    tr = pipeline_block_resolve_var_type_ref(arena, scope_br, vname, vlen);
+    if (tr > 0)
+      return tr;
+  }
+  mod = pipeline_asm_emit_module_ref_c();
+  fi = pipeline_asm_emit_func_index_c();
+  if (mod && fi >= 0) {
+    tr = pipeline_module_func_param_type_ref_for_name(mod, fi, vname, vlen);
+    if (tr > 0)
+      return tr;
+  }
+  tr = pipeline_expr_resolved_type_ref(arena, var_expr_ref);
+  if (tr > 0)
+    return tr;
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE var_decl unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave124 FROM_X for lazy_append (not unique) */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11508.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave125: pipeline_asm_ctx_layout pure leave cold twin under #ifndef FROM_X,
@@ -2850,24 +5254,33 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * PLATFORM: WINDOWS leftover-PE hybrid compiles this twin in FROM_X rest. */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void *pipeline_asm_ctx_layout(void *ctx) {
+  return ctx;
+}
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave126: next_offset pure leave cold twins under #ifndef FROM_X.
  * LP64 next_offset@4; Cap residual glue_array_temp_bytes_for_let_init still residual.
  * PLATFORM: SHARED freestanding · PREFER pure; cold when PREFER!=1 / hybrid fail. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11559.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave127: panic pure leave cold twins under #ifndef FROM_X.
  * PLATFORM: SHARED freestanding emit · Cap residual enc_* + emit_expr_elf_c + next_label.
  * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11617.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave128: logand/logor pure leave cold twins under #ifndef FROM_X.
  * PLATFORM: SHARED freestanding emit · Cap residual binop + enc_* + emit_expr_elf_c + next_label.
  * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11708.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave129: block_if pure leave cold twins under #ifndef FROM_X.
@@ -2875,6 +5288,8 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * live-end merge + ensure/fill locals + enc jmp/label + next_label + emit_expr_elf_c.
  * PREFER pure; cold path when PREFER!=1 / hybrid fail. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11805.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave130: wpo_mono pure leave cold twins under #ifndef FROM_X.
@@ -2885,6 +5300,8 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * Layout: GlueWpoMonoThunks = 64 * 136 + 4 = 8708 (sym[128]@0, result@128, valid@132).
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L11933.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave131: async_cps pure leave cold twins under #ifndef FROM_X.
@@ -2897,6 +5314,8 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * AsmFuncCtxLayout: tail_join_label@1392 tail_join_label_len@1520 (LP64).
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L12053.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* wave132: struct_let pure leave cold twins under #ifndef FROM_X.
@@ -2914,6 +5333,8 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * cold twins defined at EOF under same #ifndef FROM_X.
  */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L12288.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave132 FROM_X for leftover-PE glue_enc sxt/zxt */
 
 /*
@@ -2927,9 +5348,54 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_enc_sxt_i32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    static const uint8_t cdqe[2] = {0x48, 0x98};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)cdqe, 2);
+  }
+  if (ta == 1) {
+    static const uint8_t sxtw[4] = {0x00, 0x7c, 0x40, 0x93};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)sxtw, 4);
+  }
+  return 0;
+}
+
+/* Stage 12.0.5: zero-extend u32 in eax/w0 (pair of sxt). PLATFORM: SHARED. */
+int32_t glue_enc_zxt_u32_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    static const uint8_t mov_eax[2] = {0x89, 0xc0};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)mov_eax, 2);
+  }
+  if (ta == 1) {
+    static const uint8_t uxtw[4] = {0x00, 0x7c, 0x40, 0xd3};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)uxtw, 4);
+  }
+  return 0;
+}
+
+/* Stage 12.0.5: zero-extend u8/bool in al/w0. PLATFORM: SHARED. */
+int32_t glue_enc_zxt_u8_result_to_rax_elf_c(void *elf_ctx, int32_t ta) {
+  if (!elf_ctx)
+    return -1;
+  if (ta == 0) {
+    static const uint8_t and_ff[5] = {0x25, 0xff, 0x00, 0x00, 0x00};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)and_ff, 5);
+  }
+  if (ta == 1) {
+    static const uint8_t uxtb[4] = {0x00, 0x1c, 0x00, 0x53};
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, (uint8_t *)uxtb, 4);
+  }
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave133 sxt/zxt */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave132 after glue_enc */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L12655.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — split wave132 before leftover-PE jz */
 
 /*
@@ -2943,9 +5409,21 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t backend_enc_test_eax_eax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+
+int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta) {
+  if (ta == 0) {
+    if (backend_enc_test_eax_eax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return backend_enc_jz_arch(elf_ctx, label, label_len, ta);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE jz-after-bool unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave132 after leftover-PE jz */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L12722.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — split wave132 before leftover-PE emit_match */
 
 /*
@@ -2965,9 +5443,1189 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_match_matched_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_match_num_arms_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_match_arm_is_wildcard(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_guard_ref(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_result_ref(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_is_enum_variant(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_variant_index(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_expr_match_arm_lit_val(void *arena, int32_t expr_ref, int32_t i);
+extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(void *arena, void *elf_ctx, int32_t arm_ref, void *ctx,
+                                                   int32_t ta);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t glue_enc_jz_after_bool_in_eax(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_cmp_rbx_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jne_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_asm_emit_func_index_c(void);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_module_func_param_type_ref_for_name(void *module, int32_t func_index, uint8_t *var_name,
+                                                           int32_t name_len);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_block_ref_at(void *arena, int32_t expr_ref);
+extern int32_t ast_ast_block_num_expr_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_expr_stmt_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t ei);
+extern int32_t ast_ast_block_final_expr_ref(void *arena, int32_t block_ref);
+extern int32_t pipeline_expr_if_cond_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_if_then_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_if_else_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t str_expr_ref, int32_t ta);
+extern int32_t glue_asm_string_lit_len(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_32_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_zext8_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern void backend_ensure_block_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern int32_t pipeline_asm_emit_block_inits_elf_c(void *arena, void *elf_ctx, int32_t block_ref, void *ctx,
+                                                  int32_t ta, int32_t slot_base);
+extern int32_t ast_ast_block_num_stmt_order(void *arena, int32_t block_ref);
+extern uint8_t ast_ast_block_stmt_order_kind(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_stmt_order_idx(void *arena, int32_t block_ref, int32_t si);
+extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_if_cond_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t if_idx);
+extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t if_idx);
+extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t if_idx);
+extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_region_with_arena_cap_ref(void *arena, int32_t block_ref, int32_t ri);
+extern int32_t glue_wa_scope_alloc_off_c(void *ctx);
+extern void glue_wa_scope_push_c(int32_t wa_off);
+extern void glue_wa_scope_pop_c(void);
+extern int32_t glue_emit_with_arena_init_elf(void *arena, void *elf_ctx, void *ctx, int32_t wa_off, int32_t cap_ref,
+                                            int32_t ta);
+extern int32_t glue_emit_with_arena_deinit_elf(void *elf_ctx, int32_t wa_off, int32_t ta);
+extern int32_t backend_emit_while_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t wi,
+                                               void *ctx, int32_t ta);
+extern int32_t backend_emit_for_loop_elf_sync(void *arena, void *elf_ctx, int32_t block_ref, int32_t fi,
+                                             void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_block_if_stmt_elf(void *arena, void *elf_ctx, int32_t cur_block, int32_t if_idx,
+                                                  void *ctx, int32_t ta, int32_t stmt_i);
+extern int32_t pipeline_block_num_labeled_stmts(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_labeled_is_goto(void *arena, int32_t block_ref, int32_t li);
+extern int32_t pipeline_block_labeled_label_len(void *arena, int32_t block_ref, int32_t li);
+extern void pipeline_block_labeled_label_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
+extern int32_t pipeline_block_labeled_goto_target_len(void *arena, int32_t block_ref, int32_t li);
+extern void pipeline_block_labeled_goto_target_copy32(void *arena, int32_t block_ref, int32_t li, uint8_t *dst);
+extern void *pipeline_codegen_match_mod_c(void);
+extern int32_t pipeline_codegen_match_matched_ref_c(void);
+extern int32_t pipeline_codegen_match_subject_ty_c(void);
+extern void pipeline_codegen_match_set_subject_c(void *module, int32_t matched_ref, int32_t subject_ty);
+
+/*
+ * MATCH dest-in-rbx: leftover rest unique emit_match first-wins, but
+ * if_arm is thin intra-object SAT rec (PE first-wins does not rewrite
+ * intra-object). Flag + rec ko==45 never ran (match_star16 dump: SAT
+ * implicit dest lea rbp-0x60, dest stays 0). G.7: emit_match itself
+ * DEST_IN_RBX field-stores STRUCT_LIT arms when dest is parked.
+ * PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t g_leftover_match_dest_parked = 0;
+static int32_t g_leftover_match_dest_nbytes = 0;
+static int32_t g_leftover_match_dest_tk = 0;
+/* Body lives in windows_link_stubs.c so the PE egg's static copy can be
+ * replaced by that global. PLATFORM: WINDOWS leftover-PE. */
+extern int32_t leftover_emit_struct_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+                                                       int32_t ta, int32_t base_off);
+static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+                                                      int32_t ta);
+static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
+                                                int32_t ta);
+static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
+                                                 int32_t ta);
+static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
+                                                         int32_t ta);
+static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
+                                                   int32_t ta);
+
+/*
+ * MATCH arm BLOCK preceding stmt_order except dest-parked last.
+ * leftover rest WIN leftover body_sync walks kinds 1..7 then
+ * SAT-recs last via glue_emit_block_final_expr. leftover unique
+ * leftover_emit_match_arm_result cannot leftover_emit_block twin
+ * (SAT implicit dest, parked dest stays 0). G.7 complete: same
+ * SAT T while/for/block_if as leftover rest WIN leftover
+ * body_sync; region recurse this walk (skip last) instead of
+ * leftover rest body_sync. Kind 7 labeled/goto: same jmp/label
+ * as dest-in-rbx IF extra-arm. Labeled return as prefix is
+ * leftover (would exit the function; dest is dead). Kind 6
+ * with_arena: same SAT T glue_wa_scope + init/deinit as leftover
+ * rest WIN leftover body_sync. Dest-region last that lives on
+ * inner (`{ with_arena { [3,4] } }`) dest-parks inside Arena64
+ * (return 1 so the caller skips leftover_emit_match_arm_result).
+ * Nested dest-region last (`{ with_arena { unsafe { [3,4] } } }`)
+ * peels last stmt_order kind 6 from inner so last dest-parks inside
+ * Arena64 too (not after deinit). Trailing dest-region of nso>1
+ * (`{ with_arena { x = 1; unsafe { [3,4] } } }`) peels the last
+ * kind 6, not only nso==1. Kind 5 dest-region last
+ * (`{ if true { [3,4] } }`) dest-parks inside IF (return 1).
+ * Nested last inside IF (`{ if true { if true { [3,4] } } }`)
+ * peels last stmt_order kind 5 from then/else so last dest-parks
+ * inside the outer IF (not SAT rec of the outer IF). Dest-region
+ * last in else (`{ if false { } else { [3,4] } }`) peels else when
+ * then last is empty and then is not dest-region. Preceding IF
+ * (`{ if true { x = 1; } [3,4] }`) emits cond+then+else here
+ * (leftover unique remaining-wave pipeline_asm_emit_block_if_stmt_elf
+ * is #ifndef FROM_X ABSENT on FROM_X WIN leftover).
+ * PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_match_arm_block_stmts_except_last(void *arena, void *elf_ctx, int32_t br, int32_t last,
+                                                              void *ctx, int32_t ta) {
+  int32_t nso;
+  int32_t si;
+  int32_t k;
+  int32_t idx;
+  int32_t er;
+  int32_t inner;
+  int32_t ncfg;
+  int32_t slot_base;
+  int32_t is_g;
+  int32_t nlen;
+  int32_t wa_cap;
+  int32_t wa_off;
+  int32_t inner_last;
+  int32_t parked;
+  int32_t peel;
+  int32_t peel_br;
+  int32_t else_br;
+  int32_t cond;
+  int32_t else_last;
+  int32_t else_len;
+  int32_t done_len;
+  int32_t if_idx;
+  int32_t then_peel;
+  int32_t else_peel;
+  int32_t then_last_peel;
+  int32_t dest_park_if;
+  int32_t then_skip;
+  uint8_t name_buf[256];
+  uint8_t else_lbl[256];
+  uint8_t done_lbl[256];
+  if (!arena || !elf_ctx || !ctx || br <= 0)
+    return -1;
+  parked = 0;
+  nso = ast_ast_block_num_stmt_order(arena, br);
+  for (si = 0; si < nso; si++) {
+    k = (int32_t)ast_ast_block_stmt_order_kind(arena, br, si);
+    idx = ast_ast_block_stmt_order_idx(arena, br, si);
+    if (k == 1)
+      continue;
+    if (k == 2) {
+      ncfg = ast_ast_block_num_expr_stmts(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      er = ast_pipeline_block_expr_stmt_ref(arena, br, idx);
+      if (er <= 0 || er == last)
+        continue;
+      if (pipeline_expr_kind_ord_at(arena, er) == 41)
+        continue;
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 3) {
+      ncfg = ast_ast_block_num_loops(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (backend_emit_while_loop_elf_sync(arena, elf_ctx, br, idx, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 4) {
+      ncfg = ast_ast_block_num_for_loops(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if (backend_emit_for_loop_elf_sync(arena, elf_ctx, br, idx, ctx, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (k == 5) {
+      ncfg = ast_ast_block_num_if_stmts(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      if_idx = idx;
+      inner = ast_pipeline_block_if_then_body_ref(arena, br, if_idx);
+      else_br = ast_pipeline_block_if_else_body_ref(arena, br, if_idx);
+      cond = ast_pipeline_block_if_cond_ref(arena, br, if_idx);
+      /* MATCH arm BLOCK dest-region last inside IF
+       * (`{ if true { [3,4] } }`). leftover unique leftover_emit_match_arm_result
+       * rko==25 dest-parks MATCH arm IF as result. leftover unique leftover_emit_match_arm_block_stmts_except_last
+       * k==5 SAT T leftover unique remaining-wave pipeline_asm_emit_block_if_stmt_elf
+       * SAT-recs then ARRAY_LIT implicit dest, parked dest stays 0. leftover unique
+       * remaining-wave pipeline_asm_emit_block_if_stmt_elf is #ifndef FROM_X ABSENT
+       * on FROM_X WIN leftover — do not leftover_emit_if twin; do not leftover rest
+       * remaining-wave that. G.7 complete: dest-park last INSIDE IF when last lives
+       * on then/else (peel last stmt_order kind 6 / kind 5 from then/else for nested
+       * dest-region / nested IF; return 1). Preceding IF (`{ if true { x = 1; } [3,4] }`)
+       * last is outer — emit cond+then+else via leftover unique leftover_emit_match_arm_block_stmts_except_last
+       * recurse skip dest-park (return 0). Do not leftover unique remaining-wave
+       * pipeline_asm_emit_block_if_stmt_elf (ABSENT on FROM_X WIN leftover). leftover rest
+       * WIN leftover body_sync k==5 same latent UNDEF later leftover rest unique knife.
+       * Do not leftover rest body_sync dest-region SAT rec last.
+       * Do not glue_asm_ctx_set_scope_block (SAT local t leftover unique remaining-wave).
+       * PLATFORM: WINDOWS leftover-PE. */
+      inner_last = 0;
+      else_last = 0;
+      if (inner > 0) {
+        inner_last = ast_ast_block_final_expr_ref(arena, inner);
+        if (inner_last <= 0) {
+          ncfg = ast_ast_block_num_expr_stmts(arena, inner);
+          if (ncfg > 0)
+            inner_last = ast_pipeline_block_expr_stmt_ref(arena, inner, ncfg - 1);
+        }
+        peel = 0;
+        peel_br = inner;
+        while (!(inner_last > 0 && inner_last == last) && peel < 16) {
+          peel++;
+          ncfg = ast_ast_block_num_stmt_order(arena, peel_br);
+          if (ncfg <= 0)
+            break;
+          k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, ncfg - 1);
+          idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
+          if (k == 6 && idx >= 0)
+            peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
+          else if (k == 5 && idx >= 0) {
+            /* Dest-region last in else (`{ if false { } else { [3,4] } }`
+             * nested under IF / with_arena): peel then only when then last
+             * is last or then is dest-region (kind 5/6); otherwise peel else.
+             * `{ if true { unsafe { [3,4] } } }` then last ≤0 but then nso
+             * kind 6 — keep then. PLATFORM: WINDOWS leftover-PE. */
+            then_peel = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
+            else_peel = ast_pipeline_block_if_else_body_ref(arena, peel_br, idx);
+            then_last_peel = 0;
+            k = 0;
+            if (then_peel > 0) {
+              then_last_peel = ast_ast_block_final_expr_ref(arena, then_peel);
+              if (then_last_peel <= 0) {
+                ncfg = ast_ast_block_num_expr_stmts(arena, then_peel);
+                if (ncfg > 0)
+                  then_last_peel = ast_pipeline_block_expr_stmt_ref(arena, then_peel, ncfg - 1);
+              }
+              ncfg = ast_ast_block_num_stmt_order(arena, then_peel);
+              if (ncfg > 0)
+                k = (int32_t)ast_ast_block_stmt_order_kind(arena, then_peel, ncfg - 1);
+            }
+            if (then_last_peel == last || k == 5 || k == 6)
+              peel_br = then_peel;
+            else if (else_peel > 0)
+              peel_br = else_peel;
+            else
+              peel_br = then_peel;
+          } else
+            break;
+          if (peel_br <= 0)
+            break;
+          inner_last = ast_ast_block_final_expr_ref(arena, peel_br);
+          if (inner_last <= 0) {
+            ncfg = ast_ast_block_num_expr_stmts(arena, peel_br);
+            if (ncfg > 0)
+              inner_last = ast_pipeline_block_expr_stmt_ref(arena, peel_br, ncfg - 1);
+          }
+        }
+      }
+      if (else_br > 0) {
+        else_last = ast_ast_block_final_expr_ref(arena, else_br);
+        if (else_last <= 0) {
+          ncfg = ast_ast_block_num_expr_stmts(arena, else_br);
+          if (ncfg > 0)
+            else_last = ast_pipeline_block_expr_stmt_ref(arena, else_br, ncfg - 1);
+        }
+        peel = 0;
+        peel_br = else_br;
+        while (!(else_last > 0 && else_last == last) && peel < 16) {
+          peel++;
+          ncfg = ast_ast_block_num_stmt_order(arena, peel_br);
+          if (ncfg <= 0)
+            break;
+          k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, ncfg - 1);
+          idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
+          if (k == 6 && idx >= 0)
+            peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
+          else if (k == 5 && idx >= 0) {
+            /* Dest-region last in else (`{ if false { } else { [3,4] } }`
+             * nested under IF / with_arena): peel then only when then last
+             * is last or then is dest-region (kind 5/6); otherwise peel else.
+             * `{ if true { unsafe { [3,4] } } }` then last ≤0 but then nso
+             * kind 6 — keep then. PLATFORM: WINDOWS leftover-PE. */
+            then_peel = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
+            else_peel = ast_pipeline_block_if_else_body_ref(arena, peel_br, idx);
+            then_last_peel = 0;
+            k = 0;
+            if (then_peel > 0) {
+              then_last_peel = ast_ast_block_final_expr_ref(arena, then_peel);
+              if (then_last_peel <= 0) {
+                ncfg = ast_ast_block_num_expr_stmts(arena, then_peel);
+                if (ncfg > 0)
+                  then_last_peel = ast_pipeline_block_expr_stmt_ref(arena, then_peel, ncfg - 1);
+              }
+              ncfg = ast_ast_block_num_stmt_order(arena, then_peel);
+              if (ncfg > 0)
+                k = (int32_t)ast_ast_block_stmt_order_kind(arena, then_peel, ncfg - 1);
+            }
+            if (then_last_peel == last || k == 5 || k == 6)
+              peel_br = then_peel;
+            else if (else_peel > 0)
+              peel_br = else_peel;
+            else
+              peel_br = then_peel;
+          } else
+            break;
+          if (peel_br <= 0)
+            break;
+          else_last = ast_ast_block_final_expr_ref(arena, peel_br);
+          if (else_last <= 0) {
+            ncfg = ast_ast_block_num_expr_stmts(arena, peel_br);
+            if (ncfg > 0)
+              else_last = ast_pipeline_block_expr_stmt_ref(arena, peel_br, ncfg - 1);
+          }
+        }
+      }
+      dest_park_if = (last > 0 && (inner_last == last || else_last == last));
+      if (cond > 0 && inner > 0) {
+        /* Preceding IF (`{ if true { x = 1; } [3,4] }`) last is outer —
+         * emit cond+then+else here (leftover unique remaining-wave
+         * pipeline_asm_emit_block_if_stmt_elf is #ifndef FROM_X ABSENT
+         * on FROM_X WIN leftover). Dest-park last INSIDE IF only when
+         * last lives on then/else. Do not leftover_emit_if twin.
+         * leftover rest WIN leftover body_sync k==5 same latent UNDEF
+         * later leftover rest unique knife.
+         * PLATFORM: WINDOWS leftover-PE. */
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta) != 0)
+          return -1;
+        else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
+        done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
+        if (else_len <= 0 || done_len <= 0)
+          return -1;
+        if (glue_enc_jz_after_bool_in_eax(elf_ctx, else_lbl, else_len, ta) != 0)
+          return -1;
+        backend_ensure_block_local_slots(ctx, arena, inner);
+        pipeline_asm_fill_local_slots(ctx, arena, inner);
+        slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, inner);
+        if (slot_base < 0)
+          slot_base = 0;
+        if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, inner, ctx, ta, slot_base) != 0)
+          return -1;
+        then_skip = dest_park_if ? inner_last : last;
+        er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, then_skip, ctx, ta);
+        if (er < 0)
+          return -1;
+        if (dest_park_if && er == 0 && inner_last > 0) {
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, inner_last, ctx, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+          return -1;
+        if (backend_enc_label_arch(elf_ctx, else_lbl, else_len, 0, ta) != 0)
+          return -1;
+        if (else_br > 0) {
+          backend_ensure_block_local_slots(ctx, arena, else_br);
+          pipeline_asm_fill_local_slots(ctx, arena, else_br);
+          slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, else_br);
+          if (slot_base < 0)
+            slot_base = 0;
+          if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, else_br, ctx, ta, slot_base) != 0)
+            return -1;
+          then_skip = dest_park_if ? else_last : last;
+          er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, else_br, then_skip, ctx, ta);
+          if (er < 0)
+            return -1;
+          if (dest_park_if && er == 0 && else_last > 0) {
+            if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, else_last, ctx, ta) != 0)
+              return -1;
+          }
+        } else if (dest_park_if) {
+          if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+            return -1;
+        }
+        if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
+          return -1;
+        if (dest_park_if) {
+          parked = 1;
+          return 1;
+        }
+        continue;
+      }
+      return -1;
+    }
+    /* MATCH arm BLOCK preceding with_arena (`{ with_arena { x = 1; } [3,4] }`).
+     * leftover rest WIN leftover body_sync k==6 now plants Arena64;
+     * leftover unique leftover_emit_match_arm_result dest-parks last
+     * independently (skip last; do not leftover rest body_sync dest-
+     * region SAT rec last). G.7 complete: same SAT T glue_wa_scope +
+     * glue_emit_with_arena_init/deinit as leftover rest WIN leftover
+     * body_sync. Dest-region `{ with_arena { [3,4] } }`: last lives on
+     * inner — dest-park last INSIDE Arena64 (return 1). Nested
+     * dest-region `{ with_arena { unsafe { [3,4] } } }` / trailing
+     * dest-region of nso>1 `{ with_arena { x = 1; unsafe { [3,4] } } }`:
+     * last lives on a descendant — peel last stmt_order kind 6 from
+     * inner (cap 16) then dest-park inside Arena64. `{ with_arena
+     * { x = 1; } [3,4] }` last is outer — deinit then return 0 so the
+     * caller dest-parks after deinit. Do not leftover_emit_block twin.
+     * Do not leftover rest remaining-wave leftover rest WIN leftover
+     * body_sync. Do not glue_asm_ctx_set_scope_block (SAT local t
+     * leftover unique remaining-wave #ifndef FROM_X).
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (k == 6) {
+      ncfg = ast_ast_block_num_regions(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      inner = pipeline_block_region_body_ref(arena, br, idx);
+      wa_cap = pipeline_block_region_with_arena_cap_ref(arena, br, idx);
+      if (inner <= 0)
+        continue;
+      backend_ensure_block_local_slots(ctx, arena, inner);
+      if (wa_cap > 0) {
+        wa_off = glue_wa_scope_alloc_off_c(ctx);
+        if (glue_emit_with_arena_init_elf(arena, elf_ctx, ctx, wa_off, wa_cap, ta) != 0)
+          return -1;
+        glue_wa_scope_push_c(wa_off);
+      }
+      pipeline_asm_fill_local_slots(ctx, arena, inner);
+      slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, inner);
+      if (slot_base < 0)
+        slot_base = 0;
+      if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, inner, ctx, ta, slot_base) != 0)
+        return -1;
+      er = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, inner, last, ctx, ta);
+      if (er < 0)
+        return -1;
+      if (er > 0)
+        parked = 1;
+      else if (wa_cap > 0) {
+        inner_last = ast_ast_block_final_expr_ref(arena, inner);
+        if (inner_last <= 0) {
+          ncfg = ast_ast_block_num_expr_stmts(arena, inner);
+          if (ncfg > 0)
+            inner_last = ast_pipeline_block_expr_stmt_ref(arena, inner, ncfg - 1);
+        }
+        /* Nested dest-region last is not immediate inner_last.
+         * Peel last stmt_order kind 6 / kind 5 from inner (cap 16),
+         * including trailing dest-region of nso>1 and nested IF
+         * (`{ with_arena { if true { [3,4] } } }`). Do not clobber nso
+         * (stmt_order walk bound). PLATFORM: WINDOWS leftover-PE. */
+        peel = 0;
+        peel_br = inner;
+        while (!(inner_last > 0 && inner_last == last) && peel < 16) {
+          peel++;
+          ncfg = ast_ast_block_num_stmt_order(arena, peel_br);
+          if (ncfg <= 0)
+            break;
+          k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, ncfg - 1);
+          idx = ast_ast_block_stmt_order_idx(arena, peel_br, ncfg - 1);
+          if (k == 6 && idx >= 0)
+            peel_br = pipeline_block_region_body_ref(arena, peel_br, idx);
+          else if (k == 5 && idx >= 0) {
+            /* Dest-region last in else (`{ if false { } else { [3,4] } }`
+             * nested under IF / with_arena): peel then only when then last
+             * is last or then is dest-region (kind 5/6); otherwise peel else.
+             * `{ if true { unsafe { [3,4] } } }` then last ≤0 but then nso
+             * kind 6 — keep then. PLATFORM: WINDOWS leftover-PE. */
+            then_peel = ast_pipeline_block_if_then_body_ref(arena, peel_br, idx);
+            else_peel = ast_pipeline_block_if_else_body_ref(arena, peel_br, idx);
+            then_last_peel = 0;
+            k = 0;
+            if (then_peel > 0) {
+              then_last_peel = ast_ast_block_final_expr_ref(arena, then_peel);
+              if (then_last_peel <= 0) {
+                ncfg = ast_ast_block_num_expr_stmts(arena, then_peel);
+                if (ncfg > 0)
+                  then_last_peel = ast_pipeline_block_expr_stmt_ref(arena, then_peel, ncfg - 1);
+              }
+              ncfg = ast_ast_block_num_stmt_order(arena, then_peel);
+              if (ncfg > 0)
+                k = (int32_t)ast_ast_block_stmt_order_kind(arena, then_peel, ncfg - 1);
+            }
+            if (then_last_peel == last || k == 5 || k == 6)
+              peel_br = then_peel;
+            else if (else_peel > 0)
+              peel_br = else_peel;
+            else
+              peel_br = then_peel;
+          } else
+            break;
+          if (peel_br <= 0)
+            break;
+          inner_last = ast_ast_block_final_expr_ref(arena, peel_br);
+          if (inner_last <= 0) {
+            ncfg = ast_ast_block_num_expr_stmts(arena, peel_br);
+            if (ncfg > 0)
+              inner_last = ast_pipeline_block_expr_stmt_ref(arena, peel_br, ncfg - 1);
+          }
+        }
+        if (inner_last > 0 && inner_last == last) {
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta) != 0)
+            return -1;
+          parked = 1;
+        }
+      }
+      if (wa_cap > 0) {
+        er = glue_emit_with_arena_deinit_elf(elf_ctx, wa_off, ta);
+        glue_wa_scope_pop_c();
+        if (er != 0)
+          return -1;
+      }
+      if (parked)
+        return 1;
+      continue;
+    }
+    /* MATCH arm BLOCK preceding labeled/goto (`{ goto L; L: [3,4] }`
+     * / `{ L: x = 1; [3,4] }`). leftover rest WIN leftover body_sync
+     * skips k==7 (SAT leftover). dest-in-rbx IF extra-arm already
+     * emits jmp/label so dest stays parked and the side effect after
+     * the label is not lost. G.7 complete: same SAT T enc_jmp /
+     * enc_label. Do not leftover rest remaining-wave leftover rest
+     * WIN leftover body_sync. Do not leftover_emit_block twin.
+     * Labeled return (`L: return e`) as extra prefix is leftover
+     * (would exit the function; dest is dead). PLATFORM: WINDOWS
+     * leftover-PE. */
+    if (k == 7) {
+      ncfg = pipeline_block_num_labeled_stmts(arena, br);
+      if (idx < 0 || idx >= ncfg)
+        continue;
+      is_g = pipeline_block_labeled_is_goto(arena, br, idx);
+      if (is_g != 0) {
+        pipeline_block_labeled_goto_target_copy32(arena, br, idx, name_buf);
+        nlen = pipeline_block_labeled_goto_target_len(arena, br, idx);
+        if (nlen > 0 && nlen <= 255) {
+          if (backend_enc_jmp_arch(elf_ctx, name_buf, nlen, ta) != 0)
+            return -1;
+        }
+        continue;
+      }
+      pipeline_block_labeled_label_copy32(arena, br, idx, name_buf);
+      nlen = pipeline_block_labeled_label_len(arena, br, idx);
+      if (nlen > 0 && nlen <= 255) {
+        if (backend_enc_label_arch(elf_ctx, name_buf, nlen, 0, ta) != 0)
+          return -1;
+      }
+      continue;
+    }
+  }
+  return 0;
+}
+
+static int32_t leftover_emit_match_arm_result_elf_c(void *arena, void *elf_ctx, int32_t result_ref, void *ctx,
+                                                   int32_t ta) {
+  int32_t rko;
+  if (g_leftover_match_dest_parked == 0)
+    return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+  rko = pipeline_expr_kind_ord_at(arena, result_ref);
+  /* STRUCT_LIT arm: DEST_IN_RBX field stores (match_star16). ARRAY_LIT
+   * arm: DEST_IN_RBX elem stores (arr_star_match RUN=0 — thin if_arm
+   * SAT rec SAT emit_array_lit implicit dest, parked dest stays 0).
+   * TYPE_SLICE dest (dest_tk==11): ARRAY_LIT is a fat view, not a
+   * payload — SAT emit_array_lit then store data@0 + n@8 (slice_star_match
+   * SEGV 139 / _len RUN=1). VAR arm: slot lea + qword-copy
+   * (match_arm_var16). CALL=48 / METHOD=49 arm: SAT emit_call /
+   * emit_method then dual-GP store (≤16) or SysV sret into parked dest
+   * (>16). TYPE_ARRAY CALL returns E* (8B), not NAMED payload —
+   * leftover_emit_call copies elems from E* into parked dest
+   * (arr_star_match_call RUN=246 stored the E* pointer as i32[2]).
+   * TYPE_SLICE dest MATCH arm FIELD=44 / INDEX=47: rec ASSIGN already
+   * parks dest (dest_tk==11). rko==44/47 fell through thin if_arm SAT
+   * rec; rec ko==44 is enum-namespace only (non-enum -1). MATCH arm
+   * FIELD `s.xs` dest stays [0] length 1 (slice_star_match_field INDEX
+   * [1] panic 127). G.7 complete: leftover rest unique lvalue +
+   * qword-copy 16B (same as rec ASSIGN TYPE_SLICE FIELD/INDEX).
+   * TYPE_NAMED dest MATCH arm FIELD/INDEX (dest_tk!=11; rec ASSIGN
+   * TYPE_NAMED MATCH parks dest with nbytes, dest_tk stays 0): same
+   * lvalue + qword-copy nbytes (named_star_match_field). TYPE_ARRAY
+   * dest MATCH arm FIELD/INDEX (dest_tk==10; leftover rest unique
+   * store MATCH / rec ASSIGN VAR dest MATCH parks dest nbytes=n_arr*esz):
+   * same lvalue + qword-copy nbytes (arr_star_match_field `s.a` /
+   * arr_asg_match / INDEX of [N][M]T). MATCH arm DEREF=52
+   * (`slice_star_match_deref` / `arr_star_match_deref` /
+   * `named_star_match_deref`): leftover unique lvalue_eff_addr DEREF
+   * already leaves pointer bits in rax (&payload, operand only). rko==52
+   * fell through thin if_arm SAT rec; SAT emit_deref loads value into
+   * rax/rdx, parked dest stays 0. G.7 complete: same lvalue + qword-copy
+   * as FIELD/INDEX (do not leftover_emit_deref twin; rec ASSIGN
+   * TYPE_SLICE asg_rko==52 is terminal dual-GP, not MATCH helper).
+   * MATCH arm BLOCK=26 (`slice_star_match_block` /
+   * `named_star_match_block` / `arr_star_match_block`): `{ [3,4] }` /
+   * `{ P { x: 3 } }` / `{ *q }`. SAT if_arm of BLOCK emits last as SAT
+   * emit_array_lit implicit dest (leftover rest FROM_X block_body_sync
+   * stub -1; product uses .x thin); parked dest stays 0. G.7 complete:
+   * peel last expr then recurse leftover_emit_match_arm_result so
+   * STRUCT_LIT/ARRAY_LIT/VAR/CALL/FIELD/DEREF inside BLOCK still
+   * dest-parked. leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx
+   * BLOCK parks dest then leftover unique leftover_emit_match_arm_result
+   * of BLOCK dest-parked dest_tk==11. Do not leftover_emit_block twin of
+   * SAT if_arm leftover rest WIN leftover body_sync. Do not
+   * SAT if_arm of BLOCK then leftover_emit_match_arm_result(last)
+   * (double-emit last). MATCH arm BLOCK preceding stmts
+   * (`{ let x = 1; [3,4] }` / `{ let x = 3; [x, 4] }`): dest is parked
+   * on the CPU stack. leftover rest WIN leftover body_sync emits
+   * final_expr via SAT rec (implicit dest); leftover rest FROM_X stub
+   * -1. G.7 complete: fill slots + SAT emit_block_inits (lets) +
+   * leftover unique rec of preceding expr_stmts except last, then
+   * leftover_emit_match_arm_result(last). MATCH arm BLOCK preceding
+   * while/for/if/region (`{ while x < 1 { x = x + 1; } [3,4] }` /
+   * `{ if true { x = 1; } [3,4] }` / `{ unsafe { x = 1; } [3,4] }` /
+   * `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }` /
+   * `{ unsafe { unsafe { [3,4] } } }`): leftover rest WIN leftover
+   * body_sync SAT-recs last. G.7 complete: stmt_order kinds 3/4/5 SAT T
+   * while/for/block_if; kind 6 recurse skip last (do not leftover rest
+   * body_sync dest-region) + dest-park last inside Arena64 when last
+   * lives on inner; dest-region peel last stmt_order kind 6. MATCH arm
+   * BLOCK dest-region last inside IF (`{ if true { [3,4] } }`): dest-region
+   * peel last stmt_order kind 5 into then; leftover unique leftover_emit_match_arm_block_stmts_except_last
+   * k==5 dest-parks inside IF. Do not leftover_emit_if twin.
+   * MATCH arm BLOCK preceding
+   * labeled/goto (`{ goto L; L: [3,4] }` / `{ L: x = 1; [3,4] }`):
+   * leftover rest WIN leftover body_sync skips k==7. G.7 complete:
+   * same jmp/label as dest-in-rbx IF extra-arm. Labeled return as
+   * prefix is leftover (dest dead).
+   * MATCH arm IF=25 / IF_ELSE=27 (`slice_star_match_if` /
+   * `named_star_match_if` / `arr_star_match_if`):
+   * `if true { [3, 4] } else { [0, 0] }`. SAT if_arm of IF recs the
+   * IF; leftover unique rec → leftover unique emit_if remaining-wave
+   * `#ifndef FROM_X` ABSENT, .x thin emit_if SAT if_arm of then/else.
+   * SAT if_arm of ARRAY_LIT/STRUCT_LIT recs SAT implicit dest; parked
+   * dest stays 0. G.7 complete: emit cond then recurse
+   * leftover_emit_match_arm_result(then/else) so STRUCT_LIT/ARRAY_LIT/
+   * VAR/CALL/FIELD/DEREF/BLOCK inside IF still dest-parked. Do not
+   * leftover_emit_if twin of leftover unique emit_if / .x thin emit_if.
+   * leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx IF AND VAR dest IF
+   * parks dest then leftover unique leftover_emit_match_arm_result of IF dest-parked
+   * dest_tk==11. leftover rest unique rec ASSIGN VAR dest TYPE_ARRAY IF/BLOCK
+   * parks dest then leftover unique leftover_emit_match_arm_result dest-parked
+   * dest_tk==10 (POSIX FROM_X leftover rest rec ASSIGN first-wins; dest-in-rbx
+   * TYPE_ARRAY IF/BLOCK stays leftover rest unique store iko==25/27/26). leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx IF AND VAR dest IF
+   * parks dest then leftover unique leftover_emit_match_arm_result of IF
+   * dest-parked dest_tk==0. leftover rest unique store iko==25/27 IF wrapping
+   * STRING_LIT/ARRAY_LIT parks dest then leftover unique leftover_emit_match_arm_result
+   * of IF dest-parked dest_tk==10 (same leftover rest unique store MATCH
+   * dest_tk=10; do not leftover rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx
+   * IF second intercept). leftover rest unique store iko==26 BLOCK wrapping
+   * STRING_LIT/ARRAY_LIT parks dest then leftover unique leftover_emit_match_arm_result
+   * of BLOCK dest-parked dest_tk==10 (do not leftover rest unique rec ASSIGN
+   * TYPE_ARRAY dest-in-rbx BLOCK second intercept).
+   * MATCH arm CAST=54 EXPR_AS wrapping ARRAY_LIT (`[3,4] as [2]i32` /
+   * `P { x: 3 } as P`): SAT if_arm of CAST leftover unique rec leftover
+   * unique emit_as_impl recs operand SAT implicit dest, parked dest stays 0.
+   * G.7 complete: peel operand then leftover_emit_match_arm_result so
+   * STRUCT_LIT/ARRAY_LIT/VAR/CALL/FIELD/DEREF/BLOCK/IF inside CAST still
+   * dest-parked. Nested CAST peels by recurse. Do not leftover_emit_as twin
+   * of leftover unique emit_as_impl (SAT rec operand). leftover unique
+   * leftover_emit_match_arm_result remaining ADDR_OF (rko==51) skip unless
+   * proven (pointer dest). leftover unique leftover_emit_match_arm_result
+   * remaining BINARY skip unless proven. leftover rest unique rec ASSIGN
+   * TYPE_SLICE dest-in-rbx CAST is leftover rest unique rec ASSIGN (park dest
+   * + leftover unique leftover_emit_match_arm_result dest-parked dest_tk==11).
+   * leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx CAST AND VAR dest
+   * CAST is leftover rest unique rec ASSIGN (park dest + leftover unique leftover_emit_match_arm_result
+   * dest-parked dest_tk==0). leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx
+   * IF AND VAR dest IF is leftover rest unique rec ASSIGN (park dest + leftover unique leftover_emit_match_arm_result
+   * dest-parked dest_tk==0). leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx
+   * BLOCK is leftover rest unique rec ASSIGN (park dest + leftover unique leftover_emit_match_arm_result dest-parked dest_tk==0). leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx FIELD/INDEX AND VAR dest FIELD/INDEX is leftover rest unique rec ASSIGN (park dest + leftover unique leftover_emit_match_arm_result dest-parked dest_tk==0). leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest STRING_LIT is leftover rest unique rec ASSIGN (park dest + fat store).
+   * leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx IF wrapping
+   * ARRAY_LIT/STRING_LIT AND VAR dest IF is leftover rest unique rec ASSIGN (park dest + leftover
+   * unique leftover_emit_match_arm_result dest-parked dest_tk==11). leftover rest
+   * unique rec ASSIGN TYPE_SLICE dest-in-rbx BLOCK wrapping ARRAY_LIT/STRING_LIT
+   * AND VAR dest BLOCK is leftover rest unique rec ASSIGN (park dest + leftover unique
+   * leftover_emit_match_arm_result dest-parked dest_tk==11).
+   * MATCH nested (rko==43) dest-parks
+   * via leftover unique emit_match recurse. MATCH arm STRING_LIT (rko==59)
+   * dest-parks TYPE_SLICE dest_tk==11 via leftover unique rec leftover rest
+   * SAT T glue_asm_emit_string_lit_ptr_rax then store data@0 + slen@8 (same
+   * leftover unique leftover_emit_array_lit dest_tk==11). dest_tk==10
+   * TYPE_ARRAY dest-parks by copying min(dest_nbytes, slen) bytes from
+   * that rodata ptr into parked dest (same leftover unique leftover_emit_slice_lvalue
+   * dest_tk==10 qword-copy; 8/4/1 so rodata is not over-read past slen).
+   * dest_tk!=11 && dest_tk!=10 is pointer dest *u8 — SAT if_arm leftover rest rec.
+   * leftover unique leftover_emit_match_arm_result remaining fallthrough
+   * SAT if_arm leftover unique rec leftover unique emit_match does not
+   * dest-park.
+   * Do not leftover rest remaining-wave. Do not leftover rest T SAT
+   * emit_call / emit_method / emit_assign / emit_array_lit /
+   * emit_field / emit_deref / emit_struct_lit / emit_block_body_sync /
+   * emit_as.
+   * Do not leftover rest U SAT local t copy_large.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 45)
+    return leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta, 0);
+  if (rko == 46)
+    return leftover_emit_array_lit_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if (rko == 3)
+    return leftover_emit_var_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if (rko == 48 || rko == 49)
+    return leftover_emit_call_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if (rko == 44 || rko == 47 || rko == 52)
+    return leftover_emit_slice_lvalue_into_parked_rbx(arena, elf_ctx, result_ref, ctx, ta);
+  if (rko == 26) {
+    int32_t br;
+    int32_t nexpr;
+    int32_t last;
+    int32_t ei;
+    int32_t er;
+    int32_t slot_base;
+    int32_t sv_locs;
+    int32_t sv_next;
+    int32_t r;
+    int32_t nso;
+    int32_t so_k;
+    int32_t so_idx;
+    int32_t inner;
+    int32_t nexpr_inner;
+    int32_t peel;
+    int32_t peel_br;
+    uint8_t *ly;
+    br = pipeline_expr_block_ref_at(arena, result_ref);
+    if (br <= 0)
+      return -1;
+    nexpr = ast_ast_block_num_expr_stmts(arena, br);
+    last = ast_ast_block_final_expr_ref(arena, br);
+    if (last <= 0 && nexpr > 0)
+      last = ast_pipeline_block_expr_stmt_ref(arena, br, nexpr - 1);
+    /* dest-region `{ unsafe { [3,4] } }` / `{ with_arena { [3,4] } }` /
+     * nested `{ unsafe { unsafe { [3,4] } } }` / trailing dest-region
+     * of nso>1 `{ with_arena { x = 1; unsafe { [3,4] } } }`: last
+     * lives on an inner block. nso==1 peel left trailing dest-region
+     * last as the preceding expr_stmt then dest-parked the wrong last.
+     * G.7 complete: peel last stmt_order kind 6 (cap 16), not only
+     * nso==1 / last<=0. Do not rewrite br (outer with_arena still
+     * walks leftover unique leftover_emit_match_arm_block_stmts_except_last).
+     * Do not leftover rest body_sync the dest-region (SAT rec last).
+     * Nested last inside with_arena dest-parks inside Arena64 via
+     * leftover unique leftover_emit_match_arm_block_stmts_except_last
+     * k==6 peel (not after deinit). Dest-region last inside IF
+     * (`{ if true { [3,4] } }`) peels last stmt_order kind 5 into then
+     * so leftover unique leftover_emit_match_arm_block_stmts_except_last
+     * k==5 dest-parks inside IF (not SAT if_arm of BLOCK). Dest-region
+     * last in else (`{ if false { } else { [3,4] } }`) peels else when
+     * then last is empty and then is not dest-region.
+     * PLATFORM: WINDOWS leftover-PE. */
+    peel = 0;
+    peel_br = br;
+    while (peel < 16) {
+      peel++;
+      nso = ast_ast_block_num_stmt_order(arena, peel_br);
+      if (nso <= 0)
+        break;
+      so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, peel_br, nso - 1);
+      so_idx = ast_ast_block_stmt_order_idx(arena, peel_br, nso - 1);
+      if (so_k == 6 && so_idx >= 0)
+        inner = pipeline_block_region_body_ref(arena, peel_br, so_idx);
+      else if (so_k == 5 && so_idx >= 0) {
+        /* dest-region last in else (`{ if false { } else { [3,4] } }`):
+         * peel then only when then last lives or then is dest-region
+         * (kind 5/6); otherwise peel else. `{ if true { unsafe { [3,4] } } }`
+         * then last ≤0 but then nso kind 6 — keep then.
+         * PLATFORM: WINDOWS leftover-PE. */
+        inner = ast_pipeline_block_if_then_body_ref(arena, peel_br, so_idx);
+        last = 0;
+        nexpr_inner = 0;
+        so_k = 0;
+        if (inner > 0) {
+          last = ast_ast_block_final_expr_ref(arena, inner);
+          nexpr_inner = ast_ast_block_num_expr_stmts(arena, inner);
+          if (last <= 0 && nexpr_inner > 0)
+            last = ast_pipeline_block_expr_stmt_ref(arena, inner, nexpr_inner - 1);
+          nexpr_inner = ast_ast_block_num_stmt_order(arena, inner);
+          if (nexpr_inner > 0)
+            so_k = (int32_t)ast_ast_block_stmt_order_kind(arena, inner, nexpr_inner - 1);
+        }
+        if (!(last > 0 || so_k == 5 || so_k == 6))
+          inner = ast_pipeline_block_if_else_body_ref(arena, peel_br, so_idx);
+      } else
+        break;
+      if (inner <= 0)
+        break;
+      last = ast_ast_block_final_expr_ref(arena, inner);
+      nexpr_inner = ast_ast_block_num_expr_stmts(arena, inner);
+      if (last <= 0 && nexpr_inner > 0)
+        last = ast_pipeline_block_expr_stmt_ref(arena, inner, nexpr_inner - 1);
+      peel_br = inner;
+    }
+    if (last <= 0 || last == result_ref)
+      return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+    /* Preceding lets/expr_stmts/while/for/if/region keep dest on the
+     * CPU stack. SAT rec of last would write SAT implicit dest. Do
+     * not leftover_emit_block twin of leftover rest WIN leftover
+     * body_sync. PLATFORM: WINDOWS leftover-PE. */
+    ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+    if (!ly)
+      return -1;
+    sv_locs = *(int32_t *)(ly + 8);
+    sv_next = *(int32_t *)(ly + 4);
+    backend_ensure_block_local_slots(ctx, arena, br);
+    pipeline_asm_fill_local_slots(ctx, arena, br);
+    slot_base = asm_ctx_block_slot_get((uint8_t *)ctx, br);
+    if (slot_base < 0)
+      slot_base = 0;
+    if (pipeline_asm_emit_block_inits_elf_c(arena, elf_ctx, br, ctx, ta, slot_base) != 0) {
+      *(int32_t *)(ly + 8) = sv_locs;
+      *(int32_t *)(ly + 4) = sv_next;
+      return -1;
+    }
+    nso = ast_ast_block_num_stmt_order(arena, br);
+    r = 0;
+    if (nso > 0) {
+      r = leftover_emit_match_arm_block_stmts_except_last(arena, elf_ctx, br, last, ctx, ta);
+      if (r < 0) {
+        *(int32_t *)(ly + 8) = sv_locs;
+        *(int32_t *)(ly + 4) = sv_next;
+        return -1;
+      }
+    } else {
+      for (ei = 0; ei < nexpr; ei++) {
+        er = ast_pipeline_block_expr_stmt_ref(arena, br, ei);
+        if (er <= 0 || er == last)
+          continue;
+        if (pipeline_expr_kind_ord_at(arena, er) == 41)
+          continue;
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, er, ctx, ta) != 0) {
+          *(int32_t *)(ly + 8) = sv_locs;
+          *(int32_t *)(ly + 4) = sv_next;
+          return -1;
+        }
+      }
+    }
+    /* r==1: dest-region last already dest-parked inside with_arena. */
+    if (r == 0) {
+      r = leftover_emit_match_arm_result_elf_c(arena, elf_ctx, last, ctx, ta);
+      if (r != 0) {
+        *(int32_t *)(ly + 8) = sv_locs;
+        *(int32_t *)(ly + 4) = sv_next;
+        return -1;
+      }
+    }
+    *(int32_t *)(ly + 8) = sv_locs;
+    *(int32_t *)(ly + 4) = sv_next;
+    return 0;
+  }
+  if (rko == 25 || rko == 27) {
+    int32_t cond;
+    int32_t then_ref;
+    int32_t else_ref;
+    uint8_t else_lbl[256];
+    uint8_t done_lbl[256];
+    int32_t else_len;
+    int32_t done_len;
+    cond = pipeline_expr_if_cond_ref_at(arena, result_ref);
+    then_ref = pipeline_expr_if_then_ref_at(arena, result_ref);
+    else_ref = pipeline_expr_if_else_ref_at(arena, result_ref);
+    if (cond <= 0 || then_ref <= 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, cond, ctx, ta) != 0)
+      return -1;
+    else_len = pipeline_asm_emit_next_label_c(ctx, else_lbl, 64);
+    done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
+    if (else_len <= 0 || done_len <= 0)
+      return -1;
+    if (glue_enc_jz_after_bool_in_eax(elf_ctx, else_lbl, else_len, ta) != 0)
+      return -1;
+    if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, then_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+      return -1;
+    if (backend_enc_label_arch(elf_ctx, else_lbl, else_len, 0, ta) != 0)
+      return -1;
+    if (else_ref > 0) {
+      if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, else_ref, ctx, ta) != 0)
+        return -1;
+    } else {
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+        return -1;
+    }
+    if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
+      return -1;
+    return 0;
+  }
+  /* MATCH arm CAST dest-parked. leftover unique emit_as_impl SAT recs
+   * operand (identity ARRAY_LIT as [N]T / STRUCT_LIT as Named) so parked
+   * dest stays 0. Peel operand; leftover_emit_match_arm_result dest-parks
+   * ARRAY_LIT/STRUCT_LIT/VAR/CALL/FIELD/DEREF/BLOCK/IF. Do not leftover_emit_as
+   * twin. leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx CAST AND VAR dest CAST
+   * parks dest then leftover unique leftover_emit_match_arm_result of CAST
+   * dest-parked dest_tk==11. leftover rest unique rec ASSIGN TYPE_NAMED
+   * dest-in-rbx CAST AND VAR dest CAST parks dest then leftover unique leftover_emit_match_arm_result
+   * of CAST dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_NAMED
+   * dest-in-rbx IF AND VAR dest IF parks dest then leftover unique leftover_emit_match_arm_result
+   * of IF dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx BLOCK AND VAR dest BLOCK parks dest then leftover unique leftover_emit_match_arm_result of BLOCK dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx FIELD/INDEX AND VAR dest FIELD/INDEX parks dest then leftover unique leftover_emit_match_arm_result dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_SLICE
+   * dest-in-rbx IF AND VAR dest IF parks dest
+   * then leftover unique leftover_emit_match_arm_result of IF dest-parked
+   * dest_tk==11. leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx
+   * BLOCK AND VAR dest BLOCK parks dest then leftover unique leftover_emit_match_arm_result
+   * of BLOCK dest-parked dest_tk==11. leftover rest unique store iko==54
+   * CAST wrapping STRING_LIT/ARRAY_LIT peels operand then recurse leftover
+   * rest unique store (do not leftover rest unique rec ASSIGN TYPE_ARRAY
+   * dest-in-rbx CAST second intercept). leftover rest unique store iko==25/27
+   * IF wrapping STRING_LIT/ARRAY_LIT parks dest then leftover unique
+   * leftover_emit_match_arm_result dest-parked dest_tk==10 (do not leftover
+   * rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx IF second intercept).
+   * leftover rest unique store iko==26 BLOCK wrapping STRING_LIT/ARRAY_LIT
+   * parks dest then leftover unique leftover_emit_match_arm_result of BLOCK
+   * dest-parked dest_tk==10 (do not leftover rest unique rec ASSIGN TYPE_ARRAY
+   * dest-in-rbx BLOCK second intercept).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 54) {
+    int32_t op;
+    op = pipeline_expr_as_operand_ref_at(arena, result_ref);
+    if (op <= 0)
+      return -1;
+    return leftover_emit_match_arm_result_elf_c(arena, elf_ctx, op, ctx, ta);
+  }
+  /* MATCH arm nested MATCH dest-parked
+   * (`match { 1 => match { 1 => [3,4]; _ => [0,0]; }; _ => [0,0]; }`).
+   * leftover unique leftover_emit_match_arm_result rko==43 fell through
+   * SAT if_arm of MATCH. if_arm is thin intra-object SAT rec (PE
+   * first-wins does not rewrite intra-object) so SAT emit_match
+   * implicit dest, parked dest stays 0. leftover unique emit_match
+   * dest-parks arms via leftover_emit_match_arm_result. G.7 complete:
+   * recurse leftover unique emit_match so STRUCT_LIT/ARRAY_LIT/VAR/CALL/
+   * FIELD/DEREF/BLOCK/IF/CAST inside nested MATCH still dest-parked
+   * (same g_leftover_match_dest_*). Nested MATCH peels by recurse.
+   * Do not leftover unique emit_match twin. Do not leftover rest
+   * remaining-wave. Do not leftover rest T SAT emit_match /
+   * emit_expr_if_arm.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 43)
+    return pipeline_asm_emit_match_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+  /* MATCH arm STRING_LIT dest-parked TYPE_SLICE / TYPE_ARRAY
+   * (`*p = match { 1 => "hi"; _ => ""; }` dest_tk==11 / dest_tk==10).
+   * leftover unique leftover_emit_match_arm_result rko==59 dest_tk==11
+   * leftover unique rec leftover rest SAT T glue_asm_emit_string_lit_ptr_rax
+   * then store data@0 + slen@8. dest_tk==10 TYPE_ARRAY
+   * (`*p = match { 1 => "hi"; }` of *[N]u8) previously fell through SAT
+   * if_arm of STRING_LIT (rax=data ptr, parked dest stays 0). typeck
+   * adopts STRING_LIT as TYPE_ARRAY; payload is the rodata bytes, not a
+   * fat pair. G.7 complete: leftover unique rec leftover rest SAT T
+   * glue_asm_emit_string_lit_ptr_rax then copy min(dest_nbytes, slen)
+   * bytes into parked dest (same leftover unique leftover_emit_slice_lvalue
+   * dest_tk==10 qword-copy). 8/4/1 remainder so skip-string rodata is
+   * not over-read past slen (load_32 of rem<4 would read following
+   * instructions). dest_tk!=11 && dest_tk!=10 is pointer dest *u8 —
+   * SAT if_arm leftover rest rec. Do not leftover unique leftover_emit_string
+   * twin. Do not leftover rest remaining-wave. Do not leftover rest T SAT
+   * emit_assign / emit_array_lit. Do not leftover rest U SAT local t
+   * copy_large (glue_copy_large dest-in-rbx sz<8 rejects [2]u8). leftover
+   * rest unique rec ASSIGN TYPE_ARRAY STRING_LIT (`*p = "hi"`) is leftover
+   * rest unique store iko==59. leftover rest unique rec ASSIGN TYPE_SLICE
+   * STRING_LIT (`*p = "hi"` dest_tk==11) AND VAR dest STRING_LIT
+   * (`d = "hi"`) is leftover rest unique rec ASSIGN (park dest + fat
+   * store). leftover unique leftover_emit_match_arm_result
+   * remaining ADDR_OF (rko==51) skip unless proven (pointer dest). leftover
+   * unique leftover_emit_match_arm_result remaining BINARY skip unless proven.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (rko == 59) {
+    int32_t slen;
+    int32_t nbytes;
+    int32_t copy_off;
+    if (g_leftover_match_dest_tk != 11 && g_leftover_match_dest_tk != 10)
+      return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+    if (glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, result_ref, ta) != 0)
+      return -1;
+    slen = glue_asm_string_lit_len(arena, result_ref);
+    if (slen < 0)
+      slen = 0;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (g_leftover_match_dest_tk == 11) {
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, slen, 0, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+        return -1;
+      return 0;
+    }
+    nbytes = g_leftover_match_dest_nbytes;
+    if (nbytes <= 0)
+      nbytes = slen;
+    if (slen > 0 && nbytes > slen)
+      nbytes = slen;
+    if (nbytes <= 0)
+      return 0;
+    if (nbytes > 4096)
+      return -1;
+    copy_off = 0;
+    while (copy_off + 8 <= nbytes) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 8, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+        return -1;
+      copy_off += 8;
+    }
+    while (copy_off + 4 <= nbytes) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 4, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 4, ta) != 0)
+        return -1;
+      copy_off += 4;
+    }
+    while (copy_off < nbytes) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 1, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 1, ta) != 0)
+        return -1;
+      copy_off += 1;
+    }
+    return 0;
+  }
+  return pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, result_ref, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t matched_ref;
+  int32_t num_arms;
+  int32_t i;
+  int32_t cmp_val;
+  int32_t is_wild;
+  int32_t guard_ref;
+  uint8_t done_lbl[256];
+  uint8_t next_lbl[128];
+  int32_t done_len;
+  int32_t next_len;
+  int32_t result_ref;
+  void *prev_mod;
+  int32_t prev_mref;
+  int32_t prev_ty;
+  int32_t rc;
+  int32_t saw_terminal_wild;
+  void *emit_mod;
+  int32_t emit_fi;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  matched_ref = pipeline_expr_match_matched_ref_at(arena, expr_ref);
+  num_arms = pipeline_expr_match_num_arms_at(arena, expr_ref);
+  if (matched_ref <= 0 || num_arms <= 0 || num_arms > 32)
+    return -1;
+  prev_mod = pipeline_codegen_match_mod_c();
+  prev_mref = pipeline_codegen_match_matched_ref_c();
+  prev_ty = pipeline_codegen_match_subject_ty_c();
+  emit_mod = pipeline_asm_emit_module_ref_c();
+  emit_fi = pipeline_asm_emit_func_index_c();
+  if (emit_mod != 0 && matched_ref > 0) {
+    int32_t subj_ty = pipeline_expr_resolved_type_ref(arena, matched_ref);
+    if (subj_ty <= 0 && pipeline_expr_kind_ord_at(arena, matched_ref) == 3 && emit_fi >= 0) {
+      uint8_t mn[256];
+      int32_t mln = pipeline_expr_var_name_len(arena, matched_ref);
+      if (mln > 0 && mln <= 127) {
+        pipeline_expr_var_name_into(arena, matched_ref, mn);
+        subj_ty = pipeline_module_func_param_type_ref_for_name(emit_mod, emit_fi, mn, mln);
+      }
+    }
+    if (subj_ty > 0)
+      pipeline_codegen_match_set_subject_c(emit_mod, matched_ref, subj_ty);
+  }
+  rc = -1;
+  saw_terminal_wild = 0;
+  done_len = pipeline_asm_emit_next_label_c(ctx, done_lbl, 64);
+  if (done_len <= 0)
+    goto match_elf_done;
+  for (i = 0; i < num_arms; i++) {
+    is_wild = pipeline_expr_match_arm_is_wildcard(arena, expr_ref, i);
+    guard_ref = pipeline_expr_match_arm_guard_ref(arena, expr_ref, i);
+    result_ref = pipeline_expr_match_arm_result_ref(arena, expr_ref, i);
+    if (result_ref <= 0)
+      goto match_elf_done;
+    if (is_wild != 0 && guard_ref <= 0) {
+      if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
+        goto match_elf_done;
+      if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
+        if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+          goto match_elf_done;
+      }
+      saw_terminal_wild = 1;
+      break;
+    }
+    next_len = pipeline_asm_emit_next_label_c(ctx, next_lbl, 64);
+    if (next_len <= 0)
+      goto match_elf_done;
+    if (is_wild != 0) {
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, guard_ref, ctx, ta) != 0)
+        goto match_elf_done;
+      if (glue_enc_jz_after_bool_in_eax(elf_ctx, next_lbl, next_len, ta) != 0)
+        goto match_elf_done;
+    } else {
+      if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, matched_ref, ctx, ta) != 0)
+        goto match_elf_done;
+      if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        goto match_elf_done;
+      if (pipeline_expr_match_arm_is_enum_variant(arena, expr_ref, i) != 0)
+        cmp_val = pipeline_expr_match_arm_variant_index(arena, expr_ref, i);
+      else
+        cmp_val = pipeline_expr_match_arm_lit_val(arena, expr_ref, i);
+      if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, cmp_val, ta) != 0)
+        goto match_elf_done;
+      if (backend_enc_cmp_rbx_rax_arch(elf_ctx, ta) != 0)
+        goto match_elf_done;
+      if (backend_enc_jne_arch(elf_ctx, next_lbl, next_len, ta) != 0)
+        goto match_elf_done;
+      if (guard_ref > 0) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, guard_ref, ctx, ta) != 0)
+          goto match_elf_done;
+        if (glue_enc_jz_after_bool_in_eax(elf_ctx, next_lbl, next_len, ta) != 0)
+          goto match_elf_done;
+      }
+    }
+    if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, result_ref, ctx, ta) != 0)
+      goto match_elf_done;
+    if (pipeline_expr_kind_ord_at(arena, result_ref) != 41) {
+      if (backend_enc_jmp_arch(elf_ctx, done_lbl, done_len, ta) != 0)
+        goto match_elf_done;
+    }
+    if (backend_enc_label_arch(elf_ctx, next_lbl, next_len, 0, ta) != 0)
+      goto match_elf_done;
+  }
+  if (saw_terminal_wild == 0) {
+    if (backend_enc_mov_imm32_to_w0_arch(elf_ctx, 0, ta) != 0)
+      goto match_elf_done;
+  }
+  if (backend_enc_label_arch(elf_ctx, done_lbl, done_len, 0, ta) != 0)
+    goto match_elf_done;
+  rc = 0;
+match_elf_done:
+  pipeline_codegen_match_set_subject_c(prev_mod, prev_mref, prev_ty);
+  return rc;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_match unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave132 after leftover-PE emit_match */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L14178.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* ---------------------------------------------------------------------------
@@ -2976,6 +6634,8 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  * PLATFORM: SHARED.
  * --------------------------------------------------------------------------- */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L14611.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave136 FROM_X for leftover-PE await/as unique */
 
 /* Await/as leftover unique (surgical extract of nested wave138 after
@@ -3005,6 +6665,107 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_as_target_type_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_expr_float_bits_lo_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_float_bits_hi_at(void *arena, int32_t expr_ref);
+extern int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi);
+extern int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb);
+extern int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb);
+extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_next_label_c(void *ctx, uint8_t *buf, int32_t buf_size);
+extern int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta);
+extern int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+extern int32_t arch_x86_64_enc_enc_test_edx_edx(void *elf_ctx);
+extern int32_t backend_enc_test_rbx_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_jz_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_jmp_arch(void *elf_ctx, uint8_t *label, int32_t label_len, int32_t ta);
+extern int32_t backend_enc_label_arch(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t is_global, int32_t ta);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+
+int32_t glue_expr_is_await_at_c(void *arena, int32_t expr_ref) {
+  int32_t ko, uop;
+  if (!arena || expr_ref <= 0) return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 55) {
+    uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+    return uop > 0 ? 1 : 0;
+  }
+  if (ko != 54) return 0;
+  if (pipeline_expr_as_target_type_ref_at(arena, expr_ref) > 0 ||
+      pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0)
+    return 0;
+  uop = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  return uop > 0 ? 1 : 0;
+}
+
+int32_t glue_expr_is_x_as_cast_at_c(void *arena, int32_t expr_ref) {
+  int32_t ko;
+  if (!arena || expr_ref <= 0) return 0;
+  if (glue_expr_is_await_at_c(arena, expr_ref)) return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko != 54) return 0;
+  return pipeline_expr_as_operand_ref_at(arena, expr_ref) > 0 ? 1 : 0;
+}
+
+int32_t pipeline_asm_emit_await_sync_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0) return -1;
+  return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+}
+
+int32_t pipeline_asm_emit_try_propagate_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op, ok_len, tj_len, i;
+  uint8_t ok_lbl[256];
+  uint8_t tj_lbl[128];
+  uint8_t *ly;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0) return -1;
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+  ok_len = pipeline_asm_emit_next_label_c(ctx, ok_lbl, 128);
+  if (ok_len <= 0) return -1;
+  if (ta == 0) {
+    if (arch_x86_64_enc_enc_test_edx_edx(elf_ctx) != 0) return -1;
+  } else if (backend_enc_test_rbx_rbx_arch(elf_ctx, ta) != 0) {
+    return -1;
+  }
+  if (backend_enc_jz_arch(elf_ctx, ok_lbl, ok_len, ta) != 0) return -1;
+  if (glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx, ta) != 0) return -1;
+  if (glue_async_cps_emit_phase_reset(elf_ctx, ta) != 0) return -1;
+  ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+  if (!ly) return -1;
+  memcpy(&tj_len, ly + 1520, 4);
+  if (tj_len <= 0) return -1;
+  if (tj_len > 128) tj_len = 128;
+  for (i = 0; i < tj_len; i++) tj_lbl[i] = ly[1392 + i];
+  if (backend_enc_jmp_arch(elf_ctx, tj_lbl, tj_len, ta) != 0) return -1;
+  if (backend_enc_label_arch(elf_ctx, ok_lbl, ok_len, 0, ta) != 0) return -1;
+  return 0;
+}
+
+int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t ta,
+                                         int32_t force_ty_ref, int32_t call_abi_widen_f64) {
+  int32_t lo, hi, tr, tk, fb;
+  lo = pipeline_expr_float_bits_lo_at(arena, expr_ref);
+  hi = pipeline_expr_float_bits_hi_at(arena, expr_ref);
+  tr = force_ty_ref > 0 ? force_ty_ref : pipeline_expr_resolved_type_ref(arena, expr_ref);
+  if (tr > 0 && pipeline_type_kind_ord_at(arena, tr) == 14) {
+    fb = glue_ieee_f64_bits_to_f32_bits(lo, hi);
+    if (call_abi_widen_f64 != 0) {
+      lo = glue_ieee_f32_bits_to_f64_lo(fb);
+      hi = glue_ieee_f32_bits_to_f64_hi(fb);
+      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+    }
+    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, fb, ta);
+  }
+  return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE await/as unique */
 
 /* Complete try_propagate unique (harvest@29e0810ae unique 53→49):
@@ -3024,6 +6785,11 @@ int32_t pipeline_typeck_wpo_dump_callgraph(void *m, void *a, void *ctx) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_index_scratch_spills_cleanup_all_elf_c(void *elf_ctx, int32_t ta) {
+  (void)elf_ctx;
+  (void)ta;
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE cleanup_all unique */
 
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
@@ -3036,6 +6802,8 @@ int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta) {
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE phase_reset unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE await/as unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L15569.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave136 FROM_X for leftover-PE emit_as unique */
 
 /* Complete emit_as_impl unique (harvest@57683a0b8 unique 49→47):
@@ -3057,9 +6825,156 @@ int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref);
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx, uint8_t *ptr, int32_t n);
+extern int32_t backend_enc_cvttss2si_eax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_eax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttss2si_rax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvttsd2si_rax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i32_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_i64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2ss_eax_from_u64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsd2ss_eax_from_f64_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_u64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i64_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtsi2sd_rax_from_i32_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_cvtss2sd_rax_from_f32_bits_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_lea_sym_to_reg_arch(void *elf_ctx, int32_t reg, uint8_t *name, int32_t name_len, int32_t ta);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+
+/* WIN_LEFTOVER file-scope forward: static proto @15406 nest is FROM_X-closed. */
+static int32_t pipe_modlet_lea_fn_sym_to_rax_cold(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+
+int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op, tgt, tgt_kind, src_tr, src_kind, op_ko, src_is_f32, src_is_f64;
+  static const uint8_t mov_eax_eax[2] = {0x89, 0xc0};
+  if (glue_expr_is_await_at_c(arena, expr_ref))
+    return pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  op = pipeline_expr_as_operand_ref_at(arena, expr_ref);
+  if (op == 0) return -1;
+  tgt = pipeline_expr_as_target_type_ref_at(arena, expr_ref);
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14 &&
+      pipeline_expr_kind_ord_at(arena, op) == 1)
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, op, ta, tgt, 0);
+  if (tgt > 0) {
+    tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+    src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    src_kind = src_tr > 0 ? pipeline_type_kind_ord_at(arena, src_tr) : -1;
+    op_ko = pipeline_expr_kind_ord_at(arena, op);
+    src_is_f32 = (src_kind == 14);
+    src_is_f64 = (src_kind == 15 || (src_kind <= 0 && op_ko == 1) ||
+                  glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op));
+    if (src_is_f32 || src_is_f64) {
+      if (tgt_kind == 0 || tgt_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (src_is_f32) return backend_enc_cvttss2si_eax_from_f32_bits_arch(elf_ctx, ta);
+        return backend_enc_cvttsd2si_eax_from_f64_bits_arch(elf_ctx, ta);
+      }
+      if (tgt_kind == 4 || tgt_kind == 5 || tgt_kind == 6 || tgt_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (src_is_f32) return backend_enc_cvttss2si_rax_from_f32_bits_arch(elf_ctx, ta);
+        return backend_enc_cvttsd2si_rax_from_f64_bits_arch(elf_ctx, ta);
+      }
+    }
+  }
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 14) {
+    src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    if (src_tr > 0) {
+      src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+      if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_i32_arch(elf_ctx, ta);
+      }
+      if (src_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mov_eax_eax, 2) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 4 || src_kind == 6) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_u64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 5 || src_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2ss_eax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 15 || glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, op)) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsd2ss_eax_from_f64_bits_arch(elf_ctx, ta);
+      }
+    }
+  }
+  if (tgt > 0 && pipeline_type_kind_ord_at(arena, tgt) == 15) {
+    src_tr = pipeline_expr_resolved_type_ref(arena, op);
+    if (src_tr > 0) {
+      src_kind = pipeline_type_kind_ord_at(arena, src_tr);
+      if (src_kind == 4 || src_kind == 6) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_u64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 5 || src_kind == 7) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 3) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        if (pipeline_elf_ctx_append_bytes(elf_ctx, (uint8_t *)mov_eax_eax, 2) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_i64_arch(elf_ctx, ta);
+      }
+      if (src_kind == 0 || src_kind == 2 || src_kind == 8) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtsi2sd_rax_from_i32_arch(elf_ctx, ta);
+      }
+      if (src_kind == 14) {
+        if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0) return -1;
+        return backend_enc_cvtss2sd_rax_from_f32_bits_arch(elf_ctx, ta);
+      }
+    }
+  }
+  /* Cap-fn-ptr (10.3.2 slice0): same-module bare fn as *u8 → LEA into rax/x0.
+   * Twin of runtime_pipeline_abi.x pipeline_asm_emit_as_elf_impl Cap path.
+   * Locals win. POSIX .x stays #[no_mangle] only (mangled export names).
+   * leftover-PE emits source names for every module func (export /
+   * #[no_mangle] / plain — nm T foo / T id), so require only a name hit.
+   * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
+  if (tgt > 0) {
+    tgt_kind = pipeline_type_kind_ord_at(arena, tgt);
+    op_ko = pipeline_expr_kind_ord_at(arena, op);
+    if ((tgt_kind == 9 || tgt_kind == 18) && op_ko == 3) {
+      int32_t fnptr_off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
+      if (fnptr_off < 0) {
+        int32_t fnptr_vlen = pipeline_expr_var_name_len(arena, op);
+        if (fnptr_vlen > 0 && fnptr_vlen < 128) {
+          uint8_t fnptr_vname[256];
+          int32_t fnptr_fi = 0;
+          void *fnptr_mod = 0;
+          pipeline_expr_var_name_into(arena, op, fnptr_vname);
+          fnptr_mod = glue_emit_module_from_ctx(ctx);
+          if (fnptr_mod) {
+            fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, fnptr_vname, fnptr_vlen);
+            if (fnptr_fi >= 0) {
+              /* 9.4.2: symbol spell (Mach-O '_' / ELF bare) is the
+               * pipe_modlet_lea_fn_sym_to_rax authority (cold twin). */
+              return pipe_modlet_lea_fn_sym_to_rax_cold(elf_ctx, fnptr_vname, fnptr_vlen, ta);
+            }
+          }
+        }
+      }
+    }
+  }
+  return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_as_impl unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE emit_as unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L15760.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave136 FROM_X for leftover-PE modlet cluster */
 
 /* File-scope leftover-PE unique callees of emit_as_impl.
@@ -3084,6 +6999,133 @@ int32_t glue_async_cps_emit_phase_reset(void *elf_ctx, int32_t ta) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len) {
+  int32_t fi;
+  int32_t flen;
+  uint8_t fb[256];
+  int32_t k;
+  if (!mod || !name || name_len <= 0 || name_len > 255)
+    return -1;
+  for (fi = 0; fi < pipeline_module_num_funcs(mod); fi++) {
+    flen = pipeline_module_func_name_len_at(mod, fi);
+    if (flen != name_len)
+      continue;
+    pipeline_module_func_name_copy64(mod, fi, fb);
+    for (k = 0; k < name_len; k++) {
+      if (fb[k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return fi;
+  }
+  return -1;
+}
+
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx, int32_t var_expr_ref);
+
+/**
+ * EXPR_VAR rbp stack offset. Harvest unique used to be `return -1`, so
+ * leftover-PE rest-first hid SAT's real t and `return x` CG002'd after
+ * a successful let-init store (letimm green, letvar/letret red).
+ * G.7: same body as runtime_pipeline_abi.x glue_var_expr_stack_off_elf_c
+ * (kind==3 then wave148 scoped authority).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref) {
+  int32_t ko;
+  if (!arena || !ctx || var_expr_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, var_expr_ref);
+  if (ko != 3)
+    return -1;
+  return glue_asm_local_var_stack_off_scoped(arena, ctx, var_expr_ref);
+}
+
+extern void *pipeline_asm_emit_module_ref_c(void);
+
+/**
+ * Resolve current emit module: process-local emit module, else
+ * AsmFuncCtx.module_ref@16. Harvest unique used to be `return 0`, so
+ * leftover-PE rest-first hid the module from emit_as_impl fnptr /
+ * needs_ptr_load *T param / glue_type_size_simple NAMED.
+ * G.7: same body as runtime_pipeline_abi.x glue_emit_module_from_ctx
+ * (wave141 pipeline_asm_emit_module_ref_c — SAT global T, leftover rest
+ * remaining wave136 closed, do not leftover rest second T; fallback
+ * LP64 ctx+16 — leftover rest C has no pipe_load_ptr_slot T; same load
+ * as leftover rest fill_block_locals_tree / glue_block_body_bind).
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+void *glue_emit_module_from_ctx(void *ctx) {
+  void *m;
+  m = pipeline_asm_emit_module_ref_c();
+  if (m)
+    return m;
+  if (!ctx)
+    return 0;
+  /* AsmFuncCtx.module_ref @16 / slot 2 (LP64). */
+  return *(void **)((uint8_t *)ctx + 16);
+}
+
+/* Completing emit_as_impl: leftover rest T of emit_as_impl UNDEFs
+ * glue_binop_operand_is_scalar_f64_elf_c (SAT / leftover standalone only
+ * have local t — not a global T). Completing that unique = define it PLUS
+ * glue_expr_resolved_is_scalar_f64_c / glue_type_ref_is_scalar_f64_c
+ * (file-scope T of binop_operand would otherwise swap unique onto those
+ * two; leftover rest FROM_X omits them in remaining wave136 @24660).
+ * glue_var_decl_type_ref_elf_c unique lives in wave124 OR (this file,
+ * earlier). Keep the extern so leftover rest callers in this OR type-check
+ * on !FROM_X before the wave124 def is visible as a nested vs file-scope
+ * mix; leftover rest WIN already compiled the wave124 def. PLATFORM:
+ * WINDOWS leftover-PE hybrid / POSIX -E unchanged. */
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_call_return_type_kind_ord_c(void *arena, int32_t call_expr_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+
+int32_t glue_type_ref_is_scalar_f64_c(void *arena, int32_t type_ref) {
+  if (!arena || type_ref <= 0)
+    return 0;
+  return pipeline_type_kind_ord_at(arena, type_ref) == 15 ? 1 : 0;
+}
+
+int32_t glue_expr_resolved_is_scalar_f64_c(void *arena, int32_t expr_ref) {
+  return glue_type_ref_is_scalar_f64_c(arena, pipeline_expr_resolved_type_ref(arena, expr_ref));
+}
+
+int32_t glue_binop_operand_is_scalar_f64_elf_c(void *arena, void *ctx, int32_t expr_ref) {
+  int32_t ko;
+  int32_t tr;
+  int32_t rk;
+  if (!arena || expr_ref <= 0)
+    return 0;
+  if (glue_expr_resolved_is_scalar_f64_c(arena, expr_ref))
+    return 1;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 3 && ctx) {
+    tr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+    return glue_type_ref_is_scalar_f64_c(arena, tr);
+  }
+  /* FLOAT_LIT default / unresolved → treat as f64 (typeck ensures_f64). */
+  if (ko == 1)
+    return 1;
+  /* CALL (48) / METHOD_CALL (49): callee return kind when expr resolved is empty. */
+  if (ko == 48 || ko == 49) {
+    rk = pipeline_asm_call_return_type_kind_ord_c(arena, expr_ref);
+    return rk == 15 ? 1 : 0;
+  }
+  if (ko == 4 || ko == 5 || ko == 6 || ko == 7) {
+    int32_t lr = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    int32_t rr = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    if (lr > 0 && rr > 0 && glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, lr) &&
+        glue_binop_operand_is_scalar_f64_elf_c(arena, ctx, rr))
+      return 1;
+  }
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE emit_as callee unique */
 
 /* WIN leftover-PE rest fold unique (typeck_x.o UNDEFs these; SAT / leftover
@@ -3661,146 +7703,2205 @@ int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_MODLET_IN_REST)
+
+/*
+ * wave139: pipeline_asm_emit_modlet pure-owned leave cold twins.
+ * PREFER pure; cold path when PREFER!=1 / hybrid fail.
+ * Faces: name_is_shared / load / store / prepare / seed / register / lit_inits.
+ * Cap residual: top_level readers, common_sym, enc load/store/mov, hoist, let_init_reserve.
+ */
+
+#define XLANG_ASM_MODLET_MAX 512 /* wave624: mega TU has 331 top-level lets; 256 hit the loud-fail cap */
+
+typedef struct {
+  int32_t n;
+  int32_t name_len[XLANG_ASM_MODLET_MAX];
+  uint8_t name[XLANG_ASM_MODLET_MAX][128];
+  int32_t label_len[XLANG_ASM_MODLET_MAX];
+  uint8_t label[XLANG_ASM_MODLET_MAX][24];
+  int32_t init_imm[XLANG_ASM_MODLET_MAX];
+  /* Stage 12.0.5: COMMON payload size (8 scalar; N for TYPE_ARRAY module lets).
+   * Bit 30 (0x40000000) = TYPE_ARRAY address-decay so u8[8] does not collide
+   * with scalar load-qword (labi g_labi_icc_oopt_buf / invoke_cc_list). */
+  int32_t cell_size[XLANG_ASM_MODLET_MAX];
+} pipeline_asm_modlet_table_t;
+
+/* PLATFORM: SHARED — modlet cell_size encoding (mirror .x pipe_modlet_cell_*).
+ * low 29 = payload; bit29 = .data-baked non-empty ARRAY_LIT; bit30 = array decay.
+ * Product max payload 8 MiB << bit29; mask 30→29 is safe. */
+#define XLANG_ASM_MODLET_CELL_ARRAY_BIT 0x40000000
+#define XLANG_ASM_MODLET_CELL_DATA_BIT 0x20000000
+#define XLANG_ASM_MODLET_CELL_PAYLOAD_MASK 0x1fffffff
+
+static int32_t pipeline_asm_modlet_cell_payload_cold(int32_t csz) {
+  int32_t p = csz & XLANG_ASM_MODLET_CELL_PAYLOAD_MASK;
+  return (p <= 0) ? 8 : p;
+}
+
+static int32_t pipeline_asm_modlet_cell_is_array_cold(int32_t csz) {
+  int32_t p;
+  if ((csz & XLANG_ASM_MODLET_CELL_ARRAY_BIT) != 0)
+    return 1;
+  p = csz & XLANG_ASM_MODLET_CELL_PAYLOAD_MASK;
+  if (p != 8 && p > 0)
+    return 1;
+  return 0;
+}
+
+static int32_t pipeline_asm_modlet_cell_is_data_cold(int32_t csz) {
+  return ((csz & XLANG_ASM_MODLET_CELL_DATA_BIT) != 0) ? 1 : 0;
+}
+
+static pipeline_asm_modlet_table_t g_pipeline_asm_modlet_cold;
+static int32_t g_pipe_modlet_strpool_seq_cold = 0;
+
+static void pipeline_asm_modlet_reset_cold(void) {
+  g_pipeline_asm_modlet_cold.n = 0;
+  g_pipe_modlet_strpool_seq_cold = 0;
+}
+
+/* wave647: MODLET_IN_REST public faces are XLANG_WEAK so the initial
+ * thin+rest hybrid resolves weak-vs-weak FIRST-WINS (Darwin ld -r keeps
+ * the first object; G05_X_O_WEAK=1 pure-asm mega thin is merged first).
+ * STRONG rest faces won that race on Darwin (weak thin + strong rest ->
+ * strong wins) and split the modlet table (hot .x table empty, cold C
+ * table written); Linux --allow-multiple-definition was first-wins so
+ * only Darwin split. Per-leaf strong overlay (w631 modlet thin) then
+ * lands as strong-over-weak instead of duplicate-strong. PE/MinGW keeps
+ * empty macro -> WIN_LEFTOVER twins stay strong (no Darwin ld -r there).
+ * PLATFORM: SHARED · LINUX gold first-wins · MACOS weak-weak first-wins. */
 #ifndef XLANG_WEAK
 #if defined(__GNUC__) || defined(__clang__)
+#define XLANG_WEAK __attribute__((weak))
 #else
-void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
-  W277_Block *b;
-  W277_Sidecar *sc;
-  W277_StmtOrderItem neu[512];
-  int32_t nso;
-  int32_t nif;
-  int32_t i;
-  int32_t j;
-  int32_t nn;
-  int32_t if_in_order;
-  int32_t emitted_ifs;
-  int32_t abs;
-  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
-  if (!a || br <= 0)
-    return;
-  b = w277_block_at(a, br);
-  sc = arena_sidecar_get(a, 1);
-  if (!b || !sc || b->num_if_stmts <= 0) {
-    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
-    return;
-  }
-  nso = b->num_stmt_order;
-  nif = b->num_if_stmts;
-  if (nso > 512)
-    return;
-  if_in_order = 0;
-  for (i = 0; i < nso; i++) {
-    uint8_t k0 = pipeline_block_stmt_order_kind(a, br, i);
-    if (k0 == 5)
-      if_in_order++;
-    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
-  }
-  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
-  if (if_in_order >= nif)
-    return;
-  nn = 0;
-  emitted_ifs = 0;
-  for (i = 0; i < nso; i++) {
-    uint8_t k = pipeline_block_stmt_order_kind(a, br, i);
-    int32_t idx = pipeline_block_stmt_order_idx(a, br, i);
-    /*
-     * Drop kind=2 only when stmt_order already lists some ifs (kind=5): those
-     * kind=2 rows are mis-parsed cond fragments beside partial if entries.
-     * When if_in_order==0, kind=2 is often a real fallthrough `return` /
-     * expr_stmt — dropping it left only prepended/appended ifs and lost the
-     * trailing return (Windows leftover-PE ifelse → wrong exit / empty body).
-     * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
-     */
-    if (k == 2 && if_in_order > 0)
-      continue;
-    if (k == 5) {
-      if (emitted_ifs == 0) {
-        for (j = 0; j < nif; j++) {
-          if (nn >= 512)
-            return;
-          neu[nn].kind = 5;
-          neu[nn].idx = j;
-          nn++;
-        }
-        emitted_ifs = 1;
-      }
-      continue;
-    }
-    if (nn >= 512)
-      return;
-    neu[nn].kind = k;
-    neu[nn].idx = idx;
-    nn++;
-  }
-  if (emitted_ifs == 0) {
-    /*
-     * No if slot in the preserved order: put full if set FIRST, then the
-     * preserved non-if stmts (e.g. fallthrough return). Appending ifs after
-     * a leading return made emit_block run `return` before `if`.
-     * PLATFORM: SHARED.
-     */
-    W277_StmtOrderItem saved[512];
-    int32_t sn;
-    int32_t si;
-    sn = nn;
-    if (sn > 512)
-      return;
-    for (si = 0; si < sn; si++)
-      saved[si] = neu[si];
-    nn = 0;
-    for (j = 0; j < nif; j++) {
-      if (nn >= 512)
-        return;
-      neu[nn].kind = 5;
-      neu[nn].idx = j;
-      nn++;
-    }
-    for (si = 0; si < sn; si++) {
-      if (nn >= 512)
-        return;
-      neu[nn] = saved[si];
-      nn++;
-    }
-  }
-  abs = b->stmt_order_base;
-  if (abs < 0)
-    return;
-  b->num_stmt_order = nn;
-  for (i = 0; i < nn; i++) {
-    W277_StmtOrderItem *so = (W277_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs + i);
-    if (so)
-      *so = neu[i];
-  }
-  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
-}
+#define XLANG_WEAK
 #endif
 #endif
+
+XLANG_WEAK int32_t pipeline_asm_modlet_name_is_shared(uint8_t *name, int32_t name_len) {
 #if defined(_WIN32) || defined(_WIN64)
+  /* PLATFORM: WINDOWS — prepare fills the egg table. The cold table
+   * stays empty, so a miss here would register the module let as a
+   * stack local beside the .data cell. */
+  {
+    extern int32_t pipeline_asm_modlet_find(uint8_t *name, int32_t name_len);
+    if (!name || name_len <= 0)
+      return 0;
+    return pipeline_asm_modlet_find(name, name_len) >= 0 ? 1 : 0;
+  }
 #else
-int32_t ast_ast_block_num_consts(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_consts;
-}
+  int32_t i, k;
+  if (!name || name_len <= 0 || g_pipeline_asm_modlet_cold.n <= 0)
+    return 0;
+  for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    if (g_pipeline_asm_modlet_cold.name_len[i] != name_len)
+      continue;
+    for (k = 0; k < name_len; k++) {
+      if (g_pipeline_asm_modlet_cold.name[i][k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return 1;
+  }
+  return 0;
 #endif
+}
+
+static int32_t pipeline_asm_modlet_find_cold(uint8_t *name, int32_t name_len) {
+  int32_t i, k;
+  if (!name || name_len <= 0)
+    return -1;
+  for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    if (g_pipeline_asm_modlet_cold.name_len[i] != name_len)
+      continue;
+    for (k = 0; k < name_len; k++) {
+      if (g_pipeline_asm_modlet_cold.name[i][k] != name[k])
+        break;
+    }
+    if (k == name_len)
+      return i;
+  }
+  return -1;
+}
+
+extern int32_t pipeline_elf_ctx_append_bytes(uint8_t *ctx, uint8_t *ptr, int32_t n);
+extern int32_t pipeline_elf_ctx_emit_code_len(uint8_t *ctx);
+extern int32_t pipeline_elf_ctx_append_reloc(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx, int32_t at, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+extern int32_t backend_enc_load_qword_from_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_indirect_arch(void *elf_ctx, int32_t sz, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t imm, int32_t hi32, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t off, int32_t ta);
+extern int32_t pipeline_elf_ctx_add_common_sym(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t size,
+                                               int32_t align);
+extern int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes);
+extern int32_t pipeline_elf_ctx_append_data_zeros(uint8_t *ctx_bytes, int32_t n);
+extern int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b);
+extern void pipeline_elf_ctx_set_shndx_override(uint8_t *ctx_bytes, int32_t shndx);
+extern int32_t pipeline_elf_ctx_add_label(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_add_sym(uint8_t *ctx_bytes, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx_bytes, int32_t offset, uint8_t *name,
+                                                       int32_t name_len);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+extern int32_t backend_enc_lea_sym_to_reg_arch(void *elf_ctx, int32_t reg, uint8_t *name,
+                                               int32_t name_len, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz,
+                                                         int32_t ta);
+extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t eref,
+                                                       int32_t ta);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t glue_asm_string_lit_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out64);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et);
+extern int32_t pipeline_module_top_level_let_is_const(void *m, int32_t tl);
+extern int32_t pipeline_module_top_level_let_name_len(void *m, int32_t tl);
+extern uint8_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t tl, int32_t k);
+extern int32_t pipeline_module_top_level_let_init_ref(void *m, int32_t tl);
+extern int32_t pipeline_module_top_level_let_type_ref(void *m, int32_t tl);
+extern int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *a, int32_t expr_ref);
+extern int32_t pipeline_asm_hoist_target_func_index(void *m);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t type_ref, int32_t init_ref);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern void *pipeline_asm_ctx_layout(void *ctx);
+
+static int32_t pipeline_asm_modlet_lea_rbx_rip_x86_cold(void *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  int32_t llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet_cold.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet_cold.label_len[idx];
+  lname = g_pipeline_asm_modlet_cold.label[idx];
+  lea7[0] = 0x48; lea7[1] = 0x8d; lea7[2] = 0x1d;
+  lea7[3] = 0; lea7[4] = 0; lea7[5] = 0; lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes(cb, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc(cb, rel32_at, lname, llen);
+}
+
+/* G.7: lea into rax so load_to_rax does not clobber cmp's parked left in rbx. */
+static int32_t pipeline_asm_modlet_lea_rax_rip_x86_cold(void *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t lea7[7];
+  int32_t rel32_at;
+  int32_t llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet_cold.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet_cold.label_len[idx];
+  lname = g_pipeline_asm_modlet_cold.label[idx];
+  /* REX.W LEA rax, [rip+disp32] */
+  lea7[0] = 0x48; lea7[1] = 0x8d; lea7[2] = 0x05;
+  lea7[3] = 0; lea7[4] = 0; lea7[5] = 0; lea7[6] = 0;
+  if (pipeline_elf_ctx_append_bytes(cb, lea7, 7) != 0)
+    return -1;
+  rel32_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc(cb, rel32_at, lname, llen);
+}
+
+static int32_t pipeline_asm_modlet_lea_rbx_adrp_arm64_cold(void *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at, add_at, llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet_cold.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet_cold.label_len[idx];
+  lname = g_pipeline_asm_modlet_cold.label[idx];
+  adrp4[0] = 0x01; adrp4[1] = 0x00; adrp4[2] = 0x00; adrp4[3] = 0x90;
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, lname, llen, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x21; add4[1] = 0x00; add4[2] = 0x00; add4[3] = 0x91;
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, lname, llen, 4, 0);
+}
+
+/* G.7: lea into x0 so load_to_rax does not clobber cmp's parked left in x1. */
+static int32_t pipeline_asm_modlet_lea_rax_adrp_arm64_cold(void *elf_ctx, int32_t idx) {
+  uint8_t *cb;
+  uint8_t adrp4[4];
+  uint8_t add4[4];
+  int32_t adrp_at, add_at, llen;
+  uint8_t *lname;
+  if (!elf_ctx || idx < 0 || idx >= g_pipeline_asm_modlet_cold.n)
+    return -1;
+  cb = (uint8_t *)elf_ctx;
+  llen = g_pipeline_asm_modlet_cold.label_len[idx];
+  lname = g_pipeline_asm_modlet_cold.label[idx];
+  adrp4[0] = 0x00; adrp4[1] = 0x00; adrp4[2] = 0x00; adrp4[3] = 0x90; /* adrp x0 */
+  if (pipeline_elf_ctx_append_bytes(cb, adrp4, 4) != 0)
+    return -1;
+  adrp_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  if (pipeline_elf_ctx_append_reloc_typed(cb, adrp_at, lname, llen, 3, 1) != 0)
+    return -1;
+  add4[0] = 0x00; add4[1] = 0x00; add4[2] = 0x00; add4[3] = 0x91; /* add x0,x0,#0 */
+  if (pipeline_elf_ctx_append_bytes(cb, add4, 4) != 0)
+    return -1;
+  add_at = pipeline_elf_ctx_emit_code_len(cb) - 4;
+  return pipeline_elf_ctx_append_reloc_typed(cb, add_at, lname, llen, 4, 0);
+}
+
+static int32_t pipeline_asm_modlet_lea_rbx_arch_cold(void *elf_ctx, int32_t idx, int32_t ta) {
+  if (ta == 1)
+    return pipeline_asm_modlet_lea_rbx_adrp_arm64_cold(elf_ctx, idx);
+  if (ta == 0)
+    return pipeline_asm_modlet_lea_rbx_rip_x86_cold(elf_ctx, idx);
+  return -1;
+}
+
+static int32_t pipeline_asm_modlet_lea_rax_arch_cold(void *elf_ctx, int32_t idx, int32_t ta) {
+  if (ta == 1)
+    return pipeline_asm_modlet_lea_rax_adrp_arm64_cold(elf_ctx, idx);
+  if (ta == 0)
+    return pipeline_asm_modlet_lea_rax_rip_x86_cold(elf_ctx, idx);
+  return -1;
+}
+
 #if defined(_WIN32) || defined(_WIN64)
+/* PLATFORM: WINDOWS — do not emit these cold bodies.
+ * XLANG_WEAK is a real weak on MinGW, but the call in this TU is
+ * already bound, so a body here still searches g_pipeline_asm_modlet_cold.
+ * Prepare on Windows is the egg and writes g_pipeline_asm_modlet.
+ * Module `return g` and `g[0] = 7` then miss (CG002). The egg load
+ * and store are the authority. POSIX keeps the cold bodies so a
+ * strong thin can override them.
+ */
+extern int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
 #else
-int32_t ast_ast_block_num_lets(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_lets;
+XLANG_WEAK int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+  int32_t idx;
+  int32_t csz;
+  if ((ta != 0 && ta != 1) || !elf_ctx)
+    return -1;
+  idx = pipeline_asm_modlet_find_cold(name, name_len);
+  if (idx < 0)
+    return -1;
+  /* G.7: lea into rax/x0 — must not touch rbx/x1 (cmp parks left there).
+   * Old lea_rbx + ldr made `i >= g_n[0]` compare (&n) >= n → fmt at() always null. */
+  if (pipeline_asm_modlet_lea_rax_arch_cold(elf_ctx, idx, ta) != 0)
+    return -1;
+  /* Stage 12.0.5: array/blob COMMON → address already in rax (decay), not load.
+   * Scalar lit cells are always cell_size==8 (no bit30); arrays set bit30 so
+   * payload==8 (u8[8]) still LEA-only — see g_labi_icc_oopt_buf hybrid SEGV. */
+  csz = g_pipeline_asm_modlet_cold.cell_size[idx];
+  if (pipeline_asm_modlet_cell_is_array_cold(csz))
+    return 0;
+  if (ta == 1) {
+    uint8_t ldr4[4];
+    ldr4[0] = 0x00; ldr4[1] = 0x00; ldr4[2] = 0x40; ldr4[3] = 0xf9; /* ldr x0,[x0] */
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, ldr4, 4);
+  }
+  {
+    uint8_t mov3[3];
+    mov3[0] = 0x48; mov3[1] = 0x8b; mov3[2] = 0x00; /* movq (%rax), %rax */
+    return pipeline_elf_ctx_append_bytes((uint8_t *)elf_ctx, mov3, 3);
+  }
+}
+
+XLANG_WEAK int32_t pipeline_asm_modlet_store_from_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+  int32_t idx;
+  if ((ta != 0 && ta != 1) || !elf_ctx)
+    return -1;
+  idx = pipeline_asm_modlet_find_cold(name, name_len);
+  if (idx < 0)
+    return -1;
+  if (pipeline_asm_modlet_lea_rbx_arch_cold(elf_ctx, idx, ta) != 0)
+    return -1;
+  return backend_enc_store_rax_to_rbx_indirect_arch(elf_ctx, 8, ta);
 }
 #endif /* !Windows: cold load/store must not be a second modlet table */
+
+/* 9.4.2 cold twins of the pipe_modlet_lea_* resolver authorities
+ * (runtime_pipeline_abi.x modlet cluster): the Mach-O '_' / ELF bare
+ * fn-symbol spell, and the non-local named-binding address resolver
+ * (modlet COMMON cell first, then same-module fn). PLATFORM: SHARED ·
+ * MACOS Mach-O '_' · LINUX ELF bare name. */
+/* Spell a same-module function's link name into dst.
+ * Mach-O leading '_' on Darwin, bare ELF name on Linux. Twin of
+ * runtime_pipeline_abi.x pipe_modlet_fn_sym_spell_into so LEA and
+ * .data absolute64 relocs share one authority.
+ * PLATFORM: SHARED · MACOS Mach-O '_' · LINUX ELF bare name. */
+static int32_t pipe_modlet_fn_sym_spell_into_cold(uint8_t *elf_ctx, uint8_t *name, int32_t name_len,
+                                                   uint8_t *dst) {
+  int32_t macho = 0, k = 0;
+  if (!elf_ctx || !name || !dst || name_len <= 0 || name_len > 255)
+    return -1;
+  macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+  if (macho != 0) {
+    dst[0] = (uint8_t)'_';
+    for (k = 0; k < name_len; k++)
+      dst[k + 1] = name[k];
+    return name_len + 1;
+  }
+  for (k = 0; k < name_len; k++)
+    dst[k] = name[k];
+  return name_len;
+}
+
+static int32_t pipe_modlet_lea_fn_sym_to_rax_cold(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta) {
+  uint8_t sym[130];
+  int32_t len = 0, rc = 0;
+  if (!elf_ctx || !name || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1))
+    return -1;
+  len = pipe_modlet_fn_sym_spell_into_cold((uint8_t *)elf_ctx, name, name_len, sym);
+  if (len <= 0)
+    return -1;
+  rc = backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, sym, len, ta);
+  return rc;
+}
+
+static int32_t pipe_modlet_lea_named_binding_addr_to_rax_cold(void *elf_ctx, void *m, uint8_t *name,
+                                                              int32_t name_len, int32_t ta) {
+  int32_t idx = 0, fi = 0;
+  if (!elf_ctx || !name || name_len <= 0 || name_len > 255 || (ta != 0 && ta != 1))
+    return -1;
+  idx = pipeline_asm_modlet_find_cold(name, name_len);
+  if (idx >= 0)
+    return pipeline_asm_modlet_lea_rax_arch_cold(elf_ctx, idx, ta);
+  if (m) {
+    fi = glue_module_func_index_by_name_c(m, name, name_len);
+    if (fi >= 0)
+      return pipe_modlet_lea_fn_sym_to_rax_cold(elf_ctx, name, name_len, ta);
+  }
+  return -1;
+}
+
+/* Module/Arena field accessors for cold twin (mirror product LP64 layout). */
+static int32_t cold_mod_num_top_level_lets(void *m) {
+  if (!m) return 0;
+  return *(int32_t *)((uint8_t *)m + 12);
+}
+static int32_t cold_arena_num_exprs(void *a) {
+  if (!a) return 0;
+  return *(int32_t *)((uint8_t *)a + 4);
+}
+/* Cap residual faces used by Stage 12.0.5 TYPE_ARRAY modlet prepare (cold twin). */
+extern int32_t pipeline_module_top_level_let_type_ref(void *m, int32_t tl);
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t type_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_expr_as_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_top_level_let_is_const(void *m, int32_t tl);
+extern int32_t pipeline_module_top_level_let_init_ref(void *m, int32_t tl);
+extern int32_t pipeline_module_top_level_let_name_len(void *m, int32_t tl);
+/* G.7: same return type as the cluster's earlier extern (uint8_t).
+ * Duplicate int32_t prototype broke FROM_X+MODLET_IN_REST cc (wave345). */
+extern uint8_t pipeline_module_top_level_let_name_byte_at(void *m, int32_t tl, int32_t k);
+
+/* PLATFORM: SHARED — SHN_COMMON / Mach-O __common merge by name.
+ * Historic Lxlang_ml_<idx> aliased every TU's N-th module let (Ubuntu
+ * driver_check_only_flag_slot → 512B Lxlang_ml_0 = entry source len).
+ * Twin of runtime_pipeline_abi.x pipe_modlet_assign_unique_label. */
+static uint32_t pipe_modlet_fnv32_mix_cold(uint32_t h, uint8_t b) {
+  return (h ^ (uint32_t)b) * 16777619u;
+}
+
+static void pipe_modlet_write_hex8_cold(uint8_t *dst, uint32_t v) {
+  static const char hex[] = "0123456789abcdef";
+  int i;
+  for (i = 0; i < 8; i++)
+    dst[i] = (uint8_t)hex[(v >> (28 - i * 4)) & 15];
+}
+
+static uint32_t pipe_modlet_module_fp_cold(void) {
+  uint32_t h = 2166136261u;
+  int i, k;
+  for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    int32_t nl = g_pipeline_asm_modlet_cold.name_len[i];
+    h = pipe_modlet_fnv32_mix_cold(h, (uint8_t)(nl & 255));
+    for (k = 0; k < nl; k++)
+      h = pipe_modlet_fnv32_mix_cold(h, g_pipeline_asm_modlet_cold.name[i][k]);
+    h = pipe_modlet_fnv32_mix_cold(h, 0);
+  }
+  return h;
+}
+
+static void pipe_modlet_assign_unique_label_cold(int idx, uint32_t module_fp) {
+  uint32_t h = 2166136261u;
+  int k;
+  int32_t nl = g_pipeline_asm_modlet_cold.name_len[idx];
+  uint8_t *lab = g_pipeline_asm_modlet_cold.label[idx];
+  for (k = 0; k < nl; k++)
+    h = pipe_modlet_fnv32_mix_cold(h, g_pipeline_asm_modlet_cold.name[idx][k]);
+  h = pipe_modlet_fnv32_mix_cold(h, (uint8_t)(idx & 255));
+  lab[0] = (uint8_t)'L';
+  lab[1] = (uint8_t)'x';
+  lab[2] = (uint8_t)'m';
+  lab[3] = (uint8_t)'l';
+  lab[4] = (uint8_t)'_';
+  pipe_modlet_write_hex8_cold(&lab[5], h);
+  pipe_modlet_write_hex8_cold(&lab[13], module_fp);
+  g_pipeline_asm_modlet_cold.label_len[idx] = 21;
+}
+
+/* Report whether an ARRAY_LIT contains STRING_LIT elements (recursively).
+ * Prepare's use_data gate now allows string-bearing arrays through bake
+ * when the interned pool fits; this predicate remains for the seeder
+ * COMMON fallback. Twin of runtime_pipeline_abi.x
+ * pipe_modlet_array_lit_has_string_elem.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
+static int32_t pipe_modlet_array_lit_has_string_elem_cold(void *arena, int32_t init_ref) {
+  int32_t ne = 0, ei = 0, eref = 0, ek = 0;
+  if (!arena || init_ref <= 0)
+    return 0;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  for (ei = 0; ei < ne; ei++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    if (eref <= 0)
+      continue;
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+    if (ek == 59)
+      return 1;
+    if (ek == 46 && pipe_modlet_array_lit_has_string_elem_cold(arena, eref) != 0)
+      return 1;
+  }
+  return 0;
+}
+
+/* Sum interned-pool bytes for every STRING_LIT elem (recursively).
+ * Each STRING_LIT contributes slen+1 (payload + NUL). slen>127 → -1 so
+ * prepare keeps the cell COMMON. Twin of runtime_pipeline_abi.x
+ * pipe_modlet_array_lit_string_pool_bytes.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
+static int32_t pipe_modlet_array_lit_string_pool_bytes_cold(void *arena, int32_t init_ref) {
+  int32_t ne = 0, ei = 0, eref = 0, ek = 0, slen = 0, sub = 0, total = 0;
+  if (!arena || init_ref <= 0)
+    return 0;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  for (ei = 0; ei < ne; ei++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    if (eref <= 0)
+      continue;
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+    if (ek == 59) {
+      slen = glue_asm_string_lit_len(arena, eref);
+      if (slen < 0 || slen > 4095)
+        return -1;
+      total += slen + 1;
+    }
+    if (ek == 46) {
+      sub = pipe_modlet_array_lit_string_pool_bytes_cold(arena, eref);
+      if (sub < 0)
+        return -1;
+      total += sub;
+    }
+  }
+  return total;
+}
+
+/* Intern one STRING_LIT into the F7 .data string pool and record an
+ * absolute64 reloc on the already-reserved pointer slot.
+ * Label form (22 bytes, TU-unique): Lxmls_ + hex8(seq) + hex8(module_fp).
+ * Twin of runtime_pipeline_abi.x pipe_modlet_bake_string_lit_elem_to_data.
+ * G.7: reloc authority is pipeline_elf_ctx_append_reloc_absolute64.
+ * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64. */
+static int32_t pipe_modlet_bake_string_lit_elem_to_data_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t eref, int32_t slot_off) {
+  int32_t slen = 0, pool_off = 0, bi = 0, seq = 0, i = 0, nib = 0;
+  uint32_t fp = 0;
+  uint8_t lab[24];
+  uint8_t sbuf[256];
+  int32_t cur = 0, n = 0, copied = 0;
+  if (!arena || !elf_ctx || eref <= 0 || slot_off < 0)
+    return -1;
+  slen = glue_asm_string_lit_len(arena, eref);
+  if (slen < 0 || slen > 4095)
+    return -1;
+  pool_off = pipeline_elf_ctx_emit_data_len(elf_ctx);
+  if (pool_off < 0)
+    return -1;
+  if (pipeline_elf_ctx_append_data_zeros(elf_ctx, slen + 1) != 0)
+    return -1;
+  copied = 0;
+  cur = eref;
+  while (copied < slen && cur > 0) {
+    memset(sbuf, 0, sizeof(sbuf));
+    pipeline_expr_var_name_into(arena, cur, sbuf);
+    if (cur == eref)
+      n = slen < 255 ? slen : 255;
+    else
+      n = glue_asm_string_lit_len(arena, cur);
+    if (n < 0)
+      n = 0;
+    if (n > slen - copied)
+      n = slen - copied;
+    for (bi = 0; bi < n; bi++) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, pool_off + copied + bi, (int32_t)sbuf[bi]) != 0)
+        return -1;
+    }
+    copied += n;
+    cur = pipeline_expr_int_val_at(arena, cur);
+  }
+  g_pipe_modlet_strpool_seq_cold += 1;
+  seq = g_pipe_modlet_strpool_seq_cold;
+  fp = pipe_modlet_module_fp_cold();
+  lab[0] = (uint8_t)'L';
+  lab[1] = (uint8_t)'x';
+  lab[2] = (uint8_t)'m';
+  lab[3] = (uint8_t)'l';
+  lab[4] = (uint8_t)'s';
+  lab[5] = (uint8_t)'_';
+  for (i = 0; i < 8; i++) {
+    nib = (seq >> ((7 - i) * 4)) & 15;
+    lab[6 + i] = (uint8_t)(nib >= 10 ? (87 + nib) : (48 + nib));
+  }
+  for (i = 0; i < 8; i++) {
+    nib = (int32_t)((fp >> ((7 - i) * 4)) & 15u);
+    lab[14 + i] = (uint8_t)(nib >= 10 ? (87 + nib) : (48 + nib));
+  }
+  if (pipeline_elf_ctx_add_label(elf_ctx, lab, 22, pool_off) != 0)
+    return -1;
+  if (pipeline_elf_ctx_add_sym(elf_ctx, lab, 22, pool_off) != 0)
+    return -1;
+  if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off, lab, 22) != 0)
+    return -1;
+  return 0;
+}
+
+/* Bake a scalar module-let immediate into an already-reserved .data cell.
+ * wave344: library Cap TUs never run seed_nonzero; non-zero COMMON stays 0.
+ * Twin of runtime_pipeline_abi.x pipe_modlet_bake_scalar_imm_to_data.
+ * Peels two's-complement LE bytes via u32 (same as ARRAY_LIT LIT peel).
+ * Sign-extends into bytes beyond 4 when csz>=8 (NEG -1 → 0xff..ff).
+ * Returns 0 ok; -1 poke fail / bad args.
+ * PLATFORM: SHARED freestanding · ELF .data · Mach-O __DATA,__const. */
+static int32_t pipe_modlet_bake_scalar_imm_to_data_cold(uint8_t *elf_ctx, int32_t data_off,
+                                                         int32_t imm, int32_t csz) {
+  int32_t bi = 0;
+  int32_t n = 0;
+  uint32_t uw = 0;
+  uint32_t hi = 0;
+  if (!elf_ctx || data_off < 0 || csz <= 0)
+    return -1;
+  n = csz;
+  if (n > 8)
+    n = 8;
+  uw = (uint32_t)imm;
+  bi = 0;
+  while (bi < n && bi < 4) {
+    if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (int32_t)(uw & 255u)) != 0)
+      return -1;
+    uw = uw / 256u;
+    bi = bi + 1;
+  }
+  if (bi < n) {
+    hi = 0;
+    if (imm < 0)
+      hi = 0xffffffffu;
+    while (bi < n) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_off + bi, (int32_t)(hi & 255u)) != 0)
+        return -1;
+      hi = hi / 256u;
+      bi = bi + 1;
+    }
+  }
+  return 0;
+}
+
+/* Bake one address-valued ARRAY_LIT elem as an absolute64 reloc on an
+ * already-reserved .data pointer slot (9.4.2). Twin of
+ * runtime_pipeline_abi.x pipe_modlet_bake_ptr_addr_elem_to_data.
+ * G.7: reloc authority is pipeline_elf_ctx_append_reloc_absolute64;
+ * spelling is pipe_modlet_fn_sym_spell_into_cold.
+ * Returns 0 recorded reloc, 1 not-an-address-elem, -1 loud fail.
+ * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64. */
+static int32_t pipe_modlet_bake_ptr_addr_elem_to_data_cold(void *arena, uint8_t *elf_ctx, void *m,
+                                                            int32_t eref, int32_t esz, int32_t slot_off) {
+  int32_t ek = 0, is_addr_of = 0, nref = 0, vlen = 0, fi = 0, idx = 0, slen = 0;
+  uint8_t name[256];
+  uint8_t sym[130];
+  if (!arena || !elf_ctx || eref <= 0 || slot_off < 0)
+    return 1;
+  ek = pipeline_expr_kind_ord_at(arena, eref);
+  if (ek == 54) {
+    nref = pipeline_expr_as_operand_ref_at(arena, eref);
+  } else if (ek == 51) {
+    is_addr_of = 1;
+    nref = pipeline_expr_unary_operand_ref_at(arena, eref);
+  } else if (ek != 3) {
+    return 1;
+  } else {
+    nref = eref;
+  }
+  if (nref <= 0)
+    return 1;
+  ek = pipeline_expr_kind_ord_at(arena, nref);
+  if (ek != 3)
+    return 1;
+  vlen = pipeline_expr_var_name_len(arena, nref);
+  if (vlen <= 0 || vlen > 255)
+    return -1;
+  pipeline_expr_var_name_into(arena, nref, name);
+  if (esz != 8)
+    return -1;
+  if (is_addr_of) {
+    idx = pipeline_asm_modlet_find_cold(name, vlen);
+    if (idx >= 0) {
+      if (g_pipeline_asm_modlet_cold.label_len[idx] <= 0 ||
+          g_pipeline_asm_modlet_cold.label_len[idx] > 24)
+        return -1;
+      if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off,
+                                                   g_pipeline_asm_modlet_cold.label[idx],
+                                                   g_pipeline_asm_modlet_cold.label_len[idx]) != 0)
+        return -1;
+      return 0;
+    }
+    if (!m)
+      return -1;
+    fi = glue_module_func_index_by_name_c(m, name, vlen);
+    if (fi < 0)
+      return -1;
+    slen = pipe_modlet_fn_sym_spell_into_cold(elf_ctx, name, vlen, sym);
+    if (slen <= 0)
+      return -1;
+    if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off, sym, slen) != 0)
+      return -1;
+    return 0;
+  }
+  if (!m)
+    return 1;
+  fi = glue_module_func_index_by_name_c(m, name, vlen);
+  if (fi < 0)
+    return 1;
+  slen = pipe_modlet_fn_sym_spell_into_cold(elf_ctx, name, vlen, sym);
+  if (slen <= 0)
+    return -1;
+  if (pipeline_elf_ctx_append_reloc_absolute64(elf_ctx, slot_off, sym, slen) != 0)
+    return -1;
+  return 0;
+}
+
+/* True when a scalar module-let init is a compile-time address that
+ * prepare can bake as an 8-byte .data cell + absolute64 reloc.
+ * Twin of runtime_pipeline_abi.x pipe_modlet_scalar_init_is_ptr_addr.
+ * Hoist skip and prepare register MUST agree (9.6.0 dual-home).
+ * PLATFORM: SHARED freestanding · ELF .data RELA · Mach-O __DATA unsigned64. */
+static int32_t pipe_modlet_scalar_init_is_ptr_addr_cold(void *arena, void *m, int32_t init_ref) {
+  int32_t ek = 0, is_addr_of = 0, nref = 0, vlen = 0, fi = 0;
+  int32_t nlets, tl, nlen, k, nexprs;
+  uint8_t name[256];
+  if (!arena || !m || init_ref <= 0)
+    return 0;
+  ek = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ek == 54) {
+    nref = pipeline_expr_as_operand_ref_at(arena, init_ref);
+  } else if (ek == 51) {
+    is_addr_of = 1;
+    nref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+  } else if (ek != 3) {
+    return 0;
+  } else {
+    nref = init_ref;
+  }
+  if (nref <= 0)
+    return 0;
+  ek = pipeline_expr_kind_ord_at(arena, nref);
+  if (ek != 3)
+    return 0;
+  vlen = pipeline_expr_var_name_len(arena, nref);
+  if (vlen <= 0 || vlen > 255)
+    return 0;
+  pipeline_expr_var_name_into(arena, nref, name);
+  fi = glue_module_func_index_by_name_c(m, name, vlen);
+  if (fi >= 0)
+    return 1;
+  if (!is_addr_of)
+    return 0;
+  nlets = cold_mod_num_top_level_lets(m);
+  nexprs = cold_arena_num_exprs(arena);
+  for (tl = 0; tl < nlets; tl++) {
+    nlen = pipeline_module_top_level_let_name_len(m, tl);
+    if (nlen != vlen)
+      continue;
+    for (k = 0; k < nlen; k++) {
+      if ((int32_t)pipeline_module_top_level_let_name_byte_at(m, tl, k) != (int32_t)name[k])
+        break;
+    }
+    if (k == nlen) {
+      int32_t t_const = pipeline_module_top_level_let_is_const(m, tl);
+      int32_t t_init = pipeline_module_top_level_let_init_ref(m, tl);
+      int32_t t_tr = pipeline_module_top_level_let_type_ref(m, tl);
+      int32_t t_ik = 0, t_tk = 0;
+      if (t_init > 0 && t_init <= nexprs)
+        t_ik = pipeline_expr_kind_ord_at(arena, t_init);
+      if (t_tr > 0)
+        t_tk = pipeline_type_kind_ord_at(arena, t_tr);
+      if (t_const == 0 && (t_ik == 0 || t_ik == 2))
+        return 1;
+      if (t_tk == 10 && t_ik == 46)
+        return 1;
+      return 0;
+    }
+  }
+  return 0;
+}
+
+/* Fold integer binops of two i32s. EXPR_DIV=7 and EXPR_MOD=8 use the
+ * language operators. A zero divisor is not a constant. INT_MIN divided
+ * or remaindered by -1 is not a constant: x86 idiv traps, so this returns
+ * 0. The linked thin is compiled with XLANG_PREFER_ASM_O=1 so those
+ * operators do not emit xlang_panic_. A shift count outside 0..31 is not
+ * a constant. Twin of pipe_modlet_fold_i32_binop.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
+static int32_t pipe_modlet_fold_i32_binop_cold(int32_t ek, int32_t lv, int32_t rv,
+                                               int32_t *out_val) {
+  if (!out_val)
+    return 0;
+  if (ek == 4) { *out_val = lv + rv; return 1; }
+  if (ek == 5) { *out_val = lv - rv; return 1; }
+  if (ek == 6) { *out_val = lv * rv; return 1; }
+  /* lv + 2147483647 == -1 only for the most-negative i32. */
+  if (ek == 7 || ek == 8) {
+    if (rv == 0)
+      return 0;
+    if (rv == -1 && lv + 2147483647 == -1)
+      return 0;
+    if (ek == 7) {
+      *out_val = lv / rv;
+      return 1;
+    }
+    *out_val = lv % rv;
+    return 1;
+  }
+  if (ek == 9) {
+    if (rv < 0 || rv >= 32)
+      return 0;
+    *out_val = lv << rv;
+    return 1;
+  }
+  if (ek == 10) {
+    if (rv < 0 || rv >= 32)
+      return 0;
+    *out_val = lv >> rv;
+    return 1;
+  }
+  if (ek == 11) { *out_val = lv & rv; return 1; }
+  if (ek == 12) { *out_val = lv | rv; return 1; }
+  if (ek == 13) { *out_val = lv ^ rv; return 1; }
+  return 0;
+}
+
+/* Fold one ARRAY_LIT element to its constant integer value. Accepts
+ * EXPR_LIT (ek 0), EXPR_NEG over a folded constant (ek 22, including
+ * NEG-over-LIT `[-600, 2]`), integer binops ek 4..13 including DIV and
+ * MOD whose operands fold, and EXPR_AS (ek 54) to an integer.
+ * A float operand truncates toward zero (cvttsd2si). An integer operand
+ * is folded by this same function: a 64-bit target keeps both halves
+ * (an i32 child sign-extends) and a 32-bit target keeps the low word
+ * (a wider child truncates). 32-bit targets: TYPE_I32 (0), TYPE_U32 (3),
+ * same as glue_emit_as_f2i32_elf_c. 64-bit targets: TYPE_U64 (4),
+ * TYPE_I64 (5), TYPE_USIZE (6), TYPE_ISIZE (7), same as
+ * glue_emit_as_f2i64_elf_c. Inf/NaN and a float magnitude outside the
+ * signed destination return 0. |x| < 1 truncates to 0. Exactly -2^31
+ * fits in i32. Exactly -2^63 fits in i64. BOOL and U8 targets stay 0.
+ * out_hi may be null. A 64-bit result whose high half is not the sign
+ * fill of the low half returns 0 when out_hi is null. On success an i32
+ * result writes the sign fill when out_hi is set.
+ * Returns 1 when *out_val is written.
+ * Twin of runtime_pipeline_abi.x pipe_modlet_array_lit_elem_const_val.
+ * PLATFORM: SHARED — little-endian host float trunc; LINUX gold. */
+static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
+                                                   int32_t *out_lo, int32_t *out_hi);
+static int32_t pipe_modlet_array_lit_elem_const_val_cold(void *arena, int32_t eref,
+                                                          int32_t *out_val,
+                                                          int32_t *out_hi) {
+  int32_t ek = 0, op = 0, v = 0, left = 0, right = 0, lv = 0, rv = 0, lhi = 0;
+  if (!arena || eref <= 0 || !out_val)
+    return 0;
+  ek = pipeline_expr_kind_ord_at(arena, eref);
+  if (ek == 0) {
+    v = pipeline_expr_int_val_at(arena, eref);
+    *out_val = v;
+    if (out_hi)
+      *out_hi = (v < 0) ? -1 : 0;
+    return 1;
+  }
+  if (ek == 22) {
+    op = pipeline_expr_unary_operand_ref_at(arena, eref);
+    if (op <= 0)
+      return 0;
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val, out_hi))
+      return 0;
+    /* 32-bit negate. A wider high half would make the low-word negate wrong. */
+    if (out_hi) {
+      lhi = *out_hi;
+      if (*out_val < 0) {
+        if (lhi != -1)
+          return 0;
+      } else if (lhi != 0) {
+        return 0;
+      }
+    }
+    *out_val = -*out_val;
+    if (out_hi)
+      *out_hi = (*out_val < 0) ? -1 : 0;
+    return 1;
+  }
+  if (ek >= 4 && ek <= 13) {
+    left = pipeline_expr_binop_left_ref_at(arena, eref);
+    right = pipeline_expr_binop_right_ref_at(arena, eref);
+    if (left <= 0 || right <= 0)
+      return 0;
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, left, out_val, out_hi))
+      return 0;
+    lv = *out_val;
+    if (out_hi) {
+      lhi = *out_hi;
+      if (lv < 0) {
+        if (lhi != -1)
+          return 0;
+      } else if (lhi != 0) {
+        return 0;
+      }
+    }
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, right, out_val, out_hi))
+      return 0;
+    rv = *out_val;
+    if (out_hi) {
+      lhi = *out_hi;
+      if (rv < 0) {
+        if (lhi != -1)
+          return 0;
+      } else if (lhi != 0) {
+        return 0;
+      }
+    }
+    if (!pipe_modlet_fold_i32_binop_cold(ek, lv, rv, out_val))
+      return 0;
+    if (out_hi)
+      *out_hi = (*out_val < 0) ? -1 : 0;
+    return 1;
+  }
+  /* EXPR_AS. A folded float truncates toward zero. An integer operand
+   * is this same function: 64-bit keeps both halves, 32-bit keeps the
+   * low word. BOOL and U8 stay 0. */
+  if (ek == 54) {
+    int32_t tgt = 0, tk = 0, flo = 0, fhi = 0, exp = 0, ihi = 0;
+    int32_t parts[2];
+    double dv;
+    int32_t iv;
+    int64_t iv64;
+    int32_t ip[2];
+    int32_t wlo, whi;
+    op = pipeline_expr_as_operand_ref_at(arena, eref);
+    tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
+    if (op <= 0 || tgt <= 0)
+      return 0;
+    tk = pipeline_type_kind_ord_at(arena, tgt);
+    /* TYPE_U64=4 TYPE_I64=5 TYPE_USIZE=6 TYPE_ISIZE=7. Signed trunc. */
+    if (tk == 4 || tk == 5 || tk == 6 || tk == 7) {
+      if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi)) {
+        /* Integer operand. Both halves are already the widening. */
+        if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val, &ihi))
+          return 0;
+        lv = *out_val;
+        if (!out_hi) {
+          if (lv < 0) {
+            if (ihi != -1)
+              return 0;
+          } else if (ihi != 0) {
+            return 0;
+          }
+          return 1;
+        }
+        *out_hi = ihi;
+        return 1;
+      }
+      exp = (fhi >> 20) & 2047;
+      if (exp == 2047)
+        return 0;
+      if (exp < 1023) {
+        *out_val = 0;
+        if (out_hi)
+          *out_hi = 0;
+        return 1;
+      }
+      /* |x| >= 2^64. Bias 1023, unbiased 64 → biased 1087. */
+      if (exp > 1086)
+        return 0;
+      /* Binade [2^63, 2^64). Only exactly -2^63 fits. */
+      if (exp == 1086) {
+        if (fhi >= 0)
+          return 0;
+        if ((fhi & 1048575) != 0 || flo != 0)
+          return 0;
+        if (!out_hi)
+          return 0;
+        *out_val = 0;
+        *out_hi = 0 - 2147483647 - 1;
+        return 1;
+      }
+      parts[0] = flo;
+      parts[1] = fhi;
+      memcpy(&dv, parts, 8);
+      iv64 = (int64_t)dv;
+      memcpy(ip, &iv64, 8);
+      wlo = ip[0];
+      whi = ip[1];
+      if (!out_hi) {
+        if (wlo < 0) {
+          if (whi != -1)
+            return 0;
+        } else if (whi != 0) {
+          return 0;
+        }
+        *out_val = wlo;
+        return 1;
+      }
+      *out_val = wlo;
+      *out_hi = whi;
+      return 1;
+    }
+    if (tk != 0 && tk != 3)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, &flo, &fhi)) {
+      /* Integer operand. The low word is the cast; a wider child truncates. */
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, out_val, &ihi))
+        return 0;
+      lv = *out_val;
+      if (out_hi)
+        *out_hi = (lv < 0) ? -1 : 0;
+      return 1;
+    }
+    exp = (fhi >> 20) & 2047;
+    if (exp == 2047)
+      return 0;
+    if (exp < 1023) {
+      *out_val = 0;
+      if (out_hi)
+        *out_hi = 0;
+      return 1;
+    }
+    if (exp > 1054)
+      return 0;
+    if (exp == 1054) {
+      if (fhi >= 0)
+        return 0;
+      if ((fhi & 1048575) != 0 || flo != 0)
+        return 0;
+      *out_val = 0 - 2147483647 - 1;
+      if (out_hi)
+        *out_hi = -1;
+      return 1;
+    }
+    parts[0] = flo;
+    parts[1] = fhi;
+    memcpy(&dv, parts, 8);
+    iv = (int32_t)dv;
+    *out_val = iv;
+    if (out_hi)
+      *out_hi = (iv < 0) ? -1 : 0;
+    return 1;
+  }
+  return 0;
+}
+
+/* wave338 cold twin of pipe_modlet_scalar_init_common_imm.
+ * LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON imm. PLATFORM: SHARED. */
+static int32_t pipe_modlet_scalar_init_common_imm_cold(void *arena, int32_t init_ref,
+                                                        int32_t tk, int32_t is_const,
+                                                        int32_t *out_imm) {
+  int32_t ik = 0, fold = 0, op = 0, oek = 0, v = 0;
+  if (is_const != 0 || !arena || init_ref <= 0 || !out_imm)
+    return 0;
+  ik = pipeline_expr_kind_ord_at(arena, init_ref);
+  if (ik == 2) {
+    *out_imm = pipeline_expr_int_val_at(arena, init_ref);
+    return 1;
+  }
+  if (pipe_modlet_array_lit_elem_const_val_cold(arena, init_ref, &fold, 0)) {
+    *out_imm = fold;
+    return 1;
+  }
+  if (tk == 9) {
+    if (ik == 0) {
+      v = pipeline_expr_int_val_at(arena, init_ref);
+      if (v == 0) {
+        *out_imm = 0;
+        return 1;
+      }
+    } else if (ik == 54) {
+      op = pipeline_expr_as_operand_ref_at(arena, init_ref);
+      if (op > 0) {
+        oek = pipeline_expr_kind_ord_at(arena, op);
+        if (oek == 0) {
+          v = pipeline_expr_int_val_at(arena, op);
+          if (v == 0) {
+            *out_imm = 0;
+            return 1;
+          }
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+/* Store ARRAY_LIT elems into the COMMON cell already LEA'd in rbx
+ * (hoist-target seed). LIT elems mov-imm64 + store; STRING_LIT elems
+ * emit the string bytes inline in .text, LEA them into rax/x0 and store
+ * the pointer (emitter loud-fails on len > 126). Twin of
+ * runtime_pipeline_abi.x pipe_modlet_seed_array_lit_elems_to_rbx.
+ * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
+/* 9.4.2 cold twin: detect ARRAY_LIT elems holding compile-time addresses
+ * (dest elem ptr 9 / fn 18 with elem VAR 3 / AS 54 / ADDR_OF 51),
+ * recursive over nested TYPE_ARRAY rows. Prepare now bakes such arrays
+ * via absolute64 RELA when the cell fits; this predicate remains for the
+ * COMMON+seeder fallback (budget miss). PLATFORM: SHARED. */
+static int32_t pipe_modlet_array_lit_has_ptr_addr_elem_cold(void *arena, int32_t init_ref, int32_t elem_ty) {
+  int32_t ne = 0, ei = 0, eref = 0, ek = 0, etk = 0;
+  if (!arena || init_ref <= 0 || elem_ty <= 0)
+    return 0;
+  etk = pipeline_type_kind_ord_at(arena, elem_ty);
+  if (etk != 9 && etk != 18 && etk != 10)
+    return 0;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  for (ei = 0; ei < ne; ei++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    if (eref <= 0)
+      continue;
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+    if (etk == 10) {
+      if (ek == 46 &&
+          pipe_modlet_array_lit_has_ptr_addr_elem_cold(arena, eref, pipeline_type_elem_ref_at(arena, elem_ty)) != 0)
+        return 1;
+    } else {
+      if (ek == 3 || ek == 51 || ek == 54)
+        return 1;
+    }
+  }
+  return 0;
+}
+
+/* 9.4.2 cold twin: seed one address-valued ARRAY_LIT elem at rbx+off.
+ * Bare/AS fn name → link symbol; ADDR_OF → modlet COMMON cell address
+ * first, then fn symbol. A VAR naming a module let is a VALUE copy —
+ * return 1 so the caller's const fold loud-fails. Returns 0 stored,
+ * 1 not-an-address-elem (caller falls back), -1 loud fail.
+ * PLATFORM: SHARED. */
+static int32_t pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(void *arena, uint8_t *elf_ctx, void *m, int32_t eref,
+                                                          int32_t esz, int32_t off, int32_t ta) {
+  int32_t ek = 0, is_addr_of = 0, nref = 0, vlen = 0, fi = 0, rc = 0;
+  uint8_t name[256];
+  if (!arena || !elf_ctx || eref <= 0)
+    return 1;
+  ek = pipeline_expr_kind_ord_at(arena, eref);
+  if (ek == 54) {
+    nref = pipeline_expr_as_operand_ref_at(arena, eref);
+  } else if (ek == 51) {
+    is_addr_of = 1;
+    nref = pipeline_expr_unary_operand_ref_at(arena, eref);
+  } else if (ek != 3) {
+    return 1;
+  } else {
+    nref = eref;
+  }
+  if (nref <= 0)
+    return 1;
+  ek = pipeline_expr_kind_ord_at(arena, nref);
+  if (ek != 3)
+    return 1;
+  vlen = pipeline_expr_var_name_len(arena, nref);
+  if (vlen <= 0 || vlen > 255)
+    return -1;
+  pipeline_expr_var_name_into(arena, nref, name);
+  if (is_addr_of) {
+    if (pipe_modlet_lea_named_binding_addr_to_rax_cold(elf_ctx, m, name, vlen, ta) != 0)
+      return -1;
+  } else {
+    if (!m)
+      return 1;
+    fi = glue_module_func_index_by_name_c(m, name, vlen);
+    if (fi < 0)
+      return 1;
+    if (pipe_modlet_lea_fn_sym_to_rax_cold(elf_ctx, name, vlen, ta) != 0)
+      return -1;
+  }
+  if (esz != 8)
+    return -1;
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, off, esz, ta) != 0)
+    return -1;
+  return 0;
+}
+
+/* Width of one integer STRUCT_LIT field. 1/2/4/8, or -1.
+ * TYPE_NAMED Cap residual i8→1, i16/u16→2.
+ * PLATFORM: SHARED — twin of pipe_modlet_struct_field_int_width. */
+static int32_t pipe_modlet_struct_field_int_width_cold(void *arena, void *m, int32_t lit_ref, int32_t fi) {
+  int32_t fty, k, nlen;
+  uint8_t nm[8];
+  extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                            int32_t field_ix);
+  extern int32_t pipeline_type_named_name_into(void *a, int32_t ref, uint8_t *out);
+  if (!arena || !m || lit_ref <= 0 || fi < 0)
+    return -1;
+  fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+  if (fty <= 0)
+    return -1;
+  k = pipeline_type_kind_ord_at(arena, fty);
+  if (k == 1 || k == 2)
+    return 1;
+  if (k == 0 || k == 3 || k == 13 || k == 14)
+    return 4;
+  if (k == 4 || k == 5 || k == 6 || k == 7 || k == 15)
+    return 8;
+  if (k == 8) {
+    nlen = pipeline_type_named_name_into(arena, fty, nm);
+    /* "i8" */
+    if (nlen == 2 && nm[0] == 105 && nm[1] == 56)
+      return 1;
+    /* "i16" */
+    if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54)
+      return 2;
+    /* "u16" */
+    if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54)
+      return 2;
+  }
+  return -1;
+}
+
+/* Defined below. Struct fields that are arrays call back into these. */
+static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t data_base, int32_t base_off,
+                                                            int32_t span_bytes, void *m);
+static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t ta, int32_t base_off, void *m);
+
+/* Fold and the 4-byte poke are defined below. Struct float fields call them. */
+static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
+                                                   int32_t *out_lo, int32_t *out_hi);
+static int32_t pipe_modlet_data_poke_u32_le_cold(uint8_t *elf_ctx, int32_t off, int32_t bits);
+
+/* Poke one STRUCT_LIT into an already-zeroed .data span.
+ * Integer, f32/f64, string, pointer/fn, and array fields. Nested STRUCT_LIT recurses.
+ * PLATFORM: SHARED — twin of pipe_modlet_bake_struct_lit_to_data. */
+static int32_t pipe_modlet_bake_struct_lit_to_data_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
+                                                        int32_t elem_base, void *m) {
+  int32_t nf, fi, iref, ik, foff, fsz, ev, bi, b, ehi;
+  uint32_t uw;
+  extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
+  extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
+  extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
+                                                         int32_t field_ix);
+  if (!arena || !elf_ctx || !m || lit_ref <= 0 || elem_base < 0)
+    return -1;
+  nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
+  if (nf < 0 || nf > 64)
+    return -1;
+  for (fi = 0; fi < nf; fi++) {
+    iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
+    if (iref <= 0)
+      continue;
+    ik = pipeline_expr_kind_ord_at(arena, iref);
+    foff = pipeline_expr_struct_lit_field_offset_at(arena, m, lit_ref, fi);
+    if (foff < 0)
+      return -1;
+    if (ik == 45) {
+      if (pipe_modlet_bake_struct_lit_to_data_cold(arena, elf_ctx, iref, elem_base + foff, m) != 0)
+        return -1;
+      continue;
+    }
+    /* STRING_LIT, ARRAY_LIT, and pointer/fn reuse the existing bakers.
+     * PLATFORM: SHARED. */
+    if (ik == 59) {
+      if (pipe_modlet_bake_string_lit_elem_to_data_cold(arena, elf_ctx, iref, elem_base + foff) != 0)
+        return -1;
+      continue;
+    }
+    if (ik == 46) {
+      int32_t fty, span, et;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty <= 0)
+        return -1;
+      span = glue_fixed_array_total_bytes_c(arena, fty, 0);
+      if (span <= 0)
+        return -1;
+      et = pipeline_type_elem_ref_at(arena, fty);
+      if (pipe_modlet_bake_array_lit_elems_to_data_cold(arena, elf_ctx, iref, et, elem_base + foff, 0,
+                                                       span, m) != 0)
+        return -1;
+      continue;
+    }
+    {
+      int32_t fty = 0, fk = 0, pa = 1;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty > 0)
+        fk = pipeline_type_kind_ord_at(arena, fty);
+      if (fk == 9 || fk == 18) {
+        pa = pipe_modlet_bake_ptr_addr_elem_to_data_cold(arena, elf_ctx, m, iref, 8, elem_base + foff);
+        if (pa < 0)
+          return -1;
+      }
+      if (pa == 0)
+        continue;
+      /* TYPE_F32 (14) / TYPE_F64 (15): same IEEE poke as the array baker.
+       * A fold of 0 loud-fails. Integer fields stay on the peel below.
+       * PLATFORM: SHARED. */
+      if (fk == 14 || fk == 15) {
+        int32_t flo = 0, fhi = 0, fb = 0;
+        if (!pipe_modlet_fold_f64_elem_bits_cold(arena, iref, &flo, &fhi))
+          return -1;
+        if (fk == 14) {
+          fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, elem_base + foff, fb) != 0)
+            return -1;
+        } else {
+          if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, elem_base + foff, flo) != 0)
+            return -1;
+          if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, elem_base + foff + 4, fhi) != 0)
+            return -1;
+        }
+        continue;
+      }
+    }
+    fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
+    if (fsz <= 0)
+      return -1;
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev, &ehi))
+      return -1;
+    /* Low four bytes, then the folder's high half. Unsigned shift inside
+     * each half so a negative pattern does not sign-fill a half.
+     * PLATFORM: SHARED. */
+    uw = (uint32_t)ev;
+    for (bi = 0; bi < fsz && bi < 4; bi++) {
+      b = (int32_t)(uw & 255u);
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, b) != 0)
+        return -1;
+      uw >>= 8;
+    }
+    uw = (uint32_t)ehi;
+    for (; bi < fsz; bi++) {
+      b = (int32_t)(uw & 255u);
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, elem_base + foff + bi, b) != 0)
+        return -1;
+      uw >>= 8;
+    }
+  }
+  return 0;
+}
+
+/* Store one STRUCT_LIT into the COMMON cell addressed by rbx.
+ * PLATFORM: SHARED — twin of pipe_modlet_seed_struct_lit_to_rbx. */
+static int32_t pipe_modlet_seed_struct_lit_to_rbx_cold(void *arena, uint8_t *elf_ctx, int32_t lit_ref,
+                                                       int32_t ta, int32_t base_off, void *m) {
+  int32_t nf, fi, iref, ik, foff, fsz, ev, hi;
+  extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
+  extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
+  extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
+                                                         int32_t field_ix);
+  if (!arena || !elf_ctx || !m || lit_ref <= 0)
+    return -1;
+  nf = pipeline_expr_struct_lit_num_fields(arena, lit_ref);
+  if (nf < 0 || nf > 64)
+    return -1;
+  for (fi = 0; fi < nf; fi++) {
+    iref = pipeline_expr_struct_lit_init_ref(arena, lit_ref, fi);
+    if (iref <= 0)
+      continue;
+    ik = pipeline_expr_kind_ord_at(arena, iref);
+    foff = pipeline_expr_struct_lit_field_offset_at(arena, m, lit_ref, fi);
+    if (foff < 0)
+      return -1;
+    if (ik == 45) {
+      if (pipe_modlet_seed_struct_lit_to_rbx_cold(arena, elf_ctx, iref, ta, base_off + foff, m) != 0)
+        return -1;
+      continue;
+    }
+    /* Same field kinds as the .data baker. COMMON cells only. PLATFORM: SHARED. */
+    if (ik == 59) {
+      if (glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, iref, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 8, ta) != 0)
+        return -1;
+      continue;
+    }
+    if (ik == 46) {
+      int32_t fty, span, et;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty <= 0)
+        return -1;
+      span = glue_fixed_array_total_bytes_c(arena, fty, 0);
+      if (span <= 0)
+        return -1;
+      et = pipeline_type_elem_ref_at(arena, fty);
+      if (pipe_modlet_seed_array_lit_elems_to_rbx_cold(arena, elf_ctx, iref, et, ta, base_off + foff,
+                                                      m) != 0)
+        return -1;
+      continue;
+    }
+    {
+      int32_t fty = 0, fk = 0, pa = 1;
+      extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *mod, int32_t expr_ref,
+                                                                int32_t field_ix);
+      fty = pipeline_expr_struct_lit_field_type_ref_at(arena, m, lit_ref, fi);
+      if (fty > 0)
+        fk = pipeline_type_kind_ord_at(arena, fty);
+      if (fk == 9 || fk == 18) {
+        pa = pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(arena, elf_ctx, m, iref, 8, base_off + foff, ta);
+        if (pa < 0)
+          return -1;
+      }
+      if (pa == 0)
+        continue;
+      /* Same f32/f64 contract as the .data baker. COMMON cells only.
+       * PLATFORM: SHARED. */
+      if (fk == 14 || fk == 15) {
+        int32_t flo = 0, fhi = 0, fb = 0, shi = 0;
+        if (!pipe_modlet_fold_f64_elem_bits_cold(arena, iref, &flo, &fhi))
+          return -1;
+        if (fk == 14) {
+          fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          shi = (fb < 0) ? -1 : 0;
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, fb, shi, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 4, ta) != 0)
+            return -1;
+        } else {
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta) != 0)
+            return -1;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, 8, ta) != 0)
+            return -1;
+        }
+        continue;
+      }
+    }
+    fsz = pipe_modlet_struct_field_int_width_cold(arena, m, lit_ref, fi);
+    if (fsz <= 0)
+      return -1;
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, iref, &ev, &hi))
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, hi, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + foff, fsz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/* Fold one array element that is an f64 constant into IEEE lo/hi.
+ * EXPR_FLOAT_LIT (ek 1), NEG over a folded float (ek 22), ADD/SUB/MUL/DIV
+ * (ek 4..7), and EXPR_AS (ek 54) to TYPE_F32 (14) or TYPE_F64 (15) of a
+ * folded float or an integer constant.
+ * Integer elems return 0. Float DIV uses the host double. A zero divisor
+ * stays the IEEE result. Float MOD is rejected by typeck. NEG flips the
+ * sign bit. ADD/SUB/MUL/DIV use the host double. An f32-typed binop is rounded and
+ * widened. AS of a folded float keeps bits (f64) or rounds then widens
+ * (f32). AS of an integer constant uses glue_i32_to_f32_bits or
+ * glue_i64_to_f64_bits. A zero integer divisor or INT_MIN/-1 inside that
+ * operand still returns 0.
+ * Little-endian: p[0] is lo.
+ * Twin of pipe_modlet_fold_f64_elem_bits. PLATFORM: SHARED. */
+extern int32_t pipeline_expr_as_target_type_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_ieee_f64_bits_to_f32_bits(int32_t lo, int32_t hi);
+extern int32_t glue_ieee_f32_bits_to_f64_lo(int32_t fb);
+extern int32_t glue_ieee_f32_bits_to_f64_hi(int32_t fb);
+extern int32_t glue_i32_to_f32_bits(int32_t v);
+extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
+static int32_t pipe_modlet_fold_f64_elem_bits_cold(void *arena, int32_t eref,
+                                                   int32_t *out_lo, int32_t *out_hi) {
+  int32_t ek = 0, op = 0, left = 0, right = 0;
+  int32_t llo = 0, lhi = 0, rlo = 0, rhi = 0;
+  if (!arena || eref <= 0 || !out_lo || !out_hi)
+    return 0;
+  ek = pipeline_expr_kind_ord_at(arena, eref);
+  if (ek == 1) {
+    *out_lo = pipeline_expr_float_bits_lo_at(arena, eref);
+    *out_hi = pipeline_expr_float_bits_hi_at(arena, eref);
+    return 1;
+  }
+  if (ek == 22) {
+    op = pipeline_expr_unary_operand_ref_at(arena, eref);
+    if (op <= 0)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, out_lo, out_hi))
+      return 0;
+    *out_hi = (int32_t)((uint32_t)(*out_hi) ^ 2147483648u);
+    return 1;
+  }
+  if (ek == 4 || ek == 5 || ek == 6 || ek == 7) {
+    union { int32_t p[2]; double d; } a, b, r;
+    left = pipeline_expr_binop_left_ref_at(arena, eref);
+    right = pipeline_expr_binop_right_ref_at(arena, eref);
+    if (left <= 0 || right <= 0)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, left, &llo, &lhi))
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, right, &rlo, &rhi))
+      return 0;
+    a.p[0] = llo;
+    a.p[1] = lhi;
+    b.p[0] = rlo;
+    b.p[1] = rhi;
+    if (ek == 4)
+      r.d = a.d + b.d;
+    else if (ek == 5)
+      r.d = a.d - b.d;
+    else if (ek == 6)
+      r.d = a.d * b.d;
+    else
+      r.d = a.d / b.d;
+    *out_lo = r.p[0];
+    *out_hi = r.p[1];
+    {
+      /* TYPE_F32 result: round, then widen. Unset resolved type stays f64. */
+      int32_t rty = pipeline_expr_resolved_type_ref(arena, eref);
+      int32_t rtk = rty > 0 ? pipeline_type_kind_ord_at(arena, rty) : -1;
+      if (rtk == 14) {
+        int32_t fb = glue_ieee_f64_bits_to_f32_bits(r.p[0], r.p[1]);
+        *out_lo = glue_ieee_f32_bits_to_f64_lo(fb);
+        *out_hi = glue_ieee_f32_bits_to_f64_hi(fb);
+      }
+    }
+    return 1;
+  }
+  /* EXPR_AS to f32 or f64. A folded float keeps the round path.
+   * An integer constant uses glue_i32_to_f32_bits / glue_i64_to_f64_bits.
+   * Pointer casts and other targets return 0. Integer div0 stays 0.
+   * .x TypeKind: TYPE_F32 = 14, TYPE_F64 = 15. Not the C enum. */
+  if (ek == 54) {
+    int32_t tgt = 0, tk = 0, fb = 0, iv = 0;
+    op = pipeline_expr_as_operand_ref_at(arena, eref);
+    tgt = pipeline_expr_as_target_type_ref_at(arena, eref);
+    if (op <= 0 || tgt <= 0)
+      return 0;
+    tk = pipeline_type_kind_ord_at(arena, tgt);
+    if (tk != 14 && tk != 15)
+      return 0;
+    if (!pipe_modlet_fold_f64_elem_bits_cold(arena, op, out_lo, out_hi)) {
+      /* Operand is not a float constant. Fold it as an i32 constant. */
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, op, &iv, 0))
+        return 0;
+      if (tk == 14) {
+        fb = glue_i32_to_f32_bits(iv);
+        *out_lo = glue_ieee_f32_bits_to_f64_lo(fb);
+        *out_hi = glue_ieee_f32_bits_to_f64_hi(fb);
+        return 1;
+      }
+      glue_i64_to_f64_bits((int64_t)iv, out_lo, out_hi);
+      return 1;
+    }
+    if (tk == 15)
+      return 1;
+    fb = glue_ieee_f64_bits_to_f32_bits(*out_lo, *out_hi);
+    *out_lo = glue_ieee_f32_bits_to_f64_lo(fb);
+    *out_hi = glue_ieee_f32_bits_to_f64_hi(fb);
+    return 1;
+  }
+  return 0;
+}
+
+static int32_t pipe_modlet_seed_array_lit_elems_to_rbx_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t ta, int32_t base_off, void *m) {
+  int32_t ne = 0, ei = 0, eref = 0, ek = 0, ev = 0, esz = 4, etk = 0;
+  int32_t inner_et = 0, row_sz = 0, rc = 0, sa = 0, ehi = 0;
+  if (!arena || !elf_ctx || init_ref <= 0)
+    return 0;
+  if (elem_ty > 0)
+    etk = pipeline_type_kind_ord_at(arena, elem_ty);
+  if (etk == 10) {
+    inner_et = pipeline_type_elem_ref_at(arena, elem_ty);
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    row_sz = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+    if (row_sz <= 0)
+      row_sz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+    /* ne<=0: empty row lit is a no-op (BSS zero). ne>1024: entry-seed code
+     * bound — loud-fail instead of the historic silent zero fill. */
+    if (ne <= 0)
+      return 0;
+    if (ne > 1024)
+      return -1;
+    for (ei = 0; ei < ne; ei++) {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+      if (eref <= 0)
+        continue;
+      ek = pipeline_expr_kind_ord_at(arena, eref);
+      if (ek == 46) {
+        rc = pipe_modlet_seed_array_lit_elems_to_rbx_cold(arena, elf_ctx, eref, inner_et, ta,
+                                                          base_off + ei * row_sz, m);
+        if (rc != 0)
+          return rc;
+      }
+    }
+    return 0;
+  }
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+  /* TYPE_NAMED keeps the struct stride. See the bake twin. */
+  if (etk != 8) {
+    if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+      esz = 4;
+  }
+  if (etk == 8 && esz <= 0)
+    return -1;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  /* ne<=0: empty lit is a no-op (BSS zero). ne>1024: entry-seed code-size
+   * bound (~16B emitted per elem) — loud-fail instead of silent zero fill. */
+  if (ne <= 0)
+    return 0;
+  if (ne > 1024)
+    return -1;
+  for (ei = 0; ei < ne; ei++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    if (eref <= 0)
+      continue;
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+    if (ek == 59) {
+      /* STRING_LIT: lea baked .text bytes into rax/x0, store the pointer. */
+      rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, eref, ta);
+      if (rc != 0)
+        return rc;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta) != 0)
+        return -1;
+    } else {
+      /* 9.4.2 address-valued elem (bare fn / `fn as *u8` / `&global`):
+       * resolve the link-time address at hoist-target entry, store 8B.
+       * sa==1 → not an address literal, fall through to the fold. */
+      sa = 1;
+      if ((etk == 9 || etk == 18) && m)
+        sa = pipe_modlet_seed_ptr_addr_elem_to_rbx_cold(arena, elf_ctx, m, eref, esz,
+                                                        base_off + ei * esz, ta);
+      if (sa < 0)
+        return -1;
+      if (sa == 0)
+        continue;
+      /* STRUCT_LIT: store integer, string, pointer, and array fields. PLATFORM: SHARED. */
+      if (ek == 45) {
+        if (pipe_modlet_seed_struct_lit_to_rbx_cold(arena, elf_ctx, eref, ta,
+                                                    base_off + ei * esz, m) != 0)
+          return -1;
+        continue;
+      }
+      /* Float constant: esz 4 stores the f32 pack; esz 8 stores both
+       * halves. Integer elems return 0 and fall through. PLATFORM: SHARED. */
+      {
+        int32_t flo = 0, fhi = 0, fb = 0;
+        if (pipe_modlet_fold_f64_elem_bits_cold(arena, eref, &flo, &fhi)) {
+        if (esz == 4) {
+          fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, fb, fb < 0 ? -1 : 0, ta) != 0)
+            return -1;
+        } else if (esz == 8) {
+          if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, flo, fhi, ta) != 0)
+            return -1;
+        } else {
+          return -1;
+        }
+        if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta) != 0)
+          return -1;
+        continue;
+        }
+      }
+      /* LIT / NEG / integer binop: fold to the constant value. A
+       * negative imm passes hi=-1 so the (hi:lo) imm64 halves rebuild
+       * the two's-complement value in rax before the esz store. Any
+       * other elem kind is not a compile-time constant: loud-fail
+       * (was: silently skipped, leaving the elem zero at runtime). */
+      if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev, &ehi))
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, ev, ehi, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, base_off + ei * esz, esz, ta) != 0)
+        return -1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Poke four little-endian bytes of an i32 bit pattern. Twin of
+ * pipe_modlet_data_poke_u32_le. PLATFORM: SHARED freestanding · ELF .data.
+ */
+static int32_t pipe_modlet_data_poke_u32_le_cold(uint8_t *elf_ctx, int32_t off, int32_t bits) {
+  int32_t bi;
+  uint32_t uw = (uint32_t)bits;
+  for (bi = 0; bi < 4; bi++) {
+    if (pipeline_elf_ctx_data_poke_u8(elf_ctx, off + bi, (int32_t)(uw & 255u)) != 0)
+      return -1;
+    uw >>= 8;
+  }
+  return 0;
+}
+
+/**
+ * Bake ARRAY_LIT constant elems into an already-reserved .data cell.
+ * Elem contract: EXPR_LIT, EXPR_NEG over a folded constant, and integer
+ * binops ek 4..13 fold via pipe_modlet_array_lit_elem_const_val_cold.
+ * Float constants (FLOAT_LIT, NEG of a float, ADD/SUB/MUL/DIV) poke IEEE
+ * bits via pipe_modlet_fold_f64_elem_bits_cold (esz 4 packs to f32, esz 8
+ * pokes both halves). A zero float divisor stays IEEE. Float MOD is not
+ * an operator.
+ * Anything else loud-fails (the historic silent drop baked zeros for
+ * `[-1, 2]`); STRING_LIT elems
+ * intern into the .data string pool and record an absolute64 reloc on
+ * the pointer slot. 9.4.2 ptr/fn ADDR_OF / bare-fn elems record an
+ * absolute64 reloc on the named symbol (G.7 complete of
+ * pipeline_elf_ctx_append_reloc_absolute64). slen>4095 loud-fails.
+ * span_bytes bounds the literal (cell size at top call, row size for
+ * rows); exceeding span is a loud fail, never silent zero.
+ * Negative elems peel little-endian via uint32_t (the historic signed
+ * `cur / 256` peel corrupted bytes 1..3 of negative elems).
+ * Twin of runtime_pipeline_abi.x pipe_modlet_bake_array_lit_elems_to_data.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ */
+static int32_t pipe_modlet_bake_array_lit_elems_to_data_cold(void *arena, uint8_t *elf_ctx,
+                                                            int32_t init_ref, int32_t elem_ty,
+                                                            int32_t data_base, int32_t base_off,
+                                                            int32_t span_bytes, void *m) {
+  int32_t ne = 0, ei = 0, eref = 0, ek = 0, ev = 0, esz = 4, etk = 0;
+  int32_t inner_et = 0, row_sz = 0, bi = 0, ehi = 0;
+  uint32_t uw = 0;
+  if (!arena || !elf_ctx || init_ref <= 0)
+    return 0;
+  if (elem_ty > 0)
+    etk = pipeline_type_kind_ord_at(arena, elem_ty);
+  if (etk == 10) {
+    inner_et = pipeline_type_elem_ref_at(arena, elem_ty);
+    ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+    row_sz = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+    if (row_sz <= 0)
+      row_sz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+    /* ne<=0: empty row lit is a no-op (zeros already reserved). Span guard:
+     * row count must fit this literal's row span — a mismatch (typeck gap
+     * or absurd literal) loud-fails instead of silently leaving rows zero. */
+    if (ne <= 0)
+      return 0;
+    if (row_sz > 0 && ne > span_bytes / row_sz)
+      return -1;
+    for (ei = 0; ei < ne; ei++) {
+      eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+      if (eref <= 0)
+        continue;
+      ek = pipeline_expr_kind_ord_at(arena, eref);
+      if (ek == 46) {
+        if (pipe_modlet_bake_array_lit_elems_to_data_cold(arena, elf_ctx, eref, inner_et, data_base,
+                                                           base_off + ei * row_sz, row_sz, m) != 0)
+          return -1;
+      }
+    }
+    return 0;
+  }
+  esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+  /* TYPE_NAMED keeps the struct stride. Clamping a 12-byte struct to 4
+   * would overlap the next element. Scalar elems stay 1/2/4/8. */
+  if (etk != 8) {
+    if (esz != 1 && esz != 2 && esz != 4 && esz != 8)
+      esz = 4;
+  }
+  if (etk == 8 && esz <= 0)
+    return -1;
+  ne = pipeline_expr_array_lit_num_elems_at(arena, init_ref);
+  /* ne<=0: empty lit is a no-op (zeros already reserved). Span guard:
+   * elem count must fit this literal's elem span (no silent truncation). */
+  if (ne <= 0)
+    return 0;
+  if (esz > 0 && ne > span_bytes / esz)
+    return -1;
+  for (ei = 0; ei < ne; ei++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, init_ref, ei);
+    if (eref <= 0)
+      continue;
+    ek = pipeline_expr_kind_ord_at(arena, eref);
+    if (ek == 59) {
+      if (pipe_modlet_bake_string_lit_elem_to_data_cold(arena, elf_ctx, eref,
+                                                         data_base + base_off + ei * esz) != 0)
+        return -1;
+      continue;
+    }
+    if ((etk == 9 || etk == 18) && m) {
+      int32_t sa = pipe_modlet_bake_ptr_addr_elem_to_data_cold(arena, elf_ctx, m, eref, esz,
+                                                               data_base + base_off + ei * esz);
+      if (sa < 0)
+        return -1;
+      if (sa == 0)
+        continue;
+    }
+    /* STRUCT_LIT: poke integer, string, pointer, and array fields. The span is already zero.
+     * PLATFORM: SHARED. */
+    if (ek == 45) {
+      if (pipe_modlet_bake_struct_lit_to_data_cold(arena, elf_ctx, eref,
+                                                   data_base + base_off + ei * esz, m) != 0)
+        return -1;
+      continue;
+    }
+    /* Float constant, or as f32 / as f64 of a folded float or an integer
+     * constant. Bare integer elems return 0 and fall through.
+     * esz 4 packs to f32; esz 8 pokes both halves. PLATFORM: SHARED. */
+    {
+      int32_t flo = 0, fhi = 0, fb = 0;
+      if (pipe_modlet_fold_f64_elem_bits_cold(arena, eref, &flo, &fhi)) {
+      int32_t slot = data_base + base_off + ei * esz;
+      if (esz == 4) {
+        fb = glue_ieee_f64_bits_to_f32_bits(flo, fhi);
+        if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, slot, fb) != 0)
+          return -1;
+      } else if (esz == 8) {
+        if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, slot, flo) != 0)
+          return -1;
+        if (pipe_modlet_data_poke_u32_le_cold(elf_ctx, slot + 4, fhi) != 0)
+          return -1;
+      } else {
+        return -1;
+      }
+      continue;
+      }
+    }
+    if (!pipe_modlet_array_lit_elem_const_val_cold(arena, eref, &ev, &ehi))
+      return -1;
+    /* Low half, then the high half. esz <= 4 never reads ehi.
+     * PLATFORM: SHARED. */
+    uw = (uint32_t)ev;
+    for (bi = 0; bi < esz && bi < 4; bi++) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_base + base_off + ei * esz + bi,
+                                        (int32_t)(uw & 255u)) != 0)
+        return -1;
+      uw >>= 8;
+    }
+    uw = (uint32_t)ehi;
+    for (; bi < esz; bi++) {
+      if (pipeline_elf_ctx_data_poke_u8(elf_ctx, data_base + base_off + ei * esz + bi,
+                                        (int32_t)(uw & 255u)) != 0)
+        return -1;
+      uw >>= 8;
+    }
+  }
+  return 0;
+}
+
+/* PLATFORM: WINDOWS — do not emit this cold body.
+ * XLANG_WEAK is empty on PE, so it would be a second strong
+ * pipeline_asm_modlet_prepare_and_emit_elf_c that writes
+ * g_pipeline_asm_modlet_cold. The mega loop in this file calls it,
+ * while the egg's glue_emit_index_eff_addr_base calls the live load
+ * on g_pipeline_asm_modlet. Module g[0] then misses (CG002,
+ * code_len=12, 0 patches). On Windows the egg body is the authority
+ * and the call below stays an extern. POSIX keeps the weak cold body
+ * so a strong thin can override it.
+ */
 #if !defined(_WIN32) && !defined(_WIN64)
+XLANG_WEAK int32_t pipeline_asm_modlet_prepare_and_emit_elf_c(void *m, void *a, void *elf_ctx, int32_t ta) {
+  int32_t tl, n, i;
+  pipeline_asm_modlet_reset_cold();
+  if (!m || !a || !elf_ctx || (ta != 0 && ta != 1) || cold_mod_num_top_level_lets(m) <= 0)
+    return 0;
+  n = cold_mod_num_top_level_lets(m);
+  for (tl = 0; tl < n; tl++) {
+    int32_t name_len, init_ref, init_kind, k, is_const, idx;
+    int32_t type_ref, tk, cell_sz, imm;
+    is_const = pipeline_module_top_level_let_is_const(m, tl);
+    /* Const TYPE_ARRAY + ARRAY_LIT also needs COMMON (non-main INDEX).
+     * Gate after tk / init_kind. Other const still skip. */
+    name_len = pipeline_module_top_level_let_name_len(m, tl);
+    if (name_len <= 0 || name_len > 255)
+      continue;
+    init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    if (init_ref <= 0 || init_ref > cold_arena_num_exprs(a))
+      continue;
+    init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+    type_ref = pipeline_module_top_level_let_type_ref(m, tl);
+    tk = (type_ref > 0) ? pipeline_type_kind_ord_at(a, type_ref) : 0;
+    cell_sz = 8;
+    imm = 0;
+    /* wave338: LIT/BOOL + NEG-over-LIT + null TYPE_PTR → COMMON.
+     * Twin of pipe_modlet_scalar_init_common_imm. PLATFORM: SHARED. */
+    if (pipe_modlet_scalar_init_common_imm_cold(a, init_ref, tk, is_const, &imm) != 0) {
+      cell_sz = 8;
+    } else if (tk == 10 && init_kind == 46) {
+      /* TYPE_ARRAY + ARRAY_LIT (mutable *and* const scalar/`[K][N]T`).
+       * Const `[N][]T` (elem TYPE_SLICE) stays skipped — fat rows hoist.
+       * PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare guard.
+       * Product fmt_check_cmd_thin g_fmt_file_list_paths = 8192×512 = 4 MiB;
+       * historical 1 MiB skip → pure-asm fmt_file_list_at CG002 (Stage12.0.5).
+       * Cap 8 MiB (covers 4 MiB + headroom; << bit30-payload max 0x3FFFFFFF). */
+      if (is_const != 0) {
+        int32_t et_p = pipeline_type_elem_ref_at(a, type_ref);
+        int32_t etk_p = (et_p > 0) ? pipeline_type_kind_ord_at(a, et_p) : 0;
+        if (etk_p == 11)
+          continue;
+      }
+      cell_sz = glue_fixed_array_total_bytes_c(a, type_ref, 0);
+      if (cell_sz <= 0 || cell_sz > 8388608)
+        continue;
+      cell_sz |= XLANG_ASM_MODLET_CELL_ARRAY_BIT;
+      imm = 0;
+    } else if ((tk == 9 || tk == 18) &&
+               pipe_modlet_scalar_init_is_ptr_addr_cold(a, m, init_ref) != 0) {
+      /* Scalar ADDR_OF / fn-ptr → 8-byte .data + absolute64 RELA.
+       * Twin of runtime_pipeline_abi.x prepare register arm (3).
+       * PLATFORM: SHARED. */
+      cell_sz = 8;
+      imm = 0;
+    } else {
+      continue;
+    }
+    /* PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare cap.
+     * Silent `break` at 64 dropped extras onto stack slots (9.6.0 class).
+     * G.7: complete this existing table; loud-fail when a registrable
+     * cell would exceed XLANG_ASM_MODLET_MAX. Skip-only leftover lets
+     * (const scalars / nameless / non-ARRAY) must not trip the cap. */
+    if (g_pipeline_asm_modlet_cold.n >= XLANG_ASM_MODLET_MAX)
+      return -1;
+    idx = g_pipeline_asm_modlet_cold.n;
+    g_pipeline_asm_modlet_cold.name_len[idx] = name_len;
+    for (k = 0; k < name_len; k++)
+      g_pipeline_asm_modlet_cold.name[idx][k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+    g_pipeline_asm_modlet_cold.init_imm[idx] = imm;
+    g_pipeline_asm_modlet_cold.cell_size[idx] = cell_sz;
+    g_pipeline_asm_modlet_cold.n = idx + 1;
+  }
+  {
+    uint32_t module_fp = pipe_modlet_module_fp_cold();
+    for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++)
+      pipe_modlet_assign_unique_label_cold(i, module_fp);
+  }
+  for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    int32_t csz_raw = g_pipeline_asm_modlet_cold.cell_size[i];
+    int32_t csz = pipeline_asm_modlet_cell_payload_cold(csz_raw);
+    int32_t calign = 8;
+    int32_t use_data = 0;
+    int32_t init_ref2 = 0, type_ref2 = 0, ik2 = 0, tk2 = 0, et2 = 0, ne2 = 0;
+    int32_t data_off = 0, data_len_now = 0, pad = 0;
+    int32_t tl2 = 0, match_tl = -1, k2 = 0;
+    int32_t nlen2 = g_pipeline_asm_modlet_cold.name_len[i];
+    if (csz == 1)
+      calign = 1;
+    else if (csz == 2)
+      calign = 2;
+    else if (csz == 4)
+      calign = 4;
+    else if (csz >= 16)
+      calign = 16;
+    /* Resolve originating top-level let by name (array bake AND scalar
+     * ptr-addr). Non-empty TYPE_ARRAY ARRAY_LIT → F7 .data when cell+pool
+     * fits. Scalar ADDR_OF / fn-ptr → 8-byte .data + absolute64 RELA.
+     * Empty `[]` stays COMMON. Oversized → COMMON + hoist seed.
+     * PLATFORM: SHARED — twin of runtime_pipeline_abi.x prepare emit. */
+    for (tl2 = 0; tl2 < n; tl2++) {
+      int32_t tln = pipeline_module_top_level_let_name_len(m, tl2);
+      if (tln != nlen2 || tln <= 0)
+        continue;
+      for (k2 = 0; k2 < tln; k2++) {
+        if ((int32_t)pipeline_module_top_level_let_name_byte_at(m, tl2, k2) !=
+            (int32_t)g_pipeline_asm_modlet_cold.name[i][k2])
+          break;
+      }
+      if (k2 == tln) {
+        match_tl = tl2;
+        break;
+      }
+    }
+    if (match_tl >= 0) {
+      init_ref2 = pipeline_module_top_level_let_init_ref(m, match_tl);
+      type_ref2 = pipeline_module_top_level_let_type_ref(m, match_tl);
+      if (init_ref2 > 0 && init_ref2 <= cold_arena_num_exprs(a) && type_ref2 > 0) {
+        ik2 = pipeline_expr_kind_ord_at(a, init_ref2);
+        tk2 = pipeline_type_kind_ord_at(a, type_ref2);
+        ne2 = (ik2 == 46) ? pipeline_expr_array_lit_num_elems_at(a, init_ref2) : 0;
+        if (pipeline_asm_modlet_cell_is_array_cold(csz_raw) && ik2 == 46 && tk2 == 10 && ne2 > 0) {
+          int32_t pool_bytes = pipe_modlet_array_lit_string_pool_bytes_cold(a, init_ref2);
+          if (pool_bytes >= 0) {
+            data_len_now = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+            if (data_len_now < 0)
+              data_len_now = 0;
+            pad = 0;
+            if (calign > 1)
+              pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+            if (data_len_now + pad + csz + pool_bytes <= 65536)
+              use_data = 1;
+          }
+        } else if (!pipeline_asm_modlet_cell_is_array_cold(csz_raw) && (tk2 == 9 || tk2 == 18) &&
+                   pipe_modlet_scalar_init_is_ptr_addr_cold(a, m, init_ref2) != 0) {
+          data_len_now = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+          if (data_len_now < 0)
+            data_len_now = 0;
+          pad = 0;
+          if (calign > 1)
+            pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+          if (data_len_now + pad + csz <= 65536)
+            use_data = 1;
+        }
+        /* wave344: non-zero scalar imm (ordinals / home_off=-1) → .data.
+         * Library Cap thins never run seed_nonzero; COMMON stays 0 and
+         * poisons kind tables (check_expr XT001). Zero imm stays COMMON.
+         * PLATFORM: SHARED library-TU .data knife · LINUX gold · MACOS. */
+        if (!use_data && !pipeline_asm_modlet_cell_is_array_cold(csz_raw) &&
+            g_pipeline_asm_modlet_cold.init_imm[i] != 0) {
+          data_len_now = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+          if (data_len_now < 0)
+            data_len_now = 0;
+          pad = 0;
+          if (calign > 1)
+            pad = (calign - (data_len_now & (calign - 1))) & (calign - 1);
+          if (data_len_now + pad + csz <= 65536)
+            use_data = 1;
+        }
+      }
+    }
+    if (use_data) {
+      if (pad > 0 && pipeline_elf_ctx_append_data_zeros((uint8_t *)elf_ctx, pad) != 0)
+        return -1;
+      data_off = pipeline_elf_ctx_emit_data_len((uint8_t *)elf_ctx);
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 4);
+      if (pipeline_elf_ctx_add_label((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
+                                     g_pipeline_asm_modlet_cold.label_len[i], data_off) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_add_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
+                                   g_pipeline_asm_modlet_cold.label_len[i], data_off) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_elf_ctx_append_data_zeros((uint8_t *)elf_ctx, csz) != 0) {
+        pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+        return -1;
+      }
+      if (pipeline_asm_modlet_cell_is_array_cold(csz_raw)) {
+        et2 = pipeline_type_elem_ref_at(a, type_ref2);
+        if (pipe_modlet_bake_array_lit_elems_to_data_cold(a, (uint8_t *)elf_ctx, init_ref2, et2, data_off,
+                                                           0, csz, m) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        }
+      } else {
+        /* Ptr-addr bake OR wave344 scalar non-zero imm poke.
+         * bake_ptr_addr returns 1 = not-an-address (must not trip -1).
+         * PLATFORM: SHARED library-TU .data. */
+        int32_t pa_b = 0;
+        int32_t imm_b = g_pipeline_asm_modlet_cold.init_imm[i];
+        if (init_ref2 > 0)
+          pa_b = pipe_modlet_scalar_init_is_ptr_addr_cold(a, m, init_ref2);
+        if (pa_b != 0) {
+          if (pipe_modlet_bake_ptr_addr_elem_to_data_cold(a, (uint8_t *)elf_ctx, m, init_ref2, 8,
+                                                          data_off) != 0) {
+            pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+            return -1;
+          }
+        } else if (pipe_modlet_bake_scalar_imm_to_data_cold((uint8_t *)elf_ctx, data_off, imm_b,
+                                                            csz) != 0) {
+          pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+          return -1;
+        }
+      }
+      pipeline_elf_ctx_set_shndx_override((uint8_t *)elf_ctx, 0);
+      g_pipeline_asm_modlet_cold.cell_size[i] = csz_raw | XLANG_ASM_MODLET_CELL_DATA_BIT;
+    } else {
+      if (pipeline_elf_ctx_add_common_sym((uint8_t *)elf_ctx, g_pipeline_asm_modlet_cold.label[i],
+                                          g_pipeline_asm_modlet_cold.label_len[i], csz, calign) != 0)
+        return -1;
+    }
+  }
+  return 0;
+}
 #endif /* !Windows: cold prepare must not be a second strong modlet table */
+
+XLANG_WEAK int32_t pipeline_asm_modlet_seed_nonzero_inits_elf_c(void *elf_ctx, int32_t ta) {
+  int32_t i;
+  if (!elf_ctx || (ta != 0 && ta != 1))
+    return 0;
+  /* wave344 / wave699: library TUs (no main) bake non-zero scalar imms
+   * into .data at prepare. Runtime seed is for programs with main().
+   * FORCE mega has no main; dumping seed into the first export made
+   * parser_parse_into_init first-win over parser_x.
+   * PLATFORM: SHARED. */
+  {
+    void *mod0 = pipeline_asm_emit_module_ref_c();
+    if (mod0 && pipeline_module_main_func_index(mod0) < 0)
+      return 0;
+  }
+  for (i = 0; i < g_pipeline_asm_modlet_cold.n; i++) {
+    int32_t imm = g_pipeline_asm_modlet_cold.init_imm[i];
+    /* .data-backed arrays must not be scalar-seeded (imm stays 0). */
+    if (pipeline_asm_modlet_cell_is_data_cold(g_pipeline_asm_modlet_cold.cell_size[i]))
+      continue;
+    if (imm == 0)
+      continue;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
+      return -1;
+    if (pipeline_asm_modlet_store_from_rax_elf_c(elf_ctx, g_pipeline_asm_modlet_cold.name[i],
+                                                 g_pipeline_asm_modlet_cold.name_len[i], ta) != 0)
+      return -1;
+  }
+  /* Module TYPE_ARRAY ARRAY_LIT (const + mutable) → COMMON is BSS zero
+   * until seeded here (hoist skips all TYPE_ARRAY). dest-SLICE wrap /
+   * INDEX LEA the cell; without this seed A[0] reads 0. .data-backed
+   * cells are skipped (bytes already baked at prepare; stores into
+   * Mach-O __DATA,__const may fault after final link). Twin of the
+   * runtime_pipeline_abi.x tail walk in seed_nonzero_inits. */
+  {
+    extern void *pipeline_asm_emit_ctx_arena_get(void);
+    void *arena = pipeline_asm_emit_ctx_arena_get();
+    void *mod = pipeline_asm_emit_module_ref_c();
+    int32_t nlets, nexprs, tl;
+    if (!arena || !mod)
+      return 0;
+    nlets = cold_mod_num_top_level_lets(mod);
+    nexprs = cold_arena_num_exprs(arena);
+    for (tl = 0; tl < nlets; tl++) {
+      int32_t nlen = pipeline_module_top_level_let_name_len(mod, tl);
+      uint8_t name_buf[256];
+      int32_t k, idx, csz, init_ref, type_ref, ik, tk, et, rc2;
+      if (nlen <= 0 || nlen > 255)
+        continue;
+      for (k = 0; k < nlen; k++)
+        name_buf[k] = (uint8_t)pipeline_module_top_level_let_name_byte_at(mod, tl, k);
+      idx = pipeline_asm_modlet_find_cold(name_buf, nlen);
+      if (idx < 0)
+        continue;
+      csz = g_pipeline_asm_modlet_cold.cell_size[idx];
+      if (!pipeline_asm_modlet_cell_is_array_cold(csz) ||
+          pipeline_asm_modlet_cell_is_data_cold(csz))
+        continue;
+      init_ref = pipeline_module_top_level_let_init_ref(mod, tl);
+      type_ref = pipeline_module_top_level_let_type_ref(mod, tl);
+      if (init_ref <= 0 || init_ref > nexprs || type_ref <= 0)
+        continue;
+      ik = pipeline_expr_kind_ord_at(arena, init_ref);
+      tk = pipeline_type_kind_ord_at(arena, type_ref);
+      if (ik != 46 || tk != 10)
+        continue;
+      et = pipeline_type_elem_ref_at(arena, type_ref);
+      if (pipeline_asm_modlet_lea_rbx_arch_cold(elf_ctx, idx, ta) != 0)
+        continue;
+      rc2 = pipe_modlet_seed_array_lit_elems_to_rbx_cold(arena, (uint8_t *)elf_ctx, init_ref, et,
+                                                         ta, 0, mod);
+      if (rc2 != 0)
+        return rc2;
+    }
+  }
+  return 0;
+}
+
+void pipeline_asm_register_module_top_level_lets_c(void *ctx, void *m, void *a, int32_t func_index) {
+  int32_t tl, n, off, k;
+  uint8_t name_buf[256];
+  uint8_t *ly;
+  if (!ctx || !m || !a || cold_mod_num_top_level_lets(m) <= 0)
+    return;
+  ly = (uint8_t *)pipeline_asm_ctx_layout(ctx);
+  if (!ly)
+    return;
+  if (func_index == pipeline_asm_hoist_target_func_index(m))
+    return;
+  /* next_offset @4, num_locals @8 — match pure pipe_asm_ctx_off_* */
+  off = *(int32_t *)(ly + 4);
+  n = cold_mod_num_top_level_lets(m);
+  for (tl = 0; tl < n; tl++) {
+    int32_t name_len, type_ref, init_ref, slot_off, is_const;
+    name_len = pipeline_module_top_level_let_name_len(m, tl);
+    if (name_len <= 0 || name_len > 255)
+      continue;
+    for (k = 0; k < name_len; k++)
+      name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+    if (asm_ctx_local_find_offset((uint8_t *)ctx, name_buf, name_len) >= 0)
+      continue;
+    if (pipeline_asm_modlet_name_is_shared(name_buf, name_len) != 0)
+      continue;
+    type_ref = pipeline_module_top_level_let_type_ref(m, tl);
+    init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    is_const = pipeline_module_top_level_let_is_const(m, tl);
+    /* Stage 12.0.5: TYPE_ARRAY / ARRAY_LIT module lets → COMMON only (not stack). */
+    if (type_ref > 0) {
+      int32_t tk_arr = pipeline_type_kind_ord_at(a, type_ref);
+      int32_t ik_arr = 0;
+      if (init_ref > 0 && init_ref <= cold_arena_num_exprs(a))
+        ik_arr = pipeline_expr_kind_ord_at(a, init_ref);
+      if (tk_arr == 10 || ik_arr == 46)
+        continue;
+    }
+    /* 记211: skip ALL module consts on non-hoist (not only INT_LIT/BOOL).
+     * NEG-over-LIT / BINOP consts used to get unseeded stack slots → Linux
+     * branched `return NAMED_CONST` loaded garbage. Imm fold / modlet path.
+     * PLATFORM: SHARED — twin of tip .x register. */
+    if (is_const != 0)
+      continue;
+    slot_off = asm_local_slot_reg_offset(a, type_ref, off, &off);
+    if (asm_ctx_local_append((uint8_t *)ctx, name_buf, name_len, slot_off) < 0)
+      return;
+    off += pipeline_asm_let_init_stack_reserve_bytes(a, type_ref, init_ref);
+  }
+  *(int32_t *)(ly + 4) = off;
+  *(int32_t *)(ly + 8) = asm_ctx_local_count((uint8_t *)ctx);
+}
+
+int32_t pipeline_asm_emit_module_top_level_mutable_lit_inits_elf_c(void *a, void *elf_ctx, void *ctx, void *m,
+                                                                   int32_t func_index, int32_t ta) {
+  int32_t tl, n, k;
+  uint8_t name_buf[256];
+  if (!a || !elf_ctx || !ctx || !m || cold_mod_num_top_level_lets(m) <= 0)
+    return 0;
+  if (func_index == pipeline_asm_hoist_target_func_index(m))
+    return 0;
+  n = cold_mod_num_top_level_lets(m);
+  for (tl = 0; tl < n; tl++) {
+    int32_t name_len, init_ref, off, init_kind, imm;
+    if (pipeline_module_top_level_let_is_const(m, tl) != 0)
+      continue;
+    name_len = pipeline_module_top_level_let_name_len(m, tl);
+    if (name_len <= 0 || name_len > 255)
+      continue;
+    for (k = 0; k < name_len; k++)
+      name_buf[k] = pipeline_module_top_level_let_name_byte_at(m, tl, k);
+    name_buf[name_len] = 0;
+    if (pipeline_asm_modlet_name_is_shared(name_buf, name_len) != 0)
+      continue;
+    off = asm_ctx_local_find_offset((uint8_t *)ctx, name_buf, name_len);
+    if (off < 0)
+      continue;
+    init_ref = pipeline_module_top_level_let_init_ref(m, tl);
+    if (init_ref <= 0 || init_ref > cold_arena_num_exprs(a))
+      continue;
+    init_kind = pipeline_expr_kind_ord_at(a, init_ref);
+    if (init_kind != 0 && init_kind != 2)
+      continue;
+    imm = pipeline_expr_int_val_at(a, init_ref);
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, imm, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, off, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER || MODLET_IN_REST — modlet cluster */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave136 FROM_X after leftover-PE modlet cluster */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L17955.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave136 FROM_X for leftover-PE fill_param_slots unique */
 
 /*
@@ -3822,14 +9923,150 @@ int32_t ast_ast_block_num_lets(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_asm_module_func_num_params_at(void *mod, int32_t func_index);
+extern void pipeline_asm_module_func_param_name_copy32(void *mod, int32_t func_index, int32_t param_index, uint8_t *dst);
+extern int32_t pipeline_asm_module_func_param_name_len_at(void *mod, int32_t func_index, int32_t param_index);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t backend_enc_mov_arg_reg_to_rax_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+
+extern void *pipeline_asm_emit_ctx_arena_get(void);
+extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
+
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* w1732 PLATFORM: WINDOWS leftover.
+ * runtime_pipeline_abi_win_param_home_thin.x owns
+ * pipeline_asm_fill_param_slots and pipeline_asm_emit_param_home_elf_c.
+ * mega_body already declares both and calls them. With no same-TU body,
+ * those relocs bind the thin, which latches a 9-16 byte named return
+ * and saves rcx before the first formal. The bodies below stay when
+ * either macro is unset. POSIX FROM_X does not enter the outer block.
+ */
 #else
-int32_t ast_ast_block_num_loops(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_loops;
+void pipeline_asm_fill_param_slots(void *ctx, void *mod, int32_t func_index) {
+  int32_t off;
+  int32_t np;
+  int32_t i;
+  uint8_t pname_buf[256];
+  int32_t plen;
+  int32_t slot_off;
+  int32_t w;
+  void *arena_ph;
+  if (!ctx || !mod)
+    return;
+  /* Match emit_param_home: 8B @off; 9–16B high-end mag at off+width (avoids
+   * rbp-8 / saved-rbx). PLATFORM: WINDOWS leftover-PE. */
+  off = 16;
+  np = pipeline_asm_module_func_num_params_at(mod, func_index);
+  arena_ph = pipeline_asm_emit_ctx_arena_get();
+  for (i = 0; i < np; i++) {
+    pipeline_asm_module_func_param_name_copy32(mod, func_index, i, pname_buf);
+    plen = pipeline_asm_module_func_param_name_len_at(mod, func_index, i);
+    if (plen <= 0)
+      continue;
+    w = 8;
+    if (arena_ph)
+      w = glue_func_param_home_width_c(arena_ph, mod, func_index, i);
+    if (w <= 0)
+      w = 8;
+    if (w > 8 && w <= 16)
+      slot_off = off + w;
+    else
+      slot_off = off;
+    if (asm_ctx_local_append((uint8_t *)ctx, pname_buf, plen, slot_off) < 0)
+      return;
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
+    if (w > 8 && w <= 16)
+      off = slot_off + 8;
+    else
+      off += 8;
+  }
+  *(int32_t *)((uint8_t *)ctx + 4) = off;
+}
+
+extern void *pipeline_asm_emit_ctx_arena_get(void);
+extern int32_t glue_func_param_home_width_c(void *arena, void *mod, int32_t func_index, int32_t param_index);
+extern int32_t pipeline_module_func_param_type_ref_at(void *mod, int32_t func_index, int32_t param_index);
+extern int32_t glue_asm_call_reg_max(int32_t ta);
+int32_t pipeline_asm_emit_param_home_elf_c(void *elf_ctx, void *ctx, void *mod, int32_t func_index, int32_t ta) {
+  int32_t np;
+  int32_t i;
+  int32_t home;
+  int32_t sret_act;
+  int32_t sret_off;
+  int32_t gp;
+  int32_t reg_max;
+  (void)ctx;
+  if (!elf_ctx || !mod || func_index < 0)
+    return -1;
+  /* x86_64: GP arg k → rax → [rbp-home]. Wide/f32/arm64 stay SAT egg.
+   * Do not call SAT-local-t f32 xmm / canonicalize (leftover rest UNDEF). */
+  if (ta != 0)
+    return 0;
+  /* PLATFORM: WINDOWS leftover-PE x86_64 — hidden dest@rcx (sret).
+   * leftover rest mega_body already sets leftover rest sret BSS when
+   * fn_ret_sz>16, but previously np<=0 returned before saving rdi, so
+   * SAT emit_struct_lit wrote a local dest (sret24a/sret24f RED).
+   * G.7 complete leftover rest param_home: save arg0 to sret_home, then
+   * user GP starts at 1. POSIX .x authority @35063.
+   * w1045: home via glue_asm_call_reg_max (Win=16 virtual slots through
+   * enc k>=4 at rbp+0x30…); was gp<6 so 7th+ formals never saved → tip
+   * thin 8-arg forwarders read garbage / CG002. */
+  sret_act = pipeline_asm_emit_ctx_sret_active_get();
+  sret_off = pipeline_asm_emit_ctx_sret_home_off_get();
+  if (sret_act != 0 && sret_off >= 0) {
+    if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbp_arch(elf_ctx, sret_off, ta) != 0)
+      return -1;
+  }
+  np = pipeline_asm_module_func_num_params_at(mod, func_index);
+  if (np <= 0)
+    return 0;
+  gp = (sret_act != 0) ? 1 : 0;
+  home = 16;
+  reg_max = glue_asm_call_reg_max(ta);
+  if (reg_max < 1)
+    reg_max = 6;
+  /* 9–16B: high-end mag home=cur+width (low@home, high@home-8). Never park
+   * high at magnitude 8 — that is saved rbx after push. Matches windows_e +
+   * fill_param_slots. PLATFORM: WINDOWS leftover-PE. */
+  for (i = 0; i < np && gp < reg_max; i++) {
+    int32_t w;
+    int32_t wide_home;
+    void *arena_ph;
+    arena_ph = pipeline_asm_emit_ctx_arena_get();
+    w = glue_func_param_home_width_c(arena_ph, mod, func_index, i);
+    if (w <= 0)
+      w = 8;
+    if (w > 8 && w <= 16) {
+      wide_home = home + w;
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, wide_home, ta) != 0)
+        return -1;
+      gp = gp + 1;
+      if (gp >= reg_max)
+        return -1;
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, wide_home - 8, ta) != 0)
+        return -1;
+      gp = gp + 1;
+      home = wide_home + 8;
+    } else {
+      if (backend_enc_mov_arg_reg_to_rax_arch(elf_ctx, gp, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      gp = gp + 1;
+      home = home + 8;
+    }
+  }
+  return 0;
 }
 #endif /* w1732: bodies stay unless FROM_X and WIN_LEFTOVER are both set */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_param_slots unique */
@@ -3846,9 +10083,139 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t ast_ast_block_num_consts(void *arena, int32_t block_ref);
+extern int32_t ast_ast_block_num_lets(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_const_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void pipeline_block_const_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t pipeline_block_const_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_let_name_len(void *arena, int32_t block_ref, int32_t i);
+extern void pipeline_block_let_name_copy64(void *arena, int32_t block_ref, int32_t i, uint8_t *dst);
+extern int32_t pipeline_block_let_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_let_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t asm_ctx_block_slot_get(uint8_t *ctx, int32_t block_ref);
+extern void asm_ctx_block_slot_set(uint8_t *ctx, int32_t block_ref, int32_t slot_base);
+extern int32_t asm_ctx_local_count(uint8_t *ctx);
+extern int32_t asm_ctx_local_append(uint8_t *ctx, uint8_t *name, int32_t name_len, int32_t offset);
+extern int32_t asm_local_slot_reg_offset(void *arena, int32_t type_ref, int32_t off, int32_t *inout_off);
+extern int32_t pipeline_asm_let_init_stack_reserve_bytes(void *arena, int32_t type_ref, int32_t init_ref);
+extern int32_t ast_ast_block_num_regions(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_region_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_ast_block_num_if_stmts(void *arena, int32_t block_ref);
+extern int32_t ast_pipeline_block_if_then_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_pipeline_block_if_else_body_ref(struct ast_ASTArena *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_ast_block_num_loops(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_while_body_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t ast_ast_block_num_for_loops(void *arena, int32_t block_ref);
+extern int32_t pipeline_block_for_body_ref(void *arena, int32_t block_ref, int32_t i);
+
+void pipeline_asm_fill_local_slots(void *ctx, void *arena, int32_t block_ref) {
+  int32_t off;
+  int32_t i;
+  int32_t nconst;
+  int32_t nlet;
+  uint8_t name_buf[256];
+  int32_t nlen;
+  int32_t init_ref;
+  int32_t slot_base;
+  if (!ctx || !arena || block_ref <= 0)
+    return;
+  if (asm_ctx_block_slot_get((uint8_t *)ctx, block_ref) >= 0)
+    return;
+  slot_base = asm_ctx_local_count((uint8_t *)ctx);
+  off = *(int32_t *)((uint8_t *)ctx + 4); /* next_offset@4 */
+  nconst = ast_ast_block_num_consts(arena, block_ref);
+  for (i = 0; i < nconst; i++) {
+    int32_t type_ref;
+    int32_t slot_off;
+    pipeline_block_const_name_copy64(arena, block_ref, i, name_buf);
+    nlen = pipeline_block_const_name_len(arena, block_ref, i);
+    type_ref = pipeline_block_const_type_ref(arena, block_ref, i);
+    slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
+    if (nlen <= 0) {
+      name_buf[0] = (uint8_t)'$';
+      name_buf[1] = (uint8_t)('A' + (i & 15));
+      nlen = 2;
+    }
+    if (asm_ctx_local_append((uint8_t *)ctx, name_buf, nlen, slot_off) < 0)
+      return;
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
+    init_ref = pipeline_block_const_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  nlet = ast_ast_block_num_lets(arena, block_ref);
+  for (i = 0; i < nlet; i++) {
+    int32_t type_ref;
+    int32_t slot_off;
+    pipeline_block_let_name_copy64(arena, block_ref, i, name_buf);
+    nlen = pipeline_block_let_name_len(arena, block_ref, i);
+    type_ref = pipeline_block_let_type_ref(arena, block_ref, i);
+    slot_off = asm_local_slot_reg_offset(arena, type_ref, off, &off);
+    /* WAVE277 sidecar names are the authority. If a let is still nameless
+     * (SKIP_TYPECK / empty bytes), still reserve a distinct slot so later
+     * lets do not alias rbp+0 (`add(x,y)` both stored at 0 → RUN=8). */
+    if (nlen <= 0) {
+      name_buf[0] = (uint8_t)'$';
+      name_buf[1] = (uint8_t)('a' + (i & 15));
+      nlen = 2;
+    }
+    if (asm_ctx_local_append((uint8_t *)ctx, name_buf, nlen, slot_off) < 0)
+      return;
+    *(int32_t *)((uint8_t *)ctx + 8) = asm_ctx_local_count((uint8_t *)ctx);
+    init_ref = pipeline_block_let_init_ref(arena, block_ref, i);
+    off += pipeline_asm_let_init_stack_reserve_bytes(arena, type_ref, init_ref);
+  }
+  *(int32_t *)((uint8_t *)ctx + 4) = off;
+  asm_ctx_block_slot_set((uint8_t *)ctx, block_ref, slot_base);
+  /*
+   * Nested WAVE277 blocks (unsafe region / if / while / for) own their
+   * lets. mega_body only filled the function body, so `unsafe { let y }`
+   * had no slot: SAT emit_block `num_locals - nlets` went negative
+   * (letinit_lit CG002 labels=1) or aliased the last parent slot.
+   * Recurse after this block's slot_base is recorded so
+   * asm_ctx_block_slot_get(child) is the child's first local.
+   * Same child set as WAVE269 fill_tree. Do not leftover rest second
+   * WAVE277 rebuild / glue_fixed_array.
+   * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+   */
+  {
+    int32_t nch;
+    int32_t ci;
+    int32_t ch;
+    nch = ast_ast_block_num_regions(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = pipeline_block_region_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+    nch = ast_ast_block_num_if_stmts(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = ast_pipeline_block_if_then_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+      ch = ast_pipeline_block_if_else_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+    nch = ast_ast_block_num_loops(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = pipeline_block_while_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+    nch = ast_ast_block_num_for_loops(arena, block_ref);
+    for (ci = 0; ci < nch; ci++) {
+      ch = pipeline_block_for_body_ref(arena, block_ref, ci);
+      if (ch > 0)
+        pipeline_asm_fill_local_slots(ctx, arena, ch);
+    }
+  }
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE fill_local_slots unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE fill_local_slots unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L18825.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave136 FROM_X for leftover-PE array_lit unique */
 
 /* Array-lit leftover cluster (surgical extract of nested wave143 unique
@@ -3891,10 +10258,95 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 #ifndef GLUE_TYPE_KIND_SLICE
+#define GLUE_TYPE_KIND_SLICE 11
 #endif
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
+
+int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref);
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
+
+int32_t pipeline_asm_array_lit_elem_type_ref(void *arena, int32_t array_lit_expr_ref) {
+  int32_t arr_tr;
+  int32_t tk;
+  if (!arena || array_lit_expr_ref <= 0)
+    return 0;
+  arr_tr = pipeline_expr_resolved_type_ref(arena, array_lit_expr_ref);
+  if (arr_tr <= 0)
+    return 0;
+  tk = pipeline_type_kind_ord_at(arena, arr_tr);
+  /* TYPE_ARRAY=10, TYPE_SLICE=11, TYPE_VECTOR=13 — all carry elem_type_ref.
+   * Stage12 soft residual: peel VECTOR so Vec4f ARRAY_LIT elems get TYPE_F32
+   * force for glue_array_lit_emit_scalar_elem (f64 movabs low-32 pack was 0.0f). */
+  if (tk != 10 && tk != 11 && tk != 13)
+    return 0;
+  return pipeline_type_elem_ref_at(arena, arr_tr);
+}
+
+int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref) {
+  int32_t elem_ty;
+  int32_t kind_ord;
+  int32_t nested;
+  int32_t first_ref;
+  elem_ty = pipeline_asm_array_lit_elem_type_ref(arena, expr_ref);
+  if (elem_ty > 0) {
+    kind_ord = pipeline_type_kind_ord_at(arena, elem_ty);
+    if (kind_ord == 10) {
+      nested = glue_fixed_array_total_bytes_c(arena, elem_ty, 0);
+      if (nested > 0)
+        return nested;
+    }
+    if (kind_ord == 2 || kind_ord == 1)
+      return 1;
+    if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14)
+      return 4;
+    if (kind_ord == 15 || kind_ord == 4 || kind_ord == 5 || kind_ord == 6 || kind_ord == 7 ||
+        kind_ord == 9 || kind_ord == 18)
+      return 8;
+    if (kind_ord == GLUE_TYPE_KIND_SLICE)
+      return 16;
+    if (kind_ord == 8) {
+      /* True-pack ARRAY_LIT named i8/i16/u16 (w1014–w1016 local flat). PLATFORM: SHARED. */
+      {
+        uint8_t sn[64];
+        int32_t sl = pipeline_type_named_name_into(arena, elem_ty, sn);
+        if (sl == 2 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'8')
+          return 1;
+        if (sl == 3 && sn[0] == (uint8_t)'i' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 2;
+        if (sl == 3 && sn[0] == (uint8_t)'u' && sn[1] == (uint8_t)'1' && sn[2] == (uint8_t)'6')
+          return 2;
+      }
+      void *mod = pipeline_asm_emit_module_ref_c();
+      if (mod) {
+        int32_t ssz = glue_type_size_simple(mod, arena, elem_ty, 0);
+        if (ssz > 0)
+          return ssz;
+      }
+    }
+  }
+  first_ref = pipeline_expr_array_lit_elem_ref(arena, expr_ref, 0);
+  if (first_ref > 0 && pipeline_expr_kind_ord_at(arena, first_ref) == 46) {
+    int32_t n_inner = pipeline_expr_array_lit_num_elems_at(arena, first_ref);
+    int32_t iesz = pipeline_asm_array_lit_elem_byte_sz_c(arena, first_ref);
+    if (n_inner > 0 && iesz > 0)
+      return n_inner * iesz;
+  }
+  return 4;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE array_lit unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE array_lit unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L20500.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave136 FROM_X for leftover-PE stack_off_scoped unique */
 
 /* Stack-off leftover unique (surgical extract of nested wave148 unique
@@ -3936,12 +10388,40 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_expr_var_name_len(void *a, int32_t er);
+extern void pipeline_expr_var_name_into(void *a, int32_t er, uint8_t *out);
+extern int32_t asm_ctx_local_find_offset_scoped(uint8_t *ctx, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t asm_ctx_local_find_offset(uint8_t *ctx, uint8_t *name, int32_t name_len);
+
+int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx, int32_t var_expr_ref);
+
+/** EXPR_VAR 局部在 rbp 上的偏移；失败 -1。 */
+int32_t glue_asm_local_var_stack_off_scoped(void *arena, void *ctx,
+                                                   int32_t var_expr_ref) {
+  uint8_t vname[256];
+  int32_t vlen;
+  int32_t off;
+  if (!arena || !ctx || var_expr_ref <= 0)
+    return -1;
+  vlen = pipeline_expr_var_name_len(arena, var_expr_ref);
+  if (vlen <= 0 || vlen > 255)
+    return -1;
+  pipeline_expr_var_name_into(arena, var_expr_ref, vname);
+  off = asm_ctx_local_find_offset_scoped((uint8_t *)ctx, arena, vname, vlen);
+  if (off < 0)
+    off = asm_ctx_local_find_offset((uint8_t *)ctx, vname, vlen);
+  return off;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE stack_off_scoped unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave136 FROM_X after leftover-PE stack_off_scoped unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L25351.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L27258.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — close wave149 before leftover-PE rec cluster */
 
 /* ========================================================================
@@ -3981,46 +10461,3132 @@ int32_t ast_ast_block_num_loops(void *a, int32_t br) {
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
 #ifndef PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED
+#define PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED (-99)
 #endif
 #ifndef GLUE_TYPE_KIND_F32_ORD
+#define GLUE_TYPE_KIND_F32_ORD 14
 #endif
 #ifndef GLUE_TYPE_KIND_F64_ORD
+#define GLUE_TYPE_KIND_F64_ORD 15
 #endif
 #ifndef GLUE_EXPR_KIND_TRY_PROPAGATE
+#define GLUE_EXPR_KIND_TRY_PROPAGATE 58
 #endif
 #ifndef GLUE_EXPR_KIND_C_TRY_PROPAGATE
+#define GLUE_EXPR_KIND_C_TRY_PROPAGATE 57
 #endif
 #ifndef ast_ExprKind_EXPR_VAR
+#define ast_ExprKind_EXPR_VAR 3
 #endif
 #ifndef ast_ExprKind_EXPR_CALL
+#define ast_ExprKind_EXPR_CALL 48
 #endif
 #ifndef ast_ExprKind_EXPR_RETURN
+#define ast_ExprKind_EXPR_RETURN 41
 #endif
 #ifndef ast_TypeKind_TYPE_U8
+#define ast_TypeKind_TYPE_U8 2
 #endif
 #ifndef ast_TypeKind_TYPE_U32
+#define ast_TypeKind_TYPE_U32 3
 #endif
 #ifndef ast_TypeKind_TYPE_NAMED
+#define ast_TypeKind_TYPE_NAMED 8
 #endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-#endif
-#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
-    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-#endif
-#ifdef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
-#if defined(_WIN32) || defined(_WIN64)
-#else
-int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_for_loops;
+
+/* Cap residual callees for cold twin */
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_int_val_at(void *arena, int32_t expr_ref);
+extern int64_t pipeline_expr_int64_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_valid_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_const_folded_val_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64);
+extern int32_t pipeline_expr_enum_variant_tag_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_enum_namespace_field_tag(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_var_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_var_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_expr_binop_left_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_binop_right_ref_at(void *arena, int32_t expr_ref);
+extern void *pipeline_arena_expr_ptr(void *a, int32_t expr_ref);
+extern char *link_abi_getenv(const char *name);
+extern int32_t backend_enc_mov_imm32_to_w0_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_load_zext8_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_32_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t glue_emit_float_lit_to_rax_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, int32_t ta, int32_t force_ty_ref, int32_t call_abi_widen_f64);
+extern int32_t pipeline_asm_emit_field_access_elf_fast_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_modlet_load_to_rax_elf_c(void *elf_ctx, uint8_t *name, int32_t name_len, int32_t ta);
+extern int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t asm_module_top_level_const_lit_i32(void *m, void *a, uint8_t *name, int32_t name_len, int32_t *out_imm);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_load_f32_var_slot_to_rax_elf_c(void *elf_ctx, void *arena, void *ctx, int32_t var_expr_ref, int32_t off, int32_t ta);
+extern int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void *ctx, int32_t var_expr_ref, int32_t off, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_add_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_sub_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_mul_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_div_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_mod_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_and_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_binop_shift_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta, int32_t op);
+extern int32_t pipeline_asm_emit_binop_bitwise_elf_c(void *arena, void *elf_ctx, int32_t left_ref, int32_t right_ref, void *ctx, int32_t ta, int32_t is_xor);
+extern int32_t pipeline_asm_emit_expr_if_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_if_arm_elf_c(void *arena, void *elf_ctx, int32_t arm_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_match_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_panic_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_ctx_sret_active_get(void);
+extern int32_t pipeline_asm_emit_ctx_sret_home_off_get(void);
+extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
+extern int32_t backend_enc_mov_rax_to_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_push_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_pop_rbx_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbx_offset_arch(void *elf_ctx, int32_t off, int32_t sz, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_add_imm_to_rax_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t glue_x86_store_rdx_to_rbx8_elf_c(void *elf_ctx);
+extern int32_t pipeline_expr_struct_lit_num_fields(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_struct_lit_init_ref(void *arena, int32_t expr_ref, int32_t j);
+extern int32_t pipeline_expr_struct_lit_field_offset_at(void *arena, void *mod, int32_t expr_ref,
+                                                       int32_t field_ix);
+extern int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi);
+extern int32_t glue_var_expr_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern void glue_align_next_offset(void *ctx);
+extern int32_t pipeline_asm_emit_array_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_array_lit_elem_ref(void *arena, int32_t expr_ref, int32_t idx);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t pipeline_asm_emit_index_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_method_call_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
+extern void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t glue_asm_emit_string_lit_ptr_rax_elf_c(void *arena, void *elf_ctx, int32_t str_expr_ref, int32_t ta);
+extern int32_t glue_asm_string_lit_len(void *arena, int32_t expr_ref);
+/* Stage10 10.2.1: EXPR_ASM (60) template emit (call_dispatch authority). */
+extern int32_t pipeline_asm_try_emit_inline_asm_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_cmp_elf(void *arena, void *elf_ctx, int32_t cmp_expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_return_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_break_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_continue_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_neg_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_bitnot_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_lognot_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_expr_is_await_at_c(void *arena, int32_t expr_ref);
+extern int32_t glue_expr_is_x_as_cast_at_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_emit_await_sync_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_as_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_try_propagate_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t glue_expr_kind_is_assign_like_ord(int32_t ko);
+extern int32_t pipeline_asm_emit_assign_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                      int32_t ta);
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                        int32_t ta, int32_t type_ref, int32_t stack_slot_off);
+extern int32_t pipeline_asm_emit_logand_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_logor_elf_impl(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t backend_emit_expr_elf_slow(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+extern int32_t pipeline_codegen_match_name_is_subject_field_c(void *module, void *arena, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_codegen_match_matched_ref_c(void);
+extern int32_t pipeline_codegen_match_subject_ty_c(void);
+extern int32_t glue_field_layout_offset_for_var_base_field(void *a, void *m, int32_t base_var_ref, uint8_t *field_name, int32_t flen);
+extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref, int32_t var_off, void *ctx, int32_t ta);
+extern int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen);
+extern int32_t pipeline_module_struct_layout_num_fields(void *module, int32_t layout_idx);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *module, int32_t layout_idx, int32_t fi);
+extern void pipeline_module_struct_layout_field_name_into(void *module, int32_t layout_idx, int32_t fi, uint8_t *out64);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *module, int32_t li, int32_t j);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ty_ref, uint8_t *dst);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t ty_ref);
+extern int32_t pipeline_expr_call_resolved_func_index_at(void *a, int32_t er);
+extern void pipeline_expr_apply_call_resolve(void *a, int32_t er, int32_t dep_ix, int32_t func_ix);
+extern int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
+                                                    void **mod_out, int32_t *func_ix_out,
+                                                    int32_t *dep_ix_out);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t glue_i32_to_f32_bits(int32_t v);
+extern int32_t glue_i64_to_f32_bits(int64_t v);
+extern void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi);
+extern void *g_pipeline_asm_emit_module;
+extern void *pipeline_asm_emit_module_ref_c(void);
+/* Fast Cap-fn-ptr path callees. Wave149 used to declare these; leftover rest
+ * does not compile that block. Signatures match FROM_X rest / SAT leftovers
+ * (void*). leftover rest U the closed-block bodies; SAT / leftover standalone
+ * provide T. Do not re-extern void* ndep (always-compiled struct* @2724). */
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t type_ref);
+extern int32_t pipeline_type_array_size_at(void *arena, int32_t type_ref);
+extern int32_t glue_array_lit_force_esz_from_elem_type_c(void *arena, int32_t et);
+extern int32_t glue_index_elem_byte_sz_from_type_ref_c(void *arena, int32_t tr);
+extern int32_t pipeline_module_func_return_type_at(void *mod, int32_t func_idx);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t glue_module_func_index_by_name_c(void *mod, uint8_t *name, int32_t name_len);
+extern int32_t pipeline_module_func_is_no_mangle_at(void *m, int32_t fi);
+extern int32_t pipeline_elf_ctx_macho_leading_underscore(uint8_t *ctx_bytes);
+extern int32_t backend_enc_lea_sym_to_reg_arch(void *elf_ctx, int32_t reg, uint8_t *name,
+                                              int32_t name_len, int32_t ta);
+
+/* Minimal Expr view for cold twin const_folded fields (LP64 layout match product). */
+struct wave152_ExprView {
+  int32_t kind_pad[0]; /* unused: access via known field offsets is fragile — use Cap residual accessors */
+};
+
+/* Prefer Cap residual accessors over direct field peeks for cold twin fidelity. */
+
+/* wave152 cold twin pipeline_asm_expr_lit_i32_at_c. PLATFORM: SHARED. */
+int32_t pipeline_asm_expr_lit_i32_at_c(void *arena, int32_t expr_ref, int32_t *out_imm) {
+  int32_t ko;
+  if (expr_ref == 0)
+    return 0;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (ko == 0 || ko == 2) {
+    if (out_imm)
+      *out_imm = pipeline_expr_int_val_at(arena, expr_ref);
+    return 1;
+  }
+  return 0;
 }
+
+/* wave152 cold twin glue_try_emit_match_subject_field_var_elf_c. PLATFORM: SHARED. */
+int32_t glue_try_emit_match_subject_field_var_elf_c(void *arena, void *elf_ctx, void *ctx, int32_t ta,
+                                                    uint8_t *vname, int32_t vlen) {
+  int32_t mref;
+  int32_t foff;
+  int32_t base_off;
+  int32_t load_sz;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || !vname || vlen <= 0)
+    return -1;
+  mod = pipeline_asm_emit_module_ref_c();
+  if (!mod)
+    return -1;
+  if (pipeline_codegen_match_name_is_subject_field_c(mod, arena, vname, vlen) == 0)
+    return -1;
+  mref = pipeline_codegen_match_matched_ref_c();
+  if (mref <= 0 || pipeline_expr_kind_ord_at(arena, mref) != 3)
+    return -1;
+  foff = glue_field_layout_offset_for_var_base_field(arena, mod, mref, vname, vlen);
+  if (foff < 0)
+    return -1;
+  base_off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, mref);
+  if (base_off < 0)
+    base_off = glue_var_expr_stack_off_elf_c(arena, ctx, mref);
+  if (base_off < 0)
+    return -1;
+  if (glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, mref, base_off, ctx, ta) != 0)
+    return -1;
+  if (foff != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, foff, ta) != 0)
+    return -1;
+  load_sz = 4;
+  {
+    int32_t subj_ty = pipeline_codegen_match_subject_ty_c();
+    if (subj_ty > 0 && pipeline_type_kind_ord_at(arena, subj_ty) == 8) {
+      uint8_t tnm[256];
+      int32_t tnl = pipeline_type_named_name_into(arena, subj_ty, tnm);
+      int32_t k;
+      if (tnl > 0) {
+        k = glue_struct_layout_index_by_type_name_c(mod, tnm, tnl);
+        if (k >= 0) {
+          int32_t nf = pipeline_module_struct_layout_num_fields(mod, k);
+          int32_t fi;
+          for (fi = 0; fi < nf; fi++) {
+            int32_t fnl = pipeline_module_struct_layout_field_name_len(mod, k, fi);
+            if (fnl != vlen)
+              continue;
+            {
+              uint8_t fnm[256];
+              int32_t j;
+              int32_t match = 1;
+              pipeline_module_struct_layout_field_name_into(mod, k, fi, fnm);
+              for (j = 0; j < fnl && match; j++) {
+                if (fnm[j] != vname[j])
+                  match = 0;
+              }
+              if (match) {
+                int32_t ftr = pipeline_module_struct_layout_field_type_ref(mod, k, fi);
+                if (ftr > 0) {
+                  int32_t sz = glue_type_size_simple(mod, arena, ftr, 0);
+                  if (sz == 1 || sz == 4 || sz == 8)
+                    load_sz = sz;
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (load_sz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (load_sz == 8)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+}
+
+/* forward */
+int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta);
+
+/* leftover_emit_struct_lit_into_parked_rbx is defined in
+ * windows_link_stubs.c. The extern above is the only declaration in this
+ * TU. PLATFORM: WINDOWS leftover-PE. */
+
+/*
+ * DEST_IN_RBX MATCH arm ARRAY_LIT: write elems into parked dest.
+ * thin if_arm SAT rec → SAT emit_array_lit implicit dest; parked dest
+ * stays 0 (arr_star_match RUN=0 / arr_star_match0 garbage). Same rec +
+ * store-rax-to-rbx-offset as leftover_emit_struct_lit scalar fields.
+ * Size from leftover rest unique park nbytes / n (TYPE_ARRAY n*esz).
+ * TYPE_SLICE dest (dest_tk==11): dest is a 16B fat pair, not a payload.
+ * SAT emit_array_lit leaves rax=data; store data@0 + n@8 (same as
+ * leftover rest unique rec ASSIGN TYPE_SLICE ARRAY_LIT). Empty n==0
+ * stores length 0. Nest freeze 64. Do not leftover rest T SAT
+ * emit_array_lit / emit_assign. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_array_lit_into_parked_rbx(void *arena, void *elf_ctx, int32_t lit_ref, void *ctx,
+                                                      int32_t ta) {
+  int32_t n;
+  int32_t i;
+  int32_t eref;
+  int32_t nbytes;
+  int32_t esz;
+  int32_t store_sz;
+  int32_t store_off;
+  if (!arena || !elf_ctx || lit_ref <= 0)
+    return -1;
+  n = pipeline_expr_array_lit_num_elems_at(arena, lit_ref);
+  if (n < 0)
+    n = 0;
+  if (n > 64)
+    return -1;
+  /* TYPE_SLICE dest-in-rbx MATCH arm ARRAY_LIT. Do not write elems
+   * into the fat pair (that overwrites data+length with i32 payload
+   * — slice_star_match SEGV 139 / _len RUN=1). SAT emit_array_lit
+   * SAT global T; leftover rest rec ko==46 already UNDEFs it.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (g_leftover_match_dest_tk == 11) {
+    if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, lit_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+      return -1;
+    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n, 0, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+      return -1;
+    return 0;
+  }
+  if (n <= 0)
+    return -1;
+  nbytes = g_leftover_match_dest_nbytes;
+  esz = 4;
+  if (nbytes > 0)
+    esz = nbytes / n;
+  if (esz <= 0)
+    esz = 4;
+  if (esz > 8)
+    esz = 8;
+  store_sz = esz;
+  if (store_sz != 1 && store_sz != 2 && store_sz != 4 && store_sz != 8)
+    store_sz = 4;
+  for (i = 0; i < n; i++) {
+    eref = pipeline_expr_array_lit_elem_ref(arena, lit_ref, i);
+    if (eref <= 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, eref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    store_off = i * esz;
+    if (store_off > 4096)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, store_off, store_sz, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm VAR: copy the named slot into parked dest.
+ * thin if_arm SAT rec emits VAR into rax (first 8B) and leaves dest 0
+ * (match_arm_var16 RUN=0). Same lvalue + qword-copy as TYPE_SLICE
+ * dest-in-rbx VAR (16B fat). Size from leftover rest unique
+ * named_layout (size_simple NAMED can report 0 → nbytes=8, 16B d
+ * stays 0). Do not leftover rest T SAT emit_assign / U SAT local t
+ * copy_large. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_var_into_parked_rbx(void *arena, void *elf_ctx, int32_t var_ref, void *ctx,
+                                                int32_t ta) {
+  int32_t ty_ref;
+  int32_t nbytes;
+  int32_t named_sz;
+  int32_t copy_off;
+  int32_t rem;
+  int32_t src_off;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || var_ref <= 0)
+    return -1;
+  nbytes = g_leftover_match_dest_nbytes;
+  ty_ref = pipeline_expr_resolved_type_ref(arena, var_ref);
+  if (ty_ref <= 0)
+    ty_ref = glue_var_decl_type_ref_elf_c(arena, ctx, var_ref);
+  if (ty_ref > 0) {
+    mod = glue_emit_module_from_ctx(ctx);
+    if (!mod)
+      mod = pipeline_asm_emit_module_ref_c();
+    named_sz = 0;
+    if (mod) {
+      named_sz = glue_type_size_simple(mod, arena, ty_ref, 0);
+      if (named_sz > nbytes)
+        nbytes = named_sz;
+    }
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
+    if (named_sz > nbytes)
+      nbytes = named_sz;
+  }
+  if (nbytes <= 0)
+    nbytes = 8;
+  if (nbytes > 4096)
+    return -1;
+  /* Slot lea — do not leftover rest lvalue (enc_local SAT/stub dual).
+   * dest is on the CPU stack. Same park restore as STRUCT_LIT helper. */
+  src_off = glue_var_expr_stack_off_elf_c(arena, ctx, var_ref);
+  if (src_off < 0)
+    return -1;
+  if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, src_off, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  copy_off = 0;
+  while (copy_off + 8 <= nbytes) {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 8, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
+    copy_off += 8;
+  }
+  if (copy_off < nbytes) {
+    rem = nbytes - copy_off;
+    if (rem > 4)
+      rem = 4;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, rem, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm FIELD=44 / INDEX=47:
+ * leftover rest unique rec ASSIGN MATCH parks dest, then
+ * leftover_emit_match_arm_result only handled STRUCT_LIT / ARRAY_LIT /
+ * VAR / CALL / METHOD. rko==44 fell through thin if_arm SAT rec; rec
+ * ko==44 is enum-namespace only (non-enum -1).
+ * TYPE_SLICE dest (dest_tk==11): MATCH arm FIELD `s.xs` dest stays [0]
+ * length 1 (slice_star_match_field INDEX [1] panic 127). Same leftover
+ * rest unique lvalue + qword-copy 16B as rec ASSIGN TYPE_SLICE
+ * FIELD/INDEX (`*p = s.xs` / `b = s.xs`). INDEX of [N][]T / [][]T:
+ * leftover rest unique lvalue leaves rax=&fat.
+ * TYPE_NAMED dest (dest_tk!=11; rec ASSIGN TYPE_NAMED MATCH parks dest
+ * with nbytes, dest_tk stays 0): MATCH arm FIELD `s.p` / INDEX of [N]P
+ * leftover rest unique lvalue leaves rax=&payload; qword-copy nbytes
+ * (same loop as leftover_emit_var). TYPE_ARRAY dest (dest_tk==10;
+ * leftover rest unique store MATCH parks dest nbytes=n_arr*esz):
+ * MATCH arm FIELD `s.a` / INDEX of [N][M]T leftover rest unique
+ * lvalue leaves rax=&payload; qword-copy nbytes (arr_star_match_field).
+ * MATCH arm DEREF=52: leftover unique lvalue_eff_addr DEREF leaves
+ * pointer bits in rax (&payload); qword-copy nbytes
+ * (slice_star_match_deref dest_tk==11 / named_star_match_deref dest_tk==0
+ * / arr_star_match_deref dest_tk==10). dest is on the CPU stack
+ * (pop/push rbx). Do not leftover rest T SAT emit_assign / emit_field /
+ * emit_deref. Do not leftover rest U SAT local t copy_large.
+ * PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t leftover_emit_slice_lvalue_into_parked_rbx(void *arena, void *elf_ctx, int32_t src_ref, void *ctx,
+                                                         int32_t ta) {
+  int32_t nbytes;
+  int32_t copy_off;
+  int32_t rem;
+  if (!arena || !elf_ctx || !ctx || src_ref <= 0)
+    return -1;
+  nbytes = 16;
+  if (g_leftover_match_dest_tk != 11) {
+    nbytes = g_leftover_match_dest_nbytes;
+    if (nbytes <= 0)
+      nbytes = 8;
+  }
+  if (nbytes > 4096)
+    return -1;
+  if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, src_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  copy_off = 0;
+  while (copy_off + 8 <= nbytes) {
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, 8, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+      return -1;
+    copy_off += 8;
+  }
+  if (copy_off < nbytes) {
+    rem = nbytes - copy_off;
+    if (rem > 4)
+      rem = 4;
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, copy_off, rem, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/*
+ * DEST_IN_RBX MATCH arm CALL/METHOD / ASSIGN dest-in-rbx CALL/METHOD:
+ * SAT emit_call (ko==48) or SAT emit_method (ko==49) then store into
+ * parked dest. ≤16B: dual-GP rax@0 rdx@8 (match_arm_call16 /
+ * star_method16 RUN=0). >16B: SysV sret hidden dest is parked rbx
+ * (match_arm_call24 / star_call32 / star_method32 SAT emit_assign no
+ * rdi SEGV 139; MATCH arm METHOD unintercepted CG002). Same dest-in-rbx
+ * sret as leftover rest unique lvalue CALL/METHOD (lea dest / rdi /
+ * sret_reg_shift). nbytes maxes park flag + named_layout +
+ * call_return_byte_size (glue_type_size_simple NAMED can report 0/4).
+ * TYPE_ARRAY CALL returns E* (glue_call_return_byte_size 8; SysV never
+ * sret the payload). Dual-GP / sret would store the pointer into dest
+ * (arr_star_match_call RUN=246). G.7 complete: SAT emit_call leaves E*
+ * then leftover rest unique copy_from_e_star into parked rbx (same as
+ * leftover rest unique store CALL dest-in-rbx). Do not leftover rest T
+ * SAT emit_call / emit_method. Do not leftover rest U SAT local t
+ * copy_large (FROM_X body ABSENT). PLATFORM: WINDOWS leftover-PE.
+ */
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+static int32_t win_leftover_fixed_array_copy_from_e_star(void *elf_ctx, int32_t spill_off,
+                                                        int32_t n_arr, int32_t esz,
+                                                        int32_t sret_direct, int32_t dest_in_rbx,
+                                                        int32_t field_mag, int32_t foff, int32_t ta);
 #endif
+static int32_t leftover_emit_call_into_parked_rbx(void *arena, void *elf_ctx, int32_t call_ref, void *ctx,
+                                                 int32_t ta) {
+  int32_t nbytes;
+  int32_t lo_sz;
+  int32_t ret_ty;
+  int32_t named_sz;
+  int32_t rc;
+  int32_t ko;
+  void *mod;
+  if (!arena || !elf_ctx || !ctx || call_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, call_ref);
+  /* MATCH arm METHOD=49: MEGA ASSIGN rhs leaves the arm unresolved so SAT
+   * emit_method has_recv=1 recs type-name VAR `S` (match_arm_method32
+   * CG002; dump rec VAR after subject INT; ASSIGN `*p = S.mk()` stamps
+   * and GREEN). G.7 complete leftover unique resolve associated
+   * Type.method() then stamp so SAT emit_method nparams==nargs has_recv=0.
+   * Do not leftover rest T SAT emit_method. PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 49) {
+    int32_t r_fn;
+    int32_t rfi;
+    int32_t rdep;
+    void *rmod;
+    r_fn = pipeline_expr_call_resolved_func_index_at(arena, call_ref);
+    if (r_fn < 0) {
+      rmod = 0;
+      rfi = -1;
+      rdep = -1;
+      if (glue_asm_resolve_call_target_module_c(arena, call_ref, &rmod, &rfi, &rdep) == 0 &&
+          rfi >= 0)
+        pipeline_expr_apply_call_resolve(arena, call_ref, rdep, rfi);
+    }
+  }
+  nbytes = g_leftover_match_dest_nbytes;
+  ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
+  if (ret_ty > 0) {
+    named_sz = glue_type_named_layout_size_any_module_elf_c(arena, ret_ty);
+    if (named_sz > nbytes)
+      nbytes = named_sz;
+    mod = glue_emit_module_from_ctx(ctx);
+    if (!mod)
+      mod = pipeline_asm_emit_module_ref_c();
+    if (mod) {
+      named_sz = glue_type_size_simple(mod, arena, ret_ty, 0);
+      if (named_sz > nbytes)
+        nbytes = named_sz;
+    }
+  }
+  named_sz = glue_call_return_byte_size_c(arena, call_ref);
+  if (named_sz > nbytes)
+    nbytes = named_sz;
+  if (nbytes <= 0)
+    nbytes = 8;
+#if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
+    && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+  /* TYPE_ARRAY CALL returns E* (8B), never NAMED sret / dual-GP payload.
+   * glue_call_return_byte_size reports 8 so nbytes≤16 stored rax=E* into
+   * dest (arr_star_match_call RUN=246). MATCH arm CALL may lack expr
+   * resolved_type (MEGA ASSIGN rhs) — resolve the callee return type.
+   * SAT emit_call leaves E*; leftover rest unique copy_from_e_star
+   * writes elems into parked rbx. Do not leftover rest T SAT emit_call.
+   * PLATFORM: WINDOWS leftover-PE. */
+  {
+    int32_t arr_ty;
+    int32_t arr_k;
+    arr_ty = ret_ty;
+    arr_k = (arr_ty > 0) ? pipeline_type_kind_ord_at(arena, arr_ty) : 0;
+    if (arr_k != 10) {
+      void *rmod;
+      int32_t rfi;
+      int32_t rdep;
+      rmod = 0;
+      rfi = -1;
+      rdep = -1;
+      if (glue_asm_resolve_call_target_module_c(arena, call_ref, &rmod, &rfi, &rdep) == 0 &&
+          rmod && rfi >= 0) {
+        arr_ty = pipeline_module_func_return_type_at(rmod, rfi);
+        arr_k = (arr_ty > 0) ? pipeline_type_kind_ord_at(arena, arr_ty) : 0;
+      }
+    }
+    /* MATCH arm CALL under MEGA ASSIGN rhs may lack expr resolved_type
+     * and leftover unique resolve (arr_star_match_call dest-in-rbx
+     * RUN=246; arr_match_let_call let-init GREEN — typeck stamped).
+     * leftover rest unique store MATCH dest is TYPE_ARRAY (tk==10).
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (arr_k != 10 && g_leftover_match_dest_tk == 10)
+      arr_k = 10;
+    if (arr_k == 10) {
+      int32_t n_arr;
+      int32_t esz;
+      int32_t elem_tr;
+      int32_t *ly_next;
+      int32_t next_off;
+      int32_t spill_off;
+      n_arr = 0;
+      esz = 4;
+      if (arr_ty > 0 && pipeline_type_kind_ord_at(arena, arr_ty) == 10) {
+        n_arr = pipeline_type_array_size_at(arena, arr_ty);
+        elem_tr = pipeline_type_elem_ref_at(arena, arr_ty);
+        esz = glue_array_lit_force_esz_from_elem_type_c(arena, elem_tr);
+        if (esz <= 0)
+          esz = glue_index_elem_byte_sz_from_type_ref_c(arena, arr_ty);
+      }
+      if (esz <= 0)
+        esz = 4;
+      if (n_arr <= 0 && esz > 0 && g_leftover_match_dest_nbytes > 0)
+        n_arr = g_leftover_match_dest_nbytes / esz;
+      if (n_arr <= 0 || esz <= 0 || n_arr > 64)
+        return -1;
+      if (n_arr * esz > 4096)
+        return -1;
+      if (ko == 49)
+        rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+      else
+        rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+      if (rc != 0)
+        return -1;
+      ly_next = (int32_t *)((uint8_t *)ctx + 4);
+      next_off = *ly_next;
+      if (next_off + 16 < next_off)
+        return -1;
+      next_off = next_off + 16;
+      *ly_next = next_off;
+      spill_off = next_off;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, spill_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+        return -1;
+      return win_leftover_fixed_array_copy_from_e_star(elf_ctx, spill_off, n_arr, esz, 0, 1, 0, 0,
+                                                      ta);
+    }
+  }
+#endif
+  if (nbytes > 4096)
+    return -1;
+  /* SAT emit_call / emit_method are SAT global T. leftover rest rec
+   * ko==48 / ko==49 already UNDEF-calls them. Do not leftover rest T
+   * SAT emit_call / emit_method. */
+  if (nbytes > 16) {
+    /* Restore parked dest into rbx (CPU stack), pass as SysV sret rdi.
+     * SAT set_call_sret_reg_shift / set_call_expected_ret_ty are SAT
+     * global T (leftover rest FROM_X body ABSENT). SAT emit_call_args
+     * reads the same SAT BSS. ta==0 on leftover-PE.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0)
+      return -1;
+    ret_ty = pipeline_expr_resolved_type_ref(arena, call_ref);
+    pipeline_asm_set_call_expected_ret_ty_c(ret_ty > 0 ? ret_ty : 0);
+    pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+    if (ko == 49)
+      rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+    else
+      rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta);
+    pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+    pipeline_asm_set_call_expected_ret_ty_c(0);
+    return rc != 0 ? -1 : 0;
+  }
+  if (ko == 49) {
+    if (pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
+      return -1;
+  } else if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, call_ref, ctx, ta) != 0)
+    return -1;
+  if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+    return -1;
+  lo_sz = nbytes;
+  if (lo_sz > 8)
+    lo_sz = 8;
+  if (lo_sz > 4 && lo_sz < 8)
+    lo_sz = 4;
+  if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, lo_sz, ta) != 0)
+    return -1;
+  if (nbytes > 8) {
+    if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+      return -1;
+  }
+  return 0;
+}
+
+/* wave152 cold twin pipeline_asm_emit_expr_elf_rec. PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t dbg_on;
+  int32_t dbg_depth_now;
+  int32_t dbg_log_now;
+  int32_t r;
+  int32_t ko;
+  int32_t out_rc;
+  static int32_t dbg_depth = 0;
+  static int32_t dbg_max_depth = 0;
+  static int32_t dbg_prev_expr_ref = -1;
+  static int32_t dbg_prev_ko = -1;
+  static int32_t dbg_same_expr_streak = 0;
+  /* Class AV: Cap XLANG_DEBUG_REGEX_EMIT retired. */
+  dbg_on = 0;
+  dbg_depth_now = 0;
+  dbg_log_now = 0;
+  ko = expr_ref > 0 ? pipeline_expr_kind_ord_at(arena, expr_ref) : -1;
+  /* Class AW: Cap dbg_on dead branch retired. */
+  r = pipeline_asm_emit_expr_elf_fast(arena, elf_ctx, expr_ref, ctx, ta);
+  if (r != PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED) {
+    out_rc = r;
+    goto debug_done;
+  }
+  if (ko == 25 || ko == 27)
+    out_rc = pipeline_asm_emit_expr_if_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 26)
+    out_rc = pipeline_asm_emit_expr_if_arm_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 43)
+    out_rc = pipeline_asm_emit_match_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 42)
+    out_rc = pipeline_asm_emit_panic_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 45) {
+    int32_t sret_act;
+    int32_t sret_home;
+    int32_t sret_sz;
+    /* MATCH dest-in-rbx 16B parks dest then emit_match recs arm STRUCT_LIT
+     * here. SAT emit_struct_lit implicit dest overlaps p/d (match_star16
+     * SEGV 139). G.7: DEST_IN_RBX field stores into parked rbx — same
+     * leftover rest unique helper as rec ASSIGN TYPE_NAMED STRUCT_LIT.
+     * Do not leftover rest T SAT emit_struct_lit. PLATFORM: WINDOWS. */
+    if (g_leftover_match_dest_parked != 0) {
+      out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0);
+      goto debug_done;
+    }
+    /* PLATFORM: WINDOWS leftover-PE x86_64 SysV — callee >16B STRUCT_LIT
+     * return. SAT emit_struct_lit is SAT global T but intra SAT
+     * sret_active_get (SAT BSS=0, often inlined) so implicit dest is a
+     * local lea [rbp-0x18] (24B). 24B fields fit; 28B/32B stores at
+     * +0x18/+0x1c overflow saved rbp / return address (match_arm_call32
+     * SEGV 139; dump mk still lea [rbp-0x18] then DWORD [rbx+0x1c]).
+     * SAT fields_elf is SAT local t — leftover rest must not UNDEF it.
+     * enc_call_arch("memcpy") on leftover-PE emitted a recursive call to
+     * the current func (sret24a RUN=127). G.7 complete leftover rest rec:
+     * DEST_IN_RBX field stores into sret dest (param_home saved rdi).
+     * Do not leftover rest T SAT emit_struct_lit. Do not leftover rest U
+     * SAT local t copy_large. */
+    sret_act = pipeline_asm_emit_ctx_sret_active_get();
+    sret_home = pipeline_asm_emit_ctx_sret_home_off_get();
+    sret_sz = pipeline_asm_emit_ctx_sret_ret_sz_get();
+    if (sret_act != 0 && sret_home >= 0 && sret_sz > 16 && sret_sz <= 4096 &&
+        ta == 0) {
+      if (backend_enc_load_rbp_to_rax_arch(elf_ctx, sret_home, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+        out_rc = -1;
+      else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+        out_rc = -1;
+      else {
+        out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, expr_ref, ctx, ta, 0);
+        if (out_rc == 0 && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (out_rc != 0)
+          (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
+        else if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+      }
+    } else {
+      out_rc = pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    }
+  }
+  else if (ko == 46) {
+    out_rc = pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    /* TYPE_SLICE ARRAY_LIT rvalue: SAT emit_array_lit leaves dest
+     * pointer. STRUCT_LIT field store_sz 16 then needs dual-GP
+     * (rax=data, rdx=n_arr) so `S { xs: [3, 4] }` keeps length.
+     * for_call_args ARRAY_LIT arm recs internally then wrap n_arr
+     * over rdx — still GREEN. Do not leftover rest remaining-wave
+     * emit_return via !FROM_X || WIN.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (out_rc == 0) {
+      int32_t al_rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t al_tk = (al_rty > 0) ? pipeline_type_kind_ord_at(arena, al_rty) : 0;
+      if (al_tk == 11) {
+        int32_t al_n = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+        if (al_n < 0)
+          al_n = 0;
+        if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, al_n, 0, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, (ta == 1) ? 1 : 2, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+      }
+    }
+  }
+  else if (ko == 47)
+    out_rc = pipeline_asm_emit_index_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 51)
+    out_rc = pipeline_asm_emit_addr_of_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 52)
+    out_rc = pipeline_asm_emit_deref_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 48)
+    out_rc = pipeline_asm_emit_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 49)
+    out_rc = pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 59)
+    out_rc = glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, expr_ref, ta);
+  else if (ko == 60)
+    out_rc = pipeline_asm_try_emit_inline_asm_expr_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko >= 14 && ko <= 19)
+    out_rc = pipeline_asm_emit_cmp_elf(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 41)
+    out_rc = pipeline_asm_emit_return_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 39)
+    out_rc = pipeline_asm_emit_break_elf_c(arena, elf_ctx, ctx, ta);
+  else if (ko == 40)
+    out_rc = pipeline_asm_emit_continue_elf_c(arena, elf_ctx, ctx, ta);
+  else if (ko == 22)
+    out_rc = pipeline_asm_emit_neg_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 23)
+    out_rc = pipeline_asm_emit_bitnot_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 24)
+    out_rc = pipeline_asm_emit_lognot_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (glue_expr_is_await_at_c(arena, expr_ref))
+    out_rc = pipeline_asm_emit_await_sync_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (glue_expr_is_x_as_cast_at_c(arena, expr_ref))
+    out_rc = pipeline_asm_emit_as_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == GLUE_EXPR_KIND_TRY_PROPAGATE || ko == GLUE_EXPR_KIND_C_TRY_PROPAGATE)
+    out_rc = pipeline_asm_emit_try_propagate_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 28) {
+    /* TYPE_ARRAY dest-in-rbx `*p = a` / `*p = [w]`. SAT emit_assign is SAT
+     * global T (do not leftover rest T): DEREF dest calls SAT local t
+     * struct_let_init which -2s TYPE_ARRAY 8B then 4B store (RUN=0).
+     * POSIX .x calls glue_emit_fixed_array_type_let_init(-3). leftover rest
+     * unique rec first-wins; G.7 complete ASSIGN arm. STRING_LIT rhs
+     * (`*p = "hi"` of *[N]u8) is leftover rest unique store iko==59
+     * (let_init(-3)); do not leftover rest unique rec ASSIGN second
+     * intercept. leftover rest unique rec ASSIGN TYPE_SLICE STRING_LIT
+     * (`*p = "hi"` dest_tk==11) AND VAR dest STRING_LIT (`d = "hi"`)
+     * parks dest CPU stack then leftover unique rec leftover rest SAT T
+     * glue_asm_emit_string_lit_ptr_rax
+     * then store fat data@0+slen@8 (same leftover unique leftover_emit_match_arm_result
+     * dest_tk==11 / leftover rest unique rec ASSIGN TYPE_SLICE ARRAY_LIT).
+     * TYPE_SLICE dest-in-rbx CAST `*p = "hi" as []u8` / `*p = [3, 4] as []i32`
+     * is leftover rest unique rec ASSIGN (park dest + leftover unique
+     * leftover_emit_match_arm_result dest-parked dest_tk==11). leftover
+     * unique leftover_emit_match_arm_result rko==54 already peels operand.
+     * Do not leftover unique leftover_emit_as twin. leftover rest unique
+     * rec ASSIGN TYPE_ARRAY dest-in-rbx CAST is leftover rest unique store
+     * iko==54 (do not leftover rest unique rec ASSIGN second intercept).
+     * leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx CAST
+     * `*p = P { x: 3, y: 4 } as P` / `*p = mk() as P` AND VAR dest CAST
+     * `d = P { x: 3 } as P` / `d = mk() as P` parks dest then leftover
+     * unique leftover_emit_match_arm_result dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx IF `*p = if true { P { x: 3, y: 4 } } else { P { x: 0, y: 0 } }` AND VAR dest IF `d = if true { P { x: 3 } } else { P { x: 0 } }` parks dest then leftover unique leftover_emit_match_arm_result dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx BLOCK `*p = { P { x: 3, y: 4 } }` AND VAR dest BLOCK `d = { P { x: 3 } }` parks dest then leftover unique leftover_emit_match_arm_result dest-parked dest_tk==0. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx FIELD/INDEX `*p = s.inner` / `*p = arr[0]` AND VAR dest FIELD/INDEX `d = s.inner` / `d = arr[0]` parks dest then leftover unique leftover_emit_match_arm_result dest-parked dest_tk==0.
+     * TYPE_SLICE dest-in-rbx IF `*p = if true { [3,4] } else { [0,0] }` /
+     * `*p = if true { "hi" } else { "" }` dest_tk==11 AND VAR dest IF
+     * `d = if true { [3,4] } else { [0,0] }` / `d = if true { "hi" } else { "" }`
+     * is leftover rest unique rec ASSIGN (park dest + leftover unique leftover_emit_match_arm_result
+     * dest-parked dest_tk==11). leftover unique leftover_emit_match_arm_result
+     * rko==25/27 already dest-parks then/else. Do not leftover unique
+     * leftover_emit_if twin. leftover rest unique rec ASSIGN TYPE_SLICE
+     * dest-in-rbx BLOCK `*p = { [3,4] }` / `*p = { "hi" }` / dest-region
+     * `{ unsafe { [3,4] } }` dest_tk==11 AND VAR dest BLOCK
+     * `d = { [3,4] }` / `d = { "hi" }` / dest-region `d = { unsafe { [3,4] } }`
+     * is leftover rest unique rec ASSIGN (park dest + leftover unique leftover_emit_match_arm_result
+     * dest-parked dest_tk==11). leftover unique leftover_emit_match_arm_result
+     * rko==26 already dest-parks dest-region peel/IF/with_arena last.
+     * Do not leftover unique leftover_emit_block twin leftover rest WIN
+     * leftover body_sync. leftover rest unique rec ASSIGN TYPE_ARRAY
+     * dest-in-rbx BLOCK is leftover rest unique store iko==26 via catch-all
+     * let_init(-3) (do not leftover rest unique rec ASSIGN second intercept).
+     * leftover rest unique rec ASSIGN
+     * TYPE_ARRAY dest-in-rbx IF is leftover rest unique store iko==25/27
+     * via catch-all let_init(-3) (do not leftover rest unique rec ASSIGN
+     * second intercept). POSIX product .x let-init dest-in-rbx FIELD/
+     * INDEX/DEREF (`*p = s.a` / `*p = rows[0]` / `*p = *q`) parks
+     * dest_spill then lvalue + memcpy (same ARRAY_LIT elem FIELD). Do
+     * not leftover rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx FIELD
+     * second intercept (leftover rest unique store iko==44 leftover-PE).
+     *
+     * TYPE_ARRAY VAR dest MATCH `d = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+     * (arr_asg_match) is a sibling dest (VAR frame slot, not dest-in-rbx).
+     * leftover rest unique rec ASSIGN TYPE_ARRAY previously intercepted
+     * DEREF dest only (asg_lko==52); VAR dest fell through SAT emit_assign
+     * SAT global T, MATCH dest not parked (arr_asg_match RUN=0 / CG002).
+     * TYPE_NAMED/TYPE_SLICE MATCH already intercept VAR dest (asg_lko==3).
+     * VAR dest TYPE_ARRAY ARRAY_LIT/CALL/FIELD/INDEX/DEREF/CAST stay SAT
+     * emit_assign (arr_asg_lit / arr_asg_call / arr_asg_field /
+     * arr_asg_idx / arr_asg_deref / arr_asg_cast_lit POSIX GREEN).
+     * VAR dest TYPE_ARRAY IF/BLOCK is leftover rest unique rec ASSIGN
+     * sibling (arr_asg_if / arr_asg_block POSIX RED RUN=1).
+     *
+     * TYPE_NAMED dest-in-rbx VAR `*p = a` stays SAT emit_assign
+     * (named_star_asg GREEN via SAT local t memcpy). TYPE_NAMED dest-in-rbx
+     * CALL `*p = mk()` AND VAR dest CALL `d = mk()` / METHOD `d = S.mk()`
+     * is a different produce: SAT emit_assign does not pass rdi as SysV
+     * sret (star_call32 dump: call mk with no rdi, then store rax into *p
+     * first 8B; VAR dest 16B same match_asg_call16 RUN=0 / 24/32B same
+     * match_asg_call24/32 SEGV 139). Callee sret STRUCT_LIT field-stores
+     * through garbage rdi → SEGV 139. G.7 complete leftover rest unique
+     * rec ASSIGN: park dest CPU stack (lvalue of DEREF or VAR),
+     * leftover_emit_call_into_parked_rbx (same helper as MATCH arm CALL).
+     * METHOD=49 is a neighbor.
+     * TYPE_NAMED dest-in-rbx STRUCT_LIT `*p = P { x: 3, y: 4 }` is a different produce: SAT
+     * emit_assign intra SAT local t struct_let_init → SAT local t
+     * fields_elf(-3) which lea rbp-3 (named_star_lit SEGV 139). leftover
+     * rest unique rec cannot UNDEF SAT local t fields_elf / struct_let_init
+     * (final gcc U). G.7: park dest on the CPU stack (POSIX DEST_IN_RBX
+     * push rbx), SAT emit_struct_lit (SAT global T; leftover rest rec
+     * ko==45 already UNDEFs it), qword-copy SAT dest into parked dest
+     * (same leftover rest rec sret copy). A frame spill at next_offset
+     * overlaps SAT implicit dest (named_star_lit dump: SAT wrote x=3
+     * over the dest pointer at rbp-0x38 → copy through 3 → SEGV 139).
+     * TYPE_NAMED VAR dest STRUCT_LIT `d = P { x: 3 }` / 16B Q / 24B R /
+     * 32B S (named_asg_lit / named_asg_lit16 / 24 / 32 RUN=4/4/6/8) is
+     * GREEN via SAT emit_assign dest_off=var slot — different produce
+     * from dest-in-rbx (SAT local t fields_elf(-3)). Do not leftover
+     * rest unique rec ASSIGN VAR dest TYPE_NAMED STRUCT_LIT second
+     * intercept (asg_lko==3 rko==45 stays SAT). dest-in-rbx STRUCT_LIT
+     * stays DEREF dest (asg_lko==52).
+     *
+     * TYPE_SLICE dest-in-rbx VAR `*p = xs` / CALL `*p = mk()` / DEREF
+     * `*p = *q` fell through SAT emit_assign (SAT local t memcpy data
+     * half / 4B store). slice_star_asg dest [0,0] was false GREEN
+     * (length already 2); dest [0] length stays 1 (`slice_star_var`
+     * [1] panic 127 / `slice_star_var_len` RUN=1). leftover rest rec
+     * ko==3 SAT slow rax=data only — VAR uses lvalue qword-copy
+     * (local lea C-order / formal fat*). CALL/METHOD/DEREF leftover
+     * rest emit already dual-GP. Do not intercept VAR dest VAR/CALL
+     * (SAT emit_assign store rax+rdx already GREEN).
+     *
+     * TYPE_SLICE dest-in-rbx ARRAY_LIT `*p = [3, 4]` is a different produce: SAT
+     * emit_assign DEREF dest SAT local t struct_let_init -2 then emit
+     * ARRAY_LIT clobbers rbx then 4B store through garbage rbx
+     * (slice_star_lit SEGV 139). Remaining-wave emit_assign VAR TYPE_SLICE
+     * ARRAY_LIT @17549 already stores data+n_arr to rbp[off] but FROM_X
+     * omits remaining-wave (SAT emit_assign is SAT global T). G.7 complete
+     * leftover rest unique rec ASSIGN: park dest CPU stack, SAT
+     * emit_array_lit (SAT global T; leftover rest rec ko==46 already
+     * UNDEFs it), store rax data to [rbx+0] and n_arr to [rbx+8].
+     * leftover rest remaining-wave bump @11427 is #ifndef FROM_X ABSENT
+     * (do not leftover rest UNDEF it). SAT emit_array_lit owns dest.
+     *
+     * TYPE_SLICE dest-in-rbx MATCH `*p = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+     * is a different produce: SAT emit_assign DEREF dest SAT local t
+     * struct_let_init -2 (MATCH is not ARRAY_LIT/VAR/CALL/FIELD/INDEX)
+     * then emit MATCH clobbers rbx then 4B store (slice_star_match
+     * SEGV 139 / _len RUN=1 dest [0] length stays 1). G.7 complete
+     * leftover rest unique rec ASSIGN TYPE_SLICE MATCH: park dest CPU
+     * stack, leftover rest unique emit_match dest-parked dest_tk=11
+     * (ARRAY_LIT arm SAT emit_array_lit + store fat data@0 length@8).
+     *
+     * TYPE_SLICE VAR dest MATCH `d = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+     * is a sibling dest (VAR frame slot, not dest-in-rbx). leftover
+     * rest unique rec ASSIGN TYPE_SLICE MATCH previously intercepted
+     * DEREF dest only (asg_lko==52); VAR dest fell through SAT
+     * emit_assign SAT global T, MATCH dest not parked, dest [0]
+     * length stays 1 (slice_asg_match INDEX [1] panic 127). TYPE_NAMED
+     * MATCH already intercepts VAR dest (asg_lko==3). G.7 complete
+     * leftover rest unique rec ASSIGN TYPE_SLICE MATCH: VAR dest uses
+     * the same park dest + emit_match dest-parked dest_tk=11. Do not
+     * leftover rest T SAT emit_assign / emit_array_lit.
+     *
+     * TYPE_SLICE dest-in-rbx FIELD `*p = s.xs` / INDEX `*p = rows[1]`
+     * are the same produce: SAT emit_assign DEREF dest SAT local t
+     * struct_let_init -2 (FIELD/INDEX are not VAR/CALL/DEREF) then SAT
+     * intra emit FIELD/INDEX clobbers rbx then 4B store
+     * (slice_star_field / slice_star_idx SEGV 139). leftover rest unique
+     * rec ko==44 is enum-namespace only (non-enum -1). G.7 complete
+     * leftover rest unique rec ASSIGN TYPE_SLICE FIELD/INDEX: park dest
+     * CPU stack, leftover rest unique lvalue of FIELD/INDEX
+     * (rax=&fat pair; INDEX of [N][]T leas payload+idx*16, INDEX of
+     * [][]T peels fat.data then +idx*16), qword-copy 16B data@0+length@8
+     * into parked dest.
+     *
+     * TYPE_SLICE VAR dest FIELD `b = s.xs` is a sibling dest (VAR
+     * frame slot, not dest-in-rbx). leftover rest unique rec ASSIGN
+     * previously intercepted DEREF dest only; VAR dest fell through
+     * to SAT emit_assign SAT global T which intra-emits FIELD without
+     * dual-GP then stores rax+rdx (garbage rdx) (slice_asg_field
+     * SEGV 139). VAR dest INDEX is already GREEN via SAT emit_index
+     * dual-GP. G.7 complete leftover rest unique rec ASSIGN TYPE_SLICE
+     * FIELD/INDEX arm: VAR dest (asg_lko==3) uses the same park dest +
+     * lvalue rhs + qword-copy 16B. Do not leftover rest T SAT
+     * emit_assign. Do not leftover rest remaining-wave emit_assign /
+     * fields_elf via !FROM_X || WIN. Do not leftover rest T SAT
+     * try_index (arr0). Do not leftover rest U SAT local t copy_large /
+     * field_type_ref (23B stub). Do not call
+     * glue_emit_slice_from_array_let_init(-3) (rbp-3).
+     * PLATFORM: WINDOWS leftover-PE / POSIX -E unchanged. */
+    int32_t asg_left = pipeline_expr_binop_left_ref_at(arena, expr_ref);
+    int32_t asg_right = pipeline_expr_binop_right_ref_at(arena, expr_ref);
+    int32_t asg_lko = (asg_left > 0) ? pipeline_expr_kind_ord_at(arena, asg_left) : 0;
+    int32_t asg_dtr = 0;
+    int32_t asg_dtk = 0;
+    int32_t asg_dop = 0;
+    int32_t asg_dop_tr = 0;
+    int32_t asg_st = 0;
+    int32_t asg_rko = 0;
+    if (asg_right > 0 && (asg_lko == 52 || asg_lko == 3)) {
+      if (asg_lko == 52) {
+        asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
+        asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+        if (asg_dtk != 10 && asg_dtk != 8 && asg_dtk != 11) {
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+          if (asg_dop > 0) {
+            asg_dop_tr = pipeline_expr_resolved_type_ref(arena, asg_dop);
+            if (asg_dop_tr <= 0)
+              asg_dop_tr = glue_var_decl_type_ref_elf_c(arena, ctx, asg_dop);
+            if (asg_dop_tr > 0 && pipeline_type_kind_ord_at(arena, asg_dop_tr) == 9) {
+              asg_dtr = pipeline_type_elem_ref_at(arena, asg_dop_tr);
+              asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+            }
+          }
+        }
+      } else {
+        /* VAR dest: resolved or decl type. PLATFORM: WINDOWS leftover-PE. */
+        asg_dtr = pipeline_expr_resolved_type_ref(arena, asg_left);
+        if (asg_dtr <= 0)
+          asg_dtr = glue_var_decl_type_ref_elf_c(arena, ctx, asg_left);
+        asg_dtk = (asg_dtr > 0) ? pipeline_type_kind_ord_at(arena, asg_dtr) : 0;
+      }
+      asg_rko = pipeline_expr_kind_ord_at(arena, asg_right);
+      if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 10) {
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          asg_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, asg_right, ctx, ta,
+                                                            asg_dtr, -3);
+          if (asg_st == 0)
+            out_rc = 0;
+          else if (asg_st == -1)
+            out_rc = -1;
+          else
+            out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+        }
+      } else if (asg_lko == 3 && asg_dtr > 0 && asg_dtk == 10 && asg_rko == 43) {
+        int32_t asg_nbytes;
+        int32_t asg_n_arr;
+        int32_t asg_esz;
+        int32_t asg_elem;
+        /* VAR dest TYPE_ARRAY MATCH `d = match 1 { 1 => [3, 4]; _ => [0, 0] }`
+         * (arr_asg_match). leftover rest unique rec ASSIGN TYPE_ARRAY
+         * previously intercepted DEREF dest only (asg_lko==52) via
+         * let_init(-3) → leftover rest unique store MATCH dest_tk=10.
+         * VAR dest fell through SAT emit_assign (SAT global T): MATCH dest
+         * not parked → ARRAY_LIT arm SAT implicit dest (arr_asg_match
+         * RUN=0 / CG002). TYPE_NAMED/TYPE_SLICE MATCH already intercept
+         * VAR dest (asg_lko==3). G.7 complete leftover rest unique rec
+         * ASSIGN TYPE_ARRAY MATCH: VAR dest parks dest via lvalue then
+         * glue_emit_fixed_array_type_let_init(-3) (same store MATCH
+         * dest_tk=10 nbytes=n_arr*esz as DEREF dest / let-init MATCH).
+         * POSIX product authority is .x let-init dest-in-rbx MATCH
+         * (iko==43 park dest_spill + glue_emit_match_dest_in_rbx) plus
+         * frame dest park recurse -3 — hybrid thin emit_assign first-wins
+         * so this intercept is leftover-PE (do not leftover rest unique
+         * rec ASSIGN second intercept of dest-in-rbx MATCH). Bump
+         * next_offset past d so SAT arm dest cannot clobber it
+         * (TYPE_NAMED MATCH 8B lesson). Match arms use `;` not `,`.
+         * Do not leftover rest T SAT emit_assign / emit_array_lit.
+         * Do not leftover rest remaining-wave. Do not leftover rest U
+         * SAT local t copy_large. Do not intercept VAR dest TYPE_ARRAY
+         * ARRAY_LIT/CALL/FIELD/INDEX/DEREF/CAST (POSIX GREEN). VAR dest
+         * TYPE_ARRAY IF/BLOCK is leftover rest unique rec ASSIGN sibling.
+         * PLATFORM: WINDOWS leftover-PE / POSIX FROM_X leftover rest. */
+        asg_n_arr = pipeline_type_array_size_at(arena, asg_dtr);
+        asg_elem = pipeline_type_elem_ref_at(arena, asg_dtr);
+        asg_esz = glue_array_lit_force_esz_from_elem_type_c(arena, asg_elem);
+        if (asg_esz <= 0)
+          asg_esz = glue_index_elem_byte_sz_from_type_ref_c(arena, asg_dtr);
+        if (asg_esz <= 0)
+          asg_esz = 4;
+        asg_nbytes = asg_n_arr * asg_esz;
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_left);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          asg_st = glue_emit_fixed_array_type_let_init_elf_c(arena, elf_ctx, asg_right, ctx, ta,
+                                                            asg_dtr, -3);
+          if (asg_st == 0)
+            out_rc = 0;
+          else if (asg_st == -1)
+            out_rc = -1;
+          else
+            out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+        }
+      } else if (asg_lko == 3 && asg_dtr > 0 && asg_dtk == 10 &&
+                 (asg_rko == 25 || asg_rko == 27 || asg_rko == 26)) {
+        int32_t asg_nbytes;
+        int32_t asg_n_arr;
+        int32_t asg_esz;
+        int32_t asg_elem;
+        /* VAR dest TYPE_ARRAY IF `d = if true { [3, 4] } else { [0, 0] }`
+         * AND BLOCK `d = { [3, 4] }` / dest-region `d = { unsafe { [3, 4] } }`
+         * (arr_asg_if / arr_asg_block). leftover rest unique rec ASSIGN
+         * TYPE_ARRAY MATCH intercepts VAR dest (asg_lko==3 rko==43) via
+         * let_init(-3). IF/BLOCK fell through SAT emit_assign (SAT global T):
+         * leftover unique emit_if remaining-wave `#ifndef FROM_X` ABSENT /
+         * .x thin emit_if SAT if_arm of then/else SAT implicit dest then
+         * 4B store into d (arr_asg_if POSIX RUN=1 expect 4). BLOCK wrapping
+         * ARRAY_LIT recs SAT emit_array_lit implicit dest (arr_asg_block
+         * POSIX RUN=1). leftover unique leftover_emit_match_arm_result
+         * rko==25/27 already dest-parks then/else ARRAY_LIT dest_tk==10;
+         * rko==26 dest-parks dest-region peel/IF/with_arena last dest_tk==10.
+         * leftover rest unique rec ASSIGN TYPE_NAMED/TYPE_SLICE IF/BLOCK
+         * already intercept VAR dest. leftover rest unique rec ASSIGN
+         * TYPE_ARRAY dest-in-rbx IF/BLOCK stays leftover rest unique store
+         * iko==25/27/26 via catch-all let_init(-3) (do not leftover rest
+         * unique rec ASSIGN second intercept of dest-in-rbx). leftover rest
+         * unique store is WIN_LEFTOVER only — POSIX FROM_X leftover rest
+         * rec ASSIGN first-wins must dest-park here (not let_init(-3)
+         * fallthrough SAT emit_assign). G.7 complete leftover rest unique
+         * rec ASSIGN VAR dest TYPE_ARRAY IF/BLOCK: park dest CPU stack
+         * (lvalue of VAR; same leftover rest unique rec ASSIGN TYPE_ARRAY
+         * MATCH bump), leftover unique leftover_emit_match_arm_result of
+         * IF/BLOCK dest-parked dest_tk==10 (same leftover rest unique rec
+         * ASSIGN TYPE_SLICE IF dest_tk==11 / TYPE_NAMED IF dest_tk==0).
+         * Bump next_offset past d (TYPE_NAMED MATCH 8B lesson). Do not
+         * leftover unique leftover_emit_if / leftover_emit_block twin.
+         * Do not leftover rest remaining-wave. Do not leftover rest T SAT
+         * emit_if / emit_block_body_sync / emit_assign / emit_array_lit.
+         * Do not intercept VAR dest TYPE_ARRAY ARRAY_LIT/CALL/FIELD/
+         * INDEX/DEREF/CAST (POSIX GREEN). VAR dest TYPE_ARRAY STRING_LIT
+         * (`d = "hi"`) POSIX typeck *u8 vs [N]u8 (leftover-PE typeck unique).
+         * ADDR_OF (rko==51) / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE / POSIX FROM_X leftover rest. */
+        asg_n_arr = pipeline_type_array_size_at(arena, asg_dtr);
+        asg_elem = pipeline_type_elem_ref_at(arena, asg_dtr);
+        asg_esz = glue_array_lit_force_esz_from_elem_type_c(arena, asg_elem);
+        if (asg_esz <= 0)
+          asg_esz = glue_index_elem_byte_sz_from_type_ref_c(arena, asg_dtr);
+        if (asg_esz <= 0)
+          asg_esz = 4;
+        asg_nbytes = asg_n_arr * asg_esz;
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_left);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          g_leftover_match_dest_tk = 10;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if (asg_lko == 52 && asg_dtr > 0 && asg_dtk == 8 && asg_rko == 45) {
+        /* TYPE_NAMED dest-in-rbx STRUCT_LIT. SAT emit_struct_lit SAT
+         * global T implicit dest uses leftover rest next_offset@ctx+4
+         * (stale vs user locals) so field stores clobber `p`
+         * (`named_star_lit` return d.y GREEN / (*p).y SEGV 139). Park
+         * dest saves &d but does not restore p. POSIX DEST_IN_RBX
+         * writes fields to rbx — no SAT dest. G.7 complete leftover
+         * rest unique rec ASSIGN: park dest CPU stack, leftover rest
+         * unique DEST_IN_RBX field stores (same helper as MATCH 16B
+         * dest-parked rec ko==45). Do not leftover rest T SAT
+         * emit_struct_lit. Do not leftover rest U SAT local t
+         * fields_elf. Do not expand asg_lko==3: VAR dest STRUCT_LIT
+         * named_asg_lit 8/16/24/32B GREEN via SAT emit_assign
+         * dest_off=var slot (2026-09-06 prove). PLATFORM: WINDOWS leftover-PE. */
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          out_rc = leftover_emit_struct_lit_into_parked_rbx(arena, elf_ctx, asg_right, ctx, ta, 0);
+          if (out_rc == 0 && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (out_rc != 0)
+            (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 asg_rko == 43) {
+        int32_t asg_nbytes;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx MATCH `*p = match 1 { 1 => P {..}; _ => .. }`
+         * AND VAR dest MATCH `d = match 1 { 1 => mk(); _ => S {..} }`
+         * (match_asg_call32). SAT emit_assign DEREF dest emit MATCH
+         * clobbers rbx then 4B store (match_star_dy SEGV 139). VAR dest
+         * previously fell through SAT emit_assign (SAT global T): MATCH
+         * dest not parked → 16B dual-GP not stored (match_asg_call16
+         * RUN=0); 24/32B callee sret dest overflow (match_asg_call24 /
+         * match_asg_call32 SEGV 139). G.7 complete leftover rest unique
+         * rec ASSIGN TYPE_NAMED MATCH: park dest CPU stack (lvalue of
+         * DEREF or VAR) then leftover rest unique emit_match dest-parked
+         * (arm CALL leftover_emit_call SysV sret rdi / dual-GP). Bump
+         * next_offset past the dest slot (pointer p, or VAR d) + dest
+         * width so SAT arm dest cannot clobber it. Match arms use `;`
+         * not `,`. Do not leftover rest T SAT emit_assign / emit_call /
+         * emit_struct_lit. Do not leftover rest U SAT local t copy_large.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_mod = glue_emit_module_from_ctx(ctx);
+        if (!asg_mod)
+          asg_mod = pipeline_asm_emit_module_ref_c();
+        asg_nbytes = 0;
+        if (asg_mod)
+          asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          /* Always DEST_IN_RBX: leftover rest glue_type_size_simple NAMED
+           * can report 0 → nbytes=8, which skipped the 16B field stores
+           * (match_star16 RUN=0 not SEGV). 8B match_star uses the same
+           * parked field stores as named_star_lit. PLATFORM: WINDOWS. */
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          if (pipeline_asm_emit_match_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 (asg_rko == 48 || asg_rko == 49)) {
+        int32_t asg_nbytes;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx CALL `*p = mk()` / METHOD `*p = S.mk()`
+         * AND VAR dest CALL `d = mk()` / METHOD `d = S.mk()`.
+         * SAT emit_assign DEREF dest emit CALL/METHOD clobbers rbx then
+         * stores rax (no SysV sret rdi; star_call24 / star_call32 /
+         * star_method32 SEGV 139; star_method16 RUN=0). VAR dest
+         * previously fell through SAT emit_assign (SAT global T): leftover
+         * unique leftover_emit_call / SAT emit_call implicit dest then 8B
+         * store rax into d (CALL 16B same match_asg_call16 RUN=0 /
+         * 24/32B same match_asg_call24/32 SEGV 139). leftover unique
+         * leftover_emit_match_arm_result rko==48/49 already dest-parks
+         * CALL/METHOD dest_tk==0 via leftover_emit_call_into_parked_rbx.
+         * leftover rest unique rec ASSIGN TYPE_NAMED MATCH/CAST/IF/BLOCK/FIELD
+         * already intercept VAR dest (asg_lko==3). G.7 complete leftover
+         * rest unique rec ASSIGN TYPE_NAMED CALL/METHOD: park dest CPU
+         * stack (lvalue of DEREF or VAR; same leftover rest unique rec
+         * ASSIGN TYPE_NAMED MATCH/CAST), leftover_emit_call (nbytes>16
+         * SysV sret rdi=parked dest; ≤16 dual-GP; ko==49 SAT emit_method).
+         * Always intercept — glue_type_size_simple NAMED can report 0/4
+         * and a nbytes>16 gate would skip (MATCH 16B lesson). Bump
+         * next_offset past dest (TYPE_NAMED MATCH 8B lesson). Do not
+         * leftover rest T SAT emit_assign / emit_call / emit_method. Do
+         * not leftover rest U SAT local t copy_large. leftover rest unique
+         * rec ASSIGN TYPE_NAMED dest-in-rbx STRUCT_LIT stays DEREF dest
+         * (asg_lko==52). leftover rest unique rec ASSIGN VAR dest
+         * TYPE_NAMED STRUCT_LIT skip unless proven. leftover rest unique
+         * rec ASSIGN TYPE_NAMED dest-in-rbx DEREF skip (named_star_deref
+         * GREEN). leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx
+         * VAR skip (named_star_asg GREEN). ADDR_OF (rko==51) / BINARY skip
+         * unless proven. PLATFORM: WINDOWS leftover-PE. */
+        asg_mod = glue_emit_module_from_ctx(ctx);
+        if (!asg_mod)
+          asg_mod = pipeline_asm_emit_module_ref_c();
+        asg_nbytes = 0;
+        if (asg_mod)
+          asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
+        {
+          int32_t asg_call_sz = glue_call_return_byte_size_c(arena, asg_right);
+          if (asg_call_sz > asg_nbytes)
+            asg_nbytes = asg_call_sz;
+        }
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          out_rc = leftover_emit_call_into_parked_rbx(arena, elf_ctx, asg_right, ctx, ta);
+          g_leftover_match_dest_nbytes = 0;
+          if (out_rc == 0 && backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (out_rc != 0)
+            (void)backend_enc_pop_rbx_arch(elf_ctx, ta);
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 asg_rko == 54) {
+        int32_t asg_nbytes;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx CAST `*p = P { x: 3, y: 4 } as P` /
+         * `*p = mk() as P` AND VAR dest CAST `d = P { x: 3 } as P` /
+         * `d = mk() as P`. SAT emit_assign DEREF dest SAT local t
+         * struct_let_init -2 then leftover rest rec CAST leftover unique
+         * rec leftover unique emit_as_impl recs operand SAT implicit dest
+         * (CAST wrapping STRUCT_LIT same named_star_lit SEGV 139 / CAST
+         * wrapping CALL same star_call SEGV 139). VAR dest previously
+         * fell through SAT emit_assign (SAT global T): leftover unique
+         * emit_as_impl recs operand SAT implicit dest then 8B store rax
+         * into d (CAST wrapping CALL 16B same match_asg_call16 RUN=0 /
+         * 24/32B same match_asg_call24/32 SEGV 139). leftover unique
+         * leftover_emit_match_arm_result rko==54 already peels operand then
+         * dest-parks STRUCT_LIT/CALL/VAR/FIELD/DEREF/BLOCK/IF/nested MATCH.
+         * leftover rest unique rec ASSIGN TYPE_NAMED MATCH/CALL already
+         * intercept VAR dest (asg_lko==3). leftover rest unique rec
+         * ASSIGN TYPE_SLICE dest-in-rbx CAST is leftover rest unique rec
+         * ASSIGN (park dest + leftover unique leftover_emit_match_arm_result
+         * dest-parked dest_tk==11). leftover rest unique rec ASSIGN
+         * TYPE_ARRAY dest-in-rbx CAST is leftover rest unique store
+         * iko==54 (do not leftover rest unique rec ASSIGN second intercept).
+         * G.7 complete leftover rest unique rec ASSIGN TYPE_NAMED CAST:
+         * park dest CPU stack (lvalue of DEREF or VAR; same leftover rest
+         * unique rec ASSIGN TYPE_NAMED MATCH), leftover unique
+         * leftover_emit_match_arm_result of CAST dest-parked dest_tk==0.
+         * Bump next_offset past dest (TYPE_NAMED MATCH 8B lesson). Do not
+         * leftover unique leftover_emit_as twin. Do not leftover rest
+         * remaining-wave. Do not leftover rest T SAT emit_as / emit_assign
+         * / emit_struct_lit. leftover rest unique rec ASSIGN VAR dest TYPE_NAMED IF is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_NAMED dest-in-rbx IF AND VAR dest IF is leftover rest
+         * unique rec ASSIGN sibling. leftover rest unique rec ASSIGN TYPE_NAMED
+         * dest-in-rbx BLOCK AND VAR dest BLOCK is leftover rest unique rec ASSIGN sibling.
+         * leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx FIELD/INDEX
+         * AND VAR dest FIELD/INDEX is leftover rest unique rec ASSIGN sibling. leftover rest unique
+         * rec ASSIGN TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest STRING_LIT
+         * is leftover rest unique rec ASSIGN sibling. ADDR_OF (rko==51) / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_mod = glue_emit_module_from_ctx(ctx);
+        if (!asg_mod)
+          asg_mod = pipeline_asm_emit_module_ref_c();
+        asg_nbytes = 0;
+        if (asg_mod)
+          asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          g_leftover_match_dest_tk = 0;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 (asg_rko == 25 || asg_rko == 27)) {
+        int32_t asg_nbytes;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx IF `*p = if true { P { x: 3, y: 4 } } else {
+         * P { x: 0, y: 0 } }` / `*p = if true { mk() } else { P { x: 0, y: 0 } }`
+         * AND VAR dest IF `d = if true { P { x: 3 } } else { P { x: 0 } }` /
+         * `d = if true { mk() } else { P { x: 0 } }`. SAT emit_assign DEREF dest
+         * SAT local t struct_let_init -2 then leftover rest rec IF leftover
+         * unique rec leftover unique emit_if remaining-wave `#ifndef FROM_X`
+         * ABSENT / .x thin emit_if SAT if_arm of then/else SAT implicit dest
+         * (IF wrapping STRUCT_LIT same named_star_lit SEGV 139 / IF wrapping
+         * CALL same star_call SEGV 139). VAR dest previously fell through SAT
+         * emit_assign (SAT global T): leftover unique emit_if remaining-wave
+         * ABSENT / .x thin emit_if SAT if_arm of then/else SAT implicit dest
+         * then 8B store rax into d (IF wrapping CALL 16B same match_asg_call16
+         * RUN=0 / 24/32B same match_asg_call24/32 SEGV 139; IF wrapping
+         * STRUCT_LIT same named_star_lit produce). leftover unique
+         * leftover_emit_match_arm_result rko==25/27 already dest-parks then/else
+         * STRUCT_LIT/CALL/VAR/FIELD/DEREF/BLOCK/CAST/nested MATCH dest_tk==0.
+         * leftover rest unique rec ASSIGN TYPE_NAMED MATCH/CALL already intercept
+         * VAR dest (asg_lko==3). leftover rest unique rec ASSIGN TYPE_NAMED CAST
+         * already intercepts VAR dest (asg_lko==3). leftover rest unique rec
+         * ASSIGN TYPE_SLICE dest-in-rbx IF AND VAR dest IF is leftover rest unique rec ASSIGN
+         * (park dest + leftover unique leftover_emit_match_arm_result dest-parked
+         * dest_tk==11). leftover rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx
+         * IF is leftover rest unique store iko==25/27 (do not leftover rest
+         * unique rec ASSIGN second intercept). leftover rest unique rec ASSIGN
+         * TYPE_NAMED dest-in-rbx CAST AND VAR dest CAST is leftover rest unique
+         * rec ASSIGN sibling. G.7 complete leftover rest unique rec ASSIGN
+         * TYPE_NAMED IF: park dest CPU stack (lvalue of DEREF or VAR; same
+         * leftover rest unique rec ASSIGN TYPE_NAMED MATCH/CAST), leftover
+         * unique leftover_emit_match_arm_result of IF dest-parked dest_tk==0.
+         * Bump next_offset past dest (TYPE_NAMED MATCH 8B lesson). Do not
+         * leftover unique leftover_emit_if twin. Do not leftover rest
+         * remaining-wave. Do not leftover rest T SAT emit_if / emit_assign /
+         * emit_struct_lit. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx BLOCK
+         * AND VAR dest BLOCK is leftover rest unique rec ASSIGN sibling.
+         * leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx
+         * FIELD/INDEX AND VAR dest FIELD/INDEX is leftover rest unique rec
+         * ASSIGN sibling. leftover
+         * rest unique rec ASSIGN TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest
+         * STRING_LIT is leftover rest unique rec ASSIGN sibling. ADDR_OF (rko==51) / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_mod = glue_emit_module_from_ctx(ctx);
+        if (!asg_mod)
+          asg_mod = pipeline_asm_emit_module_ref_c();
+        asg_nbytes = 0;
+        if (asg_mod)
+          asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          g_leftover_match_dest_tk = 0;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 asg_rko == 26) {
+        int32_t asg_nbytes;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx BLOCK `*p = { P { x: 3, y: 4 } }` /
+         * `*p = { mk() }` / dest-region `{ unsafe { P { x: 3, y: 4 } } }`
+         * AND VAR dest BLOCK `d = { P { x: 3 } }` / `d = { mk() }` /
+         * dest-region `d = { unsafe { P { x: 3 } } }`. SAT emit_assign
+         * DEREF dest SAT local t struct_let_init -2 then leftover rest rec
+         * BLOCK leftover unique rec leftover unique emit_block / leftover
+         * rest WIN leftover body_sync SAT implicit dest (BLOCK wrapping
+         * STRUCT_LIT same named_star_lit SEGV 139 / BLOCK wrapping CALL
+         * same star_call SEGV 139). VAR dest previously fell through SAT
+         * emit_assign (SAT global T): leftover unique emit_block / leftover
+         * rest WIN leftover body_sync SAT implicit dest then 8B store rax
+         * into d (BLOCK wrapping CALL 16B same match_asg_call16 RUN=0 /
+         * 24/32B same match_asg_call24/32 SEGV 139; BLOCK wrapping
+         * STRUCT_LIT same named_star_lit produce). leftover unique
+         * leftover_emit_match_arm_result rko==26 already dest-parks
+         * dest-region peel/IF/with_arena last STRUCT_LIT/CALL/VAR/FIELD/
+         * DEREF/CAST/IF/nested MATCH dest_tk==0. leftover rest unique rec
+         * ASSIGN TYPE_NAMED MATCH/CAST/IF already intercept VAR dest
+         * (asg_lko==3). leftover rest unique rec ASSIGN TYPE_SLICE
+         * dest-in-rbx BLOCK AND VAR dest BLOCK is leftover rest unique rec ASSIGN (park dest
+         * + leftover unique leftover_emit_match_arm_result dest-parked
+         * dest_tk==11). leftover rest unique rec ASSIGN TYPE_ARRAY
+         * dest-in-rbx BLOCK is leftover rest unique store iko==26 (do not
+         * leftover rest unique rec ASSIGN second intercept). leftover rest
+         * unique rec ASSIGN TYPE_NAMED dest-in-rbx CAST/IF AND VAR dest
+         * CAST/IF is leftover rest unique rec ASSIGN sibling. G.7 complete
+         * leftover rest unique rec ASSIGN TYPE_NAMED BLOCK: park dest CPU
+         * stack (lvalue of DEREF or VAR; same leftover rest unique rec
+         * ASSIGN TYPE_NAMED MATCH/CAST/IF), leftover unique
+         * leftover_emit_match_arm_result of BLOCK dest-parked dest_tk==0.
+         * Bump next_offset past dest (TYPE_NAMED MATCH 8B lesson). Do not
+         * leftover unique leftover_emit_block twin leftover rest WIN
+         * leftover body_sync. Do not leftover rest remaining-wave. Do not
+         * leftover rest T SAT emit_block_body_sync / emit_assign /
+         * emit_struct_lit. leftover rest unique rec ASSIGN TYPE_NAMED dest-in-rbx FIELD/INDEX
+         * AND VAR dest FIELD/INDEX is leftover rest unique rec ASSIGN sibling.
+         * leftover rest unique rec ASSIGN TYPE_NAMED
+         * dest-in-rbx DEREF skip (named_star_deref GREEN). leftover rest
+         * unique rec ASSIGN TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest
+         * STRING_LIT is leftover rest unique rec ASSIGN sibling. ADDR_OF (rko==51) / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_mod = glue_emit_module_from_ctx(ctx);
+        if (!asg_mod)
+          asg_mod = pipeline_asm_emit_module_ref_c();
+        asg_nbytes = 0;
+        if (asg_mod)
+          asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          g_leftover_match_dest_tk = 0;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 8 &&
+                 (asg_rko == 44 || asg_rko == 47)) {
+        int32_t asg_nbytes;
+        void *asg_mod;
+        /* TYPE_NAMED dest-in-rbx FIELD `*p = s.inner` / INDEX `*p = arr[0]`
+         * AND VAR dest FIELD `d = s.inner` / INDEX `d = arr[0]`. SAT
+         * emit_assign DEREF dest SAT local t struct_let_init -2 then leftover
+         * rest rec FIELD leftover unique rec leftover unique field_access SAT
+         * implicit dest (leftover rest rec ko==44 is enum-namespace only;
+         * non-enum -1) then 4B store through clobbered rbx (same
+         * slice_star_field SEGV 139 / MATCH arm dest-parked FIELD dest_tk==0).
+         * VAR dest previously fell through SAT emit_assign (SAT global T):
+         * leftover unique field_access of TYPE_NAMED field load_byte_sz 4/8
+         * then 8B store rax into d (16B same match_asg_call16 RUN=0; 24/32B
+         * incomplete copy same produce). leftover unique
+         * leftover_emit_match_arm_result rko==44/47 already dest-parks
+         * FIELD/INDEX dest_tk==0 via leftover unique leftover_emit_slice_lvalue
+         * (lvalue + qword-copy nbytes). leftover rest unique rec ASSIGN
+         * TYPE_NAMED MATCH/CAST/IF/BLOCK already intercept VAR dest
+         * (asg_lko==3). leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx
+         * FIELD/INDEX is leftover rest unique rec ASSIGN (park dest + lvalue
+         * qword-copy 16B dest_tk==11). leftover rest unique rec ASSIGN
+         * TYPE_ARRAY dest-in-rbx FIELD is leftover rest unique store iko==44
+         * (do not leftover rest unique rec ASSIGN second intercept). leftover
+         * rest unique rec ASSIGN TYPE_NAMED dest-in-rbx CAST/IF/BLOCK AND VAR
+         * dest CAST/IF/BLOCK is leftover rest unique rec ASSIGN sibling. G.7
+         * complete leftover rest unique rec ASSIGN TYPE_NAMED FIELD/INDEX:
+         * park dest CPU stack (lvalue of DEREF or VAR; same leftover rest
+         * unique rec ASSIGN TYPE_NAMED MATCH/CAST/IF/BLOCK), leftover unique
+         * leftover_emit_match_arm_result of FIELD/INDEX dest-parked dest_tk==0.
+         * Bump next_offset past dest (TYPE_NAMED MATCH 8B lesson). Do not
+         * leftover unique leftover_emit_field twin leftover rest rec ko==44
+         * enum-namespace. Do not leftover rest remaining-wave. Do not leftover
+         * rest T SAT emit_assign / emit_field / emit_index. leftover rest
+         * unique rec ASSIGN TYPE_NAMED dest-in-rbx DEREF (`*p = *q`) skip
+         * (named_star_deref GREEN). leftover rest unique rec ASSIGN TYPE_NAMED
+         * dest-in-rbx VAR (`*p = a`) skip (named_star_asg GREEN). leftover rest
+         * unique rec ASSIGN TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest
+         * STRING_LIT is leftover rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN VAR dest TYPE_SLICE
+         * CAST/IF/BLOCK skip unless proven. ADDR_OF (rko==51) / BINARY skip
+         * unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_mod = glue_emit_module_from_ctx(ctx);
+        if (!asg_mod)
+          asg_mod = pipeline_asm_emit_module_ref_c();
+        asg_nbytes = 0;
+        if (asg_mod)
+          asg_nbytes = glue_type_size_simple(asg_mod, arena, asg_dtr, 0);
+        {
+          int32_t asg_named = glue_type_named_layout_size_any_module_elf_c(arena, asg_dtr);
+          if (asg_named > asg_nbytes)
+            asg_nbytes = asg_named;
+        }
+        if (asg_nbytes <= 0)
+          asg_nbytes = 8;
+        /* DEREF dest: bump past pointer p. VAR dest: bump past d.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          int32_t asg_span;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_span = 8;
+            if (asg_nbytes > 8)
+              asg_span = 8 + ((asg_nbytes + 7) & ~7);
+            asg_past = asg_p_off + asg_span;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (asg_nbytes > 4096)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = asg_nbytes;
+          g_leftover_match_dest_tk = 0;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 46) {
+        int32_t asg_n;
+        /* TYPE_SLICE dest-in-rbx ARRAY_LIT `*p = [3, 4]`
+         * AND VAR dest ARRAY_LIT `d = [3, 4]`. Park dest CPU stack
+         * (lvalue of DEREF or VAR), SAT emit_array_lit, store fat
+         * data@0 + length@8 into dest. Bump next_offset past dest.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        asg_n = pipeline_expr_array_lit_num_elems_at(arena, asg_right);
+        if (asg_n < 0)
+          asg_n = 0;
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, asg_n, 0, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+          out_rc = -1;
+        else
+          out_rc = 0;
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 59) {
+        /* TYPE_SLICE dest-in-rbx STRING_LIT `*p = "hi"` dest_tk==11
+         * AND VAR dest STRING_LIT `d = "hi"`. SAT emit_assign DEREF dest
+         * SAT local t struct_let_init -2 then leftover rest rec ko==59
+         * leftover unique rec leftover rest SAT T glue_asm_emit_string_lit_ptr_rax
+         * puts data ptr in rax then 4B store through clobbered rbx (dest
+         * fat pair stays 0 / data-only without length). VAR dest previously
+         * fell through SAT emit_assign (SAT global T): leftover rest rec
+         * ko==59 leftover unique rec leftover rest SAT T
+         * glue_asm_emit_string_lit_ptr_rax puts data ptr in rax then SAT
+         * emit_assign stores rax+rdx into d (rdx garbage — same
+         * slice_asg_field SEGV 139 / dest-in-rbx STRING_LIT data-only
+         * without length). typeck adopts STRING_LIT as TYPE_SLICE;
+         * payload is a fat pair data@0+slen@8, not a pointer. leftover
+         * unique leftover_emit_match_arm_result rko==59 dest_tk==11 already
+         * dest-parks STRING_LIT via leftover unique rec leftover rest SAT T
+         * glue_asm_emit_string_lit_ptr_rax then store data@0+slen@8.
+         * leftover rest unique rec ASSIGN TYPE_SLICE MATCH already
+         * intercepts VAR dest (asg_lko==3). leftover rest unique rec
+         * ASSIGN TYPE_SLICE FIELD/INDEX already intercepts VAR dest.
+         * G.7 complete leftover rest unique rec ASSIGN TYPE_SLICE
+         * STRING_LIT: park dest CPU stack (lvalue of DEREF or VAR; same
+         * leftover rest unique rec ASSIGN TYPE_SLICE ARRAY_LIT), leftover
+         * unique rec leftover rest SAT T glue_asm_emit_string_lit_ptr_rax
+         * then store data@0+slen@8 (same leftover unique leftover_emit_match_arm_result
+         * dest_tk==11). Do not leftover unique leftover_emit_string twin
+         * leftover unique leftover_emit_match_arm_result rko==59 (MATCH
+         * arm dest-parked). Do not leftover rest remaining-wave. Do not
+         * leftover rest T SAT emit_assign / emit_array_lit. leftover rest
+         * unique rec ASSIGN TYPE_SLICE dest-in-rbx CAST AND VAR dest CAST is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN TYPE_SLICE
+         * dest-in-rbx IF AND VAR dest IF is leftover rest unique rec ASSIGN sibling.
+         * leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx BLOCK AND VAR dest BLOCK is leftover rest unique rec ASSIGN sibling.
+         * leftover rest unique rec ASSIGN
+         * VAR dest TYPE_ARRAY STRING_LIT (`d = "hi"`) stays SAT emit_assign.
+         * ADDR_OF (rko==51) / BINARY skip unless proven. PLATFORM: WINDOWS leftover-PE. */
+        int32_t asg_slen;
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (glue_asm_emit_string_lit_ptr_rax_elf_c(arena, elf_ctx, asg_right, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          asg_slen = glue_asm_string_lit_len(arena, asg_right);
+          if (asg_slen < 0)
+            asg_slen = 0;
+          if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, asg_slen, 0, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 && asg_rko == 54) {
+        /* TYPE_SLICE dest-in-rbx CAST `*p = "hi" as []u8` /
+         * `*p = [3, 4] as []i32` dest_tk==11 AND VAR dest CAST
+         * `d = "hi" as []u8` / `d = [3, 4] as []i32`. SAT emit_assign
+         * DEREF dest SAT local t struct_let_init -2 then leftover rest rec
+         * CAST leftover unique rec leftover unique emit_as_impl recs
+         * operand SAT implicit dest, parked dest stays 0 / 4B store
+         * through clobbered rbx (dest fat pair stays 0 / data-only without
+         * length). VAR dest previously fell through SAT emit_assign (SAT
+         * global T): leftover unique emit_as_impl recs operand SAT implicit
+         * dest. CAST wrapping STRING_LIT leftover rest rec ko==59 leftover
+         * unique rec leftover rest SAT T glue_asm_emit_string_lit_ptr_rax
+         * puts data ptr in rax then SAT emit_assign stores rax+rdx into d
+         * (rdx garbage — same dest-in-rbx STRING_LIT / VAR dest STRING_LIT
+         * data-only without length). CAST wrapping ARRAY_LIT recs SAT
+         * emit_array_lit implicit dest (not VAR dest) so dest fat is not
+         * parked. leftover unique leftover_emit_match_arm_result rko==54
+         * already peels operand then dest-parks STRING_LIT/ARRAY_LIT/
+         * VAR/CALL/FIELD/DEREF/BLOCK/IF/nested MATCH dest_tk==11.
+         * leftover rest unique rec ASSIGN TYPE_SLICE MATCH already
+         * intercepts VAR dest (asg_lko==3). leftover rest unique rec
+         * ASSIGN TYPE_SLICE STRING_LIT already intercepts VAR dest.
+         * leftover rest unique rec ASSIGN TYPE_NAMED CAST already
+         * intercepts VAR dest. G.7 complete leftover rest unique rec
+         * ASSIGN TYPE_SLICE CAST: park dest CPU stack (lvalue of DEREF
+         * or VAR; same leftover rest unique rec ASSIGN TYPE_SLICE MATCH),
+         * leftover unique leftover_emit_match_arm_result of CAST
+         * dest-parked dest_tk==11. Bump next_offset past dest (TYPE_NAMED
+         * MATCH 8B lesson / leftover rest unique rec ASSIGN TYPE_SLICE
+         * MATCH). Do not leftover unique leftover_emit_as twin leftover
+         * unique leftover_emit_match_arm_result rko==54 (MATCH arm
+         * dest-parked). Do not leftover rest remaining-wave. Do not leftover
+         * rest T SAT emit_as / emit_assign / emit_array_lit. leftover rest
+         * unique rec ASSIGN TYPE_ARRAY dest-in-rbx CAST (`*p = "hi" as [N]u8`)
+         * is leftover rest unique store iko==54 (do not leftover rest unique
+         * rec ASSIGN second intercept). leftover rest unique rec ASSIGN
+         * TYPE_NAMED dest-in-rbx CAST AND VAR dest CAST is leftover rest
+         * unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest STRING_LIT is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_SLICE dest-in-rbx IF AND VAR dest IF is leftover rest unique rec
+         * ASSIGN sibling. leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx
+         * BLOCK AND VAR dest BLOCK is leftover rest unique rec ASSIGN sibling.
+         * ADDR_OF (rko==51)
+         * / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = 16;
+          g_leftover_match_dest_tk = 11;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 &&
+                 (asg_rko == 25 || asg_rko == 27)) {
+        /* TYPE_SLICE dest-in-rbx IF `*p = if true { [3, 4] } else { [0, 0] }` /
+         * `*p = if true { "hi" } else { "" }` dest_tk==11 AND VAR dest IF
+         * `d = if true { [3, 4] } else { [0, 0] }` /
+         * `d = if true { "hi" } else { "" }`. SAT emit_assign DEREF dest
+         * SAT local t struct_let_init -2 then leftover rest rec IF leftover
+         * unique rec leftover unique emit_if remaining-wave `#ifndef FROM_X`
+         * ABSENT / .x thin emit_if SAT if_arm of then/else SAT implicit dest,
+         * parked dest stays 0 / 4B store through clobbered rbx (dest fat
+         * pair stays 0 / data-only without length). VAR dest previously
+         * fell through SAT emit_assign (SAT global T): leftover unique
+         * emit_if remaining-wave ABSENT / .x thin emit_if SAT if_arm of
+         * then/else SAT implicit dest. IF wrapping STRING_LIT leftover rest
+         * rec ko==59 leftover unique rec leftover rest SAT T
+         * glue_asm_emit_string_lit_ptr_rax puts data ptr in rax then SAT
+         * emit_assign stores rax+rdx into d (rdx garbage — same dest-in-rbx
+         * STRING_LIT / VAR dest STRING_LIT / CAST wrapping STRING_LIT
+         * data-only without length). IF wrapping ARRAY_LIT recs SAT
+         * emit_array_lit implicit dest (not VAR dest) so dest fat is not
+         * parked. leftover unique leftover_emit_match_arm_result rko==25/27
+         * already dest-parks then/else ARRAY_LIT/STRING_LIT/VAR/CALL/FIELD/
+         * DEREF/BLOCK/CAST/nested MATCH dest_tk==11. leftover rest unique rec
+         * ASSIGN TYPE_SLICE MATCH/STRING_LIT/CAST already intercept VAR dest
+         * (asg_lko==3). leftover rest unique rec ASSIGN TYPE_NAMED IF already
+         * intercepts VAR dest. G.7 complete leftover rest unique rec ASSIGN
+         * TYPE_SLICE IF: park dest CPU stack (lvalue of DEREF or VAR; same
+         * leftover rest unique rec ASSIGN TYPE_SLICE MATCH/CAST), leftover
+         * unique leftover_emit_match_arm_result of IF dest-parked dest_tk==11.
+         * Bump next_offset past dest (TYPE_NAMED MATCH 8B lesson / leftover
+         * rest unique rec ASSIGN TYPE_SLICE MATCH). Do not leftover unique
+         * leftover_emit_if twin leftover unique leftover_emit_match_arm_result
+         * rko==25/27 (MATCH arm dest-parked). Do not leftover rest
+         * remaining-wave. Do not leftover rest T SAT emit_if / emit_assign /
+         * emit_array_lit. leftover rest unique rec ASSIGN TYPE_ARRAY
+         * dest-in-rbx IF is leftover rest unique store iko==25/27 via
+         * catch-all let_init(-3) (do not leftover rest unique rec ASSIGN
+         * second intercept). leftover rest unique rec ASSIGN TYPE_NAMED
+         * dest-in-rbx IF AND VAR dest IF is leftover rest unique rec ASSIGN
+         * sibling. leftover rest unique rec ASSIGN TYPE_SLICE dest-in-rbx
+         * BLOCK wrapping ARRAY_LIT/STRING_LIT AND VAR dest BLOCK is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest STRING_LIT is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_SLICE dest-in-rbx CAST AND VAR dest CAST is leftover rest unique
+         * rec ASSIGN sibling. leftover rest unique store iko==25/27 IF wrapping
+         * STRING_LIT/ARRAY_LIT parks dest then leftover unique
+         * leftover_emit_match_arm_result dest-parked dest_tk==10. ADDR_OF
+         * (rko==51) / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = 16;
+          g_leftover_match_dest_tk = 11;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 &&
+                 asg_rko == 26) {
+        /* TYPE_SLICE dest-in-rbx BLOCK `*p = { [3, 4] }` / `*p = { "hi" }` /
+         * dest-region `{ unsafe { [3, 4] } }` dest_tk==11 AND VAR dest BLOCK
+         * `d = { [3, 4] }` / `d = { "hi" }` /
+         * dest-region `d = { unsafe { [3, 4] } }`. SAT emit_assign
+         * DEREF dest SAT local t struct_let_init -2 then leftover rest rec
+         * BLOCK leftover unique rec leftover unique emit_block / leftover
+         * rest WIN leftover body_sync SAT implicit dest, parked dest stays
+         * 0 / 4B store through clobbered rbx (dest fat pair stays 0 /
+         * data-only without length). VAR dest previously fell through SAT
+         * emit_assign (SAT global T): leftover unique emit_block / leftover
+         * rest WIN leftover body_sync SAT implicit dest. BLOCK wrapping
+         * STRING_LIT leftover rest rec ko==59 leftover unique rec leftover
+         * rest SAT T glue_asm_emit_string_lit_ptr_rax puts data ptr in rax
+         * then SAT emit_assign stores rax+rdx into d (rdx garbage — same
+         * dest-in-rbx STRING_LIT / VAR dest STRING_LIT / CAST wrapping
+         * STRING_LIT / IF wrapping STRING_LIT data-only without length).
+         * BLOCK wrapping ARRAY_LIT recs SAT emit_array_lit implicit dest
+         * (not VAR dest) so dest fat is not parked. leftover unique
+         * leftover_emit_match_arm_result rko==26 already dest-parks
+         * dest-region peel/IF/with_arena last ARRAY_LIT/STRING_LIT/VAR/
+         * CALL/FIELD/DEREF/CAST/IF/nested MATCH dest_tk==11. leftover rest
+         * unique rec ASSIGN TYPE_SLICE MATCH/STRING_LIT/CAST/IF already
+         * intercept VAR dest (asg_lko==3). leftover rest unique rec ASSIGN
+         * TYPE_NAMED BLOCK already intercepts VAR dest. G.7 complete
+         * leftover rest unique rec ASSIGN TYPE_SLICE BLOCK: park dest CPU
+         * stack (lvalue of DEREF or VAR; same leftover rest unique rec
+         * ASSIGN TYPE_SLICE MATCH/CAST/IF), leftover unique
+         * leftover_emit_match_arm_result of BLOCK dest-parked dest_tk==11.
+         * Bump next_offset past dest (TYPE_NAMED MATCH 8B lesson / leftover
+         * rest unique rec ASSIGN TYPE_SLICE MATCH). Do not leftover unique
+         * leftover_emit_block twin leftover rest WIN leftover body_sync.
+         * Do not leftover rest remaining-wave. Do not leftover rest T SAT
+         * emit_block_body_sync / emit_assign / emit_array_lit. leftover rest
+         * unique rec ASSIGN TYPE_ARRAY dest-in-rbx BLOCK is leftover rest
+         * unique store iko==26 via catch-all let_init(-3) (do not leftover
+         * rest unique rec ASSIGN second intercept). leftover rest unique rec
+         * ASSIGN TYPE_NAMED dest-in-rbx BLOCK AND VAR dest BLOCK is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_SLICE dest-in-rbx STRING_LIT AND VAR dest STRING_LIT is leftover
+         * rest unique rec ASSIGN sibling. leftover rest unique rec ASSIGN
+         * TYPE_SLICE dest-in-rbx CAST AND VAR dest CAST is leftover rest unique
+         * rec ASSIGN sibling. leftover rest unique rec ASSIGN TYPE_SLICE
+         * dest-in-rbx IF AND VAR dest IF is leftover rest unique rec ASSIGN
+         * sibling. leftover rest unique store iko==54 CAST wrapping
+         * STRING_LIT/ARRAY_LIT peels operand then recurse leftover rest unique
+         * store (do not leftover rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx
+         * CAST second intercept). leftover rest unique store iko==25/27 IF
+         * wrapping STRING_LIT/ARRAY_LIT parks dest then leftover unique
+         * leftover_emit_match_arm_result dest-parked dest_tk==10 (do not leftover
+         * rest unique rec ASSIGN TYPE_ARRAY dest-in-rbx IF second intercept).
+         * leftover rest unique store iko==26 BLOCK wrapping STRING_LIT/ARRAY_LIT
+         * parks dest then leftover unique leftover_emit_match_arm_result
+         * dest-parked dest_tk==10 (do not leftover rest unique rec ASSIGN
+         * TYPE_ARRAY dest-in-rbx BLOCK second intercept). leftover rest unique
+         * rec ASSIGN VAR dest TYPE_ARRAY STRING_LIT (`d = "hi"`) stays SAT
+         * emit_assign. ADDR_OF (rko==51) / BINARY skip unless proven.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = 16;
+          g_leftover_match_dest_tk = 11;
+          if (leftover_emit_match_arm_result_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 &&
+                 asg_rko == 43) {
+        /* TYPE_SLICE dest-in-rbx MATCH AND VAR dest MATCH
+         * `d = match 1 { 1 => [3, 4]; _ => [0, 0] }` (slice_asg_match).
+         * SAT emit_assign DEREF dest SAT local t struct_let_init -2
+         * then emit MATCH clobbers rbx then 4B store (slice_star_match
+         * SEGV 139 / _len RUN=1). VAR dest previously fell through SAT
+         * emit_assign (SAT global T): MATCH dest not parked → dest [0]
+         * length stays 1 (slice_asg_match INDEX [1] panic 127). Park
+         * dest CPU stack (lvalue of DEREF or VAR); leftover rest unique
+         * emit_match dest-parked dest_tk=11 (ARRAY_LIT arm SAT
+         * emit_array_lit + store fat data@0 length@8). Bump next_offset
+         * past the dest slot (pointer p, or VAR d) so SAT implicit dest
+         * cannot clobber it (TYPE_NAMED MATCH 8B lesson). Do not leftover
+         * rest T SAT emit_assign / emit_array_lit. Do not leftover rest
+         * U SAT local t copy_large. PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else {
+          g_leftover_match_dest_parked = 1;
+          g_leftover_match_dest_nbytes = 16;
+          g_leftover_match_dest_tk = 11;
+          if (pipeline_asm_emit_match_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+          g_leftover_match_dest_parked = 0;
+          g_leftover_match_dest_nbytes = 0;
+          g_leftover_match_dest_tk = 0;
+          if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+        }
+      } else if ((asg_lko == 52 || asg_lko == 3) && asg_dtr > 0 && asg_dtk == 11 &&
+                 (asg_rko == 3 || asg_rko == 48 || asg_rko == 49 || asg_rko == 52)) {
+        /* TYPE_SLICE dest-in-rbx OR VAR dest VAR/CALL/METHOD/DEREF. Park dest
+         * (emit_expr / lvalue clobbers rbx). VAR: leftover rest unique
+         * lvalue qword-copy 16B (not rec ko==3 SAT slow). CALL/METHOD/
+         * DEREF: leftover rest emit dual-GP then store rax@0 rdx@8.
+         * Bump next_offset past dest. Do not leftover rest T SAT emit_assign.
+         * PLATFORM: WINDOWS leftover-PE. */
+        asg_dop = asg_left;
+        if (asg_lko == 52)
+          asg_dop = pipeline_expr_unary_operand_ref_at(arena, asg_left);
+        if (asg_dop > 0) {
+          int32_t asg_p_off = glue_var_expr_stack_off_elf_c(arena, ctx, asg_dop);
+          int32_t *asg_ly_next = (int32_t *)((uint8_t *)ctx + 4);
+          int32_t asg_next;
+          int32_t asg_past;
+          if (asg_p_off >= 0 && asg_ly_next) {
+            asg_next = *asg_ly_next;
+            asg_past = asg_p_off + 24;
+            if (asg_next < asg_past)
+              *asg_ly_next = asg_past;
+            glue_align_next_offset(ctx);
+          }
+        }
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (asg_rko == 3) {
+          if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        } else if (asg_rko == 52) {
+          if (pipeline_asm_emit_deref_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        } else if (asg_rko == 49) {
+          if (pipeline_asm_emit_method_call_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+            out_rc = -1;
+          else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+            out_rc = -1;
+          else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+            out_rc = -1;
+          else
+            out_rc = 0;
+        } else if (pipeline_asm_emit_call_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+          out_rc = -1;
+        else if (glue_x86_store_rdx_to_rbx8_elf_c(elf_ctx) != 0)
+          out_rc = -1;
+        else
+          out_rc = 0;
+      } else if (asg_dtr > 0 && asg_dtk == 11 &&
+                 (asg_rko == 44 || asg_rko == 47)) {
+        /* TYPE_SLICE dest-in-rbx OR VAR dest FIELD `*p = s.xs` /
+         * `b = s.xs` / INDEX. Park dest (emit_lvalue of FIELD/INDEX
+         * clobbers rbx), leftover rest unique lvalue → rax=&fat,
+         * qword-copy 16B. PLATFORM: WINDOWS leftover-PE. */
+        if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_left, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, asg_right, ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rbx_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 0, 8, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          out_rc = -1;
+        else if (backend_enc_store_rax_to_rbx_offset_arch(elf_ctx, 8, 8, ta) != 0)
+          out_rc = -1;
+        else
+          out_rc = 0;
+      } else
+        out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+    } else
+      out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  } else if (ko >= 29 && ko <= 38)
+    out_rc = pipeline_asm_emit_assign_elf_c(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 20)
+    out_rc = pipeline_asm_emit_logand_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 21)
+    out_rc = pipeline_asm_emit_logor_elf_impl(arena, elf_ctx, expr_ref, ctx, ta);
+  else if (ko == 44) {
+    int32_t ns_tag = pipeline_expr_enum_namespace_field_tag(arena, expr_ref);
+    if (ns_tag >= 0)
+      out_rc = backend_enc_mov_imm32_to_w0_arch(elf_ctx, ns_tag, ta);
+    else
+      out_rc = -1;
+  } else
+    out_rc = backend_emit_expr_elf_slow(arena, elf_ctx, expr_ref, ctx, ta);
+debug_done:
+  /* Class AW: Cap dbg_on dead branch retired. */
+  /* Class AW: Cap dbg_on dead branch retired. */
+  return out_rc;
+}
+
+/* wave152 cold twin pipeline_asm_emit_expr_elf_c. PLATFORM: SHARED. */
+int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
+}
+
+#ifdef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+/*
+ * leftover rest WIN leftover ADDR_OF / DEREF / lvalue_eff_addr first-wins.
+ * Remaining wave140 ADDR_OF/DEREF @16241/@16282 stays #ifndef FROM_X
+ * (SAT T). Remaining wave185 lvalue_eff_addr stub @31835 stays
+ * #ifndef FROM_X (SAT T stub -1). Completing that stub in place is
+ * dead for leftover-PE (SAT is pipeline_glue_standalone.o). A
+ * !FROM_X || WIN OR on remaining-wave140 would dual-def INDEX emit
+ * (not unique) plus these faces in the same TU. POSIX FROM_X stays
+ * ABSENT (.x thin owns pipeline_asm_emit_addr_of_elf_c /
+ * emit_deref_elf_c / pipeline_asm_emit_lvalue_eff_addr_elf_c).
+ *
+ * Five questions: produce = leftover rest lvalue_eff_addr only
+ * VAR/INDEX/FIELD/DEREF; ADDR_OF FIELD of CALL/STRUCT_LIT (`&mk().x` /
+ * `&(P { x: 3 }).x`) recurse lvalue(CALL/STRUCT_LIT) → -1 →
+ * FAST_UNHANDLED → CG002. Nested `&s.a[0]` / `&a[0].x` / `&*p` already
+ * closed. Store = leftover rest rec ko==51. Consume = want-exe
+ * `&mk().x` then `unsafe { return *p }`. G.7 complete leftover rest
+ * pipeline_asm_emit_lvalue_eff_addr_elf_c CALL=48 / METHOD=49 /
+ * STRUCT_LIT=45 (same leftover rest field_access_fast materialise;
+ * remaining-wave stub stays #ifndef FROM_X) then leftover rest ADDR_OF
+ * dispatches those kinds. Do not leftover rest UNDEF SAT
+ * glue_emit_index_eff_addr / SAT glue_field_access_call_base_rvalue
+ * (SAT local t) / leftover rest glue_emit_soa_index_field_addr stub /
+ * leftover rest glue_field_chain_mid_auto_deref no-op. Do not leftover
+ * rest second WAVE277 / glue_fixed_array.
+ * PLATFORM: WINDOWS leftover-PE hybrid / POSIX -E unchanged.
+ */
+extern int32_t pipeline_expr_unary_operand_ref_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_index_index_ref(void *arena, int32_t expr_ref);
+/* Forward: INDEX esz authority (defined later in WIN leftover emit_binop cluster). */
+extern int32_t pipeline_asm_index_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_layout_offset(void *arena, void *mod, int32_t expr_ref);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_load_i32_indirect_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_mul_imm_to_rbx_arch(void *elf_ctx, int32_t imm, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale1_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale4_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_rax_plus_rbx_scale8_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t backend_enc_mov_rax_to_arg_reg_arch(void *elf_ctx, int32_t k, int32_t ta);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_vector_type_lanes_esz_c(void *arena, int32_t type_ref, int32_t *out_lanes,
+                                            int32_t *out_esz);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+extern void pipeline_asm_set_call_expected_ret_ty_c(int32_t type_ref);
+extern void pipeline_asm_emit_set_call_sret_reg_shift_c(int32_t shift);
+extern int32_t pipeline_asm_emit_struct_lit_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                                 int32_t ta);
+extern int32_t backend_enc_mov_rbx_to_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                             int32_t ta);
+/* SAT T of wave197 deref_struct16 (leftover rest remaining-wave stub
+ * @32633 #ifndef FROM_X ABSENT). leftover rest WIN leftover
+ * glue_load_var_as_value_to_rax_rdx already U this face. Do not
+ * leftover rest T the remaining-wave stub (returns -1).
+ * PLATFORM: WINDOWS leftover-PE. */
+extern int32_t pipeline_asm_deref_struct16_rax_ptr_elf_c(void *elf_ctx, int32_t ta);
+
+/*
+ * leftover rest WIN leftover lvalue effective address: VAR / INDEX /
+ * FIELD / DEREF / CALL / METHOD / STRUCT_LIT. Twin of
+ * runtime_pipeline_abi.x pipeline_asm_emit_lvalue_eff_addr_elf_c using
+ * leftover rest slots + WAVE278 index/FIELD + leftover rest
+ * glue_enc_local_slot (same leftover rest .o). Remaining-wave stub stays
+ * #ifndef FROM_X. CALL/STRUCT_LIT/METHOD materialise into a frame temp
+ * (same leftover rest field_access_fast) then lea — POSIX .x lvalue
+ * still returns -1 for those kinds (host-C temporary `.` hides).
+ * PLATFORM: WINDOWS leftover-PE.
+ */
+int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t lval_ref, void *ctx,
+                                               int32_t ta) {
+  int32_t ko;
+  int32_t off;
+  int32_t base_ref;
+  int32_t idx_ref;
+  int32_t base_ko;
+  int32_t rtr;
+  int32_t rtk;
+  int32_t field_off;
+  int32_t esz;
+  int32_t idx_ko;
+  int32_t op;
+  void *modp;
+  if (!arena || !elf_ctx || !ctx || lval_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, lval_ref);
+  /* VAR=3: leftover rest slot lea vs *T/SLICE load. ADDR_OF of a VAR
+   * stays lea in leftover rest ADDR_OF (address of the slot, not the
+   * loaded pointer). lvalue of a VAR *T for INDEX/FIELD base loads. */
+  if (ko == 3) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, lval_ref);
+    if (off < 0)
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, lval_ref);
+    if (off < 0) {
+      /* 9.4.2: non-local binding → module-let COMMON cell (modlet-first)
+       * or same-module fn link symbol; shared resolver authority, twin of
+       * the .x lvalue fallback. Loud -1 only when the name is neither. */
+      void *gmod = 0;
+      uint8_t vname[256];
+      int32_t vlen = pipeline_expr_var_name_len(arena, lval_ref);
+      if (vlen > 0 && vlen <= 255) {
+        pipeline_expr_var_name_into(arena, lval_ref, vname);
+        gmod = pipeline_asm_emit_module_ref_c();
+#if defined(_WIN32) || defined(_WIN64)
+        /* PLATFORM: WINDOWS — the static cold resolver reads the empty
+         * cold table. The egg resolver reads the table prepare filled. */
+        {
+          extern int32_t pipe_modlet_lea_named_binding_addr_to_rax(void *elf_ctx, void *m,
+                                                                   uint8_t *name, int32_t name_len,
+                                                                   int32_t ta);
+          if (gmod && pipe_modlet_lea_named_binding_addr_to_rax(elf_ctx, gmod, vname, vlen, ta) == 0)
+            return 0;
+        }
+#else
+        if (gmod && pipe_modlet_lea_named_binding_addr_to_rax_cold(elf_ctx, gmod, vname, vlen, ta) == 0)
+          return 0;
+#endif
+      }
+      return -1;
+    }
+    return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, lval_ref, off, ctx, ta);
+  }
+  /* FIELD=44: recurse base, *T mid-chain load, add layout_offset.
+   * SAT layout_offset is SAT global T (leftover rest field_access already
+   * U). Do not leftover rest lvalue remaining-wave stub / SAT soa stub. */
+  if (ko == 44) {
+    base_ref = pipeline_expr_field_access_base_ref(arena, lval_ref);
+    if (base_ref <= 0)
+      return -1;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+      return -1;
+    base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    /* *T intermediate only (w.p.f). TYPE_SLICE mid-field is by-value fat.
+     * leftover rest glue_field_chain_mid_auto_deref FROM_X T is a no-op
+     * stub — inline WAVE278 resolved_type TYPE_PTR=9 + load64. */
+    if (base_ko == 44) {
+      rtr = pipeline_expr_resolved_type_ref(arena, base_ref);
+      rtk = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+      if (rtk == 9) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+    }
+    modp = glue_emit_module_from_ctx(ctx);
+    if (!modp)
+      modp = pipeline_asm_emit_module_ref_c();
+    field_off = pipeline_expr_field_access_layout_offset(arena, modp, lval_ref);
+    if (field_off < 0)
+      field_off = 0;
+    if (field_off != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, field_off, ta) != 0)
+      return -1;
+    return 0;
+  }
+  /* INDEX=47: recurse base, extra-load TYPE_PTR when the base lvalue is
+   * the address of a pointer (FIELD), then add idx*esz. VAR *T /
+   * DEREF already yield the pointer value via glue_enc_local_slot /
+   * emit_expr. SAT glue_emit_index_eff_addr is SAT intra — do not
+   * leftover rest UNDEF it.
+   *
+   * TYPE_SLICE fat: leftover rest VAR lvalue enc_local leas the dual-GP
+   * home (local needs=0) or loads fat* (formal tk==11 needs=1). POSIX
+   * .x glue_try_index_var_or_field_base_to_rax peels fat.data into rax
+   * before idx*esz. leftover rest ADDR_OF INDEX `&xs[0]` used this
+   * lvalue without the peel → rax=&fat / fat*, `unsafe { return *p }`
+   * loads pointer bits (RUN=127). SAT try_index is SAT local t — do
+   * not leftover rest T it (arr0 intercept). G.7 complete leftover
+   * rest lvalue INDEX only (load_64_from_rax when base rtk==11).
+   * TYPE_ARRAY stays lea payload / load E* (rtk==10). Remaining-wave
+   * glue_emit_index_eff_addr_scaled stays #ifndef FROM_X.
+   *
+   * Non-lit idx: POSIX glue_emit_index_rax_plus_rbx_scaled uses
+   * lea [rax+rbx*esz] (64-bit). leftover rest previously did
+   * mul_imm_to_rbx + backend_enc_add_rax_rbx_arch. That add is
+   * 32-bit ADD EAX,EBX and zero-extends rax (enc_add_rax_rbx
+   * comment: i32 wrap; ptr arith must use scale1). PE image
+   * 0x14000xxxx → rax=0x4000xxxx after the add → SEGV on
+   * `&xs[i]` (`addrof_sidx_var`). Lit `&xs[1]` stays GREEN because
+   * add_imm_to_rax is REX.W. G.7 complete leftover rest lvalue
+   * INDEX non-lit only (emit idx then scale*; emit_expr sxts i32
+   * so rbx is clean). Do not leftover rest T remaining-wave
+   * scaled / SAT try_index (arr0 intercept).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 47) {
+    base_ref = pipeline_expr_index_base_ref(arena, lval_ref);
+    idx_ref = pipeline_expr_index_index_ref(arena, lval_ref);
+    if (base_ref <= 0 || idx_ref <= 0)
+      return -1;
+    if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta) != 0)
+      return -1;
+    base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+    if (base_ko != 3 && base_ko != 52) {
+      rtr = pipeline_expr_resolved_type_ref(arena, base_ref);
+      rtk = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+      if (rtk == 9) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+          return -1;
+      }
+    }
+    rtr = pipeline_expr_resolved_type_ref(arena, base_ref);
+    rtk = (rtr > 0) ? pipeline_type_kind_ord_at(arena, rtr) : 0;
+    if (rtk == 11) {
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+    }
+    modp = glue_emit_module_from_ctx(ctx);
+    rtr = pipeline_expr_resolved_type_ref(arena, lval_ref);
+    /* Cap residual: INDEX result type size (named i8→1) ≠ bake stride (4).
+     * G.7: same authority as emit_index — pipeline_asm_index_elem_byte_sz_c
+     * (ARRAY peel / Cap residual force-4). Do not use glue_type_size_simple
+     * on the INDEX result type alone.
+     * PLATFORM: WINDOWS leftover-PE. */
+    esz = pipeline_asm_index_elem_byte_sz_c(arena, lval_ref);
+    if (esz <= 0)
+      esz = glue_type_size_simple(modp, arena, rtr, 0);
+    if (esz <= 0)
+      esz = 4;
+    idx_ko = pipeline_expr_kind_ord_at(arena, idx_ref);
+    if (idx_ko == 0 || (pipeline_expr_const_folded_valid_at(arena, idx_ref) != 0 && idx_ko != 3)) {
+      int32_t lit;
+      int32_t add;
+      if (idx_ko == 0)
+        lit = (int32_t)pipeline_expr_int64_val_at(arena, idx_ref);
+      else
+        lit = pipeline_expr_const_folded_val_at(arena, idx_ref);
+      add = lit * esz;
+      if (add != 0 && backend_enc_add_imm_to_rax_arch(elf_ctx, add, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, idx_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta) != 0)
+      return -1;
+    if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    /* 64-bit lea [rax+rbx*esz]. Do not add_rax_rbx (32-bit, zeros
+     * PE image high bits). Remaining-wave rax_plus_rbx_scaled stays
+     * #ifndef FROM_X — inline the 1/4/8 dispatch here.
+     * PLATFORM: WINDOWS leftover-PE. */
+    if (esz == 1) {
+      if (backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (esz == 4) {
+      if (backend_enc_rax_plus_rbx_scale4_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (esz == 8) {
+      if (backend_enc_rax_plus_rbx_scale8_arch(elf_ctx, ta) != 0)
+        return -1;
+      return 0;
+    }
+    if (backend_enc_mul_imm_to_rbx_arch(elf_ctx, esz, ta) != 0)
+      return -1;
+    if (backend_enc_rax_plus_rbx_scale1_arch(elf_ctx, ta) != 0)
+      return -1;
+    return 0;
+  }
+  /* DEREF=52: *p lvalue / &*p ADDR_OF — pointer bits in rax (operand
+   * only, not load of *p). leftover rest rec wrapper, same leftover
+   * rest .o. */
+  if (ko == 52) {
+    op = pipeline_expr_unary_operand_ref_at(arena, lval_ref);
+    if (op <= 0)
+      return -1;
+    return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+  }
+  /* STRUCT_LIT=45: SAT emit_struct_lit global T; dest pointer stays in
+   * rbx (leftover rest rec ko==45 already UNDEFs SAT emit_struct_lit).
+   * SAT fields_elf is SAT local t — do not leftover rest UNDEF it.
+   * SAT dest reuses leftover rest next_offset (naddr_stx dump:
+   * dest==let-p slot rbp-0x18; storing &temp into p clobbers the
+   * struct → RUN=127). G.7: park a leftover rest frame temp then
+   * qword-copy SAT dest (same leftover rest rec sret copy; do not
+   * enc_call memcpy). rax = &parked temp. ADDR_OF FIELD of STRUCT_LIT
+   * (`&(P { x: 3 }).x`) recurses here then adds layout_offset.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 45) {
+    int32_t *ly_next;
+    int32_t m;
+    int32_t home;
+    int32_t ret_sz;
+    int32_t alloc_sz;
+    int32_t root_ty;
+    int32_t copy_off;
+    ly_next = (int32_t *)((uint8_t *)ctx + 4); /* LP64 AsmFuncCtx.next_offset@4 */
+    off = *ly_next;
+    m = off % 8;
+    if (m != 0)
+      off = off + (8 - m);
+    modp = glue_emit_module_from_ctx(ctx);
+    if (!modp)
+      modp = pipeline_asm_emit_module_ref_c();
+    root_ty = pipeline_expr_resolved_type_ref(arena, lval_ref);
+    ret_sz = 0;
+    if (root_ty > 0)
+      ret_sz = glue_type_size_simple(modp, arena, root_ty, 0);
+    if (ret_sz <= 0)
+      ret_sz = 8;
+    if (ret_sz > 4096)
+      return -1;
+    if (ret_sz <= 8)
+      alloc_sz = 8;
+    else
+      alloc_sz = (ret_sz + 7) & ~7;
+    home = off + alloc_sz;
+    *ly_next = home;
+    if (pipeline_asm_emit_struct_lit_elf_c(arena, elf_ctx, lval_ref, ctx, ta) != 0)
+      return -1;
+    if (backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta) != 0)
+      return -1;
+    copy_off = 0;
+    while (copy_off + 8 <= ret_sz) {
+      if (backend_enc_push_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - copy_off, ta) != 0)
+        return -1;
+      if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_add_imm_to_rax_arch(elf_ctx, 8, ta) != 0)
+        return -1;
+      copy_off = copy_off + 8;
+    }
+    if (copy_off < ret_sz) {
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home - copy_off, ta) != 0)
+        return -1;
+    }
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+  }
+  /* CALL=48 / METHOD=49: leftover rest rec (SAT emit_call / emit_method
+   * global T) then layout temp. Same leftover rest field_access_fast
+   * CALL/METHOD materialise (LP64 next_offset@4; x86 high-end
+   * home=off+alloc; ≤8B rax@home; 9–16B rax@home + rdx@home-8; >16B
+   * SysV sret lea dest / rdi / sret_reg_shift). SAT
+   * glue_field_access_call_base_rvalue is SAT local t — do not leftover
+   * rest UNDEF it. SAT glue_store_retval leftover rest FROM_X ABSENT.
+   * glue_align_next_offset leftover rest FROM_X ABSENT — bump inline.
+   * ADDR_OF FIELD of CALL (`&mk().x`) recurses here then adds offset.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 48 || ko == 49) {
+    int32_t *ly_next;
+    int32_t m;
+    int32_t home;
+    int32_t ret_sz;
+    int32_t alloc_sz;
+    int32_t root_ty;
+    int32_t rc;
+    ly_next = (int32_t *)((uint8_t *)ctx + 4); /* LP64 AsmFuncCtx.next_offset@4 */
+    off = *ly_next;
+    m = off % 8;
+    if (m != 0)
+      off = off + (8 - m);
+    modp = glue_emit_module_from_ctx(ctx);
+    if (!modp)
+      modp = pipeline_asm_emit_module_ref_c();
+    root_ty = pipeline_expr_resolved_type_ref(arena, lval_ref);
+    ret_sz = 0;
+    if (root_ty > 0)
+      ret_sz = glue_type_size_simple(modp, arena, root_ty, 0);
+    if (ret_sz <= 0)
+      ret_sz = glue_call_return_byte_size_c(arena, lval_ref);
+    if (ret_sz <= 0)
+      ret_sz = 8;
+    if (ret_sz > 4096)
+      return -1;
+    if (ret_sz <= 8)
+      alloc_sz = 8;
+    else if (ret_sz <= 16)
+      alloc_sz = 16;
+    else
+      alloc_sz = (ret_sz + 7) & ~7;
+    home = off + alloc_sz;
+    *ly_next = home;
+    if (ret_sz > 16) {
+      pipeline_asm_set_call_expected_ret_ty_c(root_ty > 0 ? root_ty : 0);
+      if (backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return -1;
+      }
+      if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, 0, ta) != 0) {
+        pipeline_asm_set_call_expected_ret_ty_c(0);
+        return -1;
+      }
+      pipeline_asm_emit_set_call_sret_reg_shift_c(1);
+      rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, lval_ref, ctx, ta);
+      pipeline_asm_emit_set_call_sret_reg_shift_c(0);
+      pipeline_asm_set_call_expected_ret_ty_c(0);
+      if (rc != 0)
+        return -1;
+    } else {
+      rc = pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, lval_ref, ctx, ta);
+      if (rc != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      if (ret_sz > 8) {
+        if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, home - 8, ta) != 0)
+          return -1;
+      }
+    }
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+  }
+  return -1;
+}
+
+int32_t pipeline_asm_emit_addr_of_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  int32_t ok;
+  int32_t off;
+  if (!arena || !elf_ctx || !ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0)
+    return -1;
+  ok = pipeline_expr_kind_ord_at(arena, op);
+  if (ok == 3) {
+    /* VAR: leftover rest slot authority (same as leftover rest rec VAR). */
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, op);
+    if (off < 0)
+      off = glue_var_expr_stack_off_elf_c(arena, ctx, op);
+    if (off < 0)
+      return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+    return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+  }
+  /* INDEX=47 / FIELD=44 / DEREF=52 / STRUCT_LIT=45 / CALL=48 /
+   * METHOD=49: leftover rest lvalue_eff_addr first-wins (same leftover
+   * rest .o). Nested `&s.a[0]` / `&a[0].x` (base_ko != 3) and `&*p`
+   * (ok==52) already recurse. ADDR_OF FIELD of CALL/STRUCT_LIT
+   * (`&mk().x` / `&(P { x: 3 }).x`) was FAST_UNHANDLED because lvalue
+   * CALL/STRUCT_LIT returned -1. Direct `&mk()` / `&(P { x: 3 })` also
+   * land here. PLATFORM: WINDOWS leftover-PE. */
+  if (ok == 47 || ok == 44 || ok == 52 || ok == 45 || ok == 48 || ok == 49)
+    return pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, op, ctx, ta);
+  /* EXPR_ARRAY_LIT = 46: dest-stamp into temp then lea (rax = &temp).
+   * SAT emit_array_lit is SAT global T (leftover rest rec already U). */
+  if (ok == 46)
+    return pipeline_asm_emit_array_lit_elf_c(arena, elf_ctx, op, ctx, ta);
+  return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+}
+
+int32_t pipeline_asm_emit_deref_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t op;
+  int32_t tr;
+  int32_t esz;
+  int32_t trk;
+  int32_t named_sz;
+  void *modp;
+  int32_t lanes = 0;
+  int32_t lane_esz = 0;
+  if (!arena || !elf_ctx || expr_ref <= 0)
+    return -1;
+  op = pipeline_expr_unary_operand_ref_at(arena, expr_ref);
+  if (op <= 0)
+    return -1;
+  /* leftover rest rec wrapper — same leftover rest .o, WAVE278 faces. */
+  if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta) != 0)
+    return -1;
+  tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+  trk = (tr > 0) ? pipeline_type_kind_ord_at(arena, tr) : 0;
+  if (trk == 10)
+    return 0;
+  /* TYPE_SLICE=11: remaining-wave emit_deref loads 16B fat via
+   * pipeline_asm_deref_struct16_rax_ptr_elf_c (rax=data, rdx=length).
+   * leftover rest previously left the pointer (ARRAY twin) — `*i32`
+   * knife. SAT rvalue_slice_once wave773 then treats DEREF of *[]T as
+   * dual-GP: leftover rest leave-ptr stored the fat home as "data" and
+   * `(*p)[1]` loaded *(fat+4) (`slice_ptr` RUN=246). G.7 complete
+   * leftover rest emit_deref TYPE_SLICE only. SAT T of deref_struct16
+   * satisfies leftover rest U (same as glue_load_var_as_value_to_rax_rdx).
+   * Do not leftover rest T remaining-wave stub / SAT try_index (arr0).
+   * 9–16B named still leave-ptr (not this knife).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (trk == 11)
+    return pipeline_asm_deref_struct16_rax_ptr_elf_c(elf_ctx, ta);
+  if (trk == 9)
+    return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+  modp = glue_emit_module_from_ctx(ctx);
+  esz = glue_type_size_simple(modp, arena, tr, 0);
+  named_sz = glue_type_named_layout_size_any_module_elf_c(arena, tr);
+  if (named_sz > esz)
+    esz = named_sz;
+  if (esz <= 8 && glue_vector_type_lanes_esz_c(arena, tr, &lanes, &lane_esz) == 0 && lanes > 0 &&
+      lane_esz > 0)
+    esz = lanes * lane_esz;
+  /* i32 DEREF with unresolved type: size_simple 0 would fall through to
+   * load_64 (pointer bits). Default 4 matches remaining-wave glue_index
+   * stub and TYPE_I32/U32. */
+  if (esz <= 0)
+    esz = 4;
+  if (esz > 16)
+    return 0;
+  if (esz > 8)
+    return 0;
+  if (esz == 1)
+    return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
+  if (esz == 4)
+    return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
+  return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+}
 #endif /* FROM_X — leftover rest WIN leftover ADDR_OF/DEREF (rec cluster already WIN) */
+
+/* wave152 cold twin pipeline_asm_emit_expr_elf_fast. PLATFORM: SHARED.
+ * wave704: leftover gcc WAVE152 is FORCE/product authority (W 0x1200
+ * endbr64). Mega FORCE asm first-won smash (`sub $0x2e98` / cltq);
+ * mega .x now export-externs so leftover W is the sole global.
+ * PLATFORM: LINUX gold FORCE probe — not product-default mega FORCE. */
+int32_t pipeline_asm_emit_expr_elf_fast(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t nexprs;
+  if (expr_ref == 0)
+    return -1;
+  if (!arena)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  /* num_exprs @ offset 4 (LP64 ASTArena) */
+  nexprs = *(int32_t *)((uint8_t *)arena + 4);
+  if (expr_ref <= 0 || expr_ref > nexprs)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  if (pipeline_expr_const_folded_valid_at(arena, expr_ref) != 0 && ko != 3) {
+    int32_t cfold_imm = pipeline_expr_const_folded_val_at(arena, expr_ref);
+    int32_t cfold_use_imm32 = 1;
+    if (ko == 48) {
+      const char *wpo_mono = link_abi_getenv("XLANG_WPO_MONO");
+      const char *wpo_nofold = link_abi_getenv("XLANG_WPO_NO_FOLD");
+      if ((wpo_mono && wpo_mono[0]) || (wpo_nofold && wpo_nofold[0]))
+        cfold_use_imm32 = 0;
+    }
+    if (cfold_use_imm32) {
+      int32_t cfold_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      int32_t cfold_k = (cfold_tr > 0) ? pipeline_type_kind_ord_at(arena, cfold_tr) : -1;
+      if (cfold_k == 2)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffu), ta);
+      if (cfold_k == 3)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
+      if (cfold_k == 8) {
+        uint8_t nm[256];
+        int32_t nlen = pipeline_type_named_name_into(arena, cfold_tr, nm);
+        if (nlen == 3 && nm[0] == (uint8_t)'u' && nm[1] == (uint8_t)'1' && nm[2] == (uint8_t)'6')
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)((uint32_t)cfold_imm & 0xffffu), ta);
+      }
+      if (cfold_k == GLUE_TYPE_KIND_F32_ORD)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, glue_i32_to_f32_bits(cfold_imm), ta);
+      if (cfold_k == GLUE_TYPE_KIND_F64_ORD) {
+        int32_t lo = 0, hi = 0;
+        glue_i64_to_f64_bits((int64_t)cfold_imm, &lo, &hi);
+        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+      }
+      if (cfold_imm >= 0)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, cfold_imm, ta);
+      {
+        int64_t v64 = (int64_t)cfold_imm;
+        uint64_t u = (uint64_t)v64;
+        int32_t lo = (int32_t)(u & 0xffffffffu);
+        int32_t hi = (int32_t)(u >> 32);
+        return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+      }
+    }
+  }
+  if (ko == 0 || ko == 2) {
+    int64_t v64 = pipeline_expr_int64_val_at(arena, expr_ref);
+    if (ko == 0) {
+      int32_t rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (rty > 0) {
+        int32_t rk = pipeline_type_kind_ord_at(arena, rty);
+        if (rk == GLUE_TYPE_KIND_F32_ORD)
+          return backend_enc_mov_imm32_to_w0_arch(elf_ctx, glue_i64_to_f32_bits(v64), ta);
+        if (rk == GLUE_TYPE_KIND_F64_ORD) {
+          int32_t lo = 0, hi = 0;
+          glue_i64_to_f64_bits(v64, &lo, &hi);
+          return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+        }
+      }
+    }
+    if (ko == 2 || (v64 >= 0 && v64 <= (int64_t)2147483647))
+      return backend_enc_mov_imm32_to_w0_arch(elf_ctx, (int32_t)v64, ta);
+    {
+      uint64_t u = (uint64_t)v64;
+      int32_t lo = (int32_t)(u & 0xffffffffu);
+      int32_t hi = (int32_t)(u >> 32);
+      return backend_enc_mov_imm64_to_rax_arch(elf_ctx, lo, hi, ta);
+    }
+  }
+  if (ko == 1)
+    return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);
+  if (ko == 50)
+    return backend_enc_mov_imm32_to_w0_arch(elf_ctx, pipeline_expr_enum_variant_tag_at(arena, expr_ref), ta);
+  if (ko == 44)
+    return pipeline_asm_emit_field_access_elf_fast_c(arena, elf_ctx, expr_ref, ctx, ta);
+  if (ko == 3) {
+    uint8_t vname[256];
+    int32_t vlen = pipeline_expr_var_name_len(arena, expr_ref);
+    int32_t off;
+    if (vlen <= 0)
+      return -1;
+    pipeline_expr_var_name_into(arena, expr_ref, vname);
+    if (pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx, vname, vlen, ta) == 0)
+      return 0;
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
+    if (off < 0) {
+      int32_t mod_imm;
+      void *mod = pipeline_asm_emit_module_ref_c();
+      /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
+      if (mod && asm_module_top_level_const_lit_i32(mod, arena, vname, vlen, &mod_imm) != 0)
+        return backend_enc_mov_imm32_to_w0_arch(elf_ctx, mod_imm, ta);
+      if (glue_try_emit_match_subject_field_var_elf_c(arena, elf_ctx, ctx, ta, vname, vlen) == 0)
+        return 0;
+      /* Cap-fn-ptr bare VAR (10.3.1 slice3): LEA when Cap *u8 / TYPE_FN, no slot.
+       * Twin of emit_expr_elf_fast in runtime_pipeline_abi.x. PLATFORM: SHARED. */
+      {
+        int32_t cap_tr = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        int32_t cap_ko = 0;
+        int32_t cap_er = 0;
+        int32_t cap_eko = 0;
+        int32_t cap_ok = 0;
+        if (cap_tr > 0) {
+          cap_ko = pipeline_type_kind_ord_at(arena, cap_tr);
+          if (cap_ko == 18)
+            cap_ok = 1;
+          else if (cap_ko == 9) {
+            cap_er = pipeline_type_elem_ref_at(arena, cap_tr);
+            if (cap_er > 0) {
+              cap_eko = pipeline_type_kind_ord_at(arena, cap_er);
+              if (cap_eko == 2)
+                cap_ok = 1;
+            }
+          }
+        }
+        if (cap_ok != 0 && vlen > 0 && vlen < 128) {
+          uint8_t fnptr_sym[130];
+          int32_t fnptr_sym_len = 0;
+          int32_t fnptr_k = 0;
+          int32_t fnptr_fi = 0;
+          int32_t fnptr_macho = 0;
+          void *fnptr_mod = glue_emit_module_from_ctx(ctx);
+          /* leftover-PE source-name emit: lea on name hit. POSIX .x Cap
+           * path stays #[no_mangle] only. PLATFORM: WINDOWS leftover-PE. */
+          if (fnptr_mod) {
+            fnptr_fi = glue_module_func_index_by_name_c(fnptr_mod, vname, vlen);
+            if (fnptr_fi >= 0) {
+              fnptr_macho = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+              if (fnptr_macho != 0) {
+                fnptr_sym[0] = (uint8_t)'_';
+                for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
+                  fnptr_sym[fnptr_k + 1] = vname[fnptr_k];
+                fnptr_sym_len = vlen + 1;
+              } else {
+                for (fnptr_k = 0; fnptr_k < vlen; fnptr_k++)
+                  fnptr_sym[fnptr_k] = vname[fnptr_k];
+                fnptr_sym_len = vlen;
+              }
+              return backend_enc_lea_sym_to_reg_arch(elf_ctx, 0, fnptr_sym, fnptr_sym_len, ta);
+            }
+          }
+        }
+      }
+      return -1;
+    }
+    {
+      int32_t vtr = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+      if (vtr > 0 && pipeline_type_kind_ord_at(arena, vtr) == GLUE_TYPE_KIND_F32_ORD)
+        return glue_load_f32_var_slot_to_rax_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+    }
+    return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+  }
+  if (ko == 41)
+    return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+  if (ko == 4)
+    return pipeline_asm_emit_binop_add_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 5)
+    return pipeline_asm_emit_binop_sub_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 6)
+    return pipeline_asm_emit_binop_mul_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 7)
+    return pipeline_asm_emit_binop_div_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 8)
+    return pipeline_asm_emit_binop_mod_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 11)
+    return pipeline_asm_emit_binop_and_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                              pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+  if (ko == 9)
+    return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                               pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+  if (ko == 10)
+    return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                               pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+  if (ko == 12)
+    return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                                 pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+  if (ko == 13)
+    return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref),
+                                                 pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+  return PIPELINE_ASM_ELF_EXPR_FAST_UNHANDLED;
+}
+
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /*
@@ -5700,6 +15266,8 @@ int32_t glue_emit_fixed_array_return_durable_ptr_rax_elf_c(void *arena, void *el
  * PLATFORM: SHARED freestanding emit.
  * ========================================================================== */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L35907.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /*
@@ -5745,6 +15313,245 @@ int32_t glue_emit_fixed_array_return_durable_ptr_rax_elf_c(void *arena, void *el
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
+/* Cluster callees only. Signatures match always-compiled FROM_X rest
+ * (header proto of ndep @2724 is struct ast_PipelineDepCtx*; name_byte_at
+ * @47876 is uint8_t). Do not re-extern void* ndep — dual-decl vs @2724.
+ * Unused wave154 rest externs stay in the reopen ifndef. */
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t ref);
+extern int32_t pipeline_type_named_name_into(void *a, int32_t ref, uint8_t *out64);
+extern int32_t pipeline_type_elem_ref_at(void *a, int32_t ref);
+extern int32_t pipeline_type_array_size_at(void *a, int32_t ref);
+extern int32_t pipeline_arena_num_types(void *a);
+extern int32_t pipeline_module_num_struct_layouts_at(void *m);
+extern int32_t pipeline_module_struct_layout_name_len(void *m, int32_t idx);
+extern uint8_t pipeline_module_struct_layout_name_byte_at(void *m, int32_t idx, int32_t off);
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_align_at(void *m, int32_t li, int32_t j);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t fi);
+extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t fi, uint8_t *out64);
+extern void pipeline_module_struct_layout_name_into(void *m, int32_t idx, uint8_t *out64);
+extern int32_t pipeline_module_struct_layout_packed_at(void *m, int32_t idx);
+extern int32_t pipeline_module_struct_layout_allow_padding_at(void *m, int32_t idx);
+extern int32_t typeck_x_type_size_from_layout_glue(void *m, void *a, int32_t li, int32_t depth);
+extern int32_t typeck_soa_array_storage_size_glue(void *m, void *a, int32_t elem, int32_t alen, int32_t depth);
+extern void *pipeline_asm_emit_dep_pipe_c(void);
+extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t di);
+extern void *pipeline_dep_ctx_arena_at(void *ctx, int32_t di);
+extern int32_t pipeline_driver_asm_build_skip_typeck(void);
+extern void driver_diagnostic_typeck_struct_padding_before(uint8_t *s, int32_t sl, int32_t gap, uint8_t *f, int32_t fl);
+extern void driver_diagnostic_typeck_struct_padding_trailing(uint8_t *s, int32_t sl, int32_t gap);
+extern void driver_diagnostic_typeck_struct_field_bad_size(uint8_t *s, int32_t sl, uint8_t *f, int32_t fl);
+/* Not unique; body stays in closed wave132. WIN leftover rest U it; SAT /
+ * leftover standalone provide T. PLATFORM: WINDOWS leftover-PE hybrid. */
+extern int32_t glue_vector_type_lanes_esz_c(void *a, int32_t ty_ref, int32_t *out_lanes,
+                                           int32_t *out_esz);
+
+/* LP64 Expr peels matching pure */
+#define W154_EXPR_OFF_SL_NAME 920
+#define W154_EXPR_OFF_SL_NAME_LEN 1176
+#define W154_EXPR_OFF_SL_NUM_FIELDS 1184
+
+static int32_t w154_layout_name_eq(void *m, int32_t k, uint8_t *name, int32_t nlen) {
+  int32_t ln, j;
+  if (!m || !name || nlen <= 0) return 0;
+  ln = pipeline_module_struct_layout_name_len(m, k);
+  if (ln != nlen) return 0;
+  for (j = 0; j < nlen; j++)
+    if (pipeline_module_struct_layout_name_byte_at(m, k, j) != name[j]) return 0;
+  return 1;
+}
+
+int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, int32_t depth) {
+  uint8_t name[256];
+  int32_t nlen, k, nf, fi, ftr, nlayouts, nt, ko;
+  if (!module || !arena || ty_ref <= 0 || depth > 64) return 0;
+  nt = pipeline_arena_num_types(arena);
+  if (ty_ref > nt) return 0;
+  if (pipeline_type_kind_ord_at(arena, ty_ref) != 8) return 0;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 255) return 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(module);
+  for (k = 0; k < nlayouts; k++) {
+    if (!w154_layout_name_eq(module, k, name, nlen)) continue;
+    nf = pipeline_module_struct_layout_num_fields(module, k);
+    if (nf == 0) return 1;
+    for (fi = 0; fi < nf; fi++) {
+      ftr = pipeline_module_struct_layout_field_type_ref(module, k, fi);
+      if (glue_type_is_empty_struct_c(module, arena, ftr, depth + 1) == 0) return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  int32_t kind_ord, nt, elem_ref, asz, es, soa_sz, nlen, k, nlayouts, di, nd, sz;
+  int32_t vl, ves;
+  uint8_t name[256];
+  void *dep, *dm, *da;
+  if (!a || ty_ref <= 0 || depth > 64) return 0;
+  nt = pipeline_arena_num_types(a);
+  if (ty_ref > nt) return 0;
+  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  if (kind_ord == 16) return 0;
+  if (kind_ord == 2) return 1;
+  /* TYPE_VECTOR=13 is lanes*esz (with ARRAY below), not scalar 4.
+   * Stage12: size=4 → 1 GP pack vs formal dual-GP/SSE SEGV. */
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) return 4;
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9 || kind_ord == 18) return 8;
+  if (kind_ord == 11) return 16;
+  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
+    elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
+    asz = pipeline_type_array_size_at(a, ty_ref);
+    /* TYPE_VECTOR without array_size: still SIMD. lanes*esz, not 0→8B floor. */
+    if (elem_ref <= 0 || asz <= 0) {
+      if (kind_ord == 13 && glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0)
+        return vl * ves;
+      return 0;
+    }
+    if (kind_ord == 10 || kind_ord == 12) {
+      soa_sz = typeck_soa_array_storage_size_glue(m, a, elem_ref, asz, depth + 1);
+      if (soa_sz > 0) return soa_sz;
+    }
+    es = glue_type_size_simple(m, a, elem_ref, depth + 1);
+    return es > 0 ? asz * es : 0;
+  }
+  if (kind_ord == 8) {
+    nlen = pipeline_type_named_name_into(a, ty_ref, name);
+    if (nlen <= 0 || nlen > 255) return 4;
+    if (m) {
+      nlayouts = pipeline_module_num_struct_layouts_at(m);
+      for (k = 0; k < nlayouts; k++) {
+        if (w154_layout_name_eq(m, k, name, nlen))
+          return typeck_x_type_size_from_layout_glue(m, a, k, depth + 1);
+      }
+    }
+    dep = pipeline_asm_emit_dep_pipe_c();
+    if (dep) {
+      /* Always-compiled proto @2724 is struct ast_PipelineDepCtx* (not void*). */
+      nd = pipeline_dep_ctx_ndep((struct ast_PipelineDepCtx *)dep);
+      for (di = 0; di < nd; di++) {
+        dm = pipeline_dep_ctx_module_at(dep, di);
+        da = pipeline_dep_ctx_arena_at(dep, di);
+        if (!dm || !da) continue;
+        nlayouts = pipeline_module_num_struct_layouts_at(dm);
+        for (k = 0; k < nlayouts; k++) {
+          if (!w154_layout_name_eq(dm, k, name, nlen)) continue;
+          sz = typeck_x_type_size_from_layout_glue(dm, da, k, depth + 1);
+          if (sz > 0) return sz;
+        }
+      }
+    }
+    /* No struct layout: SIMD named spelling is lanes*esz (16B dual-GP /
+     * 32B sret), not the 4B scalar miss. Non-SIMD named stay 4. */
+    if (glue_vector_type_lanes_esz_c(a, ty_ref, &vl, &ves) == 0 && vl > 0 && ves > 0)
+      return vl * ves;
+    return 4;
+  }
+  return 0;
+}
+
+/* forward for mutual recursion */
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+
+int32_t glue_struct_layout_metrics_c(void *module, void *arena, int32_t li, int32_t depth, int32_t check_pad, int32_t *out_sz, int32_t *out_al) {
+  int32_t nf, allow, layout_nlen, current, max_align, j, packed, nlayouts;
+  uint8_t layout_nm[256], field_nm[256];
+  if (!module || !arena || !out_sz || !out_al) return -1;
+  nlayouts = pipeline_module_num_struct_layouts_at(module);
+  if (li < 0 || li >= nlayouts || depth > 64) return -1;
+  nf = pipeline_module_struct_layout_num_fields(module, li);
+  allow = pipeline_module_struct_layout_allow_padding_at(module, li);
+  layout_nlen = pipeline_module_struct_layout_name_len(module, li);
+  pipeline_module_struct_layout_name_into(module, li, layout_nm);
+  packed = pipeline_module_struct_layout_packed_at(module, li);
+  current = 0; max_align = 1;
+  if (packed) {
+    for (j = 0; j < nf; j++) {
+      int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+      int32_t flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+      int32_t fsize;
+      pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+      fsize = glue_type_size_simple(module, arena, ftr, depth);
+      if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
+        if (pipeline_driver_asm_build_skip_typeck() == 0 && check_pad != 0)
+          driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+        return -1;
+      }
+      current += fsize;
+    }
+    *out_sz = current; *out_al = 1; return 0;
+  }
+  for (j = 0; j < nf; j++) {
+    int32_t ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
+    int32_t flen, fa, A, rem, gap, fsize;
+    pipeline_module_struct_layout_field_name_into(module, li, j, field_nm);
+    flen = pipeline_module_struct_layout_field_name_len(module, li, j);
+    fa = pipeline_module_struct_layout_field_align_at(module, li, j);
+    A = glue_type_align_simple(module, arena, ftr, depth);
+    if (A <= 0) A = 1;
+    if (fa > A) A = fa;
+    rem = current % A; gap = (A - rem) % A;
+    if (check_pad != 0 && gap > 0 && allow == 0) {
+      driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen);
+      return -1;
+    }
+    current += gap;
+    fsize = glue_type_size_simple(module, arena, ftr, depth);
+    if (fsize < 0 || (fsize == 0 && glue_type_is_empty_struct_c(module, arena, ftr, depth) == 0)) {
+      if (check_pad != 0 && pipeline_driver_asm_build_skip_typeck() == 0)
+        driver_diagnostic_typeck_struct_field_bad_size(layout_nm, layout_nlen, field_nm, flen);
+      return -1;
+    }
+    current += fsize;
+    if (A > max_align) max_align = A;
+  }
+  if (max_align > 0 && (current % max_align) != 0) {
+    int32_t end_pad = max_align - (current % max_align);
+    if (check_pad != 0 && end_pad > 0 && allow == 0)
+      driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad);
+    current += end_pad;
+  }
+  *out_sz = current;
+  *out_al = max_align > 0 ? max_align : 1;
+  return 0;
+}
+
+int32_t glue_type_align_simple(void *m, void *a, int32_t ty_ref, int32_t depth) {
+  int32_t kind_ord, nt, elem_ref, nlen, k, nlayouts, sz_out, al_out;
+  uint8_t name[256];
+  if (!a || ty_ref <= 0 || depth > 64) return 1;
+  nt = pipeline_arena_num_types(a);
+  if (ty_ref > nt) return 1;
+  kind_ord = pipeline_type_kind_ord_at(a, ty_ref);
+  if (kind_ord == 2) return 1;
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 1 || kind_ord == 14) return 4;
+  if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15 || kind_ord == 9 || kind_ord == 18) return 8;
+  if (kind_ord == 11) return 8;
+  if (kind_ord == 10 || kind_ord == 12 || kind_ord == 13) {
+    elem_ref = pipeline_type_elem_ref_at(a, ty_ref);
+    if (elem_ref <= 0) return 1;
+    return glue_type_align_simple(m, a, elem_ref, depth + 1);
+  }
+  if (kind_ord == 8) {
+    nlen = pipeline_type_named_name_into(a, ty_ref, name);
+    if (nlen <= 0 || nlen > 255) return 4;
+    if (m) {
+      nlayouts = pipeline_module_num_struct_layouts_at(m);
+      for (k = 0; k < nlayouts; k++) {
+        if (!w154_layout_name_eq(m, k, name, nlen)) continue;
+        sz_out = 0; al_out = 1;
+        if (glue_struct_layout_metrics_c(m, a, k, depth + 1, 0, &sz_out, &al_out) != 0) return 1;
+        return al_out > 0 ? al_out : 1;
+      }
+    }
+    return 4;
+  }
+  return 1;
+}
+
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 
 /* WIN leftover-PE rest glue_sync_struct_layout_field_offsets_c unique
@@ -5863,6 +15670,7 @@ extern int32_t pipeline_asm_emit_func_index_c(void);
 extern void *pipeline_asm_emit_dep_pipe_c(void);
 /* Under FROM_X, always-compiled struct* proto @2833 wins — skip void* re-extern. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+extern int32_t pipeline_dep_ctx_ndep(void *ctx);
 #endif
 extern void *pipeline_dep_ctx_module_at(void *ctx, int32_t idx);
 extern void *pipeline_dep_ctx_arena_at(void *ctx, int32_t idx);
@@ -6307,9 +16115,76 @@ void glue_fill_var_types_from_lets_in_block(void *arena, int32_t block_ref) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern void pipeline_asm_emit_set_module(void *m);
+extern int32_t pipeline_expr_struct_lit_field_type_ref_at(void *a, void *m, int32_t expr_ref, int32_t field_ix);
+extern int32_t glue_type_is_empty_struct_c(void *module, void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_type_kind_ord_at(void *a, int32_t ref);
+extern int32_t glue_sysv_dual_gp_byte_size_c(void *arena, int32_t ty);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+extern int32_t glue_type_size_simple(void *m, void *a, int32_t ty_ref, int32_t depth);
+extern int32_t pipeline_expr_struct_lit_field_offset_at(void *a, void *m, int32_t expr_ref, int32_t field_ix);
+extern int32_t pipeline_expr_struct_lit_num_fields(void *a, int32_t expr_ref);
+extern int32_t pipeline_expr_struct_lit_value_bytes(void *a, void *m, int32_t expr_ref);
+
+int32_t glue_struct_lit_field_store_sz(void *arena, int32_t expr_ref, int32_t fi) {
+  int32_t ty, kind_ord, nsz, foff, next_off, nf;
+  void *mod = pipeline_asm_emit_module_ref_c();
+  ty = pipeline_expr_struct_lit_field_type_ref_at(arena, mod, expr_ref, fi);
+  if (ty <= 0) return 8;
+  if (mod && glue_type_is_empty_struct_c(mod, arena, ty, 0) != 0) return 0;
+  kind_ord = pipeline_type_kind_ord_at(arena, ty);
+  /* u8 stays 1. bool: store 4 when C padding to next field / struct end is
+   * >= 4 so inlined Option { is_some:false } zeros the pad that ldr-w tag
+   * loads consume. Packed adjacent bools (gap<4) stay 1.
+   * PLATFORM: SHARED — cold twin of runtime_pipeline_abi.x (FROM_X live). */
+  if (kind_ord == 2 || kind_ord == 1) {
+    if (mod) {
+      foff = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi);
+      nf = pipeline_expr_struct_lit_num_fields(arena, expr_ref);
+      if (fi + 1 < nf)
+        next_off = pipeline_expr_struct_lit_field_offset_at(arena, mod, expr_ref, fi + 1);
+      else
+        next_off = pipeline_expr_struct_lit_value_bytes(arena, mod, expr_ref);
+      if (foff >= 0 && next_off >= foff + 4) return 4;
+    }
+    return 1;
+  }
+  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) return 4;
+  /* TYPE_PTR=9 / TYPE_FN=18: opaque Cap-fn-ptr ABI is pointer-sized.
+   * SAT type_kind miss used to fall through size_simple→0 and skip the
+   * store. leftover rest WAVE270 kind + leftover rest size_simple already
+   * 18→8; pin the width here so a kind miss cannot skip. PLATFORM: WINDOWS
+   * leftover-PE / SHARED Cap ABI. */
+  if (kind_ord == 9 || kind_ord == 18) return 8;
+  /* TYPE_SLICE=11: 16B fat {data,length}. Catch-all `return 8` used to
+   * store only the ARRAY_LIT dest pointer (`S { xs: [3, 4] }` then
+   * `take(s.xs)` SEGV). G.7 complete leftover rest field_store_sz.
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (kind_ord == 11) return 16;
+  nsz = glue_sysv_dual_gp_byte_size_c(arena, ty);
+  if (nsz > 8 && nsz <= 16) return nsz;
+  nsz = glue_type_named_layout_size_any_module_elf_c(arena, ty);
+  if (nsz > 8 && nsz <= 16) return nsz;
+  nsz = glue_type_size_simple(mod, arena, ty, 0);
+  if (nsz == 0) return 0;
+  if (nsz > 0 && nsz <= 8) return nsz;
+  return 8;
+}
+
+int32_t pipeline_expr_struct_lit_field_store_sz(void *a, void *m, int32_t expr_ref, int32_t field_ix) {
+  void *prev = pipeline_asm_emit_module_ref_c();
+  int32_t sz;
+  pipeline_asm_emit_set_module(m);
+  sz = glue_struct_lit_field_store_sz(a, expr_ref, field_ix);
+  pipeline_asm_emit_set_module(prev);
+  return sz;
+}
 #endif /* !FROM_X || WIN leftover rest STRUCT_LIT field_store_sz unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_type cluster */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L37309.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave154 FROM_X for leftover-PE named_struct unique */
 
 /*
@@ -6339,6 +16214,32 @@ void glue_fill_var_types_from_lets_in_block(void *arena, int32_t block_ref) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
+int32_t typeck_type_is_named_struct_c(void *m, void *a, int32_t ty_ref) {
+  uint8_t name[256];
+  int32_t nlen, k, nlayouts;
+  if (!m || !a || ty_ref <= 0) return 0;
+  if (pipeline_type_kind_ord_at(a, ty_ref) != 8) return 0;
+  nlen = pipeline_type_named_name_into(a, ty_ref, name);
+  if (nlen <= 0 || nlen > 255) return 0;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++)
+    if (w154_layout_name_eq(m, k, name, nlen)) return 1;
+  return 0;
+}
+
+int32_t typeck_layout_index_for_named_type_c(void *m, void *a, int32_t ty_ref) {
+  uint8_t name[256];
+  int32_t nlen, k, nlayouts;
+  if (!m || !a || ty_ref <= 0) return -1;
+  if (pipeline_type_kind_ord_at(a, ty_ref) != 8) return -1;
+  nlen = pipeline_type_named_name_into(a, ty_ref, name);
+  if (nlen <= 0 || nlen > 255) return -1;
+  nlayouts = pipeline_module_num_struct_layouts_at(m);
+  for (k = 0; k < nlayouts; k++)
+    if (w154_layout_name_eq(m, k, name, nlen)) return k;
+  return -1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE named_struct unique */
 
 /* WIN leftover-PE rest typeck_struct_layouts_same_shape_c unique
@@ -6385,6 +16286,8 @@ int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE same_shape unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE named_struct unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L37572.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave154 FROM_X for leftover-PE assign_like unique */
 
 /*
@@ -6408,9 +16311,14 @@ int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_expr_kind_is_assign_like_ord(int32_t ko) {
+  return ko == 28 || (ko >= 29 && ko <= 38);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE assign_like unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE assign_like unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L37798.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE named_layout unique */
 
 /* Named-layout leftover unique (surgical extract of nested wave191 unique
@@ -6458,9 +16366,114 @@ int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+
+/**
+ * TYPE_NAMED layout byte size with dep-module arena recovery when local
+ * size_simple is ≤8 (missed import layout / wrong field type_ref arena).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave191 @72308.
+ * Seed stub `return 0` is not compiled on leftover rest.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED sizing contract.
+ */
+int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref) {
+  uint8_t name[256];
+  int32_t nlen;
+  int32_t base_off;
+  int32_t base_len;
+  int32_t sz;
+  int32_t di;
+  int32_t nd;
+  int32_t k;
+  int32_t j;
+  void *dm;
+  void *darena;
+  void *mod;
+  void *dep;
+  int32_t tk;
+  int32_t ln;
+  int32_t eq;
+  int32_t b;
+  int32_t nsl;
+  if (!arena || ty_ref <= 0)
+    return 0;
+  tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  /* TYPE_NAMED == 8 */
+  if (tk != 8)
+    return 0;
+  mod = pipeline_asm_emit_module_ref_c();
+  sz = glue_type_size_simple(mod, arena, ty_ref, 0);
+  /* After size_simple has layout match, trust it when >8 (MEMORY / dual-GP). */
+  if (sz > 8)
+    return sz;
+  nlen = pipeline_type_named_name_into(arena, ty_ref, name);
+  if (nlen <= 0 || nlen > 255)
+    return sz;
+  base_off = 0;
+  k = 0;
+  while (k < nlen) {
+    /* '.' separator → bare suffix for heap.Allocator etc. */
+    if (name[k] == 46)
+      base_off = k + 1;
+    k = k + 1;
+  }
+  base_len = nlen - base_off;
+  dep = pipeline_asm_emit_dep_pipe_c();
+  if (dep) {
+    nd = pipeline_dep_ctx_ndep(dep);
+    di = 0;
+    while (di < nd) {
+      dm = pipeline_dep_ctx_module_at(dep, di);
+      darena = pipeline_dep_ctx_arena_at(dep, di);
+      if (dm && darena) {
+        /* Do not size field type_refs against the caller pool: use dep arena. */
+        nsl = pipeline_module_num_struct_layouts_at(dm);
+        k = 0;
+        while (k < nsl) {
+          ln = pipeline_module_struct_layout_name_len(dm, k);
+          eq = 1;
+          if (ln == nlen) {
+            j = 0;
+            while (j < nlen) {
+              b = (int32_t)pipeline_module_struct_layout_name_byte_at(dm, k, j);
+              if (b != (int32_t)name[j]) {
+                eq = 0;
+                break;
+              }
+              j = j + 1;
+            }
+          } else if (ln == base_len && base_len > 0) {
+            j = 0;
+            while (j < base_len) {
+              b = (int32_t)pipeline_module_struct_layout_name_byte_at(dm, k, j);
+              if (b != (int32_t)name[base_off + j]) {
+                eq = 0;
+                break;
+              }
+              j = j + 1;
+            }
+          } else {
+            eq = 0;
+          }
+          if (eq != 0) {
+            sz = typeck_x_type_size_from_layout_glue(dm, darena, k, 1);
+            if (sz > 8)
+              return sz;
+          }
+          k = k + 1;
+        }
+      }
+      di = di + 1;
+    }
+  }
+  /* INTEGER-class ≤8B named structs must keep size_simple's 8, not 0.
+   * PLATFORM: SHARED — LINUX|x86_64 SysV INTEGER; MACOS|ARM64 x0. */
+  return sz;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE named_layout unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE named_layout unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L38979.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE glue_func_return unique */
 
 /* Func-return leftover unique (surgical extract of nested wave192 unique
@@ -6506,9 +16519,57 @@ int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_module_func_return_type_at(void *m, int32_t fi);
+extern int32_t glue_type_named_layout_size_any_module_elf_c(void *arena, int32_t ty_ref);
+
+int32_t glue_func_return_byte_size_c(void *mod, void *arena, int32_t func_index);
+
+/**
+ * Byte size of a function return type (void=0; TYPE_ARRAY=8; else size_simple).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave192 @72650.
+ * Seed stub `return 0` is not compiled on leftover rest.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED sizing contract.
+ */
+int32_t glue_func_return_byte_size_c(void *mod, void *arena, int32_t func_index) {
+  int32_t rty;
+  int32_t k;
+  int32_t nf;
+  if (!mod || !arena || func_index < 0)
+    return 0;
+  nf = pipeline_module_num_funcs(mod);
+  if (func_index >= nf)
+    return 0;
+  rty = pipeline_module_func_return_type_at(mod, func_index);
+  if (rty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, rty);
+  /* void == 15 */
+  if (k == 15)
+    return 0;
+  /* TYPE_ARRAY == 10 → E* return (8B), not payload sret */
+  if (k == 10)
+    return 8;
+  {
+    int32_t sz;
+    int32_t nsz;
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+    /* TYPE_NAMED INTEGER-class 8B must not size as 0=void.
+     * PLATFORM: SHARED — LINUX SysV INTEGER rax; MACOS|ARM64 x0. */
+    if (k == 8) {
+      nsz = glue_type_named_layout_size_any_module_elf_c(arena, rty);
+      if (nsz > sz)
+        sz = nsz;
+      if (sz <= 0)
+        return 8;
+    }
+    return sz;
+  }
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE glue_func_return unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_func_return unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L39108.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE glue_call_return unique */
 
 /* Call-return leftover unique (surgical extract of nested wave194 unique
@@ -6556,9 +16617,76 @@ int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t glue_asm_resolve_call_target_module_c(void *arena, int32_t call_expr_ref,
+                                                    void **mod_out, int32_t *func_ix_out,
+                                                    int32_t *dep_ix_out);
+extern int32_t pipeline_typeck_get_dep_return_type_in_caller_arena_c(int32_t from_dep_index,
+                                                                    int32_t dep_return_type_ref,
+                                                                    void *caller_arena, void *ctx);
+
+int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref);
+
+/**
+ * Byte size of a CALL expression's return type (-1 resolve failure, 0 void).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave194 @72875.
+ * Seed stub `return -1` is not compiled on leftover rest.
+ * C encoding of the .x LP64 Module** cell is void** (same ABI as the seed
+ * resolve stub); leftover rest has no pipe_load/store_ptr_slot.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED sizing contract.
+ */
+int32_t glue_call_return_byte_size_c(void *arena, int32_t call_expr_ref) {
+  void *mod;
+  int32_t fi;
+  int32_t dep_ix;
+  int32_t rty;
+  int32_t sz;
+  void *sz_mod;
+  int32_t mapped;
+  int32_t k;
+  void *dep_pipe;
+  int32_t rc;
+  if (!arena || call_expr_ref <= 0)
+    return -1;
+  mod = 0;
+  fi = -1;
+  dep_ix = -1;
+  rc = glue_asm_resolve_call_target_module_c(arena, call_expr_ref, &mod, &fi, &dep_ix);
+  if (rc != 0)
+    return -1;
+  if (!mod || fi < 0)
+    return -1;
+  rty = pipeline_module_func_return_type_at(mod, fi);
+  if (rty <= 0)
+    return 0;
+  k = pipeline_type_kind_ord_at(arena, rty);
+  /* void == 15 */
+  if (k == 15)
+    return 0;
+  dep_pipe = pipeline_asm_emit_dep_pipe_c();
+  if (dep_ix >= 0 && dep_pipe) {
+    mapped = pipeline_typeck_get_dep_return_type_in_caller_arena_c(dep_ix, rty, arena, dep_pipe);
+    if (mapped > 0)
+      rty = mapped;
+  }
+  sz_mod = pipeline_asm_emit_module_ref_c();
+  if (!sz_mod)
+    sz_mod = mod;
+  k = pipeline_type_kind_ord_at(arena, rty);
+  /* TYPE_ARRAY == 10 → E* return (8B); match glue_func_return_byte_size_c */
+  if (k == 10)
+    return 8;
+  sz = glue_type_size_simple(sz_mod, arena, rty, 0);
+  if (sz <= 0)
+    sz = glue_type_size_simple(mod, arena, rty, 0);
+  if (sz > 0)
+    return sz;
+  return -1;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE glue_call_return unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE glue_call_return unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L39250.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close remaining wave154 FROM_X after glue_type for leftover-PE for_call_args unique */
 
 /* XLANG_PABI_FOR_CALL_ARGS_THIN_BEGIN */
@@ -6609,21 +16737,493 @@ int32_t typeck_struct_layouts_same_shape_c(void *m, void *a, int32_t la, int32_t
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
-#if defined(__APPLE__)
-#else
-int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_if_stmts;
+extern int32_t pipeline_expr_kind_ord_at(void *arena, int32_t expr_ref);
+extern int32_t glue_call_arg_resolve_var_stack_off_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern int32_t glue_load_var_as_value_to_rax_rdx_elf_c(void *elf_ctx, void *arena, void *ctx,
+                                                       int32_t var_expr_ref, int32_t off, int32_t ta);
+extern int32_t pipeline_asm_emit_expr_elf_rec(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
+                                               int32_t ta);
+extern char *link_abi_getenv(const char *name);
+extern int32_t pipeline_expr_resolved_type_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_type_kind_ord_at(void *arena, int32_t type_ref);
+extern int32_t glue_var_decl_type_ref_elf_c(void *arena, void *ctx, int32_t var_expr_ref);
+extern void *glue_emit_module_from_ctx(void *ctx);
+extern int32_t glue_emit_func_param_is_indirect_array_slot_c(void *arena, void *mod, int32_t var_expr_ref);
+extern int32_t glue_fixed_array_total_bytes_c(void *arena, int32_t ty_ref, int32_t depth);
+extern int32_t backend_enc_lea_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_load_rbp_to_rax_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t pipeline_expr_array_lit_num_elems_at(void *arena, int32_t expr_ref);
+extern int32_t pipeline_asm_array_lit_elem_byte_sz_c(void *arena, int32_t expr_ref);
+extern int32_t backend_enc_load_64_from_rax_arch(void *elf_ctx, int32_t ta);
+extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
+extern int32_t backend_enc_mov_imm64_to_rax_arch(void *elf_ctx, int32_t lo, int32_t hi, int32_t ta);
+extern void glue_align_next_offset(void *ctx);
+extern int32_t glue_enc_local_slot_ptr_or_addr_elf_c(void *arena, void *elf_ctx, int32_t var_ref,
+                                                     int32_t var_off, void *ctx, int32_t ta);
+extern int32_t backend_enc_store_rdx_to_rbp_arch(void *elf_ctx, int32_t slot_off, int32_t ta);
+extern int32_t pipeline_asm_emit_lvalue_eff_addr_elf_c(void *arena, void *elf_ctx, int32_t lval_ref,
+                                                      void *ctx, int32_t ta);
+extern int32_t glue_type_is_fixed_array(void *arena, int32_t type_ref);
+extern void *pipeline_asm_emit_module_ref_c(void);
+extern int32_t pipeline_expr_field_access_base_ref(void *arena, int32_t expr_ref);
+extern int32_t pipeline_expr_field_access_name_len(void *arena, int32_t expr_ref);
+extern void pipeline_expr_field_access_name_into(void *arena, int32_t expr_ref, uint8_t *out);
+extern int32_t pipeline_type_named_name_into(void *arena, int32_t ty_ref, uint8_t *out);
+extern int32_t pipeline_type_elem_ref_at(void *arena, int32_t ty_ref);
+extern int32_t glue_struct_layout_index_by_type_name_c(void *m, uint8_t *struct_name, int32_t nlen);
+extern int32_t pipeline_module_struct_layout_num_fields(void *m, int32_t li);
+extern int32_t pipeline_module_struct_layout_field_name_len(void *m, int32_t li, int32_t j);
+extern void pipeline_module_struct_layout_field_name_into(void *m, int32_t li, int32_t j, uint8_t *out);
+extern int32_t pipeline_module_struct_layout_field_type_ref(void *m, int32_t li, int32_t j);
+extern int32_t glue_var_expr_type_ref_with_decl_fallback_c(void *arena, int32_t var_ref);
+extern int32_t pipeline_asm_emit_ctx_call_param_ty_get(void);
+
+/*
+ * leftover rest unique field_type_ref T first-wins is a 23B SAT-t stub
+ * (gcc -E of the completed body is live; merged leftover rest T is still
+ * `return 0`). for_call_args cannot UNDEF SAT local t. G.7: layout from
+ * leftover rest already-T glue_struct_layout_index_by_type_name (field_layout
+ * unique @30310) + WAVE266 field type. dest-SLICE wrap stays on resolved
+ * tk==11. PLATFORM: WINDOWS leftover-PE.
+ */
+static int32_t win_glue_fa_layout_type_ref_c(void *arena, void *mod, void *ctx, int32_t fa_ref) {
+  int32_t flen;
+  uint8_t field_name[256];
+  int32_t base_ref;
+  int32_t base_ko;
+  int32_t base_ty;
+  int32_t kord;
+  uint8_t struct_name[256];
+  int32_t nlen;
+  int32_t k;
+  int32_t j;
+  int32_t nf;
+  int32_t fnlen;
+  int32_t feq;
+  int32_t fi;
+  uint8_t fb[256];
+  if (!arena || !mod || fa_ref <= 0)
+    return 0;
+  flen = pipeline_expr_field_access_name_len(arena, fa_ref);
+  if (flen <= 0 || flen > 255)
+    return 0;
+  pipeline_expr_field_access_name_into(arena, fa_ref, field_name);
+  base_ref = pipeline_expr_field_access_base_ref(arena, fa_ref);
+  if (base_ref <= 0)
+    return 0;
+  base_ko = pipeline_expr_kind_ord_at(arena, base_ref);
+  if (base_ko <= 0)
+    return 0;
+  /* VAR `let s: H`: leftover-PE may leave FA/VAR resolved 0.
+   * leftover rest unique glue_var_decl reads asm_ctx_scope_block on
+   * ctx (0 when leftover-PE scope lives in BSS). leftover rest unique
+   * glue_var_expr (already T; TYPE_SLICE `.length` GREEN) reads BSS
+   * scope + body_ref lets. Prefer that; keep decl/resolved as
+   * fallback. POSIX field_type_ref @71670 same resolved-then-decl.
+   * PLATFORM: WINDOWS leftover-PE. */
+  base_ty = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+  if (base_ty <= 0 && base_ko == 3 && ctx)
+    base_ty = glue_var_decl_type_ref_elf_c(arena, ctx, base_ref);
+  if (base_ty <= 0)
+    base_ty = pipeline_expr_resolved_type_ref(arena, base_ref);
+  if (base_ty <= 0)
+    return 0;
+  kord = pipeline_type_kind_ord_at(arena, base_ty);
+  if (kord == 9) {
+    base_ty = pipeline_type_elem_ref_at(arena, base_ty);
+    kord = (base_ty > 0) ? pipeline_type_kind_ord_at(arena, base_ty) : 0;
+  }
+  if (kord != 8)
+    return 0;
+  nlen = pipeline_type_named_name_into(arena, base_ty, struct_name);
+  if (nlen <= 0 || nlen > 63)
+    return 0;
+  k = glue_struct_layout_index_by_type_name_c(mod, struct_name, nlen);
+  if (k < 0)
+    return 0;
+  nf = pipeline_module_struct_layout_num_fields(mod, k);
+  for (j = 0; j < nf; j++) {
+    fnlen = pipeline_module_struct_layout_field_name_len(mod, k, j);
+    if (fnlen != flen)
+      continue;
+    pipeline_module_struct_layout_field_name_into(mod, k, j, fb);
+    feq = 1;
+    for (fi = 0; fi < fnlen; fi++) {
+      if (fb[fi] != field_name[fi]) {
+        feq = 0;
+        break;
+      }
+    }
+    if (feq)
+      return pipeline_module_struct_layout_field_type_ref(mod, k, j);
+  }
+  return 0;
 }
+
+int32_t pipeline_asm_emit_expr_elf_for_call_args(void *arena, void *elf_ctx, int32_t expr_ref,
+                                                  void *ctx, int32_t ta) {
+  int32_t ko;
+  int32_t off;
+  int32_t rty;
+  int32_t tk;
+  int32_t nbytes;
+  int32_t n_arr;
+  int32_t esz;
+  int32_t base_off;
+  int32_t home;
+  int32_t len_off;
+  int32_t past;
+  int32_t fty;
+  int32_t pty;
+  void *mod;
+  if (!arena || !elf_ctx || expr_ref <= 0)
+    return -1;
+  ko = pipeline_expr_kind_ord_at(arena, expr_ref);
+  /* EXPR_VAR == 3: local-let call args (`add(x,4)`). Resolve via leftover
+   * rest WIN unique (SAT wave203 stub returns -1 intra-object). */
+  if (ko == 3 && ctx) {
+    off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr_ref);
+    if (off >= 0) {
+      /* TYPE_ARRAY == 10.
+       * PLATFORM: MACOS|DARWIN — any positive nbytes leas the local home
+       * unless the formal is an indirect slot. nbytes<=8 used to load the
+       * payload, so some_ptr_u8(buf) of u8[4]={1,2,3,4} passed 0x04030201.
+       * PLATFORM: WINDOWS|LINUX x86 leftover-PE — nbytes<=8 still loads
+       * the payload so SAT INDEX can lea that home. Formal T[N] >8B loads
+       * the pointer home on every host. TYPE_SLICE == 11:
+       * formals are 1 GP fat* — leftover rest enc_local leas the
+       * local dual-GP home (needs_ptr_load=0) or loads a TYPE_SLICE
+       * formal E* (needs_ptr_load tk==11). load_var dual-GP left
+       * data-in-rax as the 1 GP arg (fnslice_var SEGV; i32slice_var
+       * INDEX0=127). .x @79307 same enc_local. Do not leftover rest
+       * remaining-wave 221 pty. PLATFORM: WINDOWS leftover-PE /
+       * SHARED Cap ARRAY E* / SLICE fat*. */
+      rty = glue_var_decl_type_ref_elf_c(arena, ctx, expr_ref);
+      if (rty <= 0)
+        rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      tk = 0;
+      if (rty > 0)
+        tk = pipeline_type_kind_ord_at(arena, rty);
+      if (tk == 10) {
+        nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+        mod = glue_emit_module_from_ctx(ctx);
+#if defined(__APPLE__)
+        /* PLATFORM: MACOS|DARWIN — address of any positive-size local T[N]. */
+        if (nbytes > 0) {
+#else
+        /* PLATFORM: WINDOWS|LINUX x86 — ≤8B payload stays in the home. */
+        if (nbytes > 8) {
 #endif
+          if (mod && glue_emit_func_param_is_indirect_array_slot_c(arena, mod, expr_ref) != 0)
+            return backend_enc_load_rbp_to_rax_arch(elf_ctx, off, ta);
+          return backend_enc_lea_rbp_to_rax_arch(elf_ctx, off, ta);
+        }
+      }
+      if (tk == 11)
+        return glue_enc_local_slot_ptr_or_addr_elf_c(arena, elf_ctx, expr_ref, off, ctx, ta);
+      return glue_load_var_as_value_to_rax_rdx_elf_c(elf_ctx, arena, ctx, expr_ref, off, ta);
+    }
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
+  }
+  /* ARRAY_LIT: rec dest pointer. TYPE_ARRAY ≤8B load_64 payload (SAT
+   * INDEX lea-home); >8B dest is E*. TYPE_SLICE (11): dest-SLICE stamp
+   * from typeck; wrap {data=dest, length=n_arr} and lea fat* (formals
+   * are 1 GP). Do not leftover rest remaining-wave 221 call_param_ty_get.
+   * Do not copy .x durable/SIMD packer. Length polarity = leftover rest
+   * WIN leftover win_glue_slice_dual_gp_length_off (x86 home-8).
+   * next_offset@4 ≡ leftover rest glue_align_next_offset.
+   * PLATFORM: WINDOWS leftover-PE / SHARED Cap ARRAY E* / SLICE fat*. */
+  if (ko == 46) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+      if (n_arr < 0)
+        n_arr = 0;
+      esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+      if (esz <= 0)
+        esz = 4;
+      nbytes = n_arr * esz;
+      if (nbytes < 0)
+        nbytes = 0;
+      /* Reserve fat home before rec so SAT dest cannot alias home
+       * ([3,4] INDEX0 was dest-pointer bits). .x @79510 same order;
+       * do not copy durable/SIMD. PLATFORM: WINDOWS leftover-PE. */
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      /* Fat is 16B {data,length}. SAT dest is next+16 — leave a 16B
+       * gap after home so 1-elem i32 (4B) cannot alias the data half
+       * (take([7]) INDEX0 was dest-pointer bits). PLATFORM: WINDOWS. */
+      past = home + 16;
+      if (nbytes > 0)
+        past = home + 16 + nbytes;
+      *(int32_t *)((uint8_t *)ctx + 4) = past;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+      return -1;
+    if (tk != 10)
+      return 0;
+    n_arr = pipeline_expr_array_lit_num_elems_at(arena, expr_ref);
+    esz = pipeline_asm_array_lit_elem_byte_sz_c(arena, expr_ref);
+    if (esz <= 0)
+      esz = 4;
+    nbytes = n_arr * esz;
+    if (nbytes > 0 && nbytes <= 8)
+      return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    return 0;
+  }
+  /* DEREF=52 TYPE_SLICE: leftover rest emit_deref now dual-GP
+   * (rax=data, rdx=length). TYPE_SLICE formals are 1 GP fat* —
+   * VAR packing lea/load via enc_local; ARRAY_LIT wrap {data,n}.
+   * DEREF is neither: rec left rax=data as fat* then callee
+   * extra-deref (`slice_ptr_arg` SEGV 139). G.7 complete leftover
+   * rest for_call_args: rec then store rax+rdx to 16B home, lea
+   * fat* (POSIX CALL TYPE_SLICE @79744 same wrap; do not copy
+   * .x packer / remaining-wave 221 pty). Kind from leftover rest
+   * WAVE278 resolved_type_ref. TYPE_ARRAY DEREF: emit_deref
+   * leave-ptr (array address). 8B leftover-PE formals keep payload
+   * in the 8B home (VAR load_var / ARRAY_LIT load_64); rec leave-ptr
+   * put E* bits in the home then SAT INDEX lea-home-as-payload
+   * (`arr_ptr_arg` RUN=110 = high 32 of E*). >8B leftover-PE home
+   * is dest E* — leave-ptr is already correct. Rec then ≤8B
+   * load_64 (ARRAY_LIT TYPE_ARRAY twin). nbytes from leftover rest
+   * glue_fixed_array_total_bytes (already T @15009; do not dual-def).
+   * Do not leftover rest T SAT try_index (arr0). POSIX .x rec
+   * leave-ptr is SysV always-E* — leftover-PE 8B compensation only.
+   * Length polarity = leftover rest WIN leftover
+   * win_glue_slice_dual_gp_length_off (x86 home-8).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 52) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (tk == 10) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
+    }
+  }
+  /* CALL=48 / METHOD=49 TYPE_SLICE: leftover rest rec of mk() now
+   * dual-GP (mega_body ARRAY_LIT TYPE_SLICE return durable COMMON +
+   * rdx=n_arr). TYPE_SLICE formals are 1 GP fat* — rec left rax=data
+   * as 16B INTEGER (rdi+rsi) then take extra-deref dest (`slice_call_arg`
+   * SEGV 139). G.7 complete leftover rest for_call_args: rec then
+   * store rax+rdx to 16B home, lea fat* (POSIX CALL TYPE_SLICE @79744
+   * same wrap minus reent deep-copy; payload is leftover rest durable
+   * COMMON). TYPE_ARRAY CALL `take(mk())` of [2]i32: mega_body now
+   * durable COMMON E* (no length). 8B leftover-PE formals keep payload
+   * in the home (ARRAY_LIT / DEREF / VAR / FIELD twins); rec leave-E*
+   * put dest bits in the home then SAT INDEX lea-home-as-payload
+   * (`arr_call_arg` RUN=226). Rec then <=8B load_64; >8B leave E*.
+   * dest-ARRAY may not stamp CALL resolved — leftover rest unique
+   * GET dest pty (scope_block sibling; SAT egg SET). Kind from
+   * leftover rest WAVE278 resolved_type_ref then dest pty. nbytes
+   * from leftover rest glue_fixed_array_total_bytes (already T
+   * @15009; do not dual-def). Do not copy .x packer / remaining-wave
+   * 221 original via !FROM_X || WIN. Do not leftover rest remaining-wave
+   * emit_return via !FROM_X || WIN. Do not leftover rest T SAT try_index
+   * (arr0). PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 48 || ko == 49) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk != 11 && tk != 10) {
+      pty = pipeline_asm_emit_ctx_call_param_ty_get();
+      if (pty > 0 && glue_type_is_fixed_array(arena, pty) != 0) {
+        rty = pty;
+        tk = 10;
+      }
+    }
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (tk == 10) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
+    }
+  }
+  /* FIELD=44 TYPE_SLICE: leftover rest rec of s.xs now dual-GP
+   * (field_store_sz 16 + ARRAY_LIT rec dual-GP + FIELD
+   * deref_struct16). TYPE_SLICE formals are 1 GP fat* — rec left
+   * rax=data as 16B INTEGER then take extra-deref (`slice_field_arg`
+   * SEGV 139). G.7 complete leftover rest for_call_args: rec then
+   * store rax+rdx to 16B home, lea fat* (CALL/DEREF wrap twin).
+   * TYPE_ARRAY FIELD `take(s.a)`: rec 4B-loads (var_field_access
+   * load_byte_sz catch-all 4) so rec-then-load_64 would deref
+   * payload bits (`arr_field_arg` RUN=0). leftover rest lvalue
+   * leaves field address (same leftover rest .o; already T).
+   * 8B leftover-PE formals keep payload in the home (ARRAY_LIT /
+   * DEREF / VAR twins); ≤8B load_64; >8B leave E*. POSIX .x
+   * @79444 try_index is SAT local t — leftover rest UNDEF fails
+   * final gcc; remaining-wave stub -2 FROM_X ABSENT. Do not
+   * leftover rest T SAT try_index (arr0). Kind from leftover rest
+   * WAVE278 resolved_type_ref. nbytes from leftover rest
+   * glue_fixed_array_total_bytes (already T @15009; do not dual-def).
+   * PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 44) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    /* dest-SLICE stamps FA resolved TYPE_SLICE so wrap uses tk==11.
+     * dest-ARRAY does not stamp: FA resolved is 0 / i32 and rec 4B-loads
+     * (`arr_field_arg` INDEX0=3 INDEX1=0). POSIX .x @79444 uses dest
+     * pty TYPE_ARRAY then try_index. SAT egg leftover rest unique SET
+     * wrapper (ALWAYS @16428) writes leftover rest unique call_param_ty
+     * BSS (scope_block sibling; SAT standalone has no GET). leftover
+     * rest unique GET first-wins leftover rest unique BSS. Layout
+     * helper stays fallback when dest is 0. Do not leftover rest
+     * remaining-wave 221 original via !FROM_X || WIN. Do not leftover
+     * rest T SAT try_index (arr0). PLATFORM: WINDOWS leftover-PE. */
+    if (tk != 11 && tk != 10) {
+      pty = pipeline_asm_emit_ctx_call_param_ty_get();
+      if (pty > 0 && glue_type_is_fixed_array(arena, pty) != 0) {
+        rty = pty;
+        tk = 10;
+      }
+      if (tk != 10) {
+        /* Prefer emit_module_ref (var_field_access / SAT load_byte_sz
+         * layout walk). glue_emit_module_from_ctx can return a non-null
+         * leftover-PE ctx module with empty layouts — helper then
+         * misses TYPE_ARRAY while load_byte_sz still 4B-loads.
+         * PLATFORM: WINDOWS leftover-PE. */
+        mod = pipeline_asm_emit_module_ref_c();
+        if (!mod)
+          mod = glue_emit_module_from_ctx(ctx);
+        fty = win_glue_fa_layout_type_ref_c(arena, mod, ctx, expr_ref);
+        if (fty > 0 && glue_type_is_fixed_array(arena, fty) != 0) {
+          rty = fty;
+          tk = 10;
+        }
+      }
+    }
+    if (tk == 11) {
+      if (!ctx)
+        return -1;
+      base_off = *(int32_t *)((uint8_t *)ctx + 4);
+      if ((base_off % 8) != 0)
+        base_off = (base_off + 7) / 8 * 8;
+      home = base_off + 16;
+      *(int32_t *)((uint8_t *)ctx + 4) = home + 16;
+      glue_align_next_offset(ctx);
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      if (backend_enc_store_rax_to_rbp_arch(elf_ctx, home, ta) != 0)
+        return -1;
+      len_off = (ta == 1) ? (home + 8) : (home - 8);
+      if (backend_enc_store_rdx_to_rbp_arch(elf_ctx, len_off, ta) != 0)
+        return -1;
+      return backend_enc_lea_rbp_to_rax_arch(elf_ctx, home, ta);
+    }
+    if (tk == 10) {
+      if (!ctx)
+        return -1;
+      if (pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
+    }
+  }
+  /* INDEX=47 TYPE_ARRAY: SAT emit_index dest-stamps rtk==10 and
+   * leaves the row E* (SysV always-E*). leftover-PE 8B INTEGER
+   * home wants payload — rec leave-E* then SAT INDEX
+   * lea-home-as-payload (`take(rows[1])` of [2][2]i32 RUN=229).
+   * Pack only when WAVE278 INDEX resolved is TYPE_ARRAY (that is
+   * the leave-E* gate). dest pty GET would force packing when
+   * dest does not stamp: rec then load_64 of the 8B row
+   * (index_elem_byte_sz of nested ARRAY) would extra-deref
+   * payload bits. >8B leftover-PE home is dest E* — leave-E*
+   * is already correct. Rec then <=8B load_64 (CALL/DEREF/
+   * ARRAY_LIT twin). nbytes from leftover rest
+   * glue_fixed_array_total_bytes (already T @15009; do not
+   * dual-def). Do not leftover rest T SAT try_index (arr0).
+   * Do not leftover rest remaining-wave scaled via
+   * !FROM_X || WIN. TYPE_SLICE INDEX as fat* wrap is a
+   * different knife (POSIX @79373). PLATFORM: WINDOWS leftover-PE. */
+  if (ko == 47) {
+    rty = pipeline_expr_resolved_type_ref(arena, expr_ref);
+    tk = 0;
+    if (rty > 0)
+      tk = pipeline_type_kind_ord_at(arena, rty);
+    if (tk == 10) {
+      if (pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta) != 0)
+        return -1;
+      nbytes = glue_fixed_array_total_bytes_c(arena, rty, 0);
+      if (nbytes > 0 && nbytes <= 8)
+        return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+      return 0;
+    }
+  }
+  return pipeline_asm_emit_expr_elf_rec(arena, elf_ctx, expr_ref, ctx, ta);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE for_call_args unique */
 /* XLANG_PABI_FOR_CALL_ARGS_THIN_END */
 
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave154 FROM_X after leftover-PE for_call_args unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L40947.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE sret BSS cluster */
 
 /* Sret leftover cluster (surgical extract of nested wave223 after closing
@@ -6669,6 +17269,30 @@ extern void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off);
 extern int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void);
 extern void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz);
 #elif !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
+/* XLANG_PABI_EMIT_CTX_SRET_THIN_BEGIN */
+static int32_t g_wave223_sret_active = 0;
+static int32_t g_wave223_sret_home_off = -1;
+static int32_t g_wave223_sret_ret_sz = 0;
+
+int32_t pipeline_asm_emit_ctx_sret_active_get(void) {
+  return g_wave223_sret_active;
+}
+void pipeline_asm_emit_ctx_sret_active_set(int32_t v) {
+  g_wave223_sret_active = v;
+}
+int32_t pipeline_asm_emit_ctx_sret_home_off_get(void) {
+  return g_wave223_sret_home_off;
+}
+void pipeline_asm_emit_ctx_sret_home_off_set(int32_t off) {
+  g_wave223_sret_home_off = off;
+}
+int32_t pipeline_asm_emit_ctx_sret_ret_sz_get(void) {
+  return g_wave223_sret_ret_sz;
+}
+void pipeline_asm_emit_ctx_sret_ret_sz_set(int32_t sz) {
+  g_wave223_sret_ret_sz = sz;
+}
+/* XLANG_PABI_EMIT_CTX_SRET_THIN_END */
 #endif /* WIN leftover uses the egg cell; !FROM_X keeps wave223 */
 
 #if !defined(_WIN32) && !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
@@ -8279,13 +18903,48 @@ extern void glue_binop_var_slot_cache_set_valid_rbx(int32_t v);
 extern void glue_binop_var_slot_cache_set_rax_off(int32_t off);
 extern void glue_binop_var_slot_cache_set_rbx_off(int32_t off);
 #else
-int32_t ast_ast_block_num_regions(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_regions;
+static int32_t g_wave210_var_valid_rax = 0;
+static int32_t g_wave210_var_valid_rbx = 0;
+static void *g_wave210_var_ctx = 0;
+static int32_t g_wave210_var_rax_off = 0;
+static int32_t g_wave210_var_rbx_off = 0;
+
+void glue_binop_var_slot_cache_clear(void) {
+  g_wave210_var_valid_rax = 0;
+  g_wave210_var_valid_rbx = 0;
 }
+void glue_binop_var_slot_cache_invalidate_rax(void) { g_wave210_var_valid_rax = 0; }
+void glue_binop_var_slot_cache_invalidate_rbx(void) { g_wave210_var_valid_rbx = 0; }
+int32_t glue_binop_var_slot_cache_ctx_matches(void *ctx) {
+  if (!ctx)
+    return 0;
+  return g_wave210_var_ctx == ctx ? 1 : 0;
+}
+int32_t glue_binop_var_slot_cache_hit_rax(void *ctx, int32_t off) {
+  return (g_wave210_var_valid_rax && g_wave210_var_ctx == ctx && g_wave210_var_rax_off == off) ? 1 : 0;
+}
+int32_t glue_binop_var_slot_cache_hit_rbx(void *ctx, int32_t off) {
+  return (g_wave210_var_valid_rbx && g_wave210_var_ctx == ctx && g_wave210_var_rbx_off == off) ? 1 : 0;
+}
+int32_t glue_binop_var_slot_cache_valid_rax_get(void) { return g_wave210_var_valid_rax; }
+int32_t glue_binop_var_slot_cache_valid_rbx_get(void) { return g_wave210_var_valid_rbx; }
+int32_t glue_binop_var_slot_cache_rax_off_get(void) { return g_wave210_var_rax_off; }
+int32_t glue_binop_var_slot_cache_rbx_off_get(void) { return g_wave210_var_rbx_off; }
+void glue_binop_var_slot_cache_set_ctx_key(void *ctx) { g_wave210_var_ctx = ctx; }
+void glue_binop_var_slot_cache_set_rax(void *ctx, int32_t off) {
+  g_wave210_var_ctx = ctx;
+  g_wave210_var_valid_rax = 1;
+  g_wave210_var_rax_off = off;
+}
+void glue_binop_var_slot_cache_set_rbx(void *ctx, int32_t off) {
+  g_wave210_var_ctx = ctx;
+  g_wave210_var_valid_rbx = 1;
+  g_wave210_var_rbx_off = off;
+}
+void glue_binop_var_slot_cache_set_valid_rax(int32_t v) { g_wave210_var_valid_rax = v; }
+void glue_binop_var_slot_cache_set_valid_rbx(int32_t v) { g_wave210_var_valid_rbx = v; }
+void glue_binop_var_slot_cache_set_rax_off(int32_t off) { g_wave210_var_rax_off = off; }
+void glue_binop_var_slot_cache_set_rbx_off(int32_t off) { g_wave210_var_rbx_off = off; }
 #endif
 
 void glue_asm73_left_assoc_spill_rbx_before_var_load_elf_c(void *arena, void *ctx, int32_t right_ref, int32_t ta,
@@ -11849,6 +22508,8 @@ uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
 #endif /* FROM_X && WIN_LEFTOVER_GROW_VEC — leftover-PE return_impl unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE sret */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L46295.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE type_alias storage unique */
 
 /* Type-alias leftover unique (surgical extract of nested wave262 unique
@@ -11894,9 +22555,58 @@ uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_TYPE_ALIAS_THIN_BEGIN */
+#define WAVE262_TA_SLOTS 128
+#define WAVE262_TA_ENTRY_SZ 264
+static void *g_wave262_ta_mod[WAVE262_TA_SLOTS];
+static int32_t g_wave262_ta_n[WAVE262_TA_SLOTS];
+static int32_t g_wave262_ta_cap[WAVE262_TA_SLOTS];
+static uint8_t *g_wave262_ta_entries[WAVE262_TA_SLOTS];
+
+static int wave262_ta_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE262_TA_SLOTS; i++) {
+    if (g_wave262_ta_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+/**
+ * Soft-reset pure type-alias count for module (keep malloc capacity).
+ * Faithful leftover twin of runtime_pipeline_abi.x wave262 @80668.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_type_alias_storage_reset(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  g_wave262_ta_n[s] = 0;
+}
+
+/**
+ * Free pure type-alias storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave262 @80687.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_type_alias_storage_release(void *module) {
+  int s = wave262_ta_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave262_ta_entries[s])
+    free(g_wave262_ta_entries[s]);
+  g_wave262_ta_mod[s] = NULL;
+  g_wave262_ta_entries[s] = NULL;
+  g_wave262_ta_n[s] = 0;
+  g_wave262_ta_cap[s] = 0;
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE type_alias storage unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE type_alias storage unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L46454.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE enum storage unique */
 
 /* Enum leftover unique (surgical extract of nested wave264 unique
@@ -11941,9 +22651,83 @@ uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_MODULE_ENUM_THIN_BEGIN */
+#define WAVE264_EN_SLOTS 128
+#define WAVE264_EN_ENTRY_SZ 66828
+static void *g_wave264_en_mod[WAVE264_EN_SLOTS];
+static int32_t g_wave264_en_n[WAVE264_EN_SLOTS];
+static int32_t g_wave264_en_cap[WAVE264_EN_SLOTS];
+static uint8_t *g_wave264_en_entries[WAVE264_EN_SLOTS];
+
+static int32_t wave264_en_header_n(void *module) {
+  int32_t n;
+  if (!module)
+    return 0;
+  memcpy(&n, (uint8_t *)module + 64, 4);
+  return n;
+}
+
+static void wave264_en_set_header_n(void *module, int32_t n) {
+  if (!module)
+    return;
+  memcpy((uint8_t *)module + 64, &n, 4);
+}
+
+static int wave264_en_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE264_EN_SLOTS; i++) {
+    if (g_wave264_en_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+/**
+ * Soft-reset pure module-enum count for module (keep malloc capacity).
+ * Also clears header num_module_enums@64.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave264 @81189.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_enum_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0) {
+    wave264_en_set_header_n(module, 0);
+    return;
+  }
+  g_wave264_en_n[s] = 0;
+  wave264_en_set_header_n(module, 0);
+}
+
+/**
+ * Free pure module-enum storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave264 @81210.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_enum_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave264_en_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave264_en_entries[s])
+    free(g_wave264_en_entries[s]);
+  g_wave264_en_mod[s] = NULL;
+  g_wave264_en_entries[s] = NULL;
+  g_wave264_en_n[s] = 0;
+  g_wave264_en_cap[s] = 0;
+  wave264_en_set_header_n(module, 0);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE enum storage unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE enum storage unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L47301.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE top_level_let storage unique */
 
 /* Top-level-let leftover unique (surgical extract of nested wave265 unique
@@ -11986,9 +22770,83 @@ uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_TOP_LEVEL_LET_THIN_BEGIN */
+#define WAVE265_TL_SLOTS 128
+#define WAVE265_TL_ENTRY_SZ 276
+static void *g_wave265_tl_mod[WAVE265_TL_SLOTS];
+static int32_t g_wave265_tl_n[WAVE265_TL_SLOTS];
+static int32_t g_wave265_tl_cap[WAVE265_TL_SLOTS];
+static uint8_t *g_wave265_tl_entries[WAVE265_TL_SLOTS];
+
+static int32_t wave265_tl_header_n(void *module) {
+  int32_t n;
+  if (!module)
+    return 0;
+  memcpy(&n, (uint8_t *)module + 12, 4);
+  return n;
+}
+
+static void wave265_tl_set_header_n(void *module, int32_t n) {
+  if (!module)
+    return;
+  memcpy((uint8_t *)module + 12, &n, 4);
+}
+
+static int wave265_tl_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE265_TL_SLOTS; i++) {
+    if (g_wave265_tl_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+/**
+ * Soft-reset pure top-level-let count for module (keep malloc capacity).
+ * Also clears header num_top_level_lets@12.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave265 @82273.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_top_level_let_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave265_tl_find_slot(module);
+  if (s < 0) {
+    wave265_tl_set_header_n(module, 0);
+    return;
+  }
+  g_wave265_tl_n[s] = 0;
+  wave265_tl_set_header_n(module, 0);
+}
+
+/**
+ * Free pure top-level-let storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave265 @82294.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_top_level_let_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave265_tl_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave265_tl_entries[s])
+    free(g_wave265_tl_entries[s]);
+  g_wave265_tl_mod[s] = NULL;
+  g_wave265_tl_entries[s] = NULL;
+  g_wave265_tl_n[s] = 0;
+  g_wave265_tl_cap[s] = 0;
+  wave265_tl_set_header_n(module, 0);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE top_level_let storage unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE top_level_let storage unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L47780.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after glue_type for leftover-PE struct_layout storage unique */
 
 /* Struct-layout leftover unique (surgical extract of nested wave266 unique
@@ -12030,9 +22888,103 @@ uint8_t g_xlang_depctx_sc[17408] __attribute__((aligned(16)));
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_STRUCT_LAYOUT_THIN_BEGIN */
+#define WAVE266_SL_SLOTS 128
+#define WAVE266_SL_LAYOUT_SZ 296
+#define WAVE266_SL_FIELD_SZ 272
+#define WAVE266_SL_TP_SZ 260
+static void *g_wave266_sl_mod[WAVE266_SL_SLOTS];
+static int32_t g_wave266_sl_n[WAVE266_SL_SLOTS];
+static int32_t g_wave266_sl_cap[WAVE266_SL_SLOTS];
+static uint8_t *g_wave266_sl_layouts[WAVE266_SL_SLOTS];
+static int32_t g_wave266_sl_fn[WAVE266_SL_SLOTS];
+static int32_t g_wave266_sl_fcap[WAVE266_SL_SLOTS];
+static uint8_t *g_wave266_sl_fields[WAVE266_SL_SLOTS];
+static int32_t g_wave266_sl_tpn[WAVE266_SL_SLOTS];
+static int32_t g_wave266_sl_tpcap[WAVE266_SL_SLOTS];
+static uint8_t *g_wave266_sl_tp[WAVE266_SL_SLOTS];
+
+static int32_t wave266_sl_header_n(void *module) {
+  int32_t n;
+  if (!module)
+    return 0;
+  memcpy(&n, (uint8_t *)module + 16, 4);
+  return n;
+}
+
+static void wave266_sl_set_header_n(void *module, int32_t n) {
+  if (!module)
+    return;
+  memcpy((uint8_t *)module + 16, &n, 4);
+}
+
+static int wave266_sl_find_slot(void *module) {
+  int i;
+  if (!module)
+    return -1;
+  for (i = 0; i < WAVE266_SL_SLOTS; i++) {
+    if (g_wave266_sl_mod[i] == module)
+      return i;
+  }
+  return -1;
+}
+
+/**
+ * Soft-reset pure struct_layout live counts for module (keep malloc capacity).
+ * Also clears header num_struct_layouts@16.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave266 @83445.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_struct_layout_storage_reset(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave266_sl_find_slot(module);
+  if (s < 0) {
+    wave266_sl_set_header_n(module, 0);
+    return;
+  }
+  g_wave266_sl_n[s] = 0;
+  g_wave266_sl_fn[s] = 0;
+  g_wave266_sl_tpn[s] = 0;
+  wave266_sl_set_header_n(module, 0);
+}
+
+/**
+ * Free pure struct_layout storage for one module and clear map slot.
+ * Faithful leftover twin of runtime_pipeline_abi.x wave266 @83468.
+ * PLATFORM: WINDOWS leftover PE cannot -E that thin · SHARED lifecycle.
+ */
+void pipeline_module_struct_layout_storage_release(void *module) {
+  int s;
+  if (!module)
+    return;
+  s = wave266_sl_find_slot(module);
+  if (s < 0)
+    return;
+  if (g_wave266_sl_layouts[s])
+    free(g_wave266_sl_layouts[s]);
+  if (g_wave266_sl_fields[s])
+    free(g_wave266_sl_fields[s]);
+  if (g_wave266_sl_tp[s])
+    free(g_wave266_sl_tp[s]);
+  g_wave266_sl_mod[s] = NULL;
+  g_wave266_sl_layouts[s] = NULL;
+  g_wave266_sl_fields[s] = NULL;
+  g_wave266_sl_tp[s] = NULL;
+  g_wave266_sl_n[s] = 0;
+  g_wave266_sl_cap[s] = 0;
+  g_wave266_sl_fn[s] = 0;
+  g_wave266_sl_fcap[s] = 0;
+  g_wave266_sl_tpn[s] = 0;
+  g_wave266_sl_tpcap[s] = 0;
+  wave266_sl_set_header_n(module, 0);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE struct_layout storage unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE struct_layout storage unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L48354.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X for leftover-PE find_or_alloc_ptr unique */
 
 /* WIN leftover-PE rest pipeline_type_find_or_alloc_ptr unique
@@ -12170,10 +23122,373 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
  * here under WIN_LEFTOVER. PLATFORM: SHARED + WINDOWS leftover-PE.
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* XLANG_PABI_TYPE_POOL_THIN_BEGIN */
+extern void *pipeline_arena_type_ptr(void *arena, int32_t ref);
+extern int32_t pipeline_arena_type_alloc(void *arena);
+extern int32_t pipeline_arena_num_types(void *arena);
+
+enum {
+  W270_TY_NAMED = 8,
+  W270_TY_PTR = 9,
+  W270_TY_SLICE = 11,
+  W270_TY_SIZE = 532
+};
+
+static int32_t wave270_kind_from_ord(int32_t ord) {
+  if (ord < 0 || ord > 16)
+    return 0;
+  return ord;
+}
+
+static void wave270_zero_slot(uint8_t *t) {
+  int32_t i;
+  if (!t)
+    return;
+  for (i = 0; i < W270_TY_SIZE; i++)
+    t[i] = 0;
+}
+
+static void wave270_store_i32(uint8_t *b, int32_t off, int32_t v) {
+  b[off] = (uint8_t)(v & 255);
+  b[off + 1] = (uint8_t)((v >> 8) & 255);
+  b[off + 2] = (uint8_t)((v >> 16) & 255);
+  b[off + 3] = (uint8_t)((v >> 24) & 255);
+}
+
+static int32_t wave270_load_i32(uint8_t *b, int32_t off) {
+  return (int32_t)((uint32_t)b[off] | ((uint32_t)b[off + 1] << 8) | ((uint32_t)b[off + 2] << 16) |
+                   ((uint32_t)b[off + 3] << 24));
+}
+
+static int32_t wave270_bytes_eq(uint8_t *a, uint8_t *b, int32_t n) {
+  int32_t i;
+  if (n <= 0)
+    return 1;
+  if (!a || !b)
+    return 0;
+  for (i = 0; i < n; i++)
+    if (a[i] != b[i])
+      return 0;
+  return 1;
+}
+
+static uint8_t *wave270_slot_at(void *arena, int32_t ref) {
+  int32_t nt;
+  if (!arena || ref <= 0)
+    return NULL;
+  nt = pipeline_arena_num_types(arena);
+  if (ref > nt)
+    return NULL;
+  return (uint8_t *)pipeline_arena_type_ptr(arena, ref);
+}
+
+int32_t pipeline_type_named_name_into(void *arena, int32_t ref, uint8_t *out64) {
+  uint8_t *t;
+  int32_t n, cn, i;
+  if (!out64)
+    return 0;
+  t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  n = wave270_load_i32(t, 132);
+  if (n <= 0)
+    n = wave270_load_i32(t, 260);
+  cn = n > 64 ? 64 : n;
+  for (i = 0; i < cn; i++)
+    out64[i] = t[4 + i];
+  return n;
+}
+
+int32_t pipeline_type_region_label_into(void *arena, int32_t ref, uint8_t *out64) {
+  uint8_t *t;
+  int32_t n, cn, i;
+  if (!out64)
+    return 0;
+  t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  n = wave270_load_i32(t, 272);
+  if (n <= 0)
+    return 0;
+  cn = n > 64 ? 64 : n;
+  for (i = 0; i < cn; i++)
+    out64[i] = t[144 + i];
+  return n;
+}
+
+int32_t pipeline_type_region_label_len_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  int32_t n;
+  if (!t)
+    return 0;
+  n = wave270_load_i32(t, 272);
+  return n > 0 ? n : 0;
+}
+
+int32_t pipeline_type_set_region_label_at(void *arena, int32_t ref, uint8_t *label, int32_t label_len) {
+  uint8_t *t;
+  int32_t kind, i;
+  if (!label || label_len <= 0 || label_len > 255)
+    return 0;
+  t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  kind = wave270_load_i32(t, 0);
+  if (kind != W270_TY_SLICE && kind != W270_TY_PTR)
+    return 0;
+  for (i = 0; i < 128; i++)
+    t[144 + i] = 0;
+  for (i = 0; i < label_len; i++)
+    t[144 + i] = label[i];
+  wave270_store_i32(t, 272, label_len);
+  return 1;
+}
+
+int32_t pipeline_type_find_or_alloc_slice(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
+  int32_t nt, k;
+  uint8_t *t;
+  if (!a || region_len < 0 || region_len > 255)
+    return 0;
+  if (region_len > 0 && !region)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (!t)
+      continue;
+    if (wave270_load_i32(t, 0) == W270_TY_SLICE && wave270_load_i32(t, 136) == elem_ref &&
+        wave270_load_i32(t, 140) == 0 && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 272) == region_len &&
+        (region_len == 0 || wave270_bytes_eq(t + 144, region, region_len)))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_SLICE);
+  wave270_store_i32(t, 136, elem_ref);
+  if (region_len > 0 && region) {
+    int32_t i;
+    for (i = 0; i < region_len; i++)
+      t[144 + i] = region[i];
+    wave270_store_i32(t, 272, region_len);
+  }
+  return k;
+}
+
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* cold-only: WIN leftover unique find_or_alloc_ptr */
+int32_t pipeline_type_find_or_alloc_ptr(void *a, int32_t elem_ref, uint8_t *region, int32_t region_len) {
+  int32_t nt, k;
+  uint8_t *t;
+  if (!a || elem_ref <= 0 || region_len < 0 || region_len > 255)
+    return 0;
+  if (region_len > 0 && !region)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (!t)
+      continue;
+    if (wave270_load_i32(t, 0) == W270_TY_PTR && wave270_load_i32(t, 136) == elem_ref &&
+        wave270_load_i32(t, 140) == 0 && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 272) == region_len &&
+        (region_len == 0 || wave270_bytes_eq(t + 144, region, region_len)))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_PTR);
+  wave270_store_i32(t, 136, elem_ref);
+  if (region_len > 0 && region) {
+    int32_t i;
+    for (i = 0; i < region_len; i++)
+      t[144 + i] = region[i];
+    wave270_store_i32(t, 272, region_len);
+  }
+  return k;
+}
 #endif
+
+int32_t pipeline_type_kind_ord_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  if (!t)
+    return -1;
+  return wave270_load_i32(t, 0);
+}
+
+int32_t pipeline_type_elem_ref_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  int32_t v;
+  if (!t)
+    return 0;
+  v = wave270_load_i32(t, 136);
+  /* Win PE egg Cap writers store elem@264; prefer wave270 then Cap. */
+  if (v == 0)
+    v = wave270_load_i32(t, 264);
+  return v;
+}
+
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* cold-only: WIN leftover unique set_elem_array_size_at */
+int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t elem_ref, int32_t array_size) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  if (!t)
+    return 0;
+  wave270_store_i32(t, 136, elem_ref);
+  wave270_store_i32(t, 140, array_size);
+  return 1;
+}
 #endif
+
+int32_t pipeline_type_array_size_at(void *arena, int32_t ref) {
+  uint8_t *t = wave270_slot_at(arena, ref);
+  int32_t v;
+  if (!t)
+    return 0;
+  v = wave270_load_i32(t, 140);
+  if (v == 0)
+    v = wave270_load_i32(t, 268);
+  return v;
+}
+
+int32_t pipeline_type_ensure_by_kind_ord(void *a, int32_t kind_ord) {
+  int32_t nt, k, kind;
+  uint8_t *t;
+  if (!a || kind_ord < 0 || kind_ord > 16)
+    return 0;
+  kind = wave270_kind_from_ord(kind_ord);
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (t && wave270_load_i32(t, 0) == kind && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 136) == 0 && wave270_load_i32(t, 140) == 0)
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, kind);
+  return k;
+}
+
+int32_t pipeline_type_init_primitive_kind_at(void *a, int32_t ref, int32_t kind_ord) {
+  uint8_t *t;
+  if (!a || ref <= 0 || kind_ord < 0 || kind_ord > 16)
+    return 0;
+  if (ref > pipeline_arena_num_types(a))
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, wave270_kind_from_ord(kind_ord));
+  return 1;
+}
+
+int32_t pipeline_type_init_named_at(void *a, int32_t ref, uint8_t *name, int32_t name_len) {
+  uint8_t *t;
+  int32_t i;
+  if (!a || ref <= 0 || !name || name_len <= 0 || name_len > 255)
+    return 0;
+  if (ref > pipeline_arena_num_types(a))
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_NAMED);
+  wave270_store_i32(t, 132, name_len);
+  for (i = 0; i < name_len; i++)
+    t[4 + i] = name[i];
+  return 1;
+}
+
+int32_t pipeline_type_init_compound_kind_at(void *a, int32_t ref, int32_t kind_ord, int32_t elem_ref,
+                                            int32_t array_size) {
+  uint8_t *t;
+  if (!a || ref <= 0 || kind_ord < 0 || kind_ord > 15)
+    return 0;
+  if (ref > pipeline_arena_num_types(a))
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, ref);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, wave270_kind_from_ord(kind_ord));
+  wave270_store_i32(t, 136, elem_ref);
+  wave270_store_i32(t, 140, array_size);
+  return 1;
+}
+
+int32_t pipeline_type_find_or_alloc_named(void *a, uint8_t *name, int32_t name_len) {
+  int32_t nt, k, i;
+  uint8_t *t;
+  if (!a || !name || name_len <= 0 || name_len > 255)
+    return 0;
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (t && wave270_load_i32(t, 0) == W270_TY_NAMED && wave270_load_i32(t, 132) == name_len &&
+        wave270_bytes_eq(t + 4, name, name_len))
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, W270_TY_NAMED);
+  wave270_store_i32(t, 132, name_len);
+  for (i = 0; i < name_len; i++)
+    t[4 + i] = name[i];
+  return k;
+}
+
+int32_t pipeline_type_find_or_alloc_compound(void *a, int32_t kind_ord, int32_t elem_ref, int32_t array_size) {
+  int32_t nt, k, kind;
+  uint8_t *t;
+  if (!a || kind_ord < 0 || kind_ord > 15)
+    return 0;
+  kind = wave270_kind_from_ord(kind_ord);
+  nt = pipeline_arena_num_types(a);
+  for (k = 1; k <= nt; k++) {
+    t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+    if (t && wave270_load_i32(t, 0) == kind && wave270_load_i32(t, 136) == elem_ref &&
+        wave270_load_i32(t, 140) == array_size && wave270_load_i32(t, 132) == 0 &&
+        wave270_load_i32(t, 272) == 0)
+      return k;
+  }
+  k = pipeline_arena_type_alloc(a);
+  if (k <= 0)
+    return 0;
+  t = (uint8_t *)pipeline_arena_type_ptr(a, k);
+  if (!t)
+    return 0;
+  wave270_zero_slot(t);
+  wave270_store_i32(t, 0, kind);
+  wave270_store_i32(t, 136, elem_ref);
+  wave270_store_i32(t, 140, array_size);
+  return k;
+}
+
+/* XLANG_PABI_TYPE_POOL_THIN_END */
+/* end wave270 type pool cold twins */
 #endif /* !FROM_X || WIN_LEFTOVER — wave270 type-pool twins */
 
 /*
@@ -12190,31 +23505,200 @@ int32_t pipeline_type_set_elem_array_size_at(void *arena, int32_t ref, int32_t e
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
+/* XLANG_PABI_GROW_VEC_THIN_BEGIN */
 #ifndef AST_POOL_GROW
+#define AST_POOL_GROW 4096
 #endif
 #ifndef AST_POOL_INIT_CAP
+#define AST_POOL_INIT_CAP 256
 #endif
 #ifndef GROW_VEC_MMAP_THRESH
+#define GROW_VEC_MMAP_THRESH ((size_t)(1024 * 1024))
 #endif
+
+typedef struct {
+  uint8_t *data;
+  int32_t cap;
+  int32_t len;
+  size_t elem_sz;
+  int32_t mmap_backed;
+} GrowVec;
+/* WAVE277+ FROM_X rest keeps a local GrowVec typedef behind this guard.
+ * When this cold-twin block is compiled under FROM_X (Windows leftover-PE
+ * WIN_LEFTOVER_GROW_VEC), skip those later re-typedefs. PLATFORM: WINDOWS. */
 #ifndef W277_NEED_GROWVEC
+#define W277_NEED_GROWVEC 1
 #endif
+
 #if defined(__APPLE__) || defined(__linux__)
+#include <sys/mman.h>
 #endif
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+static void *wave271_gv_alloc_bytes(size_t nbytes, int32_t *out_mmap) {
+  if (out_mmap)
+    *out_mmap = 0;
+  if (nbytes == 0)
+    return NULL;
 #if defined(__APPLE__) || defined(__linux__)
+  if (nbytes >= GROW_VEC_MMAP_THRESH) {
+    void *p = mmap(NULL, nbytes, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
+    if (p != MAP_FAILED) {
+      if (out_mmap)
+        *out_mmap = 1;
+      return p;
+    }
+  }
 #endif
-#if defined(__APPLE__) || defined(__linux__)
-#else
-int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
-  W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_expr_stmts;
+  return calloc(1, nbytes);
 }
+
+static void wave271_gv_dealloc_bytes(void *p, size_t nbytes, int32_t mmap_backed) {
+  if (!p)
+    return;
+#if defined(__APPLE__) || defined(__linux__)
+  if (mmap_backed) {
+    if (nbytes > 0)
+      (void)munmap(p, nbytes);
+    return;
+  }
+#else
+  (void)nbytes;
+  (void)mmap_backed;
 #endif
+  free(p);
+}
+
+int grow_vec_init(GrowVec *v, size_t elem_sz, int32_t initial_cap) {
+  size_t nbytes;
+  int32_t mm = 0;
+  if (!v || elem_sz == 0)
+    return 0;
+  v->data = NULL;
+  v->cap = 0;
+  v->len = 0;
+  v->elem_sz = elem_sz;
+  v->mmap_backed = 0;
+  if (initial_cap <= 0)
+    initial_cap = AST_POOL_INIT_CAP;
+  nbytes = (size_t)initial_cap * elem_sz;
+  v->data = (uint8_t *)wave271_gv_alloc_bytes(nbytes, &mm);
+  if (!v->data)
+    return 0;
+  v->mmap_backed = mm;
+  v->cap = initial_cap;
+  return 1;
+}
+
+void grow_vec_free(GrowVec *v) {
+  if (v && v->data) {
+    size_t nbytes = (size_t)v->cap * v->elem_sz;
+    wave271_gv_dealloc_bytes(v->data, nbytes, v->mmap_backed);
+    v->data = NULL;
+  }
+  if (v) {
+    v->cap = 0;
+    v->len = 0;
+    v->mmap_backed = 0;
+  }
+}
+
+int grow_vec_ensure(GrowVec *v) {
+  int32_t need;
+  int32_t nc;
+  int32_t old_cap;
+  int32_t mm = 0;
+  size_t old_bytes;
+  size_t new_bytes;
+  uint8_t *p;
+  if (!v)
+    return 0;
+  need = v->len + 1;
+  if (need <= v->cap)
+    return 1;
+  old_cap = v->cap;
+  nc = v->cap > 0 ? v->cap : AST_POOL_GROW;
+  if (v->mmap_backed ||
+      (size_t)need * v->elem_sz >= GROW_VEC_MMAP_THRESH ||
+      (size_t)nc * v->elem_sz >= GROW_VEC_MMAP_THRESH) {
+    while (nc < need) {
+      if (nc > 1073741823) {
+        nc = need;
+        break;
+      }
+      nc = nc * 2;
+    }
+    if (nc < need)
+      nc = need;
+  } else {
+    while (nc < need)
+      nc += AST_POOL_GROW;
+  }
+  old_bytes = (size_t)old_cap * v->elem_sz;
+  new_bytes = (size_t)nc * v->elem_sz;
+  if (v->mmap_backed || new_bytes >= GROW_VEC_MMAP_THRESH) {
+    p = (uint8_t *)wave271_gv_alloc_bytes(new_bytes, &mm);
+    if (!p)
+      return 0;
+    if (v->data && old_bytes > 0)
+      memcpy(p, v->data, old_bytes);
+    wave271_gv_dealloc_bytes(v->data, old_bytes, v->mmap_backed);
+    v->data = p;
+    v->mmap_backed = mm;
+    v->cap = nc;
+    return 1;
+  }
+  p = (uint8_t *)realloc(v->data, new_bytes);
+  if (!p)
+    return 0;
+  memset(p + old_bytes, 0, new_bytes - old_bytes);
+  v->data = p;
+  v->mmap_backed = 0;
+  v->cap = nc;
+  return 1;
+}
+
+void *grow_vec_at(GrowVec *v, int32_t idx) {
+  if (!v || !v->data || idx < 0 || idx >= v->len)
+    return NULL;
+  return v->data + (size_t)idx * v->elem_sz;
+}
+
+int32_t grow_vec_push(GrowVec *v) {
+  int32_t idx;
+  if (!grow_vec_ensure(v))
+    return -1;
+  idx = v->len;
+  memset(v->data + (size_t)idx * v->elem_sz, 0, v->elem_sz);
+  v->len++;
+  return idx;
+}
+
+void grow_vec_copy_append(GrowVec *dst, GrowVec *src) {
+  int32_t i;
+  if (!dst || !src)
+    return;
+  for (i = 0; i < src->len; i++) {
+    void *ps = grow_vec_at(src, i);
+    void *pd;
+    if (grow_vec_push(dst) < 0)
+      return;
+    pd = grow_vec_at(dst, dst->len - 1);
+    if (ps && pd)
+      memcpy(pd, ps, src->elem_sz);
+  }
+}
+
+/* XLANG_PABI_GROW_VEC_THIN_END */
+/* end wave271 grow_vec cold twins */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave271 cold twins */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after wave271 */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L50702.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X @34286 for leftover-PE F7 */
 
 /*
@@ -12233,9 +23717,117 @@ int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+/* F7: data section buffer for vtable static data (read-only data with absolute
+ * pointer relocations; cannot live in __TEXT,__text which is pure_instructions).
+ * Single-threaded compile; reset per-module via pipeline_elf_ctx_reset_data. */
+static uint8_t g_pipeline_elf_data_buf[65536];
+static int32_t g_pipeline_elf_data_len;
+static uint8_t *g_pipeline_elf_data_owner;
+/* F7 shndx override is not stored here.
+ * PLATFORM: WINDOWS — pipeline_elf_ctx_add_sym lives in
+ * runtime_pipeline_abi_elf_ctx.windows_e.c and reads that file's
+ * g_pipe_elf_shndx_override. A static here plus a body below would be
+ * the first strong set_shndx and would not tag the symbol as data. */
+
+/**
+ * F7: Reset the data section buffer at module start.
+ * Must be called once per module BEFORE emitting any vtable statics.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+void pipeline_elf_ctx_reset_data(uint8_t *ctx_bytes) {
+  g_pipeline_elf_data_len = 0;
+  g_pipeline_elf_data_owner = ctx_bytes;
+}
+
+/**
+ * F7: Current data section length (bytes already emitted to data buf).
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_emit_data_len(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return 0;
+  return g_pipeline_elf_data_len;
+}
+
+/**
+ * F7: Pointer to data section buffer start.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+uint8_t *pipeline_elf_ctx_data_data_ptr(uint8_t *ctx_bytes) {
+  if (!ctx_bytes)
+    return 0;
+  return &g_pipeline_elf_data_buf[0];
+}
+
+/**
+ * F7: Append 4 bytes (little-endian u32) to the data section buffer.
+ * Returns 0 ok, -1 overflow/null.
+ * PLATFORM: SHARED freestanding ELF leave.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_append_data_u32_le(uint8_t *ctx_bytes, uint32_t word) {
+  int32_t off;
+  if (!ctx_bytes)
+    return -1;
+  if (g_pipeline_elf_data_len < 0)
+    g_pipeline_elf_data_len = 0;
+  if (g_pipeline_elf_data_len + 4 > 65536)
+    return -1;
+  off = g_pipeline_elf_data_len;
+  g_pipeline_elf_data_buf[off] = (uint8_t)(word & 255);
+  g_pipeline_elf_data_buf[off + 1] = (uint8_t)((word >> 8) & 255);
+  g_pipeline_elf_data_buf[off + 2] = (uint8_t)((word >> 16) & 255);
+  g_pipeline_elf_data_buf[off + 3] = (uint8_t)((word >> 24) & 255);
+  g_pipeline_elf_data_len = off + 4;
+  return 0;
+}
+
+/**
+ * F7: Append `n` zero bytes to the data section buffer (reserve + clear).
+ * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_append_data_zeros.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_append_data_zeros(uint8_t *ctx_bytes, int32_t n) {
+  int32_t off;
+  if (!ctx_bytes)
+    return -1;
+  if (n <= 0)
+    return 0;
+  if (g_pipeline_elf_data_len < 0)
+    g_pipeline_elf_data_len = 0;
+  if (g_pipeline_elf_data_len + n > 65536)
+    return -1;
+  off = g_pipeline_elf_data_len;
+  memset(&g_pipeline_elf_data_buf[off], 0, (size_t)n);
+  g_pipeline_elf_data_len = off + n;
+  return 0;
+}
+
+/**
+ * F7: Poke one byte into an already-reserved data-section offset.
+ * Twin of runtime_pipeline_abi.x pipeline_elf_ctx_data_poke_u8.
+ * PLATFORM: SHARED freestanding · ELF .data + Mach-O __DATA,__const.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest.
+ */
+int32_t pipeline_elf_ctx_data_poke_u8(uint8_t *ctx_bytes, int32_t off, int32_t b) {
+  if (!ctx_bytes || off < 0 || off >= g_pipeline_elf_data_len)
+    return -1;
+  g_pipeline_elf_data_buf[off] = (uint8_t)(b & 255);
+  return 0;
+}
+
+/* pipeline_elf_ctx_set_shndx_override: not defined in this TU.
+ * Callers use the extern. The body is the elf_ctx windows extra,
+ * same TU as add_sym. PLATFORM: WINDOWS. */
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — wave273 F7 */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after F7 */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L51688.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave154 FROM_X after F7 for leftover-PE append_reloc_absolute64 */
 
 /*
@@ -12269,19 +23861,144 @@ int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+extern int32_t pipeline_elf_ctx_append_reloc_typed(uint8_t *ctx_bytes, int32_t offset, uint8_t *name, int32_t name_len,
+                                                   int32_t r_type, int32_t r_pcrel);
+
+/* F7: Append an absolute 64-bit pointer relocation (data slot holding a symbol
+ * address). Mirrors .x pipeline_elf_ctx_append_reloc_absolute64. Sentinel
+ * r_type=200 (mapped by writers to ARM64_RELOC_UNSIGNED / R_X86_64_64 /
+ * R_AARCH64_ABS64 / R_RISCV_64) with r_pcrel=0. The untyped append_reloc
+ * defaults to a pc-relative branch reloc (Mach-O BRANCH26) which ld rejects on
+ * non-b/bl bytes; vtable static data slots need this absolute64 form instead.
+ * PLATFORM: SHARED — G.7 single authority for absolute64.
+ * PLATFORM: WINDOWS leftover-PE compiles this twin in FROM_X rest. */
+int32_t pipeline_elf_ctx_append_reloc_absolute64(uint8_t *ctx_bytes, int32_t offset,
+                                                 uint8_t *name, int32_t name_len) {
+  return pipeline_elf_ctx_append_reloc_typed(ctx_bytes, offset, name, name_len, 200, 0);
+}
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE append_reloc_absolute64 */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave154 FROM_X after leftover-PE append_reloc */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave178 FROM_X after leftover-PE append_reloc */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen wave273 after leftover-PE append_reloc */
+
+/** 返回 reloc_sym_names[idx] 首地址；越界返回 NULL（含 heap sidecar）。 */
+uint8_t *pipeline_elf_ctx_reloc_sym_name_ptr(uint8_t *ctx_bytes, int32_t idx) {
+  PipelineElfCtxAccess *ctx;
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
+    return NULL;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (idx >= ctx->num_relocs)
+    return NULL;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP)
+    return ctx->reloc_sym_names[idx].bytes;
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return NULL;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return NULL;
+  return g_pipeline_elf_reloc_sym_heap[hi];
+}
+
+/** Copy reloc_sym_names[idx] into dst (u8[128] content cap 255 + trailing zero region).
+ * Name kept as *copy64 for ABI stability; wave580 Cap raised payload 64→128.
+ * PLATFORM: SHARED — heap sidecar + inline reloc rows.
+ */
+void pipeline_elf_ctx_reloc_sym_name_copy64(uint8_t *ctx_bytes, int32_t idx, uint8_t *dst) {
+  PipelineElfCtxAccess *ctx;
+  int32_t k;
+  uint8_t *src;
+  if (!dst)
+    return;
+  memset(dst, 0, 256);
+  src = pipeline_elf_ctx_reloc_sym_name_ptr(ctx_bytes, idx);
+  if (!src)
+    return;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (!ctx || idx < 0 || idx >= ctx->num_relocs)
+    return;
+  for (k = 0; k < 128; k++)
+    dst[k] = src[k];
+}
+
+/** 读 relocs[idx].name_len（内联或 heap sidecar）。 */
+int32_t pipeline_elf_ctx_reloc_name_len(uint8_t *ctx_bytes, int32_t idx) {
+  PipelineElfCtxAccess *ctx;
+  int32_t hi;
+  if (!ctx_bytes || idx < 0)
+    return 0;
+  ctx = (PipelineElfCtxAccess *)ctx_bytes;
+  if (idx >= ctx->num_relocs)
+    return 0;
+  if (idx < PIPELINE_ELF_CTX_TABLE_CAP)
+    return ctx->relocs[idx].name_len;
+  if (g_pipeline_elf_reloc_sidecar_owner != ctx_bytes)
+    return 0;
+  hi = idx - PIPELINE_ELF_CTX_TABLE_CAP;
+  if (hi < 0 || hi >= PIPELINE_ELF_CTX_RELOC_HEAP_CAP)
+    return 0;
+  return g_pipeline_elf_reloc_heap[hi].name_len;
+}
+
+/* wave1240 dead code delete: pipeline_elf_ctx_diag_stderr removed — defined here
+ * but had zero callers across .c/.x/.h (was an asm .o failure diagnostic helper
+ * printing ElfCodegenCtx counts). Superseded by pipeline_elf_log_unresolved_patch
+ * below, which handles unresolved-patch diagnostics via the same PipelineElfCtxAccess
+ * layout. PLATFORM: SHARED. */
+
+void pipeline_elf_log_unresolved_patch(struct platform_elf_ElfCodegenCtx *ctx, int32_t patch_idx) {
+  PipelineElfCtxAccess *acc;
+  PipelineElfPatchEntry *p;
+  int32_t l;
+  int32_t hits;
+  if (!ctx || patch_idx < 0)
+    return;
+  acc = (PipelineElfCtxAccess *)(uint8_t *)ctx;
+  if (patch_idx >= acc->num_patches)
+    return;
+  p = &acc->patches[patch_idx];
+  hits = 0;
+  l = 0;
+  while (l < acc->num_labels) {
+    int32_t same = (acc->labels[l].name_len == p->name_len);
+    if (same && p->name_len > 0)
+      same = (memcmp(acc->labels[l].name, p->name, (size_t)p->name_len) == 0);
+    if (same)
+      hits = hits + 1;
+    l = l + 1;
+  }
+  diag_reportf(NULL, 0, 0, "note", NULL,
+               "elf unresolved patch_idx=%d label_hits=%d num_labels=%d",
+               (int)patch_idx, (int)hits, (int)acc->num_labels);
+}
+
+
+/* XLANG_PABI_ELF_CTX_THIN_END */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X — wave273 cold twins (reopen after leftover-PE append_reloc; WAVE273_ELF_DOMAIN_COLD closed before leftover-PE F7) */
+
+/* wave741: WAVE274 WPO cold twin lives in
+ * seeds/runtime_pipeline_abi_asm_wpo.from_x.c (FUNCS 4096). !FROM_X
+ * includes it here (complete ast_Func in this skip region). FROM_X rest
+ * skips this region; WAVE274_COLD include is after the skip. PLATFORM: SHARED. */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "runtime_pipeline_abi_asm_wpo.from_x.c"
 #endif
+
+
+
+
+
+
+
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave189+ block @25400 */
+
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* closes wave154 block @24153 */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WAVE274_COLD)
+#include "runtime_pipeline_abi_asm_wpo.from_x.c"
 #endif /* !FROM_X || WAVE274_COLD */
 
 
@@ -12300,6 +24017,549 @@ int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
 #define WAVE275_SIDECAR_POOL_COLD 1
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <stdlib.h>
+
+/* GrowVec + grow_vec_* already declared in this seed TU (wave271). */
+
+#define W275_ARENA_SC_SIZE 816
+#define W275_ARENA_SC_MAX 512
+#define W275_MODULE_SC_SIZE 432
+#define W275_MODULE_SC_MAX 512
+#define W275_ONEFUNC_SC_SIZE 944
+#define W275_ONEFUNC_SC_MAX 1024
+#define W275_GV_INIT_CAP 256
+
+static uint8_t g_w275_arena_sc_blob[W275_ARENA_SC_MAX * W275_ARENA_SC_SIZE];
+static uint8_t g_w275_module_sc_blob[W275_MODULE_SC_MAX * W275_MODULE_SC_SIZE];
+static uint8_t g_w275_onefunc_sc_blob[W275_ONEFUNC_SC_MAX * W275_ONEFUNC_SC_SIZE];
+/* Arena/module: 2-slot MRU. Onefunc: 16-slot ring + used_hi. */
+static void *g_w275_arena_last_key0;
+static uint8_t *g_w275_arena_last_sc0;
+static void *g_w275_arena_last_key1;
+static uint8_t *g_w275_arena_last_sc1;
+static void *g_w275_module_last_key0;
+static uint8_t *g_w275_module_last_sc0;
+static void *g_w275_module_last_key1;
+static uint8_t *g_w275_module_last_sc1;
+#define W275_ONEFUNC_MRU_N 16
+static void *g_w275_onefunc_mru_key[W275_ONEFUNC_MRU_N];
+static uint8_t *g_w275_onefunc_mru_sc[W275_ONEFUNC_MRU_N];
+static int g_w275_onefunc_mru_clock;
+static int g_w275_onefunc_used_hi;
+
+static uint8_t *w275_arena_sc_at(int i) {
+  if (i < 0 || i >= W275_ARENA_SC_MAX) return NULL;
+  return g_w275_arena_sc_blob + (size_t)i * W275_ARENA_SC_SIZE;
+}
+static uint8_t *w275_module_sc_at(int i) {
+  if (i < 0 || i >= W275_MODULE_SC_MAX) return NULL;
+  return g_w275_module_sc_blob + (size_t)i * W275_MODULE_SC_SIZE;
+}
+static uint8_t *w275_onefunc_sc_at(int i) {
+  if (i < 0 || i >= W275_ONEFUNC_SC_MAX) return NULL;
+  return g_w275_onefunc_sc_blob + (size_t)i * W275_ONEFUNC_SC_SIZE;
+}
+
+static int32_t w275_load_i32(uint8_t *b, int off) {
+  int32_t v;
+  memcpy(&v, b + off, 4);
+  return v;
+}
+static void w275_store_i32(uint8_t *b, int off, int32_t v) {
+  memcpy(b + off, &v, 4);
+}
+static void *w275_load_ptr(uint8_t *b, int off) {
+  void *p;
+  memcpy(&p, b + off, sizeof(void *));
+  return p;
+}
+static void w275_store_ptr(uint8_t *b, int off, void *p) {
+  memcpy(b + off, &p, sizeof(void *));
+}
+
+static int w275_sidecar_slot_ok(uint8_t *sc, void *key) {
+  return sc && w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key;
+}
+
+static uint8_t *w275_sidecar_recall(void *k0, uint8_t *s0, void *k1, uint8_t *s1, void *key) {
+  if (k0 == key && w275_sidecar_slot_ok(s0, key))
+    return s0;
+  if (k1 == key && w275_sidecar_slot_ok(s1, key))
+    return s1;
+  return NULL;
+}
+
+static void w275_sidecar_remember(void **k0, uint8_t **s0, void **k1, uint8_t **s1, void *key, uint8_t *sc) {
+  if (*k0 == key) {
+    *s0 = sc;
+    return;
+  }
+  *k1 = *k0;
+  *s1 = *s0;
+  *k0 = key;
+  *s0 = sc;
+}
+
+static void w275_sidecar_drop(void **k0, uint8_t **s0, void **k1, uint8_t **s1, uint8_t *sc) {
+  if (*s0 == sc) {
+    *k0 = NULL;
+    *s0 = NULL;
+  }
+  if (*s1 == sc) {
+    *k1 = NULL;
+    *s1 = NULL;
+  }
+}
+
+static uint8_t *w275_onefunc_mru_recall(void *key) {
+  int i;
+  for (i = 0; i < W275_ONEFUNC_MRU_N; i++) {
+    if (g_w275_onefunc_mru_key[i] == key &&
+        w275_sidecar_slot_ok(g_w275_onefunc_mru_sc[i], key))
+      return g_w275_onefunc_mru_sc[i];
+  }
+  return NULL;
+}
+
+static void w275_onefunc_mru_remember(void *key, uint8_t *sc) {
+  int i;
+  int slot;
+  for (i = 0; i < W275_ONEFUNC_MRU_N; i++) {
+    if (g_w275_onefunc_mru_key[i] == key) {
+      g_w275_onefunc_mru_sc[i] = sc;
+      return;
+    }
+  }
+  slot = g_w275_onefunc_mru_clock;
+  if (slot < 0 || slot >= W275_ONEFUNC_MRU_N)
+    slot = 0;
+  g_w275_onefunc_mru_key[slot] = key;
+  g_w275_onefunc_mru_sc[slot] = sc;
+  slot++;
+  if (slot >= W275_ONEFUNC_MRU_N)
+    slot = 0;
+  g_w275_onefunc_mru_clock = slot;
+}
+
+static void w275_onefunc_mru_drop(uint8_t *sc) {
+  int i;
+  for (i = 0; i < W275_ONEFUNC_MRU_N; i++) {
+    if (g_w275_onefunc_mru_sc[i] == sc) {
+      g_w275_onefunc_mru_key[i] = NULL;
+      g_w275_onefunc_mru_sc[i] = NULL;
+    }
+  }
+}
+
+static void w275_onefunc_shrink_hi(void) {
+  while (g_w275_onefunc_used_hi > 0) {
+    uint8_t *last = w275_onefunc_sc_at(g_w275_onefunc_used_hi - 1);
+    if (w275_load_i32(last, 8) != 0)
+      return;
+    g_w275_onefunc_used_hi--;
+  }
+}
+
+static void arena_sidecar_free_inner(uint8_t *sc) {
+  if (!sc) return;
+  w275_sidecar_drop(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
+                    &g_w275_arena_last_key1, &g_w275_arena_last_sc1, sc);
+  grow_vec_free((GrowVec *)(sc + 16));
+  grow_vec_free((GrowVec *)(sc + 48));
+  grow_vec_free((GrowVec *)(sc + 80));
+  grow_vec_free((GrowVec *)(sc + 112));
+  grow_vec_free((GrowVec *)(sc + 144));
+  grow_vec_free((GrowVec *)(sc + 176));
+  grow_vec_free((GrowVec *)(sc + 208));
+  grow_vec_free((GrowVec *)(sc + 240));
+  grow_vec_free((GrowVec *)(sc + 272));
+  grow_vec_free((GrowVec *)(sc + 304));
+  grow_vec_free((GrowVec *)(sc + 336));
+  grow_vec_free((GrowVec *)(sc + 368));
+  grow_vec_free((GrowVec *)(sc + 400));
+  grow_vec_free((GrowVec *)(sc + 432));
+  grow_vec_free((GrowVec *)(sc + 464));
+  grow_vec_free((GrowVec *)(sc + 496));
+  grow_vec_free((GrowVec *)(sc + 528));
+  grow_vec_free((GrowVec *)(sc + 560));
+  grow_vec_free((GrowVec *)(sc + 592));
+  grow_vec_free((GrowVec *)(sc + 624));
+  grow_vec_free((GrowVec *)(sc + 656));
+  grow_vec_free((GrowVec *)(sc + 688));
+  grow_vec_free((GrowVec *)(sc + 720));
+  grow_vec_free((GrowVec *)(sc + 752));
+  grow_vec_free((GrowVec *)(sc + 784));
+  memset(sc, 0, W275_ARENA_SC_SIZE);
+}
+void arena_sidecar_free(void *sc) { arena_sidecar_free_inner((uint8_t *)sc); }
+static void module_sidecar_free_inner(uint8_t *sc) {
+  if (!sc) return;
+  w275_sidecar_drop(&g_w275_module_last_key0, &g_w275_module_last_sc0,
+                    &g_w275_module_last_key1, &g_w275_module_last_sc1, sc);
+  grow_vec_free((GrowVec *)(sc + 16));
+  grow_vec_free((GrowVec *)(sc + 48));
+  grow_vec_free((GrowVec *)(sc + 80));
+  grow_vec_free((GrowVec *)(sc + 112));
+  grow_vec_free((GrowVec *)(sc + 144));
+  grow_vec_free((GrowVec *)(sc + 176));
+  grow_vec_free((GrowVec *)(sc + 208));
+  grow_vec_free((GrowVec *)(sc + 240));
+  grow_vec_free((GrowVec *)(sc + 272));
+  grow_vec_free((GrowVec *)(sc + 304));
+  grow_vec_free((GrowVec *)(sc + 336));
+  grow_vec_free((GrowVec *)(sc + 368));
+  grow_vec_free((GrowVec *)(sc + 400));
+  memset(sc, 0, W275_MODULE_SC_SIZE);
+}
+void module_sidecar_free(void *sc) { module_sidecar_free_inner((uint8_t *)sc); }
+static void onefunc_sidecar_free_inner(uint8_t *sc) {
+  if (!sc) return;
+  w275_onefunc_mru_drop(sc);
+  grow_vec_free((GrowVec *)(sc + 16));
+  grow_vec_free((GrowVec *)(sc + 48));
+  grow_vec_free((GrowVec *)(sc + 80));
+  grow_vec_free((GrowVec *)(sc + 112));
+  grow_vec_free((GrowVec *)(sc + 144));
+  grow_vec_free((GrowVec *)(sc + 176));
+  grow_vec_free((GrowVec *)(sc + 208));
+  grow_vec_free((GrowVec *)(sc + 240));
+  grow_vec_free((GrowVec *)(sc + 272));
+  grow_vec_free((GrowVec *)(sc + 304));
+  grow_vec_free((GrowVec *)(sc + 336));
+  grow_vec_free((GrowVec *)(sc + 368));
+  grow_vec_free((GrowVec *)(sc + 400));
+  grow_vec_free((GrowVec *)(sc + 432));
+  grow_vec_free((GrowVec *)(sc + 464));
+  grow_vec_free((GrowVec *)(sc + 496));
+  grow_vec_free((GrowVec *)(sc + 528));
+  grow_vec_free((GrowVec *)(sc + 560));
+  grow_vec_free((GrowVec *)(sc + 592));
+  grow_vec_free((GrowVec *)(sc + 624));
+  grow_vec_free((GrowVec *)(sc + 656));
+  grow_vec_free((GrowVec *)(sc + 688));
+  grow_vec_free((GrowVec *)(sc + 720));
+  grow_vec_free((GrowVec *)(sc + 752));
+  grow_vec_free((GrowVec *)(sc + 784));
+  grow_vec_free((GrowVec *)(sc + 816));
+  grow_vec_free((GrowVec *)(sc + 848));
+  grow_vec_free((GrowVec *)(sc + 880));
+  grow_vec_free((GrowVec *)(sc + 912));
+  memset(sc, 0, W275_ONEFUNC_SC_SIZE);
+  w275_onefunc_shrink_hi();
+}
+void onefunc_sidecar_free(void *sc) { onefunc_sidecar_free_inner((uint8_t *)sc); }
+void *arena_sidecar_get(void *key, int create) {
+  int i;
+  uint8_t *hit;
+  if (!key) return NULL;
+  hit = w275_sidecar_recall(g_w275_arena_last_key0, g_w275_arena_last_sc0,
+                            g_w275_arena_last_key1, g_w275_arena_last_sc1, key);
+  if (hit)
+    return hit;
+  for (i = 0; i < W275_ARENA_SC_MAX; i++) {
+    uint8_t *sc = w275_arena_sc_at(i);
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
+      w275_sidecar_remember(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
+                            &g_w275_arena_last_key1, &g_w275_arena_last_sc1, key, sc);
+      return sc;
+    }
+  }
+  if (!create) return NULL;
+  for (i = 0; i < W275_ARENA_SC_MAX; i++) {
+    uint8_t *sc = w275_arena_sc_at(i);
+    if (w275_load_i32(sc, 8) == 0) {
+      w275_store_ptr(sc, 0, key);
+      w275_store_i32(sc, 8, 1);
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)532, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)1224, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)92, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)324, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)268, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)268, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)12, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)268, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)8, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)16, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8 sync: W277_LabeledStmt is 528 (was 272 on 128-era names). */
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)528, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 432), (size_t)8, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 464), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 496), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 528), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 560), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 592), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 624), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 656), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 688), (size_t)24, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)264, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 752), (size_t)4, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)264, W275_GV_INIT_CAP)) {
+        arena_sidecar_free_inner(sc); return NULL;
+      }
+      w275_sidecar_remember(&g_w275_arena_last_key0, &g_w275_arena_last_sc0,
+                            &g_w275_arena_last_key1, &g_w275_arena_last_sc1, key, sc);
+      return sc;
+    }
+  }
+  return NULL;
+}
+void *module_sidecar_get(void *key, int create) {
+  int i;
+  uint8_t *hit;
+  if (!key) return NULL;
+  hit = w275_sidecar_recall(g_w275_module_last_key0, g_w275_module_last_sc0,
+                            g_w275_module_last_key1, g_w275_module_last_sc1, key);
+  if (hit)
+    return hit;
+  for (i = 0; i < W275_MODULE_SC_MAX; i++) {
+    uint8_t *sc = w275_module_sc_at(i);
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
+      w275_sidecar_remember(&g_w275_module_last_key0, &g_w275_module_last_sc0,
+                            &g_w275_module_last_key1, &g_w275_module_last_sc1, key, sc);
+      return sc;
+    }
+  }
+  if (!create) return NULL;
+  for (i = 0; i < W275_MODULE_SC_MAX; i++) {
+    uint8_t *sc = w275_module_sc_at(i);
+    if (w275_load_i32(sc, 8) == 0) {
+      w275_store_ptr(sc, 0, key);
+      w275_store_i32(sc, 8, 1);
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)324, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)4, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)532, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)288, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)276, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)264, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)66828, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8 sync: import_select_name_rows name[256] -> 256 (was 128;
+       * matches .x thin init; pool is vestigial — live select names use the
+       * wave263 legacy sidecar / g_pipe_imp_sel_rows tables). */
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)256, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)4, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8 sync: struct_layout_fields name[256] -> 264 (was 136). */
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)264, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8 sync: struct_layout_type_params name[256]+meta -> 272 (was 144). */
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)272, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8 sync: struct_layout_type_param_meta name[256]+len -> 260 (was 132). */
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)260, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)8, W275_GV_INIT_CAP)) {
+        module_sidecar_free_inner(sc); return NULL;
+      }
+      w275_sidecar_remember(&g_w275_module_last_key0, &g_w275_module_last_sc0,
+                            &g_w275_module_last_key1, &g_w275_module_last_sc1, key, sc);
+      return sc;
+    }
+  }
+  return NULL;
+}
+void *onefunc_sidecar_get(void *key, int create) {
+  int i;
+  int lim;
+  uint8_t *hit;
+  if (!key) return NULL;
+  hit = w275_onefunc_mru_recall(key);
+  if (hit)
+    return hit;
+  lim = g_w275_onefunc_used_hi;
+  if (lim < 0)
+    lim = 0;
+  if (lim > W275_ONEFUNC_SC_MAX)
+    lim = W275_ONEFUNC_SC_MAX;
+  for (i = 0; i < lim; i++) {
+    uint8_t *sc = w275_onefunc_sc_at(i);
+    if (w275_load_i32(sc, 8) && w275_load_ptr(sc, 0) == key) {
+      w275_onefunc_mru_remember(key, sc);
+      return sc;
+    }
+  }
+  if (!create) return NULL;
+  for (i = 0; i < W275_ONEFUNC_SC_MAX; i++) {
+    uint8_t *sc = w275_onefunc_sc_at(i);
+    if (w275_load_i32(sc, 8) == 0) {
+      w275_store_ptr(sc, 0, key);
+      w275_store_i32(sc, 8, 1);
+      if (i + 1 > g_w275_onefunc_used_hi)
+        g_w275_onefunc_used_hi = i + 1;
+      if (!grow_vec_init((GrowVec *)(sc + 16), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 48), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 80), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8: name rows 128→256 (content ≤255; was [128]). */
+      if (!grow_vec_init((GrowVec *)(sc + 112), (size_t)256, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 144), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 176), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 208), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 240), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 272), (size_t)256, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 304), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 336), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 368), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 400), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 432), (size_t)1, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 464), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 496), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 528), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 560), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 592), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 624), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 656), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 688), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 720), (size_t)256, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 752), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 784), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 816), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8 missed mirror: W281_RegionEntry is 268 (label[256]); the
+       * stale 140 stride made entry N+1's 268-byte write overlap entry N's
+       * tail — body_ref/with_arena_cap_ref (offsets 260/264) were smashed by
+       * label bytes, so consecutive unsafe/region statements lost all but
+       * the last (2026-09-13 L4 m5/m6/m9 forensics). */
+      if (!grow_vec_init((GrowVec *)(sc + 848), (size_t)268, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      if (!grow_vec_init((GrowVec *)(sc + 880), (size_t)4, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      /* Cap 4.2.8: W281_LabeledEntry 272→528 (label[256] + goto_target[256]). */
+      if (!grow_vec_init((GrowVec *)(sc + 912), (size_t)528, W275_GV_INIT_CAP)) {
+        onefunc_sidecar_free_inner(sc); return NULL;
+      }
+      w275_onefunc_mru_remember(key, sc);
+      return sc;
+    }
+  }
+  return NULL;
+}
+
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC */
 /* XLANG_PABI_SIDECAR_POOL_THIN_END */
 #endif /* WAVE275_SIDECAR_POOL_COLD */
@@ -12578,6 +24838,8 @@ void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi) {
  * PLATFORM: SHARED freestanding arena Cap leave cold twins.
  * ============================================================================= */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L55537.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* close wave276 FROM_X for leftover-PE glue_arena_expr_at_ref unique */
 
 /*
@@ -12604,9 +24866,12 @@ void glue_i64_to_f64_bits(int64_t v, int32_t *lo, int32_t *hi) {
  */
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) \
     || defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
+void *glue_arena_expr_at_ref(void *a, int32_t expr_ref) { return pipeline_arena_expr_ptr(a, expr_ref); }
 #endif /* !FROM_X || WIN_LEFTOVER_GROW_VEC — leftover-PE glue_arena_expr_at_ref unique */
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X /* reopen remaining wave276 FROM_X after leftover-PE glue_arena unique */
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L55861.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* XLANG_RUNTIME_PIPELINE_ABI_FROM_X */ /* remaining wave276 after leftover-PE glue_arena unique */
 /* =============================================================================
  * WAVE277 ALWAYS: ast_pool_block domain Cap residual (host leaf deleted).
@@ -13330,12 +25595,18 @@ W277_LabeledStmt *pipeline_block_labeled_ptr(void *a, int32_t br, int32_t li) {
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li);
 #else
-int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
+int32_t pipeline_block_labeled_return_expr_ref(void *a, int32_t br, int32_t li) {
+  W277_Sidecar *sc;
   W277_Block *b;
-  if (!a || br <= 0) return 0;
-  b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_stmt_order;
+  W277_LabeledStmt *ls;
+  int32_t abs;
+  if (!a || !(sc = arena_sidecar_get(a, 0)) || !(b = w277_block_at(a, br)))
+    return 0;
+  if (li < 0 || li >= b->num_labeled_stmts)
+    return 0;
+  abs = b->labeled_base + li;
+  ls = (W277_LabeledStmt *)grow_vec_at(&sc->labeled_stmts, abs);
+  return ls ? (int32_t)ls->return_expr_ref : 0;
 }
 #endif
 
@@ -13344,8 +25615,11 @@ int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br);
 #else
-uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
-  return pipeline_block_stmt_order_kind(a, br, si);
+int32_t pipeline_block_num_labeled_stmts(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || !(b = w277_block_at(a, br)))
+    return 0;
+  return b->num_labeled_stmts;
 }
 #endif
 
@@ -14346,12 +26620,115 @@ void pipeline_block_with_arena_fixup_stmt_order(void *a, int32_t br) {
  * egg as well. This body stays when either macro is unset.
  */
 #else
-int32_t ast_ast_block_num_regions(void *a, int32_t br) {
+void pipeline_block_stmt_order_rebuild_sparse_ifs(void *a, int32_t br) {
   W277_Block *b;
-  if (!a || br <= 0) return 0;
+  W277_Sidecar *sc;
+  W277_StmtOrderItem neu[512];
+  int32_t nso;
+  int32_t nif;
+  int32_t i;
+  int32_t j;
+  int32_t nn;
+  int32_t if_in_order;
+  int32_t emitted_ifs;
+  int32_t abs;
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
+  if (!a || br <= 0)
+    return;
   b = w277_block_at(a, br);
-  if (!b) return 0;
-  return b->num_regions;
+  sc = arena_sidecar_get(a, 1);
+  if (!b || !sc || b->num_if_stmts <= 0) {
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
+    return;
+  }
+  nso = b->num_stmt_order;
+  nif = b->num_if_stmts;
+  if (nso > 512)
+    return;
+  if_in_order = 0;
+  for (i = 0; i < nso; i++) {
+    uint8_t k0 = pipeline_block_stmt_order_kind(a, br, i);
+    if (k0 == 5)
+      if_in_order++;
+    /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
+  }
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
+  if (if_in_order >= nif)
+    return;
+  nn = 0;
+  emitted_ifs = 0;
+  for (i = 0; i < nso; i++) {
+    uint8_t k = pipeline_block_stmt_order_kind(a, br, i);
+    int32_t idx = pipeline_block_stmt_order_idx(a, br, i);
+    /*
+     * Drop kind=2 only when stmt_order already lists some ifs (kind=5): those
+     * kind=2 rows are mis-parsed cond fragments beside partial if entries.
+     * When if_in_order==0, kind=2 is often a real fallthrough `return` /
+     * expr_stmt — dropping it left only prepended/appended ifs and lost the
+     * trailing return (Windows leftover-PE ifelse → wrong exit / empty body).
+     * PLATFORM: SHARED · G.7 single sparse-if rebuild authority.
+     */
+    if (k == 2 && if_in_order > 0)
+      continue;
+    if (k == 5) {
+      if (emitted_ifs == 0) {
+        for (j = 0; j < nif; j++) {
+          if (nn >= 512)
+            return;
+          neu[nn].kind = 5;
+          neu[nn].idx = j;
+          nn++;
+        }
+        emitted_ifs = 1;
+      }
+      continue;
+    }
+    if (nn >= 512)
+      return;
+    neu[nn].kind = k;
+    neu[nn].idx = idx;
+    nn++;
+  }
+  if (emitted_ifs == 0) {
+    /*
+     * No if slot in the preserved order: put full if set FIRST, then the
+     * preserved non-if stmts (e.g. fallthrough return). Appending ifs after
+     * a leading return made emit_block run `return` before `if`.
+     * PLATFORM: SHARED.
+     */
+    W277_StmtOrderItem saved[512];
+    int32_t sn;
+    int32_t si;
+    sn = nn;
+    if (sn > 512)
+      return;
+    for (si = 0; si < sn; si++)
+      saved[si] = neu[si];
+    nn = 0;
+    for (j = 0; j < nif; j++) {
+      if (nn >= 512)
+        return;
+      neu[nn].kind = 5;
+      neu[nn].idx = j;
+      nn++;
+    }
+    for (si = 0; si < sn; si++) {
+      if (nn >= 512)
+        return;
+      neu[nn] = saved[si];
+      nn++;
+    }
+  }
+  abs = b->stmt_order_base;
+  if (abs < 0)
+    return;
+  b->num_stmt_order = nn;
+  for (i = 0; i < nn; i++) {
+    W277_StmtOrderItem *so = (W277_StmtOrderItem *)grow_vec_at(&sc->stmt_order, abs + i);
+    if (so)
+      *so = neu[i];
+  }
+  /* Class AW: Cap XLANG_ASM_DEBUG note retired. */
 }
 #endif
 
@@ -14439,95 +26816,60 @@ void ast_ast_arena_patch_block_parent_links(void *arena, int32_t block_ref, int3
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_consts(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_consts(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_consts;
 }
 #endif
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_lets(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_lets(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_lets;
 }
 #endif
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_loops(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_loops(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_loops;
 }
 #endif
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_for_loops(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_for_loops(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_for_loops;
 }
 #endif
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_if_stmts(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_if_stmts(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_if_stmts;
 }
 #endif
 /** M-3: typeck/codegen.x reads Block.num_regions via ast_ prefix. */
@@ -14535,19 +26877,12 @@ int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_regions(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_regions(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_regions;
 }
 #endif
 int32_t ast_ast_block_region_body_ref(void *a, int32_t br, int32_t ri) {
@@ -14557,57 +26892,32 @@ int32_t ast_ast_block_region_body_ref(void *a, int32_t br, int32_t ri) {
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_expr_stmts(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_expr_stmts;
 }
 #endif
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern int32_t ast_ast_block_num_stmt_order(void *a, int32_t br);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+int32_t ast_ast_block_num_stmt_order(void *a, int32_t br) {
+  W277_Block *b;
+  if (!a || br <= 0) return 0;
+  b = w277_block_at(a, br);
+  if (!b) return 0;
+  return b->num_stmt_order;
 }
 #endif
 #if defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X) && defined(XLANG_RUNTIME_PIPELINE_ABI_WIN_LEFTOVER_GROW_VEC)
 /* w1683 PLATFORM: WINDOWS leftover. The .x thin in the egg owns this symbol. A same-TU definition hides that thin. */
 extern uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si);
 #else
-int32_t pipeline_expr_kind_ord_at(void *a, int32_t expr_ref) {
-  void *ex;
-  int32_t nexprs;
-  if (!a || expr_ref <= 0)
-    return -1;
-  nexprs = w284_arena_num_exprs(a);
-  if (expr_ref > nexprs)
-    return -1;
-  ex = pipeline_arena_expr_ptr(a, expr_ref);
-  if (!ex)
-    return -1;
-  /* Expr.kind @0 LE i32 (W278 / pure LE). */
-  return w284_load_i32(ex, 0);
+uint8_t ast_ast_block_stmt_order_kind(void *a, int32_t br, int32_t si) {
+  return pipeline_block_stmt_order_kind(a, br, si);
 }
 #endif
 /* PLATFORM: SHARED, including WINDOWS leftover.
@@ -21730,6 +34040,8 @@ struct parser_ParseIntoResult pipeline_parse_into_with_init_buf(struct ast_ASTAr
 
 /* Cold twins for pure-owned strong symbols (not under FROM_X prefer). */
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L64640.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* !FROM_X pure dual cold */
 
 struct parser_ParseIntoResult pipeline_parse_into_with_init_buf_c(struct ast_ASTArena *arena, struct ast_Module *module,
@@ -21885,6 +34197,7 @@ void parser_diagnostic_parse_func_generic(int32_t byte_pos, int32_t num_funcs_so
 }
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+size_t pipeline_sizeof_dep_ctx(void) { return W284_DEP_CTX_SZ; }
 #endif
 size_t pipeline_sizeof_onefunc_result(void) { return W284_ONEFUNC_RESULT_SZ; }
 size_t pipeline_arena_offset_num_types(void) { return W284_ARENA_OFF_NUM_TYPES; }
@@ -21938,6 +34251,16 @@ void driver_diagnostic_entry_block_after_parse(void *mod, void *arena) {
 }
 
 #ifndef XLANG_RUNTIME_PIPELINE_ABI_FROM_X
+XLANG_WEAK int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
+                                                      uint8_t *source_data, int32_t source_len,
+                                                      struct ast_PipelineDepCtx *ctx) {
+  return pipeline_lsp_diag_parse_typeck_buf_impl_c(module, arena, source_data, source_len, ctx);
+}
+XLANG_WEAK int32_t pipeline_typeck_after_parse_ok(struct ast_ASTArena *arena, struct ast_Module *module,
+                                                  struct xlang_slice_uint8_t *source,
+                                                  struct ast_PipelineDepCtx *ctx) {
+  return pipeline_typeck_after_parse_ok_impl_c(arena, module, source, ctx);
+}
 #else
 /* Prefer: strong default bodies for faces pure does not own. */
 int32_t pipeline_lsp_diag_parse_typeck_buf(struct ast_Module *module, struct ast_ASTArena *arena,
@@ -22157,6 +34480,8 @@ int32_t typeck_x_type_align_from_layout_glue(void *module, void *arena, int32_t 
 #endif /* XLANG_PABI_TYPECK_ORCH_ASM */
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L65094.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* XLANG_PABI_TYPECK_ORCH_THIN_END */
@@ -22634,6 +34959,8 @@ XLANG_WEAK int32_t check_expr_impl(void *module, void *arena, int32_t expr_ref, 
 }
 
 #if !defined(XLANG_RUNTIME_PIPELINE_ABI_FROM_X)
+#include "../../analysis/archive/runtime_pipeline_abi/cold_L65617.inc"
+/* Class CD: cold twin body lives in analysis/archive/runtime_pipeline_abi/. Product FROM_X does not include it. */
 #endif /* !XLANG_RUNTIME_PIPELINE_ABI_FROM_X */
 
 /* XLANG_PABI_TYPECK_CHECK_EXPR_THIN_END */
