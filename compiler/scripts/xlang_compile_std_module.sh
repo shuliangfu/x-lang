@@ -1810,6 +1810,88 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/backtrace/backtrace.x|std/backtrace/backtrace.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.backtrace (记241).
+      # -lib-name "" keeps backtrace_f_backtrace_v1/v2_marker_c. Fail-closed.
+      _btx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_btx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/btx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?backtrace_f_backtrace_v1_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?backtrace_f_backtrace_v2_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/btx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/runtime/mod.x|std/runtime/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.runtime mod.x (记241).
+      # Tip emits std_runtime_*; formal_surface ensure already .x. Bare
+      # module.sh still -x -E→cc. Fail-closed; Windows keeps C.
+      _rtm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rtm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/rtm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_ready$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_abort$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_diag_enabled$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/rtm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/mod.x|std/compress/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress mod.x (记241).
+      # Tip emits std_compress_*; formal_surface ensure already .x. Bare
+      # module.sh still -x -E→cc. Fail-closed; Windows keeps C.
+      _cpm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cpm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/cpm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_compress_init$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_compress_end$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_available$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cpm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/regex/mod.x|std/regex/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex mod.x (记240).
       # Tip asm emits std_regex_*; product regex.x already fail-closed in
