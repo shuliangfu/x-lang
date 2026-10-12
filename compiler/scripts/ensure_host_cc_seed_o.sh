@@ -5963,6 +5963,13 @@ ensure_one() {
     return 0
   fi
 
+  # w1524 / knife 256 (10.2): call_dispatch C seed deleted; full .x pure-asm.
+  # Must run BEFORE missing-seed exit. PLATFORM: SHARED.
+  if [ "$out" = "src/asm/backend_call_dispatch.o" ]; then
+    ensure_call_dispatch_full_x || return 1
+    return 0
+  fi
+
   # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
   # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
   # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
@@ -14845,7 +14852,17 @@ try_ensure_r3_cold_one() {
       try_inline_x_plus_k_call_elf || return 1
     return 0
   fi
+  # w1524 / knife 256 (10.2): call_dispatch seed deleted; full .x pure-asm.
+  if [ "$o" = "src/asm/backend_call_dispatch.o" ]; then
+    ensure_call_dispatch_full_x || return 1
+    return 0
+  fi
   seed="$(seed_for_o "$o")"
+  # Deleted-seed R3 leaves: prefer helper owns the pure-asm body (no C fallback).
+  if [ ! -f "$seed" ]; then
+    ensure_r3_prefer_one "$o" || return 1
+    return 0
+  fi
   ensure_one "$o" "$seed"
   return 0
 }
