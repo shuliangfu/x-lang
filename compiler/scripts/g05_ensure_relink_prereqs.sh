@@ -4686,19 +4686,28 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _px_rc=0
   g05_parser_x_needs_host_cc || _px_rc=$?
   if [ "$_px_rc" -eq 2 ] || [ "$_px_rc" -eq 0 ]; then
-    # knife256 / 10.2: stamp≠.o, missing stamp (Track L), or gen newer —
-    # drop and tip pure-asm; never host-cc. PLATFORM: SHARED.
-    echo "g05_ensure: parser_x needs pure-asm (rc=$_px_rc); drop+rebuild (no host-cc)"
+    # knife256 / 10.2: prefer tip pure-asm over Track L. If tip/product cannot
+    # emit parser.x (CG002 / egg abort), keep/restore Track L archaeology so
+    # phase1/g05 link still proceeds; L2 P001 is then a separate root-fix.
+    # PLATFORM: SHARED.
+    echo "g05_ensure: parser_x needs pure-asm (rc=$_px_rc); try tip pure-asm (no host-cc)"
+    _px_had_trackl=0
+    [ -f parser_x.o ] && [ ! -f parser_x.pure_asm ] && _px_had_trackl=1
     rm -f parser_x.o parser_x.pure_asm
-    if ! bash scripts/ensure_gen_x_o.sh parser_x; then
-      echo "g05_ensure: parser_x.o pure-asm rebuild failed" >&2
-      exit 1
+    if bash scripts/ensure_gen_x_o.sh parser_x && g05_stamp_parser_x_pure_asm .; then
+      echo "g05_ensure: parser_x.o <- tip pure-asm OK"
+      _px_rc=1
+    else
+      echo "g05_ensure: parser_x pure-asm failed; restore Track L cold seed (egg cannot emit parser.x)" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh parser_x.o >&2; then
+        echo "g05_ensure: parser_x.o Track L restore failed" >&2
+        exit 1
+      fi
+      [ -f parser_x.o ] || { echo "g05_ensure: parser_x.o missing after Track L restore" >&2; exit 1; }
+      echo "g05_ensure: parser_x.o kept via Track L (no pure_asm stamp; tip emit blocked)"
+      _px_rc=1
     fi
-    if ! g05_stamp_parser_x_pure_asm .; then
-      echo "g05_ensure: parser_x.o pure-asm stamp after rebuild failed" >&2
-      exit 1
-    fi
-    _px_rc=1
   fi
   if g05_parser_x_pure_asm_kept; then
     echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
@@ -4752,19 +4761,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _tgx_rc=0
   g05_frontend_x_needs_host_cc . typeck_x || _tgx_rc=$?
   if [ "$_tgx_rc" -eq 2 ]; then
-    # knife256 / 10.2: same as parser — stamp≠.o → drop+pure-asm, never host-cc.
+    # knife256 / 10.2: tip pure-asm first; Track L restore if tip cannot emit.
     # PLATFORM: SHARED.
-    echo "g05_ensure: typeck_x.pure_asm≠typeck_x.o; drop+pure-asm rebuild (no host-cc)"
+    echo "g05_ensure: typeck_x needs pure-asm (rc=2); try tip pure-asm (no host-cc)"
     rm -f typeck_x.o typeck_x.pure_asm
-    if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
-      echo "g05_ensure: typeck_x.o pure-asm rebuild after stamp mismatch failed" >&2
-      exit 1
+    if bash scripts/ensure_gen_x_o.sh typeck_x && g05_stamp_frontend_x_pure_asm . typeck_x; then
+      echo "g05_ensure: typeck_x.o <- tip pure-asm OK"
+      _tgx_rc=1
+    else
+      echo "g05_ensure: typeck_x pure-asm failed; restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
+        echo "g05_ensure: typeck_x.o Track L restore failed" >&2
+        exit 1
+      fi
+      [ -f typeck_x.o ] || { echo "g05_ensure: typeck_x.o missing after Track L restore" >&2; exit 1; }
+      echo "g05_ensure: typeck_x.o kept via Track L (tip emit blocked)"
+      _tgx_rc=1
     fi
-    if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
-      echo "g05_ensure: typeck_x.o pure-asm stamp after mismatch rebuild failed" >&2
-      exit 1
-    fi
-    _tgx_rc=1
   fi
   if [ "$_tgx_rc" -eq 1 ] && g05_frontend_x_pure_asm_kept . typeck_x; then
     echo "g05_ensure: typeck_x.o kept (pure-asm stamp matches; no host-cc)"
@@ -4812,19 +4826,24 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _cgx_rc=0
   g05_frontend_x_needs_host_cc . codegen_x || _cgx_rc=$?
   if [ "$_cgx_rc" -eq 2 ]; then
-    # knife256 / 10.2: same as parser — stamp≠.o → drop+pure-asm, never host-cc.
+    # knife256 / 10.2: tip pure-asm first; Track L restore if tip cannot emit.
     # PLATFORM: SHARED.
-    echo "g05_ensure: codegen_x.pure_asm≠codegen_x.o; drop+pure-asm rebuild (no host-cc)"
+    echo "g05_ensure: codegen_x needs pure-asm (rc=2); try tip pure-asm (no host-cc)"
     rm -f codegen_x.o codegen_x.pure_asm
-    if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
-      echo "g05_ensure: codegen_x.o pure-asm rebuild after stamp mismatch failed" >&2
-      exit 1
+    if bash scripts/ensure_gen_x_o.sh codegen_x && g05_stamp_frontend_x_pure_asm . codegen_x; then
+      echo "g05_ensure: codegen_x.o <- tip pure-asm OK"
+      _cgx_rc=1
+    else
+      echo "g05_ensure: codegen_x pure-asm failed; restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh codegen_x.o >&2; then
+        echo "g05_ensure: codegen_x.o Track L restore failed" >&2
+        exit 1
+      fi
+      [ -f codegen_x.o ] || { echo "g05_ensure: codegen_x.o missing after Track L restore" >&2; exit 1; }
+      echo "g05_ensure: codegen_x.o kept via Track L (tip emit blocked)"
+      _cgx_rc=1
     fi
-    if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
-      echo "g05_ensure: codegen_x.o pure-asm stamp after mismatch rebuild failed" >&2
-      exit 1
-    fi
-    _cgx_rc=1
   fi
   if [ "$_cgx_rc" -eq 0 ]; then
     # gen.c is newer and there is no pure-asm stamp. The object stays.
