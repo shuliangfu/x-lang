@@ -76,11 +76,72 @@ _asm_typeck_m8_tail_thin_delegate_c_name:
 _asm_wpo_collect_walk:
 	mov	w0, #0
 	ret
+	/* knife256/10.2: body_sync k==2 → emit_expr (covers return). Strong. */
 	.globl _backend_emit_block_body_sync_elf
-	.weak_definition _backend_emit_block_body_sync_elf
 _backend_emit_block_body_sync_elf:
+	cbz	x0, Lsync_fail
+	cbz	x1, Lsync_fail
+	stp	x29, x30, [sp, #-0x50]!
+	mov	x29, sp
+	stp	x19, x20, [sp, #0x10]
+	stp	x21, x22, [sp, #0x20]
+	stp	x23, x24, [sp, #0x30]
+	str	x25, [sp, #0x40]
+	mov	x19, x0
+	mov	x20, x1
+	mov	w21, w2
+	mov	x22, x3
+	mov	w23, w4
+	mov	x0, x19
+	mov	w1, w21
+	bl	_ast_ast_block_num_stmt_order
+	mov	w24, w0
+	mov	w25, #0
+Lsync_loop:
+	cmp	w25, w24
+	b.ge	Lsync_ok
+	mov	x0, x19
+	mov	w1, w21
+	mov	w2, w25
+	bl	_ast_ast_block_stmt_order_kind
+	cmp	w0, #2
+	b.ne	Lsync_next
+	mov	x0, x19
+	mov	w1, w21
+	mov	w2, w25
+	bl	_ast_ast_block_stmt_order_idx
+	mov	w2, w0
+	mov	x0, x19
+	mov	w1, w21
+	bl	_ast_pipeline_block_expr_stmt_ref
+	cmp	w0, #0
+	b.le	Lsync_next
+	mov	w2, w0
+	mov	x0, x19
+	mov	x1, x20
+	mov	x3, x22
+	mov	w4, w23
+	bl	_pipeline_asm_emit_expr_elf_c
+	cbnz	w0, Lsync_fail_fr
+Lsync_next:
+	add	w25, w25, #1
+	b	Lsync_loop
+Lsync_ok:
 	mov	w0, #0
+	b	Lsync_ret
+Lsync_fail_fr:
+	mov	w0, #-1
+Lsync_ret:
+	ldr	x25, [sp, #0x40]
+	ldp	x23, x24, [sp, #0x30]
+	ldp	x21, x22, [sp, #0x20]
+	ldp	x19, x20, [sp, #0x10]
+	ldp	x29, x30, [sp], #0x50
 	ret
+Lsync_fail:
+	mov	w0, #-1
+	ret
+
 	.globl _glue_copy_large_struct_from_rax_ptr_elf_c
 	.weak_definition _glue_copy_large_struct_from_rax_ptr_elf_c
 _glue_copy_large_struct_from_rax_ptr_elf_c:
@@ -132,14 +193,48 @@ _pipeline_asm_emit_assign_elf_c:
 	mov	w0, #0
 	ret
 	.globl _pipeline_asm_emit_block_body_sync_elf
-	.weak_definition _pipeline_asm_emit_block_body_sync_elf
 _pipeline_asm_emit_block_body_sync_elf:
-	mov	w0, #0
-	ret
+	b	_backend_emit_block_body_sync_elf
+	/* knife256/10.2: INT_LIT/BOOL → enc_mov_imm32; else -99 (RETURN→impl).
+	 * tip backend_emit_expr_elf is no-op; slow path cannot save hello. Strong. */
 	.globl _pipeline_asm_emit_expr_elf_fast
-	.weak_definition _pipeline_asm_emit_expr_elf_fast
 _pipeline_asm_emit_expr_elf_fast:
-	mov	w0, #0
+	cbz	x0, Lfast_unh
+	cbz	x1, Lfast_unh
+	cmp	w2, #0
+	b.le	Lfast_unh
+	stp	x29, x30, [sp, #-0x30]!
+	mov	x29, sp
+	stp	x19, x20, [sp, #0x10]
+	stp	x21, x22, [sp, #0x20]
+	mov	x19, x0
+	mov	x20, x1
+	mov	w21, w2
+	mov	w22, w4
+	mov	x0, x19
+	mov	w1, w21
+	bl	_pipeline_expr_kind_ord_at
+	cmp	w0, #0
+	b.eq	Lfast_lit
+	cmp	w0, #2
+	b.eq	Lfast_lit
+	mov	w0, #-99
+	b	Lfast_ret
+Lfast_lit:
+	mov	x0, x19
+	mov	w1, w21
+	bl	_pipeline_expr_int_val_at
+	mov	w1, w0
+	mov	x0, x20
+	mov	w2, w22
+	bl	_backend_enc_mov_imm32_to_w0_arch
+Lfast_ret:
+	ldp	x21, x22, [sp, #0x20]
+	ldp	x19, x20, [sp, #0x10]
+	ldp	x29, x30, [sp], #0x30
+	ret
+Lfast_unh:
+	mov	w0, #-99
 	ret
 	.globl _pipeline_asm_emit_expr_elf_for_call_args
 	.weak_definition _pipeline_asm_emit_expr_elf_for_call_args
@@ -151,11 +246,53 @@ _pipeline_asm_emit_expr_elf_for_call_args:
 _pipeline_asm_emit_lvalue_eff_addr_elf_c:
 	mov	w0, #0
 	ret
+	/* knife256/10.2: return_elf_impl emits operand via emit_expr_elf_c.
+	 * Hollow mov#0 left main without mov w0. Strong. PLATFORM: MACOS. */
 	.globl _pipeline_asm_emit_return_elf_impl
-	.weak_definition _pipeline_asm_emit_return_elf_impl
 _pipeline_asm_emit_return_elf_impl:
+	/* x0=arena x1=elf_ctx w2=expr_ref x3=ctx w4=ta */
+	cbz	x0, Lret_fail
+	cbz	x1, Lret_fail
+	cbz	x3, Lret_fail
+	cmp	w2, #0
+	b.le	Lret_fail
+	stp	x29, x30, [sp, #-0x40]!
+	mov	x29, sp
+	stp	x19, x20, [sp, #0x10]
+	stp	x21, x22, [sp, #0x20]
+	str	x23, [sp, #0x30]
+	mov	x19, x0
+	mov	x20, x1
+	mov	w21, w2
+	mov	x22, x3
+	mov	w23, w4
+	mov	x0, x19
+	mov	w1, w21
+	bl	_pipeline_expr_unary_operand_ref_at
+	cbz	w0, Lret_ok
+	mov	w2, w0
+	mov	x0, x19
+	mov	x1, x20
+	mov	x3, x22
+	mov	w4, w23
+	bl	_pipeline_asm_emit_expr_elf_c
+	cbnz	w0, Lret_fail_frame
+Lret_ok:
 	mov	w0, #0
+	ldr	x23, [sp, #0x30]
+	ldp	x21, x22, [sp, #0x20]
+	ldp	x19, x20, [sp, #0x10]
+	ldp	x29, x30, [sp], #0x40
 	ret
+Lret_fail_frame:
+	ldr	x23, [sp, #0x30]
+	ldp	x21, x22, [sp, #0x20]
+	ldp	x19, x20, [sp, #0x10]
+	ldp	x29, x30, [sp], #0x40
+Lret_fail:
+	mov	w0, #-1
+	ret
+
 	.globl _pipeline_asm_emit_struct_let_init_elf_c
 	.weak_definition _pipeline_asm_emit_struct_let_init_elf_c
 _pipeline_asm_emit_struct_let_init_elf_c:
@@ -186,36 +323,220 @@ _pipeline_asm_index_elem_byte_sz_c:
 _pipeline_asm_simd_try_inline_splat_call_elf_c:
 	mov	w0, #0
 	ret
+	/* knife256/10.2: identity emit-order (Win wpo_pgo_emit_thin twin).
+	 * Zero stubs made emit_n=0 → code_len=0 → reject_empty → CG002 despite
+	 * num_funcs≥1. count→pipeline_module_num_funcs; at(i)=i; prepare no-op.
+	 * mega_emit_one skips extern. PLATFORM: MACOS phase1 hollow. */
 	.globl _pipeline_asm_wpo_pgo_emit_order_at
 	.weak_definition _pipeline_asm_wpo_pgo_emit_order_at
 _pipeline_asm_wpo_pgo_emit_order_at:
-	mov	w0, #0
+	mov	w0, w1
 	ret
 	.globl _pipeline_asm_wpo_pgo_emit_order_count
 	.weak_definition _pipeline_asm_wpo_pgo_emit_order_count
 _pipeline_asm_wpo_pgo_emit_order_count:
-	mov	w0, #0
-	ret
+	b	_pipeline_module_num_funcs
 	.globl _pipeline_asm_wpo_pgo_emit_order_prepare
 	.weak_definition _pipeline_asm_wpo_pgo_emit_order_prepare
 _pipeline_asm_wpo_pgo_emit_order_prepare:
-	mov	w0, #0
+	ret
+	/* knife256/10.2: strong Mach-O writer (pabi_strong_writer twin).
+	 * asm_full_link_stubs + weak pabi both return -1 / weak; Darwin ld
+	 * first-weak-won the -1 stub → macho_write=-1 out_len=0 after emit_order
+	 * identity fixed code_len>0. Forward to pipeline_macho_write_o_to_buf_c
+	 * (real body in pabi). Keep STRONG — excluded from weaken below.
+	 * PLATFORM: MACOS phase1 hollow. */
+	.globl _platform_macho_write_macho_o_to_buf
+_platform_macho_write_macho_o_to_buf:
+	cbz	x0, 1f
+	cbz	x1, 1f
+	b	_pipeline_macho_write_o_to_buf_c
+1:
+	mov	w0, #-1
 	ret
 	.globl _pipeline_elf_ctx_add_common_sym
 	.weak_definition _pipeline_elf_ctx_add_common_sym
 _pipeline_elf_ctx_add_common_sym:
 	mov	w0, #0
 	ret
+	/* knife256/10.2: real add_label/add_sym (hollow zero stubs → nsyms=0).
+	 * Strong — excluded from weaken. Call live egg helpers. Append-only
+	 * (no rename search) is enough for phase1 hello; duplicate name updates
+	 * offset like elf_ctx_thin. PLATFORM: MACOS phase1. */
 	.globl _pipeline_elf_ctx_add_label
-	.weak_definition _pipeline_elf_ctx_add_label
 _pipeline_elf_ctx_add_label:
+	cbz	x0, 9f
+	cbz	x1, 9f
+	tbnz	w2, #31, 9f
+	stp	x29, x30, [sp, #-0x50]!
+	mov	x29, sp
+	stp	x19, x20, [sp, #0x10]
+	stp	x21, x22, [sp, #0x20]
+	stp	x23, x24, [sp, #0x30]
+	str	x25, [sp, #0x40]
+	mov	x19, x0
+	mov	x20, x1
+	mov	w21, w2
+	mov	w22, w3
+	bl	_pipe_elf_current_shndx
+	mov	w23, w0
+	mov	x0, x19
+	bl	_pipe_elf_off_num_labels
+	mov	w24, w0
+	mov	x0, x19
+	mov	w1, w24
+	bl	_pipe_load_i32_le
+	mov	w25, w0
+	mov	x0, x19
+	bl	_pipe_elf_label_cap
+	cmp	w25, w0
+	b.ge	8f
+	mov	x0, x19
+	mov	w1, w25
+	bl	_pipe_elf_label_at
+	mov	x1, x0
+	/* name at lab+0; len at +256; offset at +260 */
+	cmp	w21, #255
+	csel	w2, w21, wzr, le
+	mov	w3, #255
+	cmp	w21, #255
+	csel	w2, w3, w21, gt
+	cmp	w2, #0
+	b.le	1f
+	mov	x0, x1
+	mov	x3, x20
+	mov	w4, w2
+0:
+	ldrb	w5, [x3], #1
+	strb	w5, [x0], #1
+	subs	w4, w4, #1
+	b.ne	0b
+1:
+	mov	w0, #256
+	str	w2, [x1, w0, sxtw]
+	mov	w0, #260
+	str	w22, [x1, w0, sxtw]
+	mov	x0, x19
+	mov	w1, w25
+	mov	w2, w23
+	bl	_pipe_elf_label_shndx_set
+	add	w2, w25, #1
+	mov	x0, x19
+	mov	w1, w24
+	bl	_pipe_store_i32_le
 	mov	w0, #0
+	b	7f
+8:
+	mov	w0, #-1
+7:
+	ldr	x25, [sp, #0x40]
+	ldp	x23, x24, [sp, #0x30]
+	ldp	x21, x22, [sp, #0x20]
+	ldp	x19, x20, [sp, #0x10]
+	ldp	x29, x30, [sp], #0x50
 	ret
+9:
+	mov	w0, #-1
+	ret
+
 	.globl _pipeline_elf_ctx_add_sym
-	.weak_definition _pipeline_elf_ctx_add_sym
 _pipeline_elf_ctx_add_sym:
+	/* name-pool add_sym (elf_ctx_thin twin). No sym_shndx_set — store off_shndx. */
+	cbz	x0, Lsym_fail
+	cbz	x1, Lsym_fail
+	tbnz	w2, #31, Lsym_fail
+	stp	x29, x30, [sp, #-0x60]!
+	mov	x29, sp
+	stp	x19, x20, [sp, #0x10]
+	stp	x21, x22, [sp, #0x20]
+	stp	x23, x24, [sp, #0x30]
+	stp	x25, x26, [sp, #0x40]
+	str	x27, [sp, #0x50]
+	mov	x19, x0
+	mov	x20, x1
+	mov	w21, w2
+	mov	w22, w3
+	mov	x0, x19
+	bl	_pipe_elf_off_num_syms
+	mov	w23, w0
+	mov	x0, x19
+	mov	w1, w23
+	bl	_pipe_load_i32_le
+	mov	w24, w0
+	mov	x0, x19
+	bl	_pipe_elf_table_cap
+	cmp	w24, w0
+	b.ge	Lsym_full
+	mov	w25, w21
+	cmp	w25, #256
+	b.le	1f
+	mov	w25, #256
+1:
+	mov	x0, x19
+	bl	_pipe_elf_off_sym_name_len
+	mov	w26, w0
+	mov	x0, x19
+	mov	w1, w26
+	bl	_pipe_load_i32_le
+	mov	w27, w0
+	add	w0, w27, w25
+	mov	w1, #131072
+	cmp	w0, w1
+	b.gt	Lsym_full
+	mov	x0, x19
+	bl	_pipe_elf_off_sym_name_data
+	add	x1, x19, w0, sxtw
+	add	x1, x1, w27, sxtw
+	cmp	w25, #0
+	b.le	2f
+	mov	x0, x1
+	mov	x3, x20
+	mov	w4, w25
+0:
+	ldrb	w5, [x3], #1
+	strb	w5, [x0], #1
+	subs	w4, w4, #1
+	b.ne	0b
+2:
+	add	w2, w27, w25
+	mov	x0, x19
+	mov	w1, w26
+	bl	_pipe_store_i32_le
+	mov	x0, x19
+	mov	w1, w24
+	bl	_pipe_elf_sym_at
+	mov	x27, x0
+	mov	x0, x19
+	bl	_pipe_elf_sym_off_name_len
+	str	w25, [x27, w0, sxtw]
+	mov	x0, x19
+	bl	_pipe_elf_sym_off_offset
+	str	w22, [x27, w0, sxtw]
+	bl	_pipe_elf_shnx_text
+	mov	w22, w0
+	mov	x0, x19
+	bl	_pipe_elf_sym_off_shndx
+	str	w22, [x27, w0, sxtw]
+	add	w2, w24, #1
+	mov	x0, x19
+	mov	w1, w23
+	bl	_pipe_store_i32_le
 	mov	w0, #0
+	b	Lsym_ret
+Lsym_full:
+	mov	w0, #-1
+Lsym_ret:
+	ldr	x27, [sp, #0x50]
+	ldp	x25, x26, [sp, #0x40]
+	ldp	x23, x24, [sp, #0x30]
+	ldp	x21, x22, [sp, #0x20]
+	ldp	x19, x20, [sp, #0x10]
+	ldp	x29, x30, [sp], #0x60
 	ret
+Lsym_fail:
+	mov	w0, #-1
+	ret
+
 	.globl _pipeline_elf_ctx_append_data_zeros
 	.weak_definition _pipeline_elf_ctx_append_data_zeros
 _pipeline_elf_ctx_append_data_zeros:
@@ -628,7 +949,7 @@ if [ -n "$_oc" ]; then
   while read -r _sym; do
     [ -n "$_sym" ] || continue
     _weak_args+=(--weaken-symbol "$_sym")
-  done < <(nm -gU "$OUT/m8_reloc_stubs.o" 2>/dev/null | awk '/ T /{print $NF}' | grep -Ev 'lexer_src_|parser_asm_copy_slice_to_name64_buf_c|g_lex_src_')
+  done < <(nm -gU "$OUT/m8_reloc_stubs.o" 2>/dev/null | awk '/ T /{print $NF}' | grep -Ev 'lexer_src_|parser_asm_copy_slice_to_name64_buf_c|g_lex_src_|platform_macho_write_macho_o_to_buf|pipeline_elf_ctx_add_label|pipeline_elf_ctx_add_sym|pipeline_asm_emit_return_elf_impl|backend_emit_block_body_sync_elf|pipeline_asm_emit_block_body_sync_elf|pipeline_asm_emit_expr_elf_fast')
   if [ "${#_weak_args[@]}" -gt 0 ]; then
     "$_oc" "${_weak_args[@]}" "$OUT/m8_reloc_stubs.o" \
       || { echo "darwin_phase1_hollow_fill: weaken stubs failed" >&2; exit 1; }
