@@ -153,6 +153,26 @@ if [ -z "$SEED_LINK_CC" ] && [ -z "$SEED_LINK_LD" ]; then
   fail "incomplete export (CC/LD) from $export_target"
 fi
 
+# knife256 / 10.2: phase1/final must not pure-ld a missing frontend .o.
+# Track L migrate can race with a later wipe/refresh; re-seed parser/typeck/codegen
+# when listed in SEED_LINK_OBJS but absent on disk. PLATFORM: SHARED Darwin tip-cold.
+for _fe in parser_x.o typeck_x.o codegen_x.o; do
+  case " $SEED_LINK_OBJS " in
+    *" $_fe "*)
+      if [ ! -f "$_fe" ]; then
+        note "missing $_fe before $MODE link; migrate Track L re-seed"
+        if [ "${XLANG_MIGRATE_TRACK_L_COLD_SEED:-0}" != "1" ]; then
+          export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        fi
+        if ! bash scripts/migrate_x_objs.sh "$_fe" >&2; then
+          fail "cannot restore missing $_fe via migrate_x_objs.sh"
+        fi
+        [ -f "$_fe" ] || fail "$_fe still missing after migrate"
+      fi
+      ;;
+  esac
+done
+
 n_objs=$(printf '%s\n' "$SEED_LINK_OBJS" | wc -w | tr -d ' ')
 
 # ---------------------------------------------------------------------------

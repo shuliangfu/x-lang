@@ -235,6 +235,8 @@ find compiler std core -name '*.o' -type f -delete 2>/dev/null || true
 # .o via Track L cold seed → g05_frontend_x_needs_host_cc rc=2 refuse.
 # PLATFORM: SHARED tip cold.
 find compiler -name '*.pure_asm' -type f -delete 2>/dev/null || true
+# Flush directory entries before migrate so a late unlink cannot race phase1.
+sync 2>/dev/null || true
 _l4_step_end
 
 # --- 2) Wipe product binaries (must be this-wave) ---
