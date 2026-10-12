@@ -1163,6 +1163,13 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
       bash scripts/ensure_host_cc_seed_o.sh rt-slice \
       || echo "g05_ensure: rt-slice refresh failed (non-fatal if unused)" >&2
+    # knife256 / 10.2: rt_run_exec.o is on the g05 link line (knife 254) but
+    # not in catalog RT_SEED_SLICE_OBJS (would dup m8_reloc_stubs at phase1).
+    # Ensure it here alone via pure-asm. PLATFORM: SHARED.
+    echo "g05_ensure: rt-run-exec pure-asm (g05-only; not catalog rt-slice)"
+    XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+      bash scripts/ensure_host_cc_seed_o.sh try-rt-run-exec-prefer \
+      || { echo "g05_ensure: rt_run_exec.o pure-asm failed" >&2; exit 1; }
     # Same class: driver_x.o compiles from driver_gen.c (gen-x family), but a
     # driver_gen.c regen above never re-triggered the .o in the warm g05 path
     # (2026-09-10 trap: pin gained a helper, gen refreshed, .o stayed old).
