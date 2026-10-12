@@ -956,18 +956,19 @@ if [ -x ./xlang_asm ]; then
   if [ -s build_asm/selfhost_pabi/const_lit_fold.o ]; then
     _G05_W211_CONST_LIT="build_asm/selfhost_pabi/const_lit_fold.o"
   fi
-  # Darwin: tip fold wins when built. Linux: Cap leftover gcc const_lit
-  # (NEG/BINOP) is tipU-safe fold authority — tip thin may miss tipU CG002.
-  if [ "$UNAME_S" = "Linux" ] && [ -s src/runtime_pipeline_abi_const_lit.o ]; then
-    _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
-    _G05_LINK_WINNERS="$_G05_LINK_WINNERS asm_module_top_level_const_lit_i32=$_PABI_CONST_LIT"
-  elif [ -n "$_G05_W211_CONST_LIT" ]; then
+  # Tip const_lit_fold thin is the delivery winner when built (cold chain).
+  # Cap leftover gcc is Linux fallback only if tip thin tipU-misses.
+  if [ -n "$_G05_W211_CONST_LIT" ]; then
     _PABI_CONST_LIT="$_G05_W211_CONST_LIT"
     if [ "$UNAME_S" = "Darwin" ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS _asm_module_top_level_const_lit_i32=$_G05_W211_CONST_LIT"
     else
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS asm_module_top_level_const_lit_i32=$_G05_W211_CONST_LIT"
     fi
+  elif [ "$UNAME_S" = "Linux" ] && [ -s src/runtime_pipeline_abi_const_lit.o ]; then
+    _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS asm_module_top_level_const_lit_i32=$_PABI_CONST_LIT"
+    echo "g05_relink_env: WARNING 记211 using Cap const_lit fallback (tip thin miss)" >&2
   else
     echo "g05_relink_env: ERROR 记211 const_lit fold missing (tip thin and Cap .o)" >&2
     exit 1
