@@ -27817,6 +27817,10 @@ ensure_net_addr_fast_darwin_pure() {
   local x_thin="src/asm/runtime_net_addr_fast.x"
   local x_os="src/asm/runtime_net_addr_fast_darwin.x"
   local seed="seeds/runtime_net_addr_fast.from_x.c"
+  # w246: Linux uses the linux OS half when present.
+  if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/runtime_net_addr_fast_linux.x ]; then
+    x_os="src/asm/runtime_net_addr_fast_linux.x"
+  fi
   local try=0
   local thin_o os_o
   if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
@@ -27910,6 +27914,9 @@ ensure_net_sock_fast_darwin_pure() {
   local x_thin="src/asm/runtime_net_sock_fast.x"
   local x_os="src/asm/runtime_net_sock_fast_darwin.x"
   local seed="seeds/runtime_net_sock_fast.from_x.c"
+  if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/runtime_net_sock_fast_linux.x ]; then
+    x_os="src/asm/runtime_net_sock_fast_linux.x"
+  fi
   local try=0
   local thin_o os_o
   if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
@@ -28049,6 +28056,9 @@ ensure_net_ipv6_fast_darwin_pure() {
   local x_thin="src/asm/runtime_net_ipv6_fast.x"
   local x_os="src/asm/runtime_net_ipv6_fast_darwin.x"
   local seed="seeds/runtime_net_ipv6_fast.from_x.c"
+  if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/runtime_net_ipv6_fast_linux.x ]; then
+    x_os="src/asm/runtime_net_ipv6_fast_linux.x"
+  fi
   local try=0
   local thin_o os_o
   if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
@@ -28151,6 +28161,9 @@ ensure_net_io_batch_fast_darwin_pure() {
   local x_thin="src/asm/runtime_net_io_batch_fast.x"
   local x_os="src/asm/runtime_net_io_batch_fast_darwin.x"
   local seed="seeds/runtime_net_io_batch_fast.from_x.c"
+  if [ "$(uname -s 2>/dev/null)" = "Linux" ] && [ -f src/asm/runtime_net_io_batch_fast_linux.x ]; then
+    x_os="src/asm/runtime_net_io_batch_fast_linux.x"
+  fi
   local try=0
   local thin_o os_o oc
   if [ ! -f "$x_thin" ] || [ ! -f "$x_os" ]; then
@@ -28326,6 +28339,11 @@ _std_core_net_fast_one() {
       ensure_net_addr_fast_darwin_pure "$fast_o" || return 1
       return 0
     fi
+    # w246: Linux x86_64 pure thin+linux OS half.
+    if [ "$na_s" = "Linux" ] && [ -f src/asm/runtime_net_addr_fast_linux.x ]; then
+      ensure_net_addr_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
   fi
   # w1096: Darwin arm64 builds net_sock_fast.o from the two .x files.
   # Linux and Windows keep the thin+rest path below.
@@ -28336,6 +28354,10 @@ _std_core_net_fast_one() {
     ns_m="$(uname -m 2>/dev/null || echo unknown)"
     if [ "$ns_s" = "Darwin" ] && [ "$ns_m" = "arm64" ] \
       && [ -f src/asm/runtime_net_sock_fast_darwin.x ]; then
+      ensure_net_sock_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
+    if [ "$ns_s" = "Linux" ] && [ -f src/asm/runtime_net_sock_fast_linux.x ]; then
       ensure_net_sock_fast_darwin_pure "$fast_o" || return 1
       return 0
     fi
@@ -28352,6 +28374,10 @@ _std_core_net_fast_one() {
       ensure_net_ipv6_fast_darwin_pure "$fast_o" || return 1
       return 0
     fi
+    if [ "$nv_s" = "Linux" ] && [ -f src/asm/runtime_net_ipv6_fast_linux.x ]; then
+      ensure_net_ipv6_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
   fi
   # w1098: Darwin arm64 builds net_io_batch_fast.o from the two .x files.
   # Linux and Windows keep the thin+rest path below.
@@ -28362,6 +28388,10 @@ _std_core_net_fast_one() {
     ni_m="$(uname -m 2>/dev/null || echo unknown)"
     if [ "$ni_s" = "Darwin" ] && [ "$ni_m" = "arm64" ] \
       && [ -f src/asm/runtime_net_io_batch_fast_darwin.x ]; then
+      ensure_net_io_batch_fast_darwin_pure "$fast_o" || return 1
+      return 0
+    fi
+    if [ "$ni_s" = "Linux" ] && [ -f src/asm/runtime_net_io_batch_fast_linux.x ]; then
       ensure_net_io_batch_fast_darwin_pure "$fast_o" || return 1
       return 0
     fi
