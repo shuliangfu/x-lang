@@ -607,6 +607,67 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/ws_codec.x|std/net/ws_codec.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.ws_codec (记233).
+      # No -lib-name "": import face is std_net_ws_codec_net_ws_* (ws_io U).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below.
+      _wsc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_wsc_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _wsc_log="$(mktemp "${TMPDIR:-/tmp}/std_wsc_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_wsc_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_generate_key_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_parse_url_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_encode_text_frame_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_parse_url_smoke_c$'; then
+            rm -f "$_wsc_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_wsc_log" >&2
+          rm -f "$_wsc_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/ws_io.x|std/net/ws_io.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.ws_io (记233).
+      # No -lib-name "": import face std_net_ws_io_net_ws_*; U → ws_codec prefix.
+      # Fail-closed so this file never execs cc. Windows keeps C path.
+      _wsi_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_wsi_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _wsi_log="$(mktemp "${TMPDIR:-/tmp}/std_wsi_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_wsi_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_connect_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_write_text_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_read_frame_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_client_handshake_smoke_c$'; then
+            rm -f "$_wsi_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_wsi_log" >&2
+          rm -f "$_wsi_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/regex/regex.x|std/regex/regex.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
       # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
