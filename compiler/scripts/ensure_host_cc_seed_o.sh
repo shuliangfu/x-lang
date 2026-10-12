@@ -5951,6 +5951,18 @@ ensure_one() {
     return 0
   fi
 
+  # 记251／8.8 / knife 256 (10.2): try_inline has no C seed (deleted w1527).
+  # Full .x pure asm only — check BEFORE missing-seed exit (seed path gone).
+  # PLATFORM: SHARED.
+  if [ "$out" = "src/asm/backend_try_inline_dispatch.o" ]; then
+    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$out" \
+      src/asm/backend_try_inline_dispatch.x \
+      backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker \
+      glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at \
+      try_inline_x_plus_k_call_elf || return 1
+    return 0
+  fi
+
   # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
   # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
   # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
@@ -5988,14 +6000,6 @@ ensure_one() {
   # Do not cc the tail alone. PLATFORM: SHARED.
   if [ "$out" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
-    return 0
-  fi
-
-  # 记251／8.8: try_inline has no C seed (deleted w1527). Full .x pure asm
-  # only — never host-cc a missing seed, never keep a warm bypass object.
-  # PLATFORM: SHARED.
-  if [ "$out" = "src/asm/backend_try_inline_dispatch.o" ]; then
-    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$out"       src/asm/backend_try_inline_dispatch.x       backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker       glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at       try_inline_x_plus_k_call_elf || return 1
     return 0
   fi
 
@@ -14830,6 +14834,15 @@ try_ensure_r3_cold_one() {
   # w862: enc thin publics and the slice marker have no product C bodies.
   if [ "$o" = "src/asm/backend_enc_dispatch.o" ]; then
     ensure_enc_dispatch_pure || return 1
+    return 0
+  fi
+  # w1527 / knife 256 (10.2): try_inline seed deleted; full .x pure-asm only.
+  if [ "$o" = "src/asm/backend_try_inline_dispatch.o" ]; then
+    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$o" \
+      src/asm/backend_try_inline_dispatch.x \
+      backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker \
+      glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at \
+      try_inline_x_plus_k_call_elf || return 1
     return 0
   fi
   seed="$(seed_for_o "$o")"
