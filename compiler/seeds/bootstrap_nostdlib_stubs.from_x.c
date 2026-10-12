@@ -358,10 +358,7 @@ long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3);
 
 /** 对齐到 16 字节边界。 */
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
-/* G-02f-114：逻辑源 .x（真迁）；DIRECT 模式，rest 模式下 seed 不提供 */
-size_t bootstrap_align16(size_t n) {
-  return (n + 15u) & ~(size_t)15u;
-}
+/* 记253／9.1: cold under #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X removed */
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -383,8 +380,6 @@ int bootstrap_heap_grow_impl(size_t need) {
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
-int bootstrap_heap_grow(size_t need) { return bootstrap_heap_grow_impl(need); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -709,8 +704,6 @@ int bootstrap_format_double_impl(double x, char *out, size_t cap) {
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
-int bootstrap_format_double(double x, char *out, size_t cap) { return bootstrap_format_double_impl(x, out, cap); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -747,9 +740,6 @@ int bootstrap_vfprintf_fd_impl(int fd, const char *fmt, xlang_va_list ap) {
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl
- * 类型擦除：.x 侧 ap 参数为 *u8，seed 前向声明用 xlang_va_list，C 链接器不看类型，ABI 兼容 */
-int bootstrap_vfprintf_fd(int fd, const char *fmt, xlang_va_list ap) { return bootstrap_vfprintf_fd_impl(fd, fmt, ap); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -1415,8 +1405,6 @@ long bootstrap_syscall3_impl(long nr, long a0, long a1, long a2) {
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
-long bootstrap_syscall3(long nr, long a0, long a1, long a2) { return bootstrap_syscall3_impl(nr, a0, a1, a2); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
@@ -1432,8 +1420,6 @@ long bootstrap_syscall4_impl(long nr, long a0, long a1, long a2, long a3) {
 }
 
 #ifndef XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/bootstrap_nostdlib_stubs.x）提供 wrapper 调用 _impl */
-long bootstrap_syscall4(long nr, long a0, long a1, long a2, long a3) { return bootstrap_syscall4_impl(nr, a0, a1, a2, a3); }
 #endif /* XLANG_BOOTSTRAP_NOSTDLIB_STUBS_FROM_X */
 
 
