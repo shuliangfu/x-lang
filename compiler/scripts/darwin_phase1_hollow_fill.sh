@@ -1,10 +1,10 @@
 #!/bin/bash
 # knife256 / 10.2: Darwin L4 true-cold phase1 hollow-fill after 9.1 seed hollow.
 #
-# After wipe, pabi leaves pipeline/glue/m8 faces U; tip overlays need ./xlang which
-# does not exist yet. Ship return-0 asm stubs for the phase1 UNDEF set so pure-ld
-# can produce xlang-seed-phase1; build_seed_asm_host may fall back to the phase1
-# stub path; g05 tip overlays restore real faces for the product.
+# Wipe leaves pipeline/glue/m8/driver-emit faces U; tip overlays need ./xlang.
+# Return-0 text stubs + emit-state BSS so phase1 pure-ld can produce
+# xlang-seed-phase1. g05 tip overlays restore real faces for the product.
+# Also pairs with weak io stubs in ensure_runtime_asm_io_stubs_pure.
 #
 # Zero make / zero host-cc: `as` only.
 # PLATFORM: MACOS arm64. Other hosts no-op.
@@ -20,7 +20,7 @@ OUT=build_asm/selfhost_pabi
 mkdir -p "$OUT"
 
 cat > "$OUT/m8_reloc_stubs.s" <<'STUB'
-/* knife256 / 10.2 Darwin phase1 hollow-fill: return-0 stubs for 9.1-hollow U faces.
+/* knife256 / 10.2 Darwin phase1 hollow-fill stubs + emit-state BSS.
  * PLATFORM: MACOS arm64 · as only · zero host-cc.
  */
 	.text
@@ -198,6 +198,174 @@ _pipeline_elf_ctx_ensure_label:
 _w499_mega_try_tail_jmp:
 	mov	w0, #0
 	ret
+	.globl _cfg_sync_compile_target_from_state_c
+_cfg_sync_compile_target_from_state_c:
+	mov	w0, #0
+	ret
+	.globl _driver_arena_buf
+_driver_arena_buf:
+	mov	w0, #0
+	ret
+	.globl _driver_argv0_basename_is
+_driver_argv0_basename_is:
+	mov	w0, #0
+	ret
+	.globl _driver_build_build_x
+_driver_build_build_x:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_apply_backend_next_c
+_driver_compile_argv_apply_backend_next_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_apply_minus_L_next_c
+_driver_compile_argv_apply_minus_L_next_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_apply_minus_O_next_c
+_driver_compile_argv_apply_minus_O_next_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_apply_minus_o_next_c
+_driver_compile_argv_apply_minus_o_next_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_apply_target_cpu_next_c
+_driver_compile_argv_apply_target_cpu_next_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_apply_target_next_c
+_driver_compile_argv_apply_target_next_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_copy_path_c
+_driver_compile_argv_copy_path_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_is_help_c
+_driver_compile_argv_is_help_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_next_is_value_c
+_driver_compile_argv_next_is_value_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_set_legacy_f32_abi_c
+_driver_compile_argv_set_legacy_f32_abi_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_set_print_target_cpu_c
+_driver_compile_argv_set_print_target_cpu_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_set_sanitize_address_c
+_driver_compile_argv_set_sanitize_address_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_set_use_freestanding_c
+_driver_compile_argv_set_use_freestanding_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_argv_set_use_lto_c
+_driver_compile_argv_set_use_lto_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_ensure_default_lib_c
+_driver_compile_ensure_default_lib_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_parse_argv_init_c
+_driver_compile_parse_argv_init_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_resolve_target_cpu_c
+_driver_compile_resolve_target_cpu_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_state_alloc_c
+_driver_compile_state_alloc_c:
+	mov	w0, #0
+	ret
+	.globl _driver_compile_state_free_c
+_driver_compile_state_free_c:
+	mov	w0, #0
+	ret
+	.globl _driver_deps_are_std_core_closure_only
+_driver_deps_are_std_core_closure_only:
+	mov	w0, #0
+	ret
+	.globl _driver_exec_compiled
+_driver_exec_compiled:
+	mov	w0, #0
+	ret
+	.globl _driver_exec_path_is_non_exe
+_driver_exec_path_is_non_exe:
+	mov	w0, #0
+	ret
+	.globl _driver_exec_scan_out_path
+_driver_exec_scan_out_path:
+	mov	w0, #0
+	ret
+	.globl _driver_fmt_one_file
+_driver_fmt_one_file:
+	mov	w0, #0
+	ret
+	.globl _driver_fs_open_write
+_driver_fs_open_write:
+	mov	w0, #0
+	ret
+	.globl _driver_lib_roots_from_key
+_driver_lib_roots_from_key:
+	mov	w0, #0
+	ret
+	.globl _driver_module_buf
+_driver_module_buf:
+	mov	w0, #0
+	ret
+	.globl _driver_print_target_cpu_features_c
+_driver_print_target_cpu_features_c:
+	mov	w0, #0
+	ret
+	.globl _driver_run_asm_backend_impl_c
+_driver_run_asm_backend_impl_c:
+	mov	w0, #0
+	ret
+	.globl _driver_run_compiler_full_x_impl_c
+_driver_run_compiler_full_x_impl_c:
+	mov	w0, #0
+	ret
+	.globl _driver_run_compiler_parsed
+_driver_run_compiler_parsed:
+	mov	w0, #0
+	ret
+	.globl _driver_run_emit_c_path_impl_c
+_driver_run_emit_c_path_impl_c:
+	mov	w0, #0
+	ret
+	.globl _driver_run_test
+_driver_run_test:
+	mov	w0, #0
+	ret
+	.globl _driver_run_x_emit_c
+_driver_run_x_emit_c:
+	mov	w0, #0
+	ret
+	.globl _driver_unlink_failed_output
+_driver_unlink_failed_output:
+	mov	w0, #0
+	ret
+	.globl _runtime_diag_errno_path
+_runtime_diag_errno_path:
+	mov	w0, #0
+	ret
+	.globl _runtime_diag_errno_path_pair
+_runtime_diag_errno_path_pair:
+	mov	w0, #0
+	ret
+	.globl _runtime_pipeline_elf_ctx_diag_note
+_runtime_pipeline_elf_ctx_diag_note:
+	mov	w0, #0
+	ret
 
 	.bss
 	.align 3
@@ -211,10 +379,50 @@ _g_pipeline_elf_reloc_r_type:
 	.globl _g_pipeline_elf_reloc_sidecar_owner
 _g_pipeline_elf_reloc_sidecar_owner:
 	.quad 0
+	.globl _driver_x_emit_c_path
+	.align 3
+_driver_x_emit_c_path:
+	.space 8
+	.globl _driver_x_emit_lib_roots
+	.align 3
+_driver_x_emit_lib_roots:
+	.space 128
+	.globl _driver_x_emit_n_lib_roots
+	.align 3
+_driver_x_emit_n_lib_roots:
+	.space 4
+	.globl _driver_x_emit_path_buf
+	.align 3
+_driver_x_emit_path_buf:
+	.space 512
+	.globl _driver_x_emit_lib_bufs
+	.align 3
+_driver_x_emit_lib_bufs:
+	.space 4096
+	.globl _driver_x_emit_c_want_extern
+	.align 3
+_driver_x_emit_c_want_extern:
+	.space 4
+	.globl _driver_x_emit_scan_ab
+	.align 3
+_driver_x_emit_scan_ab:
+	.space 512
+	.globl _driver_x_emit_scan_nx
+	.align 3
+_driver_x_emit_scan_nx:
+	.space 512
+	.globl _driver_x_emit_lib_name_buf
+	.align 3
+_driver_x_emit_lib_name_buf:
+	.space 64
+	.globl _driver_x_emit_lib_name_len
+	.align 3
+_driver_x_emit_lib_name_len:
+	.space 4
 STUB
 as -o "$OUT/m8_reloc_stubs.o" "$OUT/m8_reloc_stubs.s"
 [ -s "$OUT/m8_reloc_stubs.o" ] || { echo "darwin_phase1_hollow_fill: as failed" >&2; exit 1; }
 
 echo "$OUT/m8_reloc_stubs.o" >"$OUT/phase1_hollow_fill_objs.txt"
-echo "darwin_phase1_hollow_fill: OK stubs-only manifest=$OUT/phase1_hollow_fill_objs.txt"
+echo "darwin_phase1_hollow_fill: OK stubs+bss manifest=$OUT/phase1_hollow_fill_objs.txt"
 exit 0
