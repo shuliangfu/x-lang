@@ -5215,19 +5215,27 @@ case "$UNAME_S" in
       elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
       fi
       if [ -n "$_oc" ]; then
+        # Only demote stubs whose strong body already exists in no_c (or
+        # would silently ret-0 over a real T). Keep weak stubs that are the
+        # sole definition so g05 does not UNDEF. PLATFORM: MACOS tip cold.
         _poison_args=()
+        _noc=src/runtime_driver_no_c.o
         while read -r _ps; do
           [ -n "$_ps" ] || continue
           case "$_ps" in
             _driver_*|_cfg_*)
-              _poison_args+=(--redefine-sym="${_ps}=${_ps}_hollow_phase1_dead")
+              _bare="${_ps#_}"
+              if [ -s "$_noc" ] && nm "$_noc" 2>/dev/null \
+                  | grep -qE " T _?${_bare}$"; then
+                _poison_args+=(--redefine-sym="${_ps}=${_ps}_hollow_phase1_dead")
+              fi
               ;;
           esac
         done < <(nm -gU "$_m8_g05" 2>/dev/null | awk '/ T /{print $NF}')
         if [ "${#_poison_args[@]}" -gt 0 ]; then
           "$_oc" "${_poison_args[@]}" "$_m8_g05" 2>/dev/null \
             || echo "g05_relink_env: WARN demote driver/cfg hollow stubs failed" >&2
-          echo "g05_relink_env: demoted ${#_poison_args[@]} driver/cfg hollow stubs for g05" >&2
+          echo "g05_relink_env: demoted ${#_poison_args[@]} driver/cfg hollow stubs (no_c has T)" >&2
         fi
       fi
       _PABI_M8_RELOC_STUBS="$_m8_g05"
