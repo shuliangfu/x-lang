@@ -1810,6 +1810,36 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/socketio/mod.x|std/socketio/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.socketio mod.x (记234).
+      # Tip asm emits std_socketio_* import face. C path -x -E→cc fails
+      # (arity mismatch on generated call). Fail-closed; Windows keeps C.
+      # socketio.x bare-impl already has std_x pure-asm arm.
+      _siom_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_siom_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/siom_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_client_init$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_connect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_can_reconnect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_cluster_adapter_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/siom_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/net/mod.x|std/net/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.net mod.x (记232).
       # Tip asm already emits the std_net_* import face (no -lib-name "").
