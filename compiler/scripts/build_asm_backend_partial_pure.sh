@@ -13,7 +13,7 @@
 # Callers: g05_ensure_relink_prereqs.sh (every g05 generation),
 # build_seed_asm_host.sh, gen_g06_phase1_backend_stub.sh.
 # No host cc, no -E, no seeds/asm_backend_partial.*.o copy.
-# seeds/backend_seed_mega_fallback.from_x.c stays on disk only (9.1).
+# seeds/backend_seed_mega_fallback.from_x.c emptied (记253／9.1 non-business stub).
 # Three failed tries exit 1. Up to date (source not newer and anchor present)
 # exits 0 without work. XLANG may point at the emitting compiler; otherwise
 # pure_asm_x_to_o picks ./xlang, ./xlang_asm, ...

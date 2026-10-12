@@ -2170,12 +2170,31 @@ ensure_lsp_pipeline_ctx_obj() {
   fi
 }
 ensure_backend_seed_mega_fallback_obj() {
+  # 记253／9.1: seed emptied; authority is seed_host partial from .x (w1540).
+  # Do not host-cc the stub. PLATFORM: SHARED.
   local o="$BUILD_DIR/backend_seed_mega_fallback.o"
-  local src="seeds/backend_seed_mega_fallback.from_x.c"
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc_inc_tu $o <- $src (weak backend stubs)"
-  sh scripts/cc_inc_tu.sh "$src" "$o"
+  local partial="$BUILD_DIR/seed_host/asm_backend_partial.o"
+  local xsrc="src/asm/backend_seed_mega_fallback.x"
+  if [ -s "$partial" ]; then
+    if [ ! -f "$o" ] || [ "$partial" -nt "$o" ]; then
+      strict_glue_info "cp $o <- $partial (9.1 no seed cc)"
+      cp -f "$partial" "$o" || return 1
+    fi
+    return 0
   fi
+  if [ -f "$xsrc" ] && [ -f scripts/build_asm_backend_partial_pure.sh ]; then
+    strict_glue_info "9.1 mega_fallback via build_asm_backend_partial_pure"
+    sh scripts/build_asm_backend_partial_pure.sh || return 1
+    if [ -s "$partial" ]; then
+      cp -f "$partial" "$o" || return 1
+      return 0
+    fi
+  fi
+  if [ -f "$o" ]; then
+    return 0
+  fi
+  strict_glue_info "missing mega_fallback partial/.x; no seed cc (9.1)"
+  return 1
 }
 ensure_backend_x86_64_enc_c_obj() {
   local o="$BUILD_DIR/backend_x86_64_enc_c.o"

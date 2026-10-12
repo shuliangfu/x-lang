@@ -6,7 +6,7 @@
 #
 # 职责：把 .x 试点(src/asm/pthin_stretch_audit.x)与套件 C 孪生做全量等价性对照：
 #   1) ./xlang -E 生成 C → cc → audit_x.o（单符号导出面）
-#   2) cc 桥(seeds/parser_asm_lex_step_bridge.from_x.c) → bridge.o
+#   2) pure-asm 桥(src/asm/parser_asm_lex_step_bridge.x) → bridge.o（9.1 种子已空）
 #   3) cc 词法权威 pin(seeds/lexer_gen.linux.x86_64.c) → lexer_pin.o
 #   4) cc harness(内嵌 by-value C 参考孪生) → 链接运行
 #   5) 语料：内置合成串(每个 token 偏移) + argv 真实 .x 文件(前 4000 token 偏移)
@@ -35,10 +35,14 @@ CC=${CC:-cc}
 $CC -c -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm -o "$OUT/audit_x.o" "$OUT/audit_x_E.c" 2>"$OUT/audit_x_cc.err" || {
   cat "$OUT/audit_x_cc.err" >&2; exit 1; }
 
-# 2) bridge
-$CC -c -I. -Iinclude -Isrc -Iseeds/parser_asm -o "$OUT/bridge.o" \
-  seeds/parser_asm_lex_step_bridge.from_x.c 2>"$OUT/bridge_cc.err" || {
-  cat "$OUT/bridge_cc.err" >&2; exit 1; }
+# 2) bridge — 记253／9.1: seed emptied; pure-asm from .x (w1534)
+# shellcheck source=scripts/g05_ensure_relink_prereqs.sh
+. scripts/g05_relink_env.sh
+. scripts/g05_ensure_relink_prereqs.sh
+if ! g05_p9a_bridge_pure "$OUT/bridge.o"; then
+  echo "prove: P9a bridge pure-asm failed" >&2
+  exit 1
+fi
 
 # 3) lexer authority pin
 $CC -c -I. -Iinclude -Isrc -o "$OUT/lexer_pin.o" seeds/lexer_gen.linux.x86_64.c 2>"$OUT/lexer_pin_cc.err" || {

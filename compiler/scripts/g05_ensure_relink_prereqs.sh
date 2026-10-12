@@ -334,7 +334,7 @@ g05_frontend_link_names_gate() {
 
 # w1534 (checklist 6.1): P9a lexer-step bridge is one pure-asm emit.
 # No host cc of seeds/parser_asm_lex_step_bridge.from_x.c and no -E fallback.
-# The seed file stays for the prove harnesses. Missing object or symbol
+# 记253／9.1: seed emptied to a non-business stub. Missing object or symbol
 # returns 1; the caller exits. PLATFORM: SHARED. $1 = output object.
 # cwd is compiler/.
 g05_p9a_bridge_pure() {
@@ -1782,30 +1782,30 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   _pthin_p4p_seed=seeds/pthin_expr_primary.from_x.c
   # 7.2.1 P4b Route C: primary .x bodies (ident spelling / asm-option-bit)
   _pthin_p4pb_x=src/asm/pthin_expr_primary.x
-  # w1539: pointer shims, faces, writers, and marker. The seed stays for prove.
+  # w1539: pointer shims, faces, writers, and marker. 记253／9.1 seed emptied.
   _pthin_p4p_tramp_x=src/asm/pthin_expr_primary_tramp.x
   _pthin_p4u_seed=seeds/pthin_expr_unary.from_x.c
   # 7.2.1 P4ub Route C: unary .x bodies (TOKEN→ExprKind)
   _pthin_p4ub_x=src/asm/pthin_expr_unary.x
-  # w1536: operand writer and by-value face. The seed stays for prove.
+  # w1536: operand writer and by-value face. 记253／9.1 seed emptied.
   _pthin_p4u_set_x=src/asm/pthin_expr_unary_set.x
   _pthin_p4u_tramp_x=src/asm/pthin_expr_unary_tramp.x
   _pthin_p4b_seed=seeds/pthin_expr_binop.from_x.c
   # 7.2.1 P4bb/P4bc/P4bd Route C: binop .x bodies (TOKEN→ExprKind + wrap + parse dest-buffer)
   _pthin_p4bb_x=src/asm/pthin_expr_binop.x
-  # w1535: operand writer and by-value faces. The seed stays for prove.
+  # w1535: operand writer and by-value faces. 记253／9.1 seed emptied.
   _pthin_p4b_set_x=src/asm/pthin_expr_binop_set.x
   _pthin_p4b_tramp_x=src/asm/pthin_expr_binop_tramp.x
   _pthin_p4as_seed=seeds/pthin_expr_as_suffix.from_x.c
   # 7.2.1 P4as/P4ad Route C: as_suffix .x bodies (TRY_PROPAGATE + EXPR_AS wrap + parse dest-buffer)
   _pthin_p4as_x=src/asm/pthin_expr_as_suffix.x
-  # w1537: as_* writer and pointer slice face. The seed stays for prove.
+  # w1537: as_* writer and pointer slice face. 记253／9.1 seed emptied.
   _pthin_p4as_set_x=src/asm/pthin_expr_as_suffix_set.x
   _pthin_p4as_tramp_x=src/asm/pthin_expr_as_suffix_tramp.x
   _pthin_p4t_seed=seeds/pthin_expr_ternary.from_x.c
   # 7.2.1 P4tb/P4tc Route C: ternary wrap + assign wrap dest-buffer
   _pthin_p4tb_x=src/asm/pthin_expr_ternary.x
-  # w1538: by-value faces, logor pointer shim, and marker. The seed stays for prove.
+  # w1538: by-value faces, logor pointer shim, and marker. 记253／9.1 seed emptied.
   _pthin_p4t_tramp_x=src/asm/pthin_expr_ternary_tramp.x
   _pthin_p5_seed=seeds/pthin_ctrl.from_x.c
   # 7.2.1 P5b/P5c/P5d/P5e/P5f/P5g Route C: ctrl .x bodies (brace skip / kw /
@@ -1822,7 +1822,7 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # G-02f-318a / 7.2.1 B-minus pilot (RFC §5c): stretch-audit .x thin + lexer-step bridge
   _pthin_p9a_x=src/asm/pthin_stretch_audit.x
   _pthin_p9a_bridge=seeds/parser_asm_lex_step_bridge.from_x.c
-  # w1534: product object comes from this .x. The .c seed stays for prove.
+  # w1534: product object comes from this .x. 记253／9.1 seed emptied.
   _pthin_p9a_bridge_x=src/asm/parser_asm_lex_step_bridge.x
   # 7.2.1 Route C productize: stretch lite .x (no bridge; pure scalar tables)
   _pthin_p9b_x=src/asm/pthin_stretch.x
