@@ -19,6 +19,11 @@
 # NOT physical delete — thin edges + B2 + mk lists + LD / pipeline bags remain.
 
 set -e
+# Knife 255 / 10.1: product path forbids typeck/codegen residual host-cc
+# in g05_relink_env (tip allow_legacy + keep typeck_ctfe.o). Archaeology:
+# XLANG_TYPECK_HOST_CC=1. Full cold zero-cc is 10.2.
+XLANG_TYPECK_HOST_CC="${XLANG_TYPECK_HOST_CC:-0}"
+export XLANG_TYPECK_HOST_CC
 cd "$(dirname "$0")/.."
 
 # Default: sync xlang_asm (historic G05_SYNC_ASM:-1).

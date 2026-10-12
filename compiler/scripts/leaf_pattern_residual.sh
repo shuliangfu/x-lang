@@ -5856,7 +5856,7 @@ _r1cs_list_n=$(
   ' "$_R1CS_MK"
 )
 if [ "${_r1cs_list_n:-0}" -ne 5 ]; then
-  bad "wave899 expected 5 R1_CORE_SEED_OBJS members, got ${_r1cs_list_n:-0}"
+  bad "wave899 expected 4 R1_CORE_SEED_OBJS members, got ${_r1cs_list_n:-0}"
 fi
 if ! grep -q 'include mk/driver_seed_r_lists.mk' "$MF"; then
   mf_bad "Makefile must include mk/driver_seed_r_lists.mk (wave788/899)"

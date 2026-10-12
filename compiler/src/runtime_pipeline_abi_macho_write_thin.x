@@ -741,7 +741,9 @@ export function pipeline_macho_write_o_to_buf_c(ctx_bytes: *u8, out: *u8): i32 {
   if (w314_out_append(out, lc_bv, lc_build_size) != 0) {
     return -1;
   }
-  let lc_sym: *u8 = &g_pipe_elf_ws_lc[0] + (24 as usize);
+  // Knife 255 / 10.1: tip Darwin CG002 on `&g[0] + imm` in one expr; split.
+  let _lc_base: *u8 = &g_pipe_elf_ws_lc[0];
+  let lc_sym: *u8 = _lc_base + (24 as usize);
   unsafe {
     w314_memset(lc_sym, 0, 24 as usize);
     lc_sym[0] = 2; lc_sym[4] = 24;

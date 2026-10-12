@@ -109,7 +109,7 @@ jobs:
         with:
           msystem: MSYS
           update: false
-          install: make gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
+          install: gcc diffutils python3 sed gawk zlib-devel brotli curl unzip
       - name: Build compiler
         run: ./xbuild compiler-all
         env:

@@ -74,7 +74,16 @@ else
   bad "xlang-build help (exit $?)"
 fi
 
-# 2) g05 env export is shell-only authority for product relink lists
+# 2–4) g05 env / ensure / prepare need a product binary (tip-compiles overlays).
+# Fresh CI checkouts skip these; static gate still covers source. Knife 255.
+has_bin=0
+if [ -x compiler/xlang ] || [ -x compiler/xlang_asm ] || [ -x compiler/xlang-c ] || [ -x compiler/bootstrap_xlangc ]; then
+  has_bin=1
+fi
+
+if [ "$has_bin" -eq 0 ]; then
+  skip "g05_relink_env/ensure/prepare (no product binary — cold tree; static gate covers source)"
+else
 echo "  -- g05_relink_env"
 if (cd compiler && bash scripts/g05_relink_env.sh >/dev/null); then
   note "g05_relink_env"
@@ -82,15 +91,6 @@ else
   bad "g05_relink_env (exit $?)"
 fi
 
-# 3–4) ensure / prepare only when a product bootstrap binary exists
-has_bin=0
-if [ -x compiler/xlang ] || [ -x compiler/xlang-c ] || [ -x compiler/bootstrap_xlangc ]; then
-  has_bin=1
-fi
-
-if [ "$has_bin" -eq 0 ]; then
-  skip "g05_ensure/prepare (no xlang/xlang-c/bootstrap_xlangc — cold tree; static gate still covers source)"
-else
   # Skip hot cc rebuild: probe asserts make is not used for dependency *orchestration*
   # (cc -c on hot path is host-cc residual, not Makefile).
   if (cd compiler && G05_SKIP_HOT_REBUILD=1 bash scripts/g05_ensure_relink_prereqs.sh) >/tmp/xlang_path_probe_ensure.log 2>&1; then

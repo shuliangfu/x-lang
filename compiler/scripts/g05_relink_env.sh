@@ -5002,14 +5002,23 @@ case "$UNAME_S" in
     if [ "${XLANG_CODEGEN_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _cap_o=build_asm/selfhost_pabi/codegen_cap_residual.o
-      if ! $G05_CC $_BASE_CFLAGS \
-          -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
-          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
-          -c -o "$_cap_o" seeds/codegen_cap_residual_tu.c; then
-        echo "g05_relink_env: codegen cap residual compile failed" >&2
+      # Knife 255 / 10.1: product path forbids host-cc here. Keep a present
+      # object; archaeology rebuild only with XLANG_TYPECK_HOST_CC=1.
+      if [ -s "$_cap_o" ] && [ "${XLANG_TYPECK_HOST_CC:-0}" != "1" ]; then
+        _CODEGEN_CAP_RESIDUAL="$_cap_o"
+      elif [ "${XLANG_TYPECK_HOST_CC:-0}" = "1" ]; then
+        if ! $G05_CC $_BASE_CFLAGS \
+            -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
+            -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+            -c -o "$_cap_o" seeds/codegen_cap_residual_tu.c; then
+          echo "g05_relink_env: codegen cap residual compile failed" >&2
+          exit 1
+        fi
+        _CODEGEN_CAP_RESIDUAL="$_cap_o"
+      else
+        echo "g05_relink_env: codegen_cap_residual.o missing; product path forbids host-cc (XLANG_TYPECK_HOST_CC=1 archaeology)" >&2
         exit 1
       fi
-      _CODEGEN_CAP_RESIDUAL="$_cap_o"
     fi
     ;;
 esac
@@ -5044,18 +5053,44 @@ case "$UNAME_S" in
     if [ "${XLANG_TYPECK_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _tcap_o=build_asm/selfhost_pabi/typeck_cap_residual.o
-      _tcap_def=""
+      # Knife 255 / 10.1: when pure-asm typeck is kept, tip-compile
+      # typeck_allow_legacy.x (allow-legacy only; CTFE object owns slots).
+      # No $CC -c on the product path. Archaeology: XLANG_TYPECK_HOST_CC=1.
       if [ "$_TYPECK_CTFE_WANT" = "1" ]; then
-        _tcap_def="-DTYPECK_ALLOW_LEGACY_ONLY=1"
-      fi
-      if ! $G05_CC $_BASE_CFLAGS \
-          -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
-          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN $_tcap_def \
-          -c -o "$_tcap_o" seeds/typeck_cap_residual_tu.c; then
-        echo "g05_relink_env: typeck cap residual compile failed" >&2
+        _tcap_bin=""
+        if [ -x ./xlang ]; then _tcap_bin=./xlang
+        elif [ -x ./xlang_asm ]; then _tcap_bin=./xlang_asm
+        fi
+        if [ -z "$_tcap_bin" ]; then
+          echo "g05_relink_env: typeck allow_legacy needs ./xlang (product: no host-cc)" >&2
+          exit 1
+        fi
+        rm -f "$_tcap_o.tmp.o"
+        if ! XLANG_PREFER_ASM_O=1 "$_tcap_bin" -backend asm -c \
+            src/typeck/typeck_allow_legacy.x -o "$_tcap_o.tmp.o" >/dev/null 2>&1 \
+          || ! nm "$_tcap_o.tmp.o" 2>/dev/null | grep -q "T _*typeck_set_allow_legacy_extern_calls\$" \
+          || ! nm "$_tcap_o.tmp.o" 2>/dev/null | grep -q "T _*typeck_get_allow_legacy_extern_calls\$"; then
+          rm -f "$_tcap_o.tmp.o"
+          echo "g05_relink_env: tip-compile typeck_allow_legacy.x failed (no host-cc fallback)" >&2
+          exit 1
+        fi
+        mv -f "$_tcap_o.tmp.o" "$_tcap_o"
+        _TYPECK_CAP_RESIDUAL="$_tcap_o"
+      elif [ "${XLANG_TYPECK_HOST_CC:-0}" = "1" ]; then
+        if ! $G05_CC $_BASE_CFLAGS \
+            -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
+            -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+            -c -o "$_tcap_o" seeds/typeck_cap_residual_tu.c; then
+          echo "g05_relink_env: typeck cap residual compile failed" >&2
+          exit 1
+        fi
+        _TYPECK_CAP_RESIDUAL="$_tcap_o"
+      elif [ -s "$_tcap_o" ]; then
+        _TYPECK_CAP_RESIDUAL="$_tcap_o"
+      else
+        echo "g05_relink_env: typeck_cap_residual.o missing; product path forbids host-cc (XLANG_TYPECK_HOST_CC=1 archaeology)" >&2
         exit 1
       fi
-      _TYPECK_CAP_RESIDUAL="$_tcap_o"
     fi
     ;;
 esac
@@ -5081,20 +5116,30 @@ case "$UNAME_S" in
       mkdir -p build_asm/selfhost_pabi
       _tctfe_h=build_asm/selfhost_pabi/typeck_expr_layout.h
       _tctfe_o=build_asm/selfhost_pabi/typeck_ctfe.o
-      if ! python3 scripts/assemble_typeck_gen_from_x.py \
-          --write-expr-layout typeck_gen.c --layout-out "$_tctfe_h"; then
-        echo "g05_relink_env: typeck expr layout slice failed" >&2
+      # Knife 255 / 10.1: product path does not host-cc typeck_ctfe_tu.c.
+      # Keep a present object (slots + fold faces). Archaeology rebuild:
+      # XLANG_TYPECK_HOST_CC=1. Full cold zero-cc is 10.2.
+      if [ -s "$_tctfe_o" ] && [ "${XLANG_TYPECK_HOST_CC:-0}" != "1" ]; then
+        _TYPECK_CTFE="$_tctfe_o"
+      elif [ "${XLANG_TYPECK_HOST_CC:-0}" = "1" ]; then
+        if ! python3 scripts/assemble_typeck_gen_from_x.py \
+            --write-expr-layout typeck_gen.c --layout-out "$_tctfe_h"; then
+          echo "g05_relink_env: typeck expr layout slice failed" >&2
+          exit 1
+        fi
+        if ! $G05_CC $_BASE_CFLAGS \
+            -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
+            -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
+            -Ibuild_asm/selfhost_pabi \
+            -c -o "$_tctfe_o" seeds/typeck_ctfe_tu.c; then
+          echo "g05_relink_env: typeck CTFE compile failed" >&2
+          exit 1
+        fi
+        _TYPECK_CTFE="$_tctfe_o"
+      else
+        echo "g05_relink_env: typeck_ctfe.o missing; product path forbids host-cc (XLANG_TYPECK_HOST_CC=1 archaeology)" >&2
         exit 1
       fi
-      if ! $G05_CC $_BASE_CFLAGS \
-          -DXLANG_USE_X_DRIVER -DXLANG_USE_X_PIPELINE \
-          -DXLANG_USE_X_TYPECK -DXLANG_USE_X_CODEGEN \
-          -Ibuild_asm/selfhost_pabi \
-          -c -o "$_tctfe_o" seeds/typeck_ctfe_tu.c; then
-        echo "g05_relink_env: typeck CTFE compile failed" >&2
-        exit 1
-      fi
-      _TYPECK_CTFE="$_tctfe_o"
     fi
     ;;
 esac

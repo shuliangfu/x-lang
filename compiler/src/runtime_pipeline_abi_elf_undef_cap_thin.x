@@ -50,7 +50,10 @@ export function pipe_elf_undef_cap(): i32 {
  */
 #[no_mangle]
 export function pipe_elf_ws_undef_name_row(i: i32): *u8 {
-  return &g_w1572_undef_names[0] + ((i * 128) as usize);
+  // Tip Darwin CG002 on `&g[0] + (i*128 as usize)` (knife 255 / 10.1).
+  // Index form `&g[off]` is the same row math and tip-compiles.
+  let off: i32 = i * 128;
+  return &g_w1572_undef_names[off];
 }
 
 /**

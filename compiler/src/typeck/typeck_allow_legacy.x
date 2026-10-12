@@ -7,10 +7,14 @@
 // get returns the current value. This file is the product body so the
 // link does not pull typeck_cap_residual.o (that object also defines the
 // typeck scratch slots already provided elsewhere).
+//
+// Knife 255 / 10.1: tip Darwin CG002s on module-level scalar `let g: i32`
+// and `const` (array BSS is fine). Store the 0/1 flag in u8[4] so the
+// product path tip-compiles this thin with no host cc.
 // PLATFORM: SHARED — link names stay the source names via #[no_mangle].
 
 /** Previous allow-legacy value. 0 means extern calls stay in an unsafe block. */
-let g_typeck_allow_legacy_extern_calls: i32 = 0;
+let g_typeck_allow_legacy_extern_calls: u8[4] = [];
 
 /**
  * Store whether typeck accepts an extern call outside unsafe.
@@ -21,11 +25,11 @@ let g_typeck_allow_legacy_extern_calls: i32 = 0;
  */
 #[no_mangle]
 export function typeck_set_allow_legacy_extern_calls(allow: i32): i32 {
-  let old: i32 = g_typeck_allow_legacy_extern_calls;
+  let old: i32 = g_typeck_allow_legacy_extern_calls[0] as i32;
   if (allow != 0) {
-    g_typeck_allow_legacy_extern_calls = 1;
+    g_typeck_allow_legacy_extern_calls[0] = 1 as u8;
   } else {
-    g_typeck_allow_legacy_extern_calls = 0;
+    g_typeck_allow_legacy_extern_calls[0] = 0 as u8;
   }
   return old;
 }
@@ -37,5 +41,5 @@ export function typeck_set_allow_legacy_extern_calls(allow: i32): i32 {
  */
 #[no_mangle]
 export function typeck_get_allow_legacy_extern_calls(): i32 {
-  return g_typeck_allow_legacy_extern_calls;
+  return g_typeck_allow_legacy_extern_calls[0] as i32;
 }
