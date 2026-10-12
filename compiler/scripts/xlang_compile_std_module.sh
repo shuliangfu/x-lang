@@ -350,7 +350,7 @@ formal_mod_spec_for_key() {
     std/ffi/ffi.o) printf '%s' "mod|1|../std/ffi/mod.x|../std/ffi/ffi.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — context mod.x is asm.
     # Do not pass -lib-name "". Exports stay std_context_*.
-    # context.x stays on the C path. WINDOWS stays on the C path.
+    # context.x has Darwin+Linux pure-asm arm (记212). WINDOWS stays on the C path.
     std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.json is one asm leaf.
@@ -2291,7 +2291,7 @@ for x_path in "$@"; do
     ../std/context/mod.x|std/context/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.context mod.x.
       # Do not pass -lib-name "". Exports stay std_context_*.
-      # A miss stops here. context.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. context.x has its own bare-impl arm (记212). Windows keeps the C path.
       # Do not fall through to cc for this file.
       _ctx_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_ctx_os" in
@@ -2445,7 +2445,7 @@ for x_path in "$@"; do
       case "$_cfgx_os" in
         Darwin|Linux)
           if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
-              >"$tmp_dir/cfgx_x_asm_${idx}.log" 2>&1 \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_strncpy$' \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_set_raw$' \
@@ -2467,12 +2467,51 @@ for x_path in "$@"; do
             continue
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
-          cat "$tmp_dir/cfgx_x_asm_${idx}.log" >&2
+          cat "$tmp_dir/ctx_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac
       ;;
-    ../std/datetime/mod.x|std/datetime/mod.x)
+        ../std/context/context.x|std/context/context.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.context (记212).
+      # -lib-name "" keeps ctx_*_c faces (mod.x externs). A miss stops here.
+      # Root: tip U32 field zext sentinel + context slot via *CtxValueSlot (avoid
+      # INDEX.field u32 LDRSW residual in pabi_weak). Null set_value = CTX_ERR_NULL (-1).
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ctxx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ctxx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ctxx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_background_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_with_cancel_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_with_timeout_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_set_value_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_get_value_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_is_cancelled_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_cancel_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_free_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_smoke_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_glue_value_set_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_glue_value_get_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ctxx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+../std/datetime/mod.x|std/datetime/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.datetime mod.x.
       # Do not pass -lib-name "". Exports stay std_datetime_*.
       # A miss stops here. datetime.x has its own bare-impl arm. Windows keeps the C path.

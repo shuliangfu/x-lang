@@ -207,21 +207,24 @@ export function ctx_glue_value_set_c(handle: i64, key_hash: u32, value: i64): i3
   let n: *CtxNode = ctx_ptr(handle);
   let i: i32 = 0;
   let free_slot: i32 = -1;
+  let slot: *CtxValueSlot = 0 as *CtxValueSlot;
   if (n == 0) { return -1; }
   while (i < CTX_VALUE_SLOTS) {
-    if (n.values[i].used != 0 && n.values[i].key_hash == key_hash) {
-      n.values[i].value = value;
+    slot = &n.values[i];
+    if (slot.used != 0 && slot.key_hash == key_hash) {
+      slot.value = value;
       return 0;
     }
-    if (n.values[i].used == 0 && free_slot < 0) {
+    if (slot.used == 0 && free_slot < 0) {
       free_slot = i;
     }
     i = i + 1;
   }
   if (free_slot < 0) { return -1; }
-  n.values[free_slot].key_hash = key_hash;
-  n.values[free_slot].value = value;
-  n.values[free_slot].used = 1;
+  slot = &n.values[free_slot];
+  slot.key_hash = key_hash;
+  slot.value = value;
+  slot.used = 1;
   return 0;
 }
 
@@ -235,10 +238,12 @@ export function ctx_glue_value_set_c(handle: i64, key_hash: u32, value: i64): i3
 export function ctx_glue_value_get_c(handle: i64, key_hash: u32, out: *i64): i32 {
   let n: *CtxNode = ctx_ptr(handle);
   let i: i32 = 0;
+  let slot: *CtxValueSlot = 0 as *CtxValueSlot;
   if (n == 0 || out == 0) { return 0; }
   while (i < CTX_VALUE_SLOTS) {
-    if (n.values[i].used != 0 && n.values[i].key_hash == key_hash) {
-      out[0] = n.values[i].value;
+    slot = &n.values[i];
+    if (slot.used != 0 && slot.key_hash == key_hash) {
+      out[0] = slot.value;
       return 1;
     }
     i = i + 1;

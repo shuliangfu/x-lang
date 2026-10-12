@@ -10,6 +10,8 @@
 
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_append_u8_c(elf_ctx: *u8, b: i32): i32;
 export extern function backend_enc_append_u32_le_c(elf_ctx: *u8, w: u32): i32;
@@ -181,6 +183,17 @@ export function glue_emit_index_load_arms_elf_c(
       return emit_index_enc_zext16_from_rax(elf_ctx, ta);
     }
     if (pipe_load_i32_le(&ecell[0], 0) == 4) {
+      /* 记212: TYPE_U32 → zext (ldr w / movl+zxt). i32 keeps LDRSW. */
+      if (pipe_load_i32_le(&rtycell[0], 0) > 0
+        && pipe_load_i32_le(&rtkcell[0], 0) == 3) {
+        if (ta == 1) {
+          return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+        }
+        if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0) {
+          return 0 - 1;
+        }
+        return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
+      }
       return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
     }
     return backend_enc_load_64_from_rax_arch(elf_ctx, ta);

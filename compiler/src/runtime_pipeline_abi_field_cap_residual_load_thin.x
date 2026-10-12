@@ -42,6 +42,9 @@ export extern function glue_field_call_arg_try_load_agg_from_rax_elf_c(arena: *u
 export extern function backend_enc_load_zext8_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_load_i32_indirect_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_load_32_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx: *u8, ta: i32): i32;
+export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function pipeline_typeck_get_dep_ctx(): *u8;
 export extern function pipeline_dep_ctx_ndep(ctx: *u8): i32;
 export extern function pipeline_dep_ctx_module_at(ctx: *u8, idx: i32): *u8;
@@ -217,7 +220,11 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
   if (kind_ord == 2 || kind_ord == 1) {
     return 1;
   }
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+  if (kind_ord == 3) {
+    /* 记212: sentinel 40 → scalar load zext (not LDRSW). Byte width still 4. */
+    return 40;
+  }
+  if (kind_ord == 0 || kind_ord == 13 || kind_ord == 14) {
     return 4;
   }
   if (kind_ord == 5 || kind_ord == 4 || kind_ord == 6 || kind_ord == 7 || kind_ord == 15
@@ -286,6 +293,17 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   }
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
+  }
+  /* 记212: layout field type beats missing mono stamp for U32 (key_hash). */
+  unsafe {
+    let _ftr212: i32 = glue_field_access_field_type_ref_c(a, m, expr_ref);
+    let _fk212: i32 = 0;
+    if (_ftr212 > 0) {
+      _fk212 = pipeline_type_kind_ord_at(a, _ftr212);
+      if (_fk212 == 3) {
+        return 40;
+      }
+    }
   }
   unsafe {
     tr = pipeline_expr_resolved_type_ref(a, expr_ref);
@@ -423,12 +441,24 @@ export function glue_field_access_emit_scalar_load_from_rax_elf_c(
   elf_ctx: *u8, load_sz: i32, ta: i32
 ): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // load_sz==40: TYPE_U32 sentinel (记212). LDRSW/movsxd then zxt so
+  // key_hash with high bit (FNV) compares equal to zero-extended param.
+  // load_sz==4: signed i32 / Cap residual (wave1008 LDRSW).
   unsafe {
     if (load_sz == 1) {
       return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
     }
     if (load_sz == 8) {
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 40) {
+      if (ta == 1) {
+        return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+      }
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
     }
     return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
   }
@@ -543,6 +573,18 @@ export function pipeline_asm_emit_var_field_access_elf_c(
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    {
+      let _tr_u32: i32 = 0;
+      let _ko_u32: i32 = 0;
+      _tr_u32 = pipeline_expr_resolved_type_ref(arena, expr_ref);
+      if (_tr_u32 <= 0) {
+        _tr_u32 = glue_field_access_field_type_ref_c(arena, mod, expr_ref);
+      }
+      if (_tr_u32 > 0) {
+        _ko_u32 = pipeline_type_kind_ord_at(arena, _tr_u32);
+        if (_ko_u32 == 3) { load_sz = 40; }
+      }
+    }
     return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
 }

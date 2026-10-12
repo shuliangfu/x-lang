@@ -51396,7 +51396,11 @@ export function glue_field_access_load_bytes_for_type_ref(a: *u8, ty_ref: i32): 
   if (kind_ord == 2 || kind_ord == 1) {
     return 1;
   }
-  if (kind_ord == 0 || kind_ord == 3 || kind_ord == 13 || kind_ord == 14) {
+  if (kind_ord == 3) {
+    /* 记212: sentinel 40 → scalar load zext (not LDRSW). Byte width still 4. */
+    return 40;
+  }
+  if (kind_ord == 0 || kind_ord == 13 || kind_ord == 14) {
     return 4;
   }
   /* i64/u64/usize/isize/f64/ptr/TYPE_FN → 8 (Cap-fn-ptr opaque ABI). */
@@ -52459,12 +52463,22 @@ export function glue_field_access_emit_scalar_load_from_rax_elf_c(
   elf_ctx: *u8, load_sz: i32, ta: i32
 ): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // load_sz==40: TYPE_U32 (记212) → zext 32. load_sz==4: signed LDRSW (wave1008).
   unsafe {
     if (load_sz == 1) {
       return backend_enc_load_zext8_from_rax_arch(elf_ctx, ta);
     }
     if (load_sz == 8) {
       return backend_enc_load_64_from_rax_arch(elf_ctx, ta);
+    }
+    if (load_sz == 40) {
+      if (ta == 1) {
+        return backend_enc_load_32_from_rax_arch(elf_ctx, ta);
+      }
+      if (backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta) != 0) {
+        return 0 - 1;
+      }
+      return glue_enc_zxt_u32_result_to_rax_elf_c(elf_ctx, ta);
     }
     return backend_enc_load_i32_indirect_to_rax_arch(elf_ctx, ta);
   }
@@ -52553,6 +52567,16 @@ export function pipeline_asm_emit_var_field_access_elf_c(arena: *u8, elf_ctx: *u
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    // 记212: TYPE_U32 field → sentinel 40 (zext), not LDRSW.
+    {
+      let _tr_u32: i32 = 0;
+      let _ko_u32: i32 = 0;
+      unsafe { _tr_u32 = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+      if (_tr_u32 > 0) {
+        unsafe { _ko_u32 = pipeline_type_kind_ord_at(arena, _tr_u32); }
+        if (_ko_u32 == 3) { load_sz = 40; }
+      }
+    }
     // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX/SoA.
     return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
@@ -52843,6 +52867,16 @@ export function glue_field_access_call_base_rvalue_elf_c(arena: *u8, elf_ctx: *u
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    // 记212: TYPE_U32 field → sentinel 40 (zext), not LDRSW.
+    {
+      let _tr_u32: i32 = 0;
+      let _ko_u32: i32 = 0;
+      unsafe { _tr_u32 = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+      if (_tr_u32 > 0) {
+        unsafe { _ko_u32 = pipeline_type_kind_ord_at(arena, _tr_u32); }
+        if (_ko_u32 == 3) { load_sz = 40; }
+      }
+    }
     // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX/SoA.
     return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }
@@ -52939,7 +52973,15 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
         }
       }
       load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
-      // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX.
+      {
+        let _tr_u32: i32 = 0;
+        let _ko_u32: i32 = 0;
+        unsafe { _tr_u32 = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+        if (_tr_u32 > 0) {
+          unsafe { _ko_u32 = pipeline_type_kind_ord_at(arena, _tr_u32); }
+          if (_ko_u32 == 3) { load_sz = 40; }
+        }
+      }
       return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
     }
     call_fa = glue_field_access_call_base_rvalue_elf_c(arena, elf_ctx, expr_ref, ctx, ta, 0);
@@ -53014,6 +53056,16 @@ export function pipeline_asm_emit_field_access_elf_fast_c(arena: *u8, elf_ctx: *
       return 0;
     }
     load_sz = pipeline_expr_field_access_load_byte_sz(arena, mod, expr_ref);
+    // 记212: TYPE_U32 field → sentinel 40 (zext), not LDRSW.
+    {
+      let _tr_u32: i32 = 0;
+      let _ko_u32: i32 = 0;
+      unsafe { _tr_u32 = pipeline_expr_resolved_type_ref(arena, expr_ref); }
+      if (_tr_u32 > 0) {
+        unsafe { _ko_u32 = pipeline_type_kind_ord_at(arena, _tr_u32); }
+        if (_ko_u32 == 3) { load_sz = 40; }
+      }
+    }
     // Cap residual 4-byte cells: LDRSW (wave1008). Align INDEX/SoA.
     return glue_field_access_emit_scalar_load_from_rax_elf_c(elf_ctx, load_sz, ta);
   }

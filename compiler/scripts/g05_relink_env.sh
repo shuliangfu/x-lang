@@ -465,6 +465,12 @@ fi
 # _PABI_SELFHOST blocks. PLATFORM: SHARED.
 _g05_pure_overlay src/runtime_pipeline_abi_field_cap_residual_load_thin.x \
   build_asm/selfhost_pabi/field_cap_residual_load.o pipeline_expr_field_access_load_byte_sz
+# 记212: tip field U32 zext must beat pabi_weak load_byte_sz / scalar_load.
+if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _pipeline_expr_field_access_load_byte_sz=build_asm/selfhost_pabi/field_cap_residual_load.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_load_bytes_for_type_ref=build_asm/selfhost_pabi/field_cap_residual_load.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_emit_scalar_load_from_rax_elf_c=build_asm/selfhost_pabi/field_cap_residual_load.o"
+fi
 # w1486 / w2060: Windows block-entry VAR-slot cache clear lives in
 # backend_emit_block_body_sync_elf in the let-order thin below. That
 # function clears only when link_abi_host_is_windows() is set, then binds
