@@ -28218,6 +28218,9 @@ ensure_net_io_batch_fast_darwin_pure() {
       "$oc" --weaken-symbol=_io_read_batch \
         --weaken-symbol=_io_write_batch \
         --weaken-symbol=_io_read_batch_provided \
+        --weaken-symbol=io_read_batch \
+        --weaken-symbol=io_write_batch \
+        --weaken-symbol=io_read_batch_provided \
         "$thin_o" || true
       if /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
         local _ni_short _ni_ok
@@ -28234,14 +28237,20 @@ ensure_net_io_batch_fast_darwin_pure() {
           _net_udp_recv_many_buf_impl_c \
           _net_udp_send_many_buf_impl_c \
           _runtime_net_io_batch_fast_x_doc_anchor; do
-          if ! nm "$o" 2>/dev/null | awk -v s="$_ni_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
+          if ! nm "$o" 2>/dev/null | awk -v s="$_ni_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} ($2=="T"||$2=="W"||$2=="t"||$2=="w") && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
             _ni_ok=0
             break
           fi
         done
         if [ "$_ni_ok" = "1" ]; then
           for _ni_short in _io_read_batch _io_write_batch _io_read_batch_provided; do
-            if ! nm -m "$o" 2>/dev/null | awk -v s="$_ni_short" '$NF==s && /weak/ { n++ } END { exit (n==1)?0:1 }'; then
+            _ni_weak=0
+            if nm -m "$o" 2>/dev/null | awk -v s="$_ni_short" 'BEGIN{b=s; if(s~/^_/)b=substr(s,2)} ($NF==s||$NF==b||$NF=="_" b) && /weak/ { n++ } END { exit (n>=1)?0:1 }'; then
+              _ni_weak=1
+            elif nm "$o" 2>/dev/null | awk -v s="$_ni_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} ($2=="W"||$2=="w") && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
+              _ni_weak=1
+            fi
+            if [ "$_ni_weak" != "1" ]; then
               _ni_ok=0
               break
             fi
