@@ -3181,21 +3181,21 @@ export function driver_asm_pctx_apply_host_defaults(ctx: *u8, target: *u8, emit_
         arch = 2;
       }
     }
+  } else {
+    // knife256 / 10.2: default target arm64 on Apple aarch64 before first set.
+    // Do not briefly publish arch=0 (x86_64) when -target is absent.
+    unsafe {
+      ha = xlang_driver_host_default_target_arch();
+    }
+    if (ha != 0) {
+      arch = ha;
+    }
   }
   driver_pipeline_dep_ctx_set_target_arch(ctx, arch);
   unsafe {
     feats = driver_get_pending_target_cpu_features() as i32;
   }
   driver_pipeline_dep_ctx_set_target_cpu_features(ctx, feats);
-  // Host default arch only when -target is absent (seed: if (!t) on Apple aarch64).
-  if (target == 0 as *u8) {
-    unsafe {
-      ha = xlang_driver_host_default_target_arch();
-    }
-    if (ha != 0) {
-      driver_pipeline_dep_ctx_set_target_arch(ctx, ha);
-    }
-  }
   // Object format prefs: host platform residual + windows in triple.
   unsafe {
     macho = xlang_driver_host_prefer_macho(emit_elf_o);

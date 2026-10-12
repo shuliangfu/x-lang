@@ -77,9 +77,13 @@ g05_stamp_frontend_x_pure_asm() {
   return 0
 }
 
-# 0 = host-cc the gen. 1 = leave the object (up to date, or the
-# pure-asm stamp matches). 2 = stamp and object both exist and differ;
-# caller must stop and must not cc.
+# 0 = legacy "would host-cc gen" (unused on product: never host-cc).
+# 1 = leave the object (pure-asm stamp matches, or no .o yet handled above).
+# 2 = must drop+pure-asm: stamp≠.o, OR .o present without a pure_asm stamp
+#     (Track L / migrate cold seed left an object that is not tip pure-asm).
+# knife256 / 10.2: never keep Track L parser_x/typeck_x/codegen_x without a
+# matching *.pure_asm stamp — that seed returns P001 / wrong arch on Darwin.
+# PLATFORM: SHARED.
 g05_frontend_x_needs_host_cc() {
   _fx_dir="${1:-.}"
   _fx_stem="${2:?stem}"
@@ -88,6 +92,10 @@ g05_frontend_x_needs_host_cc() {
     if g05_frontend_x_pure_asm_kept "$_fx_dir" "$_fx_stem"; then
       return 1
     fi
+    return 2
+  fi
+  # Object without pure-asm stamp (Track L archaeology / migrate seed) → rebuild.
+  if [ -f "$_fx_dir/${_fx_stem}.o" ] && [ ! -f "$_fx_dir/${_fx_stem}.pure_asm" ]; then
     return 2
   fi
   if [ ! -f "$_fx_dir/$_fx_gen" ]; then
@@ -4677,27 +4685,22 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   fi
   _px_rc=0
   g05_parser_x_needs_host_cc || _px_rc=$?
-  if [ "$_px_rc" -eq 2 ]; then
-    # knife256 / 10.2: stamp≠.o (e.g. Track L cold seed after L4 wipe left
-    # a stale pure_asm stamp). Drop both and rebuild via tip pure-asm —
-    # never host-cc. PLATFORM: SHARED.
-    echo "g05_ensure: parser_x.pure_asm≠parser_x.o; drop+pure-asm rebuild (no host-cc)"
+  if [ "$_px_rc" -eq 2 ] || [ "$_px_rc" -eq 0 ]; then
+    # knife256 / 10.2: stamp≠.o, missing stamp (Track L), or gen newer —
+    # drop and tip pure-asm; never host-cc. PLATFORM: SHARED.
+    echo "g05_ensure: parser_x needs pure-asm (rc=$_px_rc); drop+rebuild (no host-cc)"
     rm -f parser_x.o parser_x.pure_asm
     if ! bash scripts/ensure_gen_x_o.sh parser_x; then
-      echo "g05_ensure: parser_x.o pure-asm rebuild after stamp mismatch failed" >&2
+      echo "g05_ensure: parser_x.o pure-asm rebuild failed" >&2
       exit 1
     fi
     if ! g05_stamp_parser_x_pure_asm .; then
-      echo "g05_ensure: parser_x.o pure-asm stamp after mismatch rebuild failed" >&2
+      echo "g05_ensure: parser_x.o pure-asm stamp after rebuild failed" >&2
       exit 1
     fi
     _px_rc=1
   fi
-  if [ "$_px_rc" -eq 0 ]; then
-    # gen.c is newer and there is no pure-asm stamp. The object stays.
-    # PLATFORM: SHARED.
-    echo "g05_ensure: parser_x.o kept; parser_gen.c is not host-cc'd"
-  elif g05_parser_x_pure_asm_kept; then
+  if g05_parser_x_pure_asm_kept; then
     echo "g05_ensure: parser_x.o kept (pure-asm stamp matches; no host-cc)"
   fi
   g05_frontend_link_names_gate parser_x.o parser_parse_into_buf \
