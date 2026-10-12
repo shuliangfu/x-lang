@@ -1873,32 +1873,26 @@ if [ "$UNAME_S" = "Darwin" ]; then
     exit 1
   fi
 fi
-# knife 254 / 9.2 copy_large (first face): Darwin tip cold UNDEFs
-# glue_copy_large_struct_from_rax_ptr_elf_c after 9.1 hollow. archive_leaf
-# also defines it, but that blob first-wins stale struct_lit emit faces
-# (CG002). Host-cc the existing leftover seed every Darwin relink — do
-# not add a new .c overlay, do not PREFER into the egg, do not pull this
-# T from archive_leaf. Pure .x of this body SEGV on tip (rc 139); seed
-# body matches arm64 (x19) and x86 paths. Link ahead of pabi_weak and
-# archive_leaf; weaken ALE's copy when present. PLATFORM: MACOS|DARWIN.
+# knife 254 / 9.2 copy_large: tip pure-asm thin replaces host-cc leftover seed.
+# Manager: tip-owned thin / no leftover fill U / no new host-cc. Rebuild every
+# Darwin relink via _g05_pure_overlay (prefers ./xlang). Redefine ALE stale
+# copy so [no dead strip] cannot keep leftover root. PLATFORM: MACOS|DARWIN.
 if [ "$UNAME_S" = "Darwin" ]; then
-  _cl_c=seeds/win_copy_large_struct_override.c
+  unset XLANG_PREFER_ASM_O
+  _g05_pure_overlay src/runtime_pipeline_abi_copy_large_thin.x \
+    build_asm/selfhost_pabi/copy_large_a64.o \
+    glue_copy_large_struct_from_rax_ptr_elf_c
   _cl_o=build_asm/selfhost_pabi/copy_large_a64.o
-  mkdir -p build_asm/selfhost_pabi
-  if [ ! -s "$_cl_o" ] || [ "$_cl_c" -nt "$_cl_o" ]; then
-    if ! cc -O2 -c -o "$_cl_o.tmp.o" "$_cl_c"; then
-      rm -f "$_cl_o.tmp.o"
-      echo "g05_relink_env: ERROR Darwin copy_large seed cc failed" >&2
-      exit 1
-    fi
-    mv -f "$_cl_o.tmp.o" "$_cl_o"
-  fi
   if [ ! -s "$_cl_o" ]; then
-    echo "g05_relink_env: ERROR Darwin copy_large .o missing" >&2
+    echo "g05_relink_env: ERROR Darwin copy_large .x did not build" >&2
     exit 1
   fi
   if ! nm "$_cl_o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="glue_copy_large_struct_from_rax_ptr_elf_c" && ($2=="T" || $0 ~ /external/)) f=1} END{exit f?0:1}'; then
     echo "g05_relink_env: ERROR Darwin copy_large lacks T glue_copy_large_struct_from_rax_ptr_elf_c" >&2
+    exit 1
+  fi
+  if nm "$_cl_o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="xlang_panic_") e=1} END{exit e?0:1}'; then
+    echo "g05_relink_env: ERROR Darwin copy_large references xlang_panic_" >&2
     exit 1
   fi
   _oc=""
@@ -1908,18 +1902,18 @@ if [ "$UNAME_S" = "Darwin" ]; then
   fi
   if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
     if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
-        | grep -E " _glue_copy_large_struct_from_rax_ptr_elf_c$" | grep -qv weak; then
-      "$_oc" --weaken-symbol=_glue_copy_large_struct_from_rax_ptr_elf_c \
+        | grep -E " _glue_copy_large_struct_from_rax_ptr_elf_c$" >/dev/null; then
+      "$_oc" --redefine-sym=_glue_copy_large_struct_from_rax_ptr_elf_c=_glue_copy_large_struct_from_rax_ptr_elf_c_ale_superseded_w254 \
         build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
-        || { echo "g05_relink_env: weaken ALE copy_large failed" >&2; exit 1; }
+        || { echo "g05_relink_env: redefine ALE copy_large failed" >&2; exit 1; }
     fi
   fi
   if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
     if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-        | grep -E " _glue_copy_large_struct_from_rax_ptr_elf_c$" | grep -qv weak; then
-      "$_oc" --weaken-symbol=_glue_copy_large_struct_from_rax_ptr_elf_c \
+        | grep -E " _glue_copy_large_struct_from_rax_ptr_elf_c$" | grep -qv undefined; then
+      "$_oc" --redefine-sym=_glue_copy_large_struct_from_rax_ptr_elf_c=_glue_copy_large_struct_from_rax_ptr_elf_c_pabi_stubdead \
         build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-        || { echo "g05_relink_env: weaken pabi_weak copy_large failed" >&2; exit 1; }
+        || { echo "g05_relink_env: redefine pabi_weak copy_large failed" >&2; exit 1; }
     fi
   fi
   _PABI_SELFHOST="$_cl_o ${_PABI_SELFHOST:-}"
