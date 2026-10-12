@@ -5002,9 +5002,19 @@ case "$UNAME_S" in
     if [ "${XLANG_CODEGEN_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _cap_o=build_asm/selfhost_pabi/codegen_cap_residual.o
+      # knife256 / 10.2: Track L cold-seed codegen_x.o already pastes
+      # seeds/codegen_cap_residual.from_x.c (assemble). Skip the separate
+      # object when that sentinel is defined — no host-cc. PLATFORM: SHARED.
+      _cg_has_cap=0
+      if [ -f codegen_x.o ] && nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
+        _cg_has_cap=1
+        echo "g05_relink_env: codegen cap residual satisfied by codegen_x.o (Track L / paste)"
+      fi
       # Knife 255 / 10.1: product path forbids host-cc here. Keep a present
       # object; archaeology rebuild only with XLANG_TYPECK_HOST_CC=1.
-      if [ -s "$_cap_o" ] && [ "${XLANG_TYPECK_HOST_CC:-0}" != "1" ]; then
+      if [ "$_cg_has_cap" = "1" ]; then
+        _CODEGEN_CAP_RESIDUAL=""
+      elif [ -s "$_cap_o" ] && [ "${XLANG_TYPECK_HOST_CC:-0}" != "1" ]; then
         _CODEGEN_CAP_RESIDUAL="$_cap_o"
       elif [ "${XLANG_TYPECK_HOST_CC:-0}" = "1" ]; then
         if ! $G05_CC $_BASE_CFLAGS \
@@ -5053,10 +5063,18 @@ case "$UNAME_S" in
     if [ "${XLANG_TYPECK_CAP_RESIDUAL:-1}" = "1" ]; then
       mkdir -p build_asm/selfhost_pabi
       _tcap_o=build_asm/selfhost_pabi/typeck_cap_residual.o
+      # knife256 / 10.2: Track L cold-seed typeck_x.o already pastes allow-legacy
+      # + slots. Skip separate object when sentinel is defined — no host-cc.
+      # PLATFORM: SHARED.
+      if [ -f typeck_x.o ] && nm typeck_x.o 2>/dev/null | grep -q ' T _*typeck_set_allow_legacy_extern_calls$'; then
+        echo "g05_relink_env: typeck cap residual satisfied by typeck_x.o (Track L / paste)"
+        _TYPECK_CAP_RESIDUAL=""
+        # fall through: leave empty; skip tip-compile / host-cc / missing fail
+        :
       # Knife 255 / 10.1: when pure-asm typeck is kept, tip-compile
       # typeck_allow_legacy.x (allow-legacy only; CTFE object owns slots).
       # No $CC -c on the product path. Archaeology: XLANG_TYPECK_HOST_CC=1.
-      if [ "$_TYPECK_CTFE_WANT" = "1" ]; then
+      elif [ "$_TYPECK_CTFE_WANT" = "1" ]; then
         _tcap_bin=""
         if [ -x ./xlang ]; then _tcap_bin=./xlang
         elif [ -x ./xlang_asm ]; then _tcap_bin=./xlang_asm
