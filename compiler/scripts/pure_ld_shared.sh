@@ -622,12 +622,15 @@ pure_asm_emit_with_timeout() {
     "$xl" -backend asm -c -o "$stage" "$src" 2>"$_pure_err" &
   fi
   pid=$!
+  # knife256: redirect so a leftover killer cannot hold an outer
+  # `(cmd)|tee` write-end open after the emit returns (L4 step5 hang).
+  # PLATFORM: SHARED.
   (
     sleep "$to"
     kill -TERM "$pid" 2>/dev/null || true
     sleep 1
     kill -KILL "$pid" 2>/dev/null || true
-  ) &
+  ) >/dev/null 2>&1 &
   killer=$!
   rc=0
   wait "$pid" 2>/dev/null || rc=$?
