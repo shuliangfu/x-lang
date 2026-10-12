@@ -1810,6 +1810,38 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/net/mod.x|std/net/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net mod.x (记232).
+      # Tip asm already emits the std_net_* import face (no -lib-name "").
+      # Historic C path was -x -E→cc because C emit typeck-failed on std.io
+      # (no golden C object). Fail-closed pure-asm; Windows keeps C path.
+      # Do not fall through to cc for this file.
+      _netm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_netm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/netm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_connect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_listen$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_set_blocking$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_udp_bind$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_net_module_anchor_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/netm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/http/mod.x|std/http/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.http mod.x (记228).
       # Do not pass -lib-name "". User API stays std_http_*.
