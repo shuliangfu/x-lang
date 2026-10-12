@@ -5204,11 +5204,46 @@ case "$UNAME_S" in
     ;;
 esac
 
+# knife 254 / 9.2: Darwin tip-cold L2 method-call SEGV — pabi_weak mega_body
+# uses AsmFuncCtx frame sub sp,#0x8d0 while restored/ALE use #0xa50. Tip
+# backend_call_dispatch reads module_ref at ctx+16 expecting the 0xa50 layout
+# → garbage mod_ref → parser_get_module_num_imports SEGV on hello/option/si.
+# Prefer ALE mega_body (0xa50 + 0x299 e_machine): redefine pabi T stubdead and
+# globalize ALE local. Same-TU pabi bl still hits stubdead body (keep e_machine
+# patch below). External seed_mega → ALE. PLATFORM: MACOS tip cold.
+case "$UNAME_S" in
+  Darwin*)
+    if [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ]; then
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            | grep -E " _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c$" \
+            | grep -qv undefined; then
+          "$_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c_pabi_stubdead \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            || { echo "g05_relink_env: redefine pabi_weak mega_body failed (Darwin ALE prefer)" >&2; exit 1; }
+        fi
+        if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+            | grep -E " _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c$" >/dev/null; then
+          "$_oc" --globalize-symbol=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c \
+            build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+            || { echo "g05_relink_env: globalize ALE mega_body failed (Darwin ALE prefer)" >&2; exit 1; }
+        fi
+      fi
+    fi
+    ;;
+esac
+
 # knife 254 / 9.2: Darwin tip pipe_elf_off_e_machine is 0x2990018. Clean
 # pabi_weak mega_body still stores e_machine at stale 0x10a0018 (same-TU
-# callers), so macho_write reads 0 and emits x86_64. Do NOT redefine-sym
-# (renames same-TU bl to stubdead and keeps the stale body live). Patch
-# movk #0x10a,lsl#16 -> #0x299 in place. PLATFORM: MACOS tip cold.
+# callers under stubdead name after ALE prefer above). Patch movk
+# #0x10a,lsl#16 -> #0x299 in place so same-TU residual stays ARM64.
+# PLATFORM: MACOS tip cold.
 case "$UNAME_S" in
   Darwin*)
     if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
