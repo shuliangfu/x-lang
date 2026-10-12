@@ -730,6 +730,37 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/net/freestanding_linux.x|std/net/freestanding_linux.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.freestanding_linux (记237).
+      # No -lib-name "": import face std_net_freestanding_linux_freestanding_*.
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below.
+      _nfl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_nfl_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _nfl_log="$(mktemp "${TMPDIR:-/tmp}/std_nfl_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_nfl_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_net_available$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_socket_tcp$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_connect$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_net_module_anchor$'; then
+            rm -f "$_nfl_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_nfl_log" >&2
+          rm -f "$_nfl_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/regex/regex.x|std/regex/regex.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
       # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
