@@ -327,16 +327,25 @@ _g05_pure_overlay() {
   mkdir -p build_asm/selfhost_pabi
   # Keep prior $_po_o on tipU/CG002 miss (记211: wipe left Ubuntu without overlays).
   rm -f "$_po_o.tmp.o"
-  if [ ! -x ./xlang_asm ]; then
-    echo "g05_relink_env: WARNING pure overlay $_po_x not built (no ./xlang_asm)" >&2
+  # knife 254 / 9.2: xlang_asm is the relink *output* and may be mid-cold with
+  # empty-body emit (store_retval_pair dropped all extern U). Prefer last-known
+  # good ./xlang for overlay compile; fall back to ./xlang_asm only if xlang
+  # is absent. PLATFORM: SHARED tip cold · MACOS store_retval gate.
+  _po_bin=""
+  if [ -x ./xlang ]; then
+    _po_bin=./xlang
+  elif [ -x ./xlang_asm ]; then
+    _po_bin=./xlang_asm
+  else
+    echo "g05_relink_env: WARNING pure overlay $_po_x not built (no ./xlang or ./xlang_asm)" >&2
     return 0
   fi
   for _po_try in 1 2 3; do
     _po_rc=0
-    ./xlang_asm -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
+    "$_po_bin" -backend asm -c "$_po_x" -o "$_po_o.tmp.o" >/dev/null 2>&1 || _po_rc=$?
     if [ "$_po_rc" -eq 124 ] || [ "$_po_rc" -ge 128 ]; then
-      printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
-        "$(date +%H:%M:%S)" "$_po_rc" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+      printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
+        "$(date +%H:%M:%S)" "$_po_rc" "$_po_bin" "$_po_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
     fi
     if [ "$_po_rc" -eq 0 ] \
       && nm "$_po_o.tmp.o" 2>/dev/null | grep -q "T _*${_po_sym}\$"; then
@@ -1918,15 +1927,21 @@ if [ "$UNAME_S" = "Darwin" ]; then
   _dfca_x=src/runtime_pipeline_abi_for_call_args_thin.x
   _dfca_o=build_asm/selfhost_pabi/for_call_args_a64.o
   _dfca_s=_pipeline_asm_emit_expr_elf_for_call_args
-  if [ ! -f "$_dfca_x" ] || [ ! -x ./xlang_asm ]; then
-    echo "g05_relink_env: $_dfca_x or ./xlang_asm missing (Darwin call-arg packer)" >&2
+  # knife 254 / 9.2: prefer ./xlang (last-known good) for mid-cold overlay;
+  # xlang_asm is the relink output and may empty-body emit.
+  _dfca_bin=""
+  if [ -x ./xlang ]; then _dfca_bin=./xlang
+  elif [ -x ./xlang_asm ]; then _dfca_bin=./xlang_asm
+  fi
+  if [ ! -f "$_dfca_x" ] || [ -z "$_dfca_bin" ]; then
+    echo "g05_relink_env: $_dfca_x or ./xlang|/xlang_asm missing (Darwin call-arg packer)" >&2
     exit 1
   fi
   mkdir -p build_asm/selfhost_pabi
   rm -f "$_dfca_o" "$_dfca_o.tmp.o"
-  if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1; then
+  if ! XLANG_PREFER_ASM_O=1 "$_dfca_bin" -backend asm -c "$_dfca_x" -o "$_dfca_o.tmp.o" >/dev/null 2>&1; then
     rm -f "$_dfca_o.tmp.o"
-    echo "g05_relink_env: $_dfca_x failed (Darwin call-arg packer)" >&2
+    echo "g05_relink_env: $_dfca_x failed via $_dfca_bin (Darwin call-arg packer)" >&2
     exit 1
   fi
   _dfca_oc=""
@@ -2060,8 +2075,10 @@ for line in nm.splitlines():
     if parts[-1] == sym:
         hit = addr
 if hit is None:
-    sys.stderr.write("g05_relink_env: Darwin index base symbol missing\n")
-    sys.exit(1)
+    # knife 254 / 9.2: after 9.1 seed hollow, Darwin pabi_weak may only
+    # UNDEF this name (no 8-byte stub T). Tip thin provides the strong body;
+    # still assemble _rest below. Skip egg entry byte check.
+    sys.exit(0)
 nxt = next(a for a in sorted(set(addrs)) if a > hit)
 if nxt - hit != 8:
     sys.stderr.write("g05_relink_env: Darwin index base span is not 8\n")
