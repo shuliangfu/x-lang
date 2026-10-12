@@ -223,6 +223,11 @@ log "mode=$MODE SHA=$SHA host=$HOST"
 # PLATFORM: SHARED — cold L4 only; does not re-enable pin-first (9.2).
 export XLANG_MIGRATE_TRACK_L_COLD_SEED="${XLANG_MIGRATE_TRACK_L_COLD_SEED:-1}"
 export XLANG_TYPECK_HOST_CC="${XLANG_TYPECK_HOST_CC:-0}"
+# knife256 / 10.2: ambient XLANG_PREFER_ASM_O=1 poisons try-heat; scrub for L4.
+# Prefer-family scripts set it scoped in subshells only.
+# PLATFORM: SHARED.
+unset XLANG_PREFER_ASM_O
+
 
 log "log file: $LOG"
 

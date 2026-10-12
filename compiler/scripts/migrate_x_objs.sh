@@ -345,7 +345,8 @@ build_typeck() {
   set -e
   if [ "$_typeck_cc" -eq 0 ]; then
     sz=$(obj_size typeck_x.o)
-    if [ "$sz" -gt 10000 ]; then
+    # knife256: Track L healthy ~365KB; tip hollow ~135KB must not pass.
+    if [ "$sz" -ge 300000 ]; then
       if migrate_windows_leftover_pe_cannot_e && [ -n "$_typeck_bak" ] && [ -f "$_typeck_bak" ]; then
         log "typeck_x.o leftover PE pin cc OK ($sz bytes); kept $_typeck_bak"
       else

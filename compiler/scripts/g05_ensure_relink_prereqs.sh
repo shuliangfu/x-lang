@@ -4766,8 +4766,26 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     echo "g05_ensure: typeck_x needs pure-asm (rc=2); try tip pure-asm (no host-cc)"
     rm -f typeck_x.o typeck_x.pure_asm
     if bash scripts/ensure_gen_x_o.sh typeck_x && g05_stamp_frontend_x_pure_asm . typeck_x; then
-      echo "g05_ensure: typeck_x.o <- tip pure-asm OK"
-      _tgx_rc=1
+      _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+      # knife256: tip can "succeed" with a hollow ~135KB object missing
+      # typeck_x_ast_check_one_func → phase1 UNDEF. Gate size+symbol.
+      # PLATFORM: SHARED.
+      if [ "$_tsz" -ge 300000 ] \
+        && nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null; then
+        echo "g05_ensure: typeck_x.o <- tip pure-asm OK ($_tsz bytes)"
+        _tgx_rc=1
+      else
+        echo "g05_ensure: typeck_x tip pure-asm too small/incomplete ($_tsz); Track L restore" >&2
+        rm -f typeck_x.o typeck_x.pure_asm
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
+          echo "g05_ensure: typeck_x.o Track L restore failed" >&2
+          exit 1
+        fi
+        [ -f typeck_x.o ] || { echo "g05_ensure: typeck_x.o missing after Track L restore" >&2; exit 1; }
+        echo "g05_ensure: typeck_x.o kept via Track L (tip hollow rejected)"
+        _tgx_rc=1
+      fi
     else
       echo "g05_ensure: typeck_x pure-asm failed; restore Track L cold seed" >&2
       export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
@@ -4792,7 +4810,8 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     fi
   fi
   g05_frontend_link_names_gate typeck_x.o typeck_get_field_offset_from_layout_deps \
-    typeck_check_expr_impl_mega typeck_ensure_u8_type_ref typeck_find_or_alloc_ptr_type_ref
+    typeck_check_expr_impl_mega typeck_ensure_u8_type_ref typeck_find_or_alloc_ptr_type_ref \
+    typeck_x_ast_check_one_func
   # codegen_x.o cold path.
   # Missing object (w1634 Linux, w1812 Darwin and Windows): rebuild from
   # src/codegen/codegen.x and codegen_late.x via build_codegen_x, then

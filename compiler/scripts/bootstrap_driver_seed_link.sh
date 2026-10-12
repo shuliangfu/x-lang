@@ -173,6 +173,71 @@ for _fe in parser_x.o typeck_x.o codegen_x.o; do
   esac
 done
 
+# knife256 / 10.2 P001: Track L parser_x.o calls struct-returning
+# lexer_init(); tip pure-asm lexer_x.o exports lexer_init(out:*Lexer):void.
+# parse_into_buf uses lexer_next_buf_into (out-ptr; ABI-compatible with tip).
+# Fix: demote tip _lexer_init to local; prepend strong return-by-value asm
+# shim. Keep tip lexer for next_* so parser_asm bridges stay tip-ABI.
+# PLATFORM: SHARED phase1/final with Track L parser.
+if [ -f parser_x.o ] && [ -f lexer_x.o ]; then
+  _psz=$(wc -c <parser_x.o | tr -d ' ')
+  if [ "$_psz" -lt 400000 ]; then
+    _shim_dir=build_asm/seed_host
+    mkdir -p "$_shim_dir"
+    _shim="$_shim_dir/lexer_init_ret_by_value_shim.o"
+    _lex_f="$_shim_dir/lexer_x_trackl_abi.o"
+    _arch=$(uname -m)
+    case "$_arch" in
+      arm64|aarch64) _shim_s=src/asm/lexer_init_ret_by_value_shim_arm64.s ;;
+      x86_64|amd64) _shim_s=src/asm/lexer_init_ret_by_value_shim_x86_64.s ;;
+      *) fail "P001 ABI shim: unsupported arch $_arch" ;;
+    esac
+    [ -f "$_shim_s" ] || fail "missing $_shim_s"
+    if [ ! -f "$_shim" ] || [ "$_shim_s" -nt "$_shim" ]; then
+      as -o "$_shim" "$_shim_s" || fail "as failed for $_shim_s"
+    fi
+    if [ ! -f "$_lex_f" ] || [ lexer_x.o -nt "$_lex_f" ]; then
+      _exp="$_shim_dir/lexer_x_trackl_exports.txt"
+      nm -gU lexer_x.o | awk '/ [Tt] /{print $3}' | grep -v '^_lexer_init$' | grep -v '^lexer_init$' >"$_exp"
+      ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o || fail "ld -r filter lexer_init failed"
+    fi
+    _new_objs=""
+    for _o in $SEED_LINK_OBJS; do
+      if [ "$_o" = "lexer_x.o" ]; then
+        _new_objs="$_new_objs $_lex_f"
+      else
+        _new_objs="$_new_objs $_o"
+      fi
+    done
+    SEED_LINK_OBJS="$_shim $_new_objs"
+    note "P001 ABI: return-by-value lexer_init shim + filtered tip lexer (Track L parser sz=$_psz)"
+  fi
+fi
+
+# knife256 / 10.2: gate Track L typeck against silent shrink (~135KB missing
+# typeck_x_ast_check_one_func). Healthy archaeology pin is ~365KB.
+# PLATFORM: SHARED phase1/final.
+case " $SEED_LINK_OBJS " in
+  *" typeck_x.o "*)
+    if [ -f typeck_x.o ]; then
+      _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+      if [ "$_tsz" -lt 300000 ]; then
+        note "typeck_x.o too small ($_tsz); Track L re-seed"
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        bash scripts/migrate_x_objs.sh typeck_x.o >&2 || fail "typeck shrink re-seed failed"
+        _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+        [ "$_tsz" -ge 300000 ] || fail "typeck_x.o still too small after re-seed ($_tsz)"
+      fi
+      if ! nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null; then
+        note "typeck_x.o missing typeck_x_ast_check_one_func; Track L re-seed"
+        export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+        bash scripts/migrate_x_objs.sh typeck_x.o >&2 || fail "typeck symbol re-seed failed"
+        nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null           || fail "typeck_x.o still missing typeck_x_ast_check_one_func"
+      fi
+    fi
+    ;;
+esac
+
 n_objs=$(printf '%s\n' "$SEED_LINK_OBJS" | wc -w | tr -d ' ')
 
 # ---------------------------------------------------------------------------
