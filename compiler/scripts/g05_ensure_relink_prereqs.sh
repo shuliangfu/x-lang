@@ -4674,13 +4674,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   g05_frontend_x_drop_stale parser_x src/parser src/lexer src/ast
   if [ ! -f parser_x.o ]; then
     echo "g05_ensure: parser_x.o missing; pure-asm src/parser/parser.x (no host-cc)"
-    if ! bash scripts/ensure_gen_x_o.sh parser_x; then
-      echo "g05_ensure: parser_x.o pure-asm failed" >&2
-      exit 1
-    fi
-    if ! g05_stamp_parser_x_pure_asm .; then
-      echo "g05_ensure: parser_x.o pure-asm stamp failed" >&2
-      exit 1
+    if bash scripts/ensure_gen_x_o.sh parser_x && g05_stamp_parser_x_pure_asm .; then
+      echo "g05_ensure: parser_x.o <- tip pure-asm OK (missing-path)"
+    else
+      # knife256/10.2: tip/egg cannot emit large parser.x (CG002/stack) —
+      # same Track L archaeology restore as the needs-host-cc path below.
+      # PLATFORM: SHARED.
+      echo "g05_ensure: parser_x pure-asm failed (missing); restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh parser_x.o >&2; then
+        echo "g05_ensure: parser_x.o Track L restore failed (missing-path)" >&2
+        exit 1
+      fi
+      [ -f parser_x.o ] || { echo "g05_ensure: parser_x.o missing after Track L" >&2; exit 1; }
+      echo "g05_ensure: parser_x.o kept via Track L (missing-path; no pure_asm stamp)"
     fi
   fi
   _px_rc=0
@@ -4729,13 +4736,17 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   g05_frontend_x_drop_stale typeck_x src/typeck src/parser src/lexer src/ast
   if [ ! -f typeck_x.o ]; then
     echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
-    if ! bash scripts/ensure_gen_x_o.sh typeck_x; then
-      echo "g05_ensure: typeck_x.o pure-asm failed" >&2
-      exit 1
-    fi
-    if ! g05_stamp_frontend_x_pure_asm . typeck_x; then
-      echo "g05_ensure: typeck_x.o pure-asm stamp failed" >&2
-      exit 1
+    if bash scripts/ensure_gen_x_o.sh typeck_x && g05_stamp_frontend_x_pure_asm . typeck_x; then
+      echo "g05_ensure: typeck_x.o <- tip pure-asm OK (missing-path)"
+    else
+      echo "g05_ensure: typeck_x pure-asm failed (missing); restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
+        echo "g05_ensure: typeck_x.o Track L restore failed (missing-path)" >&2
+        exit 1
+      fi
+      [ -f typeck_x.o ] || { echo "g05_ensure: typeck_x.o missing after Track L" >&2; exit 1; }
+      echo "g05_ensure: typeck_x.o kept via Track L (missing-path)"
     fi
   fi
   # w1504 (10.30): host-local typeck_gen.c is reused when tip -E typeck.x is
@@ -4826,11 +4837,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # Cap residual stays a separate object. It is not inside codegen.x.
   g05_frontend_x_drop_stale codegen_x src/codegen src/typeck src/parser src/lexer src/ast
   if [ ! -f codegen_x.o ]; then
-    echo "g05_ensure: codegen_x.o missing; pure-asm codegen.x + codegen_late.x (no host-cc)"
-    if ! bash scripts/ensure_gen_x_o.sh codegen_x; then
-      echo "g05_ensure: codegen_x.o pure-asm failed" >&2
-      exit 1
+    echo "g05_ensure: codegen_x.o missing; pure-asm src/codegen/codegen.x (no host-cc)"
+    if bash scripts/ensure_gen_x_o.sh codegen_x && g05_stamp_frontend_x_pure_asm . codegen_x; then
+      echo "g05_ensure: codegen_x.o <- tip pure-asm OK (missing-path)"
+    else
+      echo "g05_ensure: codegen_x pure-asm failed (missing); restore Track L cold seed" >&2
+      export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
+      if ! bash scripts/migrate_x_objs.sh codegen_x.o >&2; then
+        echo "g05_ensure: codegen_x.o Track L restore failed (missing-path)" >&2
+        exit 1
+      fi
+      [ -f codegen_x.o ] || { echo "g05_ensure: codegen_x.o missing after Track L" >&2; exit 1; }
+      echo "g05_ensure: codegen_x.o kept via Track L (missing-path)"
     fi
+  fi
     if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
       echo "g05_ensure: codegen_x.o pure-asm stamp failed" >&2
       exit 1
