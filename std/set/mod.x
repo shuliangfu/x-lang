@@ -530,7 +530,9 @@ export function str_key_cap(): i32 { return 32; }
  * @return u64
  */
 export function hash_bytes(ptr: *u8, len: i32): u64 {
-  return hash_mod.bytes(ptr, len);
+  /* std.hash.bytes returns the hash bits in rax as i64. */
+  let h: i64 = hash_mod.bytes(ptr, len);
+  return h as u64;
 }
 
 /* See implementation. */

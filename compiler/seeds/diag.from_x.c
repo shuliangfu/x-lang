@@ -13,12 +13,6 @@
  */
 #include "diag.h"
 #ifdef XLANG_L2_DIAG_THIN_FROM_X
-#define diag_code_eq diag_code_eq_impl
-#define diag_levenshtein_ci diag_levenshtein_ci_impl
-#define diag_json_write_str diag_json_write_str_impl
-#define diag_json_severity diag_json_severity_impl
-#define diag_code_suggest diag_code_suggest_impl
-#define diag_report_json diag_report_json_impl
 int diag_ctx_get_use_color(void);
 int diag_code_table_has(const char *code);
 int diag_json_get_state(void);
@@ -36,6 +30,7 @@ void diag_json_set_state(int v);
  * All diag print sites go through these; formatting uses the Cap fmt authority.
  * Byte-exact replacements for the former fputs/fputc/fprintf/fflush calls. */
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Decode handle → fd (static wrapper keeps call sites short). */
 static int diag_o_fd(uint8_t *o) {
     return xlang_driver_handle_to_fd(o);
@@ -50,17 +45,23 @@ static int diag_o_write(uint8_t *o, const char *s, size_t n) {
         return 0;
     return xlang_io_write(fd, s, n) == (long)n ? 0 : -1;
 }
+#endif
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Write NUL-terminated string (fputs twin; NULL writes nothing). */
 static int diag_o_puts(uint8_t *o, const char *s) {
     return diag_o_write(o, s, s ? strlen(s) : 0);
 }
+#endif
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Write one char (fputc twin). */
 static int diag_o_putc(uint8_t *o, char c) {
     return diag_o_write(o, &c, 1);
 }
+#endif
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** Formatted write via Cap fmt (fprintf twin; 512B cap — diag lines are short). */
 static int diag_o_printf(uint8_t *o, const char *fmt, ...) {
     char buf[512];
@@ -73,8 +74,10 @@ static int diag_o_printf(uint8_t *o, const char *fmt, ...) {
         return -1;
     return diag_o_write(o, buf, ((size_t)n < sizeof(buf)) ? (size_t)n : sizeof(buf) - 1);
 }
+#endif
 
-/** Std stream handles for direct stderr/stdout sites. */
+/** Std stream handles for direct stderr/stdout sites. Cold path only. */
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static uint8_t *diag_h_stderr(void) {
     return xlang_driver_handle_from_fd(2);
 }
@@ -82,6 +85,7 @@ static uint8_t *diag_h_stderr(void) {
 static uint8_t *diag_h_stdout(void) {
     return xlang_driver_handle_from_fd(1);
 }
+#endif
 
 /* wave233 G.7: env via public pure thin link_abi_getenv (wave222 → _impl host getenv);
  * not raw libc getenv. Cap residual host getenv stays only link_abi_getenv_impl.
@@ -116,6 +120,7 @@ static DiagContext g_diag_ctx;
 /* JSON 诊断模式：-2 = 尚未决定（按 XLANG_DIAG_JSON 环境变量），1 = 开启，0 = 关闭。 */
 static int g_diag_json = -2;
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static const DiagCodeExplain g_diag_code_table[] = {
     {"P001", "parse error", "Parser detected invalid syntax or unrecoverable parse failure.",
      "Used for parser-side syntax errors and parser fatal conditions such as out-of-memory. "
@@ -258,14 +263,22 @@ static const DiagCodeExplain g_diag_code_table[] = {
      "`typeck OK` stdout line remains for grep/golden compatibility. Typical action: none (success marker)."},
 };
 static const size_t g_diag_code_table_count = sizeof(g_diag_code_table) / sizeof(g_diag_code_table[0]);
+#else
+/* Code-table rows live in src/diag_thin.x. PLATFORM: SHARED. */
+extern size_t diag_code_table_len(void);
+extern const char *diag_code_table_code_at(size_t i);
+extern const char *diag_code_table_kind_at(size_t i);
+extern const char *diag_code_table_summary_at(size_t i);
+extern const char *diag_entry_code(const char *code);
+extern const char *diag_entry_kind(const char *code);
+extern const char *diag_entry_summary(const char *code);
+extern const char *diag_entry_details(const char *code);
+#endif
 
 /* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_should_color(void)
-#else
-int diag_should_color_impl(void)
-#endif
 {
 #if defined(_WIN32)
     /* PLATFORM: WINDOWS — no ANSI color path for host stderr in this twin. */
@@ -278,17 +291,17 @@ int diag_should_color_impl(void)
     return isatty(2) ? 1 : 0;
 #endif
 }
+#else
+/* Color decision lives in src/diag_thin.x. PLATFORM: POSIX. */
+extern int diag_should_color(void);
+#endif
 
 
 /** 供 .x 读 g_diag_ctx.use_color（G-02f-154）。 */
 /* G-02f-386：实现体始终 seed；public PREFER 时 thin forward */
-int diag_ctx_get_use_color_impl(void) {
-    return g_diag_ctx.use_color ? 1 : 0;
-}
-
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_ctx_get_use_color(void) {
-    return diag_ctx_get_use_color_impl();
+    return g_diag_ctx.use_color ? 1 : 0;
 }
 #endif
 
@@ -303,21 +316,19 @@ extern const char *diag_color_prefix(const char *plain, const char *color);
 #endif
 
 /* G-02f-154：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char * diag_color_reset(void)
-#else
-const char * diag_color_reset_impl(void)
-#endif
 {
     return g_diag_ctx.use_color ? "\x1b[0m" : "";
 }
+#else
+/* ANSI reset choice lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_color_reset(void);
+#endif
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_code_eq(const char *lhs, const char *rhs)
-#else
-int diag_code_eq_impl(const char *lhs, const char *rhs)
-#endif
 {
   size_t i;
   if (!lhs || !rhs)
@@ -334,9 +345,14 @@ int diag_code_eq_impl(const char *lhs, const char *rhs)
   }
   return lhs[i] == '\0' && rhs[i] == '\0' ? 1 : 0;
 }
+#else
+/* Case-insensitive code compare lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_code_eq(const char *lhs, const char *rhs);
+#endif
 
 
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static const DiagCodeExplain *diag_lookup_code_explain(const char *code) {
     size_t i;
     if (!code || code[0] == '\0')
@@ -347,6 +363,7 @@ static const DiagCodeExplain *diag_lookup_code_explain(const char *code) {
     }
     return NULL;
 }
+#endif
 
 typedef struct DiagPalette {
     const char *kind_color;
@@ -377,6 +394,7 @@ extern int diag_kind_contains(const char *kind, const char *needle);
 #endif
 
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 static DiagPalette diag_palette_for_kind(const char *kind) {
     DiagPalette pal;
     pal.kind_color = diag_color_prefix("", "\x1b[1;37m");
@@ -410,80 +428,89 @@ static DiagPalette diag_palette_for_kind(const char *kind) {
     }
     return pal;
 }
+#endif
 
 /** 供 .x stdio 冷路径（G-02f-156）。9.7.1: stream params are opaque fd handles. */
-/* G-02f-421：实现体始终 seed；public PREFER 时 thin pure forward */
-uint8_t *diag_stderr_impl(void) { return diag_h_stderr(); }
+/* G-02f-421：stderr 句柄在 thin；冷路径仍走 diag_h_stderr。 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-uint8_t *diag_stderr(void) { return diag_stderr_impl(); }
+uint8_t *diag_stderr(void) { return diag_h_stderr(); }
 #endif
 /* G-02f-415：实现体始终 seed（stdio/fmt）；public PREFER 时 thin pure forward */
-int diag_io_fputc_impl(uint8_t *o, int c) { return diag_o_putc(o, (char)c); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-int diag_io_fputc(uint8_t *o, int c) { return diag_io_fputc_impl(o, c); }
+int diag_io_fputc(uint8_t *o, int c) { return diag_o_putc(o, (char)c); }
+#else
+/* One-byte write lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_io_fputc(uint8_t *o, int c);
 #endif
-int diag_io_fputs_impl(const char *s, uint8_t *o) { return diag_o_puts(o, s ? s : ""); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-int diag_io_fputs(const char *s, uint8_t *o) { return diag_io_fputs_impl(s, o); }
+int diag_io_fputs(const char *s, uint8_t *o) { return diag_o_puts(o, s ? s : ""); }
+#else
+/* String write lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_io_fputs(const char *s, uint8_t *o);
 #endif
-void diag_io_fputs_u04x_impl(uint8_t *o, unsigned c) { diag_o_printf(o, "\\u%04x", c); }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fputs_u04x(uint8_t *o, unsigned c) { diag_io_fputs_u04x_impl(o, c); }
+void diag_io_fputs_u04x(uint8_t *o, unsigned c) { diag_o_printf(o, "\\u%04x", c); }
+#else
+/* Unicode escape lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fputs_u04x(uint8_t *o, unsigned c);
 #endif
-void diag_io_fflush_impl(uint8_t *o) { (void)o; /* raw fd writes are unbuffered */ }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fflush(uint8_t *o) { diag_io_fflush_impl(o); }
+void diag_io_fflush(uint8_t *o) { (void)o; /* raw fd writes are unbuffered */ }
+#else
+/* Flush is a no-op and lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fflush(uint8_t *o);
 #endif
-void diag_io_fprint_line_col_impl(uint8_t *o, int line, int col) {
-    diag_o_printf(o, ",\"line\":%d,\"col\":%d,\"message\":", line, col);
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_line_col(uint8_t *o, int line, int col) {
-    diag_io_fprint_line_col_impl(o, line, col);
+    diag_o_printf(o, ",\"line\":%d,\"col\":%d,\"message\":", line, col);
 }
+#else
+/* JSON line/col fields live in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_line_col(uint8_t *o, int line, int col);
 #endif
 /** 供 .x report_human 位置/gutter 冷路径（G-02f-159）。 */
-void diag_io_fprint_loc_file_line_col_impl(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs) {
-    diag_o_printf(o, "%s --> %s:%d:%d%s\n", pc ? pc : "", file ? file : "", line, col, rs ? rs : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_loc_file_line_col(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs) {
-    diag_io_fprint_loc_file_line_col_impl(o, pc, file, line, col, rs);
+    diag_o_printf(o, "%s --> %s:%d:%d%s\n", pc ? pc : "", file ? file : "", line, col, rs ? rs : "");
 }
+#else
+/* Location line with file, line, and column lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_loc_file_line_col(uint8_t *o, const char *pc, const char *file, int line, int col, const char *rs);
 #endif
-void diag_io_fprint_loc_file_line_impl(uint8_t *o, const char *pc, const char *file, int line, const char *rs) {
-    diag_o_printf(o, "%s --> %s:%d%s\n", pc ? pc : "", file ? file : "", line, rs ? rs : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_loc_file_line(uint8_t *o, const char *pc, const char *file, int line, const char *rs) {
-    diag_io_fprint_loc_file_line_impl(o, pc, file, line, rs);
+    diag_o_printf(o, "%s --> %s:%d%s\n", pc ? pc : "", file ? file : "", line, rs ? rs : "");
 }
+#else
+/* Location line with file and line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_loc_file_line(uint8_t *o, const char *pc, const char *file, int line, const char *rs);
 #endif
-void diag_io_fprint_loc_file_impl(uint8_t *o, const char *pc, const char *file, const char *rs) {
-    diag_o_printf(o, "%s --> %s%s\n", pc ? pc : "", file ? file : "", rs ? rs : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_loc_file(uint8_t *o, const char *pc, const char *file, const char *rs) {
-    diag_io_fprint_loc_file_impl(o, pc, file, rs);
+    diag_o_printf(o, "%s --> %s%s\n", pc ? pc : "", file ? file : "", rs ? rs : "");
 }
+#else
+/* Location line with only a file lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_loc_file(uint8_t *o, const char *pc, const char *file, const char *rs);
 #endif
-void diag_io_fprint_loc_line_col_impl(uint8_t *o, const char *pc, int line, int col, const char *rs) {
-    diag_o_printf(o, "%s --> %d:%d%s\n", pc ? pc : "", line, col, rs ? rs : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_loc_line_col(uint8_t *o, const char *pc, int line, int col, const char *rs) {
-    diag_io_fprint_loc_line_col_impl(o, pc, line, col, rs);
+    diag_o_printf(o, "%s --> %d:%d%s\n", pc ? pc : "", line, col, rs ? rs : "");
 }
+#else
+/* Location line with line and column lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_loc_line_col(uint8_t *o, const char *pc, int line, int col, const char *rs);
 #endif
-void diag_io_fprint_gutter_blank_impl(uint8_t *o, int width) {
-    diag_o_printf(o, "%*s |\n", width, "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_gutter_blank(uint8_t *o, int width) {
-    diag_io_fprint_gutter_blank_impl(o, width);
+    diag_o_printf(o, "%*s |\n", width, "");
 }
+#else
+/* Blank gutter line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_gutter_blank(uint8_t *o, int width);
 #endif
-void diag_io_fprint_src_line_impl(uint8_t *o, int line, const char *start, int len) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len) {
     /* Three-part write keeps arbitrary-length source lines intact (no 512 cap). */
     if (diag_o_printf(o, "%d | ", line) != 0)
         return;
@@ -491,40 +518,35 @@ void diag_io_fprint_src_line_impl(uint8_t *o, int line, const char *start, int l
         return;
     diag_o_puts(o, "\n");
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len) {
-    diag_io_fprint_src_line_impl(o, line, start, len);
-}
+#else
+/* Source gutter line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_src_line(uint8_t *o, int line, const char *start, int len);
 #endif
-void diag_io_fprint_gutter_bar_impl(uint8_t *o, int width) {
-    diag_o_printf(o, "%*s | ", width, "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_gutter_bar(uint8_t *o, int width) {
-    diag_io_fprint_gutter_bar_impl(o, width);
+    diag_o_printf(o, "%*s | ", width, "");
 }
+#else
+/* Caret gutter bar lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_gutter_bar(uint8_t *o, int width);
 #endif
-void diag_io_fprint_caret_mark_impl(uint8_t *o, const char *cc, const char *rs, const char *detail) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_io_fprint_caret_mark(uint8_t *o, const char *cc, const char *rs, const char *detail) {
     diag_o_printf(o, "%s^%s", cc ? cc : "", rs ? rs : "");
     if (detail && detail[0] != '\0')
         diag_o_printf(o, " %s", detail);
     diag_o_putc(o, '\n');
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fprint_caret_mark(uint8_t *o, const char *cc, const char *rs, const char *detail) {
-    diag_io_fprint_caret_mark_impl(o, cc, rs, detail);
-}
+#else
+/* Caret mark line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_caret_mark(uint8_t *o, const char *cc, const char *rs, const char *detail);
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* Hybrid: the header walk is src/diag_thin.x. Cold seed keeps this C body. */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_header(const char *kind, const char *code, const char *msg,
                               const char *kind_color, const char *reset)
-#else
-void diag_print_header_impl(const char *kind, const char *code, const char *msg,
-                              const char *kind_color, const char *reset)
-#endif
 {
     if (!msg)
         msg = "";
@@ -543,6 +565,11 @@ void diag_print_header_impl(const char *kind, const char *code, const char *msg,
     else
         diag_o_printf(diag_h_stderr(), "%s%s%s: %s\n", kind_color, kind, reset, msg);
 }
+#else
+/* Header walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_header(const char *kind, const char *code, const char *msg,
+                              const char *kind_color, const char *reset);
+#endif
 /* G-02f-116：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-335：hybrid 时由 diag_thin.x 提供 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
@@ -562,9 +589,6 @@ extern int diag_line_digits(int line);
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out)
-#else
-int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *line_len_out)
-#endif
 {
     const char *src = g_diag_ctx.source;
     size_t len = g_diag_ctx.source_len;
@@ -590,20 +614,24 @@ int diag_extract_line_impl(int line_no, const char **line_start_out, size_t *lin
     *line_len_out = i - start;
     return 0;
 }
+#else
+/* Walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_extract_line(int line_no, const char **line_start_out, size_t *line_len_out);
+#endif
 
 
 /** 供 .x 写 g_diag_ctx（G-02f-156）。 */
 /* G-02f-420：实现体始终 seed；public PREFER 时 thin pure forward */
-void diag_ctx_set_all_impl(const char *path, const char *source, size_t source_len, int use_color) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
     g_diag_ctx.file_path = path;
     g_diag_ctx.source = source;
     g_diag_ctx.source_len = source_len;
     g_diag_ctx.use_color = use_color;
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color) {
-    diag_ctx_set_all_impl(path, source, source_len, use_color);
-}
+#else
+/* Context write lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_ctx_set_all(const char *path, const char *source, size_t source_len, int use_color);
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -636,14 +664,7 @@ void diag_push_file(DiagContextSnapshot *snapshot, const char *path, const char 
     g_diag_ctx.use_color = diag_should_color();
 }
 #else
-/* thin 负责 snapshot 字节布局；此处仅写 g_diag_ctx（path/source 三元） */
-void diag_push_file_apply_impl(const char *path, const char *source, size_t source_len)
-{
-    g_diag_ctx.file_path = path ? path : g_diag_ctx.file_path;
-    g_diag_ctx.source = source ? source : g_diag_ctx.source;
-    g_diag_ctx.source_len = source ? source_len : g_diag_ctx.source_len;
-    g_diag_ctx.use_color = diag_should_color_impl();
-}
+/* Push walk lives in src/diag_thin.x. Context storage stays here. PLATFORM: SHARED. */
 #endif
 
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -663,29 +684,33 @@ void diag_restore(const DiagContextSnapshot *snapshot)
 
 /** 供 .x 读 g_diag_ctx 字段（G-02f-155）。 */
 /* G-02f-420：实现体始终 seed；public PREFER 时 thin pure forward */
-const char *diag_ctx_get_file_impl(void) {
-    return g_diag_ctx.file_path;
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char *diag_ctx_get_file(void) {
-    return diag_ctx_get_file_impl();
+    return g_diag_ctx.file_path;
 }
+#else
+/* File-path read lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_ctx_get_file(void);
 #endif
-const char *diag_ctx_get_source_impl(void) {
-    return g_diag_ctx.source;
+/* Address of the one diagnostic context record. PLATFORM: SHARED. */
+uint8_t *diag_ctx_base(void) {
+    return (uint8_t *)&g_diag_ctx;
 }
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char *diag_ctx_get_source(void) {
-    return diag_ctx_get_source_impl();
+    return g_diag_ctx.source;
 }
+#else
+/* Source-pointer read lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_ctx_get_source(void);
 #endif
-size_t diag_ctx_get_source_len_impl(void) {
-    return g_diag_ctx.source_len;
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 size_t diag_ctx_get_source_len(void) {
-    return diag_ctx_get_source_len_impl();
+    return g_diag_ctx.source_len;
 }
+#else
+/* Source-length read lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern size_t diag_ctx_get_source_len(void);
 #endif
 
 /* G-02f-155：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -715,9 +740,6 @@ void diag_report_json(const char *file, int line, int col,
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_human(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#else
-void diag_report_human_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#endif
 {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
     const char *line_start = NULL;
@@ -736,18 +758,10 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
     const char *reset = diag_color_reset();
 #endif
 
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    if (line > 0 && diag_extract_line_impl(line, &line_start, &line_len) == 0)
-#else
     if (line > 0 && diag_extract_line(line, &line_start, &line_len) == 0)
-#endif
         have_line = 1;
 
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    diag_print_header_impl(kind, code, msg, kind_color, reset);
-#else
     diag_print_header(kind, code, msg, kind_color, reset);
-#endif
 
     /* wave1221: always print line:col even when 0, so typeck errors without
      * expr line/col still show file:0:0 instead of bare file path.
@@ -780,33 +794,27 @@ void diag_report_human_impl(const char *file, int line, int col, const char *kin
         diag_o_printf(diag_h_stderr(), " %s", detail);
     diag_o_putc(diag_h_stderr(), '\n');
 }
+#else
+/* Human report walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_report_human(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail);
+#endif
 
 /* G-02f-158：逻辑源 .x（JSON 分流真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl（可再调 thin public 或 _impl） */
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-int diag_json_enabled_impl(void); /* defined later in this TU */
-#endif
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#else
-void diag_report_with_code_impl(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail)
-#endif
 {
     const char *actual_file = file ? file : g_diag_ctx.file_path;
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-    if (diag_json_enabled_impl()) {
-        diag_report_json(actual_file, line, col, kind, code, msg);
-        return;
-    }
-    diag_report_human_impl(file, line, col, kind, code, msg, detail);
-#else
     if (diag_json_enabled()) {
         diag_report_json(actual_file, line, col, kind, code, msg);
         return;
     }
     diag_report_human(file, line, col, kind, code, msg, detail);
-#endif
 }
+#else
+/* JSON / human dispatch lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_report_with_code(const char *file, int line, int col, const char *kind, const char *code, const char *msg, const char *detail);
+#endif
 
 /* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-336：hybrid 时由 diag_thin.x 提供 */
@@ -856,6 +864,7 @@ void diag_reportf(const char *file, int line, int col, const char *kind, const c
 
 
 
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 /** 供 .x 查 code 表是否存在（G-02f-155）。 */
 /* G-02f-386：实现体始终 seed；public PREFER 时 thin forward */
 int diag_code_table_has_impl(const char *code) {
@@ -966,35 +975,35 @@ const char *diag_entry_details(const char *code) {
     return diag_entry_details_impl(code);
 }
 #endif
-uint8_t *diag_stdout_impl(void) { return diag_h_stdout(); }
+#endif
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
-uint8_t *diag_stdout(void) { return diag_stdout_impl(); }
+uint8_t *diag_stdout(void) { return diag_h_stdout(); }
 #endif
 /* G-02f-415：code table io → seed impl + thin pure forward (9.7.1 fd handles) */
-void diag_io_fprint_unknown_code_impl(uint8_t *out, const char *code) {
-    diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_unknown_code(uint8_t *out, const char *code) {
-    diag_io_fprint_unknown_code_impl(out, code);
+    diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
 }
+#else
+/* Unknown-code line lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_unknown_code(uint8_t *out, const char *code);
 #endif
-void diag_io_fprint_code_table_hdr_impl(uint8_t *out) {
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
+void diag_io_fprint_code_table_hdr(uint8_t *out) {
     diag_o_printf(out, "%-8s %-18s %s\n", "CODE", "KIND", "SUMMARY");
     diag_o_printf(out, "%-8s %-18s %s\n", "----", "----", "-------");
 }
-#ifndef XLANG_L2_DIAG_THIN_FROM_X
-void diag_io_fprint_code_table_hdr(uint8_t *out) {
-    diag_io_fprint_code_table_hdr_impl(out);
-}
+#else
+/* Code-table header lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_code_table_hdr(uint8_t *out);
 #endif
-void diag_io_fprint_code_table_row_impl(uint8_t *out, const char *code, const char *kind, const char *summary) {
-    diag_o_printf(out, "%-8s %-18s %s\n", code ? code : "", kind ? kind : "", summary ? summary : "");
-}
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_io_fprint_code_table_row(uint8_t *out, const char *code, const char *kind, const char *summary) {
-    diag_io_fprint_code_table_row_impl(out, code, kind, summary);
+    diag_o_printf(out, "%-8s %-18s %s\n", code ? code : "", kind ? kind : "", summary ? summary : "");
 }
+#else
+/* Code-table row lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_io_fprint_code_table_row(uint8_t *out, const char *code, const char *kind, const char *summary);
 #endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
@@ -1021,12 +1030,9 @@ extern const char *diag_code_details(const char *code);
 #endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_known_codes(uint8_t *out)
-#else
-void diag_print_known_codes_impl(uint8_t *out)
-#endif
 {
     size_t i;
     if (!out)
@@ -1035,14 +1041,15 @@ void diag_print_known_codes_impl(uint8_t *out)
         diag_o_printf(out, "%s%s", i == 0 ? "" : ", ", g_diag_code_table[i].code);
     diag_o_putc(out, '\n');
 }
+#else
+/* Comma-separated known-code list lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_known_codes(uint8_t *out);
+#endif
 
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_code_explain(uint8_t *out, const char *code)
-#else
-void diag_print_code_explain_impl(uint8_t *out, const char *code)
-#endif
 {
     const DiagCodeExplain *entry;
     if (!out)
@@ -1051,11 +1058,7 @@ void diag_print_code_explain_impl(uint8_t *out, const char *code)
     if (!entry) {
         diag_o_printf(out, "Unknown diagnostic code: %s\n", code ? code : "(null)");
         diag_o_puts(out, "Known codes: ");
-#ifdef XLANG_L2_DIAG_THIN_FROM_X
-        diag_print_known_codes_impl(out);
-#else
         diag_print_known_codes(out);
-#endif
         return;
     }
     diag_o_printf(out, "%s\n", entry->code);
@@ -1063,6 +1066,10 @@ void diag_print_code_explain_impl(uint8_t *out, const char *code)
     diag_o_printf(out, "Summary: %s\n", entry->summary);
     diag_o_printf(out, "Details: %s\n", entry->details);
 }
+#else
+/* Explain walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_code_explain(uint8_t *out, const char *code);
+#endif
 
 
 /**
@@ -1075,9 +1082,6 @@ void diag_print_code_explain_impl(uint8_t *out, const char *code)
 /* G-02f-152 / G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_levenshtein_ci(const char *a, const char *b)
-#else
-int diag_levenshtein_ci_impl(const char *a, const char *b)
-#endif
 {
     size_t la = a ? strlen(a) : 0;
     size_t lb = b ? strlen(b) : 0;
@@ -1121,6 +1125,10 @@ int diag_levenshtein_ci_impl(const char *a, const char *b)
     }
     return prev[lb];
 }
+#else
+/* Case-insensitive edit distance lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_levenshtein_ci(const char *a, const char *b);
+#endif
 
 /**
  * 为未知诊断码找一个最接近的已知码（did-you-mean 建议）。
@@ -1135,20 +1143,31 @@ int diag_levenshtein_ci_impl(const char *a, const char *b)
  * 与查询等长或仅差 1，避免把任意短查询都建议成首个已知码。
  */
 /* G-02f-158：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
+#ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
     size_t i;
     int best_dist = 999;
     const char *best_code = NULL;
     int code_len;
 
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    if (!code || diag_code_table_len() == 0)
+        return NULL;
+#else
     if (!code || !g_diag_code_table_count)
         return NULL;
+#endif
     code_len = (int)strlen(code);
     if (code_len <= 0)
         return NULL;
 
+#ifdef XLANG_L2_DIAG_THIN_FROM_X
+    for (i = 0; i < diag_code_table_len(); i++) {
+        const char *cand = diag_code_table_code_at(i);
+#else
     for (i = 0; i < g_diag_code_table_count; i++) {
         const char *cand = g_diag_code_table[i].code;
+#endif
         int d = diag_levenshtein_ci(code, cand);
         if (d < best_dist) {
             best_dist = d;
@@ -1169,18 +1188,19 @@ const char *diag_code_suggest(const char *code, char *out, size_t out_cap) {
     }
     return out ? out : best_code;
 }
+#else
+/* Did-you-mean walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_code_suggest(const char *code, char *out, size_t out_cap);
+#endif
 
 /**
  * 打印完整诊断码表（用户面：`xlang explain --list` / `xlang --explain --list`）。
  * 格式：列对齐的 CODE / KIND / Summary，便于人工浏览全部已知码。
  */
 /* G-02f-157：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_print_code_table(uint8_t *out)
-#else
-void diag_print_code_table_impl(uint8_t *out)
-#endif
 {
     size_t i;
     if (!out)
@@ -1192,6 +1212,10 @@ void diag_print_code_table_impl(uint8_t *out)
         diag_o_printf(out, "%-8s %-18s %s\n", e->code, e->kind, e->summary);
     }
 }
+#else
+/* Aligned code-table walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_print_code_table(uint8_t *out);
+#endif
 
 
 /**
@@ -1200,33 +1224,30 @@ void diag_print_code_table_impl(uint8_t *out)
  * 仅供 driver 在解析 --diag-json 等 CLI 标志后调用；冷路径，零性能影响。
  */
 /* G-02f-153：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
+/* G-02f-338：hybrid 时 public 由 thin；本文件冷路径保留 C 体 */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_set_json_mode(int enable)
-#else
-void diag_set_json_mode_impl(int enable)
-#endif
 {
     g_diag_json = enable ? 1 : 0;
 }
+#else
+/* JSON mode switch lives in src/diag_thin.x. Cache stays here. PLATFORM: SHARED. */
+extern void diag_set_json_mode(int enable);
+#endif
 
 /** 供 .x 读写 g_diag_json 状态（-2=未决）。 */
-/* G-02f-386：实现体始终 seed；public PREFER 时 thin forward（set 用 i32 壳） */
-int diag_json_get_state_impl(void) {
-    return g_diag_json;
-}
-
-int diag_json_set_state_impl(int v) {
-    g_diag_json = v;
-    return 0;
+/* G-02f-386：get/set 在 thin；地址由 diag_json_base 给出。 */
+/* Address of the JSON-mode cache. Values include -2. PLATFORM: SHARED. */
+uint8_t *diag_json_base(void) {
+    return (uint8_t *)&g_diag_json;
 }
 
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_json_get_state(void) {
-    return diag_json_get_state_impl();
+    return g_diag_json;
 }
 void diag_json_set_state(int v) {
-    (void)diag_json_set_state_impl(v);
+    g_diag_json = v;
 }
 #endif
 
@@ -1238,9 +1259,6 @@ void diag_json_set_state(int v) {
 /* G-02f-338：hybrid 时 public 由 thin；本文件出 _impl */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 int diag_json_enabled(void)
-#else
-int diag_json_enabled_impl(void)
-#endif
 {
     if (g_diag_json == -2) {
         /* wave233 G.7: XLANG_DIAG_JSON via link_abi_getenv (not raw getenv). */
@@ -1249,6 +1267,10 @@ int diag_json_enabled_impl(void)
     }
     return g_diag_json == 1 ? 1 : 0;
 }
+#else
+/* JSON enable cache lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern int diag_json_enabled(void);
+#endif
 
 
 /**
@@ -1258,9 +1280,6 @@ int diag_json_enabled_impl(void)
 /* G-02f-156：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_json_write_str(uint8_t *out, const char *s)
-#else
-void diag_json_write_str_impl(uint8_t *out, const char *s)
-#endif
 {
     const unsigned char *p = (const unsigned char *)(s ? s : "");
     diag_o_putc(out, '"');
@@ -1283,6 +1302,10 @@ void diag_json_write_str_impl(uint8_t *out, const char *s)
     }
     diag_o_putc(out, '"');
 }
+#else
+/* JSON string walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern void diag_json_write_str(uint8_t *out, const char *s);
+#endif
 
 
 /**
@@ -1292,9 +1315,6 @@ void diag_json_write_str_impl(uint8_t *out, const char *s)
 /* G-02f-124：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 const char * diag_json_severity(const char *kind)
-#else
-const char * diag_json_severity_impl(const char *kind)
-#endif
 {
     if (!kind || !kind[0])
         return "error";
@@ -1308,8 +1328,10 @@ const char * diag_json_severity_impl(const char *kind)
         return "help";
     return "error";
 }
-
-
+#else
+/* JSON severity walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+extern const char *diag_json_severity(const char *kind);
+#endif
 
 
 /**
@@ -1321,10 +1343,6 @@ const char * diag_json_severity_impl(const char *kind)
 #ifndef XLANG_L2_DIAG_THIN_FROM_X
 void diag_report_json(const char *file, int line, int col,
                              const char *kind, const char *code, const char *msg)
-#else
-void diag_report_json_impl(const char *file, int line, int col,
-                             const char *kind, const char *code, const char *msg)
-#endif
 {
     const char *sev = diag_json_severity(kind);
     uint8_t *eo = diag_h_stderr();
@@ -1345,5 +1363,8 @@ void diag_report_json_impl(const char *file, int line, int col,
     diag_o_puts(eo, "}\n");
     /* raw fd 2 writes are unbuffered — no flush (9.7.1) */
 }
+#else
+/* JSON report walk lives in src/diag_thin.x. PLATFORM: SHARED. */
+#endif
 
 

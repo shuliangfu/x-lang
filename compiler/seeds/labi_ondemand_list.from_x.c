@@ -50,6 +50,33 @@
 #define snprintf xlang_snprintf
 #include "runtime_link_abi.h"
 
+/* Class BE: bodies live in seeds/labi_od_needle_tables.c */
+const char *labi_od_simple_group_sym_at(int g, int i);
+const char *labi_fk0_sym_at(int k, int i);
+const char *labi_std_fk_gate_sym_at(int fk, int i);
+/* Class BF: single-index sym_at bodies in labi_od_needle_tables.c */
+const char *labi_od_kv_sym_at(int i);
+const char *labi_od_arrow_sym_at(int i);
+const char *labi_od_net_sym_at(int i);
+const char *labi_od_vec_sym_at(int i);
+const char *labi_od_set_sym_at(int i);
+const char *labi_od_map_sym_at(int i);
+const char *labi_od_queue_api_sym_at(int i);
+const char *labi_od_test_sym_at(int i);
+const char *labi_od_core_mem_sym_at(int i);
+const char *labi_od_sys_linux_sym_at(int i);
+const char *labi_od_sys_macos_sym_at(int i);
+const char *labi_od_heap_api_sym_at(int i);
+const char *labi_od_async_scheduler_sym_at(int i);
+const char *labi_od_zlib_undef_sym_at(int i);
+const char *labi_od_zstd_undef_sym_at(int i);
+const char *labi_od_brotli_undef_sym_at(int i);
+const char *labi_od_runtime_time_os_sym_at(int i);
+const char *labi_od_runtime_random_fill_sym_at(int i);
+const char *labi_od_runtime_env_os_sym_at(int i);
+const char *labi_od_std_task_sym_at(int i);
+
+
 /* Cap residual (wave212): UNDEF cache mmap; pure owns null/empty gates. */
 int xlang_link_obj_needs_undef_sym_impl(const char *user_o, const char *sym);
 /* Cap residual (wave213): T/t cache mmap; pure owns null/empty gates. */
@@ -244,734 +271,8 @@ int labi_od_simple_group_sym_count(int g) {
   return 0;
 }
 
-const char *labi_od_simple_group_sym_at(int g, int i) {
-  if (g < 0)
-    return NULL;
-  if (i < 0)
-    return NULL;
-  if (g == 0) {
-    if (i == 0)
-      return "xlang_string_copy_c";
-    if (i == 1)
-      return "xlang_string_memcmp_c";
-    if (i == 2)
-      return "xlang_string_memchr_c";
-    if (i == 3)
-      return "xlang_string_memmem_c";
-    if (i == 4)
-      return "xlang_string_memrchr_c";
-    if (i == 5)
-      return "std_string_string_new";
-    if (i == 6)
-      return "std_string_string_from_slice";
-    if (i == 7)
-      return "std_string_string_view";
-    if (i == 8)
-      return "std_string_string_len";
-    /*
-     * wave958: std_string_string_view_case_fold for string_case_fold
-     * cookbook. G.7: complete the single string probe table. PLATFORM: SHARED.
-     */
-    if (i == 9)
-      return "std_string_string_view_case_fold";
-    /*
-     * zc_arena_concat unique UNDEF (Ubuntu gold): string.view is often
-     * inlined so g0 never fired from string_view. Unique names
-     * concat_arena / string_view_get / length_StrView then never ensure
-     * string.o. Matcher is exact; string_len does not cover length_StrView.
-     * G.7: complete this single string probe table. Do not add a second group.
-     * PLATFORM: SHARED.
-     */
-    if (i == 10)
-      return "std_string_string_view_concat_arena";
-    if (i == 11)
-      return "std_string_string_view_get";
-    if (i == 12)
-      return "std_string_length_StrView";
-    return NULL;
-  }
-  /*
-   * PLATFORM: SHARED — exact UNDEF needles for core/types/types.o (g==1).
-   * CORE-013 unique: size_of/align_of i16/u16. Rest = full scalar size/align
-   * surface so sole-call smokes also fire. G.7: one table (was only i32+placeholder).
-   */
-  if (g == 1) {
-    if (i == 0)
-      return "core_types_size_of_i16";
-    if (i == 1)
-      return "core_types_size_of_u16";
-    if (i == 2)
-      return "core_types_align_of_i16";
-    if (i == 3)
-      return "core_types_align_of_u16";
-    if (i == 4)
-      return "core_types_size_of_i32";
-    if (i == 5)
-      return "core_types_size_of_bool";
-    if (i == 6)
-      return "core_types_size_of_u8";
-    if (i == 7)
-      return "core_types_size_of_u32";
-    if (i == 8)
-      return "core_types_size_of_u64";
-    if (i == 9)
-      return "core_types_size_of_i64";
-    if (i == 10)
-      return "core_types_size_of_usize";
-    if (i == 11)
-      return "core_types_size_of_isize";
-    if (i == 12)
-      return "core_types_size_of_f32";
-    if (i == 13)
-      return "core_types_size_of_f64";
-    if (i == 14)
-      return "core_types_size_of_pointer";
-    if (i == 15)
-      return "core_types_align_of_i32";
-    if (i == 16)
-      return "core_types_align_of_bool";
-    if (i == 17)
-      return "core_types_align_of_u8";
-    if (i == 18)
-      return "core_types_align_of_u32";
-    if (i == 19)
-      return "core_types_align_of_u64";
-    if (i == 20)
-      return "core_types_align_of_i64";
-    if (i == 21)
-      return "core_types_align_of_usize";
-    if (i == 22)
-      return "core_types_align_of_isize";
-    if (i == 23)
-      return "core_types_align_of_f32";
-    if (i == 24)
-      return "core_types_align_of_f64";
-    if (i == 25)
-      return "core_types_align_of_pointer";
-    if (i == 26)
-      return "core_types_placeholder";
-    return NULL;
-  }
-  if (g == 2) {
-    if (i == 0)
-      return "encoding_utf8_valid_c";
-    if (i == 1)
-      return "encoding_hex_encode_c";
-    if (i == 2)
-      return "encoding_ascii_is_alpha_c";
-    if (i == 3)
-      return "std_encoding_utf8_valid";
-    if (i == 4)
-      return "std_encoding_utf8_decode_rune";
-    if (i == 5)
-      return "std_encoding_ascii_is_alpha";
-    return NULL;
-  }
-  if (g == 3) {
-    if (i == 0)
-      return "base64_encode_standard_c";
-    if (i == 1)
-      return "std_base64_encode_standard";
-    if (i == 2)
-      return "std_base64_decode_standard";
-    if (i == 3)
-      return "std_base64_encode_url";
-    return NULL;
-  }
-  if (g == 4) {
-    /* PLATFORM: SHARED — exact UNDEF needles for std/csv/csv.o (g==4).
-     * next_field/escape do not cover parse_row/write_row (cookbook sole UNDEF). */
-    if (i == 0)
-      return "std_csv_next_field";
-    if (i == 1)
-      return "std_csv_escape";
-    if (i == 2)
-      return "std_csv_csv_test_quoted_first";
-    if (i == 3)
-      return "std_csv_parse_row";
-    if (i == 4)
-      return "std_csv_write_row";
-    return NULL;
-  }
-  if (g == 5) {
-    if (i == 0)
-      return "schema_create_c";
-    if (i == 1)
-      return "schema_decode_json_c";
-    if (i == 2)
-      return "schema_smoke_c";
-    return NULL;
-  }
-  if (g == 6) {
-    if (i == 0)
-      return "core_option_some_i32";
-    if (i == 1)
-      return "core_option_unwrap_or_i32";
-    if (i == 2)
-      return "core_option_none_i32";
-    if (i == 3)
-      return "core_option_is_some_i32";
-    return NULL;
-  }
-  if (g == 7) {
-    /* PLATFORM: SHARED — prefer short Result_i32 overloads (mirror list.x). */
-    if (i == 0)
-      return "core_result_ok_i32";
-    if (i == 1)
-      return "core_result_is_ok_i32";
-    if (i == 2)
-      return "core_result_err_i32";
-    if (i == 3)
-      return "core_result_ok";
-    if (i == 4)
-      return "core_result_err";
-    if (i == 5)
-      return "core_result_is_ok";
-    if (i == 6)
-      return "core_result_is_err";
-    if (i == 7)
-      return "core_result_unwrap_or";
-    if (i == 8)
-      return "core_result_unwrap_or_i32";
-    if (i == 9)
-      return "core_result_is_err_i32";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — core.debug formal surface (tests/sort assert_eq_*). */
-  if (g == 8) {
-    if (i == 0)
-      return "core_debug_assert_eq_i32";
-    if (i == 1)
-      return "core_debug_assert_eq_u32";
-    if (i == 2)
-      return "core_debug_assert_eq_u64";
-    if (i == 3)
-      return "core_debug_assert_ne_i32";
-    if (i == 4)
-      return "core_debug_assert";
-    if (i == 5)
-      return "core_debug_debug_assert";
-    return NULL;
-  }
-  /*
-   * PLATFORM: SHARED — full core.slice formal API (mod.o) for CORE-004.
-   * Glue from_ptr/subslice_*_c stays in core/slice/slice.o (labi_od_core_slice).
-   * Prior g9 (13) covered len/get/subslice + u64 split/chunks only; sole UNDEF
-   * for is_empty/first/last/split_at_i32|u8/chunks_len_i32|u8/chunk_* never
-   * opened mod.o. Matcher is exact — complete one table (G.7); .x twin same
-   * commit.
-   */
-  if (g == 9) {
-    if (i == 0)
-      return "core_slice_len_i32";
-    if (i == 1)
-      return "core_slice_get_i32";
-    if (i == 2)
-      return "core_slice_get_i32_unchecked";
-    if (i == 3)
-      return "core_slice_is_empty_i32";
-    if (i == 4)
-      return "core_slice_first_i32";
-    if (i == 5)
-      return "core_slice_last_i32";
-    if (i == 6)
-      return "core_slice_subslice_i32";
-    if (i == 7)
-      return "core_slice_split_at_i32";
-    if (i == 8)
-      return "core_slice_chunks_len_i32";
-    if (i == 9)
-      return "core_slice_chunk_i32";
-    if (i == 10)
-      return "core_slice_len_u8";
-    if (i == 11)
-      return "core_slice_get_u8";
-    if (i == 12)
-      return "core_slice_get_u8_unchecked";
-    if (i == 13)
-      return "core_slice_is_empty_u8";
-    if (i == 14)
-      return "core_slice_first_u8";
-    if (i == 15)
-      return "core_slice_subslice_u8";
-    if (i == 16)
-      return "core_slice_split_at_u8";
-    if (i == 17)
-      return "core_slice_chunks_len_u8";
-    if (i == 18)
-      return "core_slice_chunk_u8";
-    if (i == 19)
-      return "core_slice_len_u64";
-    if (i == 20)
-      return "core_slice_get_u64";
-    if (i == 21)
-      return "core_slice_is_empty_u64";
-    if (i == 22)
-      return "core_slice_first_u64";
-    if (i == 23)
-      return "core_slice_last_u64";
-    if (i == 24)
-      return "core_slice_subslice_u64";
-    if (i == 25)
-      return "core_slice_split_at_u64";
-    if (i == 26)
-      return "core_slice_chunks_len_u64";
-    if (i == 27)
-      return "core_slice_chunk_u64";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — core.builtin formal (tests/builtin pure-asm UNDEF residual). */
-  if (g == 10) {
-    if (i == 0)
-      return "core_builtin_placeholder";
-    if (i == 1)
-      return "core_builtin_copy";
-    if (i == 2)
-      return "core_builtin_min_i32";
-    if (i == 3)
-      return "core_builtin_max_i32";
-    if (i == 4)
-      return "core_builtin_min_u32";
-    if (i == 5)
-      return "core_builtin_max_u32";
-    if (i == 6)
-      return "core_builtin_clz_u32";
-    if (i == 7)
-      return "core_builtin_ctz_u32";
-    if (i == 8)
-      return "core_builtin_popcount_u32";
-    if (i == 9)
-      return "core_builtin_bswap_u32";
-    if (i == 10)
-      return "core_builtin_rotl_u32";
-    if (i == 11)
-      return "core_builtin_rotr_u32";
-    if (i == 12)
-      return "core_builtin_unreachable";
-    if (i == 13)
-      return "core_builtin_abort";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std.ffi formal (tests/ffi pure-asm UNDEF residual). */
-  if (g == 11) {
-    if (i == 0)
-      return "std_ffi_cstr_len";
-    if (i == 1)
-      return "std_ffi_cstring_new";
-    if (i == 2)
-      return "std_ffi_cstring_free";
-    if (i == 3)
-      return "std_ffi_cstring_try_new";
-    if (i == 4)
-      return "std_ffi_cstring_destroy";
-    if (i == 5)
-      return "ffi_cstr_len_c";
-    if (i == 6)
-      return "ffi_cstring_new_c";
-    if (i == 7)
-      return "ffi_cstring_free_c";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — ≡ pure g12..g19 (test/assert/fmt/compress/driver/debug/simd/io). */
-  if (g == 12) {
-    if (i == 0)
-      return "std_test_expect";
-    if (i == 1)
-      return "std_test_expect_eq_i32";
-    if (i == 2)
-      return "std_test_expect_ne_i32";
-    if (i == 3)
-      return "std_test_assert";
-    if (i == 4)
-      return "std_test_runner_case";
-    return NULL;
-  }
-  if (g == 13) {
-    if (i == 0)
-      return "core_assert_assert";
-    if (i == 1)
-      return "core_assert_assert_eq_i32";
-    if (i == 2)
-      return "core_assert_assert_ne_i32";
-    if (i == 3)
-      return "core_assert_debug_assert";
-    if (i == 4)
-      return "core_assert_assert_eq_u32";
-    if (i == 5)
-      return "core_assert_assert_eq_bool";
-    return NULL;
-  }
-  if (g == 14) {
-    if (i == 0)
-      return "std_fmt_format_i32";
-    if (i == 1)
-      return "std_fmt_to_buf_u8_ptr_i32_i32";
-    if (i == 2)
-      return "std_fmt_to_buf_u8_ptr_i32_u32";
-    if (i == 3)
-      return "std_fmt_to_buf_u8_ptr_i32_i64";
-    if (i == 4)
-      return "std_fmt_to_buf_u8_ptr_i32_u64";
-    if (i == 5)
-      return "std_fmt_hex_to_buf_u8_ptr_i32_u32";
-    if (i == 6)
-      return "std_fmt_append_to_buf_u8_ptr_i32_i32_i32";
-    if (i == 7)
-      return "std_fmt_format_u8_ptr_i32_i32_i32";
-    if (i == 8)
-      return "std_fmt_format_template";
-    return NULL;
-  }
-  if (g == 15) {
-    if (i == 0)
-      return "std_compress_gzip_compress";
-    if (i == 1)
-      return "std_compress_gzip_decompress";
-    if (i == 2)
-      return "std_compress_brotli_compress";
-    if (i == 3)
-      return "std_compress_brotli_decompress";
-    if (i == 4)
-      return "std_compress_zstd_compress";
-    if (i == 5)
-      return "std_compress_zstd_decompress";
-    if (i == 6)
-      return "std_compress_compress_state_bytes_for";
-    if (i == 7)
-      return "std_compress_compress_init";
-    if (i == 8)
-      return "std_compress_compress_process";
-    if (i == 9)
-      return "std_compress_compress_end";
-    if (i == 10)
-      return "std_compress_format_brotli";
-    if (i == 11)
-      return "std_compress_format_zstd";
-    if (i == 12)
-      return "std_compress_mode_compress";
-    if (i == 13)
-      return "std_compress_mode_decompress";
-    /* 9.2.2: submodule zlib/gzip unique UNDEF (exact; Darwin mangle). */
-    if (i == 14)
-      return "std_compress_zlib_deflate";
-    if (i == 15)
-      return "std_compress_zlib_inflate";
-    if (i == 16)
-      return "std_compress_gzip_gzip_compress";
-    if (i == 17)
-      return "std_compress_gzip_gzip_decompress";
-    if (i == 18)
-      return "std_compress_deflate";
-    if (i == 19)
-      return "std_compress_inflate";
-    /* Linux product -o co-emits mod.x wrappers; UNDEF is bare *_c. */
-    if (i == 20)
-      return "compress_deflate_c";
-    if (i == 21)
-      return "compress_inflate_c";
-    if (i == 22)
-      return "compress_gzip_compress_c";
-    if (i == 23)
-      return "compress_gzip_decompress_c";
-    /* PLATFORM: SHARED — stream needles (see g15 count note). */
-    if (i == 24)
-      return "std_compress_gzip_stream_state_bytes";
-    if (i == 25)
-      return "std_compress_brotli_stream_state_bytes";
-    if (i == 26)
-      return "std_compress_zstd_stream_state_bytes";
-    if (i == 27)
-      return "std_compress_brotli_lib_compress_brotli_stream_init_decompress_";
-    return NULL;
-  }
-  if (g == 16) {
-    if (i == 0)
-      return "std_io_driver_register";
-    if (i == 1)
-      return "std_io_driver_submit_read";
-    if (i == 2)
-      return "std_io_driver_submit_write";
-    if (i == 3)
-      return "std_io_driver_submit_register_fixed_buffers_buf";
-    return NULL;
-  }
-  if (g == 17) {
-    if (i == 0)
-      return "std_debug_assert";
-    if (i == 1)
-      return "std_debug_println_u8_ptr_i32";
-    if (i == 2)
-      return "std_debug_print_u8_ptr_i32";
-    return NULL;
-  }
-  if (g == 18) {
-    if (i == 0)
-      return "std_simd_shuffle_f32x4_i32_a4";
-    if (i == 1)
-      return "std_simd_shuffle_i32x8_i32_a8";
-    if (i == 2)
-      return "std_simd_select_f32x4_f32x4_f32x4";
-    if (i == 3)
-      return "std_simd_select_i32x8_i32x8_i32x8";
-    if (i == 4)
-      return "std_simd_splat_i32";
-    if (i == 5)
-      return "std_simd_splat_f32";
-    if (i == 6)
-      return "std_simd_mul_f32x4_f32x4";
-    if (i == 7)
-      return "std_simd_mul_i32x8_i32x8";
-    if (i == 8)
-      return "std_simd_sub_i32x8_i32x8";
-    if (i == 9)
-      return "std_simd_sub_f32x4_f32x4";
-    if (i == 10)
-      return "std_simd_add_f32x4_f32x4";
-    if (i == 11)
-      return "std_simd_add_i32x8_i32x8";
-    if (i == 12)
-      return "std_simd_dot";
-    if (i == 13)
-      return "std_simd_madd";
-    if (i == 14)
-      return "std_simd_fma";
-    if (i == 15)
-      return "std_simd_hsum";
-    if (i == 16)
-      return "std_simd_placeholder";
-    if (i == 17)
-      return "std_simd_hw_available";
-    if (i == 18)
-      return "std_simd_recommend_path";
-    if (i == 19)
-      return "std_simd_SIMD_PATH_SCALAR";
-    if (i == 20)
-      return "std_simd_SIMD_PATH_HW";
-    if (i == 21)
-      return "std_simd_select_lane_i32_i32_i32";
-    if (i == 22)
-      return "std_simd_select_lane_f32_f32_f32";
-    return NULL;
-  }
-  if (g == 19) {
-    if (i == 0)
-      return "std_io_timeout_from_ctx";
-    if (i == 1)
-      return "std_io_read_ctx";
-    if (i == 2)
-      return "std_io_write_ctx";
-    return NULL;
-  }
-  /*
-   * wave957: std.unicode formal product probes. Mirrors .x g==20.
-   * G.7: single unicode probe authority. PLATFORM: SHARED.
-   */
-  if (g == 20) {
-    if (i == 0)
-      return "std_unicode_category";
-    if (i == 1)
-      return "std_unicode_to_lower";
-    if (i == 2)
-      return "std_unicode_to_upper";
-    if (i == 3)
-      return "std_unicode_is_whitespace";
-    if (i == 4)
-      return "std_unicode_is_ascii";
-    if (i == 5)
-      return "std_unicode_case_fold_rune";
-    if (i == 6)
-      return "std_unicode_is_supplementary";
-    if (i == 7)
-      return "std_unicode_rune_utf8_len";
-    return NULL;
-  }
-  /*
-   * PLATFORM: SHARED — exact UNDEF needles for core/str/mod.o (g==21).
-   * Cookbook unique: index_of / index_of_byte / starts_with. Rest = remaining
-   * mod.x exports (tests/str sole-call). G.7: one table, no second group.
-   */
-  if (g == 21) {
-    if (i == 0)
-      return "core_str_bytes_view";
-    if (i == 1)
-      return "core_str_bytes_view_from_slice";
-    if (i == 2)
-      return "core_str_bytes_view_len";
-    if (i == 3)
-      return "core_str_bytes_view_is_empty";
-    if (i == 4)
-      return "core_str_bytes_view_get";
-    if (i == 5)
-      return "core_str_bytes_view_subview";
-    if (i == 6)
-      return "core_str_bytes_view_eq";
-    if (i == 7)
-      return "core_str_bytes_view_eq_bytes";
-    if (i == 8)
-      return "core_str_bytes_view_index_of_byte";
-    if (i == 9)
-      return "core_str_bytes_view_index_of";
-    if (i == 10)
-      return "core_str_bytes_view_contains_byte";
-    if (i == 11)
-      return "core_str_bytes_view_starts_with";
-    return NULL;
-  }
-  /*
-   * PLATFORM: SHARED — exact UNDEF needles for core/iterator/mod.o (g==22).
-   * Cookbook unique: iter_i32 / next_i32. Rest = remaining mod.x exports
-   * (tests/iterator sole-call). G.7: one table, no second group.
-   */
-  if (g == 22) {
-    if (i == 0)
-      return "core_iterator_iter_i32";
-    if (i == 1)
-      return "core_iterator_iter_u8";
-    if (i == 2)
-      return "core_iterator_next_i32";
-    if (i == 3)
-      return "core_iterator_next_u8";
-    if (i == 4)
-      return "core_iterator_iter_remaining_i32";
-    if (i == 5)
-      return "core_iterator_iter_remaining_u8";
-    if (i == 6)
-      return "core_iterator_iterator_protocol_version";
-    if (i == 7)
-      return "core_iterator_iter_u64_from_buf";
-    if (i == 8)
-      return "core_iterator_next_u64";
-    if (i == 9)
-      return "core_iterator_iter_remaining_u64";
-    return NULL;
-  }
-  /*
-   * PLATFORM: SHARED — exact UNDEF needles for std/bytes/bytes.o (g==23).
-   * Test unique: from_external / is_owned / recommend_bytes_alloc_arena /
-   * extend / length / deinit. Rest = remaining mod.x exports
-   * (tests/std-bytes/roundtrip sole-call). G.7: one table, no second group.
-   */
-  if (g == 23) {
-    if (i == 0)
-      return "std_bytes_from_external";
-    if (i == 1)
-      return "std_bytes_is_owned";
-    if (i == 2)
-      return "std_bytes_recommend_bytes_alloc_arena";
-    if (i == 3)
-      return "std_bytes_extend";
-    if (i == 4)
-      return "std_bytes_length";
-    if (i == 5)
-      return "std_bytes_deinit";
-    if (i == 6)
-      return "std_bytes_default_capacity";
-    if (i == 7)
-      return "std_bytes_new";
-    if (i == 8)
-      return "std_bytes_recommend_bytes_alloc";
-    if (i == 9)
-      return "std_bytes_with_capacity";
-    if (i == 10)
-      return "std_bytes_reserve_one";
-    if (i == 11)
-      return "std_bytes_reserve";
-    if (i == 12)
-      return "std_bytes_grow";
-    if (i == 13)
-      return "std_bytes_append_byte";
-    if (i == 14)
-      return "std_bytes_from_slice";
-    if (i == 15)
-      return "std_bytes_capacity";
-    if (i == 16)
-      return "std_bytes_clear";
-    if (i == 17)
-      return "std_bytes_as_view";
-    if (i == 18)
-      return "std_bytes_from_view";
-    if (i == 19)
-      return "std_bytes_as_buffer";
-    if (i == 20)
-      return "std_bytes_reader";
-    if (i == 21)
-      return "std_bytes_read";
-    if (i == 22)
-      return "std_bytes_remaining";
-    if (i == 23)
-      return "std_bytes_seek";
-    if (i == 24)
-      return "std_bytes_writer";
-    if (i == 25)
-      return "std_bytes_write";
-    if (i == 26)
-      return "std_bytes_remaining_cap";
-    if (i == 27)
-      return "std_bytes_eq";
-    if (i == 28)
-      return "std_bytes_bytes_module_anchor";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — exact UNDEF needles for core/fmt/mod.o (g==24). */
-  if (g == 24) {
-    if (i == 0)
-      return "core_fmt_fmt_usize_to_buf";
-    if (i == 1)
-      return "core_fmt_fmt_isize_to_buf";
-    if (i == 2)
-      return "core_fmt_fmt_ptr_to_buf";
-    if (i == 3)
-      return "core_fmt_fmt_f64_to_buf";
-    if (i == 4)
-      return "core_fmt_fmt_f64_to_buf_prec";
-    if (i == 5)
-      return "core_fmt_fmt_i32_to_buf";
-    if (i == 6)
-      return "core_fmt_fmt_u32_to_buf";
-    if (i == 7)
-      return "core_fmt_fmt_u64_to_buf";
-    if (i == 8)
-      return "core_fmt_fmt_i64_to_buf";
-    if (i == 9)
-      return "core_fmt_fmt_bool_to_buf";
-    if (i == 10)
-      return "core_fmt_fmt_u64_hex_to_buf";
-    if (i == 11)
-      return "core_fmt_fmt_i32";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — exact UNDEF needles for core/cmp/mod.o (g==25).
-   * CORE-005 unique fire: cmp_i32 / cmp_u8 / cmp_ptr / is_lt/eq/gt / then / reverse.
-   * Rest = ordering_* constructors so sole-call smokes also fire. G.7: one table. */
-  if (g == 25) {
-    if (i == 0)
-      return "core_cmp_cmp_i32";
-    if (i == 1)
-      return "core_cmp_cmp_u8";
-    if (i == 2)
-      return "core_cmp_cmp_ptr";
-    if (i == 3)
-      return "core_cmp_is_lt";
-    if (i == 4)
-      return "core_cmp_is_eq";
-    if (i == 5)
-      return "core_cmp_is_gt";
-    if (i == 6)
-      return "core_cmp_then";
-    if (i == 7)
-      return "core_cmp_reverse";
-    if (i == 8)
-      return "core_cmp_ordering_less";
-    if (i == 9)
-      return "core_cmp_ordering_equal";
-    if (i == 10)
-      return "core_cmp_ordering_greater";
-    if (i == 11)
-      return "core_cmp_ordering_from_i32";
-    return NULL;
-  }
-  return NULL;
-}
+/* Class BE: labi_od_simple_group_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+
 
 const char *labi_od_simple_group_rel(int g) {
   if (g < 0)
@@ -1046,39 +347,8 @@ int labi_od_kv_sym_count(void) {
   return 14;
 }
 
-const char *labi_od_kv_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_db_kv_mmap_available";
-  if (i == 1)
-    return "std_db_kv_open";
-  if (i == 2)
-    return "std_db_kv_close";
-  if (i == 3)
-    return "std_db_kv_append_ts";
-  if (i == 4)
-    return "std_db_kv_get";
-  if (i == 5)
-    return "std_db_kv_wal_flush";
-  if (i == 6)
-    return "std_db_kv_compact";
-  if (i == 7)
-    return "std_db_kv_sst_level_count";
-  if (i == 8)
-    return "std_db_kv_sync";
-  if (i == 9)
-    return "std_db_kv_put";
-  if (i == 10)
-    return "std_db_kv_compact_generation";
-  if (i == 11)
-    return "std_db_kv_wal_bytes";
-  if (i == 12)
-    return "db_kv_open_c";
-  if (i == 13)
-    return "db_kv_get_c";
-  return NULL;
-}
+/* Class BF: labi_od_kv_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_kv_sym_at(int i);
 
 const char *labi_od_kv_rel(void) {
   return "std/db/kv/kv.o";
@@ -1096,69 +366,8 @@ int labi_od_arrow_sym_count(void) {
   return 29;
 }
 
-const char *labi_od_arrow_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_db_arrow_adopt_f32_ptr_i32_i32";
-  if (i == 1)
-    return "std_db_arrow_sum";
-  if (i == 2)
-    return "std_db_arrow_dot";
-  if (i == 3)
-    return "std_db_arrow_free_ArrowColumn";
-  if (i == 4)
-    return "std_db_arrow_new_i32";
-  if (i == 5)
-    return "std_db_arrow_new_f32";
-  if (i == 6)
-    return "std_db_arrow_new_f64";
-  if (i == 7)
-    return "std_db_arrow_adopt_i32_ptr_i32_i32";
-  if (i == 8)
-    return "std_db_arrow_length_ArrowColumn";
-  if (i == 9)
-    return "std_db_arrow_length_ArrowBatch";
-  if (i == 10)
-    return "std_db_arrow_owned";
-  if (i == 11)
-    return "std_db_arrow_null_bitmap";
-  if (i == 12)
-    return "std_db_arrow_valid";
-  if (i == 13)
-    return "std_db_arrow_data_i32";
-  if (i == 14)
-    return "std_db_arrow_data_f32";
-  if (i == 15)
-    return "std_db_arrow_data_f64";
-  if (i == 16)
-    return "std_db_arrow_append_ArrowColumn_i32";
-  if (i == 17)
-    return "std_db_arrow_append_ArrowColumn_f32";
-  if (i == 18)
-    return "std_db_arrow_append_ArrowColumn_f64";
-  if (i == 19)
-    return "std_db_arrow_append_null";
-  if (i == 20)
-    return "std_db_arrow_batch";
-  if (i == 21)
-    return "std_db_arrow_add";
-  if (i == 22)
-    return "std_db_arrow_get";
-  if (i == 23)
-    return "std_db_arrow_free_ArrowBatch";
-  if (i == 24)
-    return "std_db_arrow_sum_valid_i32";
-  if (i == 25)
-    return "std_db_arrow_sum_valid_f32";
-  if (i == 26)
-    return "std_db_arrow_simd_hw_available";
-  if (i == 27)
-    return "arrow_column_i32_create_c";
-  if (i == 28)
-    return "arrow_column_adopt_f32_c";
-  return NULL;
-}
+/* Class BF: labi_od_arrow_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_arrow_sym_at(int i);
 
 const char *labi_od_arrow_rel(void) {
   return "std/db/arrow/arrow.o";
@@ -1177,21 +386,9 @@ int labi_od_async_sym_count(void) {
   return 4;
 }
 
-const char *labi_od_async_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_async_placeholder";
-  if (i == 1)
-    return "std_async_drain_idle";
-  /* import("std.async").scheduler_reset → mangled unique METHOD. */
-  if (i == 2)
-    return "std_async_scheduler_reset";
-  /* import("std.async").net_fs_async_smoke → mangled unique METHOD. */
-  if (i == 3)
-    return "std_async_net_fs_async_smoke";
-  return NULL;
-}
+/* Class BJ: labi_od_async_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_async_sym_at(int i);
+
 
 const char *labi_od_async_rel(void) {
   return "std/async/async.o";
@@ -1202,19 +399,9 @@ int labi_od_time_sym_count(void) {
   return 4;
 }
 
-const char *labi_od_time_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_time_now_monotonic_ns";
-  if (i == 1)
-    return "std_time_sleep_ms";
-  if (i == 2)
-    return "std_time_timer_start";
-  if (i == 3)
-    return "time_now_monotonic_ns_c";
-  return NULL;
-}
+/* Class BJ: labi_od_time_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_time_sym_at(int i);
+
 
 const char *labi_od_time_rel(void) {
   return "std/time/time.o";
@@ -1229,17 +416,9 @@ int labi_od_queue_sym_count(void) {
   return 3;
 }
 
-const char *labi_od_queue_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "sync_queue_contention_smoke_c";
-  if (i == 1)
-    return "queue_os_run_two_workers_c";
-  if (i == 2)
-    return "queue_contention_worker_push_c";
-  return NULL;
-}
+/* Class BJ: labi_od_queue_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_queue_sym_at(int i);
+
 
 const char *labi_od_queue_rel(void) {
   return "std/queue/queue.o";
@@ -1252,96 +431,8 @@ const char *labi_od_queue_contention_rel(void) {
 /* wave118: net UNDEF table + needs_std_net pure orch. PLATFORM: SHARED.
  * Count 34: +new/smoke/acquire/release unique tcp_pool wrappers + net_resolve_ipv4/ipv6_ex_c (9.1.7). */
 int labi_od_net_sym_count(void) { return 34; }
-const char *labi_od_net_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_net_listen";
-  if (i == 1)
-    return "std_net_connect";
-  if (i == 2)
-    return "std_net_udp_bind";
-  if (i == 3)
-    return "std_net_udp_recv_many_buf";
-  if (i == 4)
-    return "std_net_udp_send_many_buf";
-  if (i == 5)
-    return "std_net_addr_to_u32";
-  if (i == 6)
-    return "std_net_close_udp";
-  if (i == 7)
-    return "net_stream_write_batch_c";
-  if (i == 8)
-    return "net_tcp_connect_c";
-  if (i == 9)
-    return "net_tcp_listen_c";
-  if (i == 10)
-    return "net_udp_bind_c";
-  if (i == 11)
-    return "net_udp_recv_many_buf_c";
-  if (i == 12)
-    return "net_udp_send_many_buf_c";
-  if (i == 13)
-    return "net_close_socket_c";
-  if (i == 14)
-    return "net_udp_send_c";
-  if (i == 15)
-    return "net_dns_resolve_c";
-  if (i == 16)
-    return "net_sock_create_c";
-  /*
-   * wave956: std.net cookbook on_demand probes (resolve_ex / resolve_err_* /
-   * close_stream / connect_blocking / write_batch / tcp_pool_*). Before
-   * wave956: 4 cookbook examples hit BLD001 UNDEF because needs_std_net
-   * probe table did not include these symbols. Probe shape: net.resolve_ex /
-   * net.resolve_err_* / net.close_stream / net.connect_blocking /
-   * net.write_batch / net.tcp_pool_* codegen to std_net_* mangled symbols
-   * in net.o. Twin of labi_od_thread_sym_* (wave956) for std_thread_stats.
-   * G.7: complete the single net probe table — no second path.
-   * PLATFORM: SHARED.
-   */
-  if (i == 17)
-    return "std_net_resolve_ex";
-  if (i == 18)
-    return "std_net_resolve_err_host_not_found";
-  if (i == 19)
-    return "std_net_resolve_err_no_data";
-  if (i == 20)
-    return "std_net_close_stream";
-  if (i == 21)
-    return "std_net_connect_blocking";
-  if (i == 22)
-    return "std_net_write_batch";
-  if (i == 23)
-    return "std_net_tcp_pool_connect_count";
-  if (i == 24)
-    return "std_net_tcp_pool_destroy";
-  if (i == 25)
-    return "std_net_tcp_pool_drain";
-  if (i == 26)
-    return "std_net_tcp_pool_idle_count";
-  /* PLATFORM: SHARED — cookbook net_listen_bind unique close_listener.
-   * listen already fires need_net; matcher is exact so close_listener-only
-   * user.o would miss. G.7 complete the single net probe table. */
-  if (i == 27)
-    return "std_net_close_listener";
-  /* PLATFORM: SHARED — tcp_pool unique wrappers (new/smoke/acquire/release).
-   * Twin of labi_ondemand_list.x. Matcher is exact. */
-  if (i == 28)
-    return "std_net_tcp_pool_new";
-  if (i == 29)
-    return "std_net_tcp_pool_smoke";
-  if (i == 30)
-    return "std_net_tcp_pool_acquire";
-  if (i == 31)
-    return "std_net_tcp_pool_release";
-  /* Cap residual 9.1.7: DNS raw resolve face. */
-  if (i == 32)
-    return "net_resolve_ipv4_ex_c";
-  if (i == 33)
-    return "net_resolve_ipv6_ex_c";
-  return NULL;
-}
+/* Class BF: labi_od_net_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_net_sym_at(int i);
 
 /* Pure orch: table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_net(const char *user_o) {
@@ -1365,19 +456,9 @@ int link_abi_user_o_needs_std_net(const char *user_o) {
  * labi_od_net_sym_* / link_abi_user_o_needs_std_net. PLATFORM: SHARED.
  */
 int labi_od_thread_sym_count(void) { return 4; }
-const char *labi_od_thread_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_thread_create";
-  if (i == 1)
-    return "std_thread_join";
-  if (i == 2)
-    return "std_thread_start";
-  if (i == 3)
-    return "std_thread_stats";
-  return NULL;
-}
+/* Class BJ: labi_od_thread_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_thread_sym_at(int i);
+
 
 int link_abi_user_o_needs_std_thread(const char *user_o) {
   int n;
@@ -1399,109 +480,8 @@ int link_abi_user_o_needs_std_thread(const char *user_o) {
  * PLATFORM: SHARED.
  */
 int labi_od_vec_sym_count(void) { return 44; }
-const char *labi_od_vec_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_vec_push_Vec_u16_ptr_u16";
-  if (i == 1)
-    return "std_vec_push_Vec_i32_ptr_i32";
-  if (i == 2)
-    return "std_vec_push_Vec_u8_ptr_u8";
-  if (i == 3)
-    return "std_vec_get_Vec_u16_i32";
-  if (i == 4)
-    return "std_vec_length_Vec_u16";
-  if (i == 5)
-    return "std_vec_deinit_Vec_u16_ptr";
-  if (i == 6)
-    return "std_vec_get_Vec_i32_i32";
-  if (i == 7)
-    return "std_vec_length_Vec_i32";
-  if (i == 8)
-    return "std_vec_deinit_Vec_i32_ptr";
-  if (i == 9)
-    return "std_vec_from_slice_u8_ptr_i32";
-  if (i == 10)
-    return "std_vec_capacity_Vec_u8";
-  if (i == 11)
-    return "std_vec_clear_Vec_u8_ptr";
-  /* PLATFORM: SHARED — exact UNDEF needles for pop/extend/from_slice_u64/f64
-   * (mirror list.x). from_slice_u8 does not cover sole from_slice_u64/f64. */
-  if (i == 12)
-    return "std_vec_pop_Vec_i32_ptr";
-  if (i == 13)
-    return "std_vec_pop_Vec_u8_ptr";
-  if (i == 14)
-    return "std_vec_extend_Vec_i32_ptr_i32_ptr_i32";
-  if (i == 15)
-    return "std_vec_extend_Vec_u8_ptr_u8_ptr_i32";
-  if (i == 16)
-    return "std_vec_extend_Vec_u64_ptr_u64_ptr_i32";
-  if (i == 17)
-    return "std_vec_extend_Vec_f64_ptr_f64_ptr_i32";
-  if (i == 18)
-    return "std_vec_from_slice_u64_ptr_i32";
-  if (i == 19)
-    return "std_vec_from_slice_f64_ptr_i32";
-  /* PLATFORM: SHARED — exact UNDEF needles for push Vec_u64/f64
-   * (mirror list.x). push_i32/u8/u16 do not cover sole push_u64/f64. */
-  if (i == 20)
-    return "std_vec_push_Vec_u64_ptr_u64";
-  if (i == 21)
-    return "std_vec_push_Vec_f64_ptr_f64";
-  /* PLATFORM: SHARED — exact UNDEF needles for length/deinit/get Vec_u64/f64
-   * (mirror list.x). u16/i32 length/deinit/get do not cover sole
-   * new+length / new+deinit on Vec_u64/f64. */
-  if (i == 22)
-    return "std_vec_length_Vec_u64";
-  if (i == 23)
-    return "std_vec_deinit_Vec_u64_ptr";
-  if (i == 24)
-    return "std_vec_length_Vec_f64";
-  if (i == 25)
-    return "std_vec_deinit_Vec_f64_ptr";
-  if (i == 26)
-    return "std_vec_get_Vec_u64_i32";
-  if (i == 27)
-    return "std_vec_get_Vec_f64_i32";
-  /* PLATFORM: SHARED — exact UNDEF needles for Vec3f SOA/AOS
-   * (mirror list.x). Vec_* push/length/deinit do not cover unique
-   * names vec3f_soa_push / vec3f_aos_deinit / reserve_one / sum_x. */
-  if (i == 28)
-    return "std_vec_vec3f_soa_push";
-  if (i == 29)
-    return "std_vec_vec3f_soa_deinit";
-  if (i == 30)
-    return "std_vec_vec3f_aos_push";
-  if (i == 31)
-    return "std_vec_vec3f_aos_deinit";
-  if (i == 32)
-    return "std_vec_vec3f_soa_sum_x";
-  if (i == 33)
-    return "std_vec_vec3f_soa_reserve_one";
-  if (i == 34)
-    return "std_vec_vec3f_soa_len";
-  if (i == 35)
-    return "std_vec_vec3f_soa_get_x";
-  if (i == 36)
-    return "std_vec_vec3f_soa_get_y";
-  if (i == 37)
-    return "std_vec_vec3f_soa_get_z";
-  if (i == 38)
-    return "std_vec_vec3f_soa_set";
-  if (i == 39)
-    return "std_vec_vec3f_soa_with_capacity";
-  if (i == 40)
-    return "std_vec_vec3f_aos_reserve_one";
-  if (i == 41)
-    return "std_vec_vec3f_aos_get_x";
-  if (i == 42)
-    return "std_vec_vec3f_aos_sum_x";
-  if (i == 43)
-    return "std_vec_vec3f_aos_with_capacity";
-  return NULL;
-}
+/* Class BF: labi_od_vec_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_vec_sym_at(int i);
 
 int link_abi_user_o_needs_std_vec(const char *user_o) {
   int n;
@@ -1523,21 +503,9 @@ int link_abi_user_o_needs_std_vec(const char *user_o) {
  * PLATFORM: SHARED.
  */
 int labi_od_http_sym_count(void) { return 5; }
-const char *labi_od_http_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_http_parse_status_line";
-  if (i == 1)
-    return "std_http_decode_chunked_body";
-  if (i == 2)
-    return "std_http_has_chunked_encoding";
-  if (i == 3)
-    return "std_http_has_keep_alive";
-  if (i == 4)
-    return "std_http_headers_body_offset";
-  return NULL;
-}
+/* Class BJ: labi_od_http_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_http_sym_at(int i);
+
 
 int link_abi_user_o_needs_std_http(const char *user_o) {
   int n;
@@ -1555,52 +523,8 @@ int link_abi_user_o_needs_std_http(const char *user_o) {
 
 /* wave119: set UNDEF table + needs_std_set pure orch. PLATFORM: SHARED. */
 int labi_od_set_sym_count(void) { return 20; }
-const char *labi_od_set_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_set_new_i32_retSet_i32";
-  if (i == 1)
-    return "std_set_new_i32_retSet_u64";
-  if (i == 2)
-    return "std_set_with_capacity_Set_i32_ptr_i32";
-  if (i == 3)
-    return "std_set_insert_Set_i32_ptr_i32";
-  if (i == 4)
-    return "std_set_insert_Set_u64_ptr_u64";
-  if (i == 5)
-    return "std_set_contains_key_Set_i32_i32";
-  if (i == 6)
-    return "std_set_contains_key_Set_u64_u64";
-  if (i == 7)
-    return "std_set_remove_Set_i32_ptr_i32";
-  if (i == 8)
-    return "std_set_remove_Set_u64_ptr_u64";
-  if (i == 9)
-    return "std_set_length_Set_i32";
-  if (i == 10)
-    return "std_set_length_Set_u64";
-  if (i == 11)
-    return "std_set_deinit_Set_i32_ptr";
-  if (i == 12)
-    return "std_set_deinit_Set_u64_ptr";
-  if (i == 13)
-    return "std_set_str_new";
-  if (i == 14)
-    return "std_set_str_insert";
-  /* Legacy / alternate mangles. */
-  if (i == 15)
-    return "std_set_set_i32_insert";
-  if (i == 16)
-    return "std_set_set_i32_contains";
-  if (i == 17)
-    return "std_set_set_i32_remove";
-  if (i == 18)
-    return "std_set_set_i32_len";
-  if (i == 19)
-    return "std_set_set_i32_deinit";
-  return NULL;
-}
+/* Class BF: labi_od_set_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_set_sym_at(int i);
 
 /* Pure orch: table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_set(const char *user_o) {
@@ -1619,47 +543,8 @@ int link_abi_user_o_needs_std_set(const char *user_o) {
 
 /* wave120: map UNDEF table + needs_std_map pure orch. PLATFORM: SHARED. */
 int labi_od_map_sym_count(void) { return 15; }
-const char *labi_od_map_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_map_empty_size";
-  if (i == 1)
-    return "std_map_new_Map_i32_i32";
-  if (i == 2)
-    return "std_map_with_capacity_Map_i32_i32_ptr_i32";
-  if (i == 3)
-    return "std_map_insert_Map_i32_i32_ptr_i32_i32";
-  if (i == 4)
-    return "std_map_get_Map_i32_i32_i32";
-  if (i == 5)
-    return "std_map_find_Map_i32_i32_i32";
-  if (i == 6)
-    return "std_map_deinit_Map_i32_i32_ptr";
-  if (i == 7)
-    return "std_map_str_new";
-  if (i == 8)
-    return "std_map_str_insert";
-  /*
-   * wave957: Map<u64, i32> on_demand probes. Before wave957: probe table only
-   * had Map_i32_i32 + str variants; user programs using Map<u64, i32> hit
-   * BLD001 UNDEF because needs_std_map probe never fired. G.7: complete the
-   * single map probe table. PLATFORM: SHARED.
-   */
-  if (i == 9)
-    return "std_map_new_u64";
-  if (i == 10)
-    return "std_map_with_capacity_Map_u64_i32_ptr_i32";
-  if (i == 11)
-    return "std_map_insert_Map_u64_i32_ptr_u64_i32";
-  if (i == 12)
-    return "std_map_get_Map_u64_i32_u64_i32";
-  if (i == 13)
-    return "std_map_remove_Map_u64_i32_ptr_u64";
-  if (i == 14)
-    return "std_map_deinit_Map_u64_i32_ptr";
-  return NULL;
-}
+/* Class BF: labi_od_map_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_map_sym_at(int i);
 
 /* Pure orch: table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_map(const char *user_o) {
@@ -1679,35 +564,8 @@ int link_abi_user_o_needs_std_map(const char *user_o) {
 /* wave121: product queue UNDEF table + needs_std_queue pure orch.
  * PLATFORM: SHARED — separate from contention labi_od_queue_sym_* (3 smoke/os symbols). */
 int labi_od_queue_api_sym_count(void) { return 12; }
-const char *labi_od_queue_api_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_queue_new_retQueue_i32";
-  if (i == 1)
-    return "std_queue_new_retQueue_u8";
-  if (i == 2)
-    return "std_queue_push_back_Queue_i32_ptr_i32";
-  if (i == 3)
-    return "std_queue_push_back_Queue_u8_ptr_u8";
-  if (i == 4)
-    return "std_queue_push_front";
-  if (i == 5)
-    return "std_queue_pop_front_Queue_i32_ptr";
-  if (i == 6)
-    return "std_queue_pop_back";
-  if (i == 7)
-    return "std_queue_get";
-  if (i == 8)
-    return "std_queue_length_Queue_i32";
-  if (i == 9)
-    return "std_queue_is_empty_Queue_i32";
-  if (i == 10)
-    return "std_queue_deinit_Queue_i32_ptr";
-  if (i == 11)
-    return "std_queue_with_capacity";
-  return NULL;
-}
+/* Class BF: labi_od_queue_api_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_queue_api_sym_at(int i);
 
 /* Pure orch: product table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_queue(const char *user_o) {
@@ -1731,67 +589,8 @@ int link_abi_user_o_needs_std_queue(const char *user_o) {
  * leftover exact-needle class). Count 28 = 7 historical prefix/bare + 5 std_test_*
  * faces + 16 mod.x inner *_c. G.7 complete existing table (no second list). */
 int labi_od_test_sym_count(void) { return 28; }
-const char *labi_od_test_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "test_call_i32_void_c";
-  if (i == 1)
-    return "test_runner_";
-  if (i == 2)
-    return "test_expect_";
-  if (i == 3)
-    return "test_bench_";
-  if (i == 4)
-    return "test_f_test_";
-  if (i == 5)
-    return "test_io_";
-  if (i == 6)
-    return "test_fuzz_";
-  if (i == 7)
-    return "std_test_expect";
-  if (i == 8)
-    return "std_test_expect_eq_i32";
-  if (i == 9)
-    return "std_test_expect_ne_i32";
-  if (i == 10)
-    return "std_test_assert";
-  if (i == 11)
-    return "std_test_runner_case";
-  if (i == 12)
-    return "test_expect_c";
-  if (i == 13)
-    return "test_expect_eq_i32_c";
-  if (i == 14)
-    return "test_expect_eq_u32_c";
-  if (i == 15)
-    return "test_expect_ne_i32_c";
-  if (i == 16)
-    return "test_run_c";
-  if (i == 17)
-    return "test_bench_run_c";
-  if (i == 18)
-    return "test_bench_report_c";
-  if (i == 19)
-    return "test_fuzz_seed_c";
-  if (i == 20)
-    return "test_fuzz_next_c";
-  if (i == 21)
-    return "test_fuzz_run_c";
-  if (i == 22)
-    return "test_bench_run_noop_c";
-  if (i == 23)
-    return "test_fuzz_run_noop_c";
-  if (i == 24)
-    return "test_runner_reset_c";
-  if (i == 25)
-    return "test_runner_report_case_c";
-  if (i == 26)
-    return "test_runner_report_skip_c";
-  if (i == 27)
-    return "test_runner_finish_c";
-  return NULL;
-}
+/* Class BF: labi_od_test_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_test_sym_at(int i);
 
 /* Pure orch: test table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_test(const char *user_o) {
@@ -1813,73 +612,8 @@ int link_abi_user_o_needs_std_test(const char *user_o) {
  * Was 7 (align/mem_* only): sole volatile/fence UNDEF never opened mem.o → BLD001.
  * Count 31 = full core/mem/mod.x export surface (G.7 one table; seed twin of .x). */
 int labi_od_core_mem_sym_count(void) { return 31; }
-const char *labi_od_core_mem_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "core_mem_align_up";
-  if (i == 1)
-    return "core_mem_align_down";
-  if (i == 2)
-    return "core_mem_mem_copy";
-  if (i == 3)
-    return "core_mem_mem_set";
-  if (i == 4)
-    return "core_mem_mem_zero";
-  if (i == 5)
-    return "core_mem_mem_move";
-  if (i == 6)
-    return "core_mem_mem_compare";
-  if (i == 7)
-    return "core_mem_mem_swap";
-  if (i == 8)
-    return "core_mem_is_alignment_power_of_two";
-  if (i == 9)
-    return "core_mem_placeholder";
-  if (i == 10)
-    return "core_mem_align_of_i32";
-  if (i == 11)
-    return "core_mem_align_of_bool";
-  if (i == 12)
-    return "core_mem_align_of_u8";
-  if (i == 13)
-    return "core_mem_align_of_u32";
-  if (i == 14)
-    return "core_mem_align_of_u64";
-  if (i == 15)
-    return "core_mem_align_of_i64";
-  if (i == 16)
-    return "core_mem_align_of_usize";
-  if (i == 17)
-    return "core_mem_align_of_isize";
-  if (i == 18)
-    return "core_mem_align_of_f32";
-  if (i == 19)
-    return "core_mem_align_of_f64";
-  if (i == 20)
-    return "core_mem_align_of_pointer";
-  if (i == 21)
-    return "core_mem_volatile_load_u8";
-  if (i == 22)
-    return "core_mem_volatile_store_u8";
-  if (i == 23)
-    return "core_mem_volatile_load_u16";
-  if (i == 24)
-    return "core_mem_volatile_store_u16";
-  if (i == 25)
-    return "core_mem_volatile_load_u32";
-  if (i == 26)
-    return "core_mem_volatile_store_u32";
-  if (i == 27)
-    return "core_mem_compiler_fence";
-  if (i == 28)
-    return "core_mem_fence_acquire";
-  if (i == 29)
-    return "core_mem_fence_release";
-  if (i == 30)
-    return "core_mem_fence_seq_cst";
-  return NULL;
-}
+/* Class BF: labi_od_core_mem_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_core_mem_sym_at(int i);
 
 /* Pure orch: core_mem table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_core_mem(const char *user_o) {
@@ -1899,36 +633,8 @@ int link_abi_user_o_needs_core_mem(const char *user_o) {
 /* wave124: product core.slice exact UNDEF table + needs_core_slice pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_core_slice_sym_count(void) { return 9; }
-const char *labi_od_core_slice_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "core_slice_i32_from_ptr_c";
-  if (i == 1)
-    return "core_subslice_i32_c";
-  if (i == 2)
-    return "core_slice_u8_from_ptr_c";
-  if (i == 3)
-    return "core_subslice_u8_c";
-  if (i == 4)
-    return "core_slice_u64_from_ptr_c";
-  if (i == 5)
-    return "core_subslice_u64_c";
-  /*
-   * wave957: core.slice X-facing u64 on_demand probes (chunks_len / split_at /
-   * subslice). Before wave957: probe table only had C-bridge _c suffix symbols;
-   * user programs calling slice.chunks_len / slice.split_at / slice.subslice
-   * with u64 codegen to core_slice_*_u64 (X-facing, no _c) which didn't match.
-   * G.7: complete the single core_slice probe table. PLATFORM: SHARED.
-   */
-  if (i == 6)
-    return "core_slice_chunks_len_u64";
-  if (i == 7)
-    return "core_slice_split_at_u64";
-  if (i == 8)
-    return "core_slice_subslice_u64";
-  return NULL;
-}
+/* Class BG: labi_od_core_slice_sym_at → needle tables */
+const char *labi_od_core_slice_sym_at(int i);
 
 /* Pure orch: core_slice table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_core_slice(const char *user_o) {
@@ -1948,21 +654,9 @@ int link_abi_user_o_needs_core_slice(const char *user_o) {
 /* wave125: product std.heap.page_mmap exact UNDEF table + needs_std_heap_page_mmap pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_page_mmap_sym_count(void) { return 5; }
-const char *labi_od_page_mmap_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_heap_page_mmap_page_mmap_heap_available";
-  if (i == 1)
-    return "std_heap_page_mmap_page_mmap_heap_init";
-  if (i == 2)
-    return "std_heap_page_mmap_page_mmap_heap_alloc";
-  if (i == 3)
-    return "std_heap_page_mmap_page_mmap_heap_deinit";
-  if (i == 4)
-    return "std_heap_page_mmap_page_mmap_heap_free";
-  return NULL;
-}
+/* Class BJ: labi_od_page_mmap_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_page_mmap_sym_at(int i);
+
 
 /* Pure orch: page_mmap table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
@@ -1987,89 +681,8 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
  * importing std.process died BLD001 — run-process FAIL root).
  * Mirrors the .x twin. */
 int labi_od_sys_linux_sym_count(void) { return 38; }
-const char *labi_od_sys_linux_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_sys_linux_linux_syscall_nr_read_amd64";
-  if (i == 1)
-    return "std_sys_linux_linux_syscall_nr_write_amd64";
-  if (i == 2)
-    return "std_sys_linux_linux_syscall_nr_open_amd64";
-  if (i == 3)
-    return "std_sys_linux_linux_syscall_nr_close_amd64";
-  if (i == 4)
-    return "std_sys_linux_linux_syscall_nr_exit_amd64";
-  if (i == 5)
-    return "std_sys_linux_linux_syscall_nr_mmap_amd64";
-  if (i == 6)
-    return "std_sys_linux_linux_syscall_nr_read_arm64";
-  if (i == 7)
-    return "std_sys_linux_linux_syscall_nr_write_arm64";
-  if (i == 8)
-    return "std_sys_linux_linux_syscall_nr_openat_arm64";
-  if (i == 9)
-    return "std_sys_linux_linux_syscall_nr_close_arm64";
-  if (i == 10)
-    return "std_sys_linux_linux_syscall_nr_exit_arm64";
-  if (i == 11)
-    return "std_sys_linux_linux_syscall_nr_mmap_arm64";
-  if (i == 12)
-    return "std_sys_linux_linux_syscall_table_available";
-  if (i == 13)
-    return "std_sys_linux_linux_syscall_invoke_available";
-  if (i == 14)
-    return "std_sys_linux_linux_syscall_read";
-  if (i == 15)
-    return "std_sys_linux_linux_syscall_close";
-  if (i == 16)
-    return "std_sys_linux_linux_syscall_write";
-  if (i == 17)
-    return "std_sys_linux_linux_syscall_exit";
-  if (i == 18)
-    return "std_sys_linux_linux_syscall_openat";
-  if (i == 19)
-    return "std_sys_linux_linux_anonymous_mmap";
-  if (i == 20)
-    return "std_sys_linux_linux_syscall_munmap";
-  if (i == 21)
-    return "std_sys_linux_linux_read_file_openat";
-  if (i == 22)
-    return "std_sys_linux_linux_syscall_open";
-  if (i == 23)
-    return "std_sys_linux_linux_read_file_into";
-  if (i == 24)
-    return "std_sys_linux_linux_syscall_socket";
-  if (i == 25)
-    return "std_sys_linux_linux_syscall_connect";
-  if (i == 26)
-    return "std_sys_linux_linux_syscall_bind";
-  if (i == 27)
-    return "std_sys_linux_linux_syscall_listen";
-  if (i == 28)
-    return "std_sys_linux_linux_syscall_accept";
-  if (i == 29)
-    return "std_sys_linux_linux_mmap_rw";
-  if (i == 30)
-    return "std_sys_linux_linux_munmap";
-  if (i == 31)
-    return "std_sys_linux_linux_msync_sync";
-  if (i == 32)
-    return "std_sys_linux_linux_mmap_file_available";
-  if (i == 33)
-    return "std_sys_linux_linux_sys_module_anchor";
-
-  /* PLATFORM: SHARED — xlang_sys_* FFI externs (see sym_count note). */
-  if (i == 34)
-    return "xlang_sys_close";
-  if (i == 35)
-    return "xlang_sys_openat";
-  if (i == 36)
-    return "xlang_sys_exit";
-  if (i == 37)
-    return "xlang_sys_connect";
-  return NULL;
-}
+/* Class BF: labi_od_sys_linux_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_sys_linux_sym_at(int i);
 
 int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
   int n;
@@ -2088,37 +701,8 @@ int link_abi_user_o_needs_std_sys_linux(const char *user_o) {
 /* product sys_macos exact UNDEF table + needs pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_sys_macos_sym_count(void) { return 13; }
-const char *labi_od_sys_macos_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_sys_macos_macos_exit";
-  if (i == 1)
-    return "std_sys_macos_macos_write_available";
-  if (i == 2)
-    return "std_sys_macos_macos_write";
-  if (i == 3)
-    return "std_sys_macos_macos_write_stdout";
-  if (i == 4)
-    return "std_sys_macos_macos_write_stderr";
-  if (i == 5)
-    return "std_sys_macos_macos_read";
-  if (i == 6)
-    return "std_sys_macos_macos_close";
-  if (i == 7)
-    return "std_sys_macos_macos_read_file_into";
-  if (i == 8)
-    return "std_sys_macos_macos_anonymous_mmap";
-  if (i == 9)
-    return "std_sys_macos_macos_munmap";
-  if (i == 10)
-    return "std_sys_macos_macos_mmap_available";
-  if (i == 11)
-    return "std_sys_macos_macos_mmap_rw";
-  if (i == 12)
-    return "std_sys_macos_macos_msync_sync";
-  return NULL;
-}
+/* Class BF: labi_od_sys_macos_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_sys_macos_sym_at(int i);
 
 int link_abi_user_o_needs_std_sys_macos(const char *user_o) {
   int n;
@@ -2137,27 +721,8 @@ int link_abi_user_o_needs_std_sys_macos(const char *user_o) {
 /* wave127: product std.sys facade exact UNDEF table + needs_std_sys pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_sys_sym_count(void) { return 8; }
-const char *labi_od_sys_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_sys_write_stdout";
-  if (i == 1)
-    return "std_sys_write_stderr";
-  if (i == 2)
-    return "std_sys_write";
-  if (i == 3)
-    return "std_sys_read";
-  if (i == 4)
-    return "std_sys_close";
-  if (i == 5)
-    return "std_sys_exit";
-  if (i == 6)
-    return "std_sys_freestanding_write_available";
-  if (i == 7)
-    return "std_sys_linux_syscall_table_available";
-  return NULL;
-}
+/* Class BG: labi_od_sys_sym_at → needle tables */
+const char *labi_od_sys_sym_at(int i);
 
 /* Pure orch: sys table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_sys(const char *user_o) {
@@ -2177,98 +742,8 @@ int link_abi_user_o_needs_std_sys(const char *user_o) {
 /* wave128: product std.heap formal API exact UNDEF table + needs_std_heap_api pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
 int labi_od_heap_api_sym_count(void) { return 32; }
-const char *labi_od_heap_api_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_heap_alloc_i32";
-  if (i == 1)
-    return "std_heap_alloc_u8";
-  if (i == 2)
-    return "std_heap_free_i32";
-  if (i == 3)
-    return "std_heap_free_u8";
-  if (i == 4)
-    return "std_heap_alloc_size_zero";
-  if (i == 5)
-    return "std_heap_alloc_usize";
-  if (i == 6)
-    return "std_heap_free_u8_ptr";
-  if (i == 7)
-    return "std_heap_default_alloc";
-  if (i == 8)
-    return "std_heap_kind_arena";
-  if (i == 9)
-    return "std_heap_alloc_Allocator_usize";
-  if (i == 10)
-    return "std_heap_realloc_Allocator_u8_ptr_usize";
-  if (i == 11)
-    return "std_heap_free_Allocator_u8_ptr";
-  if (i == 12)
-    return "std_heap_arena64_alloc";
-  if (i == 13)
-    return "std_heap_libc_heap_arena64_alloc_c";
-  if (i == 14)
-    return "std_heap_libc_heap_alloc_c";
-  if (i == 15)
-    return "std_heap_libc_heap_free_c";
-  if (i == 16)
-    return "std_heap_libc_heap_alloc_aligned_c";
-  if (i == 17)
-    return "std_heap_libc_heap_alloc_i32_c";
-  if (i == 18)
-    return "std_heap_libc_heap_alloc_u8_c";
-  if (i == 19)
-    return "std_heap_libc_heap_alloc_u64_c";
-  if (i == 20)
-    return "std_heap_libc_heap_free_i32_c";
-  if (i == 21)
-    return "std_heap_libc_heap_free_u8_c";
-  if (i == 22)
-    return "std_heap_libc_heap_free_u64_c";
-  if (i == 23)
-    return "std_heap_map_find";
-  if (i == 24)
-    return "std_heap_libc_heap_copy_u8_at_c";
-  /*
-   * wave957: std.heap trace on_demand probes (trace_on / trace_reset). Before
-   * wave957: probe table had alloc/free/Allocator/libc surface but not trace
-   * symbols; user programs calling heap.trace_on / heap.trace_reset hit
-   * BLD001 UNDEF. G.7: complete the single heap probe table. PLATFORM: SHARED.
-   */
-  if (i == 25)
-    return "std_heap_trace_on";
-  if (i == 26)
-    return "std_heap_trace_reset";
-  /*
-   * zc_arena_concat unique UNDEF: import METHOD arena64_empty / init / deinit.
-   * Before this leaf: table had arena64_alloc (vec grow) but matcher is exact,
-   * so empty/init/deinit never fired needs_std_heap_api. heap.o already
-   * defines the three T names (mod.x). string.o is pulled by g0 view and
-   * injects T libc arena64_*_c, so string cannot pull heap as a side effect.
-   * G.7: complete this single heap probe table. Do not add a second group.
-   * PLATFORM: SHARED.
-   */
-  if (i == 27)
-    return "std_heap_arena64_empty";
-  if (i == 28)
-    return "std_heap_arena64_init";
-  if (i == 29)
-    return "std_heap_arena64_deinit";
-  /*
-   * heap ops wrappers (mod.x mem_set / mem_compare). Matcher is exact: table
-   * had map_find / libc copy but never mem_set, so user.o U std_heap_mem_set
-   * never fired needs_std_heap_api → heap.o not pushed (run-heap / run-set).
-   * heap.o catalog already compiles mod.x+ops.x (T mem_set + heap_mem_set_c).
-   * G.7: complete this single heap probe table. Twin of labi_ondemand_list.x.
-   * PLATFORM: SHARED.
-   */
-  if (i == 30)
-    return "std_heap_mem_set";
-  if (i == 31)
-    return "std_heap_mem_compare";
-  return NULL;
-}
+/* Class BF: labi_od_heap_api_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_heap_api_sym_at(int i);
 
 /* Pure orch: heap_api table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_std_heap_api(const char *user_o) {
@@ -2288,25 +763,8 @@ int link_abi_user_o_needs_std_heap_api(const char *user_o) {
 /* wave129: product runtime_heap_user exact UNDEF table + needs_heap_user_syms pure orch.
  * PLATFORM: SHARED — exact symbols only; product complete includes with_arena init/deinit. */
 int labi_od_heap_user_sym_count(void) { return 7; }
-const char *labi_od_heap_user_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "heap_alloc_c";
-  if (i == 1)
-    return "heap_free_c";
-  if (i == 2)
-    return "heap_realloc_c";
-  if (i == 3)
-    return "heap_arena64_alloc_c";
-  if (i == 4)
-    return "heap_arena_init_c";
-  if (i == 5)
-    return "heap_arena64_deinit_c";
-  if (i == 6)
-    return "heap_arena64_init_c";
-  return NULL;
-}
+/* Class BG: labi_od_heap_user_sym_at → needle tables */
+const char *labi_od_heap_user_sym_at(int i);
 
 /* Pure orch: heap_user table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
@@ -2326,81 +784,8 @@ int link_abi_user_o_needs_heap_user_syms(const char *user_o) {
 /* wave130: product async scheduler exact UNDEF table + needs_async_scheduler pure orch.
  * PLATFORM: SHARED — exact symbols only; product complete coop/cps/frame/run/task/worker/io. */
 int labi_od_async_scheduler_sym_count(void) { return 35; }
-const char *labi_od_async_scheduler_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "xlang_async_coop_pingpong";
-  if (i == 1)
-    return "xlang_async_coop_pingpong_jmp";
-  if (i == 2)
-    return "xlang_async_cps_suspend";
-  if (i == 3)
-    return "xlang_async_asm_frame_phase_by_id";
-  if (i == 4)
-    return "xlang_async_asm_frame_store_from_ptr";
-  if (i == 5)
-    return "xlang_async_asm_frame_load_to_ptr";
-  if (i == 6)
-    return "xlang_async_asm_frame_reset_by_id";
-  if (i == 7)
-    return "xlang_async_cps_suspend_io";
-  if (i == 8)
-    return "xlang_async_run_i32";
-  if (i == 9)
-    return "xlang_async_task_submit";
-  if (i == 10)
-    return "xlang_async_task_submit_to";
-  if (i == 11)
-    return "xlang_async_scheduler_drain";
-  if (i == 12)
-    return "xlang_async_worker_drain";
-  if (i == 13)
-    return "xlang_async_worker_count";
-  if (i == 14)
-    return "xlang_async_worker_pending";
-  if (i == 15)
-    return "xlang_async_queue_reset";
-  if (i == 16)
-    return "xlang_async_scheduler_pending";
-  if (i == 17)
-    return "xlang_async_io_wake_all";
-  if (i == 18)
-    return "xlang_async_io_waiters_pending";
-  if (i == 19)
-    return "xlang_async_io_completions_ready";
-  if (i == 20)
-    return "xlang_async_run_seed_set_i32";
-  if (i == 21)
-    return "xlang_async_run_seed_reset";
-  if (i == 22)
-    return "xlang_async_run_seed_push_i32";
-  if (i == 23)
-    return "xlang_async_run_seed_push_u32";
-  if (i == 24)
-    return "xlang_async_run_seed_push_i64";
-  if (i == 25)
-    return "xlang_async_run_seed_valid";
-  if (i == 26)
-    return "xlang_async_run_seed_take_i32";
-  if (i == 27)
-    return "xlang_async_run_seed_take_u32";
-  if (i == 28)
-    return "xlang_async_run_seed_take_i64";
-  if (i == 29)
-    return "xlang_io_submit_read_async";
-  if (i == 30)
-    return "xlang_io_complete_read_async";
-  if (i == 31)
-    return "xlang_io_complete_read_async_slot";
-  if (i == 32)
-    return "xlang_io_submit_write_async";
-  if (i == 33)
-    return "xlang_io_complete_write_async";
-  if (i == 34)
-    return "xlang_io_complete_write_async_slot";
-  return NULL;
-}
+/* Class BF: labi_od_async_scheduler_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_async_scheduler_sym_at(int i);
 
 /* Pure orch: async_scheduler table + Cap residual undef_sym. PLATFORM: SHARED. */
 int link_abi_user_o_needs_async_scheduler(const char *user_o) {
@@ -2420,127 +805,18 @@ int link_abi_user_o_needs_async_scheduler(const char *user_o) {
 /* wave131: product compress family marker + UNDEF/prefix tables + pure orch.
  * PLATFORM: SHARED — Cap residual exports_marker + has_undef_sym (popen/nm). */
 int labi_od_zlib_undef_sym_count(void) { return 22; }
-const char *labi_od_zlib_undef_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "_compress2";
-  if (i == 1)
-    return "_deflate";
-  if (i == 2)
-    return "_inflate";
-  if (i == 3)
-    return "_uncompress";
-  /* PLATFORM: LINUX — ELF nm U compress2 (exact; Mach-O needles keep _prefix). */
-  if (i == 4)
-    return "compress2";
-  if (i == 5)
-    return "deflate";
-  if (i == 6)
-    return "inflate";
-  if (i == 7)
-    return "uncompress";
-  /* gzip Init2 + Darwin product mangle: gzip-only import has no _compress2. */
-  if (i == 8)
-    return "_deflateInit2";
-  if (i == 9)
-    return "_inflateInit2";
-  if (i == 10)
-    return "_std_compress_gzip_gzip_compress";
-  if (i == 11)
-    return "_std_compress_gzip_gzip_decompress";
-  if (i == 12)
-    return "deflateInit2";
-  if (i == 13)
-    return "inflateInit2";
-  if (i == 14)
-    return "std_compress_gzip_gzip_compress";
-  if (i == 15)
-    return "std_compress_gzip_gzip_decompress";
-  /* PLATFORM: SHARED — facade names for `xlang build` user.o (asm ld compress_o=NULL). */
-  if (i == 16)
-    return "_std_compress_gzip_compress";
-  if (i == 17)
-    return "_std_compress_gzip_decompress";
-  if (i == 18)
-    return "std_compress_gzip_compress";
-  if (i == 19)
-    return "std_compress_gzip_decompress";
-  /* PLATFORM: SHARED — stream facade for `xlang build` user.o (compress_o=NULL). */
-  if (i == 20)
-    return "_std_compress_compress_init";
-  if (i == 21)
-    return "std_compress_compress_init";
-  return NULL;
-}
+/* Class BF: labi_od_zlib_undef_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_zlib_undef_sym_at(int i);
 const char *labi_od_compress_zlib_marker(void) { return "xlang_compress_zlib_marker"; }
 
 int labi_od_zstd_undef_sym_count(void) { return 12; }
-const char *labi_od_zstd_undef_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "ZSTD_";
-  if (i == 1)
-    return "_ZSTD";
-  /* PLATFORM: SHARED — facade names for `xlang build` user.o (asm ld compress_o=NULL). */
-  if (i == 2)
-    return "_std_compress_zstd_compress";
-  if (i == 3)
-    return "_std_compress_zstd_decompress";
-  if (i == 4)
-    return "std_compress_zstd_compress";
-  if (i == 5)
-    return "std_compress_zstd_decompress";
-  if (i == 6)
-    return "_std_compress_zstd_zstd_compress";
-  if (i == 7)
-    return "_std_compress_zstd_zstd_decompress";
-  if (i == 8)
-    return "std_compress_zstd_zstd_compress";
-  if (i == 9)
-    return "std_compress_zstd_zstd_decompress";
-  /* PLATFORM: SHARED — stream facade for cookbook compress_stream_br_zs. */
-  if (i == 10)
-    return "_std_compress_compress_init";
-  if (i == 11)
-    return "std_compress_compress_init";
-  return NULL;
-}
+/* Class BF: labi_od_zstd_undef_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_zstd_undef_sym_at(int i);
 const char *labi_od_compress_zstd_marker(void) { return "xlang_compress_zstd_marker"; }
 
 int labi_od_brotli_undef_sym_count(void) { return 12; }
-const char *labi_od_brotli_undef_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "BrotliEncoderCompress";
-  if (i == 1)
-    return "BrotliDecoderDecompress";
-  /* PLATFORM: SHARED — facade names for `xlang build` user.o (asm ld compress_o=NULL). */
-  if (i == 2)
-    return "_std_compress_brotli_compress";
-  if (i == 3)
-    return "_std_compress_brotli_decompress";
-  if (i == 4)
-    return "std_compress_brotli_compress";
-  if (i == 5)
-    return "std_compress_brotli_decompress";
-  if (i == 6)
-    return "_std_compress_brotli_brotli_compress";
-  if (i == 7)
-    return "_std_compress_brotli_brotli_decompress";
-  if (i == 8)
-    return "std_compress_brotli_brotli_compress";
-  if (i == 9)
-    return "std_compress_brotli_brotli_decompress";
-  /* PLATFORM: SHARED — stream facade for cookbook compress_stream_br_zs. */
-  if (i == 10)
-    return "_std_compress_compress_init";
-  if (i == 11)
-    return "std_compress_compress_init";
-  return NULL;
-}
+/* Class BF: labi_od_brotli_undef_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_brotli_undef_sym_at(int i);
 const char *labi_od_compress_brotli_marker(void) { return "xlang_compress_brotli_marker"; }
 
 /* Pure orch: zlib marker + exact UNDEF table + Cap residual. PLATFORM: SHARED. */
@@ -2615,31 +891,8 @@ int link_abi_user_o_needs_compress_libs(const char *user_o) {
  * PLATFORM: SHARED — exact symbols only; null/empty user_o → 1 legacy hard-link.
  * wave133: process_argv pure; wave134: std_task pure (single-leaf after capacity clip). */
 int labi_od_runtime_time_os_sym_count(void) { return 10; }
-const char *labi_od_runtime_time_os_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "time_now_monotonic_ns_c";
-  if (i == 1)
-    return "time_now_wall_ns_c";
-  if (i == 2)
-    return "time_sleep_ns_c";
-  if (i == 3)
-    return "time_format_wall_rfc3339_c";
-  if (i == 4)
-    return "time_wall_local_offset_min_c";
-  if (i == 5)
-    return "std_time_now_monotonic_ns";
-  if (i == 6)
-    return "std_time_now_wall_ns";
-  if (i == 7)
-    return "std_time_sleep_ms";
-  if (i == 8)
-    return "std_time_timer_start";
-  if (i == 9)
-    return "std_time_duration_ns";
-  return NULL;
-}
+/* Class BF: labi_od_runtime_time_os_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_runtime_time_os_sym_at(int i);
 int labi_user_needs_runtime_time_os(const char *user_o) {
   int n;
   int i;
@@ -2655,35 +908,8 @@ int labi_user_needs_runtime_time_os(const char *user_o) {
 }
 
 int labi_od_runtime_random_fill_sym_count(void) { return 12; }
-const char *labi_od_runtime_random_fill_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "random_fill_bytes_c";
-  if (i == 1)
-    return "std_random_fill_bytes";
-  if (i == 2)
-    return "std_random_fill";
-  if (i == 3)
-    return "std_random_next";
-  if (i == 4)
-    return "std_random_range_u32_u32";
-  if (i == 5)
-    return "std_random_gen";
-  if (i == 6)
-    return "std_random_flip";
-  if (i == 7)
-    return "std_random_rng_smoke";
-  if (i == 8)
-    return "std_random_seed";
-  if (i == 9)
-    return "random_u32_c";
-  if (i == 10)
-    return "random_u64_c";
-  if (i == 11)
-    return "random_rng_smoke_c";
-  return NULL;
-}
+/* Class BF: labi_od_runtime_random_fill_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_runtime_random_fill_sym_at(int i);
 int labi_user_needs_runtime_random_fill(const char *user_o) {
   int n;
   int i;
@@ -2699,49 +925,8 @@ int labi_user_needs_runtime_random_fill(const char *user_o) {
 }
 
 int labi_od_runtime_env_os_sym_count(void) { return 19; }
-const char *labi_od_runtime_env_os_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "env_getenv_c";
-  if (i == 1)
-    return "env_getenv_exists_c";
-  if (i == 2)
-    return "env_getenv_z_c";
-  if (i == 3)
-    return "env_getenv_ptr_c";
-  if (i == 4)
-    return "env_setenv_c";
-  if (i == 5)
-    return "env_unsetenv_c";
-  if (i == 6)
-    return "env_temp_dir_c";
-  if (i == 7)
-    return "env_iter_count_c";
-  if (i == 8)
-    return "env_iter_at_c";
-  if (i == 9)
-    return "std_env_getenv";
-  if (i == 10)
-    return "std_env_getenv_exists";
-  if (i == 11)
-    return "std_env_getenv_z";
-  if (i == 12)
-    return "std_env_getenv_ptr";
-  if (i == 13)
-    return "std_env_setenv";
-  if (i == 14)
-    return "std_env_unsetenv";
-  if (i == 15)
-    return "std_env_temp_dir";
-  if (i == 16)
-    return "std_env_iter";
-  if (i == 17)
-    return "std_env_iter_count";
-  if (i == 18)
-    return "std_env_args_iter";
-  return NULL;
-}
+/* Class BF: labi_od_runtime_env_os_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_runtime_env_os_sym_at(int i);
 int labi_user_needs_runtime_env_os(const char *user_o) {
   int n;
   int i;
@@ -2760,21 +945,9 @@ int labi_user_needs_runtime_env_os(const char *user_o) {
  * PLATFORM: SHARED — product std_process_* is fk==1 → process.o (not process_argv).
  * Twin of labi_ondemand_list.x (G.7 seed/.x same commit). */
 int labi_od_runtime_process_argv_sym_count(void) { return 5; }
-const char *labi_od_runtime_process_argv_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "process_xlang_argc_get";
-  if (i == 1)
-    return "process_xlang_argv_get";
-  if (i == 2)
-    return "process_arg_c";
-  if (i == 3)
-    return "process_args_count_c";
-  if (i == 4)
-    return "std_env_args_iter";
-  return NULL;
-}
+/* Class BJ: labi_od_runtime_process_argv_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_runtime_process_argv_sym_at(int i);
+
 int labi_user_needs_runtime_process_argv(const char *user_o) {
   int n;
   int i;
@@ -2791,69 +964,8 @@ int labi_user_needs_runtime_process_argv(const char *user_o) {
 
 /* wave134: std_task pure table + orch (29 needles; TASK_SPECIAL). */
 int labi_od_std_task_sym_count(void) { return 29; }
-const char *labi_od_std_task_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_task_new";
-  if (i == 1)
-    return "std_task_free";
-  if (i == 2)
-    return "std_task_bind";
-  if (i == 3)
-    return "std_task_spawn";
-  if (i == 4)
-    return "std_task_join";
-  if (i == 5)
-    return "std_task_pending";
-  if (i == 6)
-    return "std_task_check_leak";
-  if (i == 7)
-    return "std_task_cancel";
-  if (i == 8)
-    return "std_task_total";
-  if (i == 9)
-    return "std_task_set_new";
-  if (i == 10)
-    return "std_task_set_free";
-  if (i == 11)
-    return "std_task_set_spawn";
-  if (i == 12)
-    return "std_task_set_join";
-  if (i == 13)
-    return "std_task_set_check_leak";
-  if (i == 14)
-    return "std_task_echo";
-  if (i == 15)
-    return "std_task_echo_ptr";
-  if (i == 16)
-    return "std_task_retry";
-  if (i == 17)
-    return "std_task_err_ok";
-  if (i == 18)
-    return "task_group_create_c";
-  if (i == 19)
-    return "task_group_spawn_c";
-  if (i == 20)
-    return "task_group_join_c";
-  if (i == 21)
-    return "task_group_free_c";
-  if (i == 22)
-    return "join_set_create_c";
-  if (i == 23)
-    return "join_set_spawn_c";
-  if (i == 24)
-    return "join_set_join_c";
-  if (i == 25)
-    return "task_smoke_c";
-  if (i == 26)
-    return "task_supervise_retry_c";
-  if (i == 27)
-    return "task_echo_fn_c";
-  if (i == 28)
-    return "task_echo_fn_ptr_c";
-  return NULL;
-}
+/* Class BF: labi_od_std_task_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_std_task_sym_at(int i);
 int labi_user_needs_std_task(const char *user_o) {
   int n;
   int i;
@@ -3027,890 +1139,8 @@ int labi_fk0_sym_count(int k) {
   return 0;
 }
 
-const char *labi_fk0_sym_at(int k, int i) {
-  if (i < 0)
-    return NULL;
+/* Class BE: labi_fk0_sym_at → seeds/labi_od_needle_tables.c (always linked). */
 
-  if (k == 0) {
-    if (i == 0)
-      return "std_string_string_empty";
-    if (i == 1)
-      return "std_string_new";
-    if (i == 2)
-      return "std_string_length_String";
-    if (i == 3)
-      return "std_string_length_StrView";
-    if (i == 4)
-      return "std_string_is_empty_String";
-    if (i == 5)
-      return "std_string_is_empty_StrView";
-    if (i == 6)
-      return "std_string_view";
-    if (i == 7)
-      return "std_string_string_from_slice";
-    if (i == 8)
-      return "std_string_string_eq";
-    if (i == 9)
-      return "xlang_string_memcmp_c";
-    if (i == 10)
-      return "xlang_string_memmem_c";
-    return NULL;
-  }
-  if (k == 1) {
-    if (i == 0)
-      return "std_encoding_utf8_valid";
-    if (i == 1)
-      return "std_encoding_ascii_is_alpha";
-    return NULL;
-  }
-  if (k == 2) {
-    if (i == 0)
-      return "std_base64_encode_standard";
-    if (i == 1)
-      return "std_base64_decode_standard";
-    return NULL;
-  }
-  if (k == 3) {
-    if (i == 0)
-      return "std_http_get";
-    if (i == 1)
-      return "std_http_request";
-    if (i == 2)
-      return "std_http_client_new";
-    /* PLATFORM: SHARED — asm co-emit T std_http_get; sole U http_get_c. */
-    if (i == 3)
-      return "http_get_c";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — exact UNDEF needles for std/json/json.o (k==4).
-   * Exact match only; parse does not cover parse_null/number/string, and
-   * std_json_parse* do not cover json_parse_*_c after asm wrapper co-emit. */
-  if (k == 4) {
-    if (i == 0)
-      return "std_json_parse";
-    if (i == 1)
-      return "std_json_parse_null";
-    if (i == 2)
-      return "std_json_parse_number";
-    if (i == 3)
-      return "std_json_parse_string";
-    if (i == 4)
-      return "std_json_parse_string_view";
-    if (i == 5)
-      return "std_json_skip_value";
-    if (i == 6)
-      return "json_parse_null_c";
-    if (i == 7)
-      return "json_parse_number_c";
-    if (i == 8)
-      return "json_parse_bool_c";
-    if (i == 9)
-      return "json_parse_string_c";
-    if (i == 10)
-      return "json_parse_string_view_c";
-    if (i == 11)
-      return "json_skip_value_c";
-    return NULL;
-  }
-  if (k == 5) {
-    /* PLATFORM: SHARED — fk0 k==5 csv.o exact UNDEF (mirror labi_ondemand_heavy.x). */
-    if (i == 0)
-      return "std_csv_next_field";
-    if (i == 1)
-      return "std_csv_parse_line";
-    if (i == 2)
-      return "std_csv_parse_row";
-    if (i == 3)
-      return "std_csv_write_row";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — exact UNDEF needles for std/path/path.o (k==6).
-   * Exact match only; join/basename do not cover clean/sep/extension/stem/resolve. */
-  if (k == 6) {
-    if (i == 0)
-      return "std_path_join";
-    if (i == 1)
-      return "std_path_dirname";
-    if (i == 2)
-      return "std_path_empty_len";
-    if (i == 3)
-      return "std_path_basename";
-    if (i == 4)
-      return "std_path_sep";
-    if (i == 5)
-      return "std_path_is_absolute";
-    if (i == 6)
-      return "std_path_is_sep";
-    if (i == 7)
-      return "std_path_extension";
-    if (i == 8)
-      return "std_path_stem";
-    if (i == 9)
-      return "std_path_extension_and_stem";
-    if (i == 10)
-      return "std_path_clean";
-    if (i == 11)
-      return "std_path_resolve";
-    return NULL;
-  }
-  if (k == 7) {
-    if (i == 0)
-      return "std_hash_sip_hash";
-    if (i == 1)
-      return "std_hash_fnv1a";
-    if (i == 2)
-      return "std_hash_start";
-    if (i == 3)
-      return "std_hash_bytes";
-    if (i == 4)
-      return "std_hash_finish";
-    if (i == 5)
-      return "std_hash_free";
-    if (i == 6)
-      return "std_hash_write_u8_ptr_u32";
-    /* PLATFORM: SHARED — asm co-emit T std_hash_*; sole U hash_*_c (run-hash/set). */
-    if (i == 7)
-      return "hash_sip_bytes_c";
-    if (i == 8)
-      return "hash_sip_free_c";
-    if (i == 9)
-      return "hash_xxhash64_bytes_c";
-    if (i == 10)
-      return "hash_xxhash64_seed_bytes_c";
-    return NULL;
-  }
-  if (k == 8) {
-    /* PLATFORM: SHARED — std/error/error.o exact UNDEF (mirror heavy.x).
-     * Was 4 needles; sole code_invalid/io_err_generic/chain_* never opened gate
-     * (EXC soft SKIP). G.7 complete: every public std_error_* export ×57. */
-    if (i == 0)
-      return "std_error_ok";
-    if (i == 1)
-      return "std_error_code_alloc_fail";
-    if (i == 2)
-      return "std_error_code_invalid";
-    if (i == 3)
-      return "std_error_code_not_found";
-    if (i == 4)
-      return "std_error_ok_value";
-    if (i == 5)
-      return "std_error_from_code";
-    if (i == 6)
-      return "std_error_code";
-    if (i == 7)
-      return "std_error_is_ok";
-    if (i == 8)
-      return "std_error_is_err";
-    if (i == 9)
-      return "std_error_base_io";
-    if (i == 10)
-      return "std_error_io_err_timeout";
-    if (i == 11)
-      return "std_error_io_err_cancelled";
-    if (i == 12)
-      return "std_error_io_err_generic";
-    if (i == 13)
-      return "std_error_base_net";
-    if (i == 14)
-      return "std_error_net_err_timeout";
-    if (i == 15)
-      return "std_error_net_err_cancelled";
-    if (i == 16)
-      return "std_error_net_err_generic";
-    if (i == 17)
-      return "std_error_base_async";
-    if (i == 18)
-      return "std_error_async_err_generic";
-    if (i == 19)
-      return "std_error_base_coll";
-    if (i == 20)
-      return "std_error_coll_err_generic";
-    if (i == 21)
-      return "std_error_base_fs";
-    if (i == 22)
-      return "std_error_fs_err_not_found";
-    if (i == 23)
-      return "std_error_mod_tag_io";
-    if (i == 24)
-      return "std_error_mod_tag_fs";
-    if (i == 25)
-      return "std_error_mod_tag_db";
-    if (i == 26)
-      return "std_error_sidecar_none";
-    if (i == 27)
-      return "std_error_sidecar_errno";
-    if (i == 28)
-      return "std_error_sidecar_db_struct";
-    if (i == 29)
-      return "std_error_code_to_module_base";
-    if (i == 30)
-      return "std_error_code_in_global_range";
-    if (i == 31)
-      return "std_error_code_in_module_span";
-    if (i == 32)
-      return "std_error_code_is_platform_errno";
-    if (i == 33)
-      return "std_error_mod_tag_from_base";
-    if (i == 34)
-      return "std_error_mod_base_from_tag";
-    if (i == 35)
-      return "std_error_module_sidecar_kind";
-    if (i == 36)
-      return "std_error_sem_none";
-    if (i == 37)
-      return "std_error_sem_timeout";
-    if (i == 38)
-      return "std_error_sem_cancelled";
-    if (i == 39)
-      return "std_error_sem_not_found";
-    if (i == 40)
-      return "std_error_http_err_timeout";
-    if (i == 41)
-      return "std_error_http_err_cancelled";
-    if (i == 42)
-      return "std_error_semantic_class";
-    if (i == 43)
-      return "std_error_is_timeout";
-    if (i == 44)
-      return "std_error_is_cancelled";
-    if (i == 45)
-      return "std_error_is_not_found";
-    if (i == 46)
-      return "std_error_recommend_retry";
-    if (i == 47)
-      return "std_error_chain_max_depth";
-    if (i == 48)
-      return "std_error_chain_empty";
-    if (i == 49)
-      return "std_error_chain_from_code";
-    if (i == 50)
-      return "std_error_chain_from_result";
-    if (i == 51)
-      return "std_error_chain_depth";
-    if (i == 52)
-      return "std_error_chain_root";
-    if (i == 53)
-      return "std_error_chain_code_at";
-    if (i == 54)
-      return "std_error_chain_leaf";
-    if (i == 55)
-      return "std_error_chain_wrap";
-    if (i == 56)
-      return "std_error_error_module_anchor";
-    return NULL;
-  }
-  if (k == 9) {
-    if (i == 0)
-      return "std_context_background";
-    if (i == 1)
-      return "std_context_deadline_ns";
-    if (i == 2)
-      return "std_context_is_cancelled";
-    if (i == 3)
-      return "std_context_remaining_ns";
-    return NULL;
-  }
-  if (k == 10) {
-    /* PLATFORM: SHARED — fk0 k==10 std/vec/vec.o exact UNDEF (mirror heavy.x). */
-    if (i == 0)
-      return "std_vec_new_retVec_u8";
-    if (i == 1)
-      return "std_vec_new_retVec_i32";
-    if (i == 2)
-      return "std_vec_push_Vec_u8_ptr_u8";
-    if (i == 3)
-      return "std_vec_push_Vec_i32_ptr_i32";
-    if (i == 4)
-      return "std_vec_length_Vec_u8";
-    if (i == 5)
-      return "std_vec_length_Vec_i32";
-    if (i == 6)
-      return "std_vec_len_empty";
-    if (i == 7)
-      return "std_vec_vec_len_empty";
-    if (i == 8)
-      return "std_vec_new";
-    if (i == 9)
-      return "std_vec_push";
-    if (i == 10)
-      return "std_vec_pop_Vec_i32_ptr";
-    if (i == 11)
-      return "std_vec_pop_Vec_u8_ptr";
-    if (i == 12)
-      return "std_vec_extend_Vec_i32_ptr_i32_ptr_i32";
-    if (i == 13)
-      return "std_vec_extend_Vec_u8_ptr_u8_ptr_i32";
-    if (i == 14)
-      return "std_vec_extend_Vec_u64_ptr_u64_ptr_i32";
-    if (i == 15)
-      return "std_vec_extend_Vec_f64_ptr_f64_ptr_i32";
-    if (i == 16)
-      return "std_vec_from_slice_u64_ptr_i32";
-    if (i == 17)
-      return "std_vec_from_slice_f64_ptr_i32";
-    if (i == 18)
-      return "std_vec_push_Vec_u64_ptr_u64";
-    if (i == 19)
-      return "std_vec_push_Vec_f64_ptr_f64";
-    /* PLATFORM: SHARED — fk0 k==10 +length/deinit/get u64/f64 (mirror heavy.x).
-     * u8/i32 length do not cover sole new+length/deinit Vec_u64/f64. */
-    if (i == 20)
-      return "std_vec_length_Vec_u64";
-    if (i == 21)
-      return "std_vec_deinit_Vec_u64_ptr";
-    if (i == 22)
-      return "std_vec_length_Vec_f64";
-    if (i == 23)
-      return "std_vec_deinit_Vec_f64_ptr";
-    if (i == 24)
-      return "std_vec_get_Vec_u64_i32";
-    if (i == 25)
-      return "std_vec_get_Vec_f64_i32";
-    /* PLATFORM: SHARED — fk0 k==10 +vec3f SOA/AOS (mirror heavy.x).
-     * Vec_* push/length/deinit do not cover unique vec3f_* names. */
-    if (i == 26)
-      return "std_vec_vec3f_soa_push";
-    if (i == 27)
-      return "std_vec_vec3f_soa_deinit";
-    if (i == 28)
-      return "std_vec_vec3f_aos_push";
-    if (i == 29)
-      return "std_vec_vec3f_aos_deinit";
-    if (i == 30)
-      return "std_vec_vec3f_soa_sum_x";
-    if (i == 31)
-      return "std_vec_vec3f_soa_reserve_one";
-    if (i == 32)
-      return "std_vec_vec3f_soa_len";
-    if (i == 33)
-      return "std_vec_vec3f_soa_get_x";
-    if (i == 34)
-      return "std_vec_vec3f_soa_get_y";
-    if (i == 35)
-      return "std_vec_vec3f_soa_get_z";
-    if (i == 36)
-      return "std_vec_vec3f_soa_set";
-    if (i == 37)
-      return "std_vec_vec3f_soa_with_capacity";
-    if (i == 38)
-      return "std_vec_vec3f_aos_reserve_one";
-    if (i == 39)
-      return "std_vec_vec3f_aos_get_x";
-    if (i == 40)
-      return "std_vec_vec3f_aos_sum_x";
-    if (i == 41)
-      return "std_vec_vec3f_aos_with_capacity";
-    return NULL;
-  }
-  if (k == 11) {
-    if (i == 0)
-      return "std_sort_sort_i32_ptr_i32";
-    if (i == 1)
-      return "std_sort_sort_u8_ptr_i32";
-    if (i == 2)
-      return "std_sort_stable_i32_ptr_i32";
-    if (i == 3)
-      return "std_sort_stable_u8_ptr_i32";
-    if (i == 4)
-      return "std_sort_stable_by_key";
-    if (i == 5)
-      return "std_sort_cmp";
-    if (i == 6)
-      return "std_sort_cmp_asc_fn";
-    if (i == 7)
-      return "std_sort_cmp_desc_fn";
-    if (i == 8)
-      return "std_sort_cmp_key_fn";
-    return NULL;
-  }
-  if (k == 12) {
-    if (i == 0)
-      return "std_env_getenv";
-    if (i == 1)
-      return "std_env_getenv_exists";
-    if (i == 2)
-      return "std_env_getenv_z";
-    if (i == 3)
-      return "std_env_getenv_ptr";
-    if (i == 4)
-      return "std_env_setenv";
-    if (i == 5)
-      return "std_env_unsetenv";
-    if (i == 6)
-      return "std_env_temp_dir";
-    if (i == 7)
-      return "std_env_iter";
-    if (i == 8)
-      return "std_env_iter_count";
-    if (i == 9)
-      return "std_env_args_iter";
-    if (i == 10)
-      return "std_env_args_iter_count";
-    /* PLATFORM: SHARED — leftover may T-emit std_env_args_iter_* while U args_iter_*_c. */
-    if (i == 11)
-      return "args_iter_count_c";
-    if (i == 12)
-      return "args_iter_at_c";
-    return NULL;
-  }
-  if (k == 13) {
-    if (i == 0)
-      return "std_random_next";
-    if (i == 1)
-      return "std_random_fill_bytes";
-    if (i == 2)
-      return "std_random_fill";
-    if (i == 3)
-      return "std_random_range_u32_u32";
-    if (i == 4)
-      return "std_random_flip";
-    if (i == 5)
-      return "std_random_gen";
-    if (i == 6)
-      return "std_random_rng_smoke";
-    if (i == 7)
-      return "std_random_seed";
-    if (i == 8)
-      return "random_u32_c";
-    if (i == 9)
-      return "random_u64_c";
-    if (i == 10)
-      return "random_rng_smoke_c";
-    if (i == 11)
-      return "random_fill_bytes_c";
-    return NULL;
-  }
-  if (k == 14) {
-    if (i == 0)
-      return "std_time_now_monotonic_ns";
-    if (i == 1)
-      return "std_time_now_monotonic_ms";
-    if (i == 2)
-      return "std_time_now_wall_ns";
-    if (i == 3)
-      return "std_time_sleep_ms";
-    if (i == 4)
-      return "std_time_sleep_ns";
-    if (i == 5)
-      return "std_time_duration_ns";
-    if (i == 6)
-      return "std_time_timer_start";
-    if (i == 7)
-      return "std_time_start";
-    if (i == 8)
-      return "std_time_elapsed_ns";
-    if (i == 9)
-      return "std_time_format_wall_rfc3339";
-    if (i == 10)
-      return "std_time_wall_local_offset_min";
-    if (i == 11)
-      return "std_time_format_timezone_smoke";
-    if (i == 12)
-      return "time_now_monotonic_ns_c";
-    if (i == 13)
-      return "time_sleep_ns_c";
-    if (i == 14)
-      return "time_now_wall_ns_c";
-    return NULL;
-  }
-  if (k == 15) {
-    if (i == 0)
-      return "std_fs_invalid";
-    if (i == 1)
-      return "std_fs_open";
-    if (i == 2)
-      return "std_fs_create";
-    if (i == 3)
-      return "std_fs_close";
-    if (i == 4)
-      return "std_fs_read";
-    if (i == 5)
-      return "std_fs_write";
-    if (i == 6)
-      return "std_fs_chunk_size";
-    if (i == 7)
-      return "std_fs_mmap_ro";
-    if (i == 8)
-      return "std_fs_last_error";
-    if (i == 9)
-      return "std_fs_readv_buf";
-    if (i == 10)
-      return "std_fs_writev_buf";
-    /* Cap residual 9.1.2: stat-only users must pull formal fs.o. */
-    if (i == 11)
-      return "std_fs_stat";
-    /* Cap residual 9.1.10: dir-only users must pull formal fs.o. */
-    if (i == 12)
-      return "std_fs_dir_open";
-    if (i == 13)
-      return "std_fs_dir_read";
-    if (i == 14)
-      return "std_fs_dir_close";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/tar/tar.o exact UNDEF needles (fk0 k==16; mirror heavy). */
-  if (k == 16) {
-    if (i == 0)
-      return "std_tar_read_header";
-    if (i == 1)
-      return "std_tar_write_header";
-    if (i == 2)
-      return "std_tar_append_entry";
-    if (i == 3)
-      return "std_tar_next_entry";
-    if (i == 4)
-      return "std_tar_read_entry_data";
-    if (i == 5)
-      return "std_tar_path_max";
-    if (i == 6)
-      return "tar_read_header_c";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/unicode/unicode.o exact UNDEF needles (fk0 k==17). */
-  if (k == 17) {
-    if (i == 0)
-      return "std_unicode_category";
-    if (i == 1)
-      return "std_unicode_to_lower";
-    if (i == 2)
-      return "std_unicode_to_upper";
-    if (i == 3)
-      return "std_unicode_is_whitespace";
-    if (i == 4)
-      return "std_unicode_is_ascii";
-    if (i == 5)
-      return "std_unicode_case_fold_rune";
-    /*
-     * wave957: added is_supplementary + rune_utf8_len for unicode_nfc_smoke
-     * cookbook. Before wave957: probe table missed these → BLD001 UNDEF.
-     * G.7: complete the single unicode probe table. PLATFORM: SHARED.
-     */
-    if (i == 6)
-      return "std_unicode_is_supplementary";
-    if (i == 7)
-      return "std_unicode_rune_utf8_len";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/runtime/runtime.o exact UNDEF needles (fk0 k==18). */
-  if (k == 18) {
-    if (i == 0)
-      return "std_runtime_ready";
-    if (i == 1)
-      return "std_runtime_panic";
-    if (i == 2)
-      return "std_runtime_abort";
-    if (i == 3)
-      return "std_runtime_diag_enabled";
-    if (i == 4)
-      return "std_runtime_crash_evidence_collect";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/cli/cli.o exact UNDEF needles (fk0 k==19; mirror heavy). */
-  if (k == 19) {
-    if (i == 0)
-      return "std_cli_err_ok";
-    if (i == 1)
-      return "std_cli_err_help";
-    if (i == 2)
-      return "std_cli_err_unknown";
-    if (i == 3)
-      return "std_cli_parse_from_iter";
-    if (i == 4)
-      return "std_cli_arg_len";
-    if (i == 5)
-      return "std_cli_is_help";
-    if (i == 6)
-      return "std_cli_is_version";
-    if (i == 7)
-      return "std_cli_match_long";
-    if (i == 8)
-      return "std_cli_match_short";
-    if (i == 9)
-      return "std_cli_write_usage";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/datetime/datetime.o exact UNDEF needles (fk0 k==20; mirror heavy). */
-  if (k == 20) {
-    if (i == 0)
-      return "std_datetime_timezone_iana";
-    if (i == 1)
-      return "std_datetime_now_utc";
-    if (i == 2)
-      return "std_datetime_from_unix";
-    if (i == 3)
-      return "std_datetime_from_utc_fields";
-    if (i == 4)
-      return "std_datetime_to_utc_fields";
-    if (i == 5)
-      return "std_datetime_compare";
-    if (i == 6)
-      return "std_datetime_parse_rfc3339";
-    if (i == 7)
-      return "std_datetime_format_rfc3339";
-    if (i == 8)
-      return "std_datetime_format_rfc3339_nano";
-    if (i == 9)
-      return "std_datetime_local_offset_min";
-    if (i == 10)
-      return "std_datetime_to_local_fields";
-    if (i == 11)
-      return "std_datetime_duration_from_ns";
-    if (i == 12)
-      return "std_datetime_duration_from_sec";
-    if (i == 13)
-      return "std_datetime_duration_between";
-    if (i == 14)
-      return "std_datetime_add_duration";
-    if (i == 15)
-      return "std_datetime_duration_sleep";
-    if (i == 16)
-      return "std_datetime_duration_from_monotonic";
-    if (i == 17)
-      return "std_datetime_timezone_utc";
-    if (i == 18)
-      return "std_datetime_timezone_local";
-    if (i == 19)
-      return "std_datetime_timezone_fixed";
-    if (i == 20)
-      return "std_datetime_timezone_from_name";
-    if (i == 21)
-      return "std_datetime_timezone_offset_at";
-    if (i == 22)
-      return "std_datetime_parse_offset_min";
-    if (i == 23)
-      return "std_datetime_to_zoned_fields";
-    if (i == 24)
-      return "std_datetime_from_zoned_fields";
-    if (i == 25)
-      return "std_datetime_iana_dst_smoke";
-    if (i == 26)
-      return "std_datetime_timezone_smoke";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/config/config.o exact UNDEF needles (fk0 k==21; mirror heavy). */
-  if (k == 21) {
-    if (i == 0)
-      return "std_config_err_ok";
-    if (i == 1)
-      return "std_config_err_null";
-    if (i == 2)
-      return "std_config_err_not_found";
-    if (i == 3)
-      return "std_config_err_invalid";
-    if (i == 4)
-      return "std_config_err_io";
-    if (i == 5)
-      return "std_config_err_full";
-    if (i == 6)
-      return "std_config_source_unknown";
-    if (i == 7)
-      return "std_config_source_toml";
-    if (i == 8)
-      return "std_config_source_yaml";
-    if (i == 9)
-      return "std_config_source_env";
-    if (i == 10)
-      return "std_config_source_set";
-    if (i == 11)
-      return "std_config_new";
-    if (i == 12)
-      return "std_config_free";
-    if (i == 13)
-      return "std_config_clear";
-    if (i == 14)
-      return "std_config_load_toml_buf";
-    if (i == 15)
-      return "std_config_load_toml_file";
-    if (i == 16)
-      return "std_config_load_env_prefix";
-    if (i == 17)
-      return "std_config_merge";
-    if (i == 18)
-      return "std_config_set_string";
-    if (i == 19)
-      return "std_config_get_string";
-    if (i == 20)
-      return "std_config_get_i32";
-    if (i == 21)
-      return "std_config_get_bool";
-    if (i == 22)
-      return "std_config_get_source";
-    if (i == 23)
-      return "std_config_get_i32_meta";
-    if (i == 24)
-      return "std_config_get_bool_meta";
-    if (i == 25)
-      return "std_config_get_string_meta";
-    if (i == 26)
-      return "std_config_backend_toml";
-    if (i == 27)
-      return "std_config_backend_yaml";
-    if (i == 28)
-      return "std_config_load_yaml_buf";
-    if (i == 29)
-      return "std_config_load_yaml_file";
-    if (i == 30)
-      return "std_config_yaml_smoke";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/cache/cache.o exact UNDEF needles (fk0 k==22; mirror heavy). */
-  if (k == 22) {
-    if (i == 0)
-      return "std_cache_err_ok";
-    if (i == 1)
-      return "std_cache_err_null";
-    if (i == 2)
-      return "std_cache_err_not_found";
-    if (i == 3)
-      return "std_cache_err_full";
-    if (i == 4)
-      return "std_cache_err_invalid";
-    if (i == 5)
-      return "std_cache_new_lru";
-    if (i == 6)
-      return "std_cache_free_LruCache_ptr";
-    if (i == 7)
-      return "std_cache_get";
-    if (i == 8)
-      return "std_cache_put";
-    if (i == 9)
-      return "std_cache_remove";
-    if (i == 10)
-      return "std_cache_purge";
-    if (i == 11)
-      return "std_cache_stats_LruCache_ptr_CacheStats_ptr";
-    if (i == 12)
-      return "std_cache_new";
-    if (i == 13)
-      return "std_cache_free_ObjPool_ptr";
-    if (i == 14)
-      return "std_cache_add";
-    if (i == 15)
-      return "std_cache_acquire";
-    if (i == 16)
-      return "std_cache_release";
-    if (i == 17)
-      return "std_cache_mark_unhealthy";
-    if (i == 18)
-      return "std_cache_idle";
-    if (i == 19)
-      return "std_cache_stats_ObjPool_ptr_PoolStats_ptr";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/url/url.o exact UNDEF needles (fk0 k==23; mirror heavy). */
-  if (k == 23) {
-    if (i == 0)
-      return "std_url_parse";
-    if (i == 1)
-      return "std_url_build";
-    if (i == 2)
-      return "std_url_stringify";
-    if (i == 3)
-      return "std_url_query_encode";
-    if (i == 4)
-      return "std_url_query_decode";
-    if (i == 5)
-      return "std_url_resolve";
-    if (i == 6)
-      return "std_url_host_to_ipv6";
-    if (i == 7)
-      return "std_url_format_ipv6_host";
-    if (i == 8)
-      return "std_url_host_is_ipv6";
-    if (i == 9)
-      return "std_url_ipv6_host_smoke";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/security/security.o exact UNDEF needles (fk0 k==24; mirror heavy). */
-  if (k == 24) {
-    if (i == 0)
-      return "std_security_key_len";
-    if (i == 1)
-      return "std_security_salt_len_default";
-    if (i == 2)
-      return "std_security_min_secret_len";
-    if (i == 3)
-      return "std_security_err_ok";
-    if (i == 4)
-      return "std_security_err_invalid";
-    if (i == 5)
-      return "std_security_err_random";
-    if (i == 6)
-      return "std_security_err_buffer";
-    if (i == 7)
-      return "std_security_ct_compare";
-    if (i == 8)
-      return "std_security_random_key";
-    if (i == 9)
-      return "std_security_random_salt";
-    if (i == 10)
-      return "std_security_hkdf";
-    if (i == 11)
-      return "std_security_secure_zero";
-    if (i == 12)
-      return "std_security_sensitive_lock";
-    if (i == 13)
-      return "std_security_sensitive_unlock";
-    if (i == 14)
-      return "std_security_sensitive_buf_init";
-    if (i == 15)
-      return "std_security_sensitive_buf_wipe";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/option/option.o exact UNDEF needles (fk0 k==25; mirror heavy). */
-  if (k == 25) {
-    if (i == 0)
-      return "std_option_none";
-    if (i == 1)
-      return "std_option_some";
-    if (i == 2)
-      return "std_option_unwrap_or";
-    if (i == 3)
-      return "std_option_is_some";
-    if (i == 4)
-      return "std_option_is_none";
-    if (i == 5)
-      return "std_option_map";
-    if (i == 6)
-      return "std_option_and_then";
-    if (i == 7)
-      return "std_option_or";
-    if (i == 8)
-      return "std_option_from_result_Result_i32";
-    if (i == 9)
-      return "std_option_from_result_Result_u8";
-    if (i == 10)
-      return "std_option_to_result";
-    return NULL;
-  }
-  /* PLATFORM: SHARED — std/result/result.o exact UNDEF needles (fk0 k==26; mirror heavy). */
-  if (k == 26) {
-    if (i == 0)
-      return "std_result_ok";
-    if (i == 1)
-      return "std_result_err";
-    if (i == 2)
-      return "std_result_is_ok";
-    if (i == 3)
-      return "std_result_is_err";
-    if (i == 4)
-      return "std_result_unwrap_or";
-    if (i == 5)
-      return "std_result_map";
-    if (i == 6)
-      return "std_result_and_then";
-    if (i == 7)
-      return "std_result_or_else";
-    if (i == 8)
-      return "std_result_from_error_code";
-    if (i == 9)
-      return "std_result_from_value";
-    if (i == 10)
-      return "std_result_err_code";
-    return NULL;
-  }
-  return NULL;
-}
 
 int labi_std_fk0_user_needs_rel(const char *user_o, const char *rel) {
   int nk;
@@ -3976,275 +1206,8 @@ int labi_std_fk_gate_sym_count(int fk) {
   return 0;
 }
 
-const char *labi_std_fk_gate_sym_at(int fk, int i) {
-  if (i < 0) return NULL;
-  /* PLATFORM: SHARED — exact UNDEF needles for std/process/process.o (fk==1).
-   * Twin of labi_ondemand_heavy.x labi_std_fk_gate_sym_at (G.7 seed/.x same commit). */
-  if (fk == 1) {
-    if (i == 0) return "process_xlang_argv_get";
-    if (i == 1) return "process_arg_c";
-    if (i == 2) return "process_args_count_c";
-    if (i == 3) return "std_process_exit";
-    if (i == 4) return "std_process_args_count";
-    if (i == 5) return "std_process_arg";
-    if (i == 6) return "std_process_getenv";
-    if (i == 7) return "std_process_setenv";
-    if (i == 8) return "std_process_unsetenv";
-    if (i == 9) return "std_process_getpid";
-    if (i == 10) return "std_process_getppid";
-    if (i == 11) return "std_process_getcwd";
-    if (i == 12) return "std_process_getcwd_ptr";
-    if (i == 13) return "std_process_getcwd_cached_len";
-    if (i == 14) return "std_process_chdir";
-    if (i == 15) return "std_process_self_exe_path";
-    if (i == 16) return "std_process_self_exe_path_ptr";
-    if (i == 17) return "std_process_self_exe_path_cached_len";
-    if (i == 18) return "std_process_spawn";
-    if (i == 19) return "std_process_spawn_io";
-    if (i == 20) return "std_process_spawn_simple";
-    if (i == 21) return "std_process_exec";
-    if (i == 22) return "std_process_exec_simple";
-    if (i == 23) return "std_process_waitpid";
-    if (i == 24) return "std_process_pipe";
-    if (i == 25) return "process_getenv_c";
-    if (i == 26) return "process_spawn_c";
-    if (i == 27) return "process_waitpid_c";
-    return NULL;
-  }
-  if (fk == 2) {
-    /* PLATFORM: SHARED — twin of labi_ondemand_heavy.x fk==2 (pool co-emit UNDEFs glue). */
-    if (i == 0) return "std_thread_spawn";
-    if (i == 1) return "std_thread_join";
-    if (i == 2) return "thread_create_c";
-    if (i == 3) return "thread_join_c";
-    if (i == 4) return "thread_pool_start_c";
-    if (i == 5) return "thread_pool_submit_c";
-    if (i == 6) return "thread_pool_drain_c";
-    if (i == 7) return "thread_pool_stop_c";
-    if (i == 8) return "thread_pool_pending_c";
-    if (i == 9) return "thread_set_name_self_c";
-    if (i == 10) return "thread_dummy_entry_ptr_c";
-    if (i == 11) return "thread_create_with_stack_c";
-    if (i == 12) return "thread_self_c";
-    if (i == 13) return "thread_set_affinity_c";
-    if (i == 14) return "thread_set_affinity_self_c";
-    if (i == 15) return "thread_set_qos_class_self_c";
-    return NULL;
-  }
-  if (fk == 3) {
-    if (i == 0) return "std_sync_lock";
-    if (i == 1) return "std_sync_new_mutex";
-    if (i == 2) return "std_sync_try_lock";
-    if (i == 3) return "std_sync_wait";
-    if (i == 4) return "sync_mutex_lock_c";
-    return NULL;
-  }
-  if (fk == 4) {
-    if (i == 0) return "std_crypto_mem_eq";
-    if (i == 1) return "crypto_mem_eq_c";
-    if (i == 2) return "std_crypto_sha256";
-    return NULL;
-  }
-  if (fk == 5) {
-    if (i == 0) return "std_log_log";
-    if (i == 1) return "std_log_level_info";
-    if (i == 2) return "std_log_set_min_level";
-    if (i == 3) return "log_write_c";
-    if (i == 4) return "std_log_structured_kv";
-    return NULL;
-  }
-  if (fk == 6) {
-    if (i == 0) return "std_atomic_store_i32_ptr_i32";
-    if (i == 1) return "std_atomic_load_i32_ptr";
-    if (i == 2) return "std_atomic_fetch_add_i32_ptr_i32";
-    if (i == 3) return "std_atomic_store_i64_ptr_i64";
-    if (i == 4) return "atomic_store_i32_c";
-    if (i == 5) return "std_atomic_store_i16_ptr_i16";
-    if (i == 6) return "std_atomic_store_u16_ptr_u16";
-    if (i == 7) return "std_atomic_store_u32_ptr_u32";
-    if (i == 8) return "std_atomic_store_u64_ptr_u64";
-    if (i == 9) return "std_atomic_load_i16_ptr";
-    if (i == 10) return "std_atomic_load_u16_ptr";
-    if (i == 11) return "std_atomic_load_u32_ptr";
-    if (i == 12) return "std_atomic_load_i64_ptr";
-    if (i == 13) return "std_atomic_load_u64_ptr";
-    if (i == 14) return "std_atomic_fetch_add_i16_ptr_i16";
-    if (i == 15) return "std_atomic_fetch_add_u16_ptr_u16";
-    if (i == 16) return "std_atomic_fetch_add_u32_ptr_u32";
-    if (i == 17) return "std_atomic_fetch_add_i64_ptr_i64";
-    if (i == 18) return "std_atomic_fetch_add_u64_ptr_u64";
-    if (i == 19) return "std_atomic_fetch_sub_i32_ptr_i32";
-    if (i == 20) return "std_atomic_fetch_sub_i64_ptr_i64";
-    if (i == 21) return "std_atomic_fetch_sub_u64_ptr_u64";
-    if (i == 22) return "std_atomic_compare_exchange_i16_ptr_i16_ptr_i16";
-    if (i == 23) return "std_atomic_compare_exchange_i32_ptr_i32_ptr_i32";
-    if (i == 24) return "std_atomic_compare_exchange_i64_ptr_i64_ptr_i64";
-    if (i == 25) return "std_atomic_compare_exchange_u16_ptr_u16_ptr_u16";
-    if (i == 26) return "std_atomic_compare_exchange_u32_ptr_u32_ptr_u32";
-    if (i == 27) return "std_atomic_compare_exchange_u64_ptr_u64_ptr_u64";
-    if (i == 28) return "std_atomic_fence_acquire";
-    if (i == 29) return "std_atomic_fence_release";
-    if (i == 30) return "std_atomic_fence_seq_cst";
-    if (i == 31) return "atomic_load_i32_c";
-    return NULL;
-  }
-  if (fk == 7) {
-    if (i == 0) return "std_channel_send";
-    if (i == 1) return "std_channel_recv";
-    if (i == 2) return "std_channel_bounded";
-    if (i == 3) return "std_channel_close";
-    if (i == 4) return "std_channel_free";
-    if (i == 5) return "std_channel_try_send";
-    if (i == 6) return "std_channel_try_recv";
-    if (i == 7) return "std_channel_unbounded";
-    if (i == 8) return "channel_send";
-    if (i == 9) return "channel_recv";
-    if (i == 10) return "channel_i32_send_c";
-    if (i == 11) return "channel_i32_bounded_c";
-    if (i == 12) return "channel_i32_unbounded_c";
-    if (i == 13) return "channel_i32_recv_c";
-    if (i == 14) return "channel_i32_try_send_c";
-    if (i == 15) return "channel_i32_try_recv_c";
-    if (i == 16) return "channel_i32_close_c";
-    if (i == 17) return "channel_i32_free_c";
-    if (i == 18) return "channel_i32_is_closed_c";
-    return NULL;
-  }
-  if (fk == 8) {
-    if (i == 0) return "std_backtrace_capture";
-    if (i == 1) return "backtrace_capture";
-    return NULL;
-  }
-  if (fk == 9) {
-    if (i == 0) return "std_math_sin";
-    if (i == 1) return "std_math_cos";
-    if (i == 2) return "std_math_tan";
-    if (i == 3) return "std_math_pi";
-    if (i == 4) return "std_math_e";
-    if (i == 5) return "std_math_tau";
-    if (i == 6) return "std_math_floor";
-    if (i == 7) return "std_math_ceil";
-    if (i == 8) return "std_math_trunc";
-    if (i == 9) return "std_math_round";
-    if (i == 10) return "std_math_sqrt";
-    if (i == 11) return "std_math_cbrt";
-    if (i == 12) return "std_math_pow";
-    if (i == 13) return "std_math_exp";
-    if (i == 14) return "std_math_log";
-    if (i == 15) return "std_math_abs";
-    if (i == 16) return "std_math_signum";
-    if (i == 17) return "std_math_min";
-    if (i == 18) return "std_math_max";
-    if (i == 19) return "std_math_asin";
-    if (i == 20) return "std_math_acos";
-    if (i == 21) return "std_math_atan";
-    if (i == 22) return "std_math_atan2";
-    if (i == 23) return "math_sin";
-    if (i == 24) return "math_cos";
-    if (i == 25) return "math_sin_c";
-    if (i == 26) return "math_cos_c";
-    if (i == 27) return "math_floor_c";
-    if (i == 28) return "math_pi_c";
-    /* PLATFORM: SHARED — 9.2.4 Fix F gate completion: the 31 freestanding
-     * runtime_math_libm C-ABI faces appended in the same order as the .x
-     * authority (labi_ondemand_heavy.x labi_std_fk_gate_sym_at fk9 29..59),
-     * so a user TU whose sole UNDEF is any one of these opens fk9 and the
-     * std/math/math.o plan leaf links runtime_math_libm.o. Twin semantics. */
-    if (i == 29) return "math_acos_c";
-    if (i == 30) return "math_asin_c";
-    if (i == 31) return "math_atan_c";
-    if (i == 32) return "math_atan2_c";
-    if (i == 33) return "math_cbrt_c";
-    if (i == 34) return "math_ceil_c";
-    if (i == 35) return "math_erf_c";
-    if (i == 36) return "math_erfc_c";
-    if (i == 37) return "math_exp_c";
-    if (i == 38) return "math_expm1_c";
-    if (i == 39) return "math_fabs_c";
-    if (i == 40) return "math_fmax_c";
-    if (i == 41) return "math_fmin_c";
-    if (i == 42) return "math_log_c";
-    if (i == 43) return "math_log1p_c";
-    if (i == 44) return "math_pow_c";
-    if (i == 45) return "math_round_c";
-    if (i == 46) return "math_signum_c";
-    if (i == 47) return "math_sqrt_c";
-    if (i == 48) return "math_tan_c";
-    if (i == 49) return "math_trunc_c";
-    if (i == 50) return "math_fenv_available_c";
-    if (i == 51) return "math_fenv_capability_smoke_c";
-    if (i == 52) return "math_fenv_clear_c";
-    if (i == 53) return "math_fenv_emit_cap_report";
-    if (i == 54) return "math_fenv_fe_to_mask";
-    if (i == 55) return "math_fenv_mask_to_fe";
-    if (i == 56) return "math_fenv_raise_c";
-    if (i == 57) return "math_fenv_smoke_c";
-    if (i == 58) return "math_fenv_test_c";
-    if (i == 59) return "math_special_near";
-    return NULL;
-  }
-  if (fk == 10) {
-    /* PLATFORM: SHARED — unique-first cookbook sqlite_available, then remaining
-     * unique std.db.sqlite export faces in mod.x source order, then legacy 3. */
-    if (i == 0) return "std_db_sqlite_is_available";
-    if (i == 1) return "std_db_sqlite_open";
-    if (i == 2) return "std_db_sqlite_close";
-    if (i == 3) return "std_db_sqlite_exec";
-    if (i == 4) return "std_db_sqlite_rows";
-    if (i == 5) return "std_db_sqlite_begin";
-    if (i == 6) return "std_db_sqlite_next_row";
-    if (i == 7) return "std_db_sqlite_col";
-    if (i == 8) return "std_db_sqlite_col_text";
-    if (i == 9) return "std_db_sqlite_col_blob";
-    if (i == 10) return "std_db_sqlite_col_blob_len";
-    if (i == 11) return "std_db_sqlite_col_blob_read";
-    if (i == 12) return "std_db_sqlite_end";
-    if (i == 13) return "std_db_sqlite_begin_tx";
-    if (i == 14) return "std_db_sqlite_commit";
-    if (i == 15) return "std_db_sqlite_rollback";
-    if (i == 16) return "std_db_sqlite_last_error";
-    if (i == 17) return "std_db_sqlite_backend_name";
-    if (i == 18) return "std_db_sqlite_changes";
-    if (i == 19) return "std_db_sqlite_prepare";
-    if (i == 20) return "std_db_sqlite_prepare_cached";
-    if (i == 21) return "std_db_sqlite_bind";
-    if (i == 22) return "std_db_sqlite_step";
-    if (i == 23) return "std_db_sqlite_reset";
-    if (i == 24) return "std_db_sqlite_finalize";
-    if (i == 25) return "std_db_sqlite_cache_clear";
-    if (i == 26) return "std_db_sqlite_acquire";
-    if (i == 27) return "std_db_sqlite_release";
-    if (i == 28) return "std_db_sqlite_idle";
-    if (i == 29) return "std_db_sqlite";
-    if (i == 30) return "sqlite3_open";
-    if (i == 31) return "db_sqlite_open";
-    /* Product -o co-emitting mod.x wrappers UNDEFs bare db_*_c. Exact matcher. */
-    if (i == 32) return "db_open_c";
-    return NULL;
-  }
-  if (fk == 11) {
-    if (i == 0) return "std_elf_parse";
-    if (i == 1) return "elf_parse";
-    return NULL;
-  }
-  if (fk == 12) {
-    if (i == 0) return "std_dynlib_open";
-    if (i == 1) return "std_dynlib_sym";
-    if (i == 2) return "dynlib_open_c";
-    if (i == 3) return "dynlib_open";
-    return NULL;
-  }
-  if (fk == 13) {
-    if (i == 0) return "std_http_get";
-    if (i == 1) return "std_http_request";
-    if (i == 2) return "std_http_client_new";
-    if (i == 3) return "std_http_request_timeout_ms_for_ctx";
-    /* PLATFORM: SHARED — plan fk==13 live http gate; asm co-emit T std_http_get. */
-    if (i == 4) return "http_get_c";
-    return NULL;
-  }
-  return NULL;
-}
+/* Class BE: labi_std_fk_gate_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+
 
 int labi_std_fk_user_needs(const char *user_o, int fk) {
   int n;
@@ -4265,15 +1228,9 @@ int labi_std_fk_user_needs(const char *user_o, int fk) {
 /* wave140: user.o provides_core_mem/std_heap defined-sym tables + pure orch.
  * Cap residual: xlang_link_obj_has_defined_sym (popen/nm). PLATFORM: SHARED. */
 int labi_od_provides_core_mem_sym_count(void) { return 2; }
-const char *labi_od_provides_core_mem_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "core_mem_mem_copy";
-  if (i == 1)
-    return "core_mem_placeholder";
-  return NULL;
-}
+/* Class BJ: labi_od_provides_core_mem_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_provides_core_mem_sym_at(int i);
+
 
 int link_abi_user_o_provides_core_mem(const char *user_o) {
   int n;
@@ -4290,15 +1247,9 @@ int link_abi_user_o_provides_core_mem(const char *user_o) {
 }
 
 int labi_od_provides_std_heap_sym_count(void) { return 2; }
-const char *labi_od_provides_std_heap_sym_at(int i) {
-  if (i < 0)
-    return NULL;
-  if (i == 0)
-    return "std_heap_libc_heap_alloc_c";
-  if (i == 1)
-    return "std_heap_alloc_usize";
-  return NULL;
-}
+/* Class BJ: labi_od_provides_std_heap_sym_at → seeds/labi_od_needle_tables.c (always linked). */
+const char *labi_od_provides_std_heap_sym_at(int i);
+
 
 int link_abi_user_o_provides_std_heap(const char *user_o) {
   int n;
@@ -5123,15 +2074,35 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
         }
     }
 #else
-    (void)link_argv0;
-    (void)user_o;
-    (void)lib_roots;
-    (void)n_lib_roots;
-    (void)bank;
-    (void)argv;
-    (void)la;
-    (void)max_la;
-    (void)flags;
+    /* PLATFORM: WINDOWS — product -o previously no-op'd on_demand (linux/apple
+     * only). Entry-only asm then left core_option_* UNDEF despite formal
+     * core/option/option.o on disk. Push simple-group formals (option/result/…)
+     * for any UNDEF hit; skip-missing keeps hello clean. */
+    {
+        int sg;
+        if (!user_o || !user_o[0] || !la || *la >= max_la - 1)
+            return;
+        for (sg = 0; sg < labi_od_simple_group_count(); sg++) {
+            const char *rel = labi_od_simple_group_rel(sg);
+            if (!rel || !rel[0])
+                continue;
+            if (!labi_od_user_needs_simple_group(user_o, sg))
+                continue;
+            {
+                const char *include_root = xlang_repo_root_from_argv0(link_argv0);
+                char make_tgt[512];
+                if (include_root && include_root[0] &&
+                    (size_t)snprintf(make_tgt, sizeof make_tgt, "../%s", rel) < sizeof make_tgt)
+                    (void)xlang_ensure_formal_std_make_o(include_root, rel, make_tgt);
+            }
+            link_abi_asm_ld_push_obj(NULL, link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la, NULL);
+        }
+        /* option.o expect_* → xlang_panic_; core/debug often supplies it. */
+        if (labi_od_user_needs_simple_group(user_o, 6)) {
+            link_abi_asm_ld_push_obj(NULL, link_argv0, "core/debug/debug.o", lib_roots, n_lib_roots,
+                                     bank, argv, la, max_la, NULL);
+        }
+    }
 #endif
 }
 
@@ -5276,3 +2247,10 @@ void xlang_asm_ld_append_on_demand_user_objs(const char *link_argv0, const char 
 int labi_ondemand_list_slice_marker(void) {
   return 1;
 }
+
+#if !defined(XLANG_LABI_NEEDLE_TABLES_EXTERNAL) && !defined(XLANG_LABI_NEEDLE_TABLES_PROVIDED)
+#define XLANG_LABI_NEEDLE_TABLES_PROVIDED
+/* Class BE/BG: cold mega / layer-seed embeds needle tables. Prefer merge
+ * passes -DXLANG_LABI_NEEDLE_TABLES_EXTERNAL and links labi_od_needle_tables.o. */
+#include "seeds/labi_od_needle_tables.c"
+#endif

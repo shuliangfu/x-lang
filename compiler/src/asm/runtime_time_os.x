@@ -3,6 +3,11 @@
 //
 // runtime_time_os.x — OS time glue R2 full (wave501)
 //
+// Darwin arm64 does not compile this thin. The product body of
+// runtime_time_os.o on that host is src/asm/runtime_time_os_darwin.x.
+// This file remains the Linux and Windows PREFER thin: public functions
+// forward to the C _impl bridges in seeds/runtime_time_os.from_x.c.
+//
 // Provides monotonic/wall time, sleep, RFC3339 formatting, and local timezone offset.
 // The actual OS API calls (clock_gettime, nanosleep, gmtime_r, etc.) are delegated
 // to C bridge functions declared below as extern "C". These are implemented in

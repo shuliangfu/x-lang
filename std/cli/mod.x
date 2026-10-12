@@ -161,10 +161,10 @@ export function parse_from_iter(it: *ArgsIter, expect_sub: *u8, expect_sub_len: 
   out.positional_count = 0;
   out.positional0_len = 0;
   let vname: u8[7] = [118, 101, 114, 98, 111, 115, 101];
-  prog = env.args_iter_next(it);
+  prog = env.args_iter_next(it) as *u8;
   if (prog == 0) { return err_ok(); }
   while (1 == 1) {
-    p = env.args_iter_next(it);
+    p = env.args_iter_next(it) as *u8;
     if (p == 0) { break; }
     al = arg_len(p);
     if (is_help(p, al) != 0) {

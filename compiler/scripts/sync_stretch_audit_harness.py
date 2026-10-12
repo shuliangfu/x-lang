@@ -4,7 +4,7 @@
 #
 # Inputs (authorities):
 #   src/asm/pthin_stretch_audit.x                          — migrated exports
-#   seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc — gated twins
+#   ../analysis/archive/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc — gated twins
 #   seeds/parser_asm_lex_step_bridge.from_x.c + suite skip helpers — link faces
 #
 # Outputs (fully regenerated each run):
@@ -18,7 +18,7 @@
 import re
 import sys
 
-SUITE = "seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc"
+SUITE = "../analysis/archive/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc"
 XFILE = "src/asm/pthin_stretch_audit.x"
 TWINS = "scripts/pthin_stretch_audit_eq_twins.h"
 TABLE = "scripts/pthin_stretch_audit_eq_table.h"

@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1147: one translation unit exits 139. Darwin compiles each function
+// and links the thirteen pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+
 // pthin_helpers.x — G-02f-328 P19 parser thin helpers product bodies.
 //
 // 7.2.1 Route C productize (2026-09-12): after P1b lex_skip, the helpers
@@ -232,8 +236,13 @@ export function parser_asm_struct_field_continues_tok_kind_c(k: i32): i32 {
   if (k == TOKEN_LET || k == TOKEN_CONST) {
     return 1;
   }
-  if (parser_asm_struct_field_name_tok_kind_c(k) != 0) {
-    return 1;
+  // Same-file call is legal here. The Darwin splitter compiles this
+  // function alone and declares the name-token helper as an extern, and
+  // an extern call must sit in unsafe. Semantics match the direct call.
+  unsafe {
+    if (parser_asm_struct_field_name_tok_kind_c(k) != 0) {
+      return 1;
+    }
   }
   if (k == TOKEN_ALIGN) {
     return 1;
@@ -446,13 +455,21 @@ export function parser_asm_lex_at_token_pos_c(kind: i32, token_start: usize, ide
       if (span_n < 2) {
         span_n = 2;
       }
-      return parser_asm_lexer_pos_before_run_c(next_pos, span_n);
+      // Darwin compiles this function alone. The pos and run-length
+      // helpers are externs, so the calls sit in unsafe.
+      unsafe {
+        return parser_asm_lexer_pos_before_run_c(next_pos, span_n);
+      }
     }
     if (kind == TOKEN_IDENT && ident_len > 0) {
-      return parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+      unsafe {
+        return parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+      }
     }
-    span_n = parser_asm_lexer_token_run_len_kind_c(kind);
-    return parser_asm_lexer_pos_before_run_c(next_pos, span_n);
+    unsafe {
+      span_n = parser_asm_lexer_token_run_len_kind_c(kind);
+      return parser_asm_lexer_pos_before_run_c(next_pos, span_n);
+    }
   }
   if (kind == TOKEN_STRING) {
     return token_start - 1;
@@ -569,7 +586,11 @@ export function parser_asm_ident_is_unsafe_stmt_kind_c(kind: i32, ident_len: i32
   }
   start = token_start;
   if (start == 0) {
-    start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+    // Darwin compiles this function alone. The pos helper is an extern,
+    // so the call sits in unsafe.
+    unsafe {
+      start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
+    }
   }
   if (start + 6 > length) {
     return 0;

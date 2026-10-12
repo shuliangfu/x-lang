@@ -11,6 +11,8 @@
  *   - i32x8 remains 32B MEMORY (stack) — pure-asm MEMORY path matches gcc.
  *
  * PLATFORM: SHARED formal .o for pure-asm link (Ubuntu gold + mac L2).
+ * 记224: Darwin arm64 + Linux product path is src/asm/std_simd_formal_darwin.x
+ * (fail-closed pure-asm). This C face remains the Windows / miss residual.
  * Bodies match mod.x scalar-lane semantics (STD-047).
  */
 #include <stdint.h>

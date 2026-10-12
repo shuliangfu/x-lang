@@ -26,7 +26,7 @@ TARGET="${1:-./xlang}"
 # with IO001. cygpath -m forces mixed-mode Windows path (C:/xlang_tmp/...)
 # regardless of MSYS_NO_PATHCONV. POSIX falls back to /tmp.
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*)
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*)
     _SMOKE_TMP="$(cygpath -m "${TEMP:-/tmp}" 2>/dev/null || echo "${TEMP:-/tmp}")"
     ;;
   *)
@@ -39,7 +39,7 @@ SMOKE_OUT="${_SMOKE_TMP}/xlang_bootstrap_seed_smoke_out_$$"
 # suffix, `[ -x "$SMOKE_OUT" ]` fails (file is SMOKE_OUT.exe, not SMOKE_OUT)
 # and bash direct exec yields Permission denied / not found. POSIX unchanged.
 case "$(uname -s 2>/dev/null)" in
-  MINGW*|MSYS*|CYGWIN*) SMOKE_OUT="${SMOKE_OUT}.exe" ;;
+  Windows_NT*|MINGW*|MSYS*|CYGWIN*) SMOKE_OUT="${SMOKE_OUT}.exe" ;;
 esac
 PINNED_TMP="${_SMOKE_TMP}/xlang_bootstrap_seed_pinned_$$"
 AUDIT_DIR="${XLANG_BOOTSTRAP_AUDIT_DIR:-../logs}"
@@ -49,7 +49,7 @@ maybe_codesign() {
     Darwin)
       command -v codesign >/dev/null 2>&1 && codesign -s - --force "$1" >/dev/null 2>&1 || true
       ;;
-    MINGW*|MSYS*|CYGWIN*)
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
       # PLATFORM: WINDOWS — Smart App Control (SAC) intermittently blocks
       # unsigned .exe compiled to $TEMP (Permission denied, exit 126). Sign
       # with the XlangDevCert self-signed cert (one-time setup per

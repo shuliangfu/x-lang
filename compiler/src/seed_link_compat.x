@@ -10,6 +10,10 @@ export extern "C" function lsp_io_lsp_alloc(size: usize): *u8;
 export extern "C" function lsp_io_lsp_free(ptr: *u8): void;
 export extern "C" function lsp_io_lsp_is_null(ptr: *u8): i32;
 export extern "C" function lsp_main_impl(): i32;
+export extern "C" function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8, out_cap: i32): i32;
+export extern "C" function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8, out_cap: i32): i32;
+export extern "C" function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32, out_cols: *i32, max_refs: i32): i32;
+export extern "C" function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32, out_col: *i32): i32;
 export extern "C" function lsp_io_std_heap_std_heap_alloc(size: usize): *u8;
 export extern "C" function lsp_io_std_heap_std_heap_alloc_zeroed(size: usize): *u8;
 export extern "C" function lsp_io_std_heap_std_heap_free(ptr: *u8): void;
@@ -27,6 +31,8 @@ export extern "C" function pipeline_asm_module_func_name_len_at(mod: *u8, fi: i3
 export extern "C" function pipeline_asm_module_func_name_copy64(mod: *u8, fi: i32, dst: *u8): void;
 export extern "C" function pipeline_module_func_param_name_len_at(mod: *u8, func_idx: i32, param_ix: i32): i32;
 export extern "C" function pipeline_module_func_param_name_copy32(mod: *u8, func_idx: i32, param_ix: i32, dst: *u8): void;
+export extern "C" function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): i64;
+export extern "C" function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): i64;
 
 /* ---- typeck/lsp name bridge ---- */
 
@@ -76,6 +82,85 @@ export function typeck_lsp_main_impl(): i32 {
     return r;
   }
   return 0;
+}
+
+/**
+ * Forward a diagnostics-response query to the LSP diagnostic object.
+ * Params match lsp_diag_lsp_build_diagnostics_response.
+ * Returns that function's result. The cold seed keeps a weak copy of this name.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8, out_cap: i32): i32 {
+  unsafe {
+    return lsp_diag_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
+  }
+}
+
+/**
+ * Forward a hover query to the LSP diagnostic object.
+ * Returns that function's result.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8, out_cap: i32): i32 {
+  unsafe {
+    return lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
+  }
+}
+
+/**
+ * Forward a references query to the LSP diagnostic object.
+ * out_lines and out_cols receive the matches. max_refs is the capacity.
+ * Returns that function's result.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32, out_cols: *i32, max_refs: i32): i32 {
+  unsafe {
+    return lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
+  }
+}
+
+/**
+ * Forward a definition query to the LSP diagnostic object.
+ * out_line and out_col receive the match.
+ * Returns that function's result.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function typeck_lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32, out_col: *i32): i32 {
+  unsafe {
+    return lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
+  }
+}
+
+/**
+ * Forward the mangled std.io read name to io_read.
+ * handle is the file descriptor. ptr/len are the buffer. timeout_ms is ignored by the stub.
+ * Returns the byte count, or a negative error, narrowed to i32.
+ * The cold seed keeps a weak copy of this name. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_read_usize_u8_ptr_usize_u32(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
+  unsafe {
+    let n: i64 = io_read(handle as i32, ptr, len, timeout_ms);
+    return n as i32;
+  }
+}
+
+/**
+ * Forward the mangled std.io write name to io_write.
+ * handle is the file descriptor. ptr/len are the buffer. timeout_ms is ignored by the stub.
+ * Returns the byte count, or a negative error, narrowed to i32.
+ * The cold seed keeps a weak copy of this name. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_write_usize_u8_ptr_usize_u32(handle: usize, ptr: *u8, len: usize, timeout_ms: u32): i32 {
+  unsafe {
+    let n: i64 = io_write(handle as i32, ptr, len, timeout_ms);
+    return n as i32;
+  }
 }
 
 /** Exported function `typeck_std_heap_alloc`.
@@ -160,11 +245,17 @@ export function ast_pipeline_module_struct_layout_set_packed(module: *u8, idx: i
   }
 }
 
-/** Exported function `backend_asm_ctx_slot_offset`.
- * Implements `backend_asm_ctx_slot_offset`.
- * @param ctx *u8
- * @param slot_idx i32
- * @return i32
+// lsp_diag_x.o owns the five lsp_diag_* queries. The copies here were a
+// second strong definition (they only returned -1).
+
+/**
+ * Frame offset of one local slot, under the name the pipeline runtime calls.
+ * The g05 product link has no backend.x object, so this forwarder is the
+ * only definition there (w2055). Remove it when backend.x joins that link.
+ * @param ctx *u8 — AsmFuncCtx
+ * @param slot_idx i32 — local slot index
+ * @return i32 — the offset from asm_ctx_local_offset_at
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
@@ -173,54 +264,6 @@ export function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32 {
     return r;
   }
   return 0;
-}
-
-/* See implementation. */
-
-#[no_mangle]
-export function lsp_diag_lsp_build_diagnostics_response(id_val: i32, source: *u8, source_len: i32, out_buf: *u8,
-                                                  out_cap: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_lsp_build_semantic_tokens_response`.
- * Purpose: implements `lsp_diag_lsp_build_semantic_tokens_response`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_lsp_build_semantic_tokens_response(id_val: i32, doc_buf: *u8, doc_len: i32, out_buf: *u8,
-                                                     out_cap: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_hover_at`.
- * Purpose: implements `lsp_diag_hover_at`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_hover_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_buf: *u8,
-                           out_cap: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_references_at`.
- * Purpose: implements `lsp_diag_references_at`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_references_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_lines: *i32,
-                                out_cols: *i32, max_refs: i32): i32 {
-  return 0 - 1;
-}
-
-/** Function `lsp_diag_definition_at`.
- * Purpose: implements `lsp_diag_definition_at`; params/returns as declared (may be multi-line).
- * Contracts: null/cap/PLATFORM as enforced in the body.
- */
-#[no_mangle]
-export function lsp_diag_definition_at(source: *u8, source_len: i32, line_0: i32, col_0: i32, out_line: *i32,
-                                out_col: *i32): i32 {
-  return 0 - 1;
 }
 
 /* See implementation. */

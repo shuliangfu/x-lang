@@ -759,7 +759,7 @@
 #
 # Outputs (in-place):
 #   src/asm/pthin_stretch_audit.x            — .x port appended
-#   seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc
+#   ../analysis/archive/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc
 #                                            — C twin → gated pointer ABI
 #   (decl/call-site sync across seeds is done by the wave driver sed, same
 #    as waves 1–3; twins.h/harness rows by the driver too)
@@ -774,7 +774,7 @@ import os
 import re
 import sys
 
-SUITE = "seeds/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc"
+SUITE = "../analysis/archive/parser_asm/parser_asm_emit_heavy_stretch_suite_slice.inc"
 XFILE = "src/asm/pthin_stretch_audit.x"
 TOKEN_H = "include/token.h"
 

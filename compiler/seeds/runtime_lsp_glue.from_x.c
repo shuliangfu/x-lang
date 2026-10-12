@@ -73,24 +73,9 @@ extern size_t lsp_diag_pipeline_sizeof_dep_ctx(void);
 /** bootstrap 链 pipeline 时返回真实 ctx 字节数；xlang-c 弱符号回落瘦 struct。 */
 extern size_t lsp_diag_x_alloc_dep_ctx_size(void);
 
-/** 调试 LSP read_message 的 leftover 长度 n；LSP_READ_DEBUG 时打 stderr，便于确认 state 是否在两次调用间保留。 */
-void lsp_debug_u32(uint32_t n) {
-    if (link_abi_getenv("LSP_READ_DEBUG") != NULL) {
-        /* Cap residual 9.7.1: fprintf(stderr) → Cap snprintf + raw fd-2 write. */
-        char dbg_buf[64];
-        xlang_snprintf(dbg_buf, sizeof(dbg_buf), "lsp_read_message leftover n=%u\n", (unsigned)n);
-        (void)xlang_io_write(2, dbg_buf, strlen(dbg_buf));
-    }
-}
-/** 调试：打 state 指针。 */
-void lsp_debug_ptr(uint8_t *p) {
-    if (link_abi_getenv("LSP_READ_DEBUG") != NULL) {
-        /* Cap residual 9.7.1: fprintf(stderr) → Cap snprintf + raw fd-2 write. */
-        char dbg_buf[64];
-        xlang_snprintf(dbg_buf, sizeof(dbg_buf), "lsp_read_message state_buf=%p\n", (void *)p);
-        (void)xlang_io_write(2, dbg_buf, strlen(dbg_buf));
-    }
-}
+/** Class AJ: Cap LSP_READ_DEBUG stderr traces retired (no-op; keep symbols for lsp_io). */
+void lsp_debug_u32(uint32_t n) { (void)n; }
+void lsp_debug_ptr(uint8_t *p) { (void)p; }
 
 /* 前向声明：行索引、引用索引与定义/引用/悬停。 */
 void build_line_index(const struct ASTModule *mod);

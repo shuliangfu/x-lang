@@ -35,8 +35,8 @@ MODULES=(
   "lsp_io_std_heap|src/lsp/lsp_io_std_heap.x|seeds/lsp_io_std_heap_gen.linux.x86_64.c|std_heap_alloc:lsp_io_std_heap_std_heap_alloc,std_heap_alloc_zeroed:lsp_io_std_heap_std_heap_alloc_zeroed,std_heap_free:lsp_io_std_heap_std_heap_free|"
   # token：enum+Token+token_is_eof；产品链仍用 include/token.h（C 头），本条锁 nm 面 / 扩 N
   "token|src/lexer/token.x|token_gen.c||"
-  # lsp_diag_pipeline_sizes：三枚 sizeof 门闩；产品 sizes_nostub PREFER_X_O；本条锁 nm / 扩 N
-  "lsp_diag_pipeline_sizes|src/lsp/lsp_diag_pipeline_sizes.x|seeds/lsp_diag_pipeline_sizes.from_x.c||"
+  # w848: lsp_diag_pipeline_sizes C seed deleted. Product nostub is pure-asm
+  # of src/lsp/lsp_diag_pipeline_sizes.x. No seed left to nm-diff.
   # labi_path_pure R2 full：.x 吃满公共门闩 + count（wave116 try_under + wave146–151 + wave160 compiler_o_path_copy + wave162 repo_root + wave163–166 path ladders + wave180 scheduler_o_for_task_link + wave181 bootstrap_nostdlib_stubs_o_path + wave183 29× thin runtime_*_o_path BSS + wave184 empty_cstr/std_io/compress/effective_link + wave185 rel_o_path） + wave189 set/clear user_o_files + wave253/258 user_env path + push_minimal companion + wave262 private helper short names (no_mangle)；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 marker）；Cap residual：Windows #if sep 在 mega 冷路径；bank_push/rel/skip Cap；resolve Cap（wave160/184）；resolve+rel Cap（wave162）；realpath+getcwd+skip Cap（wave163）
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/labi_path_pure.from_x.c 全 C 体
@@ -222,10 +222,7 @@ MODULES=(
   #   thin+rest — .x 1 thin 函数（手动字节解析无 libc）；seed 4 rest 函数（getsockname/getpeername +
   #   htonl/htons — asm codegen u16 store bug workaround）；ast_ 前缀适配（net_ #[no_mangle] 触发）
   "runtime_net_addr_fast|src/asm/runtime_net_addr_fast.x|seeds/runtime_net_addr_fast_surface.from_x.c||"
-  # runtime_slice_glue R2 DIRECT (wave546)：.x 6 public API (3 core_slice_*_from_ptr_c + 3 core_subslice_*_c)
-  #   DIRECT — 纯 .x 实现（无 extern 桥，无 OS 调用，纯寄存器运算）；seed 全守卫 #ifndef
-  #   XLANG_RUNTIME_SLICE_GLUE_FROM_X；无 Cap residual；prove 锁 thin surface IDENTICAL
-  "runtime_slice_glue|src/asm/runtime_slice_glue.x|seeds/runtime_slice_glue_surface.from_x.c||"
+  # runtime_slice_glue: no C surface seed left; product object comes from src/asm/runtime_slice_glue.x only (w1531).
   # runtime_crypto_inc_glue R2 thin+rest (wave547)：.x 6 public API (xlang_sha256_block + _rotr32 + _ch + _maj +
   #   crypto_i32_sub_c + crypto_rotl32_c) + 6 _impl 桥；rest 含 sha256 block/rotr/ch/maj + crypto_i32_sub/rotl32
   #   纯 C 算术（无 OS 调用）；xlang_/crypto_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
@@ -235,31 +232,18 @@ MODULES=(
   #   3 DIRECT (append_byte/lit/i32 纯计算)；rest 含 pthread_mutexattr protocol lookup；
   #   sync_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
   "runtime_sync_lock_diag_tls|src/asm/runtime_sync_lock_diag_tls.x|seeds/runtime_sync_lock_diag_tls_surface.from_x.c||"
-  # runtime_std_runtime_fast R2 DIRECT (wave548)：.x 6 public API (std_runtime_crash_evidence_collect +
-  #   runtime_crash_evidence_collect_c + std_runtime_runtime_panic + runtime_panic + std_runtime_runtime_abort +
-  #   runtime_abort) DIRECT — 纯转发到 xlang_panic_/_crash_evidence_collect_c extern 桥；seed 全守卫；
-  #   无 doc_anchor 函数（.x 未定义）；prove 锁 6 #[no_mangle] IDENTICAL
-  "runtime_std_runtime_fast|src/asm/runtime_std_runtime_fast.x|seeds/runtime_std_runtime_fast_surface.from_x.c||"
+  # runtime_std_runtime_fast: no C surface seed left; product object comes from src/asm/runtime_std_runtime_fast.x only (w1531).
   # runtime_atomic_glue R2 thin+rest (wave548)：.x 30 public API (atomic_load/store/cas/fetch_add/fetch_sub ×
   #   i16/u16/i32/u32/i64/u64 + 3 fence) + 30 _impl 桥；rest 含 C11 stdatomic/GCC __atomic intrinsics；
   #   atomic_ 前缀不触发 ast_；prove 锁 thin surface IDENTICAL
   "runtime_atomic_glue|src/asm/runtime_atomic_glue.x|seeds/runtime_atomic_glue_surface.from_x.c||"
-  # runtime_asm_build R2 thin(extern) (wave549)：.x 2 public API (asm_driver_skip_codegen_dep_0_get +
-  #   asm_driver_set_current_dep_path_for_codegen) thin(extern) — 纯转发到 driver_abi extern C 桥；
-  #   seed 全守卫；cap residual: main()（.x 无法表达 char** argv）；无 doc_anchor 函数；
-  #   asm_ 前缀不触发 ast_；prove 锁 2 #[no_mangle] IDENTICAL
-  "runtime_asm_build|src/asm/runtime_asm_build.x|seeds/runtime_asm_build_surface.from_x.c||"
+  # runtime_asm_build: no C surface seed left; product object comes from src/asm/runtime_asm_build.x only (w1531).
   # runtime_asm_io_stubs R2 thin+rest (wave549)：.x 3 public API (seed_io_syscall_write +
   #   seed_io_syscall_read + seed_io_write_fd1) + 3 _impl 桥；rest 含 Linux x86_64 inline asm syscall
   #   + POSIX write/read；doc_anchor runtime_asm_io_stubs_x_doc_anchor；seed_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (3 #[no_mangle] + 1 doc_anchor)
   "runtime_asm_io_stubs|src/asm/runtime_asm_io_stubs.x|seeds/runtime_asm_io_stubs_surface.from_x.c||"
-  # runtime_string_fast R2 DIRECT (wave549)：.x 8 public API (xlang_string_memrchr/memchr/
-  #   portable_memmem/memmem/ptr_at/memcmp/memcmp_at/copy_c) DIRECT — 纯计算 + libc memcmp/memcpy
-  #   extern 桥；seed 全守卫；doc_anchor ast_runtime_string_fast_x_doc_anchor（非 #[no_mangle]
-  #   export function，xlang-c 自动加 ast_ 前缀，同 path_fast/net_sock_fast 规律）；
-  #   prove 锁 8 #[no_mangle] + 1 ast_ doc_anchor IDENTICAL
-  "runtime_string_fast|src/asm/runtime_string_fast.x|seeds/runtime_string_fast_surface.from_x.c||"
+  # runtime_string_fast: no C surface seed left; product object comes from src/asm/runtime_string_fast.x only (w1531).
   # runtime_net_io_batch_fast R2 thin+rest (wave550)：.x 8 public API (3 weak io_* defaults +
   #   3 net_stream_*_batch_c + 2 net_udp_*_many_buf_c) + 2 _impl 桥；rest 含 Linux
   #   recvmmsg/sendmmsg syscall；doc_anchor ast_runtime_net_io_batch_fast_x_doc_anchor（触发 ast_）；
@@ -320,55 +304,19 @@ MODULES=(
   #   doc_anchor runtime_process_os_glue_x_doc_anchor（无 ast_）；process_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (22 #[no_mangle] + 1 doc_anchor)
   "runtime_process_os_glue|src/asm/runtime_process_os_glue.x|seeds/runtime_process_os_glue_surface.from_x.c||"
-  # asm_backend_compat_stubs R2 DIRECT (wave555)：.x 3 public API (xlang_format_u32_to_buf pure compute +
-  #   xlang_elf_ctx_append_u32_le + xlang_arm64_mov_imm32_to_w0_c via pipeline_elf_ctx_append_bytes extern bridge);
-  #   seed 全守卫 #ifndef XLANG_ASM_BACKEND_COMPAT_STUBS_FROM_X;
-  #   doc_anchor asm_backend_compat_stubs_x_doc_anchor（无 ast_）；xlang_ 前缀不触发 ast_；
-  #   prove 锁 DIRECT surface IDENTICAL (3 #[no_mangle] + 1 doc_anchor)
-  "asm_backend_compat_stubs|src/asm/asm_backend_compat_stubs.x|seeds/asm_backend_compat_stubs_surface.from_x.c||"
+  # asm_backend_compat_stubs: no C surface seed left; product object comes from src/asm/asm_backend_compat_stubs.x only (w1531).
   # runtime_thread_glue R2 thin+rest (wave555)：.x 24 public API (16 thin+rest forwards to _impl:
   #   2 xlang_cpu_ star + 14 thread_ star + 8 DIRECT std_thread_ star forwards to thread_ star _c);
   #   rest 含 16 _impl OS bridges (pthread_ star / CreateThread / SetThreadAffinityMask / qos_class);
   #   doc_anchor runtime_thread_glue_x_doc_anchor（无 ast_）；thread_/std_thread_/xlang_ 前缀不触发 ast_；
   #   prove 锁 thin surface IDENTICAL (24 #[no_mangle] + 1 doc_anchor)
   "runtime_thread_glue|src/asm/runtime_thread_glue.x|seeds/runtime_thread_glue_surface.from_x.c||"
-  # bootstrap_nostdlib_stubs R2 mixed (wave556)：.x 6 #[no_mangle] public API
-  #   (5 thin+rest forwards to _impl: heap_grow/syscall3/syscall4/format_double/vfprintf_fd
-  #    + 1 DIRECT pure compute: align16);
-  #   rest 含 5 _impl bridges (bump heap mmap / Linux x86_64 syscall / vsnprintf+write);
-  #   doc_anchor bootstrap_nostdlib_stubs_x_doc_anchor（无 ast_）；bootstrap_ 前缀不触发 ast_；
-  #   prove 锁 mixed surface IDENTICAL (6 #[no_mangle] + 1 doc_anchor)
-  "bootstrap_nostdlib_stubs|src/asm/bootstrap_nostdlib_stubs.x|seeds/bootstrap_nostdlib_stubs_surface.from_x.c||"
-  # backend_seed_mega_fallback R2 DIRECT (wave556)：.x 2 #[no_mangle] public API
-  #   (pipeline_seed_mega_ctx_reset + pipeline_dep_ctx_target_arch_local)
-  #   + 3 non-no_mangle helpers (mega_load_i32_le + mega_store_i32_le + mega_store_ptr_le);
-  #   seed 全守卫 #ifndef XLANG_BACKEND_SEED_MEGA_FALLBACK_FROM_X;
-  #   doc_anchor backend_seed_mega_fallback_x_doc_anchor（无 ast_）；mega_/pipeline_ 前缀不触发 ast_；
-  #   prove 锁 DIRECT surface IDENTICAL (2 #[no_mangle] + 3 helper + 1 doc_anchor)
-  "backend_seed_mega_fallback|src/asm/backend_seed_mega_fallback.x|seeds/backend_seed_mega_fallback_surface.from_x.c||"
-  # parser_asm_parse_expr_link R2 thin+rest (wave557)：.x 1 #[no_mangle] public API
-  #   (parser_asm_parse_expr_debug_enabled thin forward to link_abi_getenv extern bridge);
-  #   rest 含 link_abi_getenv _impl (host getenv);
-  #   prove 锁 thin+rest surface IDENTICAL (1 #[no_mangle] + 1 doc_anchor)
-  "parser_asm_parse_expr_link|src/asm/parser_asm_parse_expr_link.x|seeds/parser_asm_parse_expr_link_surface.from_x.c||"
-  # lsp_diag_stubs_no_c R2 DIRECT (wave557)：.x 4 #[no_mangle] public API
-  #   (lsp_diag_copy_text_impl + json_escape_str_impl + lsp_diag_copy_text + json_escape_str);
-  #   lsp_diag_copy_text/json_escape_str forward to _impl (same module #[no_mangle]);
-  #   prove 锁 DIRECT surface IDENTICAL (4 #[no_mangle] + 1 doc_anchor)
-  "lsp_diag_stubs_no_c|src/lsp/lsp_diag_stubs_no_c.x|seeds/lsp_diag_stubs_no_c_surface.from_x.c||"
-  # build_runtime R2 thin+rest (wave558)：.x 5 #[no_mangle] public API
-  #   (5 thin forwards to _impl: build_runtime_info/warn + build_patch_pipeline_gen_c/driver_gen_c + build_run_legacy_steps);
-  #   rest 含 5 _impl bridges;
-  #   prove 锁 thin+rest surface IDENTICAL (5 #[no_mangle] + 1 doc_anchor)
-  "build_runtime|src/build_runtime.x|seeds/build_runtime_surface.from_x.c||"
-  # user_asm_seed_bridge R2 mixed (wave558)：.x 7 #[no_mangle] public API
-  #   (4 thin+rest forwards to _impl: seed_elf_ctx_set_macho_leading_underscore + seed_asm_reject_empty_elf_text
-  #    + seed_platform_macho_write_macho_o_to_buf + seed_platform_coff_write_coff_o_to_buf
-  #    + 2 DIRECT env gates: seed_asm_debug_enabled + seed_asm_emit_trace_enabled via link_abi_getenv
-  #    + 1 DIRECT pure compute: seed_elf_ctx_code_len);
-  #   rest 含 4 _impl bridges + link_abi_getenv _impl;
-  #   prove 锁 mixed surface IDENTICAL (7 #[no_mangle] + 1 doc_anchor)
-  "user_asm_seed_bridge|src/asm/user_asm_seed_bridge.x|seeds/user_asm_seed_bridge_surface.from_x.c||"
+  # bootstrap_nostdlib_stubs: no C surface seed left; product object comes from src/asm/bootstrap_nostdlib_stubs.x only (w1531).
+  # backend_seed_mega_fallback: no C surface seed left; product object comes from src/asm/backend_seed_mega_fallback.x only (w1531).
+  # parser_asm_parse_expr_link: no C surface seed left; product object comes from src/asm/parser_asm_parse_expr_link.x only (w1531).
+  # lsp_diag_stubs_no_c: no C surface seed left; product object comes from src/lsp/lsp_diag_stubs_no_c.x only (w1531).
+  # build_runtime: no C surface seed left; product object comes from src/build_runtime.x only (w1531).
+  # user_asm_seed_bridge: no C surface seed left; product object comes from src/asm/user_asm_seed_bridge.x only (w1531).
   # runtime_heap_user R2 DIRECT (wave559)：.x 7 #[no_mangle] public API
   #   (heap_alloc_c + heap_free_c + heap_realloc_c + heap_alloc_zeroed_c
   #    + heap_arena_init_c + heap_arena64_alloc_c + heap_arena64_deinit_c);
@@ -415,12 +363,7 @@ MODULES=(
   #   rest 含 12 extern bridges (typeck_lsp_* shared by 2 wrappers each);
   #   prove 锁 thin+rest surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
   "lsp_diag_pipeline_ctx|src/lsp/lsp_diag_pipeline_ctx.x|seeds/lsp_diag_pipeline_ctx_surface.from_x.c||"
-  # x_seed_bridge R2 mixed (wave562)：.x 14 #[no_mangle] public API
-  #   (5 thin+rest forwards: typeck_preprocess_x_buf + std_heap_alloc_zeroed/zero/free/alloc
-  #    + 9 DIRECT: 8 io_* stubs + 1 forward chain io_register_buffers_buf_i32/xlang_io_register);
-  #   rest 含 4 extern bridges (preprocess_x_buf + typeck_std_heap_alloc + calloc + free);
-  #   prove 锁 mixed surface IDENTICAL (14 #[no_mangle] · no doc_anchor)
-  "x_seed_bridge|src/x_seed_bridge.x|seeds/x_seed_bridge_surface.from_x.c||"
+  # x_seed_bridge: no C surface seed left; product object comes from src/x_seed_bridge.x only (w1482).
   # seed_link_compat R2 mixed (wave562)：.x 19 #[no_mangle] public API
   #   (11 thin+rest forwards: typeck_lsp_alloc/free/is_null/main_impl + typeck_std_heap_alloc/alloc_zeroed/free
   #    + std_sys_read_file_into + std_heap_free_u8_ptr + ast_pipeline_module_struct_layout_set_packed
@@ -574,9 +517,9 @@ MODULES=(
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_enc_dispatch.from_x.c 全 C 体
   # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
   "backend_enc_dispatch|src/asm/backend_enc_dispatch.x|seeds/backend_enc_dispatch_surface.from_x.c||"
-  # backend_arch_emit_dispatch R2 full：.x 吃满 47 ta 分派壳公共业务；
-  # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_arch_emit_dispatch.from_x.c 全 C 体
-  # prove 锁 full surface IDENTICAL；L2 thin seed 仅作 g05 full.x 失败回退
+  # w849: 47 ta-dispatch C bodies deleted. Product object is pure-asm of
+  # backend_arch_emit_dispatch.x plus the slice marker. No cold full C.
+  # prove still nm-diffs the surface seed, not the deleted bodies.
   "backend_arch_emit_dispatch|src/asm/backend_arch_emit_dispatch.x|seeds/backend_arch_emit_dispatch_surface.from_x.c||"
   # backend_try_inline_dispatch R2 full：.x 吃满 try_inline/glue 公共业务；
   # 产品 rest 在 FROM_X 下业务 H=0（仅 slice_marker）；冷/无 PREFER 仍可走 seeds/backend_try_inline_dispatch.from_x.c 全 C 体
@@ -617,8 +560,9 @@ MODULES=(
   # 9.7.6 residual 9: mega sibling → _impl wrapper retired (T 100→99);
   # spawn body stays in rt_dispatch_thin (HAS a real fork/exec body)
   "rt_run_x_emit|src/runtime/rt_run_x_emit.x|seeds/rt_run_x_emit_surface.from_x.c||"
-  # rt_parse_diag R2 full：.x 吃满 precise parse failure P001；产品 rest 在 FROM_X 下业务符号 H=0
-  # prove 锁 full surface IDENTICAL（1 公共符号）；冷/无 PREFER 仍可走 seeds/rt_parse_diag.from_x.c 全 C 体
+  # rt_parse_diag: the precise diagnostic lives only in the .x (w846 deleted
+  # the C twin and PRECISE_BRIDGE). The seed keeps recovery diagnostics and
+  # the slice marker. No full-seed fallback. PLATFORM: SHARED.
   "rt_parse_diag|src/runtime/rt_parse_diag.x|seeds/rt_parse_diag_surface.from_x.c||"
   # rt_diag_errno R2 full：.x 吃满 code_for_kind + errno{,_path,_path_pair} + cli_usage_note；产品 rest 在 FROM_X 下业务 H=0
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_diag_errno.from_x.c 全 C 体
@@ -626,17 +570,17 @@ MODULES=(
   # rt_fs_open R2 full：.x 吃满 path_copy + open_read + open_write；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL（3 公共符号）；冷/无 PREFER 仍可走 seeds/rt_fs_open.from_x.c 全 C 体
   "rt_fs_open|src/runtime/rt_fs_open.x|seeds/rt_fs_open_surface.from_x.c||"
-  # rt_arena_buf R2 full：.x 吃满 arena_buf + module_buf；产品 rest 在 FROM_X 下业务 H=0（marker+BSS）
-  # Cap-global-bss residual：槽 API 在 driver_abi；prove 锁 full surface IDENTICAL
-  # 冷/无 PREFER 仍可走 seeds/rt_arena_buf.from_x.c 全 C 体
+  # rt_arena_buf R2 full：.x 是 driver_arena_buf + driver_module_buf 的唯一函数体（w844 已删 C 孪生）。
+  # 种子只留 marker + 128MiB/2MiB BSS；槽 API 在 driver_abi。
+  # prove 锁 full surface IDENTICAL。没有全 C 体可回退。
   "rt_arena_buf|src/runtime/rt_arena_buf.x|seeds/rt_arena_buf_surface.from_x.c||"
-  # rt_preamble R2 full：.x 吃满 write_io_net + write_fs_path_map_error（skip+fputs）；
-  # 产品 rest 在 FROM_X 下业务 H=0（marker+巨型字串表数据）；Cap-giant-string residual 在 driver_abi
-  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_preamble.from_x.c 全 C 体
+  # rt_preamble R2 full：.x 是 write_io_net + write_fs_path_map_error 的唯一函数体（w843 已删 C 孪生）。
+  # 种子只留 marker + 巨型字串表；Cap-giant-string 行访问在 driver_abi。
+  # prove 锁 full surface IDENTICAL。没有全 C 体可回退。
   "rt_preamble|src/runtime/rt_preamble.x|seeds/rt_preamble_surface.from_x.c||"
-  # rt_stack R2 full：.x 吃满 thread_fn + large_stack；产品 rest 在 FROM_X 下业务符号 H=0（仅 marker）
+  # rt_stack：.x 吃满 thread_fn + large_stack + marker（w1496 种子已删，产品纯 asm）
   # Cap-fn-ptr residual：driver_run_stack_esc_gate_on_large_stack 在 driver_abi（平台层）
-  # prove 锁 full surface IDENTICAL（2 公共符号）；冷/无 PREFER 仍可走 seeds/rt_stack.from_x.c 全 C 体
+  # prove 锁 full surface IDENTICAL。没有全 C 体可回退。
   "rt_stack|src/runtime/rt_stack.x|seeds/rt_stack_surface.from_x.c||"
   # rt_lib_root R2 full：.x 吃满 ptr_usable + default + roots_from_key；产品 rest 在 FROM_X 下业务符号 H=0（仅 marker）
   # prove 锁 full surface IDENTICAL（3 公共符号）；冷/无 PREFER 仍可走 seeds/rt_lib_root.from_x.c 全 C 体
@@ -644,9 +588,9 @@ MODULES=(
   # rt_emit_flags R2 full：.x 吃满 has_emit + set_use_lto + set_print_target_cpu；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL（3 公共符号）；冷/无 PREFER 仍可走 seeds/rt_emit_flags.from_x.c 全 C 体
   "rt_emit_flags|src/runtime/rt_emit_flags.x|seeds/rt_emit_flags_surface.from_x.c||"
-  # rt_emit_state R2 full：.x 吃满 set_path/set_lib/set_n/set_extern + argv_parse；产品 rest FROM_X 业务 T=0（仅 marker+BSS）
-  # Cap-global-bss residual：槽/绑定 API 在 driver_abi；共享 path_buf/lib_roots 数据在 rest seed
-  # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_emit_state.from_x.c 全 C 体
+  # rt_emit_state: the .x is the sole body of the five setters (w845 deleted
+  # the C twins). The seed keeps BSS, lib-name, the entry-prefix setter, and
+  # the slice marker. No full C fallback. Slot API is in driver_abi.
   "rt_emit_state|src/runtime/rt_emit_state.x|seeds/rt_emit_state_surface.from_x.c||"
   # rt_content R2 full：.x 吃满 content_has_* + driver_source_has_* path wrappers；产品 rest 在 FROM_X 下业务符号 H=0
   # prove 锁 full surface IDENTICAL；冷/无 PREFER 仍可走 seeds/rt_content.from_x.c 全 C 体

@@ -83,6 +83,7 @@ export extern "C" function pipeline_asm_emit_func_index_c(): i32;
 export extern "C" function pipeline_type_elem_ref_at(arena: *u8, tr: i32): i32;
 export extern "C" function typeck_get_field_offset_from_layout_deps(mod: *u8, pctx: *u8, tname: *u8, tlen: i32, fname: *u8, flen: i32): i32;
 export extern "C" function pipeline_expr_field_access_layout_offset(arena: *u8, mod: *u8, fa: i32): i32;
+export extern "C" function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
 export extern "C" function pipeline_expr_call_num_args_at(arena: *u8, er: i32): i32;
 export extern "C" function glue_with_arena_scope_active_c(): i32;
 export extern "C" function glue_with_arena_scope_top_off_c(): i32;
@@ -96,11 +97,11 @@ export extern "C" function asm_ctx_local_find_offset(ctx: *u8, name: *u8, nlen: 
 export extern "C" function backend_fold_func_x_plus_k_chain(arena: *u8, mod: *u8, fi: i32, depth: i32): i32;
 export extern "C" function pipeline_asm_emit_expr_elf_c(arena: *u8, elf: *u8, er: i32, ctx: *u8, ta: i32): i32;
 export extern "C" function backend_enc_add_imm_to_rax_arch(elf: *u8, imm: i32, ta: i32): i32;
-export extern "C" function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8;
 export extern "C" function backend_fold_func_returns_param0_single_field(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_fold_func_returns_param0_field_sum(arena: *u8, mod: *u8, fi: i32): i32;
 export extern "C" function backend_enc_load_32_from_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_load_64_from_rax_arch(elf: *u8, ta: i32): i32;
+export extern "C" function backend_enc_load_zext8_from_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_push_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_pop_rax_arch(elf: *u8, ta: i32): i32;
 export extern "C" function backend_enc_mov_rax_to_rbx_arch(elf: *u8, ta: i32): i32;
@@ -125,86 +126,8 @@ export extern "C" function glue_wpo_mono_register_thunk_n(name: *u8, nargs: i32,
  */
 #[no_mangle]
 export function codegen_wpo_mono_sym_format(base: *u8, nargs: i32, args: *i32, out: *u8, cap: i32): i32 {
-  if (base == 0) { return 0 - 1; }
-  if (out == 0) { return 0 - 1; }
-  if (cap <= 1) { return 0 - 1; }
-  if (nargs < 0) { return 0 - 1; }
-  if (nargs > 0) {
-    if (args == 0) { return 0 - 1; }
-  }
-  unsafe {
-    let pos: i32 = 0;
-    let bi: i32 = 0;
-    while (base[bi] != 0) {
-      if (pos + 1 >= cap) { return 0 - 1; }
-      out[pos] = base[bi];
-      pos = pos + 1;
-      bi = bi + 1;
-    }
-    // "__wpo"
-    if (pos + 5 >= cap) { return 0 - 1; }
-    out[pos] = 95; pos = pos + 1;
-    out[pos] = 95; pos = pos + 1;
-    out[pos] = 119; pos = pos + 1;
-    out[pos] = 112; pos = pos + 1;
-    out[pos] = 111; pos = pos + 1;
-    let ni: i32 = 0;
-    while (ni < nargs) {
-      if (pos + 1 >= cap) { return 0 - 1; }
-      out[pos] = 95;
-      pos = pos + 1;
-      let v: i32 = args[ni];
-      if (v < 0) {
-        if (pos + 1 >= cap) { return 0 - 1; }
-        out[pos] = 110;
-        pos = pos + 1;
-        if (v == (0 - 2147483647 - 1)) {
-          // INT_MIN absolute decimal, written forward.
-          let imin: u8[10] = [];
-          imin[0] = 50; imin[1] = 49; imin[2] = 52; imin[3] = 55;
-          imin[4] = 52; imin[5] = 56; imin[6] = 51; imin[7] = 54;
-          imin[8] = 52; imin[9] = 56;
-          let mj: i32 = 0;
-          while (mj < 10) {
-            if (pos + 1 >= cap) { return 0 - 1; }
-            out[pos] = imin[mj];
-            pos = pos + 1;
-            mj = mj + 1;
-          }
-        } else {
-          v = 0 - v;
-        }
-      }
-      if (v >= 0) {
-        if (v == 0) {
-          if (pos + 1 >= cap) { return 0 - 1; }
-          out[pos] = 48;
-          pos = pos + 1;
-        } else {
-          let start: i32 = pos;
-          while (v > 0) {
-            if (pos + 1 >= cap) { return 0 - 1; }
-            out[pos] = (48 + (v - (v / 10) * 10)) as u8;
-            pos = pos + 1;
-            v = v / 10;
-          }
-          let end: i32 = pos - 1;
-          while (start < end) {
-            let tmp: u8 = out[start];
-            out[start] = out[end];
-            out[end] = tmp;
-            start = start + 1;
-            end = end - 1;
-          }
-        }
-      }
-      ni = ni + 1;
-    }
-    if (pos >= cap) { return 0 - 1; }
-    out[pos] = 0;
-    return pos;
-  }
-  return 0 - 1;
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
+  return 0;
 }
 
 /** Exported function `backend_try_inline_dispatch_x_doc_anchor`.
@@ -401,6 +324,35 @@ export function g02f_store_ptr_at(p: *u8, off: i32, val: *u8): void {
   p[off + 6] = (a & 255) as u8;
   a = a >> 8;
   p[off + 7] = (a & 255) as u8;
+}
+
+/** w1527 (5.9): module_ref accessor. The seed tail used to carry it.
+ * AsmFuncCtx starts with four i32 (frame_size, next_offset, num_locals,
+ * label_counter), so module_ref is the pointer at offset 16. Null ctx -> 0.
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function glue_asm_ctx_module_ref_c_impl(asm_ctx: *u8): *u8 {
+  if (asm_ctx == 0) { return 0 as *u8; }
+  return g02f_load_ptr_at(asm_ctx, 16);
+}
+
+/** Public C name of the module_ref accessor (w1527, was in the seed tail). */
+#[no_mangle]
+export function glue_asm_ctx_module_ref_c(asm_ctx: *u8): *u8 {
+  return glue_asm_ctx_module_ref_c_impl(asm_ctx);
+}
+
+/** Slice marker; nothing calls it (w1527, was in the seed tail). */
+#[no_mangle]
+export function backend_try_inline_dispatch_slice_marker(): i32 {
+  return 0;
+}
+
+/** w1527 anchor: the object is this .x alone, no seed tail, no host cc. */
+#[no_mangle]
+export function backend_try_inline_dispatch_x_w1527_anchor(): i32 {
+  return 1527;
 }
 
 // See implementation.
@@ -652,7 +604,9 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
               let rdm: *u8 = pipeline_dep_ctx_module_at(rpctx, mdep);
               let rda: *u8 = pipeline_dep_ctx_arena_at(rpctx, mdep);
               if (rdm != 0) {
-                if (mfunc < pipeline_module_num_funcs(rdm)) {
+                // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+                let nfunc_rdm: i32 = pipeline_module_num_funcs(rdm);
+                if (mfunc < nfunc_rdm) {
                   out_fi[0] = mfunc;
                   g02f_store_ptr_at(out_cm, 0, rdm);
                   if (rda != 0) {
@@ -665,7 +619,9 @@ export function glue_call_lookup_callee_mod_fi_arena(caller_arena: *u8, call_ref
           }
           // stale / OOB dep: fall through to name scan
         } else {
-          if (mfunc < pipeline_module_num_funcs(entry_mod)) {
+          // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+          let nfunc_entry: i32 = pipeline_module_num_funcs(entry_mod);
+          if (mfunc < nfunc_entry) {
             out_fi[0] = mfunc;
             return 1;
           }
@@ -1173,7 +1129,9 @@ export function glue_inline_var_field_access_offset(arena: *u8, mod: *u8, pctx: 
         let fi: i32 = pipeline_asm_emit_func_index_c();
         let vlen: i32 = pipeline_expr_var_name_len(arena, base_ref);
         if (fi >= 0) {
-          if (fi < pipeline_module_num_funcs(mod)) {
+          // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+          let nfunc_fi: i32 = pipeline_module_num_funcs(mod);
+          if (fi < nfunc_fi) {
             if (vlen > 0) {
               if (vlen <= 63) {
                 let vname: u8[256] = [];
@@ -1720,6 +1678,22 @@ export function try_inline_x_plus_k_call_elf(arena: *u8, elf_ctx: *u8, expr_ref:
  * CALL(48): one positional arg is the struct. METHOD_CALL(49): extra args must
  * be 0 and param0 is method_call_base (UFCS self). Nested CALL(48) or
  * METHOD(49) factory peels via glue_inner_call_arg (UFCS pix map).
+ * An 8-byte integer field (u64/i64/usize/isize) or an f64 field is loaded
+ * with backend_enc_load_64_from_rax_arch. A bool or u8 field is loaded with
+ * backend_enc_load_zext8_from_rax_arch (movzbl). The signed 32-bit load
+ * reads four bytes and then sign-extends, so a one-byte u8 field keeps
+ * adjacent stack and turns values above 127 negative. Pointer returns and
+ * slice returns still refuse this fold: a slice is the pointer in rax and
+ * the length in rdx, and the signed 32-bit load keeps only the low half
+ * of the pointer. A named struct whose layout is larger than 8 bytes also
+ * refuses. A layout of 9 to 16 bytes travels in rax and rdx (Windows
+ * x86_64 uses a hidden pointer). A layout above 16 bytes is a hidden
+ * pointer on every ABI this compiler emits, and the signed 32-bit load
+ * writes nothing through that pointer. The real call writes the bytes.
+ * A named layout of exactly 8 bytes is returned in rax, so it uses the
+ * 8-byte load. The signed 32-bit load keeps the low half of an i64, of
+ * two i32 fields, and of an f64 bit pattern. Named layouts of 1 or 4
+ * bytes stay on the signed 32-bit load. u32 and f32 stay there too.
  * @param arena *u8 — AST arena; null → 0
  * @param elf_ctx *u8 — ELF codegen context; null → 0
  * @param expr_ref i32 — CALL(48) or METHOD_CALL(49); <=0 → 0
@@ -1789,17 +1763,60 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
     let ret_ref: i32 = glue_try_fold_func_return_operand_ref(callee_arena, callee_mod, fi);
     if (ret_ref <= 0) { return 0; }
     let off: i32 = pipeline_expr_field_access_layout_offset(callee_arena, callee_mod, ret_ref);
-    // PLATFORM: SHARED — pointer returns must not use this i32 field-load fold.
+    // PLATFORM: SHARED — pointer and slice returns must not use this
+    // scalar field-load fold. Refuse before any encode.
     // Root (mac L4 cold opt SEGV): expect_ptr_u8 returns *u8 (TYPE_PTR=9) from
     // Option_ptr_u8.value (dual-GP half at +8). Historic load_32 / off-0 path
     // loaded is_some tag (1) as a pointer → ldrb [x0=1]. Soft product kept
     // CALL and stayed green; cold pure-asm inlined the broken path.
-    // G.7: refuse TYPE_PTR returns here (CALL emits dual-GP correctly).
-    // TypeKind: TYPE_PTR = 9 (ast.x / typeck comments).
+    // TYPE_SLICE=11 is the same class. The callee loads the pointer into rax
+    // and the length into rdx. load_32 keeps the low half of the pointer and
+    // leaves rdx stale. The real call already returns that pair. Do not
+    // extend w1545_win_mid_named_sz: X-to-X slice returns stay rax:rdx.
+    // G.7: refuse here (CALL emits the pair). TypeKind: PTR=9, SLICE=11.
     let ret_ty: i32 = pipeline_module_func_return_type_at(callee_mod, fi);
     if (ret_ty > 0) {
       let kord: i32 = pipeline_type_kind_ord_at(callee_arena, ret_ty);
-      if (kord == 9) {
+      if (kord == 9 || kord == 11) {
+        return 0;
+      }
+    }
+    // Field type when the function return type is missing. Still before encode.
+    {
+      let field_ty: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
+      if (field_ty > 0) {
+        let field_k: i32 = pipeline_type_kind_ord_at(callee_arena, field_ty);
+        if (field_k == 11) { return 0; }
+      }
+    }
+    // PLATFORM: SHARED — a named layout larger than 8 bytes is not a scalar.
+    // 9..16 bytes travel in rax:rdx; Windows x86_64 uses a hidden pointer.
+    // A layout above 16 bytes is a hidden pointer on every ABI here. The
+    // signed 32-bit load keeps one word and writes nothing through that
+    // pointer. Refuse before any encode. The real call writes the bytes.
+    // A layout of exactly 8 bytes is one qword in rax. The load below
+    // reads all 8 bytes. Layouts of 1 or 4 bytes stay on the 32-bit load.
+    // G.7: refuse here (the real call emits the pair or the hidden
+    // pointer). TypeKind NAMED=8.
+    {
+      let nsz: i32 = 0;
+      if (ret_ty > 0) {
+        let nk: i32 = pipeline_type_kind_ord_at(callee_arena, ret_ty);
+        if (nk == 8) {
+          nsz = glue_type_named_layout_size_any_module_elf_c(callee_arena, ret_ty);
+        }
+      }
+      if (nsz <= 8) {
+        let nft: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
+        if (nft > 0) {
+          let nfk: i32 = pipeline_type_kind_ord_at(callee_arena, nft);
+          if (nfk == 8) {
+            nsz = glue_type_named_layout_size_any_module_elf_c(callee_arena, nft);
+          }
+        }
+      }
+      // Exactly 8 stays below. 1 and 4 stay below. Larger refuses.
+      if (nsz > 8) {
         return 0;
       }
     }
@@ -1833,7 +1850,42 @@ export function try_inline_param0_single_field_call_elf(arena: *u8, elf_ctx: *u8
       return 0 - 1;
     }
     if (backend_enc_add_imm_to_rax_arch(elf_ctx, off, ta) != 0) { return 0 - 1; }
-    if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    // PLATFORM: SHARED — pick the load from the field type, then the callee
+    // return type. TypeKind BOOL=1 and U8=2 are one byte: movzbl (0f b6 00).
+    // The callee body already uses that load. movl plus cdqe (8b 00; 48 98)
+    // reads four bytes, so a one-byte u8 store keeps adjacent stack, and
+    // cdqe then sign-extends a byte above 127. U64=4 I64=5 USIZE=6 ISIZE=7
+    // F64=15 stay on the 8-byte load. NAMED=8 of layout size 8 is the same
+    // qword: the callee returns it in rax, and cdqe drops the high half.
+    // u32, f32, and named layouts of 1 or 4 bytes stay on the signed
+    // 32-bit load: cdqe does not change EAX, and the f32 epilogue movd's EAX.
+    let load_ty: i32 = pipeline_expr_resolved_type_ref(callee_arena, ret_ref);
+    if (load_ty <= 0) {
+      load_ty = ret_ty;
+    }
+    let load_k: i32 = 0;
+    if (load_ty > 0) {
+      load_k = pipeline_type_kind_ord_at(callee_arena, load_ty);
+    }
+    if (load_k == 1 || load_k == 2) {
+      if (backend_enc_load_zext8_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+    } else {
+      if (load_k == 4 || load_k == 5 || load_k == 6 || load_k == 7 || load_k == 15) {
+        if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+      } else {
+        // Size 8 only. Larger named layouts already returned above.
+        // 1 and 4 stay below.
+        let named8: i32 = 0;
+        if (load_k == 8 && load_ty > 0) {
+          named8 = glue_type_named_layout_size_any_module_elf_c(callee_arena, load_ty);
+        }
+        if (named8 == 8) {
+          if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        } else {
+          if (backend_enc_load_32_from_rax_arch(elf_ctx, ta) != 0) { return 0 - 1; }
+        }
+      }
+    }
     return 1;
   }
   return 0;
@@ -2075,71 +2127,7 @@ export function try_inline_var_field_sum_binop_elf(
 export function try_inline_wpo_const_scalar_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
-  if (arena == 0) { return 0; }
-  if (elf_ctx == 0) { return 0; }
-  if (ctx == 0) { return 0; }
-  if (expr_ref <= 0) { return 0; }
-  unsafe {
-    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    // CALL=48 METHOD_CALL=49: same two-const scalar binop fold.
-    if (ko != 48 && ko != 49) { return 0; }
-    if (ko == 49) {
-      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    } else {
-      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
-    }
-    /*
-     * F7: dyn Trait receiver must NOT be inlined (see guard in
-     * try_inline_param0_single_field_call_elf for full rationale).
-     * TYPE_DYN kind = 17.
-     */
-    let recv_ref_guard: i32 = 0;
-    if (ko == 49) {
-      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    } else {
-      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    }
-    if (recv_ref_guard > 0) {
-      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
-      if (recv_ty_guard > 0) {
-        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
-        if (recv_kind_guard == 17) { return 0; }
-      }
-    }
-    let ca_slot: u8[8] = [];
-    let cm_slot: u8[8] = [];
-    let fi: i32 = 0;
-    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
-      return 0;
-    }
-    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
-    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
-    if (callee_arena == 0) { return 0; }
-    if (callee_mod == 0) { return 0; }
-    let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = 0;
-    let arg1: i32 = 0;
-    if (ko == 49) {
-      arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-      arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
-    } else {
-      arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-      arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
-    }
-    if (arg0 <= 0) { return 0; }
-    if (arg1 <= 0) { return 0; }
-    let av0: i32 = 0;
-    let av1: i32 = 0;
-    if (glue_try_expr_const_i32(arena, arg0, &av0) == 0) { return 0; }
-    if (glue_try_expr_const_i32(arena, arg1, &av1) == 0) { return 0; }
-    let folded: i32 = 0;
-    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
-    let hi: i32 = 0;
-    if (folded < 0) { hi = 0 - 1; }
-    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, folded, hi, ta) != 0) { return 0 - 1; }
-    return 1;
-  }
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
   return 0;
 }
 
@@ -2162,97 +2150,7 @@ export function try_inline_wpo_const_scalar_binop_call_elf(
 export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
-  if (arena == 0) { return 0; }
-  if (elf_ctx == 0) { return 0; }
-  if (ctx == 0) { return 0; }
-  if (expr_ref <= 0) { return 0; }
-  unsafe {
-    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    // CALL=48 METHOD_CALL=49: same lane-of-const-vector-binop fold.
-    if (ko != 48 && ko != 49) { return 0; }
-    if (ko == 49) {
-      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
-    } else {
-      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    }
-    /*
-     * F7: dyn Trait receiver must NOT be inlined (see guard in
-     * try_inline_param0_single_field_call_elf for full rationale).
-     * TYPE_DYN kind = 17.
-     */
-    let recv_ref_guard: i32 = 0;
-    if (ko == 49) {
-      recv_ref_guard = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    } else {
-      recv_ref_guard = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    }
-    if (recv_ref_guard > 0) {
-      let recv_ty_guard: i32 = pipeline_expr_resolved_type_ref(arena, recv_ref_guard);
-      if (recv_ty_guard > 0) {
-        let recv_kind_guard: i32 = pipeline_type_kind_ord_at(arena, recv_ty_guard);
-        if (recv_kind_guard == 17) { return 0; }
-      }
-    }
-    let oca_slot: u8[8] = [];
-    let ocm_slot: u8[8] = [];
-    let outer_fi: i32 = 0;
-    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &oca_slot[0], &ocm_slot[0], &outer_fi) == 0) {
-      return 0;
-    }
-    let outer_arena: *u8 = g02f_load_ptr_at(&oca_slot[0], 0);
-    let outer_mod: *u8 = g02f_load_ptr_at(&ocm_slot[0], 0);
-    if (outer_arena == 0) { return 0; }
-    if (outer_mod == 0) { return 0; }
-    let lane: i32 = 0;
-    if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0) { return 0; }
-    let inner_call_ref: i32 = 0;
-    if (ko == 49) {
-      inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    } else {
-      inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    }
-    if (inner_call_ref <= 0) { return 0; }
-    let iko: i32 = pipeline_expr_kind_ord_at(arena, inner_call_ref);
-    if (iko != 48 && iko != 49) { return 0; }
-    if (iko == 49) {
-      if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1) { return 0; }
-    } else {
-      if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) { return 0; }
-    }
-    let ica_slot: u8[8] = [];
-    let icm_slot: u8[8] = [];
-    let inner_fi: i32 = 0;
-    if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &ica_slot[0], &icm_slot[0], &inner_fi) == 0) {
-      return 0;
-    }
-    let inner_arena: *u8 = g02f_load_ptr_at(&ica_slot[0], 0);
-    let inner_mod: *u8 = g02f_load_ptr_at(&icm_slot[0], 0);
-    if (inner_arena == 0) { return 0; }
-    if (inner_mod == 0) { return 0; }
-    let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = 0;
-    let arg1: i32 = 0;
-    if (iko == 49) {
-      arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
-      arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
-    } else {
-      arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-      arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
-    }
-    if (arg0 <= 0) { return 0; }
-    if (arg1 <= 0) { return 0; }
-    let av0: i32 = 0;
-    let av1: i32 = 0;
-    if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0) { return 0; }
-    if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0) { return 0; }
-    let folded: i32 = 0;
-    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
-    let hi: i32 = 0;
-    if (folded < 0) { hi = 0 - 1; }
-    if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, folded, hi, ta) != 0) { return 0 - 1; }
-    return 1;
-  }
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
   return 0;
 }
 
@@ -2276,72 +2174,7 @@ export function try_inline_wpo_const_vector_lane_of_binop_call_elf(
  */
 #[no_mangle]
 export function try_call_wpo_mono_symbol_elf(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32 {
-  if (arena == 0) { return 0; }
-  if (elf_ctx == 0) { return 0; }
-  if (ctx == 0) { return 0; }
-  if (expr_ref <= 0) { return 0; }
-  unsafe {
-    let kmono: u8[16] = [];
-    kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
-    kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
-    kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
-    // wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv).
-    if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
-    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    // CALL=48 METHOD_CALL=49: same two-const scalar binop → mono thunk.
-    if (ko != 48 && ko != 49) { return 0; }
-    if (ko == 49) {
-      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    } else {
-      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 2) { return 0; }
-    }
-    let ca_slot: u8[8] = [];
-    let cm_slot: u8[8] = [];
-    let fi: i32 = 0;
-    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &ca_slot[0], &cm_slot[0], &fi) == 0) {
-      return 0;
-    }
-    let callee_arena: *u8 = g02f_load_ptr_at(&ca_slot[0], 0);
-    let callee_mod: *u8 = g02f_load_ptr_at(&cm_slot[0], 0);
-    if (callee_arena == 0) { return 0; }
-    if (callee_mod == 0) { return 0; }
-    let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_scalar_binop(callee_arena, callee_mod, fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = 0;
-    let arg1: i32 = 0;
-    if (ko == 49) {
-      arg0 = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-      arg1 = pipeline_expr_method_call_arg_ref(arena, expr_ref, 0);
-    } else {
-      arg0 = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-      arg1 = pipeline_expr_call_arg_ref(arena, expr_ref, 1);
-    }
-    if (arg0 <= 0) { return 0; }
-    if (arg1 <= 0) { return 0; }
-    let av0: i32 = 0;
-    let av1: i32 = 0;
-    if (glue_try_expr_const_i32(arena, arg0, &av0) == 0) { return 0; }
-    if (glue_try_expr_const_i32(arena, arg1, &av1) == 0) { return 0; }
-    let folded: i32 = 0;
-    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
-    // copy64 dest is 64 bytes; refuse longer names rather than truncate the thunk base.
-    let clen: i32 = pipeline_asm_module_func_name_len_at(callee_mod, fi);
-    if (clen <= 0) { return 0; }
-    if (clen > 63) { return 0; }
-    let cname: u8[256] = [];
-    pipeline_asm_module_func_name_copy64(callee_mod, fi, &cname[0]);
-    cname[clen] = 0;
-    glue_wpo_mono_register_thunk(&cname[0], av0, av1, folded);
-    let args: i32[2] = [];
-    args[0] = av0;
-    args[1] = av1;
-    let sym: u8[256] = [];
-    let sym_len: i32 = codegen_wpo_mono_sym_format(&cname[0], 2, &args[0], &sym[0], 128);
-    if (sym_len <= 0) { return 0 - 1; }
-    if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }
-    if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-    return 1;
-  }
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
   return 0;
 }
 
@@ -2534,111 +2367,7 @@ export function try_inline_struct_lit_return_call_to_slot_elf(
 export function try_call_wpo_mono_vector_lane_of_binop_call_elf(
   arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
 ): i32 {
-  if (arena == 0) { return 0; }
-  if (elf_ctx == 0) { return 0; }
-  if (ctx == 0) { return 0; }
-  if (expr_ref <= 0) { return 0; }
-  unsafe {
-    let kmono: u8[16] = [];
-    kmono[0] = 83; kmono[1] = 72; kmono[2] = 85; kmono[3] = 88; kmono[4] = 95;
-    kmono[5] = 87; kmono[6] = 80; kmono[7] = 79; kmono[8] = 95;
-    kmono[9] = 77; kmono[10] = 79; kmono[11] = 78; kmono[12] = 79; kmono[13] = 0;
-    // wave232 G.7: XLANG_WPO_MONO via link_abi_getenv (not raw getenv).
-    if (link_abi_getenv(&kmono[0]) == 0) { return 0; }
-    let ko: i32 = pipeline_expr_kind_ord_at(arena, expr_ref);
-    // CALL=48 METHOD_CALL=49: same lane-of-const-vector-binop → mono thunk.
-    if (ko != 48 && ko != 49) { return 0; }
-    if (ko == 49) {
-      if (pipeline_expr_method_call_num_args_at(arena, expr_ref) != 0) { return 0; }
-    } else {
-      if (pipeline_expr_call_num_args_at(arena, expr_ref) != 1) { return 0; }
-    }
-    let oca_slot: u8[8] = [];
-    let ocm_slot: u8[8] = [];
-    let outer_fi: i32 = 0;
-    if (glue_call_lookup_callee_mod_fi_arena(arena, expr_ref, ctx, &oca_slot[0], &ocm_slot[0], &outer_fi) == 0) {
-      return 0;
-    }
-    let outer_arena: *u8 = g02f_load_ptr_at(&oca_slot[0], 0);
-    let outer_mod: *u8 = g02f_load_ptr_at(&ocm_slot[0], 0);
-    if (outer_arena == 0) { return 0; }
-    if (outer_mod == 0) { return 0; }
-    let lane: i32 = 0;
-    if (glue_fold_func_returns_param0_index_const(outer_arena, outer_mod, outer_fi, &lane) == 0) { return 0; }
-    let inner_call_ref: i32 = 0;
-    if (ko == 49) {
-      inner_call_ref = pipeline_expr_method_call_base_ref_at(arena, expr_ref);
-    } else {
-      inner_call_ref = pipeline_expr_call_arg_ref(arena, expr_ref, 0);
-    }
-    if (inner_call_ref <= 0) { return 0; }
-    let iko: i32 = pipeline_expr_kind_ord_at(arena, inner_call_ref);
-    if (iko != 48 && iko != 49) { return 0; }
-    if (iko == 49) {
-      if (pipeline_expr_method_call_num_args_at(arena, inner_call_ref) != 1) { return 0; }
-    } else {
-      if (pipeline_expr_call_num_args_at(arena, inner_call_ref) != 2) { return 0; }
-    }
-    let ica_slot: u8[8] = [];
-    let icm_slot: u8[8] = [];
-    let inner_fi: i32 = 0;
-    if (glue_call_lookup_callee_mod_fi_arena(arena, inner_call_ref, ctx, &ica_slot[0], &icm_slot[0], &inner_fi) == 0) {
-      return 0;
-    }
-    let inner_arena: *u8 = g02f_load_ptr_at(&ica_slot[0], 0);
-    let inner_mod: *u8 = g02f_load_ptr_at(&icm_slot[0], 0);
-    if (inner_arena == 0) { return 0; }
-    if (inner_mod == 0) { return 0; }
-    let binop_ko: i32 = 0;
-    if (glue_fold_func_returns_param01_vector_binop(inner_arena, inner_mod, inner_fi, &binop_ko) == 0) { return 0; }
-    let arg0: i32 = 0;
-    let arg1: i32 = 0;
-    if (iko == 49) {
-      arg0 = pipeline_expr_method_call_base_ref_at(arena, inner_call_ref);
-      arg1 = pipeline_expr_method_call_arg_ref(arena, inner_call_ref, 0);
-    } else {
-      arg0 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 0);
-      arg1 = pipeline_expr_call_arg_ref(arena, inner_call_ref, 1);
-    }
-    if (arg0 <= 0) { return 0; }
-    if (arg1 <= 0) { return 0; }
-    let nargs: i32 = pipeline_expr_array_lit_num_elems_at(arena, arg0);
-    if (nargs <= 0) { return 0; }
-    if (nargs != pipeline_expr_array_lit_num_elems_at(arena, arg1)) { return 0; }
-    // Profile packs both vectors; cap matches GLUE_WPO_MONO_MAX_ARGS/2.
-    if (nargs > 4) { return 0; }
-    let mono_args: i32[8] = [];
-    let li: i32 = 0;
-    while (li < nargs) {
-      let e0: i32 = 0;
-      let e1: i32 = 0;
-      if (glue_try_array_lit_lane_const_i32(arena, arg0, li, &e0) == 0) { return 0; }
-      if (glue_try_array_lit_lane_const_i32(arena, arg1, li, &e1) == 0) { return 0; }
-      mono_args[li] = e0;
-      mono_args[nargs + li] = e1;
-      li = li + 1;
-    }
-    let av0: i32 = 0;
-    let av1: i32 = 0;
-    if (glue_try_array_lit_lane_const_i32(arena, arg0, lane, &av0) == 0) { return 0; }
-    if (glue_try_array_lit_lane_const_i32(arena, arg1, lane, &av1) == 0) { return 0; }
-    let folded: i32 = 0;
-    if (glue_const_scalar_binop_eval_i32(binop_ko, av0, av1, &folded) == 0) { return 0; }
-    // copy64 dest is 128 bytes; refuse longer names rather than truncate the thunk base.
-    let clen: i32 = pipeline_asm_module_func_name_len_at(outer_mod, outer_fi);
-    if (clen <= 0) { return 0; }
-    if (clen > 63) { return 0; }
-    let cname: u8[256] = [];
-    pipeline_asm_module_func_name_copy64(outer_mod, outer_fi, &cname[0]);
-    cname[clen] = 0;
-    glue_wpo_mono_register_thunk_n(&cname[0], nargs * 2, &mono_args[0], folded);
-    let sym: u8[256] = [];
-    let sym_len: i32 = codegen_wpo_mono_sym_format(&cname[0], nargs * 2, &mono_args[0], &sym[0], 128);
-    if (sym_len <= 0) { return 0 - 1; }
-    if (backend_enc_call_arch(elf_ctx, &sym[0], sym_len, ta) != 0) { return 0 - 1; }
-    if (backend_enc_call_stack_cleanup_arch(elf_ctx, 0, ta) != 0) { return 0 - 1; }
-    return 1;
-  }
+  /* Class BL: Cap XLANG_WPO_MONO residual retired (always miss). */
   return 0;
 }
 

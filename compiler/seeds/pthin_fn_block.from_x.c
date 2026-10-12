@@ -4,14 +4,21 @@
  *
  * Bodies: struct_layout + library + one_function_buf + block_from_res
  *
- * Hybrid P6b/P6c/P6d/P6e (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
+ * Hybrid P6b/P6c/P6d/P6e/P6f/P6g (XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X): the three
  * struct-layout name-match helpers, packed/soa modifier predicates,
  * and library-shape TYPE/EXPR wrap come from pthin_fn_block.x.
  * XLANG_PTHIN_FN_BLOCK_PARSE_LAYOUT_FROM_X skips parse_struct_record_layout
- * (P6e dest-buffer; C trampoline holds the name pack). This TU keeps
- * library scan / one_function / block_from_res. Cold: no BODIES define,
+ * (P6e dest-buffer; C trampoline holds the name pack).
+ * XLANG_PTHIN_FN_BLOCK_BLOCK_FROM_RES_FROM_X skips fill/append
+ * (P6f dest-buffer; C trampoline holds name[256] + pool extract).
+ * XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X skips the remaining library
+ * compositor (P6g dest-buffer; C trampoline holds scan + writes the
+ * by-value result). XLANG_PTHIN_FN_BLOCK_ONEFUNC_BUF_HDR_FROM_X skips
+ * the buf-path header C twin (P6h dest-buffer; C trampoline holds
+ * pname[256] + writes num_params / func_return_type_ref). This TU
+ * keeps library scan / one_function body. Cold: no BODIES define,
  * full .inc.
- * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b/P6c/P6d/P6e bodies.
+ * Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6b–P6h bodies.
  * PLATFORM: SHARED — do not assemble parser.x.
  */
 #include <stddef.h>
@@ -28,7 +35,16 @@ _Static_assert((int)TOKEN_CONST == 3, "fn_block.x TOKEN_CONST pin");
 _Static_assert((int)TOKEN_PACKED == 21, "fn_block.x TOKEN_PACKED pin");
 _Static_assert((int)TOKEN_SOA == 22, "fn_block.x TOKEN_SOA pin");
 _Static_assert((int)TOKEN_ALIGN == 46, "fn_block.x TOKEN_ALIGN pin");
+_Static_assert((int)TOKEN_SELF == 51, "fn_block.x TOKEN_SELF pin");
 _Static_assert((int)TOKEN_IDENT == 59, "fn_block.x TOKEN_IDENT pin");
+_Static_assert((int)TOKEN_I32 == 60, "fn_block.x TOKEN_I32 pin");
+_Static_assert((int)TOKEN_BOOL == 61, "fn_block.x TOKEN_BOOL pin");
+_Static_assert((int)TOKEN_U8 == 62, "fn_block.x TOKEN_U8 pin");
+_Static_assert((int)TOKEN_U32 == 63, "fn_block.x TOKEN_U32 pin");
+_Static_assert((int)TOKEN_U64 == 64, "fn_block.x TOKEN_U64 pin");
+_Static_assert((int)TOKEN_I64 == 65, "fn_block.x TOKEN_I64 pin");
+_Static_assert((int)TOKEN_USIZE == 66, "fn_block.x TOKEN_USIZE pin");
+_Static_assert((int)TOKEN_VOID == 79, "fn_block.x TOKEN_VOID pin");
 _Static_assert((int)TOKEN_INT == 80, "fn_block.x TOKEN_INT pin");
 _Static_assert((int)TOKEN_LPAREN == 82, "fn_block.x TOKEN_LPAREN pin");
 _Static_assert((int)TOKEN_RPAREN == 83, "fn_block.x TOKEN_RPAREN pin");
@@ -239,7 +255,18 @@ struct ast_Expr {
 
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void lexer_next_buf(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+#ifndef PARSER_ASM_LEXER_NEXT_BUF_V
+#define PARSER_ASM_LEXER_NEXT_BUF_V 1
+/* lexer_next_buf writes its result through out (e5ba88d9d). A by-value
+ * call only matched on x86-64/Win64 by luck; arm64 passes sret in x8. */
+static inline struct parser_asm_lexer_result parser_asm_lexer_next_buf_v(struct parser_asm_lexer lex, uint8_t *data,
+                                                                         int32_t len) {
+  struct parser_asm_lexer_result r;
+  lexer_next_buf(&r, lex, data, len);
+  return r;
+}
+#endif
 extern void parser_asm_lex_from_result_val_into(struct parser_asm_lexer *out, struct parser_asm_lexer_result r);
 extern void parser_asm_copy_slice_to_name64_at_end_slice_c(struct parser_asm_slice_u8 *source, size_t end_pos,
                                                           int32_t nlen, uint8_t *out);

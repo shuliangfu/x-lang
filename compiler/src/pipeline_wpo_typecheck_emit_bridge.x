@@ -25,6 +25,16 @@
 // seed (seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c, promoted from a
 // retired .inc) to this .x source; build_xlang_asm's ensure regenerates
 // via the product -x -E. PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm.
+// The typecheck emit forwards to run_x_pipeline_typecheck_entry_emit_c.
+// The path resolver forwards to pipeline_resolve_path_try_one_lib_root.
+// This object does not define pipeline_run_x_pipeline_impl and is not
+// pipeline_wpo_strict_link_alias.o.
+// Linux uses this file with -lib-name "". Without that flag the
+// two exports gain a pipeline_ prefix.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 
 /** X typecheck entry emit body (thin bl target for pipeline_wpo.o). */
 export extern function run_x_pipeline_typecheck_entry_emit_c(module: *u8, arena: *u8, ctx: *u8): i32;

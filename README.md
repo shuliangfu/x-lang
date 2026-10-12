@@ -11,8 +11,8 @@
 | **Compiler binary** | `xlang` / `xlang_asm` (product binary after a proper build) |
 | **Source extension** | `.x` |
 | **Project build** | `build.x` — build strategy written in X (`xlang build` / `build_tool` / `xlang-build.sh`) |
-| **Status (2026-09-08)** | **Product L4 pin `b5be5ed97`** (2026-09-02 dual-host true cold + bstrict **129/129**; previous `e8176cbe5` 2026-08-23 → `f7424ae47` 2026-08-15). Tip on **`self-hosting`**: Cap residual **9.x** in flight (9.1 / 9.3 / 9.4.2–6 / 9.5 / 9.6 / 9.7 closed; **9.2.4 libm** probe-chain Fix A–F + arm64 f64 AAPCS64 root-fix closed; fdlibm exp/log ports started) · leftover unique **0** · write `let x: Trait = a` (do **not** write `dyn Trait` — **P013**) · **no pin raise** on daily L2. MG Makefile **deleted** (0-make hub). **Self-host not finished** — cold start still needs seed / host `cc`; `pipeline_abi` mega **hard-banned** from pure-asm product (`pipeline_x` host-cc residual remains). |
-| **Live dashboard** | [Progress](analysis/自举进度.md) · [Timeline](analysis/自举时序.md) · [C-migration debt](analysis/C迁移追踪.md) · [Makefile map](analysis/Makefile迁移表.md) · [Leaf residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · [Archive 2026-09-07](analysis/自举进度-归档-2026-09-07.md) · [Archive 2026-09-06](analysis/自举进度-归档-2026-09-06.md) |
+| **Status (2026-10-12)** | **Product L4 pin `ecdb5cc1e`** (dual-host true cold; **no daily raise**). Tip on **`dev`**: endgame checklist **ch.1–8 ✅** (incl. **7.1 / 7.2**, **8.1–8.9**); mac + Ubuntu **FORCE** cold path **zero `cc`** (**8.3**); Windows zero-`cc` **deferred**. Current tip knife = **9.1** (hollow business from `seeds/**/*.from_x.c` + `parser_asm/*.inc` — **in progress, not ✅**); next ⬜ = **9.2** (`parser_gen` / `codegen_gen` unpin). host-cc ≈ **231**; tip cold L2 green on mac + Ubuntu. Write `let x: Trait = a` (do **not** write `dyn Trait` — **P013**). MG Makefile **deleted** (0-make). **Self-host not finished** — cold start still needs seed / host `cc` on residual surfaces; do not claim complete self-host. |
+| **Live dashboard** | [Progress](analysis/自举进度.md) · [M2 method](analysis/自举效率方法-M2主链.md) · [Endgame checklist](analysis/终局待办.md) · [Verification](analysis/自举验证.md) · [Makefile map](analysis/Makefile迁移表.md) · [Archive 2026-10-11](analysis/自举进度归档/自举进度-归档-2026-10-11.md) · [Archive 2026-10-10](analysis/自举进度归档/自举进度-归档-2026-10-10.md) · [Archive 2026-10-09](analysis/自举进度归档/自举进度-归档-2026-10-09.md) |
 | **Chinese** | [README_zh-CN.md](README_zh-CN.md) |
 
 ---
@@ -25,7 +25,7 @@
 4. [Repository layout](#4-repository-layout)
 5. [Standard library](#5-standard-library)
 6. [Compiler architecture](#6-compiler-architecture)
-7. [Self-host status](#7-self-host-status-snapshot--2026-09-08)
+7. [Self-host status](#7-self-host-status-snapshot--2026-10-12)
 8. [Milestones](#8-milestones)
 9. [Testing and quality](#9-testing-and-quality)
 10. [Performance benchmarks](#10-performance-benchmarks)
@@ -39,11 +39,11 @@
 | You are… | Start here | Then |
 |----------|------------|------|
 | **App / library author** | [§2 Quick start](#2-quick-start) · Hello World | [§3 CLI](#3-compiler-cli) · [§5 std](#5-standard-library) · [docs/](docs/README.md) |
-| **Toolchain / compiler contributor** | [§2](#2-quick-start) · [§4 layout](#4-repository-layout) · [§13](#13-contributing) | [§7 self-host](#7-self-host-status-snapshot--2026-09-08) · live [Progress](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
-| **Release / pin reviewer** | Status table (top) · [§7](#7-self-host-status-snapshot--2026-09-08) | L4 true cold + dual bstrict **129** only; L2 green ≠ re-pin |
+| **Toolchain / compiler contributor** | [§2](#2-quick-start) · [§4 layout](#4-repository-layout) · [§13](#13-contributing) | [§7 self-host](#7-self-host-status-snapshot--2026-10-12) · live [Progress](analysis/自举进度.md) · [AGENTS.md](AGENTS.md) |
+| **Release / pin reviewer** | Status table (top) · [§7](#7-self-host-status-snapshot--2026-10-12) | L4 true cold + full bstrict (**131** suites) only; three-end L2 green ≠ re-pin |
 | **Need live residual numbers** | **Not this file** — open [Progress](analysis/自举进度.md) or `./xbuild bc-inventory` | This README is a snapshot; dashboards win on conflict |
 
-**Doc roles (do not mix authorities):** root README = product + onboarding landing; `analysis/自举进度.md` = live self-host KPI; `compiler/docs/SELFHOST.md` = operator runbook; `docs/` = language syntax for users; `AGENTS.md` + skill `xlang-selfhost-product-gate` = engineering discipline.
+**Doc roles (do not mix authorities):** root README = product + onboarding landing; `analysis/自举进度.md` = live self-host KPI; `analysis/终局待办.md` = endgame checklist; `analysis/自举验证.md` = gate runbook; `compiler/docs/SELFHOST.md` = operator runbook; `docs/` = language syntax for users; `AGENTS.md` + skill `xlang-selfhost-product-gate` = engineering discipline.
 
 ---
 
@@ -90,9 +90,10 @@ We do **not** treat every OS point-release as a required test matrix. Clear tier
 
 | Role | Host | Notes |
 |------|------|--------|
-| **Gold lab host** | **Ubuntu x86_64** | Reproducible L4 / product gates; do not treat macOS green alone as SHARED done |
-| **Product dual host** | Ubuntu x86_64 + **macOS** | L4 true cold + full `run-all-bstrict` for release pins |
-| **Windows** | MSYS2 / MinGW **hybrid** probes | Hybrid green ≠ product L4 / self-host complete |
+| **Gold lab host** | **Ubuntu 26.04 x86_64** | Reproducible L4 / product gates (`ubuntu-remote-server`); do not treat macOS green alone as SHARED done |
+| **Daily hard gate** | Ubuntu + **macOS** + **Windows** | **Three-end L2** same tip (`./xbuild l2-matrix`); any end red → fix first |
+| **Release pin** | Ubuntu x86_64 + **macOS** | L4 true cold + full `run-all-bstrict` (**131** suites) for release pins |
+| **Windows** | MSYS2 / MinGW **hybrid** / LEGACY default | Three-end L2 required; hybrid/LEGACY green ≠ product L4 / self-host complete |
 
 **Product vs host (do not confuse):**
 
@@ -110,9 +111,9 @@ Linux host care is **kernel era + arch + object/link format (ELF)** and **which 
 
 | Platform | Arch | Tier | Notes |
 |----------|------|------|--------|
-| **Ubuntu 24.04 LTS** | x86_64 | **1** | Current mainstream LTS lab; CI (`ubuntu-latest` / 24.04 line) |
+| **Ubuntu 24.04 LTS** | x86_64 | **1** | Current mainstream LTS / CI (`ubuntu-latest` / 24.04 line) |
 | **Ubuntu 22.04 LTS** | x86_64 | **1** | Gold-adjacent LTS lab; CI `ubuntu-22.04`; Docker gates often pin 22.04 |
-| **Ubuntu 26.04 LTS** (when used as host) | x86_64 | **1** | Newer LTS line — same Tier 1 lab bar once adopted as a primary host |
+| **Ubuntu 26.04 LTS** | x86_64 | **1** | **Gold lab host** (`ubuntu-remote-server`) — primary L4 / tip cold L2 lab |
 | **Alpine Linux** | x86_64 | **2** | **Supported host**; CI `docker-distro` (`alpine:3.x`); local `scripts/docker-ci-local.sh alpine`; host facts via `XLANG_HOST_ALPINE` / platform linker docs. Host bootstrap may differ (musl-era tools, stack defaults); product freestanding still targets **no libc**. **Not gold lab**: L4 / release pins still Ubuntu x86_64; full B-strict self-host on Alpine deferred (A-13), not unsupported |
 | **Ubuntu 24.04 / current** | aarch64 | **2** | CI probe (`ubuntu-24.04-arm`); not the product gold lab host |
 | **Ubuntu 20.04 LTS** | x86_64 | **2** | Late life; may work if host toolchain is new enough |
@@ -143,7 +144,7 @@ Linux host care is **kernel era + arch + object/link format (ELF)** and **which 
 | Windows 11 / 10 | ARM64 | **2** | Experimental / best effort; not CI-primary |
 | MSVC-only pure PE product path | * | **2** | Hybrid MinGW path is what gates exercise today |
 
-Windows status today is **hybrid / min-gate green** and leftover unique harvest **0** on the product path, not “full self-host L4 gold.” See [self-host status](#7-self-host-status-snapshot--2026-09-08) and [Windows limits guide](analysis/Windows平台限制与测试指南.md) when present.
+Windows status today is **three-end L2 green** with default **LEGACY** frontend (`XLANG_LEGACY_C_FRONTEND=1`), leftover-safe overrides live, and leftover unique **0** — not “full self-host L4 gold.” See [self-host status](#7-self-host-status-snapshot--2026-10-12) and [Windows limits guide](analysis/Windows平台限制与测试指南.md) when present.
 
 #### Explicitly unsupported (Tier 3 — do not expect fixes)
 
@@ -162,7 +163,7 @@ Windows status today is **hybrid / min-gate green** and leftover unique harvest 
 | Layer | Coverage |
 |-------|----------|
 | **CI** | Ubuntu 22.04 + current Ubuntu LTS line; **Alpine + Debian slim** (`docker-distro`); macOS 14 + `macos-latest`; Windows latest (hybrid gate) |
-| **Local / lab (few VMs)** | 1× Ubuntu LTS (gold), 1× macOS arm64, optional 1× Win11 (+ Win10 only if Tier-2 pressure is real); Alpine via Docker is enough (no dedicated Alpine VM required) |
+| **Local / lab (few VMs)** | 1× Ubuntu LTS (gold), 1× macOS arm64, **1× Win11** for three-end L2 (PVE parallel — no dual-boot reboot); Alpine via Docker is enough (no dedicated Alpine VM required) |
 | **On-demand cloud** | Spin a machine only when a platform bug needs repro — better than hoarding EOL VMs |
 
 **We will not** maintain official VMs for Win7/Win8 or every Ubuntu interim release. Users on Tier 2/3 should not assume release-pin quality.
@@ -243,18 +244,19 @@ More samples: [examples/](examples/) (io, net, async, json, compress, …).
 export XLANG=./compiler/xlang_asm
 ./xbuild l2-matrix                 # daily product matrix (rv / option / hello / si / f32)
 ./tests/run-all.sh                 # full regression (when appropriate)
-XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate (~129 scripts)
+XLANG_BSTRICT_SKIP_BUILD=1 ./tests/run-all-bstrict.sh   # product gate (~131 scripts)
 ./tests/run-linux-a09-a11-gate.sh  # Linux gold bootstrap subset (Docker OK)
 ./tests/run-freestanding-hello.sh  # Linux x86_64 freestanding S4 smoke
 ```
 
-For **self-host / product release claims**, the project requires **L4 true cold** (wipe **all** `.o` under `compiler` / `std` / `core`, rebuild binaries via `./xbuild bootstrap-driver-seed` — **not** `make`) **plus** dual-platform `run-all-bstrict` green.
+For **self-host / product release claims**, the project requires **L4 true cold** (wipe **all** `.o` under `compiler` / `std` / `core`, rebuild binaries via `./xbuild bootstrap-driver-seed` — **not** `make`) **plus** dual-platform `run-all-bstrict` green. **Daily tip release** requires **tip cold L2** on macOS + `ubuntu-remote-server` (same tip; Windows via `windows-remote-server` when not deferred).
 
-Details: [self-host method](analysis/自举方法.md) · [SELFHOST.md](compiler/docs/SELFHOST.md).
+Details: [self-host method](analysis/自举效率方法-M2主链.md) · [verification](analysis/自举验证.md) · [SELFHOST.md](compiler/docs/SELFHOST.md).
 
-> **Daily dual-end L2 green on tip ≠ L4 pin raise.**  
-> **Current product L4 pin = `b5be5ed97`** (dual true cold + **129/129**, 2026-09-02). Residual tip may advance with **L2 only** and **does not** re-pin.  
-> **`xlang check` syntax gates are paused** on the default L2/L4 product rhythm until self-host close-out; run check only when explicitly dogfooding that surface (see [§7](#7-self-host-status-snapshot--2026-09-08)).
+> **Three-end daily L2 green on tip ≠ L4 pin raise.**  
+> **Current product L4 pin = `ecdb5cc1e`** (dual true cold; **no daily raise**). Residual tip may advance with **L2 only**.  
+> **Tip cold L2 on mac + Ubuntu is the daily product gate**; Windows may be deferred when the manager says so.  
+> **`xlang check` syntax gates are paused** on the default L2/L4 product rhythm until self-host close-out; run check only when explicitly dogfooding that surface (see [§7](#7-self-host-status-snapshot--2026-10-12)).
 
 ---
 
@@ -414,99 +416,93 @@ Link is **on demand** — unused modules stay out of the final link when possibl
 
 | Track | What it measures | Alone enough to claim “self-host done”? |
 |-------|------------------|----------------------------------------|
-| **Product** | L4 true cold + product matrix + dual `run-all-bstrict` **129** | **Required**, not sufficient for “zero C forever” |
-| **Engineering** | prove T/N, Cap residual pure, Stage2, WPO chain / link / text gates | **No** |
+| **Product** | L4 true cold + product matrix + dual `run-all-bstrict` **131** | **Required**, not sufficient for “zero C forever” |
+| **Engineering** | prove T/N, Cap residual standing, Stage2, WPO chain / link / text gates | **No** |
 
 ---
 
-## 7. Self-host status (snapshot · 2026-09-08)
+## 7. Self-host status (snapshot · 2026-10-12)
 
-> **Authoritative live numbers:** [Progress](analysis/自举进度.md) · [C-migration](analysis/C迁移追踪.md) · [LEAF residual](compiler/docs/LEAF_PATTERN_RESIDUAL.md) · inventory `./xbuild bc-inventory`.  
-> This README only summarizes. **Do not** treat Stage2 / prove / WPO / daily L2 green as an L4 re-pin or as “self-host done”.  
-> **Makefile physical delete is done** (wave941/942). Product entry is **`./xbuild` only** — do not reintroduce `make -C` orchestration. Cold start is **`./xbuild bootstrap-driver-seed`**, not `make bootstrap-driver-seed`.
+> **Authoritative live numbers:** [Progress](analysis/自举进度.md) · [Endgame checklist](analysis/终局待办.md) · [Verification](analysis/自举验证.md) · inventory `./xbuild bc-inventory`.  
+> This README only summarizes. **Do not** treat Stage2 / prove / WPO / **three-end daily L2** green as an L4 re-pin or as “self-host done”.  
+> **Makefile physical delete is done**. Product entry is **`./xbuild` only**. Cold start is **`./xbuild bootstrap-driver-seed`**, not `make`.  
+> **Main knife now = endgame ch.9** (seed / `.inc` business hollow) after **ch.1–8 ✅** — live [Progress](analysis/自举进度.md) · [Endgame checklist](analysis/终局待办.md). Ban: mega FORCE · leftover-first · `-E` as a “fix” · CloudAgent · default pin raise · opening **9.2** without manager confirm.
 
 ### Product track
 
 | Item | Status |
 |------|--------|
-| **L4 release pin (current)** | **`b5be5ed97`** (2026-09-02) — dual-host **true cold** + product matrix + bstrict **129/129**; pin eggs refreshed from this-wave `xlang_asm`; Darwin L4 default `JOBS=1` |
-| Pin lineage (older → newer) | `36363b90f` → `d79a368b2` → `e364f4a37` → `f7424ae47` (2026-08-15) → `e8176cbe5` (2026-08-23) → **`b5be5ed97`** |
-| Product bstrict suite | **129** scripts (`tests/run-all-bstrict.sh`; log must show `OK (129 scripts…)`) |
-| Ubuntu L4 + full bstrict (pin) | ✅ **129/129** @ **`b5be5ed97`** (gold lab · wall **17m47s**) |
-| macOS L4 + full bstrict (pin) | ✅ **129/129** @ **`b5be5ed97`** (wall **137m25s**, `JOBS=1`) |
-| Daily gate (tip) | **Dual-end L2 product matrix** — `./xbuild l2-matrix` (rv42 / opt102 / hello / si / f32). SHARED leaves need **mac + Ubuntu**. |
-| Residual tip (≠ pin) | inventory **present 0** · leftover unique **0** · **prefer pure-asm product default** · Cap **9.x** in flight (see front row) · **no pin raise** on daily L2 |
-| Windows hybrid / leftover unique | leftover unique **0** · min-gate **green** · leftover-PE hybrid extra when Windows is up (dual-boot vs Ubuntu). Hybrid green ≠ product L4 |
-| Gold host | **Ubuntu x86_64** (SSH home LAN: `ubuntu-server`; off-site lab may use `ubuntu-remote-server` / frp) |
-| Product binary under test | This-wave `compiler/xlang_asm` (g05 / pure-ld relink) — **never** leftover Stage2 `xlang_asm2` or old `stage1` |
-| `xlang check` gates | **Paused** on default L2/L4 product rhythm during self-host close-out; not a default green/red for residual leaves |
-| Nest freeze | **64** — do not raise this leaf to 65; do not default-assemble `parser.x` / `pipeline_abi` mega |
+| **L4 release pin (current)** | **`ecdb5cc1e`** — dual-host **true cold**; **no daily raise** |
+| Pin lineage (older → newer) | `…` → `f7424ae47` → `e8176cbe5` → `b5be5ed97` → **`ecdb5cc1e`** |
+| Product bstrict suite | **131** scripts (`tests/run-all-bstrict.sh`) |
+| Daily gate (tip) | **Tip cold L2** — macOS + `ubuntu-remote-server` (Windows via `windows-remote-server`, deferred when manager allows) · `./xbuild l2-matrix` (rv42 / opt102 / hello / si / f32) |
+| Tip paths (2026-10-12) | Darwin + Ubuntu **tip cold L2 5/5** · **8.3** FORCE cold path **zero `cc`** on mac + Ubuntu · Windows zero-`cc` **deferred** · product prefer / pure-asm on peeled leaves |
+| Residual tip (≠ pin) | Endgame **ch.1–8 ✅**; tip knife **9.1 in progress** (not ✅); next ⬜ **9.2**; host-cc ≈ **231**; **no pin raise** on daily L2 |
+| True host-cc debt | host-cc ≈ **231**; residual business still in some `seeds/**/*.from_x.c` / `parser_asm/*.inc` until **9.1** closes — **present 0 ≠ host-cc = 0** |
+| Gold host | **Ubuntu 26.04 x86_64** (`ubuntu-remote-server`); Windows via `windows-remote-server` (PVE lab; deferred when manager allows) |
+| Product binary under test | This-wave `compiler/xlang_asm` (g05 / pure-ld) — **never** Stage2 `xlang_asm2` or old `stage1` |
+| `xlang check` gates | **Paused** on default L2/L4 rhythm until self-host close-out |
+| Nest freeze | **64** — do not raise to 65; do not default-FORCE `pipeline_abi` mega |
 
 ### What “usable” means today
 
-On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates), the release pin already covers a large closed surface — networking PRIMARY, bare struct lit, CTFE match fold, X ABI P0b, TYPE_DYN / vtable (write `let x: Trait = a`), dest extras dest-stamp, Windows hybrid min-gate, CLI help, freestanding S4 / NL-07, hosted asm matrix, **prefer-family pure-asm product default**, and more.
+On the **user product path** (`xlang_asm` → `-o` / run / freestanding / gates), the pin already covers a large closed surface — networking, struct lit, CTFE, X ABI, TYPE_DYN / vtable (`let x: Trait = a`), freestanding paths, hosted asm matrix, and more.
 
-**Since the pin**, tip on `self-hosting` closed leftover unique harvest, MATCH dest-park families, Cap **9.1 / 9.2.1 / 9.3 / 9.4.2–6 / 9.5 / 9.6 / 9.7**, 9.2.4 **probe-chain Fix A–F** (NaN / f64 demote / exact-7 bit-level libm / unordered compare / SysV movq / fk9 on-demand 60 faces), and the **mac arm64 f64 AAPCS64 boundary** (GP-bits vs host-cc `d0–d7`/`d0`). **9.2.4 fdlibm-scale ports** (exp/log wave A) are the live Cap leaf.
+**Through 2026-10-12**, tip on **`dev`** closed endgame checklist **ch.1–8** (product default asm **7.1 / 7.2**, cold-start / `v2==v3` **8.1–8.9**, including mac + Ubuntu **FORCE** cold path **zero `cc`** for **8.3**). Tip is now on **9.1** (delete / hollow business still left in product seeds and `parser_asm/*.inc`) — **in progress, not checked off**. Next open item after 9.1 is **9.2**.
 
-**Green L2 on residual tip does not auto-raise the L4 pin.** Tip Ubuntu true-cold re-proofs (e.g. `@1c46bef21`) are regression checks, not a re-pin.
+**Tip cold L2 green does not auto-raise the L4 pin.** Pin stays **`ecdb5cc1e`** until an explicit dual **true cold** raise.
 
-### Tracks (MG / BC / Stage 8–13 / endgame)
+### Endgame triad + stages (MG / BC / PC / 8–13)
 
 | Track | Status |
 |-------|--------|
-| **MG** (Makefile orchestration) | ✅ **done** — `compiler/Makefile` deleted; 0-make hub `tests/lib/compiler-make.sh`; product entry `./xbuild` / `./xlang-build.sh` |
-| **BC** (product residual host-cc catalog) | 🟢 **30/30 FULLY CLOSED** (wave332) — PRODUCT RETIRED **23/23 = 100%**; HALF=0; product PINNED=0; NON-PRODUCT 7 correctly never-product-chain |
-| **M4 five domains** | ✅ **5/5** cold-chain closed (prefer FROM_X product default where applicable). Parser seed **physical delete / CI drift gate** still ⬜ |
-| **Stage 8 Track L** | ✅ **30/30 FULLY CLOSED** (Batch 3 · wave332) |
-| **Stage 9 Cap residual** | 🟡 — 9.1 / 9.2.1 / 9.3 / 9.4.2–6 / 9.5 / 9.6 / 9.7 ✅; **open:** 9.2.4 libm (in flight) · 9.2.5 arrow · 9.2.6 sqlite |
-| **Stage 10 language L2** | 🟡 — 10.1.1–2 / 10.1.4 / 10.2.1–3 (partial) / 10.3.* / 10.4.1–2 ✅; residual qemu / 10.1.3 NT |
-| **Stage12 / PC prefer** | ✅ prefer pure-asm product default · FORBID／ALLOW_HOST_CC · **`pipeline_abi` mega pure-asm hard ban**; `pipeline_x` whole TU still host-cc; `invoke_cc` not deleted |
-| **Stage 12 zero-cc cold** | 🟡 LINK / `.s` / most gates ✅; minimal seed / full-path zero `cc` ⬜ |
-| **PC / G** (seed-free cold / full zero-C) | ⬜ open — seed + host `cc` still required for cold start |
+| **MG** (Makefile orchestration) | ✅ file-layer done — 0-make hub; product entry `./xbuild` |
+| **BC** (compiler TUs off host-cc) | 🟡 inventory **present 0** · Stage 8 gen **30/30 ✅** · residual = seed / `.inc` business until **9.1** · host-cc ≈ **231** |
+| **PC** (product default asm / no `invoke_cc`) | 🟡 **7.1 / 7.2 ✅** · tip prefer / pure-asm on peeled leaves · `labi_invoke_cc` **not deleted** · full product zero-`cc` still open |
+| **Stage 9 Cap residual** (old Cap peel track) | ✅ closed (standing C intentional; ≠ endgame **ch.9**) |
+| **Stage 10 language L2** | 🟡 main closed; residual NT / MSVC va / qemu / Win hardware |
+| **Stage 12 zero-cc cold** | 🟡 **8.3** mac+Ubuntu FORCE cold path zero `cc` ✅; Windows deferred; full announce-path zero-`cc` still open |
+| **Stage 13 announce** | 🟡 MG ✅ · ch.1–8 ✅ · **9.1** in progress · BC/PC/`v2==v3` residual — **not announced** |
 
 ### Residual inventory (order of magnitude)
 
-| Signal | Value (2026-09-08) |
+| Signal | Value (2026-10-12) |
 |--------|---------------------|
-| `./xbuild bc-inventory` present rows | **0** (catalog closed; mega / seed cold residual is **not** counted as present leaves) |
-| leftover unique (Windows leftover-PE harvest) | **0** |
-| R2 true-migrate | ~**120/128** (~85%) |
-| `pipeline_x` mega | still **host-cc** (not a present-leaf; hard-ban from pure-asm product) |
-| Ops traps (2026-09-08) | **stale product `.o`**: rebuild freshness compared only to `.x` mtime — compiler emit fixes do **not** invalidate old `.o` (L4 wipe is the defense). Mega `.x` body edits need `XLANG_HOST_CC_SEED_FORCE=1` (inject-only thin skip does not rebuild mega bodies) |
-| Efficiency rule | **domain / whole class / whole leaf**, not one BSS micro-cell per wave |
+| `./xbuild bc-inventory` present | **0** (structural orphans closed; not the same as zero host-cc) |
+| leftover unique (Win PE harvest) | **0** |
+| R2 true-migrate | ~**120/128** |
+| host-cc (product inventory) | ≈ **231** (do not add new host-cc `.c`) |
+| Endgame ch.9 | **9.1** in progress · next ⬜ **9.2** |
+| Ops traps | stale `.o` only keyed to `.x` mtime → **L4 wipe** is the defense; ban mega FORCE / Soft-Cap tip `-E` |
 
 ### Engineering track (subset)
 
 | KPI / gate | Status |
 |------------|--------|
-| **T** typeck surface | **18/18** |
-| **EMPTY** | **18/18** |
-| **N** prove IDENTICAL | **111/111** |
-| Cap residual pure | On-demand L2; dual-export ban where product prefers pure-asm |
-| **D Stage2** | ✅ freestanding / parity (**≠** full product g05 chain); dual-end SHA256 match (Ubuntu `9e60e1290` · macOS `343894709`) |
-| Stage2 **WPO** chain + strict-link + text-gate | ✅ engineering green (Ubuntu; some Darwin N/A) |
+| **T** / **EMPTY** / **N** | **18/18** · **18/18** · **111/111** |
+| Stage 8 pinned gen | ✅ **30/30** |
+| **D Stage2** | ✅ engineering freestanding / parity (**≠** product g05) |
+| Win PE egg / LEGACY g05 | ✅ egg live · default LEGACY three-end L2 |
 
 ### What is *not* claimed
 
 - **Not** “compiler is 100% `.x` with zero seed”
-- **Not** “Stage2 `xlang_asm2` is the product compiler”
-- **Not** “engineering WPO green = tip product L4”
-- **Not** “dual L2 / tip Ubuntu true-cold re-proof = L4 re-pin” — pin stays **`b5be5ed97`** until the next explicit dual **true cold** re-pin
-- **Not** “Windows hybrid / leftover unique 0 = product L4 / self-host done”
-- **Not** “Makefile deleted = self-host / zero host-cc done” — seed + `pipeline_abi` / `pipeline_x` mega residual remain
-- **Not** “Cap 9 closed” — 9.2.4–6 (libm / arrow / sqlite) still open
-- **Not** “mac arm64 f64 card still open” — GP-bits vs AAPCS64 root-fixed `@363a68697` + `@1c46bef21`; Ubuntu true-cold re-proof 12/12 + L2 5/5
-- Final physical zero-C / full seed elimination (**G**) remains roadmap, not the weekly claim surface
+- **Not** “BC present 0 = host-cc = 0”
+- **Not** “mac + Ubuntu tip cold L2 = L4 re-pin” — pin stays **`ecdb5cc1e`** until an explicit dual **true cold** raise
+- **Not** “**9.1** in progress = **9.1 ✅**” — hollow must land tip L2 green before check-off
+- **Not** “empty seed stubs = all business already off C”
+- **Not** “Windows LEGACY 5/5 = self-host done”
+- Final zero-cc cold + `v2==v3` + delete `labi_invoke_cc` remains roadmap
 
-**Full self-host (D+E+F):** Stage **D** (Stage2 freestanding / parity) + **E** (compiler tree no C/H on the product path) + **F** (Phase F: repo `std/` / product surface no handwritten C). Stage2 alone is **not** full self-host. Authority: [SELFHOST.md](compiler/docs/SELFHOST.md).
+**Full self-host (D+E+F):** Stage **D** (Stage2) + **E** (compiler product path no C/H) + **F** (`std/` no handwritten C). Stage2 alone is **not** full self-host. Endgame triad: **MG + BC + PC + v2==v3**. Authority: [SELFHOST.md](compiler/docs/SELFHOST.md) · [终局待办.md](analysis/终局待办.md).
 
-Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时序.md](analysis/自举时序.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
+Methodology: [自举效率方法-M2主链.md](analysis/自举效率方法-M2主链.md) · gates: [自举验证.md](analysis/自举验证.md) · ops: [SELFHOST.md](compiler/docs/SELFHOST.md) · discipline: [AGENTS.md](AGENTS.md) + skill `xlang-selfhost-product-gate`.
 
 ### Near-term front row
 
-1. **Cap 9.2.4 libm** — fdlibm-scale `math_*_impl` ports (32 bridges; wave A exp+log started). Probe-chain Fix A–F and arm64 f64 AAPCS64 boundary are **closed**. Then 9.2.5 arrow / 9.2.6 sqlite extern-system-lib domains. **No pin raise** by default  
-2. **Keep 0-make honest** — product path stays `./xbuild`; no reintroduce `make -C`; prefer pure-asm default; never pure-asm `pipeline_abi` mega; nest cap stays **64**  
-3. **Standing cards (not this week’s close-out)** — `pipeline_x` host-cc mega · Ubuntu std bstrict red cluster (~21 scripts) · Defect D typeck XT001 · wpo-full-chain Darwin · 10.7.1 va gate · check-gate pause (post-self-host)
+1. **9.1** — hollow / delete business still left in `seeds/**/*.from_x.c` and `seeds/parser_asm/*.inc`; keep empty decls or script-named non-business stubs; mac + Ubuntu tip cold L2; **do not** open **9.2** without manager confirm  
+2. **Next ⬜ after 9.1** — **9.2** `parser_gen` / `codegen_gen` unpin (still pin-first; see 7.2)  
+3. **Standing (manager-only)** — Windows zero-`cc` arm · Soft-Cap / MSVC va · nest **64** · L4 / pin raise only when explicitly dispatched  
 
 ---
 
@@ -519,8 +515,8 @@ Methodology: [自举方法.md](analysis/自举方法.md) · timeline: [自举时
 | M2 | import, core/std subset, multi-target | ✅ |
 | M3 | Generics, trait, modules, std growth | ✅ |
 | M4 | DCE, `-O2`/`-Os`, size / perf baseline | ✅ partial |
-| M5 | Bootstrap (compiler rebuilds itself) | 🟡 **usable product path + advanced self-host**; **seed still required for cold start**; MG **deleted** (0-make); BC catalog **present 0** / Track **30/30 CLOSED**; Cap 9 residual **in flight** (9.2.4 libm) |
-| **Now** | L4 pin **`b5be5ed97`** (dual 129 · 2026-09-02); tip `self-hosting` Cap **9.2.4** + leftover unique **0**; write `let x: Trait = a`; BC／Stage8 **CLOSED** · MG ✅ · prefer pure-asm default | See [dashboard](analysis/自举进度.md) |
+| M5 | Bootstrap (compiler rebuilds itself) | 🟡 **usable product path + advanced self-host**; **seed still required**; MG ✅ · endgame **ch.1–8 ✅** · **9.1** in progress · BC/PC residual 🟡 |
+| **Now** | L4 pin **`ecdb5cc1e`** (no daily raise); tip `dev` **9.1** in progress; ch.1–8 ✅; host-cc ≈ **231**; mac+Ubuntu tip cold L2; write `let x: Trait = a` | See [dashboard](analysis/自举进度.md) |
 
 ---
 
@@ -660,11 +656,11 @@ Longer design notes: [syntax & safety](analysis/语法与类型设计-高性能�
 
 1. Clone → `./xbuild build-tool && ./xbuild first-time` (or `./xbuild bootstrap-driver-seed`).  
 2. Daily edits → `./xbuild build`, set `XLANG=./compiler/xlang_asm`, run relevant tests / gates.  
-3. Product / link / **SHARED** changes → **Ubuntu gold** (and mac when SHARED); release claims need **L4 true cold** + dual bstrict **129** (current pin **`b5be5ed97`** until an explicit re-pin).  
+3. Product / link / **SHARED** changes → **Ubuntu gold** (and mac when SHARED); release claims need **L4 true cold** + dual bstrict **131** (current pin **`ecdb5cc1e`** until an explicit re-pin). Daily tip claims need **three-end L2**.  
 4. Daily residual leaves → **L2** (pure-ld + product matrix probes); **do not** default-run `xlang check` gates while they are paused for self-host close-out.  
 5. Commits: Conventional Commits (`feat:` / `fix:` / `docs:` …). New `.x` comments in **English** (see `AGENTS.md` / G.9).  
 6. **No dual authority** — seed and `.x` product surfaces move in the **same commit** when both exist.  
-7. **No false green** — do not claim self-host complete from prove / Stage2 / WPO / daily L2 alone.
+7. **No false green** — do not claim self-host complete from prove / Stage2 / WPO / tip L2 alone.
 
 **Main-line resolution** — prioritize self-host / product gates over large new std features; IR v4 architecture is frozen for post-bootstrap work.
 

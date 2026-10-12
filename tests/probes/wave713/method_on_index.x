@@ -6,18 +6,12 @@
 struct S { v: i32 }
 
 impl S {
-  /**
-   * Inherent getter on INDEX receiver.
-   * @param self S — copied receiver
-   * @return i32 — self.v
-   */
+  // Inherent getter on INDEX receiver.
+  // self is a copied receiver. Returns self.v.
+  // A block comment here stays unclosed on the installed product lexer.
   function get(self: S): i32 { return self.v; }
-  /**
-   * Inherent adder on INDEX receiver.
-   * @param self S — copied receiver
-   * @param dx i32 — addend
-   * @return i32 — self.v + dx
-   */
+  // Inherent adder on INDEX receiver.
+  // self is a copied receiver. dx is the addend. Returns self.v + dx.
   function add(self: S, dx: i32): i32 { return self.v + dx; }
 }
 

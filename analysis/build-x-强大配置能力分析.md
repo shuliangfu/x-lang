@@ -5,7 +5,7 @@
 > 2. **按仓库真实现状校准**愿景（避免把设计稿写成已交付）。  
 > 3. 回答：**怎样把 build.x 做强，同时保持简单、易写、易用**（API 形态、默认路径、分层、分阶段、禁令）。  
 >
-> **配套**：[xlang-toml-实现分析.md](xlang-toml-实现分析.md) · [xlang.toml](../xlang.toml)（示例，**编译器尚未读取**）· [自举方法.md](自举方法.md) · [AGENTS.md](../AGENTS.md)（单一权威 / 双权威禁令）  
+> **配套**：[xlang-toml-实现分析.md](xlang-toml-实现分析.md) · [xlang.toml](../xlang.toml)（示例，**编译器尚未读取**）· [自举效率方法-M2主链.md](自举效率方法-M2主链.md) · [AGENTS.md](../AGENTS.md)（单一权威 / 双权威禁令）  
 >
 > **最后更新**：2026-07-21（全面重写：现状校准 + 强大且易用路径）。
 
@@ -495,7 +495,7 @@ IDE/CI 读 toml 即可列 target/feature；**不**需要先编译 build.x。
 | [compiler/src/driver/build.x](../compiler/src/driver/build.x) | `xlang build` 子命令 |
 | [std/config](../std/config/) | TOML 解析能力 |
 | [compiler/Makefile](../compiler/Makefile) | 自举主路径（域 B） |
-| [自举方法.md](自举方法.md) · [自举进度.md](自举进度.md) | 何时允许动产品构建链 |
+| [自举效率方法-M2主链.md](自举效率方法-M2主链.md) · [自举进度.md](自举进度.md) | 何时允许动产品构建链 |
 
 ---
 

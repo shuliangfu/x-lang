@@ -1,5 +1,12 @@
 /* seeds/runtime_sqlite_glue.from_x.c — G-02f-21 product TU
- * Logic still C until full .x port.
+ * w1101: Darwin arm64 and Linux runtime_sqlite_glue_stub.o is
+ * src/asm/runtime_sqlite_glue_stub_darwin.x (pure asm, the #else face).
+ * w1102: Darwin arm64 runtime_sqlite_glue.o is
+ * src/asm/runtime_sqlite_glue_darwin.x (pure asm, libsqlite3 forwards).
+ * Linux x86_64 runtime_sqlite_glue.o is
+ * src/asm/runtime_sqlite_glue_linux.x (pure asm; RTLD_DEFAULT is 0).
+ * Windows stays this seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 | LINUX x86_64 prefer .x.
  */
 /**
  * runtime_sqlite_glue.c — F-ZC：自 std/db 胶层迁入

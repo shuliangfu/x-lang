@@ -13,10 +13,15 @@
 //
 // PLATFORM: SHARED
 //
-// Wave515 (2026-07-27): R2 full migration. Previously the shell script
-// xlang_compile_std_string_o.sh always compiled the C seed directly. Now in
-// R2 mode (XLANG_G05_PREFER_X_O=1) the .x file is compiled via xlang-c -E
-// → bare ABI .o. The C seed remains as cold-mode fallback.
+// Wave515 (2026-07-27): R2 full migration. The eight xlang_string_*_c
+// bodies in this file are the authority.
+// PLATFORM: MACOS|DARWIN arm64 — xlang_compile_std_string_o.sh pure-asm
+// compiles this file with the current compiler. That step does not pass
+// seeds/runtime_string_fast.from_x.c to host cc. Symbols stay strong.
+// Undefined calls are libc memcmp and memcpy only.
+// PLATFORM: LINUX|WINDOWS — the same shell still host-cc's the C seed.
+// A Darwin pure-asm fault with no object falls back to that seed.
+// The std/string/mod.x half of string.o is a different translation unit.
 
 /* === Standard C library bridges (implemented in system libc) === */
 

@@ -258,26 +258,29 @@ int xlang_path_has_sep(const char *s);
  *           并让 Windows 宿主走 _spawnvp 同步路径（无 fork）。
  */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
+/* wave762 Class M: argv host flags use runtime gates (already pure-asm
+ * under FROM_X). Spawn still Cap #if — _spawnvp is a Windows-only API. */
+int link_abi_host_is_windows(void);
+int link_abi_host_is_apple(void);
 int xlang_cc_compile_sync_ex(const char *src, const char *out_o,
                                     const char *inc0, const char *inc1, const char *inc2,
                                     int from_asm_s,
                                     const char *const *extra_flags) {
     const char *argv[32];
     int ai = 0;
-#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
-    argv[ai++] = "gcc";
-#else
-    argv[ai++] = "cc";
-#endif
+    if (link_abi_host_is_windows())
+        argv[ai++] = "gcc";
+    else
+        argv[ai++] = "cc";
     /* PLATFORM: MACOS — match macho.x LC_BUILD_VERSION minos 11.0.0 (0x000B0000).
      * Host-cc default SDK stamps LC_BUILD_VERSION minos 26.0; Apple ld then
      * warns when those .o are linked with product-asm objects at 11.0.
      * Applies to .c and .s (from_asm_s) — both get the Mach-O load command from cc.
      * Do not -w swallow; do not raise macho.x minos to 26.0.
-     * PLATFORM: LINUX / WINDOWS — no-op (GNU ld / link have no Mach-O minos check). */
-#if defined(__APPLE__)
-    argv[ai++] = "-mmacosx-version-min=11.0";
-#endif
+     * PLATFORM: LINUX / WINDOWS — no-op (GNU ld / link have no Mach-O minos check).
+     * wave762: runtime gate, not Cap #if. */
+    if (link_abi_host_is_apple())
+        argv[ai++] = "-mmacosx-version-min=11.0";
     if (!from_asm_s) {
         argv[ai++] = "-Wall";
         argv[ai++] = "-Wextra";
@@ -857,14 +860,16 @@ void link_diag_freestanding_unsupported(void);
 /* R2：ld_debug_push 消息体 hybrid 由 L1 .x */
 #ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_push_impl(const char *rel, const char *stage, const char *path) {
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "ld debug: push %s %s=%s",
-                 rel ? rel : "(null)",
-                 stage ? stage : "path",
-                 path ? path : "(null)");
+    /* Class AR: Cap XLANG_DEBUG_LD push note retired (mirror thin L1). */
+    (void)rel;
+    (void)stage;
+    (void)path;
 }
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path) {
-    link_diag_ld_debug_push_impl(rel, stage, path);
+    /* Class AR: Cap push retired; keep symbol. */
+    (void)rel;
+    (void)stage;
+    (void)path;
 }
 #else
 void link_diag_ld_debug_push(const char *rel, const char *stage, const char *path);
@@ -875,18 +880,9 @@ void link_diag_ld_debug_push(const char *rel, const char *stage, const char *pat
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* Cap residual：ld_debug_argv char** 遍历 🔒 常驻 _impl（L1 .x thin 转发） */
 void link_diag_ld_debug_argv_impl(const char *label, const char *const *argv) {
-    int di;
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "ld debug: %s",
-                 label ? label : "argv");
-    if (!argv)
-        return;
-    for (di = 0; argv[di] != NULL; di++) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "ld debug argv[%d]=%s",
-                     di,
-                     argv[di]);
-    }
+    /* Class AK: Cap XLANG_DEBUG_LD argv dump retired. */
+    (void)label;
+    (void)argv;
 }
 #ifndef XLANG_LABI_DIAG_PURE_FROM_X
 void link_diag_ld_debug_argv(const char *label, const char *const *argv) {
@@ -1015,66 +1011,14 @@ void xlang_linux_ld_child_path(void) {
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 void xlang_debug_hello_stage1_report(const char *hypothesis_id, const char *location,
     const char *msg, int v1, int v2, int v3) {
-    char url[256];
-    char session[64];
-    const char *env_paths[] = { ".dbg/hello-stage1-segv.env", "../.dbg/hello-stage1-segv.env", NULL };
-    int path_i;
-    url[0] = '\0';
-    session[0] = '\0';
-    for (path_i = 0; env_paths[path_i]; path_i++) {
-        /* Cap residual 9.5.3 slice3b: whole-file read via xlang_proc_read_file
-         * (9.1.12 authority); lines split in place with xlang_proc_next_line.
-         * The debug env file is a tiny local config, so the 1 KiB cap replaces
-         * fgets' 320-byte line window; values strip \r\n exactly as before. */
-        char envbuf[1024];
-        char *line;
-        if (xlang_proc_read_file(env_paths[path_i], envbuf, sizeof envbuf) < 0)
-            continue;
-        for (line = envbuf; line; line = xlang_proc_next_line(line)) {
-            if (strncmp(line, "DEBUG_SERVER_URL=", 17) == 0) {
-                strncpy(url, line + 17, sizeof(url) - 1);
-                url[sizeof(url) - 1] = '\0';
-                url[strcspn(url, "\r\n")] = '\0';
-            } else if (strncmp(line, "DEBUG_SESSION_ID=", 17) == 0) {
-                strncpy(session, line + 17, sizeof(session) - 1);
-                session[sizeof(session) - 1] = '\0';
-                session[strcspn(session, "\r\n")] = '\0';
-            }
-        }
-        if (url[0] && session[0])
-            break;
-    }
-    if (!url[0])
-        strncpy(url, "http://127.0.0.1:7777/event", sizeof(url) - 1);
-    if (!session[0])
-        strncpy(session, "hello-stage1-segv", sizeof(session) - 1);
-#if !defined(_WIN32) && !defined(_WIN64)
-    if (xlang_proc_fork() == 0) {
-        char body[768];
-        char *cargv[12];
-        (void)snprintf(body, sizeof(body),
-            "{\"sessionId\":\"%s\",\"runId\":\"pre-fix\",\"hypothesisId\":\"%s\",\"location\":\"%s\","
-            "\"msg\":\"[DEBUG] %s\",\"data\":{\"v1\":%d,\"v2\":%d,\"v3\":%d}}",
-            session, hypothesis_id ? hypothesis_id : "A", location ? location : "runtime_link_abi.c",
-            msg ? msg : "hello-stage1", v1, v2, v3);
-        cargv[0] = (char *)"curl";
-        cargv[1] = (char *)"-s";
-        cargv[2] = (char *)"-X";
-        cargv[3] = (char *)"POST";
-        cargv[4] = url;
-        cargv[5] = (char *)"-H";
-        cargv[6] = (char *)"Content-Type: application/json";
-        cargv[7] = (char *)"-d";
-        cargv[8] = body;
-        cargv[9] = NULL;
-        (void)xlang_proc_execvp("curl", cargv);
-        xlang_proc_exit(0);
-    }
-#endif
+    /* Class AQ: Cap hello-stage1-segv debug-point retired (no curl/env fork). */
+    (void)hypothesis_id;
+    (void)location;
+    (void)msg;
+    (void)v1;
+    (void)v2;
+    (void)v3;
 }
-
-
-
 /* #endregion */
 
 /**
@@ -2078,6 +2022,9 @@ int xlang_ensure_runtime_panic_o(const char *argv0);
  */
 /** G-02f-36：OS 门闩槽 — .x freestanding_enabled 读此，避免 .x 内 #if。 */
 /* G-02f-269 / R2 labi_host_lit：#if body Cap residual 常驻 rest（与 path_io stat 同构） */
+/* wave760 Class K: when XLANG_LABI_HOST_LIT_FROM_X, impls live in
+ * labi_host_lit.x (pure-asm #[cfg]); skip Cap #if host-cc here. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 int xlang_host_is_linux_impl(void) {
 #if defined(__linux__)
     return 1;
@@ -2085,6 +2032,7 @@ int xlang_host_is_linux_impl(void) {
     return 0;
 #endif
 }
+#endif
 
 /* R2：public thin 非 hybrid 时 rest 自带；FROM_X 时由 L2 full .x 提供 */
 #ifndef XLANG_LABI_HOST_LIT_FROM_X
@@ -2098,6 +2046,7 @@ int xlang_host_is_linux(void);
 
 /** G-02f-43：Apple aarch64 门闩槽 — .x resolve_target_arch 读此。 */
 /* G-02f-269 / R2 labi_host_lit：#if body Cap residual 常驻 rest */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 int xlang_host_is_apple_aarch64_impl(void) {
 #if defined(__APPLE__) && defined(__aarch64__)
     return 1;
@@ -2105,6 +2054,7 @@ int xlang_host_is_apple_aarch64_impl(void) {
     return 0;
 #endif
 }
+#endif
 
 /* R2：public thin 非 hybrid 时 rest 自带；FROM_X 时由 L2 full .x 提供 */
 #ifndef XLANG_LABI_HOST_LIT_FROM_X
@@ -2768,6 +2718,92 @@ int link_abi_user_o_needs_compress_libs(const char *user_o);
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 #include "seeds/labi_invoke_ld_list.from_x.c"
 #else
+/* Class AU: under FROM_X, keep append_std plan shell + flags_reset on host-cc.
+ * Prefer L6 .x no longer exports append_std_objs_for_user (tip asm f[zi] hang +
+ * incomplete std push). G.7: same bodies as labi_invoke_ld_list.from_x.c. */
+void labi_std_link_flags_reset(ShuAsmLdStdLinkFlags *flags) {
+  if (!flags)
+    return;
+  memset(flags, 0, sizeof *flags);
+  flags->have_io = 1;
+  flags->have_fs = 1;
+}
+
+/* Peers live in prefer L8/L6 .x under FROM_X. */
+int labi_std_plan_count(void);
+int labi_std_plan_step_at(int i, int *op_out, const char **rel_out, int *flag_kind_out);
+void labi_std_append_primary_for_op(int op, const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+void labi_std_append_op_std(const char *link_argv0, const char *user_o, const char *rel, int fk,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags, int *local_have);
+int labi_std_glue_have_for_op(int op, ShuAsmLdStdLinkFlags *flags, int *local_have);
+void labi_std_append_glue_for_op(int op, int have, const char *link_argv0, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+void labi_std_append_task_special(const char *link_argv0, const char *user_o, const char *rel,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+int labi_std_need_process_argv(ShuAsmLdStdLinkFlags *flags, int *local_have);
+void labi_std_append_process_argv_if(int need, const char *link_argv0,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la);
+
+void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
+    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
+    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags) {
+  int local_have[6];
+  int n_steps;
+  int si;
+  memset(local_have, 0, sizeof local_have);
+  /* Class AU: shared reset (prefer .x calls same helper — avoid f[zi] codegen hang). */
+  labi_std_link_flags_reset(flags);
+  n_steps = labi_std_plan_count();
+  for (si = 0; si < n_steps; si++) {
+    int op = 0;
+    const char *rel = NULL;
+    int fk = 0;
+    if (!labi_std_plan_step_at(si, &op, &rel, &fk))
+      continue;
+    switch (op) {
+    case 2: /* LABI_STD_OP_IO_STUBS */
+    case 3: /* LABI_STD_OP_PRIMARY_PANIC */
+    case 4: /* LABI_STD_OP_PRIMARY_TIME_OS */
+    case 5: /* LABI_STD_OP_PRIMARY_RANDOM_FILL */
+    case 6: /* LABI_STD_OP_PRIMARY_ENV_OS */
+      labi_std_append_primary_for_op(op, link_argv0, user_o, rel,
+          lib_roots, n_lib_roots, bank, argv, la, max_la);
+      break;
+    case 1: /* LABI_STD_OP_STD */
+      labi_std_append_op_std(link_argv0, user_o, rel, fk, lib_roots, n_lib_roots,
+          bank, argv, la, max_la, flags, local_have);
+      break;
+    case 10: /* LABI_STD_OP_GLUE_THREAD */
+    case 11:
+    case 12:
+    case 13:
+    case 14:
+    case 15:
+    case 16:
+    case 17:
+    case 18:
+    case 19:
+    case 20: /* LABI_STD_OP_GLUE_HTTP */
+      labi_std_append_glue_for_op(op, labi_std_glue_have_for_op(op, flags, local_have),
+          link_argv0, rel, lib_roots, n_lib_roots, bank, argv, la, max_la);
+      break;
+    case 30: /* LABI_STD_OP_TASK_SPECIAL */
+      labi_std_append_task_special(link_argv0, user_o, rel, lib_roots, n_lib_roots,
+          bank, argv, la, max_la);
+      break;
+    default:
+      break;
+    }
+  }
+  labi_std_append_process_argv_if(labi_std_need_process_argv(flags, local_have),
+      link_argv0, lib_roots, n_lib_roots, bank, argv, la, max_la);
+}
 int labi_ld_brew_lib_path_count(void);
 const char *labi_ld_brew_lib_path_at(int i);
 const char *labi_ld_flag_lz(void);
@@ -2811,6 +2847,9 @@ int labi_net_tls_join_repo_rel(char *path_buf, int cap, const char *repo_root, c
 void ensure_std_net_o_auto_tls(const char *repo_root);
 #endif
 
+/* wave761 Class L: link_abi host gates live in labi_host_lit.x under
+ * XLANG_LABI_HOST_LIT_FROM_X; cold rest keeps Cap #if bodies. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 /**
  * Cap residual (wave152): return 1 iff host is Apple (any arch).
  * PLATFORM: MACOS — #if defined(__APPLE__); Linux/Windows → 0.
@@ -2860,6 +2899,12 @@ int link_abi_host_is_posix_aarch64(void) {
     return 0;
 #endif
 }
+#else
+int link_abi_host_is_apple(void);
+int link_abi_host_is_windows(void);
+int link_abi_host_is_linux_x86_64(void);
+int link_abi_host_is_posix_aarch64(void);
+#endif /* !XLANG_LABI_HOST_LIT_FROM_X */
 
 /* wave152: ld_append_brew_lib_paths pure orch lives in labi_invoke_ld_list
  * (table scan + Cap residual host_is_apple). Cold twin via #include
@@ -3226,14 +3271,7 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
       continue;
     if (memcmp(path, k[i], n) == 0 && (n == plen || path[n] == '.' || path[n] == 0)) {
       /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-      /* Cap residual 9.5.3 slice3b: debug trace via xlang_snprintf + raw fd 2. */
-      if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-        char _db[256];
-        int _dn = snprintf(_db, sizeof _db,
-                           "xlang: [link_only] hit exact/prefix key=%s path=%s -> 1\n", k[i], path);
-        if (_dn > 0)
-          (void)xlang_io_write(2, _db, (size_t)_dn);
-      }
+      /* Class AH: Cap XLANG_DEBUG_PIPE link_only hit trace retired. */
       return 1;
     }
   }
@@ -3261,14 +3299,7 @@ int pipeline_codegen_std_dep_link_only(uint8_t *path) {
         return 1;
     }
   }
-  /* Cap residual 9.5.3 slice3b: debug trace via xlang_snprintf (%zu now
-   * supported by the 10.7.2 fmt authority) + raw fd 2. */
-  if (link_abi_getenv("XLANG_DEBUG_PIPE")) {
-    char _db[256];
-    int _dn = snprintf(_db, sizeof _db, "xlang: [link_only] miss path=%s plen=%zu -> 0\n", path, plen);
-    if (_dn > 0)
-      (void)xlang_io_write(2, _db, (size_t)_dn);
-  }
+  /* Class AH: Cap XLANG_DEBUG_PIPE link_only miss trace retired. */
   return 0;
 }
 
@@ -3630,7 +3661,6 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     (void)csv_o;
     (void)log_o;
     /* #region debug-point B:invoke-cc-enter */
-    xlang_debug_hello_stage1_report("B", "runtime_link_abi.c:2954", "invoke_cc_enter", n, use_lto, (include_root && include_root[0]) ? 1 : 0);
     /* #endregion */
     if (!c_paths || n < 1) return -1;
     if (!opt_level || !*opt_level) opt_level = "2";
@@ -3738,12 +3768,10 @@ int xlang_invoke_cc_impl(const char **c_paths, int n, const char *out_path, cons
     invoke_cc_append_argv_tail_flags(argv, &i, argv_cap, thread_o, sync_o, channel_o);
     /* wave205 pure: parent-side spawn cc candidates + strip -x when opt != 0. */
     /* #region debug-point C:invoke-cc-spawn */
-    xlang_debug_hello_stage1_report("C", "runtime_link_abi.c:invoke_cc_spawn", "invoke_cc_spawn", n, use_lto, i);
     /* #endregion */
     if (invoke_cc_run_cc_argv(argv) != 0)
         return -1;
     /* #region debug-point D:invoke-cc-strip */
-    xlang_debug_hello_stage1_report("D", "runtime_link_abi.c:invoke_cc_strip", "invoke_cc_strip", 0, 0, 0);
     /* #endregion */
     invoke_cc_maybe_strip_out(out_path, opt_level);
     return 0;
@@ -4348,8 +4376,14 @@ static int xlang_nm_u_fill_undef_cache(const char *o_path) {
     char line[512];
     if (!o_path || !o_path[0])
         return 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    /* cmd.exe / Mingw popen: single quotes are literal; use double quotes. */
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u \"%s\" 2>nul", o_path) >= sizeof cmd)
+        return 0;
+#else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 0;
+#endif
     fp = popen(cmd, "r");
     if (!fp)
         return 0;
@@ -4393,8 +4427,13 @@ static int xlang_nm_t_fill_defined_cache(const char *o_path) {
     char line[512];
     if (!o_path || !o_path[0])
         return 0;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm \"%s\" 2>nul", o_path) >= sizeof cmd)
+        return 0;
+#else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 0;
+#endif
     fp = popen(cmd, "r");
     if (!fp)
         return 0;
@@ -4848,19 +4887,11 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la, int *flag_out) {
     const char *p = NULL;
-    int debug_runtime_obj = 0;
     if (!la || *la >= max_la - 1)
         return 0;
-    if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
-            || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
-        debug_runtime_obj = 1;
-    /* wave223 G.7: link_abi_getenv (not raw getenv). */
-    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
+    /* Class AK: XLANG_DEBUG_LD Cap notes retired (mirror thin). */
     if (primary && primary[0])
         p = asm_link_obj_skip_missing(primary);
-    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
     if (!p && rel && rel[0])
         p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, rel));
     if (!p && bank && rel && rel[0])
@@ -4875,8 +4906,6 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
         else
             return 0;
     }
-    if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
     if (link_abi_asm_ld_argv_has_obj(argv, *la, p))
         return 0;
     argv[(*la)++] = p;
@@ -5184,8 +5213,7 @@ static int labi_linux_hosted_ld_finish_and_spawn(const char **argv, int *la, int
         return -1;
     }
     argv[*la] = NULL;
-    if (debug_tag != NULL && link_abi_getenv("XLANG_DEBUG_LD"))
-        link_diag_ld_debug_argv(debug_tag, argv);
+    /* Class AK: XLANG_DEBUG_LD argv dump retired. */
     xlang_linux_ld_child_path();
     rc = xlang_spawn_sync(labi_ld_driver_ld(), (const char *const *)argv);
     if (rc != 0) {
@@ -5442,9 +5470,7 @@ void xlang_asm_ld_append_std_objs(const char *link_argv0, const char **lib_roots
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 /* cold twin body is in seeds/labi_invoke_ld_list.from_x.c (#include above). */
 #else
-void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *user_o,
-    const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
-    const char **argv, int *la, int max_la, ShuAsmLdStdLinkFlags *flags);
+/* Class AU: append_std_objs_for_user defined above under FROM_X */
 #endif
 
 /* G-02f-272 L8b on_demand list pure */
@@ -5624,8 +5650,13 @@ int xlang_asm_user_o_has_undef_syms(const char *o_path) {
     size_t i;
     if (!o_path || !o_path[0])
         return 1;
+#if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
+    if ((size_t)snprintf(cmd, sizeof cmd, "nm -u \"%s\" 2>nul", o_path) >= sizeof cmd)
+        return 1;
+#else
     if ((size_t)snprintf(cmd, sizeof cmd, "nm -u '%s' 2>/dev/null", o_path) >= sizeof cmd)
         return 1;
+#endif
     fp = popen(cmd, "r");
     if (!fp) {
 #if defined(__linux__)
@@ -5816,6 +5847,13 @@ void xlang_link_capture_opt_level_from_argv(int argc, char **argv) {
  * 参数：driver_freestanding 同 xlang_link_freestanding_enabled；link_argv0 用于 std/.o 路径解析。
  * 返回值：0 成功，-1 失败。
  */
+#if defined(_WIN32) && (defined(__MINGW32__) || defined(__MINGW64__))
+/* w1542 (7.1): Windows ld argv helpers (labi_freestanding_list L7 .x / cold twin). */
+int labi_win_ld_prepare(char *bufs, int cap);
+char *labi_win_ld_slot(char *bufs, int cap, int i);
+void labi_win_ld_append_head(char *bufs, int cap, const char **argv, int *la, int max_la);
+void labi_win_ld_append_tail(char *bufs, int cap, const char **argv, int *la, int max_la);
+#endif
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const char *target,
     int use_macho_o, int use_coff_o, const char *link_argv0, const char **lib_roots, int n_lib_roots,
@@ -5933,22 +5971,29 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
 #endif
         if (use_coff_o) {
 #if defined(_WIN32) && (defined(__MINGW32__) || defined(__MINGW64__))
-            /* PLATFORM: WINDOWS | MINGW — gcc as link driver pulls UCRT/msvcrt and
-             * resolves on-demand std/panic objs. Bare lld-link without /libpath to
-             * mingw ucrt left printf/__acrt_iob_func UNDEF after ws2_32 was fixed. */
+            /* PLATFORM: WINDOWS | MINGW — w1542 (7.1): spawn bare MinGW ld, never
+             * gcc (default user path host-cc=0). labi_win_ld_* (L7 .x) derive
+             * crt2/crtbegin/crtend, -L dirs and the libgcc/mingw -l tail from
+             * ld.exe on PATH (≡ the old gcc driver line); missing → BLD001,
+             * no gcc fallback. User/std -l stay before the runtime tail. */
+            static char xlang_win_ld_bufs[12 * 1024];
             la = 0;
             ld_bank->n = 0;
             memset(ld_bank->slots, 0, sizeof ld_bank->slots);
-            argv[la++] = "gcc";
+            if (labi_win_ld_prepare(xlang_win_ld_bufs, 1024) != 0)
+                return -1;
+            argv[la++] = "ld";
+            labi_win_ld_append_head(xlang_win_ld_bufs, 1024, argv, &la, XLANG_LD_ARGV_CAP);
             argv[la++] = "-o";
             argv[la++] = exe_path;
             argv[la++] = o_path;
             xlang_asm_ld_append_std_objs_for_user(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_on_demand_user_objs(link_eff, o_path, lib_roots_eff, n_lib_roots_eff, ld_bank, argv, &la, XLANG_LD_ARGV_CAP, &ldflags);
             xlang_asm_ld_append_user_extra_o_files(argv, &la, XLANG_LD_ARGV_CAP);
+            labi_win_ld_append_tail(xlang_win_ld_bufs, 1024, argv, &la, XLANG_LD_ARGV_CAP);
             argv[la] = NULL;
             {
-                int rc = xlang_spawn_sync("gcc", (const char *const *)argv);
+                int rc = xlang_spawn_sync(labi_win_ld_slot(xlang_win_ld_bufs, 1024, 0), (const char *const *)argv);
                 if (rc != 0) {
                     link_diag_tool_status("ld", rc);
                     return -1;
@@ -6170,8 +6215,7 @@ int xlang_asm_invoke_ld_platform(const char *o_path, const char *exe_path, const
 #endif
         argv[la] = NULL;
         /* wave225 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl. */
-        if (link_abi_getenv("XLANG_DEBUG_LD"))
-            link_diag_ld_debug_argv("ld argv", argv);
+        /* Class AK: XLANG_DEBUG_LD argv dump retired. */
 #if defined(_WIN32) || defined(_WIN64) || defined(__CYGWIN__)
         {
             intptr_t rc = _spawnvp(_P_WAIT, argv[0], (const char *const *)argv);
@@ -6592,6 +6636,9 @@ int xlang_forward_main_to_main_entry(int argc, char **argv) {
   return 0;
 }
 
+/* wave763 Class N: when XLANG_LABI_HOST_LIT_FROM_X, empty no-ops live in
+ * labi_host_lit.x (pure-asm); skip Cap WEAK host-cc here. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 XLANG_WEAK void bootstrap_init_static_tls(void) {
   (void)(0);
 }
@@ -6599,6 +6646,10 @@ XLANG_WEAK void bootstrap_init_static_tls(void) {
 XLANG_WEAK void bootstrap_init_environ(int argc, char **argv) {
   (void)(0);
 }
+#else
+void bootstrap_init_static_tls(void);
+void bootstrap_init_environ(int argc, char **argv);
+#endif
 
 /* PLATFORM: SHARED — pthread large-stack availability gate.
  *   POSIX (Linux/macOS): winpthreads absent; real pthreads support 256MiB
@@ -6614,6 +6665,9 @@ XLANG_WEAK void bootstrap_init_environ(int argc, char **argv) {
  *   Authority: this XLANG_WEAK def is the sole linked definition on all
  *     platforms; the strong def in bootstrap_nostdlib_stubs.from_x.c
  *     (returns 1) is an orphan target never linked. G.4 single authority. */
+/* wave762 Class M: when XLANG_LABI_HOST_LIT_FROM_X, gate lives in
+ * labi_host_lit.x (pure-asm #[cfg]); skip Cap #if host-cc here. */
+#ifndef XLANG_LABI_HOST_LIT_FROM_X
 XLANG_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
 #if defined(_WIN32) || defined(_WIN64)
   return 1;
@@ -6621,4 +6675,7 @@ XLANG_WEAK int bootstrap_nostdlib_pthread_is_stub(void) {
   return 0;
 #endif
 }
+#else
+int bootstrap_nostdlib_pthread_is_stub(void);
+#endif
 

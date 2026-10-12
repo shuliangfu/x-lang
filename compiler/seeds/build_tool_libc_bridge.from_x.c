@@ -1,6 +1,7 @@
 /* seeds/build_tool_libc_bridge.from_x.c — G-02f-79 product cold-start TU
- * Promoted from compiler/src/build_tool_libc_bridge.inc (alias/stub; retired .inc).
- * Compile: cc -c seeds/build_tool_libc_bridge.from_x.c  (or cc_inc_tu wrap).
+ * Darwin arm64 and Linux product body is
+ * src/asm/build_tool_libc_bridge_darwin.x.
+ * A Linux miss does not exec cc. Windows keeps this C seed.
  */
 /**
  * build_tool_libc_bridge.c — build_tool 宿主 libc 桥（G-05）

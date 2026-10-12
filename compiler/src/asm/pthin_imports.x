@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1146: one translation unit exits 139. Darwin compiles each function
+// and links the seven pieces. Helper calls already sit in unsafe.
+// PLATFORM: SHARED.
+
 // pthin_imports.x — G-02f-320 P11 parser thin imports product bodies.
 //
 // 7.2.1 P11b B-minus productize (2026-09-13): skip_imports peek loop
@@ -126,6 +130,7 @@ const IMPORT_BIND_CAP: i32 = 128;
  * @param line i32 — saved line
  * @param col i32 — saved col
  */
+#[no_mangle]
 function parser_asm_imports_restore_lex(lex: *u8, pos: usize, line: i32, col: i32): void {
   unsafe {
     parser_asm_lex_set_pos_c(lex, pos);
@@ -142,6 +147,7 @@ function parser_asm_imports_restore_lex(lex: *u8, pos: usize, line: i32, col: i3
  * @param want i32 — expected token kind
  * @return i32 — 1 if consumed; 0 if peek mismatched
  */
+#[no_mangle]
 function parser_asm_imports_expect_kind(lex_inout: *u8, source: *u8, want: i32): i32 {
   let kind: i32 = 0;
   unsafe {
@@ -166,6 +172,7 @@ function parser_asm_imports_expect_kind(lex_inout: *u8, source: *u8, want: i32):
  * @param path_len *i32 — out length slot
  * @return i32 — 1 on copy; 0 on unclosed / overflow
  */
+#[no_mangle]
 function parser_asm_imports_copy_quoted_path(data: *u8, slen_us: usize, ts: usize, path_buf: *u8, path_len: *i32): i32 {
   let q0: usize = 0;
   let q1: usize = 0;

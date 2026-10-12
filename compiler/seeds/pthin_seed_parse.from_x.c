@@ -3,7 +3,7 @@
  * Hybrid: XLANG_PTHIN_SEED_PARSE_FROM_X (only when not NO_SEED_PARSE)
  *         + ld -r into thin glue for seed-bootstrap paths.
  *
- * Body: seeds/parser_asm/parser_asm_seed_parse_into_buf_slice.inc
+ * Body: seeds wrapper → analysis/archive/parser_asm/… (Class BY).
  * Product G05 still uses -DPARSER_ASM_THIN_GLUE_NO_SEED_PARSE (parser_x owns parse_into_buf).
  */
 #include <stddef.h>
@@ -211,7 +211,18 @@ struct ast_Expr {
   int32_t call_resolved_dep_index;
 };
 
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void lexer_next_buf(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+#ifndef PARSER_ASM_LEXER_NEXT_BUF_V
+#define PARSER_ASM_LEXER_NEXT_BUF_V 1
+/* lexer_next_buf writes its result through out (e5ba88d9d). A by-value
+ * call only matched on x86-64/Win64 by luck; arm64 passes sret in x8. */
+static inline struct parser_asm_lexer_result parser_asm_lexer_next_buf_v(struct parser_asm_lexer lex, uint8_t *data,
+                                                                         int32_t len) {
+  struct parser_asm_lexer_result r;
+  lexer_next_buf(&r, lex, data, len);
+  return r;
+}
+#endif
 extern struct parser_asm_onefunc_result parser_onefunc_scratch_empty(void);
 extern void parser_onefunc_res_wire_dummy_head(struct parser_asm_onefunc_result *res, struct parser_asm_lexer lex,
                                                uint8_t *name64);
@@ -225,7 +236,7 @@ extern void parser_onefunc_res_wire_dummy_for_if(struct parser_asm_onefunc_resul
  * (skip_tl_slice.inc, thin glue TU) and uses a source stash set by parser.x via
  * xlang_generic_bound_set_source_c. No call from seed_parse needed. */
 
-#include "parser_asm_seed_parse_into_buf_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_seed_parse_into_buf_slice.inc" /* Class BZ: wrapper deleted */
 
 int labi_pthin_seed_parse_slice_marker(void) {
   return 1;

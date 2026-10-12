@@ -29,16 +29,29 @@ export struct Option_i32 {
   value: i32;
 }
 
-// none_i32
-/** `none_i32`: see signature for params/returns; contracts in body. */
-export function none_i32(): Option_i32 {
-  return { is_some: false, value: 0 }
+/**
+ * Write a missing i32 option.
+ * @param out *Option_i32 — destination; must not be null
+ * @return i32 — always 0
+ * PLATFORM: SHARED — the installed product cannot asm-emit an Option return.
+ */
+export function none_i32(out: *Option_i32): i32 {
+  out.is_some = false;
+  out.value = 0;
+  return 0;
 }
 
-// some_i32
-/** `some_i32`: see signature for params/returns; contracts in body. */
-export function some_i32(x: i32): Option_i32 {
-  return { is_some: true, value: x }
+/**
+ * Write a present i32 option.
+ * @param out *Option_i32 — destination; must not be null
+ * @param x i32 — stored value
+ * @return i32 — always 0
+ * PLATFORM: SHARED — the installed product cannot asm-emit an Option return.
+ */
+export function some_i32(out: *Option_i32, x: i32): i32 {
+  out.is_some = true;
+  out.value = x;
+  return 0;
 }
 
 // unwrap_or_i32
@@ -86,7 +99,9 @@ export function and_i32(opt: Option_i32, other: Option_i32): Option_i32 {
   if (opt.is_some) {
     return other;
   }
-  return none_i32();
+  let n: Option_i32 = { is_some: false, value: 0 };
+  none_i32(&n);
+  return n;
 }
 
 // --- section ---
@@ -94,10 +109,29 @@ allow(padding) struct Option_u8 {
   is_some: bool;
   value: u8;
 }
-/** `none_u8`: see signature for params/returns; contracts in body. */
-export function none_u8(): Option_u8 { return { is_some: false, value: 0 } }
-/** `some_u8`: see signature for params/returns; contracts in body. */
-export function some_u8(x: u8): Option_u8 { return { is_some: true, value: x } }
+/**
+ * Write a missing u8 option.
+ * @param out *Option_u8 — destination; must not be null
+ * @return i32 — always 0
+ * PLATFORM: SHARED — the installed product cannot asm-emit an Option return.
+ */
+export function none_u8(out: *Option_u8): i32 {
+  out.is_some = false;
+  out.value = 0;
+  return 0;
+}
+/**
+ * Write a present u8 option.
+ * @param out *Option_u8 — destination; must not be null
+ * @param x u8 — stored value
+ * @return i32 — always 0
+ * PLATFORM: SHARED — the installed product cannot asm-emit an Option return.
+ */
+export function some_u8(out: *Option_u8, x: u8): i32 {
+  out.is_some = true;
+  out.value = x;
+  return 0;
+}
 /** `unwrap_or_u8`: see signature for params/returns; contracts in body. */
 export function unwrap_or_u8(opt: Option_u8, default_val: u8): u8 {
   if (opt.is_some) {
@@ -129,7 +163,9 @@ export function and_u8(opt: Option_u8, other: Option_u8): Option_u8 {
   if (opt.is_some) {
     return other;
   }
-  return none_u8();
+  let n: Option_u8 = { is_some: false, value: 0 };
+  none_u8(&n);
+  return n;
 }
 
 // --- section ---
@@ -138,28 +174,53 @@ allow(padding) struct Option_u64 {
   value: u64;
 }
 
-/** `none_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function none_u64(): Option_u64 { return { is_some: false, value: 0 } }
+/**
+ * Write a missing u64 option.
+ * @param out *Option_u64 — destination; must not be null
+ * @return i32 — always 0
+ * PLATFORM: SHARED — the installed product cannot asm-emit an Option return.
+ */
+export function none_u64(out: *Option_u64): i32 {
+  out.is_some = false;
+  out.value = 0;
+  return 0;
+}
 
-/** `some_u64`: purpose/params/returns per signature; panics or error codes follow local contracts. */
-export function some_u64(x: u64): Option_u64 { return { is_some: true, value: x } }
+/**
+ * Write a present u64 option.
+ * @param out *Option_u64 — destination; must not be null
+ * @param x u64 — stored value
+ * @return i32 — always 0
+ * PLATFORM: SHARED — the installed product cannot asm-emit an Option return.
+ */
+export function some_u64(out: *Option_u64, x: u64): i32 {
+  out.is_some = true;
+  out.value = x;
+  return 0;
+}
 
 // --- section ---
 
 /** `map_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function map_i32(opt: Option_i32, mapped: i32): Option_i32 {
+  let r: Option_i32 = { is_some: false, value: 0 };
   if (is_some_i32(opt)) {
-    return some_i32(mapped);
+    some_i32(&r, mapped);
+    return r;
   }
-  return none_i32();
+  none_i32(&r);
+  return r;
 }
 
 /** `map_u8`: purpose/params/returns per signature; panics or error codes follow local contracts. */
 export function map_u8(opt: Option_u8, mapped: u8): Option_u8 {
+  let r: Option_u8 = { is_some: false, value: 0 };
   if (is_some_u8(opt)) {
-    return some_u8(mapped);
+    some_u8(&r, mapped);
+    return r;
   }
-  return none_u8();
+  none_u8(&r);
+  return r;
 }
 
 /** `and_then_i32`: purpose/params/returns per signature; panics or error codes follow local contracts. */
@@ -167,7 +228,9 @@ export function and_then_i32(opt: Option_i32, next: Option_i32): Option_i32 {
   if (is_some_i32(opt)) {
     return next;
   }
-  return none_i32();
+  let n: Option_i32 = { is_some: false, value: 0 };
+  none_i32(&n);
+  return n;
 }
 
 /** `unwrap_or`: purpose/params/returns per signature; panics or error codes follow local contracts. */

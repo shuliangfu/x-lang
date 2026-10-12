@@ -93,11 +93,13 @@ export function bootstrap_vfprintf_fd(fd: i32, fmt: *u8, ap: *u8): i32 {
 
 /** Exported function `bootstrap_align16`.
  * Implements `bootstrap_align16`.
- * @param n usize
- * @return usize
+ * @param n usize — byte count to round up
+ * @return i64 — 16-byte aligned count in rax; link name unchanged
+ * PLATFORM: SHARED — the installed product cannot asm-emit a usize return.
  */
 #[no_mangle]
-export function bootstrap_align16(n: usize): usize {
-  // (n + 15) & ~15
-  return (n + 15) & (0 - 16);
+export function bootstrap_align16(n: usize): i64 {
+  // (n + 15) & ~15. The low 64 bits match size_t.
+  let a: usize = (n + 15) & (0 - 16);
+  return a as i64;
 }

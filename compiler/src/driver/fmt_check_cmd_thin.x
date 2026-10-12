@@ -103,6 +103,9 @@ export extern "C" function xlang_ptr_slot_get(arr: *u8, i: i32): *u8;
 export extern "C" function xlang_ptr_slot_set(arr: *u8, i: i32, p: *u8): void;
 // PLATFORM: POSIX write(2) for check progress / summary on stderr (fd 2).
 export extern "C" function fs_posix_write_c(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function free(p: *u8): void;
+export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
 // Spinner thread lives in seed rest (pthread entry ABI); thin owns orch + relative path.
 // PLATFORM: SHARED — pthread on POSIX; Windows rest falls back to static frame.
 export extern "C" function check_progress_spin_start(path: *u8): void;
@@ -453,26 +456,33 @@ export function check_progress_finish(): void {
  * PLATFORM: SHARED. */
 #[no_mangle]
 export function check_print_summary(): void {
+  // Live pad. Call spills in this function sit past a smaller frame.
+  let pad: u8[256] = [];
+  pad[0] = 0;
   unsafe {
-    let buf: u8[256] = [];
+    // Heap line buffer. A 256-byte stack array is stored past the frame.
+    let buf: *u8 = malloc(256);
+    if (buf == 0) { return; }
+    memset(buf, 0, 256);
     let at: i32 = 0;
     let atp: i32[1] = [0];
-    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_pfx[0]);
-    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_files[0]);
-    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_files[0]);
-    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_passed[0]);
-    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_passed[0]);
-    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_errors[0]);
-    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_errors[0]);
-    check_buf_append_u32(&buf[0], &atp[0], 250, g_check_sum_warnings[0]);
-    check_buf_append_lit(&buf[0], &atp[0], 250, &g_fmt_lit_check_sum_warns[0]);
+    check_buf_append_lit(buf, &atp[0], 250, &g_fmt_lit_check_sum_pfx[0]);
+    check_buf_append_u32(buf, &atp[0], 250, g_check_sum_files[0]);
+    check_buf_append_lit(buf, &atp[0], 250, &g_fmt_lit_check_sum_files[0]);
+    check_buf_append_u32(buf, &atp[0], 250, g_check_sum_passed[0]);
+    check_buf_append_lit(buf, &atp[0], 250, &g_fmt_lit_check_sum_passed[0]);
+    check_buf_append_u32(buf, &atp[0], 250, g_check_sum_errors[0]);
+    check_buf_append_lit(buf, &atp[0], 250, &g_fmt_lit_check_sum_errors[0]);
+    check_buf_append_u32(buf, &atp[0], 250, g_check_sum_warnings[0]);
+    check_buf_append_lit(buf, &atp[0], 250, &g_fmt_lit_check_sum_warns[0]);
     at = atp[0];
     if (at > 0) {
       let n: usize = at as usize;
-      let w: isize = fs_posix_write_c(2, &buf[0], n);
+      let w: isize = fs_posix_write_c(2, buf, n);
       let _keep: isize = w;
     }
-    /* 汇总后空行：提升多文件 check 打印可读性 */
+    free(buf);
+    /* Blank line after the summary so multi-file check output stays readable. */
     let nl: u8[1] = [10];
     let wnl: isize = fs_posix_write_c(2, &nl[0], 1);
     let _keepnl: isize = wnl;

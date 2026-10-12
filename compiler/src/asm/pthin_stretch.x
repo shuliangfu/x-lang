@@ -31,6 +31,10 @@
 // P9 C _Static_assert is the drift gate (token.h stays the enum authority).
 // Cold twin (seeds/pthin_stretch.from_x.c) keeps the .inc fallback.
 // PLATFORM: SHARED freestanding.
+//
+// w1148: one translation unit exits 139. Darwin compiles each function
+// and links the fifteen pieces. Helper calls sit in unsafe.
+// PLATFORM: SHARED.
 
 // --- TokenKind metadata tables (indices align with the lexer's TOKEN_*). ---
 
@@ -103,6 +107,7 @@ const STRETCH_TOKEN_ALIGN: i32 = 33;
  * @return i32 — literal byte length (>= 1)
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_token_run_len_c(kind: i32): i32 {
   if (kind >= 0 && kind < 64) {
     let v: i32 = g_stretch_run_len[kind] as i32;
@@ -121,6 +126,7 @@ export function parser_asm_stretch_token_run_len_c(kind: i32): i32 {
  * @return i32 — 1 valid; 0 invalid
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_import_path_validate_c(path: *u8, path_len: i32): i32 {
   let i: i32 = 0;
   if (path == 0 as *u8 || path_len <= 0) {
@@ -156,6 +162,7 @@ export function parser_asm_stretch_import_path_validate_c(path: *u8, path_len: i
  * @return i32 — 1 when the kind can start a field name; 0 otherwise
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_struct_field_name_kind_c(kind: i32): i32 {
   if (kind == STRETCH_TOKEN_IDENT) {
     return 1;
@@ -175,9 +182,14 @@ export function parser_asm_stretch_struct_field_name_kind_c(kind: i32): i32 {
  * @return i32 — 1 when the field list continues; 0 otherwise
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32 {
-  if (parser_asm_stretch_struct_field_name_kind_c(kind) != 0) {
-    return 1;
+  // Darwin compiles this function alone. The name-kind helper is an
+  // extern, so the call sits in unsafe.
+  unsafe {
+    if (parser_asm_stretch_struct_field_name_kind_c(kind) != 0) {
+      return 1;
+    }
   }
   if (kind == STRETCH_TOKEN_ALIGN) {
     return 1;
@@ -192,6 +204,7 @@ export function parser_asm_stretch_struct_field_continues_kind_c(kind: i32): i32
  * @return i32 — 1 when this looks like `ident:`; 0 otherwise
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_token_is_label_start_c(cur_kind: i32, next_kind: i32): i32 {
   if (cur_kind != STRETCH_TOKEN_IDENT) {
     return 0;
@@ -209,6 +222,7 @@ export function parser_asm_stretch_token_is_label_start_c(cur_kind: i32, next_ki
  * @return i32 — 1 declaration keyword; 0 otherwise
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_diag_after_imports_kind_c(kind: i32): i32 {
   if (kind == STRETCH_TOKEN_STRUCT || kind == STRETCH_TOKEN_ENUM) {
     return 1;
@@ -233,6 +247,7 @@ export function parser_asm_stretch_diag_after_imports_kind_c(kind: i32): i32 {
  * @return i32 — normalized valid length (may be < path_len; 0 on invalid)
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_import_path_normalize_c(path_buf: *u8, path_len: i32): i32 {
   let i: i32 = 0;
   let out_len: i32 = 0;
@@ -242,8 +257,12 @@ export function parser_asm_stretch_import_path_normalize_c(path_buf: *u8, path_l
   if (path_len > 63) {
     path_len = 63;
   }
-  if (parser_asm_stretch_import_path_validate_c(path_buf, path_len) == 0) {
-    return 0;
+  // Darwin compiles this function alone. The validate helper is an
+  // extern, so the call sits in unsafe.
+  unsafe {
+    if (parser_asm_stretch_import_path_validate_c(path_buf, path_len) == 0) {
+      return 0;
+    }
   }
   while (i < path_len) {
     let c: u8 = 0;
@@ -281,9 +300,11 @@ export function parser_asm_stretch_import_path_normalize_c(path_buf: *u8, path_l
  * @param len usize — source length
  * @param pos usize — current position
  * @return usize — updated position (or pos when not a comment)
+ * Exported so the whitespace walker, compiled as its own piece, can call it.
  * PLATFORM: SHARED.
  */
-function parser_asm_stretch_skip_comment_at_c(data: *u8, len: usize, pos: usize): usize {
+#[no_mangle]
+export function parser_asm_stretch_skip_comment_at_c(data: *u8, len: usize, pos: usize): usize {
   let i: usize = 0;
   if (data == 0 as *u8) {
     return pos;
@@ -324,6 +345,7 @@ function parser_asm_stretch_skip_comment_at_c(data: *u8, len: usize, pos: usize)
  * @return usize — first non-ws non-comment position
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize, pos: usize): usize {
   let p: usize = pos;
   let moved: i32 = 0;
@@ -342,7 +364,12 @@ export function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize,
       }
       break;
     }
-    let np: usize = parser_asm_stretch_skip_comment_at_c(data, len, p);
+    let np: usize = 0;
+    // Darwin compiles this function alone. The comment helper is an
+    // extern, so the call sits in unsafe.
+    unsafe {
+      np = parser_asm_stretch_skip_comment_at_c(data, len, p);
+    }
     if (np != p) {
       p = np;
       moved = 1;
@@ -356,8 +383,12 @@ export function parser_asm_stretch_skip_ws_and_comments_c(data: *u8, len: usize,
 
 // --- Keyword spelling verification (coarse, table-driven). ---
 
-// 35 keywords x 10 bytes each (longest is "function"=8 + NUL; row-major).
-let g_stretch_kw_spell: u8[350] = [
+// 36 keywords x 10 bytes each (longest is "function"=8 + NUL; row-major).
+// Size must equal STRETCH_KW_COUNT * STRETCH_KW_ROW. A longer ARRAY_LIT than
+// the declared TYPE_ARRAY is a typeck-silent C excess-init; asm bake then
+// CG002 (ne > span). C twin k_parser_asm_stretch_kw_spell is 36 strings
+// including "label" (sizeof walk). PLATFORM: SHARED.
+let g_stretch_kw_spell: u8[360] = [
   114, 101, 116, 117, 114, 110, 0, 0, 0, 0,
   102, 117, 110, 99, 116, 105, 111, 110, 0, 0,
    99, 111, 110, 115, 116, 0, 0, 0, 0, 0,
@@ -396,7 +427,7 @@ let g_stretch_kw_spell: u8[350] = [
   108, 97, 98, 101, 108, 0, 0, 0, 0, 0,
 ];
 
-const STRETCH_KW_COUNT: i32 = 35;
+const STRETCH_KW_COUNT: i32 = 36;
 const STRETCH_KW_ROW: i32 = 10;
 
 /**
@@ -411,6 +442,7 @@ const STRETCH_KW_ROW: i32 = 10;
  * @return i32 — 1 coarse-ok; 0 hard-fail
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_verify_kw_spelling_c(data: *u8, len: usize, token_start: usize, kind: i32, run_len: i32): i32 {
   let ki: i32 = 0;
   let i: i32 = 0;
@@ -458,23 +490,33 @@ export function parser_asm_stretch_verify_kw_spelling_c(data: *u8, len: usize, t
  * @return i32 — normalized length when valid; 0 otherwise
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_import_path_finalize_c(path_buf: *u8, path_len: i32, source: *u8, source_len: usize): i32 {
   let nlen: i32 = 0;
   if (path_buf == 0 as *u8 || path_len <= 0) {
     return 0;
   }
-  nlen = parser_asm_stretch_import_path_normalize_c(path_buf, path_len);
+  // Darwin compiles this function alone. The normalize, skip, and
+  // validate helpers are externs, so each call sits in unsafe.
+  unsafe {
+    nlen = parser_asm_stretch_import_path_normalize_c(path_buf, path_len);
+  }
   if (nlen <= 0) {
     return 0;
   }
   if (source != 0 as *u8 && source_len > 0) {
-    let np: usize = parser_asm_stretch_skip_ws_and_comments_c(source, source_len, 0);
+    let np: usize = 0;
+    unsafe {
+      np = parser_asm_stretch_skip_ws_and_comments_c(source, source_len, 0);
+    }
     if (np == source_len) {
       return 0;
     }
   }
-  if (parser_asm_stretch_import_path_validate_c(path_buf, nlen) != 0) {
-    return nlen;
+  unsafe {
+    if (parser_asm_stretch_import_path_validate_c(path_buf, nlen) != 0) {
+      return nlen;
+    }
   }
   return 0;
 }
@@ -484,9 +526,11 @@ export function parser_asm_stretch_import_path_finalize_c(path_buf: *u8, path_le
  * @param c u8 — byte to check
  * @param is_first i32 — 1 for the first byte; 0 for continuation
  * @return i32 — 1 ok; 0 rejected
+ * Exported so the bind-name check, compiled as its own piece, can call it.
  * PLATFORM: SHARED.
  */
-function parser_asm_stretch_ident_byte_ok_c(c: u8, is_first: i32): i32 {
+#[no_mangle]
+export function parser_asm_stretch_ident_byte_ok_c(c: u8, is_first: i32): i32 {
   if (is_first != 0) {
     unsafe {
       if (g_stretch_ident_start[c] != 0) {
@@ -511,6 +555,7 @@ function parser_asm_stretch_ident_byte_ok_c(c: u8, is_first: i32): i32 {
  * @return i32 — 1 valid ident; 0 invalid
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_bind_name_validate_c(name: *u8, len: i32): i32 {
   let i: i32 = 0;
   let c0: u8 = 0;
@@ -518,15 +563,21 @@ export function parser_asm_stretch_bind_name_validate_c(name: *u8, len: i32): i3
     return 0;
   }
   unsafe { c0 = name[0]; }
-  if (parser_asm_stretch_ident_byte_ok_c(c0, 1) == 0) {
-    return 0;
+  // Darwin compiles this function alone. The byte-class helper is an
+  // extern, so each call sits in unsafe.
+  unsafe {
+    if (parser_asm_stretch_ident_byte_ok_c(c0, 1) == 0) {
+      return 0;
+    }
   }
   i = 1;
   while (i < len) {
     let c: u8 = 0;
     unsafe { c = name[i]; }
-    if (parser_asm_stretch_ident_byte_ok_c(c, 0) == 0) {
-      return 0;
+    unsafe {
+      if (parser_asm_stretch_ident_byte_ok_c(c, 0) == 0) {
+        return 0;
+      }
     }
     i = i + 1;
   }
@@ -576,6 +627,7 @@ const TOKEN_ASSIGN: i32 = 117;
  * @return i32 — STRETCH_TOP_* classification
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_classify_toplevel_c(kind: i32, next_kind: i32, third_kind: i32): i32 {
   if (kind == TOKEN_IMPORT) {
     return STRETCH_TOP_IMPORT;
@@ -615,6 +667,7 @@ export function parser_asm_stretch_classify_toplevel_c(kind: i32, next_kind: i32
  * @return i32 — quality score (higher = more specific)
  * PLATFORM: SHARED.
  */
+#[no_mangle]
 export function parser_asm_stretch_import_path_score_c(path: *u8, path_len: i32): i32 {
   let i: i32 = 0;
   let seg: i32 = 0;
@@ -636,8 +689,12 @@ export function parser_asm_stretch_import_path_score_c(path: *u8, path_len: i32)
       i = i + 1;
       continue;
     }
-    if (parser_asm_stretch_import_path_validate_c(path, path_len) == 0) {
-      return 0;
+    // Darwin compiles this function alone. The validate helper is an
+    // extern, so the call sits in unsafe.
+    unsafe {
+      if (parser_asm_stretch_import_path_validate_c(path, path_len) == 0) {
+        return 0;
+      }
     }
     seg_len = seg_len + 1;
     if (seg_len > 63) {

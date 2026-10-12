@@ -6,7 +6,6 @@
 #
 # 产出：
 #   seeds/bootstrap_xlangc.<os>.<arch>（linux / darwin / freebsd）
-#   seeds/asm_backend_partial.<os>.<arch>.o
 #
 # CI：.github/workflows/bootstrap-seeds-capture.yml（linux/darwin/Alpine）
 #      .cirrus.yml（FreeBSD 云端 VM，无需自备真机）
@@ -15,14 +14,6 @@ set -e
 cd "$(dirname "$0")/.."
 
 export XLANG_LEGACY_C_FRONTEND=1
-
-has_real_partial_seed_mega() {
-  _obj="$1"
-  nm "$_obj" 2>/dev/null | awk '/ T / {
-    s=$3; sub(/^_/, "", s)
-    if (s == "backend_asm_codegen_ast_seed_mega") found=1
-  } END { exit !found }'
-}
 
 os="$(uname -s | tr '[:upper:]' '[:lower:]')"
 arch="$(uname -m 2>/dev/null | tr '[:upper:]' '[:lower:]')"
@@ -48,13 +39,8 @@ fi
 mkdir -p seeds
 ./scripts/bootstrap_xlangc_create.sh ./xlang
 cp -f bootstrap_xlangc "seeds/bootstrap_xlangc.${os}.${arch}"
-if has_real_partial_seed_mega build_asm/seed_host/asm_backend_partial.o; then
-  cp -f build_asm/seed_host/asm_backend_partial.o "seeds/asm_backend_partial.${os}.${arch}.o"
-else
-  rm -f "seeds/asm_backend_partial.${os}.${arch}.o"
-  echo "capture_bootstrap_seeds: skip non-real asm_backend_partial seed (missing strong seed_mega)" >&2
-fi
+# w1541 (6.3): asm_backend_partial.o is rebuilt by pure asm every time; no seed copy.
+rm -f "seeds/asm_backend_partial.${os}.${arch}.o"
 
 echo "capture_bootstrap_seeds OK:"
 ls -la "seeds/bootstrap_xlangc.${os}.${arch}" 2>/dev/null
-ls -la "seeds/asm_backend_partial.${os}.${arch}.o" 2>/dev/null || true

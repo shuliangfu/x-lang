@@ -4,7 +4,9 @@
  * soft residual smoke (assert + println). Product body stays in std/debug/mod.x.
  * G.7: single formal vehicle for pure-asm product link (std/debug/debug.o).
  * formal_mod kind=c_face.
- * PLATFORM: POSIX — write(2, …) for stderr (fd 2); Windows soft residual separate.
+ * Darwin arm64 product body is compiler/src/asm/std_debug_formal_darwin.x
+ * (libSystem write). This file stays the Linux and Windows face, and the
+ * Darwin fallback when pure asm leaves no object.
  */
 #include <stdint.h>
 #include <unistd.h>

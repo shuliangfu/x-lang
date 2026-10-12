@@ -280,6 +280,26 @@ ensure_pipeline_wpo_helpers_partial_obj() {
 ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
   local BR_O="$BUILD_DIR/pipeline_wpo_typecheck_emit_bridge.o"
   local BR_SRC="seeds/pipeline_wpo_typecheck_emit_bridge.from_x.c"
+  # w1122: Darwin arm64 and Linux bridge is asm of the existing .x.
+  # The emit passes -lib-name "". Linux miss does not cc.
+  # Windows stays on the C seed line.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _eb_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _eb_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_eb_os" = "Linux" ] && [ "$_eb_mach" = "x86_64" ] \
+    && [ -f src/pipeline_wpo_typecheck_emit_bridge.x ]; then
+    if [ ! -f "$BR_O" ] || [ src/pipeline_wpo_typecheck_emit_bridge.x -nt "$BR_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-emit-bridge-pure "$BR_O" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_eb_os" = "Darwin" ] && [ "$_eb_mach" = "arm64" ] \
+    && [ -f src/pipeline_wpo_typecheck_emit_bridge.x ]; then
+    if [ ! -f "$BR_O" ] || [ src/pipeline_wpo_typecheck_emit_bridge.x -nt "$BR_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-emit-bridge-pure "$BR_O" || return 1
+    fi
+    return 0
+  fi
   [ -f "$BR_SRC" ] || return 1
   if [ ! -f "$BR_O" ] || [ "$BR_SRC" -nt "$BR_O" ]; then
   strict_glue_info "cc_inc_tu $BR_SRC -> $BR_O"
@@ -292,7 +312,24 @@ ensure_pipeline_wpo_typecheck_emit_bridge_obj() {
 # strict 链：ast.x 裸名 → pipeline_glue ast_ast_*（typeck_strict_link_partial 去重后缺 ast_block_if_*）。
 ensure_ast_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/ast_asm_bare_link_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+  # w1115: Darwin arm64 and Linux aliases are the .x. Linux miss does not cc.
+  # Windows stays on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ab_os" = "Linux" ] && [ "$_ab_mach" = "x86_64" ] \
+    && [ -f ast_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ ast_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh ast-bare-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+    && [ -f ast_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ ast_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh ast-bare-alias-pure "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ seeds/ast_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
   strict_glue_info "cc ast_asm_bare_link_alias.o"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -I"$BUILD_DIR" -c -o "$ALIAS_O" seeds/ast_asm_bare_link_alias.from_x.c
   fi
@@ -304,11 +341,44 @@ ensure_asm_xlang_lsp_diag_stub_obj() {
   local STUB_O="$BUILD_DIR/asm_xlang_lsp_diag_stub.o"
   local LSP_IO_STUB="seeds/typeck_lsp_io_stub.from_x.c"
   local LSP_IO_O="$BUILD_DIR/typeck_lsp_io_stub.o"
-  if [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
+  # w1126: Darwin arm64 and Linux IO stub is pure asm of the existing .x.
+  # The diag stub below stays on its own hook.
+  # Linux miss does not cc. Windows stays on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _io_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _io_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_io_os" = "Linux" ] && [ "$_io_mach" = "x86_64" ] \
+    && [ -f src/typeck_lsp_io_stub.x ]; then
+    if [ ! -f "$LSP_IO_O" ] || [ src/typeck_lsp_io_stub.x -nt "$LSP_IO_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-io-stub-pure "$LSP_IO_O" || return 1
+    fi
+  elif [ "$_io_os" = "Darwin" ] && [ "$_io_mach" = "arm64" ] \
+    && [ -f src/typeck_lsp_io_stub.x ]; then
+    if [ ! -f "$LSP_IO_O" ] || [ src/typeck_lsp_io_stub.x -nt "$LSP_IO_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-io-stub-pure "$LSP_IO_O"
+    fi
+  elif [ ! -f "$LSP_IO_O" ] || [ "$LSP_IO_STUB" -nt "$LSP_IO_O" ]; then
   strict_glue_info "cc_inc_tu $LSP_IO_O <- $LSP_IO_STUB"
   sh scripts/cc_inc_tu.sh "$LSP_IO_STUB" "$LSP_IO_O"
   fi
-  if [ ! -f "$STUB_O" ] || [ "$STUB_C" -nt "$STUB_O" ]; then
+  # w1113: Darwin arm64 and Linux stub is the .x. Linux miss does not cc.
+  # Windows stays on cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _lsp_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _lsp_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_lsp_os" = "Linux" ] && [ "$_lsp_mach" = "x86_64" ] \
+    && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
+    if [ ! -f "$STUB_O" ] || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$STUB_O" ] \
+      || [ "$STUB_C" -nt "$STUB_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-diag-stub-pure "$STUB_O" || return 1
+    fi
+  elif [ "$_lsp_os" = "Darwin" ] && [ "$_lsp_mach" = "arm64" ] \
+    && [ -f src/asm/asm_xlang_lsp_diag_stub_darwin.x ]; then
+    if [ ! -f "$STUB_O" ] || [ src/asm/asm_xlang_lsp_diag_stub_darwin.x -nt "$STUB_O" ] \
+      || [ "$STUB_C" -nt "$STUB_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-diag-stub-pure "$STUB_O"
+    fi
+  elif [ ! -f "$STUB_O" ] || [ "$STUB_C" -nt "$STUB_O" ]; then
   strict_glue_info "cc -c $STUB_O <- $STUB_C"
   "$CC" $CFLAGS -c -o "$STUB_O" "$STUB_C"
   fi
@@ -672,6 +742,26 @@ ensure_pipeline_x_glue_support_partial_obj() {
 
 ensure_asm_pipeline_run_impl_alias_obj() {
   local ALIAS_OBJ="$BUILD_DIR/pipeline_run_impl_alias.o"
+  # w1128: Darwin arm64 and Linux alias is asm of src/pipeline_run_impl_alias.x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
+  # Does not match pipeline_run_x_link_alias.o.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _ia_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ia_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ia_os" = "Linux" ] && [ "$_ia_mach" = "x86_64" ] \
+    && [ -f src/pipeline_run_impl_alias.x ]; then
+    if [ ! -f "$ALIAS_OBJ" ] || [ src/pipeline_run_impl_alias.x -nt "$ALIAS_OBJ" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh run-impl-alias-pure "$ALIAS_OBJ" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_ia_os" = "Darwin" ] && [ "$_ia_mach" = "arm64" ] \
+    && [ -f src/pipeline_run_impl_alias.x ]; then
+    if [ ! -f "$ALIAS_OBJ" ] || [ src/pipeline_run_impl_alias.x -nt "$ALIAS_OBJ" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh run-impl-alias-pure "$ALIAS_OBJ"
+    fi
+    return 0
+  fi
   local ALIAS_CFLAGS="$CFLAGS"
   if asm_strict_x_orchestration_ok; then
   ALIAS_CFLAGS="$CFLAGS -DXLANG_PIPELINE_RUN_IMPL_ALIAS_PARSE_ALIASES=0"
@@ -877,7 +967,24 @@ asm_strict_backend_selfhosted() {
 
 ensure_backend_asm_bare_link_alias_obj() {
   local ALIAS_O="$BUILD_DIR/backend_asm_bare_link_alias.o"
-  if [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+  # w1116: Darwin arm64 and Linux aliases are the .x. Linux miss does not cc.
+  # Windows stays on the C seed. Does not rebuild the encoder objects.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _bb_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _bb_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_bb_os" = "Linux" ] && [ "$_bb_mach" = "x86_64" ] \
+    && [ -f backend_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ backend_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-bare-alias-pure "$ALIAS_O" || return 1
+    fi
+  elif [ "$_bb_os" = "Darwin" ] && [ "$_bb_mach" = "arm64" ] \
+    && [ -f backend_asm_bare_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ backend_asm_bare_link_alias.x -nt "$ALIAS_O" ] \
+      || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh backend-bare-alias-pure "$ALIAS_O"
+    fi
+  elif [ ! -f "$ALIAS_O" ] || [ seeds/backend_asm_bare_link_alias.from_x.c -nt "$ALIAS_O" ]; then
   strict_glue_info "cc -c seeds/backend_asm_bare_link_alias.from_x.c -> $ALIAS_O"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o "$ALIAS_O" seeds/backend_asm_bare_link_alias.from_x.c
   fi
@@ -1004,22 +1111,31 @@ ensure_backend_o_strict_link_partial_obj() {
 
 ensure_asm_backend_compat_stubs_obj() {
   local STUB_O="$BUILD_DIR/asm_backend_compat_stubs.o"
-  if [ ! -f "$STUB_O" ] || [ seeds/asm_backend_compat_stubs.from_x.c -nt "$STUB_O" ]; then
-  strict_glue_info "cc -c seeds/asm_backend_compat_stubs.from_x.c -> $STUB_O"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/asm_backend_compat_stubs.from_x.c -o "$STUB_O"
+  local prod="src/asm/asm_backend_compat_stubs.o"
+  # w1533 (5.11): the C seed is deleted. Copy the g05 pure-asm object.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ -f "$prod" ]; then
+    if [ ! -f "$STUB_O" ] || [ "$prod" -nt "$STUB_O" ]; then
+      cp -f "$prod" "$STUB_O"
+    fi
+    return 0
+  fi
+  if [ ! -f "$STUB_O" ]; then
+    strict_glue_info "missing $prod; no seed cc (w1533)"
+    return 1
   fi
 }
 
 # 与 build_xlang_asm.sh 一致：pipeline_glue_standalone 引用 simd_enc / simd_loop / target_cpu。
 # PLATFORM: SHARED — G-02e: f32 xmm ABI folded into backend_call_dispatch (no pipeline_abi_f32_xmm.c).
 ensure_simd_glue_link_objs() {
-  if [ ! -f src/asm/backend_call_dispatch.o ] || [ seeds/backend_call_dispatch.from_x.c -nt src/asm/backend_call_dispatch.o ]; then
-  strict_glue_info "cc -c seeds/backend_call_dispatch.from_x.c -> src/asm/backend_call_dispatch.o (G-02e f32 xmm)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/backend_call_dispatch.from_x.c -o src/asm/backend_call_dispatch.o
-  fi
-  if [ ! -f src/driver/target_cpu.o ] || [ seeds/target_cpu_pure.from_x.c -nt src/driver/target_cpu.o ]; then
-  strict_glue_info "cc -c seeds/target_cpu_pure.from_x.c -> src/driver/target_cpu.o"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/target_cpu_pure.from_x.c -o src/driver/target_cpu.o
+  # w1524 (5.11): C seed deleted; same full .x object as the g05 main chain.
+  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/asm/backend_call_dispatch.o || return 1
+  # w1528: the C seed is deleted. Same full-.x pure asm as the g05 main chain.
+  # PLATFORM: SHARED. This script is not the daily path.
+  if [ ! -f src/driver/target_cpu.o ] || [ src/driver/target_cpu_pure.x -nt src/driver/target_cpu.o ]; then
+  strict_glue_info "pure asm src/driver/target_cpu_pure.x -> src/driver/target_cpu.o"
+  bash scripts/ensure_host_cc_seed_o.sh try-target-cpu-prefer src/driver/target_cpu.o || return 1
   fi
   if [ ! -f src/asm/simd_enc.o ] || [ seeds/simd_enc.from_x.c -nt src/asm/simd_enc.o ]; then
   strict_glue_info "cc -c seeds/simd_enc.from_x.c -> src/asm/simd_enc.o"
@@ -1151,6 +1267,26 @@ ensure_pipeline_wpo_strict_link_alias_obj() {
   local ALIAS_SRC="seeds/pipeline_wpo_strict_link_alias.from_x.c"
   if [ "${STRICT_LINK_BUILD_ASM_WPO:-0}" -ne 1 ] || ! asm_pipeline_wpo_strict_reach_ok; then
   return 0
+  fi
+  # w1121: Darwin arm64 and Linux alias is asm of the existing .x.
+  # The emit passes -lib-name "". Linux miss does not cc.
+  # Windows stays on -x -E then host cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on -x -E.
+  _wp_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _wp_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_wp_os" = "Linux" ] && [ "$_wp_mach" = "x86_64" ] \
+    && [ -f src/pipeline_wpo_strict_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_wpo_strict_link_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-strict-alias-pure "$ALIAS_O" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_wp_os" = "Darwin" ] && [ "$_wp_mach" = "arm64" ] \
+    && [ -f src/pipeline_wpo_strict_link_alias.x ]; then
+    if [ ! -f "$ALIAS_O" ] || [ src/pipeline_wpo_strict_link_alias.x -nt "$ALIAS_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh wpo-strict-alias-pure "$ALIAS_O" || return 1
+    fi
+    return 0
   fi
   # 7.2.1 seventh knife: .x authority via cc_inc_tu --auto prefer lane.
   if [ -x ./xlang_asm ] || [ -x ./xlang ] || [ -x ./xlang-c ]; then
@@ -1358,7 +1494,7 @@ filter_strict_asm_objs() {
   typeck_lsp_io_stub.o|\
   backend_wpo.o|backend_strict_link_partial.o|backend_asm_bare_link_alias.o|backend_asm_strict_fallback_alias.o|asm_backend_seed_helper_partial.o|backend_seed_mega_fallback.o|\
   asm_backend_compat_stubs.o|\
-  std_fs_shim.o|x_seed_bridge.o|seed_link_compat.o|\
+  std_fs_shim.o|seed_link_compat.o|\
   parser_from_gen.o|asm_experimental_symbol_bridge.o|asm_xlang_lsp_diag_stub.o|\
   \
   lexer.o|peephole.o|platform_elf.o|macho.o|coff.o|\
@@ -1475,10 +1611,20 @@ if [ ! -f parser_x.o ] && ensure_parser_asm_minimal_partial_obj; then
 fi
 
 PARSER_EXPR_LINK_O="src/asm/parser_asm_parse_expr_link.o"
-if [ ! -f "$PARSER_EXPR_LINK_O" ] || [ "seeds/parser_asm_parse_expr_link.from_x.c" -nt "$PARSER_EXPR_LINK_O" ]; then
-  strict_glue_info "cc seeds/parser_asm_parse_expr_link.from_x.c → parse_expr_link.o (G-02f-10)"
-  $CC $CFLAGS $PARSER_ASM_LINK_ALIAS_CFLAGS -I. -Iinclude -Isrc \
-    -c seeds/parser_asm_parse_expr_link.from_x.c -o "$PARSER_EXPR_LINK_O"
+# w1118: Darwin arm64 bridge is the .x.
+# w1533 (5.11): the C seed is deleted. Linux and Windows keep the g05
+# object and do not host-cc. PLATFORM: MACOS|DARWIN arm64 · LINUX · WINDOWS.
+_pe_os="$(uname -s 2>/dev/null || echo Unknown)"
+_pe_mach="$(uname -m 2>/dev/null || echo unknown)"
+if [ "$_pe_os" = "Darwin" ] && [ "$_pe_mach" = "arm64" ] \
+  && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
+  if [ ! -f "$PARSER_EXPR_LINK_O" ] \
+    || [ src/asm/parser_asm_parse_expr_link_darwin.x -nt "$PARSER_EXPR_LINK_O" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh parse-expr-link-pure "$PARSER_EXPR_LINK_O"
+  fi
+elif [ ! -f "$PARSER_EXPR_LINK_O" ]; then
+  strict_glue_info "missing $PARSER_EXPR_LINK_O; no seed cc (w1533)"
+  exit 1
 fi
 
 ST_LAYOUT_PARTIAL=""
@@ -1585,6 +1731,26 @@ fi
 ensure_pipeline_run_bootstrap_trampoline_obj() {
   local TRAMP_O TRAMP_CFLAGS
   TRAMP_O="$BUILD_DIR/pipeline_run_bootstrap_trampoline.o"
+  # w1129: Darwin arm64 and Linux trampoline is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
+  # Does not match pipeline_run_impl_alias.o.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _tr_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _tr_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_tr_os" = "Linux" ] && [ "$_tr_mach" = "x86_64" ] \
+    && [ -f src/pipeline_run_bootstrap_trampoline.x ]; then
+    if [ ! -f "$TRAMP_O" ] || [ src/pipeline_run_bootstrap_trampoline.x -nt "$TRAMP_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh trampoline-pure "$TRAMP_O" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_tr_os" = "Darwin" ] && [ "$_tr_mach" = "arm64" ] \
+    && [ -f src/pipeline_run_bootstrap_trampoline.x ]; then
+    if [ ! -f "$TRAMP_O" ] || [ src/pipeline_run_bootstrap_trampoline.x -nt "$TRAMP_O" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh trampoline-pure "$TRAMP_O"
+    fi
+    return 0
+  fi
   TRAMP_CFLAGS="$CFLAGS"
   if [ "${STRICT_LINK_BUILD_ASM_PIPELINE:-0}" -eq 1 ]; then
   if echo " $ASM_TRY_OBJS $ST_RUNTIME_PARTIAL $ST_STRICT_ORCH_ALIAS " | grep -qE 'pipeline\.o|orchestration|runtime_bootstrap|wpo_strict_link_alias'; then
@@ -1645,7 +1811,7 @@ elif [ "$ST_GLUE_OBJ" = "$BUILD_DIR/pipeline_glue_standalone.o" ] && \
 elif [ -f "$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o" ] && ! asm_strict_x_orchestration_ok; then
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_bootstrap_orchestration_strict.o"
 else
-  ensure_pipeline_run_bootstrap_trampoline_obj
+  ensure_pipeline_run_bootstrap_trampoline_obj || exit 1
   ST_RUNTIME_PARTIAL="$BUILD_DIR/pipeline_run_bootstrap_trampoline.o"
 fi
 ensure_asm_backend_compat_stubs_obj
@@ -1679,16 +1845,17 @@ LIBROOT_REL=""
 if [ -f src/asm/asm_build_list.x ]; then
   LIBROOT_REL=$(sed -n 's|^// LIBROOT:[[:space:]]*||p' src/asm/asm_build_list.x | head -1)
 fi
-if [ -f src/asm/pipeline_fill_dep_strict_alias.x ] \
-  && { [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
-  || [ src/asm/pipeline_fill_dep_strict_alias.x -nt src/asm/pipeline_fill_dep_strict_alias.o ]; }; then
-  if [ -x "$XLANG_REL" ] && "$XLANG_REL" -backend asm -o src/asm/pipeline_fill_dep_strict_alias.o $LIBROOT_REL \
-  src/asm/pipeline_fill_dep_strict_alias.x 2>/dev/null; then
-  strict_glue_info "$XLANG_REL -backend asm pipeline_fill_dep_strict_alias.x"
-  elif [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
-  strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c (fallback)"
-  sh scripts/cc_inc_tu.sh seeds/pipeline_fill_dep_strict_alias.from_x.c src/asm/pipeline_fill_dep_strict_alias.o
-  fi
+# w1140: Darwin arm64 and Linux object is pure asm of the .x.
+# Linux miss does not cc. Windows stays on host cc of the C seed.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+_fd_os="$(uname -s 2>/dev/null || echo Unknown)"
+_fd_mach="$(uname -m 2>/dev/null || echo unknown)"
+if [ "$_fd_os" = "Linux" ] && [ "$_fd_mach" = "x86_64" ] \
+  && [ -f src/asm/pipeline_fill_dep_strict_alias.x ]; then
+  bash scripts/ensure_host_cc_seed_o.sh fill-dep-alias-pure src/asm/pipeline_fill_dep_strict_alias.o || exit 1
+elif [ "$_fd_os" = "Darwin" ] && [ "$_fd_mach" = "arm64" ] \
+  && [ -f src/asm/pipeline_fill_dep_strict_alias.x ]; then
+  bash scripts/ensure_host_cc_seed_o.sh fill-dep-alias-pure src/asm/pipeline_fill_dep_strict_alias.o
 elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
   && [ -f seeds/pipeline_fill_dep_strict_alias.from_x.c ]; then
   strict_glue_info "cc -c seeds/pipeline_fill_dep_strict_alias.from_x.c"
@@ -1696,7 +1863,7 @@ elif [ ! -f src/asm/pipeline_fill_dep_strict_alias.o ] \
 fi
 # PLATFORM: SHARED — G-02e: std_sys_shim folded into runtime_io_abi (match build_xlang_asm ST_BSTRICT_LINK_EXTRA).
 ST_BSTRICT_LINK_EXTRA="src/asm/parser_asm_parse_expr_link.o src/asm/pipeline_fill_dep_strict_alias.o"
-ensure_ast_asm_bare_link_alias_obj
+ensure_ast_asm_bare_link_alias_obj || exit 1
 ST_AST_BARE_ALIAS=""
 if ! echo " $ASM_TRY_OBJS " | grep -q 'ast_asm_bare_link_alias.o'; then
   ST_AST_BARE_ALIAS="$BUILD_DIR/ast_asm_bare_link_alias.o"
@@ -1751,11 +1918,9 @@ if asm_strict_typeck_x_glue_via_pipeline_x && [ -f "$ST_TYPECK_X_LINK" ]; then
 fi
 
 ensure_runtime_driver_diagnostic_obj() {
-  local o="src/runtime_driver_diagnostic.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_diagnostic.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/runtime_driver_diagnostic.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_diagnostic.from_x.c -o "$o"
-  fi
+  # wave853: thin publics live only in the .x. Bare cc of the seed is the
+  # asm BSS tail and would drop those symbols. PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-r3-prefer src/runtime_driver_diagnostic.o
 }
 
 ensure_diag_obj() {
@@ -1841,6 +2006,27 @@ ensure_ast_obj() {
 
 ensure_lexer_obj() {
   local o="src/lexer/lexer.o"
+  # w1111: Darwin arm64 and Linux lexer is the .x. Linux miss does not cc.
+  # Windows stays on cc.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _lx_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _lx_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_lx_os" = "Linux" ] && [ "$_lx_mach" = "x86_64" ] \
+    && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_lexer_glue_darwin.x -nt "$o" ] \
+      || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lexer-glue-pure "$o" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_lx_os" = "Darwin" ] && [ "$_lx_mach" = "arm64" ] \
+    && [ -f src/asm/runtime_lexer_glue_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_lexer_glue_darwin.x -nt "$o" ] \
+      || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lexer-glue-pure "$o"
+    fi
+    return 0
+  fi
   if [ ! -f "$o" ] || [ "seeds/runtime_lexer_glue.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc_inc_tu $o <- seeds/runtime_lexer_glue.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_lexer_glue.from_x.c -o "$o"
@@ -1861,22 +2047,20 @@ ensure_runtime_c_import_obj() {
 }
 
 ensure_runtime_pipeline_abi_xlang_c_stubs_obj() {
-  # G-02e-12：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11) (former pipeline_abi_xlang_c_stubs)"
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 # G-02e: codegen_pipeline_stubs / std_fs_shim deleted — use ensure_runtime_driver_strict_glue_stubs_obj
 # and ensure_runtime_io_abi_obj (authority in build_xlang_asm.sh).
 
 ensure_runtime_driver_strict_glue_stubs_obj() {
+  # w1530: heap .x concatenated with the strict glue .x. The output path
+  # may be under BUILD_DIR. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="$BUILD_DIR/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 # PLATFORM: DARWIN — G.7 twin of build_xlang_asm ensure_bstrict_darwin_strict_glue_stubs_filt_obj.
@@ -1887,17 +2071,9 @@ ensure_runtime_driver_strict_glue_stubs_obj() {
 ensure_strict_glue_darwin_stubs_filt_obj() {
   local src_o="src/runtime_driver_strict_glue_stubs.o"
   local out_o="$BUILD_DIR/bstrict_strict_glue_stubs_darwin.o"
-  local seed="seeds/runtime_driver_strict_glue_stubs.from_x.c"
-  local need_cc=0
-  if [ ! -f "$src_o" ] || [ "$seed" -nt "$src_o" ]; then
-  need_cc=1
-  elif file "$src_o" 2>/dev/null | grep -qi 'ar archive'; then
-  need_cc=1
-  fi
-  if [ "$need_cc" = "1" ]; then
-  strict_glue_info "cc -c $src_o <- $seed (Darwin filt prep; MH_OBJECT)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$seed" -o "$src_o" || return 1
-  fi
+  # w1530: source object is heap .x + strict glue .x. Do not host-cc the seed.
+  # PLATFORM: SHARED.
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$src_o" || return 1
   [ -f "$src_o" ] || return 1
   if [ -f "$out_o" ] && nm -gU "$out_o" 2>/dev/null | grep -qE 'asm_asm_codegen_(elf_o|ast)$'; then
   rm -f "$out_o"
@@ -1928,44 +2104,62 @@ ensure_strict_glue_darwin_stubs_filt_obj() {
 }
 ensure_runtime_asm_build_obj() {
   local o="src/asm/runtime_asm_build.o"
+  # w1132: Darwin arm64 and Linux object is the merged pure-asm pair.
+  # Linux miss does not cc. Windows stays on host cc of the C seed.
+  # Does not match asm_experimental_symbol_bridge.o.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _ab_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ab_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ab_os" = "Linux" ] && [ "$_ab_mach" = "x86_64" ] \
+    && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_asm_build.x -nt "$o" ] \
+      || [ src/asm/runtime_asm_build_main.x -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh asm-build-pure "$o" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_ab_os" = "Darwin" ] && [ "$_ab_mach" = "arm64" ] \
+    && [ -f src/asm/runtime_asm_build.x ] && [ -f src/asm/runtime_asm_build_main.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/runtime_asm_build.x -nt "$o" ] \
+      || [ src/asm/runtime_asm_build_main.x -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh asm-build-pure "$o"
+    fi
+    return 0
+  fi
   if [ ! -f "$o" ] || [ "seeds/runtime_asm_build.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- seeds/runtime_asm_build.from_x.c"
   $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_asm_build.from_x.c -o "$o"
   fi
 }
 
-ensure_x_seed_bridge_obj() {
-  local o="src/x_seed_bridge.o"
-  if [ ! -f "$o" ] || [ "seeds/x_seed_bridge.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/x_seed_bridge.from_x.c (G-02f-11)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/x_seed_bridge.from_x.c -o "$o"
-  fi
-}
-
 ensure_ast_pool_l5_bridge_obj() {
-  # G-02e-13：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    echo "  cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11) (former ast_pool_l5_bridge)" >&2
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 ensure_asm_experimental_symbol_bridge_obj() {
   local o="src/asm/asm_experimental_symbol_bridge.o"
-  if [ ! -f "$o" ] || [ "seeds/asm_experimental_symbol_bridge.from_x.c" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- seeds/asm_experimental_symbol_bridge.from_x.c"
-  sh scripts/cc_inc_tu.sh seeds/asm_experimental_symbol_bridge.from_x.c "$o"
+  local prod="build_asm/asm_experimental_symbol_bridge.o"
+  # w1533 (5.11): the C seed is deleted. Darwin g05 writes the product
+  # object at build_asm from the .x. This side link still names src/asm,
+  # so copy that product object across. Do not host-cc.
+  # PLATFORM: SHARED. Not the daily path.
+  if [ ! -f "$o" ] && [ -f "$prod" ]; then
+    cp -f "$prod" "$o"
+  fi
+  if [ ! -f "$o" ]; then
+    strict_glue_info "missing $o; no seed cc (w1533)"
+    return 1
   fi
 }
 
 ensure_lsp_codegen_extern_obj() {
-  # G-02e-11：实现已并入 runtime_driver_strict_glue_stubs.inc
+  # w1530: heap .x concatenated with the strict glue .x. Do not cc the seed.
+  # PLATFORM: SHARED.
   local o="src/runtime_driver_strict_glue_stubs.o"
-  if [ ! -f "$o" ] || [ "seeds/runtime_driver_strict_glue_stubs.from_x.c" -nt "$o" ]; then
-    strict_glue_info "cc -c $o <- seeds/runtime_driver_strict_glue_stubs.from_x.c (G-02f-11) (former lsp_codegen_extern)"
-    $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_driver_strict_glue_stubs.from_x.c -o "$o"
-  fi
+  bash scripts/ensure_host_cc_seed_o.sh try-strict-glue-prefer "$o" || return 1
 }
 
 ensure_lsp_pipeline_ctx_obj() {
@@ -1976,19 +2170,46 @@ ensure_lsp_pipeline_ctx_obj() {
   fi
 }
 ensure_backend_seed_mega_fallback_obj() {
+  # 记253／9.1: seed emptied; authority is seed_host partial from .x (w1540).
+  # Do not host-cc the stub. PLATFORM: SHARED.
   local o="$BUILD_DIR/backend_seed_mega_fallback.o"
-  local src="seeds/backend_seed_mega_fallback.from_x.c"
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc_inc_tu $o <- $src (weak backend stubs)"
-  sh scripts/cc_inc_tu.sh "$src" "$o"
+  local partial="$BUILD_DIR/seed_host/asm_backend_partial.o"
+  local xsrc="src/asm/backend_seed_mega_fallback.x"
+  if [ -s "$partial" ]; then
+    if [ ! -f "$o" ] || [ "$partial" -nt "$o" ]; then
+      strict_glue_info "cp $o <- $partial (9.1 no seed cc)"
+      cp -f "$partial" "$o" || return 1
+    fi
+    return 0
   fi
+  if [ -f "$xsrc" ] && [ -f scripts/build_asm_backend_partial_pure.sh ]; then
+    strict_glue_info "9.1 mega_fallback via build_asm_backend_partial_pure"
+    sh scripts/build_asm_backend_partial_pure.sh || return 1
+    if [ -s "$partial" ]; then
+      cp -f "$partial" "$o" || return 1
+      return 0
+    fi
+  fi
+  if [ -f "$o" ]; then
+    return 0
+  fi
+  strict_glue_info "missing mega_fallback partial/.x; no seed cc (9.1)"
+  return 1
 }
 ensure_backend_x86_64_enc_c_obj() {
   local o="$BUILD_DIR/backend_x86_64_enc_c.o"
-  local src="seeds/backend_x86_64_enc_c.from_x.c"
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- $src (G-02f-15 x86_64 enc)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"
+  local prod="src/asm/backend_x86_64_enc_c.o"
+  # w1533 (5.11): the C seed is deleted. Copy the g05 pure-asm object.
+  # Do not rebuild the encoder here. PLATFORM: SHARED. Not the daily path.
+  if [ -f "$prod" ]; then
+    if [ ! -f "$o" ] || [ "$prod" -nt "$o" ]; then
+      cp -f "$prod" "$o"
+    fi
+    return 0
+  fi
+  if [ ! -f "$o" ]; then
+    strict_glue_info "missing $prod; no seed cc (w1533)"
+    return 1
   fi
 }
 ensure_typeck_f64_bits_obj() {
@@ -2020,7 +2241,20 @@ ensure_cfg_eval_obj() {
   if [ ! -f "$o" ] || [ "src/lexer/cfg_eval_gen.c" -nt "$o" ] || [ "seeds/cfg_eval_link_alias.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc/ld src/lexer/cfg_eval.o <- cfg_eval_gen.c + cfg_eval_link_alias.from_x.c"
   "$CC" $CFLAGS -I. -Iinclude -Isrc -c -o src/lexer/cfg_eval_x.o src/lexer/cfg_eval_gen.c
-  sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o
+  # w1131: Darwin arm64 and Linux alias is pure asm of the .x.
+  # Linux miss does not cc. Windows stays on the C seed.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the C seed.
+  _ce_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _ce_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_ce_os" = "Linux" ] && [ "$_ce_mach" = "x86_64" ] \
+    && [ -f src/lexer/cfg_eval_link_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o || return 1
+  elif [ "$_ce_os" = "Darwin" ] && [ "$_ce_mach" = "arm64" ] \
+    && [ -f src/lexer/cfg_eval_link_alias.x ]; then
+    bash scripts/ensure_host_cc_seed_o.sh cfg-eval-alias-pure src/lexer/cfg_eval_link_alias.o
+  else
+    sh scripts/cc_inc_tu.sh seeds/cfg_eval_link_alias.from_x.c src/lexer/cfg_eval_link_alias.o
+  fi
   "$ld_cmd" $LD_RELFLAGS -r -o "$o" src/lexer/cfg_eval_x.o src/lexer/cfg_eval_link_alias.o
   fi
 }
@@ -2030,7 +2264,7 @@ ensure_runtime_pipeline_abi_obj
 ensure_runtime_driver_obj
 ensure_runtime_driver_strict_glue_stubs_obj
 ensure_runtime_asm_build_obj
-ensure_x_seed_bridge_obj
+# Product x_seed_bridge is src/x_seed_bridge.o from src/x_seed_bridge.x. Do not call the seed host-cc. PLATFORM: SHARED.
 ensure_ast_pool_l5_bridge_obj
 ensure_asm_experimental_symbol_bridge_obj
 ensure_lsp_codegen_extern_obj
@@ -2038,7 +2272,26 @@ ensure_lsp_pipeline_ctx_obj
 # PLATFORM: SHARED — match build_xlang_asm ensure_lsp_diag_pipeline_sizes_obj (seed weak sizes).
 ensure_lsp_diag_pipeline_sizes_obj() {
   local o="src/lsp/lsp_diag_pipeline_sizes.o"
-  if [ ! -f "$o" ] || [ "seeds/lsp_diag_pipeline_sizes_weak.from_x.c" -nt "$o" ]; then
+  # w1114: Darwin arm64 and Linux sizes are the .x. Linux miss does not cc.
+  # Windows stays on cc_inc_tu.
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX x86_64. WINDOWS stays on the seed.
+  _sz_os="$(uname -s 2>/dev/null || echo Unknown)"
+  _sz_mach="$(uname -m 2>/dev/null || echo unknown)"
+  if [ "$_sz_os" = "Linux" ] && [ "$_sz_mach" = "x86_64" ] \
+    && [ -f src/asm/lsp_diag_pipeline_sizes_weak_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/lsp_diag_pipeline_sizes_weak_darwin.x -nt "$o" ] \
+      || [ "seeds/lsp_diag_pipeline_sizes_weak.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-sizes-weak-pure "$o" || return 1
+    fi
+    return 0
+  fi
+  if [ "$_sz_os" = "Darwin" ] && [ "$_sz_mach" = "arm64" ] \
+    && [ -f src/asm/lsp_diag_pipeline_sizes_weak_darwin.x ]; then
+    if [ ! -f "$o" ] || [ src/asm/lsp_diag_pipeline_sizes_weak_darwin.x -nt "$o" ] \
+      || [ "seeds/lsp_diag_pipeline_sizes_weak.from_x.c" -nt "$o" ]; then
+      bash scripts/ensure_host_cc_seed_o.sh lsp-sizes-weak-pure "$o"
+    fi
+  elif [ ! -f "$o" ] || [ "seeds/lsp_diag_pipeline_sizes_weak.from_x.c" -nt "$o" ]; then
   strict_glue_info "cc_inc_tu seeds/lsp_diag_pipeline_sizes_weak.from_x.c -> $o"
   sh scripts/cc_inc_tu.sh seeds/lsp_diag_pipeline_sizes_weak.from_x.c "$o" -I. -Iinclude -Isrc
   fi
@@ -2072,11 +2325,11 @@ ensure_async_asm_pool_obj() {
 }
 ensure_backend_arm64_enc_c_obj() {
   local o="src/asm/backend_arm64_enc_c.o"
-  local src="seeds/backend_arm64_enc_c.from_x.c"
-  [ -f "$src" ] || return 1
-  if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
-  strict_glue_info "cc -c $o <- $src (Darwin arch_arm64_enc_* strong)"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o" || return 1
+  # w1533 (5.11): the C seed is deleted. g05 pure asm owns this object.
+  # PLATFORM: MACOS arm64. Not the daily path. Do not rebuild it here.
+  if [ ! -f "$o" ]; then
+    strict_glue_info "missing $o; no seed cc (w1533)"
+    return 1
   fi
   return 0
 }
@@ -2092,17 +2345,57 @@ esac
 
 # PLATFORM: SHARED — RT Cap residual slices (Makefile RT_SEED_SLICE_OBJS); product
 # g05/build_xlang_asm links them via asm_bootstrap_support_extra_link. runtime_driver_abi
-# needs driver_preamble_fs_path_lines{,_n} from rt_preamble.o.
+# needs driver_preamble_io_net_lines / fs_path_lines from rt_preamble.o (w1495: .x).
 ensure_rt_seed_slice_objs() {
   local pair src o
   for pair in \
     "seeds/rt_arena_buf.from_x.c:src/runtime/rt_arena_buf.o" \
-    "seeds/rt_emit_state.from_x.c:src/runtime/rt_emit_state.o" \
-    "seeds/rt_preamble.from_x.c:src/runtime/rt_preamble.o" \
-    "seeds/rt_stack.from_x.c:src/runtime/rt_stack.o" \
-    "seeds/rt_parse_diag.from_x.c:src/runtime/rt_parse_diag.o"; do
+    "src/runtime/rt_emit_state.x:src/runtime/rt_emit_state.o" \
+    "src/runtime/rt_preamble.x:src/runtime/rt_preamble.o" \
+    "src/runtime/rt_stack.x:src/runtime/rt_stack.o" \
+    "src/runtime/rt_parse_diag.x:src/runtime/rt_parse_diag.o"; do
   src="${pair%%:*}"
   o="${pair##*:}"
+  # w859: same product object as ensure_rt_emit_state_prefer.
+  # Setters, the slice marker, BSS, lib-name, and the entry-prefix setter
+  # are all in the .x since w1493 (seed deleted). PLATFORM: SHARED.
+  if [ "$o" = "src/runtime/rt_emit_state.o" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-emit-state-prefer \
+      || return 1
+    continue
+  fi
+  # w858: same product object as ensure_rt_arena_buf_prefer.
+  # Functions and the slice marker are in the .x. BSS stays in the seed.
+  # PLATFORM: SHARED.
+  if [ "$o" = "src/runtime/rt_arena_buf.o" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-arena-buf-prefer \
+      || return 1
+    continue
+  fi
+  # w860: same product object as ensure_rt_parse_diag_prefer.
+  # The precise diagnostic, the slice marker, and (w1494) the recovery
+  # diagnostics are all in the .x; the seed is deleted. PLATFORM: SHARED.
+  if [ "$o" = "src/runtime/rt_parse_diag.o" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-parse-diag-prefer \
+      || return 1
+    continue
+  fi
+  # w861: same product object as ensure_rt_preamble_prefer.
+  # Writers, the slice marker, and (w1495) the string tables are all in
+  # the .x; the seed is deleted.
+  # PLATFORM: SHARED.
+  if [ "$o" = "src/runtime/rt_preamble.o" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-preamble-prefer \
+      || return 1
+    continue
+  fi
+  # w1496: thread_fn, large_stack, and the slice marker are all in the .x
+  # (seed deleted). PLATFORM: SHARED.
+  if [ "$o" = "src/runtime/rt_stack.o" ]; then
+    bash scripts/ensure_host_cc_seed_o.sh try-rt-stack-prefer \
+      || return 1
+    continue
+  fi
   if [ ! -f "$o" ] || [ "$src" -nt "$o" ]; then
   strict_glue_info "cc -c $o <- $src (RT seed slice)"
   $CC $CFLAGS -I. -Iinclude -Isrc -c "$src" -o "$o"
@@ -2111,11 +2404,10 @@ ensure_rt_seed_slice_objs() {
 }
 ensure_rt_seed_slice_objs
 ST_RT_SEED_SLICES="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+# w1529: pure asm of the host .x. Do not cc the seed over it.
 # PLATFORM: SHARED — process_xlang_argc/argv_get authority (product asm_bootstrap_support_extra_link).
-if [ ! -f runtime_process_argv.o ] || [ seeds/runtime_process_argv.from_x.c -nt runtime_process_argv.o ]; then
-  strict_glue_info "cc -c runtime_process_argv.o <- seeds/runtime_process_argv.from_x.c"
-  $CC $CFLAGS -I. -Iinclude -Isrc -c seeds/runtime_process_argv.from_x.c -o runtime_process_argv.o
-fi
+bash scripts/ensure_host_cc_seed_o.sh try-process-argv-prefer runtime_process_argv.o \
+  || { echo "strict glue: process argv pure asm failed" >&2; exit 1; }
 ST_RT_SEED_SLICES="$ST_RT_SEED_SLICES runtime_process_argv.o"
 
 strict_glue_info "linking xlang_asm.strict_glue (glue_standalone + build_asm pipeline.o ...)"

@@ -9,14 +9,15 @@ function main(): i32 {
   let h: *u8 = hash.start();
   if (h == 0) { return 1; }
   hash.write(h, 42 as u32);
-  let r: u64 = hash.finish(h);
+  /* finish and bytes return the hash bits in rax as i64. */
+  let r: u64 = hash.finish(h) as u64;
   hash.free(h);
   if (r == 0) { return 2; }
   let buf: u8[2] = [97, 98];
-  let r2: u64 = hash.bytes(&buf[0], 2);
+  let r2: u64 = hash.bytes(&buf[0], 2) as u64;
   if (r2 == 0) { return 3; }
   let buf2: u8[2] = [98, 97];
-  let r3: u64 = hash.bytes(&buf2[0], 2);
+  let r3: u64 = hash.bytes(&buf2[0], 2) as u64;
   if (r2 == r3) { return 4; }
   return 0;
 }

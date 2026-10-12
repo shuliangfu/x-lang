@@ -42,25 +42,15 @@ set -e
 #   mode = auto | auto-soft | auto-soft-merge | auto-merge
 #   x_path = ../std/.../*.x from compiler/ cwd
 # Keys accept: ../std/.../x.o | std/.../x.o | *std/.../x.o
-# Honesty COUNT = 17 (kv.o + arrow.o moved to formal_mod; was 19 after sqlite).
+# Honesty COUNT = 7 (trace.o moved onto the formal asm leaf; was 8 after schema).
 # ---------------------------------------------------------------------------
 
 std_x_key_for_out() {
   _o="$1"
   case "$_o" in
     ../std/async/scheduler.o|std/async/scheduler.o|*std/async/scheduler.o) printf '%s' "std/async/scheduler.o" ;;
-    ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
-    ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
-    ../std/backtrace/backtrace.o|std/backtrace/backtrace.o|*std/backtrace/backtrace.o) printf '%s' "std/backtrace/backtrace.o" ;;
-    ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
-    ../std/url/url.o|std/url/url.o|*std/url/url.o) printf '%s' "std/url/url.o" ;;
     ../std/security/security.o|std/security/security.o|*std/security/security.o) printf '%s' "std/security/security.o" ;;
     ../std/config/config.o|std/config/config.o|*std/config/config.o) printf '%s' "std/config/config.o" ;;
-    ../std/cache/cache.o|std/cache/cache.o|*std/cache/cache.o) printf '%s' "std/cache/cache.o" ;;
-    ../std/trace/trace.o|std/trace/trace.o|*std/trace/trace.o) printf '%s' "std/trace/trace.o" ;;
-    ../std/task/task.o|std/task/task.o|*std/task/task.o) printf '%s' "std/task/task.o" ;;
-    ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
-    ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
     ../std/regex/regex.o|std/regex/regex.o|*std/regex/regex.o) printf '%s' "std/regex/regex.o" ;;
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/socketio/socketio.o|std/socketio/socketio.o|*std/socketio/socketio.o) printf '%s' "std/socketio/socketio.o" ;;
@@ -73,18 +63,8 @@ std_x_key_for_out() {
 std_x_spec_for_key() {
   case "$1" in
     std/async/scheduler.o) printf '%s' "auto-soft|../std/async/scheduler.x" ;;
-    std/async/future.o) printf '%s' "auto-soft|../std/async/future.x" ;;
-    std/channel/channel.o) printf '%s' "auto-soft|../std/channel/channel.x" ;;
-    std/backtrace/backtrace.o) printf '%s' "auto-soft|../std/backtrace/backtrace.x" ;;
-    std/uuid/uuid.o) printf '%s' "auto|../std/uuid/uuid.x" ;;
-    std/url/url.o) printf '%s' "auto-soft|../std/url/url.x" ;;
     std/security/security.o) printf '%s' "auto-soft|../std/security/security.x" ;;
     std/config/config.o) printf '%s' "auto-soft|../std/config/config.x" ;;
-    std/cache/cache.o) printf '%s' "auto|../std/cache/cache.x" ;;
-    std/trace/trace.o) printf '%s' "auto-soft|../std/trace/trace.x" ;;
-    std/task/task.o) printf '%s' "auto-soft|../std/task/task.x" ;;
-    std/schema/schema.o) printf '%s' "auto|../std/schema/schema.x" ;;
-    std/elf/elf.o) printf '%s' "auto-soft|../std/elf/elf.x" ;;
     std/regex/regex.o) printf '%s' "auto-soft|../std/regex/regex.x" ;;
     std/unicode/unicode.o) printf '%s' "auto-soft|../std/unicode/unicode.x" ;;
     std/socketio/socketio.o) printf '%s' "auto-soft-merge|../std/socketio/socketio.x" ;;
@@ -96,18 +76,8 @@ std_x_spec_for_key() {
 std_x_all_keys() {
   printf '%s\n' \
     std/async/scheduler.o \
-    std/async/future.o \
-    std/channel/channel.o \
-    std/backtrace/backtrace.o \
-    std/uuid/uuid.o \
-    std/url/url.o \
     std/security/security.o \
     std/config/config.o \
-    std/cache/cache.o \
-    std/trace/trace.o \
-    std/task/task.o \
-    std/schema/schema.o \
-    std/elf/elf.o \
     std/regex/regex.o \
     std/unicode/unicode.o \
     std/socketio/socketio.o \
@@ -197,32 +167,22 @@ std_x_check() {
     fi
   done <<'KEYS'
 std/async/scheduler.o
-std/async/future.o
-std/channel/channel.o
-std/backtrace/backtrace.o
-std/uuid/uuid.o
-std/url/url.o
 std/security/security.o
 std/config/config.o
-std/cache/cache.o
-std/trace/trace.o
-std/task/task.o
-std/schema/schema.o
-std/elf/elf.o
 std/regex/regex.o
 std/unicode/unicode.o
 std/socketio/socketio.o
 std/simd/simd.o
 KEYS
-  if [ "$_n" -ne 17 ]; then
-    echo "std_x --check: expected 17 keys, counted $_n" >&2
+  if [ "$_n" -ne 7 ]; then
+    echo "std_x --check: expected 7 keys, counted $_n" >&2
     _bad=1
   fi
   if [ "$_bad" -ne 0 ]; then
     echo "std_x --check: FAIL" >&2
     return 1
   fi
-  echo "std_x --check: OK (17 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
+  echo "std_x --check: OK (7 leaves; catalog + mk list + multi-target FORCE+ensure wave895; not physical delete)"
   return 0
 }
 
@@ -271,6 +231,799 @@ std_x_compile_one() {
   # Makefile runs under compiler/; entry paths must be ../std/... for -L ..
   case "$x_path" in
     std/*) x_path="../$x_path" ;;
+  esac
+  # PLATFORM: MACOS|DARWIN|LINUX — std.net.alpn is one asm leaf.
+  # -lib-name "" keeps net_tls_alpn_h2_http1_wire_c. mod.x and the
+  # http glue call that bare name. A miss stops here so this file
+  # never execs cc. Windows keeps the C path below.
+  case "$x_path" in
+    ../std/net/alpn.x|std/net/alpn.x)
+      _alpn_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_alpn_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _alpn_log="$(mktemp "${TMPDIR:-/tmp}/std_alpn_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_alpn_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_alpn_h2_http1_wire_c$'; then
+            rm -f "$_alpn_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_alpn_log" >&2
+          rm -f "$_alpn_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tls_stub.x|std/net/tls_stub.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tls_stub is one asm leaf.
+      # -lib-name "" keeps net_tls_*_c. The import alias calls those
+      # bare names. This object has no undefined symbols. A miss stops
+      # here so this file never execs cc. Windows keeps the C path below.
+      _tls_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tls_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tls_log="$(mktemp "${TMPDIR:-/tmp}/std_tls_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tls_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_is_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_connect_client_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_last_error_c$'; then
+            rm -f "$_tls_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tls_log" >&2
+          rm -f "$_tls_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/workers.x|std/net/workers.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.workers is one asm leaf.
+      # -lib-name "" keeps net_run_accept_workers_c, net_worker_arg_fill_c,
+      # and net_worker_arg_slot_ptr_c. Undefined symbols are thread_create_c,
+      # thread_join_c, and xlang_net_worker_accept_entry_ptr_c.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _nw_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_nw_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _nw_log="$(mktemp "${TMPDIR:-/tmp}/std_nw_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_nw_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_run_accept_workers_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_worker_arg_fill_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_worker_arg_slot_ptr_c$'; then
+            rm -f "$_nw_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_nw_log" >&2
+          rm -f "$_nw_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tcp_pool.x|std/net/tcp_pool.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tcp_pool is one asm leaf.
+      # -lib-name "" keeps net_tcp_pool_create_c, net_tcp_pool_smoke_c,
+      # and net_tcp_pool_destroy_c. Undefined symbols are calloc, free,
+      # net_close_socket_c, and net_tcp_connect_blocking_c.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _pool_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_pool_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _pool_log="$(mktemp "${TMPDIR:-/tmp}/std_pool_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_pool_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_pool_create_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_pool_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_pool_destroy_c$'; then
+            rm -f "$_pool_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_pool_log" >&2
+          rm -f "$_pool_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/udp_batch.x|std/net/udp_batch.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.udp_batch is one asm leaf.
+      # -lib-name "" keeps net_udp_recv_many_c and net_udp_send_many_c.
+      # Undefined symbols are net_udp_recv_from_c and net_udp_send_to_c.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _ub_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ub_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _ub_log="$(mktemp "${TMPDIR:-/tmp}/std_ub_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_ub_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_recv_many_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_send_many_c$'; then
+            rm -f "$_ub_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_ub_log" >&2
+          rm -f "$_ub_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/addr.x|std/net/addr.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.addr is one asm leaf.
+      # -lib-name "" keeps net_sockaddr_in_pack_addr_port_c,
+      # net_tcp_local_addr_c, and net_tcp_peer_addr_c.
+      # Undefined symbols are getsockname, getpeername, ntohl, and ntohs.
+      # A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _addr_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_addr_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _addr_log="$(mktemp "${TMPDIR:-/tmp}/std_addr_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_addr_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_sockaddr_in_buf_ptr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_sockaddr_in_pack_addr_port_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_local_addr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_peer_addr_c$'; then
+            rm -f "$_addr_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_addr_log" >&2
+          rm -f "$_addr_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/io_batch.x|std/net/io_batch.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.io_batch is one asm leaf.
+      # -lib-name "" keeps net_stream_write_batch_c, net_stream_read_batch_c,
+      # and net_stream_read_batch_provided_c.
+      # Undefined symbols are io_write_batch, io_read_batch, and
+      # io_read_batch_provided. A miss stops here so this file never execs cc.
+      # Windows keeps the C path below.
+      _iob_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_iob_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _iob_log="$(mktemp "${TMPDIR:-/tmp}/std_iob_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_iob_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_stream_write_batch_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_stream_read_batch_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_stream_read_batch_provided_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_write_batch_w$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_read_batch_w$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_read_batch_provided_w$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?io_batch_module_anchor$'; then
+            rm -f "$_iob_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_iob_log" >&2
+          rm -f "$_iob_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/dns.x|std/net/dns.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.dns is one asm leaf.
+      # -lib-name "" keeps net_resolve_ipv4_c, net_map_gai_error_c,
+      # and net_dns_zero_hints_buf_c. Undefined symbols are the existing
+      # DNS cap entry points. A miss stops here so this file never
+      # execs cc. Windows keeps the C path below.
+      _dns_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dns_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _dns_log="$(mktemp "${TMPDIR:-/tmp}/std_dns_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_dns_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_ai_addconfig_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_fill_hints_inet_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_maybe_wsa_fail_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_dns_zero_hints_buf_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_map_gai_error_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_ex_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv6_ex_c$'; then
+            rm -f "$_dns_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_dns_log" >&2
+          rm -f "$_dns_log"
+          return 1
+          ;;
+      esac
+      ;;
+
+    ../std/net/sock.x|std/net/sock.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.sock (记231).
+      # Tip Apple variadic spill makes Darwin ioctl(FIONBIO)/fcntl 3rd-on-stack
+      # match C. -lib-name "" keeps net_fionbio_c / set_blocking / close.
+      # A miss stops here so this file never execs cc. Windows keeps C path.
+      _sock_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sock_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sock_log="$(mktemp "${TMPDIR:-/tmp}/std_sock_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sock_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_sock_set_blocking_fd_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_set_blocking_c$'; then
+            rm -f "$_sock_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sock_log" >&2
+          rm -f "$_sock_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/udp.x|std/net/udp.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.udp (记231 Apple va + ioctl).
+      # -lib-name "" keeps set_nonblock / errno_ptr / fionbio. Miss → no cc.
+      _udp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_udp_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _udp_log="$(mktemp "${TMPDIR:-/tmp}/std_udp_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_udp_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_set_nonblock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_errno_ptr_c$'; then
+            rm -f "$_udp_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_udp_log" >&2
+          rm -f "$_udp_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tcp.x|std/net/tcp.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tcp (记231 Apple va + ioctl).
+      # -lib-name "" keeps set_nonblock / connect / errno_ptr. Miss → no cc.
+      _tcp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tcp_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tcp_log="$(mktemp "${TMPDIR:-/tmp}/std_tcp_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tcp_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_set_nonblock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_errno_ptr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_connect_c$'; then
+            rm -f "$_tcp_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tcp_log" >&2
+          rm -f "$_tcp_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/ipv6.x|std/net/ipv6.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.ipv6 (记231 Apple va + ioctl).
+      # macos-first cfg consts (记230 tip inactive-cfg P012). Miss → no cc.
+      _ipv6_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ipv6_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _ipv6_log="$(mktemp "${TMPDIR:-/tmp}/std_ipv6_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_ipv6_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_ipv6_set_nonblock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_ipv6_errno_ptr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_connect_ipv6_c$'; then
+            rm -f "$_ipv6_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_ipv6_log" >&2
+          rm -f "$_ipv6_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/ws_codec.x|std/net/ws_codec.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.ws_codec (记233).
+      # No -lib-name "": import face is std_net_ws_codec_net_ws_* (ws_io U).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below.
+      _wsc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_wsc_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _wsc_log="$(mktemp "${TMPDIR:-/tmp}/std_wsc_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_wsc_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_generate_key_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_parse_url_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_encode_text_frame_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_codec_net_ws_parse_url_smoke_c$'; then
+            rm -f "$_wsc_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_wsc_log" >&2
+          rm -f "$_wsc_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/ws_io.x|std/net/ws_io.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.ws_io (记233).
+      # No -lib-name "": import face std_net_ws_io_net_ws_*; U → ws_codec prefix.
+      # Fail-closed so this file never execs cc. Windows keeps C path.
+      _wsi_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_wsi_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _wsi_log="$(mktemp "${TMPDIR:-/tmp}/std_wsi_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_wsi_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_connect_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_write_text_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_read_frame_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_ws_io_net_ws_client_handshake_smoke_c$'; then
+            rm -f "$_wsi_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_wsi_log" >&2
+          rm -f "$_wsi_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tls_openssl.x|std/net/tls_openssl.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tls_openssl (记236).
+      # Overlay face: -lib-name "" → bare net_tls_*_c (same as tls_stub).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below.
+      _tlo_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tlo_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tlo_log="$(mktemp "${TMPDIR:-/tmp}/std_tlo_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tlo_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_is_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_backend_name_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_openssl_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_close_c$'; then
+            rm -f "$_tlo_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tlo_log" >&2
+          rm -f "$_tlo_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tls_mbedtls.x|std/net/tls_mbedtls.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tls_mbedtls (记236).
+      # Overlay face: -lib-name "" → bare net_tls_*_c (same as tls_stub/openssl).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below. BIO merge stays in archaeology/ensure.
+      _tlm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tlm_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tlm_log="$(mktemp "${TMPDIR:-/tmp}/std_tlm_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tlm_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_is_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_backend_name_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_mbedtls_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tls_close_c$'; then
+            rm -f "$_tlm_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tlm_log" >&2
+          rm -f "$_tlm_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/freestanding_linux.x|std/net/freestanding_linux.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.freestanding_linux (记237).
+      # No -lib-name "": import face std_net_freestanding_linux_freestanding_*.
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps the C path below.
+      _nfl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_nfl_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _nfl_log="$(mktemp "${TMPDIR:-/tmp}/std_nfl_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_nfl_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_net_available$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_socket_tcp$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_connect$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_net_freestanding_linux_freestanding_net_module_anchor$'; then
+            rm -f "$_nfl_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_nfl_log" >&2
+          rm -f "$_nfl_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/fs/posix.x|std/fs/posix.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.fs.posix (记238).
+      # No -lib-name "": import face std_fs_posix_fs_* (fs formal same).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Product fs.o via xlang_compile_std_fs_formal already fail-closed;
+      # this arm covers direct std_x auto compiles. Windows keeps C.
+      _fsp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_fsp_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _fsp_log="$(mktemp "${TMPDIR:-/tmp}/std_fsp_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_fsp_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_posix_read_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_posix_write_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_last_error_c$' \
+            && ! nm "$out_o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
+            && ! nm "$out_o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$'; then
+            rm -f "$_fsp_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_fsp_log" >&2
+          rm -f "$_fsp_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/fs/freestanding_linux.x|std/fs/freestanding_linux.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.fs.freestanding_linux (记238).
+      # No -lib-name "": import face std_fs_freestanding_linux_freestanding_*.
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps C path.
+      _fff_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_fff_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _fff_log="$(mktemp "${TMPDIR:-/tmp}/std_fff_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_fff_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_freestanding_linux_freestanding_fs_available$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_freestanding_linux_freestanding_fs_module_anchor$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_freestanding_linux_freestanding_open_read$'; then
+            rm -f "$_fff_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_fff_log" >&2
+          rm -f "$_fff_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/string/string.x|std/string/string.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.string string.x (记239).
+      # -lib-name "" → bare xlang_string_*_c (product face; runtime_string_fast
+      # twin). Tip asm green; soft default could still fall to -E+cc.
+      # Product string.o via xlang_compile_std_string_o already pure-asm.
+      # Fail-closed; Windows keeps C.
+      _ssx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssx_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _ssx_log="$(mktemp "${TMPDIR:-/tmp}/std_ssx_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_ssx_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_copy_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_memcmp_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_memchr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?xlang_string_memmem_c$'; then
+            rm -f "$_ssx_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_ssx_log" >&2
+          rm -f "$_ssx_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/regex/regex.x|std/regex/regex.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
+      # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
+      # residual truncated Darwin ptr-int so [0-9] on x5y smoke returned 6.
+      # -lib-name "" keeps regex_min_smoke_c / regex_match_c / regex_compile_c.
+      # A miss stops here so this file never execs cc. Windows keeps C path.
+      _rx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rx_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _rx_log="$(mktemp "${TMPDIR:-/tmp}/std_rx_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_rx_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_min_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_match_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_compile_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_min_class_hit$'; then
+            rm -f "$_rx_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_rx_log" >&2
+          rm -f "$_rx_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/simd/simd.x|std/simd/simd.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.simd simd.x is one asm leaf.
+      # -lib-name "" keeps simd_recommend_path_c, simd_hw_available_c,
+      # and simd_str_eq. Undefined symbol is getenv.
+      # The formal C face stays on cc. A miss stops here so this file
+      # never execs cc. Windows keeps the C path below.
+      _simd_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_simd_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _simd_log="$(mktemp "${TMPDIR:-/tmp}/std_simd_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_simd_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_str_eq$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_recommend_path_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_hw_available_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_env_force_scalar$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_env_force_hw$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_f_zero_c_marker_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?simd_autovec_smoke_c$'; then
+            rm -f "$_simd_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_simd_log" >&2
+          rm -f "$_simd_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/socketio/socketio.x|std/socketio/socketio.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.socketio is one asm leaf.
+      # -lib-name "" keeps sio_append_bytes, sio_append_u32_dec, and
+      # sio_eio_version_c. Undefined symbols are memcpy, memcmp, memset,
+      # strlen, and the http/ws callees. Catalog ensure compiles to
+      # *_main.o first; this return renames that object. A miss stops
+      # here so this file never execs cc. Windows keeps the C path below.
+      _sio_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sio_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sio_log="$(mktemp "${TMPDIR:-/tmp}/std_sio_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sio_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_eio_version_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_transport_polling_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_transport_websocket_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_append_bytes$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_append_u32_dec$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sio_reconnect_delay_ms_c$'; then
+            rm -f "$_sio_log"
+            if [ "${_merge:-0}" = "1" ] && [ "$out_o" != "$_final_out" ]; then
+              mv -f "$out_o" "$_final_out" || return 1
+              out_o="$_final_out"
+            fi
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sio_log" >&2
+          rm -f "$_sio_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/async/scheduler.x|std/async/scheduler.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.async.scheduler is one marker.
+      # The C emit below is what execs cc. -lib-name "" keeps
+      # scheduler_f_async_scheduler_v1_marker_c. Without it the path
+      # prefix doubles the export. A miss stops here so this file never
+      # execs cc. Windows keeps the C path below.
+      _sch_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sch_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sch_log="$(mktemp "${TMPDIR:-/tmp}/std_sch_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sch_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?scheduler_f_async_scheduler_v1_marker_c$'; then
+            rm -f "$_sch_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sch_log" >&2
+          rm -f "$_sch_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/security/security.x|std/security/security.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.security.security.x is the bare impl.
+      # The C emit below is what execs cc. -lib-name "" keeps security_*_c
+      # and sec_hkdf_*. Without it the path prefix doubles the export.
+      # A miss stops here so this file never execs cc. The formal script
+      # also early-outs mod.x. Windows keeps the C path.
+      _sec_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sec_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sec_log="$(mktemp "${TMPDIR:-/tmp}/std_sec_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sec_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?security_f_zero_c_marker_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?security_mlock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?security_secure_zero_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?sec_hkdf_expand$'; then
+            rm -f "$_sec_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sec_log" >&2
+          rm -f "$_sec_log"
+          return 1
+          ;;
+      esac
+      ;;
   esac
   if [ "$xlang_bin" = "auto" ]; then
     # 【Why 根源】run-all 批量回归时 XLANG_COMPILE_STD_USE_C=1 强制走 xlang-c：

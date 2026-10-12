@@ -973,14 +973,18 @@ function math_rem_pio2(x: f64, y0: *f64, y1: *f64): i32 {
     } else {
       let jj: i32 = ix >> 20;
       unsafe { *y0 = r - w; }
-      let i2: i32 = jj - ((math_trig_hi(unsafe { *y0 }) >> 20) & 2047);
+      // PLATFORM: SHARED — the pin rejects an unsafe block as a call argument.
+      let y0_hi: f64 = 0.0;
+      unsafe { y0_hi = *y0; }
+      let i2: i32 = jj - ((math_trig_hi(y0_hi) >> 20) & 2047);
       if (i2 > 16) {
         t = r;
         w = fn * pio2_2;
         r = t - w;
         w = fn * pio2_2t - ((t - r) - w);
         unsafe { *y0 = r - w; }
-        i2 = jj - ((math_trig_hi(unsafe { *y0 }) >> 20) & 2047);
+        unsafe { y0_hi = *y0; }
+        i2 = jj - ((math_trig_hi(y0_hi) >> 20) & 2047);
         if (i2 > 49) {
           t = r;
           w = fn * pio2_3;

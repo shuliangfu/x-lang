@@ -1,6 +1,8 @@
 /* seeds/pipeline_phase_parse_only_alias.from_x.c — G-02f-79 product cold-start TU
  * Promoted from compiler/src/asm/pipeline_phase_parse_only_alias.inc (alias/stub; retired .inc).
  * Compile: cc -c seeds/pipeline_phase_parse_only_alias.from_x.c  (or cc_inc_tu wrap).
+ * Darwin arm64 product body is src/pipeline_phase_parse_only_alias.x via -backend asm.
+ * Linux and Windows keep host cc of this seed.
  */
 /**
  * pipeline_phase_parse_only_alias.c — strict asm 编排链：phase_parse_only + phase_parse_load。

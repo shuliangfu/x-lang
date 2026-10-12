@@ -21,6 +21,12 @@
 //
 // See implementation.
 
+/* 记230: Darwin O_NONBLOCK=4; Linux=2048 (was hardcoded 2048 on both). */
+#[cfg(target_os = "macos")]
+export const O_NONBLOCK: i32 = 4;
+#[cfg(target_os = "linux")]
+export const O_NONBLOCK: i32 = 2048;
+#[cfg(target_os = "windows")]
 export const O_NONBLOCK: i32 = 2048;
 
 /* See implementation. */
@@ -30,7 +36,24 @@ export const F_SETFL: i32 = 4;
 extern "C" function close(fd: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+/* 记231: Darwin libc fcntl is variadic; Apple ARM64 puts 3rd+ on stack. */
+extern "C" function fcntl(fd: i32, cmd: i32, ...): i32;
+#[cfg(not(target_os = "windows"))]
+/* 记231: Darwin libc ioctl is variadic; tip Apple va spill for 3rd+. */
+extern "C" function ioctl(fd: i32, req: u64, ...): i32;
+
+/* 记230: tip export const u64 with bit31 set sign-extends (0x8004667e →
+ * 0xffffffff8004667e). Build FIONBIO via shift so movz/movk stay zero-ext. */
+#[cfg(target_os = "macos")]
+export function net_fionbio_c(): u64 {
+  return ((0x8004 as u64) * 65536) + (0x667e as u64);
+}
+#[cfg(target_os = "linux")]
+export function net_fionbio_c(): u64 {
+  return 0x5421 as u64;
+}
+
+
 
 #[cfg(target_os = "windows")]
 extern "C" function closesocket(fd: i32): i32;
@@ -44,19 +67,15 @@ extern "C" function ioctlsocket(fd: i32, cmd: i32, arg: *u32): i32;
  */
 #[cfg(not(target_os = "windows"))]
 export function net_sock_set_blocking_fd_c(fd: i32, blocking: i32): i32 {
-  let flags: i32 = 0;
-  unsafe { flags = fcntl(fd, F_GETFL, 0); }
-  if (flags < 0) {
-    return -1;
+  let on: i32 = 0;
+  if (blocking == 0) {
+    on = 1;
   }
-  if (blocking != 0) {
-    flags = flags & (0 - 1 - O_NONBLOCK);
-  } else {
-    flags = flags | O_NONBLOCK;
+  unsafe {
+    if (ioctl(fd, net_fionbio_c(), &on) == 0) {
+      return 0;
+    }
   }
-  unsafe { if (fcntl(fd, F_SETFL, flags) == 0) {
-    return 0;
-  } }
   return -1;
 }
 

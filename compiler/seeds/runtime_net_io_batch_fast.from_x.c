@@ -1,5 +1,10 @@
 /* seeds/runtime_net_io_batch_fast.from_x.c — G-02f-20 product TU
  * Product: ../std/net/net_io_batch_fast.o
+ * w1098: Darwin arm64 product body is src/asm/runtime_net_io_batch_fast.x
+ * plus src/asm/runtime_net_io_batch_fast_darwin.x (pure asm, then ld -r).
+ * The Darwin _impl bridges return -1. Linux recvmmsg/sendmmsg, Windows,
+ * and the pure-asm-fault backup stay this C seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x pair.
  *
  * R2 migration architecture:
  *   - thin (.x): public _c wrappers + weak io_* stubs (XLANG_RUNTIME_NET_IO_BATCH_FAST_FROM_X)

@@ -38,11 +38,8 @@ export const IO_FIXED_MAX: u32 = 8;
 /* See implementation. */
 export const IO_READV_BUF_MAX: i32 = 16;
 
-/* See implementation. */
-let io_fixed_ptr: [8]*u8 = [
-  0 as *u8, 0 as *u8, 0 as *u8, 0 as *u8,
-  0 as *u8, 0 as *u8, 0 as *u8, 0 as *u8,
-];
+/* Null slots. An element list of `0 as *u8` fails modlet prepare on both compilers. */
+let io_fixed_ptr: [8]*u8 = [];
 let io_fixed_len: [8]usize = [
   0, 0, 0, 0,
   0, 0, 0, 0,

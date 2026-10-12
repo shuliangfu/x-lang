@@ -1,0 +1,234 @@
+# FORCE leftover-weaken: localize smashed mega/thin faces so leftover
+# gcc W is the sole global.
+# PLATFORM: LINUX gold FORCE probe (not product default).
+#
+# wave702: FORCE mega/thin asm of emit_order_at lowered
+# `order_index >= g_aw_pgo_emit_n` to `mov $0, %eax` (no reloc).
+# count still returned 2; at() returned -1; emit_one `i < 0` no-op
+# → CG002 code_len=0. Leftover pabi W sizes: prepare 0x270 /
+# count 0x2f / at 0x65 (RIP load of emit_n). Thin/mega ~128B smash.
+#
+# wave703: FORCE mega T of backend_emit_block_body_sync_elf
+# (`sub $0x8a8` / call-next-insn) first-won leftover 84B gcc wrapper;
+# inner pipeline_asm_emit_block_body_sync_elf mega T (`sub $0x5228` /
+# cltq on i32) first-won leftover W 0x22c6. parse_orch emit_one#2
+# (w323_arena_num_exprs) then failed in w499_mega_emit_body_sync
+# → CG002 code_len=699 labels=0. Leftover W is the live body.
+#
+# wave704: FORCE mega T of pipeline_asm_emit_expr_elf_fast
+# (`sub $0x2e98` / cltq) first-won leftover W 0x1200 after leftover
+# body_sync W was live. After export-extern, leftover fast W is live
+# but parse_orch still CG002; gdb innermost leftover fast#63 eax=-1
+# because leftover fast VAR path calls mega T
+# glue_call_arg_resolve_var_stack_off_elf_c (`sub $0xcf8` / cltq)
+# covering leftover W 0x70b. After resolve leftover W live, leftover
+# resolve#8/#9 still -1 because mega T glue_var_expr_stack_off_elf_c
+# (`sub $0x898` / cltq) first-won leftover gcc W 0x72 (endbr64
+# sub $0x30). parse_orch emit_one#2 is `return load_i32(a, CONST)`
+# with file-level const W323_ARENA_OFF_NUM_EXPRS: leftover fast VAR
+# path then calls asm_module_top_level_const_lit_i32; mega T
+# (`sub $0x8c8`) first-won leftover W 0x14c. Keep rec on this list
+# (thin W 0x48 stub must not first-win leftover rec W 0x6a1).
+#
+# wave706: FORCE mega T of pipe_modlet_bake_scalar_imm_to_data
+# (`sub $0x8c8` / cltq) returns -1 on asm_wpo_thin wave344
+# `g_aw_root_id = -1` .data bake. gdb: add_common_sym/add_label/
+# append_data_zeros/emit_data_len all 0; bake#1 eax=-1 → prepare
+# eax=-1 → mega_body eax=-1 → CG002 code_len=0. Leftover pabi T
+# of bake is also smash (`sub $0x8a8`) but product gdb bake eax=0.
+# Inner leftover gcc W pipeline_elf_ctx_data_poke_u8 (0x4c) must
+# not lose to mega T / elf_ctx_thin W. Localize bake + poke so
+# leftover bake T (weaken→W) and leftover poke W are sole globals.
+# Also localize modlet_thin bake W and elf_ctx_thin poke W.
+# Do NOT leftover-first prepare itself: leftover smash prepare + mega
+# assign_unique_label mismatch (add_common_sym rdx=name_len 0). Mega
+# smash prepare DID register COMMON (rdx=0x15) then failed at bake.
+# Root of bake -1: leftover gcc poke (0x4c) sees data_len=0 after leftover
+# gcc append W 0xa2 returns 0. Mega smash emit_data_len (`sub $0x888`)
+# still first-wins leftover gcc W 0x22 of the same overlay TU (RIP-load
+# of g_pipeline_elf_data_len). Localize the leftover gcc data family:
+# emit_data_len + append_data_zeros + data_poke_u8. Do not leftover-first
+# prepare (modlet table mismatch). Also leftover-first bake so mega smash
+# bake (`sub $0x8c8`) cannot first-win leftover smash bake that product
+# gdb showed eax=0.
+#
+# wave707: FORCE mega T of pipeline_elf_ctx_add_common_sym first-won
+# leftover gcc W 0x138 (endbr64). Dual BSS: mega g_pipe_elf_sym_is_common
+# ≠ leftover g_pipeline_elf_sym_is_common. leftover gcc add_common_sym
+# CALLs leftover gcc add_sym (W 0x22d); mega smash add_sym first-won that
+# W. Family leftover-first both faces. Do NOT leftover-first smash-only
+# modlet_prepare (add_common_sym rdx=name_len 0 mismatch). Localize
+# elf_ctx_thin copies so leftover W is the sole global.
+#
+# wave708: FORCE mega T of pipeline_elf_ctx_add_label first-won leftover
+# gcc W 0x1f0 (endbr64). Dual BSS: mega g_pipe_elf_label_shndx ≠ leftover
+# g_pipeline_elf_label_shndx. leftover gcc add_label uses leftover STATIC
+# current_shndx / label_shndx_set (not first-win-able). leftover gcc
+# ensure_label (W 0xd5) CALLs leftover gcc add_label; leftover-first both
+# faces. Do NOT leftover-first smash-only modlet_prepare.
+#
+# wave710: FORCE mega T of pipeline_asm_emit_assign_elf_c first-won leftover
+# gcc W 0x4b79 (endbr64). leftover gcc VAR assign CALLs leftover gcc
+# glue_emit_assign_rhs_to_rax_elf_c (W 0x59b); leftover gcc rhs_to_rax
+# plain (ako==28) CALLs leftover gcc glue_emit_assign_rhs_elf_c (W 0xd6).
+# Family leftover-first all three. Localize assign_thin / assign_emit_thin /
+# assign_helpers_thin / assign_rhsrax_thin / assign_rhsrax_to_rax_thin so
+# thin W cannot first-win leftover gcc W. Do NOT leftover-first smash-only
+# modlet_prepare. Do not bulk-localize ~1970 default-frame names.
+#
+# wave711: FORCE mega T of pipeline_asm_emit_expr_elf_for_call_args first-won
+# leftover gcc W 0x2c4f (endbr64 sub $0x248). FORCE smash is sub $0x5c38 /
+# cltq. Localize for_call_args_thin so thin W cannot first-win leftover gcc
+# W. Do NOT leftover-first smash-only modlet_prepare. Do not bulk-localize
+# ~1970 default-frame names.
+#
+# wave712: FORCE mega T of asm_parser_emit_heavy_safe_helper first-won leftover
+# gcc W 0x22d7 (endbr64 sub $0x10). FORCE smash is sub $0x87c8. Do NOT
+# leftover-first asm_skip_heavy_module_func_body itself (wave650
+# FORCE_FULL_BODIES escape). Do not bulk-localize ~1970 default-frame names.
+#
+# wave713: FORCE mega T of glue_emit_struct_type_let_init_elf_c first-won leftover
+# gcc W 0x20c9 (endbr64 sub $0x3b8). leftover gcc parent CALLs leftover gcc
+# pipeline_asm_emit_struct_let_init_elf_c (W 0xa0) which CALLs leftover gcc
+# pipeline_asm_emit_struct_lit_fields_elf_c (W 0x169e). leftover gcc emit_expr
+# STRUCT_LIT CALLs leftover gcc pipeline_asm_emit_struct_lit_elf_c (W 0x44).
+# Family leftover-first all four. Localize assign_thin / asm_expr_thin so
+# thin W cannot first-win leftover gcc W. Do NOT leftover-first skip_heavy.
+# Do not leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave714: FORCE mega T of asm_parser_m8_tail_thin_delegate_c_name first-won leftover
+# gcc W 0x1f1a (endbr64 sub $0x20). leftover gcc skip_heavy_or_thin_stub /
+# resolve_call_to_glue CALL leftover gcc this face. Do NOT leftover-first
+# asm_skip_heavy_module_func_body (FORCE_FULL_BODIES dual env). Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave715: FORCE mega T of asm_wpo_collect_walk first-won leftover gcc W 0x1e56
+# (endbr64 sub $0x210). Mega wrappers collect_edges_from_expr / collect_from_block
+# CALL leftover gcc this face. Localize asm_wpo_thin copy so thin W cannot
+# first-win leftover gcc W. Do NOT leftover-first skip_heavy. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave716: FORCE mega T of pipeline_asm_emit_return_elf_impl first-won leftover
+# gcc W 0x1a7e (endbr64 sub $0x1e8). Mega wrapper pipeline_asm_emit_return_elf_c
+# and expr_rec CALL leftover gcc this face. Localize arr_return_thin and
+# fixed_array_copy_thin copies so thin W cannot first-win leftover gcc W.
+# HARD BAN product PREFER of return_elf_impl_thin (FORCE user -c is T001).
+# Do NOT leftover-first skip_heavy. Do not leftover-first smash-only
+# modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave717: FORCE mega T of asm_parser_func_is_thin_delegate first-won leftover
+# gcc W 0x12d3 (endbr64 sub $0x10). Mega skip_heavy CALLs leftover gcc this
+# face. No thin copy. Do NOT leftover-first skip_heavy. Do not leftover-first
+# smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave718: FORCE mega T of asm_backend_m8_tail_thin_delegate_c_name first-won
+# leftover gcc W 0xa62 (endbr64 sub $0x20). Mega skip_heavy_or_thin_stub
+# CALLs leftover gcc this face (already unsafe). No thin copy. Do NOT
+# leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave719: FORCE mega T of asm_pipeline_m8_tail_thin_delegate_c_name first-won
+# leftover gcc W 0x130 (endbr64 sub $0x20). Mega skip_heavy_or_thin_stub
+# CALLs leftover gcc this face (already unsafe). No thin copy. Do NOT
+# leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave720: FORCE mega T of asm_typeck_m8_tail_thin_delegate_c_name first-won
+# leftover gcc W 0xed (endbr64 sub $0x30). Mega skip_heavy_or_thin_stub
+# CALLs leftover gcc this face (already unsafe). No thin copy. Do NOT
+# leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave721: FORCE mega T of asm_driver_m8_tail_thin_delegate_c_name first-won
+# leftover gcc W 0x64 (endbr64 sub $0x20). Mega skip_heavy_or_thin_stub
+# CALLs leftover gcc this face (already unsafe). No thin copy. Do NOT
+# leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave722: FORCE mega T of pipeline_asm_emit_lvalue_eff_addr_elf_c first-won
+# leftover gcc W 0x890 (endbr64 sub $0x170). leftover gcc emit_assign CALLs
+# leftover gcc this face (FIELD/INDEX/DEREF). Thins export-extern (no body);
+# still localize. Do NOT leftover-first skip_heavy or skip_heavy_or_thin_stub
+# parent. Do not leftover-first smash-only modlet_prepare. Do not bulk-localize
+# ~1970.
+#
+# wave723: FORCE mega T of glue_enc_local_slot_ptr_or_addr_elf_c first-won
+# leftover gcc W 0x82 (endbr64 sub $0x40). leftover gcc emit_assign CALLs
+# leftover gcc this face (field_assign HIT smash sub $0x8b8). Thins
+# export-extern (no body); still localize. Do NOT leftover-first skip_heavy
+# or skip_heavy_or_thin_stub parent. Do not leftover-first smash-only
+# modlet_prepare. Do not bulk-localize ~1970.
+#
+# wave724: FORCE mega T of pipeline_asm_index_elem_byte_sz_c first-won
+# leftover gcc W 0x1103. leftover gcc INDEX / lvalue_eff_addr CALLs leftover
+# gcc this face. Thins export-extern (no body); still localize. Do NOT
+# leftover-first skip_heavy or skip_heavy_or_thin_stub parent. Do not
+# leftover-first smash-only modlet_prepare. Do not bulk-localize ~1970.
+#
+# Apply to mega_force.o AND runtime_pipeline_abi_asm_wpo_thin.o
+# AND runtime_pipeline_abi_asm_expr_thin.o AND
+# runtime_pipeline_abi_asm_expr_helpers_thin.o
+# AND runtime_pipeline_abi_modlet_thin.o
+# AND runtime_pipeline_abi_elf_ctx_thin.o
+# AND runtime_pipeline_abi_arr_return_thin.o
+# AND runtime_pipeline_abi_fixed_array_copy_thin.o
+# before `ld -r --allow-multiple-definition` (mono then thins then
+# leftover-weak pabi). objcopy --localize-symbols this list.
+#
+# Public faces are also export-extern in runtime_pipeline_abi.x so
+# FORCE mega compile emits U. Helpers stay mega-local T unless
+# localized here (leftover at() calls global get_emit_mod/max_funcs).
+pipeline_asm_wpo_pgo_emit_order_prepare
+pipeline_asm_wpo_pgo_emit_order_count
+pipeline_asm_wpo_pgo_emit_order_at
+asm_wpo_get_emit_mod
+asm_wpo_set_emit_mod
+asm_wpo_max_funcs
+backend_emit_block_body_sync_elf
+pipeline_asm_emit_block_body_sync_elf
+pipeline_asm_emit_expr_elf_rec
+pipeline_asm_emit_expr_elf_fast
+glue_call_arg_resolve_var_stack_off_elf_c
+glue_var_expr_stack_off_elf_c
+asm_module_top_level_const_lit_i32
+pipe_modlet_bake_scalar_imm_to_data
+pipeline_elf_ctx_data_poke_u8
+pipeline_elf_ctx_append_data_zeros
+pipeline_elf_ctx_emit_data_len
+pipeline_elf_ctx_add_sym
+pipeline_elf_ctx_add_common_sym
+pipeline_elf_ctx_add_label
+pipeline_elf_ctx_ensure_label
+pipeline_asm_emit_assign_elf_c
+glue_emit_assign_rhs_to_rax_elf_c
+glue_emit_assign_rhs_elf_c
+pipeline_asm_emit_expr_elf_for_call_args
+asm_parser_emit_heavy_safe_helper
+glue_emit_struct_type_let_init_elf_c
+pipeline_asm_emit_struct_let_init_elf_c
+pipeline_asm_emit_struct_lit_fields_elf_c
+pipeline_asm_emit_struct_lit_elf_c
+asm_parser_m8_tail_thin_delegate_c_name
+asm_wpo_collect_walk
+pipeline_asm_emit_return_elf_impl
+asm_parser_func_is_thin_delegate
+asm_backend_m8_tail_thin_delegate_c_name
+asm_pipeline_m8_tail_thin_delegate_c_name
+asm_typeck_m8_tail_thin_delegate_c_name
+asm_driver_m8_tail_thin_delegate_c_name
+pipeline_asm_emit_lvalue_eff_addr_elf_c
+glue_enc_local_slot_ptr_or_addr_elf_c
+pipeline_asm_index_elem_byte_sz_c
+glue_emit_index_eff_addr_scaled_elf_c
+glue_try_index_var_or_field_base_to_rax_elf_c
+glue_try_index_rvalue_slice_once_elf_c
+glue_emit_index_bounds_guard_elf_c
+glue_try_index_var_or_field_base_to_rbx_elf_c
+glue_local_var_slot_needs_ptr_load_elf_c
+glue_copy_large_struct_from_rax_ptr_elf_c
+glue_emit_vector_type_let_init_elf_c
+pipeline_asm_emit_vector_let_init_elf_c
+pipeline_asm_simd_try_inline_select_call_elf_c
+pipeline_asm_simd_try_inline_shuffle_call_elf_c
+pipeline_asm_simd_try_inline_fma3_call_elf_c
+pipeline_asm_simd_try_inline_splat_call_elf_c

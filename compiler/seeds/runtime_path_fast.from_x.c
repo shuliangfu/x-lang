@@ -9,7 +9,14 @@
 /* thin+rest 切割：全部 16 个函数由 .x 提供，
  * rest 模式下跳过编译避免重复定义。
  * 宏边界：XLANG_RUNTIME_PATH_FAST_FROM_X
- * 语义差异：.x path_sep_c 总是返回 '/'（47，posix 验收路径）；seed Win 分支返回 '\'（92）保留但 rest 模式下不生效。 */
+ * 语义差异：.x path_sep_c 总是返回 '/'（47，posix 验收路径）；seed Win 分支返回 '\'（92）保留但 rest 模式下不生效。
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_path_fast.x, pure-asm by the current compiler
+ * into std/path/path.o. This C file is the Linux/Windows body and
+ * the Darwin backup when pure-asm faults and the staged object is
+ * missing. Do not delete these bodies. Do not gcc -E this seed
+ * as the repair.
+ */
 #ifndef XLANG_RUNTIME_PATH_FAST_FROM_X
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 uint8_t path_sep_c(void) {

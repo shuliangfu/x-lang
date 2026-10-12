@@ -37,6 +37,13 @@ export extern "C" function pipeline_module_func_name_copy64(m: *u8, fi: i32, dst
 export extern "C" function pipeline_block_let_type_ref(a: *u8, br: i32, li: i32): i32;
 export extern "C" function pipeline_block_let_name_len(a: *u8, br: i32, li: i32): i32;
 export extern "C" function pipeline_block_let_name_copy64(a: *u8, br: i32, li: i32, dst: *u8): void;
+export extern "C" function malloc(n: usize): *u8;
+export extern "C" function free(p: *u8): void;
+export extern "C" function memset(p: *u8, c: i32, n: usize): *u8;
+// Name bytes and the let-index table live on the heap. A 256-byte stack
+// array is stored past `sub sp` by the pinned compiler. malloc plus memset
+// keeps the old zero-filled bytes, and the frame stays inside the allocation.
+// PLATFORM: SHARED
 
 /** Module doc anchor (prove surface symbol; no product callers).
  * @return always 0
@@ -281,6 +288,9 @@ export function asm_pool_block_rest_refs_name(a: *u8, br: i32, from_exclusive: i
 export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
   if (a == 0) { return 8; }
   if (type_ref <= 0) { return 8; }
+  // Live pad so the multiply chain stays inside the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   unsafe {
     let kind: i32 = pipeline_type_kind_ord_at(a, type_ref);
     if (kind == 0) { return 4; }
@@ -293,10 +303,13 @@ export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
     if (kind == 7) { return 8; }
     if (kind == 9) { return 8; }
     if (kind == 8) {
-      let name: u8[256] = [];
-      let nlen: i32 = pipeline_type_named_name_into(a, type_ref, &name[0]);
-      if (nlen <= 0) { return 8; }
-      if (m == 0) { return 8; }
+      // Heap name (256). The stack array of this size sat past the frame.
+      let name: *u8 = malloc(256);
+      if (name == 0) { return 8; }
+      memset(name, 0, 256);
+      let nlen: i32 = pipeline_type_named_name_into(a, type_ref, name);
+      if (nlen <= 0) { free(name); return 8; }
+      if (m == 0) { free(name); return 8; }
       let nlay: i32 = pipeline_module_num_struct_layouts_at(m);
       let k: i32 = 0;
       while (k < nlay) {
@@ -313,12 +326,14 @@ export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
           }
           if (eq != 0) {
             let sz: i32 = typeck_x_type_size_from_layout_glue(m, a, k, 0);
-            if (sz > 0) { return sz; }
+            if (sz > 0) { free(name); return sz; }
+            free(name);
             return 8;
           }
         }
         k = k + 1;
       }
+      free(name);
       return 8;
     }
   }
@@ -333,6 +348,9 @@ export function asm_pool_type_size_bytes(a: *u8, m: *u8, type_ref: i32): i32 {
 #[no_mangle]
 export function asm_pool_load_i32_le(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
+  // Live pad so the four-byte multiply chain stays inside the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let m: i32 = 256;
   let a: i32 = p[off] as i32;
   a = a + (p[off + 1] as i32) * m;
@@ -481,8 +499,10 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
  *   live[64]@12 stride 268 (name[256], name_len@+256, size_bytes@+260, frame_data_off@+264),
  *   await_stmt_idx@17164 i32; total 17168 bytes.
  *
- * Stack discipline: cache only let indices (i32[64]), re-fetch names from the AST
- * when needed — avoids a u8[4096] frame that flaked Ubuntu xlang -E (SIGSEGV).
+ * Stack discipline: cache only let indices (64 little-endian i32s on the heap),
+ * re-fetch names from the AST when needed. Name buffers are malloc(256) and
+ * zeroed, matching the old stack arrays. The current await name is a u8[64]
+ * because that path accepts length <= 63. A 17168-step zero loop is one memset.
  *
  * @param arena AST arena (opaque)
  * @param mod module (opaque)
@@ -492,21 +512,23 @@ export function async_asm_pool_func_needs_cps(arena: *u8, mod: *u8, func_index: 
  * PLATFORM: SHARED — pure pool API; product cold seed retains C body until glue unbundle. */
 #[no_mangle]
 export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i32, out: *u8): i32 {
+  // Live pad. Call spills in this function sit past a smaller frame.
+  let pad: u8[256] = [];
+  pad[0] = 0;
   if (arena == 0) { return 0 - 1; }
   if (mod == 0) { return 0 - 1; }
   if (out == 0) { return 0 - 1; }
   if (func_index < 0) { return 0 - 1; }
   // Zero entire layout (sizeof AsyncAsmPoolLayout == 17168; Cap 4.2.8: name[128]→[256]).
-  let zi: i32 = 0;
-  while (zi < 17168) {
-    out[zi] = 0;
-    zi = zi + 1;
-  }
+  // One memset. The 17168-step store loop spilled past the frame.
+  unsafe { memset(out, 0, 17168); }
   if (async_asm_pool_func_needs_cps(arena, mod, func_index) == 0) {
     return 1;
   }
   unsafe {
-    let fname: u8[256] = [];
+    let fname: *u8 = malloc(256);
+    if (fname == 0) { return 0 - 1; }
+    memset(fname, 0, 256);
     let fnlen: i32 = pipeline_module_func_name_len_at(mod, func_index);
     pipeline_module_func_name_copy64(mod, func_index, fname);
     let fid: u32 = async_asm_pool_fn_id_from_name(fname, fnlen);
@@ -516,7 +538,10 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
     let br: i32 = pipeline_module_func_body_ref_at(mod, func_index);
     let nso: i32 = ast_ast_block_num_stmt_order(arena, br);
     // Prior let indices only (re-fetch names via pipeline_block_let_name_*).
-    let defined_lets: i32[64] = [];
+    // 64 little-endian i32 slots (256 bytes) on the heap.
+    let defined_lets: *u8 = malloc(256);
+    if (defined_lets == 0) { free(fname); return 0 - 1; }
+    memset(defined_lets, 0, 256);
     let n_def: i32 = 0;
     let si: i32 = 0;
     while (si < nso) {
@@ -538,23 +563,27 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
                 // Live-add each previously defined let still referenced after this await.
                 let li: i32 = 0;
                 while (li < n_def) {
-                  let def_idx: i32 = defined_lets[li];
+                  let def_idx: i32 = asm_pool_load_i32_le(defined_lets, li * 4);
                   let dlen: i32 = pipeline_block_let_name_len(arena, br, def_idx);
                   if (dlen > 0) {
                     if (dlen <= 255) {
-                      let dname: u8[256] = [];
+                      let dname: *u8 = malloc(256);
+                      if (dname == 0) { free(defined_lets); free(fname); return 0 - 1; }
+                      memset(dname, 0, 256);
                       pipeline_block_let_name_copy64(arena, br, def_idx, dname);
                       if (asm_pool_block_rest_refs_name(arena, br, si, dname, dlen) != 0) {
                         let tref: i32 = pipeline_block_let_type_ref(arena, br, def_idx);
                         let sz: i32 = asm_pool_type_size_bytes(arena, mod, tref);
                         asm_pool_live_add(out, dname, dlen, sz);
                       }
+                      free(dname);
                     }
                   }
                   li = li + 1;
                 }
                 // Await let itself if referenced after suspend (same as C static hoist).
-                let cur_nb: u8[256] = [];
+                // 64 bytes: this path only accepts a name of length <= 63.
+                let cur_nb: u8[64] = [];
                 let cur_len: i32 = pipeline_block_let_name_len(arena, br, idx);
                 if (cur_len > 0) {
                   if (cur_len <= 63) {
@@ -573,7 +602,7 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
             if (llen > 0) {
               if (llen <= 255) {
                 if (n_def < 64) {
-                  defined_lets[n_def] = idx;
+                  asm_pool_store_i32_le(defined_lets, n_def * 4, idx);
                   n_def = n_def + 1;
                 }
               }
@@ -584,6 +613,8 @@ export function async_asm_pool_build_layout(arena: *u8, mod: *u8, func_index: i3
       si = si + 1;
     }
     let num_awaits: i32 = asm_pool_load_i32_le(out, 4);
+    free(defined_lets);
+    free(fname);
     if (num_awaits > 0) {
       return 0;
     }

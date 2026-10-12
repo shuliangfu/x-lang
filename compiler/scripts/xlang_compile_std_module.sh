@@ -125,10 +125,16 @@ formal_mod_key_for_out() {
     # PLATFORM: SHARED — cookbook db_kv_arrow unique UNDEF (mmap_available / adopt).
     # Was std_x auto-soft kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_*.
     ../std/db/kv/kv.o|std/db/kv/kv.o|*std/db/kv/kv.o) printf '%s' "std/db/kv/kv.o" ;;
+    ../std/schema/schema.o|std/schema/schema.o|*std/schema/schema.o) printf '%s' "std/schema/schema.o" ;;
+    ../std/trace/trace.o|std/trace/trace.o|*std/trace/trace.o) printf '%s' "std/trace/trace.o" ;;
     ../std/db/arrow/arrow.o|std/db/arrow/arrow.o|*std/db/arrow/arrow.o) printf '%s' "std/db/arrow/arrow.o" ;;
     ../std/dynlib/dynlib.o|std/dynlib/dynlib.o|*std/dynlib/dynlib.o) printf '%s' "std/dynlib/dynlib.o" ;;
     ../std/http/http.o|std/http/http.o|*std/http/http.o) printf '%s' "std/http/http.o" ;;
     ../std/tar/tar.o|std/tar/tar.o|*std/tar/tar.o) printf '%s' "std/tar/tar.o" ;;
+    ../std/uuid/uuid.o|std/uuid/uuid.o|*std/uuid/uuid.o) printf '%s' "std/uuid/uuid.o" ;;
+    ../std/elf/elf.o|std/elf/elf.o|*std/elf/elf.o) printf '%s' "std/elf/elf.o" ;;
+    ../std/task/task.o|std/task/task.o|*std/task/task.o) printf '%s' "std/task/task.o" ;;
+    ../std/async/future.o|std/async/future.o|*std/async/future.o) printf '%s' "std/async/future.o" ;;
     # PLATFORM: SHARED — pure-asm batch residual (2026-08-13): formal export std_* faces.
     ../std/unicode/unicode.o|std/unicode/unicode.o|*std/unicode/unicode.o) printf '%s' "std/unicode/unicode.o" ;;
     ../std/channel/channel.o|std/channel/channel.o|*std/channel/channel.o) printf '%s' "std/channel/channel.o" ;;
@@ -169,109 +175,340 @@ formal_mod_spec_for_key() {
     # completeness for entry-only -x -E; dual path caused L4 run-string BLD001.
     # PLATFORM: SHARED — same dedicated vehicle as fs_formal pattern.
     std/string/string.o) printf '%s' "string_formal|0|" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.heap is one asm leaf.
+    # WINDOWS stays on the C path. Do not pass -lib-name "".
+    # Callers use std_heap_map_find, std_heap_libc_heap_alloc_i32_c,
+    # and std_heap_ops_map_i32_i32_find_c. Undefined symbols are calloc,
+    # core_mem_mem_copy, free, getenv, malloc, posix_memalign, realloc,
+    # and xlang_panic_.
     std/heap/heap.o) printf '%s' "mod|0|../std/heap/mod.x|../std/heap/libc.x|../std/heap/ops.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.sync.
+    # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
+    # Import mangle stays std_heap_page_mmap_*.
     std/heap/page_mmap.o) printf '%s' "mod|0|../std/heap/page_mmap.x" ;;
-    std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.sys is mod.x plus mmap.x, one asm leaf.
+    # WINDOWS stays on the C path. Do not pass -lib-name "".
+    # Import mangle stays std_sys_*. mmap.x supplies std_sys_mmap_*.
+    # macos.o supplies std_sys_macos_macos_munmap and msync_sync.
+    std/sys/sys.o) printf '%s' "mod|0|../std/sys/mod.x|../std/sys/mmap.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — linux.x has pure-asm arm (记216).
+    # WINDOWS stays on the C path.
     std/sys/linux.o) printf '%s' "mod|0|../std/sys/linux.x" ;;
-    # PLATFORM: SHARED — formal std.sys.macos (cfg import / macos_write_*).
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.heap.page_mmap.
+    # WINDOWS stays on the C path. One file, mod prefix, no -lib-name "".
+    # Import mangle stays std_sys_macos_macos_*.
     std/sys/macos.o) printf '%s' "mod|0|../std/sys/macos.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.types.
+    # WINDOWS stays on the C path.
     core/mem/mem.o) printf '%s' "mod|0|../core/mem/mod.x" ;;
-    # PLATFORM: SHARED — pure-asm product gate (simple group g10); C-path G-01 still __builtin_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.mem.
+    # WINDOWS stays on the C path. The .x body is the loop authority;
+    # host __builtin_* is not this leaf.
     core/builtin/builtin.o) printf '%s' "mod|0|../core/builtin/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.debug.
+    # WINDOWS stays on the C path.
     core/types/types.o) printf '%s' "mod|0|../core/types/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — compile body uses -backend asm and
+    # does not fall through to cc. WINDOWS stays on the C path.
     core/option/option.o) printf '%s' "mod|0|../core/option/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.option.
+    # WINDOWS stays on the C path.
     core/result/result.o) printf '%s' "mod|0|../core/result/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.result.
+    # WINDOWS stays on the C path. Distinct from std/debug/debug.o (c_face).
     core/debug/debug.o) printf '%s' "mod|0|../core/debug/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — core.slice is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays core_slice_*.
+    # Undefined: core_option_*, core_slice_*_from_ptr_c / core_subslice_*_c,
+    # xlang_panic_. Slice `.data` []u8 index is scale 1 (index_elem recovery).
     core/slice/mod.o) printf '%s' "mod|0|../core/slice/mod.x" ;;
-    # PLATFORM: SHARED — cookbook core_str_index unique UNDEF (bytes_view_index_of*).
-    # G.7 complete formal_mod like core/slice/mod.o; product import mangle core_str_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — core.str is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays core_str_*.
     core/str/mod.o) printf '%s' "mod|0|../core/str/mod.x" ;;
-    # PLATFORM: SHARED — cookbook iter_slice_sum unique UNDEF (iter_i32 / next_i32).
-    # G.7 complete formal_mod like core/str/mod.o; product import mangle core_iterator_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — core.iterator is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays core_iterator_*.
+    # Undefined symbols are core_option_some_* and core_option_none_*.
     core/iterator/mod.o) printf '%s' "mod|0|../core/iterator/mod.x" ;;
-    # PLATFORM: SHARED — CORE-010 direct import("core.fmt") product -o (fmt_*_to_buf UNDEF).
-    # G.7 complete formal_mod like core/str/mod.o; product import mangle core_fmt_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — core.fmt is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays core_fmt_*.
     core/fmt/mod.o) printf '%s' "mod|0|../core/fmt/mod.x" ;;
-    # PLATFORM: SHARED — CORE-005 direct import("core.cmp") product -o (core_cmp_* UNDEF).
-    # G.7 complete formal_mod like core/fmt/mod.o; product import mangle core_cmp_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.builtin.
+    # WINDOWS stays on the C path. CORE-005 import mangle stays core_cmp_*.
     core/cmp/mod.o) printf '%s' "mod|0|../core/cmp/mod.x" ;;
-    # PLATFORM: SHARED — tests/std-bytes/arena_external unique UNDEF (from_external*).
-    # G.7 complete formal_mod like core/iterator/mod.o; product import mangle std_bytes_*.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.bytes is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_bytes_*.
+    # Undefined symbols are the std_heap_* alloc helpers, std_mem_compare,
+    # std_string_new, and std_string_view.
     std/bytes/bytes.o) printf '%s' "mod|0|../std/bytes/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.map is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_map_*.
+    # One file: ../std/map/mod.x. Pins are
+    # std_map_insert_Map_i32_i32_ptr_i32_i32,
+    # std_map_get_Map_i32_i32_i32_i32, and std_map_str_insert.
+    # Undefined symbols are memcpy, std_heap_libc_heap_alloc_i32_c,
+    # std_heap_libc_heap_alloc_u64_c, std_heap_libc_heap_alloc_u8_c,
+    # std_heap_libc_heap_copy_u8_at_c, std_heap_libc_heap_free_i32_c,
+    # std_heap_libc_heap_free_u64_c, std_heap_libc_heap_free_u8_c,
+    # std_heap_map_find, and xlang_panic_.
     std/map/map.o) printf '%s' "mod|1|../std/map/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — set mod.x is the whole object and is asm.
+    # Do not pass -lib-name "". Exports stay std_set_*.
+    # WINDOWS stays on the C path.
     std/set/set.o) printf '%s' "mod|1|../std/set/mod.x" ;;
     std/vec/vec.o) printf '%s' "mod|0|../std/vec/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.backtrace.
+    # WINDOWS stays on the C path. Import mangle stays std_thread_*.
     std/thread/thread.o) printf '%s' "mod|0|../std/thread/mod.x" ;;
-    std/time/time.o) printf '%s' "mod|1|../std/time/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.time is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_time_*.
+    # time.x is the bare impl and keeps -lib-name "" so the exports
+    # stay time_now_wall_sec_c, time_duration_ns_c, and
+    # time_format_timezone_smoke_c.
+    # Undefined symbols are time_now_monotonic_ns_c, time_now_wall_ns_c,
+    # time_sleep_ns_c, time_format_wall_rfc3339_c, and
+    # time_wall_local_offset_min_c.
+    std/time/time.o) printf '%s' "mod|1|../std/time/mod.x|../std/time/time.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.random is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_random_*.
+    # random.x is the bare impl and keeps -lib-name "" so the exports
+    # stay random_u32_c, random_u64_c, and random_rng_smoke_c.
+    # Undefined symbols are random_fill_bytes_c and xlang_panic_.
     std/random/random.o) printf '%s' "mod|1|../std/random/mod.x|../std/random/random.x" ;;
-    std/env/env.o) printf '%s' "mod|0|../std/env/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.env is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_env_*.
+    # env.x is the bare impl and keeps -lib-name "" so the exports stay
+    # args_iter_count_c, env_parse_kv_entry, and
+    # env_platform_encoding_smoke_c.
+    # Undefined symbols are the env_* faces in runtime_env_os.o,
+    # process_args_count_c, process_arg_c, memcpy, strchr, and strlen.
+    std/env/env.o) printf '%s' "mod|1|../std/env/mod.x|../std/env/env.x" ;;
     std/fs/fs.o) printf '%s' "fs_formal|0|" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.atomic.
+    # WINDOWS stays on the C path. Import mangle stays std_sync_*.
+    # sync.x is the bare-impl marker and keeps -lib-name "".
     std/sync/sync.o) printf '%s' "mod|1|../std/sync/mod.x|../std/sync/sync.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — queue mod.x and the queue.x marker are asm.
+    # mod.x does not pass -lib-name "". Exports stay std_queue_*.
+    # queue.x keeps -lib-name "" for queue_f_queue_v1_marker_c and
+    # queue_f_queue_v2_marker_c. WINDOWS stays on the C path.
     std/queue/queue.o) printf '%s' "mod|1|../std/queue/mod.x|../std/queue/queue.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.encoding is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_encoding_*.
+    # encoding.x is the bare impl and keeps -lib-name "" so the exports
+    # stay encoding_utf8_valid_c, encoding_hex_encode_c, and
+    # encoding_extra_smoke_c. Undefined symbols are std_base64_* and
+    # std_string_string_capacity, std_string_string_clear,
+    # std_string_string_data_ptr.
     std/encoding/encoding.o) printf '%s' "mod|1|../std/encoding/mod.x|../std/encoding/encoding.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.base64 is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_base64_*.
+    # base64.x is the bare impl and keeps -lib-name "" so the exports
+    # stay base64_encode_standard_c, base64_decode_standard_c, and
+    # base64_encode_url_c. Undefined symbols are memcpy and memset.
     std/base64/base64.o) printf '%s' "mod|1|../std/base64/mod.x|../std/base64/base64.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — every std.crypto source is asm.
+    # Bare files take -lib-name "". mod.x does not, so its names stay
+    # std_crypto_*. WINDOWS stays on the C path.
     std/crypto/crypto.o) printf '%s' "mod|1|../std/crypto/mod.x|../std/crypto/core.x|../std/crypto/aes_gcm.x|../std/crypto/chacha20_poly1305.x|../std/crypto/chacha20_aead.x|../std/crypto/ed25519.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.log is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_log_*.
+    # log.x is the bare impl and keeps -lib-name "" so the exports stay
+    # log_write_c, log_prefix_copy, and log_write_structured_kv_c.
+    # Undefined symbols are log_apply_env_once_c, log_get_min_level_c,
+    # log_emit_bytes_c, log_set_min_level_c, log_set_sink_mask_c,
+    # log_set_file_sink_c, log_close_file_sink_c, log_set_rotate_c,
+    # log_set_async_enabled_c, and log_async_flush_c.
     std/log/log.o) printf '%s' "mod|1|../std/log/mod.x|../std/log/log.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.test is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_test_*.
+    # test.x is the bare impl and keeps -lib-name "" so the exports
+    # stay test_expect_c, test_expect_eq_i32_c, and test_fuzz_next_c.
+    # Undefined symbols are env_getenv_c, memcpy, strtoul,
+    # test_call_i32_void_c, time_now_monotonic_ns_c, xlang_panic_,
+    # and xlang_sys_write.
     std/test/test.o) printf '%s' "mod|1|../std/test/mod.x|../std/test/test.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.channel.
+    # WINDOWS stays on the C path. Import mangle stays std_atomic_*.
+    # atomic.x is the bare-impl marker and keeps -lib-name "".
     std/atomic/atomic.o) printf '%s' "mod|1|../std/atomic/mod.x|../std/atomic/atomic.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — hash mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_hash_*.
+    # hash.x is the bare impl and keeps -lib-name "". WINDOWS stays on the C path.
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — math.x is the bare-impl file.
+    # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
+    # mod.x has Darwin+Linux pure-asm arm (记213). WINDOWS stays on the C path.
     std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.sort is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_sort_*.
+    # sort.x keeps the path prefix: mod calls std_sort_sort_sort_qsort_*.
+    # Do not pass -lib-name "". Undefined symbol is malloc.
     std/sort/sort.o) printf '%s' "mod|0|../std/sort/mod.x|../std/sort/sort.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.ffi is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_ffi_*.
+    # ffi.x is the bare impl and keeps -lib-name "" so the exports
+    # stay ffi_cstr_len_c, ffi_cstring_new_c, and ffi_point_pack_c.
+    # Undefined symbols are malloc, free, memcpy, and strlen.
     std/ffi/ffi.o) printf '%s' "mod|1|../std/ffi/mod.x|../std/ffi/ffi.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — context mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_context_*.
+    # context.x has Darwin+Linux pure-asm arm (记212). WINDOWS stays on the C path.
     std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — error mod.x has pure-asm arm (记215).
+    # WINDOWS stays on the C path.
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.json is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_json_*.
+    # json.x is the bare impl and keeps -lib-name "" so the exports stay
+    # json_parse_null_c, json_parse_bool_c, and json_parse_string_c.
+    # The merged object has no undefined symbols.
     std/json/json.o) printf '%s' "mod|1|../std/json/mod.x|../std/json/json.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.csv is one asm leaf.
+    # WINDOWS stays on the C path. csv.x takes -lib-name "".
+    # Callers use std_csv_parse_row and csv_parse_row_c.
+    # The merged object has no undefined symbols.
     std/csv/csv.o) printf '%s' "mod|1|../std/csv/mod.x|../std/csv/csv.x" ;;
-    # PLATFORM: SHARED — std.cli product face (cookbook cli_subcommand).
-    # Was std_x bare cli.x only → T cli_* / no std_cli_* (import METHOD UNDEF).
-    # G.7 complete formal_mod like csv/http: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.cli is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_cli_*.
+    # cli.x is the bare impl and keeps -lib-name "" so the exports stay
+    # cli_is_help_c, cli_write_usage_c, and cli_smoke_c.
+    # Undefined symbols are memcpy and std_env_args_iter_next.
     std/cli/cli.o) printf '%s' "mod|1|../std/cli/mod.x|../std/cli/cli.x" ;;
-    # PLATFORM: SHARED — std.config product face (STD-086 layer/yaml .x smoke).
+    # PLATFORM: MACOS|DARWIN|LINUX — config mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_config_*.
+    # config.x has Darwin+Linux pure-asm arm (记211). WINDOWS stays on the C path.
     # Was std_x bare config.x only → T config_*_c / no std_config_* (import METHOD UNDEF).
-    # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
     std/config/config.o) printf '%s' "mod|1|../std/config/mod.x|../std/config/config.x" ;;
     # PLATFORM: SHARED — std.cache product face (STD-087 lru_pool_smoke).
     # Was std_x bare cache.x only → T cache_*_c / no std_cache_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/config: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.cache is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_cache_*.
+    # cache.x is the bare impl and keeps -lib-name "" so the exports stay
+    # cache_lru_create_c, cache_lru_get_c, and cache_pool_acquire_c.
+    # Undefined symbols are calloc, free, and time_now_monotonic_ns_c.
     std/cache/cache.o) printf '%s' "mod|1|../std/cache/mod.x|../std/cache/cache.x" ;;
     # PLATFORM: SHARED — std.url product face (STD-076 roundtrip).
     # Was std_x bare url.x only → T url_*_c / no std_url_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/cache: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.url is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_url_*.
+    # url.x is the bare impl and keeps -lib-name "" so the exports stay
+    # url_parse_c, url_query_encode_c, and url_ipv6_host_smoke_c.
+    # Undefined symbols are inet_ntop, inet_pton, memcpy, memset, and strlen.
     std/url/url.o) printf '%s' "mod|1|../std/url/mod.x|../std/url/url.x" ;;
     # PLATFORM: SHARED — std.security product face (STD-079 roundtrip).
     # Was std_x bare security.x only → T security_*_c / no std_security_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/url: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — both source files are asm.
+    # security.x takes -lib-name "" so the exports stay security_*_c and sec_hkdf_*.
+    # mod.x does not, so the exports stay std_security_*.
+    # WINDOWS stays on the C path. std_x early-outs security.x only.
     std/security/security.o) printf '%s' "mod|1|../std/security/mod.x|../std/security/security.x" ;;
     # PLATFORM: SHARED — std.option / std.result product faces (STD-080/081 roundtrip).
     # Wrappers over core.option / core.result; mod.x only (co-emits core bodies).
     # G.7: mod|0 like channel/core.option (no bare-impl second file).
+    # PLATFORM: MACOS|DARWIN|LINUX — std.option and std.result are asm leaves.
+    # WINDOWS stays on the C path. Import mangle stays std_option_* / std_result_*.
     std/option/option.o) printf '%s' "mod|0|../std/option/mod.x" ;;
     std/result/result.o) printf '%s' "mod|0|../std/result/mod.x" ;;
-    # PLATFORM: SHARED — std.datetime product face (cookbook datetime_iana).
+    # PLATFORM: MACOS|DARWIN|LINUX — datetime mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_datetime_*.
+    # datetime.x is the bare impl and keeps -lib-name "". WINDOWS stays on the C path.
     # Was std_x bare datetime.x only → T datetime_* / no std_datetime_* (import METHOD UNDEF).
-    # G.7 complete formal_mod like csv/cli/http: mod.x prefix + --bare-impl *_c.
     std/datetime/datetime.o) printf '%s' "mod|1|../std/datetime/mod.x|../std/datetime/datetime.x" ;;
     # PLATFORM: SHARED — std.db.sqlite product face (cookbook sqlite_available).
     # Was std_x bare sqlite.x only → T db_* / no std_db_sqlite_* (import METHOD UNDEF).
     # G.7 complete formal_mod like csv/cli/http/datetime: mod.x prefix + --bare-impl *_c.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.db.sqlite is one asm leaf.
+    # WINDOWS stays on the C path. sqlite.x takes -lib-name "".
+    # Callers use std_db_sqlite_open_u8_ptr and db_open_c.
+    # Undefined symbols are xlang_db_use_sqlite3_c, xlang_sqlite3_*_c,
+    # calloc, free, memcmp, memcpy, and strlen.
     std/db/sqlite/sqlite.o) printf '%s' "mod|1|../std/db/sqlite/mod.x|../std/db/sqlite/sqlite.x" ;;
-    # PLATFORM: SHARED — std.db.kv / std.db.arrow product faces (cookbook db_kv_arrow).
-    # Was std_x bare kv.x / arrow.x only → T db_kv_* / arrow_* / no std_db_kv_* /
-    # std_db_arrow_* (import METHOD UNDEF). G.7 complete formal_mod like sqlite.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.db.kv is one asm leaf.
+    # WINDOWS stays on the C path. kv.x takes -lib-name "".
+    # Callers use std_db_kv_open and db_kv_open_c.
+    # Undefined symbols are xlang_kv_mmap_file_c, xlang_kv_msync_c,
+    # xlang_kv_munmap_c, std_sys_mmap_mmap_available, calloc, free,
+    # malloc, memcmp, memcpy, memset, strlen, and xlang_panic_.
     std/db/kv/kv.o) printf '%s' "mod|1|../std/db/kv/mod.x|../std/db/kv/kv.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.schema is one asm leaf.
+    # WINDOWS stays on the C path. schema.x takes -lib-name "".
+    # Callers use std_schema_text and schema_smoke_c.
+    # Undefined symbols are csv_parse_row_c, the json_cursor_* and
+    # json_parse_* faces, calloc, free, memcpy, strcmp, and strlen.
+    std/schema/schema.o) printf '%s' "mod|1|../std/schema/mod.x|../std/schema/schema.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.trace is trace.x only, one asm leaf.
+    # mod.x still fails: std.io Buffer padding T001 and std.net XP008.
+    # WINDOWS stays on the C path. -lib-name "" keeps trace_*_c.
+    # Undefined symbols are random_fill_bytes_c, time_now_monotonic_ns_c,
+    # calloc, free, and memcpy.
+    std/trace/trace.o) printf '%s' "mod|1|../std/trace/trace.x" ;;
+    # PLATFORM: SHARED — std.db.arrow product face.
+    # Was std_x bare arrow.x only → T arrow_* / no std_db_arrow_* (import METHOD UNDEF).
     std/db/arrow/arrow.o) printf '%s' "mod|1|../std/db/arrow/mod.x|../std/db/arrow/arrow.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib is one asm leaf.
+    # WINDOWS stays on the C path. dynlib.x takes -lib-name "".
+    # Callers use std_dynlib_open and dynlib_open_c.
+    # Undefined symbols are dynlib_os_open_c, dynlib_os_sym_c,
+    # dynlib_os_close_c, dynlib_os_copy_last_error_c,
+    # dynlib_os_win_path_smoke_c, memcpy, and memset.
     std/dynlib/dynlib.o) printf '%s' "mod|1|../std/dynlib/mod.x|../std/dynlib/dynlib.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — http.x is the bare-impl marker.
+    # -lib-name "" keeps http_f_http_v1_marker_c. mod.x stays on the C path.
+    # WINDOWS stays on the C path.
     std/http/http.o) printf '%s' "mod|1|../std/http/mod.x|../std/http/http.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.tar is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_tar_*.
+    # tar.x is the bare impl and keeps -lib-name "" so the exports stay
+    # tar_write_header_c, tar_read_header_c, and tar_append_entry_c.
+    # The merged object has no undefined symbols.
     std/tar/tar.o) printf '%s' "mod|1|../std/tar/mod.x|../std/tar/tar.x" ;;
-    # PLATFORM: SHARED — pure-asm std_unicode_* / std_channel_* product faces.
-    # unicode: mod+impl bare (extern-function style leaf symbols in unicode.x).
-    # channel: mod.x wrappers only (API body in runtime_channel_glue channel_i32_*_c).
+    # PLATFORM: MACOS|DARWIN|LINUX — std.uuid is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_uuid_*.
+    # uuid.x is the bare impl and keeps -lib-name "" so the exports stay
+    # uuid_parse_c, uuid_format_c, and uuid_smoke_c.
+    # Undefined symbols are core_mem_mem_compare, core_mem_mem_copy,
+    # random_fill_bytes_c, and time_now_wall_ms_c.
+    std/uuid/uuid.o) printf '%s' "mod|1|../std/uuid/mod.x|../std/uuid/uuid.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.elf is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_elf_*.
+    # elf.x is the bare impl and keeps -lib-name "" so the exports stay
+    # elf64_write_min_reloc_c, elf64_write_min_reloc_size_c, and
+    # elf64_write_smoke_c.
+    # Undefined symbols are close, fs_open_read_c, fs_posix_read_c,
+    # memcpy, and memset.
+    std/elf/elf.o) printf '%s' "mod|1|../std/elf/mod.x|../std/elf/elf.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.task is one asm leaf.
+    # WINDOWS stays on the C path. Import mangle stays std_task_*.
+    # task.x is the bare impl and keeps -lib-name "" so the exports stay
+    # task_group_create_c, task_group_spawn_c, and task_smoke_c.
+    # Undefined symbols are calloc, free, time_sleep_ns_c, and the
+    # xlang_async_* / ctx_* faces in runtime_scheduler_glue.o.
+    std/task/task.o) printf '%s' "mod|1|../std/task/mod.x|../std/task/task.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — std.async.future is one asm leaf.
+    # WINDOWS stays on the C path. future.x is the bare impl and keeps
+    # -lib-name "" so the exports stay xlang_async_future_create_c,
+    # xlang_async_future_poll_c, and xlang_async_future_smoke_c.
+    # Undefined symbols are xlang_async_run_drain_until_idle and
+    # xlang_io_poll_async_completions, both in runtime_scheduler_glue.o.
+    std/async/future.o) printf '%s' "mod|1|../std/async/future.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — unicode mod.x is asm.
+    # Do not pass -lib-name "". Exports stay std_unicode_*.
+    # unicode.x has Darwin+Linux pure-asm arm (记214). WINDOWS stays on the C path.
     std/unicode/unicode.o) printf '%s' "mod|1|../std/unicode/mod.x|../std/unicode/unicode.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.thread.
+    # WINDOWS stays on the C path. Import mangle stays std_channel_*.
     std/channel/channel.o) printf '%s' "mod|0|../std/channel/mod.x" ;;
     # PLATFORM: SHARED — soft residual class-batch 2 formal bodies.
     # runtime: mod wrappers (ready/panic/abort) + runtime.x leaf faces for glue.
     # backtrace: mod.x capture → backtrace_capture_c (platform .o companion on plan).
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.assert.
+    # WINDOWS stays on the C path. Import mangle stays std_backtrace_*.
     # assert: freestanding core.assert (no I/O); panic via host panic face.
+    # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as core.cmp.
+    # WINDOWS stays on the C path. CORE-005 import mangle stays core_assert_*.
     # fmt: std.fmt wrappers co-emit core.fmt bodies (monofile entry).
     # compress: std.compress facade co-emits zlib/gzip/brotli/zstd submods.
     # io.driver: nested module path std/io/driver.x → std_io_driver_* surface.
@@ -282,14 +519,25 @@ formal_mod_spec_for_key() {
     core/assert/assert.o) printf '%s' "mod|0|../core/assert/mod.x" ;;
     std/fmt/fmt.o) printf '%s' "c_face|0|../std/fmt/formal_surface.c" ;;
     std/compress/compress.o) printf '%s' "c_face|0|../std/compress/formal_surface.c" ;;
-    # PLATFORM: SHARED — 9.2.2: real std.compress.zlib / gzip (mod + libz).
-    # Facade compress.o stays c_face stub (bare deflate/inflate vs zlib.h if monofile).
-    # Submodule vehicles are the product path: compress2 / deflateInit2 glue + -lz.
+    # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zlib is one asm leaf.
+    # WINDOWS stays on the C path. mod.x keeps the std_compress_zlib_* prefix.
+    # libz.x keeps that prefix too: the asm mod calls
+    # std_compress_zlib_libz_compress_*_c, so this file does not use -lib-name "".
+    # Facade compress.o stays c_face.
     std/compress/zlib/zlib.o) printf '%s' "mod|1|../std/compress/zlib/mod.x|../std/compress/zlib/libz.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — gzip mod.x and libz.x are asm.
+    # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_* and
+    # std_compress_gzip_libz_*. WINDOWS stays on the C path.
     std/compress/gzip/gzip.o) printf '%s' "mod|1|../std/compress/gzip/mod.x|../std/compress/gzip/libz.x" ;;
-    # PLATFORM: SHARED — zstd/brotli ≡ gzip: submodule vehicle is the product path.
-    # lib.x is extern C FFI (ZSTD_* / BrotliEncoder*/Decoder*); ld -l* is the lib face.
+    # PLATFORM: MACOS|DARWIN|LINUX — zstd mod.x and lib.x are asm.
+    # Do not pass -lib-name "". Exports stay std_compress_zstd_zstd_* and
+    # std_compress_zstd_lib_*. WINDOWS stays on the C path.
+    # lib.x is extern C FFI (ZSTD_*); ld -l* is the lib face.
     std/compress/zstd/zstd.o) printf '%s' "mod|1|../std/compress/zstd/mod.x|../std/compress/zstd/lib.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — brotli mod.x and lib.x are asm.
+    # Do not pass -lib-name "". Exports stay std_compress_brotli_brotli_* and
+    # std_compress_brotli_lib_*. WINDOWS stays on the C path.
+    # lib.x is extern C FFI (BrotliEncoder*/Decoder*); ld -l* is the lib face.
     std/compress/brotli/brotli.o) printf '%s' "mod|1|../std/compress/brotli/mod.x|../std/compress/brotli/lib.x" ;;
     std/io/driver.o) printf '%s' "c_face|0|../std/io/driver_formal_surface.c" ;;
     # PLATFORM: SHARED — pure-asm std.io ctx-timeout faces (≡ mod.x; STD-091).
@@ -358,10 +606,16 @@ formal_mod_all_keys() {
     std/datetime/datetime.o \
     std/db/sqlite/sqlite.o \
     std/db/kv/kv.o \
+    std/schema/schema.o \
+    std/trace/trace.o \
     std/db/arrow/arrow.o \
     std/dynlib/dynlib.o \
     std/http/http.o \
     std/tar/tar.o \
+    std/uuid/uuid.o \
+    std/elf/elf.o \
+    std/task/task.o \
+    std/async/future.o \
     std/unicode/unicode.o \
     std/channel/channel.o \
     std/runtime/runtime.o \
@@ -587,6 +841,25 @@ case "${1:-}" in
       # (Mac wrappers + runtime_string_fast; G.7 single vehicle, no dual formal_mod body).
       _str_sh="$(dirname "$0")/xlang_compile_std_string_o.sh"
       [ -f "$_str_sh" ] || _str_sh="./xlang_compile_std_string_o.sh"
+      # w2060: ensure without FORCE skips an up-to-date string.o, same rule as
+      # formal_mod (wave826). g05 leaf refresh runs ensure with host cc
+      # blocked; this vehicle needs cc, so an unconditional rebuild always
+      # failed and reported STALE LEAF KEPT even when nothing changed.
+      # A newer source or FORCE=1 still rebuilds. PLATFORM: SHARED.
+      if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ]; then
+        _str_stale=0
+        for _s in ../std/string/mod.x ../std/string/string.x \
+            seeds/runtime_string_fast.from_x.c "$_str_sh"; do
+          if [ -f "$_s" ] && [ "$_s" -nt "$out_o" ]; then
+            _str_stale=1
+            break
+          fi
+        done
+        if [ "$_str_stale" = "0" ]; then
+          echo "xlang_compile_std_module: skip up-to-date $out_o (string_formal)" >&2
+          exit 0
+        fi
+      fi
       # Dedicated script ignores out path; always writes $ROOT/std/string/string.o
       exec sh "$_str_sh"
     fi
@@ -601,11 +874,288 @@ case "${1:-}" in
           exit 1
           ;;
       esac
+      # w1106: Darwin arm64 std/debug/debug.o is the .x.
+      # w1107: Darwin arm64 std/async/async.o is the .x.
+      # w1108: Darwin arm64 std/io/io.o is the .x.
+      # w1109: Darwin arm64 std/io/driver.o is the .x. Not std/io/io.o.
+      # w1110: Darwin arm64 std/compress/compress.o is the .x.
+      # w1111: Darwin arm64 std/runtime/runtime.o is the .x.
+      # Other c_face keys stay cc -c. Do not match core/debug/debug.o.
+      # PLATFORM: MACOS|DARWIN arm64 | LINUX (记217 debug). Other c_faces: Darwin-only; Windows C.
+      _dbg_darwin=0
+      _dbg_x=""
+      _as_darwin=0
+      _as_x=""
+      _io_darwin=0
+      _io_x=""
+      _drv_darwin=0
+      _drv_x=""
+      _cz_darwin=0
+      _sm_darwin=0
+      _fm_darwin=0
+      _cz_x=""
+      _rt_darwin=0
+      _rt_x=""
+      if [ "$_key" = "std/debug/debug.o" ]; then
+        # 记217: Linux joins Darwin arm64 pure-asm (same .x; write libc).
+        # Windows keeps formal_surface.c.
+        _dbg_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _dbg_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_dbg_os" = "Darwin" ] && [ "$_dbg_mach" = "arm64" ]; } || [ "$_dbg_os" = "Linux" ]; then
+          _dbg_x="src/asm/std_debug_formal_darwin.x"
+          if [ ! -f "$_dbg_x" ]; then
+            _dbg_x="../compiler/src/asm/std_debug_formal_darwin.x"
+          fi
+          if [ -f "$_dbg_x" ]; then
+            _dbg_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/async/async.o" ]; then
+        # 记219: Linux joins Darwin arm64 pure-asm (forward to scheduler glue).
+        # Windows keeps formal_surface.c.
+        _as_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _as_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_as_os" = "Darwin" ] && [ "$_as_mach" = "arm64" ]; } || [ "$_as_os" = "Linux" ]; then
+          _as_x="src/asm/std_async_formal_darwin.x"
+          if [ ! -f "$_as_x" ]; then
+            _as_x="../compiler/src/asm/std_async_formal_darwin.x"
+          fi
+          if [ -f "$_as_x" ]; then
+            _as_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/io/io.o" ]; then
+        # 记220: Linux joins Darwin arm64 pure-asm (ctx timeout / read_ctx / write_ctx).
+        # Windows keeps formal_surface.c.
+        _io_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _io_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_io_os" = "Darwin" ] && [ "$_io_mach" = "arm64" ]; } || [ "$_io_os" = "Linux" ]; then
+          _io_x="src/asm/std_io_formal_darwin.x"
+          if [ ! -f "$_io_x" ]; then
+            _io_x="../compiler/src/asm/std_io_formal_darwin.x"
+          fi
+          if [ -f "$_io_x" ]; then
+            _io_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/io/driver.o" ]; then
+        # 记221: Linux joins Darwin arm64 pure-asm (driver faces return 0).
+        # Windows keeps driver_formal_surface.c.
+        _drv_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _drv_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_drv_os" = "Darwin" ] && [ "$_drv_mach" = "arm64" ]; } || [ "$_drv_os" = "Linux" ]; then
+          _drv_x="src/asm/std_io_driver_formal_darwin.x"
+          if [ ! -f "$_drv_x" ]; then
+            _drv_x="../compiler/src/asm/std_io_driver_formal_darwin.x"
+          fi
+          if [ -f "$_drv_x" ]; then
+            _drv_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/compress/compress.o" ]; then
+        # 记222: Linux joins Darwin arm64 pure-asm (forward + brotli-lib rename).
+        # Windows keeps formal_surface.c.
+        _cz_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _cz_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_cz_os" = "Darwin" ] && [ "$_cz_mach" = "arm64" ]; } || [ "$_cz_os" = "Linux" ]; then
+          _cz_x="src/asm/std_compress_formal_darwin.x"
+          if [ ! -f "$_cz_x" ]; then
+            _cz_x="../compiler/src/asm/std_compress_formal_darwin.x"
+          fi
+          if [ -f "$_cz_x" ]; then
+            _cz_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/fmt/fmt.o" ]; then
+        # 记225: Linux joins Darwin arm64 pure-asm (hand-rolled fmt faces).
+        # Windows keeps formal_surface.c.
+        _fm_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _fm_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_fm_os" = "Darwin" ] && [ "$_fm_mach" = "arm64" ]; } || [ "$_fm_os" = "Linux" ]; then
+          _fm_x="src/asm/std_fmt_formal_darwin.x"
+          if [ ! -f "$_fm_x" ]; then
+            _fm_x="../compiler/src/asm/std_fmt_formal_darwin.x"
+          fi
+          if [ -f "$_fm_x" ]; then
+            _fm_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/simd/simd.o" ]; then
+        # 记224: Linux joins Darwin arm64 pure-asm (INTEGER dual-GP f32x4).
+        # Windows keeps formal_surface.c. Tip F32 param_home from sK required.
+        _sm_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _sm_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_sm_os" = "Darwin" ] && [ "$_sm_mach" = "arm64" ]; } || [ "$_sm_os" = "Linux" ]; then
+          _sm_x="src/asm/std_simd_formal_darwin.x"
+          if [ ! -f "$_sm_x" ]; then
+            _sm_x="../compiler/src/asm/std_simd_formal_darwin.x"
+          fi
+          if [ -f "$_sm_x" ]; then
+            _sm_darwin=1
+          fi
+        fi
+      fi
+      if [ "$_key" = "std/runtime/runtime.o" ]; then
+        # 记218: Linux joins Darwin arm64 — four faces from the .x.
+        # Windows keeps formal_surface.c. Miss is fail-closed (no cc).
+        # PLATFORM: MACOS|DARWIN arm64 | LINUX.
+        _rt_os="$(uname -s 2>/dev/null || echo Unknown)"
+        _rt_mach="$(uname -m 2>/dev/null || echo unknown)"
+        if { [ "$_rt_os" = "Darwin" ] && [ "$_rt_mach" = "arm64" ]; } || [ "$_rt_os" = "Linux" ]; then
+          _rt_x="src/asm/std_runtime_formal_darwin.x"
+          if [ ! -f "$_rt_x" ]; then
+            _rt_x="../compiler/src/asm/std_runtime_formal_darwin.x"
+          fi
+          if [ -f "$_rt_x" ]; then
+            _rt_darwin=1
+          fi
+        fi
+      fi
       if [ "${FORCE:-0}" != "1" ] && [ -f "$out_o" ] && [ -f "$_csrc" ] && [ ! "$_csrc" -nt "$out_o" ]; then
-        echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
-        exit 0
+        _pure_newer=0
+        if [ "$_dbg_darwin" = "1" ] && [ -f "$_dbg_x" ] && [ "$_dbg_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_as_darwin" = "1" ] && [ -f "$_as_x" ] && [ "$_as_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_io_darwin" = "1" ] && [ -f "$_io_x" ] && [ "$_io_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_drv_darwin" = "1" ] && [ -f "$_drv_x" ] && [ "$_drv_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_cz_darwin" = "1" ] && [ -f "$_cz_x" ] && [ "$_cz_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_sm_darwin" = "1" ] && [ -f "$_sm_x" ] && [ "$_sm_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_fm_darwin" = "1" ] && [ -f "$_fm_x" ] && [ "$_fm_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_rt_darwin" = "1" ] && [ -f "$_rt_x" ] && [ "$_rt_x" -nt "$out_o" ]; then
+          _pure_newer=1
+        fi
+        if [ "$_pure_newer" != "1" ]; then
+          echo "xlang_compile_std_module: skip up-to-date $out_o (formal_mod/c_face/$_key)" >&2
+          exit 0
+        fi
       fi
       mkdir -p "$(dirname "$out_o")"
+      if [ "$_dbg_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" debug-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: debug formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (debug formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_as_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" async-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: async formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (async formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_io_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" io-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: io formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (io formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_drv_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" driver-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: driver formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (driver formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_fm_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" fmt-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: fmt formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (fmt formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_sm_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" simd-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: simd formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (simd formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_cz_darwin" = "1" ]; then
+        _ensure="scripts/ensure_host_cc_seed_o.sh"
+        if [ ! -f "$_ensure" ]; then
+          _ensure="../compiler/scripts/ensure_host_cc_seed_o.sh"
+        fi
+        if ! bash "$_ensure" compress-formal-pure "$out_o"; then
+          echo "xlang_compile_std_module.sh: compress formal pure-asm failed" >&2
+          exit 1
+        fi
+        echo "xlang_compile_std_module.sh: OK (compress formal pure-asm -> $out_o)"
+        exit 0
+      fi
+      if [ "$_rt_darwin" = "1" ]; then
+        # PLATFORM: MACOS|DARWIN arm64 | LINUX (记218). A miss stops here.
+        # Do not fall through to cc for this face.
+        _rt_log="$(mktemp "${TMPDIR:-/tmp}/std_rt_asm.XXXXXX")"
+        if [ ! -x ./xlang ]; then
+          echo "xlang_compile_std_module.sh: runtime formal pure-asm needs ./xlang" >&2
+          exit 1
+        fi
+        if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$_rt_x" \
+            >"$_rt_log" 2>&1 \
+          && [ -s "$out_o" ] \
+          && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_runtime_ready$' \
+          && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_runtime_diag_enabled$' \
+          && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_runtime_panic_hook_collect$'; then
+          rm -f "$_rt_log"
+          echo "xlang_compile_std_module.sh: OK (runtime formal pure-asm -> $out_o)"
+          exit 0
+        fi
+        echo "xlang_compile_std_module.sh: runtime formal pure-asm failed" >&2
+        cat "$_rt_log" >&2
+        rm -f "$_rt_log"
+        exit 1
+      fi
       # shellcheck disable=SC2086
       if ! cc -c -fPIE -I.. -I. $DARWIN_MINOS -o "$out_o" "$_csrc"; then
         echo "xlang_compile_std_module.sh: c_face cc -c failed for $_csrc → $out_o" >&2
@@ -705,7 +1255,11 @@ case "$(uname -s 2>/dev/null)" in
   Linux) CFLAGS="-D_GNU_SOURCE $CFLAGS" ;;
   Darwin) CFLAGS="$CFLAGS $DARWIN_MINOS" ;;
 esac
-if cc -v 2>&1 | grep -q clang; then
+# Same clang fact as the seed catalog. Do not execute cc to learn it.
+# PLATFORM: SHARED.
+# shellcheck disable=SC1091
+. "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/xlang_host_cc_is_clang.sh"
+if xlang_host_cc_is_clang cc; then
   CFLAGS="$CFLAGS -Wno-logical-op-parentheses -Wno-bitwise-op-parentheses"
 fi
 
@@ -729,6 +1283,21 @@ if "$XLANG_BIN" -x -E -lib-name "" "$probe_x" >"$probe_c" 2>"$probe_err" \
   && ! grep -q 'IO001' "$probe_err"; then
   LIB_NAME_SUPPORTED=1
 fi
+# w2060: the asm backend honors -lib-name "" (rt_run_asm_backend.x records
+# it; the entry prefix stays empty). The -x -E probe above needs the C emit
+# lane, which the Linux product cannot run, so bare-impl files never got
+# -lib-name "" and came out double-prefixed. Probe the asm lane too: an
+# export under -lib-name "" must keep its bare name. PLATFORM: SHARED.
+if [ "$LIB_NAME_SUPPORTED" != "1" ] && command -v nm >/dev/null 2>&1; then
+  probe_ax="$tmp_dir/probe_asm.x"
+  probe_ao="$tmp_dir/probe_asm.o"
+  printf 'export function probe_fn(): i32 { return 0; }\n' > "$probe_ax"
+  if "$XLANG_BIN" -backend asm -lib-name "" -c "$probe_ax" -o "$probe_ao" >/dev/null 2>"$probe_err" \
+    && nm "$probe_ao" 2>/dev/null | grep -qE ' T _?probe_fn$'; then
+    LIB_NAME_SUPPORTED=1
+  fi
+  rm -f "$probe_ax" "$probe_ao"
+fi
 
 obj_files=""
 idx=0
@@ -748,6 +1317,4516 @@ for x_path in "$@"; do
   # 保留完整源）。优先 -o + KEEP_C，失败再回退 -E。
   emit_ok=0
   use_direct_o=0
+  # PLATFORM: MACOS|DARWIN|LINUX — core.option is one asm leaf.
+  # The C emit below is what execs cc. This TU already comes out of
+  # -backend asm with core_option_* defined and only xlang_panic_
+  # undefined. A miss stops here. Windows keeps the C path.
+  # Do not fall through to cc for this file.
+  case "$x_path" in
+    ../core/option/mod.x|core/option/mod.x)
+      _opt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_opt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/option_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_some_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_or_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_option_and_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/option_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/result/mod.x|core/result/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.result is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_result_* defined and only xlang_panic_
+      # undefined. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _res_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_res_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/result_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_ok_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_or_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_result_and_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/result_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/debug/mod.x|core/debug/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.debug is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_debug_* defined and only xlang_panic_
+      # undefined. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file. Do not match std/debug.
+      _dbgcore_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dbgcore_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/debug_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_assert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_assert_eq_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_debug_debug_assert$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/debug_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/types/mod.x|core/types/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.types is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_types_* defined and nothing undefined.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _types_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_types_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/types_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_size_of_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_align_of_pointer$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_types_types_layout_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/types_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/mem/mod.x|core/mem/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.mem is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_mem_* exports defined. The only
+      # undefined symbol is xlang_panic_, and the success path does not
+      # call it. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _mem_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_mem_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/mem_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_mem_mem_copy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_mem_align_up$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_mem_volatile_load_u32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/mem_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/builtin/mod.x|core/builtin/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.builtin is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_builtin_* exports defined. Undefined
+      # symbols are core_mem_mem_copy and xlang_panic_. The success path
+      # does not call panic. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _builtin_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_builtin_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/builtin_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_copy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_clz_u32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_builtin_bswap_u32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/builtin_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/cmp/mod.x|core/cmp/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.cmp is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_cmp_* exports defined and no undefined
+      # symbols. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cmp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cmp_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/cmp_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_cmp_cmp_ptr$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cmp_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/assert/mod.x|core/assert/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.assert is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the core_assert_* exports defined. The only
+      # undefined symbol is xlang_panic_, and the success path does not
+      # call it. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _assert_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_assert_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/assert_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_assert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_assert_eq_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_assert_debug_diag_store$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/assert_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/backtrace/mod.x|std/backtrace/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.backtrace is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_backtrace_* exports defined. Undefined
+      # symbols are the three externs the body calls:
+      # backtrace_capture_c, backtrace_symbolicate_c,
+      # xlang_crash_evidence_collect_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _bt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_bt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/backtrace_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_capture$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_symbolicate$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_backtrace_collect_crash_evidence$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/backtrace_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/thread/mod.x|std/thread/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.thread is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_thread_* exports defined. Undefined
+      # symbols are the thread_*_c and thread_pool_*_c externs the
+      # bodies call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _th_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_th_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/thread_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_id$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_create$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_thread_join$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/thread_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/channel/mod.x|std/channel/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.channel is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_channel_* exports defined. Undefined
+      # symbols are the channel_i32_*_c and channel_select_*_c externs
+      # the bodies call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ch_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ch_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/channel_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_bounded$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_send$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_channel_recv$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/channel_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/atomic/mod.x|std/atomic/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.atomic mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_atomic_* exports defined. Undefined
+      # symbols are the atomic_load_*_c, atomic_store_*_c, atomic_fetch_*_c,
+      # atomic_compare_exchange_*_c and atomic_fence_*_c externs the bodies
+      # call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _at_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_at_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/atomic_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_load_i32_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_store_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_fetch_add_i32_ptr_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/atomic_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/atomic/atomic.x|std/atomic/atomic.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.atomic.
+      # -lib-name "" keeps atomic_f_atomic_v1_marker_c. Without it the
+      # path prefix doubles the export. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _atx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_atx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/atomic_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?atomic_f_atomic_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/atomic_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sync/mod.x|std/sync/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sync mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_sync_* exports defined. Undefined
+      # symbols are the sync_mutex_*_c, sync_rwlock_*_c, sync_condvar_*_c
+      # and sync_lock_diag_*_c externs the bodies call. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sy_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sy_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/sync_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_new_mutex$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_lock$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sync_try_lock$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sync_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sync/sync.x|std/sync/sync.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.sync.
+      # -lib-name "" keeps sync_f_sync_v1_marker_c and
+      # sync_f_sync_lock_diag_v2_marker_c. Without it the path prefix
+      # doubles the export. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _syx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_syx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/sync_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?sync_f_sync_v1_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?sync_f_sync_lock_diag_v2_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sync_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/queue/queue.x|std/queue/queue.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.queue.
+      # -lib-name "" keeps queue_f_queue_v1_marker_c and
+      # queue_f_queue_v2_marker_c. A miss stops here.
+      # mod.x stays on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _qx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_qx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/queue_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?queue_f_queue_v1_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?queue_f_queue_v2_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/queue_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/backend.x|std/io/backend.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.backend tip-green (记244). Fail-closed; Windows keeps C.
+      _io_backend_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_backend_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_backend_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_backend_handle_from_fd$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_backend_io_backend_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_backend_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/core.x|std/io/core.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.core tip-green (记244). Fail-closed; Windows keeps C.
+      _io_core_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_core_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_core_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_core_xlang_io_complete_read_async$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_core_xlang_io_complete_write_async$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_core_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/driver.x|std/io/driver.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.driver tip-green (记244). Fail-closed; Windows keeps C.
+      _io_driver_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_driver_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_driver_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?driver_read_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?driver_read_ptr_backend$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_driver_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/io_trait.x|std/io/io_trait.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.io_trait tip-green (记244). Fail-closed; Windows keeps C.
+      _io_io_trait_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_io_trait_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_io_trait_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_io_trait_io_trait_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_io_trait_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/read_ptr.x|std/io/read_ptr.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.read_ptr tip-green (记244). Fail-closed; Windows keeps C.
+      _io_read_ptr_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_read_ptr_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_read_ptr_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_read_ptr_io_read_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_read_ptr_io_read_ptr_backend$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_read_ptr_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/stubs.x|std/io/stubs.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.stubs tip-green (记244). Fail-closed; Windows keeps C.
+      _io_stubs_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_stubs_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_stubs_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_stubs_io_provided_buffer_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_stubs_io_read_provided$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_stubs_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/sync.x|std/io/sync.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io.sync tip-green (记244). Fail-closed; Windows keeps C.
+      _io_sync_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_sync_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_sync_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_sync_io_libc_read$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_sync_io_libc_write$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_sync_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/freebsd.x|std/sys/freebsd.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.freebsd tip-green (记244). Fail-closed; Windows keeps C.
+      _sys_freebsd_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sys_freebsd_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/sys_freebsd_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_freebsd_freebsd_exit$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_freebsd_freebsd_close$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sys_freebsd_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/linux_io_uring.x|std/sys/linux_io_uring.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.linux_io_uring tip-green (记244). Fail-closed; Windows keeps C.
+      _sys_linux_io_u_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sys_linux_io_u_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/sys_linux_io_u_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_io_uring_io_uring_available$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sys_linux_io_u_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/io/mod.x|std/io/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.io mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _io_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_io_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/io_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_from_fd$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_io_module_anchor$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_io_complete_read$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/io_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/debug/mod.x|std/debug/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.debug mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _debug_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_debug_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/debug_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_debug_assert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_debug_assert_eq_i32_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/debug_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/fmt/mod.x|std/fmt/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.fmt mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _fmt_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_fmt_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/fmt_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fmt_format_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fmt_fmt_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/fmt_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/async/mod.x|std/async/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.async mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _async_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_async_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/async_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_async_module_anchor$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_bind_ctx$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_await_read_fd$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/async_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/codec/mod.x|std/codec/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.codec mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _codec_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_codec_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/codec_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_codec_adapter_base64_encode$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_codec_adapter_base64_decode$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/codec_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/metrics/mod.x|std/metrics/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.metrics mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _metrics_mod__os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_metrics_mod__os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/metrics_mod__asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_metrics_counter$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_metrics_counter_inc$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/metrics_mod__asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/mem/mod.x|std/mem/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.mem mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _mem_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_mem_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/mem_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_mem_copy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_mem_compare$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_mem_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/mem_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/simd/builtin.x|std/simd/builtin.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.simd.builtin tip-green (记243). Fail-closed; Windows keeps C.
+      _simd_builtin_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_simd_builtin_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/simd_builtin_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_builtin_add_f32x4$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_builtin_hsum_f32x4$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_builtin_dot_f32x4$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/simd_builtin_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/mod.x|std/db/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db mod.x tip-green (记243). Fail-closed; Windows keeps C.
+      _db_mod_x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_db_mod_x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/db_mod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_is_deprecated$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_close$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_exec$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/db_mod_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/async/executor_trait.x|std/async/executor_trait.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.async.executor_trait (记242).
+      # Tip emits std_async_executor_trait_*; module -x -E→cc. Fail-closed.
+      _aet_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_aet_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/aet_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_executor_trait_executor_trait_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/aet_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/atomic/builtin.x|std/atomic/builtin.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.atomic.builtin (记242).
+      # Tip emits std_atomic_builtin_atomic_*; module -x -E→cc. Fail-closed.
+      _atb_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_atb_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/atb_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_load_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_store_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_cas_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/atb_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/common.x|std/compress/common.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker compress.common (记242).
+      # -lib-name "" keeps compress_common_zero_c_marker_c. Fail-closed.
+      _cmc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cmc_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/cmc_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?compress_common_zero_c_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cmc_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/simd/mod.x|std/simd/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.simd mod.x (记242).
+      # Tip emits std_simd_*; simd.x already fail-closed in std_x. Fail-closed.
+      _smm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_smm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/smm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_hw_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_recommend_path$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_hsum$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/smm_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/process/process.x|std/process/process.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare process.x thin (记242).
+      # -lib-name "" → process_args_count_c／process_arg_c. Fail-closed.
+      _ppx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ppx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ppx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?process_args_count_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?process_arg_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ppx_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/runtime/runtime.x|std/runtime/runtime.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare runtime.x (记242).
+      # -lib-name "" → runtime_abort／runtime_panic. Fail-closed.
+      _rrx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rrx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/rrx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?runtime_abort$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?runtime_panic$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/rrx_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/backtrace/backtrace.x|std/backtrace/backtrace.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.backtrace (记241).
+      # -lib-name "" keeps backtrace_f_backtrace_v1/v2_marker_c. Fail-closed.
+      _btx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_btx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/btx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?backtrace_f_backtrace_v1_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?backtrace_f_backtrace_v2_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/btx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/runtime/mod.x|std/runtime/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.runtime mod.x (记241).
+      # Tip emits std_runtime_*; formal_surface ensure already .x. Bare
+      # module.sh still -x -E→cc. Fail-closed; Windows keeps C.
+      _rtm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rtm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/rtm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_ready$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_abort$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_runtime_diag_enabled$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/rtm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/mod.x|std/compress/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress mod.x (记241).
+      # Tip emits std_compress_*; formal_surface ensure already .x. Bare
+      # module.sh still -x -E→cc. Fail-closed; Windows keeps C.
+      _cpm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cpm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/cpm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_compress_init$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_compress_end$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_available$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cpm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/regex/mod.x|std/regex/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.regex mod.x (记240).
+      # Tip asm emits std_regex_*; product regex.x already fail-closed in
+      # std_x. Bare module.sh still -x -E→cc. Fail-closed; Windows keeps C.
+      _rxm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rxm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/rxm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_compile$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_free$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_group_count$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/rxm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/channel/channel.x|std/channel/channel.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.channel (记240).
+      # -lib-name "" keeps channel_f_channel_v1_marker_c. Fail-closed.
+      # Windows keeps C.
+      _chx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_chx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/chx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?channel_f_channel_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/chx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/thread/thread.x|std/thread/thread.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.thread (记240).
+      # -lib-name "" keeps thread_f_thread_v1_marker_c. Fail-closed.
+      # Windows keeps C.
+      _thx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_thx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/thx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?thread_f_thread_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/thx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/fs/mod.x|std/fs/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.fs mod.x (记239).
+      # Tip asm emits std_fs_*; -x -E fails typeck on std.io co-emit.
+      # Product fs.o via fs_formal already pure-asm; this arm covers bare
+      # module.sh compiles. Fail-closed; Windows keeps C.
+      _fsm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_fsm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/fsm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fs_invalid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fs_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fs_close$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_fs_chunk_size$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/fsm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/string/mod.x|std/string/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.string mod.x (记238).
+      # Product string.o via xlang_compile_std_string_o already pure-asm;
+      # bare module.sh -x -E→cc still hits this leaf. Fail-closed.
+      # Tip emits std_string_*. Windows keeps C path.
+      _strm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_strm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/strm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_string_new$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_string_length_String$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_string_is_empty_String$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/strm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/path/mod.x|std/path/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.path mod.x (记235).
+      # Product module.sh still -x -E→cc (cc_calls=1). Tip asm emits
+      # std_path_*; probe is_sep/empty_len/is_absolute match semantics.
+      # Fail-closed; Windows keeps C path.
+      _pathm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_pathm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/pathm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_basename$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_join$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_is_absolute$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_path_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/pathm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/process/mod.x|std/process/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.process mod.x (记235).
+      # Same STILL_CC as path (module -x -E→cc). Tip emits std_process_*.
+      # Fail-closed; Windows keeps C path.
+      _procm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_procm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/procm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_exit$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_getpid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_args_count$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_process_getenv$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/procm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/socketio/mod.x|std/socketio/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.socketio mod.x (记234).
+      # Tip asm emits std_socketio_* import face. C path -x -E→cc fails
+      # (arity mismatch on generated call). Fail-closed; Windows keeps C.
+      # socketio.x bare-impl already has std_x pure-asm arm.
+      _siom_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_siom_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/siom_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_client_init$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_connect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_can_reconnect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_socketio_cluster_adapter_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/siom_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/net/tls_stub_import_alias.x|std/net/tls_stub_import_alias.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — tls_stub_import_alias (记245).
+      # -lib-name "" → std_net_tls_stub_*／std_net_tcp_pool_* (net_merge face).
+      # net_merge already fail-closed; this covers bare module.sh. Fail-closed.
+      # Windows keeps C.
+      _tia_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tia_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/tia_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_is_available_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_backend_name_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tcp_pool_net_tcp_pool_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tcp_pool_net_tcp_pool_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/tia_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/net/mod.x|std/net/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net mod.x (记232).
+      # Tip asm already emits the std_net_* import face (no -lib-name "").
+      # Historic C path was -x -E→cc because C emit typeck-failed on std.io
+      # (no golden C object). Fail-closed pure-asm; Windows keeps C path.
+      # Do not fall through to cc for this file.
+      _netm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_netm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/netm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_connect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_listen$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_set_blocking$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_udp_bind$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_net_module_anchor_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/netm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/http/mod.x|std/http/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.http mod.x (记228).
+      # Do not pass -lib-name "". User API stays std_http_*.
+      # http_libc_*/http2_libc_* are #[no_mangle] bare (C emit already bare;
+      # tip asm used to emit std_http_http_libc_* ~250 extras).
+      # http.x has its own bare-impl arm. Miss fail-closed.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _httpm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_httpm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/httpm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_http_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_get_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_parse_status_line_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_response_parse_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_libc_is_https_available_c$' \
+            && ! nm "$obj" 2>/dev/null | grep -qE ' T _?std_http_http_libc_get_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/httpm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/http/http.x|std/http/http.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.http.
+      # -lib-name "" keeps http_f_http_v1_marker_c. A miss stops here.
+      # mod.x has its own arm (记228). Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _hx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_hx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/http_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?http_f_http_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/http_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/aes_gcm.x|std/crypto/aes_gcm.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_aes_gcm_marker_c, crypto_aes_gcm_seal_c,
+      # and crypto_aes_gcm_open_c. A miss stops here.
+      # The other crypto files stay on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _aes_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_aes_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/aes_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_aes_gcm_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_aes_gcm_seal_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_aes_gcm_open_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/aes_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/chacha20_aead.x|std/crypto/chacha20_aead.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_chacha_aead_marker_c and the three
+      # crypto_chacha20_poly1305_* stubs. A miss stops here.
+      # The other crypto files stay on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cca_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cca_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/cca_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha_aead_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha20_poly1305_seal_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha20_poly1305_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha20_poly1305_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cca_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/chacha20_poly1305.x|std/crypto/chacha20_poly1305.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_chacha_core_marker_c and
+      # xlang_chacha20_block. A miss stops here.
+      # The other crypto files stay on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ccp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ccp_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ccp_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_chacha_core_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_chacha20_block$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ccp_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/core.x|std/crypto/core.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_mem_eq_c and crypto_f_sha256_marker_c.
+      # The compare loop loads one byte per index. A miss stops here.
+      # mod.x and ed25519.x stay on the C path. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ccore_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ccore_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ccore_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_mem_eq_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_f_sha256_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ccore_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/mod.x|std/crypto/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.crypto module entry.
+      # Do not pass -lib-name "". The exports stay std_crypto_*.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cmod_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cmod_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/cmod_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_crypto_ED25519_SEED_LEN$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_crypto_mem_eq$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_crypto_chacha20_poly1305_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cmod_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/crypto/ed25519.x|std/crypto/ed25519.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.crypto.
+      # -lib-name "" keeps crypto_ed25519_public_from_seed_c,
+      # crypto_ed25519_sign_c, crypto_ed25519_verify_c, and
+      # crypto_ed25519_smoke_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ed_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ed_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ed_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_ed25519_public_from_seed_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_ed25519_sign_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_ed25519_verify_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?crypto_ed25519_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ed_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/security/security.x|std/security/security.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.security.
+      # -lib-name "" keeps security_f_zero_c_marker_c, security_mlock_c,
+      # security_munlock_c, security_secure_zero_c, security_hkdf_sha256_c,
+      # security_smoke_c, sec_hkdf_extract, and sec_hkdf_expand.
+      # A miss stops here. mod.x has its own arm and does not pass -lib-name "".
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sec_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sec_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/sec_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?security_f_zero_c_marker_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?security_mlock_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?security_munlock_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?security_secure_zero_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?security_hkdf_sha256_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?security_smoke_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?sec_hkdf_extract$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?sec_hkdf_expand$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/sec_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/security/mod.x|std/security/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.security mod.x.
+      # Do not pass -lib-name "". The exports stay std_security_*.
+      # A miss stops here. security.x is the other arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _secm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_secm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/secm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_key_len$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_err_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_ct_compare$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_secure_zero$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_hkdf$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_security_sensitive_buf_wipe$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/secm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/arrow/mod.x|std/db/arrow/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.arrow mod.x (记227).
+      # Do not pass -lib-name "". Exports stay std_db_arrow_*.
+      # Root: tip free-CALL F32 harvest was x86-only; arm64 left stale x0
+      # (sum bits=len). glue_asm_harvest_call_ret_to_gpr_c now fmov w0,s0
+      # on arm64 too (match import METHOD). Miss fail-closed.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _arrowm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_arrowm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/arrowm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_new_f32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_sum$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_append_ArrowColumn_f32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_data_f32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_arrow_length_ArrowColumn$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/arrowm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/arrow/arrow.x|std/db/arrow/arrow.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl for std.db.arrow (记227).
+      # -lib-name "" keeps arrow_column_*_c / arrow_batch_*_c.
+      # A miss stops here. mod.x has its own arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _arrowx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_arrowx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/arrowx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_append_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_f32_data_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_i32_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?arrow_column_len_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/arrowx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/vec/mod.x|std/vec/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.vec mod.x (记226).
+      # Do not pass -lib-name "". Exports stay std_vec_*.
+      # Root: tip asm scored heap.alloc(i32) by args only so *f32/*f64/*u8
+      # collapsed to retu64; source calls heap_libc.heap_alloc_*_c.
+      # Tip return_sret also fmovs F32(14) (soa get_x). Miss fail-closed.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _vecm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_vecm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/vecm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_new_retVec_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_with_capacity_Vec_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_with_capacity_Vec_f64_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_vec3f_soa_with_capacity$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_vec3f_soa_get_x$' \
+            && nm -u "$obj" 2>/dev/null | grep -qE 'std_heap_libc_heap_alloc_f32_c' \
+            && nm -u "$obj" 2>/dev/null | grep -qE 'std_heap_libc_heap_alloc_f64_c'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/vecm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/math/mod.x|std/math/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.math mod.x (记213).
+      # Do not pass -lib-name "". Exports stay std_math_*.
+      # Root: tip return_sret AAPCS64/SysV f64 return places rax/x0 bits in
+      # xmm0/d0 before jmp tail_join (out-pointer pi/e and lit/local f64).
+      # A miss stops here. math.x has its own bare-impl arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _mathm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_mathm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/mathm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_pi$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_e$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_tau$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_floor$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_ceil$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_sqrt$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_sin$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_abs$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_special_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_fenv_available$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/mathm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/math/math.x|std/math/math.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.math.
+      # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
+      # A miss stops here. mod.x has its own arm (记213). Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _math_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_math_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/math_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_pi_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_e_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?math_tau_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/math_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/gzip/mod.x|std/compress/gzip/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.gzip mod.x.
+      # Do not pass -lib-name "". Exports stay std_compress_gzip_gzip_*.
+      # A miss stops here. libz.x is the other arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _gz_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_gz_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/gz_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_state_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_init_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_init_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_gzip_stream_end$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/gz_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/gzip/libz.x|std/compress/gzip/libz.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.gzip libz is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_gzip_libz_compress_*_c names. Undefined symbols are
+      # deflate/inflate family and core_mem_mem_zero. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _gzl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_gzl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/gzip_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_state_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_init_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_init_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_gzip_libz_compress_gzip_stream_end_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/gzip_lib_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zstd/mod.x|std/compress/zstd/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zstd mod.x.
+      # Do not pass -lib-name "". Exports stay std_compress_zstd_zstd_*.
+      # A miss stops here. lib.x is the other arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zstd_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zstd_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zstd_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_stream_state_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_stream_init_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_stream_init_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_stream_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_stream_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_zstd_stream_end$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zstd_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zstd/lib.x|std/compress/zstd/lib.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zstd lib is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_zstd_lib_compress_*_c names. Undefined symbols are
+      # ZSTD_* family and core_mem_mem_zero / core_mem_mem_compare.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zstl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zstl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zstd_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_available_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_state_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_init_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_init_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_stream_end_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zstd_lib_compress_zstd_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zstd_lib_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/brotli/mod.x|std/compress/brotli/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.brotli mod.x.
+      # Do not pass -lib-name "". Exports stay std_compress_brotli_brotli_*.
+      # A miss stops here. lib.x is the other arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _br_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_br_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/br_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_state_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_init_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_init_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_compress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_decompress$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_brotli_stream_end$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/br_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/brotli/lib.x|std/compress/brotli/lib.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.brotli lib is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_brotli_lib_compress_*_c names. Undefined symbols are
+      # BrotliEncoder*/Decoder* family and core_mem_mem_zero / core_mem_mem_compare.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _brl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_brl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/brotli_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_available_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_state_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_init_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_init_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_compress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_decompress_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_end_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/brotli_lib_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/linux.x|std/sys/linux.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.linux (记216).
+      # Do not pass -lib-name "". Exports stay std_sys_linux_linux_*.
+      # Root: C formal inject remaps open→xlang_formal_bare_open and inlines
+      # xlang_sys_read/write; pure-asm now calls bare_open + libc read/write so
+      # T surface matches C (nr getters / available flags). A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _linux_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_linux_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/linux_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_getpid_arm64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_getpid_amd64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_read_arm64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_nr_write_amd64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_invoke_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_mmap_file_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_getpid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_syscall_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_read_file_into$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_linux_linux_sys_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/linux_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/error/mod.x|std/error/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.error mod.x (记215).
+      # Do not pass -lib-name "". Exports stay std_error_*.
+      # Root: tip export_sym appends _c to net_err_* / fs_err_not_found; C
+      # exports without _c. Source adds #[no_mangle] std_error_* aliases.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _err_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_err_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/err_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_fs_err_not_found$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_net_err_timeout$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_net_err_cancelled$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_net_err_generic$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_io_err_timeout$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_code$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_is_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_from_code$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_chain_empty$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_base_io$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/err_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/unicode/mod.x|std/unicode/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.unicode mod.x.
+      # Do not pass -lib-name "". Exports stay std_unicode_*.
+      # A miss stops here. unicode.x has its own arm (记214). Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _uni_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_uni_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/uni_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_ascii_cat_lookup$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_category$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_is_whitespace$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_is_ascii$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_to_lower$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_to_upper$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_rune_utf8_len$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_grapheme_case_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/uni_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/unicode/unicode.x|std/unicode/unicode.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.unicode (记214).
+      # Do not pass -lib-name "". Exports stay std_unicode_unicode_* (match C).
+      # Root: drop #[no_mangle] on category/to_lower/to_upper so tip prefixes
+      # like the C object (no_mangle left bare names and broke the link surface).
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _unix_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_unix_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/unix_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_category$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_is_whitespace$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_is_ascii$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_to_lower$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_to_upper$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_grapheme_next$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_case_fold_rune$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_grapheme_case_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_unicode_ascii_cat_lookup$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_nfc_buf$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/unix_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/context/mod.x|std/context/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.context mod.x.
+      # Do not pass -lib-name "". Exports stay std_context_*.
+      # A miss stops here. context.x has its own bare-impl arm (记212). Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ctx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ctx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_background$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_cancel$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_deadline$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_with_timeout$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_is_cancelled$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_deadline_ns$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_remaining_ns$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_get_value$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_set_value$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_cancel$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_context_free$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ctx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/hash/mod.x|std/hash/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.hash mod.x.
+      # Do not pass -lib-name "". Exports stay std_hash_*.
+      # Pointer returns stay std_hash_start and std_hash_start_algo.
+      # A miss stops here. hash.x has its own bare-impl arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _hash_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_hash_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/hash_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_default_hasher$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_start$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_start_algo$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_finish$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_finish_algo$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_xxhash64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_xxhash64_seed$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_write_u8_ptr_u32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_hash_write_u8_ptr_u64$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/hash_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/hash/hash.x|std/hash/hash.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.hash.
+      # -lib-name "" keeps hash_*_c faces (mod.x externs). A miss stops here.
+      # Wide u64 primes are getters (modlet init_imm truncates export const u64).
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _hashx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_hashx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/hashx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_default_algo_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_recommend_hasher_map_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_recommend_hasher_fast_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_sip_new_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_sip_finish_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_sip_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_unified_new_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_unified_finish_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_xxhash64_bytes_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?hash_xxhash64_seed_bytes_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/hashx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/config/mod.x|std/config/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.config mod.x.
+      # Do not pass -lib-name "". Exports stay std_config_*.
+      # A miss stops here. config.x has its own bare-impl arm (记211). Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cfg_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cfg_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/cfg_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_err_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_new$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_free$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_load_toml_buf$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_get_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_merge$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_yaml_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_backend_yaml$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_source_toml$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_config_load_yaml_buf$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cfg_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/config/config.x|std/config/config.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.config (记211).
+      # -lib-name "" keeps cfg_* faces (mod.x + import METHOD). A miss stops here.
+      # Root fix: tip named-const early-return (NEG/BINOP fold + register skip).
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cfgx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cfgx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ctx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_strncpy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_set_raw$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_find_index$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_load_toml_buf_impl$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_load_yaml_buf_impl$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_parse_i32_str$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_normalize_value$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_trim$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_isspace$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cfg_from_handle$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ctx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+        ../std/context/context.x|std/context/context.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.context (记212).
+      # -lib-name "" keeps ctx_*_c faces (mod.x externs). A miss stops here.
+      # Root: tip U32 field zext sentinel + context slot via *CtxValueSlot (avoid
+      # INDEX.field u32 LDRSW residual in pabi_weak). Null set_value = CTX_ERR_NULL (-1).
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ctxx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ctxx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ctxx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_background_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_with_cancel_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_with_timeout_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_set_value_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_get_value_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_is_cancelled_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_cancel_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_free_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_smoke_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_glue_value_set_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ctx_glue_value_get_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ctxx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+../std/datetime/mod.x|std/datetime/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.datetime mod.x.
+      # Do not pass -lib-name "". Exports stay std_datetime_*.
+      # A miss stops here. datetime.x has its own bare-impl arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _dt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/dt_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_now_utc$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_from_unix$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_compare$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_parse_rfc3339$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_parse_offset_min$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_timezone_fixed$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_timezone_iana$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_duration_from_sec$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_add_duration$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_datetime_timezone_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/dt_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/datetime/datetime.x|std/datetime/datetime.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.datetime.
+      # -lib-name "" keeps datetime_*_c faces (mod.x externs). A miss stops here.
+      # Undefined: time_now_wall_* / time_wall_local_offset_min_c, memcmp, xlang_panic_.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _dtx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_dtx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/dtx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_now_utc_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_parse_rfc3339_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_parse_offset_min_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_format_rfc3339_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_from_utc_fields_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_from_zoned_fields_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_compare_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_add_duration_ns_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_timezone_from_name_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?datetime_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/dtx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/queue/mod.x|std/queue/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.queue mod.x.
+      # Do not pass -lib-name "". Exports stay std_queue_*.
+      # A miss stops here. queue.x keeps its own asm arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _que_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_que_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/que_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_new_retQueue_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_new_retQueue_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_push_back_Queue_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_push_back_Queue_u8_ptr_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_push_front$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_pop_front_Queue_i32_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_pop_front_Queue_u8_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_pop_back$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_queue_with_capacity$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/que_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/set/mod.x|std/set/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.set mod.x is the whole object.
+      # Do not pass -lib-name "". Exports stay std_set_*.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _set_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_set_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/set_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_new_i32_retSet_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_new_i32_retSet_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_insert_Set_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_insert_Set_u64_ptr_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_contains_key_Set_i32_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_remove_Set_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_str_insert$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_str_contains$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_hash_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_set_str_key_cap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/set_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/page_mmap.x|std/heap/page_mmap.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap.page_mmap is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_heap_page_mmap_page_mmap_heap_* exports
+      # defined. Undefined symbols are xlang_sys_mmap, xlang_sys_munmap,
+      # and xlang_panic_. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _pm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_pm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/page_mmap_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_init$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_page_mmap_page_mmap_heap_alloc$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/page_mmap_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/macos.x|std/sys/macos.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.macos is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with the std_sys_macos_macos_* exports defined.
+      # Undefined symbols are libc write, read, open, close, mmap, munmap,
+      # msync, ftruncate, lseek, and _exit. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/macos_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_write$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_anonymous_mmap$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_munmap$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_macos_msync_sync$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/macos_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zlib/mod.x|std/compress/zlib/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zlib mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_compress_zlib_deflate and
+      # std_compress_zlib_inflate defined. Undefined symbols are
+      # std_compress_zlib_libz_compress_deflate_c and
+      # std_compress_zlib_libz_compress_inflate_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zlib_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_deflate$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_inflate$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zlib_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/zlib/libz.x|std/compress/zlib/libz.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.compress.zlib libz is one asm leaf.
+      # No -lib-name "": the asm mod calls the prefixed
+      # std_compress_zlib_libz_compress_*_c names. Undefined symbols are
+      # libc compress2 and uncompress. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _zlx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_zlx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/zlib_lib_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_libz_compress_deflate_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_compress_zlib_libz_compress_inflate_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/zlib_lib_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/result/mod.x|std/result/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.result is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_result_ok, std_result_err, and
+      # std_result_from_error_code defined. Undefined symbols are
+      # core_result_ok, core_result_err, core_result_is_ok,
+      # core_result_is_err, core_result_unwrap_or, and std_error_ok.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file. Do not match core/result.
+      _sres_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sres_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_result_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_result_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_result_err$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_result_from_error_code$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_result_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/option/mod.x|std/option/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.option is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_option_some, std_option_none, and
+      # std_option_to_result defined. Undefined symbols are the
+      # core_option_* and core_result_is_ok_* wrappers it calls.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file. Do not match core/option.
+      _sopt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sopt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_option_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_some$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_none$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_option_to_result$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_option_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/slice/mod.x|core/slice/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.slice is one asm leaf.
+      # Do not pass -lib-name "". Exports stay core_slice_*.
+      # []u8 `.data` index is scale 1 via index_elem slice recovery.
+      # Undefined: core_option_*, core_slice_*_from_ptr_c / core_subslice_*_c,
+      # xlang_panic_. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cslice_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cslice_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/core_slice_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u8_unchecked$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_i32_unchecked$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_split_at_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_subslice_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_len_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_get_u64$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_slice_chunks_len_u8$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/core_slice_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/str/mod.x|core/str/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.str is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_str_bytes_view, core_str_bytes_view_get,
+      # and core_str_bytes_view_eq defined. No undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cstr_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cstr_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/core_str_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_str_bytes_view_eq$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/core_str_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/iterator/mod.x|core/iterator/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.iterator is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_iterator_iter_i32, core_iterator_next_u8,
+      # and core_iterator_iter_u8 defined. Undefined symbols are
+      # core_option_some_* and core_option_none_*. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _citer_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_citer_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/core_iter_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_iterator_iter_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_iterator_next_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_iterator_iter_u8$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/core_iter_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../core/fmt/mod.x|core/fmt/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — core.fmt is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with core_fmt_fmt_i32_to_buf, core_fmt_fmt_u32_to_buf,
+      # and core_fmt_fmt_f64_to_buf defined. No undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _cfmt_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cfmt_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/core_fmt_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_fmt_fmt_i32_to_buf$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_fmt_fmt_u32_to_buf$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?core_fmt_fmt_f64_to_buf$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/core_fmt_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/bytes/mod.x|std/bytes/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.bytes is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_bytes_from_external, std_bytes_append_byte,
+      # and std_bytes_eq defined. Undefined symbols are
+      # std_heap_alloc_i32_retu64_ptr, std_heap_copy_u8_ptr_i32_u8_ptr_i32,
+      # std_heap_free_u8_ptr, std_heap_realloc_u8_ptr_i32, std_mem_compare,
+      # std_string_new, and std_string_view.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sbytes_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sbytes_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_bytes_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_from_external$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_append_byte$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_bytes_eq$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_bytes_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/time/mod.x|std/time/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.time is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_time_now_monotonic_ns, std_time_sleep_ns,
+      # and std_time_duration_ns defined. Undefined symbols are
+      # time_now_monotonic_ns_c, time_now_wall_ns_c, time_sleep_ns_c,
+      # time_format_wall_rfc3339_c, and time_wall_local_offset_min_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stime_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stime_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_time_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_now_monotonic_ns$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_sleep_ns$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_time_duration_ns$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_time_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/random/mod.x|std/random/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.random mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_random_fill_bytes, std_random_next, and
+      # std_random_step defined. Undefined symbols are random_fill_bytes_c,
+      # random_u32_c, random_u64_c, random_rng_smoke_c, and xlang_panic_.
+      # random.x defines the three random_*_c names. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sran_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sran_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_random_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_fill_bytes$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_next$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_random_step$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_random_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/random/random.x|std/random/random.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.random.
+      # -lib-name "" keeps random_u32_c, random_u64_c, and
+      # random_rng_smoke_c. Without it the path prefix doubles the export.
+      # Undefined symbol is random_fill_bytes_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sranx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sranx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_random_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?random_u32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?random_u64_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?random_rng_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_random_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/ffi/mod.x|std/ffi/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.ffi mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_ffi_cstr_len, std_ffi_cstring_new, and
+      # std_ffi_point_pack defined. Undefined symbols are the ffi_*_c
+      # helpers defined in ffi.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sffi_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sffi_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_ffi_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_cstr_len$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_cstring_new$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_ffi_point_pack$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_ffi_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/ffi/ffi.x|std/ffi/ffi.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.ffi.
+      # -lib-name "" keeps ffi_cstr_len_c, ffi_cstring_new_c, and
+      # ffi_point_pack_c. Without it the path prefix doubles the export.
+      # Undefined symbols are malloc, free, memcpy, and strlen.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sffix_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sffix_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_ffi_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_cstr_len_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_cstring_new_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?ffi_point_pack_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_ffi_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sort/mod.x|std/sort/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sort mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_sort_sort_i32_ptr_i32, std_sort_sort_u8_ptr_i32,
+      # and std_sort_stable_i32_ptr_i32 defined. Undefined symbols are the
+      # std_sort_sort_sort_* helpers defined in sort.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssort_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssort_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sort_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_u8_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_stable_i32_ptr_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sort_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sort/sort.x|std/sort/sort.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sort impl keeps the path prefix.
+      # mod.x calls std_sort_sort_sort_qsort_i32 and the u8 and stable twins.
+      # -lib-name "" would drop that prefix and leave the mod undefined.
+      # Undefined symbol is malloc. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssortx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssortx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sort_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_qsort_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_qsort_u8$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sort_sort_sort_stable_i32_impl$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sort_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/test/mod.x|std/test/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.test mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_test_expect, std_test_expect_eq_i32, and
+      # std_test_fuzz_next defined. Undefined symbols are the test_*_c
+      # helpers defined in test.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stest_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stest_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_test_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_expect$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_expect_eq_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_test_fuzz_next$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_test_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/test/test.x|std/test/test.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.test.
+      # -lib-name "" keeps test_expect_c, test_expect_eq_i32_c, and
+      # test_fuzz_next_c. Without it the path prefix doubles the export.
+      # Undefined symbols are env_getenv_c, memcpy, strtoul,
+      # test_call_i32_void_c, time_now_monotonic_ns_c, xlang_panic_,
+      # and xlang_sys_write. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stestx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stestx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_test_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?test_expect_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?test_expect_eq_i32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?test_fuzz_next_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_test_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/base64/mod.x|std/base64/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.base64 mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_base64_encode_standard,
+      # std_base64_decode_standard, and std_base64_encode_url defined.
+      # Undefined symbols are the base64_*_c helpers defined in base64.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sb64_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sb64_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_b64_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_encode_standard$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_decode_standard$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_base64_encode_url$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_b64_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/base64/base64.x|std/base64/base64.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.base64.
+      # -lib-name "" keeps base64_encode_standard_c,
+      # base64_decode_standard_c, and base64_encode_url_c.
+      # Without it the path prefix doubles the export.
+      # Undefined symbols are memcpy and memset. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sb64x_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sb64x_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_b64_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_encode_standard_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_decode_standard_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?base64_encode_url_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_b64_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/encoding/mod.x|std/encoding/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.encoding mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_encoding_utf8_valid, std_encoding_hex_encode,
+      # and std_encoding_extra_smoke defined. Undefined symbols are the
+      # encoding_*_c helpers in encoding.x, plus std_base64_* and
+      # std_string_string_capacity, std_string_string_clear,
+      # std_string_string_data_ptr. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _senc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_senc_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_enc_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_utf8_valid$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_hex_encode$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_encoding_extra_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_enc_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/encoding/encoding.x|std/encoding/encoding.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.encoding.
+      # -lib-name "" keeps encoding_utf8_valid_c, encoding_hex_encode_c,
+      # and encoding_extra_smoke_c. Without it the path prefix doubles
+      # the export. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sencx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sencx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_enc_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_utf8_valid_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_hex_encode_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?encoding_extra_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_enc_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/url/mod.x|std/url/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.url mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_url_parse, std_url_query_encode, and
+      # std_url_ipv6_host_smoke defined. Undefined symbols are the
+      # url_*_c helpers in url.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _surl_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_surl_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_url_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_parse$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_query_encode$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_url_ipv6_host_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_url_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/url/url.x|std/url/url.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.url.
+      # -lib-name "" keeps url_parse_c, url_query_encode_c, and
+      # url_ipv6_host_smoke_c. Without it the path prefix doubles the
+      # export. Undefined symbols are inet_ntop, inet_pton, memcpy,
+      # memset, and strlen. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _surlx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_surlx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_url_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?url_parse_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?url_query_encode_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?url_ipv6_host_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_url_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/log/mod.x|std/log/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.log mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_log_log, std_log_set_min_level, and
+      # std_log_level_info defined. Undefined symbols are the log_*_c
+      # helpers in runtime_log_os and log.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _slog_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_slog_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_log_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_log$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_set_min_level$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_log_level_info$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_log_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/log/log.x|std/log/log.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.log.
+      # -lib-name "" keeps log_write_c, log_prefix_copy, and
+      # log_write_structured_kv_c. Without it the path prefix doubles
+      # the export. Undefined symbols are log_apply_env_once_c,
+      # log_get_min_level_c, and log_emit_bytes_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _slogx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_slogx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_log_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?log_write_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?log_prefix_copy$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?log_write_structured_kv_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_log_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cache/mod.x|std/cache/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.cache mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_cache_new_lru, std_cache_get, and
+      # std_cache_put defined. Undefined symbols are the cache_*_c
+      # helpers in cache.x. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scache_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scache_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cache_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_new_lru$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_get$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cache_put$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cache_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cache/cache.x|std/cache/cache.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.cache.
+      # -lib-name "" keeps cache_lru_create_c, cache_lru_get_c, and
+      # cache_pool_acquire_c. Without it the path prefix doubles the
+      # export. Undefined symbols are calloc, free, and
+      # time_now_monotonic_ns_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scachex_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scachex_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cache_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_lru_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_lru_get_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cache_pool_acquire_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cache_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/json/mod.x|std/json/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.json mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_json_parse_null, std_json_parse, and
+      # std_json_parse_string defined. The parse helpers live in json.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sjson_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sjson_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_json_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse_null$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_json_parse_string$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_json_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/json/json.x|std/json/json.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.json.
+      # -lib-name "" keeps json_parse_null_c, json_parse_bool_c, and
+      # json_parse_string_c. Without it the path prefix doubles the
+      # export. The merged object has no undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sjsonx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sjsonx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_json_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_null_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_bool_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?json_parse_string_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_json_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/map/mod.x|std/map/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.map is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_map_insert_Map_i32_i32_ptr_i32_i32,
+      # std_map_get_Map_i32_i32_i32_i32, and std_map_str_insert defined.
+      # Undefined symbols are memcpy, the std_heap_libc_heap_* alloc
+      # and free helpers, std_heap_libc_heap_copy_u8_at_c,
+      # std_heap_map_find, and xlang_panic_. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _smap_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_smap_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_map_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_insert_Map_i32_i32_ptr_i32_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_get_Map_i32_i32_i32_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_map_str_insert$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_map_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/tar/mod.x|std/tar/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.tar mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_tar_write_header, std_tar_read_header, and
+      # std_tar_append_entry defined. The header helpers live in tar.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _star_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_star_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_tar_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_write_header$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_read_header$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_tar_append_entry$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_tar_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/tar/tar.x|std/tar/tar.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.tar.
+      # -lib-name "" keeps tar_write_header_c, tar_read_header_c, and
+      # tar_append_entry_c. Without it the path prefix doubles the
+      # export. The merged object has no undefined symbols.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _starx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_starx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_tar_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_write_header_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_read_header_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?tar_append_entry_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_tar_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/mod.x|std/heap/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_heap_map_find, std_heap_trace_on, and
+      # std_heap_alloc_i32_retu8_ptr defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sheap_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sheap_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_heap_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_map_find$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_trace_on$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_alloc_i32_retu8_ptr$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_heap_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/libc.x|std/heap/libc.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap libc face is one asm leaf.
+      # No -lib-name "". Callers import std_heap_libc_heap_alloc_i32_c,
+      # std_heap_libc_heap_free_i32_c, and
+      # std_heap_libc_heap_copy_u8_at_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sheapc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sheapc_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_heap_libc_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_alloc_i32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_free_i32_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_libc_heap_copy_u8_at_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_heap_libc_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/heap/ops.x|std/heap/ops.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.heap ops face is one asm leaf.
+      # No -lib-name "". The find helper stays
+      # std_heap_ops_map_i32_i32_find_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sheapo_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sheapo_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_heap_ops_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_map_i32_i32_find_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_heap_mem_set_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_heap_ops_heap_mem_compare_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_heap_ops_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/dynlib/mod.x|std/dynlib/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_dynlib_open, std_dynlib_sym, and
+      # std_dynlib_last_os_error defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sdyn_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sdyn_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_dyn_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_sym$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_dynlib_last_os_error$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_dyn_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/dynlib/dynlib.x|std/dynlib/dynlib.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.dynlib face is one asm leaf.
+      # -lib-name "" keeps dynlib_open_c, dynlib_last_error_copy_c, and
+      # dynlib_win_path_smoke_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sdynx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sdynx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_dyn_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_last_error_copy_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?dynlib_win_path_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_dyn_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/sqlite/mod.x|std/db/sqlite/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.sqlite mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_db_sqlite_open_u8_ptr, std_db_sqlite_exec,
+      # and std_db_sqlite_changes defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssql_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssql_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sql_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_open_u8_ptr$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_exec$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_sqlite_changes$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sql_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/sqlite/sqlite.x|std/db/sqlite/sqlite.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.sqlite face is one asm leaf.
+      # -lib-name "" keeps db_open_c, db_exec_c, and db_changes_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssqlx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssqlx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sql_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_exec_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_changes_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sql_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/csv/mod.x|std/csv/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.csv mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_csv_parse_row, std_csv_write_row, and
+      # std_csv_next_field defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scsv_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scsv_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_csv_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_parse_row$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_write_row$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_csv_next_field$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_csv_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/csv/csv.x|std/csv/csv.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.csv face is one asm leaf.
+      # -lib-name "" keeps csv_parse_row_c, csv_write_row_c, and
+      # csv_next_field_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _scsvx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scsvx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_csv_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_parse_row_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_write_row_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?csv_next_field_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_csv_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/time/time.x|std/time/time.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.time face is one asm leaf.
+      # -lib-name "" keeps time_now_wall_sec_c, time_duration_ns_c, and
+      # time_format_timezone_smoke_c. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stimex_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stimex_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_time_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?time_now_wall_sec_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?time_duration_ns_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?time_format_timezone_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_time_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/uuid/mod.x|std/uuid/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.uuid mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_uuid_parse, std_uuid_format, and
+      # std_uuid_version defined. No -lib-name "".
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _suuid_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_suuid_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_uuid_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_parse$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_format$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_uuid_version$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_uuid_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/uuid/uuid.x|std/uuid/uuid.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.uuid face is one asm leaf.
+      # -lib-name "" keeps uuid_parse_c, uuid_format_c, and uuid_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _suuidx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_suuidx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_uuid_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_parse_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_format_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?uuid_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_uuid_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/elf/mod.x|std/elf/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.elf mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_elf_write_min_reloc,
+      # std_elf_write_min_reloc_size, and std_elf_write_smoke defined.
+      # No -lib-name "". A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _self_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_self_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_elf_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_elf_write_min_reloc$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_elf_write_min_reloc_size$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_elf_write_smoke$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_elf_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/elf/elf.x|std/elf/elf.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.elf face is one asm leaf.
+      # -lib-name "" keeps elf64_write_min_reloc_c,
+      # elf64_write_min_reloc_size_c, and elf64_write_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _selfx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_selfx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_elf_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?elf64_write_min_reloc_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?elf64_write_min_reloc_size_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?elf64_write_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_elf_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/task/mod.x|std/task/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.task mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_task_new, std_task_spawn, and std_task_join
+      # defined. No -lib-name "". A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _stask_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_stask_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_task_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_new$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_spawn$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_task_join$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_task_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/task/task.x|std/task/task.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.task face is one asm leaf.
+      # -lib-name "" keeps task_group_create_c, task_group_spawn_c, and
+      # task_smoke_c. A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _staskx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_staskx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_task_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?task_group_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?task_group_spawn_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?task_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_task_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/async/future.x|std/async/future.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.async.future is one asm leaf.
+      # -lib-name "" keeps xlang_async_future_create_c,
+      # xlang_async_future_poll_c, and xlang_async_future_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sfut_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sfut_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_fut_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_poll_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?xlang_async_future_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_fut_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/env/mod.x|std/env/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.env mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_env_getenv, std_env_args_iter_count, and
+      # std_env_args_iter_next defined. No -lib-name "". A miss stops here.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _senv_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_senv_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_env_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_getenv$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_args_iter_count$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_env_args_iter_next$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_env_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/env/env.x|std/env/env.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.env face is one asm leaf.
+      # -lib-name "" keeps args_iter_count_c, env_parse_kv_entry, and
+      # env_platform_encoding_smoke_c. A miss stops here.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _senvx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_senvx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_env_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?args_iter_count_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?env_parse_kv_entry$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?env_platform_encoding_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_env_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cli/mod.x|std/cli/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.cli mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_cli_is_help, std_cli_write_usage, and
+      # std_cli_err_unknown defined. No -lib-name "". A miss stops here.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _scli_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_scli_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cli_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_is_help$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_write_usage$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_cli_err_unknown$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cli_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/cli/cli.x|std/cli/cli.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.cli face is one asm leaf.
+      # -lib-name "" keeps cli_is_help_c, cli_write_usage_c, and cli_smoke_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sclix_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sclix_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_cli_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_is_help_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_write_usage_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?cli_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_cli_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/mod.x|std/sys/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_sys_macos_write_available, std_sys_mmap_available,
+      # and std_sys_munmap defined. mmap.x defines the std_sys_mmap_* faces.
+      # macos.o defines std_sys_macos_macos_munmap and msync_sync.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssys_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssys_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sys_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_(macos_write_available|freestanding_write_available)$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_munmap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sys_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/sys/mmap.x|std/sys/mmap.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.sys.mmap is merged into sys.o.
+      # Do not pass -lib-name "". The faces stay std_sys_mmap_*.
+      # Undefined symbols are std_sys_macos_macos_mmap_rw, munmap, and
+      # msync_sync, all defined by macos.o. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _smm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_smm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sys_mmap_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_mmap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_mmap_rw$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_munmap$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sys_mmap_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/kv/mod.x|std/db/kv/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.db.kv mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_db_kv_open, std_db_kv_mmap_available, and
+      # std_db_kv_get defined. The db_kv_* faces live in kv.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _skv_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_skv_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_kv_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_open$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_mmap_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_db_kv_get$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_kv_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/db/kv/kv.x|std/db/kv/kv.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.db.kv.
+      # -lib-name "" keeps db_kv_open_c, db_kv_get_c, and db_kv_smoke_c.
+      # Without it the path prefix doubles the export.
+      # Undefined symbols are the xlang_kv_* mmap faces, libc, and
+      # std_sys_mmap_mmap_available. A miss stops here.
+      # Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _skvx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_skvx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_kv_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_open_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_get_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?db_kv_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_kv_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/schema/mod.x|std/schema/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.schema mod is one asm leaf.
+      # The C emit below is what execs cc. This TU already comes out of
+      # -backend asm with std_schema_text, std_schema_err_ok, and
+      # std_schema_decode_json defined. The schema_* faces live in schema.x.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _ssch_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ssch_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sch_mod_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_text$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_err_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_schema_decode_json$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sch_mod_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/schema/schema.x|std/schema/schema.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.schema.
+      # -lib-name "" keeps schema_create_c, schema_decode_json_c, and
+      # schema_smoke_c. CSV rows go through csv_parse_row_c.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _sschx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sschx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_sch_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_decode_json_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?schema_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_sch_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/trace/trace.x|std/trace/trace.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare impl for std.trace.
+      # -lib-name "" keeps trace_create_c, trace_smoke_c, and
+      # trace_export_text_c. mod.x is not in this leaf.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _strx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_strx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/std_tr_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_smoke_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?trace_export_text_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/std_tr_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+  esac
   # 产品 std .o：Linux 默认 asm 对 string 等库模块体不完整（运行时 SIGSEGV）；强制 -backend c。
   # -o 无 main 时链失败但 XLANG_KEEP_C 保留完整 C；再 cc -c 落地。
   BACKEND_ARGS=""
@@ -794,7 +5873,7 @@ for x_path in "$@"; do
       strip_pref_probe=$(printf '%s' "$x_path" | sed -e 's|^\.\./||' -e 's|\.x$||' -e 's|/|_|g')
       has_prefixed=0
       if [ -n "$strip_pref_probe" ] && command -v nm >/dev/null 2>&1; then
-        if nm "$tmp_dir/try_${idx}.o" 2>/dev/null | grep -q " T ${strip_pref_probe}_"; then
+        if nm "$tmp_dir/try_${idx}.o" 2>/dev/null | grep -qE " T _?${strip_pref_probe}_"; then
           has_prefixed=1
         fi
       fi
@@ -829,7 +5908,7 @@ for x_path in "$@"; do
       std)  mod_pref="std_${mod_leaf}_" ;;
       *)    mod_pref="std_${mod_leaf}_" ;;
     esac
-    if [ -n "$mod_leaf" ] && ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
+    if [ -n "$mod_leaf" ] && ! nm "$obj" 2>/dev/null | grep -qE " T _?${mod_pref}"; then
       if command -v objcopy >/dev/null 2>&1; then
         nm "$obj" 2>/dev/null | awk '/ [TDB] / { print $3 }' | while IFS= read -r sym; do
           [ -n "$sym" ] || continue
@@ -856,7 +5935,7 @@ for x_path in "$@"; do
           fi
         done
       fi
-      if ! nm "$obj" 2>/dev/null | grep -q " T ${mod_pref}"; then
+      if ! nm "$obj" 2>/dev/null | grep -qE " T _?${mod_pref}"; then
         # 重命名失败：放弃 direct .o，改走 C/KEEP_C 前缀路径
         use_direct_o=0
         emit_ok=0
@@ -2193,6 +7272,43 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
             # leaf=encoding → encoding_utf8_valid_c; not core_mem_*, not std_*.
             printf '%s\n' "$sym" >>"$_exp_list"
             ;;
+          elf64_*)
+            # leaf=elf would only keep elf_*_c. The impl face is elf64_*.
+            if [ "$leaf" = "elf" ]; then
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
+          xlang_async_future_*|future_f_*)
+            # leaf=async would only keep async_*_c and std_async_*.
+            # The impl face is xlang_async_future_* and future_f_*.
+            case "$out_rel" in
+              std/async/future.o|*std/async/future.o)
+                printf '%s\n' "$sym" >>"$_exp_list"
+                ;;
+            esac
+            ;;
+          args_iter_*|env_cstr_eq|env_parse_kv_entry)
+            # leaf=env keeps env_*_c and std_env_*. These faces have no _c
+            # suffix, or the args_iter_* ABI name.
+            if [ "$leaf" = "env" ]; then
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
+          cli_bytes_eq|cli_copy_lit)
+            # leaf=cli keeps cli_*_c. These two exports have no _c suffix.
+            if [ "$leaf" = "cli" ]; then
+              printf '%s\n' "$sym" >>"$_exp_list"
+            fi
+            ;;
+          std_db_kv_*|db_kv_*)
+            # leaf=kv would only keep kv_*_c and std_kv_*.
+            # The product face is std_db_kv_* and the impl face is db_kv_*.
+            case "$out_rel" in
+              std/db/kv/kv.o|*std/db/kv/kv.o)
+                printf '%s\n' "$sym" >>"$_exp_list"
+                ;;
+            esac
+            ;;
           map_*)
             # PLATFORM: MACOS — heap ops.x bare map_* kept for heap_full_alias U→T.
             # leaf_*_c only matches heap_*; map_i32_i32_find_c / map_slot need explicit keep.
@@ -2248,6 +7364,35 @@ if command -v nm >/dev/null 2>&1 && [ -f "$out_o" ]; then
                       ;;
                     "${leaf}_"*_c|"${leaf}_"*_c_*)
                       printf '%s\n' "$sym" >>"$_mem_exp"
+                      ;;
+                    elf64_*)
+                      if [ "$leaf" = "elf" ]; then
+                        printf '%s\n' "$sym" >>"$_mem_exp"
+                      fi
+                      ;;
+                    xlang_async_future_*|future_f_*)
+                      case "$out_rel" in
+                        std/async/future.o|*std/async/future.o)
+                          printf '%s\n' "$sym" >>"$_mem_exp"
+                          ;;
+                      esac
+                      ;;
+                    args_iter_*|env_cstr_eq|env_parse_kv_entry)
+                      if [ "$leaf" = "env" ]; then
+                        printf '%s\n' "$sym" >>"$_mem_exp"
+                      fi
+                      ;;
+                    cli_bytes_eq|cli_copy_lit)
+                      if [ "$leaf" = "cli" ]; then
+                        printf '%s\n' "$sym" >>"$_mem_exp"
+                      fi
+                      ;;
+                    std_db_kv_*|db_kv_*)
+                      case "$out_rel" in
+                        std/db/kv/kv.o|*std/db/kv/kv.o)
+                          printf '%s\n' "$sym" >>"$_mem_exp"
+                          ;;
+                      esac
                       ;;
                     map_*)
                       if [ "$leaf" = "heap" ]; then

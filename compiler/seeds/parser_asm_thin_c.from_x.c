@@ -15,11 +15,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <xlang_io_cap.h>  /* Cap residual 9.5.3: stderr debug print via Cap IO write */
-#include <xlang_fmt_cap.h> /* Cap residual 9.5.3: xlang_snprintf format authority */
-/* G.7: Cap after stdio — thin glue debug prints must not reach libc fprintf. */
-#undef snprintf
-#define snprintf xlang_snprintf
+/* Class AH: Cap IO/fmt debug includes retired (primary/glue/seed_parse Cap strips). */
 #include <stdlib.h>
 #include <string.h>
 #include "parser_asm_stretch_audit_gate.h"
@@ -183,7 +179,18 @@ struct parser_asm_onefunc_result {
   int32_t func_return_type_ref;
 };
 
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void lexer_next_buf(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+#ifndef PARSER_ASM_LEXER_NEXT_BUF_V
+#define PARSER_ASM_LEXER_NEXT_BUF_V 1
+/* lexer_next_buf writes its result through out (e5ba88d9d). A by-value
+ * call only matched on x86-64/Win64 by luck; arm64 passes sret in x8. */
+static inline struct parser_asm_lexer_result parser_asm_lexer_next_buf_v(struct parser_asm_lexer lex, uint8_t *data,
+                                                                         int32_t len) {
+  struct parser_asm_lexer_result r;
+  lexer_next_buf(&r, lex, data, len);
+  return r;
+}
+#endif
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex,
                             struct parser_asm_slice_u8 *data);
 extern void parser_asm_skip_balanced_braces_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex,
@@ -2826,6 +2833,9 @@ int labi_pthin_expr_primary_slice_marker(void);
 #ifndef XLANG_PTHIN_EXPR_UNARY_FROM_X
 #include "parser_asm_unary_slice.inc"
 #else
+/* unary_slice.inc declared this for later slices. The definition stays
+ * in the AST object. PLATFORM: SHARED. */
+extern int32_t ast_ast_arena_expr_alloc(void *arena);
 void parser_asm_parse_unary_into_slice_c(void *arena, struct parser_asm_lexer lex,
                                         struct parser_asm_slice_u8 *source,
                                         struct parser_asm_parse_expr_result *out);
@@ -2887,7 +2897,6 @@ struct parser_asm_lexer parser_asm_skip_one_struct_slice_c(struct parser_asm_lex
 struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
-#include "parser_asm_emit_heavy_stretch_suite_slice.inc"
 #else
 int32_t parser_asm_stretch_token_run_len_c(int32_t kind);
 int32_t parser_asm_stretch_import_path_validate_c(const uint8_t *path, int32_t path_len);
@@ -2910,11 +2919,28 @@ struct parser_asm_lexer parser_asm_skip_imports_slice_c(struct parser_asm_lexer 
 struct parser_asm_lexer_result parser_asm_diag_after_imports_then_structs_slice_c(
     struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 #endif
+/* Product keep stays after the lite peel. Chapter 2.9 replaces those
+ * stubs with pthin_stretch_audit.x. PLATFORM: SHARED. */
+#ifdef XLANG_PARSER_STRETCH_AUDIT
+#include "archive_parser_asm_emit_heavy_stretch_suite_slice.inc"
+#elif !defined(XLANG_PTHIN_STRETCH_AUDIT_FROM_X)
+/* Class BA: product keep — no suite symbol-string bloat.
+ * Stays when XLANG_PTHIN_STRETCH_FROM_X drops the lite slice and the
+ * audit .x is not linked. PLATFORM: SHARED. */
+#include "parser_asm_stretch_suite_product_keep.inc"
+#else
+/* PLATFORM: SHARED — chapter 2.9. Audit bodies are the .x object.
+ * The Class BA marker stays here and still returns 0. */
+int labi_pthin_stretch_suite_slice_marker(void) {
+  return 0;
+}
+#endif
 #ifndef PARSER_ASM_THIN_GLUE_NO_SEED_PARSE
-/* 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供；全量 parser_x.o 链入时 Makefile 定义 NO_SEED_PARSE。 */
-/* G-02f-289 P8 seed_parse：默认 #include；hybrid 时在 pthin_seed_parse.from_x.c */
+/* Class BY: tip product always NO_SEED_PARSE — .inc body archived under analysis/archive/parser_asm/.
+ * Non-product smoke may still include seeds/ wrapper (→ archive). 瘦 parser_x.o 无 parse_into_buf 时由 seed slice 提供。 */
+/* G-02f-289 P8 seed_parse：默认 #include wrapper；hybrid 时在 pthin_seed_parse.from_x.c */
 #ifndef XLANG_PTHIN_SEED_PARSE_FROM_X
-#include "parser_asm_seed_parse_into_buf_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_seed_parse_into_buf_slice.inc" /* Class BZ */
 #else
 struct parser_asm_seed_parse_into_result {
   int32_t ok;
@@ -3009,7 +3035,7 @@ int labi_pthin_diag_pipeline_slice_marker(void);
 
 /* G-02f-321 P12 skip_tl：默认 #include；hybrid 时在 pthin_skip_tl.from_x.c */
 #ifndef XLANG_PTHIN_SKIP_TL_FROM_X
-#include "parser_asm_skip_tl_slice.inc"
+#include "../../analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc" /* Class BZ */
 #else
 void parser_asm_skip_one_struct_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);
 void parser_asm_skip_one_enum_into_slice_c(struct parser_asm_lexer *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);

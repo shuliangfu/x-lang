@@ -7,3 +7,13 @@
 
 const K: i32 = 10;
 const A: [2]i32 = [10, 32];
+
+/**
+ * Anchor so this const module asm-emits.
+ * K and A stay module constants. This function does not change their values.
+ * @return i32 — always 0
+ * PLATFORM: SHARED
+ */
+function const_import_slice_dep_anchor(): i32 {
+  return 0;
+}

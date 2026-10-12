@@ -203,7 +203,9 @@ export function io_wait_readable(fds: *i32, n: i32, timeout_ms: u32): i32 {
 /* See implementation. */
 
 export function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
-  return io_read_ptr_mod.io_read_ptr(handle, timeout_ms);
+  /* std.io.read_ptr returns the buffer address in rax as i64. */
+  let bits: i64 = io_read_ptr_mod.io_read_ptr(handle, timeout_ms);
+  return bits as *u8;
 }
 
 /** Exported function `io_read_ptr_len`.
@@ -219,7 +221,9 @@ export function io_read_ptr_len(): i32 {
  * @return u64
  */
 export function io_read_ptr_gen(): u64 {
-  return io_read_ptr_mod.io_read_ptr_gen();
+  /* std.io.read_ptr returns the generation counter in rax as i64. */
+  let g: i64 = io_read_ptr_mod.io_read_ptr_gen();
+  return g as u64;
 }
 
 /** Exported function `io_read_ptr_gen_valid`.
@@ -246,7 +250,9 @@ export function io_read_ptr_backend(): i32 {
  * @return u8[]<io_read_ptr>
  */
 export function io_read_ptr_slice(handle: usize, timeout_ms: u32): u8[]<io_read_ptr> {
-  let s: XlangSliceU8 = io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms);
+  /* The read fills caller storage. This wrapper still returns the slice by value. */
+  let s: XlangSliceU8;
+  io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms, &s);
   let out: u8[]<io_read_ptr>;
   out.data = s.data;
   out.length = s.length;
@@ -469,7 +475,10 @@ export function xlang_io_read_ptr_backend(): i32 {
  * @return XlangSliceU8
  */
 export function xlang_io_read_ptr_slice(handle: usize, timeout_ms: u32): XlangSliceU8 {
-  return io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms);
+  /* The read fills caller storage. This wrapper still returns the struct by value. */
+  let s: XlangSliceU8;
+  io_read_ptr_mod.io_read_ptr_slice(handle, timeout_ms, &s);
+  return s;
 }
 
 /** Exported function `handle_from_fd`.

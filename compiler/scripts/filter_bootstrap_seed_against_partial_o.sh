@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # filter_bootstrap_seed_against_partial_o.sh — named authority for class-G
-# filters that omit only seed_host/asm_backend_partial.o symbols:
+# filters that omit seed_host/asm_backend_partial.o symbols:
 #   build_asm/bootstrap_seed_user_asm_seed_bridge_filtered.o
 #   build_asm/bootstrap_seed_asm_backend_compat_stubs_filtered.o
 #   build_asm/bootstrap_seed_backend_x86_64_enc_c_filtered.o
+# 记249／8.6: enc filtered also omits backend_enc_dispatch.o (Darwin product).
 #
 # Thin wrapper over filter_o_export_against_deps.sh (G.7). Makefile recipes and
 # g05_ensure Darwin product path both invoke this script — no third nm/ld copy.
@@ -103,16 +104,28 @@ need_rebuild() {
 
 run_filter() {
   local src="$1" out="$2" stem="$3" partial="$4"
+  local -a extra_omits=()
   if [ ! -f "$src" ]; then
     echo "$TAG: missing SRC $src (build heat leaf first)" >&2
     exit 1
+  fi
+  # 记249／8.6: Darwin product links filtered enc beside backend_enc_dispatch.o.
+  # Partial alone leaves 126 arch_* + 4 x86_enc_* that dispatch also defines;
+  # a strong rebuild (touch .x without G05_X_O_WEAK) then duplicate-symbol
+  # aborts from-zero relink. Also omit dispatch so keep=unique faces only
+  # (argmov + enc helpers dispatch does not own). PLATFORM: SHARED filter ·
+  # MACOS product gold.
+  if [ "$stem" = "bootstrap_seed_backend_x86_64_enc_c" ] \
+    && [ -f src/asm/backend_enc_dispatch.o ]; then
+    extra_omits+=(--omit src/asm/backend_enc_dispatch.o)
   fi
   # PLATFORM: SHARED — bash required (arrays); Ubuntu dash rejects OMITS=().
   exec bash scripts/filter_o_export_against_deps.sh \
     --src "$src" \
     --out "$out" \
     --stem "$stem" \
-    --omit "$partial"
+    --omit "$partial" \
+    "${extra_omits[@]}"
 }
 
 ensure_src_via_try_heat() {
@@ -169,11 +182,8 @@ do_ensure() {
     echo "$TAG: skip up-to-date $out"
     exit 0
   fi
-  bash scripts/filter_o_export_against_deps.sh \
-    --src "$src" \
-    --out "$out" \
-    --stem "$stem" \
-    --omit "$partial"
+  # 记249／8.6: same dispatch omit as run_filter (do_ensure must not bypass).
+  run_filter "$src" "$out" "$stem" "$partial"
 }
 
 do_check() {

@@ -43,20 +43,25 @@ let g_io_read_ptr_gen: u64 = 0 as u64;
 let g_io_read_ptr_backend: i32 = 0;
 
 /**
- * See implementation.
- * See implementation.
+ * Read into the module buffer and return its address.
+ * The installed product cannot asm-emit this *u8 return.
+ * @param handle usize — file descriptor widened to a handle
+ * @param timeout_ms u32 — wait budget forwarded to the platform read
+ * @return i64 — buffer address in rax, or 0 when the read fails
+ * PLATFORM: SHARED
  */
-export function io_read_ptr(handle: usize, timeout_ms: u32): *u8 {
+export function io_read_ptr(handle: usize, timeout_ms: u32): i64 {
   g_io_read_ptr_gen = g_io_read_ptr_gen + 1;
   g_io_read_ptr_backend = 0;
   let fd: i32 = (handle as i32);
   let r: isize = io_sync.io_read(fd, &g_io_read_ptr_buf[0], IO_READ_PTR_BUF_SIZE, timeout_ms);
   if (r < 0) {
     g_io_read_ptr_len = 0;
-    return 0 as *u8;
+    return 0;
   }
   g_io_read_ptr_len = (r as i32);
-  return &g_io_read_ptr_buf[0];
+  let p: *u8 = &g_io_read_ptr_buf[0];
+  return p as i64;
 }
 
 /** Exported function `io_read_ptr_len`.
@@ -67,12 +72,13 @@ export function io_read_ptr_len(): i32 {
   return g_io_read_ptr_len;
 }
 
-/** Exported function `io_read_ptr_gen`.
- * Read path helper `io_read_ptr_gen`.
- * @return u64
+/**
+ * Return the generation counter for the last read.
+ * @return i64 — counter bits in rax. Low 64 bits match the stored u64.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u64 return.
  */
-export function io_read_ptr_gen(): u64 {
-  return g_io_read_ptr_gen;
+export function io_read_ptr_gen(): i64 {
+  return g_io_read_ptr_gen as i64;
 }
 
 /** Exported function `io_read_ptr_gen_valid`.
@@ -95,20 +101,23 @@ export function io_read_ptr_backend(): i32 {
   return g_io_read_ptr_backend;
 }
 
-/** Exported function `io_read_ptr_slice`.
- * Read path helper `io_read_ptr_slice`.
- * @param handle usize
- * @param timeout_ms u32
- * @return XlangSliceU8
+/**
+ * Read into the module buffer and write the slice through out.
+ * A 16-byte struct return uses rax and rdx, so the installed product cannot asm-emit it.
+ * @param handle usize — file descriptor widened to a handle
+ * @param timeout_ms u32 — wait budget forwarded to the platform read
+ * @param out *XlangSliceU8 — caller storage for data and length; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function io_read_ptr_slice(handle: usize, timeout_ms: u32): XlangSliceU8 {
-  let p: *u8 = io_read_ptr(handle, timeout_ms);
-  let s: XlangSliceU8;
-  s.data = p;
+export function io_read_ptr_slice(handle: usize, timeout_ms: u32, out: *XlangSliceU8): i32 {
+  let bits: i64 = io_read_ptr(handle, timeout_ms);
+  let p: *u8 = bits as *u8;
+  out.data = p;
   if (p != 0) {
-    s.length = (g_io_read_ptr_len as usize);
+    out.length = (g_io_read_ptr_len as usize);
   } else {
-    s.length = 0;
+    out.length = 0;
   }
-  return s;
+  return 0;
 }

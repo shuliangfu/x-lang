@@ -59,11 +59,11 @@ endif
 # ---------------------------------------------------------------------------
 # wave925: PIPELINE_GEN_CFLAGS moved from Makefile inline (G.7 single authority).
 # Converted from $(if $(CC_IS_CLANG),...) to ifeq so catalog_parse_mk can
-# resolve. CC_IS_CLANG is NOT defined here — it is computed by:
-#   - Makefile (before include): CC_IS_CLANG := $(findstring clang,$(shell $(CC) -v 2>&1))
-#   - catalog_seed_host_defaults (shell): $CC -v 2>&1 | grep -q clang → "clang" or ""
-# Both produce "clang" when CC output contains "clang", empty otherwise.
-# catalog_parse_mk reads CC_IS_CLANG from store (set before parse).
+# resolve. CC_IS_CLANG is NOT defined here. catalog_seed_host_defaults
+# sets it from scripts/xlang_host_cc_is_clang.sh before this file is
+# parsed. That helper does not execute the compiler. "clang" means the
+# host compiler is clang; empty means it is not.
+# catalog_parse_mk reads CC_IS_CLANG from the store (set before parse).
 # ---------------------------------------------------------------------------
 PIPELINE_GEN_CFLAGS_BASE = -Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits
 # PLATFORM: MACOS/CLANG — Apple Clang treats -Wparentheses-equality as distinct

@@ -24,18 +24,18 @@ PATH = ROOT / "typeck_gen.c"
 # LANG-007 + selfhost: -E seed regen sets allow_legacy so compiler sources can
 # call pipeline_* externs without wrapping every site in unsafe { } yet.
 # Default (allow=0) still enforces S0 via glue boundary.
-ALLOW_LEGACY_HELPERS = """\
-/* XLANG_ALLOW_LEGACY_EXTERN: typeck_set_allow_legacy_extern_calls (seed regen / -E). */
-static int g_typeck_allow_legacy_extern_calls = 0;
-int typeck_set_allow_legacy_extern_calls(int allow) {
-  int old = g_typeck_allow_legacy_extern_calls;
-  g_typeck_allow_legacy_extern_calls = allow ? 1 : 0;
-  return old;
-}
-int typeck_get_allow_legacy_extern_calls(void) {
-  return g_typeck_allow_legacy_extern_calls;
-}
-"""
+# The body is seeds/typeck_allow_legacy.from_x.c (one authority). This
+# script only inserts that text. PLATFORM: SHARED.
+def allow_legacy_helpers() -> str:
+    path = ROOT / "seeds" / "typeck_allow_legacy.from_x.c"
+    text = path.read_text(encoding="utf-8")
+    if "g_typeck_allow_legacy_extern_calls" not in text:
+        raise SystemExit(
+            "patch_typeck_gen_lang007: allow-legacy seed missing the symbol"
+        )
+    if not text.endswith("\n"):
+        text += "\n"
+    return text
 
 # wave680 / Darwin product link: bootstrap_seed_pipeline_filtered.o also exports
 # these three symbols strongly; typeck_x wrappers must be weak on ELF to avoid dual-def.
@@ -892,8 +892,9 @@ def insert_allow_legacy_helpers(src: str) -> tuple[str, bool]:
     for m in re.finditer(r"^#include[^\n]*\n", src, re.M):
         last_inc = m.end()
     if last_inc > 0:
-        return src[:last_inc] + "\n" + ALLOW_LEGACY_HELPERS + "\n" + src[last_inc:], True
-    return ALLOW_LEGACY_HELPERS + "\n" + src, True
+        helpers = allow_legacy_helpers()
+        return src[:last_inc] + "\n" + helpers + "\n" + src[last_inc:], True
+    return allow_legacy_helpers() + "\n" + src, True
 
 
 def main() -> int:

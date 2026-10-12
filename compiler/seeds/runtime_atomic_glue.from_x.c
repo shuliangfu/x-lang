@@ -6,6 +6,9 @@
  * rest (this file) provides OS bridge _impl implementations.
  * PLATFORM: SHARED — atomic operations use compiler builtins (__atomic_*)
  * or C11 <stdatomic.h>; inline fallback for non-atomic platforms.
+ * Darwin arm64 product body is src/asm/runtime_atomic_glue_darwin.x
+ * (libSystem ___atomic_* plus OSMemoryBarrier). Linux and Windows keep
+ * this seed.
  */
 
 #include <stdint.h>

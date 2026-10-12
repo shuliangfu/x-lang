@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1145: one translation unit exits 139. Darwin compiles each function
+// and links the five pieces. Helper calls already sit in unsafe.
+// PLATFORM: SHARED.
+
 // pthin_library.x — G-02f-324 P15 parser thin library product bodies.
 //
 // 7.2.1 P15b B-minus productize (2026-09-13): after P5c scan_sync,
@@ -82,6 +86,7 @@ const TOKEN_EQ: i32 = 118;
  * @param want i32 — expected token kind
  * @return i32 — 1 if consumed; 0 if peek mismatched
  */
+#[no_mangle]
 function parser_asm_library_expect_kind(lex_inout: *u8, source: *u8, want: i32): i32 {
   let kind: i32 = 0;
   unsafe {
@@ -106,6 +111,7 @@ function parser_asm_library_expect_kind(lex_inout: *u8, source: *u8, want: i32):
  * @param dest_len *i32 — out length slot
  * @return i32 — 1 on copy+step; 0 on fail-leave
  */
+#[no_mangle]
 function parser_asm_library_take_ident_name64_start(lex_inout: *u8, source: *u8, data: *u8, slen: i32, dest: *u8, dest_len: *i32): i32 {
   let kind: i32 = 0;
   let n: i32 = 0;
@@ -139,6 +145,7 @@ function parser_asm_library_take_ident_name64_start(lex_inout: *u8, source: *u8,
  * @param dest_len *i32 — out length slot
  * @return i32 — 1 on copy+step; 0 on fail-leave
  */
+#[no_mangle]
 function parser_asm_library_take_ident_param32(lex_inout: *u8, source: *u8, data: *u8, slen: i32, dest: *u8, dest_len: *i32): i32 {
   let kind: i32 = 0;
   let n: i32 = 0;
@@ -173,6 +180,7 @@ function parser_asm_library_take_ident_param32(lex_inout: *u8, source: *u8, data
  * @param dest_len *i32 — out length slot
  * @return i32 — 1 on step+copy; 0 on fail-leave
  */
+#[no_mangle]
 function parser_asm_library_take_ident_name64_end(lex_inout: *u8, source: *u8, data: *u8, slen: i32, dest: *u8, dest_len: *i32): i32 {
   let kind: i32 = 0;
   let n: i32 = 0;

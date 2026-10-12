@@ -1561,7 +1561,7 @@ struct parser_asm_try_skip_allow_result parser_asm_try_skip_allow_padding_struct
 
 
   PARSER_ASM_STRETCH_AUDIT_CALL(parser_asm_stretch_vx_try_skip_pi_ze_pk_sm_xv_nv_wv_cv_fv_ev_tv_av_pv_ov_hv_mv_uv_ig_ga_ce_dv_im_sv_om_un_co_et_ifn_tr_ab_ul_su_cr_pi_ze_pk_sm_ax_mx_ut_hy_mg_full_deep_buf_audit_c(&lex, data, len));
-  lr = lexer_next_buf(lex, data, len);
+  lr = parser_asm_lexer_next_buf_v(lex, data, len);
   if (lr.tok.kind != (int32_t)TOKEN_LPAREN) {
     parser_asm_write_try_skip_allow_result(&out, lex, 0);
     return out;

@@ -146,12 +146,20 @@ export function copy_bytes(dst: *u8, dst_cap: i32, src: *u8, src_len: i32): i32 
   return src_len;
 }
 
-/** Exported function `label_empty`.
- * Implements `label_empty`.
- * @return Label
+/**
+ * Write an empty label into the caller slot.
+ * Returning Label by value does not asm-emit on the installed product.
+ * @param out *Label — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function label_empty(): Label {
-  return { key_len: 0, val_len: 0, key: [], val: [] };
+export function label_empty(out: *Label): i32 {
+  let z: u8[32] = [];
+  out.key_len = 0;
+  out.val_len = 0;
+  copy_bytes(&out.key[0], 32, &z[0], 31);
+  copy_bytes(&out.val[0], 32, &z[0], 31);
+  return 0;
 }
 
 /** Exported function `label_set`.
@@ -171,26 +179,115 @@ export function label_set(l: *Label, key: *u8, key_len: i32, val: *u8, val_len: 
   return err_ok();
 }
 
-/** Exported function `registry_new`.
- * Implements `registry_new`.
- * @return Registry
+/**
+ * Write an empty registry into the caller slot.
+ * Returning Registry by value does not asm-emit. The pin fails in this body.
+ * @param out *Registry — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function registry_new(): Registry {
-  return {
-    counter_n: 0, gauge_n: 0, hist_n: 0,
-    c0: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    c1: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    c2: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    c3: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g0: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g1: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g2: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    g3: { name_len: 0, name: [], label: label_empty(), value: 0 as i64 },
-    h0: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
-    h1: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
-    h2: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 },
-    h3: { name_len: 0, name: [], label: label_empty(), bucket_count: 0, bucket_upper: [], bucket_counts: [], sum: 0 as i64, count: 0 as i64 }
-  };
+export function registry_new(out: *Registry): i32 {
+  let z: u8[48] = [];
+  out.counter_n = 0;
+  out.gauge_n = 0;
+  out.hist_n = 0;
+  out.c0.name_len = 0;
+  out.c0.value = 0 as i64;
+  copy_bytes(&out.c0.name[0], 48, &z[0], 47);
+  label_empty(&out.c0.label);
+  out.c1.name_len = 0;
+  out.c1.value = 0 as i64;
+  copy_bytes(&out.c1.name[0], 48, &z[0], 47);
+  label_empty(&out.c1.label);
+  out.c2.name_len = 0;
+  out.c2.value = 0 as i64;
+  copy_bytes(&out.c2.name[0], 48, &z[0], 47);
+  label_empty(&out.c2.label);
+  out.c3.name_len = 0;
+  out.c3.value = 0 as i64;
+  copy_bytes(&out.c3.name[0], 48, &z[0], 47);
+  label_empty(&out.c3.label);
+  out.g0.name_len = 0;
+  out.g0.value = 0 as i64;
+  copy_bytes(&out.g0.name[0], 48, &z[0], 47);
+  label_empty(&out.g0.label);
+  out.g1.name_len = 0;
+  out.g1.value = 0 as i64;
+  copy_bytes(&out.g1.name[0], 48, &z[0], 47);
+  label_empty(&out.g1.label);
+  out.g2.name_len = 0;
+  out.g2.value = 0 as i64;
+  copy_bytes(&out.g2.name[0], 48, &z[0], 47);
+  label_empty(&out.g2.label);
+  out.g3.name_len = 0;
+  out.g3.value = 0 as i64;
+  copy_bytes(&out.g3.name[0], 48, &z[0], 47);
+  label_empty(&out.g3.label);
+  out.h0.name_len = 0;
+  out.h0.bucket_count = 0;
+  out.h0.sum = 0 as i64;
+  out.h0.count = 0 as i64;
+  copy_bytes(&out.h0.name[0], 48, &z[0], 47);
+  label_empty(&out.h0.label);
+  out.h0.bucket_upper[0] = 0 as i64;
+  out.h0.bucket_upper[1] = 0 as i64;
+  out.h0.bucket_upper[2] = 0 as i64;
+  out.h0.bucket_upper[3] = 0 as i64;
+  out.h0.bucket_upper[4] = 0 as i64;
+  out.h0.bucket_counts[0] = 0 as i64;
+  out.h0.bucket_counts[1] = 0 as i64;
+  out.h0.bucket_counts[2] = 0 as i64;
+  out.h0.bucket_counts[3] = 0 as i64;
+  out.h0.bucket_counts[4] = 0 as i64;
+  out.h1.name_len = 0;
+  out.h1.bucket_count = 0;
+  out.h1.sum = 0 as i64;
+  out.h1.count = 0 as i64;
+  copy_bytes(&out.h1.name[0], 48, &z[0], 47);
+  label_empty(&out.h1.label);
+  out.h1.bucket_upper[0] = 0 as i64;
+  out.h1.bucket_upper[1] = 0 as i64;
+  out.h1.bucket_upper[2] = 0 as i64;
+  out.h1.bucket_upper[3] = 0 as i64;
+  out.h1.bucket_upper[4] = 0 as i64;
+  out.h1.bucket_counts[0] = 0 as i64;
+  out.h1.bucket_counts[1] = 0 as i64;
+  out.h1.bucket_counts[2] = 0 as i64;
+  out.h1.bucket_counts[3] = 0 as i64;
+  out.h1.bucket_counts[4] = 0 as i64;
+  out.h2.name_len = 0;
+  out.h2.bucket_count = 0;
+  out.h2.sum = 0 as i64;
+  out.h2.count = 0 as i64;
+  copy_bytes(&out.h2.name[0], 48, &z[0], 47);
+  label_empty(&out.h2.label);
+  out.h2.bucket_upper[0] = 0 as i64;
+  out.h2.bucket_upper[1] = 0 as i64;
+  out.h2.bucket_upper[2] = 0 as i64;
+  out.h2.bucket_upper[3] = 0 as i64;
+  out.h2.bucket_upper[4] = 0 as i64;
+  out.h2.bucket_counts[0] = 0 as i64;
+  out.h2.bucket_counts[1] = 0 as i64;
+  out.h2.bucket_counts[2] = 0 as i64;
+  out.h2.bucket_counts[3] = 0 as i64;
+  out.h2.bucket_counts[4] = 0 as i64;
+  out.h3.name_len = 0;
+  out.h3.bucket_count = 0;
+  out.h3.sum = 0 as i64;
+  out.h3.count = 0 as i64;
+  copy_bytes(&out.h3.name[0], 48, &z[0], 47);
+  label_empty(&out.h3.label);
+  out.h3.bucket_upper[0] = 0 as i64;
+  out.h3.bucket_upper[1] = 0 as i64;
+  out.h3.bucket_upper[2] = 0 as i64;
+  out.h3.bucket_upper[3] = 0 as i64;
+  out.h3.bucket_upper[4] = 0 as i64;
+  out.h3.bucket_counts[0] = 0 as i64;
+  out.h3.bucket_counts[1] = 0 as i64;
+  out.h3.bucket_counts[2] = 0 as i64;
+  out.h3.bucket_counts[3] = 0 as i64;
+  out.h3.bucket_counts[4] = 0 as i64;
+  return 0;
 }
 
 /** Exported function `counter_init`.
@@ -706,20 +803,22 @@ export function obs_ctx_write_key_span(buf: *u8, cap: i32): i32 {
   return copy_bytes(buf, cap, &k[0], 4);
 }
 
-/** Exported function `obs_ctx_empty`.
- * Implements `obs_ctx_empty`.
- * @return ObservabilityCtx
+/**
+ * Write an empty observability context into the caller slot.
+ * Returning ObservabilityCtx by value does not asm-emit.
+ * @param out *ObservabilityCtx — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function obs_ctx_empty(): ObservabilityCtx {
-  let zero: i64 = 0;
-  return {
-    trace_handle: zero,
-    span_id: zero,
-    trace_id_len: 0,
-    span_id_len: 0,
-    trace_id_hex: [],
-    span_id_hex: [],
-  };
+export function obs_ctx_empty(out: *ObservabilityCtx): i32 {
+  let z: u8[33] = [];
+  out.trace_handle = 0;
+  out.span_id = 0;
+  out.trace_id_len = 0;
+  out.span_id_len = 0;
+  copy_bytes(&out.trace_id_hex[0], 33, &z[0], 32);
+  copy_bytes(&out.span_id_hex[0], 17, &z[0], 16);
+  return 0;
 }
 
 /** Exported function `obs_encode_trace_id_hex`.
@@ -754,27 +853,34 @@ export function obs_encode_span_id_hex(obs: *ObservabilityCtx, span_id: i64): i3
   return n;
 }
 
-/** Exported function `obs_ctx_from_trace`.
- * Implements `obs_ctx_from_trace`.
- * @param tr *Trace
- * @param span Span
- * @return ObservabilityCtx
+/**
+ * Fill an observability context from a trace and span.
+ * A failed encode clears the slot back to empty.
+ * @param tr *Trace — source trace; null or a zero handle leaves the slot empty
+ * @param span Span — source span; a zero id leaves the slot empty
+ * @param out *ObservabilityCtx — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function obs_ctx_from_trace(tr: *Trace, span: Span): ObservabilityCtx {
+/* Scratch for trace.id. A local TraceId address does not typecheck beside the out pointer. */
+let g_obs_tid: TraceId = { bytes: [] };
+
+export function obs_ctx_from_trace(tr: *Trace, span: Span, out: *ObservabilityCtx): i32 {
   let zero: i64 = 0;
-  let obs: ObservabilityCtx = obs_ctx_empty();
-  let tid: TraceId = { bytes: [] };
-  if (tr == 0 || tr.handle == zero || span.id == zero) { return obs; }
-  obs.trace_handle = tr.handle;
-  obs.span_id = span.id;
-  trace.id(tr, &tid);
-  if (obs_encode_trace_id_hex(&obs, &tid) < 0) {
-    return obs_ctx_empty();
+  obs_ctx_empty(out);
+  if (tr == 0 || tr.handle == zero || span.id == zero) { return 0; }
+  out.trace_handle = tr.handle;
+  out.span_id = span.id;
+  trace.id(tr, &g_obs_tid);
+  if (obs_encode_trace_id_hex(out, &g_obs_tid) < 0) {
+    obs_ctx_empty(out);
+    return 0;
   }
-  if (obs_encode_span_id_hex(&obs, span.id) < 0) {
-    return obs_ctx_empty();
+  if (obs_encode_span_id_hex(out, span.id) < 0) {
+    obs_ctx_empty(out);
+    return 0;
   }
-  return obs;
+  return 0;
 }
 
 /** Exported function `obs_ctx_attach_context`.
@@ -795,32 +901,39 @@ export function obs_ctx_attach_context(ctx: Context, obs: ObservabilityCtx): i32
   return err_ok();
 }
 
-/** Exported function `obs_ctx_from_context`.
- * Implements `obs_ctx_from_context`.
- * @param ctx Context
- * @param tr *Trace
- * @return ObservabilityCtx
+/**
+ * Fill an observability context from values stored on a context.
+ * A missing key or a failed encode leaves the slot empty.
+ * @param ctx Context — context that may hold the trace handle and span id
+ * @param tr *Trace — matching trace used to encode the trace id; may be null
+ * @param out *ObservabilityCtx — caller storage; must not be null
+ * @return i32 — 0 after the slot is written
+ * PLATFORM: SHARED
  */
-export function obs_ctx_from_context(ctx: Context, tr: *Trace): ObservabilityCtx {
-  let zero: i64 = 0;
-  let obs: ObservabilityCtx = obs_ctx_empty();
-  let h: i64 = zero;
-  let sid: i64 = zero;
-  let tid: TraceId = { bytes: [] };
+export function obs_ctx_from_context(ctx: Context, tr: *Trace, out: *ObservabilityCtx): i32 {
+  let h: i64 = 0;
+  let sid: i64 = 0;
   let ktrace: u8[8] = [];
   let kspan: u8[8] = [];
-  if (obs_ctx_write_key_trace(&ktrace[0], 8) < 0) { return obs; }
-  if (obs_ctx_write_key_span(&kspan[0], 8) < 0) { return obs; }
-  if (context.get_value(ctx, &ktrace[0], &h) == 0) { return obs; }
-  if (context.get_value(ctx, &kspan[0], &sid) == 0) { return obs; }
-  obs.trace_handle = h;
-  obs.span_id = sid;
+  obs_ctx_empty(out);
+  if (obs_ctx_write_key_trace(&ktrace[0], 8) < 0) { return 0; }
+  if (obs_ctx_write_key_span(&kspan[0], 8) < 0) { return 0; }
+  if (context.get_value(ctx, &ktrace[0], &h) == 0) { return 0; }
+  if (context.get_value(ctx, &kspan[0], &sid) == 0) { return 0; }
+  out.trace_handle = h;
+  out.span_id = sid;
   if (tr != 0 && tr.handle == h) {
-    trace.id(tr, &tid);
-    if (obs_encode_trace_id_hex(&obs, &tid) < 0) { return obs_ctx_empty(); }
+    trace.id(tr, &g_obs_tid);
+    if (obs_encode_trace_id_hex(out, &g_obs_tid) < 0) {
+      obs_ctx_empty(out);
+      return 0;
+    }
   }
-  if (obs_encode_span_id_hex(&obs, sid) < 0) { return obs_ctx_empty(); }
-  return obs;
+  if (obs_encode_span_id_hex(out, sid) < 0) {
+    obs_ctx_empty(out);
+    return 0;
+  }
+  return 0;
 }
 
 /**

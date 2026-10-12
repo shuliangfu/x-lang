@@ -111,6 +111,7 @@ extern void codegen_set_preamble_has_core_option_result(int on);
 extern void pipeline_dep_ctx_heap_destroy(struct ast_PipelineDepCtx *ctx);
 extern void pipeline_asm_seed_std_net_struct_layouts(void *m);
 extern int pipeline_asm_user_deps_need_coemit(char **dep_paths, int n_deps);
+extern int32_t pipeline_asm_user_dep_is_in_tree_core(uint8_t *path);
 extern void pipeline_debug_module_funcs(void *module);
 extern void driver_diagnostic_after_entry_parse_module(void *module);
 extern int driver_check_diag_emitted_get(void);
@@ -131,6 +132,108 @@ extern void driver_unlink_failed_output(const char *out_path);
  * -backend asm 专用：读文件、跑 .x pipeline、写 .o 或调 ld。与 run_compiler_c 内 asm 路径逻辑一致，供 driver_run_compiler_full 转调。
  */
 #ifndef XLANG_RT_RUN_ASM_BACKEND_FROM_X
+
+/* PLATFORM: SHARED — cold twin of rt_ab_is_ident_byte in rt_run_asm_backend.x. */
+static int rt_ab_is_ident_byte(unsigned char b) {
+    if (b >= '0' && b <= '9') return 1;
+    if (b >= 'A' && b <= 'Z') return 1;
+    if (b >= 'a' && b <= 'z') return 1;
+    if (b == '_') return 1;
+    return 0;
+}
+
+/* PLATFORM: SHARED — cold twin of rt_ab_at_import_kw. */
+static int rt_ab_at_import_kw(const unsigned char *src, int n, int i) {
+    if (!src || i < 0 || i + 6 > n) return 0;
+    if (i > 0 && rt_ab_is_ident_byte(src[i - 1])) return 0;
+    if (src[i] != 'i' || src[i + 1] != 'm' || src[i + 2] != 'p') return 0;
+    if (src[i + 3] != 'o' || src[i + 4] != 'r' || src[i + 5] != 't') return 0;
+    return 1;
+}
+
+/*
+ * Return 1 when slot's preprocessed source still names an unpublished dep.
+ * Quoted import("path") only; xlang_find_loaded_import_index is the match.
+ * PLATFORM: SHARED — cold twin of rt_ab_dep_waits_unvisited.
+ */
+static int rt_ab_dep_waits_unvisited(char **dep_sources, size_t *dep_lens, char **dep_paths,
+                                     int n_deps, int slot, const unsigned char *seen) {
+    const unsigned char *src;
+    int n, i, p, ws, k, g;
+    unsigned char c;
+    char path_buf[65];
+    if (!dep_sources || !dep_lens || !dep_paths || !seen) return 0;
+    if (slot < 0 || n_deps <= 0 || n_deps > 32) return 0;
+    if (!dep_sources[slot] || dep_lens[slot] > 2147483647u) return 0;
+    src = (const unsigned char *)dep_sources[slot];
+    n = (int)dep_lens[slot];
+    i = 0;
+    while (i + 6 <= n) {
+        if (rt_ab_at_import_kw(src, n, i)) {
+            p = i + 6;
+            ws = 0;
+            while (ws < 16 && p < n) {
+                c = src[p];
+                if (c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
+                p++;
+                ws++;
+            }
+            if (p < n && src[p] == '(') {
+                p++;
+                ws = 0;
+                while (ws < 16 && p < n) {
+                    c = src[p];
+                    if (c != ' ' && c != '\t' && c != '\n' && c != '\r') break;
+                    p++;
+                    ws++;
+                }
+                if (p < n && src[p] == '"') {
+                    p++;
+                    memset(path_buf, 0, sizeof(path_buf));
+                    k = 0;
+                    while (k < 64 && p < n) {
+                        c = src[p];
+                        if (c == '"' || c == 0) break;
+                        path_buf[k] = (char)c;
+                        k++;
+                        p++;
+                    }
+                    path_buf[k] = 0;
+                    if (k > 0) {
+                        g = xlang_find_loaded_import_index(path_buf, dep_paths, n_deps);
+                        if (g >= 0 && g < 32 && g != slot && seen[g] == 0) return 1;
+                    }
+                    if (p < n) {
+                        i = p + 1;
+                        continue;
+                    }
+                    return 0;
+                }
+            }
+        }
+        i++;
+    }
+    return 0;
+}
+
+/*
+ * Lowest slot whose imports are published, else the lowest unpublished slot.
+ * PLATFORM: SHARED — cold twin of rt_ab_prerun_next_slot. Does not reorder slots.
+ */
+static int rt_ab_prerun_next_slot(char **dep_sources, size_t *dep_lens, char **dep_paths,
+                                  int n_deps, const unsigned char *seen) {
+    int s;
+    if (n_deps <= 0 || !seen || n_deps > 32) return 0;
+    for (s = 0; s < n_deps; s++) {
+        if (seen[s] == 0 &&
+            rt_ab_dep_waits_unvisited(dep_sources, dep_lens, dep_paths, n_deps, s, seen) == 0)
+            return s;
+    }
+    for (s = 0; s < n_deps; s++) {
+        if (seen[s] == 0) return s;
+    }
+    return 0;
+}
 
 int driver_run_asm_backend(const char *input_path, const char *out_path, const char **lib_roots_arr, int n_lib_roots,
     const char *target, int argc, char **argv) {
@@ -216,10 +319,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
     }
     parser_parse_into_set_main_index(module, pr_imp.main_idx);
     driver_set_pipeline_entry_source_len(src_len);
-    if (link_abi_getenv("XLANG_DEBUG_PIPE"))
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: driver_first_parse num_funcs=%d src_len=%zu",
-                     driver_get_module_num_funcs(module), src_len);
+    /* Class AV: Cap XLANG_DEBUG_PIPE note retired. */
     /*
      * A-11 run-typeck-parse-count-gate：ENTRY_MODULE_ONLY 下 entry parse_into 即金标准；
      * 全量 asm_codegen_elf_o(typeck.x) 在 Docker 内易 OOM(137)，仅 stderr 指标 + 占位 .o。
@@ -501,7 +601,16 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
      * 用户链 exe（无 SKIP_TYPECK）：须 parse+typeck dep 以解析 import 符号名，仅跳过 dep codegen（pipeline.x）。
      */
     if (emit_elf_o && pctx->asm_entry_module_only && driver_asm_build_skip_typeck() != 0) {
-        for (j = 0; j < n_deps; j++) {
+        {
+        unsigned char prerun_seen[32];
+        int prerun_step;
+        int prerun_topo = (n_deps <= 32);
+        memset(prerun_seen, 0, sizeof(prerun_seen));
+        for (prerun_step = 0; prerun_step < n_deps; prerun_step++) {
+            if (prerun_topo)
+                j = rt_ab_prerun_next_slot(dep_sources, dep_lens, dep_paths, n_deps, prerun_seen);
+            else
+                j = prerun_step;
             if (xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j], (const uint8_t *)dep_sources[j],
                     dep_lens[j]) != 0) {
                 diag_reportf_with_code(dep_paths[j], 0, 0, "parse error", XLANG_DIAG_CODE_PARSE_P001, NULL,
@@ -527,9 +636,21 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 return 1;
             }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
+            if (prerun_topo && j >= 0 && j < 32)
+                prerun_seen[j] = 1;
+        }
         }
     } else {
-        for (j = 0; j < n_deps; j++) {
+        {
+        unsigned char prerun_seen[32];
+        int prerun_step;
+        int prerun_topo = (n_deps <= 32);
+        memset(prerun_seen, 0, sizeof(prerun_seen));
+        for (prerun_step = 0; prerun_step < n_deps; prerun_step++) {
+            if (prerun_topo)
+                j = rt_ab_prerun_next_slot(dep_sources, dep_lens, dep_paths, n_deps, prerun_seen);
+            else
+                j = prerun_step;
             struct ast_PipelineDepCtx *one_ctx = (struct ast_PipelineDepCtx *)calloc(1, sizeof(*one_ctx));
             struct codegen_CodegenOutBuf *dep_out = (struct codegen_CodegenOutBuf *)calloc(1, sizeof(*dep_out));
             if (!one_ctx || !dep_out) {
@@ -578,10 +699,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
              */
             int ec_loop;
             if (asm_smoke_only) {
-                if (link_abi_getenv("XLANG_ASM_DEBUG"))
-                    diag_reportf(NULL, 0, 0, "note", NULL,
-                                 "asm debug: dep_prerun[%d] path=%s len=%zu", (int)j,
-                                 dep_paths[j] ? dep_paths[j] : "?", (size_t)dep_lens[j]);
+                /* Class AV: Cap XLANG_ASM_DEBUG note retired. */
                 ec_loop = xlang_pipeline_dep_prerun_parse_only(dep_modules[j], dep_arenas[j],
                     (const uint8_t *)dep_sources[j], (size_t)dep_lens[j]);
             } else if (emit_elf_o && xlang_asm_user_std_dep_skip_x_typeck(dep_paths[j])) {
@@ -639,6 +757,9 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
                 return 1;
             }
             driver_dep_publish_slot(j, dep_arenas[j], dep_modules[j], dep_paths[j]);
+            if (prerun_topo && j >= 0 && j < 32)
+                prerun_seen[j] = 1;
+        }
         }
     }
     typeck_ndep_store((int32_t)(n_deps));
@@ -732,12 +853,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
         }
     }
     pctx->use_asm_backend = 1;
-    if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "asm debug: backend after pipeline ec=%d num_funcs=%d out_asm_len=%zu",
-                     ec, driver_get_module_num_funcs(module), (size_t)out_buf->length);
-        pipeline_debug_module_funcs(module);
-    }
+    /* Class AV: Cap XLANG_ASM_DEBUG note retired. */
     if (asm_smoke_only) {
         for (j = 0; j < n_deps; j++) {
             free(dep_arenas[j]);
@@ -845,11 +961,7 @@ int driver_run_asm_backend(const char *input_path, const char *out_path, const c
             } else {
                 xlang_driver_asm_prepare_entry_elf_emit(module, arena, pctx);
                 int32_t elf_ec = xlang_asm_codegen_elf_o_large_stack(module, arena, (void *)pctx, (struct platform_elf_ElfCodegenCtx *)elf_ctx_ptr, (void *)out_buf);
-                if (link_abi_getenv("XLANG_ASM_DEBUG")) {
-                    diag_reportf(NULL, 0, 0, "note", NULL,
-                                 "asm debug: asm_codegen_elf_o elf_ec=%d elf_len=%zu",
-                                 (int)elf_ec, (size_t)out_buf->length);
-                }
+                /* Class AV: Cap XLANG_ASM_DEBUG note retired. */
                 if (elf_ec != 0 || out_buf->length <= 0) {
                     /* Non-extern module with 0 output or codegen error — real CG002. */
                 diag_reportf_with_code(input_path, 0, 0, "codegen error", XLANG_DIAG_CODE_CODEGEN_CG002, NULL,

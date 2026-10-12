@@ -79,7 +79,7 @@ detect_host() {
         XLANG_HOST_OS=linux
         XLANG_PLATFORM_TAG=LINUX
         ;;
-      MINGW*|MSYS*|CYGWIN*)
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
         XLANG_HOST_IS_WINDOWS=1
         XLANG_HOST_OS=windows
         XLANG_PLATFORM_TAG=WINDOWS

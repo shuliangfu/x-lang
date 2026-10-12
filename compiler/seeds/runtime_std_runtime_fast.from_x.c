@@ -1,5 +1,8 @@
 /* Generated from src/asm/runtime_std_runtime_fast.x (G-02f-23 true .x).
  * Regen: ./xlang-c -E -L .. src/asm/runtime_std_runtime_fast.x > seeds/runtime_std_runtime_fast.from_x.c
+ * w1099: Darwin arm64 product body is src/asm/runtime_std_runtime_fast.x
+ * (pure asm). Linux, Windows, and the pure-asm-fault backup stay this seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x.
  */
 #include <stdint.h>
 #include <stddef.h>

@@ -628,17 +628,23 @@ export function arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32 {
   return x86_enc_bytes(elf_ctx, ins, 2);
 }
 
-/** Emit fixed x86_64 insn `cltd` (1 bytes).
- * Cap residual pure R2 wave1: product C ABI bridge for backend_enc_dispatch.
- * PLATFORM: SHARED — x86_64 SysV encode path (Linux/macOS product asm).
- * @param elf_ctx opaque ElfCodegenCtx*
- * @return 0 on success, -1 on null/overflow
+/** Emit cqo before the 64-bit idiv %rbx.
+ * The link name stays arch_x86_64_enc_enc_cltd. Callers are the signed
+ * divide and remainder paths, which then emit idiv %rbx (REX.W, 48 f7 fb).
+ * Byte 99 (cltd) only sign-extends eax into edx. A negative dividend already
+ * sign-extended in rax then traps (#DE): rdx is 0x00000000ffffffff, not -1.
+ * Bytes 48 99 (cqo) sign-extend rax into rdx. A userspace pointer keeps bit
+ * 63 clear, so rdx stays 0 and the 64-bit pointer divide still works.
+ * @param elf_ctx *u8 — ElfCodegenCtx*; null returns -1
+ * @return i32 — 0 when both bytes are appended, -1 on null or overflow
+ * PLATFORM: SHARED — x86_64 SysV. LINUX gold. The paired idiv is 64-bit.
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[1] = [153];
-  return x86_enc_bytes(elf_ctx, ins, 1);
+  // cqo, not cltd. See the docblock.
+  let ins: u8[2] = [72, 153];
+  return x86_enc_bytes(elf_ctx, ins, 2);
 }
 
 /** Emit fixed x86_64 insn `idiv_rbx` (2 bytes).
@@ -650,8 +656,15 @@ export function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_idiv_rbx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [247, 251];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  /* wave676: REX.W (0x48/72) + F7 FB = idiv %rbx — 64-BIT divide.
+   * The 32-bit form (div/idiv %ebx) truncated every 64-bit dividend to
+   * its low 32 bits: pipe_store_ptr_slot's `u0 / 256` on a heap pointer
+   * lost the high half and the byte-extracted pointer came back as
+   * 0x00000000_xxxxxxxx (force-chain lexer crash, w673-w675 chase).
+   * Matches enc_imul_rbx_rax which has always carried REX.W.
+   * PLATFORM: SHARED x86_64 SysV. */
+  let ins: u8[3] = [72, 247, 251];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
 /** Emit fixed x86_64 insn `imul_rbx_rax` (4 bytes).
@@ -819,8 +832,10 @@ export function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32 {
 #[no_mangle]
 export function arch_x86_64_enc_enc_div_rbx(elf_ctx: *u8): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
-  let ins: u8[2] = [247, 243];
-  return x86_enc_bytes(elf_ctx, ins, 2);
+  /* wave676: REX.W + F7 F3 = div %rbx — 64-BIT unsigned divide (same
+   * truncation class as enc_idiv_rbx; see its note). PLATFORM: SHARED. */
+  let ins: u8[3] = [72, 247, 243];
+  return x86_enc_bytes(elf_ctx, ins, 3);
 }
 
 /** Emit fixed x86_64 insn `load_32_from_rax` (2 bytes).
@@ -1125,64 +1140,12 @@ export function arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32 {
 
 // ---- Cap residual pure R2 wave2: label/imm/jcc/rbp/arg/call (product C ABI) ----
 // G.7: same authority as wave1 — this TU + seed FROM_X rest.
-
-/**
- * Define a code label; when is_func!=0, pad text to 4-byte alignment then
- * export the function symbol (Mach-O may add a leading underscore).
- *
- * **Ordering contract (Stage12 pure-asm product root):** pass0 may hoist
- * `let code_len = emit_code_len()` (and code_len2/3) to the top of their
- * enclosing block. If those lets share a block with `pad_code_to_4` side
- * effects, code_len is captured **before** padding zeros are appended →
- * exported sym/label points at the zero pad, not the real prologue →
- * multi-function pure-asm SEGV (Ubuntu `tests/types/overload.x`: pick_i64/main
- * start with `00 00 00` then `55 48 89 e5`). Mitigation: pad in one block,
- * then capture emit_code_len + add_label/add_sym in a **later** block
- * (same shape as `x86_enc_jcc_rel32` / enc_jmp / enc_call). Do not merge.
- *
- * @param elf_ctx opaque ElfCodegenCtx*
- * @param name label/symbol bytes (not necessarily NUL-terminated; use name_len)
- * @param name_len byte length of name; Mach-O underscore path requires 1..127
- * @param is_func non-zero: pad code to 4 and add exported symbol
- * @return 0 on success, -1 on failure
- * PLATFORM: SHARED — ELF/Mach-O product asm encode (LINUX gold for multi-func).
- */
-#[no_mangle]
-export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32 {
-  if (elf_ctx == 0) { return 0 - 1; }
-  if (name == 0) { return 0 - 1; }
-  if (name_len < 0) { return 0 - 1; }
-  // Block 1: pad only. Must complete before any emit_code_len() let.
-  if (is_func != 0) {
-    unsafe {
-      if (pipeline_elf_ctx_pad_code_to_4(elf_ctx) != 0) { return 0 - 1; }
-    }
-  }
-  // Block 2: capture code_len after pad; register label + optional export sym.
-  // Hoist of emit_code_len stays inside this block only (pad already done).
-  unsafe {
-    let code_len: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
-    if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) { return 0 - 1; }
-    if (is_func == 0) { return 0; }
-    // Mach-O: export with leading underscore when host requests it.
-    // Cap 4.2.8: mn u8[256] holds '_' + up to 255 content (was wave580 [128]/127).
-    // PLATFORM: MACOS|DARWIN x86_64 Mach-O export; LINUX bare name.
-    if (pipeline_elf_ctx_macho_leading_underscore(elf_ctx) != 0 && name_len > 0 && name_len <= 255 && name[0] != 95) {
-      let mn: u8[256] = [0];
-      mn[0] = 95;
-      let k: i32 = 0;
-      while (k < name_len && k < 255) {
-        mn[k + 1] = name[k];
-        k = k + 1;
-      }
-      let code_len2: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
-      return pipeline_elf_ctx_add_sym(elf_ctx, &mn[0], name_len + 1, code_len2);
-    }
-    let code_len3: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
-    return pipeline_elf_ctx_add_sym(elf_ctx, name, name_len, code_len3);
-  }
-  return 0 - 1;
-}
+//
+// w927/w1030: arch_x86_64_enc_enc_label authority is ONLY
+// backend_enc_dispatch_thin.x (seed already omits it under #ifndef FROM_X).
+// This TU must not export a second strong T — Windows PE first-wins the tip
+// fat body here over the thin authority, forcing win_patch earliest→later.
+// PLATFORM: SHARED.
 
 /** cmp + setcc + movzbl %al,%eax for condition code cc (0..9).
  * 0..5 signed sete/setne/setl/setle/setg/setge; 6..9 unsigned
@@ -1835,7 +1798,57 @@ export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32
   return x86_enc_bytes(elf_ctx, buf2, 6);
 }
 
-/** mov SysV arg_reg[k] -> rax (k clamped 0..5). Cap residual pure R2 wave2. PLATFORM: SHARED */
+/** mov incoming arg k into rax.
+ * SysV k=0..5 is rdi, rsi, rdx, rcx, r8, r9.
+ * Win64 k=0..3 is rcx, rdx, r8, r9. k>=4 is `mov rax, (0x30+8*(k-4))(%rbp)`
+ * (stack args after `push %rbp`; w1045 extends past k=5).
+ * @param elf_ctx opaque ElfCodegenCtx*; null returns -1
+ * @param k argument index, Win clamped to 0..63; SysV to 0..5
+ * @return 0 on success, -1 on null
+ * w1497: disp8 only while the offset fits (<=127); larger offsets use disp32
+ * (`48 8B 85 imm32`). The old disp8-only form wrapped at k=14 to -0x80(%rbp).
+ * PLATFORM: SHARED encode; WINDOWS stack homes for k>=4.
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 63) { idx = 63; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 200];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 208];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [76, 137, 192];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [76, 137, 200];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  /* k>=4: mov rax, disp(%rbp); disp = 0x30 + 8*(k-4). disp8 through k=13. */
+  let slot: i32 = idx - 4;
+  let off: i32 = 48 + slot * 8;
+  if (off <= 127) {
+    let b4: u8[4] = [72, 139, 69, off as u8];
+    return x86_enc_bytes(elf_ctx, b4, 4);
+  }
+  let b7: u8[7] = [72, 139, 133, 0, 0, 0, 0];
+  b7[3] = (off & 255) as u8;
+  b7[4] = ((off / 256) & 255) as u8;
+  b7[5] = ((off / 65536) & 255) as u8;
+  b7[6] = ((off / 16777216) & 255) as u8;
+  return x86_enc_bytes(elf_ctx, b7, 7);
+}
+
+/** SysV incoming arg k into rax. See the Windows twin. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
@@ -1866,7 +1879,55 @@ export function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i3
   return x86_enc_bytes(elf_ctx, b5, 3);
 }
 
-/** mov rax -> SysV arg_reg[k] (k clamped 0..5). Cap residual pure R2 wave2. PLATFORM: SHARED */
+/** mov rax -> outgoing arg k.
+ * Win64 k>=4 stores `[rsp+0x20+8*(k-4)]` (shadow + stack slots; w1045).
+ * which would clobber argument 3. PLATFORM: SHARED; WINDOWS stack for k>=4.
+ * @param elf_ctx opaque ElfCodegenCtx*; null returns -1
+ * @param k argument index, Win clamped to 0..63; SysV to 0..5
+ * @return 0 on success, -1 on null
+ * w1497: disp8 only while the offset fits (<=127); larger offsets use disp32
+ * (`48 89 84 24 imm32`).
+ */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 63) { idx = 63; }
+  if (idx == 0) {
+    let b0: u8[3] = [72, 137, 193];
+    return x86_enc_bytes(elf_ctx, b0, 3);
+  }
+  if (idx == 1) {
+    let b1: u8[3] = [72, 137, 194];
+    return x86_enc_bytes(elf_ctx, b1, 3);
+  }
+  if (idx == 2) {
+    let b2: u8[3] = [73, 137, 192];
+    return x86_enc_bytes(elf_ctx, b2, 3);
+  }
+  if (idx == 3) {
+    let b3: u8[3] = [73, 137, 193];
+    return x86_enc_bytes(elf_ctx, b3, 3);
+  }
+  /* k>=4: mov [rsp+disp], rax; disp = 0x20 + 8*(k-4). disp8 through k=15. */
+  let slot: i32 = idx - 4;
+  let off: i32 = 32 + slot * 8;
+  if (off <= 127) {
+    let b4: u8[5] = [72, 137, 68, 36, off as u8];
+    return x86_enc_bytes(elf_ctx, b4, 5);
+  }
+  let b8: u8[8] = [72, 137, 132, 36, 0, 0, 0, 0];
+  b8[4] = (off & 255) as u8;
+  b8[5] = ((off / 256) & 255) as u8;
+  b8[6] = ((off / 65536) & 255) as u8;
+  b8[7] = ((off / 16777216) & 255) as u8;
+  return x86_enc_bytes(elf_ctx, b8, 8);
+}
+
+/** SysV outgoing arg k. See the Windows twin. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
 #[no_mangle]
 export function arch_x86_64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }

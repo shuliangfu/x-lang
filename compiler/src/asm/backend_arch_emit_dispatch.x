@@ -1,12 +1,12 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-//   → src/asm/backend_arch_emit_dispatch.o
-// See implementation.
-// See implementation.
+// w849: the 47 ta-dispatch shells and the doc anchor live here.
+// w857: the slice marker lives here too. seeds/backend_arch_emit_dispatch.from_x.c
+// is deleted. Product src/asm/backend_arch_emit_dispatch.o is pure-asm of
+// this file only. There is no host cc, no gcc -E, and no cold-seed fallback.
+// XLANG_G05_PREFER_X_O is ignored. Windows takes the same path.
+// PLATFORM: SHARED.
 // backend_arch_emit_dispatch_x_doc_anchor: see function docblock below.
 
 /** Exported function `backend_arch_emit_dispatch_x_doc_anchor`.
@@ -17,7 +17,10 @@ export function backend_arch_emit_dispatch_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* ---- G-02f-209：arch_emit ta-dispatch shells ---- */
+/* ta-dispatch shells. Each shell picks arm64 (ta==1), riscv64 (ta==2),
+ * or x86_64. The arch_*_emit_* callees live in another translation unit.
+ * PLATFORM: SHARED.
+ */
 
 export extern "C" function arch_arm64_emit_add_imm_to_rax(out: *u8, imm: i32): i32;
 export extern "C" function arch_arm64_emit_add_rax_rbx(out: *u8): i32;
@@ -981,4 +984,15 @@ export function backend_arch_emit_epilogue(out: *u8, frame_sz: i32, ta: i32): i3
   if (ta == 2) { return arch_riscv64_emit_epilogue(out, frame_sz); }
   return arch_x86_64_emit_epilogue(out, frame_sz);
   }
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 0, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 0
+ * PLATFORM: SHARED — pure asm; the host C seed is gone.
+ */
+export function backend_arch_emit_dispatch_slice_marker(): i32 {
+  return 0;
 }

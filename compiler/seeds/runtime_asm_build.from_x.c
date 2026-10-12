@@ -1,6 +1,9 @@
 /* Generated from src/asm/runtime_asm_build.x (G-02f-24 true .x).
  * Regen: ./xlang-c -E -L .. src/asm/runtime_asm_build.x > seeds/runtime_asm_build.from_x.c
  * main argv polished to char** for C ABI.
+ * Darwin arm64 product body is the merge of src/asm/runtime_asm_build.x
+ * and src/asm/runtime_asm_build_main.x via -backend asm.
+ * Linux and Windows keep host cc of this seed.
  */
 #include <stdint.h>
 #include <stddef.h>

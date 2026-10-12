@@ -25,19 +25,21 @@ function main(): i32 {
   // case 5：string_capacity
   if (string.string_capacity() != 256) { return 5; }
   // See implementation.
-  let s: String = string.new();
+  let s: String = { length: 0 };
+  if (string.new(&s) != 0) { return 6; }
   if (string.length(s) != 0) { return 6; }
   // See implementation.
   let s2: String = s;
-  if (string.string_append_char(&s2, 120) != 0) { return 7; }
+  if (string.string_append_char(&s2, 120 as u8) != 0) { return 7; }
   let xb: u8[1] = [120];
-  let xs: String = string.string_from_slice(&xb[0], 1);
+  let xs: String = { length: 0 };
+  if (string.string_from_slice(&xb[0], 1, &xs) != 0) { return 8; }
   if (string.string_compare(s2, xs) != 0) { return 8; }
   // See implementation.
   let yz: u8[2] = [121, 122];
   if (string.string_starts_with(s2, &yz[0], 2) != 0) { return 9; }
   // See implementation.
-  if (string.string_find_char(s2, 121) != -1) { return 10; }
+  if (string.string_find_char(s2, 121 as u8) != -1) { return 10; }
   // case 10：string_view_eq
   let v1: StrView = string.view(&buf[0], 2);
   let ab: u8[2] = [97, 98];

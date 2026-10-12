@@ -523,13 +523,7 @@ export function driver_print_check_ok(input_path: *u8): void {
 
 #[no_mangle]
 export function driver_compile_phase_timing_enabled(): i32 {
-  unsafe {
-    let e: *u8 = link_abi_getenv("XLANG_COMPILE_PHASE_TIMING");
-    if (e == 0 as *u8) {
-      return 0;
-    }
-    return 1;
-  }
+  // Class AV: Cap XLANG_COMPILE_PHASE_TIMING retired (mirror thin AS).
   return 0;
 }
 
@@ -1351,10 +1345,7 @@ export function driver_large_stack_thread_trampoline(v: *u8): *u8 {
  */
 #[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
-  unsafe {
-    let e: *u8 = link_abi_getenv("XLANG_COMPILE_PHASE_TIMING");
-    if (e != 0) { return 1; }
-  }
+  // Class AV: Cap XLANG_COMPILE_PHASE_TIMING retired (mirror thin AS).
   return 0;
 }
 

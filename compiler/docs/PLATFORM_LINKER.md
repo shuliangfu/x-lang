@@ -4,7 +4,7 @@
 > selection and linker policy. Machine check:
 > `compiler/scripts/host_platform_linker.sh --check` ·
 > `./xbuild host-platform --check` / `./xbuild linker-policy --check`.  
-> **Status map:** `analysis/C迁移追踪.md` §11.1.3–4 (status only).  
+> **Status map:** `analysis/终局待办.md`（阶段 D）.  
 > **Wave rows:** `analysis/自举进度.md` only.  
 > **PLATFORM: SHARED** — host detection and policy tags are portable; ABI details
 > stay inside leaf scripts, seed pins, and product `xlang_asm_invoke_ld_*`.
@@ -157,7 +157,7 @@ swallowing still 11.3.1 endgame.
 
 ## References
 
-- `analysis/C迁移追踪.md` §11.1.3 · §11.1.4 · §11.3.1  
+- `analysis/终局待办.md`  
 - `compiler/docs/BUILD_DAG.md`  
 - `compiler/docs/LEAF_PATTERN_RESIDUAL.md` (wave746 · leaf pattern path)  
 - skill G.8 platform boundaries  

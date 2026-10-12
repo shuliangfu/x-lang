@@ -51,17 +51,26 @@ function main(): i32 {
     return 7;
   }
 
-  let v4: Uuid = uuid.new_v4();
+  let v4: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  if (uuid.new_v4(&v4) != 0) {
+    return 8;
+  }
   if (uuid.version(v4) != 4) {
     return 8;
   }
 
-  let v7: Uuid = uuid.new_v7();
+  let v7: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  if (uuid.new_v7(&v7) != 0) {
+    return 9;
+  }
   if (uuid.version(v7) != 7) {
     return 9;
   }
 
-  let v7b: Uuid = uuid.new_v7();
+  let v7b: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
+  if (uuid.new_v7(&v7b) != 0) {
+    return 12;
+  }
   if (uuid.version(v7b) != 7) {
     return 12;
   }
@@ -81,7 +90,7 @@ function main(): i32 {
     return 14;
   }
 
-  let bp: *u8 = uuid.as_bytes(&u);
+  let bp: *u8 = uuid.as_bytes(&u) as *u8;
   if (bp == 0) {
     return 10;
   }

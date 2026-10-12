@@ -6,6 +6,13 @@
 // wave293: host wrapper backend_asm_strict_fallback_alias.c deleted; product cc seed only.
 // *u8（ C  struct* ABI ）。
 
+// Darwin arm64 and Linux product body is this file, compiled with -backend asm.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps the generated C seed.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
+// The forwards themselves are SHARED.
+// This object is the non-WPO fallback. It is not backend_asm_bare_link_alias.o.
+
 extern "C" function pipeline_backend_asm_codegen_ast_c(module: *u8, arena: *u8, out: *u8, ctx: *u8): i32;
 extern "C" function pipeline_backend_asm_codegen_ast_to_elf_c(module: *u8, arena: *u8, elf_ctx: *u8,
                                                               ctx: *u8): i32;

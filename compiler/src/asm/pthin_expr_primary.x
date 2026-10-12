@@ -13,14 +13,29 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// w1153: one translation unit exits 139. Darwin compiles each function
+// and links the thirty-seven pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
 
 /* Primary literal wave: token ordinals (token.h enum, validated
  * ELSE=5/IF=4) and bridges. */
 const TOKEN_EOF: i32 = 0;
+const TOKEN_LET: i32 = 2;
+const TOKEN_CONST: i32 = 3;
 const TOKEN_IF: i32 = 4;
+const TOKEN_WHILE: i32 = 6;
+const TOKEN_LOOP: i32 = 7;
+const TOKEN_FOR: i32 = 8;
+const TOKEN_BREAK: i32 = 9;
+const TOKEN_CONTINUE: i32 = 10;
 const TOKEN_RETURN: i32 = 11;
 const TOKEN_PANIC: i32 = 12;
+const TOKEN_DEFER: i32 = 13;
+const TOKEN_REGION: i32 = 16;
+const TOKEN_WITH_ARENA: i32 = 17;
 const TOKEN_MATCH: i32 = 18;
+const TOKEN_GOTO: i32 = 48;
 const TOKEN_TRUE: i32 = 75;
 const TOKEN_FALSE: i32 = 76;
 const TOKEN_NULL: i32 = 132;
@@ -29,6 +44,7 @@ const TOKEN_INT: i32 = 80;
 const TOKEN_SELF: i32 = 51;
 const TOKEN_FATARROW: i32 = 89;
 const TOKEN_SEMICOLON: i32 = 95;
+const TOKEN_AS: i32 = 128;
 const TOKEN_AT: i32 = 129;
 const TOKEN_STRING: i32 = 130;
 const EXPR_VAR_LIT: i32 = 3;
@@ -57,6 +73,13 @@ export extern "C" function pipeline_expr_var_name_len(a: *u8, er: i32): i32;
 export extern "C" function pipeline_expr_var_name_into(a: *u8, er: i32, dst: *u8): void;
 export extern "C" function pipeline_expr_set_index_c(a: *u8, er: i32, base_ref: i32, index_ref: i32, is_slice: i32): void;
 export extern "C" function pipeline_expr_set_call_c(a: *u8, er: i32, callee_ref: i32, num_type_args: i32): void;
+/**
+ * Stamp call_resolved_func_index and call_resolved_dep_index to -1.
+ * pipeline_expr_set_common_zeros_c does not write those slots, so a fresh
+ * call keeps the allocation zero. Slot 0 is import 0. This is the existing
+ * pabi writer; do not fold the sentinel into zeros.
+ */
+export extern "C" function pipeline_expr_init_call_resolve_at_ref(a: *u8, expr_ref: i32): void;
 export extern "C" function pipeline_expr_set_struct_lit_finish_c(a: *u8, er: i32, nm: *u8, nlen: i32): void;
 export extern "C" function pipeline_expr_set_method_call_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
 export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
@@ -73,19 +96,29 @@ export extern "C" function parser_asm_struct_lit_append_shorthand_src_c(arena: *
 export extern "C" function parser_asm_struct_lit_parse_field_value_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_asm_parse_anonymous_struct_lit_ptr_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): void;
 export extern "C" function parser_asm_string_lit_decode_span_ptr_c(arena: *u8, head_ref: i32, source: *u8, q0: usize, nlen: i32, line: i32, col: i32): i32;
+export extern "C" function parser_asm_string_lit_append_byte_ptr_c(arena: *u8, head_ref: i32, b: i32, line: i32, col: i32): i32;
 export extern "C" function parser_parse_match_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_parse_at_simd_builtin_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_parse_block_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_block_ref: *i32): i32;
 export extern "C" function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_ok: *i32, out_expr_ref: *i32): i32;
 export extern "C" function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: i32, type_ref: i32): i32;
+export extern "C" function ast_ast_arena_block_alloc(arena: *u8): i32;
+export extern "C" function pipeline_block_append_unsafe(arena: *u8, br: i32, body_ref: i32): i32;
+export extern "C" function pipeline_block_append_stmt_order(arena: *u8, br: i32, kind: i32, idx: i32): i32;
 export extern "C" function pipeline_expr_set_unary_operand_c(a: *u8, er: i32, operand_ref: i32): void;
 export extern "C" function pipeline_expr_append_array_lit_elem(a: *u8, er: i32, elem_ref: i32): i32;
+export extern "C" function lexer_note_string_lit_overflow(line: i32, col: i32): void;
 const EXPR_BLOCK: i32 = 26;
+const EXPR_BREAK: i32 = 39;
+const EXPR_CONTINUE: i32 = 40;
 const EXPR_RETURN: i32 = 41;
 const EXPR_PANIC: i32 = 42;
 const EXPR_FIELD_ACCESS: i32 = 44;
 const EXPR_ARRAY_LIT: i32 = 46;
 const EXPR_STRING_LIT: i32 = 59;
+const EXPR_ASM: i32 = 60;
+const TOKEN_UNDERSCORE: i32 = 52;
+const TOKEN_BANG: i32 = 126;
 export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32;
 export extern "C" function parser_asm_skip_angle_count_ptr_into_c(lex_inout: *u8, source: *u8, out_count: *i32): void;
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
@@ -163,8 +196,77 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // dest-buffer (STRING concat, RETURN, PANIC, paren, array lit, LBRACE
 // block-vs-struct, plus IF via P5f and MATCH/AT via zero-algorithm
 // ptr shims). Dispatcher is a new function — do not grow suffix_loop
-// (XT001). Decode / match parse / simd parse
-// stay C helpers (local u8[N] / extra lexer_next / 16-pattern arrays).
+// (XT001). Decode is P4bm. match parse / simd parse stay C helpers
+// (extra lexer_next / 16-pattern arrays).
+// 7.2.1 P4bk (2026-09-16): 有则补全 TOKEN_BREAK / TOKEN_CONTINUE primary
+// dest-buffer that P4bh missed. The C twin still had the arm, but the
+// .x dispatcher returns 1 with out_ok=0 for unhandled tokens so the
+// C arm is unreachable under BODIES. Missing EXPR_BREAK poisoned the
+// next function (T001 arity 0:0) — that is the pipeline_abi mega
+// "hang/CG002" typeck wall on LARGE xlang. Do not use `break` inside
+// this file's nested while (P4bh parse-drop). Do not grow suffix_loop.
+// 7.2.1 P4bm B-minus (2026-09-16): 有则补全 STRING decode dest-buffer.
+// The escape walk was still host-cc after P4bh (append_byte chunk
+// overflow stays C: Expr by-value + var_name[N]). Decode itself has
+// no local u8[N]. Independent STRING_DECODE gate so a missing
+// decode_x keeps the C loop without dropping P4bh/P4bj. Do not
+// dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+// Do not FORCE pabi mega.
+// 7.2.1 P4bn B-minus (2026-09-16): 有则补全 finish_struct_lit_from_type_ident
+// dest-buffer. IDENT VAR placeholder -> EXPR_STRUCT_LIT (kind 45) via
+// existing var_name_len / var_name_into + set_common_zeros +
+// set_struct_lit_finish (same writer as suffix FIELD_ACCESS and P4bj).
+// C trampoline holds name[256] (language has no local u8[N]). Fields
+// stay P4bi. Independent FINISH_TYPE_IDENT gate so a missing finish_x
+// keeps the C twin without dropping P4bh/P4bj/P4bm. Do not dest-buffer
+// append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bo B-minus (2026-09-16): 有则补全 parse_asm_bang dest-buffer.
+// ident_pre_dispatch still C (thin compositor). Template decode writes
+// a C-owned tmpl[256] (cap 127 + overflow note, same as the C twin;
+// do NOT reuse STRING decode_span — invalid-escape fallthrough writes
+// the backslash, STRING consumed the follower). Register spellings pack
+// into C-owned regs[128] then set_method_call_c (does not change kind).
+// Option bits go through set_call_c(callee=0, bits) onto
+// call_num_type_args. n_in is set_int_val. Independent ASM_BANG gate
+// so a missing asm_x keeps the C twin without dropping
+// P4bh/P4bj/P4bm/P4bn. Nested while uses flags (no break). Do not
+// dest-buffer append_byte / parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bp B-minus (2026-09-16): 有则补全 parse_unsafe dest-buffer.
+// ident_pre_dispatch still C (thin compositor). Entry cursor is
+// unconsumed TOKEN_LBRACE (caller already matched IDENT unsafe).
+// Inner block = parse_block_ptr (lex after `{`, same as P4bh LBRACE
+// block). Wrapper block holds one unsafe stmt (order kind=6) whose
+// body is the inner block; wrap as EXPR_BLOCK via P5f wrap_block_ref
+// (G.7; type_ref=0). Independent UNSAFE gate so a missing unsafe_x
+// keeps the C twin without dropping P4bh/P4bj/P4bm/P4bn/P4bo.
+// lbrace lookahead is P4bq. Do not dest-buffer append_byte /
+// parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bq B-minus (2026-09-16): 有则补全 lbrace_looks_like_block
+// + empty_ident_braces dest-buffer. Published faces stay ptr_c
+// (copy-lexer; do not step the caller's cursor). C trampoline
+// passes parser_asm_struct_field_value_depth into empty_x (G.7;
+// no new getter). Independent LBRACE_LOOKAHEAD gate so a missing
+// pair keeps the C twins without dropping P4bp. ident_pre_dispatch
+// is P4br. Do not dest-buffer append_byte /
+// parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4br B-minus (2026-09-16): 有则补全 ident_pre_dispatch
+// dest-buffer. Published face stays ptr_c (IDENT head already
+// calls it). C trampoline holds tmpl[256]+regs[128] for the asm!
+// path (language has no local u8[N]; same buffers as P4bo).
+// unsafe → parse_unsafe_x (entry after IDENT, unconsumed `{`).
+// asm + `!` → parse_asm_bang_x (entry after IDENT, unconsumed `!`);
+// not-BANG restores pos/line/col so the VAR head still sees IDENT.
+// Independent IDENT_PRE_DISPATCH gate so a missing dispatch_x keeps
+// the C compositor without dropping P4bq. Do not dest-buffer
+// append_byte / parse_type_ref. Do not FORCE pabi mega.
+// 7.2.1 P4bl (2026-09-16): suffix_loop TOKEN_LT relcompare rewind.
+// C twin keeps *lex at `<` until follower is `(` / committed `{` struct
+// lit. .x type_ref walk and count-only skip both advance lex_inout;
+// without restore, `nfuncs < 150 || nfuncs > 1450` ate the later `>`
+// as a generic closer and silently dropped the function (mega T001 on
+// asm_module_is_compiler_selfhost because parser_selfhost vanished).
+// Restore pos/line/col to `<` and return — leave relcompare to binop.
+// Do not dest-buffer IDENT generic type-arg. Do not FORCE pabi mega.
 // Block wrap reuses P5f wrap_block_ref (G.7; type_ref=0). Unary
 // operand reuses P4uc set_unary_operand_c. C trampoline keeps AUDIT
 // and publishes next_lex. Do not dest-buffer parse_type_ref /
@@ -177,9 +279,9 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
 // pipeline_expr_append_struct_lit_field / shorthand VAR alloc.
 // Field-value parse_expr bumps struct_field_value_depth in C
 // (wave367 empty Type {} vs prefer-block). ident_len<=0 or >255
-// fails (C twin; do not clamp 127). Anonymous alloc and
-// finish_struct_lit_from_type_ident stay C. P4bj anonymous-struct alloc
-// (set_struct_lit_finish nlen=0 + fields). Do not grow
+// fails (C twin; do not clamp 127). P4bj anonymous-struct alloc
+// (set_struct_lit_finish nlen=0 + fields). P4bn finish_from_type_ident
+// (IDENT placeholder name + same writer). Do not grow
 // suffix_loop. Do not merge wrap. Do not dest-buffer
 // parse_type_ref / parse_match_into. Do not FORCE pabi mega.
 // Helpers ident_is_unsafe_stmt (by-value lexer_result) stays C this wave
@@ -196,6 +298,7 @@ const EXPR_FINISH_STRUCT_LIT: i32 = 45;
  * @param want_len i32 — required spelling length
  * @return i32 — 1 if data is live, ident_len==want_len, and the span fits
  */
+#[no_mangle]
 function parser_asm_primary_ident_span_ok(data: *u8, length: usize, token_start: usize, ident_len: i32, want_len: i32): i32 {
   if (data == 0 as *u8 || ident_len != want_len || ident_len <= 0) {
     return 0;
@@ -213,6 +316,7 @@ function parser_asm_primary_ident_span_ok(data: *u8, length: usize, token_start:
  * @param i i32 — byte offset within the IDENT
  * @return u8 — data[token_start + i]
  */
+#[no_mangle]
 function parser_asm_primary_ident_byte(data: *u8, token_start: usize, i: i32): u8 {
   let c: u8 = 0;
   unsafe {
@@ -232,12 +336,29 @@ function parser_asm_primary_ident_byte(data: *u8, token_start: usize, i: i32): u
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_unsafe_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 6) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 6);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 117 && parser_asm_primary_ident_byte(data, token_start, 1) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 115 && parser_asm_primary_ident_byte(data, token_start, 3) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 4) == 102 && parser_asm_primary_ident_byte(data, token_start, 5) == 101) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+    c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+  }
+  if (c0 == 117 && c1 == 110 && c2 == 115 && c3 == 97 && c4 == 102 && c5 == 101) {
     return 1;
   }
   return 0;
@@ -254,11 +375,23 @@ export function parser_asm_primary_ident_is_unsafe_buf_c(data: *u8, length: usiz
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_asm_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 97 && parser_asm_primary_ident_byte(data, token_start, 1) == 115
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 109) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+  }
+  if (c0 == 97 && c1 == 115 && c2 == 109) {
     return 1;
   }
   return 0;
@@ -275,10 +408,21 @@ export function parser_asm_primary_ident_is_asm_buf_c(data: *u8, length: usize, 
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_in_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 2) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 2);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 105 && parser_asm_primary_ident_byte(data, token_start, 1) == 110) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+  }
+  if (c0 == 105 && c1 == 110) {
     return 1;
   }
   return 0;
@@ -295,11 +439,23 @@ export function parser_asm_primary_ident_is_in_buf_c(data: *u8, length: usize, t
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_out_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 3);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 111 && parser_asm_primary_ident_byte(data, token_start, 1) == 117
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 116) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+  }
+  if (c0 == 111 && c1 == 117 && c2 == 116) {
     return 1;
   }
   return 0;
@@ -316,13 +472,31 @@ export function parser_asm_primary_ident_is_out_buf_c(data: *u8, length: usize, 
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_lateout_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  let c6: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 108 && parser_asm_primary_ident_byte(data, token_start, 1) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 116 && parser_asm_primary_ident_byte(data, token_start, 3) == 101
-      && parser_asm_primary_ident_byte(data, token_start, 4) == 111 && parser_asm_primary_ident_byte(data, token_start, 5) == 117
-      && parser_asm_primary_ident_byte(data, token_start, 6) == 116) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+    c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+    c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+  }
+  if (c0 == 108 && c1 == 97 && c2 == 116 && c3 == 101 && c4 == 111 && c5 == 117 && c6 == 116) {
     return 1;
   }
   return 0;
@@ -339,13 +513,31 @@ export function parser_asm_primary_ident_is_lateout_buf_c(data: *u8, length: usi
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_options_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  let c6: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_primary_ident_span_ok(data, length, token_start, ident_len, 7);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_primary_ident_byte(data, token_start, 0) == 111 && parser_asm_primary_ident_byte(data, token_start, 1) == 112
-      && parser_asm_primary_ident_byte(data, token_start, 2) == 116 && parser_asm_primary_ident_byte(data, token_start, 3) == 105
-      && parser_asm_primary_ident_byte(data, token_start, 4) == 111 && parser_asm_primary_ident_byte(data, token_start, 5) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 6) == 115) {
+  unsafe {
+    c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+    c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+    c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+    c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+    c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+  }
+  if (c0 == 111 && c1 == 112 && c2 == 116 && c3 == 105 && c4 == 111 && c5 == 110 && c6 == 115) {
     return 1;
   }
   return 0;
@@ -364,57 +556,113 @@ export function parser_asm_primary_ident_is_options_buf_c(data: *u8, length: usi
  */
 #[no_mangle]
 export function parser_asm_primary_asm_option_bit_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  let c6: u8 = 0;
+  let c7: u8 = 0;
+  let c8: u8 = 0;
+  let c9: u8 = 0;
+  let c10: u8 = 0;
+  let c11: u8 = 0;
+  let c12: u8 = 0;
+  let c13: u8 = 0;
+  let c14: u8 = 0;
   if (data == 0 as *u8 || ident_len <= 0) {
     return 0;
   }
   if (token_start + ident_len as usize > length) {
     return 0;
   }
-  // nostack = 1
-  if (ident_len == 7 && parser_asm_primary_ident_byte(data, token_start, 0) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 111 && parser_asm_primary_ident_byte(data, token_start, 2) == 115
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 116 && parser_asm_primary_ident_byte(data, token_start, 4) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 99 && parser_asm_primary_ident_byte(data, token_start, 6) == 107) {
-    return 1;
+  // Darwin compiles this function alone. The byte helper is an extern.
+  // Each length loads only the bytes that spelling uses.
+  if (ident_len == 7) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+      c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+      c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+    }
+    // nostack = 1
+    if (c0 == 110 && c1 == 111 && c2 == 115 && c3 == 116 && c4 == 97 && c5 == 99 && c6 == 107) {
+      return 1;
+    }
   }
-  // preserves_flags = 2
-  if (ident_len == 15 && parser_asm_primary_ident_byte(data, token_start, 0) == 112
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 114 && parser_asm_primary_ident_byte(data, token_start, 2) == 101
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 115 && parser_asm_primary_ident_byte(data, token_start, 4) == 101
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 114 && parser_asm_primary_ident_byte(data, token_start, 6) == 118
-      && parser_asm_primary_ident_byte(data, token_start, 7) == 101 && parser_asm_primary_ident_byte(data, token_start, 8) == 115
-      && parser_asm_primary_ident_byte(data, token_start, 9) == 95 && parser_asm_primary_ident_byte(data, token_start, 10) == 102
-      && parser_asm_primary_ident_byte(data, token_start, 11) == 108 && parser_asm_primary_ident_byte(data, token_start, 12) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 13) == 103 && parser_asm_primary_ident_byte(data, token_start, 14) == 115) {
-    return 2;
+  if (ident_len == 15) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+      c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+      c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+      c7 = parser_asm_primary_ident_byte(data, token_start, 7);
+      c8 = parser_asm_primary_ident_byte(data, token_start, 8);
+      c9 = parser_asm_primary_ident_byte(data, token_start, 9);
+      c10 = parser_asm_primary_ident_byte(data, token_start, 10);
+      c11 = parser_asm_primary_ident_byte(data, token_start, 11);
+      c12 = parser_asm_primary_ident_byte(data, token_start, 12);
+      c13 = parser_asm_primary_ident_byte(data, token_start, 13);
+      c14 = parser_asm_primary_ident_byte(data, token_start, 14);
+    }
+    // preserves_flags = 2
+    if (c0 == 112 && c1 == 114 && c2 == 101 && c3 == 115 && c4 == 101 && c5 == 114 && c6 == 118
+        && c7 == 101 && c8 == 115 && c9 == 95 && c10 == 102 && c11 == 108 && c12 == 97
+        && c13 == 103 && c14 == 115) {
+      return 2;
+    }
   }
-  // nomem = 4
-  if (ident_len == 5 && parser_asm_primary_ident_byte(data, token_start, 0) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 111 && parser_asm_primary_ident_byte(data, token_start, 2) == 109
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 101 && parser_asm_primary_ident_byte(data, token_start, 4) == 109) {
-    return 4;
+  if (ident_len == 5) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+    }
+    // nomem = 4
+    if (c0 == 110 && c1 == 111 && c2 == 109 && c3 == 101 && c4 == 109) {
+      return 4;
+    }
   }
-  // readonly = 8
-  if (ident_len == 8 && parser_asm_primary_ident_byte(data, token_start, 0) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 101 && parser_asm_primary_ident_byte(data, token_start, 2) == 97
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 100 && parser_asm_primary_ident_byte(data, token_start, 4) == 111
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 110 && parser_asm_primary_ident_byte(data, token_start, 6) == 108
-      && parser_asm_primary_ident_byte(data, token_start, 7) == 121) {
-    return 8;
+  if (ident_len == 8) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+      c4 = parser_asm_primary_ident_byte(data, token_start, 4);
+      c5 = parser_asm_primary_ident_byte(data, token_start, 5);
+      c6 = parser_asm_primary_ident_byte(data, token_start, 6);
+      c7 = parser_asm_primary_ident_byte(data, token_start, 7);
+    }
+    // readonly = 8
+    if (c0 == 114 && c1 == 101 && c2 == 97 && c3 == 100 && c4 == 111 && c5 == 110 && c6 == 108 && c7 == 121) {
+      return 8;
+    }
+    // noreturn = 32
+    if (c0 == 110 && c1 == 111 && c2 == 114 && c3 == 101 && c4 == 116 && c5 == 117 && c6 == 114 && c7 == 110) {
+      return 32;
+    }
   }
-  // pure = 16
-  if (ident_len == 4 && parser_asm_primary_ident_byte(data, token_start, 0) == 112
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 117 && parser_asm_primary_ident_byte(data, token_start, 2) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 101) {
-    return 16;
-  }
-  // noreturn = 32
-  if (ident_len == 8 && parser_asm_primary_ident_byte(data, token_start, 0) == 110
-      && parser_asm_primary_ident_byte(data, token_start, 1) == 111 && parser_asm_primary_ident_byte(data, token_start, 2) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 3) == 101 && parser_asm_primary_ident_byte(data, token_start, 4) == 116
-      && parser_asm_primary_ident_byte(data, token_start, 5) == 117 && parser_asm_primary_ident_byte(data, token_start, 6) == 114
-      && parser_asm_primary_ident_byte(data, token_start, 7) == 110) {
-    return 32;
+  if (ident_len == 4) {
+    unsafe {
+      c0 = parser_asm_primary_ident_byte(data, token_start, 0);
+      c1 = parser_asm_primary_ident_byte(data, token_start, 1);
+      c2 = parser_asm_primary_ident_byte(data, token_start, 2);
+      c3 = parser_asm_primary_ident_byte(data, token_start, 3);
+    }
+    // pure = 16
+    if (c0 == 112 && c1 == 117 && c2 == 114 && c3 == 101) {
+      return 16;
+    }
   }
   return 0;
 }
@@ -430,7 +678,12 @@ export function parser_asm_primary_asm_option_bit_buf_c(data: *u8, length: usize
  */
 #[no_mangle]
 export function parser_asm_primary_ident_is_asm_option_name_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_primary_asm_option_bit_buf_c(data, length, token_start, ident_len) != 0) {
+  let bit: i32 = 0;
+  // Darwin compiles this function alone. The bit table is an extern.
+  unsafe {
+    bit = parser_asm_primary_asm_option_bit_buf_c(data, length, token_start, ident_len);
+  }
+  if (bit != 0) {
     return 1;
   }
   return 0;
@@ -463,6 +716,8 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
   let fval: f64 = 0 as f64;
   let tl: i32 = 0;
   let tc: i32 = 0;
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -546,6 +801,10 @@ export function parser_asm_primary_literal_x_into_c(arena: *u8, lex_inout: *u8, 
  *
  * Semantic invariants mirrored verbatim (see the C comments):
  *   - args parse fully into staging, THEN append (nested-call slot safety)
+ *   - plain CALL stamps call_resolved_* = -1 after zeros and before
+ *     set_call. pabi zeros leaves the dep slot at the allocation 0, and
+ *     slot 0 is import 0. asm! reuses set_call for option bits and must
+ *     not take this stamp.
  *   - turbofish: real type_refs first; count-only fallback leaves refs empty
  *   - LT with neither `{` nor `(` after the angles leaves `<` for relcompare
  *   - LBRACE converts FIELD_ACCESS only, after the two block-pref checks
@@ -591,6 +850,8 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
   let np: usize = 0;
   let tl: i32 = 0;
   let tc: i32 = 0;
+  let lt_line: i32 = 0;
+  let lt_col: i32 = 0;
   if (arena == 0 as *u8 || source == 0 as *u8 || lex_inout == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return;
   }
@@ -720,10 +981,14 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         }
       } else if (kind == TOKEN_LT) {
         /* Turbofish: real type_refs first; on unparsable fall back count-only.
-         * Neither `{` nor `(` after the angles leaves `<` for relcompare. */
+         * Neither `{` nor `(` after the angles leaves `<` for relcompare.
+         * P4bl: save `<` pos/line/col (prev_pos is already the `<` byte)
+         * BEFORE step. C twin never moves *lex until follower is `(`. */
         parse_ok = 1;
         n = 0;
         pi = 0;
+        lt_line = parser_asm_lex_line_c(lex_inout);
+        lt_col = parser_asm_lex_col_c(lex_inout);
         while (pi < 8) {
           parsed_refs[pi] = 0;
           pi = pi + 1;
@@ -767,7 +1032,10 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         if (parse_ok != 0) {
           k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
           if (k2 == TOKEN_LBRACE) {
-            /* Generic struct lit `Type<T>{...}` on a VAR head. */
+            /* Generic struct lit `Type<T>{...}` on a VAR head.
+             * P4bl: do not rewind these returns — cursor stays past `>`
+             * so finish_struct_lit / prefer-block can see `{`. Rewinding
+             * here P001'd `Wrap<i32>{ val: 1 }` (P4bk parsed that head). */
             if (pipeline_expr_kind_ord_at(arena, out_expr_ref[0]) != EXPR_VAR) {
               return;
             }
@@ -809,6 +1077,11 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
             continue;
           }
           if (k2 != TOKEN_LPAREN) {
+            /* P4bl: not a turbofish call — restore `<` for relcompare
+             * (C: out->next_lex = *lex still at TOKEN_LT). */
+            parser_asm_lex_set_pos_c(lex_inout, prev_pos);
+            parser_asm_lex_set_line_c(lex_inout, lt_line);
+            parser_asm_lex_set_col_c(lex_inout, lt_col);
             return;
           }
           pending_n = n;
@@ -828,6 +1101,11 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
           parser_asm_skip_angle_count_ptr_into_c(lex_inout, source, &count);
           k2 = parser_asm_lex_peek_kind_c(lex_inout, source);
           if (k2 != TOKEN_LPAREN) {
+            /* P4bl: skip found a later `>` (often `a < x || a > y`).
+             * C twin leaves *lex at `<`; commit only when follower is `(`. */
+            parser_asm_lex_set_pos_c(lex_inout, prev_pos);
+            parser_asm_lex_set_line_c(lex_inout, lt_line);
+            parser_asm_lex_set_col_c(lex_inout, lt_col);
             return;
           }
           pending_n = count;
@@ -877,6 +1155,9 @@ export function parser_asm_primary_suffix_loop_x_into_c(arena: *u8, source: *u8,
         pipeline_expr_set_common_zeros_c(arena, call_ref);
         pipeline_expr_set_kind(arena, call_ref, EXPR_CALL);
         pipeline_expr_set_line_col(arena, call_ref, 0, 0);
+        // zeros leaves call_resolved_dep_index at the allocation 0, and
+        // slot 0 is import 0. Stamp -1 before the callee is stored.
+        pipeline_expr_init_call_resolve_at_ref(arena, call_ref);
         pipeline_expr_set_call_c(arena, call_ref, callee_ref, pending_n);
         if (pending_n > 0 && pending_refs[0] > 0) {
           ai = 0;
@@ -1022,6 +1303,8 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
   let col0: i32 = 0;
   let data: *u8 = 0 as *u8;
   let ok2: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -1032,7 +1315,7 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
     if (kind != TOKEN_IDENT && kind != TOKEN_SELF) {
       return 0;
     }
-    /* unsafe-expr / asm! sub-parsers (whole-sale C via the fat shim). */
+    /* unsafe-expr / asm! via ident_pre_dispatch ptr_c (P4br dest-buffer). */
     ok2 = 0;
     ref = 0;
     if (parser_asm_ident_pre_dispatch_ptr_c(arena, lex_inout, source, &ok2, &ref) != 0) {
@@ -1103,17 +1386,140 @@ export function parser_asm_primary_ident_x_into_c(arena: *u8, lex_inout: *u8, so
 }
 
 /**
+ * Decode one TOKEN_STRING span (product escapes) onto an existing
+ * STRING_LIT head, appending (adjacent concat). G.7 ≡ parser.x
+ * parser_string_lit_decode_span / C twin parser_asm_string_lit_decode_span_c.
+ * Byte walk has no local u8[N]. Chunk overflow writes stay C
+ * (parser_asm_string_lit_append_byte_ptr_c: Expr by-value + var_name[N]).
+ * @param arena *u8 — opaque AST arena; null → -1
+ * @param head_ref i32 — STRING_LIT head; <=0 → -1
+ * @param source *u8 — opaque slice; null → -1
+ * @param q0 usize — token_start (first payload byte after the open quote)
+ * @param nlen i32 — token ident_len; <0 treated as 0
+ * @param line i32 — overflow diag line (forwarded to append_byte)
+ * @param col i32 — overflow diag col
+ * @return i32 — 0 ok; -1 L011 / null
+ * PLATFORM: SHARED — P4bm dest-buffer of the former host-cc decode loop.
+ * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+ * Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_string_lit_decode_span_x_into_c(arena: *u8, head_ref: i32, source: *u8, q0: usize, nlen: i32, line: i32, col: i32): i32 {
+  let ri: i32 = 0;
+  let c: u8 = 0;
+  let b: u8 = 0;
+  let n: u8 = 0;
+  let consumed: i32 = 0;
+  let h1: u8 = 0;
+  let h2: u8 = 0;
+  let v1: i32 = 0;
+  let v2: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (arena == 0 as *u8 || source == 0 as *u8 || head_ref <= 0) {
+    return 0 - 1;
+  }
+  if (nlen < 0) {
+    nlen = 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (data == 0 as *u8) {
+      return 0 - 1;
+    }
+    ri = 0;
+    while (ri < nlen) {
+      c = 0;
+      consumed = 1;
+      if (q0 + (ri as usize) < slen) {
+        c = parser_asm_primary_ident_byte(data, q0, ri);
+      }
+      b = c;
+      if (c == 92 && (ri + 1) < nlen) {
+        n = 0;
+        if (q0 + ((ri + 1) as usize) < slen) {
+          n = parser_asm_primary_ident_byte(data, q0, ri + 1);
+        }
+        if (n == 110) {
+          b = 10;
+          consumed = 2;
+        } else if (n == 116) {
+          b = 9;
+          consumed = 2;
+        } else if (n == 114) {
+          b = 13;
+          consumed = 2;
+        } else if (n == 48) {
+          b = 0;
+          consumed = 2;
+        } else if (n == 92 || n == 34) {
+          b = n;
+          consumed = 2;
+        } else if (n == 120 && (ri + 3) < nlen) {
+          h1 = 0;
+          h2 = 0;
+          v1 = 0 - 1;
+          v2 = 0 - 1;
+          if (q0 + ((ri + 2) as usize) < slen) {
+            h1 = parser_asm_primary_ident_byte(data, q0, ri + 2);
+          }
+          if (q0 + ((ri + 3) as usize) < slen) {
+            h2 = parser_asm_primary_ident_byte(data, q0, ri + 3);
+          }
+          if (h1 >= 48 && h1 <= 57) {
+            v1 = (h1 as i32) - 48;
+          }
+          if (h1 >= 97 && h1 <= 102) {
+            v1 = (h1 as i32) - 97 + 10;
+          }
+          if (h1 >= 65 && h1 <= 70) {
+            v1 = (h1 as i32) - 65 + 10;
+          }
+          if (h2 >= 48 && h2 <= 57) {
+            v2 = (h2 as i32) - 48;
+          }
+          if (h2 >= 97 && h2 <= 102) {
+            v2 = (h2 as i32) - 97 + 10;
+          }
+          if (h2 >= 65 && h2 <= 70) {
+            v2 = (h2 as i32) - 65 + 10;
+          }
+          if (v1 >= 0 && v2 >= 0) {
+            b = ((v1 * 16) + v2) as u8;
+            consumed = 4;
+          } else {
+            b = n;
+            consumed = 2;
+          }
+        } else {
+          b = n;
+          consumed = 2;
+        }
+      }
+      if (parser_asm_string_lit_append_byte_ptr_c(arena, head_ref, b as i32, line, col) != 0) {
+        return 0 - 1;
+      }
+      ri = ri + consumed;
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
  * STRING primary: decode the first TOKEN_STRING span, then concatenate
- * adjacent STRING tokens (wave282). Decode stays the C helper
- * (chunked var_name overflow; language has no local u8[N]).
+ * adjacent STRING tokens (wave282). Decode is P4bm dest-buffer
+ * (append_byte chunk overflow stays C).
  * @param arena *u8 — opaque AST arena
  * @param lex_inout *u8 — cursor at STRING; parked after the last concat
  * @param source *u8 — opaque slice
  * @param out_ok *i32 — 1 on success
  * @param out_expr_ref *i32 — EXPR_STRING_LIT head
  * @return i32 — 1 handled; 0 not STRING
- * PLATFORM: SHARED — P4bh STRING arm. Do not copy decode.
+ * PLATFORM: SHARED — P4bh STRING arm. Decode authority is P4bm.
  */
+#[no_mangle]
 function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1167,12 +1573,65 @@ function parser_asm_primary_string_x_into_c(arena: *u8, lex_inout: *u8, source: 
 }
 
 /**
+ * BREAK / CONTINUE primary (`break;` / `continue;` as a statement expr).
+ * Mirrors the C twin in parser_asm_primary_slice.inc (PARSER_ASM_EXPR_BREAK=39
+ * / CONTINUE=40). Peek, step the keyword, alloc, set kind + line/col +
+ * common zeros. No operand. Semicolon stays for parse_block.
+ * @param arena *u8 — opaque ASTArena; null → 0
+ * @param lex_inout *u8 — cursor; advanced only when the token is handled
+ * @param source *u8 — opaque source slice
+ * @param out_ok *i32 — 1 on success, 0 on alloc failure
+ * @param out_expr_ref *i32 — fresh Expr ref on success
+ * @return i32 — 1 handled (BREAK or CONTINUE); 0 not those tokens
+ * PLATFORM: SHARED — P4bk 有则补全 of P4bh remaining parse_primary.
+ * Do not `break` out of a while in this helper (P4bh parse-drop).
+ */
+#[no_mangle]
+function parser_asm_primary_break_continue_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ref: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let ek: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_BREAK && kind != TOKEN_CONTINUE) {
+      return 0;
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ref = ast_ast_arena_expr_alloc(arena);
+    if (ref == 0) {
+      out_ok[0] = 0;
+      return 1;
+    }
+    if (kind == TOKEN_BREAK) {
+      ek = EXPR_BREAK;
+    } else {
+      ek = EXPR_CONTINUE;
+    }
+    pipeline_expr_set_kind(arena, ref, ek);
+    pipeline_expr_set_line_col(arena, ref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, ref);
+    out_ok[0] = 1;
+    out_expr_ref[0] = ref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
  * RETURN primary (`return` / `return expr`) for match-arm results.
  * Terminator peek does not consume (`;` `}` EOF `,` `=>` stay for the
  * caller). Operand parse reuses parse_expr_ptr (G.7).
  * @return i32 — 1 handled; 0 not RETURN
  * PLATFORM: SHARED — P4bh RETURN arm.
  */
+#[no_mangle]
 function parser_asm_primary_return_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1221,6 +1680,7 @@ function parser_asm_primary_return_x_into_c(arena: *u8, lex_inout: *u8, source: 
  * @return i32 — 1 handled; 0 not PANIC
  * PLATFORM: SHARED — P4bh PANIC arm.
  */
+#[no_mangle]
 function parser_asm_primary_panic_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
@@ -1277,6 +1737,7 @@ function parser_asm_primary_panic_x_into_c(arena: *u8, lex_inout: *u8, source: *
  * @return i32 — 1 handled; 0 not LPAREN
  * PLATFORM: SHARED — P4bh paren arm. Suffix loop is P4bf (G.7).
  */
+#[no_mangle]
 function parser_asm_primary_paren_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let eok: i32 = 0;
@@ -1315,11 +1776,14 @@ function parser_asm_primary_paren_x_into_c(arena: *u8, lex_inout: *u8, source: *
  * @return i32 — 1 handled; 0 not LBRACKET
  * PLATFORM: SHARED — P4bh array arm.
  */
+#[no_mangle]
 function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let ref: i32 = 0;
   let eok: i32 = 0;
   let eref: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -1383,6 +1847,7 @@ function parser_asm_primary_array_x_into_c(arena: *u8, lex_inout: *u8, source: *
  * @return i32 — 1 handled; 0 not LBRACE
  * PLATFORM: SHARED — P4bh LBRACE arm.
  */
+#[no_mangle]
 function parser_asm_primary_lbrace_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32, mc_arg_buf: *i32, arg_buf: *i32, parsed_refs: *i32, pending_refs: *i32, mangled: *u8, name_buf: *u8): i32 {
   let kind: i32 = 0;
   let bok: i32 = 0;
@@ -1390,6 +1855,8 @@ function parser_asm_primary_lbrace_x_into_c(arena: *u8, lex_inout: *u8, source: 
   let wrap: i32 = 0;
   let eok: i32 = 0;
   let eref: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32) {
     return 0;
   }
@@ -1463,6 +1930,10 @@ export function parser_asm_parse_primary_x_into_c(arena: *u8, lex_inout: *u8, so
       return 1;
     }
     rc = parser_asm_primary_literal_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref, mc_arg_buf, arg_buf, parsed_refs, pending_refs, mangled, name_buf);
+    if (rc != 0) {
+      return 1;
+    }
+    rc = parser_asm_primary_break_continue_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
     if (rc != 0) {
       return 1;
     }
@@ -1629,7 +2100,8 @@ export function parser_asm_parse_struct_lit_fields_x_into_c(arena: *u8, lit_ref:
  * @param out_expr_ref *i32
  * @return i32 — 1 success; 0 failure
  * PLATFORM: SHARED — product P4bj. Do not dest-buffer whole primary.
- * Do not merge wrap. Do not open a new lane.
+ * Do not merge wrap. Do not open a new lane. Named Type { } finish
+ * is P4bn (same writer, IDENT placeholder name).
  */
 #[no_mangle]
 export function parser_asm_parse_anonymous_struct_lit_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
@@ -1653,6 +2125,987 @@ export function parser_asm_parse_anonymous_struct_lit_x_into_c(arena: *u8, lex_i
       return 0;
     }
     return 1;
+  }
+  return 0;
+}
+
+/**
+ * Convert an IDENT VAR placeholder into EXPR_STRUCT_LIT and parse fields.
+ * lex_inout sits after `{` (caller already consumed LBRACE). Mirror of
+ * parser_asm_finish_struct_lit_from_type_ident_into_c. Copy the live
+ * var_name into the C-owned name_buf BEFORE arena zeros wipe
+ * var_name_len (P4bg contract: arena zeros DO wipe the count; C local
+ * zeros did not). Writer is the existing set_struct_lit_finish (G.7;
+ * same as suffix FIELD_ACCESS conversion and P4bj nlen=0). Fields stay
+ * P4bi. Name copy uses the 256-byte Cap 4.2.8 face (C twin still
+ * truncated through a 128-byte stack copy).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lit_ref i32 — IDENT VAR placeholder already allocated; 0 → 0
+ * @param lex_inout *u8 — C lexer blob after `{`; fields walk advances it
+ * @param source *u8 — source slice
+ * @param name_buf *u8 — C trampoline 256-byte scratch (language has no
+ *   local u8[N]); var_name_into writes here before zeros
+ * @param out_ok *i32 — 1 on parse success
+ * @param out_expr_ref *i32 — lit_ref on success
+ * @return i32 — 1 success; 0 failure
+ * PLATFORM: SHARED — product P4bn. Do not dest-buffer append_byte.
+ * Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+ * Do not grow suffix_loop. Do not open a new lane.
+ */
+#[no_mangle]
+export function parser_asm_finish_struct_lit_from_type_ident_x_into_c(arena: *u8, lit_ref: i32, lex_inout: *u8, source: *u8, name_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let tlen: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || name_buf == 0 as *u8 || out_ok == 0 as *i32 || out_expr_ref == 0 as *i32 || lit_ref == 0) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    tlen = pipeline_expr_var_name_len(arena, lit_ref);
+    if (tlen <= 0 || tlen > 255) {
+      return 0;
+    }
+    /* Copy IDENT placeholder name first: set_common_zeros wipes var_name_len. */
+    pipeline_expr_var_name_into(arena, lit_ref, name_buf);
+    pipeline_expr_set_common_zeros_c(arena, lit_ref);
+    pipeline_expr_set_struct_lit_finish_c(arena, lit_ref, name_buf, tlen);
+    pipeline_expr_set_line_col(arena, lit_ref, 0, 0);
+    pipeline_expr_set_int_val(arena, lit_ref, 0);
+    pipeline_expr_set_float_val(arena, lit_ref, 0.0);
+    if (parser_asm_parse_struct_lit_fields_x_into_c(arena, lit_ref, lex_inout, source, out_ok, out_expr_ref) == 0 || out_ok[0] == 0) {
+      out_ok[0] = 0;
+      out_expr_ref[0] = 0;
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Hex nibble for asm! template `\xHH` (and the STRING walk). 0..15 or -1.
+ * @param h u8 — ASCII hex digit
+ * @return i32 — nibble, or -1 if not hex
+ * PLATFORM: SHARED — G.7 single nibble table.
+ */
+#[no_mangle]
+function parser_asm_primary_hex_val_x(h: u8): i32 {
+  if (h >= 48 && h <= 57) {
+    return (h as i32) - 48;
+  }
+  if (h >= 97 && h <= 102) {
+    return (h as i32) - 97 + 10;
+  }
+  if (h >= 65 && h <= 70) {
+    return (h as i32) - 65 + 10;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Decode one TOKEN_STRING span into a C-owned buffer (asm! template).
+ * Cap 127 + overflow note then stop (C twin; do not raise to 255).
+ * Invalid `\x` / unknown escape write the backslash and consume 1
+ * (C twin; STRING decode_span consumes the follower — do not reuse).
+ * @param source *u8 — opaque slice
+ * @param q0 usize — first payload byte
+ * @param nlen i32 — payload length; <0 treated as 0
+ * @param tmpl_buf *u8 — C trampoline scratch; NUL-terminated when wi<256
+ * @param line i32 — overflow diag line
+ * @param col i32 — overflow diag col
+ * @return i32 — decoded length wi (>=0); 0 on null buf
+ * PLATFORM: SHARED — P4bo template face. Do not dest-buffer append_byte.
+ */
+#[no_mangle]
+function parser_asm_primary_asm_template_decode_x(source: *u8, q0: usize, nlen: i32, tmpl_buf: *u8, line: i32, col: i32): i32 {
+  let ri: i32 = 0;
+  let wi: i32 = 0;
+  let c: u8 = 0;
+  let n: u8 = 0;
+  let h1: u8 = 0;
+  let h2: u8 = 0;
+  let v1: i32 = 0;
+  let v2: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let consumed: i32 = 0;
+  let b: u8 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (source == 0 as *u8 || tmpl_buf == 0 as *u8) {
+    return 0;
+  }
+  if (nlen < 0) {
+    nlen = 0;
+  }
+  unsafe {
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ri = 0;
+    wi = 0;
+    while (ri < nlen) {
+      if (wi >= 127) {
+        lexer_note_string_lit_overflow(line, col);
+        if (wi < 256) {
+          tmpl_buf[wi] = 0;
+        }
+        return wi;
+      }
+      c = 0;
+      consumed = 1;
+      if (q0 + (ri as usize) < slen && data != 0 as *u8) {
+        c = parser_asm_primary_ident_byte(data, q0, ri);
+      }
+      b = c;
+      if (c == 92 && (ri + 1) < nlen) {
+        n = 0;
+        if (q0 + ((ri + 1) as usize) < slen && data != 0 as *u8) {
+          n = parser_asm_primary_ident_byte(data, q0, ri + 1);
+        }
+        if (n == 110) {
+          b = 10;
+          consumed = 2;
+        } else if (n == 116) {
+          b = 9;
+          consumed = 2;
+        } else if (n == 114) {
+          b = 13;
+          consumed = 2;
+        } else if (n == 48) {
+          b = 0;
+          consumed = 2;
+        } else if (n == 92 || n == 34) {
+          b = n;
+          consumed = 2;
+        } else if (n == 120 && (ri + 3) < nlen) {
+          h1 = 0;
+          h2 = 0;
+          v1 = 0 - 1;
+          v2 = 0 - 1;
+          if (q0 + ((ri + 2) as usize) < slen && data != 0 as *u8) {
+            h1 = parser_asm_primary_ident_byte(data, q0, ri + 2);
+          }
+          if (q0 + ((ri + 3) as usize) < slen && data != 0 as *u8) {
+            h2 = parser_asm_primary_ident_byte(data, q0, ri + 3);
+          }
+          v1 = parser_asm_primary_hex_val_x(h1);
+          v2 = parser_asm_primary_hex_val_x(h2);
+          if (v1 >= 0 && v2 >= 0) {
+            b = ((v1 * 16) + v2) as u8;
+            consumed = 4;
+          }
+        }
+      }
+      tmpl_buf[wi] = b;
+      wi = wi + 1;
+      ri = ri + consumed;
+    }
+    if (wi < 256) {
+      tmpl_buf[wi] = 0;
+    }
+    return wi;
+  }
+  return 0;
+}
+
+/**
+ * Pack one TOKEN_STRING register spelling into regs_buf (comma-separated,
+ * first operand has no leading comma). rlen capped at 16 (C twin).
+ * @param source *u8 — opaque slice
+ * @param lex_inout *u8 — cursor on TOKEN_STRING (not consumed)
+ * @param regs_buf *u8 — C trampoline 128-byte scratch
+ * @param regs_len i32 — live packed length
+ * @return i32 — new packed length, or -1 if base+1+rlen >= 128
+ * PLATFORM: SHARED — P4bo register pack. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+function parser_asm_primary_asm_pack_reg_x(source: *u8, lex_inout: *u8, regs_buf: *u8, regs_len: i32): i32 {
+  let kind: i32 = 0;
+  let q0: usize = 0;
+  let rlen: i32 = 0;
+  let rwi: i32 = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let rc: u8 = 0;
+  let base: i32 = 0;
+  if (source == 0 as *u8 || lex_inout == 0 as *u8 || regs_buf == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 0 - 1;
+    }
+    q0 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    rlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (rlen < 0) {
+      rlen = 0;
+    }
+    if (rlen > 16) {
+      rlen = 16;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    if (regs_len == 0) {
+      rwi = 0;
+      while (rwi < rlen) {
+        rc = 0;
+        if (data != 0 as *u8 && q0 + (rwi as usize) < slen) {
+          rc = parser_asm_primary_ident_byte(data, q0, rwi);
+        }
+        regs_buf[rwi] = rc;
+        rwi = rwi + 1;
+      }
+      if (rwi < 128) {
+        regs_buf[rwi] = 0;
+      }
+      return rwi;
+    }
+    base = regs_len;
+    if (base + 1 + rlen >= 128) {
+      return 0 - 1;
+    }
+    regs_buf[base] = 44;
+    rwi = 0;
+    while (rwi < rlen) {
+      rc = 0;
+      if (data != 0 as *u8 && q0 + (rwi as usize) < slen) {
+        rc = parser_asm_primary_ident_byte(data, q0, rwi);
+      }
+      regs_buf[base + 1 + rwi] = rc;
+      rwi = rwi + 1;
+    }
+    base = base + 1 + rlen;
+    if (base < 128) {
+      regs_buf[base] = 0;
+    }
+    return base;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Parse `options(name[, name…])` after the opening `(` is consumed.
+ * Empty `()` returns 0. Unknown names fail. Single while (no nested
+ * break — P4bh parse-drop).
+ * @param lex_inout *u8 — cursor inside `(`; parked after `)` on success
+ * @param source *u8 — opaque slice
+ * @return i32 — bitmask, or -1 on failure
+ * PLATFORM: SHARED — P4bo options list. G.7 bit table = asm_option_bit_buf.
+ */
+#[no_mangle]
+function parser_asm_primary_asm_parse_options_x(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let bits: i32 = 0;
+  let done: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let obit: i32 = 0;
+  if (lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_RPAREN) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      return 0;
+    }
+    bits = 0;
+    done = 0;
+    while (done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_IDENT) {
+        return 0 - 1;
+      }
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      obit = parser_asm_primary_asm_option_bit_buf_c(data, slen, ts, ilen);
+      if (obit == 0) {
+        return 0 - 1;
+      }
+      bits = bits | obit;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_RPAREN) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        done = 1;
+      } else if (kind != TOKEN_COMMA) {
+        return 0 - 1;
+      } else {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+      }
+    }
+    return bits;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Parse one in/out/lateout operand. Entry cursor is the direction IDENT.
+ * Underscore discard reuses tmpl_buf[0] after the template is copied.
+ * @param arena *u8 — opaque AST arena
+ * @param lex_inout *u8 — cursor on in/out/lateout
+ * @param source *u8 — opaque slice
+ * @param regs_buf *u8 — register pack buffer; underscore writes 95 at packed end
+ * @param regs_len_io *i32 — in/out packed length
+ * @param pref i32 — EXPR_ASM ref to append call_args onto
+ * @return i32 — 1=in, 2=out/lateout, 0=fail
+ * PLATFORM: SHARED — P4bo one operand. No nested while.
+ */
+#[no_mangle]
+function parser_asm_primary_asm_parse_operand_x(arena: *u8, lex_inout: *u8, source: *u8, regs_buf: *u8, regs_len_io: *i32, pref: i32): i32 {
+  let kind: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let is_out_op: i32 = 0;
+  let eok: i32 = 0;
+  let eref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (regs_buf == 0 as *u8 || regs_len_io == 0 as *i32 || pref == 0) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    is_out_op = 0;
+    if (parser_asm_primary_ident_is_in_buf_c(data, slen, ts, ilen) != 0) {
+      is_out_op = 0;
+    } else if (parser_asm_primary_ident_is_out_buf_c(data, slen, ts, ilen) != 0) {
+      is_out_op = 1;
+    } else if (parser_asm_primary_ident_is_lateout_buf_c(data, slen, ts, ilen) != 0) {
+      is_out_op = 1;
+    } else {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 0;
+    }
+    ilen = regs_len_io[0];
+    kind = parser_asm_primary_asm_pack_reg_x(source, lex_inout, regs_buf, ilen);
+    if (kind < 0) {
+      return 0;
+    }
+    regs_len_io[0] = kind;
+    pipeline_expr_set_method_call_c(arena, pref, 0, regs_buf, kind);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (ilen != TOKEN_RPAREN) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (is_out_op != 0 && ilen == TOKEN_UNDERSCORE) {
+      eok = ast_ast_arena_expr_alloc(arena);
+      if (eok == 0) {
+        return 0;
+      }
+      pipeline_expr_set_kind(arena, eok, EXPR_VAR);
+      pipeline_expr_set_line_col(arena, eok, parser_asm_lex_peek_tok_line_c(lex_inout, source), parser_asm_lex_peek_tok_col_c(lex_inout, source));
+      pipeline_expr_set_common_zeros_c(arena, eok);
+      eref = regs_len_io[0];
+      if (eref < 0) {
+        eref = 0;
+      }
+      if (eref > 126) {
+        eref = 126;
+      }
+      regs_buf[eref] = 95;
+      pipeline_expr_set_var_name(arena, eok, regs_buf + eref, 1);
+      regs_buf[eref] = 0;
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      if (pipeline_expr_append_call_arg(arena, pref, eok) < 0) {
+        return 0;
+      }
+      return 2;
+    }
+    eok = 0;
+    eref = 0;
+    if (parser_parse_expr_ptr_into_c(arena, lex_inout, source, &eok, &eref) == 0 || eok == 0 || eref <= 0) {
+      return 0;
+    }
+    if (pipeline_expr_append_call_arg(arena, pref, eref) < 0) {
+      return 0;
+    }
+    if (is_out_op != 0) {
+      return 2;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse asm-bang (template STRING, optional in/out/lateout operands,
+ * optional trailing options). Entry cursor is unconsumed TOKEN_BANG
+ * (caller already matched IDENT asm).
+ * GNU colon operands fail-closed (C twin). Options/operand walks live in
+ * helpers so this function has a single comma while (P4bh nested-while
+ * parse-drop).
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at `!`; parked after closing `)` on success
+ * @param source *u8 — opaque slice
+ * @param tmpl_buf *u8 — C trampoline 256-byte template scratch
+ * @param regs_buf *u8 — C trampoline 128-byte register-name scratch
+ * @param out_ok *i32 — 1 on parse success
+ * @param out_expr_ref *i32 — EXPR_ASM ref on success
+ * @return i32 — 1 handled (check out_ok); 0 not BANG / null args
+ * PLATFORM: SHARED — product P4bo. Writers = set_kind / set_var_name /
+ * set_method_call_c / set_call_c / set_int_val / append_call_arg (G.7).
+ * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+ * Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_primary_parse_asm_bang_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let pref: i32 = 0;
+  let tl: i32 = 0;
+  let tc: i32 = 0;
+  let q0: usize = 0;
+  let nlen: i32 = 0;
+  let wi: i32 = 0;
+  let nops: i32 = 0;
+  let n_in: i32 = 0;
+  let saw_out: i32 = 0;
+  let saw_options: i32 = 0;
+  let opt_bits: i32 = 0;
+  let comma_done: i32 = 0;
+  let fail: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let regs_len: i32 = 0;
+  let opc: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  if (tmpl_buf == 0 as *u8) {
+    return 0;
+  }
+  if (regs_buf == 0 as *u8) {
+    return 0;
+  }
+  if (out_ok == 0 as *i32) {
+    return 0;
+  }
+  if (out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_BANG) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LPAREN) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_STRING) {
+      return 1;
+    }
+    tl = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+    tc = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+    q0 = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    pref = ast_ast_arena_expr_alloc(arena);
+    if (pref == 0) {
+      return 1;
+    }
+    pipeline_expr_set_kind(arena, pref, EXPR_ASM);
+    pipeline_expr_set_line_col(arena, pref, tl, tc);
+    pipeline_expr_set_common_zeros_c(arena, pref);
+    wi = parser_asm_primary_asm_template_decode_x(source, q0, nlen, tmpl_buf, tl, tc);
+    pipeline_expr_set_var_name(arena, pref, tmpl_buf, wi);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_COLON) {
+      return 1;
+    }
+    nops = 0;
+    n_in = 0;
+    saw_out = 0;
+    saw_options = 0;
+    regs_len = 0;
+    fail = 0;
+    comma_done = 0;
+    while (comma_done == 0) {
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind != TOKEN_COMMA) {
+        comma_done = 1;
+      } else {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (kind != TOKEN_IDENT) {
+          fail = 1;
+          comma_done = 1;
+        } else {
+          data = parser_asm_lex_source_data_c(source);
+          slen = parser_asm_lex_source_length_c(source);
+          ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+          ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+          if (parser_asm_primary_ident_is_options_buf_c(data, slen, ts, ilen) != 0) {
+            if (saw_options != 0) {
+              fail = 1;
+              comma_done = 1;
+            } else {
+              parser_asm_lex_step_kind_c(lex_inout, source);
+              kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+              if (kind != TOKEN_LPAREN) {
+                fail = 1;
+                comma_done = 1;
+              } else {
+                parser_asm_lex_step_kind_c(lex_inout, source);
+                opt_bits = parser_asm_primary_asm_parse_options_x(lex_inout, source);
+                if (opt_bits < 0) {
+                  fail = 1;
+                  comma_done = 1;
+                } else {
+                  saw_options = 1;
+                  pipeline_expr_set_call_c(arena, pref, 0, opt_bits);
+                }
+              }
+            }
+          } else if (saw_options != 0) {
+            fail = 1;
+            comma_done = 1;
+          } else if (nops >= 6) {
+            fail = 1;
+            comma_done = 1;
+          } else if (parser_asm_primary_ident_is_in_buf_c(data, slen, ts, ilen) != 0 && saw_out != 0) {
+            fail = 1;
+            comma_done = 1;
+          } else {
+            opc = parser_asm_primary_asm_parse_operand_x(arena, lex_inout, source, regs_buf, &regs_len, pref);
+            if (opc == 0) {
+              fail = 1;
+              comma_done = 1;
+            } else {
+              if (opc == 1) {
+                n_in = n_in + 1;
+              } else {
+                saw_out = 1;
+              }
+              nops = nops + 1;
+            }
+          }
+        }
+      }
+    }
+    if (fail != 0) {
+      return 1;
+    }
+    pipeline_expr_set_int_val(arena, pref, n_in);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RPAREN) {
+      return 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    out_ok[0] = 1;
+    out_expr_ref[0] = pref;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Parse expression-position `unsafe { ... }`. Caller already matched
+ * IDENT `unsafe`; entry cursor is the unconsumed TOKEN_LBRACE.
+ * Inner block is parse_block_ptr (lex after `{`, same as P4bh LBRACE
+ * block). A fresh wrapper block holds one unsafe stmt (order kind=6)
+ * whose body is that inner block; wrap the wrapper as EXPR_BLOCK via
+ * P5f wrap_block_ref (G.7; type_ref=0). Fail-closed: missing `{`,
+ * block parse fail, alloc fail, or append fail leave out_ok=0.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at `{`; parked after the inner block on success
+ * @param source *u8 — opaque source slice
+ * @param out_ok *i32 — 1 on parse success
+ * @param out_expr_ref *i32 — EXPR_BLOCK wrapper ref on success
+ * @return i32 — 1 handled (check out_ok); 0 not LBRACE / null args
+ * PLATFORM: SHARED — product P4bp. Writers = parse_block_ptr /
+ * ast_ast_arena_block_alloc / pipeline_block_append_unsafe /
+ * pipeline_block_append_stmt_order / wrap_block_ref (G.7).
+ * ident_pre_dispatch is P4br. lbrace lookahead is P4bq.
+ * Do not dest-buffer append_byte. Do not dest-buffer parse_type_ref.
+ * Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_primary_parse_unsafe_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let bok: i32 = 0;
+  let bref: i32 = 0;
+  let wrap: i32 = 0;
+  let wref: i32 = 0;
+  let uidx: i32 = 0;
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  if (out_ok == 0 as *i32) {
+    return 0;
+  }
+  if (out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LBRACE) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    bok = 0;
+    bref = 0;
+    if (parser_parse_block_ptr_into_c(arena, lex_inout, source, 0, &bok, &bref) == 0 || bok == 0) {
+      return 1;
+    }
+    wref = ast_ast_arena_block_alloc(arena);
+    if (wref == 0) {
+      return 1;
+    }
+    uidx = pipeline_block_append_unsafe(arena, wref, bref);
+    if (uidx < 0) {
+      return 1;
+    }
+    if (pipeline_block_append_stmt_order(arena, wref, 6, uidx) < 0) {
+      return 1;
+    }
+    wrap = parser_asm_wrap_block_ref_as_expr_into_c(arena, wref, 0);
+    if (wrap == 0) {
+      return 1;
+    }
+    out_ok[0] = 1;
+    out_expr_ref[0] = wrap;
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * True when the first token inside `{` is a statement / control head
+ * that must take the block-expr path (not anonymous struct lit).
+ * Mirrors the C twin keyword list; IDENT `unsafe` is a separate check.
+ * @param kind i32 — peeked TokenKind ordinal
+ * @return i32 — 1 prefer block; 0 not a stmt head
+ * PLATFORM: SHARED — P4bq helper; sequential ifs (no giant ||).
+ */
+#[no_mangle]
+function parser_asm_primary_lbrace_stmt_kind_is_block_x(kind: i32): i32 {
+  if (kind == TOKEN_LET) {
+    return 1;
+  }
+  if (kind == TOKEN_CONST) {
+    return 1;
+  }
+  if (kind == TOKEN_RETURN) {
+    return 1;
+  }
+  if (kind == TOKEN_IF) {
+    return 1;
+  }
+  if (kind == TOKEN_WHILE) {
+    return 1;
+  }
+  if (kind == TOKEN_LOOP) {
+    return 1;
+  }
+  if (kind == TOKEN_FOR) {
+    return 1;
+  }
+  if (kind == TOKEN_DEFER) {
+    return 1;
+  }
+  if (kind == TOKEN_MATCH) {
+    return 1;
+  }
+  if (kind == TOKEN_BREAK) {
+    return 1;
+  }
+  if (kind == TOKEN_CONTINUE) {
+    return 1;
+  }
+  if (kind == TOKEN_PANIC) {
+    return 1;
+  }
+  if (kind == TOKEN_REGION) {
+    return 1;
+  }
+  if (kind == TOKEN_WITH_ARENA) {
+    return 1;
+  }
+  if (kind == TOKEN_LBRACE) {
+    return 1;
+  }
+  if (kind == TOKEN_GOTO) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Lookahead: does the token after `{` mean a block expression rather
+ * than an anonymous struct lit? Caller (ptr_c) passes a *copy* of the
+ * lexer after `{`; this function may step that copy. IDENT then
+ * `:` / `,` / `}` is struct (`{ fd: 1 }`, `{ fd, x }`, `{ fd }`);
+ * empty `}` keeps the anonymous-struct path; other IDENT / INT /
+ * nested `{` / stmt keywords prefer block. IDENT `unsafe` is block.
+ * @param lex_inout *u8 — copy of the cursor after `{`; may be stepped
+ * @param source *u8 — opaque source slice
+ * @return i32 — 1 prefer block; 0 prefer anonymous struct lit
+ * PLATFORM: SHARED — product P4bq. ident_is_unsafe = buf_c (G.7).
+ * Do not write the caller's suffix_loop cursor (ptr_c copies first).
+ */
+#[no_mangle]
+export function parser_asm_primary_lbrace_looks_like_block_x_into_c(lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let kind2: i32 = 0;
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (parser_asm_primary_lbrace_stmt_kind_is_block_x(kind) != 0) {
+      return 1;
+    }
+    if (kind == TOKEN_IDENT) {
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      if (parser_asm_primary_ident_is_unsafe_buf_c(data, slen, ts, ilen) != 0) {
+        return 1;
+      }
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      kind2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind2 == TOKEN_COLON) {
+        return 0;
+      }
+      if (kind2 == TOKEN_COMMA) {
+        return 0;
+      }
+      if (kind2 == TOKEN_RBRACE) {
+        return 0;
+      }
+      return 1;
+    }
+    if (kind == TOKEN_RBRACE) {
+      return 0;
+    }
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Lookahead past empty `IDENT {}`: value-position terminators keep
+ * struct lit (`S {}` before `;` / `,` / `)` / `]` / `.` / `as`);
+ * under struct-field parse (field_depth > 0) a following `}` also
+ * keeps struct lit (`A { x: 42, e: E {} }`). Otherwise prefer ending
+ * the primary as VAR and leaving `{` for a bare if/while body.
+ * @param lex_inout *u8 — copy of the cursor after `{`; may be stepped
+ * @param source *u8 — opaque source slice
+ * @param field_depth i32 — parser_asm_struct_field_value_depth (C trampoline)
+ * @return i32 — 1 prefer block; 0 keep Type {}; -1 not empty braces
+ * PLATFORM: SHARED — product P4bq. C trampoline holds the depth
+ * global (G.7; no new getter). Do not dest-buffer append_byte.
+ */
+#[no_mangle]
+export function parser_asm_primary_empty_ident_braces_x_into_c(lex_inout: *u8, source: *u8, field_depth: i32): i32 {
+  let kind: i32 = 0;
+  let k: i32 = 0;
+  if (lex_inout == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (source == 0 as *u8) {
+    return 0 - 1;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_RBRACE) {
+      return 0 - 1;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    k = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (k == TOKEN_SEMICOLON) {
+      return 0;
+    }
+    if (k == TOKEN_COMMA) {
+      return 0;
+    }
+    if (k == TOKEN_RPAREN) {
+      return 0;
+    }
+    if (k == TOKEN_RBRACKET) {
+      return 0;
+    }
+    if (k == TOKEN_DOT) {
+      return 0;
+    }
+    if (k == TOKEN_AS) {
+      return 0;
+    }
+    if (k == TOKEN_RBRACE) {
+      if (field_depth > 0) {
+        return 0;
+      }
+    }
+    return 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * IDENT `asm` follower: snapshot, step IDENT, peek `!`. Not-BANG
+ * restores the cursor so the VAR head still sees IDENT (C twin
+ * copy-lexer never wrote lex_inout). BANG calls parse_asm_bang_x
+ * with C-owned tmpl/regs (entry = unconsumed `!`).
+ * @param arena *u8 — opaque AST arena
+ * @param lex_inout *u8 — cursor at IDENT `asm`; parked after `asm!(...)` on success
+ * @param source *u8 — opaque source slice
+ * @param tmpl_buf *u8 — C trampoline 256-byte template scratch
+ * @param regs_buf *u8 — C trampoline 128-byte register-name scratch
+ * @param out_ok *i32 — filled by parse_asm_bang_x
+ * @param out_expr_ref *i32 — filled by parse_asm_bang_x
+ * @return i32 — 1 consumed (check out_ok); 0 follower is not `!` (cursor restored)
+ * PLATFORM: SHARED — P4br helper. Sequential ifs; 4 lets (no nested while).
+ */
+#[no_mangle]
+function parser_asm_ident_pre_dispatch_try_asm_x(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_BANG) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    parser_asm_primary_parse_asm_bang_x_into_c(arena, lex_inout, source, tmpl_buf, regs_buf, out_ok, out_expr_ref);
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * IDENT-arm pre-dispatch: `unsafe { ... }` and `asm!(...)` steal the
+ * primary before the VAR head. Return 1 when a sub-parser consumed
+ * the IDENT (out slots filled, cursor advanced); 0 = plain ident,
+ * caller proceeds with the VAR head and the cursor is unchanged.
+ * Published face stays ptr_c; this body is the dest-buffer authority.
+ * @param arena *u8 — opaque AST arena; null → 0
+ * @param lex_inout *u8 — cursor at IDENT; unchanged on 0; parked after the sub-parser on 1
+ * @param source *u8 — opaque source slice
+ * @param tmpl_buf *u8 — C trampoline 256-byte template scratch (asm! only)
+ * @param regs_buf *u8 — C trampoline 128-byte register-name scratch (asm! only)
+ * @param out_ok *i32 — 1 on sub-parser success
+ * @param out_expr_ref *i32 — EXPR_BLOCK / EXPR_ASM ref on success
+ * @return i32 — 1 consumed; 0 plain IDENT (or null / not IDENT)
+ * PLATFORM: SHARED — product P4br. Writers = parse_unsafe_x /
+ * parse_asm_bang_x / ident_is_unsafe_buf_c / ident_is_asm_buf_c (G.7).
+ * C trampoline holds tmpl[256]+regs[128]. Do not dest-buffer
+ * append_byte. Do not dest-buffer parse_type_ref. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_ident_pre_dispatch_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, tmpl_buf: *u8, regs_buf: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {
+  let kind: i32 = 0;
+  let ts: usize = 0;
+  let ilen: i32 = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (lex_inout == 0 as *u8) {
+    return 0;
+  }
+  if (source == 0 as *u8) {
+    return 0;
+  }
+  if (tmpl_buf == 0 as *u8) {
+    return 0;
+  }
+  if (regs_buf == 0 as *u8) {
+    return 0;
+  }
+  if (out_ok == 0 as *i32) {
+    return 0;
+  }
+  if (out_expr_ref == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    out_ok[0] = 0;
+    out_expr_ref[0] = 0;
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    ilen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (parser_asm_primary_ident_is_unsafe_buf_c(data, slen, ts, ilen) != 0) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      parser_asm_primary_parse_unsafe_x_into_c(arena, lex_inout, source, out_ok, out_expr_ref);
+      return 1;
+    }
+    if (parser_asm_primary_ident_is_asm_buf_c(data, slen, ts, ilen) != 0) {
+      return parser_asm_ident_pre_dispatch_try_asm_x(arena, lex_inout, source, tmpl_buf, regs_buf, out_ok, out_expr_ref);
+    }
+    return 0;
   }
   return 0;
 }

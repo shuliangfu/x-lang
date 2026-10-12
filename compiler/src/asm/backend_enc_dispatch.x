@@ -178,7 +178,7 @@ export function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32 {
   if (elf_ctx == 0) { return 0 - 1; }
   if (reg < 0) { return 0 - 1; }
   if (reg > 30) { return 0 - 1; }
-  return backend_enc_append_u32_le_c(elf_ctx, (3595386880 as u32) | ((reg as u32) * 32));
+  return backend_enc_append_u32_le_c(elf_ctx, (3594452992 as u32) | ((reg as u32) * 32));
 }
 
 /**
@@ -371,6 +371,44 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
     return backend_enc_append_u32_le_c(elf_ctx, (4177527776 as u32) | (4095 * 1024));
   }
   return backend_enc_append_u32_le_c(elf_ctx, (4177527776 as u32) | (((off_bytes / 8) as u32) * 1024));
+}
+
+/**
+ * Width-aware store of an outgoing ARM64 stack extra at [sp+#off_bytes].
+ * wave614: the Apple natural-packing caller sites place sub-word scalars at
+ * natural byte offsets (a u8 may sit at +1). The 64-bit-only str x0 encoder
+ * floors off/8 — a u8 at +1 silently stored over slot 0 (run-path bytes_eq
+ * h-overwrites-g). Pick the store width from the arg byte size so the
+ * immediate is encodable at its natural scale:
+ *   nbytes==1 → STRB w0,[sp,#off]  (imm12 unscaled bytes)
+ *   nbytes==2 → STRH w0,[sp,#off]  (imm12 scaled by 2)
+ *   nbytes==4 → STR  w0,[sp,#off]  (imm12 scaled by 4)
+ *   else      → STR  x0,[sp,#off]  (8-byte path, exactly the historic body)
+ * @param elf_ctx *u8 - emit context; null rejected
+ * @param off_bytes i32 - byte offset from sp (>=0)
+ * @param nbytes i32 - arg byte size (1/2/4 select width; else 8-byte store)
+ * @return i32 - 0 ok; -1 bad ctx/offset/imm range
+ * PLATFORM: MACOS|ARM64 — Apple natural stack-arg packing (wave614).
+ */
+#[no_mangle]
+export function backend_enc_arm64_store_arg_sp_offset_c(elf_ctx: *u8, off_bytes: i32, nbytes: i32): i32 {
+  if (elf_ctx == 0) { return 0 - 1; }
+  if (off_bytes < 0) { return 0 - 1; }
+  if (nbytes == 1) {
+    if (off_bytes > 4095) { return 0 - 1; }
+    return backend_enc_append_u32_le_c(elf_ctx, (956302304 as u32) | ((off_bytes as u32) * 1024));
+  }
+  if (nbytes == 2) {
+    if ((off_bytes & 1) != 0) { return 0 - 1; }
+    if (off_bytes / 2 > 4095) { return 0 - 1; }
+    return backend_enc_append_u32_le_c(elf_ctx, (2030044128 as u32) | (((off_bytes / 2) as u32) * 1024));
+  }
+  if (nbytes == 4) {
+    if ((off_bytes & 3) != 0) { return 0 - 1; }
+    if (off_bytes / 4 > 4095) { return 0 - 1; }
+    return backend_enc_append_u32_le_c(elf_ctx, (3103785952 as u32) | (((off_bytes / 4) as u32) * 1024));
+  }
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
 }
 
 /**
@@ -875,7 +913,8 @@ export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   // 0fb0 write). Invalidate HERE — the single authority all emission sites call
   // (125+ sites audited; only 32 had ad-hoc invalidations, 117 of 119 lacked it).
   // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
-  glue_binop_var_slot_cache_invalidate_rbx();
+  // Extern FFI: typeck requires unsafe, same as the thin twin.
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   unsafe {
   if (ta == 1) { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   if (ta == 2) { return arch_riscv64_enc_enc_mov_rax_to_rbx(elf_ctx); }
@@ -1216,42 +1255,15 @@ export function backend_enc_cmp_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
  */
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
-  // See implementation.
+  /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060 T001). PLATFORM: SHARED. */
+  let rc: i32 = 0 - 1;
   unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  if (ta == 2) { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    if (ta == 1) { rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+    else if (ta == 2) { rc = arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+    else { rc = arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+    glue_binop_var_slot_cache_invalidate_rax();
   }
-}
-
-/** Exported function `backend_enc_cmp_w0_imm12_arch`.
- * Comparison/utility `backend_enc_cmp_w0_imm12_arch`.
- * @param elf_ctx *u8
- * @param imm12 i32
- * @param ta i32
- * @return i32
- */
-#[no_mangle]
-export function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32 {
-  // See implementation.
-  unsafe {
-  if (ta == 1) { return arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx, imm12); }
-  if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
-  return arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx, imm12);
-  }
-}
-
-/** Exported function `backend_enc_cset_w0_from_cc_arch`.
- * Implements `backend_enc_cset_w0_from_cc_arch`.
- * @param elf_ctx *u8
- * @param cc i32
- * @param ta i32
- * @return i32
- */
-#[no_mangle]
-export function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
-  if (ta == 1) { return arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx, cc); }
-  return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+  return rc;
 }
 
 // backend_enc_store_rax_to_rbp_arch: see function docblock below.
@@ -1651,8 +1663,11 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
   // (T001 'requires type arguments' on copy<A>). Same family as BM5's rbx
   // invalidation at mov_rax_to_rbx. Invalidate BOTH at the call authority.
   // PLATFORM: SHARED — cache lives in runtime_pipeline_abi (pure globals).
-  glue_binop_var_slot_cache_invalidate_rax();
-  glue_binop_var_slot_cache_invalidate_rbx();
+  // Extern FFI: typeck requires unsafe, same as the thin twin.
+  unsafe {
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+  }
   unsafe {
   if (ta == 1) { return backend_enc_arm64_call_c(elf_ctx, name, name_len); }
   if (ta == 2) { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
@@ -1777,6 +1792,23 @@ export function backend_enc_call_stack_reserve_arch(elf_ctx: *u8, nbytes: i32, t
 #[no_mangle]
 export function backend_enc_store_x0_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, ta: i32): i32 {
   if (ta == 1) { return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes); }
+  return 0 - 1;
+}
+
+/**
+ * Arch wrapper for backend_enc_arm64_store_arg_sp_offset_c (wave614 width-
+ * aware stack-extra store; see that docblock). x86_64 keeps the SysV push
+ * discipline and never routes here.
+ * @param elf_ctx *u8 - emit context
+ * @param off_bytes i32 - byte offset from sp
+ * @param nbytes i32 - arg byte size (1/2/4 select width; else 8-byte store)
+ * @param ta i32 - target arch (1=arm64)
+ * @return i32 - 0 ok; -1 rejected
+ * PLATFORM: MACOS|ARM64 natural stack-arg packing (wave614).
+ */
+#[no_mangle]
+export function backend_enc_store_arg_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, nbytes: i32, ta: i32): i32 {
+  if (ta == 1) { return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes); }
   return 0 - 1;
 }
 
@@ -2347,7 +2379,7 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
   }
 }
 
-// G-02f-207：arm64 ldr x0,[x29,#pos] — 0xf9400000 | (imm12<<10) | (29<<5) ≈ (4181722016 as u32) base
+// G-02f-207：arm64 incoming stack-arg load; G.7 delegates to load_rbp_to_rax (unaligned OK).
 /** Exported function `backend_enc_load_x29_pos_to_rax_arch`.
  * Implements `backend_enc_load_x29_pos_to_rax_arch`.
  * @param elf_ctx *u8
@@ -2357,16 +2389,15 @@ export function backend_enc_load_rbp_lane_to_rbx_arch(elf_ctx: *u8, offset: i32,
  */
 #[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
-  // See implementation.
+  // Incoming stack-arg load [x29, #off]. G.7: one encoder —
+  // arch_arm64_enc_enc_load_rbp_to_rax already handles unaligned
+  // offsets via LEA+LDR (Apple i32 stack slots at +4).
+  // PLATFORM: MACOS|ARM64.
   unsafe {
-  if (ta == 1) {
-    let off: i32 = off_pos;
-    if (off < 0) { off = 0; }
-    let imm12: i32 = off / 8;
-    if (imm12 > 4095) { imm12 = 4095; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | ((imm12 as u32) * 1024)) as i32);
-  }
-  return 0 - 1;
+    if (ta == 1) {
+      return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, off_pos);
+    }
+    return 0 - 1;
   }
 }
 
@@ -3038,7 +3069,8 @@ export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta
     if (k < 0) { return 0 - 1; }
     if (k > 7) { return 0 - 1; }
     // fmov sK, w0 — 0x1e270000 | K (≡ addss ta==1 first insn).
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32);
+    // AAPCS64 fmov encoding is an extern append; typeck requires unsafe.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32); }
   }
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -3069,7 +3101,8 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
     if (k < 0) { return 0 - 1; }
     if (k > 7) { return 0 - 1; }
     // fmov w0, sK — 0x1e260000 | (K << 5).
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32);
+    // AAPCS64 fmov encoding is an extern append; typeck requires unsafe.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32); }
   }
   if (ta != 0) { return 0 - 1; }
   if (elf_ctx == 0) { return 0 - 1; }
@@ -3086,38 +3119,6 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
 }
 
 /* See implementation. */
-
-// arch_arm64_enc_enc_cmp_w0_imm12: see function docblock below.
-/** Exported function `arch_arm64_enc_enc_cmp_w0_imm12`.
- * Comparison/utility `arch_arm64_enc_enc_cmp_w0_imm12`.
- * @param elf_ctx *u8
- * @param imm12 i32
- * @return i32
- */
-#[no_mangle]
-export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
-  // See implementation.
-  unsafe {
-  let imm: i32 = imm12 & 4095;
-  return arch_arm64_enc_enc_u32_le(elf_ctx, ((1895825439 as u32) | (imm * 1024)) as i32);
-  }
-}
-
-// arm64 cset w0,cond — 0x1a9f07e0 | (cond<<12)
-/** Exported function `arch_arm64_enc_enc_cset_w0_from_cc`.
- * Implements `arch_arm64_enc_enc_cset_w0_from_cc`.
- * @param elf_ctx *u8
- * @param cc i32
- * @return i32
- */
-#[no_mangle]
-export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
-  unsafe {
-    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((446629856 as u32) | (c * 4096)) as i32);
-  }
-  return 0 - 1;
-}
 
 // arch_arm64_enc_enc_add_sp_imm12: see function docblock below.
 /** Exported function `arch_arm64_enc_enc_add_sp_imm12`.

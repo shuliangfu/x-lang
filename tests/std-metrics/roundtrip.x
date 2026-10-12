@@ -24,7 +24,9 @@ function buf_has_prefix(out: *u8, out_len: i32, expect: *u8, expect_len: i32): i
  * @return i32
  */
 function main(): i32 {
-  let reg: Registry = metrics.registry_new();
+  /* registry_new writes through an out pointer. */
+  let reg: Registry = { counter_n: 0, gauge_n: 0, hist_n: 0 };
+  metrics.registry_new(&reg);
   let out: u8[512] = [];
   let n: i32 = 0;
   let req: u8[14] = [114, 101, 113, 117, 101, 115, 116, 115, 95, 116, 111, 116, 97, 108];

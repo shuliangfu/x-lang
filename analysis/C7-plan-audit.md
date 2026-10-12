@@ -185,6 +185,6 @@ C7 路径 C + A 混合执行 8/8 完成（3 合并 + 1 删除 + 4 纳入白名�
 - [cap-candidates-2026-07-19.md](../.trae/documents/cap-candidates-2026-07-19.md) §C7（候选来源）
 - [自举进度.md](自举进度.md) §3 前排 #4（C7 plan 瘦身）
 - [当前进度.md](当前进度.md) §下一波前排 #2（C7 plan 瘦身）
-- [自举方法.md](自举方法.md)（Cap/R/L/M）
+- [自举效率方法-M2主链.md](自举效率方法-M2主链.md)（Cap/R/L/M）
 - [AGENTS.md](../AGENTS.md)（根源 / G.7 / G.8 / G.9）
 - skill `xlang-selfhost-product-gate`（L4 / 双端 / 假绿禁止）

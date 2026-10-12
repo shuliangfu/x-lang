@@ -78,6 +78,6 @@
   - 仅当用户**明确**要求修/跑 check 时才 dogfood；禁止 Agent 默认把 check 塞进 L2/L4
   - **真冷全测**以 **整体功能 / 一波 Cap·R·M 收口** 为主闸门，**日终兜底**（当天动过产品面却未 L4）
   - 禁止每微 commit 全量 L4，禁止只靠晚上、白天工程轨假绿
-  - 细则：`analysis/自举方法.md` §0.2 / §0.2.0 · `analysis/自举验证.md` §4.0 · skill §3.3 / §3.3.0
+  - 细则：`analysis/自举验证.md` §4.0 · skill §3.3 / §3.3.0
 - `pipeline_glue.c` / `ast_pool.c` 已于 wave309 退役；活面权威在 `runtime_pipeline_abi.x`／`pipeline.x`／相关 seed。改 ABI／pool／orch 后须在 Ubuntu 重建对应 `.o` + g05（勿再点名已删 mega）
 - 修改 `pipeline_glue_strict_minimal` seed 后重建 `build_asm/pipeline_glue_strict_minimal.o` + g05

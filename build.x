@@ -153,7 +153,8 @@
 //     wave748: R1 pure host-cc body for RT_SEED_SLICE family
 //       (ensure_host_cc_seed_o.sh; list = catalog RT_SEED_SLICE_OBJS).
 //     wave749: R1 second family R1_CORE_SEED (diag/link_abi/c_import/
-//       x_seed_bridge/seed_link_compat); same body; catalog R1_CORE_SEED_OBJS.
+//       seed_link_compat); same body; catalog R1_CORE_SEED_OBJS.
+//       x_seed_bridge left this family in w1469 and is built from .x only.
 //     wave750: R1 third family R1_FRONTEND_GLUE (lexer/ast/lsp basename-
 //       mismatch seed map); same body; catalog R1_FRONTEND_GLUE_OBJS.
 //     wave751: R1 fourth family R1_MAIN_RUNTIME (main/runtime multi-flag

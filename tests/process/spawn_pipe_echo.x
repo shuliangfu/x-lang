@@ -51,12 +51,13 @@ function try_posix_echo_pipe(): i32 {
   let w_fd: i32 = 0;
   let pid: i32 = 0;
   let st: i32 = 0;
-  argv.s0 = &prog[0];
-  argv.s1 = &arg[0];
+  /* Address-of an array element is typed as **u8 here. The bits are the byte address. */
+  argv.s0 = (&prog[0]) as *u8;
+  argv.s1 = (&arg[0]) as *u8;
   argv.s2 = 0 as *u8;
   if (process.pipe(&r_fd, &w_fd) != 0) { return 10; }
   let io: process.SpawnIo = { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
-  let argv_ptr: *u8 = &argv.s0;
+  let argv_ptr: *u8 = (&argv.s0) as *u8;
   pid = process.spawn_io(&prog[0], argv_ptr, &io);
   fs.close(w_fd);
   if (pid <= 0) {
@@ -86,14 +87,14 @@ function try_win_echo_pipe(): i32 {
   let w_fd: i32 = 0;
   let pid: i32 = 0;
   let st: i32 = 0;
-  argv.s0 = &cmd[0];
-  argv.s1 = &a_c[0];
-  argv.s2 = &a_echo[0];
-  argv.s3 = &a_hello[0];
+  argv.s0 = (&cmd[0]) as *u8;
+  argv.s1 = (&a_c[0]) as *u8;
+  argv.s2 = (&a_echo[0]) as *u8;
+  argv.s3 = (&a_hello[0]) as *u8;
   argv.s4 = 0 as *u8;
   if (process.pipe(&r_fd, &w_fd) != 0) { return 20; }
   let io: process.SpawnIo = { stdin_fd: -1, stdout_fd: w_fd, stderr_fd: -1 };
-  let argv_ptr: *u8 = &argv.s0;
+  let argv_ptr: *u8 = (&argv.s0) as *u8;
   pid = process.spawn_io(&cmd[0], argv_ptr, &io);
   fs.close(w_fd);
   if (pid <= 0) {

@@ -1,19 +1,198 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_ENC_DISPATCH_THIN_FROM_X）ld -r → backend_enc_dispatch.o
-// See implementation.
-// See implementation.
-// See implementation.
-//
-// See implementation.
-// RBP lane：LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29。
-// See implementation.
+// Thin enc publics for backend_enc_dispatch.o.
+// w929 places arch_arm64_enc_enc_prologue, arch_arm64_enc_enc_epilogue,
+// and arch_arm64_enc_enc_ret_imm32 here.
+// The frame size is stored by arm64_enc_frame_size_store and read back
+// by arm64_enc_frame_size_load. Both stay in the ARM64 C file.
+// The chunk walk and the x19 slot helper stay in that C file too.
+// The three symbols stay strong.
+// w928 places arch_x86_64_enc_enc_call here.
+// Byte 232 and four zero bytes are appended first.
+// The reloc slot is the code length minus 4, read in a later block.
+// A Mach-O name is one underscore plus the original bytes, copied with memcpy.
+// The underscore is prepended even when the name already starts with underscore.
+// The symbol stays strong.
+// w927 places arch_x86_64_enc_enc_label here.
+// Pad runs in its own block. The code length is read in a later block.
+// A function export may prepend one underscore byte, then calls add_sym.
+// The byte copy is memcpy. The symbol stays strong.
+// w926 places arch_arm64_enc_enc_label here.
+// Pad runs in its own block. The code length is read in a later block.
+// A function export may prepend one underscore byte, then calls add_sym.
+// The byte copy is memcpy. The symbol stays strong.
+// w925 places arch_arm64_enc_enc_lea_rbp_to_rax and
+// arch_arm64_enc_enc_lea_rbp_to_rbx here.
+// Each forwards to arm64_enc_add_rd_rn_imm_chunks.
+// rax uses rd 0 and rn 29. rbx uses rd 1 and rn 29.
+// The chunk walk stays in that C helper. Both stay strong.
+// w924 places arm64_enc_branch_patch here.
+// It appends one instruction word, then reads the code length in a later
+// block and patches that slot. The caller's kind is the patch width.
+// It stays strong.
+// w923 places x86_enc_jcc_rel32 and arch_x86_64_enc_enc_jmp here.
+// Each appends its bytes, then reads the code length in a later block
+// and patches the rel32 slot. Both stay strong.
+// w922 places backend_enc_mov_imm32_to_w0_arch here. ta 1 forwards
+// to arch_arm64_enc_enc_mov_imm32_to_w0. ta 2 forwards to
+// arch_riscv64_enc_enc_ret_imm32. Any other ta forwards to
+// arch_x86_64_enc_enc_ret_imm32. The symbol stays strong.
+// w854 deleted the C bodies of these functions. w862 also places
+// backend_enc_dispatch_slice_marker here. The marker returns 1.
+// w877 places arch_arm64_enc_enc_blr here. It forwards to
+// backend_enc_arm64_blr_c. w891 places that callee here too.
+// Both symbols stay strong.
+// w878 places arch_arm64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
+// backend_enc_arm64_ldr_xreg_xreg_imm_c. w895 places that callee here too.
+// Both symbols stay strong.
+// w879 places arch_x86_64_enc_enc_call_reg here. It forwards to
+// backend_enc_x86_64_call_reg_c. w893 places that callee here too.
+// Both symbols stay strong.
+// w880 places arch_x86_64_enc_enc_load_rax_rbx_disp32 here. It forwards to
+// backend_enc_x86_64_load_rax_rbx_disp32_c. w896 places that callee here too.
+// Both symbols stay strong.
+// w881 places arch_riscv64_enc_enc_jalr_reg here. It forwards to
+// backend_enc_riscv64_jalr_reg_c. w892 places that callee here too.
+// Both symbols stay strong.
+// w882 places arch_riscv64_enc_enc_ldr_xreg_xreg_imm here. It forwards to
+// backend_enc_riscv64_ldr_xreg_xreg_imm_c. w894 places that callee here too.
+// Both symbols stay strong.
+// w883 places arch_x86_64_enc_enc_cdqe_rax_impl here. It appends the
+// x86_64 cdqe bytes 0x48 0x98. The symbol stays strong.
+// w884 places backend_enc_append_u8_c_impl here. It appends the low
+// 8 bits of one byte. The symbol stays strong.
+// w885 places backend_enc_append_u32_le_c_impl here. It appends four
+// little-endian bytes of one word. The symbol stays strong.
+// w891 places backend_enc_arm64_blr_c here. It appends one ARM64 blr
+// instruction word. The symbol stays strong.
+// w892 places backend_enc_riscv64_jalr_reg_c here. It appends one
+// RISC-V jalr instruction word. The symbol stays strong.
+// w893 places backend_enc_x86_64_call_reg_c here. It appends an
+// x86_64 indirect call. The symbol stays strong.
+// w894 places backend_enc_riscv64_ldr_xreg_xreg_imm_c here. It appends
+// one RISC-V ld instruction word. The symbol stays strong.
+// w895 places backend_enc_arm64_ldr_xreg_xreg_imm_c here. It appends
+// one ARM64 ldr instruction word. The symbol stays strong.
+// w896 places backend_enc_x86_64_load_rax_rbx_disp32_c here. It appends
+// one x86_64 mov rDst, [rBase+disp32]. The symbol stays strong.
+// w897 places backend_enc_addsd_rax_rbx_arch here. It appends one
+// scalar f64 add. The symbol stays strong.
+// w898 places backend_enc_subsd_rbx_rax_arch here. It appends one
+// scalar f64 subtract of rax from rbx. The symbol stays strong.
+// w899 places backend_enc_subsd_rax_rbx_arch here. It appends one
+// scalar f64 subtract of rbx from rax. The symbol stays strong.
+// w900 places backend_enc_mulsd_rax_rbx_arch here. It appends one
+// scalar f64 multiply. The symbol stays strong.
+// w901 places backend_enc_divsd_rax_rbx_arch here. It appends one
+// scalar f64 divide of rax by rbx. The symbol stays strong.
+// w902 places backend_enc_ucomisd_rbx_rax_arch here. It appends one
+// scalar f64 compare of rbx against rax. The symbol stays strong.
+// w903 places four encoders here. ucomiss compares f32 bits in rbx and rax.
+// mov_rax_to_xmm and mov_xmm_to_rax move f64 bits for arg register k.
+// fp_cmp_setcc_movzbl turns the compare flags into 0 or 1. All stay strong.
+// w904 places two ta dispatchers here. store_arg_sp_offset forwards ARM64
+// to backend_enc_arm64_store_arg_sp_offset_c and returns -1 for other ta.
+// blr forwards ta 1/2/else to the ARM64, RISC-V, and x86_64 indirect-call
+// callees already in this file. Both stay strong.
+// w905 places backend_enc_ldr_xreg_xreg_imm_arch here. ta 1/2/else forwards
+// to the ARM64, RISC-V, and x86_64 load callees already in this file.
+// The symbol stays strong. ta is the fifth formal, the same slot as
+// backend_enc_label_arch.
+// w906 places 27 ARM64 fixed-word encoders here. Each one appends a single
+// instruction word through backend_enc_append_u32_le_c. They stay strong.
+// None of them compares elf_ctx with 0 or divides.
+// w907 places 68 ARM64 fixed-word encoders here. Each one appends a single
+// instruction word through backend_enc_append_u32_le_c. They stay strong.
+// None of them compares elf_ctx with 0 or divides.
+// w908 places six ARM64 encoder bodies here. mov_rax_to_rbx and
+// mov_edx_to_eax each append two fixed words. cltd returns 0.
+// store_rax_to_rbx_indirect picks one width word. mov_rax_to_arg_reg and
+// mov_arg_reg_to_rax clamp k and append one mov word. They stay strong.
+// None of them compares elf_ctx with 0 or divides.
+// w909 places four ARM64 immediate encoders here. u32_le appends the
+// caller's word. mov_imm32_to_w0 and mov_imm32_to_rbx emit MOVZ plus a
+// hw=1 MOVK when the high half is not zero. mov_imm64_to_rax emits MOVZ
+// plus up to three MOVK halfwords. They stay strong. None of them
+// compares elf_ctx with 0 or divides.
+// w910 places 81 x86_64 fixed-byte encoders here. Each one appends its
+// bytes through backend_enc_append_u8_c. They stay strong. None of them
+// compares elf_ctx with 0 or divides. cmp_setcc stays in the C seed.
+// w911 places 13 x86_64 immediate and leftover fixed-byte encoders here.
+// Each byte goes through backend_enc_append_u8_c. An immediate is four
+// little-endian bytes taken with shifts. They stay strong. None of them
+// compares elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, and the
+// Win64 argument moves stay in the C seed.
+// w912 places 19 x86_64 rbp displacement and register-immediate encoders
+// here. A short displacement is the low 8 bits of the u32 cast of
+// 0 minus the offset. Add, sub, and imul use the same low 8 bits for
+// an immediate in -128..127. They stay strong. None of them compares
+// elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, and the Win64
+// argument moves stay in the C seed.
+// w913 places seven ARM64 frame load and store encoders here. An aligned
+// offset through 32760 appends one scaled word. offset*128 is the imm12
+// field. A negative load of x0 or x1 forwards to lea. A wider
+// offset forwards to arm64_enc_add_rd_rn_imm_chunks, which stays in the
+// C seed. They stay strong. None of them compares elf_ctx with 0 or
+// divides. Jumps, calls, cmp_setcc, and prologue stay in the C seed.
+// w925 moves the two leas into the thin.
+// w914 places two ARM64 add-immediate encoders here. Each one forwards
+// to arm64_enc_add_rd_rn_imm_chunks, which stays in the C seed. They stay
+// strong. Neither compares elf_ctx with 0 or divides. Jumps, calls,
+// cmp_setcc, and prologue stay in the C seed.
+// w925 moves the two leas into the thin.
+// w915 places three x86 append helpers here: x86_enc_u8, x86_enc_u32_le,
+// and x86_enc_bytes. u8 forwards to backend_enc_append_u8_c. u32_le
+// forwards to backend_enc_append_u32_le_c. bytes forwards to
+// pipeline_elf_ctx_append_bytes. They stay strong. None of them compares
+// elf_ctx with 0 or divides. Jumps, calls, cmp_setcc, prologue, and
+// the Win64 argument moves stay in the C seed.
+// w925 moves the two leas into the thin.
+// w916 places the x86_64 prologue and epilogue here. Prologue emits
+// push rbp, mov rbp rsp, push rbx, then sub rsp by a frame that is
+// 8 mod 16. Epilogue emits lea rsp [rbp-8], pop rbx, pop rbp, and ret.
+// Both append through x86_enc_u8. They stay strong. Neither compares
+// elf_ctx with 0 or divides. Label, jumps, calls, cmp_setcc, and
+// the Win64 argument moves stay in the C seed.
+// w925 moves the two leas into the thin.
+// w917 places four x86_64 conditional jumps here: jz, jeq, jge, and jnz.
+// Each one forwards to x86_enc_jcc_rel32. The opcodes are 132, 132, 141,
+// and 133. The rel32 patch stays in that C helper. They stay strong.
+// None of them compares elf_ctx with 0 or divides. jmp, call, label,
+// cmp_setcc, and the Win64 argument moves stay in the C seed.
+// w925 moves the two leas into the thin.
+// w918 places six ARM64 branches here: jmp, jz, jne, jnz, jeq, and jge.
+// Each one forwards to arm64_enc_branch_patch. jmp uses word 335544320
+// and kind 26. jz uses 872415232 and kind 19. jne and jnz use 1409286145
+// and kind 19. jeq uses 1409286144 and kind 19. jge uses 1409286154 and
+// kind 19. w924 moves that patch into the thin. They stay strong. None of
+// them compares elf_ctx with 0 or divides. Prologue, epilogue,
+// and cmp_setcc stay in the C seed.
+// w926 moves the ARM64 label into the thin.
+// w927 moves the x86 label into the thin.
+// w928 moves the x86 call into the thin.
+// w929 moves the ARM64 prologue, epilogue, and ret_imm32 into the thin.
+// w925 moves the two leas into the thin.
+// w919 places arch_arm64_enc_enc_cmp_setcc_movzbl here. The cond field
+// comes from pipeline_asm_arm64_cset_cond_enc_from_cc. A negative field
+// is cleared by its sign bit. The low 4 bits are multiplied by 4096 and
+// ORed into word 446629856 (0x1a9f07e0). The word is appended through
+// backend_enc_append_u32_le_c. It stays strong. It does not compare
+// elf_ctx with 0 or divide. The x86 cmp_setcc, label, prologue, and
+// epilogue stay in the C seed.
+// w925 moves the two leas into the thin.
+// w920 places arch_x86_64_enc_enc_cmp_setcc_movzbl here. cc 0..9 select
+// opcodes 148, 149, 156, 158, 159, 157, 146, 150, 151, and 147. Every
+// other cc selects 148. The six bytes are 15, opcode, 192, 15, 182, 192.
+// They go through x86_enc_u8. It stays strong. It does not compare
+// elf_ctx with 0 or divide. The opcode is a straight-line let. jmp,
+// call, label, and the Win64 argument moves stay in the C seed.
+// w1526: the old C tail is gone; the installer pure-asms this file alone
+// (one shot, no host cc, no seed). No gcc -E. No full .x.
+// RBP lane: LDUR 0xB8400000 / STUR 0xB8000000 + simm9 + Rn=x29.
+// PLATFORM: SHARED.
 //
 
-export extern "C" function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32;
-export extern "C" function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32;
 export extern "C" function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rax(): void;
 export extern "C" function glue_binop_var_slot_cache_invalidate_rbx(): void;
@@ -103,6 +282,58 @@ export function backend_enc_arm64_str_x0_sp_offset_c(elf_ctx: *u8, off_bytes: i3
     return backend_enc_append_u32_le_c_impl(elf_ctx, (4177527776 as u32) | (((off_bytes / 8) as u32) * 1024));
   }
   return 0 - 1;
+}
+
+/**
+ * Width-aware store of an outgoing ARM64 stack extra at [sp+#off_bytes]
+ * (wave614 Apple natural packing; see backend_enc_dispatch.x authority
+ * docblock). nbytes 1/2/4 select STRB/STRH/STR w0 at their natural
+ * immediate scale; anything else routes to the 8-byte str x0 body.
+ * @param elf_ctx *u8
+ * @param off_bytes i32
+ * @param nbytes i32
+ * @return i32
+ * PLATFORM: MACOS|ARM64 natural stack-arg packing (wave614).
+ */
+#[no_mangle]
+export function backend_enc_arm64_store_arg_sp_offset_c(elf_ctx: *u8, off_bytes: i32, nbytes: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (off_bytes < 0) {
+    return 0 - 1;
+  }
+  if (nbytes == 1) {
+    if (off_bytes > 4095) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_append_u32_le_c_impl(elf_ctx, (956302304 as u32) | ((off_bytes as u32) * 1024));
+    }
+  }
+  if (nbytes == 2) {
+    if ((off_bytes & 1) != 0) {
+      return 0 - 1;
+    }
+    if (off_bytes / 2 > 4095) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_append_u32_le_c_impl(elf_ctx, (2030044128 as u32) | (((off_bytes / 2) as u32) * 1024));
+    }
+  }
+  if (nbytes == 4) {
+    if ((off_bytes & 3) != 0) {
+      return 0 - 1;
+    }
+    if (off_bytes / 4 > 4095) {
+      return 0 - 1;
+    }
+    unsafe {
+      return backend_enc_append_u32_le_c_impl(elf_ctx, (3103785952 as u32) | (((off_bytes / 4) as u32) * 1024));
+    }
+  }
+  return backend_enc_arm64_str_x0_sp_offset_c(elf_ctx, off_bytes);
 }
 
 /**
@@ -196,12 +427,23 @@ export function arm64_enc_store_w0_to_rbp_c(elf_ctx: *u8, offset: i32): i32 {
   if ((offset % 4) != 0) {
     return 0 - 1;
   }
-  if ((offset / 4) > 4095) {
+  let imm12: i32 = offset / 4;
+  /* w2060: do not refuse or clamp large FP stores — lea x16=x29+off; str w0,[x16].
+   * Hard -1 left mega-frame i32 spills incomplete (pair of load_rbp P001). */
+  if (imm12 > 4095) {
+    unsafe {
+      if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, 29, offset) != 0) {
+        return 0 - 1;
+      }
+    }
+    /* str w0, [x16] — 0xB9000200 */
+    unsafe {
+      return arch_arm64_enc_enc_u32_le(elf_ctx, 3103785472 as i32);
+    }
     return 0 - 1;
   }
   unsafe {
     /* 0xB9000000 | ((offset/4)<<10) | (29<<5) | 0 = (3103785888 as u32) | imm | 928 */
-    let imm12: i32 = offset / 4;
     let word: i32 = (3103785888 as i32) | (imm12 * 1024) | 928;
     return arch_arm64_enc_enc_u32_le(elf_ctx, word);
   }
@@ -288,6 +530,7 @@ export function arch_riscv64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i
 // See implementation.
 export extern "C" function arch_arm64_enc_enc_push_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_push_rax(elf_ctx: *u8): i32;
+export extern "C" function w1545_win_epi_prefix_c(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_push_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_push_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_push_rbx(elf_ctx: *u8): i32;
@@ -396,6 +639,11 @@ export function backend_enc_epilogue_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_epilogue(elf_ctx); }
   }
+  // w1545 (终局待办 10.72): Win64 9–16B named result — write rax:rdx through
+  // the saved hidden pointer, rax = pointer (no-op elsewhere).
+  unsafe {
+    if (w1545_win_epi_prefix_c(elf_ctx) != 0) { return 0 - 1; }
+  }
   unsafe { return arch_x86_64_enc_enc_epilogue(elf_ctx); }
   return 0 - 1;
 }
@@ -499,7 +747,9 @@ export function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   // P12g BM4 root fix: rbx var-slot cache invalidation — see backend_enc_dispatch.x
   // twin docblock (mov rax->rbx reparks x1/x19 with a NON-var value; stale hit
   // skipped the zi reload in consecutive same-index stores -> pointer+pointer).
-  glue_binop_var_slot_cache_invalidate_rbx();
+  // PLATFORM: SHARED — extern FFI; typeck rejects the call outside unsafe,
+  // which made tip pure-asm fail and left the whole seed on host cc.
+  unsafe { glue_binop_var_slot_cache_invalidate_rbx(); }
   if (ta == 1) {
     unsafe { return arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx); }
   }
@@ -676,6 +926,7 @@ export function backend_enc_test_rbx_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
 export extern "C" function arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32;
+export extern "C" function arch_arm64_enc_enc_udiv_rbx(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32;
@@ -932,16 +1183,21 @@ export function backend_enc_idiv_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   return 0 - 1;
 }
 
-/** Exported function `backend_enc_div_rbx_arch`.
- * Implements `backend_enc_div_rbx_arch`.
- * @param elf_ctx *u8
- * @param ta i32
- * @return i32
+/**
+ * Emit unsigned division of rax by rbx, quotient in rax.
+ * arm64 must be `udiv x0, x0, x1`. The signed encoder emits `sdiv`, which
+ * treats a dividend with bit 63 set as negative, so u64 all-ones divided
+ * by 2 becomes 0. x86_64 clears edx and emits `div`. riscv64 keeps its
+ * existing encoder. Signed division stays on backend_enc_idiv_rbx_arch.
+ * @param elf_ctx *u8 — emit context; a null context fails inside append
+ * @param ta i32 — 0 x86_64, 1 arm64, 2 riscv64
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED. The arm64 word is MACOS|DARWIN and LINUX|UBUNTU arm64.
  */
 #[no_mangle]
 export function backend_enc_div_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
   if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_idiv_rbx(elf_ctx); }
+    unsafe { return arch_arm64_enc_enc_udiv_rbx(elf_ctx); }
   }
   if (ta == 2) {
     unsafe { return arch_riscv64_enc_enc_idiv_rbx(elf_ctx); }
@@ -1091,14 +1347,21 @@ export function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32
  */
 #[no_mangle]
 export function backend_enc_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
-  if (ta == 1) {
-    unsafe { return arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
+  /* setcc/cset writes w0/eax — drop stale VAR-in-rax (w2060: lko==void||rko==void
+   * reused ord_void in x0 after cset left 0 → false T001 on i32+i32). Twin of
+   * backend_enc_call_arch invalidate. PLATFORM: SHARED. */
+  let rc: i32 = 0 - 1;
+  unsafe {
+    if (ta == 1) {
+      rc = arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    } else if (ta == 2) {
+      rc = arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    } else {
+      rc = arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc);
+    }
+    glue_binop_var_slot_cache_invalidate_rax();
   }
-  if (ta == 2) {
-    unsafe { return arch_riscv64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  }
-  unsafe { return arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx, cc); }
-  return 0 - 1;
+  return rc;
 }
 
 /** Exported function `backend_enc_store_rax_to_rbp_arch`.
@@ -1315,7 +1578,6 @@ export extern "C" function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx
 export extern "C" function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32;
-export extern "C" function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32;
 export extern "C" function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32;
 /* G.7 twin of arch_arm64_enc_enc_load_rbp_to_x2 with Rt=3 (x3 = INDEX secondary
  * scratch). Positive-offset LDR X3, [X29, #imm12] — must match primary loader's
@@ -1921,6 +2183,7 @@ export extern "C" function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32;
 export extern "C" function arch_riscv64_enc_enc_mul_rbx_a3(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32;
 export extern "C" function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32;
+export extern "C" function arch_x86_64_enc_enc_jmp_sym(elf_ctx: *u8, name: *u8, name_len: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32;
 export extern "C" function arch_x86_64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32;
@@ -2095,8 +2358,12 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
   // authority — see backend_enc_dispatch.x twin docblock (call clobbers both;
   // stale rax belief dropped peek_ident_len's return value so the turbofish
   // lens recorded 0 -> T001 copy<A>).
-  glue_binop_var_slot_cache_invalidate_rax();
-  glue_binop_var_slot_cache_invalidate_rbx();
+  // PLATFORM: SHARED — both invalidators are extern FFI and must sit in unsafe
+  // or tip pure-asm stops in this function.
+  unsafe {
+    glue_binop_var_slot_cache_invalidate_rax();
+    glue_binop_var_slot_cache_invalidate_rbx();
+  }
   if (ta == 1) {
     unsafe { return backend_enc_arm64_call_c_impl(elf_ctx, name, name_len); }
   }
@@ -2104,6 +2371,26 @@ export function backend_enc_call_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta
     unsafe { return arch_riscv64_enc_enc_call(elf_ctx, name, name_len); }
   }
   unsafe { return arch_x86_64_enc_enc_call(elf_ctx, name, name_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an unconditional jump to an external/link symbol (E9 + reloc).
+ * Same reloc contract as backend_enc_call_arch; opcode is jmp not call.
+ * Used for pure param-forwarder tail stubs (host-cc sibling-call shape).
+ * @param elf_ctx *u8 — emit context
+ * @param name *u8 — callee link name bytes
+ * @param name_len i32 — byte count
+ * @param ta i32 — 0 = x86_64; other arches return -1 (caller keeps fat path)
+ * @return i32 — 0 ok, -1 on failure / unsupported arch
+ * PLATFORM: SHARED — x86_64 product; ARM64/RISCV fall through to fat emit.
+ */
+#[no_mangle]
+export function backend_enc_jmp_sym_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32 {
+  if (ta != 0) {
+    return 0 - 1;
+  }
+  unsafe { return arch_x86_64_enc_enc_jmp_sym(elf_ctx, name, name_len); }
   return 0 - 1;
 }
 
@@ -2304,25 +2591,15 @@ export extern "C" function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, o
  */
 #[no_mangle]
 export function backend_enc_load_x29_pos_to_rax_arch(elf_ctx: *u8, off_pos: i32, ta: i32): i32 {
+  // Incoming stack-arg load [x29, #off]. G.7: delegate to
+  // arch_arm64_enc_enc_load_rbp_to_rax (unaligned Apple i32 slots).
+  // PLATFORM: MACOS|ARM64.
   if (ta != 1) {
     return 0 - 1;
   }
-  if (off_pos < 0) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, (4181722016 as i32) as i32);
-    }
-    return 0 - 1;
-  }
-  if ((off_pos / 8) > 4095) {
-    unsafe {
-      return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | (4095 * 1024)) as i32);
-    }
-    return 0 - 1;
-  }
   unsafe {
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((4181722016 as u32) | (((off_pos / 8) as u32) * 1024)) as i32);
+    return arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx, off_pos);
   }
-  return 0 - 1;
 }
 
 /** Exported function `backend_enc_add_imm_to_index_scratch_arch`.
@@ -3334,7 +3611,8 @@ export function backend_enc_mov_eax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta
     if (elf_ctx == 0 as *u8) { return 0 - 1; }
     if (k < 0) { return 0 - 1; }
     if (k > 7) { return 0 - 1; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32);
+    // AAPCS64 fmov encoding is an extern append; typeck requires unsafe.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((505872384 as u32) | (k as u32)) as i32); }
   }
   if (ta != 0) {
     return 0 - 1;
@@ -3378,7 +3656,8 @@ export function backend_enc_mov_xmm_arg_reg_to_eax_arch(elf_ctx: *u8, k: i32, ta
     if (elf_ctx == 0 as *u8) { return 0 - 1; }
     if (k < 0) { return 0 - 1; }
     if (k > 7) { return 0 - 1; }
-    return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32);
+    // AAPCS64 fmov encoding is an extern append; typeck requires unsafe.
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((505806848 as u32) | ((k as u32) * 32)) as i32); }
   }
   if (ta != 0) {
     return 0 - 1;
@@ -3517,4 +3796,7480 @@ export function backend_enc_x86_jcc_rel32_c(elf_ctx: *u8, opcode2: i32, label: *
 export function arch_x86_64_enc_enc_cdqe_rax(elf_ctx: *u8): i32 {
   unsafe { return arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx); }
   return 0 - 1;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * Returns 1, the same value the former host-cc marker returned.
+ * No product caller reads it. The ensure nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm. The f64/Cap tail stays in the C seed.
+ */
+#[no_mangle]
+export function backend_enc_dispatch_slice_marker(): i32 {
+  return 1;
+}
+
+/**
+ * Forward arch_arm64_enc_enc_blr to backend_enc_arm64_blr_c.
+ * The callee is defined later in this file. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param reg i32 — ARM64 register number passed through
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the ARM64 blr.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_blr(elf_ctx: *u8, reg: i32): i32 {
+  unsafe { return backend_enc_arm64_blr_c(elf_ctx, reg); }
+  return 0 - 1;
+}
+
+/**
+ * Forward arch_arm64_enc_enc_ldr_xreg_xreg_imm to backend_enc_arm64_ldr_xreg_xreg_imm_c.
+ * The callee is defined later in this file. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param dst_reg i32 — destination ARM64 register passed through
+ * @param base_reg i32 — base ARM64 register passed through
+ * @param offset i32 — byte offset passed through
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the ARM64 ldr.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  unsafe { return backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset); }
+  return 0 - 1;
+}
+
+/**
+ * Forward arch_x86_64_enc_enc_call_reg to backend_enc_x86_64_call_reg_c.
+ * The callee is defined later in this file. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param reg i32 — x86_64 register number passed through; the callee rejects values outside 0..15
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the x86_64 indirect call.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_call_reg(elf_ctx: *u8, reg: i32): i32 {
+  unsafe { return backend_enc_x86_64_call_reg_c(elf_ctx, reg); }
+  return 0 - 1;
+}
+
+/**
+ * Forward arch_x86_64_enc_enc_load_rax_rbx_disp32 to backend_enc_x86_64_load_rax_rbx_disp32_c.
+ * The callee is defined later in this file. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param dst_reg i32 — destination register passed through
+ * @param base_reg i32 — base register passed through
+ * @param offset i32 — disp32 byte offset passed through
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the x86_64 load.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  unsafe { return backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx, dst_reg, base_reg, offset); }
+  return 0 - 1;
+}
+
+/**
+ * Forward arch_riscv64_enc_enc_jalr_reg to backend_enc_riscv64_jalr_reg_c.
+ * The callee is defined later in this file. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param reg i32 — RISC-V register number passed through; the callee rejects values outside 0..31
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the RISC-V jalr.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_jalr_reg(elf_ctx: *u8, reg: i32): i32 {
+  unsafe { return backend_enc_riscv64_jalr_reg_c(elf_ctx, reg); }
+  return 0 - 1;
+}
+
+/**
+ * Forward arch_riscv64_enc_enc_ldr_xreg_xreg_imm to backend_enc_riscv64_ldr_xreg_xreg_imm_c.
+ * The callee is defined later in this file. This symbol stays strong.
+ * @param elf_ctx *u8 — emit context passed through; the callee rejects null
+ * @param dst_reg i32 — destination RISC-V register passed through; the callee rejects values outside 0..31
+ * @param base_reg i32 — base RISC-V register passed through; the callee rejects values outside 0..31
+ * @param offset i32 — byte offset passed through; the callee rejects a negative offset
+ * @return i32 — the callee's status, 0 on success and -1 on failure
+ * PLATFORM: SHARED — product link name. The callee emits the RISC-V ld.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  unsafe { return backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx, dst_reg, base_reg, offset); }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
+
+/**
+ * Emit x86_64 cdqe so a 32-bit load sign-extends eax into rax.
+ * The two bytes are 0x48 0x98. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * The null check lives in pipeline_elf_ctx_append_bytes. A compare of
+ * elf_ctx against 0 in this body is lowered by the Windows x86_64 host
+ * compiler to `cmp rbx, 0` without reloading the pointer. After ta==0,
+ * rbx is 0, so that compare returns -1 and the bytes are never stored.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cdqe_rax_impl(elf_ctx: *u8): i32 {
+  unsafe {
+    // Local pair, same bytes as the former static {0x48, 0x98}.
+    let cdqe: u8[2] = [];
+    cdqe[0] = 72;
+    cdqe[1] = 152;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &cdqe[0], 2);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Append one byte to the emit buffer.
+ * The stored byte is the low 8 bits of byte. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param byte i32 — value whose low 8 bits are appended
+ * @return i32 — 0 when the byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by pipeline_elf_ctx_append_bytes. See cdqe for why
+ * this body does not compare elf_ctx to 0 on its own.
+ */
+#[no_mangle]
+export function backend_enc_append_u8_c_impl(elf_ctx: *u8, byte: i32): i32 {
+  unsafe {
+    // One local byte, same mask as the former C (uint8_t)(byte & 255).
+    let b: u8[1] = [];
+    b[0] = (byte & 255) as u8;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 1);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Append one little-endian 32-bit word to the emit buffer.
+ * The four stored bytes are the low 8 bits of word, then the next three.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param word u32 — value stored as four little-endian bytes
+ * @return i32 — 0 when the four bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by pipeline_elf_ctx_append_bytes. See cdqe for why
+ * this body does not compare elf_ctx to 0 on its own.
+ */
+#[no_mangle]
+export function backend_enc_append_u32_le_c_impl(elf_ctx: *u8, word: u32): i32 {
+  unsafe {
+    // Four local bytes. Unsigned division matches store_eax in this file
+    // and the former C (uint8_t)(word >> n) masks.
+    let b: u8[4] = [];
+    b[0] = (word & 255) as u8;
+    b[1] = ((word / 256) & 255) as u8;
+    b[2] = ((word / 65536) & 255) as u8;
+    b[3] = ((word / 16777216) & 255) as u8;
+    return pipeline_elf_ctx_append_bytes(elf_ctx, &b[0], 4);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one ARM64 blr xN instruction.
+ * The word is 0xD63F0000 with the register number in bits 9:5.
+ * Register numbers outside 0..30 return -1. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — ARM64 register number, accepted only for 0..30
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_arm64_blr_c(elf_ctx: *u8, reg: i32): i32 {
+  // 0xD63F0000 | (reg << 5). Multiply by 32 matches the other ARM64 encoders.
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 30) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (3594452992 as u32) | ((reg as u32) * 32));
+}
+
+/**
+ * Emit one RISC-V jalr x1, 0(xN) instruction.
+ * The word is 0xE7 with the register number in bits 19:15.
+ * Register numbers outside 0..31 return -1. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — RISC-V register number, accepted only for 0..31
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_riscv64_jalr_reg_c(elf_ctx: *u8, reg: i32): i32 {
+  // 0xE7 | (reg << 15). 0xE7 is jalr with rd=x1 and opcode 0x67.
+  // Multiply by 32768 places the register number in bits 19:15.
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 31) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, (231 as u32) | ((reg as u32) * 32768));
+}
+
+/**
+ * Emit one x86_64 indirect call through rN.
+ * Registers 8..15 are prefixed with REX.B (0x41). Every call then
+ * appends opcode 0xFF and ModRM 0xD0 with the low 3 register bits.
+ * Register numbers outside 0..15 return -1. A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — x86_64 register number, accepted only for 0..15
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u8_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_x86_64_call_reg_c(elf_ctx: *u8, reg: i32): i32 {
+  // 0x41 is REX.B. 0xFF is the call opcode. 0xD0 is ModRM /2.
+  // (reg & 7) selects rax..rdi or r8..r15 inside that ModRM byte.
+  if (reg < 0) { return 0 - 1; }
+  if (reg > 15) { return 0 - 1; }
+  if (reg >= 8) {
+    if (backend_enc_append_u8_c(elf_ctx, 65) != 0) { return 0 - 1; }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 255) != 0) { return 0 - 1; }
+  return backend_enc_append_u8_c(elf_ctx, 208 | (reg & 7));
+}
+
+/**
+ * Emit one RISC-V ld rd, off(rs1) instruction.
+ * The word places imm12 in bits 31:20, the base register in bits 19:15,
+ * funct3 3 in bits 14:12, the destination in bits 11:7, and opcode 3.
+ * A negative offset returns -1. Register numbers outside 0..31 return -1.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param dst_reg i32 — destination register, accepted only for 0..31
+ * @param base_reg i32 — base register, accepted only for 0..31
+ * @param offset i32 — byte offset; negative is rejected; the low 12 bits are imm12
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_riscv64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  // (imm12 << 20) | (base << 15) | (3 << 12) | (dst << 7) | 3.
+  // 1048576 is 1<<20. 32768 is 1<<15. 12288 is 3<<12. 128 is 1<<7.
+  // 4095 keeps the low 12 bits of a non-negative offset.
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 31) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 31) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(
+    elf_ctx,
+    (((offset & 4095) as u32) * 1048576) | ((base_reg as u32) * 32768) | (12288 as u32) | ((dst_reg as u32) * 128) | (3 as u32)
+  );
+}
+
+/**
+ * Emit one ARM64 ldr xDst, [xBase, #offset] instruction.
+ * The word is 0xF9400000 with the scaled offset in bits 21:10,
+ * the base register in bits 9:5, and the destination in bits 4:0.
+ * Registers outside 0..30 return -1. x31 is the stack pointer and is rejected.
+ * A negative offset returns -1. An offset that is not a multiple of 8 returns -1.
+ * The scaled immediate is offset/8. Because offset is a multiple of 8,
+ * offset*128 equals (offset/8)<<10. An offset above 32760 uses the
+ * same field as scale 4095.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param dst_reg i32 — destination register, accepted only for 0..30
+ * @param base_reg i32 — base register, accepted only for 0..30
+ * @param offset i32 — byte offset; must be non-negative and a multiple of 8
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u32_le_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_arm64_ldr_xreg_xreg_imm_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  // 0xF9400000 | ((offset / 8) << 10) | (base << 5) | dst.
+  // 4181721088 is 0xF9400000. 128 is (1<<10)/8. 32 is 1<<5.
+  // 32760 is 4095*8. 4193280 is 4095<<10.
+  // Multiply stays on the accepted range so a negative offset returns -1
+  // without a trapping divide. The clamp is its own return so the store
+  // cannot be dropped.
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 30) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 30) { return 0 - 1; }
+  if (offset < 0) { return 0 - 1; }
+  if ((offset & 7) != 0) { return 0 - 1; }
+  if (offset > 32760) {
+    return backend_enc_append_u32_le_c(
+      elf_ctx,
+      (4181721088 as u32) | (4193280 as u32) | ((base_reg as u32) * 32) | (dst_reg as u32)
+    );
+  }
+  return backend_enc_append_u32_le_c(
+    elf_ctx,
+    (4181721088 as u32) | ((offset as u32) * 128) | ((base_reg as u32) * 32) | (dst_reg as u32)
+  );
+}
+
+/**
+ * Emit one x86_64 mov rDst, [rBase + disp32] instruction.
+ * The bytes are REX.W, 0x8B, ModRM with mod=2, an optional SIB when
+ * the low 3 bits of the base are 4, then the displacement as four
+ * little-endian bytes. Registers outside 0..15 return -1.
+ * A null context returns -1.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param dst_reg i32 — destination register, accepted only for 0..15
+ * @param base_reg i32 — base register, accepted only for 0..15
+ * @param offset i32 — disp32; stored as its two's-complement bytes
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * Null is rejected by backend_enc_append_u8_c. A compare of elf_ctx
+ * against 0 in this body is lowered by the Windows x86_64 host compiler
+ * to `cmp rbx, 0` without reloading the pointer.
+ */
+#[no_mangle]
+export function backend_enc_x86_64_load_rax_rbx_disp32_c(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32): i32 {
+  // REX.W is 0x48. REX.R (bit 2) is 4 when dst >= 8. REX.B (bit 0) is 1 when base >= 8.
+  // 0x8B is the mov r/m, r opcode. ModRM 0x80 is mod=2 (disp32), reg in bits 5:3, r/m in bits 2:0.
+  // SIB 0x24 is needed when r/m is 4 (RSP encoding), otherwise that ModRM means SIB follows.
+  // Displacement bytes are shifts of the unsigned bit pattern, masked to 8 bits.
+  // A divide is not used: the host lowers `/` as a 64-bit idiv that traps on a negative dividend.
+  let rex: i32 = 0;
+  let modrm: i32 = 0;
+  let disp: u32 = 0;
+  if (dst_reg < 0) { return 0 - 1; }
+  if (dst_reg > 15) { return 0 - 1; }
+  if (base_reg < 0) { return 0 - 1; }
+  if (base_reg > 15) { return 0 - 1; }
+  rex = 72 + (((dst_reg >> 3) & 1) * 4) + ((base_reg >> 3) & 1);
+  if (backend_enc_append_u8_c(elf_ctx, rex) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) { return 0 - 1; }
+  modrm = 128 + ((dst_reg & 7) * 8) + (base_reg & 7);
+  if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) { return 0 - 1; }
+  if ((base_reg & 7) == 4) {
+    if (backend_enc_append_u8_c(elf_ctx, 36) != 0) { return 0 - 1; }
+  }
+  disp = offset as u32;
+  if (backend_enc_append_u8_c(elf_ctx, (disp & 255) as i32) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, ((disp >> 8) & 255) as i32) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, ((disp >> 16) & 255) as i32) != 0) { return 0 - 1; }
+  if (backend_enc_append_u8_c(elf_ctx, ((disp >> 24) & 255) as i32) != 0) { return 0 - 1; }
+  return 0;
+}
+
+/**
+ * Emit one scalar f64 add: the IEEE bits in rax plus the bits in rbx, result in rax.
+ * x86_64 (ta == 0) appends movq xmm0, rax; movq xmm1, rbx; addsd xmm0, xmm1; movq rax, xmm0.
+ * ARM64 (ta == 1) appends fmov d0, x0; fmov d1, x1; fadd d0, d0, d1; fmov x0, d0.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not divide.
+ */
+#[no_mangle]
+export function backend_enc_addsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670000 fmov d0,x0; 0x9E670021 fmov d1,x1;
+  // 0x1E612800 fadd d0,d0,d1; 0x9E660000 fmov x0,d0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550336 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550369 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (509683712 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (2657484800 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rax is 66 48 0F 6E C0. movq xmm1, rbx is 66 48 0F 6E CB.
+  // addsd xmm0, xmm1 is F2 0F 58 C1. movq rax, xmm0 is 66 48 0F 7E C0.
+  // Each four-byte group is one little-endian word. The fifth byte is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 203) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3243773938 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one scalar f64 subtract: the IEEE bits in rbx minus the bits in rax, result in rax.
+ * x86_64 (ta == 0) appends movq xmm0, rbx; movq xmm1, rax; subsd xmm0, xmm1; movq rax, xmm0.
+ * ARM64 (ta == 1) appends fmov d0, x1; fmov d1, x0; fsub d0, d0, d1; fmov x0, d0.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not divide.
+ */
+#[no_mangle]
+export function backend_enc_subsd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670020 fmov d0,x1; 0x9E670001 fmov d1,x0;
+  // 0x1E613800 fsub d0,d0,d1; 0x9E660000 fmov x0,d0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550368 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550337 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (509687808 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (2657484800 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rbx is 66 48 0F 6E C3. movq xmm1, rax is 66 48 0F 6E C8.
+  // subsd xmm0, xmm1 is F2 0F 5C C1. movq rax, xmm0 is 66 48 0F 7E C0.
+  // Each four-byte group is one little-endian word. The fifth byte is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 195) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3244036082 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one scalar f64 subtract: the IEEE bits in rax minus the bits in rbx, result in rax.
+ * x86_64 (ta == 0) appends movq xmm0, rax; movq xmm1, rbx; subsd xmm0, xmm1; movq rax, xmm0.
+ * ARM64 (ta == 1) appends fmov d0, x0; fmov d1, x1; fsub d0, d0, d1; fmov x0, d0.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not divide.
+ */
+#[no_mangle]
+export function backend_enc_subsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670000 fmov d0,x0; 0x9E670021 fmov d1,x1;
+  // 0x1E613800 fsub d0,d0,d1; 0x9E660000 fmov x0,d0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550336 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550369 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (509687808 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (2657484800 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rax is 66 48 0F 6E C0. movq xmm1, rbx is 66 48 0F 6E CB.
+  // subsd xmm0, xmm1 is F2 0F 5C C1. movq rax, xmm0 is 66 48 0F 7E C0.
+  // Each four-byte group is one little-endian word. The fifth byte is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 203) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3244036082 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one scalar f64 multiply: the IEEE bits in rax times the bits in rbx, result in rax.
+ * x86_64 (ta == 0) appends movq xmm0, rax; movq xmm1, rbx; mulsd xmm0, xmm1; movq rax, xmm0.
+ * ARM64 (ta == 1) appends fmov d0, x0; fmov d1, x1; fmul d0, d0, d1; fmov x0, d0.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not divide.
+ */
+#[no_mangle]
+export function backend_enc_mulsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670000 fmov d0,x0; 0x9E670021 fmov d1,x1;
+  // 0x1E610800 fmul d0,d0,d1; 0x9E660000 fmov x0,d0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550336 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550369 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (509675520 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (2657484800 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rax is 66 48 0F 6E C0. movq xmm1, rbx is 66 48 0F 6E CB.
+  // mulsd xmm0, xmm1 is F2 0F 59 C1. movq rax, xmm0 is 66 48 0F 7E C0.
+  // Each four-byte group is one little-endian word. The fifth byte is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 203) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3243839474 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one scalar f64 divide: the IEEE bits in rax divided by the bits in rbx, result in rax.
+ * x86_64 (ta == 0) appends movq xmm0, rax; movq xmm1, rbx; divsd xmm0, xmm1; movq rax, xmm0.
+ * ARM64 (ta == 1) appends fmov d0, x0; fmov d1, x1; fdiv d0, d0, d1; fmov x0, d0.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * A zero divisor stays the IEEE result of divsd or fdiv.
+ */
+#[no_mangle]
+export function backend_enc_divsd_rax_rbx_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670000 fmov d0,x0; 0x9E670021 fmov d1,x1;
+  // 0x1E611800 fdiv d0,d0,d1; 0x9E660000 fmov x0,d0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550336 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550369 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (509679616 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (2657484800 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rax is 66 48 0F 6E C0. movq xmm1, rbx is 66 48 0F 6E CB.
+  // divsd xmm0, xmm1 is F2 0F 5E C1. movq rax, xmm0 is 66 48 0F 7E C0.
+  // Each four-byte group is one little-endian word. The fifth byte is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 203) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3244167154 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one ordered scalar f64 compare: the IEEE bits in rbx against the bits in rax.
+ * The result stays in the condition flags. rax is not updated.
+ * x86_64 (ta == 0) appends movq xmm0, rbx; movq xmm1, rax; ucomisd xmm0, xmm1.
+ * ARM64 (ta == 1) appends fmov d0, x1; fmov d1, x0; fcmp d0, d1.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * Operand order is the reverse of divsd: xmm0 and d0 hold rbx, xmm1 and d1 hold rax.
+ * ucomisd sets CF, ZF, and PF. It does not write the quotient back into rax.
+ */
+#[no_mangle]
+export function backend_enc_ucomisd_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x9E670020 fmov d0,x1; 0x9E670001 fmov d1,x0;
+  // 0x1E612000 fcmp d0,d1. No fmov of the flags back into x0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550368 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (2657550337 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (509681664 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmm0, rbx is 66 48 0F 6E C3. movq xmm1, rax is 66 48 0F 6E C8.
+  // ucomisd xmm0, xmm1 is 66 0F 2E C1. There is no movq back into rax.
+  // Each four-byte group is one little-endian word. The fifth byte of each movq is separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 195) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+    return backend_enc_append_u32_le_c_impl(elf_ctx, (3241021286 as u32));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit one ordered scalar f32 compare: the low 32 IEEE bits in rbx against the bits in rax.
+ * The result stays in the condition flags. rax is not updated.
+ * x86_64 (ta == 0) appends movd xmm0, ebx; movd xmm1, eax; ucomiss xmm0, xmm1.
+ * ARM64 (ta == 1) appends fmov s0, w1; fmov s1, w0; fcmp s0, s1.
+ * Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * movd is four bytes and has no REX.W. ucomiss is three bytes, so it is
+ * not one little-endian word. These immediates are not the f64 ucomisd words.
+ */
+#[no_mangle]
+export function backend_enc_ucomiss_rbx_rax_arch(elf_ctx: *u8, ta: i32): i32 {
+  // ARM64 words: 0x1E270020 fmov s0,w1; 0x1E270001 fmov s1,w0;
+  // 0x1E212000 fcmp s0,s1. No fmov of the flags back into w0.
+  if (ta == 1) {
+    unsafe {
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (505872416 as i32)) != 0) { return 0 - 1; }
+      if (arch_arm64_enc_enc_u32_le(elf_ctx, (505872385 as i32)) != 0) { return 0 - 1; }
+      return arch_arm64_enc_enc_u32_le(elf_ctx, (505487360 as i32));
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movd xmm0, ebx is 66 0F 6E C3. movd xmm1, eax is 66 0F 6E C8.
+  // ucomiss xmm0, xmm1 is 0F 2E C1. There is no 0x48 and no 0x66 on ucomiss.
+  // Each movd is one little-endian word. The three ucomiss bytes are separate.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3278770022 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (3362656102 as u32)) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+    if (backend_enc_append_u8_c(elf_ctx, 46) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 193);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Move the f64 bits in rax/x0 into FP argument register k.
+ * x86_64 (ta == 0) appends movq xmmK, rax. ARM64 (ta == 1) appends fmov dK, x0.
+ * k outside 0..7 returns -1. Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param k i32 — xmmK or dK, accepted only for 0..7
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when the instruction is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * k is multiplied by 8 for the x86 ModRM register field and is added into
+ * the low bits of the ARM64 fmov word.
+ */
+#[no_mangle]
+export function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  // 0x9E670000 is fmov d0, x0. The low bits select dK.
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((2657550336 as u32) | (k as u32)) as i32); }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq xmmK, rax is 66 48 0F 6E, then ModRM 0xC0 with K in bits 5:3.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (1846495334 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Move the f64 bits in FP argument register k into rax/x0.
+ * x86_64 (ta == 0) appends movq rax, xmmK. ARM64 (ta == 1) appends fmov x0, dK.
+ * k outside 0..7 returns -1. Any other ta returns -1.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param k i32 — xmmK or dK, accepted only for 0..7
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when the instruction is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * k is multiplied by 32 for the ARM64 fmov source field and by 8 for the
+ * x86 ModRM register field.
+ */
+#[no_mangle]
+export function backend_enc_mov_xmm_arg_reg_to_rax_arch(elf_ctx: *u8, k: i32, ta: i32): i32 {
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  // 0x9E660000 is fmov x0, d0. Multiplying k by 32 places it in bits 9:5.
+  if (ta == 1) {
+    unsafe { return arch_arm64_enc_enc_u32_le(elf_ctx, ((2657484800 as u32) | ((k as u32) * 32)) as i32); }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // movq rax, xmmK is 66 48 0F 7E, then ModRM 0xC0 with K in bits 5:3.
+  unsafe {
+    if (backend_enc_append_u32_le_c_impl(elf_ctx, (2114930790 as u32)) != 0) { return 0 - 1; }
+    return backend_enc_append_u8_c(elf_ctx, 192 + (k * 8));
+  }
+  return 0 - 1;
+}
+
+/**
+ * Turn the flags from ucomisd or ucomiss into 0 or 1 in eax/w0.
+ * cc is 0 eq, 1 ne, 2 lt, 3 le, 4 gt, 5 ge. Any other cc returns -1.
+ * x86_64 accounts for the unordered NaN case: eq/lt/le also require PF=0,
+ * and ne is true when PF=1. ARM64 uses CSET with the inverted FP condition.
+ * @param elf_ctx *u8 — emit context; a null context is rejected by the append callee
+ * @param cc i32 — relation code 0..5
+ * @param ta i32 — 0 is x86_64, 1 is ARM64
+ * @return i32 — 0 when every instruction byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * A compare of elf_ctx against 0 is not done in this body. The Windows
+ * x86_64 host compiler lowers that compare to `cmp rbx, 0` without
+ * reloading the pointer. This body does not use an integer divide.
+ * Each cc is its own straight sequence so a host cannot drop a stored opcode.
+ */
+#[no_mangle]
+export function backend_enc_fp_cmp_setcc_movzbl_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  // ARM64 CSET W0. 0x1A9F07E0 plus the inverted condition in bits 15:12.
+  // Conditions are 1, 0, 5, 8, 13, 11 for cc 0..5.
+  if (ta == 1) {
+    unsafe {
+      if (cc == 0) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446633952 as i32)); }
+      if (cc == 1) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446629856 as i32)); }
+      if (cc == 2) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446650336 as i32)); }
+      if (cc == 3) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446662624 as i32)); }
+      if (cc == 4) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446683104 as i32)); }
+      if (cc == 5) { return arch_arm64_enc_enc_u32_le(elf_ctx, (446674912 as i32)); }
+    }
+    return 0 - 1;
+  }
+  if (ta != 0) { return 0 - 1; }
+  // cc 1: setp cl; setne al; or cl, al; movzbl eax, al.
+  if (cc == 1) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 154) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 149) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 0) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 2: setnp cl; setb al; and cl, al; movzbl.
+  if (cc == 2) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 155) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 146) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 3: setnp cl; setbe al; and cl, al; movzbl.
+  if (cc == 3) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 155) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 150) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 0: setnp cl; sete al; and cl, al; movzbl.
+  if (cc == 0) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 155) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 193) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 148) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 32) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 200) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 4: seta al; movzbl. Unordered is already false.
+  if (cc == 4) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 151) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  // cc 5: setae al; movzbl. Unordered is already false.
+  if (cc == 5) {
+    unsafe {
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 147) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 192) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 15) != 0) { return 0 - 1; }
+      if (backend_enc_append_u8_c(elf_ctx, 182) != 0) { return 0 - 1; }
+      return backend_enc_append_u8_c(elf_ctx, 192);
+    }
+    return 0 - 1;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Store one outgoing ARM64 stack argument at [sp + off_bytes].
+ * ta == 1 forwards to backend_enc_arm64_store_arg_sp_offset_c, which
+ * selects STRB, STRH, STR W, or STR X from nbytes.
+ * Any other ta returns -1. x86_64 does not use this helper.
+ * @param elf_ctx *u8 — emit context; the callee rejects a null context
+ * @param off_bytes i32 — byte offset from sp; the callee rejects a negative offset
+ * @param nbytes i32 — 1, 2, or 4 select a narrow store; any other width is 8 bytes
+ * @param ta i32 — 1 is ARM64
+ * @return i32 — 0 when the store is appended, -1 when ta is not ARM64 or the callee fails
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0. The Windows host compiler
+ * lowers that compare to `cmp rbx, 0` without reloading the pointer.
+ * This body does not divide. The callee's existing width checks stay there.
+ */
+#[no_mangle]
+export function backend_enc_store_arg_sp_offset_arch(elf_ctx: *u8, off_bytes: i32, nbytes: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return backend_enc_arm64_store_arg_sp_offset_c(elf_ctx, off_bytes, nbytes);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an indirect call through a general register.
+ * ta == 1 forwards to arch_arm64_enc_enc_blr.
+ * ta == 2 forwards to arch_riscv64_enc_enc_jalr_reg.
+ * Any other ta forwards to arch_x86_64_enc_enc_call_reg.
+ * @param elf_ctx *u8 — emit context; each callee rejects a null context
+ * @param reg i32 — register number; each callee checks its own range
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, anything else is x86_64
+ * @return i32 — 0 when the call instruction is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function backend_enc_blr_arch(elf_ctx: *u8, reg: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return arch_arm64_enc_enc_blr(elf_ctx, reg);
+  }
+  if (ta == 2) {
+    return arch_riscv64_enc_enc_jalr_reg(elf_ctx, reg);
+  }
+  return arch_x86_64_enc_enc_call_reg(elf_ctx, reg);
+}
+
+/**
+ * Load a 64-bit value from [base + offset] into dst.
+ * ta == 1 forwards to arch_arm64_enc_enc_ldr_xreg_xreg_imm.
+ * ta == 2 forwards to arch_riscv64_enc_enc_ldr_xreg_xreg_imm.
+ * Any other ta forwards to arch_x86_64_enc_enc_load_rax_rbx_disp32.
+ * @param elf_ctx *u8 — emit context; each callee rejects a null context
+ * @param dst_reg i32 — destination register; each callee checks its own range
+ * @param base_reg i32 — base register; each callee checks its own range
+ * @param offset i32 — byte displacement; each callee checks alignment and range
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, anything else is x86_64
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * ta is the fifth formal. backend_enc_label_arch in this file already
+ * uses that slot. This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function backend_enc_ldr_xreg_xreg_imm_arch(elf_ctx: *u8, dst_reg: i32, base_reg: i32, offset: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return arch_arm64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset);
+  }
+  if (ta == 2) {
+    return arch_riscv64_enc_enc_ldr_xreg_xreg_imm(elf_ctx, dst_reg, base_reg, offset);
+  }
+  return arch_x86_64_enc_enc_load_rax_rbx_disp32(elf_ctx, dst_reg, base_reg, offset);
+}
+
+/**
+ * Emit ARM64 `mov x0, x1`.
+ * The instruction word is 2852193248. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193248 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add w0, w0, w1`.
+ * The instruction word is 184549408. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 184549408 as u32);
+}
+
+
+/**
+ * Emit ARM64 `sub w0, w0, w1`.
+ * The instruction word is 3405840384 (sub x0,x0,x1). A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32 {
+  // 记229: 0xCB010000 = sub x0,x0,x1 (64-bit). Was 0x4B010000 sub w0,w0,w1
+  // which cleared Darwin user ptr high bits (ptr-int / regex [0-9] class).
+  // Twin of Stage 12.0.5 ptr+int → rax_plus_rbx_scale1 (ADD X). PLATFORM: SHARED.
+  return backend_enc_append_u32_le_c(elf_ctx, 3405840384 as u32);
+}
+
+
+/**
+ * Emit ARM64 `sub x0, x1, x0`.
+ * The instruction word is 3405774880. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3405774880 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mul w0, w0, w1`.
+ * The instruction word is 453082112. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 453082112 as u32);
+}
+
+
+/**
+ * Emit ARM64 `sdiv x0, x0, x1`.
+ * The instruction word is 2596342784. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_idiv_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2596342784 as u32);
+}
+
+
+/**
+ * Emit ARM64 `udiv x0, x0, x1`.
+ * The instruction word is 2596341760 (0x9AC10800): the sdiv word with the
+ * signed bit clear. Unsigned division of rax by rbx uses this. Signed
+ * division keeps arch_arm64_enc_enc_idiv_rbx. A null context returns -1
+ * from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_udiv_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2596341760 as u32);
+}
+
+
+/**
+ * Emit ARM64 `and x0, x0, x1`.
+ * The instruction word is 2315321344. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2315321344 as u32);
+}
+
+
+/**
+ * Emit ARM64 `orr x0, x0, x1`.
+ * The instruction word is 2852192256. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852192256 as u32);
+}
+
+
+/**
+ * Emit ARM64 `eor x0, x0, x1`.
+ * The instruction word is 3389063168. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3389063168 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cmp x1, x0`.
+ * The instruction word is 3942645823. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3942645823 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cmp x0, x1`.
+ * The instruction word is 3942711327. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3942711327 as u32);
+}
+
+
+/**
+ * Emit ARM64 `neg w0, w0`.
+ * The instruction word is 1258292192. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_neg_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1258292192 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mvn w0, w0`.
+ * The instruction word is 706741216. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_not_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 706741216 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ands wzr, w0, w0`.
+ * The instruction word is 1778384927. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_test_eax_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1778384927 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ands wzr, w1, w1`.
+ * The instruction word is 1778450495. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1778450495 as u32);
+}
+
+
+/**
+ * Emit ARM64 `str x0, [sp, #-16]!`.
+ * The instruction word is 4162785248. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_push_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4162785248 as u32);
+}
+
+
+/**
+ * Emit ARM64 `str x1, [sp, #-16]!`.
+ * The instruction word is 4162785249. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_push_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4162785249 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr x0, [sp], #16`.
+ * The instruction word is 4165011424. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_pop_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4165011424 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr x1, [sp], #16`.
+ * The instruction word is 4165011425. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_pop_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4165011425 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x1`.
+ * The instruction word is 2852193250. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193250 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cset w0, eq`.
+ * The instruction word is 446633952. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 446633952 as u32);
+}
+
+
+/**
+ * Emit ARM64 `lsl w0, w0, w2`.
+ * The instruction word is 448929792. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_shl_cl_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 448929792 as u32);
+}
+
+
+/**
+ * Emit ARM64 `lsr w0, w0, w2`.
+ * The instruction word is 448930816. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 448930816 as u32);
+}
+
+
+/**
+ * Emit ARM64 `asr w0, w0, w2`.
+ * The instruction word is 448931840. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 448931840 as u32);
+}
+
+
+/**
+ * Emit ARM64 `lsl x0, x0, x2`.
+ * The instruction word is 2596413440. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_shl_cl_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2596413440 as u32);
+}
+
+
+/**
+ * Emit ARM64 `lsr x0, x0, x2`.
+ * The instruction word is 2596414464. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2596414464 as u32);
+}
+
+
+/**
+ * Emit ARM64 `asr x0, x0, x2`.
+ * The instruction word is 2596415488. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_sar_cl_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2596415488 as u32);
+}
+
+/**
+ * Emit ARM64 `ldr w0, [x0]`.
+ * The instruction word is 3107979264. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3107979264 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr x0, [x0]`.
+ * The instruction word is 4181721088. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721088 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldrb w0, [x0]`.
+ * The instruction word is 960495616. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 960495616 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x0, x0, x1, lsl #0`.
+ * The instruction word is 2332098560. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rax_plus_rbx_scale1(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332098560 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x0, x0, x1, lsl #2`.
+ * The instruction word is 2332100608. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rax_plus_rbx_scale4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332100608 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x0, x0, x1, lsl #3`.
+ * The instruction word is 2332101632. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332101632 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x1, x1, x2, lsl #0`.
+ * The instruction word is 2332164129. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rbx_plus_x2_scale1(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332164129 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x1, x1, x2, lsl #2`.
+ * The instruction word is 2332166177. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rbx_plus_x2_scale4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332166177 as u32);
+}
+
+
+/**
+ * Emit ARM64 `add x1, x1, x2, lsl #3`.
+ * The instruction word is 2332167201. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_rbx_plus_x2_scale8(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2332167201 as u32);
+}
+
+
+/**
+ * Emit ARM64 `svc #0`.
+ * The instruction word is 3556769793. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_svc(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3556769793 as u32);
+}
+
+
+/**
+ * Emit ARM64 `dmb ish`.
+ * The instruction word is 3573758911. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_dmb_ish(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3573758911 as u32);
+}
+
+
+/**
+ * Emit ARM64 `dmb ishld`.
+ * The instruction word is 3573758399. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_dmb_ishld(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3573758399 as u32);
+}
+
+
+/**
+ * Emit ARM64 `dmb ishst`.
+ * The instruction word is 3573758655. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_dmb_ishst(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3573758655 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldar w0, [x0]`.
+ * The instruction word is 2296380416. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldar_w0_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2296380416 as u32);
+}
+
+
+/**
+ * Emit ARM64 `stlr w1, [x0]`.
+ * The instruction word is 2292186113. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_stlr_w1_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2292186113 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr w0, [x3]`.
+ * The instruction word is 3107979360. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldr_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3107979360 as u32);
+}
+
+
+/**
+ * Emit ARM64 `str w0, [x3]`.
+ * The instruction word is 3103785056. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_str_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3103785056 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov w4, w0`.
+ * The instruction word is 704644068. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_w0_to_w4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 704644068 as u32);
+}
+
+
+/**
+ * Emit ARM64 `casal w0, w1, [x2]`.
+ * The instruction word is 2296446017. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_casal_w0_w1_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2296446017 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cmp w0, w4`.
+ * The instruction word is 1795424287. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_w0_w4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1795424287 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cset w0, eq`.
+ * The instruction word is 446633952. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cset_eq_w0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 446633952 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldar x0, [x0]`.
+ * The instruction word is 3370122240. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldar_x0_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3370122240 as u32);
+}
+
+
+/**
+ * Emit ARM64 `stlr x1, [x0]`.
+ * The instruction word is 3365927937. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_stlr_x1_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3365927937 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldr x0, [x3]`.
+ * The instruction word is 4181721184. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldr_x0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721184 as u32);
+}
+
+
+/**
+ * Emit ARM64 `str x0, [x3]`.
+ * The instruction word is 4177526880. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_str_x0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 4177526880 as u32);
+}
+
+
+/**
+ * Emit ARM64 `casal x0, x1, [x2]`.
+ * The instruction word is 3370187841. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_casal_x0_x1_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3370187841 as u32);
+}
+
+
+/**
+ * Emit ARM64 `cmp x0, x4`.
+ * The instruction word is 3942907935. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_x0_x4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 3942907935 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldarh w0, [x0]`.
+ * The instruction word is 1222638592. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldarh_w0_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1222638592 as u32);
+}
+
+
+/**
+ * Emit ARM64 `stlrh w1, [x0]`.
+ * The instruction word is 1218444289. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_stlrh_w1_x0(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1218444289 as u32);
+}
+
+
+/**
+ * Emit ARM64 `ldrh w0, [x3]`.
+ * The instruction word is 2034237536. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ldrh_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2034237536 as u32);
+}
+
+
+/**
+ * Emit ARM64 `strh w0, [x3]`.
+ * The instruction word is 2030043232. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_strh_w0_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2030043232 as u32);
+}
+
+
+/**
+ * Emit ARM64 `casalh w0, w1, [x2]`.
+ * The instruction word is 1222704193. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_casalh_w0_w1_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 1222704193 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x1`.
+ * The instruction word is 2852193250. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193250 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x2`.
+ * The instruction word is 2852258785. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x2_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852258785 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x0`.
+ * The instruction word is 2852127714. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127714 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x2`.
+ * The instruction word is 2852258784. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x2_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852258784 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x9, x0`.
+ * The instruction word is 2852127721. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x9(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127721 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x8, x0`.
+ * The instruction word is 2852127720. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x8(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127720 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x8`.
+ * The instruction word is 2852652000. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x8_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852652000 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x0`.
+ * The instruction word is 2852127713. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x1(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127713 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x2, x0`.
+ * The instruction word is 2852127714. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x2(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127714 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x3, x0`.
+ * The instruction word is 2852127715. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x3(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127715 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x4, x0`.
+ * The instruction word is 2852127716. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x0_to_x4(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127716 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x9`.
+ * The instruction word is 2852717536. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x9_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852717536 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x10, x0`.
+ * The instruction word is 2852127722. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x10(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127722 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x10`.
+ * The instruction word is 2852783072. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x10_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852783072 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x10, x1`.
+ * The instruction word is 2852193258. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x10(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193258 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x10`.
+ * The instruction word is 2852783073. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x10_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852783073 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x11, x0`.
+ * The instruction word is 2852127723. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x11(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127723 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x11`.
+ * The instruction word is 2852848608. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x11_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852848608 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x11, x1`.
+ * The instruction word is 2852193259. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x11(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193259 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x11`.
+ * The instruction word is 2852848609. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x11_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852848609 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x12, x0`.
+ * The instruction word is 2852127724. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x12(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127724 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x12`.
+ * The instruction word is 2852914144. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x12_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852914144 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x12, x1`.
+ * The instruction word is 2852193260. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x12(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193260 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x12`.
+ * The instruction word is 2852914145. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x12_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852914145 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x13, x0`.
+ * The instruction word is 2852127725. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x13(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127725 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x13`.
+ * The instruction word is 2852979680. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x13_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852979680 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x13, x1`.
+ * The instruction word is 2852193261. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x13(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193261 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x13`.
+ * The instruction word is 2852979681. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x13_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852979681 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x14, x0`.
+ * The instruction word is 2852127726. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x14(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127726 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x14`.
+ * The instruction word is 2853045216. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x14_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853045216 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x14, x1`.
+ * The instruction word is 2852193262. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x14(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193262 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x14`.
+ * The instruction word is 2853045217. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x14_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853045217 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x15, x0`.
+ * The instruction word is 2852127727. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_x15(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127727 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x0, x15`.
+ * The instruction word is 2853110752. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x15_to_rax(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853110752 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x15, x1`.
+ * The instruction word is 2852193263. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rbx_to_x15(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2852193263 as u32);
+}
+
+
+/**
+ * Emit ARM64 `mov x1, x15`.
+ * The instruction word is 2853110753. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_x15_to_rbx(elf_ctx: *u8): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, 2853110753 as u32);
+}
+
+/**
+ * Emit ARM64 `mov x1, x0` and then `mov x19, x0`.
+ * x1 is the rbx alias. x19 keeps the value when a 16-byte call clobbers x1.
+ * The words are 2852127713 and 2852127731. A null context returns -1 from append.
+ * The first append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32 {
+  // 0xaa0003e1 is mov x1, x0. 0xaa0003f3 is mov x19, x0.
+  if (backend_enc_append_u32_le_c(elf_ctx, 2852127713 as u32) != 0) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, 2852127731 as u32);
+}
+
+/**
+ * Emit the ARM64 signed-remainder pair `sdiv w2, w0, w1` then `msub w0, w2, w1, w0`.
+ * The words are 448859138 and 453083200. They are instruction data, not a host divide.
+ * A null context returns -1 from append.
+ * The first append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32 {
+  // 0x1ac10c02 is sdiv w2, w0, w1. 0x1b018040 is msub w0, w2, w1, w0.
+  if (backend_enc_append_u32_le_c(elf_ctx, 448859138 as u32) != 0) { return 0 - 1; }
+  return backend_enc_append_u32_le_c(elf_ctx, 453083200 as u32);
+}
+
+/**
+ * ARM64 has no cdq. Signed remainder uses the sdiv and msub words above.
+ * This body appends nothing.
+ * @param elf_ctx *u8 — unused; ARM64 does not read the context for cdq
+ * @return i32 — always 0
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cltd(elf_ctx: *u8): i32 {
+  return 0;
+}
+
+/**
+ * Store x0 through x1 at the width named by elem_sz.
+ * elem_sz 1 appends `strb w0, [x1]` (956301344).
+ * elem_sz 4 appends `str w0, [x1]` (3103784992).
+ * Every other size, including 8, appends `str x0, [x1]` (4177526816).
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param elem_sz i32 — element width in bytes; 1 and 4 select the narrow stores
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32 {
+  // 0x39000020 strb w0, [x1]. 0xb9000020 str w0, [x1]. 0xf9000020 str x0, [x1].
+  if (elem_sz == 1) {
+    return backend_enc_append_u32_le_c(elf_ctx, 956301344 as u32);
+  }
+  if (elem_sz == 4) {
+    return backend_enc_append_u32_le_c(elf_ctx, 3103784992 as u32);
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4177526816 as u32);
+}
+
+/**
+ * Copy x0 into AAPCS64 argument register xk.
+ * k below 0 is treated as 0. k above 7 is treated as 7.
+ * k 0 is already x0, so this body appends nothing and returns 0.
+ * Otherwise the word is 2852127712 with the register number in bits 4:0.
+ * A null context returns -1 from append when a word is emitted.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param k i32 — argument register index, clamped to 0..7
+ * @return i32 — 0 when no word is needed or the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_rax_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  // 0xaa0003e0 is mov x0, x0. The low 5 bits are the destination register.
+  let rd: i32 = k;
+  if (rd < 0) { rd = 0; }
+  if (rd > 7) { rd = 7; }
+  if (rd == 0) { return 0; }
+  return backend_enc_append_u32_le_c(elf_ctx, (2852127712 as u32) | (rd as u32));
+}
+
+/**
+ * Copy AAPCS64 argument register xk into x0.
+ * k outside 0..7 returns -1. k 0 is already x0, so this body returns 0.
+ * Otherwise the word is 2852127712 with the source register in bits 20:16.
+ * A null context returns -1 from append when a word is emitted.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param k i32 — argument register index, accepted only for 0..7
+ * @return i32 — 0 when no word is needed or the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_arg_reg_to_rax(elf_ctx: *u8, k: i32): i32 {
+  // 0xaa0003e0 | (k << 16) is mov x0, xk. 65536 places k in bits 20:16.
+  if (k < 0) { return 0 - 1; }
+  if (k > 7) { return 0 - 1; }
+  if (k == 0) { return 0; }
+  return backend_enc_append_u32_le_c(elf_ctx, (2852127712 as u32) | ((k as u32) * 65536));
+}
+
+/**
+ * Append one ARM64 instruction word.
+ * val is the raw 32-bit encoding. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param val i32 — instruction bits, taken as an unsigned 32-bit word
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_u32_le(elf_ctx: *u8, val: i32): i32 {
+  return backend_enc_append_u32_le_c(elf_ctx, val as u32);
+}
+
+/**
+ * Materialize a 32-bit immediate in w0.
+ * Always appends MOVZ w0,#lo. Appends MOVK w0,#hi,lsl#16 only when hi is not zero.
+ * The high half uses hw=1 (0x72a00000), not hw=0. A null context returns -1 from append.
+ * Each append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — bit pattern of the immediate
+ * @return i32 — 0 when the words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx: *u8, imm32: i32): i32 {
+  // 0x52800000 is MOVZ w0. 0x72a00000 is MOVK w0, #hi, lsl #16.
+  // 32 places the halfword in bits 20:5. The high half is bits 31:16.
+  let u: u32 = imm32 as u32;
+  let lo: u32 = u & 65535;
+  let hi: u32 = (u >> 16) & 65535;
+  if (backend_enc_append_u32_le_c(elf_ctx, (1384120320 as u32) | (lo * 32)) != 0) {
+    return 0 - 1;
+  }
+  if (hi != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (1923088384 as u32) | (hi * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Materialize a 32-bit immediate in w1, the rbx alias.
+ * Always appends MOVZ w1,#lo. Appends MOVK w1,#hi,lsl#16 only when hi is not zero.
+ * The high half uses hw=1. A null context returns -1 from append.
+ * Each append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — bit pattern of the immediate
+ * @return i32 — 0 when the words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32 {
+  // 0x52800001 is MOVZ w1. 0x72a00001 is MOVK w1, #hi, lsl #16.
+  // 32 places the halfword in bits 20:5. The low bit selects w1.
+  let u: u32 = imm32 as u32;
+  let lo: u32 = u & 65535;
+  let hi: u32 = (u >> 16) & 65535;
+  if (backend_enc_append_u32_le_c(elf_ctx, (1384120321 as u32) | (lo * 32)) != 0) {
+    return 0 - 1;
+  }
+  if (hi != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (1923088385 as u32) | (hi * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Materialize a 64-bit immediate in x0 from two 32-bit halves.
+ * Always appends MOVZ x0,#lo0. Each later MOVK is appended only when that
+ * halfword is not zero: lsl #16, lsl #32, then lsl #48.
+ * A null context returns -1 from append.
+ * Each append is checked directly. Its result is not stored and then compared.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param lo i32 — low 32 bits of the immediate
+ * @param hi i32 — high 32 bits of the immediate
+ * @return i32 — 0 when the words are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32 {
+  // 0xd2800000 MOVZ x0. 0xf2a00000 MOVK lsl #16.
+  // 0xf2c00000 MOVK lsl #32. 0xf2e00000 MOVK lsl #48.
+  // 32 places each halfword in bits 20:5.
+  let ulo: u32 = lo as u32;
+  let uhi: u32 = hi as u32;
+  let lo0: u32 = ulo & 65535;
+  let lo1: u32 = (ulo >> 16) & 65535;
+  let hi0: u32 = uhi & 65535;
+  let hi1: u32 = (uhi >> 16) & 65535;
+  if (backend_enc_append_u32_le_c(elf_ctx, (3531603968 as u32) | (lo0 * 32)) != 0) {
+    return 0 - 1;
+  }
+  if (lo1 != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4070572032 as u32) | (lo1 * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  if (hi0 != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4072669184 as u32) | (hi0 * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  if (hi1 != 0) {
+    if (backend_enc_append_u32_le_c(elf_ctx, (4074766336 as u32) | (hi1 * 32)) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Emit the fixed x86_64 bytes for add_rax_rbx.
+ * The bytes are 01 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32 {
+  // 01 d8
+  if (backend_enc_append_u8_c(elf_ctx, 1) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for and_rbx_rax.
+ * The bytes are 48 21 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_and_rbx_rax(elf_ctx: *u8): i32 {
+  // 48 21 d8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 33) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for or_rbx_rax.
+ * The bytes are 48 09 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_or_rbx_rax(elf_ctx: *u8): i32 {
+  // 48 09 d8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 9) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for xor_rbx_rax.
+ * The bytes are 48 31 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xor_rbx_rax(elf_ctx: *u8): i32 {
+  // 48 31 d8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 49) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rax_to_rbx.
+ * The bytes are 48 89 c3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rbx(elf_ctx: *u8): i32 {
+  // 48 89 c3
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 195);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rbx_to_rax.
+ * The bytes are 48 89 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rbx_to_rax(elf_ctx: *u8): i32 {
+  // 48 89 d8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rbx_to_ecx.
+ * The bytes are 89 d9.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rbx_to_ecx(elf_ctx: *u8): i32 {
+  // 89 d9
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 217);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_edx_to_eax.
+ * The bytes are 89 d0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_edx_to_eax(elf_ctx: *u8): i32 {
+  // 89 d0
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 208);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for not_eax.
+ * The bytes are f7 d0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_not_eax(elf_ctx: *u8): i32 {
+  // f7 d0
+  if (backend_enc_append_u8_c(elf_ctx, 247) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 208);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for neg_eax.
+ * The bytes are f7 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_neg_eax(elf_ctx: *u8): i32 {
+  // f7 d8
+  if (backend_enc_append_u8_c(elf_ctx, 247) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for test_eax_eax.
+ * The bytes are 85 c0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_test_eax_eax(elf_ctx: *u8): i32 {
+  // 85 c0
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 192);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for test_rbx_rbx.
+ * The bytes are 85 db.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_test_rbx_rbx(elf_ctx: *u8): i32 {
+  // 85 db
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 219);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for test_edx_edx.
+ * The bytes are 85 d2.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_test_edx_edx(elf_ctx: *u8): i32 {
+  // 85 d2
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 210);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for cmp_rbx_rax.
+ * The bytes are 39 c3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_rbx_rax(elf_ctx: *u8): i32 {
+  // 39 c3
+  if (backend_enc_append_u8_c(elf_ctx, 57) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 195);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for cmp_rax_rbx.
+ * The bytes are 39 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_rax_rbx(elf_ctx: *u8): i32 {
+  // 39 d8
+  if (backend_enc_append_u8_c(elf_ctx, 57) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit cqo before the 64-bit idiv %rbx.
+ * The link name stays arch_x86_64_enc_enc_cltd. The bytes are 48 99, not 99.
+ * idiv %rbx is REX.W. cltd only fills edx, so a negative rax dividend traps.
+ * cqo sign-extends rax into rdx. Each byte is appended through
+ * backend_enc_append_u8_c. A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cltd(elf_ctx: *u8): i32 {
+  // cqo: 48 99. Not cltd (99). The following idiv %rbx is 64-bit.
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 153);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for idiv_rbx.
+ * The bytes are 48 f7 fb.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_idiv_rbx(elf_ctx: *u8): i32 {
+  // 48 f7 fb
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 247) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 251);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for imul_rbx_rax.
+ * The bytes are 0f af c3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_rbx_rax(elf_ctx: *u8): i32 {
+  // 0f af c3
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 175) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 195);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for push_rax.
+ * The bytes are 50.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_push_rax(elf_ctx: *u8): i32 {
+  // 50
+  return backend_enc_append_u8_c(elf_ctx, 80);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for push_rbx.
+ * The bytes are 53.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_push_rbx(elf_ctx: *u8): i32 {
+  // 53
+  return backend_enc_append_u8_c(elf_ctx, 83);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for pop_rbx.
+ * The bytes are 5b.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_pop_rbx(elf_ctx: *u8): i32 {
+  // 5b
+  return backend_enc_append_u8_c(elf_ctx, 91);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for pop_rax.
+ * The bytes are 58.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_pop_rax(elf_ctx: *u8): i32 {
+  // 58
+  return backend_enc_append_u8_c(elf_ctx, 88);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for shl_cl_eax.
+ * The bytes are d3 e0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_shl_cl_eax(elf_ctx: *u8): i32 {
+  // d3 e0
+  if (backend_enc_append_u8_c(elf_ctx, 211) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 224);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for shr_cl_eax.
+ * The bytes are d3 e8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_shr_cl_eax(elf_ctx: *u8): i32 {
+  // d3 e8
+  if (backend_enc_append_u8_c(elf_ctx, 211) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 232);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sar_cl_eax.
+ * The bytes are d3 f8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sar_cl_eax(elf_ctx: *u8): i32 {
+  // d3 f8
+  if (backend_enc_append_u8_c(elf_ctx, 211) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 248);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for shl_cl_rax.
+ * The bytes are 48 d3 e0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_shl_cl_rax(elf_ctx: *u8): i32 {
+  // 48 d3 e0
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 211) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 224);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for shr_cl_rax.
+ * The bytes are 48 d3 e8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_shr_cl_rax(elf_ctx: *u8): i32 {
+  // 48 d3 e8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 211) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 232);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sar_cl_rax.
+ * The bytes are 48 d3 f8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sar_cl_rax(elf_ctx: *u8): i32 {
+  // 48 d3 f8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 211) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 248);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for xor_edx_edx.
+ * The bytes are 31 d2.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xor_edx_edx(elf_ctx: *u8): i32 {
+  // 31 d2
+  if (backend_enc_append_u8_c(elf_ctx, 49) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 210);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for div_rbx.
+ * The bytes are 48 f7 f3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_div_rbx(elf_ctx: *u8): i32 {
+  // 48 f7 f3
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 247) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 243);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for load_32_from_rax.
+ * The bytes are 8b 00.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_32_from_rax(elf_ctx: *u8): i32 {
+  // 8b 00
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 0);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for load_64_from_rax.
+ * The bytes are 48 8b 00.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_64_from_rax(elf_ctx: *u8): i32 {
+  // 48 8b 00
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 0);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for load_zext8_from_rax.
+ * The bytes are 0f b6 00.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_zext8_from_rax(elf_ctx: *u8): i32 {
+  // 0f b6 00
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 182) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 0);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for rax_plus_rbx_scale1.
+ * The bytes are 48 8d 04 18.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_rax_plus_rbx_scale1(elf_ctx: *u8): i32 {
+  // 48 8d 04 18
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 4) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 24);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for rax_plus_rbx_scale4.
+ * The bytes are 48 8d 04 98.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_rax_plus_rbx_scale4(elf_ctx: *u8): i32 {
+  // 48 8d 04 98
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 4) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 152);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for rax_plus_rbx_scale8.
+ * The bytes are 48 8d 04 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_rax_plus_rbx_scale8(elf_ctx: *u8): i32 {
+  // 48 8d 04 d8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 4) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lea_rbx_plus_rcx_scale1.
+ * The bytes are 48 8d 1c 0b.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale1(elf_ctx: *u8): i32 {
+  // 48 8d 1c 0b
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 28) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 11);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lea_rbx_plus_rcx_scale4.
+ * The bytes are 48 8d 1c 8b.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale4(elf_ctx: *u8): i32 {
+  // 48 8d 1c 8b
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 28) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 139);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lea_rbx_plus_rcx_scale8.
+ * The bytes are 48 8d 1c cb.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbx_plus_rcx_scale8(elf_ctx: *u8): i32 {
+  // 48 8d 1c cb
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 28) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 203);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for add_ecx_edx.
+ * The bytes are 01 d1.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_ecx_edx(elf_ctx: *u8): i32 {
+  // 01 d1
+  if (backend_enc_append_u8_c(elf_ctx, 1) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 209);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sub_ecx_edx.
+ * The bytes are 29 d1.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_ecx_edx(elf_ctx: *u8): i32 {
+  // 29 d1
+  if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 209);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for add_ebx_edx.
+ * The bytes are 01 d3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_ebx_edx(elf_ctx: *u8): i32 {
+  // 01 d3
+  if (backend_enc_append_u8_c(elf_ctx, 1) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 211);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sub_ebx_edx.
+ * The bytes are 29 d3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_ebx_edx(elf_ctx: *u8): i32 {
+  // 29 d3
+  if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 211);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for imul_ecx_edx.
+ * The bytes are 0f af ca.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_ecx_edx(elf_ctx: *u8): i32 {
+  // 0f af ca
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 175) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 202);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for imul_ebx_edx.
+ * The bytes are 0f af da.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_ebx_edx(elf_ctx: *u8): i32 {
+  // 0f af da
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 175) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 218);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sub_rbx_rax_then_mov.
+ * The bytes are 48 29 c3 48 89 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_rbx_rax_then_mov(elf_ctx: *u8): i32 {
+  // 48 29 c3 48 89 d8
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 195) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for rsub_ecx_edx.
+ * The bytes are 29 ca 89 d1.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_rsub_ecx_edx(elf_ctx: *u8): i32 {
+  // 29 ca 89 d1
+  if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 202) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 209);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for rsub_ebx_edx.
+ * The bytes are 29 da 89 d3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_rsub_ebx_edx(elf_ctx: *u8): i32 {
+  // 29 da 89 d3
+  if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 218) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 211);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for setz_movzbl_eax.
+ * The bytes are 0f 94 c0 0f b6 c0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_setz_movzbl_eax(elf_ctx: *u8): i32 {
+  // 0f 94 c0 0f b6 c0
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 148) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 192) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 182) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 192);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for syscall.
+ * The bytes are 0f 05.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_syscall(elf_ctx: *u8): i32 {
+  // 0f 05
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 5);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movl_mem_rax_to_eax.
+ * The bytes are 8b 00.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_mem_rax_to_eax(elf_ctx: *u8): i32 {
+  // 8b 00
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 0);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movl_mem_rcx_to_eax.
+ * The bytes are 8b 01.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_mem_rcx_to_eax(elf_ctx: *u8): i32 {
+  // 8b 01
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 1);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for xchg_edx_mem_rax.
+ * The bytes are 87 10.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_edx_mem_rax(elf_ctx: *u8): i32 {
+  // 87 10
+  if (backend_enc_append_u8_c(elf_ctx, 135) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 16);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rax_to_rcx.
+ * The bytes are 48 89 c1.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rcx(elf_ctx: *u8): i32 {
+  // 48 89 c1
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 193);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movl_eax_to_mem_rcx.
+ * The bytes are 89 01.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movl_eax_to_mem_rcx(elf_ctx: *u8): i32 {
+  // 89 01
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 1);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lock_cmpxchg_edx_mem_rax.
+ * The bytes are f0 0f b1 10.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rax(elf_ctx: *u8): i32 {
+  // f0 0f b1 10
+  if (backend_enc_append_u8_c(elf_ctx, 240) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 177) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 16);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lock_cmpxchg_edx_mem_rbx.
+ * The bytes are f0 0f b1 13.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_edx_mem_rbx(elf_ctx: *u8): i32 {
+  // f0 0f b1 13
+  if (backend_enc_append_u8_c(elf_ctx, 240) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 177) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 19);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sete_al.
+ * The bytes are 0f 94 c0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sete_al(elf_ctx: *u8): i32 {
+  // 0f 94 c0
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 148) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 192);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movzbl_al_eax.
+ * The bytes are 0f b6 c0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzbl_al_eax(elf_ctx: *u8): i32 {
+  // 0f b6 c0
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 182) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 192);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_eax_to_edx.
+ * The bytes are 89 c2.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_eax_to_edx(elf_ctx: *u8): i32 {
+  // 89 c2
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 194);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movq_mem_rax_to_rax.
+ * The bytes are 48 8b 00.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_mem_rax_to_rax(elf_ctx: *u8): i32 {
+  // 48 8b 00
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 0);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for xchg_rdx_mem_rax.
+ * The bytes are 48 87 10.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_rdx_mem_rax(elf_ctx: *u8): i32 {
+  // 48 87 10
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 135) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 16);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rax_to_rdx.
+ * The bytes are 48 89 c2.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_rdx(elf_ctx: *u8): i32 {
+  // 48 89 c2
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 194);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movq_mem_rcx_to_rax.
+ * The bytes are 48 8b 01.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_mem_rcx_to_rax(elf_ctx: *u8): i32 {
+  // 48 8b 01
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 1);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movq_rax_to_mem_rcx.
+ * The bytes are 48 89 01.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movq_rax_to_mem_rcx(elf_ctx: *u8): i32 {
+  // 48 89 01
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 1);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lock_cmpxchg_rdx_mem_rbx.
+ * The bytes are f0 48 0f b1 13.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_rdx_mem_rbx(elf_ctx: *u8): i32 {
+  // f0 48 0f b1 13
+  if (backend_enc_append_u8_c(elf_ctx, 240) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 177) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 19);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mfence.
+ * The bytes are 0f ae f0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mfence(elf_ctx: *u8): i32 {
+  // 0f ae f0
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 174) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 240);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lfence.
+ * The bytes are 0f ae e8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lfence(elf_ctx: *u8): i32 {
+  // 0f ae e8
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 174) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 232);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for sfence.
+ * The bytes are 0f ae f8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sfence(elf_ctx: *u8): i32 {
+  // 0f ae f8
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 174) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 248);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movzwl_mem_rax_to_eax.
+ * The bytes are 0f b7 00.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzwl_mem_rax_to_eax(elf_ctx: *u8): i32 {
+  // 0f b7 00
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 183) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 0);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for xchg_dx_mem_rax.
+ * The bytes are 66 87 10.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_xchg_dx_mem_rax(elf_ctx: *u8): i32 {
+  // 66 87 10
+  if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 135) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 16);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_ax_to_dx.
+ * The bytes are 66 89 c2.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_ax_to_dx(elf_ctx: *u8): i32 {
+  // 66 89 c2
+  if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 194);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movzwl_mem_rcx_to_eax.
+ * The bytes are 0f b7 01.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movzwl_mem_rcx_to_eax(elf_ctx: *u8): i32 {
+  // 0f b7 01
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 183) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 1);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for movw_ax_to_mem_rcx.
+ * The bytes are 66 89 01.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_movw_ax_to_mem_rcx(elf_ctx: *u8): i32 {
+  // 66 89 01
+  if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 1);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for lock_cmpxchg_dx_mem_rbx.
+ * The bytes are f0 66 0f b1 13.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lock_cmpxchg_dx_mem_rbx(elf_ctx: *u8): i32 {
+  // f0 66 0f b1 13
+  if (backend_enc_append_u8_c(elf_ctx, 240) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 102) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 177) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 19);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rax_to_r10.
+ * The bytes are 49 89 c2.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_r10(elf_ctx: *u8): i32 {
+  // 49 89 c2
+  if (backend_enc_append_u8_c(elf_ctx, 73) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 194);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_r10_to_rax.
+ * The bytes are 4c 89 d0.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_r10_to_rax(elf_ctx: *u8): i32 {
+  // 4c 89 d0
+  if (backend_enc_append_u8_c(elf_ctx, 76) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 208);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_rax_to_r11.
+ * The bytes are 49 89 c3.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rax_to_r11(elf_ctx: *u8): i32 {
+  // 49 89 c3
+  if (backend_enc_append_u8_c(elf_ctx, 73) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 195);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for mov_r11_to_rax.
+ * The bytes are 4c 89 d8.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_r11_to_rax(elf_ctx: *u8): i32 {
+  // 4c 89 d8
+  if (backend_enc_append_u8_c(elf_ctx, 76) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for pause.
+ * The bytes are f3 90.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_pause(elf_ctx: *u8): i32 {
+  // f3 90
+  if (backend_enc_append_u8_c(elf_ctx, 243) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 144);
+}
+
+/**
+ * Emit the fixed x86_64 bytes for int3.
+ * The bytes are cc.
+ * Each byte is appended through backend_enc_append_u8_c.
+ * A null context returns -1 from that append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when every byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_int3(elf_ctx: *u8): i32 {
+  // cc
+  return backend_enc_append_u8_c(elf_ctx, 204);
+}
+
+/**
+ * Emit mov imm32 to ebx.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — 32-bit immediate bit pattern
+ * @return i32 — 0 when the opcode and four immediate bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_imm32_to_rbx(elf_ctx: *u8, imm32: i32): i32 {
+  // opcode 187, then the immediate little-endian.
+  let u: u32 = imm32 as u32;
+  if (backend_enc_append_u8_c(elf_ctx, 187) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit mov imm32 to eax.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — 32-bit immediate bit pattern
+ * @return i32 — 0 when the opcode and four immediate bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  // opcode 184 is mov imm32 to eax. The link name is ret_imm32.
+  let u: u32 = imm32 as u32;
+  if (backend_enc_append_u8_c(elf_ctx, 184) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movabs imm64 to rax. lo is the low 32 bits and hi is the high 32 bits.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param lo i32 — low 32 bits of the immediate
+ * @param hi i32 — high 32 bits of the immediate
+ * @return i32 — 0 when both opcode bytes and eight immediate bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_imm64_to_rax(elf_ctx: *u8, lo: i32, hi: i32): i32 {
+  // opcodes 72, 184, then lo, then hi, each little-endian.
+  let lo_u: u32 = lo as u32;
+  let hi_u: u32 = hi as u32;
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 184) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (lo_u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((lo_u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((lo_u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((lo_u >> 24) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (hi_u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((hi_u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((hi_u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((hi_u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit cmp eax, imm32.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm32 i32 — 32-bit immediate bit pattern
+ * @return i32 — 0 when the opcode and four immediate bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  // opcode 61, then the immediate little-endian.
+  let u: u32 = imm32 as u32;
+  if (backend_enc_append_u8_c(elf_ctx, 61) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add imm32 to rax. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed addend; zero is a no-op
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32 {
+  // A zero immediate emits nothing. Otherwise opcodes 72, 5, then imm32.
+  let u: u32 = imm as u32;
+  if (imm == 0) {
+    return 0;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 5) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add imm32 to rbx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed addend; zero is a no-op
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 {
+  // A zero immediate emits nothing. Otherwise opcodes 72, 129, 195, then imm32.
+  let u: u32 = imm as u32;
+  if (imm == 0) {
+    return 0;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 195) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add nbytes to rsp. A non-positive count emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param nbytes i32 — byte count added to rsp; values <= 0 emit nothing
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_rsp_imm(elf_ctx: *u8, nbytes: i32): i32 {
+  // nbytes <= 0 emits nothing.
+  // 1..127 is opcodes 72, 131, 196 and one imm8 byte.
+  // A larger count is opcodes 72, 129, 196 and four little-endian bytes.
+  let u: u32 = nbytes as u32;
+  if (nbytes <= 0) {
+    return 0;
+  }
+  if (nbytes <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, nbytes);
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 196) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit a store of rax through rbx. The width follows elem_sz.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param elem_sz i32 — 1 for a byte, 4 for a dword, any other value for a qword
+ * @return i32 — 0 when the width's bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbx_indirect(elf_ctx: *u8, elem_sz: i32): i32 {
+  // elem_sz 1 is bytes 136, 3. elem_sz 4 is bytes 137, 3.
+  // Any other size is bytes 72, 137, 3.
+  if (elem_sz == 1) {
+  if (backend_enc_append_u8_c(elf_ctx, 136) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 3);
+  }
+  if (elem_sz == 4) {
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 3);
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 3);
+}
+
+/**
+ * Emit a store of rax to rbx plus a 32-bit displacement.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — displacement bit pattern, stored little-endian
+ * @param store_size i32 — 1 for a byte, 4 for a dword, any other value for a qword
+ * @return i32 — 0 when the opcode bytes and the displacement are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32 {
+  // store_size 1 is opcodes 136, 131 plus disp32.
+  // store_size 4 is opcodes 137, 131 plus disp32.
+  // Any other size is opcodes 72, 137, 131 plus disp32.
+  let u: u32 = offset as u32;
+  if (store_size == 1) {
+  if (backend_enc_append_u8_c(elf_ctx, 136) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+  }
+  if (store_size == 4) {
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit subl ebx, eax.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when both bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32 {
+  // 记229: 48 29 d8 = REX.W sub rax, rbx (64-bit). Was 29 d8 (32-bit).
+  // Match backend_x86_64_enc_c.x; twin of arm64 X-sub. PLATFORM: SHARED.
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 216);
+}
+
+/**
+ * Emit movq (rbx), rax.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the three bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_qword_from_rbx_to_rax(elf_ctx: *u8): i32 {
+  // bytes 72, 139, 3.
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 3);
+}
+
+/**
+ * Emit movq 8(rbx), rdx.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the four bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_qword_rbx8_to_rdx(elf_ctx: *u8): i32 {
+  // bytes 72, 139, 83, 8.
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 83) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 8);
+}
+
+/**
+ * Emit mov rdx to SysV argument register k. k outside 0..5 is clamped.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param k i32 — argument index; values outside 0..5 clamp to that range
+ * @return i32 — 0 when the three bytes for that register are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_mov_rdx_to_arg_reg(elf_ctx: *u8, k: i32): i32 {
+  // Clamp k into 0..5. Each arm is one SysV mov from rdx.
+  let idx: i32 = k;
+  if (idx < 0) { idx = 0; }
+  if (idx > 5) { idx = 5; }
+  if (idx == 0) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 215);
+  }
+  if (idx == 1) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 214);
+  }
+  if (idx == 2) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 210);
+  }
+  if (idx == 3) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 209);
+  }
+  if (idx == 4) {
+  if (backend_enc_append_u8_c(elf_ctx, 73) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 208);
+  }
+  // idx 5, and any value the clamps already folded into 5.
+  if (backend_enc_append_u8_c(elf_ctx, 73) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, 209);
+}
+
+/**
+ * Emit movq rax to -offset(rbp). Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq rN to -offset(rbp). N outside 0..15 returns -1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param reg i32 — x86_64 register number, accepted only for 0..15
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_r64_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  // Registers outside 0..15 emit nothing and return -1.
+  // REX.W is 72. Registers 8..15 use 76. The ModRM low 3 bits
+  // are reg masked with 7, scaled by 8, then added to 69 or 133.
+  if (reg < 0) {
+    return 0 - 1;
+  }
+  if (reg > 15) {
+    return 0 - 1;
+  }
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (reg >= 8) {
+  if (backend_enc_append_u8_c(elf_ctx, 76) != 0) {
+    return 0 - 1;
+  }
+  }
+  if (reg < 8) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, (69 + ((reg & 7) * 8))) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (133 + ((reg & 7) * 8))) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq -offset(rbp) to rax. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq -offset(rbp) to rbx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 157) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit leaq -offset(rbp) to rax. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit leaq -offset(rbp) to rbx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 157) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq off_pos(rbp) to rax. A negative off_pos is encoded as zero.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param off_pos i32 — non-negative displacement; negatives clamp to 0
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_pos_to_rax(elf_ctx: *u8, off_pos: i32): i32 {
+  // A negative off_pos is clamped to 0. 0..127 uses disp8.
+  // A larger value uses disp32. The byte is the low 8 bits of the u32 cast.
+  let disp: i32 = off_pos;
+  if (disp < 0) {
+    disp = 0;
+  }
+  let u: u32 = disp as u32;
+  if (disp <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to eax. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_eax32(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 69) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 133) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to ebx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_ebx32(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 157) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to ecx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_ecx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 77) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movl -offset(rbp) to edx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_edx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 149) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add imm to ecx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_ecx(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 193) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 193) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit sub imm from ecx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_imm_from_ecx(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit add imm to ebx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_add_imm_to_ebx_index(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 195) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 195) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit sub imm from ebx. A zero immediate emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — signed immediate; zero emits no bytes for add and sub
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_sub_imm_from_ebx_index(elf_ctx: *u8, imm: i32): i32 {
+  // Zero emits nothing. -128..127 uses opcode 131 and one byte.
+  // Every other immediate uses opcode 129 and four little-endian bytes.
+  if (imm == 0) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 131) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 235) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 235) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit imul ecx, ecx, imm. An immediate of 1 or less emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — multiplier; 1 and every smaller value emit no bytes
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_imm_to_ecx(elf_ctx: *u8, imm: i32): i32 {
+  // An immediate of 1 or less emits nothing, including every negative.
+  // 2..127 uses opcode 107 and one byte. Larger values use opcode 105.
+  if (imm <= 1) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 107) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 201) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 105) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 201) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit imul ebx, ebx, imm. An immediate of 1 or less emits no bytes.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — multiplier; 1 and every smaller value emit no bytes
+ * @return i32 — 0 when nothing is emitted or the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_imul_imm_to_ebx(elf_ctx: *u8, imm: i32): i32 {
+  // An immediate of 1 or less emits nothing, including every negative.
+  // 2..127 uses opcode 107 and one byte. Larger values use opcode 105.
+  if (imm <= 1) {
+    return 0;
+  }
+  let u: u32 = imm as u32;
+  if (imm >= (0 - 128)) {
+    if (imm <= 127) {
+  if (backend_enc_append_u8_c(elf_ctx, 107) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 219) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 105) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 219) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq rdx to -offset(rbp). Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_store_rdx_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 149) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Emit movq -offset(rbp) to rdx. Short form is used for displacements -128..-1.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — magnitude below rbp; the encoded displacement is 0 minus offset
+ * @return i32 — 0 when the disp8 or disp32 form is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_load_rbp_to_rdx(elf_ctx: *u8, offset: i32): i32 {
+  // disp is 0 minus offset. -128..-1 uses the short displacement.
+  let disp: i32 = 0 - offset;
+  let u: u32 = disp as u32;
+  if (disp >= (0 - 128)) {
+    if (disp <= (0 - 1)) {
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, (u & 255) as i32);
+    }
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 139) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, 149) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u8_c(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return backend_enc_append_u8_c(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+export extern "C" function arm64_enc_add_rd_rn_imm_chunks(elf_ctx: *u8, rd: i32, rn: i32, imm: i32): i32;
+export extern "C" function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32;
+export extern "C" function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label: *u8, label_len: i32, kind: i32): i32;
+export extern "C" function pipeline_asm_arm64_cset_cond_enc_from_cc(cc: i32): i32;
+
+/**
+ * Compare w0 with a 12-bit immediate and leave the flags for a later cset.
+ * ARM64 (ta == 1) appends cmp w0, #imm12. RISC-V (ta == 2) forwards to the
+ * rbx/rax compare. Any other ta appends the x86 cmp eax, imm32.
+ * @param elf_ctx *u8 — emit context
+ * @param imm12 i32 — immediate; ARM64 uses the low 12 bits
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, any other value is x86_64
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function backend_enc_cmp_w0_imm12_arch(elf_ctx: *u8, imm12: i32, ta: i32): i32 {
+  // The arch helpers are extern or local encoders. Keep the calls in unsafe.
+  unsafe {
+    if (ta == 1) { return arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx, imm12); }
+    if (ta == 2) { return arch_riscv64_enc_enc_cmp_rbx_rax(elf_ctx); }
+    return arch_x86_64_enc_enc_cmp_eax_imm32(elf_ctx, imm12);
+  }
+}
+
+/**
+ * Set w0 from the current condition flags.
+ * ARM64 (ta == 1) appends cset w0. Any other ta uses cmp_setcc + movzbl.
+ * @param elf_ctx *u8 — emit context
+ * @param cc i32 — condition code
+ * @param ta i32 — 1 is ARM64, any other value uses the integer setcc path
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function backend_enc_cset_w0_from_cc_arch(elf_ctx: *u8, cc: i32, ta: i32): i32 {
+  if (ta == 1) { return arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx, cc); }
+  return backend_enc_cmp_setcc_movzbl_arch(elf_ctx, cc, ta);
+}
+
+/**
+ * Append ARM64 `cmp w0, #imm12`. The immediate is masked to 12 bits.
+ * @param elf_ctx *u8 — emit context
+ * @param imm12 i32 — immediate, low 12 bits only
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_w0_imm12(elf_ctx: *u8, imm12: i32): i32 {
+  // 0x7100001F is cmp w0, #0. The imm12 field sits at bits 10..21.
+  unsafe {
+    let imm: i32 = imm12 & 4095;
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((1895825439 as u32) | (imm * 1024)) as i32);
+  }
+}
+
+/**
+ * Append ARM64 `cset w0, cond`. The condition field comes from the shared encoder.
+ * @param elf_ctx *u8 — emit context
+ * @param cc i32 — condition code
+ * @return i32 — 0 when the word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cset_w0_from_cc(elf_ctx: *u8, cc: i32): i32 {
+  // 0x1A9F07E0 is cset w0, eq. The cond field is multiplied by 4096.
+  unsafe {
+    let c: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    return arch_arm64_enc_enc_u32_le(elf_ctx, ((446629856 as u32) | (c * 4096)) as i32);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Load x0 from [x29, #offset].
+ * A negative offset forwards to arch_arm64_enc_enc_lea_rbp_to_rax.
+ * An aligned offset through 32760 appends one LDR word. offset*128 is
+ * (offset/8)<<10. Any other non-negative offset forwards to lea and then
+ * appends ldr x0, [x0].
+ * A null context returns -1 from append or from lea.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative uses lea
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722016 is ldr x0, [x29, #0]. 128 scales a byte offset into imm12.
+  // 4181721088 is ldr x0, [x0]. 32760 is 4095*8.
+  // w2060: off%8!=0 must NOT use scaled LDR X (truncates >>3). Twin of
+  // enc_load_x29_pos_to_rax: ONLY (off&7)!=0 && (off&3)==0 → two LDR W + orr;
+  // 8-aligned (incl. >32760) and other cases → scaled or lea+ldr. Never STR W.
+  if (offset < 0) {
+    unsafe { return arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset); }
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722016 as u32) | ((offset as u32) * 128));
+    }
+  }
+  if ((offset & 7) != 0 && (offset & 3) == 0) {
+    let imm12_lo: i32 = offset / 4;
+    let imm12_hi: i32 = (offset + 4) / 4;
+    /* w2060: LDR W scaled imm12 max 4095 (byte off 16380). Clamping both
+     * halves to #0x3ffc made tip parse_into_buf reload arena as 0 (P001).
+     * ORR was also lsl#8 (0xAA012000) not lsl#32 (0xAA018000). */
+    if (imm12_lo <= 4095 && imm12_hi <= 4095) {
+      /* ldr w0, [x29, #off] — 0xB9400000 = 3107979264 */
+      if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_lo as u32) * 1024) | (928 as u32)) != 0) {
+        return 0 - 1;
+      }
+      /* ldr w1, [x29, #off+4] */
+      if (backend_enc_append_u32_le_c(elf_ctx, (3107979264 as u32) | ((imm12_hi as u32) * 1024) | (928 as u32) | (1 as u32)) != 0) {
+        return 0 - 1;
+      }
+      /* orr x0, x0, x1, lsl #32 — 0xAA018000 */
+      return backend_enc_append_u32_le_c(elf_ctx, 2852225024 as u32);
+    }
+    /* else fall through to lea + ldr x0,[x0] */
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721088 as u32);
+}
+
+/**
+ * Load x1 from [x29, #offset].
+ * A negative offset forwards to arch_arm64_enc_enc_lea_rbp_to_rbx.
+ * An aligned offset through 32760 appends one LDR word. Any other
+ * non-negative offset forwards to lea and then appends ldr x1, [x1].
+ * A null context returns -1 from append or from lea.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative uses lea
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722017 is ldr x1, [x29, #0]. 4181721121 is ldr x1, [x1].
+  if (offset < 0) {
+    unsafe { return arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset); }
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722017 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721121 as u32);
+}
+
+/**
+ * Load x2 from [x29, #offset].
+ * A negative offset returns -1. An aligned offset through 32760 appends
+ * one LDR word. Any other offset adds that byte count to x29 into x2,
+ * then appends ldr x2, [x2].
+ * A null context returns -1 from append or from the chunk helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_x2(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722018 is ldr x2, [x29, #0]. 4181721154 is ldr x2, [x2].
+  // The chunk helper adds offset to x29 and leaves the address in x2.
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722018 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 2, 29, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721154 as u32);
+}
+
+/**
+ * Load x3 from [x29, #offset].
+ * A negative offset returns -1. An aligned offset through 32760 appends
+ * one LDR word. Any other offset adds that byte count to x29 into x3,
+ * then appends ldr x3, [x3].
+ * A null context returns -1 from append or from the chunk helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the load is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_load_rbp_to_x3(elf_ctx: *u8, offset: i32): i32 {
+  // 4181722019 is ldr x3, [x29, #0]. 4181721187 is ldr x3, [x3].
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4181722019 as u32) | ((offset as u32) * 128));
+    }
+  }
+  unsafe {
+    if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 3, 29, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, 4181721187 as u32);
+}
+
+/**
+ * Store Xt to [x29, #offset].
+ * reg outside 0..30 is clamped. A negative offset returns -1.
+ * An aligned offset through 32760 appends one STR word. Any other
+ * offset adds that byte count to x29 into x16, then stores Xt at [x16].
+ * A null context returns -1 from append or from the chunk helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param reg i32 — AAPCS64 Xt index; clamped to 0..30
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the store is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each call is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx: *u8, reg: i32, offset: i32): i32 {
+  // 4177526784 is the STR X base. 928 is x29 in bits 9:5. 512 is x16.
+  // offset*128 is the scaled imm12 field. rt occupies bits 4:0.
+  let rt: i32 = reg;
+  if (rt < 0) {
+    rt = 0;
+  }
+  if (rt > 30) {
+    rt = 30;
+  }
+  if (offset < 0) {
+    return 0 - 1;
+  }
+  if ((offset & 7) == 0) {
+    if (offset <= 32760) {
+      return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((offset as u32) * 128) | (928 as u32) | (rt as u32));
+    }
+  }
+  unsafe {
+    if (arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 16, 29, offset) != 0) {
+      return 0 - 1;
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | (512 as u32) | (rt as u32));
+}
+
+/**
+ * Store x0 to [x29, #offset].
+ * Forwards to arch_arm64_enc_enc_store_x_reg_to_rbp with reg 0.
+ * A null context returns -1 from that callee.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param offset i32 — byte offset from x29; negative is rejected
+ * @return i32 — 0 when the store is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_rax_to_rbp(elf_ctx: *u8, offset: i32): i32 {
+  // reg 0 is x0. The callee owns the displacement check.
+  // The earlier extern declaration makes this call an extern call.
+  unsafe { return arch_arm64_enc_enc_store_x_reg_to_rbp(elf_ctx, 0, offset); }
+  return 0 - 1;
+}
+
+/**
+ * Store x0 at [x1 + offset], or the 16-byte pair at [x19 + offset].
+ * store_size 16 or more writes x0 then x1, eight bytes apart, with x19
+ * as the base. store_size 1, 2, and 4 select STRB, STRH, and STR W.
+ * Every other size selects STR X. A negative offset is stored as 0.
+ * The scaled immediate is a shift of the u32 bit pattern, clamped to 4095.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param offset i32 — byte offset; a negative value is stored as 0
+ * @param store_size i32 — 1, 2, 4, or 16 select the width; other values are 8
+ * @return i32 — 0 when the store is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly. Its result is not stored and then compared.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset: i32, store_size: i32): i32 {
+  // 608 is x19 in bits 9:5. 32 is x1. 1024 is the imm12 shift.
+  // STRB, STRH, STR W, and STR X bases are the four width words.
+  // A shift of the u32 pattern matches a non-negative divide.
+  let off: i32 = offset;
+  if (off < 0) {
+    off = 0;
+  }
+  let u: u32 = off as u32;
+  let imm_lo: i32 = (u >> 3) as i32;
+  let imm_hi: i32 = ((u + 8) >> 3) as i32;
+  let imm12: i32 = off;
+  let base: u32 = 4177526784 as u32;
+  /* w2060: do not clamp scaled imm12 to 4095 (silent wrong slot).
+   * Same family as enc_load_rbp_to_rax P001. Out of range → fail. */
+  if (store_size >= 16) {
+    if (imm_lo > 4095 || imm_hi > 4095) {
+      return 0 - 1;
+    }
+    if (backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_lo as u32) * 1024) | (608 as u32)) != 0) {
+      return 0 - 1;
+    }
+    return backend_enc_append_u32_le_c(elf_ctx, (4177526784 as u32) | ((imm_hi as u32) * 1024) | (608 as u32) | (1 as u32));
+  }
+  if (store_size == 1) {
+    if (imm12 > 4095) {
+      return 0 - 1;
+    }
+    base = 956301312 as u32;
+  }
+  if (store_size == 2) {
+    imm12 = (u >> 1) as i32;
+    if (imm12 > 4095) {
+      return 0 - 1;
+    }
+    base = 2030043136 as u32;
+  }
+  if (store_size == 4) {
+    imm12 = (u >> 2) as i32;
+    if (imm12 > 4095) {
+      return 0 - 1;
+    }
+    base = 3103784960 as u32;
+  }
+  if (store_size != 1) {
+    if (store_size != 2) {
+      if (store_size != 4) {
+        /* 8B STR X needs off%8==0. Field at 4 (i32 pad + nested 8B)
+         * would truncate >>3 to #0 and clobber pad (w2060 t_ncall_4).
+         * Split into two STR W. PLATFORM: MACOS|ARM64. */
+        if ((off & 7) != 0) {
+          if ((off & 3) != 0) {
+            return 0 - 1;
+          }
+          imm12 = (u >> 2) as i32;
+          if (imm12 > 4095) {
+            return 0 - 1;
+          }
+          /* str w0, [x1, #offset] */
+          if (backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32)) != 0) {
+            return 0 - 1;
+          }
+          /* lsr x0, x0, #32 */
+          if (backend_enc_append_u32_le_c(elf_ctx, 3546348544 as u32) != 0) {
+            return 0 - 1;
+          }
+          imm12 = ((u + 4) >> 2) as i32;
+          if (imm12 > 4095) {
+            return 0 - 1;
+          }
+          /* str w0, [x1, #offset+4] */
+          return backend_enc_append_u32_le_c(elf_ctx, (3103784960 as u32) | ((imm12 as u32) * 1024) | (32 as u32));
+        }
+        imm12 = (u >> 3) as i32;
+        if (imm12 > 4095) {
+          return 0 - 1;
+        }
+        base = 4177526784 as u32;
+      }
+    }
+  }
+  return backend_enc_append_u32_le_c(elf_ctx, base | ((imm12 as u32) * 1024) | (32 as u32));
+}
+
+/**
+ * Add a signed immediate to x0, in 4095-sized chunks.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks. Zero emits
+ * nothing. A negative immediate emits SUB chunks. A null context
+ * returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param imm i32 — signed byte addend
+ * @return i32 — 0 when the adds are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_add_imm_to_rax(elf_ctx: *u8, imm: i32): i32 {
+  // rd 0 and rn 0 are x0. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 0, imm); }
+  return 0 - 1;
+}
+
+/**
+ * Add a signed immediate to x1, in 4095-sized chunks.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks. Zero emits
+ * nothing. A negative immediate emits SUB chunks. A null context
+ * returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param imm i32 — signed byte addend
+ * @return i32 — 0 when the adds are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_add_imm_to_rbx(elf_ctx: *u8, imm: i32): i32 {
+  // rd 1 and rn 1 are x1. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 1, imm); }
+  return 0 - 1;
+}
+
+/**
+ * Append one x86 machine byte.
+ * The low 8 bits are stored. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param b i32 — byte value; only the low 8 bits are stored
+ * @return i32 — 0 when the byte is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * C callers still pass a byte. This body does not compare elf_ctx with 0
+ * and does not divide. The call is checked by append. Its result is
+ * returned directly.
+ */
+#[no_mangle]
+export function x86_enc_u8(elf_ctx: *u8, b: i32): i32 {
+  // Same mask as backend_enc_append_u8_c_impl. Defined earlier in this file.
+  return backend_enc_append_u8_c(elf_ctx, b & 255);
+}
+
+/**
+ * Append one little-endian i32 to the x86 emit buffer.
+ * The four stored bytes are the low 8 bits, then the next three.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param imm i32 — value stored as four little-endian bytes
+ * @return i32 — 0 when the four bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * The byte split stays in backend_enc_append_u32_le_c. This body does not
+ * compare elf_ctx with 0 and does not divide. The call is checked by
+ * append. Its result is returned directly.
+ */
+#[no_mangle]
+export function x86_enc_u32_le(elf_ctx: *u8, imm: i32): i32 {
+  // The bit pattern of imm is the word. Defined earlier in this file.
+  return backend_enc_append_u32_le_c(elf_ctx, imm as u32);
+}
+
+/**
+ * Append n bytes from a buffer to the x86 emit buffer.
+ * A null context or a short buffer returns -1 from the append callee.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param buf *u8 — source bytes; the callee reads n bytes
+ * @param n i32 — byte count passed through
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * The copy stays in pipeline_elf_ctx_append_bytes. This body does not
+ * compare elf_ctx with 0 and does not divide. The call is checked by
+ * that callee. Its result is returned directly.
+ */
+#[no_mangle]
+export function x86_enc_bytes(elf_ctx: *u8, buf: *u8, n: i32): i32 {
+  // The earlier extern makes this an extern call.
+  unsafe { return pipeline_elf_ctx_append_bytes(elf_ctx, buf, n); }
+  return 0 - 1;
+}
+
+/**
+ * Open an x86_64 frame.
+ * Bytes are push rbp, mov rbp rsp, push rbx, then sub rsp, imm32.
+ * After the two pushes RSP is 8 mod 16, so the subtracted immediate
+ * is adjusted until it is also 8 mod 16. A negative frame size is
+ * treated as 0. A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param frame_sz i32 — requested local bytes before alignment
+ * @return i32 — 0 when the frame is opened, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * C callers still pass the frame size. This body does not compare
+ * elf_ctx with 0 and does not divide. The sign bit clears a negative
+ * size. The low 4 bits select the alignment addend. Each append is
+ * checked directly. Stores are straight-line so a host that drops
+ * an assignment inside a branch still emits the adjusted size.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
+  // Sign bit 1 makes the mask 0, so a negative size becomes 0.
+  // Sign bit 0 makes the mask all ones, so a non-negative size is kept.
+  // Addend (8 - residue) masked to 4 bits is 0 when the residue is 8,
+  // 8 - residue when the residue is 0..7, and 24 - residue when it is 9..15.
+  let bits: u32 = frame_sz as u32;
+  let sign: u32 = bits >> 31;
+  let mask: u32 = sign - 1;
+  let fs_u: u32 = bits & mask;
+  let fs: i32 = fs_u as i32;
+  let rem: i32 = fs & 15;
+  let add: i32 = (8 - rem) & 15;
+  let aligned: i32 = fs + add;
+  let u: u32 = aligned as u32;
+  if (x86_enc_u8(elf_ctx, 85) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 137) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 229) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 83) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 129) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 236) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, (u & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, ((u >> 8) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, ((u >> 16) & 255) as i32) != 0) {
+    return 0 - 1;
+  }
+  return x86_enc_u8(elf_ctx, ((u >> 24) & 255) as i32);
+}
+
+/**
+ * Close an x86_64 frame.
+ * Bytes are lea rsp [rbp-8], pop rbx, pop rbp, and ret.
+ * A null context returns -1 from append.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @return i32 — 0 when the frame is closed, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each append is checked directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_epilogue(elf_ctx: *u8): i32 {
+  // lea rsp, [rbp-8] is 72, 141, 101, 248. Then pop rbx, pop rbp, ret.
+  if (x86_enc_u8(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 141) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 101) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 248) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 91) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 93) != 0) {
+    return 0 - 1;
+  }
+  return x86_enc_u8(elf_ctx, 195);
+}
+
+/**
+ * Emit an x86_64 jz to a label.
+ * Opcode 132 is the JE/JZ rel32 form. The patch stays in x86_enc_jcc_rel32.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 132. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 jeq to a label.
+ * Opcode 132 is the same JE/JZ rel32 form as jz. The patch stays in
+ * x86_enc_jcc_rel32. A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 132. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 132, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 jge to a label.
+ * Opcode 141 is the JGE rel32 form. The patch stays in x86_enc_jcc_rel32.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 141. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 141, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 jnz to a label.
+ * Opcode 133 is the JNE/JNZ rel32 form. The patch stays in x86_enc_jcc_rel32.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the jump is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Opcode 133. The earlier extern makes this an extern call.
+  unsafe { return x86_enc_jcc_rel32(elf_ctx, 133, label, label_len); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 unconditional branch to a label.
+ * Word 335544320 is the B placeholder. Kind 26 is the patch width.
+ * w924 moves that patch into the thin.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 335544320, kind 26. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 335544320, label, label_len, 26); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jz to a label.
+ * Word 872415232 is the conditional placeholder. Kind 19 is the patch width.
+ * w924 moves that patch into the thin.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 872415232, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 872415232, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jne to a label.
+ * Word 1409286145 is the conditional placeholder. Kind 19 is the patch width.
+ * w924 moves that patch into the thin.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jne(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 1409286145, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286145, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jnz to a label.
+ * jnz uses the same word 1409286145 and kind 19 as jne.
+ * w924 moves that patch into the thin.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jnz(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Same word and kind as jne. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286145, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jeq to a label.
+ * Word 1409286144 is the conditional placeholder. Kind 19 is the patch width.
+ * w924 moves that patch into the thin.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jeq(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 1409286144, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286144, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 jge to a label.
+ * Word 1409286154 is the conditional placeholder. Kind 19 is the patch width.
+ * w924 moves that patch into the thin.
+ * A null context or a bad label returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helper
+ * @param label *u8 — label name bytes; the helper rejects null
+ * @param label_len i32 — byte count of the label name
+ * @return i32 — 0 when the branch is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_jge(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  // Word 1409286154, kind 19. The earlier extern makes this an extern call.
+  unsafe { return arm64_enc_branch_patch(elf_ctx, 1409286154, label, label_len, 19); }
+  return 0 - 1;
+}
+
+/**
+ * Emit ARM64 cset w0 from a logical compare code.
+ * The cond field is pipeline_asm_arm64_cset_cond_enc_from_cc(cc).
+ * A negative field is cleared by its sign bit, then the low 4 bits
+ * are placed at bits 15:12 of word 446629856 (0x1a9f07e0).
+ * The caller has already emitted the compare. A null context returns
+ * -1 from the append callee.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param cc i32 — logical compare code passed to the cond helper
+ * @return i32 — 0 when the cset word is appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The cond call is the initializer of a let. Its result is not stored
+ * again and then compared. 4096 is the imm12 shift, not a divide.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 {
+  // Sign bit 1 makes the mask 0, so a negative cond becomes 0.
+  // Sign bit 0 makes the mask all ones, so a non-negative cond is kept.
+  // The low 4 bits times 4096 are the CSET cond field.
+  unsafe {
+    let raw: i32 = pipeline_asm_arm64_cset_cond_enc_from_cc(cc);
+    let bits: u32 = raw as u32;
+    let sign: u32 = bits >> 31;
+    let mask: u32 = sign - 1;
+    let kept: u32 = bits & mask;
+    let field: u32 = (kept & 15) * 4096;
+    return backend_enc_append_u32_le_c(elf_ctx, (446629856 as u32) | field);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit x86 setcc plus movzbl for a logical compare code.
+ * cc 0..5 are sete, setne, setl, setle, setg, and setge.
+ * cc 6..9 are setb, setbe, seta, and setae.
+ * Every other cc, including a negative one, emits sete.
+ * The six bytes are 15, opcode, 192, 15, 182, and 192.
+ * A null context returns -1 from x86_enc_u8.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param cc i32 — logical compare code
+ * @return i32 — 0 when the six bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The opcode is a straight-line let. It is not stored inside a branch.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_cmp_setcc_movzbl(elf_ctx: *u8, cc: i32): i32 {
+  // pack_lo bytes are 148, 149, 156, 158. Decimal 2661062036.
+  // pack_hi bytes are 159, 157, 146, 150. Decimal 2526191007.
+  // cc 8 is 151. cc 9 is 147. A negative cc selects 148.
+  let ccu: u32 = cc as u32;
+  let neg_cc: u32 = ccu >> 31;
+  let nonneg: u32 = neg_cc - 1;
+  let raw_below4: u32 = (ccu - 4) >> 31;
+  let below4: u32 = raw_below4 & nonneg;
+  let m4: u32 = 0 - below4;
+  let raw_below8: u32 = (ccu - 8) >> 31;
+  let below8: u32 = raw_below8 & nonneg;
+  let m8: u32 = 0 - below8;
+  let m4_sign: u32 = m4 >> 31;
+  let not_m4: u32 = m4_sign - 1;
+  let in_hi: u32 = m8 & not_m4;
+  let sh: u32 = (ccu & 3) * 8;
+  let pack_lo: u32 = 2661062036;
+  let pack_hi: u32 = 2526191007;
+  let b_lo: u32 = (pack_lo >> sh) & 255;
+  let b_hi: u32 = (pack_hi >> sh) & 255;
+  let op_low: u32 = (b_lo & m4) | (b_hi & in_hi);
+  let diff8: u32 = ccu - 8;
+  let neg8: u32 = 0 - diff8;
+  let or8: u32 = diff8 | neg8;
+  let nz8: u32 = or8 >> 31;
+  let eq8: u32 = nz8 - 1;
+  let diff9: u32 = ccu - 9;
+  let neg9: u32 = 0 - diff9;
+  let or9: u32 = diff9 | neg9;
+  let nz9: u32 = or9 >> 31;
+  let eq9: u32 = nz9 - 1;
+  let op8: u32 = 151 & eq8;
+  let op9: u32 = 147 & eq9;
+  let any: u32 = m8 | eq8 | eq9;
+  let any_sign: u32 = any >> 31;
+  let none: u32 = any_sign - 1;
+  let op_def: u32 = 148 & none;
+  let op: u32 = op_low | op8 | op9 | op_def;
+  let byte: i32 = (op & 255) as i32;
+  if (x86_enc_u8(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, byte) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 192) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 182) != 0) {
+    return 0 - 1;
+  }
+  return x86_enc_u8(elf_ctx, 192);
+}
+
+/**
+ * Materialize imm32 in the result register.
+ * ta 1 forwards to arch_arm64_enc_enc_mov_imm32_to_w0.
+ * ta 2 forwards to arch_riscv64_enc_enc_ret_imm32.
+ * Any other ta forwards to arch_x86_64_enc_enc_ret_imm32.
+ * That x86 callee emits mov eax, imm32.
+ * @param elf_ctx *u8 — emit context; null is rejected by the callee
+ * @param imm32 i32 — immediate bits
+ * @param ta i32 — 1 is ARM64, 2 is RISC-V, any other value is x86_64
+ * @return i32 — 0 when the bytes are appended, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ */
+#[no_mangle]
+export function backend_enc_mov_imm32_to_w0_arch(elf_ctx: *u8, imm32: i32, ta: i32): i32 {
+  if (ta == 1) {
+    return arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx, imm32);
+  }
+  if (ta == 2) {
+    unsafe { return arch_riscv64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  }
+  unsafe { return arch_x86_64_enc_enc_ret_imm32(elf_ctx, imm32); }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_emit_code_len(ctx: *u8): i32;
+export extern "C" function pipeline_elf_ctx_ensure_label(ctx: *u8, name: *u8, name_len: i32): i32;
+export extern "C" function pipeline_elf_ctx_append_patch(ctx: *u8, rel32_offset: i32, name: *u8, name_len: i32, imm_bits: i32): i32;
+
+/**
+ * Emit an x86_64 conditional jump and a rel32 patch.
+ * The six bytes are 15, opcode2, then four zero bytes.
+ * The patch slot is the code length minus 4, read after those bytes.
+ * The patch helper is called with imm bits 0.
+ * A non-positive label length returns -1 before any byte is stored.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param opcode2 i32 — second opcode byte
+ * @param label *u8 — label name bytes
+ * @param label_len i32 — byte count; a non-positive count returns -1
+ * @return i32 — 0 when the jump and the patch are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of a let in a later block.
+ */
+#[no_mangle]
+export function x86_enc_jcc_rel32(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32 {
+  if (label_len <= 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 15) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, opcode2) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an x86_64 unconditional jump and a rel32 patch.
+ * The first byte is 233. The next four bytes are zero.
+ * The patch slot is the code length minus 4, read after those bytes.
+ * The patch helper is called with imm bits 0.
+ * A non-positive label length returns -1 before any byte is stored.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param label *u8 — label name bytes
+ * @param label_len i32 — byte count; a non-positive count returns -1
+ * @return i32 — 0 when the jump and the patch are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of a let in a later block.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jmp(elf_ctx: *u8, label: *u8, label_len: i32): i32 {
+  if (label_len <= 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 0);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 branch placeholder and record its patch.
+ * One instruction word is appended first.
+ * The patch slot is the code length minus 4, read after that word.
+ * The patch helper receives the caller's kind.
+ * Kind 26 is an unconditional branch. Kind 19 is a conditional branch.
+ * A negative label length returns -1 before any byte is stored.
+ * A zero label length is passed through to the label helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by append
+ * @param word i32 — placeholder instruction bits
+ * @param label *u8 — label name bytes
+ * @param label_len i32 — byte count; a negative count returns -1
+ * @param kind i32 — patch width passed to the patch helper
+ * @return i32 — 0 when the branch and the patch are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of a let in a later block.
+ */
+#[no_mangle]
+export function arm64_enc_branch_patch(elf_ctx: *u8, word: i32, label: *u8, label_len: i32, kind: i32): i32 {
+  if (label_len < 0) {
+    return 0 - 1;
+  }
+  if (backend_enc_append_u32_le_c(elf_ctx, word as u32) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, kind);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Address x0 as x29 plus a signed byte offset.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks.
+ * rd 0 and rn 29 select x0 and x29.
+ * A positive offset emits ADD chunks after the move from x29.
+ * A negative offset emits SUB chunks after that move.
+ * Zero emits only the move from x29.
+ * The most negative i32 is rejected by the chunk helper.
+ * A null context returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param offset i32 — signed byte addend from x29
+ * @return i32 — 0 when the address is formed, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_lea_rbp_to_rax(elf_ctx: *u8, offset: i32): i32 {
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 0, 29, offset); }
+  return 0 - 1;
+}
+
+/**
+ * Address x1 as x29 plus a signed byte offset.
+ * The chunk walk stays in arm64_enc_add_rd_rn_imm_chunks.
+ * rd 1 and rn 29 select x1 and x29.
+ * A positive offset emits ADD chunks after the move from x29.
+ * A negative offset emits SUB chunks after that move.
+ * Zero emits only the move from x29.
+ * The most negative i32 is rejected by the chunk helper.
+ * A null context returns -1 from that helper.
+ * @param elf_ctx *u8 — emit context; null is rejected by the chunk helper
+ * @param offset i32 — signed byte addend from x29
+ * @return i32 — 0 when the address is formed, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The call is checked by the helper. Its result is returned directly.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_lea_rbp_to_rbx(elf_ctx: *u8, offset: i32): i32 {
+  unsafe { return arm64_enc_add_rd_rn_imm_chunks(elf_ctx, 1, 29, offset); }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_pad_code_to_4(ctx: *u8): i32;
+export extern "C" function pipeline_elf_ctx_add_label(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern "C" function pipeline_elf_ctx_add_sym(ctx: *u8, name: *u8, name_len: i32, offset: i32): i32;
+export extern "C" function pipeline_elf_ctx_macho_leading_underscore(ctx: *u8): i32;
+export extern "C" function memcpy(dst: *u8, src: *u8, n: i32): *u8;
+
+/**
+ * Record an ARM64 label and, for a function, its export symbol.
+ * Pad to 4 bytes only when the label starts a function.
+ * The code length is read after that pad, in a later block.
+ * add_label stores the name at that length.
+ * A local label returns after add_label.
+ * A function export builds an underscored name with memcpy.
+ * The copy count is the name length when it is below 255,
+ * and 255 when the name length is 255 or more.
+ * Mach-O prepends one underscore byte when the flag is set,
+ * the length is in 1..255, and the first byte is not underscore.
+ * Other function exports pass the original name to add_sym.
+ * A null context or a null name returns -1 from pad or add_label.
+ * @param elf_ctx *u8 — emit context; null is rejected by pad and add_label
+ * @param name *u8 — label bytes; null is rejected by add_label
+ * @param name_len i32 — byte count of name; negative is rejected by add_label
+ * @param is_func i32 — non-zero records a function export
+ * @return i32 — 0 when the label is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of code_len.
+ * Stores of the underscore buffer are straight-line.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32 {
+  if (is_func != 0) {
+    unsafe {
+      if (pipeline_elf_ctx_pad_code_to_4(elf_ctx) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  unsafe {
+    let code_len: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) {
+      return 0 - 1;
+    }
+    if (is_func == 0) {
+      return 0;
+    }
+    /* Sign of (name_len - 255): 1 keeps name_len, 0 selects 255. */
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let mn: u8[256] = [];
+    mn[0] = 95;
+    let copied: *u8 = memcpy(&mn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len > 0) {
+        if (name_len <= 255) {
+          let c0: u8 = name[0];
+          if (c0 != 95) {
+            return pipeline_elf_ctx_add_sym(elf_ctx, &mn[0], name_len + 1, code_len);
+          }
+        }
+      }
+    }
+    return pipeline_elf_ctx_add_sym(elf_ctx, name, name_len, code_len);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Record an x86_64 label and, for a function, its export symbol.
+ * Pad to 4 bytes only when the label starts a function.
+ * The code length is read after that pad, in a later block.
+ * add_label stores the name at that length.
+ * A local label returns after add_label.
+ * A function export builds an underscored name with memcpy.
+ * The copy count is the name length when it is below 255,
+ * and 255 when the name length is 255 or more.
+ * Mach-O prepends one underscore byte when the flag is set,
+ * the length is in 1..255, and the first byte is not underscore.
+ * Other function exports pass the original name to add_sym.
+ * The context pointer is the byte view. A null context or a null
+ * name returns -1 from pad or add_label.
+ * @param elf_ctx *u8 — emit context; null is rejected by pad and add_label
+ * @param name *u8 — label bytes; null is rejected by add_label
+ * @param name_len i32 — byte count of name; negative is rejected by add_label
+ * @param is_func i32 — non-zero records a function export
+ * @return i32 — 0 when the label is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of code_len.
+ * Stores of the underscore buffer are straight-line.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_label(elf_ctx: *u8, name: *u8, name_len: i32, is_func: i32): i32 {
+  if (is_func != 0) {
+    unsafe {
+      if (pipeline_elf_ctx_pad_code_to_4(elf_ctx) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  unsafe {
+    let code_len: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    if (pipeline_elf_ctx_add_label(elf_ctx, name, name_len, code_len) != 0) {
+      return 0 - 1;
+    }
+    if (is_func == 0) {
+      return 0;
+    }
+    /* Sign of (name_len - 255): 1 keeps name_len, 0 selects 255. */
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let mn: u8[256] = [];
+    mn[0] = 95;
+    let copied: *u8 = memcpy(&mn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len > 0) {
+        if (name_len <= 255) {
+          let c0: u8 = name[0];
+          if (c0 != 95) {
+            return pipeline_elf_ctx_add_sym(elf_ctx, &mn[0], name_len + 1, code_len);
+          }
+        }
+      }
+    }
+    return pipeline_elf_ctx_add_sym(elf_ctx, name, name_len, code_len);
+  }
+  return 0 - 1;
+}
+
+export extern "C" function pipeline_elf_ctx_append_reloc(ctx: *u8, offset: i32, name: *u8, name_len: i32): i32;
+
+/**
+ * Emit an x86_64 direct call and a reloc at the rel32 slot.
+ * The first byte is 232. The next four bytes are zero.
+ * The reloc slot is the code length minus 4, read after those bytes.
+ * A non-positive name length returns -1 before any byte is stored.
+ * The underscore buffer is filled with memcpy on the straight-line path.
+ * The copy count is the name length when it is below 255,
+ * and 255 when the name length is 255 or more.
+ * Mach-O prepends one underscore byte when the flag is set
+ * and the length is in 1..255.
+ * That prepend happens even when the name already starts with underscore.
+ * Other calls pass the original name to the reloc helper.
+ * A null context returns -1 from the byte append.
+ * @param elf_ctx *u8 — emit context; null is rejected by the byte append
+ * @param name *u8 — callee name bytes
+ * @param name_len i32 — byte count; a non-positive count returns -1
+ * @return i32 — 0 when the call and the reloc are recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The length call is the initializer of nlen in a later block.
+ * Stores of the underscore buffer are straight-line.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_call(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u8(elf_ctx, 232) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    /* Sign of (name_len - 255): 1 keeps name_len, 0 selects 255. */
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let rn: u8[256] = [];
+    rn[0] = 95;
+    let copied: *u8 = memcpy(&rn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len > 0) {
+        if (name_len <= 255) {
+          return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &rn[0], name_len + 1);
+        }
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit jmp rel32 to a link symbol (E9 + reloc), twin of enc_call with opcode 233.
+ * Host-cc turns pure `return f(params)` forwarders into a 5-byte stub; tip
+ * mega emit uses this before prologue so the same shape lands in product.
+ * Reloc / Mach-O underscore rules match arch_x86_64_enc_enc_call.
+ * @param elf_ctx *u8 — emit context
+ * @param name *u8 — callee name bytes
+ * @param name_len i32 — byte count; non-positive returns -1
+ * @return i32 — 0 when jmp+reloc recorded, -1 on failure
+ * PLATFORM: SHARED — x86_64 ELF/PE/Mach-O product asm.
+ */
+#[no_mangle]
+export function arch_x86_64_enc_enc_jmp_sym(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  /* 233 = 0xE9 jmp rel32 (call uses 232 = 0xE8). */
+  if (x86_enc_u8(elf_ctx, 233) != 0) {
+    return 0 - 1;
+  }
+  if (x86_enc_u32_le(elf_ctx, 0) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let nlen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = nlen - 4;
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let rn: u8[256] = [];
+    rn[0] = 95;
+    let copied: *u8 = memcpy(&rn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len > 0) {
+        if (name_len <= 255) {
+          return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, &rn[0], name_len + 1);
+        }
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+  }
+  return 0 - 1;
+}
+
+export extern "C" function arm64_enc_frame_size_store(elf_ctx: *u8, fs: i32): i32;
+export extern "C" function arm64_enc_frame_size_load(): i32;
+export extern "C" function arm64_enc_addsub_sp_imm_chunks(elf_ctx: *u8, imm: i32, is_sub: i32): i32;
+export extern "C" function arm64_enc_x19_sp_off(elf_ctx: *u8, off: i32, is_ldr: i32): i32;
+
+/**
+ * Emit an ARM64 function prologue and record the aligned frame size.
+ * A request below 16 becomes 16. The size is then aligned to 16.
+ * Sixteen more bytes hold callee-saved x19.
+ * The frame size is stored before any instruction byte.
+ * sub sp uses the chunk helper. Then stp x29,x30,[sp], mov x29,sp,
+ * and str x19 at the high slot.
+ * A null context returns -1 from the store and leaves the size unchanged.
+ * @param elf_ctx *u8 — emit context; null is rejected by the store
+ * @param frame_sz i32 — requested frame bytes before alignment
+ * @return i32 — 0 when the prologue is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The chunk walk and the x19 scale stay in the C helpers.
+ * Frame-size stores are straight-line.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_prologue(elf_ctx: *u8, frame_sz: i32): i32 {
+  /* A negative request becomes 0. A request below 16 becomes 16. */
+  let fs0: i32 = frame_sz;
+  let neg: u32 = (fs0 as u32) >> 31;
+  let neg_m: u32 = 0 - neg;
+  let inv_neg: u32 = 4294967295 - neg_m;
+  let fs_nonneg: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
+  let fs_nn: i32 = fs_nonneg as i32;
+  let diff: i32 = fs_nn - 16;
+  let dsign: u32 = (diff as u32) >> 31;
+  let dkeep: u32 = 0 - dsign;
+  let dinv: u32 = 4294967295 - dkeep;
+  let fs_min_u: u32 = ((16 as u32) & dkeep) | ((fs_nn as u32) & dinv);
+  let fs_m: i32 = fs_min_u as i32;
+  /* (0 - size) masked to 4 bits is the pad up to the next multiple of 16. */
+  let addend_u: u32 = ((0 - fs_m) as u32) & (15 as u32);
+  let fs_al: i32 = fs_m + (addend_u as i32);
+  let x19_off: i32 = fs_al;
+  let fs: i32 = fs_al + 16;
+  unsafe {
+    if (arm64_enc_frame_size_store(elf_ctx, fs) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 1) != 0) {
+      return 0 - 1;
+    }
+  }
+  /* stp x29, x30, [sp] is 0xA9007BFD. mov x29, sp is 0x910003FD. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1459586051) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1862269955) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    if (arm64_enc_x19_sp_off(elf_ctx, x19_off, 0) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Emit an ARM64 function epilogue for the frame stored by the prologue.
+ * A negative stored size is cleared to 0.
+ * wave414 FP-at-bottom: reset SP from x29 before x19/fp/lr restore.
+ * Body emit may leave SP below FP via unpaired push temps; restoring
+ * from drifted SP aliased callee/caller slots (tip into_buf XT001).
+ * x19 is restored when its slot is at least 16.
+ * Then ldp x29,x30,[sp], add sp by the stored size, and ret.
+ * The frame size is loaded again in the add block.
+ * A null context returns -1 from the helpers.
+ * @param elf_ctx *u8 — emit context; null is rejected by the helpers
+ * @return i32 — 0 when the epilogue is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * Each load is the initializer of fs0 in its own block.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_epilogue(elf_ctx: *u8): i32 {
+  /* mov sp, x29 — ADD SP, X29, #0 = 0x910003BF. Re-anchor before [sp] restore. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1862270017) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    let fs0: i32 = arm64_enc_frame_size_load();
+    let neg: u32 = (fs0 as u32) >> 31;
+    let neg_m: u32 = 0 - neg;
+    let inv_neg: u32 = 4294967295 - neg_m;
+    let fs_u: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
+    let fs: i32 = fs_u as i32;
+    let x19_off: i32 = fs - 16;
+    if (x19_off >= 16) {
+      if (arm64_enc_x19_sp_off(elf_ctx, x19_off, 1) != 0) {
+        return 0 - 1;
+      }
+    }
+  }
+  /* ldp x29, x30, [sp] is 0xA9407BFD. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 1455391747) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    let fs0: i32 = arm64_enc_frame_size_load();
+    let neg: u32 = (fs0 as u32) >> 31;
+    let neg_m: u32 = 0 - neg;
+    let inv_neg: u32 = 4294967295 - neg_m;
+    let fs_u: u32 = ((0 as u32) & neg_m) | ((fs0 as u32) & inv_neg);
+    let fs: i32 = fs_u as i32;
+    if (arm64_enc_addsub_sp_imm_chunks(elf_ctx, fs, 0) != 0) {
+      return 0 - 1;
+    }
+  }
+  /* ret is 0xD65F03C0. */
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 698416192) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Move imm32 into w0, then return from the current ARM64 frame.
+ * A positive stored frame size emits the epilogue, which includes ret.
+ * A zero frame size appends ret only.
+ * A null context returns -1 from the move.
+ * @param elf_ctx *u8 — emit context; null is rejected by the move
+ * @param imm32 i32 — value placed in w0
+ * @return i32 — 0 when the return is recorded, -1 on failure
+ * PLATFORM: SHARED — product link name. This symbol stays strong.
+ * This body does not compare elf_ctx with 0 and does not divide.
+ * The load is the initializer of fs in its own block.
+ */
+#[no_mangle]
+export function arch_arm64_enc_enc_ret_imm32(elf_ctx: *u8, imm32: i32): i32 {
+  if (arch_arm64_enc_enc_mov_imm32_to_w0(elf_ctx, imm32) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let fs: i32 = arm64_enc_frame_size_load();
+    if (fs > 0) {
+      return arch_arm64_enc_enc_epilogue(elf_ctx);
+    }
+  }
+  unsafe {
+    if (arch_arm64_enc_enc_u32_le(elf_ctx, 0 - 698416192) != 0) {
+      return 0 - 1;
+    }
+  }
+  return 0;
+}
+
+// w1526 (5.9): the last C tail of backend_enc_dispatch.o moves here, so the
+// object is this file alone (pure asm, one shot, no host cc). The tail
+// carried backend_enc_x86_jcc_rel32_c_impl, backend_enc_arm64_call_c_impl,
+// backend_enc_lea_sym_to_reg_arch, and weak arch_*_impl helpers. The two
+// riscv64 helpers stay (the riscv64 publics above forward to them and
+// return -1). The four arm64 *_impl helpers (call, add_sp, sub_sp, str_x0)
+// had no caller anywhere and are dropped. PLATFORM: SHARED.
+export extern "C" function pipeline_elf_ctx_append_reloc_typed(ctx: *u8, at: i32, name: *u8, name_len: i32, r_type: i32, r_pcrel: i32): i32;
+
+/**
+ * Emit an x86_64 conditional jump rel32 to a label: 0F opcode2 00 00 00 00,
+ * then ensure the label and add a 32-bit patch at the rel32 slot.
+ * @param elf_ctx *u8 — emit context; null returns -1
+ * @param opcode2 i32 — second opcode byte (low 8 bits are used)
+ * @param label *u8 — label bytes; null returns -1
+ * @param label_len i32 — label length; non-positive returns -1
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: SHARED. The code length is read in a later block.
+ */
+#[no_mangle]
+export function backend_enc_x86_jcc_rel32_c_impl(elf_ctx: *u8, opcode2: i32, label: *u8, label_len: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (label == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (label_len <= 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let buf: u8[8] = [];
+    buf[0] = 15;
+    buf[1] = (opcode2 & 255) as u8;
+    buf[2] = 0;
+    buf[3] = 0;
+    buf[4] = 0;
+    buf[5] = 0;
+    if (pipeline_elf_ctx_append_bytes(elf_ctx, &buf[0], 6) != 0) {
+      return 0 - 1;
+    }
+  }
+  unsafe {
+    let clen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let rel32_at: i32 = clen - 4;
+    if (pipeline_elf_ctx_ensure_label(elf_ctx, label, label_len) != 0) {
+      return 0 - 1;
+    }
+    return pipeline_elf_ctx_append_patch(elf_ctx, rel32_at, label, label_len, 32);
+  }
+  return 0 - 1;
+}
+
+/**
+ * Emit an ARM64 BL with a reloc on the instruction word.
+ * Mach-O prepends one underscore (always, even for names already starting
+ * with underscore, so __error becomes ___error) when the flag is set and
+ * the name length is 1..255; otherwise the original name goes to the reloc.
+ * @param elf_ctx *u8 — emit context; null returns -1
+ * @param name *u8 — callee name; null returns -1
+ * @param name_len i32 — byte count; non-positive returns -1
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: SHARED — MACOS arm64 BL reloc; ELF flag stays 0.
+ */
+#[no_mangle]
+export function backend_enc_arm64_call_c_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  /* 2483027968 = 0x94000000 BL #0. */
+  if (backend_enc_append_u32_le_c_impl(elf_ctx, 2483027968 as u32) != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    let clen: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+    let at: i32 = clen - 4;
+    if (at < 0) {
+      return 0 - 1;
+    }
+    let diff: i32 = name_len - 255;
+    let diff_u: u32 = diff as u32;
+    let diff_sign: u32 = diff_u >> 31;
+    let keep: u32 = 0 - diff_sign;
+    let inv: u32 = 4294967295 - keep;
+    let nl_u: u32 = name_len as u32;
+    let copy_u: u32 = (nl_u & keep) | ((255 as u32) & inv);
+    let copy_n: i32 = copy_u as i32;
+    let rn: u8[256] = [];
+    rn[0] = 95;
+    let copied: *u8 = memcpy(&rn[1], name, copy_n);
+    if (copied == 0 as *u8) {
+      return 0 - 1;
+    }
+    let macho: i32 = pipeline_elf_ctx_macho_leading_underscore(elf_ctx);
+    if (macho != 0) {
+      if (name_len <= 255) {
+        return pipeline_elf_ctx_append_reloc(elf_ctx, at, &rn[0], name_len + 1);
+      }
+    }
+    return pipeline_elf_ctx_append_reloc(elf_ctx, at, name, name_len);
+  }
+  return 0 - 1;
+}
+
+/**
+ * riscv64 direct call is unsupported. Null or non-positive inputs and every
+ * other call return -1. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_call_impl(elf_ctx: *u8, name: *u8, name_len: i32): i32 {
+  return 0 - 1;
+}
+
+/**
+ * riscv64 argument-register move is unsupported; always -1. PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function arch_riscv64_enc_enc_mov_rax_to_arg_reg_impl(elf_ctx: *u8, k: i32): i32 {
+  return 0 - 1;
+}
+
+/**
+ * Materialize a symbol address into a register.
+ * ta 1 (arm64): adrp xN + PAGE21 reloc (r_type 3, pcrel 1), then
+ * add xN, xN, #0 + PAGEOFF12 reloc (r_type 4, pcrel 0). reg must be 0..30.
+ * ta 0 (x86_64): lea r64, [rip+disp32] (REX.W[+R] 8D ModRM(reg,101))
+ * with an untyped PC32 reloc on disp32. reg must be 0..15.
+ * Any other ta, a null context or name, or a non-positive length returns -1.
+ * PLATFORM: SHARED — MACOS|ARM64 PAGE21/12 · x86_64 RIP-relative PC32.
+ * Code-length reads sit in their own blocks.
+ */
+#[no_mangle]
+export function backend_enc_lea_sym_to_reg_arch(elf_ctx: *u8, reg: i32, name: *u8, name_len: i32, ta: i32): i32 {
+  if (elf_ctx == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (name_len <= 0) {
+    return 0 - 1;
+  }
+  if (ta == 1) {
+    if (reg < 0) {
+      return 0 - 1;
+    }
+    if (reg > 30) {
+      return 0 - 1;
+    }
+    unsafe {
+      if (backend_enc_append_u32_le_c(elf_ctx, (2415919104 as u32) | (reg as u32)) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let c1: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      let adrp_at: i32 = c1 - 4;
+      if (pipeline_elf_ctx_append_reloc_typed(elf_ctx, adrp_at, name, name_len, 3, 1) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let ru: u32 = reg as u32;
+      let word: u32 = (2432696320 as u32) | (ru * 32) | ru;
+      if (backend_enc_append_u32_le_c(elf_ctx, word) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let c2: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      let add_at: i32 = c2 - 4;
+      return pipeline_elf_ctx_append_reloc_typed(elf_ctx, add_at, name, name_len, 4, 0);
+    }
+  }
+  if (ta == 0) {
+    if (reg < 0) {
+      return 0 - 1;
+    }
+    if (reg > 15) {
+      return 0 - 1;
+    }
+    unsafe {
+      let rex: i32 = 72;
+      if (reg >= 8) {
+        rex = 76;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, rex) != 0) {
+        return 0 - 1;
+      }
+      if (backend_enc_append_u8_c(elf_ctx, 141) != 0) {
+        return 0 - 1;
+      }
+      let modrm: i32 = ((reg & 7) * 8) + 5;
+      if (backend_enc_append_u8_c(elf_ctx, modrm) != 0) {
+        return 0 - 1;
+      }
+      let zb: u8[8] = [];
+      zb[0] = 0;
+      zb[1] = 0;
+      zb[2] = 0;
+      zb[3] = 0;
+      if (pipeline_elf_ctx_append_bytes(elf_ctx, &zb[0], 4) != 0) {
+        return 0 - 1;
+      }
+    }
+    unsafe {
+      let c3: i32 = pipeline_elf_ctx_emit_code_len(elf_ctx);
+      let rel32_at: i32 = c3 - 4;
+      return pipeline_elf_ctx_append_reloc(elf_ctx, rel32_at, name, name_len);
+    }
+  }
+  return 0 - 1;
+}
+
+/** w1526 anchor: backend_enc_dispatch.o has no C tail. Returns 1526. */
+#[no_mangle]
+export function backend_enc_dispatch_x_w1526_anchor(): i32 {
+  return 1526;
 }

@@ -34,30 +34,47 @@ extern function uuid_format_c(u: *u8, out: *u8, out_cap: i32): i32;
 extern function uuid_eq_c(a: *u8, b: *u8): i32;
 extern function uuid_version_c(u: *u8): i32;
 
-/** Exported function `new_v4`.
- * Implements `new_v4`.
- * @return Uuid
+/**
+ * Write a version-4 UUID.
+ * Uuid is 16 bytes, so returning it by value does not asm-emit.
+ * A failed C fill leaves sixteen zero bytes.
+ * @param out *Uuid — caller storage; must not be null
+ * @return i32 — 0 on success, or the C fill status
+ * PLATFORM: SHARED
  */
-export function new_v4(): Uuid {
-  let u: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-  unsafe { if (uuid_new_v4_c(&u.bytes[0]) != 0) {
-    return { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-  } }
-  return u;
+export function new_v4(out: *Uuid): i32 {
+  if (out == 0) { return -1; }
+  let rc: i32 = 0;
+  unsafe { rc = uuid_new_v4_c(&out.bytes[0]); }
+  if (rc != 0) {
+    let i: i32 = 0;
+    while (i < 16) {
+      out.bytes[i] = 0;
+      i = i + 1;
+    }
+  }
+  return rc;
 }
 
-/** Exported function `new_v7`.
- * Implements `new_v7`.
- * @return Uuid
+/**
+ * Write a version-7 UUID.
+ * A failed C fill leaves sixteen zero bytes.
+ * @param out *Uuid — caller storage; must not be null
+ * @return i32 — 0 on success, or the C fill status
+ * PLATFORM: SHARED
  */
-export function new_v7(): Uuid {
-  let u: Uuid = { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-  unsafe { 
-    if (uuid_new_v7_c(&u.bytes[0]) != 0) {
-      return { bytes: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] };
-    } 
+export function new_v7(out: *Uuid): i32 {
+  if (out == 0) { return -1; }
+  let rc: i32 = 0;
+  unsafe { rc = uuid_new_v7_c(&out.bytes[0]); }
+  if (rc != 0) {
+    let i: i32 = 0;
+    while (i < 16) {
+      out.bytes[i] = 0;
+      i = i + 1;
+    }
   }
-  return u;
+  return rc;
 }
 
 /** Exported function `parse`.
@@ -106,12 +123,15 @@ export function version(u: Uuid): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** Exported function `as_bytes`.
- * Implements `as_bytes`.
- * @param u *Uuid
- * @return *u8
+/**
+ * Return the address of the UUID bytes.
+ * The installed product cannot asm-emit this *u8 return. The address stays in rax.
+ * @param u *Uuid — UUID slot; a null pointer returns 0
+ * @return i64 — byte address, or 0
+ * PLATFORM: SHARED
  */
-export function as_bytes(u: *Uuid): *u8 {
-  if (u == 0) { return 0 as *u8; }
-  return &u.bytes[0];
+export function as_bytes(u: *Uuid): i64 {
+  if (u == 0) { return 0; }
+  let p: *u8 = &u.bytes[0];
+  return p as i64;
 }

@@ -95,6 +95,8 @@ for rel, flags in entries:
         continue
     seen.add(rel)
     abspath = os.path.join(cdir, rel)
+    if not os.path.isfile(abspath):
+        continue  # wave309/Class O physical leave — skip retired orphans
     obj = rel.replace("/", "_").replace(".c", ".o")
     cmd = " ".join([cc] + flags + ["-c", "-o", obj, rel])
     db.append({"directory": cdir, "command": cmd, "file": abspath})

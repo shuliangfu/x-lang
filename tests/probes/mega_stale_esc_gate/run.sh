@@ -3,8 +3,9 @@
 # src/runtime.x + runtime_surface.from_x.c used to export
 # driver_stack_esc_gate_{thread_fn,large_stack} as thin forwards to
 # never-defined *_impl. Product authority is rt_stack.x.
-# After retirement: mega surface must not define those names; rt_stack
-# cold seed and product xlang_asm must still provide the 4-symbol face.
+# After retirement: mega surface must not define those names; the pure-asm
+# rt_stack.x object (w1496: seed deleted) and product xlang_asm must still
+# provide the face.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 CC="${CC:-cc}"
@@ -16,7 +17,8 @@ trap 'rm -rf "$WORKDIR"' EXIT
 # -w: surface is -E codegen (parentheses-equality noise); nm is the gate.
 cflags=(-c -w -I"$ROOT/compiler" -I"$ROOT/compiler/include" -I"$ROOT/compiler/src")
 "$CC" "${cflags[@]}" "$ROOT/compiler/seeds/runtime_surface.from_x.c" -o "$WORKDIR/surface.o"
-"$CC" "${cflags[@]}" "$ROOT/compiler/seeds/rt_stack.from_x.c" -o "$WORKDIR/rt_stack.o"
+# w1496: seeds/rt_stack.from_x.c is deleted; build the slice from the .x.
+(cd "$ROOT/compiler" && "$XLANG" -backend asm -c src/runtime/rt_stack.x -o "$WORKDIR/rt_stack.o")
 
 nm_has() {
   local obj="$1"
@@ -39,8 +41,9 @@ do
   fi
 done
 
-# rt_stack cold seed is the real body.
-for name in driver_stack_esc_gate_thread_fn driver_stack_esc_gate_large_stack; do
+# rt_stack.x is the real body (plus the slice marker since w1496).
+for name in driver_stack_esc_gate_thread_fn driver_stack_esc_gate_large_stack \
+  labi_rt_stack_slice_marker; do
   if ! nm_has "$WORKDIR/rt_stack.o" 'TWw' "$name"; then
     echo "FAIL: rt_stack.o missing T $name" >&2
     nm "$WORKDIR/rt_stack.o" | grep -E "esc_gate" >&2 || true
@@ -66,4 +69,4 @@ do
   fi
 done
 
-echo "mega_stale_esc_gate probe OK surface=0 rt_stack=2 product=4"
+echo "mega_stale_esc_gate probe OK surface=0 rt_stack=3 product=4"

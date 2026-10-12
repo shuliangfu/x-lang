@@ -7,6 +7,9 @@
  * Buffer ABI: 24 bytes { ptr, length, handle } — match tests/io-driver + product.
  * G.7: single formal vehicle for pure-asm product link (std/io/driver.o).
  * formal_mod kind=c_face.
+ * Darwin arm64 product body is compiler/src/asm/std_io_driver_formal_darwin.x.
+ * A 24-byte Buffer arrives as a pointer. This file stays the Linux and
+ * Windows face, and the Darwin fallback when pure asm leaves no object.
  */
 #include <stdint.h>
 #include <stddef.h>

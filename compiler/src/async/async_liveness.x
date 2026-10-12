@@ -46,18 +46,9 @@ export function async_liveness_x_doc_anchor(): i32 {
  */
 export function async_live_load_func_name(callee: *u8): *u8 {
   if (callee == 0) { return 0 as *u8; }
-  let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = callee[8] as usize;
-  a = a + (callee[9] as usize) * m;
-  a = a + (callee[10] as usize) * m2;
-  a = a + (callee[11] as usize) * (m2 * m);
-  a = a + (callee[12] as usize) * m4;
-  a = a + (callee[13] as usize) * (m4 * m);
-  a = a + (callee[14] as usize) * (m4 * m2);
-  a = a + (callee[15] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  // Eight chained multiplies spill past the frame. The 8-byte load
+  // lives in async_live_load_ptr. Offset 8 is ASTFunc.name.
+  return async_live_load_ptr(callee, 8);
 }
 
 /** Exported function `async_liveness_callee_is_io_read`.
@@ -109,11 +100,32 @@ export function async_liveness_callee_is_io_write(f: *u8): i32 {
  */
 export function async_live_load_i32(p: *u8, off: i32): i32 {
   if (p == 0) { return 0; }
+  // Live pad: the multiply temps otherwise store at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let m: i32 = 256;
   let a: i32 = p[off] as i32;
   a = a + (p[off + 1] as i32) * m;
   a = a + (p[off + 2] as i32) * m * m;
   a = a + (p[off + 3] as i32) * m * m * m;
+  return a;
+}
+
+/** Load four little-endian bytes at base+off as a zero-extended usize.
+ * Splits the 8-byte pointer load so each function stays inside its frame.
+ * Null base returns 0. off is a byte offset and is not bounds-checked.
+ * PLATFORM: SHARED — host AST layout loads only. */
+#[no_mangle]
+export function async_live_load_u32(p: *u8, off: i32): usize {
+  if (p == 0) { return 0; }
+  // Live pad: four chained multiplies otherwise store at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
+  let m: usize = 256;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m * m;
+  a = a + (p[off + 3] as usize) * m * m * m;
   return a;
 }
 
@@ -125,18 +137,14 @@ export function async_live_load_i32(p: *u8, off: i32): i32 {
  */
 export function async_live_load_ptr(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
+  // Low and high halves stay zero-extended. One function with all eight
+  // multiplies spills past the frame.
+  let lo: usize = async_live_load_u32(p, off);
+  let hi: usize = async_live_load_u32(p, off + 4);
   let m: usize = 256;
   let m2: usize = m * m;
   let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  return (lo + hi * m4) as *u8;
 }
 
 /** Exported function `async_live_ptr_at`.
@@ -1051,12 +1059,11 @@ export function block_rest_refs_var(b: *u8, from_exclusive: i32, name: *u8): i32
  */
 export function frame_live_load_n(out: *u8): i32 {
   if (out == 0) { return 0; }
-  let q: *u8 = out;
-  let i: i32 = 0;
-  while (i < 4096) {
-    q = q + 1;
-    i = i + 1;
-  }
+  // n lives at byte 4096. One add replaces the 4096-step walk, which
+  // spilled past the frame.
+  let q: *u8 = out + 4096;
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let m: i32 = 256;
   let a: i32 = q[0] as i32;
   a = a + (q[1] as i32) * m;
@@ -1073,12 +1080,10 @@ export function frame_live_load_n(out: *u8): i32 {
  */
 export function frame_live_store_n(out: *u8, n: i32): void {
   if (out == 0) { return; }
-  let q: *u8 = out;
-  let i: i32 = 0;
-  while (i < 4096) {
-    q = q + 1;
-    i = i + 1;
-  }
+  // n lives at byte 4096. One add replaces the 4096-step walk.
+  let q: *u8 = out + 4096;
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let a: i32 = n;
   let m: i32 = 256;
   if (a < 0) { a = 0; }
@@ -1483,6 +1488,9 @@ export function async_live_store_i32(p: *u8, off: i32, v: i32): void {
 export function async_live_store_ptr(p: *u8, off: i32, v: *u8): void {
   if (p == 0) { return; }
   if (off < 0) { return; }
+  // Live pad: the divide and modulo temps otherwise store at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let a: usize = v as usize;
   let m: usize = 256;
   let m2: usize = m * m;
@@ -1731,6 +1739,9 @@ export function async_liveness_type_to_c_buf(ty: *u8, buf: *u8, cap: i32): void 
 #[no_mangle]
 export function async_liveness_type_size_bytes_module(ty: *u8, m: *u8): i32 {
   if (ty == 0) { return 4; }
+  // Live pad: call spills in the named-struct walk otherwise sit past the frame.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let kind: i32 = async_live_load_i32(ty, 0);
   if (kind == 8) {
     let nm: *u8 = async_live_load_ptr(ty, 8);
@@ -1793,6 +1804,9 @@ export function async_liveness_expr_has_await(e: *u8): i32 {
 #[no_mangle]
 export function async_liveness_layout_func_module(f: *u8, m: *u8, out: *u8): i32 {
   if (out == 0) { return 0 - 1; }
+  // Live pad: the last call spill otherwise sits on the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   // memset out 4196 bytes
   unsafe { memset(out, 0, 4196 as usize); }
   if (f == 0) { return 0; }

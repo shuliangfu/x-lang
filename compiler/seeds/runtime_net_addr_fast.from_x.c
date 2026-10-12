@@ -1,6 +1,10 @@
 /* seeds/runtime_net_addr_fast.from_x.c — G-02f-20 product TU
  * G-02f-102 helper gates.
- * Product: ../std/net/net_addr_fast.o; logic still C until full .x port.
+ * Product: ../std/net/net_addr_fast.o.
+ * w1095: Darwin arm64 product body is src/asm/runtime_net_addr_fast.x
+ * plus src/asm/runtime_net_addr_fast_darwin.x (pure asm, then ld -r).
+ * Linux, Windows, and the pure-asm-fault backup stay this C seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x pair.
  */
 #include <stdint.h>
 

@@ -30,6 +30,10 @@ let g_cfg_freestanding: i32 = 0;
 // G.7: eval/all/not/target_os/arch authority stays in this file; host lit only here as
 // export-extern surface; link_alias provides strong bodies when merged into cfg_eval.o.
 // PLATFORM: SHARED — mac + Ubuntu both take -E-extern+alias when pure-asm CG002 fails.
+// wave755 Class F: standalone `-backend asm -c` green both ends (host lit U).
+//   Product ladder prefers pure-asm rung first (no host-cc of cfg_eval gen.c).
+// wave758 Class I: cfg_host_* from pure-asm cfg_eval_host_lit.x (not seed cc)
+//   on Rung0 when xlang_asm present. Do not -E as repair.
 /**
  * Host target_os literal ("linux" / "macos" / "windows" / "freebsd" / "unknown").
  * @return *u8 — NUL-terminated static string; never null
@@ -497,10 +501,13 @@ export function cfg_eval_expr_range(buf: *u8, b: i32, end: i32): i32 {
 
 /** Exported function `cfg_eval_expr_c`.
  * Implements `cfg_eval_expr_c`.
- * @param start *u8
- * @param len i32
- * @return i32
+ * Link name stays unprefixed: the lexer and the driver call this short name.
+ * @param start *u8 — expression text; 0 returns 0
+ * @param len i32 — byte count; <= 0 returns 0
+ * @return i32 — 1 when the expression is true, else 0
+ * PLATFORM: SHARED
  */
+#[no_mangle]
 export function cfg_eval_expr_c(start: *u8, len: i32): i32 {
   if (start == 0) { return 0; }
   if (len <= 0) { return 0; }
@@ -512,10 +519,13 @@ export function cfg_eval_expr_c(start: *u8, len: i32): i32 {
 
 /** Exported function `cfg_apply_compile_target_from_triple`.
  * Implements `cfg_apply_compile_target_from_triple`.
- * @param triple *u8
- * @param len i32
+ * Link name stays unprefixed: other compiler objects call this short name.
+ * @param triple *u8 — target triple text
+ * @param len i32 — byte count of triple
  * @return void
+ * PLATFORM: SHARED
  */
+#[no_mangle]
 export function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): void {
   cfg_parse_triple_literals(triple, len, &g_cfg_os_override[0], 32, &g_cfg_arch_override[0], 32);
   g_cfg_has_target_override = 1;
@@ -523,8 +533,11 @@ export function cfg_apply_compile_target_from_triple(triple: *u8, len: i32): voi
 
 /** Exported function `cfg_reset_compile_target`.
  * Implements `cfg_reset_compile_target`.
+ * Link name stays unprefixed: other compiler objects call this short name.
  * @return void
+ * PLATFORM: SHARED
  */
+#[no_mangle]
 export function cfg_reset_compile_target(): void {
   g_cfg_has_target_override = 0;
   g_cfg_os_override[0] = 0;
@@ -532,10 +545,13 @@ export function cfg_reset_compile_target(): void {
 }
 
 /** Exported function `cfg_set_freestanding`.
- * Memory management helper `cfg_set_freestanding`.
- * @param v i32
+ * Records whether cfg(freestanding) is active.
+ * Link name stays unprefixed: other compiler objects call this short name.
+ * @param v i32 — nonzero selects freestanding
  * @return void
+ * PLATFORM: SHARED
  */
+#[no_mangle]
 export function cfg_set_freestanding(v: i32): void {
   g_cfg_freestanding = v;
 }

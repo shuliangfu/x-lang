@@ -32,10 +32,19 @@ const ast = import("ast");
 extern "C" function calloc(nmemb: usize, size: usize): *u8;
 extern "C" function free(ptr: *u8): void;
 
-/* See implementation. */
-export extern "C" function std_fs_open(path: *u8): i32;
-export extern "C" function std_fs_read(fd: i32, buf: *u8, count: usize): isize;
-export extern "C" function std_fs_close(fd: i32): i32;
+// Smoke entry is parser_standalone.x. This library must not define a
+// function named main or entry. WPO treats either name as a program root
+// and drops exports that other objects call. The host-cc seed does not
+// emit that smoke entry. PLATFORM: SHARED.
+//
+// These three FS declarations are not called from this library. The
+// standalone smoke calls the same symbols. Deleting the declarations
+// makes parse_into fail the struct-pointer overload check; three empty
+// externs at this slot typecheck too, so the check is sensitive to the
+// slots and the original declarations stay. PLATFORM: SHARED.
+export extern "C" function fs_open_read_c(path: *u8): i32;
+export extern "C" function fs_posix_read_c(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function fs_posix_close_c(fd: i32): i32;
 
 /* See implementation. */
 /* See implementation. */
@@ -57,8 +66,98 @@ export function parse_peek_function_name_buf(lex: Lexer, data: *u8, len: i32, ou
 }
 
 
-/* See implementation. */
-export extern function parser_slice_from_buf(data: *u8, len: i32): u8[];
+/**
+ * 16-byte named slice. Same two words as SliceU8: data pointer, then
+ * byte length. Win64 returns this through a hidden pointer in rcx.
+ * A u8[] return is rax:rdx, and that caller wrote the length through
+ * the source pointer. PLATFORM: SHARED layout. WINDOWS is why the
+ * extern below is not a slice.
+ */
+allow(padding) struct ParserSliceBuf {
+  data: *u8;
+  length: usize;
+}
+
+/** Copy 16 bytes. Used only to turn ParserSliceBuf into a u8[] here. */
+export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+
+/**
+ * Cross-TU constructor. Return type is ParserSliceBuf so the Windows
+ * caller passes the hidden return pointer. Negative len is clamped
+ * by the body in runtime_pipeline_abi_parser_result_thin.x.
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count
+ * @return ParserSliceBuf — {data, length}
+ * PLATFORM: SHARED symbol. WINDOWS return is the hidden pointer.
+ */
+export extern function parser_slice_from_buf(data: *u8, len: i32): ParserSliceBuf;
+
+/**
+ * u8[] view of [data, data+len) for the rest of this file.
+ * The extern returns a named struct (Windows hidden pointer). A slice
+ * return from this function stays in rax:rdx, and this file's callers
+ * are compiled with that same convention. The 16-byte copy is the
+ * layout match of {pointer, length}. It does not copy the source bytes.
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count; negative becomes an empty view
+ * @return u8[] — fat pointer the parser indexes
+ * PLATFORM: SHARED. WINDOWS must not declare the extern as u8[].
+ */
+function parser_slice_view(data: *u8, len: i32): u8[] {
+  let b: ParserSliceBuf = ParserSliceBuf { data: (0 as *u8), length: (0 as usize) };
+  let sl: u8[] = [];
+  unsafe {
+    b = parser_slice_from_buf(data, len);
+    memcpy((&sl as *u8), (&b as *u8), (16 as usize));
+  }
+  return sl;
+}
+
+/**
+ * Write a u8[] view of [data, data+len) into a caller-owned header.
+ *
+ * The Windows bootstrap compiler lowers `let s: u8[] = call()` by copying
+ * at most 1024 payload bytes into a frame buffer and storing that length.
+ * Parser cursors are absolute indexes into the original buffer, so a file
+ * longer than 1024 bytes then looks like EOF and the top-level let reports
+ * P014 at 0:0. Callers keep `let s: u8[] = []` (not a call) and pass &s.
+ * The 16-byte store is the {data, length} header only.
+ *
+ * @param data *u8 — first byte; null only when the length is 0
+ * @param len i32 — byte count; negative becomes an empty view
+ * @param dst *u8 — address of the caller u8[] header; caller does not pass null
+ * @return void
+ * PLATFORM: SHARED. WINDOWS bootstrap deep-copy is why this is not a slice return.
+ */
+function parser_slice_view_store(data: *u8, len: i32, dst: *u8): void {
+  let b: ParserSliceBuf = ParserSliceBuf { data: (0 as *u8), length: (0 as usize) };
+  unsafe {
+    b = parser_slice_from_buf(data, len);
+    memcpy(dst, (&b as *u8), (16 as usize));
+  }
+}
+
+/**
+ * Copy one LexerResult image (72 bytes) onto dst.
+ *
+ * Layout: next_lex at 0 (pos, line, col; 16 bytes), tok at 16 (48 bytes),
+ * token_start at 64. A struct assignment (`dst = src`) on the Windows
+ * bootstrap compiler keeps only the first 8 bytes, so next_lex.pos moves
+ * and tok.kind stays at the previous token. The statement loop then
+ * treats `}` as `{` and parse_block starts past the brace. Struct
+ * literals of this type already emit a 72-byte memcpy. Field-by-field
+ * stores fault the pin egg. The pointer is not retained.
+ *
+ * @param dst *LexerResult — destination; caller does not pass null
+ * @param src *LexerResult — source image; caller does not pass null
+ * @return void
+ * PLATFORM: SHARED. WINDOWS is where the 8-byte assign was measured.
+ */
+function parser_copy_lexer_result(dst: *LexerResult, src: *LexerResult): void {
+  unsafe {
+    memcpy((dst as *u8), (src as *u8), (72 as usize));
+  }
+}
 /* See implementation. */
 export extern function parser_diagnostic_parse_skip(byte_pos: i32, num_funcs_so_far: i32, name_len: i32, name: *u8): void;
 /**
@@ -670,8 +769,12 @@ export function parser_realign_lex_after_compound_stmt(lex_in: Lexer, r_in: Lexe
 /* Anti-loop state for lparen→if/while/for re-sync.
  * Same keyword start pos rewound many times = infinite parse_if re-entry
  * (spinner keeps animating; Ctrl+C used to feel stuck on large-stack workers).
- * PLATFORM: SHARED monofile BSS. */
-let g_lparen_ctrl_last_pos: usize[1] = [0 as usize];
+ * PLATFORM: SHARED monofile BSS.
+ * The one-element usize array is initialized with a bare 0. A cast element
+ * (`0 as usize`) makes the pinned stage0 egg fail modlet prepare. The bare
+ * 0 is the same zero pattern.
+ */
+let g_lparen_ctrl_last_pos: usize[1] = [0];
 let g_lparen_ctrl_hits: i32[1] = [0];
 
 export function parser_rewind_lex_for_lparen_control_stmt(lex_in: Lexer, r_in: LexerResult, source: u8[]): Lexer {
@@ -821,7 +924,7 @@ export function parser_return_kw_immediately_before(source: u8[], ident_start: u
 export function parser_match_kw_immediately_before_buf(data: *u8, len: i32, ident_start: usize): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parser_match_kw_immediately_before(slice, ident_start);
   }
   return false;  // unreachable — typeck after unsafe block
@@ -862,7 +965,7 @@ export function advance_past_stmt_semicolon_into(r_out: *LexerResult, lex: Lexer
 export function advance_past_stmt_semicolon_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return advance_past_stmt_semicolon_into(r_out, lex, slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -901,7 +1004,7 @@ export function advance_past_cond_rparen_into(r_out: *LexerResult, lex: Lexer, s
 export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexer, data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return advance_past_cond_rparen_into(r_out, lex, slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -915,11 +1018,14 @@ export function advance_past_cond_rparen_into_buf(r_out: *LexerResult, lex: Lexe
 export function onefunc_result_layout_prime(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[128] = [];
+  // OneFuncResult.name is u8[256]. A shorter array is an assignment mismatch.
+  let z64: u8[256] = [];
   /* See implementation. */
+  let init_lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&init_lex);
   let _prime: OneFuncResult = {
     ok: false,
-    next_lex: lexer.lexer_init(),
+    next_lex: init_lex,
     name: z64,
     name_len: 0,
     num_params: 0
@@ -1012,7 +1118,8 @@ export function onefunc_result_layout_prime_c(): void {
 export function onefunc_result_layout_prime_d(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let ccn: u8[128] = [];
+  // OneFuncResult.call_callee_name is u8[256].
+  let ccn: u8[256] = [];
   let _q4: OneFuncResult = {
     has_binop: false,
     binop_right_val: 0,
@@ -1033,7 +1140,8 @@ export function onefunc_result_layout_prime_d(): void {
 export function onefunc_result_layout_prime_d_b(): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let rvn: u8[128] = [];
+  // OneFuncResult.return_var_name is u8[256].
+  let rvn: u8[256] = [];
   let _q4b: OneFuncResult = {
     call_callee_len: 0,
     return_var_name: rvn,
@@ -1147,20 +1255,64 @@ export function copy_onefunc_into(dst: *OneFuncResult, src: *OneFuncResult): voi
   }
 }
 
-/** Exported function `onefunc_scratch_empty`.
- * Implements `onefunc_scratch_empty`.
- * @return OneFuncResult
+/**
+ * Return a OneFuncResult with every field stored explicitly.
+ * The asm backend writes only fields named in a struct literal. The host-cc
+ * seed lowers the same literal to a C designated initializer, which zeros
+ * every omitted field. copy_onefunc_into copies num_params from that value.
+ * An empty parameter list never assigns num_params again, so a missing store
+ * keeps the stack slot (measured 6) and the function is registered with the
+ * wrong arity. Every field is named here so both backends start from zero.
+ * @return OneFuncResult — scalars 0 or false, three name buffers zero, lexer from lexer_init
+ * PLATFORM: SHARED — scratch copied into the function parse before the parameter scan.
  */
 export function onefunc_scratch_empty(): OneFuncResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let z64: u8[256] = [];
+  let z_name: u8[256] = [];
+  let z_call: u8[256] = [];
+  let z_ret: u8[256] = [];
+  // One store per field. Do not drop a field to shorten the literal.
+  let init_lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&init_lex);
   return {
     ok: false,
-    next_lex: lexer.lexer_init(),
-    name: z64,
+    next_lex: init_lex,
+    name: z_name,
     name_len: 0,
-    num_params: 0
+    num_params: 0,
+    num_generic_params: 0,
+    num_consts: 0,
+    num_lets: 0,
+    has_if_expr: false,
+    if_cond_true: false,
+    if_then_val: 0,
+    if_else_val: 0,
+    if_cond_expr_ref: 0,
+    has_mul: false,
+    mul_right_val: 0,
+    has_binop: false,
+    binop_right_val: 0,
+    binop_left_param_idx: 0,
+    binop_right_param_idx: 0,
+    has_unary_neg: false,
+    return_val: 0,
+    has_call_expr: false,
+    call_callee_name: z_call,
+    call_callee_len: 0,
+    return_var_name: z_ret,
+    return_var_name_len: 0,
+    return_expr_ref: 0,
+    has_final_expr: false,
+    has_explicit_return_kw: false,
+    call_num_args: 0,
+    num_loops: 0,
+    num_for_loops: 0,
+    num_if_stmts: 0,
+    num_src_stmt_order: 0,
+    num_src_body_expr_stmts: 0,
+    func_return_type_ref: 0,
+    is_variadic: 0
   };
   }
 }
@@ -1217,88 +1369,142 @@ export function onefunc_finish_impl_to_out(
   copy_onefunc_into(out, snap);
   }
 }
-/** Exported function `onefunc_res_wire_dummy_head`.
- * Implements `onefunc_res_wire_dummy_head`.
- * @param res *OneFuncResult
- * @param lex Lexer
- * @param name64 u8[256]
+/**
+ * Copy a zeroed OneFuncResult into res, then overlay the head fields.
+ * The temporary starts from onefunc_scratch_empty so num_params and the
+ * other scalars are stored zeros. A partial literal would leave those
+ * slots uninitialized on the asm backend and copy_onefunc_into would
+ * publish them.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
+ * @param lex Lexer — written to the temporary next_lex
+ * @param name64 u8[256] — 256 name bytes copied onto the temporary
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_head(res: *OneFuncResult, lex: Lexer, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { ok: false, next_lex: lex, name: name64, name_len: 0, num_params: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.ok = false;
+  _w.next_lex = lex;
+  _w.name_len = 0;
+  _w.num_params = 0;
+  // Copy the whole 256-byte buffer. name_len stays 0 until the real scan.
+  let ni: i32 = 0;
+  while (ni < 256) {
+    _w.name[ni] = name64[ni];
+    ni = ni + 1;
+  }
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_const_let`.
- * Implements `onefunc_res_wire_dummy_const_let`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the const and let counts.
+ * Counts that copy_onefunc_into republishes come from the reset pool.
+ * The zero base keeps num_params from being reloaded out of an omitted field.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_const_let(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { num_consts: 0, num_lets: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.num_consts = 0;
+  _w.num_lets = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_if_mul`.
- * Implements `onefunc_res_wire_dummy_if_mul`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the if and mul fields.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_if_mul(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { has_if_expr: false, if_cond_true: false, if_then_val: 0, if_else_val: 0, if_cond_expr_ref: 0, has_mul: false, mul_right_val: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.has_if_expr = false;
+  _w.if_cond_true = false;
+  _w.if_then_val = 0;
+  _w.if_else_val = 0;
+  _w.if_cond_expr_ref = 0;
+  _w.has_mul = false;
+  _w.mul_right_val = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_call_binop`.
- * Implements `onefunc_res_wire_dummy_call_binop`.
- * @param res *OneFuncResult
- * @param name64 u8[256]
+/**
+ * Copy a zeroed OneFuncResult into res, then overlay the call and binop fields.
+ * binop parameter indexes are -1 on this temporary only. The later for-if
+ * wire copies another zeroed result, so the value that reaches the scan is 0.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
+ * @param name64 u8[256] — copied into call_callee_name on the temporary
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_call_binop(res: *OneFuncResult, name64: u8[256]): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { has_binop: false, binop_right_val: 0, binop_left_param_idx: -1, binop_right_param_idx: -1, has_unary_neg: false, return_val: 0, has_call_expr: false, call_callee_name: name64 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.has_binop = false;
+  _w.binop_right_val = 0;
+  _w.binop_left_param_idx = -1;
+  _w.binop_right_param_idx = -1;
+  _w.has_unary_neg = false;
+  _w.return_val = 0;
+  _w.has_call_expr = false;
+  let ni: i32 = 0;
+  while (ni < 256) {
+    _w.call_callee_name[ni] = name64[ni];
+    ni = ni + 1;
+  }
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_loop_call`.
- * Implements `onefunc_res_wire_dummy_loop_call`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the call and loop fields.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_loop_call(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { call_callee_len: 0, return_var_name_len: 0, return_expr_ref: 0, call_num_args: 0, num_loops: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.call_callee_len = 0;
+  _w.return_var_name_len = 0;
+  _w.return_expr_ref = 0;
+  _w.call_num_args = 0;
+  _w.num_loops = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
 }
 
-/** Exported function `onefunc_res_wire_dummy_for_if`.
- * Implements `onefunc_res_wire_dummy_for_if`.
- * @param res *OneFuncResult
+/**
+ * Copy a zeroed OneFuncResult into res and touch the for and if counts.
+ * This is the last wire before the parameter scan. Its copy is the value
+ * an empty `()` list leaves in num_params.
+ * @param res *OneFuncResult — destination overwritten by copy_onefunc_into
  * @return void
+ * PLATFORM: SHARED
  */
 export function onefunc_res_wire_dummy_for_if(res: *OneFuncResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let _w: OneFuncResult = { num_for_loops: 0, num_if_stmts: 0 };
+  let _w: OneFuncResult = onefunc_scratch_empty();
+  _w.num_for_loops = 0;
+  _w.num_if_stmts = 0;
   ast_pool_onefunc_reset(onefunc_result_pool_ptr(&_w));
   copy_onefunc_into(res, &_w);
   }
@@ -1386,6 +1592,117 @@ export function expr_set_common_zeros(e: *Expr): void {
   }
 }
 
+/**
+ * Copy every Expr field and replace only kind.
+ *
+ * The pinned stage0 egg segfaults in glue_type_size_simple when codegen
+ * emits an imported enum field store (`e.kind = ExprKind.X`). Kind is
+ * written only inside a struct literal. The four name arrays are copied
+ * by element: a literal that embeds those arrays fails the installed
+ * compiler inside this module. Callers that used to store kind go through
+ * this function so the rest of the expr stays intact.
+ *
+ * @param e Expr — source value; not modified
+ * @param k ExprKind — kind stored in the returned copy
+ * @return Expr — same payload as e, with kind replaced by k
+ * PLATFORM: SHARED — pin egg and the installed product compiler.
+ */
+function parser_expr_with_kind(e: Expr, k: ExprKind): Expr {
+  // Arrays stay out of the literal. A full Expr literal fails the installed
+  // compiler inside this module. Element stores are ordinary byte copies.
+  let out: Expr = {
+    kind: k,
+    resolved_type_ref: e.resolved_type_ref,
+    line: e.line,
+    col: e.col,
+    int_val: e.int_val,
+    float_val: e.float_val,
+    var_name_len: e.var_name_len,
+    binop_left_ref: e.binop_left_ref,
+    binop_right_ref: e.binop_right_ref,
+    unary_operand_ref: e.unary_operand_ref,
+    if_cond_ref: e.if_cond_ref,
+    if_then_ref: e.if_then_ref,
+    if_else_ref: e.if_else_ref,
+    block_ref: e.block_ref,
+    match_matched_ref: e.match_matched_ref,
+    match_arm_base: e.match_arm_base,
+    match_num_arms: e.match_num_arms,
+    field_access_base_ref: e.field_access_base_ref,
+    field_access_field_len: e.field_access_field_len,
+    field_access_is_enum_variant: e.field_access_is_enum_variant,
+    field_access_offset: e.field_access_offset,
+    field_access_soa_stride: e.field_access_soa_stride,
+    index_base_ref: e.index_base_ref,
+    index_index_ref: e.index_index_ref,
+    index_base_is_slice: e.index_base_is_slice,
+    call_callee_ref: e.call_callee_ref,
+    call_arg_base: e.call_arg_base,
+    call_num_args: e.call_num_args,
+    call_num_type_args: e.call_num_type_args,
+    method_call_base_ref: e.method_call_base_ref,
+    method_call_name_len: e.method_call_name_len,
+    method_call_arg_base: e.method_call_arg_base,
+    method_call_num_args: e.method_call_num_args,
+    const_folded_val: e.const_folded_val,
+    const_folded_valid: e.const_folded_valid,
+    index_proven_in_bounds: e.index_proven_in_bounds,
+    struct_lit_struct_name_len: e.struct_lit_struct_name_len,
+    struct_lit_field_base: e.struct_lit_field_base,
+    struct_lit_num_fields: e.struct_lit_num_fields,
+    array_lit_elem_base: e.array_lit_elem_base,
+    array_lit_num_elems: e.array_lit_num_elems,
+    float_bits_lo: e.float_bits_lo,
+    float_bits_hi: e.float_bits_hi,
+    enum_variant_tag: e.enum_variant_tag,
+    as_operand_ref: e.as_operand_ref,
+    as_target_type_ref: e.as_target_type_ref,
+    call_resolved_func_index: e.call_resolved_func_index,
+    call_resolved_dep_index: e.call_resolved_dep_index
+  };
+  let i: i32 = 0;
+  while (i < 256) {
+    out.var_name[i] = e.var_name[i];
+    out.field_access_field_name[i] = e.field_access_field_name[i];
+    out.method_call_name[i] = e.method_call_name[i];
+    out.struct_lit_struct_name[i] = e.struct_lit_struct_name[i];
+    i = i + 1;
+  }
+  return out;
+}
+
+/**
+ * Copy every Type field and replace only kind.
+ *
+ * Same pin-egg constraint as parser_expr_with_kind: an imported TypeKind
+ * field store (`t.kind = TypeKind.X`) faults in glue_type_size_simple.
+ * name and region_label are copied by element so a kind change does not
+ * clear the spelling. A literal that embeds both arrays fails the
+ * installed compiler inside this module.
+ *
+ * @param t Type — source value; not modified
+ * @param k TypeKind — kind stored in the returned copy
+ * @return Type — same payload as t, with kind replaced by k
+ * PLATFORM: SHARED — pin egg and the installed product compiler.
+ */
+function parser_type_with_kind(t: Type, k: TypeKind): Type {
+  // name and region_label are copied by element. A literal that embeds both
+  // arrays fails the installed compiler inside this module.
+  let out: Type = {
+    kind: k,
+    name_len: t.name_len,
+    elem_type_ref: t.elem_type_ref,
+    array_size: t.array_size,
+    region_label_len: t.region_label_len
+  };
+  let i: i32 = 0;
+  while (i < 256) {
+    out.name[i] = t.name[i];
+    out.region_label[i] = t.region_label[i];
+    i = i + 1;
+  }
+  return out;
+}
 
 /**
  * See implementation.
@@ -1398,7 +1715,7 @@ export function parser_alloc_true_bool_lit(arena: *ASTArena): i32 {
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
-  e.kind = ExprKind.EXPR_BOOL_LIT;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_BOOL_LIT);
   e.int_val = 1;
   e.line = 0;
   e.col = 0;
@@ -1420,7 +1737,7 @@ export function parser_alloc_float_lit(arena: *ASTArena, fval: f64): i32 {
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
-  e.kind = ExprKind.EXPR_FLOAT_LIT;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_FLOAT_LIT);
   e.float_val = fval;
   e.line = 0;
   e.col = 0;
@@ -1453,7 +1770,7 @@ export function parser_alloc_int_lit(arena: *ASTArena, ival: i64): i32 {
     return 0;
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
-  e.kind = ExprKind.EXPR_LIT;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_LIT);
   e.int_val = ival;
   e.line = 0;
   e.col = 0;
@@ -1516,7 +1833,7 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
     return 0;
   }
   let rwe: Expr = ast.ast_arena_expr_get(arena, wrap);
-  rwe.kind = ExprKind.EXPR_RETURN;
+  rwe = parser_expr_with_kind(rwe, ExprKind.EXPR_RETURN);
   rwe.line = 0;
   rwe.col = 0;
   rwe.int_val = 0;
@@ -1529,18 +1846,33 @@ export function parser_expr_wrap_in_return(arena: *ASTArena, type_ref: i32, inne
 }
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Decide whether a function body's final expression must become EXPR_RETURN.
+ *
+ * A void return type stays unwrapped. Both sides of the kind test are stored
+ * in i32 locals before the compare. A direct `rtw.kind == TypeKind.TYPE_VOID`
+ * is lowered by the Windows self-hosted compiler to the previous TypeKind
+ * ordinal, so an f64 tail skips the wrap and the next generation reports an
+ * implicit return. The i32 form lowers to the real void ordinal.
+ *
+ * @param arena     Arena that owns `type_ref`. Must not be null when `type_ref` is live.
+ * @param res       Parsed function. `has_explicit_return_kw` is the wrap decision for a non-void return.
+ * @param type_ref  Return-type ref. A null ref means do not wrap.
+ * @return          True when the tail expression should be wrapped in EXPR_RETURN.
+ *
+ * PLATFORM: SHARED. The compare shape is required for the Windows self-host;
+ * Darwin and Linux compile the same source.
  */
 export function parser_should_wrap_func_tail_in_return(arena: *ASTArena, res: *OneFuncResult, type_ref: i32): bool {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: SHARED — kind ordinals are compared as i32 so the Windows
+  // self-host does not fold TypeKind.TYPE_VOID onto the previous enumerator.
   unsafe {
   if (ast.ref_is_null(type_ref)) {
     return false;
   }
   let rtw: Type = ast.ast_arena_type_get(arena, type_ref);
-  if (rtw.kind == TypeKind.TYPE_VOID) {
+  let got_kind: i32 = rtw.kind as i32;
+  let void_ord: i32 = TypeKind.TYPE_VOID as i32;
+  if (got_kind == void_ord) {
     return false;
   }
   return res.has_explicit_return_kw;
@@ -2113,7 +2445,7 @@ function parse_expr_with_leading_int_as_into(arena: *ASTArena, lex_start: Lexer,
 export function parse_expr_with_leading_int_as_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_expr_with_leading_int_as_into(arena, lex_start, slice, out);
   }
 }
@@ -2309,7 +2641,8 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
    * See implementation.
    */
   lexer.lexer_next_into(&r_peek_blk, lex_cur, source);
-  let r: LexerResult = r_peek_blk;
+  let r: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+  parser_copy_lexer_result(&r, &r_peek_blk);
   lex_cur = parser_rewind_lex_for_following_stmt(lex_cur, r_peek_blk);
   let stmt_tok_ready: bool = true;
   let pb_break: i32 = 0;
@@ -2675,7 +3008,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         return;
       }
       let re: Expr = ast.ast_arena_expr_get(arena, ret_ref);
-      re.kind = ExprKind.EXPR_RETURN;
+      re = parser_expr_with_kind(re, ExprKind.EXPR_RETURN);
       re.line = 0;
       re.col = 0;
       expr_set_common_zeros(&re);
@@ -2941,7 +3274,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         cond_expr_ref = ast.ast_arena_expr_alloc(arena);
         if (cond_expr_ref != 0) {
           let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
-          ce.kind = ExprKind.EXPR_BOOL_LIT;
+          ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
           ce.int_val = 1;
           ce.line = 0;
           ce.col = 0;
@@ -3229,7 +3562,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         let rpeek_if2: LexerResult = { next_lex: rpeek_fe.next_lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&rpeek_if2, rpeek_fe.next_lex, source);
         if (rpeek_if2.tok.kind == token.TokenKind.TOKEN_RBRACE) {
-          rpeek_fe = rpeek_if2;
+          parser_copy_lexer_result(&rpeek_fe, &rpeek_if2);
         }
       }
       if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_RBRACE) {
@@ -3262,7 +3595,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           b = ast.ast_arena_block_get(arena, block_ref);
           b.final_expr_ref = if_expr_ref_c;
           ast.ast_arena_block_set(arena, block_ref, b);
-          r = rpeek_fe;
+          parser_copy_lexer_result(&r, &rpeek_fe);
           break;
         }
       }
@@ -3299,7 +3632,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         lex_from_result_ptr_into(&lex_cur, &r);
         let after_ms_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_ms_blk, lex_cur, source);
-        r = after_ms_blk;
+        parser_copy_lexer_result(&r, &after_ms_blk);
       }
       if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
         /* Stale-b rollback guard: refresh before final_expr writeback (see if-final note). */
@@ -3396,7 +3729,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         b = ast.ast_arena_block_get(arena, block_ref);
         b.final_expr_ref = bare_expr;
         ast.ast_arena_block_set(arena, block_ref, b);
-        r = rpeek_fe;
+        parser_copy_lexer_result(&r, &rpeek_fe);
         break;
       }
       if (rpeek_fe.tok.kind == token.TokenKind.TOKEN_SEMICOLON) {
@@ -3407,7 +3740,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
           b = ast.ast_arena_block_get(arena, block_ref);
           b.final_expr_ref = bare_expr;
           ast.ast_arena_block_set(arena, block_ref, b);
-          r = rpeek_fe2;
+          parser_copy_lexer_result(&r, &rpeek_fe2);
           break;
         }
       }
@@ -3448,7 +3781,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       b.final_expr_ref = expr_stmt_res.expr_ref;
       ast.ast_arena_block_set(arena, block_ref, b);
       /* See implementation. */
-      r = rpeek_fe;
+      parser_copy_lexer_result(&r, &rpeek_fe);
       break;
     }
     /* See implementation. */
@@ -3474,7 +3807,7 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
       lex_from_result_ptr_into(&lex_cur, &r);
       let after_semi_blk: LexerResult = { next_lex: lex_cur, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
       lexer.lexer_next_into(&after_semi_blk, lex_cur, source);
-      r = after_semi_blk;
+      parser_copy_lexer_result(&r, &after_semi_blk);
     }
     ex_pool_i = pipeline_block_append_expr_stmt(arena, block_ref, expr_stmt_res.expr_ref);
     if (ex_pool_i < 0) {
@@ -3540,7 +3873,7 @@ export function wrap_block_ref_as_expr(arena: *ASTArena, block_ref: i32, type_re
   }
   let e: Expr = ast.ast_arena_expr_get(arena, ref);
   expr_set_common_zeros(&e);
-  e.kind = ExprKind.EXPR_BLOCK;
+  e = parser_expr_with_kind(e, ExprKind.EXPR_BLOCK);
   e.block_ref = block_ref;
   e.resolved_type_ref = type_ref;
   e.line = 0;
@@ -3610,7 +3943,7 @@ function if_stmt_parts_to_if_expr(arena: *ASTArena, cond_ref: i32, then_blk: i32
   }
   let ie: Expr = ast.ast_arena_expr_get(arena, if_ref);
   expr_set_common_zeros(&ie);
-  ie.kind = ExprKind.EXPR_IF;
+  ie = parser_expr_with_kind(ie, ExprKind.EXPR_IF);
   ie.resolved_type_ref = type_ref;
   ie.line = 0;
   ie.col = 0;
@@ -3655,7 +3988,8 @@ export function parse(source: u8[]): ParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   let arena_heap_bytes: usize = pipeline_sizeof_arena();
-  let lex: Lexer = lexer.lexer_init();
+  let lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
   let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
   lexer.lexer_next_into(&r, lex, source);
   if (r.tok.kind != token.TokenKind.TOKEN_FUNCTION) {
@@ -3769,7 +4103,7 @@ export function first_token_kind(source: u8[]): i32 {
 export function first_token_kind_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return first_token_kind(slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -3804,7 +4138,7 @@ export function diag_first_ident_len(source: u8[]): i32 {
 export function diag_first_ident_len_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_first_ident_len(slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -3858,7 +4192,7 @@ export function diag_skip_let_const(lex: Lexer, source: u8[]): LexerResult {
 export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_skip_let_const(lex, slice);
   }
 }
@@ -3875,7 +4209,7 @@ export function diag_skip_let_const_buf(lex: Lexer, data: *u8, len: i32): LexerR
 export function diag_skip_let_const_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   diag_skip_let_const_into(out, lex, slice);
   }
 }
@@ -4120,7 +4454,7 @@ function parser_string_lit_append_byte(arena: *ASTArena, head_ref: i32, b: u8, l
     }
     let ch0: Expr = ast.ast_arena_expr_get(arena, ov);
     expr_set_common_zeros(&ch0);
-    ch0.kind = ExprKind.EXPR_STRING_LIT;
+    ch0 = parser_expr_with_kind(ch0, ExprKind.EXPR_STRING_LIT);
     ch0.line = e.line;
     ch0.col = e.col;
     ch0.int_val = 0;
@@ -4142,7 +4476,7 @@ function parser_string_lit_append_byte(arena: *ASTArena, head_ref: i32, b: u8, l
       ast.ast_arena_expr_set(arena, cur, chw);
       let chn: Expr = ast.ast_arena_expr_get(arena, ov);
       expr_set_common_zeros(&chn);
-      chn.kind = ExprKind.EXPR_STRING_LIT;
+      chn = parser_expr_with_kind(chn, ExprKind.EXPR_STRING_LIT);
       chn.line = e.line;
       chn.col = e.col;
       chn.int_val = 0;
@@ -4421,7 +4755,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
       let arr_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (arr_ref != 0) {
         let ae0: Expr = ast.ast_arena_expr_get(arena, arr_ref);
-        ae0.kind = ExprKind.EXPR_ARRAY_LIT;
+        ae0 = parser_expr_with_kind(ae0, ExprKind.EXPR_ARRAY_LIT);
         ae0.resolved_type_ref = 0;
         ae0.line = 0;
         ae0.col = 0;
@@ -4432,7 +4766,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
             let er: i32 = ast.ast_arena_expr_alloc(arena);
             if (er != 0) {
               let ee: Expr = ast.ast_arena_expr_get(arena, er);
-              ee.kind = ExprKind.EXPR_LIT;
+              ee = parser_expr_with_kind(ee, ExprKind.EXPR_LIT);
               ee.resolved_type_ref = 0;
               ee.line = 0;
               ee.col = 0;
@@ -4584,7 +4918,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let str_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (str_ref != 0) {
           let se: Expr = ast.ast_arena_expr_get(arena, str_ref);
-          se.kind = ExprKind.EXPR_STRING_LIT;
+          se = parser_expr_with_kind(se, ExprKind.EXPR_STRING_LIT);
           se.resolved_type_ref = 0;
           se.line = r.tok.line;
           se.col = r.tok.col;
@@ -4634,7 +4968,7 @@ function parse_body_lets_into(arena: *ASTArena, lex: Lexer, source: u8[], out: *
         let bool_ref: i32 = ast.ast_arena_expr_alloc(arena);
         if (bool_ref != 0) {
           let be: Expr = ast.ast_arena_expr_get(arena, bool_ref);
-          be.kind = ExprKind.EXPR_BOOL_LIT;
+          be = parser_expr_with_kind(be, ExprKind.EXPR_BOOL_LIT);
           be.resolved_type_ref = 0;
           be.line = 0;
           be.col = 0;
@@ -4963,7 +5297,7 @@ export function body_skip_let_const_then_if(lex: Lexer, source: u8[]): LexerResu
 export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return body_skip_let_const_then_if(lex, slice);
   }
 }
@@ -4980,7 +5314,7 @@ export function body_skip_let_const_then_if_buf(lex: Lexer, data: *u8, len: i32)
 export function body_skip_let_const_then_if_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   body_skip_let_const_then_if_into(out, lex, slice);
   }
 }
@@ -5037,7 +5371,8 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
   unsafe {
   let depth: i32 = 1;
   while (depth > 0) {
-    let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    lexer.lexer_next_buf(&r, lex, data, len);
     if (r.tok.kind == token.TokenKind.TOKEN_LPAREN) { depth = depth + 1; }
     else if (r.tok.kind == token.TokenKind.TOKEN_RPAREN) {
       depth = depth - 1;
@@ -5056,7 +5391,7 @@ export function skip_balanced_parens_into_buf(out: *Lexer, lex: Lexer, data: *u8
 export function skip_balanced_parens_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_balanced_parens(lex, slice);
   }
 }
@@ -5112,7 +5447,8 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
   unsafe {
   let depth: i32 = 1;
   while (depth > 0) {
-    let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    lexer.lexer_next_buf(&r, lex, data, len);
     if (r.tok.kind == token.TokenKind.TOKEN_LBRACE) { depth = depth + 1; }
     else if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       depth = depth - 1;
@@ -5132,7 +5468,7 @@ export function skip_balanced_braces_into_buf(out: *Lexer, lex: Lexer, data: *u8
 export function skip_balanced_braces_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_balanced_braces(lex, slice);
   }
 }
@@ -5240,18 +5576,22 @@ export function skip_one_function_full(lex: Lexer, source: u8[]): Lexer {
 }
 
 
-/** Exported function `skip_one_function_full_into_buf`.
- * Implements `skip_one_function_full_into_buf`.
- * @param out *Lexer
- * @param lex Lexer
- * @param data *u8
- * @param len i32
+/**
+ * Skip one whole function starting at `lex`, reading the raw source buffer.
+ * @param out *Lexer — cursor after the function; unchanged when the body cannot be skipped
+ * @param lex Lexer — cursor on the `function` keyword; `pos` is an index into `data`
+ * @param data *u8 — full source buffer; null only when `len` is 0
+ * @param len i32 — byte count of `data`; negative is an empty view
  * @return void
+ * PLATFORM: SHARED. PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+ * That call-return store copies at most 1024 payload bytes into the frame, and
+ * `lex.pos` past that copy cannot see the function's closing brace.
  */
 export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   skip_one_function_full_into(out, lex, slice);
   }
 }
@@ -5262,7 +5602,7 @@ export function skip_one_function_full_into_buf(out: *Lexer, lex: Lexer, data: *
 export function skip_one_function_full_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_function_full(lex, slice);
   }
 }
@@ -5351,7 +5691,7 @@ export function skip_one_if_core_into(out: *LexerResult, lex: Lexer, source: u8[
 export function skip_one_if_core_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_if_core(lex, slice);
   }
 }
@@ -5361,7 +5701,7 @@ export function skip_one_if_core_buf(lex: Lexer, data: *u8, len: i32): LexerResu
 export function skip_one_if_statement_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_if_statement(lex, slice);
   }
 }
@@ -5378,7 +5718,7 @@ export function skip_one_if_statement_buf(lex: Lexer, data: *u8, len: i32): Lexe
 export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_if_core_into(out, lex, slice);
   }
 }
@@ -5395,7 +5735,7 @@ export function skip_one_if_core_into_buf(out: *LexerResult, lex: Lexer, data: *
 export function skip_one_if_statement_into_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_if_statement_into(out, lex, slice);
   }
 }
@@ -5430,7 +5770,7 @@ export function diag_lex_after_imports(source: u8[]): Lexer {
 export function diag_lex_after_imports_buf(data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_lex_after_imports(slice);
   }
 }
@@ -5463,7 +5803,7 @@ export function diag_after_imports_then_structs(lex: Lexer, source: u8[]): Lexer
 export function diag_after_imports_then_structs_buf(lex: Lexer, data: *u8, len: i32): LexerResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_after_imports_then_structs(lex, slice);
   }
 }
@@ -5494,7 +5834,7 @@ export function diag_fail_at_token_kind(source: u8[]): i32 {
 export function diag_fail_at_token_kind_buf(data: *u8, len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return diag_fail_at_token_kind(slice);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -5686,7 +6026,7 @@ export function struct_field_name_from_tok(r: LexerResult, source: u8[], out: *u
 export function struct_field_name_from_tok_buf(r: LexerResult, data: *u8, len: i32, out: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return struct_field_name_from_tok(r, slice, out);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -6226,7 +6566,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
      */
     let r_peek: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
     lexer.lexer_next_into(&r_peek, lex, source);
-    r = r_peek;
+    parser_copy_lexer_result(&r, &r_peek);
     lex = parser_rewind_lex_for_following_stmt(lex, r_peek);
     let stmt_tok_ready: bool = true;
     /**
@@ -6264,7 +6604,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             token_start: (0 as usize)
           };
           lexer.lexer_next_into(&r_ret_kw, ret_kw_lex, source);
-          r = r_ret_kw;
+          parser_copy_lexer_result(&r, &r_ret_kw);
           lex = ret_kw_lex;
         }
       }
@@ -6388,7 +6728,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             set_onefunc_fail(out, lex); return;
           }
           let re_mid: Expr = ast.ast_arena_expr_get(arena, ret_mid_ref);
-          re_mid.kind = ExprKind.EXPR_RETURN;
+          re_mid = parser_expr_with_kind(re_mid, ExprKind.EXPR_RETURN);
           re_mid.line = 0;
           re_mid.col = 0;
           expr_set_common_zeros(&re_mid);
@@ -6418,7 +6758,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
             set_onefunc_fail(out, lex); return;
           }
           let re_fin: Expr = ast.ast_arena_expr_get(arena, bare_fin);
-          re_fin.kind = ExprKind.EXPR_RETURN;
+          re_fin = parser_expr_with_kind(re_fin, ExprKind.EXPR_RETURN);
           re_fin.line = 0;
           re_fin.col = 0;
           expr_set_common_zeros(&re_fin);
@@ -6985,7 +7325,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           cond_expr_ref = ast.ast_arena_expr_alloc(arena);
           if (cond_expr_ref != 0) {
             let ce: Expr = ast.ast_arena_expr_get(arena, cond_expr_ref);
-            ce.kind = ExprKind.EXPR_BOOL_LIT;
+            ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
             ce.int_val = 1;
             ce.line = 0;
             ce.col = 0;
@@ -7033,7 +7373,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
           lex_from_result_ptr_into(&lex, &r);
           let after_match_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&after_match_semi, lex, source);
-          r = after_match_semi;
+          parser_copy_lexer_result(&r, &after_match_semi);
         }
         if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
           impl_snap.has_final_expr = true;
@@ -7124,7 +7464,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         lex_from_result_ptr_into(&lex, &r);
         let after_semi: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
         lexer.lexer_next_into(&after_semi, lex, source);
-        r = after_semi;
+        parser_copy_lexer_result(&r, &after_semi);
       }
       ex_i = pipeline_onefunc_push_body_expr_stmt(onefunc_result_pool_ptr(out), expr_stmt_res.expr_ref);
       if (ex_i < 0) {
@@ -7238,7 +7578,7 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
       set_onefunc_fail(out, lex); return;
     }
     let bre: Expr = ast.ast_arena_expr_get(arena, bare_ret);
-    bre.kind = ExprKind.EXPR_RETURN;
+    bre = parser_expr_with_kind(bre, ExprKind.EXPR_RETURN);
     bre.line = 0;
     bre.col = 0;
     expr_set_common_zeros(&bre);
@@ -7770,7 +8110,7 @@ export function import_path_dot_segment_copy(source: u8[], token_start: usize, s
 export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_start: usize, seg_len: i32, path_buf: *u8, path_len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   import_path_dot_segment_copy(slice, token_start, seg_len, path_buf, path_len);
   }
 }
@@ -7785,6 +8125,10 @@ export function import_path_dot_segment_copy_buf(data: *u8, len: i32, token_star
 export function parse_into_init(module: *Module, arena: *ASTArena): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+  /* wave699: G.7 complete parser_x authority — trait registry reset
+   * lived only on the mega duplicate wrapper; parser_x is the sole T
+   * after mega export-extern. Twin of parse_into / parse_into_buf. */
+  xlang_trait_reg_reset_c(arena);
   ast.ast_arena_init(arena);
   /* See implementation. */
   ast_pool_module_reset(module);
@@ -7834,7 +8178,7 @@ export function skip_imports(lex: Lexer, source: u8[]): Lexer {
 export function skip_imports_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_imports(lex, slice);
   }
 }
@@ -7868,8 +8212,11 @@ export function collect_imports(lex: Lexer, source: u8[], module: *Module, out: 
  */
 export function collect_imports_buf(lex: Lexer, data: *u8, len: i32, module: *Module, out: *CollectImportsResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // ast.x is longer than that, so the import scan must keep the real length.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   collect_imports(lex, slice, module, out);
   }
 }
@@ -7996,7 +8343,8 @@ export function module_append_enum_variants_and_skip_body_into_buf(module: *Modu
   let depth: i32 = 1;
   let slen: usize = len as usize;
   while (depth > 0) {
-    let r: LexerResult = lexer.lexer_next_buf(lex, data, len);
+    let r: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
+    lexer.lexer_next_buf(&r, lex, data, len);
     if (r.tok.kind == token.TokenKind.TOKEN_RBRACE) {
       depth = depth - 1;
       if (depth == 0) {
@@ -8065,8 +8413,12 @@ function skip_one_enum_register_into(module: *Module, out: *Lexer, lex: Lexer, s
  */
 function skip_one_enum_register_into_buf(module: *Module, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // CRLF ast.x places TYPE_USIZE at offset 1023, so the capped view keeps
+  // only the leading 'T' and the enum walker stops before TYPE_FN.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   skip_one_enum_register_into(module, out, lex, slice);
   }
 }
@@ -8207,7 +8559,7 @@ function skip_one_impl(lex: Lexer, source: u8[]): Lexer {
 export function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_enum_into(out, lex, slice);
   }
 }
@@ -8217,7 +8569,7 @@ export function skip_one_enum_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: 
 export function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_enum(lex, slice);
   }
 }
@@ -8234,7 +8586,7 @@ export function skip_one_enum_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_trait_into(out, lex, slice);
   }
 }
@@ -8243,7 +8595,7 @@ function skip_one_trait_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): 
 export function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_trait(lex, slice);
   }
 }
@@ -8260,7 +8612,7 @@ export function skip_one_trait_buf(lex: Lexer, data: *u8, len: i32): Lexer {
 function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_impl_into(out, lex, slice);
   }
 }
@@ -8269,7 +8621,7 @@ function skip_one_impl_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): v
 export function skip_one_impl_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_impl(lex, slice);
   }
 }
@@ -8432,7 +8784,7 @@ function parse_one_extern_skip_into(out: *ExternParseResult, arena: *ASTArena, l
 function parse_one_extern_skip_into_buf(out: *ExternParseResult, arena: *ASTArena, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_one_extern_skip_into(out, arena, lex, slice);
   }
 }
@@ -8526,7 +8878,7 @@ function parse_one_extern_and_add_into(arena: *ASTArena, module: *Module, lex: L
 function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_one_extern_into(out, lex, slice);
   }
 }
@@ -8535,7 +8887,7 @@ function skip_one_extern_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32):
 export function skip_one_extern_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_extern(lex, slice);
   }
 }
@@ -8835,8 +9187,11 @@ function parse_one_function_library(arena: *ASTArena, module: *Module, lex: Lexe
  */
 function parse_one_function_library_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): LibraryParseResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // The library parse must see the whole import, not the first 1024 bytes.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   return parse_one_function_library(arena, module, lex, slice);
   }
 }
@@ -8865,7 +9220,7 @@ function parse_into_try_skip_allow(lex: Lexer, r: LexerResult, source: u8[]): Tr
 function parse_into_try_skip_allow_buf(lex: Lexer, r: LexerResult, data: *u8, len: i32): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_into_try_skip_allow(lex, r, slice);
   }
 }
@@ -8891,24 +9246,29 @@ function try_skip_allow_padding_struct(lex: Lexer, source: u8[]): TrySkipAllowRe
 export function try_skip_allow_padding_struct_buf(lex: Lexer, data: *u8, len: i32): TrySkipAllowResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return try_skip_allow_padding_struct(lex, slice);
   }
 }
 
 
-/** Internal function `skip_one_struct_into_buf`.
- * Implements `skip_one_struct_into_buf`.
- * @param out *Lexer
- * @param lex Lexer
- * @param data *u8
- * @param len i32
+/**
+ * Skip one struct starting at `lex`, reading the raw source buffer.
+ * @param out *Lexer — cursor after the struct; unchanged when the body cannot be skipped
+ * @param lex Lexer — cursor on or before the `struct` keyword; `pos` is an index into `data`
+ * @param data *u8 — full source buffer; null only when `len` is 0
+ * @param len i32 — byte count of `data`; negative is an empty view
  * @return void
+ * PLATFORM: SHARED. PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+ * That call-return store copies at most 1024 payload bytes into the frame.
+ * A struct past that window is not skipped, and the top-level +1 fallback
+ * then walks into the preceding comment.
  */
 function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: SHARED — header only. The inner skip still sees absolute `lex.pos`.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   skip_one_struct_into(out, lex, slice);
   }
 }
@@ -8917,7 +9277,7 @@ function skip_one_struct_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32):
 export function skip_one_struct_buf(lex: Lexer, data: *u8, len: i32): Lexer {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return skip_one_struct(lex, slice);
   }
 }
@@ -8959,7 +9319,7 @@ function consume_qualified_type_ident_name(source: u8[], r: *LexerResult, out: *
 export function consume_qualified_type_ident_name_buf(data: *u8, len: i32, r: *LexerResult, out: *u8, out_len: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return consume_qualified_type_ident_name(slice, r, out, out_len);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -9035,7 +9395,7 @@ export function parser_alloc_vector_type_ref(arena: *ASTArena, elem_ord: i32, la
   vec_ref = ast.ast_arena_type_alloc(arena);
   if (vec_ref != 0) {
     let tv: Type = ast.ast_arena_type_get(arena, vec_ref);
-    tv.kind = TypeKind.TYPE_VECTOR;
+    tv = parser_type_with_kind(tv, TypeKind.TYPE_VECTOR);
     tv.elem_type_ref = elem_tr_v;
     tv.array_size = lanes;
     tv.name_len = 0;
@@ -9146,8 +9506,12 @@ export function parse_one_function_library_into(out: *LibraryParseResult, arena:
  */
 export function parse_one_function_library_into_buf(out: *LibraryParseResult, arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // This is the live import entry. The capped view drops every byte of
+  // ast.x past TYPE_USIZE, so later variants never reach the enum table.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   parse_one_function_library_into(out, arena, module, lex, slice);
   }
 }
@@ -9183,17 +9547,23 @@ export function parse_into_try_skip_allow_into(out: *TrySkipAllowResult, lex: Le
  */
 export function parse_into_try_skip_allow_into_buf(out: *TrySkipAllowResult, lex: Lexer, r: LexerResult, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — a slice return copies at most 1024 payload bytes.
+  // This wrapper is the hot import re-view. Keep the caller's full length.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   parse_into_try_skip_allow_into(out, lex, r, slice);
   }
 }
 
 
 /**
- * See implementation.
- * See implementation.
- * See implementation.
+ * Parse one source slice into module: imports, types, and function bodies.
+ * @param arena *ASTArena — expression and type pool for this module
+ * @param module *Module — destination; counters and layouts are appended
+ * @param source u8[] — full source bytes; not required to be NUL-terminated
+ * @return ParseIntoResult — ok 0 on success; negative ok is a hard parse failure
+ * PLATFORM: SHARED — slice twin of parse_into_buf.
  */
 export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -9219,7 +9589,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   /* wave421/wave425: trait registry + stash arena for ret kinds (parse_into twin of buf). */
   xlang_trait_reg_reset_c(arena);
   /* See implementation. */
-  let lex: Lexer = lexer.lexer_init();
+  let lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
   let main_idx: i32 = -1;
   /* skip_one_impl leaves the lexer inside `{...}`; this nest counts those
    * bodies so the matching `}` is an impl closer, not unexpected junk. */
@@ -9526,10 +9897,13 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
      */
     let pe_fn: i32 = module.pending_export;
     module.pending_export = 0;
-    let lex_at_function: Lexer = lexer.lexer_init();
+    let lex_at_function: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+    lexer.lexer_init(&lex_at_function);
     lex_at_function = current_tok_lex;
     lex_from_next_into(&lex, r);
-    let parse_into_empty64: u8[128] = [];
+    // OneFuncResult.name and the wire-dummy formals are u8[256].
+    // A shorter array is a call-argument type mismatch.
+    let parse_into_empty64: u8[256] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, parse_into_empty64);
@@ -9539,7 +9913,8 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
     /* See implementation. */
-    let empty64_lib_first: u8[128] = [];
+    // LibraryParseResult.name is u8[256].
+    let empty64_lib_first: u8[256] = [];
     let lib_first: LibraryParseResult = { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     lib_first = { ok: false, _pad: [], next_lex: lex_at_function, name: empty64_lib_first, name_len: 0, _pad_tail: [] };
     parse_one_function_library_into(&lib_first, arena, module, lex_at_function, source);
@@ -9578,7 +9953,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1001 }
       }
       let t_fb: Type = ast.ast_arena_type_get(arena, type_ref);
-      t_fb.kind = TypeKind.TYPE_I32;
+      t_fb = parser_type_with_kind(t_fb, TypeKind.TYPE_I32);
       t_fb.name_len = 0;
       t_fb.elem_type_ref = 0;
       t_fb.array_size = 0;
@@ -9594,7 +9969,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
     e = ast.ast_arena_expr_get(arena, expr_ref);
     /* See implementation. */
     if (res.return_var_name_len > 0) {
-      e.kind = ExprKind.EXPR_VAR;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_VAR);
       e.var_name_len = res.return_var_name_len;
       let rvi: i32 = 0;
       while (rvi < res.return_var_name_len && rvi < 64) {
@@ -9606,7 +9981,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       e.int_val = 0;
       e.resolved_type_ref = 0;
     } else {
-      e.kind = ExprKind.EXPR_LIT;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_LIT);
       e.resolved_type_ref = type_ref;
       e.int_val = res.return_val;
     }
@@ -9664,7 +10039,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let mre: Expr = ast.ast_arena_expr_get(arena, mul_right_ref);
-      mre.kind = ExprKind.EXPR_LIT;
+      mre = parser_expr_with_kind(mre, ExprKind.EXPR_LIT);
       mre.resolved_type_ref = type_ref;
       mre.line = 0;
       mre.col = 0;
@@ -9700,7 +10075,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
-      me.kind = ExprKind.EXPR_MUL;
+      me = parser_expr_with_kind(me, ExprKind.EXPR_MUL);
       me.resolved_type_ref = type_ref;
       me.line = 0;
       me.col = 0;
@@ -9743,7 +10118,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1005 }
       }
       let bt: Type = ast.ast_arena_type_get(arena, bool_type_ref);
-      bt.kind = TypeKind.TYPE_BOOL;
+      bt = parser_type_with_kind(bt, TypeKind.TYPE_BOOL);
       bt.name_len = 0;
       bt.elem_type_ref = 0;
       bt.array_size = 0;
@@ -9753,7 +10128,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ce: Expr = ast.ast_arena_expr_get(arena, cond_ref);
-      ce.kind = ExprKind.EXPR_BOOL_LIT;
+      ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
       ce.resolved_type_ref = bool_type_ref;
       ce.line = 0;
       ce.col = 0;
@@ -9794,7 +10169,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let te: Expr = ast.ast_arena_expr_get(arena, then_ref);
-      te.kind = ExprKind.EXPR_LIT;
+      te = parser_expr_with_kind(te, ExprKind.EXPR_LIT);
       te.resolved_type_ref = type_ref;
       te.line = 0;
       te.col = 0;
@@ -9830,7 +10205,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ee: Expr = ast.ast_arena_expr_get(arena, else_ref);
-      ee.kind = ExprKind.EXPR_LIT;
+      ee = parser_expr_with_kind(ee, ExprKind.EXPR_LIT);
       ee.resolved_type_ref = type_ref;
       ee.line = 0;
       ee.col = 0;
@@ -9866,7 +10241,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ie: Expr = ast.ast_arena_expr_get(arena, if_expr_ref);
-      ie.kind = ExprKind.EXPR_IF;
+      ie = parser_expr_with_kind(ie, ExprKind.EXPR_IF);
       ie.resolved_type_ref = type_ref;
       ie.line = 0;
       ie.col = 0;
@@ -9913,7 +10288,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         let lpr: i32 = ast.ast_arena_expr_alloc(arena);
         if (lpr != 0) {
           let lpe: Expr = ast.ast_arena_expr_get(arena, lpr);
-          lpe.kind = ExprKind.EXPR_VAR;
+          lpe = parser_expr_with_kind(lpe, ExprKind.EXPR_VAR);
           lpe.resolved_type_ref = left_param_type_ref;
           lpe.line = 0;
           lpe.col = 0;
@@ -9962,7 +10337,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         let rpr: i32 = ast.ast_arena_expr_alloc(arena);
         if (rpr != 0) {
           let rpe: Expr = ast.ast_arena_expr_get(arena, rpr);
-          rpe.kind = ExprKind.EXPR_VAR;
+          rpe = parser_expr_with_kind(rpe, ExprKind.EXPR_VAR);
           rpe.resolved_type_ref = right_param_type_ref;
           rpe.line = 0;
           rpe.col = 0;
@@ -10010,7 +10385,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let mle: Expr = ast.ast_arena_expr_get(arena, mul_left_ref);
-        mle.kind = ExprKind.EXPR_LIT;
+        mle = parser_expr_with_kind(mle, ExprKind.EXPR_LIT);
         mle.resolved_type_ref = type_ref;
         mle.line = 0;
         mle.col = 0;
@@ -10046,7 +10421,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let mre: Expr = ast.ast_arena_expr_get(arena, mul_r_ref);
-        mre.kind = ExprKind.EXPR_LIT;
+        mre = parser_expr_with_kind(mre, ExprKind.EXPR_LIT);
         mre.resolved_type_ref = type_ref;
         mre.line = 0;
         mre.col = 0;
@@ -10082,7 +10457,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
-        me.kind = ExprKind.EXPR_MUL;
+        me = parser_expr_with_kind(me, ExprKind.EXPR_MUL);
         me.resolved_type_ref = type_ref;
         me.line = 0;
         me.col = 0;
@@ -10120,7 +10495,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
           return { ok: -1, main_idx: -1 }
         }
         let re: Expr = ast.ast_arena_expr_get(arena, right_ref);
-        re.kind = ExprKind.EXPR_LIT;
+        re = parser_expr_with_kind(re, ExprKind.EXPR_LIT);
         re.resolved_type_ref = type_ref;
         re.line = 0;
         re.col = 0;
@@ -10157,7 +10532,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ae: Expr = ast.ast_arena_expr_get(arena, add_ref);
-      ae.kind = ExprKind.EXPR_ADD;
+      ae = parser_expr_with_kind(ae, ExprKind.EXPR_ADD);
       ae.resolved_type_ref = type_ref;
       ae.line = 0;
       ae.col = 0;
@@ -10197,7 +10572,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let oe: Expr = ast.ast_arena_expr_get(arena, operand_ref);
-      oe.kind = ExprKind.EXPR_LIT;
+      oe = parser_expr_with_kind(oe, ExprKind.EXPR_LIT);
       oe.resolved_type_ref = type_ref;
       oe.line = 0;
       oe.col = 0;
@@ -10233,7 +10608,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         return { ok: -1, main_idx: -1 }
       }
       let ne: Expr = ast.ast_arena_expr_get(arena, neg_ref);
-      ne.kind = ExprKind.EXPR_NEG;
+      ne = parser_expr_with_kind(ne, ExprKind.EXPR_NEG);
       ne.resolved_type_ref = type_ref;
       ne.line = 0;
       ne.col = 0;
@@ -10272,7 +10647,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       let callee_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (callee_ref != 0) {
         let ve: Expr = ast.ast_arena_expr_get(arena, callee_ref);
-        ve.kind = ExprKind.EXPR_VAR;
+        ve = parser_expr_with_kind(ve, ExprKind.EXPR_VAR);
         ve.resolved_type_ref = 0;
         ve.line = 0;
         ve.col = 0;
@@ -10317,7 +10692,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
         if (call_ref != 0) {
           let ce: Expr = ast.ast_arena_expr_get(arena, call_ref);
           expr_set_common_zeros(&ce);
-          ce.kind = ExprKind.EXPR_CALL;
+          ce = parser_expr_with_kind(ce, ExprKind.EXPR_CALL);
           ce.resolved_type_ref = type_ref;
           ce.line = 0;
           ce.col = 0;
@@ -10338,10 +10713,10 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
               ae.line = 0;
               ae.col = 0;
               if (res.call_num_args > 0 && arg_i < res.call_num_args) {
-                ae.kind = ExprKind.EXPR_LIT;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_LIT);
                 ae.int_val = pipeline_onefunc_call_arg_val_at(call_pool, arg_i);
               } else {
-                ae.kind = ExprKind.EXPR_VAR;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_VAR);
                 ae.var_name_len = pipeline_onefunc_param_name_len(call_pool, arg_i);
                 let k: i32 = 0;
                 while (k < ae.var_name_len && k < 64) {
@@ -10468,9 +10843,19 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
       }
       if_oi = if_oi + 1;
     }
-    /* See implementation. */
+    /*
+     * Walk regions with the count already stored in n_reg_pool.
+     * PLATFORM: WINDOWS — the bootstrap compiler spills a call's first
+     * argument at 0x10(%rbp) and does not reserve the 32-byte home area.
+     * A call in this condition pushes the index into that slot;
+     * pipeline_onefunc_num_regions overwrites it with the pool pointer.
+     * The index then becomes the pointer's low half, so the loop either
+     * drops every kind-6 stmt_order or grows the vector to that index.
+     * n_reg_pool is the same count fill_regions just consumed. The local
+     * compare matches the const/let walks above and does not call out.
+     */
     let reg_oi: i32 = 0;
-    while (reg_oi < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
+    while (reg_oi < n_reg_pool) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oi) < 0) {
         return { ok: -1, main_idx: -1 }
       }
@@ -10625,7 +11010,7 @@ export function parse_one_type_alias_into(arena: *ASTArena, module: *Module, lex
 export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_primary_into(arena, lex, slice, out);
   }
 }
@@ -10643,7 +11028,7 @@ export function parse_primary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_unary_into(arena, lex, slice, out);
   }
 }
@@ -10661,7 +11046,7 @@ export function parse_unary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_cast_into(arena, lex, slice, out);
   }
 }
@@ -10679,7 +11064,7 @@ export function parse_cast_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_term_into(arena, lex, slice, out);
   }
 }
@@ -10697,7 +11082,7 @@ export function parse_term_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_addsub_into(arena, lex, slice, out);
   }
 }
@@ -10715,7 +11100,7 @@ export function parse_addsub_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_shift_into(arena, lex, slice, out);
   }
 }
@@ -10733,7 +11118,7 @@ export function parse_shift_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_relcompare_into(arena, lex, slice, out);
   }
 }
@@ -10751,7 +11136,7 @@ export function parse_relcompare_into_buf(arena: *ASTArena, lex: Lexer, data: *u
 export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_compare_into(arena, lex, slice, out);
   }
 }
@@ -10769,7 +11154,7 @@ export function parse_compare_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_bitand_into(arena, lex, slice, out);
   }
 }
@@ -10787,7 +11172,7 @@ export function parse_bitand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_bitxor_into(arena, lex, slice, out);
   }
 }
@@ -10805,7 +11190,7 @@ export function parse_bitxor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_bitor_into(arena, lex, slice, out);
   }
 }
@@ -10823,7 +11208,7 @@ export function parse_bitor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_logand_into(arena, lex, slice, out);
   }
 }
@@ -10841,7 +11226,7 @@ export function parse_logand_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_logor_into(arena, lex, slice, out);
   }
 }
@@ -10859,7 +11244,7 @@ export function parse_logor_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_ternary_into(arena, lex, slice, out);
   }
 }
@@ -10877,7 +11262,7 @@ export function parse_ternary_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, 
 export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_assign_into(arena, lex, slice, out);
   }
 }
@@ -10895,7 +11280,7 @@ export function parse_assign_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, l
 export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_expr_into(arena, lex, slice, out);
   }
 }
@@ -10914,7 +11299,7 @@ export function parse_expr_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len
 export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit_ref: i32, lex_in_brace: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   finish_struct_lit_from_type_ident_into(arena, lit_ref, lex_in_brace, slice, out);
   }
 }
@@ -10932,7 +11317,7 @@ export function finish_struct_lit_from_type_ident_into_buf(arena: *ASTArena, lit
 export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_cond_expr_into(arena, lex_start, slice, out);
   }
 }
@@ -10954,7 +11339,7 @@ export function parse_cond_expr_into_buf(arena: *ASTArena, lex_start: Lexer, dat
 export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32, lex_out: *Lexer): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_if_stmt_into(arena, lex_at_if, slice, type_ref, out_cond, out_then, out_else, lex_out);
   }
   return false;  // unreachable — typeck after unsafe block
@@ -10974,7 +11359,7 @@ export function parse_if_stmt_into_buf(arena: *ASTArena, lex_at_if: Lexer, data:
 export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseBlockResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_block_into(arena, lex_after_lbrace, slice, type_ref, out);
   }
 }
@@ -10993,7 +11378,7 @@ export function parse_block_into_buf(arena: *ASTArena, lex_after_lbrace: Lexer, 
 export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data: *u8, len: i32, type_ref: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_if_expr_into(arena, lex_at_if, slice, type_ref, out);
   }
 }
@@ -11011,7 +11396,7 @@ export function parse_if_expr_into_buf(arena: *ASTArena, lex_at_if: Lexer, data:
 export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_match_subject_into(arena, lex, slice, out);
   }
 }
@@ -11029,7 +11414,7 @@ export function parse_match_subject_into_buf(arena: *ASTArena, lex: Lexer, data:
 export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_match_into(arena, lex, slice, out);
   }
 }
@@ -11047,7 +11432,7 @@ export function parse_match_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, le
 export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_at_simd_builtin_into(arena, r0, slice, out);
   }
 }
@@ -11064,7 +11449,7 @@ export function parse_at_simd_builtin_into_buf(arena: *ASTArena, r0: LexerResult
 export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, out: *ParseExprResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_as_suffix_into(arena, slice, out);
   }
 }
@@ -11082,7 +11467,7 @@ export function parse_as_suffix_into_buf(arena: *ASTArena, data: *u8, len: i32, 
 export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_type_ref_for_arena_into(arena, lex, slice, out_lex);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11103,30 +11488,34 @@ export function parse_type_ref_for_arena_into_buf(arena: *ASTArena, lex: Lexer, 
 export function parse_body_let_bracket_compound_init_ref_buf(arena: *ASTArena, bracket_start: usize, lex: Lexer, data: *u8, len: i32, lex_out: *Lexer, r_out: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_body_let_bracket_compound_init_ref(arena, bracket_start, lex, slice, lex_out, r_out);
   }
   return 0;  // unreachable — typeck after unsafe block
 }
 
 
-/** Exported function `parse_struct_record_layout_into_buf`.
- * Implements `parse_struct_record_layout_into_buf`.
- * @param arena *ASTArena
- * @param module *Module
- * @param lex Lexer
- * @param data *u8
- * @param len i32
- * @param out_lex *Lexer
- * @param allow_pad i32
- * @param force_soa i32
- * @param repr_compat i32
- * @return i32
+/**
+ * Parse one struct layout from the raw source buffer into `module`.
+ * @param arena *ASTArena — AST storage; caller does not pass null
+ * @param module *Module — destination module; caller does not pass null
+ * @param lex Lexer — cursor on the struct name; `pos` is an index into `data`
+ * @param data *u8 — full source buffer; null only when `len` is 0
+ * @param len i32 — byte count of `data`; negative is an empty view
+ * @param out_lex *Lexer — cursor after the struct; caller does not pass null
+ * @param allow_pad i32 — non-zero allows explicit padding fields
+ * @param force_soa i32 — non-zero requests the SoA layout
+ * @param repr_compat i32 — non-zero requests the compatible repr
+ * @return i32 — 0 when the layout was recorded, non-zero when the caller should skip
+ * PLATFORM: SHARED. PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+ * That call-return store copies at most 1024 payload bytes into the frame, so a
+ * struct past that window fails and the skip fallback walks into the preceding comment.
  */
 export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out_lex: *Lexer, allow_pad: i32, force_soa: i32, repr_compat: i32): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: SHARED — header only. Field offsets still come from the inner layout parser.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   return parse_struct_record_layout_into(arena, module, lex, slice, out_lex, allow_pad, force_soa, repr_compat);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11144,7 +11533,7 @@ export function parse_struct_record_layout_into_buf(arena: *ASTArena, module: *M
 export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: i32, result: *LibraryParseScanResult): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parse_one_function_library_scan(lex, slice, result);
   }
   return false;  // unreachable — typeck after unsafe block
@@ -11162,7 +11551,7 @@ export function parse_one_function_library_scan_buf(lex: Lexer, data: *u8, len: 
 export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8, len: i32, r: *LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return alloc_pointee_type_ref_from_tok(arena, slice, r);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11180,7 +11569,7 @@ export function alloc_pointee_type_ref_from_tok_buf(arena: *ASTArena, data: *u8,
 export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena, data: *u8, len: i32, r: LexerResult): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   return parser_vector_type_ref_from_ident_spelling(arena, slice, r);
   }
   return 0;  // unreachable — typeck after unsafe block
@@ -11200,8 +11589,12 @@ export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena,
  */
 export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
+  // That call-return store copies at most 1024 bytes, and lex.pos is an
+  // index into the original buffer.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = [];
+  parser_slice_view_store(data, len, (&slice as *u8));
   parse_one_top_level_let_into(arena, module, lex, slice, is_const, out);
   }
 }
@@ -11219,7 +11612,7 @@ export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Modu
 export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, out: *TypeAliasResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   parse_one_type_alias_into(arena, module, lex, slice, out);
   }
 }
@@ -11236,7 +11629,7 @@ export function parse_one_type_alias_into_buf(arena: *ASTArena, module: *Module,
 export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_balanced_parens_into(out, lex, slice);
   }
 }
@@ -11253,7 +11646,7 @@ export function skip_balanced_parens_slice_into_buf(out: *Lexer, lex: Lexer, dat
 export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   skip_balanced_braces_into(out, lex, slice);
   }
 }
@@ -11272,7 +11665,7 @@ export function skip_balanced_braces_slice_into_buf(out: *Lexer, lex: Lexer, dat
 export function module_append_enum_variants_and_skip_body_slice_into_buf(module: *Module, enum_idx: i32, out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-  let slice: u8[] = parser_slice_from_buf(data, len);
+  let slice: u8[] = parser_slice_view(data, len);
   module_append_enum_variants_and_skip_body_into(module, enum_idx, out, lex, slice);
   }
 }
@@ -11387,6 +11780,15 @@ function parse_into_finish_ok(module: *Module, main_idx: i32): ParseIntoResult {
   }
 }
 
+/**
+ * Parse one raw buffer into module. Same scan as parse_into, via a slice.
+ * @param arena *ASTArena — expression and type pool for this module
+ * @param module *Module — destination; counters and layouts are appended
+ * @param data *u8 — source bytes; null with len 0 is an empty module
+ * @param len i32 — byte count; negative is treated as empty by the slice helper
+ * @return ParseIntoResult — ok 0 on success; negative ok is a hard parse failure
+ * PLATFORM: SHARED — buffer twin of parse_into.
+ */
 export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len: i32): ParseIntoResult {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
@@ -11407,7 +11809,8 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   parser_sig_type_hard_reset_c();
   /* wave421/wave425: trait method + impl-seen tables; stash arena for ret kinds. */
   xlang_trait_reg_reset_c(arena);
-  let lex: Lexer = lexer.lexer_init();
+  let lex: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+  lexer.lexer_init(&lex);
   let main_idx: i32 = -1;
   /* skip_one_impl leaves the lexer inside `{...}`; this nest counts those
    * bodies so the matching `}` is an impl closer, not unexpected junk. */
@@ -11640,7 +12043,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       if (module.num_funcs > num_funcs_before_extern_buf) {
         let fi_ext_buf: i32 = num_funcs_before_extern_buf;
         if (pipeline_module_func_is_extern_at(module, fi_ext_buf) == 0) {
-          let slice_ext_buf: u8[] = parser_slice_from_buf(data, len);
+          let slice_ext_buf: u8[] = parser_slice_view(data, len);
           let r_brace_buf: LexerResult = { next_lex: lex, tok: { kind: token.TokenKind.TOKEN_EOF, line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 }, token_start: (0 as usize) };
           lexer.lexer_next_into(&r_brace_buf, lex, slice_ext_buf);
           if (r_brace_buf.tok.kind == token.TokenKind.TOKEN_LBRACE) {
@@ -11757,12 +12160,15 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
      */
     let pe_fn_buf: i32 = module.pending_export;
     module.pending_export = 0;
-    let lex_at_function_buf: Lexer = lexer.lexer_init();
+    let lex_at_function_buf: Lexer = Lexer { pos: 0, line: 1, col: 1 };
+    lexer.lexer_init(&lex_at_function_buf);
     lex_at_function_buf = current_tok_lex_buf;
     lex_from_next_into(&lex, r);
     /* See implementation. */
     /* See implementation. */
-    let empty64_buf: u8[128] = [];
+    // OneFuncResult.name and the wire-dummy formals are u8[256].
+    // A shorter array is a call-argument type mismatch.
+    let empty64_buf: u8[256] = [];
     let res: OneFuncResult = onefunc_scratch_empty();
     res = onefunc_scratch_empty();
     onefunc_res_wire_dummy_head(&res, lex, empty64_buf);
@@ -11771,10 +12177,13 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     onefunc_res_wire_dummy_call_binop(&res, empty64_buf);
     onefunc_res_wire_dummy_loop_call(&res);
     onefunc_res_wire_dummy_for_if(&res);
-    let slice_for_impl: u8[] = parser_slice_from_buf(data, len);
-    slice_for_impl = parser_slice_from_buf(data, len);
+    // PLATFORM: WINDOWS — both slice returns copied at most 1024 payload
+    // bytes, so a function body past that window was parsed against a prefix.
+    let slice_for_impl: u8[] = [];
+    parser_slice_view_store(data, len, (&slice_for_impl as *u8));
     /* See implementation. */
-    let empty64_lib_buf_first: u8[128] = [];
+    // LibraryParseResult.name is u8[256].
+    let empty64_lib_buf_first: u8[256] = [];
     let lib_buf_first: LibraryParseResult = {
       ok: false,
       _pad: [],
@@ -11863,7 +12272,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         continue;
       }
       let t_fb: Type = ast.ast_arena_type_get(arena, type_ref);
-      t_fb.kind = TypeKind.TYPE_I32;
+      t_fb = parser_type_with_kind(t_fb, TypeKind.TYPE_I32);
       t_fb.name_len = 0;
       t_fb.elem_type_ref = 0;
       t_fb.array_size = 0;
@@ -11886,7 +12295,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
     e = ast.ast_arena_expr_get(arena, expr_ref);
     if (res.return_var_name_len > 0) {
       /* See implementation. */
-      e.kind = ExprKind.EXPR_VAR;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_VAR);
       e.var_name_len = res.return_var_name_len;
       let rvi: i32 = 0;
       while (rvi < res.return_var_name_len && rvi < 64) {
@@ -11898,7 +12307,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       e.int_val = 0;
       e.resolved_type_ref = 0;
     } else {
-      e.kind = ExprKind.EXPR_LIT;
+      e = parser_expr_with_kind(e, ExprKind.EXPR_LIT);
       e.int_val = res.return_val;
       e.resolved_type_ref = type_ref;
     }
@@ -11956,7 +12365,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let mre: Expr = ast.ast_arena_expr_get(arena, mul_right_ref);
-      mre.kind = ExprKind.EXPR_LIT;
+      mre = parser_expr_with_kind(mre, ExprKind.EXPR_LIT);
       mre.resolved_type_ref = type_ref;
       mre.line = 0;
       mre.col = 0;
@@ -11992,7 +12401,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let me: Expr = ast.ast_arena_expr_get(arena, mul_ref);
-      me.kind = ExprKind.EXPR_BINOP;
+      me = parser_expr_with_kind(me, ExprKind.EXPR_BINOP);
       me.resolved_type_ref = type_ref;
       me.line = 0;
       me.col = 0;
@@ -12036,7 +12445,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1005 }
       }
       let bt: Type = ast.ast_arena_type_get(arena, bool_type_ref);
-      bt.kind = TypeKind.TYPE_BOOL;
+      bt = parser_type_with_kind(bt, TypeKind.TYPE_BOOL);
       bt.name_len = 0;
       bt.elem_type_ref = 0;
       bt.array_size = 0;
@@ -12046,7 +12455,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ce: Expr = ast.ast_arena_expr_get(arena, cond_ref);
-      ce.kind = ExprKind.EXPR_BOOL_LIT;
+      ce = parser_expr_with_kind(ce, ExprKind.EXPR_BOOL_LIT);
       ce.resolved_type_ref = bool_type_ref;
       ce.line = 0;
       ce.col = 0;
@@ -12087,7 +12496,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let te: Expr = ast.ast_arena_expr_get(arena, then_ref);
-      te.kind = ExprKind.EXPR_LIT;
+      te = parser_expr_with_kind(te, ExprKind.EXPR_LIT);
       te.resolved_type_ref = type_ref;
       te.line = 0;
       te.col = 0;
@@ -12123,7 +12532,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ee: Expr = ast.ast_arena_expr_get(arena, else_ref);
-      ee.kind = ExprKind.EXPR_LIT;
+      ee = parser_expr_with_kind(ee, ExprKind.EXPR_LIT);
       ee.resolved_type_ref = type_ref;
       ee.line = 0;
       ee.col = 0;
@@ -12159,7 +12568,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ie: Expr = ast.ast_arena_expr_get(arena, if_expr_ref);
-      ie.kind = ExprKind.EXPR_IF;
+      ie = parser_expr_with_kind(ie, ExprKind.EXPR_IF);
       ie.resolved_type_ref = type_ref;
       ie.line = 0;
       ie.col = 0;
@@ -12206,7 +12615,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         let lpr_buf: i32 = ast.ast_arena_expr_alloc(arena);
         if (lpr_buf != 0) {
           let lpe_buf: Expr = ast.ast_arena_expr_get(arena, lpr_buf);
-          lpe_buf.kind = ExprKind.EXPR_VAR;
+          lpe_buf = parser_expr_with_kind(lpe_buf, ExprKind.EXPR_VAR);
           lpe_buf.resolved_type_ref = left_param_type_ref_buf;
           lpe_buf.line = 0;
           lpe_buf.col = 0;
@@ -12253,7 +12662,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         let rpr_buf: i32 = ast.ast_arena_expr_alloc(arena);
         if (rpr_buf != 0) {
           let rpe_buf: Expr = ast.ast_arena_expr_get(arena, rpr_buf);
-          rpe_buf.kind = ExprKind.EXPR_VAR;
+          rpe_buf = parser_expr_with_kind(rpe_buf, ExprKind.EXPR_VAR);
           rpe_buf.resolved_type_ref = right_param_type_ref_buf;
           rpe_buf.line = 0;
           rpe_buf.col = 0;
@@ -12299,7 +12708,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
           return { ok: -1, main_idx: -1 }
         }
         let re_buf: Expr = ast.ast_arena_expr_get(arena, right_ref_buf);
-        re_buf.kind = ExprKind.EXPR_LIT;
+        re_buf = parser_expr_with_kind(re_buf, ExprKind.EXPR_LIT);
         re_buf.resolved_type_ref = type_ref;
         re_buf.line = 0;
         re_buf.col = 0;
@@ -12336,7 +12745,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         return { ok: -1, main_idx: -1 }
       }
       let ae_buf: Expr = ast.ast_arena_expr_get(arena, add_ref_buf);
-      ae_buf.kind = ExprKind.EXPR_ADD;
+      ae_buf = parser_expr_with_kind(ae_buf, ExprKind.EXPR_ADD);
       ae_buf.resolved_type_ref = type_ref;
       ae_buf.line = 0;
       ae_buf.col = 0;
@@ -12376,7 +12785,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       let callee_ref: i32 = ast.ast_arena_expr_alloc(arena);
       if (callee_ref != 0) {
         let ve: Expr = ast.ast_arena_expr_get(arena, callee_ref);
-        ve.kind = ExprKind.EXPR_VAR;
+        ve = parser_expr_with_kind(ve, ExprKind.EXPR_VAR);
         ve.resolved_type_ref = 0;
         ve.line = 0;
         ve.col = 0;
@@ -12421,7 +12830,7 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
         if (call_ref != 0) {
           let ce: Expr = ast.ast_arena_expr_get(arena, call_ref);
           expr_set_common_zeros(&ce);
-          ce.kind = ExprKind.EXPR_CALL;
+          ce = parser_expr_with_kind(ce, ExprKind.EXPR_CALL);
           ce.resolved_type_ref = type_ref;
           ce.line = 0;
           ce.col = 0;
@@ -12441,10 +12850,10 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
               ae.line = 0;
               ae.col = 0;
               if (res.call_num_args > 0 && arg_i < res.call_num_args) {
-                ae.kind = ExprKind.EXPR_LIT;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_LIT);
                 ae.int_val = pipeline_onefunc_call_arg_val_at(call_pool_buf, arg_i);
               } else {
-                ae.kind = ExprKind.EXPR_VAR;
+                ae = parser_expr_with_kind(ae, ExprKind.EXPR_VAR);
                 ae.var_name_len = pipeline_onefunc_param_name_len(call_pool_buf, arg_i);
                 let k: i32 = 0;
                 while (k < ae.var_name_len && k < 64) {
@@ -12570,8 +12979,16 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       }
       if_oib = if_oib + 1;
     }
+    /*
+     * Walk regions with the count already stored in n_reg_pool2.
+     * PLATFORM: WINDOWS — buf twin of the n_reg_pool walk above. A call in
+     * this condition pushes reg_oib into the callee home slot, and
+     * pipeline_onefunc_num_regions spills its pool pointer over that slot.
+     * Measured on the bootstrap image: the saved index 0 becomes the pool
+     * pointer, and the signed low half either skips the walk or never exits.
+     */
     let reg_oib: i32 = 0;
-    while (reg_oib < pipeline_onefunc_num_regions(onefunc_result_pool_ptr(&res))) {
+    while (reg_oib < n_reg_pool2) {
       if (pipeline_block_append_stmt_order(arena, block_ref, 6, reg_oib) < 0) {
         return { ok: -1, main_idx: -1 }
       }
@@ -12806,51 +13223,4 @@ export function copy_module_import_path64(module: *Module, i: i32, out: u8[128])
   }
   return path_len;
   }
-}
-
-/** Exported function `main`.
- * Program/test entry point.
- * @return i32
- */
-export function main(): i32 {
-  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
-  unsafe {
-  let path: u8[32] = [
-    47, 116, 109, 112, 47, 115, 104, 117, 95, 112, 97, 114, 115, 101, 95, 116,
-    101, 115, 116, 46, 115, 117, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  ];
-  let fd: i32 = std_fs_open(path);
-  if (fd >= 0) {
-    let buf: u8[128] = [];
-    let n: isize = std_fs_read(fd, buf, 128);
-    std_fs_close(fd);
-    if (n > 0) {
-      /* See implementation. */
-      let sl: u8[] = parser_slice_from_buf(&buf[0], (n as i32));
-      let res: ParseResult = parse(sl);
-      if (res.ok) {
-        return 0;
-      }
-      return 1;
-    }
-  }
-  // See implementation.
-  let src: u8[128] = [
-    102, 117, 110, 99, 116, 105, 111, 110, 32, 109, 97, 105, 110, 40, 41, 58,
-    32, 105, 51, 50, 32, 123, 32, 114, 101, 116, 117, 114, 110, 32, 48, 59,
-    32, 125, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-  ];
-  /* See implementation. */
-  let sl: u8[] = parser_slice_from_buf(&src[0], 35);
-  let res: ParseResult = parse(sl);
-  if (!res.ok) {
-    return 1;
-  }
-  if (res.return_val != 0) {
-    return 2;
-  }
-  return 0;
-  }
-  return 0;  // unreachable — typeck after unsafe block
 }

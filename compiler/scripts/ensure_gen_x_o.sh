@@ -9,10 +9,30 @@
 #       lsp_diag_x.o ← lsp_diag_gen.c
 #       pipeline_x.o ← pipeline_gen.c (+ gen_driver cache / FORCE / PIPELINE_X_DEPS)
 #     wave782 (try-gen-c-to-o B4 bootstrap; NOT try-gen-x catalog):
-#       lexer_x.o      ← lexer_gen.c (+ token enum sync)
+#       lexer_x.o      ← src/lexer/lexer.x pure-asm (w1546; no host cc)
+#       parser_x.o     ← src/parser/parser.x pure-asm (w1633; no host cc).
+#                        Not the migrate_x_objs.sh host-cc leaf. That script
+#                        still compiles parser_gen.c. g05 calls this on every
+#                        host when parser_x.o is missing (w1812).
+#       codegen_x.o    ← src/codegen/codegen.x + codegen_late.x pure-asm,
+#                        then ld -r (w1830; no host cc). The pin egg's
+#                        patch table fills up before codegen_c_ident_is_keyword,
+#                        so the rest of the bodies live in codegen_late.x.
+#                        One object keeps every existing link list.
+#                        migrate_x_objs.sh still compiles codegen_gen.c.
+#                        g05 calls this on every host when codegen_x.o is
+#                        missing (w1812).
+#       typeck_x.o     ← src/typeck/typeck.x pure-asm (w1635; no host cc).
+#                        migrate_x_objs.sh still compiles typeck_gen.c.
+#                        g05 calls this on every host when typeck_x.o is
+#                        missing (w1812).
+#                        Seven CTFE names stay undefined; typeck_ctfe.o
+#                        owns those bodies. Cap-residual slot names stay
+#                        undefined in the companion already on the link list.
 #       ast_gen2.o     ← ast_gen2.c
 #       driver_x.o     ← driver_gen.c (+ x_stubs + fs -D renames)
-#       preprocess_x.o ← preprocess_gen.c
+#       preprocess_x.o ← src/preprocess/preprocess.x on Windows (no cold
+#                        seed). Darwin and Linux keep the gen.c fallback.
 #     wave295 B′: _x_stubs2.o host left (dead dual; not product g05 / stage2 link)
 #   Membership for rebuild_leaves try-gen-x is catalog-owned:
 #     DRIVER_SEED_LSP_X_OBJS · DRIVER_SEED_PIPELINE_X_OBJS
@@ -22,13 +42,17 @@
 #   ensure_migrate_gen — this script may call lsp/pipeline gen when missing;
 #   it does not own -E regen policy for B4 (Makefile keeps gen.c prereqs).
 #
-#   migrate_x_objs.sh stays the authority for parser/typeck/codegen migrate leaves
-#   (wave735); do not fork a second migrate path here.
+#   migrate_x_objs.sh stays the host-cc archaeology for parser/typeck/codegen
+#   migrate leaves (wave735). w1633 / w1634 / w1635 do not fork that -E path:
+#   parser_x.o, codegen_x.o, and typeck_x.o cold rebuilds are pure-asm
+#   below, same authority as lexer (pure_asm_x_to_o).
 #
 # Usage (cwd = compiler/):
 #   bash scripts/ensure_gen_x_o.sh one <out.o>
 #   bash scripts/ensure_gen_x_o.sh lsp-io|lsp|lsp-diag|pipeline
 #   bash scripts/ensure_gen_x_o.sh lexer-x|ast-gen2|driver-x|preprocess-x
+#   bash scripts/ensure_gen_x_o.sh parser_x [out.o]
+#   bash scripts/ensure_gen_x_o.sh codegen_x [out.o]
 #   bash scripts/ensure_gen_x_o.sh lsp-all     # three LSP gen objs
 #   bash scripts/ensure_gen_x_o.sh residual-all  # lsp trio + pipeline_x (not B4)
 #
@@ -63,7 +87,11 @@ if [ -z "${PIPELINE_GEN_CFLAGS:-}" ]; then
   PIPELINE_GEN_CFLAGS_BASE="-Wno-unused-variable -Wno-unused-parameter -Wno-unused-function -Wno-parentheses -Wno-sign-compare -Wno-ignored-qualifiers -Wno-unused-but-set-variable -Wno-type-limits"
   PIPELINE_GEN_CFLAGS_CLANG="-Wno-logical-op-parentheses -Wno-bitwise-op-parentheses -Wno-incompatible-pointer-types-discards-qualifiers -Wno-parentheses-equality"
   PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE"
-  if "$CC" -v 2>&1 | grep -qi clang; then
+  # Same clang fact as the seed catalog. Do not execute cc to learn it.
+  # PLATFORM: SHARED.
+  # shellcheck disable=SC1091
+  . "$(CDPATH= cd -- "$(dirname "$0")" && pwd)/xlang_host_cc_is_clang.sh"
+  if xlang_host_cc_is_clang "$CC"; then
     PIPELINE_GEN_CFLAGS="$PIPELINE_GEN_CFLAGS_BASE $PIPELINE_GEN_CFLAGS_CLANG"
   fi
 fi
@@ -298,60 +326,207 @@ need_rebuild_gen_o_or_deps() {
 }
 
 build_lexer_x() {
-  # Makefile: perl sync_lexer_gen_token_enum + PIPELINE_GEN_CFLAGS -I triad.
-  # Always run ensure_migrate_gen lexer first: gitignored pin can fail product
-  # symbol contract (Windows dual-boot stale pin) while .o is still "up-to-date"
-  # vs that pin — phase1 then UNDEF lexer_*_reset. G.7: migrate owns gen body.
+  # w1546 (checklist 7.2, lexer only): lexer_x.o is one pure-asm emit of
+  # src/lexer/lexer.x. No host cc of seeds/lexer_gen.linux.x86_64.c or of
+  # lexer_gen.c, and no fallback. The seed file stays on disk (removal is 9.2).
+  # Caller deletes a warm object first; this function also removes lexer_x.o
+  # before emit so a failed emit cannot leave the previous host-cc object.
+  # xlang_panic_ is weakened so Darwin runtime_panic.o stays the strong copy.
   # PLATFORM: SHARED.
-  # wave328: Track L retirement — prefer cold-seed archaeology via driver_leaf
-  # catalog. lexer_gen.c historically has implicit-decl issues (lexer_next undeclared
-  # C99); .x → -E also duplicates token_is_eof when parser_x.o re-exports lexer/token.x.
-  # Cold seed (seeds/lexer_gen.linux.x86_64.c) contains no token_is_eof definition
-  # (only extern decl), so it is the only Track L rung that avoids both bugs.
-  # Fall back to lexer_gen.c (ARCHAEOLOGY) only if Track L fails.
-  if [ -f scripts/driver_leaf_x_to_o.sh ] && [ -f "seeds/lexer_gen.linux.x86_64.c" ]; then
-    # Manual cold-seed rung (skip PREFER_X_O to avoid token_is_eof duplicate).
-    BASE_CFLAGS="${BASE_CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}"
-    _leaf_tmp="$(mktemp "${TMPDIR:-/tmp}/lexer_cold_seed.XXXXXX.c")"
-    sed -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
-        "seeds/lexer_gen.linux.x86_64.c" > "$_leaf_tmp"
-    # shellcheck disable=SC2086
-    if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then
-      rm -f "$_leaf_tmp"
-      log "lexer_x.o ← Track L cold seed (seeds/lexer_gen.linux.x86_64.c; wave328; no token_is_eof dup)"
-      return 0
-    fi
-    # Fallback: unstripped
-    cp -f "seeds/lexer_gen.linux.x86_64.c" "$_leaf_tmp"
-    # shellcheck disable=SC2086
-    if $CC $BASE_CFLAGS -c -o lexer_x.o "$_leaf_tmp" 2>/dev/null; then
-      rm -f "$_leaf_tmp"
-      log "lexer_x.o ← Track L cold seed (unstripped; wave328)"
-      return 0
-    fi
-    rm -f "$_leaf_tmp"
-    log "Track L cold seed failed for lexer_x.o; falling back to lexer_gen.c (archaeology)"
-  fi
-  if [ -f scripts/ensure_migrate_gen.sh ]; then
-    MAKE="$MAKE" XLANG_FORCE_REGEN_GEN="${XLANG_FORCE_REGEN_GEN:-0}" \
-      bash scripts/ensure_migrate_gen.sh lexer || return 1
-  elif [ ! -f lexer_gen.c ]; then
-    log "missing lexer_gen.c (run bash scripts/ensure_migrate_gen.sh lexer first)"
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/lexer/lexer.x ]; then
+    log "lexer_x.o: pure_ld_shared.sh or src/lexer/lexer.x missing"
     return 1
   fi
-  if ! need_rebuild_gen_o lexer_x.o lexer_gen.c; then
-    log "skip lexer_x.o (up-to-date vs lexer_gen.c)"
+  rm -f lexer_x.o
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+    export G05_X_O_WEAK_FUNCS=xlang_panic_
+    pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
+  ) && [ -s lexer_x.o ]; then
+    log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
     return 0
   fi
-  if [ -f scripts/sync_lexer_gen_token_enum.pl ]; then
-    perl scripts/sync_lexer_gen_token_enum.pl lexer_gen.c
+  rm -f lexer_x.o
+  log "lexer_x.o pure-asm failed (w1546; no cc fallback)"
+  return 1
+}
+
+build_parser_x() {
+  # w1633 (checklist 7.2, parser cold rebuild): one pure-asm emit of
+  # src/parser/parser.x. No host cc of parser_gen.c and no fallback.
+  # $1 is the output path. Default parser_x.o in cwd (compiler/). A probe
+  # passes an absolute path whose name does not contain "main"; that
+  # substring prefixes every T symbol. This function removes only $1.
+  #
+  # Flags match the emit that produced the installed object: entry module
+  # only, full bodies, DCE left on. The library defines no function named
+  # main or entry, so DCE keeps every export. FORCE is required because
+  # skip_heavy stubs later ordinals when the module is large. It is set
+  # only in this subshell, never for a product relink.
+  # xlang_panic_ stays undefined here. lexer_x.o owns the weak body.
+  # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
+  local out="${1:-parser_x.o}"
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/parser/parser.x ]; then
+    log "parser_x.o: pure_ld_shared.sh or src/parser/parser.x missing"
+    return 1
   fi
-  log "cc -c lexer_gen.c → lexer_x.o"
-  # shellcheck disable=SC2086
-  $CC $CFLAGS $PIPELINE_GEN_CFLAGS -I. -Iinclude -Isrc -c lexer_gen.c -o lexer_x.o
-  log "lexer_x.o OK"
+  rm -f "$out"
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    export XLANG_ASM_ENTRY_MODULE_ONLY=1
+    export XLANG_ASM_FORCE_FULL_BODIES=1
+    export XLANG_PURE_ASM_TIMEOUT_SEC=900
+    export XLANG_PURE_ASM_ALLOW_U_PANIC=1
+    export XLANG_PURE_ASM_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
+    unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
+    ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
+    pure_asm_x_to_o "$out" src/parser/parser.x
+  ) && [ -s "$out" ]; then
+    log "parser_x.o <- pure-asm src/parser/parser.x ($out)"
+    return 0
+  fi
+  rm -f "$out"
+  log "parser_x.o pure-asm failed (w1633; no cc fallback)"
+  return 1
+}
+
+build_codegen_x() {
+  # w1634 (checklist 7.2, codegen cold rebuild) plus w1830:
+  # pure-asm of src/codegen/codegen.x and src/codegen/codegen_late.x,
+  # then ld -r into one object. No host cc of codegen_gen.c and no fallback.
+  # The pin egg stops at 16384 patches inside codegen_c_ident_is_keyword.
+  # codegen_late.x holds the rest. codegen_format_int_link.x gives the
+  # pipeline runtime its codegen_format_int name (codegen.x keeps format_int
+  # bare for codegen_late; w2055). codegen_outbuf.x is the shared Buf,
+  # found through -L src/codegen. Joining into $1 leaves every link list
+  # that names codegen_x.o unchanged.
+  # $1 is the output path. Default codegen_x.o in cwd (compiler/). A probe
+  # passes an absolute path whose name does not contain "main"; that
+  # substring prefixes every T symbol. Temp objects use a suffix that
+  # does not contain "main". This function removes only $1 and those temps.
+  #
+  # Flags match the emit that produced the installed object: entry module
+  # only, full bodies, DCE left on. The library defines no function named
+  # main or entry, so DCE keeps every export. FORCE is required because
+  # skip_heavy stubs later ordinals when the module is large. It is set
+  # only in this subshell, never for a product relink.
+  # Cap residual names are not in this .x. They stay in the companion
+  # object already on the link list. xlang_panic_ stays undefined here.
+  # lexer_x.o owns the weak body.
+  # ld -r flags match arch_ld_r_multidef_flags.
+  # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
+  local out="${1:-codegen_x.o}"
+  local head="${out}.tu_head"
+  local late="${out}.tu_late"
+  local fmtl="${out}.tu_fmt"
+  local ld_flags
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/codegen/codegen.x ] || [ ! -f src/codegen/codegen_late.x ] \
+    || [ ! -f src/codegen/codegen_format_int_link.x ]; then
+    log "codegen_x.o: pure_ld_shared.sh or codegen sources missing"
+    return 1
+  fi
+  rm -f "$out" "$head" "$late" "$fmtl"
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    export XLANG_ASM_ENTRY_MODULE_ONLY=1
+    export XLANG_ASM_FORCE_FULL_BODIES=1
+    export XLANG_PURE_ASM_TIMEOUT_SEC=900
+    export XLANG_PURE_ASM_ALLOW_U_PANIC=1
+    export XLANG_PURE_ASM_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
+    unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
+    ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
+    pure_asm_x_to_o "$head" src/codegen/codegen.x \
+      && pure_asm_x_to_o "$late" src/codegen/codegen_late.x \
+      && pure_asm_x_to_o "$fmtl" src/codegen/codegen_format_int_link.x
+  ) && [ -s "$head" ] && [ -s "$late" ] && [ -s "$fmtl" ]; then
+    case "$(uname -s 2>/dev/null || echo Unknown)" in
+      Darwin) ld_flags='-multiply_defined suppress' ;;
+      *) ld_flags='--allow-multiple-definition' ;;
+    esac
+    # shellcheck disable=SC2086
+    if ld -r $ld_flags -o "$out" "$head" "$late" "$fmtl"; then
+      rm -f "$head" "$late" "$fmtl"
+      log "codegen_x.o <- pure-asm codegen.x + codegen_late.x ($out)"
+      return 0
+    fi
+  fi
+  rm -f "$out" "$head" "$late" "$fmtl"
+  log "codegen_x.o pure-asm failed (w1830; no cc fallback)"
+  return 1
+}
+
+build_typeck_x() {
+  # w1635 (checklist 7.2, typeck cold rebuild): one pure-asm emit of
+  # src/typeck/typeck.x. No host cc of typeck_gen.c and no fallback.
+  # $1 is the output path. Default typeck_x.o in cwd (compiler/). A probe
+  # passes an absolute path whose name does not contain "main"; that
+  # substring prefixes every T symbol. This function removes only $1.
+  #
+  # Flags match the emit that produced the installed object: entry module
+  # only, full bodies, DCE left on. The library defines no function named
+  # main or entry, so DCE keeps every export. FORCE is required because
+  # skip_heavy stubs later ordinals when the module is large. It is set
+  # only in this subshell, never for a product relink.
+  #
+  # The seven CTFE faces (typeck_fold_expr, typeck_fold_block_const_init,
+  # typeck_fold_expr_in_block, typeck_block_const_init_is_const,
+  # typeck_const_init_not_constant, typeck_expr_is_c_static_const_init,
+  # typeck_expr_is_const_with_module_consts) are export extern in the .x.
+  # They stay undefined here. seeds/typeck_ctfe_tu.c is the body, linked
+  # as typeck_ctfe.o when the stamp matches. Cap-residual slot names,
+  # including typeck_scratch64_slot, stay undefined in the companion
+  # already on the link list. Do not define either set in this object.
+  #
+  # This compiler's emit of the layout remainder sites
+  # (typeck_soa_col_base_for_field, typeck_soa_array_storage_size_glue,
+  # typeck_struct_layout_metrics) omits the idiv zero-divisor panic
+  # sequence. The source already forces that alignment divisor to at
+  # least 1, or guards the remainder with max_al > 1. The bytes are
+  # therefore not a drop-in for the installed object. Callers must not
+  # copy this emit over an object that is already present.
+  # xlang_panic_ is not referenced by this emit. The allow flag stays:
+  # the installed object does reference it, and an older compiler's emit
+  # of this TU would be rejected without the flag. lexer_x.o owns the
+  # weak body.
+  # PLATFORM: SHARED caller (w1812). g05 calls this on every host when the object is missing.
+  local out="${1:-typeck_x.o}"
+  if [ ! -f scripts/pure_ld_shared.sh ] || [ ! -f src/typeck/typeck.x ]; then
+    log "typeck_x.o: pure_ld_shared.sh or src/typeck/typeck.x missing"
+    return 1
+  fi
+  rm -f "$out"
+  if (
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    export XLANG_PREFER_ASM_O=1
+    export XLANG_ASM_ENTRY_MODULE_ONLY=1
+    export XLANG_ASM_FORCE_FULL_BODIES=1
+    export XLANG_PURE_ASM_TIMEOUT_SEC=900
+    export XLANG_PURE_ASM_ALLOW_U_PANIC=1
+    export XLANG_PURE_ASM_LIBROOT="-L asm_libroot -L .. -L src -L src/lexer -L src/ast -L src/parser -L src/typeck -L src/codegen -L src/preprocess -L src/pipeline -L src/lsp -L src/asm"
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+    unset XLANG_ASM_START_FUNC XLANG_ASM_BUILD_SKIP_TYPECK
+    unset XLANG_ASM_ENTRY_EMIT_HEAVY XLANG_ASM_WPO_DCE XLANG_WPO_NO_FOLD
+    ulimit -s 65532 2>/dev/null || ulimit -s hard || exit 1
+    pure_asm_x_to_o "$out" src/typeck/typeck.x
+  ) && [ -s "$out" ]; then
+    log "typeck_x.o <- pure-asm src/typeck/typeck.x ($out)"
+    return 0
+  fi
+  rm -f "$out"
+  log "typeck_x.o pure-asm failed (w1635; no cc fallback)"
+  return 1
 }
 
 build_ast_gen2() {
@@ -384,10 +559,18 @@ build_driver_x() {
   # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
   # Fall back to driver_gen.c + x_stubs renames (archaeology) only if Track L fails.
   if [ -f scripts/driver_leaf_x_to_o.sh ]; then
-    if bash scripts/driver_leaf_x_to_o.sh ensure driver_x.o 2>/dev/null; then
+    if bash scripts/driver_leaf_x_to_o.sh ensure driver_x.o; then
       log "driver_x.o ← Track L (.x → -E → .o; wave328)"
       return 0
     fi
+    # PLATFORM: WINDOWS — cold driver_gen.c is the (c) host-cc. Track L
+    # either produced the object from src/main.x or the relink stops.
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        log "Track L failed for driver_x.o; no driver_gen.c on Windows"
+        return 1
+        ;;
+    esac
     log "Track L failed for driver_x.o; falling back to driver_gen.c (archaeology)"
   fi
   if [ ! -f driver_gen.c ]; then
@@ -415,12 +598,20 @@ build_driver_x() {
 build_preprocess_x() {
   # Makefile: plain CFLAGS -c (no PIPELINE_GEN_CFLAGS on this leaf).
   # wave328: Track L retirement — prefer .x→.o via driver_leaf_x_to_o.sh catalog.
-  # Fall back to preprocess_gen.c (archaeology) only if Track L fails.
+  # Darwin and Linux fall back to preprocess_gen.c if Track L fails.
+  # PLATFORM: WINDOWS — the product -E of preprocess.x is the build input.
+  # preprocess_gen.c is the linux cold seed and is not compiled here.
   if [ -f scripts/driver_leaf_x_to_o.sh ]; then
     if bash scripts/driver_leaf_x_to_o.sh ensure preprocess_x.o 2>/dev/null; then
       log "preprocess_x.o ← Track L (.x → -E → .o; wave328)"
       return 0
     fi
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        log "preprocess_x.o -E failed; no cold seed on Windows"
+        return 1
+        ;;
+    esac
     log "Track L failed for preprocess_x.o; falling back to preprocess_gen.c (archaeology)"
   fi
   if [ ! -f preprocess_gen.c ]; then
@@ -479,6 +670,15 @@ case "$MODE" in
   lexer-x|lexer_x|lexer_x.o)
     build_lexer_x
     ;;
+  parser-x|parser_x|parser_x.o)
+    build_parser_x "${2:-parser_x.o}"
+    ;;
+  codegen-x|codegen_x|codegen_x.o)
+    build_codegen_x "${2:-codegen_x.o}"
+    ;;
+  typeck-x|typeck_x|typeck_x.o)
+    build_typeck_x "${2:-typeck_x.o}"
+    ;;
   ast-gen2|ast_gen2|ast_gen2.o)
     build_ast_gen2
     ;;
@@ -506,7 +706,7 @@ case "$MODE" in
     exit 0
     ;;
   *)
-    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|ast-gen2|driver-x|preprocess-x|lsp-all|residual-all)" >&2
+    echo "ensure_gen_x_o: unknown mode '$MODE' (one|lsp-io|lsp|lsp-diag|pipeline|lexer-x|parser-x|codegen-x|ast-gen2|driver-x|preprocess-x|lsp-all|residual-all)" >&2
     exit 2
     ;;
 esac

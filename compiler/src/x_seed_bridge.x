@@ -10,6 +10,17 @@ export extern "C" function preprocess_x_buf(src: *u8, src_len: isize, out_buf: *
 export extern "C" function typeck_std_heap_alloc(size: usize): *u8;
 export extern "C" function calloc(n: usize, size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
+export extern "C" function diag_store_ptr_le(p: *u8, val: *u8): void;
+export extern "C" function diag_snap_load_ptr(snap: *u8, off: i32): *u8;
+export extern "C" function diag_snap_load_usize(snap: *u8, off: i32): usize;
+export extern "C" function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void;
+export extern "C" function pipeline_expr_init_call_resolve_at_ref(arena: *u8, expr_ref: i32): void;
+export extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
+export extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
+
+/* Eight-byte slot for the module pointer used while parsing a match.
+ * Callers store and load that pointer at offset 0. PLATFORM: SHARED. */
+let g_xsb_match_module: u8[8] = [];
 
 /** Exported function `typeck_preprocess_x_buf`.
  * Implements `typeck_preprocess_x_buf`.
@@ -171,4 +182,509 @@ export function io_register_buffers_buf_i32(bufs: isize, nr: i32): i32 {
 #[no_mangle]
 export function xlang_io_register(ptr: *u8, len: usize, handle: usize): i32 {
   return io_register_buffer(ptr, len);
+}
+
+/**
+ * Address of the match-module slot.
+ * The slot is the eight-byte g_xsb_match_module in this file. Callers store
+ * and load the module pointer at offset 0.
+ * @return *u8 — address of the eight-byte slot
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_match_module_bytes(): *u8 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  return &g_xsb_match_module[0];
+}
+
+/**
+ * Remember the module used while parsing a match.
+ * The pointer lives in g_xsb_match_module. Its bytes are written by the existing
+ * little-endian pointer store. A null module clears the slot.
+ * @param m *u8 — module pointer, or null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_set_match_module(m: *u8): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    diag_store_ptr_le(pipeline_match_module_bytes(), m);
+  }
+}
+
+/**
+ * Return the module used while parsing a match.
+ * The pointer lives in g_xsb_match_module. Offset 0 of that slot is the module
+ * pointer, loaded in host byte order through diag_snap_load_ptr.
+ * @return *u8 — module pointer, or null when none is set
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function pipeline_parser_get_match_module(): *u8 {
+  let pad: u8[32] = [];
+  let m: *u8 = 0 as *u8;
+  pad[0] = 0;
+  unsafe {
+    m = diag_snap_load_ptr(pipeline_match_module_bytes(), 0);
+  }
+  return m;
+}
+
+/**
+ * Clear the match fields of one expression.
+ * The g05 product link has no ast.x object, so this copy is the only
+ * definition there (w2055). Remove it when ast.x joins that link.
+ * Offsets in the flat ast_Expr record: matched ref at 320, arm base at
+ * 324, arm count at 328. A null expression is left untouched.
+ * @param e *u8 — expression record, or null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_init_match_enum(e: *u8): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  if (e == 0 as *u8) {
+    return;
+  }
+  unsafe {
+    diag_snap_store_i32(e, 320, 0);
+    diag_snap_store_i32(e, 324, 0);
+    diag_snap_store_i32(e, 328, 0);
+  }
+}
+
+/**
+ * Reset one call expression to unresolved.
+ * Both resolve slots are written as -1 by the existing pipeline writer.
+ * A null arena or a non-positive expression index is left unchanged.
+ * @param arena *u8 — expression arena, or null
+ * @param expr_ref i32 — expression index
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function ast_expr_init_call_resolve(arena: *u8, expr_ref: i32): void {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  unsafe {
+    pipeline_expr_init_call_resolve_at_ref(arena, expr_ref);
+  }
+}
+
+/**
+ * Read up to count bytes from a file descriptor.
+ * A null buffer or a zero count returns 0 and does not call the reader.
+ * timeout_ms is ignored. A failed read returns -1. Bytes come from the
+ * existing xlang_sys_read.
+ * @param fd i32 — file descriptor
+ * @param buf *u8 — destination, or null
+ * @param count usize — maximum number of bytes
+ * @param timeout_ms u32 — ignored
+ * @return isize — bytes read, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  if (count == 0) {
+    return 0;
+  }
+  unsafe {
+    n = xlang_sys_read(fd, buf, count);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n;
+}
+
+/**
+ * Write up to count bytes from buf to a file descriptor.
+ * A null buffer or a zero count returns 0 and does not call the writer.
+ * timeout_ms is ignored. A failed write returns -1. Bytes go through the
+ * existing xlang_sys_write.
+ * @param fd i32 — file descriptor
+ * @param buf *u8 — source bytes, or null
+ * @param count usize — maximum number of bytes
+ * @param timeout_ms u32 — ignored
+ * @return isize — bytes written, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write(fd: i32, buf: *u8, count: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  if (buf == 0 as *u8) {
+    return 0;
+  }
+  if (count == 0) {
+    return 0;
+  }
+  unsafe {
+    n = xlang_sys_write(fd, buf, count);
+  }
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n;
+}
+
+/**
+ * Batch read is not implemented on this seed face.
+ * Every argument is ignored. The result is always -1.
+ * @param fd i32 — file descriptor, ignored
+ * @param bufs *u8 — buffer table, ignored
+ * @param n i32 — buffer count, ignored
+ * @param timeout_ms u32 — ignored
+ * @return isize — always -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  pad[2] = fd as u8;
+  pad[3] = n as u8;
+  if (bufs != 0 as *u8) {
+    pad[4] = 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Batch write is not implemented on this seed face.
+ * Every argument is ignored. The result is always -1.
+ * @param fd i32 — file descriptor, ignored
+ * @param bufs *u8 — buffer table, ignored
+ * @param n i32 — buffer count, ignored
+ * @param timeout_ms u32 — ignored
+ * @return isize — always -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write_batch_buf(fd: i32, bufs: *u8, n: i32, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  pad[2] = fd as u8;
+  pad[3] = n as u8;
+  if (bufs != 0 as *u8) {
+    pad[4] = 0;
+  }
+  return 0 - 1;
+}
+
+/**
+ * Read through a registered buffer slot.
+ * buf_index and offset are ignored. The call goes to io_read with a null
+ * buffer, which returns 0 without reading.
+ * @param fd i32 — file descriptor
+ * @param buf_index u32 — ignored
+ * @param offset usize — ignored
+ * @param len usize — length passed to io_read
+ * @param timeout_ms u32 — passed through to io_read
+ * @return isize — result of io_read on a null buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = buf_index as u8;
+  pad[2] = offset as u8;
+  n = io_read(fd, 0 as *u8, len, timeout_ms);
+  return n;
+}
+
+/**
+ * Write through a registered buffer slot.
+ * buf_index and offset are ignored. The call goes to io_write with a null
+ * buffer, which returns 0 without writing.
+ * @param fd i32 — file descriptor
+ * @param buf_index u32 — ignored
+ * @param offset usize — ignored
+ * @param len usize — length passed to io_write
+ * @param timeout_ms u32 — passed through to io_write
+ * @return isize — result of io_write on a null buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write_fixed(fd: i32, buf_index: u32, offset: usize, len: usize, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let n: isize = 0;
+  pad[0] = 0;
+  pad[1] = buf_index as u8;
+  pad[2] = offset as u8;
+  n = io_write(fd, 0 as *u8, len, timeout_ms);
+  return n;
+}
+
+/**
+ * Read the first buffer of a four-slot batch.
+ * p1, p2, p3, their lengths, and n are ignored. The bytes come from io_read
+ * on p0.
+ * @param fd i32 — file descriptor
+ * @param p0 *u8 — first buffer, or null
+ * @param l0 usize — length of the first buffer
+ * @param p1 *u8 — ignored
+ * @param l1 usize — ignored
+ * @param p2 *u8 — ignored
+ * @param l2 usize — ignored
+ * @param p3 *u8 — ignored
+ * @param l3 usize — ignored
+ * @param n i32 — ignored
+ * @param timeout_ms u32 — passed through to io_read
+ * @return isize — result of io_read on the first buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_read_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let r: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  pad[2] = n as u8;
+  pad[3] = l1 as u8;
+  pad[4] = l2 as u8;
+  pad[5] = l3 as u8;
+  if (p1 != 0 as *u8) {
+    pad[6] = 0;
+  }
+  if (p2 != 0 as *u8) {
+    pad[7] = 0;
+  }
+  if (p3 != 0 as *u8) {
+    pad[8] = 0;
+  }
+  r = io_read(fd, p0, l0, timeout_ms);
+  return r;
+}
+
+/**
+ * Write the first buffer of a four-slot batch.
+ * p1, p2, p3, their lengths, and n are ignored. The bytes go through
+ * io_write on p0.
+ * @param fd i32 — file descriptor
+ * @param p0 *u8 — first buffer, or null
+ * @param l0 usize — length of the first buffer
+ * @param p1 *u8 — ignored
+ * @param l1 usize — ignored
+ * @param p2 *u8 — ignored
+ * @param l2 usize — ignored
+ * @param p3 *u8 — ignored
+ * @param l3 usize — ignored
+ * @param n i32 — ignored
+ * @param timeout_ms u32 — passed through to io_write
+ * @return isize — result of io_write on the first buffer
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function io_write_batch(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3: *u8, l3: usize, n: i32, timeout_ms: u32): isize {
+  let pad: u8[32] = [];
+  let r: isize = 0;
+  pad[0] = 0;
+  pad[1] = timeout_ms as u8;
+  pad[2] = n as u8;
+  pad[3] = l1 as u8;
+  pad[4] = l2 as u8;
+  pad[5] = l3 as u8;
+  if (p1 != 0 as *u8) {
+    pad[6] = 0;
+  }
+  if (p2 != 0 as *u8) {
+    pad[7] = 0;
+  }
+  if (p3 != 0 as *u8) {
+    pad[8] = 0;
+  }
+  r = io_write(fd, p0, l0, timeout_ms);
+  return r;
+}
+
+/**
+ * Register one buffer described by a packed record.
+ * The record holds a pointer at offset 0, a length at 8, and a handle at
+ * 16. A zero address returns -1. Registration goes through
+ * xlang_io_register.
+ * @param buf isize — address of the record, or 0
+ * @return i32 — registration result, or -1 when buf is 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_register_buf(buf: isize): i32 {
+  let pad: u8[32] = [];
+  let base: *u8 = 0 as *u8;
+  let ptr: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let handle: usize = 0;
+  let r: i32 = 0;
+  pad[0] = 0;
+  if (buf == 0) {
+    return 0 - 1;
+  }
+  base = (buf as usize) as *u8;
+  unsafe {
+    ptr = diag_snap_load_ptr(base, 0);
+    len = diag_snap_load_usize(base, 8);
+    handle = diag_snap_load_usize(base, 16);
+  }
+  r = xlang_io_register(ptr, len, handle);
+  return r;
+}
+
+/**
+ * Submit one read using the handle as a file descriptor.
+ * The low 32 bits of the handle are the descriptor. A negative read
+ * returns -1. A non-negative count is returned as i32. The bytes come
+ * from io_read.
+ * @param ptr *u8 — destination, or null
+ * @param len usize — maximum number of bytes
+ * @param handle usize — file descriptor in the low 32 bits
+ * @param timeout_ms u32 — passed through to io_read
+ * @return i32 — bytes read, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_submit_read(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+  let pad: u8[32] = [];
+  let fd: i32 = 0;
+  let n: isize = 0;
+  pad[0] = 0;
+  fd = handle as i32;
+  n = io_read(fd, ptr, len, timeout_ms);
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n as i32;
+}
+
+/**
+ * Submit one read from a packed buffer record.
+ * The record holds a pointer at offset 0, a length at 8, and a handle at
+ * 16. A zero address returns -1. The read goes through xlang_io_submit_read.
+ * @param buf isize — address of the record, or 0
+ * @param timeout_ms i32 — passed through as an unsigned timeout
+ * @return i32 — bytes read, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_submit_read_buf(buf: isize, timeout_ms: i32): i32 {
+  let pad: u8[32] = [];
+  let base: *u8 = 0 as *u8;
+  let ptr: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let handle: usize = 0;
+  let r: i32 = 0;
+  pad[0] = 0;
+  if (buf == 0) {
+    return 0 - 1;
+  }
+  base = (buf as usize) as *u8;
+  unsafe {
+    ptr = diag_snap_load_ptr(base, 0);
+    len = diag_snap_load_usize(base, 8);
+    handle = diag_snap_load_usize(base, 16);
+  }
+  r = xlang_io_submit_read(ptr, len, handle, timeout_ms as u32);
+  return r;
+}
+
+/**
+ * Submit one write using the handle as a file descriptor.
+ * The low 32 bits of the handle are the descriptor. A negative write
+ * returns -1. A non-negative count is returned as i32. The bytes go
+ * through io_write.
+ * @param ptr *u8 — source bytes, or null
+ * @param len usize — maximum number of bytes
+ * @param handle usize — file descriptor in the low 32 bits
+ * @param timeout_ms u32 — passed through to io_write
+ * @return i32 — bytes written, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_submit_write(ptr: *u8, len: usize, handle: usize, timeout_ms: u32): i32 {
+  let pad: u8[32] = [];
+  let fd: i32 = 0;
+  let n: isize = 0;
+  pad[0] = 0;
+  fd = handle as i32;
+  n = io_write(fd, ptr, len, timeout_ms);
+  if (n < 0) {
+    return 0 - 1;
+  }
+  return n as i32;
+}
+
+/**
+ * Submit one write from a packed buffer record.
+ * The record holds a pointer at offset 0, a length at 8, and a handle at
+ * 16. A zero address returns -1. The write goes through xlang_io_submit_write.
+ * @param buf isize — address of the record, or 0
+ * @param timeout_ms i32 — passed through as an unsigned timeout
+ * @return i32 — bytes written, 0, or -1
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function xlang_io_submit_write_buf(buf: isize, timeout_ms: i32): i32 {
+  let pad: u8[32] = [];
+  let base: *u8 = 0 as *u8;
+  let ptr: *u8 = 0 as *u8;
+  let len: usize = 0;
+  let handle: usize = 0;
+  let r: i32 = 0;
+  pad[0] = 0;
+  if (buf == 0) {
+    return 0 - 1;
+  }
+  base = (buf as usize) as *u8;
+  unsafe {
+    ptr = diag_snap_load_ptr(base, 0);
+    len = diag_snap_load_usize(base, 8);
+    handle = diag_snap_load_usize(base, 16);
+  }
+  r = xlang_io_submit_write(ptr, len, handle, timeout_ms as u32);
+  return r;
+}
+
+/**
+ * Weak fallback for the std.io driver read pointer.
+ * lsp_gen calls this name. The real driver supplies a strong definition when
+ * it is linked. This body ignores the handle and the timeout and returns a
+ * null pointer. The installed symbol stays weak.
+ * @param handle usize — ignored
+ * @param timeout_ms u32 — ignored
+ * @return *u8 — always null
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_driver_driver_read_ptr(handle: usize, timeout_ms: u32): *u8 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  pad[1] = 0;
+  return 0 as *u8;
+}
+
+/**
+ * Weak fallback for the std.io driver read-pointer length.
+ * lsp_gen calls this name. The real driver supplies a strong definition when
+ * it is linked. This body returns 0. The installed symbol stays weak.
+ * @return i32 — always 0
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function std_io_driver_driver_read_ptr_len(): i32 {
+  let pad: u8[32] = [];
+  pad[0] = 0;
+  return 0;
 }

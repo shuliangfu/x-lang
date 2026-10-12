@@ -1,11 +1,14 @@
-// Thin pure override: FIELD_ACCESS load width (CORE-016 generic mono).
+// Thin pure: field_load_sz FULL leaf (helpers + load_byte_sz export).
 // G.7: body MUST match pipeline_expr_field_access_load_byte_sz in
 // runtime_pipeline_abi.x (same exported symbol). Prefer typeck-resolved
 // scalar (mono stamp) before generic-layout free TYPE_NAMED T/U so
 // Option<i32>.value / Wrap<i32>.v emit ldr w not ldr x0 with garbage
 // high bits (multi-let / multi-mono compare false-red).
-// ensure injects via pipeline_abi_inject_field_load_sz_thin (first-wins
-// ld -r; avoids Darwin mega -E 22-40GB RSS).
+// ensure: inject_field_load_sz_thin injects THIS on MACOS; LINUX injects
+//   field_load_sz_helpers_thin only (see wave414).
+// wave401/414: MACOS PREFER full; LINUX PREFER helpers-only.
+//   Ubuntu full tip XT001@bytes_eq MISATTRIBUTED; helpers -c green;
+//   main export tip reinject still BAN on LINUX.
 // PLATFORM: SHARED freestanding field load · LINUX gold · MACOS co-path.
 
 export extern function pipeline_expr_field_access_base_ref(a: *u8, expr_ref: i32): i32;
@@ -103,7 +106,7 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
   unsafe {
     pipeline_expr_field_access_name_into(a, expr_ref, &field_name[0]);
   }
-  /* CORE-016: prefer typeck mono scalar stamp before generic layout T/U → 8. */
+  /* CORE-016 + wave1007 Cap residual: TYPE_NAMED i8/i16/u16 via glue. */
   unsafe {
     tr = pipeline_expr_resolved_type_ref(a, expr_ref);
   }
@@ -111,7 +114,14 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
     unsafe {
       kind_ord = pipeline_type_kind_ord_at(a, tr);
     }
-    if (kind_ord != 8 && kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
+    if (kind_ord == 8) {
+      unsafe {
+        let cap_hit: i32 = glue_field_access_load_bytes_for_type_ref(a, tr);
+        if (cap_hit == 1 || cap_hit == 2 || cap_hit == 4) {
+          return cap_hit;
+        }
+      }
+    } else if (kind_ord != 10 && kind_ord != 11 && kind_ord != 12) {
       return glue_field_access_load_bytes_for_type_ref(a, tr);
     }
   }
@@ -194,8 +204,16 @@ export function pipeline_expr_field_access_load_byte_sz(a: *u8, m: *u8, expr_ref
                   ftr = pipeline_module_struct_layout_field_type_ref(m, k, j);
                   ftr_kind = pipeline_type_kind_ord_at(a, ftr);
                 }
-                if (ftr_kind != 8) {
-                  return glue_field_access_load_bytes_for_type_ref(a, ftr);
+                /* wave1007: Cap residual TYPE_NAMED → 4; type-param → skip. */
+                unsafe {
+                  let lay_hit: i32 = glue_field_access_load_bytes_for_type_ref(a, ftr);
+                  if (ftr_kind == 8) {
+                    if (lay_hit == 1 || lay_hit == 2 || lay_hit == 4) {
+                      return lay_hit;
+                    }
+                  } else {
+                    return lay_hit;
+                  }
                 }
               }
               j = j + 1;

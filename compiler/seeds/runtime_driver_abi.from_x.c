@@ -798,13 +798,7 @@ void driver_pipeline_entry_source_len_store(size_t len) {
 /* wave13 pure：hybrid thin owns load+debug note (append + diag_report); cold keeps integer twin.
  * PLATFORM: SHARED — truthy XLANG_DEBUG_PIPE (non-empty and != '0') matches thin driver_env_flag_truthy. */
 size_t driver_pipeline_entry_source_len_load_and_maybe_debug_impl(void) {
-    const char *e = link_abi_getenv("XLANG_DEBUG_PIPE");
-    if (e != NULL && e[0] != '\0' && e[0] != '0') {
-        /* Integer twin of thin pure note text (no float; matches driver_abi_append_i64 decimal). */
-        diag_reportf(NULL, 0, 0, "note", NULL,
-                     "pipeline debug: entry_source_len_global=%lld",
-                     (long long)g_pipeline_entry_source_len);
-    }
+    /* Class AI: XLANG_DEBUG_PIPE entry_source_len note retired (mirror thin). */
     return g_pipeline_entry_source_len;
 }
 
@@ -1114,7 +1108,8 @@ static int g_compile_phase_active[XLANG_COMPILE_PHASE_MAX];
 /* pure 权威：thin.x compile_phase_timing_enabled（getenv 非空）；冷启动保留 _impl + public；FROM_X 无 pure-dup（H↓）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 int compile_phase_timing_enabled_impl(void) {
-  return link_abi_getenv("XLANG_COMPILE_PHASE_TIMING") != NULL;
+  /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off). */
+  return 0;
 }
 
 int compile_phase_timing_enabled(void) {
@@ -1193,10 +1188,8 @@ void driver_compile_phase_timing_clear(void) {
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_begin_impl(int32_t phase) {
-    if (!driver_compile_phase_index_ok(phase))
-        return;
-    g_compile_phase_start_sec[phase] = compile_phase_now_sec();
-    g_compile_phase_active[phase] = 1;
+    /* Class AS: Cap phase timing begin retired. */
+    (void)phase;
 }
 #endif
 
@@ -1207,10 +1200,8 @@ void driver_compile_phase_timing_begin_impl(int32_t phase) {
  */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_end_impl(int32_t phase) {
-    if (!driver_compile_phase_index_ok(phase) || !g_compile_phase_active[phase])
-        return;
-    g_compile_phase_acc_ms[phase] += (compile_phase_now_sec() - g_compile_phase_start_sec[phase]) * 1000.0;
-    g_compile_phase_active[phase] = 0;
+    /* Class AS: Cap phase timing end retired. */
+    (void)phase;
 }
 #endif
 
@@ -1219,15 +1210,7 @@ void driver_compile_phase_timing_end_impl(int32_t phase) {
  * FROM_X 无 pure-dup flush _impl。acc 经 driver_compile_phase_acc_ms_get（thin/cold twin）。 */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_compile_phase_timing_flush_impl(void) {
-    int a0 = (int)driver_compile_phase_acc_ms_get(0);
-    int a1 = (int)driver_compile_phase_acc_ms_get(1);
-    int a2 = (int)driver_compile_phase_acc_ms_get(2);
-    int total = a0 + a1 + a2;
-    /* PLATFORM: SHARED — whole-ms twin of thin pure (wave6); no reportf floats. */
-    diag_reportf(NULL, 0, 0, "note", NULL,
-                 "compile phase timing: parse_ms=%d typeck_ms=%d codegen_ms=%d total_ms=%d",
-                 a0, a1, a2, total);
-    driver_compile_phase_timing_clear();
+    /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING flush note retired. */
 }
 
 void driver_compile_phase_timing_flush(void) {
@@ -1261,14 +1244,7 @@ void driver_compile_phase_timing_end(int32_t phase) {
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 int32_t driver_compile_phase_timing_enabled(void)
 {
-  (void)(({   {
-    char *e = link_abi_getenv("XLANG_COMPILE_PHASE_TIMING");
-    if ((e ==((char *)(0)))) {
-      return 0;
-    }
-    return 1;
-  }
- }));
+  /* Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off). */
   return 0;
 }
 #endif
@@ -2310,6 +2286,7 @@ size_t driver_module_static_size(void) {
  * PLATFORM: SHARED — table text authority remains rt_preamble.from_x.c.
  */
 extern const char *const driver_preamble_io_net_lines[];
+/* w2060: counts are single authority in rt_preamble.x (renamed commons). */
 extern const int32_t driver_preamble_io_net_lines_n;
 extern const char *const driver_preamble_fs_path_lines[];
 extern const int32_t driver_preamble_fs_path_lines_n;
@@ -2321,6 +2298,15 @@ uint8_t *driver_preamble_io_net_lines_raw(void) {
 
 uint8_t *driver_preamble_fs_path_lines_raw(void) {
     return (uint8_t *)(void *)driver_preamble_fs_path_lines;
+}
+
+/* Always seed: address of authority counts for pure thin bounds (no hardcoded N). */
+int32_t *driver_preamble_io_net_lines_n_raw(void) {
+    return (int32_t *)&driver_preamble_io_net_lines_n;
+}
+
+int32_t *driver_preamble_fs_path_lines_n_raw(void) {
+    return (int32_t *)&driver_preamble_fs_path_lines_n;
 }
 
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
@@ -3876,12 +3862,10 @@ int32_t driver_parsed_invoke_cc(uint8_t *tmp_c, uint8_t *out_path, uint8_t *opt_
  * PLATFORM: SHARED — mask bits match codegen.h; dump path /tmp dev-only. */
 #ifndef XLANG_L2_RDABI_THIN_FROM_X
 void driver_parsed_maybe_dump_prep(uint8_t *input_path, uint8_t *src, size_t src_len) {
-    if (!link_abi_getenv("XLANG_DUMP_PREP") || !src)
-        return;
-    if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len) == 0) {
-        diag_reportf((const char *)(void *)input_path, 0, 0, "note", NULL,
-                     "dumped prep entry (%zu bytes) to /tmp/xlang_prep_entry.bin", src_len);
-    }
+    /* Class AT: Cap XLANG_DUMP_PREP retired (always no-op). */
+    (void)input_path;
+    (void)src;
+    (void)src_len;
 }
 
 int32_t driver_parsed_deps_has_std_io_core(uint8_t *dep_paths, int32_t n_deps) {
@@ -3999,14 +3983,7 @@ void driver_parsed_work_cleanup(void) {
     void *dl = g_parsed_work_p[8];
     void *da = g_parsed_work_p[9];
     void *dm = g_parsed_work_p[10];
-    if (link_abi_getenv && link_abi_getenv("XLANG_DEBUG_SIDECAR")) {
-        /* Cap residual 9.7.1: debug trace via raw fd-2 write (no stdio). */
-        char sidecar_buf[160];
-        xlang_snprintf(sidecar_buf, sizeof(sidecar_buf),
-                       "xlang: [SIDECAR] cleanup enter n_deps=%d arena=%p module=%p da=%p dm=%p\n",
-                       n, g_parsed_work_p[3], g_parsed_work_p[4], da, dm);
-        (void)xlang_io_write(2, sidecar_buf, strlen(sidecar_buf));
-    }
+    /* Class AI: Cap XLANG_DEBUG_SIDECAR cleanup trace retired. */
     for (i = 0; i < n; i++) {
         if (da) {
             p = ((void **)da)[i];

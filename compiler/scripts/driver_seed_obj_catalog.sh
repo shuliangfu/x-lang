@@ -133,6 +133,12 @@ REQUIRED_KEYS=(
 # PLATFORM: SHARED product default; LEGACY flags force make path.
 # ---------------------------------------------------------------------------
 catalog_need_make_escape() {
+  # wave763 Windows_NT root fix: Makefile was physically deleted (wave941).
+  # In that state the shell parser is the only authority, including LEGACY mode;
+  # do not call the dead bootstrap-driver-seed-export-obj-catalog target.
+  if [ ! -f Makefile ]; then
+    return 1
+  fi
   # Non-empty LEGACY / experimental flags diverge from product-default shell picks.
   if [ -n "${XLANG_LEGACY_C_FRONTEND:-}" ] && [ "${XLANG_LEGACY_C_FRONTEND}" != "0" ]; then
     return 0
@@ -239,7 +245,7 @@ catalog_seed_host_defaults() {
     is_win=1
   else
     case "$uname_s" in
-      MINGW*|MSYS*|CYGWIN*) is_win=1 ;;
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*) is_win=1 ;;
     esac
   fi
 
@@ -293,12 +299,15 @@ catalog_seed_host_defaults() {
   esac
   catalog_set TARGET "${TARGET:-xlang}"
 
-  # wave925: CC_IS_CLANG mirrors Makefile `:= $(findstring clang,$(shell $(CC) -v 2>&1))`.
-  # Both produce "clang" when CC output contains "clang", empty otherwise.
-  # Set before parsing mk/driver_seed_mode_objs.mk so ifeq resolves correctly.
+  # CC_IS_CLANG is "clang" or empty. Set before parsing
+  # mk/driver_seed_mode_objs.mk so the ifeq resolves.
+  # Identity is xlang_host_cc_is_clang. Do not execute the compiler.
+  # PLATFORM: SHARED.
   local _cc_bin
   _cc_bin=$(catalog_get CC)
-  if "$_cc_bin" -v 2>&1 | grep -q 'clang'; then
+  # shellcheck disable=SC1091
+  . "$ROOT/scripts/xlang_host_cc_is_clang.sh"
+  if xlang_host_cc_is_clang "$_cc_bin"; then
     catalog_set CC_IS_CLANG clang
   else
     catalog_set CC_IS_CLANG ""
@@ -525,7 +534,12 @@ _catalog_mtime() {
     echo 0
     return 0
   fi
-  stat -f %m "$f" 2>/dev/null || stat -c %Y "$f" 2>/dev/null || echo 0
+  # w1488: GNU/busybox first. On Linux and Windows busybox `stat -f` means
+  # filesystem status: it prints free-block counts to stdout (rc=1), so the
+  # fingerprint changed with every write and the disk cache never hit
+  # (~6 min mk re-parse per try-* on windows-server). BSD stat -c prints
+  # nothing on stdout, so Darwin falls through to -f %m. PLATFORM: SHARED.
+  stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null || echo 0
 }
 
 # Durable on-disk catalog path (per-user + per-repo). Overridable via
@@ -634,7 +648,8 @@ catalog_shell_parse_all() {
   # (DRIVER_SEED_OBJS, SEED_LINK_*, FILTER_*, etc.) but NOT the host-default
   # keys (CC, CFLAGS, TARGET, CC_IS_CLANG, UNAME_*) which depend on the
   # current process environment. So we still call catalog_seed_host_defaults
-  # (cheap: 1 `cc -v` probe + ~20 catalog_set) but skip all catalog_parse_mk
+  # (cheap: clang identity without executing cc, plus ~20 catalog_set)
+  # but skip all catalog_parse_mk
   # calls (expensive: 17 mk files × shell parse). catalog_get is last-wins,
   # so host-default keys appended after the cache take precedence.
   # PLATFORM: SHARED — same KEY=VALUE semantics on Darwin/Linux/Windows MSYS2.
@@ -934,7 +949,7 @@ if [ "$CHECK" -eq 1 ]; then
     fi
   done
   # Empty lists ok (e.g. FILTERED on Linux); values must expand USER_ASM non-empty.
-  user_asm=$(sed -n 's/^USER_ASM_SEED_OBJS=//p' <<<"$out" | head -1)
+  user_asm=$(sed -n 's|^USER_ASM_SEED_OBJS=||p' <<<"$out" | head -1)
   if [ -z "${user_asm// /}" ]; then
     echo "driver_seed_obj_catalog: USER_ASM_SEED_OBJS empty (mk include broken?)" >&2
     missing=1
@@ -952,8 +967,8 @@ if [ "$CHECK" -eq 1 ]; then
         fi
         parity_fail=0
         for k in "${REQUIRED_KEYS[@]}"; do
-          sv=$(sed -n "s/^${k}=//p" <<<"$shell_out" | head -1)
-          mv=$(sed -n "s/^${k}=//p" <<<"$make_out" | head -1)
+          sv=$(sed -n "s|^${k}=||p" <<<"$shell_out" | head -1)
+          mv=$(sed -n "s|^${k}=||p" <<<"$make_out" | head -1)
           sv=$(catalog_norm_ws "$sv")
           mv=$(catalog_norm_ws "$mv")
           if [ "$sv" != "$mv" ]; then

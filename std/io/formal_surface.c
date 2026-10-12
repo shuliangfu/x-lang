@@ -11,6 +11,9 @@
  *
  * G.7: single formal vehicle std/io/io.o (formal_mod kind=c_face).
  * formal_mod kind=c_face.
+ * Darwin arm64 product body is compiler/src/asm/std_io_formal_darwin.x.
+ * The context handle is one i64. This file stays the Linux and Windows
+ * face, and the Darwin fallback when pure asm leaves no object.
  */
 #include <stdint.h>
 #include <stddef.h>

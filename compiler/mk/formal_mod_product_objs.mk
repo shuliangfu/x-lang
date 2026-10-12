@@ -62,10 +62,16 @@ FORMAL_MOD_PRODUCT_OBJS = \
 	../std/datetime/datetime.o \
 	../std/db/sqlite/sqlite.o \
 	../std/db/kv/kv.o \
+	../std/schema/schema.o \
+	../std/trace/trace.o \
 	../std/db/arrow/arrow.o \
 	../std/dynlib/dynlib.o \
 	../std/http/http.o \
 	../std/tar/tar.o \
+	../std/uuid/uuid.o \
+	../std/elf/elf.o \
+	../std/task/task.o \
+	../std/async/future.o \
 	../std/unicode/unicode.o \
 	../std/channel/channel.o \
 	../std/runtime/runtime.o \

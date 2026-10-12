@@ -859,192 +859,193 @@ export function labi_std_default_std_rel_count(): i32 {
 /** Exported function `labi_std_default_std_rel_at`.
  * Implements `labi_std_default_std_rel_at`.
  * @param j i32
- * @return *u8
+ * @return i64 — pointer bits in rax; #[no_mangle] link name unchanged
  */
 #[no_mangle]
-export function labi_std_default_std_rel_at(j: i32): *u8 {
+export function labi_std_default_std_rel_at(j: i32): i64 {
+  // PLATFORM: SHARED — installed product cannot asm-emit a *u8 return; rax still holds the pointer.
   if (j < 0) {
-    return 0 as *u8;
+    return (0 as *u8) as i64;
   }
   if (j == 0) {
     let p: *u8 = "std/process/process.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 1) {
     let p: *u8 = "std/string/string.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 2) {
     let p: *u8 = "std/path/path.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 3) {
     let p: *u8 = "std/runtime/runtime.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 4) {
     let p: *u8 = "std/thread/thread.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 5) {
     let p: *u8 = "std/time/time.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 6) {
     let p: *u8 = "std/random/random.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 7) {
     let p: *u8 = "std/env/env.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 8) {
     let p: *u8 = "std/sync/sync.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 9) {
     let p: *u8 = "std/encoding/encoding.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 10) {
     let p: *u8 = "std/base64/base64.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 11) {
     let p: *u8 = "std/crypto/crypto.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 12) {
     let p: *u8 = "std/log/log.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 13) {
     let p: *u8 = "std/atomic/atomic.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 14) {
     let p: *u8 = "std/channel/channel.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 15) {
     let p: *u8 = "std/backtrace/backtrace.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 16) {
     let p: *u8 = "std/hash/hash.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 17) {
     let p: *u8 = "std/math/math.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 18) {
     let p: *u8 = "std/sort/sort.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 19) {
     let p: *u8 = "std/ffi/ffi.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 20) {
     let p: *u8 = "std/db/sqlite/sqlite.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 21) {
     let p: *u8 = "std/elf/elf.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 22) {
     let p: *u8 = "std/json/json.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 23) {
     let p: *u8 = "std/csv/csv.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 24) {
     let p: *u8 = "std/regex/regex.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 25) {
     let p: *u8 = "std/unicode/unicode.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 26) {
     let p: *u8 = "std/dynlib/dynlib.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 27) {
     let p: *u8 = "std/http/http.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 28) {
     let p: *u8 = "std/socketio/socketio.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 29) {
     let p: *u8 = "std/tar/tar.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 30) {
     let p: *u8 = "std/simd/simd.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 31) {
     let p: *u8 = "std/context/context.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 32) {
     let p: *u8 = "std/error/error.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 33) {
     let p: *u8 = "std/datetime/datetime.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 34) {
     let p: *u8 = "std/uuid/uuid.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 35) {
     let p: *u8 = "std/url/url.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 36) {
     let p: *u8 = "std/cli/cli.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 37) {
     let p: *u8 = "std/security/security.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 38) {
     let p: *u8 = "std/config/config.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 39) {
     let p: *u8 = "std/cache/cache.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 40) {
     let p: *u8 = "std/trace/trace.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 41) {
     let p: *u8 = "std/vec/vec.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 42) {
     let p: *u8 = "std/fs/fs.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 43) {
     let p: *u8 = "std/option/option.o";
-    return p;
+    return (p) as i64;
   }
   if (j == 44) {
     let p: *u8 = "std/result/result.o";
-    return p;
+    return (p) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }

@@ -17,14 +17,13 @@ PRE="xlang_asm.pre_link_abi_relink"
 
 if [ ! -f "$PARTIAL" ]; then
   echo "relink_xlang_asm_link_abi_only: missing $PARTIAL" >&2
-  echo "  run build_seed_asm_host or copy real partial; phase1 stub breaks -o (see 自举进度 #57)" >&2
+  echo "  run scripts/build_asm_backend_partial_pure.sh (pure asm, w1541)" >&2
   exit 1
 fi
 
-# 拒绝 phase1 stub（~3.6KB）误当 production partial
-sz=$(wc -c <"$PARTIAL" | tr -d ' ')
-if [ "$sz" -lt 8192 ] 2>/dev/null; then
-  echo "relink_xlang_asm_link_abi_only: $PARTIAL too small (${sz}B); likely phase1 stub" >&2
+# w1541 (6.3): real partial = strong T backend_asm_codegen_ast_seed_mega (not size).
+if ! nm -g "$PARTIAL" 2>/dev/null | tr -d '\r' | grep -qE ' T _?backend_asm_codegen_ast_seed_mega$'; then
+  echo "relink_xlang_asm_link_abi_only: $PARTIAL lacks strong backend_asm_codegen_ast_seed_mega" >&2
   exit 1
 fi
 
@@ -38,8 +37,9 @@ echo "relink_xlang_asm_link_abi_only: backup -> $PRE ($(wc -c <"$PRE" | tr -d ' 
 
 # PLATFORM: SHARED — post-Makefile phys-del: refresh via ensure_host_cc_seed_o
 # (G.7 single authority; ban residual `make`). labi = try-labi-prefer;
-# io stubs = try-r1 (R1_EXTRA_CFLAGS / -fPIE).
-touch seeds/runtime_link_abi.from_x.c seeds/runtime_asm_io_stubs.from_x.c
+# io stubs = try-r1, which since w1516 only accepts the existing object built
+# from src/asm/runtime_asm_io_stubs.x (no C seed; no cc).
+touch seeds/runtime_link_abi.from_x.c
 if ! bash scripts/ensure_host_cc_seed_o.sh try-labi-prefer src/runtime_link_abi.o; then
   echo "relink_xlang_asm_link_abi_only: FAIL ensure src/runtime_link_abi.o (try-labi-prefer)" >&2
   exit 1

@@ -5,7 +5,10 @@
  * @return i32
  */
 function cond_only(pos: *i32, out_cap: i32): i32 {
-  if (*pos < 0 || *pos >= out_cap) { return 1; }
+  /* Reading a raw pointer needs an unsafe block. */
+  let p: i32 = 0;
+  unsafe { p = *pos; }
+  if (p < 0 || p >= out_cap) { return 1; }
   return 0;
 }
 
@@ -17,7 +20,10 @@ function cond_only(pos: *i32, out_cap: i32): i32 {
  * @return void
  */
 function index_only(out: *u8, pos: *i32, b: u8): void {
-  out[*pos] = b;
+  /* The index and the store both go through raw pointers. */
+  let i: i32 = 0;
+  unsafe { i = *pos; }
+  unsafe { out[i] = b; }
 }
 
 /** Internal function `deref_assign_only`.
@@ -26,5 +32,8 @@ function index_only(out: *u8, pos: *i32, b: u8): void {
  * @return void
  */
 function deref_assign_only(pos: *i32): void {
-  *pos = *pos + 1;
+  /* Reading and storing a raw pointer needs an unsafe block. */
+  let p: i32 = 0;
+  unsafe { p = *pos; }
+  unsafe { *pos = p + 1; }
 }

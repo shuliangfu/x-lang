@@ -81,7 +81,13 @@ cc_inc_tu_seed_for_out() {
     ;;
   esac
   case "$(basename "$1")" in
-    asm_experimental_symbol_bridge.o) printf '%s\n' seeds/asm_experimental_symbol_bridge.from_x.c ;;
+    # PLATFORM: WINDOWS — cold PE entry when no product egg for -x -E (7.2.1
+    # deleted seed; restore as prefer-.x fallback). Prefer-.x arm above prints
+    # gen.c when egg exists; this arm is the no-product path.
+    crt0_mingw.o) printf '%s\n' seeds/crt0_mingw.from_x.c ;;
+    # w1533 (5.11): asm_experimental_symbol_bridge seed is deleted. The
+    # product objects are pure asm of the .x pair. Do not map this name
+    # back to a C seed.
     lsp_diag_pipeline_sizes.o) printf '%s\n' seeds/lsp_diag_pipeline_sizes_weak.from_x.c ;;
     cfg_eval_bootstrap_stub.o) printf '%s\n' seeds/cfg_eval_bootstrap_stub.from_x.c ;;
     typeck_lsp_io_stub.o) printf '%s\n' seeds/typeck_lsp_io_stub.from_x.c ;;

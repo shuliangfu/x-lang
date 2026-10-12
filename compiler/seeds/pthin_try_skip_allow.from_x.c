@@ -72,7 +72,18 @@ _Static_assert(offsetof(struct parser_asm_try_skip_allow_result, _pad) == 20, "P
 _Static_assert(sizeof(struct parser_asm_try_skip_allow_result) == 24, "P13c res sizeof 24");
 
 
-extern struct parser_asm_lexer_result lexer_next_buf(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+extern void lexer_next_buf(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, uint8_t *data, int32_t len);
+#ifndef PARSER_ASM_LEXER_NEXT_BUF_V
+#define PARSER_ASM_LEXER_NEXT_BUF_V 1
+/* lexer_next_buf writes its result through out (e5ba88d9d). A by-value
+ * call only matched on x86-64/Win64 by luck; arm64 passes sret in x8. */
+static inline struct parser_asm_lexer_result parser_asm_lexer_next_buf_v(struct parser_asm_lexer lex, uint8_t *data,
+                                                                         int32_t len) {
+  struct parser_asm_lexer_result r;
+  lexer_next_buf(&r, lex, data, len);
+  return r;
+}
+#endif
 extern void lexer_next_into(struct parser_asm_lexer_result *out, struct parser_asm_lexer lex, struct parser_asm_slice_u8 *data);
 extern struct parser_asm_lexer parser_asm_skip_balanced_parens_buf_c(struct parser_asm_lexer lex, uint8_t *data, int32_t len);
 extern struct parser_asm_lexer parser_asm_skip_balanced_parens_slice_c(struct parser_asm_lexer lex, struct parser_asm_slice_u8 *source);

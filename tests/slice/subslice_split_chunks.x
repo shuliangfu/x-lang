@@ -37,15 +37,19 @@ function main(): i32 {
   if (slice.chunks_len_i32(sb, 0) != 0) { return 12; }
 
   // ——— u8[] subslice / split / chunk ———
+  /* u8 slice results are written through an out pointer. */
   let u: u8[4] = [1, 2, 3, 4];
   let x: u8[] = u;
-  let usub: u8[] = slice.subslice_u8(x, 1, 2);
-  if (usub.length != 2 || usub[0] != 2 || usub[1] != 3) { return 13; }
-  let usp: Split_u8 = slice.split_at_u8(x, 2);
-  if (usp.left.length != 2 || usp.right.length != 2) { return 14; }
-  if (slice.chunks_len_u8(x, 3) != 2) { return 15; }
-  let uc: u8[] = slice.chunk_u8(x, 3, 1);
-  if (uc.length != 1 || uc[0] != 4) { return 16; }
+  let usub: u8[] = { data: 0, length: 0 as usize };
+  slice.subslice_u8(x, 1 as usize, 2 as usize, &usub);
+  if (usub.length != 2 as usize || usub[0] != (2 as u8) || usub[1] != (3 as u8)) { return 13; }
+  let usp: Split_u8 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
+  slice.split_at_u8(x, 2 as usize, &usp);
+  if (usp.left.length != 2 as usize || usp.right.length != 2 as usize) { return 14; }
+  if (slice.chunks_len_u8(x, 3 as usize) != 2 as usize) { return 15; }
+  let uc: u8[] = { data: 0, length: 0 as usize };
+  slice.chunk_u8(x, 3 as usize, 1 as usize, &uc);
+  if (uc.length != 1 as usize || uc[0] != (4 as u8)) { return 16; }
 
   // ——— is_empty / first / last ———
   if (slice.is_empty_i32(s) != 0) { return 17; }
@@ -54,30 +58,37 @@ function main(): i32 {
   if (fi.is_some == false || fi.value != 10) { return 19; }
   let li: Option_i32 = slice.last_i32(s);
   if (li.is_some == false || li.value != 40) { return 20; }
-  let fu: Option_u8 = slice.first_u8(x);
-  if (fu.is_some == false || fu.value != 1) { return 21; }
+  let fu: Option_u8 = { is_some: false, value: 0 as u8 };
+  slice.first_u8(x, &fu);
+  if (fu.is_some == false || fu.value != (1 as u8)) { return 21; }
 
   // ——— u64[] len / get / first / last ———
   let w: u64[4] = [100, 200, 300, 400];
   let sw: u64[] = w;
   if (slice.is_empty_u64(sw) != 0) { return 22; }
   if (slice.len_u64(sw) != 4) { return 23; }
-  let fw: Option_u64 = slice.first_u64(sw);
-  if (fw.is_some == false || fw.value != 100) { return 24; }
-  let lw: Option_u64 = slice.last_u64(sw);
-  if (lw.is_some == false || lw.value != 400) { return 25; }
+  let fw: Option_u64 = { is_some: false, value: 0 as u64 };
+  slice.first_u64(sw, &fw);
+  if (fw.is_some == false || fw.value != (100 as u64)) { return 24; }
+  let lw: Option_u64 = { is_some: false, value: 0 as u64 };
+  slice.last_u64(sw, &lw);
+  if (lw.is_some == false || lw.value != (400 as u64)) { return 25; }
   let gw: Option_u64 = slice.get_u64(sw, 2);
   if (gw.is_some == false || gw.value != 300) { return 26; }
 
   // ——— u64[] subslice / split / chunk ———
-  let wsub: u64[] = slice.subslice_u64(sw, 1, 2);
-  if (wsub.length != 2 || wsub[0] != 200 || wsub[1] != 300) { return 27; }
-  let wsp: Split_u64 = slice.split_at_u64(sw, 2);
-  if (wsp.left.length != 2 || wsp.right.length != 2) { return 28; }
+  /* u64 slice results are written through an out pointer. */
+  let wsub: u64[] = { data: 0, length: 0 as usize };
+  slice.subslice_u64(sw, 1 as usize, 2 as usize, &wsub);
+  if (wsub.length != 2 as usize || wsub[0] != 200 || wsub[1] != 300) { return 27; }
+  let wsp: Split_u64 = { left: { data: 0, length: 0 as usize }, right: { data: 0, length: 0 as usize } };
+  slice.split_at_u64(sw, 2 as usize, &wsp);
+  if (wsp.left.length != 2 as usize || wsp.right.length != 2 as usize) { return 28; }
   if (wsp.left[0] != 100 || wsp.right[0] != 300) { return 29; }
-  if (slice.chunks_len_u64(sw, 3) != 2) { return 30; }
-  let wc: u64[] = slice.chunk_u64(sw, 3, 1);
-  if (wc.length != 1 || wc[0] != 400) { return 31; }
+  if (slice.chunks_len_u64(sw, 3 as usize) != 2 as usize) { return 30; }
+  let wc: u64[] = { data: 0, length: 0 as usize };
+  slice.chunk_u64(sw, 3 as usize, 1 as usize, &wc);
+  if (wc.length != 1 as usize || wc[0] != 400) { return 31; }
 
   return 0;
 }

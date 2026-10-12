@@ -8,8 +8,10 @@
  * on product -o lines), NOT part of the g05 xlang/xlang_asm host link.
  * Product host authority remains labi_diag_pure.x + mega link_abi_getenv_impl.
  * User-domain cold twin of the same face ABI (≡ wave222 pure thin + host getenv).
- * Never dual-def with product host g05. PLATFORM: MACOS|ARM64 primary product
- * panic TU on Darwin; SHARED face contract with runtime_panic.from_x.c.
+ * Never dual-def with product host g05. PLATFORM: MACOS|ARM64 — Darwin
+ * product body is src/asm/runtime_panic_arm64.x (pure-asm). This C seed
+ * remains the Linux aarch64 body and the Darwin backup when that emit
+ * faults. SHARED face contract with runtime_panic.from_x.c.
  */
 /* runtime_panic_arm64.c — ARM64/macOS 用最小 panic 实现。提供 xlang_panic_ 符号供链接。 */
 /* PLATFORM: SHARED — include/unistd.h shim provides POSIX wrappers on MinGW

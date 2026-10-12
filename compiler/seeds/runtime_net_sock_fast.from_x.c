@@ -1,6 +1,10 @@
 /* seeds/runtime_net_sock_fast.from_x.c — G-02f-20 product TU
  * G-02f-104 helper gates.
- * Product: ../std/net/net_sock_fast.o; logic still C until full .x port.
+ * Product: ../std/net/net_sock_fast.o.
+ * w1096: Darwin arm64 product body is src/asm/runtime_net_sock_fast.x
+ * plus src/asm/runtime_net_sock_fast_darwin.x (pure asm, then ld -r).
+ * Linux, Windows, and the pure-asm-fault backup stay this C seed.
+ * PLATFORM: SHARED seed; MACOS|DARWIN arm64 prefers the .x pair.
  *
  * Cap residual 9.1.7: Linux, Darwin, and Windows socket/connect/bind/listen/accept/poll/close
  * via xlang_net_cap.h (zero libc net symbols on Linux & Darwin). Completes xlang_sys_* net bodies.

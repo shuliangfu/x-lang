@@ -1,5 +1,8 @@
 /* seeds/rt_pipeline_elf_diag.from_x.c — G-02f-304 P2 runtime rest (elf ctx diag)
- * Logic source: src/runtime/rt_pipeline_elf_diag.x
+ * Logic source: src/runtime/rt_pipeline_elf_diag.x and the three sibling .x files
+ * (find, kind, note). w1137: Darwin and the prefer path pure-asm those four
+ * files and ld -r them. This seed stays the cold body and the marker-only
+ * rest under XLANG_RT_PIPELINE_ELF_DIAG_FROM_X.
  * Hybrid: XLANG_RT_PIPELINE_ELF_DIAG_FROM_X + ld -r into runtime_driver_no_c.o
  *
  * R2 full（2026-07-14）：runtime_pipeline_elf_ctx_diag_note 由 .x 提供；
@@ -13,6 +16,10 @@
 #include <string.h>
 
 #define RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP 16384
+/* wave651 twin: patches-only 65536 (layout must match pabi ctx). */
+#define RUNTIME_PIPELINE_ELF_CTX_PATCH_CAP 65536
+/* wave652 twin: labels-only 65536 (layout must match pabi ctx). */
+#define RUNTIME_PIPELINE_ELF_CTX_LABEL_CAP 65536
 
 typedef struct {
   uint8_t name[256];
@@ -29,9 +36,9 @@ typedef struct {
 
 typedef struct {
   int32_t code_len;
-  RuntimePipelineElfLabelEntry labels[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
+  RuntimePipelineElfLabelEntry labels[RUNTIME_PIPELINE_ELF_CTX_LABEL_CAP];
   int32_t num_labels;
-  RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_TABLE_CAP];
+  RuntimePipelineElfPatchEntry patches[RUNTIME_PIPELINE_ELF_CTX_PATCH_CAP];
   int32_t num_patches;
 } RuntimePipelineElfCtxAccess;
 

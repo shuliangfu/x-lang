@@ -1,10 +1,9 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// See implementation.
-// See implementation.
-// See implementation.
-// See implementation.
+// w1138: the pending-feature word is stored through a pointer slot.
+// A direct store to the file-level let does not emit (elf_ec=-1).
+// PLATFORM: SHARED.
 
 let g_driver_pending_target_cpu_features: u32 = 0;
 
@@ -15,7 +14,8 @@ let g_driver_pending_target_cpu_features: u32 = 0;
  */
 #[no_mangle]
 export function driver_set_pending_target_cpu_features(features: u32): void {
-  g_driver_pending_target_cpu_features = features;
+  let slot: *u32 = &g_driver_pending_target_cpu_features;
+  slot[0] = features;
 }
 
 /** Exported function `driver_get_pending_target_cpu_features`.
@@ -24,7 +24,8 @@ export function driver_set_pending_target_cpu_features(features: u32): void {
  */
 #[no_mangle]
 export function driver_get_pending_target_cpu_features(): u32 {
-  return g_driver_pending_target_cpu_features;
+  let slot: *u32 = &g_driver_pending_target_cpu_features;
+  return slot[0];
 }
 
 /** Exported function `tcp_tolower`.
@@ -52,19 +53,20 @@ export function tcp_tolower(c: u8): u8 {
  */
 #[no_mangle]
 export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 {
-  if (tcp_tolower(name[0]) != a0) {
+  let s: *u8 = name;
+  if (tcp_tolower(s[0]) != a0) {
     return 0;
   }
-  if (tcp_tolower(name[1]) != a1) {
+  if (tcp_tolower(s[1]) != a1) {
     return 0;
   }
-  if (tcp_tolower(name[2]) != a2) {
+  if (tcp_tolower(s[2]) != a2) {
     return 0;
   }
-  if (tcp_tolower(name[3]) != a3) {
+  if (tcp_tolower(s[3]) != a3) {
     return 0;
   }
-  if (tcp_tolower(name[4]) != a4) {
+  if (tcp_tolower(s[4]) != a4) {
     return 0;
   }
   return 1;
@@ -83,10 +85,11 @@ export function tcp_eq5(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8): i32 
  */
 #[no_mangle]
 export function tcp_eq6(name: *u8, a0: u8, a1: u8, a2: u8, a3: u8, a4: u8, a5: u8): i32 {
-  if (tcp_eq5(name, a0, a1, a2, a3, a4) == 0) {
+  let s: *u8 = name;
+  if (tcp_eq5(s, a0, a1, a2, a3, a4) == 0) {
     return 0;
   }
-  if (tcp_tolower(name[5]) != a5) {
+  if (tcp_tolower(s[5]) != a5) {
     return 0;
   }
   return 1;

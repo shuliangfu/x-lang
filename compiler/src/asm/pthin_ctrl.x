@@ -16,6 +16,10 @@
 
 // pthin_ctrl.x — G-02f-286 P5 parser thin ctrl product bodies.
 //
+// w1151: one translation unit exits 139. Darwin compiles each function
+// and links the thirty-one pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P5b Route C productize (2026-09-13): after P11b skip_imports,
 // if_stmt.inc is the next still-host-cc product slice with a portable
 // buf-path region. Comment/string-aware `{...}` byte skip and keyword
@@ -192,8 +196,8 @@ export extern "C" function pipeline_expr_set_var_name(a: *u8, er: i32, nm: *u8, 
 export extern "C" function pipeline_expr_set_field_access_c(a: *u8, er: i32, base_ref: i32, nm: *u8, nlen: i32): void;
 /**
  * P4bc consumer-wave writer: write Expr.binop_left_ref / binop_right_ref.
- * G.7: one writer for those slots. Lives in the P4bc seed; do not copy
- * into this seed; do not FORCE pabi mega; do not merge with P4bc wrap.
+ * G.7: one writer for those slots. Lives in pthin_expr_binop_set.x; do not copy
+ * it here; do not FORCE pabi mega; do not merge with P4bc wrap.
  */
 export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
 /**
@@ -279,6 +283,7 @@ export extern "C" function parser_asm_rewind_following_stmt_kind_c(kind: i32): i
  * @param c u8 — source byte
  * @return i32 — 1 if ident-continue; 0 otherwise
  */
+#[no_mangle]
 function parser_asm_ctrl_ident_continue(c: u8): i32 {
   if (c >= 97 && c <= 122) {
     return 1;
@@ -339,6 +344,7 @@ const EXPR_FIELD_ACCESS: i32 = 44;
  * @param klen i32 — expected length; <= 0 is 0
  * @return i32 — 1 if the span fits and every byte matches
  */
+#[no_mangle]
 function parser_asm_ctrl_bytes_eq(data: *u8, len: usize, i: usize, kw: *u8, klen: i32): i32 {
   let n: usize = 0;
   let j: i32 = 0;
@@ -497,10 +503,12 @@ export function parser_asm_skip_balanced_braces_bytes_comment_aware_c(data: *u8,
  */
 #[no_mangle]
 export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: *u8, klen: i32): i32 {
+  let pad: u8[32] = [];
   let next_pos: usize = 0;
   let prev: u8 = 0;
   let nx: u8 = 0;
   let nlen: usize = 0;
+  pad[0] = 0;
   if (data == 0 as *u8 || kw == 0 as *u8 || klen <= 0) {
     return 0;
   }
@@ -508,13 +516,18 @@ export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: 
   if (i + nlen > len) {
     return 0;
   }
-  if (parser_asm_ctrl_bytes_eq(data, len, i, kw, klen) == 0) {
-    return 0;
+  // Darwin compiles this function alone. The byte helpers are externs.
+  unsafe {
+    if (parser_asm_ctrl_bytes_eq(data, len, i, kw, klen) == 0) {
+      return 0;
+    }
   }
   if (i > 0) {
     unsafe { prev = data[i - 1]; }
-    if (parser_asm_ctrl_ident_continue(prev) != 0) {
-      return 0;
+    unsafe {
+      if (parser_asm_ctrl_ident_continue(prev) != 0) {
+        return 0;
+      }
     }
   }
   if (i + nlen < len) {
@@ -588,6 +601,7 @@ export function parser_asm_kw_at_pos_buf_c(data: *u8, len: usize, i: usize, kw: 
  * @param i usize — first keyword byte
  * @return i32 — 1 if standalone `if`
  */
+#[no_mangle]
 function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
   let a: u8 = 0;
   let b: u8 = 0;
@@ -601,7 +615,10 @@ function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
   if (a != 105 || b != 102) {
     return 0;
   }
-  return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 2);
+  // Darwin compiles this function alone. The keyword probe is an extern.
+  unsafe {
+    return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 2);
+  }
 }
 
 /**
@@ -612,6 +629,7 @@ function parser_asm_ctrl_kw_if_at(data: *u8, len: usize, i: usize): i32 {
  * @param i usize — first keyword byte
  * @return i32 — 1 if standalone `else`
  */
+#[no_mangle]
 function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
   let a: u8 = 0;
   let b: u8 = 0;
@@ -629,7 +647,10 @@ function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
   if (a != 101 || b != 108 || c != 115 || d != 101) {
     return 0;
   }
-  return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 4);
+  // Darwin compiles this function alone. The keyword probe is an extern.
+  unsafe {
+    return parser_asm_kw_at_pos_buf_c(data, len, i, data + i, 4);
+  }
 }
 
 /**
@@ -642,6 +663,7 @@ function parser_asm_ctrl_kw_else_at(data: *u8, len: usize, i: usize): i32 {
  * @param i usize — current byte
  * @return usize — advanced cursor, or i if not a comment/quote
  */
+#[no_mangle]
 function parser_asm_ctrl_skip_comment_or_quote(data: *u8, len: usize, i: usize): usize {
   let c: u8 = 0;
   let n: u8 = 0;
@@ -709,13 +731,17 @@ function parser_asm_ctrl_skip_comment_or_quote(data: *u8, len: usize, i: usize):
  * @param start usize — first byte of the condition
  * @return usize — index of `{`, or `len` if none
  */
+#[no_mangle]
 function parser_asm_ctrl_find_then_lbrace(data: *u8, len: usize, start: usize): usize {
   let i: usize = start;
   let par: i32 = 0;
   let c: u8 = 0;
   let skipped: usize = 0;
   while (i < len) {
-    skipped = parser_asm_ctrl_skip_comment_or_quote(data, len, i);
+    // Darwin compiles this function alone. The skip helper is an extern.
+    unsafe {
+      skipped = parser_asm_ctrl_skip_comment_or_quote(data, len, i);
+    }
     if (skipped != i) {
       i = skipped;
       continue;
@@ -761,6 +787,9 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
   let probe: usize = 0;
   let i: usize = 0;
   let c: u8 = 0;
+  let if_hit: i32 = 0;
+  let else_hit: i32 = 0;
+  let nested_if: i32 = 0;
   if (data == 0 as *u8) {
     return start_pos;
   }
@@ -773,7 +802,11 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     found = 0;
     cond_start = 0;
     while (true) {
-      if (parser_asm_ctrl_kw_if_at(data, len, if_pos) != 0) {
+      // Darwin compiles this function alone. The scan helpers are externs.
+      unsafe {
+        if_hit = parser_asm_ctrl_kw_if_at(data, len, if_pos);
+      }
+      if (if_hit != 0) {
         unsafe {
           probe = parser_asm_stretch_skip_ws_and_comments_c(data, len, if_pos + 2);
         }
@@ -791,7 +824,9 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     if (found == 0) {
       return cur;
     }
-    i = parser_asm_ctrl_find_then_lbrace(data, len, cond_start);
+    unsafe {
+      i = parser_asm_ctrl_find_then_lbrace(data, len, cond_start);
+    }
     unsafe {
       i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
     }
@@ -802,20 +837,36 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
     if (c != 123) {
       return cur;
     }
-    i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+    unsafe {
+      i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+    }
     unsafe {
       i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i);
     }
-    if (i + 4 <= len && parser_asm_ctrl_kw_else_at(data, len, i) != 0) {
+    unsafe {
+      else_hit = 0;
+      if (i + 4 <= len) {
+        else_hit = parser_asm_ctrl_kw_else_at(data, len, i);
+      }
+    }
+    if (else_hit != 0) {
       unsafe {
         i = parser_asm_stretch_skip_ws_and_comments_c(data, len, i + 4);
       }
       if (i < len) {
         unsafe { c = data[i]; }
         if (c == 123) {
-          i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+          unsafe {
+            i = parser_asm_skip_balanced_braces_bytes_comment_aware_c(data, len, i);
+          }
         } else {
-          if (i + 2 <= len && parser_asm_ctrl_kw_if_at(data, len, i) != 0) {
+          unsafe {
+            nested_if = 0;
+            if (i + 2 <= len) {
+              nested_if = parser_asm_ctrl_kw_if_at(data, len, i);
+            }
+          }
+          if (nested_if != 0) {
             cur = i;
             continue;
           }
@@ -836,6 +887,7 @@ export function parser_asm_scan_sync_after_if_stmt_pos_c(data: *u8, len: usize, 
  * @param kind i32 — peeked token kind
  * @return i32 — 1 for RETURN/IF/WHILE/FOR/MATCH/RBRACE/LET/CONST
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_stmt_kw(kind: i32): i32 {
   if (kind == TOKEN_RETURN || kind == TOKEN_IF || kind == TOKEN_WHILE || kind == TOKEN_FOR ||
       kind == TOKEN_MATCH || kind == TOKEN_RBRACE || kind == TOKEN_LET || kind == TOKEN_CONST) {
@@ -850,6 +902,7 @@ function parser_asm_ctrl_realign_stmt_kw(kind: i32): i32 {
  * @param kind i32 — peeked token kind at a backscan offset
  * @return i32 — 1 for RETURN/IF/WHILE/FOR/MATCH/LET/CONST
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_back_kw(kind: i32): i32 {
   if (kind == TOKEN_RETURN || kind == TOKEN_IF || kind == TOKEN_WHILE || kind == TOKEN_FOR ||
       kind == TOKEN_MATCH || kind == TOKEN_LET || kind == TOKEN_CONST) {
@@ -870,6 +923,7 @@ function parser_asm_ctrl_realign_back_kw(kind: i32): i32 {
  * @param kind i32 — the peeked token kind (caller cached it)
  * @return void
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_finish_peek(lex_inout: *u8, source: *u8, kind: i32): void {
   let ts: usize = 0;
   let il: i32 = 0;
@@ -894,6 +948,7 @@ function parser_asm_ctrl_realign_finish_peek(lex_inout: *u8, source: *u8, kind: 
  * @param kw_id i32 — table id
  * @return i32 — keyword byte length
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_len(kw_id: i32): i32 {
   if (kw_id == 0) {
     return 6;
@@ -932,6 +987,7 @@ function parser_asm_ctrl_realign_scan_kw_len(kw_id: i32): i32 {
  * @param kw_id i32 — table id (0..7)
  * @return i32 — 1 if every byte matches
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_bytes_at(data: *u8, scan: usize, kw_id: i32): i32 {
   unsafe {
     if (kw_id == 0) {
@@ -997,6 +1053,7 @@ function parser_asm_ctrl_realign_scan_kw_bytes_at(data: *u8, scan: usize, kw_id:
  * @param kw_id i32 — table id (0..7)
  * @return i32 — expected kind after the verify re-lex
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_kind(kw_id: i32): i32 {
   if (kw_id == 0) {
     return TOKEN_RETURN;
@@ -1038,23 +1095,33 @@ function parser_asm_ctrl_realign_scan_kw_kind(kw_id: i32): i32 {
  * @param kw_id i32 — table id (0..7)
  * @return i32 — 1 if the byte-level checks pass (caller then re-lexes)
  */
+#[no_mangle]
 function parser_asm_ctrl_realign_scan_kw_at(data: *u8, len: usize, scan: usize, scan_end: usize, kw_id: i32): i32 {
   let klen: usize = 0;
   let prev: u8 = 0;
   let nx: u8 = 0;
-  klen = parser_asm_ctrl_realign_scan_kw_len(kw_id) as usize;
+  let klen_i: i32 = 0;
+  // Darwin compiles this function alone. The scan helpers are externs.
+  unsafe {
+    klen_i = parser_asm_ctrl_realign_scan_kw_len(kw_id);
+  }
+  klen = klen_i as usize;
   if (scan + klen > scan_end) {
     return 0;
   }
-  if (parser_asm_ctrl_realign_scan_kw_bytes_at(data, scan, kw_id) == 0) {
-    return 0;
+  unsafe {
+    if (parser_asm_ctrl_realign_scan_kw_bytes_at(data, scan, kw_id) == 0) {
+      return 0;
+    }
   }
   if (scan > 0) {
     unsafe {
       prev = data[scan - 1];
     }
-    if (parser_asm_ctrl_ident_continue(prev) != 0) {
-      return 0;
+    unsafe {
+      if (parser_asm_ctrl_ident_continue(prev) != 0) {
+        return 0;
+      }
     }
   }
   if (scan + klen < len) {
@@ -1112,6 +1179,7 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
   let depth: i32 = 0;
   let ch: u8 = 0;
   let kw_id: i32 = 0;
+  let kw_hit: i32 = 0;
   if (lex_inout == 0 as *u8 || source == 0 as *u8) {
     return 0;
   }
@@ -1244,7 +1312,10 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
       if (depth == 0) {
         kw_id = 0;
         while (kw_id <= 7) {
-          if (parser_asm_ctrl_realign_scan_kw_at(data, len, scan, scan_end, kw_id) != 0) {
+          unsafe {
+            kw_hit = parser_asm_ctrl_realign_scan_kw_at(data, len, scan, scan_end, kw_id);
+          }
+          if (kw_hit != 0) {
             unsafe {
               parser_asm_lex_set_pos_c(lex_inout, scan);
               parser_asm_lex_set_line_c(lex_inout, line0);
@@ -1299,6 +1370,7 @@ export function parser_asm_realign_lex_after_if_arm_into_c(lex_inout: *u8, sourc
  */
 #[no_mangle]
 export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, type_ref: i32, out_cond: *i32, out_then: *i32, out_else: *i32): i32 {
+  let pad: u8[32] = [];
   let kind: i32 = 0;
   let cok: i32 = 0;
   let cond_ref: i32 = 0;
@@ -1312,6 +1384,7 @@ export function parser_asm_parse_if_stmt_x_into_c(arena: *u8, lex_inout: *u8, so
   let pos0: usize = 0;
   let line0: i32 = 0;
   let col0: i32 = 0;
+  pad[0] = 0;
   if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8 || out_cond == 0 as *i32 || out_then == 0 as *i32 || out_else == 0 as *i32) {
     return 0;
   }
@@ -1507,6 +1580,7 @@ export function parser_asm_wrap_block_ref_as_expr_into_c(arena: *u8, block_ref: 
  * @return i32 — new EXPR_IF ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — P5f helper.
  */
+#[no_mangle]
 function skip_if_expr_finish(arena: *u8, type_ref: i32, cond_ref: i32, then_ref: i32, else_ref: i32): i32 {
   let if_ref: i32 = 0;
   if (arena == 0 as *u8) {
@@ -1642,6 +1716,7 @@ export function parser_asm_parse_if_expr_x_into_c(arena: *u8, lex_inout: *u8, so
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — P5g helper. Not a second wrap authority.
  */
+#[no_mangle]
 function skip_match_wrap_prep(arena: *u8, kind: i32): i32 {
   let ref: i32 = 0;
   if (arena == 0 as *u8) {
@@ -1688,7 +1763,10 @@ export function parser_asm_match_var_wrap_into_c(arena: *u8, name: *u8, nlen: i3
   if (n < 0) {
     n = 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_VAR);
+  // Darwin compiles this function alone. The prep helper is an extern.
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_VAR);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1725,7 +1803,9 @@ export function parser_asm_match_field_wrap_into_c(arena: *u8, base_ref: i32, na
   if (n < 0) {
     n = 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_FIELD_ACCESS);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1752,7 +1832,9 @@ export function parser_asm_match_lit_wrap_into_c(arena: *u8, int_val: i64): i32 
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_LIT);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_LIT);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1783,7 +1865,9 @@ export function parser_asm_match_binop_wrap_into_c(arena: *u8, kind: i32, left_r
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = skip_match_wrap_prep(arena, kind);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, kind);
+  }
   if (ref == 0) {
     return 0;
   }
@@ -1812,7 +1896,9 @@ export function parser_asm_match_expr_wrap_into_c(arena: *u8, matched_ref: i32):
   if (arena == 0 as *u8) {
     return 0;
   }
-  ref = skip_match_wrap_prep(arena, EXPR_MATCH);
+  unsafe {
+    ref = skip_match_wrap_prep(arena, EXPR_MATCH);
+  }
   if (ref == 0) {
     return 0;
   }

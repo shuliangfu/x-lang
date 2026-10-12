@@ -1,4 +1,6 @@
 /* seeds/rt_lib_root.from_x.c — G-02f-305 P2 runtime rest (lib root helpers)
+ * w1134: src/runtime/rt_lib_root.x pure-asms. One while copies the default root.
+ * from_key is recursive. This seed stays the cold fallback and the marker rest.
  * Logic source: src/runtime/rt_lib_root.x
  * Hybrid: XLANG_RT_LIB_ROOT_FROM_X + ld -r into runtime_driver_no_c.o
  *

@@ -54,19 +54,9 @@ export function async_cps_load_func_name(callee: *u8): *u8 {
   if (callee == 0) {
     return 0 as *u8;
   }
-  // Reconstruct pointer from 8 little-endian bytes at offset 8.
-  let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = callee[8] as usize;
-  a = a + (callee[9] as usize) * m;
-  a = a + (callee[10] as usize) * m2;
-  a = a + (callee[11] as usize) * (m2 * m);
-  a = a + (callee[12] as usize) * m4;
-  a = a + (callee[13] as usize) * (m4 * m);
-  a = a + (callee[14] as usize) * (m4 * m2);
-  a = a + (callee[15] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  // Eight chained multiplies in this function spill past the frame.
+  // The 8-byte load lives in async_cps_load_ptr. Offset 8 is ASTFunc.name.
+  return async_cps_load_ptr(callee, 8);
 }
 
 /** Thin public wrapper: hoist used lets before the CPS switch (FILE* emit).
@@ -280,6 +270,10 @@ export function async_cps_load_i32(p: *u8, off: i32): i32 {
   if (p == 0) {
     return 0;
   }
+  // Live pad: the multiply temps otherwise store at the frame edge.
+  // pad[0] = 0 keeps the slot live for the current asm backend.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let m: i32 = 256;
   let a: i32 = p[off] as i32;
   a = a + (p[off + 1] as i32) * m;
@@ -288,25 +282,41 @@ export function async_cps_load_i32(p: *u8, off: i32): i32 {
   return a;
 }
 
+/** Load four little-endian bytes at base+off as a zero-extended usize.
+ * Splits the 8-byte pointer load so each function stays inside its frame.
+ * Null base returns 0. off is a byte offset, not bounds-checked.
+ * PLATFORM: SHARED — host AST layout loads only. */
+#[no_mangle]
+export function async_cps_load_u32(p: *u8, off: i32): usize {
+  if (p == 0) {
+    return 0;
+  }
+  // Live pad: four chained multiplies otherwise store at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
+  let m: usize = 256;
+  let a: usize = p[off] as usize;
+  a = a + (p[off + 1] as usize) * m;
+  a = a + (p[off + 2] as usize) * m * m;
+  a = a + (p[off + 3] as usize) * m * m * m;
+  return a;
+}
+
 /** Load little-endian pointer at base+off (null-safe).
+ * Low and high halves go through async_cps_load_u32 so the bytes stay
+ * zero-extended. One function with all eight multiplies spills past the frame.
  * PLATFORM: SHARED — host AST layout loads only. */
 #[no_mangle]
 export function async_cps_load_ptr(p: *u8, off: i32): *u8 {
   if (p == 0) {
     return 0 as *u8;
   }
+  let lo: usize = async_cps_load_u32(p, off);
+  let hi: usize = async_cps_load_u32(p, off + 4);
   let m: usize = 256;
   let m2: usize = m * m;
   let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  return (lo + hi * m4) as *u8;
 }
 
 /** Load pointer table entry base[i] (8-byte LE slots).
@@ -1456,6 +1466,9 @@ export function async_cps_store_ptr(p: *u8, off: i32, v: *u8): void {
   if (off < 0) {
     return;
   }
+  // Live pad: the divide/modulo temps otherwise store at the frame edge.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   let a: usize = v as usize;
   let m: usize = 256;
   let m2: usize = m * m;

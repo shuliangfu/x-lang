@@ -12,6 +12,15 @@
  * Cold path (no guard): this file provides both the public wrappers + _impl.
  * R2 path: this file provides only the _impl bridges; the wrappers come
  * from .x.
+ *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_compress_zlib_glue.x plus
+ * src/asm/runtime_compress_zlib_glue_darwin.x, pure-asm then ld -r.
+ * The Darwin bridges pass ZLIB_VERSION "1.2.12" and sizeof(z_stream)
+ * 112, measured against the SDK libz that clang -lz links. This C file
+ * is the Linux body, the Windows body, and the Darwin backup when
+ * pure-asm faults and the staged object is missing. Do not delete
+ * these bodies. Do not gcc -E this seed as the repair.
  */
 /**
  * runtime_compress_zlib_glue.c — zlib 宏包装桩

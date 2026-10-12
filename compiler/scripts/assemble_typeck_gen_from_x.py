@@ -17,6 +17,9 @@ Pin seeds/typeck_gen.linux.x86_64.c is archaeology / true-cold egg only.
 Usage (cwd = compiler/):
   python3 scripts/assemble_typeck_gen_from_x.py \\
       --tip /tmp/typeck_tip_e.c --out typeck_gen.c
+  python3 scripts/assemble_typeck_gen_from_x.py \\
+      --write-expr-layout typeck_gen.c \\
+      --layout-out build_asm/selfhost_pabi/typeck_expr_layout.h
 """
 
 from __future__ import annotations
@@ -139,20 +142,131 @@ def assemble(tip_text: str, short: str, cap: str, malias: str) -> str:
     return _BANNER + hdr + body
 
 
+_CAP_MARK = "/* wave322 layer-1 Cap residual (seeds/typeck_cap_residual.from_x.c) */\n"
+_MALIAS_MARK = "\n/* wave322 layer-2 mangle aliases (seeds/typeck_mangle_link_alias.from_x.c) */\n"
+
+
+def splice_cap_residual(gen_path: Path, cap_path: Path) -> int:
+    """w1504: re-splice layer-1 Cap residual into an existing typeck_gen.c.
+
+    PLATFORM: SHARED — when tip -E of typeck.x is unavailable, the host-local
+    typeck_gen.c is reused as-is and edits to seeds/typeck_cap_residual.from_x.c
+    never reach typeck_x.o (the CTFE CALL fold kept truncating i64 results).
+    The Cap residual sits between two fixed markers written by assemble(), so
+    the seed text is authoritative for that span. Returns 0 unchanged,
+    2 spliced, 1 error (markers missing: caller keeps the gen untouched).
+    """
+    if not gen_path.is_file() or not cap_path.is_file():
+        return 1
+    g = gen_path.read_text(encoding="utf-8", errors="replace")
+    a = g.find(_CAP_MARK)
+    b = g.find(_MALIAS_MARK)
+    if a < 0 or b < 0 or b < a:
+        print(f"assemble_typeck_gen: splice skip, markers missing in {gen_path}", file=sys.stderr)
+        return 1
+    a += len(_CAP_MARK)
+    cap = cap_path.read_text(encoding="utf-8", errors="replace")
+    if g[a:b] == cap:
+        return 0
+    gen_path.write_text(g[:a] + cap + g[b:], encoding="utf-8")
+    print(f"assemble_typeck_gen: spliced Cap residual into {gen_path}", file=sys.stderr)
+    return 2
+
+
+_EXPR_LAYOUT_START = "enum ast_TypeKind {"
+_EXPR_LAYOUT_END = "struct xlang_slice_ast_Expr {"
+
+
+def write_expr_layout(gen_path: Path, out_path: Path | None) -> int:
+    """Slice TypeKind, ExprKind, and struct ast_Expr out of typeck_gen.c.
+
+    The bytes are the host-cc paste's own layout, not a second struct.
+    The end marker is excluded. Fail closed when a marker is missing,
+    struct ast_Expr is absent, or the slice runs into the CTFE paste.
+    PLATFORM: SHARED — same text the host-cc typeck_gen.c compiles.
+    """
+    if not gen_path.is_file():
+        print(f"assemble_typeck_gen: layout source missing: {gen_path}", file=sys.stderr)
+        return 1
+    if out_path is None:
+        print("assemble_typeck_gen: --layout-out is required", file=sys.stderr)
+        return 1
+    text = gen_path.read_text(encoding="utf-8", errors="replace")
+    start = text.find(_EXPR_LAYOUT_START)
+    if start < 0:
+        print(f"assemble_typeck_gen: layout start missing in {gen_path}", file=sys.stderr)
+        return 1
+    end = text.find(_EXPR_LAYOUT_END, start)
+    if end <= start:
+        print(f"assemble_typeck_gen: layout end missing in {gen_path}", file=sys.stderr)
+        return 1
+    body = text[start:end]
+    if "struct ast_Expr {" not in body:
+        print("assemble_typeck_gen: layout slice has no struct ast_Expr", file=sys.stderr)
+        return 1
+    if "typeck_fold_expr" in body or "TYPECK_CAP_RESIDUAL" in body:
+        print("assemble_typeck_gen: layout slice ran into the CTFE paste", file=sys.stderr)
+        return 1
+    # The w1621 probe compiled a slice of this same span (about 56KB).
+    if len(body) < 1024 or len(body) > 200000:
+        print(
+            f"assemble_typeck_gen: layout slice size {len(body)} out of range",
+            file=sys.stderr,
+        )
+        return 1
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    note = (
+        "/* Sliced from typeck_gen.c by assemble_typeck_gen_from_x.py.\n"
+        " * Not a second layout authority. Do not edit.\n"
+        " * PLATFORM: SHARED — same bytes the host-cc paste compiles.\n"
+        " */\n"
+    )
+    out_path.write_text(note + body, encoding="utf-8")
+    print(
+        f"assemble_typeck_gen: expr layout {out_path} bytes={len(body)}",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--tip", required=True, help="path to tip xlang -E output (.c)")
-    ap.add_argument("--out", required=True, help="output typeck_gen.c path")
+    ap.add_argument("--tip", default=None, help="path to tip xlang -E output (.c)")
+    ap.add_argument("--out", default=None, help="output typeck_gen.c path")
+    ap.add_argument(
+        "--splice-cap",
+        default=None,
+        help="existing typeck_gen.c: re-splice seeds Cap residual only (exit 0 same / 2 spliced)",
+    )
     ap.add_argument(
         "--compiler-root",
         default=None,
         help="compiler/ root (default: parent of scripts/)",
     )
+    ap.add_argument(
+        "--write-expr-layout",
+        default=None,
+        help="slice TypeKind/Expr layout from this typeck_gen.c (no second struct)",
+    )
+    ap.add_argument(
+        "--layout-out",
+        default=None,
+        help="header path for --write-expr-layout",
+    )
     args = ap.parse_args(argv)
+
+    if args.write_expr_layout:
+        out = Path(args.layout_out) if args.layout_out else None
+        return write_expr_layout(Path(args.write_expr_layout), out)
 
     script_dir = Path(__file__).resolve().parent
     root = Path(args.compiler_root) if args.compiler_root else script_dir.parent
     seeds = root / "seeds"
+    if args.splice_cap:
+        return splice_cap_residual(Path(args.splice_cap), seeds / "typeck_cap_residual.from_x.c")
+    if not args.tip or not args.out:
+        print("assemble_typeck_gen: --tip and --out are required", file=sys.stderr)
+        return 1
     short_p = seeds / "typeck_short_face_alias.from_x.c"
     cap_p = seeds / "typeck_cap_residual.from_x.c"
     malias_p = seeds / "typeck_mangle_link_alias.from_x.c"

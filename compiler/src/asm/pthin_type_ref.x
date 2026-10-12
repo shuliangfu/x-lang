@@ -16,6 +16,10 @@
 
 // pthin_type_ref.x — G-02f-280 P3 parser thin type_ref product bodies.
 //
+// w1152: one translation unit exits 139. Darwin compiles each function
+// and links the thirty-one pieces. Sibling calls sit in unsafe.
+// PLATFORM: SHARED.
+//
 // 7.2.1 P3b Route C productize (2026-09-13): after P4b primary ident
 // spelling, type_ref.inc is the next still-host-cc product slice with a
 // portable scalar / buf-path region. token_starts_type and builtin
@@ -25,13 +29,14 @@
 // skip_tl's xlang_trait_token_to_type_kind_c is a thin trampoline to
 // builtin_kind_ord (G.7: one TOKEN→TypeKind table).
 //
-// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n: g05_try_x_to_o this file;
+// Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r/P3s: g05_try_x_to_o this file;
 // XLANG_PTHIN_TYPE_REF_BODIES_FROM_X skips the portable .inc region.
 // XLANG_PTHIN_TYPE_REF_POSTFIX_FROM_X / PREFIX_FROM_X / FN_FROM_X /
 // STAR_FROM_X / LINEAR_FROM_X / VEC_FROM_X / ALLOC_VEC_FROM_X /
-// SCALAR_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
+// SCALAR_FROM_X / NAMED_FROM_X / GENERIC_FROM_X / IDENT_VEC_FROM_X /
+// IMPL_FROM_X / POINTEE_FROM_X are separate defines (P6e PARSE_LAYOUT / P2c COND
 // pattern) so a missing postfix_x / prefix_x / fn_x / star_x /
-// linear_x / vec_x / alloc_x / scalar_x keeps that C twin without
+// linear_x / vec_x / alloc_x / scalar_x / named_x / generic_x / ident_vec_x / impl_x / pointee_x keeps that C twin without
 // dropping P3b–P3e.
 // token.h remains the TOKEN_*
 // authority via P3 C _Static_assert pins. Cold: no define, full .inc stays.
@@ -161,6 +166,76 @@
 // dest-buffer IDENT generic type-arg. Do not dest-buffer IDENT
 // vector spelling consume. Do not open a new P-lane. Do not FORCE
 // pabi mega. Do not touch pthin_expr_primary.x (current xlang T001).
+// 7.2.1 P3o B-minus (2026-09-16): 有则补全 IDENT named / dyn / impl
+// peel dest-buffer. The `dyn` P013 prefix, `impl Trait` peel, and
+// TYPE_NAMED + consume_qualified soup were inlined in
+// parse_type_ref_impl (always host-cc). P9a peek/step owns the
+// unconsumed cursor. `dyn` + following type reports P013 and
+// fail-closes (lex past `dyn`); bare `dyn` restores so NAMED
+// still sees the IDENT. `impl` + following type recurses via the
+// existing primary parse_type_ref_ptr shim (G.7; do not dest-buffer
+// parse_type_ref — P3f hello/fmt red). IDENT NAMED writer =
+// init_named_at (G.7; same as P3j pointee). C trampoline holds
+// name[256] + qn_len (no local u8[N], no &local i32). Generic
+// `<T,U>` type-arg dest-buffer is P3p. wrap_dyn stays P3e (after
+// `<T>` so `Wrap<i32>` is not a trait). Postfix stays P3g. NAMED
+// is a separate define so a missing named_x keeps the C twin
+// without dropping P3n. Do not dest-buffer parse_type_ref. Do
+// not FORCE pabi mega. Do not open a new P-lane.
+// 7.2.1 P3p B-minus (2026-09-16): 有则补全 IDENT generic `<T,U>`
+// type-arg dest-buffer. The optional angle list after TYPE_NAMED
+// was inlined in parse_type_ref_impl (always host-cc). P9a
+// peek/step owns the unconsumed `<`; each arg recurses via the
+// existing primary parse_type_ref_ptr shim (G.7; do not dest-buffer
+// parse_type_ref — P3f hello/fmt red). Sidecar append =
+// pipeline_type_append_type_arg (G.7; same as P3i TYPE_FN params).
+// first-arg + count stamp = pipeline_type_set_elem_array_size_at
+// (G.7; do not Type by-value get/set; do not FORCE pabi mega).
+// Nested `Name<Name<T>>` close reuses the P3d RSHIFT contract
+// (step `>>` then rewind pos/col by 1). Not-`<` leaves lex
+// unchanged so wrap_dyn / postfix still see `[`. GENERIC is a
+// separate define so a missing generic_x keeps the C loop without
+// dropping P3o. Do not dest-buffer parse_type_ref. Do not FORCE
+// pabi mega. Do not open a new P-lane. Do not `break` out of the
+// arg while (P4bh parse-drop).
+// 7.2.1 P3q B-minus (2026-09-16): dest-buffer IDENT vector spelling
+// consume (complete existing type_ref.x). Historical ban was "thin
+// compositor" (pack already .x; alloc already P3m). Re-ranked live:
+// remaining C is start recovery (token_start==0 → next_pos -
+// ident_len) plus pack + alloc. C trampoline holds lexer_result
+// by-value and extracts data/length/token_start/ident_len/
+// next_pos (language has no lexer_result by-value). Stretch
+// audit stays in the C trampoline (AUDIT_CALL product no-op).
+// IDENT_VEC is a separate define so a missing ident_vec_x keeps
+// the C compositor without dropping P3p. Do not dest-buffer
+// parse_type_ref (P3f hello/fmt red). parse_type_ref_impl stays
+// C until P3r. Do not FORCE pabi mega. Do not open a new P-lane.
+// 7.2.1 P3r B-minus (2026-09-16): dest-buffer parse_type_ref_impl
+// dispatcher (complete existing type_ref.x). Historical ban was
+// dest-buffer parse_type_ref (P3f hello/fmt red) and "dispatcher
+// stays C". Re-ranked live after P3q: every arm already lives in
+// .x (peel / fn / star / prefix / vec / scalar / linear / ident
+// vec / named / generic / wrap_dyn / postfix). Remaining C is
+// peel + first-token dispatch + IDENT compositor. Published face
+// stays parse_type_ref_impl_c / slice_c; recursion still goes
+// through the existing primary parse_type_ref_ptr shim (G.7; do
+// not dest-buffer parse_type_ref). C trampoline holds name[256] +
+// qn_len + label[64] (language has no local u8[N] / &local i32)
+// and keeps AUDIT_CALL (product no-op). IMPL is a separate define
+// so a missing impl_x keeps the C compositor without dropping
+// P3q. Do not FORCE pabi mega. Do not open a new P-lane.
+// 7.2.1 P3s B-minus (2026-09-16): dest-buffer alloc_pointee_type_ref
+// (complete existing type_ref.x). Historical ban was Type by-value
+// get/set. Re-ranked live after P3r: writers already exist
+// (init_named_at / init_primitive_kind_at / is_pointee_type_token /
+// builtin_kind_ord). IDENT consume_qualified stays on the published
+// C face (mutates lexer_result; language has no lexer_result
+// by-value). C trampoline holds name[256] + qn_len. STAR path
+// already P3j (do not merge). glue_tail stays a one-line
+// trampoline. POINTEE is a separate define so a missing pointee_x
+// keeps the C twin without dropping P3r. Do not dest-buffer
+// parse_type_ref (P3f). Do not dest-buffer append_byte. Do not
+// FORCE pabi mega. Do not open a new P-lane.
 // PLATFORM: SHARED freestanding.
 
 // TOKEN_* pin copies of include/token.h. P3 C _Static_assert fires if
@@ -201,14 +276,25 @@ const TOKEN_GT: i32 = 121;
 
 /** P9a: peek next kind without advancing the opaque lexer. */
 export extern "C" function parser_asm_lex_peek_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek line of the next token (P013 dyn prefix). */
+export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: peek column of the next token (P013 dyn prefix). */
+export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: consume one token; returns its kind. */
 export extern "C" function parser_asm_lex_step_kind_c(lex_inout: *u8, source: *u8): i32;
+/** P9a: lexer line / col for restore after a failed peel probe. */
+export extern "C" function parser_asm_lex_line_c(lex: *u8): i32;
+export extern "C" function parser_asm_lex_col_c(lex: *u8): i32;
+/** P013 reporter (body_tl). G.7 one diagnostic; do not copy. */
+export extern "C" function parser_report_dyn_prefix_p013_c(line: i32, col: i32): void;
 /** P9a: peek ident_len of the next token. */
 export extern "C" function parser_asm_lex_peek_ident_len_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: peek TOKEN_INT payload as i32 (array dim). */
 export extern "C" function parser_asm_lex_peek_int_val_c(lex_inout: *u8, source: *u8): i32;
 /** P9a: peek token_start of the next token (IDENT label copy). */
 export extern "C" function parser_asm_lex_peek_token_start_c(lex_inout: *u8, source: *u8): usize;
+/** P9a: peek next_lex.pos of the next token (IDENT vec start recovery). */
+export extern "C" function parser_asm_lex_peek_next_pos_c(lex_inout: *u8, source: *u8): usize;
 /** P1b authority: copy nlen bytes starting at start. Do not copy the loop. */
 export extern "C" function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void;
 /** P9a: lexer pos (copy-at-end uses this as IDENT end). */
@@ -283,6 +369,12 @@ export extern "C" function pipeline_type_init_fn_c(a: *u8, ref: i32, ret_tr: i32
  */
 export extern "C" function pipeline_type_append_type_arg(arena: *u8, type_ref: i32, arg_ref: i32): i32;
 /**
+ * Existing sidecar: stamp Type.elem_type_ref + array_size.
+ * G.7 one writer for the IDENT generic first-arg/count pair
+ * (C twin used Type by-value get/set). Do not FORCE pabi mega.
+ */
+export extern "C" function pipeline_type_set_elem_array_size_at(arena: *u8, ref: i32, elem_ref: i32, array_size: i32): i32;
+/**
  * Existing pabi writer: zero a Type slot and write a primitive
  * kind_ord 0..16 (VOID=16). G.7 one scalar writer; do not copy;
  * do not FORCE pabi mega.
@@ -319,6 +411,7 @@ export extern "C" function parser_asm_parse_type_ref_ptr_into_c(arena: *u8, lex_
  * @param want_len i32 — required spelling length
  * @return i32 — 1 if data is live, ident_len==want_len, and the span fits
  */
+#[no_mangle]
 function parser_asm_type_ref_ident_span_ok(data: *u8, length: usize, token_start: usize, ident_len: i32, want_len: i32): i32 {
   if (data == 0 as *u8 || ident_len != want_len || ident_len <= 0) {
     return 0;
@@ -336,6 +429,7 @@ function parser_asm_type_ref_ident_span_ok(data: *u8, length: usize, token_start
  * @param i i32 — byte offset within the IDENT
  * @return u8 — data[token_start + i]
  */
+#[no_mangle]
 function parser_asm_type_ref_ident_byte(data: *u8, token_start: usize, i: i32): u8 {
   let c: u8 = 0;
   unsafe {
@@ -443,11 +537,23 @@ export function parser_asm_type_ref_builtin_kind_ord_c(kind: i32): i32 {
  */
 #[no_mangle]
 export function parser_asm_type_ref_ident_is_dyn_buf_c(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 3) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 3);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_type_ref_ident_byte(data, token_start, 0) == 100 && parser_asm_type_ref_ident_byte(data, token_start, 1) == 121
-      && parser_asm_type_ref_ident_byte(data, token_start, 2) == 110) {
+  unsafe {
+    c0 = parser_asm_type_ref_ident_byte(data, token_start, 0);
+    c1 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+    c2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+  }
+  if (c0 == 100 && c1 == 121 && c2 == 110) {
     return 1;
   }
   return 0;
@@ -464,13 +570,31 @@ export function parser_asm_type_ref_ident_is_dyn_buf_c(data: *u8, length: usize,
  * @return i32 — 1 if the six bytes are `Linear`; 0 otherwise
  * PLATFORM: SHARED — buf-path sibling of ident_is_dyn (G.7 spelling family).
  */
+#[no_mangle]
 function parser_asm_type_ref_ident_is_linear(data: *u8, length: usize, token_start: usize, ident_len: i32): i32 {
-  if (parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 6) == 0) {
+  let span: i32 = 0;
+  let c0: u8 = 0;
+  let c1: u8 = 0;
+  let c2: u8 = 0;
+  let c3: u8 = 0;
+  let c4: u8 = 0;
+  let c5: u8 = 0;
+  // Darwin compiles this function alone. The span and byte helpers are externs.
+  unsafe {
+    span = parser_asm_type_ref_ident_span_ok(data, length, token_start, ident_len, 6);
+  }
+  if (span == 0) {
     return 0;
   }
-  if (parser_asm_type_ref_ident_byte(data, token_start, 0) == 76 && parser_asm_type_ref_ident_byte(data, token_start, 1) == 105
-      && parser_asm_type_ref_ident_byte(data, token_start, 2) == 110 && parser_asm_type_ref_ident_byte(data, token_start, 3) == 101
-      && parser_asm_type_ref_ident_byte(data, token_start, 4) == 97 && parser_asm_type_ref_ident_byte(data, token_start, 5) == 114) {
+  unsafe {
+    c0 = parser_asm_type_ref_ident_byte(data, token_start, 0);
+    c1 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+    c2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+    c3 = parser_asm_type_ref_ident_byte(data, token_start, 3);
+    c4 = parser_asm_type_ref_ident_byte(data, token_start, 4);
+    c5 = parser_asm_type_ref_ident_byte(data, token_start, 5);
+  }
+  if (c0 == 76 && c1 == 105 && c2 == 110 && c3 == 101 && c4 == 97 && c5 == 114) {
     return 1;
   }
   return 0;
@@ -495,19 +619,30 @@ export function parser_asm_vector_type_ident_pack_c(data: *u8, length: usize, to
   if (token_start + ident_len as usize > length) {
     return 0;
   }
-  let b0: u8 = parser_asm_type_ref_ident_byte(data, token_start, 0);
-  let b1: u8 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+  let b0: u8 = 0;
+  let b1: u8 = 0;
   let b2: u8 = 0;
   let b3: u8 = 0;
   let b4: u8 = 0;
+  // Darwin compiles this function alone. The byte helper is an extern.
+  unsafe {
+    b0 = parser_asm_type_ref_ident_byte(data, token_start, 0);
+    b1 = parser_asm_type_ref_ident_byte(data, token_start, 1);
+  }
   if (ident_len >= 3) {
-    b2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+    unsafe {
+      b2 = parser_asm_type_ref_ident_byte(data, token_start, 2);
+    }
   }
   if (ident_len >= 4) {
-    b3 = parser_asm_type_ref_ident_byte(data, token_start, 3);
+    unsafe {
+      b3 = parser_asm_type_ref_ident_byte(data, token_start, 3);
+    }
   }
   if (ident_len >= 5) {
-    b4 = parser_asm_type_ref_ident_byte(data, token_start, 4);
+    unsafe {
+      b4 = parser_asm_type_ref_ident_byte(data, token_start, 4);
+    }
   }
   // i32x4 / i3x4 nibble (C twin): nlen==5, i, '3', 'x', '4'
   if (ident_len == 5 && b0 == 105 && b1 == 51 && b2 == 120 && b3 == 52) {
@@ -567,6 +702,10 @@ export function parser_asm_type_ref_mangle_suffix_c(arena: *u8, type_ref: i32, b
   if (arena == 0 as *u8 || type_ref <= 0 || buf == 0 as *u8 || buf_cap <= 0) {
     return 0;
   }
+  // PLATFORM: SHARED — M2 class A: pipeline_type_* writers are export-extern
+  // (`-E` typeck is looser; asm requires unsafe). Pointer stores already
+  // used nested unsafe; keep them.
+  unsafe {
   cur = type_ref;
   ptr_n = 0;
   tk = pipeline_type_kind_ord_at(arena, cur);
@@ -689,6 +828,7 @@ export function parser_asm_type_ref_mangle_suffix_c(arena: *u8, type_ref: i32, b
     } else {
       return n;
     }
+  }
   }
   return n;
 }
@@ -931,25 +1071,29 @@ export function parser_asm_alloc_dyn_type_ref_into_c(arena: *u8, inner_tr: i32, 
   if (arena == 0 as *u8 || inner_tr <= 0) {
     return inner_tr;
   }
-  ik = pipeline_type_kind_ord_at(arena, inner_tr);
-  if (ik == TYPE_DYN) {
-    return inner_tr;
-  }
-  dyn_tr = ast_ast_arena_type_alloc(arena);
-  if (dyn_tr == 0) {
-    return inner_tr;
-  }
-  nlen = 0;
-  if (ik == TYPE_NAMED && name_scratch != 0 as *u8) {
-    nlen = pipeline_type_named_name_into(arena, inner_tr, name_scratch);
-    if (nlen <= 0) {
-      nlen = 0;
+  // PLATFORM: SHARED — M2 class A: sidecar type writers are export-extern
+  // (`-E` typeck is looser; asm requires unsafe). Match glue.x / unary wrap.
+  unsafe {
+    ik = pipeline_type_kind_ord_at(arena, inner_tr);
+    if (ik == TYPE_DYN) {
+      return inner_tr;
     }
-    if (nlen >= 128) {
-      nlen = 0;
+    dyn_tr = ast_ast_arena_type_alloc(arena);
+    if (dyn_tr == 0) {
+      return inner_tr;
     }
+    nlen = 0;
+    if (ik == TYPE_NAMED && name_scratch != 0 as *u8) {
+      nlen = pipeline_type_named_name_into(arena, inner_tr, name_scratch);
+      if (nlen <= 0) {
+        nlen = 0;
+      }
+      if (nlen >= 128) {
+        nlen = 0;
+      }
+    }
+    pipeline_type_init_dyn_c(arena, dyn_tr, inner_tr, name_scratch, nlen);
   }
-  pipeline_type_init_dyn_c(arena, dyn_tr, inner_tr, name_scratch, nlen);
   return dyn_tr;
 }
 
@@ -972,18 +1116,22 @@ export function parser_asm_wrap_registered_trait_as_dyn_into_c(arena: *u8, named
   if (arena == 0 as *u8 || named_tr <= 0 || name_scratch == 0 as *u8) {
     return named_tr;
   }
-  kind = pipeline_type_kind_ord_at(arena, named_tr);
-  if (kind != TYPE_NAMED) {
-    return named_tr;
+  // PLATFORM: SHARED — M2 class A: sidecar + trait-reg lookup are export-extern.
+  unsafe {
+    kind = pipeline_type_kind_ord_at(arena, named_tr);
+    if (kind != TYPE_NAMED) {
+      return named_tr;
+    }
+    nlen = pipeline_type_named_name_into(arena, named_tr, name_scratch);
+    if (nlen <= 0) {
+      return named_tr;
+    }
+    if (xlang_skip_trait_is_registered_c(name_scratch, nlen) == 0) {
+      return named_tr;
+    }
+    return parser_asm_alloc_dyn_type_ref_into_c(arena, named_tr, name_scratch);
   }
-  nlen = pipeline_type_named_name_into(arena, named_tr, name_scratch);
-  if (nlen <= 0) {
-    return named_tr;
-  }
-  if (xlang_skip_trait_is_registered_c(name_scratch, nlen) == 0) {
-    return named_tr;
-  }
-  return parser_asm_alloc_dyn_type_ref_into_c(arena, named_tr, name_scratch);
+  return named_tr;
 }
 
 /**
@@ -1551,6 +1699,7 @@ export function parser_asm_parse_linear_type_x_into_c(arena: *u8, lex_inout: *u8
  * @return i32 — elem_ord, or -1 if kind is not a vec token
  * PLATFORM: SHARED — P3l. Do not "fix" F32X4=13.
  */
+#[no_mangle]
 function parser_asm_builtin_vec_token_elem_ord(kind: i32): i32 {
   if (kind == TOKEN_U32X4 || kind == TOKEN_U32X8 || kind == TOKEN_U32X16) {
     return 3;
@@ -1571,6 +1720,7 @@ function parser_asm_builtin_vec_token_elem_ord(kind: i32): i32 {
  * @return i32 — 4, 8, or 16
  * PLATFORM: SHARED — P3l lanes table. Do not merge with IDENT pack.
  */
+#[no_mangle]
 function parser_asm_builtin_vec_token_lanes(kind: i32): i32 {
   if (kind == TOKEN_I32X8 || kind == TOKEN_U32X8) {
     return 8;
@@ -1711,4 +1861,512 @@ export function parser_asm_parse_builtin_scalar_type_x_into_c(arena: *u8, lex_in
     return type_ref;
   }
   return 0;
+}
+
+/**
+ * Peel type-position `dyn` / `impl` prefixes. Unconsumed cursor.
+ * `dyn` followed by a type is P013 (hard-fail; lex parks past `dyn`).
+ * Bare `dyn` restores so the IDENT NAMED arm still sees the token.
+ * `impl` followed by a type recurses through parse_type_ref_ptr
+ * (inner owns postfix / wrap_dyn). `impl` without a type restores
+ * and returns 0 (C twin then fail-closes; TOKEN_IMPL is not NAMED).
+ * Not dyn/impl leaves lex unchanged.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @return i32 — peeled type_ref, or 0 (P013 / not-this-path / fail)
+ * PLATFORM: SHARED type grammar. P3o dest-buffer split of the former
+ * inlined dyn/impl arms. Recurse = primary parse_type_ref_ptr (G.7).
+ * Do not dest-buffer parse_type_ref. Do not dest-buffer IDENT
+ * generic type-arg. parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_peel_dyn_impl_prefix_x_into_c(arena: *u8, lex_inout: *u8, source: *u8): i32 {
+  let kind: i32 = 0;
+  let kind2: i32 = 0;
+  let nlen: i32 = 0;
+  let ts: usize = 0;
+  let slen: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let dyn_line: i32 = 0;
+  let dyn_col: i32 = 0;
+  let inner: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_IDENT) {
+      nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+      ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+      data = parser_asm_lex_source_data_c(source);
+      slen = parser_asm_lex_source_length_c(source);
+      if (parser_asm_type_ref_ident_is_dyn_buf_c(data, slen, ts, nlen) != 0) {
+        dyn_line = parser_asm_lex_peek_tok_line_c(lex_inout, source);
+        dyn_col = parser_asm_lex_peek_tok_col_c(lex_inout, source);
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (parser_asm_type_ref_token_starts_type_c(kind2) != 0) {
+          parser_report_dyn_prefix_p013_c(dyn_line, dyn_col);
+          return 0;
+        }
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        return 0;
+      }
+    } else {
+      if (kind == TOKEN_IMPL) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+        kind2 = parser_asm_lex_peek_kind_c(lex_inout, source);
+        if (parser_asm_type_ref_token_starts_type_c(kind2) != 0) {
+          inner = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+          return inner;
+        }
+        parser_asm_lex_set_pos_c(lex_inout, pos0);
+        parser_asm_lex_set_line_c(lex_inout, line0);
+        parser_asm_lex_set_col_c(lex_inout, col0);
+        return 0;
+      }
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * Parse type-position IDENT NAMED (`Foo` / `a.b.Type`) into a
+ * TYPE_NAMED slot. Peek must be IDENT else 0 (lex unchanged) so
+ * Linear / vector IDENT still own those spellings. consume_qualified
+ * walks `a.b.Type` via P3d. Generic `<T,U>` is P3p. wrap_dyn
+ * stays P3e (after `<T>`). Postfix stays P3g. consume fail
+ * restores the entry cursor.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param name_scratch *u8 — dest for qualified spelling; caller owns
+ *   ≥256 bytes; null → 0
+ * @param qn_len_slot *i32 — dest for name_len; C trampoline owns;
+ *   null → 0
+ * @return i32 — TYPE_NAMED type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3o dest-buffer split of the former
+ * inlined IDENT NAMED arm. Writer = init_named_at (G.7). Do not
+ * dest-buffer parse_type_ref. Generic `<T,U>` is P3p.
+ * parse_type_ref_impl stays C.
+ */
+#[no_mangle]
+export function parser_asm_parse_named_type_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, name_scratch: *u8, qn_len_slot: *i32): i32 {
+  let kind: i32 = 0;
+  let first: i32 = 0;
+  let nlen: i32 = 0;
+  let rc: i32 = 0;
+  let ok: i32 = 0;
+  let type_ref: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (name_scratch == 0 as *u8 || qn_len_slot == 0 as *i32) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_IDENT) {
+      return 0;
+    }
+    first = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    if (first <= 0) {
+      return 0;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    qn_len_slot[0] = 0;
+    rc = parser_asm_consume_qualified_type_ident_name_into_c(source, lex_inout, name_scratch, qn_len_slot, first);
+    if (rc != 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    nlen = qn_len_slot[0];
+    if (nlen <= 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    type_ref = ast_ast_arena_type_alloc(arena);
+    if (type_ref == 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    ok = pipeline_type_init_named_at(arena, type_ref, name_scratch, nlen);
+    if (ok == 0) {
+      parser_asm_lex_set_pos_c(lex_inout, pos0);
+      parser_asm_lex_set_line_c(lex_inout, line0);
+      parser_asm_lex_set_col_c(lex_inout, col0);
+      return 0;
+    }
+    return type_ref;
+  }
+  return 0;
+}
+
+/**
+ * Parse optional type-position generic args after a TYPE_NAMED slot
+ * (`Name<T>` / `Name<T,U>` / nested `Name<Name<T>>`). Peek must be
+ * TOKEN_LT else `named_tr` is returned and lex is unchanged so
+ * wrap_dyn / postfix still see `[`. Each arg recurses through
+ * parse_type_ref_ptr. COMMA continues; TOKEN_GT consumes; TOKEN_RSHIFT
+ * (`>>`) closes this level and leaves one `>` (P3d contract: step
+ * then rewind pos/col by 1). Fail-closed: a missing arg or a non
+ * comma/close token returns 0 with lex parked at the fail site.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param named_tr i32 — TYPE_NAMED type_ref from P3o; <=0 → 0
+ * @return i32 — named_tr with sidecar args, named_tr if no `<`, or 0
+ * PLATFORM: SHARED type grammar. P3p dest-buffer split of the former
+ * inlined IDENT generic get/set soup. Append =
+ * pipeline_type_append_type_arg (G.7). first-arg + count =
+ * pipeline_type_set_elem_array_size_at (G.7). Recurse = primary
+ * parse_type_ref_ptr (G.7). Do not dest-buffer parse_type_ref.
+ * parse_type_ref_impl stays C. wrap_dyn stays P3e (after this).
+ * Postfix stays P3g. Do not `break` out of the arg while.
+ */
+#[no_mangle]
+export function parser_asm_parse_named_generic_args_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, named_tr: i32): i32 {
+  let kind: i32 = 0;
+  let ta_ref: i32 = 0;
+  let first_ta: i32 = 0;
+  let n_ta: i32 = 0;
+  let done: i32 = 0;
+  let p: usize = 0;
+  let c: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (named_tr <= 0) {
+    return 0;
+  }
+  unsafe {
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind != TOKEN_LT) {
+      return named_tr;
+    }
+    parser_asm_lex_step_kind_c(lex_inout, source);
+    done = 0;
+    while (done == 0) {
+      ta_ref = parser_asm_parse_type_ref_ptr_into_c(arena, lex_inout, source);
+      if (ta_ref == 0) {
+        return 0;
+      }
+      if (n_ta == 0) {
+        first_ta = ta_ref;
+      }
+      if (ta_ref > 0) {
+        pipeline_type_append_type_arg(arena, named_tr, ta_ref);
+      }
+      n_ta = n_ta + 1;
+      kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+      if (kind == TOKEN_COMMA) {
+        parser_asm_lex_step_kind_c(lex_inout, source);
+      } else {
+        if (kind == TOKEN_GT) {
+          parser_asm_lex_step_kind_c(lex_inout, source);
+          done = 1;
+        } else {
+          if (kind == TOKEN_RSHIFT) {
+            /* P3d nested `>>`: consume both bytes then leave one `>`
+             * for the outer list (rewind pos/col by 1; line stays). */
+            parser_asm_lex_step_kind_c(lex_inout, source);
+            p = parser_asm_lex_pos_c(lex_inout);
+            c = parser_asm_lex_col_c(lex_inout);
+            if (p > 0 as usize) {
+              p = p - 1 as usize;
+            }
+            if (c > 1) {
+              c = c - 1;
+            }
+            parser_asm_lex_set_pos_c(lex_inout, p);
+            parser_asm_lex_set_col_c(lex_inout, c);
+            done = 1;
+          } else {
+            return 0;
+          }
+        }
+      }
+    }
+    if (first_ta > 0) {
+      pipeline_type_set_elem_array_size_at(arena, named_tr, first_ta, n_ta);
+    }
+    return named_tr;
+  }
+  return 0;
+}
+
+/**
+ * IDENT spelling consume: recover start, pack i32x4/Vec4f/…, alloc TYPE_VECTOR.
+ * token_start==0 recovers start from next_pos - ident_len (lexer_result
+ * token_start was unset). Writers = pack_c (G.7) + alloc_x (P3m G.7).
+ * Stretch audit stays in the C trampoline (AUDIT_CALL product no-op).
+ * @param arena *u8 — AST arena; null → 0
+ * @param data *u8 — source bytes; null → 0 (pack rejects)
+ * @param length usize — source length
+ * @param token_start usize — IDENT first byte; 0 may mean unset
+ * @param ident_len i32 — IDENT payload length; <=0 or >63 → 0
+ * @param next_pos usize — lexer next_lex.pos for start recovery
+ * @return i32 — TYPE_VECTOR type_ref, or 0 if the spelling is not a vector alias
+ * PLATFORM: SHARED type grammar. P3q dest-buffer of from_ident_spelling.
+ * parse_type_ref_impl stays C. Do not dest-buffer parse_type_ref (P3f).
+ * Do not FORCE pabi mega. Do not open a new P-lane.
+ */
+#[no_mangle]
+export function parser_asm_vector_type_ref_from_ident_spelling_x_into_c(arena: *u8, data: *u8, length: usize, token_start: usize, ident_len: i32, next_pos: usize): i32 {
+  let start: usize = 0;
+  let pack: i32 = 0;
+  let vec_ref: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  if (ident_len <= 0 || ident_len > 63) {
+    return 0;
+  }
+  start = token_start;
+  if (token_start == 0 as usize && next_pos >= ident_len as usize) {
+    start = next_pos - ident_len as usize;
+  }
+  unsafe {
+    pack = parser_asm_vector_type_ident_pack_c(data, length, start, ident_len);
+    if (pack == 0) {
+      return 0;
+    }
+    vec_ref = parser_asm_alloc_vector_type_ref_x_into_c(arena, pack >> 8, pack & 255);
+    return vec_ref;
+  }
+  return 0;
+}
+
+/**
+ * IDENT arm of parse_type_ref_impl: Linear, IDENT vector spelling,
+ * TYPE_NAMED + optional `<T,U>`, wrap_dyn, postfix. Unconsumed cursor.
+ * Linear miss with a moved cursor fail-closes (bare `Linear` is not
+ * NAMED). Vector miss leaves IDENT for NAMED. Named fail-closes.
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param name_scratch *u8 — dest for NAMED spelling / wrap_dyn;
+ *   caller owns ≥256 bytes; null → 0
+ * @param qn_len_slot *i32 — C-owned length slot; null → 0
+ * @param label_scratch *u8 — dest for postfix region label;
+ *   caller owns ≥64 bytes; null → 0
+ * @return i32 — type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3r dest-buffer split of the former
+ * inlined IDENT compositor. Writers stay in the existing arm helpers
+ * (G.7). Do not dest-buffer parse_type_ref (P3f). 8 lets.
+ */
+#[no_mangle]
+export function parser_asm_parse_type_ref_impl_ident_x(arena: *u8, lex_inout: *u8, source: *u8, name_scratch: *u8, qn_len_slot: *i32, label_scratch: *u8): i32 {
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let ref: i32 = 0;
+  let nlen: i32 = 0;
+  let ts: usize = 0;
+  let data: *u8 = 0 as *u8;
+  let slen: usize = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (name_scratch == 0 as *u8 || qn_len_slot == 0 as *i32 || label_scratch == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    ref = parser_asm_parse_linear_type_x_into_c(arena, lex_inout, source);
+    if (ref != 0) {
+      return ref;
+    }
+    if (parser_asm_lex_pos_c(lex_inout) != pos0) {
+      return 0;
+    }
+    if (parser_asm_lex_line_c(lex_inout) != line0) {
+      return 0;
+    }
+    if (parser_asm_lex_col_c(lex_inout) != col0) {
+      return 0;
+    }
+    nlen = parser_asm_lex_peek_ident_len_c(lex_inout, source);
+    ts = parser_asm_lex_peek_token_start_c(lex_inout, source);
+    data = parser_asm_lex_source_data_c(source);
+    slen = parser_asm_lex_source_length_c(source);
+    ref = parser_asm_vector_type_ref_from_ident_spelling_x_into_c(
+        arena, data, slen, ts, nlen, parser_asm_lex_peek_next_pos_c(lex_inout, source));
+    if (ref != 0) {
+      parser_asm_lex_step_kind_c(lex_inout, source);
+      return ref;
+    }
+    ref = parser_asm_parse_named_type_x_into_c(arena, lex_inout, source, name_scratch, qn_len_slot);
+    if (ref == 0) {
+      return 0;
+    }
+    ref = parser_asm_parse_named_generic_args_x_into_c(arena, lex_inout, source, ref);
+    if (ref == 0) {
+      return 0;
+    }
+    ref = parser_asm_wrap_registered_trait_as_dyn_into_c(arena, ref, name_scratch);
+    return parser_asm_parse_postfix_array_x_into_c(arena, ref, lex_inout, source, label_scratch);
+  }
+  return 0;
+}
+
+/**
+ * parse_type_ref_impl dispatcher: peel dyn/impl, then dispatch the
+ * first unconsumed token to the existing arm helpers. FUNCTION / STAR
+ * / LBRACKET return even on 0 (those helpers may consume on fail).
+ * Vec / scalar self-reject and leave lex unchanged. IDENT goes to
+ * impl_ident_x. Recursion stays on parse_type_ref_ptr (G.7).
+ * @param arena *u8 — AST arena; null → 0
+ * @param lex_inout *u8 — opaque lexer; mutated; null → 0
+ * @param source *u8 — opaque slice; null → 0
+ * @param name_scratch *u8 — dest for NAMED / star pointee / wrap_dyn;
+ *   caller owns ≥256 bytes; null → 0
+ * @param qn_len_slot *i32 — C-owned length slot; null → 0
+ * @param label_scratch *u8 — dest for prefix/postfix/star label;
+ *   caller owns ≥64 bytes; null → 0
+ * @return i32 — type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3r dest-buffer of the former C
+ * compositor. AUDIT stays in the C trampoline. Do not dest-buffer
+ * parse_type_ref (P3f hello/fmt red). Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_parse_type_ref_impl_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, name_scratch: *u8, qn_len_slot: *i32, label_scratch: *u8): i32 {
+  let peeled: i32 = 0;
+  let kind: i32 = 0;
+  let pos0: usize = 0;
+  let line0: i32 = 0;
+  let col0: i32 = 0;
+  let type_ref: i32 = 0;
+  if (arena == 0 as *u8 || lex_inout == 0 as *u8 || source == 0 as *u8) {
+    return 0;
+  }
+  if (name_scratch == 0 as *u8 || qn_len_slot == 0 as *i32 || label_scratch == 0 as *u8) {
+    return 0;
+  }
+  unsafe {
+    pos0 = parser_asm_lex_pos_c(lex_inout);
+    line0 = parser_asm_lex_line_c(lex_inout);
+    col0 = parser_asm_lex_col_c(lex_inout);
+    peeled = parser_asm_peel_dyn_impl_prefix_x_into_c(arena, lex_inout, source);
+    if (peeled != 0) {
+      return peeled;
+    }
+    if (parser_asm_lex_pos_c(lex_inout) != pos0) {
+      return 0;
+    }
+    if (parser_asm_lex_line_c(lex_inout) != line0) {
+      return 0;
+    }
+    if (parser_asm_lex_col_c(lex_inout) != col0) {
+      return 0;
+    }
+    kind = parser_asm_lex_peek_kind_c(lex_inout, source);
+    if (kind == TOKEN_FUNCTION) {
+      return parser_asm_parse_fn_type_x_into_c(arena, lex_inout, source);
+    }
+    if (kind == TOKEN_STAR) {
+      return parser_asm_parse_star_type_x_into_c(arena, lex_inout, source, name_scratch, qn_len_slot, label_scratch);
+    }
+    if (kind == TOKEN_LBRACKET) {
+      return parser_asm_parse_prefix_array_x_into_c(arena, lex_inout, source, label_scratch);
+    }
+    type_ref = parser_asm_parse_builtin_vec_type_x_into_c(arena, lex_inout, source);
+    if (type_ref != 0) {
+      return type_ref;
+    }
+    type_ref = parser_asm_parse_builtin_scalar_type_x_into_c(arena, lex_inout, source);
+    if (type_ref != 0) {
+      return parser_asm_parse_postfix_array_x_into_c(arena, type_ref, lex_inout, source, label_scratch);
+    }
+    if (kind == TOKEN_IDENT) {
+      return parser_asm_parse_type_ref_impl_ident_x(arena, lex_inout, source, name_scratch, qn_len_slot, label_scratch);
+    }
+    return 0;
+  }
+  return 0;
+}
+
+/**
+ * Allocate a pointee Type for a token that already sits in the
+ * caller's lexer_result (after `*`). IDENT spelling arrives
+ * pre-copied (C trampoline ran consume_qualified into name[256]);
+ * scalars including VOID use builtin_kind_ord (unknown → VOID,
+ * matching the C twin else-arm).
+ * @param arena *u8 — AST arena; null → 0
+ * @param kind i32 — pointee token kind (TOKEN_IDENT or builtin)
+ * @param name *u8 — IDENT spelling dest; ignored for scalars;
+ *   caller owns ≥256 bytes; null/empty fails the IDENT path
+ * @param nlen i32 — IDENT spelling length; <=0 fails IDENT
+ * @return i32 — TYPE_NAMED or primitive type_ref, or 0
+ * PLATFORM: SHARED type grammar. P3s dest-buffer of
+ * alloc_pointee_type_ref_from_tok. Writers = init_named_at /
+ * init_primitive_kind_at (G.7). Do not dest-buffer parse_type_ref
+ * (P3f). Do not merge into parse_star_type_x. Do not FORCE pabi mega.
+ */
+#[no_mangle]
+export function parser_asm_alloc_pointee_type_ref_x_into_c(arena: *u8, kind: i32, name: *u8, nlen: i32): i32 {
+  let ref: i32 = 0;
+  let ord: i32 = 0;
+  let ok: i32 = 0;
+  if (arena == 0 as *u8) {
+    return 0;
+  }
+  // PLATFORM: SHARED — M2 class A: pointee token probe + type writers
+  // are export-extern (`-E` is looser). Match glue.x / unary wrap.
+  unsafe {
+    if (parser_asm_is_pointee_type_token_c(kind) == 0) {
+      return 0;
+    }
+    if (kind == TOKEN_IDENT) {
+      if (name == 0 as *u8 || nlen <= 0) {
+        return 0;
+      }
+      ref = ast_ast_arena_type_alloc(arena);
+      if (ref == 0) {
+        return 0;
+      }
+      ok = pipeline_type_init_named_at(arena, ref, name, nlen);
+      if (ok == 0) {
+        return 0;
+      }
+      return ref;
+    }
+    ord = parser_asm_type_ref_builtin_kind_ord_c(kind);
+    if (ord < 0) {
+      ord = TYPE_VOID;
+    }
+    ref = ast_ast_arena_type_alloc(arena);
+    if (ref == 0) {
+      return 0;
+    }
+    ok = pipeline_type_init_primitive_kind_at(arena, ref, ord);
+    if (ok == 0) {
+      return 0;
+    }
+  }
+  return ref;
 }

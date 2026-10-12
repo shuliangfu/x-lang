@@ -2,7 +2,7 @@
 
 > **状态**：规划稿（scoping only），未启动实现
 > **来源**：[cap-candidates-2026-07-19.md](../.trae/documents/cap-candidates-2026-07-19.md):151-163 C5 子项「closure / lambda CTFE（前置 closure 支持）」
-> **铁律锚点**：[../AGENTS.md](../AGENTS.md)（根源 · G.7「禁止功能重复实现」· G.8 平台边界）· skill `xlang-selfhost-product-gate` · [自举方法.md](自举方法.md)（Cap/R/L/M）
+> **铁律锚点**：[../AGENTS.md](../AGENTS.md)（根源 · G.7「禁止功能重复实现」· G.8 平台边界）· skill `xlang-selfhost-product-gate` · [自举效率方法-M2主链.md](自举效率方法-M2主链.md)（Cap/R/L/M）
 > **当波 tip**：`d7a2388e`（C5 EXPR_ENUM_VARIANT CTFE 收口；前 `a8a67708` / `229708f1`）
 > **作者结论**：**不启动**。C5 EXPR_CLOSURE 非单纯 fold 扩展，需先建 4 个前置层（fn 类型 / AST 节点 / typeck capture / codegen lowering），多波独立工程；建议本日转向更小 fold 扩展（EXPR_TERNARY / EXPR_IF / EXPR_BLOCK），closure 顺延至自举完成后或单开 RFC 立项。
 

@@ -22,11 +22,18 @@ export extern "C" function malloc(size: usize): *u8;
 export extern "C" function free(ptr: *u8): void;
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
 /** POSIX lseek — used by pure file-view path (size without fstat struct layout).
- * PLATFORM: POSIX — SEEK_SET=0 SEEK_END=2 on Linux/macOS product hosts. */
+ * PLATFORM: LINUX | MACOS — SEEK_SET=0 SEEK_END=2; off_t is 64-bit. */
+#[cfg(not(target_os = "windows"))]
 export extern "C" function lseek(fd: i32, offset: i64, whence: i32): i64;
 /** munmap for release when needs_munmap (legacy mmap views / cold seed path).
- * PLATFORM: POSIX — product pure read_file_view_impl no longer sets needs_munmap. */
+ * PLATFORM: LINUX | MACOS — product pure read_file_view_impl no longer sets needs_munmap. */
+#[cfg(not(target_os = "windows"))]
 export extern "C" function munmap(addr: *u8, len: usize): i32;
+/** MSVCRT 64-bit seek (w1525): plain `lseek` there takes and returns a 32-bit
+ * long, so a failed seek would read back as a large positive size.
+ * PLATFORM: WINDOWS — SEEK_SET=0 SEEK_END=2. */
+#[cfg(target_os = "windows")]
+export extern "C" function _lseeki64(fd: i32, offset: i64, whence: i32): i64;
 
 // Open-write flag constants (same numeric sources as rt_fs_open.x / std/fs/posix.x).
 // PLATFORM: LINUX | MACOS — O_CREAT/O_TRUNC differ; XLANG_O_BINARY=0 on POSIX.
@@ -45,12 +52,86 @@ export const RIO_O_CREAT: i32 = 512;
 #[cfg(target_os = "macos")]
 export const RIO_O_TRUNC: i32 = 1024;
 
+// w1525 (5.9): Windows values (MSVCRT _O_CREAT / _O_TRUNC). Before this the
+// .x did not type-check on Windows and the product fell back to the whole
+// host C seed. PLATFORM: WINDOWS.
+#[cfg(target_os = "windows")]
+export const RIO_O_CREAT: i32 = 256;
+#[cfg(target_os = "windows")]
+export const RIO_O_TRUNC: i32 = 512;
+
+// Binary-mode open flag. MSVCRT opens in text mode by default and turns CRLF
+// into LF on read, so the byte count would not match the file size; the
+// former seed added _O_BINARY on every open for that reason.
+// PLATFORM: LINUX | MACOS 0 (no such flag) / WINDOWS _O_BINARY 0x8000.
+#[cfg(not(target_os = "windows"))]
+export const RIO_O_BINARY: i32 = 0;
+#[cfg(target_os = "windows")]
+export const RIO_O_BINARY: i32 = 32768;
+
 /** See implementation for details. */
 export struct XlangRuntimeFileView {
   data: *u8;
   length: usize;
   needs_free: i32;
   needs_munmap: i32;
+}
+
+/**
+ * 64-bit seek on an open fd (w1525).
+ * @param fd i32 — open descriptor
+ * @param offset i64 — byte offset
+ * @param whence i32 — RIO_SEEK_SET or RIO_SEEK_END
+ * @return i64 — new position, or -1 on error
+ * PLATFORM: LINUX | MACOS lseek.
+ */
+#[cfg(not(target_os = "windows"))]
+function rio_lseek64(fd: i32, offset: i64, whence: i32): i64 {
+  unsafe {
+    return lseek(fd, offset, whence);
+  }
+}
+
+/**
+ * 64-bit seek on an open fd (w1525).
+ * @param fd i32 — open descriptor
+ * @param offset i64 — byte offset
+ * @param whence i32 — RIO_SEEK_SET or RIO_SEEK_END
+ * @return i64 — new position, or -1 on error
+ * PLATFORM: WINDOWS _lseeki64.
+ */
+#[cfg(target_os = "windows")]
+function rio_lseek64(fd: i32, offset: i64, whence: i32): i64 {
+  unsafe {
+    return _lseeki64(fd, offset, whence);
+  }
+}
+
+/**
+ * Unmap a legacy mmap view (w1525).
+ * @param addr *u8 — mapping start
+ * @param len usize — mapping length
+ * @return i32 — munmap result
+ * PLATFORM: LINUX | MACOS munmap.
+ */
+#[cfg(not(target_os = "windows"))]
+function rio_munmap(addr: *u8, len: usize): i32 {
+  unsafe {
+    return munmap(addr, len);
+  }
+}
+
+/**
+ * Unmap stub (w1525). No Windows path ever sets needs_munmap (views are
+ * malloc-backed), and MSVCRT has no munmap.
+ * @param addr *u8 — unused
+ * @param len usize — unused
+ * @return i32 — always 0
+ * PLATFORM: WINDOWS.
+ */
+#[cfg(target_os = "windows")]
+function rio_munmap(addr: *u8, len: usize): i32 {
+  return 0;
 }
 
 /**
@@ -62,7 +143,7 @@ export struct XlangRuntimeFileView {
  */
 #[no_mangle]
 export function xlang_fs_open_write_flags_impl(): i32 {
-  return RIO_O_WRONLY | RIO_O_CREAT | RIO_O_TRUNC;
+  return RIO_O_WRONLY | RIO_O_CREAT | RIO_O_TRUNC | RIO_O_BINARY;
 }
 
 /**
@@ -131,7 +212,7 @@ export function runtime_release_file_view_impl(view: *u8): void {
     if (v.data != 0 as *u8) {
       if (v.length > 0) {
         unsafe {
-          munmap(v.data, v.length);
+          rio_munmap(v.data, v.length);
         }
       }
     }
@@ -172,14 +253,14 @@ export function runtime_read_file_view_impl(path: *u8, out: *u8): i32 {
   v.needs_munmap = 0;
   let fd: i32 = 0;
   unsafe {
-    fd = open(path, RIO_O_RDONLY, 0);
+    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
   }
   if (fd < 0) {
     return -1;
   }
   let size_i: i64 = 0;
   unsafe {
-    size_i = lseek(fd, 0 as i64, RIO_SEEK_END);
+    size_i = rio_lseek64(fd, 0 as i64, RIO_SEEK_END);
   }
   if (size_i < 0) {
     unsafe {
@@ -195,7 +276,7 @@ export function runtime_read_file_view_impl(path: *u8, out: *u8): i32 {
     return 0;
   }
   unsafe {
-    let back: i64 = lseek(fd, 0 as i64, RIO_SEEK_SET);
+    let back: i64 = rio_lseek64(fd, 0 as i64, RIO_SEEK_SET);
     if (back < 0) {
       close(fd);
       return -1;
@@ -658,8 +739,8 @@ export function xlang_read_file_into_path_impl(path: *u8, buf: *u8, cap: i64): i
   }
   let fd: i32 = 0;
   unsafe {
-    // POSIX: O_RDONLY|XLANG_O_BINARY == 0
-    fd = open(path, 0, 0);
+    // O_RDONLY|O_BINARY (0 on POSIX, _O_BINARY on Windows)
+    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
   }
   if (fd < 0) {
     return -1;
@@ -691,8 +772,8 @@ export function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i
   }
   let fd: i32 = 0;
   unsafe {
-    // POSIX: O_RDONLY|XLANG_O_BINARY == 0
-    fd = open(path, 0, 0);
+    // O_RDONLY|O_BINARY (0 on POSIX, _O_BINARY on Windows)
+    fd = open(path, RIO_O_RDONLY | RIO_O_BINARY, 0);
   }
   if (fd < 0) {
     return -1;
@@ -716,4 +797,28 @@ export function std_sys_os_read_file_into_impl(path: *u8, buf: *u8, cap: i32): i
     close(fd);
   }
   return total;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * w1525 (5.9): moved here from the host C seed rest; returns 1, the value
+ * the former product rest returned. No product caller reads it. The ensure
+ * nm gate only checks the symbol exists.
+ * @return i32 — always 1
+ * PLATFORM: SHARED — pure asm; no seed rest, no host cc.
+ */
+#[no_mangle]
+export function runtime_io_abi_slice_marker(): i32 {
+  return 1;
+}
+
+/**
+ * w1525 anchor: proves the object was built from this .x alone (no seed rest).
+ * The ensure step and g05 refuse an object that lacks it.
+ * @return i32 — always 1525
+ * PLATFORM: SHARED — pure asm.
+ */
+#[no_mangle]
+export function runtime_io_abi_x_w1525_anchor(): i32 {
+  return 1525;
 }

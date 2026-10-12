@@ -158,32 +158,38 @@ export function compact(store: KvStore): i32 {
   return 0; // unreachable — typeck workaround
 }
 
-/** Exported function `compact_generation`.
- * Implements `compact_generation`.
- * @param store KvStore
- * @return u64
+/**
+ * Compaction generation of a store.
+ * @param store KvStore — open store; handle is forwarded
+ * @return i64 — generation in rax. Low 64 bits match the u64 from the store.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u64 return.
  */
-export function compact_generation(store: KvStore): u64 {
-  unsafe { return db_kv_compact_gen_c(store.handle); }
-  return 0 as u64; // unreachable — typeck workaround
+export function compact_generation(store: KvStore): i64 {
+  let g: u64 = 0;
+  unsafe { g = db_kv_compact_gen_c(store.handle); }
+  return g as i64;
 }
 
-/** Exported function `wal_bytes`.
- * Implements `wal_bytes`.
- * @param store KvStore
- * @return u64
+/**
+ * WAL byte count of a store.
+ * @param store KvStore — open store; handle is forwarded
+ * @return i64 — byte count in rax. Low 64 bits match the u64 from the store.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u64 return.
  */
-export function wal_bytes(store: KvStore): u64 {
-  unsafe { return db_kv_wal_bytes_c(store.handle); }
-  return 0 as u64; // unreachable — typeck workaround
+export function wal_bytes(store: KvStore): i64 {
+  let n: u64 = 0;
+  unsafe { n = db_kv_wal_bytes_c(store.handle); }
+  return n as i64;
 }
 
-/** Exported function `sst_level_count`.
- * Implements `sst_level_count`.
- * @param store KvStore
- * @return u32
+/**
+ * SST level count of a store.
+ * @param store KvStore — open store; handle is forwarded
+ * @return i32 — level count in eax. Low 32 bits match the u32 from the store.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this u32 return.
  */
-export function sst_level_count(store: KvStore): u32 {
-  unsafe { return db_kv_sst_level_count_c(store.handle); }
-  return 0 as u32; // unreachable — typeck workaround
+export function sst_level_count(store: KvStore): i32 {
+  let n: u32 = 0;
+  unsafe { n = db_kv_sst_level_count_c(store.handle); }
+  return n as i32;
 }

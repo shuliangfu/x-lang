@@ -141,9 +141,14 @@ build_harness() {
   fi
   $CC -c -I. -Iinclude -Isrc -Isrc/asm -Iseeds/parser_asm -o "$OUT/audit_x.o" "$OUT/audit_x_E.c" \
     2>"$OUT/audit_x_cc.err" || { cat "$OUT/audit_x_cc.err" >&2; return 1; }
-  $CC -c -I. -Iinclude -Isrc -Iseeds/parser_asm -o "$OUT/bridge.o" \
-    seeds/parser_asm_lex_step_bridge.from_x.c 2>"$OUT/bridge_cc.err" || {
-    cat "$OUT/bridge_cc.err" >&2; return 1; }
+  # 记253／9.1: seed emptied; pure-asm bridge (w1534)
+  # shellcheck source=scripts/g05_ensure_relink_prereqs.sh
+  . scripts/g05_relink_env.sh
+  . scripts/g05_ensure_relink_prereqs.sh
+  if ! g05_p9a_bridge_pure "$OUT/bridge.o"; then
+    echo "prove: P9a bridge pure-asm failed" >&2
+    return 1
+  fi
   $CC -c -I. -Iinclude -Isrc -o "$OUT/lexer_pin.o" seeds/lexer_gen.linux.x86_64.c \
     2>"$OUT/lexer_pin_cc.err" || { cat "$OUT/lexer_pin_cc.err" >&2; return 1; }
   $CC -c -I. -Iinclude -o "$OUT/leftover_kind.o" \

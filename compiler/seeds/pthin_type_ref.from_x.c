@@ -5,7 +5,7 @@
  * Body: seeds/parser_asm/parser_asm_type_ref_slice.inc
  * Types must match parser_asm_thin_c.from_x.c (layout-locked).
  *
- * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
+ * Hybrid P3b/P3c/P3d/P3e/P3g/P3h/P3i/P3j/P3k/P3l/P3m/P3n/P3o/P3p/P3q/P3r/P3s (XLANG_PTHIN_TYPE_REF_BODIES_FROM_X): portable kind / dyn /
  * vector-ident bodies, type-inst mangle, consume_qualified,
  * type_angle_close, and TYPE_DYN wrap dest-buffer come from
  * pthin_type_ref.x; this TU keeps slice trampolines plus arena parse.
@@ -26,11 +26,25 @@
  * (P3m) skips alloc_vector_type_ref C twin when alloc_x is present (missing
  * alloc keeps the C twin without dropping P3l). XLANG_PTHIN_TYPE_REF_SCALAR_FROM_X
  * (P3n) skips builtin scalar-token C twin when scalar_x is present (missing
- * scalar keeps the C twin without dropping P3m). TYPE_DYN / TYPE_FN writers
+ * scalar keeps the C twin without dropping P3m). XLANG_PTHIN_TYPE_REF_NAMED_FROM_X
+ * (P3o) skips dyn/impl peel + IDENT NAMED C twins when both peel_x and
+ * named_x are present (missing named keeps the C twins without dropping
+ * P3n). XLANG_PTHIN_TYPE_REF_GENERIC_FROM_X (P3p) skips IDENT generic
+ * `<T,U>` C loop when generic_x is present (missing generic keeps the
+ * C loop without dropping P3o). XLANG_PTHIN_TYPE_REF_IDENT_VEC_FROM_X
+ * (P3q) skips IDENT vector spelling consume C compositor when
+ * ident_vec_x is present (missing ident_vec keeps the C compositor
+ * without dropping P3p). XLANG_PTHIN_TYPE_REF_IMPL_FROM_X (P3r) skips
+ * parse_type_ref_impl C compositor when impl_x and ident_x are present
+ * (missing impl keeps the C compositor without dropping P3q; ptr shim
+ * still C — do not dest-buffer parse_type_ref). XLANG_PTHIN_TYPE_REF_POINTEE_FROM_X
+ * (P3s) skips alloc_pointee C twin when pointee_x is present (missing
+ * pointee keeps the C twin without dropping P3r; IDENT consume_qualified
+ * stays on the published C face). TYPE_DYN / TYPE_FN writers
  * pipeline_type_init_dyn_c / pipeline_type_init_fn_c live here
  * (consumer-wave; do not FORCE pabi mega). Mangle C twins live in
  * primary.inc (7-arg trampoline holds suf[64]). Cold: no
- * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR define, full .inc.
+ * BODIES/POSTFIX/PREFIX/FN/STAR/LINEAR/VEC/ALLOC_VEC/SCALAR/NAMED/GENERIC/IDENT_VEC/IMPL/POINTEE define, full .inc.
  */
 #include <stddef.h>
 #include <stdint.h>

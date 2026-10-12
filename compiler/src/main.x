@@ -113,17 +113,24 @@ export function driver_emit_ensure_default_lib_root(state: *DriverXEmitState): v
 export extern function driver_emit_copy_lib_roots_to_ctx(state: *DriverXEmitState, ctx: *PipelineDepCtx): void;
 
 /**
- * See implementation.
- * See implementation.
+ * Fill state with the driver defaults: asm backend on, both paths empty.
+ * state must not be null. path_buf and out_path_buf are each 512 bytes.
+ * The installed asm backend rejects returning this struct by value, so
+ * the caller owns the slot and this function copies into it.
+ * PLATFORM: SHARED.
  */
-export function driver_emit_state_default(): DriverXEmitState {
-  return {
+export function driver_emit_state_default(state: *DriverXEmitState): void {
+  let fresh: DriverXEmitState = {
     path_buf: [],
     path_len: 0,
     emit_extern_imports: 0,
     use_asm_backend: 1,
-    target_arch: 0
+    target_arch: 0,
+    out_path_buf: [],
+    out_path_len: 0
   };
+  // PLATFORM: SHARED — struct store through a pointer is an unsafe write.
+  unsafe { *state = fresh; }
 }
 
 /**
@@ -162,8 +169,8 @@ export extern function driver_argv_ensure_run_o(argc: i32, argv: *u8, out_argc: 
  * Fetching argv[i+1] clobbers arg_buf — call only after the flag matched.
  * PLATFORM: SHARED. */
 export extern function driver_compile_argv_next_is_value_c(argc: i32, argv: *u8, i: i32, arg_buf: *u8, arg_cap: i32): i32;
-/* Opt-in -lib-name slot for the X-pipeline emit lane (always-seed authority
- * in seeds/rt_emit_state.from_x.c; bare default when unset). PLATFORM: SHARED. */
+/* Opt-in -lib-name slot for the X-pipeline emit lane (pure-asm body
+ * in src/runtime/rt_emit_state.x since w1493; bare default when unset). PLATFORM: SHARED. */
 export extern "C" function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void;
 /* See implementation. */
 export extern function driver_build_build_x(): i32;
@@ -757,7 +764,8 @@ export function main_run_compiler_x_path_impl(argc: i32, argv: *u8): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
 
-    let state: DriverXEmitState = driver_emit_state_default();
+    let state: DriverXEmitState = { path_buf: [], path_len: 0, emit_extern_imports: 0, use_asm_backend: 1, target_arch: 0, out_path_buf: [], out_path_len: 0 };
+    driver_emit_state_default(&state);
     let r: i32 = driver_argv_parse_x_path(argc, argv, &state);
     if (r == 1) {
       return run_compiler_c_impl(argc, argv);
@@ -955,7 +963,8 @@ export function main_entry(argc: i32, argv: *u8): i32 {
         return 1;
       }
     }
-    let state: DriverXEmitState = driver_emit_state_default();
+    let state: DriverXEmitState = { path_buf: [], path_len: 0, emit_extern_imports: 0, use_asm_backend: 1, target_arch: 0, out_path_buf: [], out_path_len: 0 };
+    driver_emit_state_default(&state);
     if (driver_argv_parse_x(argc, argv, &state) != 0) {
       /* See implementation. */
       /* See implementation. */

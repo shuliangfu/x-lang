@@ -557,14 +557,18 @@ export function exit(code: i32): void {
   win32.win32_exit_process(code);
 }
 
-/** Exported function `mmap`.
- * Implements `mmap`.
- * @param path *u8
- * @param min_size usize
- * @param out_size *usize
- * @return *u8
+/**
+ * Map a file and return the mapping address.
+ * mmap_rw already returns *u8. A second *u8 return in this file does not asm-emit.
+ * The address stays in rax.
+ * @param path *u8 — file path
+ * @param min_size usize — minimum mapping size
+ * @param out_size *usize — written mapping length
+ * @return i64 — mapping address bits
+ * PLATFORM: SHARED
  */
 #[cfg(not(freestanding))]
-export function mmap(path: *u8, min_size: usize, out_size: *usize): *u8 {
-  return mmap_rw(path, min_size, out_size);
+export function mmap(path: *u8, min_size: usize, out_size: *usize): i64 {
+  let p: *u8 = mmap_rw(path, min_size, out_size);
+  return p as i64;
 }

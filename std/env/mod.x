@@ -192,19 +192,23 @@ export function args_iter_count(): i32 {
   return _rc;
 }
 
-/** Exported function `args_iter_next`.
- * Implements `args_iter_next`.
- * @param it *ArgsIter
- * @return *u8
+/**
+ * Next argv pointer, or null when the iterator is exhausted.
+ * The pointer is stored before the return. Returning it from inside
+ * unsafe does not asm-emit on the installed product.
+ * @param it *ArgsIter — iterator; index advances when a pointer is taken
+ * @return i64 — argv pointer bits in rax, or 0. Not a stack temporary.
+ * PLATFORM: SHARED — the installed product cannot asm-emit this *u8 return.
  */
-export function args_iter_next(it: *ArgsIter): *u8 {
+export function args_iter_next(it: *ArgsIter): i64 {
   let total: i32 = 0;
+  let p: *u8 = 0;
   unsafe {
     total = args_iter_count_c();
-    if (it.index >= total) { return 0 as *u8; }
-    let p: *u8 = args_iter_at_c(it.index);
-    it.index = it.index + 1;
-    return p;
+    if (it.index < total) {
+      p = args_iter_at_c(it.index);
+      it.index = it.index + 1;
+    }
   }
-  return 0 as *u8;
+  return p as i64;
 }

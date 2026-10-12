@@ -2945,3 +2945,27 @@ export function simd_enc_try_hw_vector_select_rbp(elf_ctx: *u8, slot_off_mask: i
   }
   return 0 - 1;
 }
+
+/**
+ * Slice presence marker for this translation unit.
+ * w1525 (5.9): moved here from the host C seed rest; returns 0, the value
+ * the former product rest returned. No product caller reads it. The ensure
+ * nm gate only checks the symbol exists.
+ * @return i32 — always 0
+ * PLATFORM: SHARED — pure asm; no seed rest, no host cc.
+ */
+#[no_mangle]
+export function simd_enc_slice_marker(): i32 {
+  return 0;
+}
+
+/**
+ * w1525 anchor: proves the object was built from this .x alone (no seed rest).
+ * The ensure step and g05 refuse an object that lacks it.
+ * @return i32 — always 1525
+ * PLATFORM: SHARED — pure asm.
+ */
+#[no_mangle]
+export function simd_enc_x_w1525_anchor(): i32 {
+  return 1525;
+}

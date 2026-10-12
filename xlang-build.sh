@@ -337,7 +337,7 @@ case "$TARGET" in
   bc-inventory|bc-host-cc|bc-host-cc-inventory|bc-residual)
     # G.7 single body: compiler/scripts/bc_host_cc_product_inventory.sh
     # Freezes product residual C that still need host-cc (pipeline_glue/ast_pool/…).
-    # Map: analysis/C迁移追踪.md §8.3 · does NOT compile · not pin lift.
+    # Map: analysis/终局待办.md · does NOT compile · not pin lift.
     # Usage:
     #   ./xbuild bc-inventory
     #   ./xbuild bc-inventory --check
@@ -747,7 +747,7 @@ g05 产品链（wave733–735 · 11.1.6；产品 link 零 make）:
   bc-inventory / bc-host-cc            BC 轨 · 阶段 8.3 产品 residual C 库存（wave963）
   bc-inventory --check                 冻结 glue/ast_pool/桩面；8.3.9 孤儿须 absent
                                        体 = bc_host_cc_product_inventory.sh
-                                       图 = analysis/C迁移追踪.md §8.3
+                                       图 = analysis/终局待办.md
   l2-matrix / product-matrix           日常 L2 产品矩阵（wave299 · G.7 单权威）
                                        rv42／opt102／hello0／si0／f32；**捕获**预期非 0
                                        （return-value=42 是绿，禁 set -e 中途打断）

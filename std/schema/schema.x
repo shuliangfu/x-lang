@@ -133,7 +133,10 @@ extern function json_parse_number_c(ptr: *u8, len: i32, out_val: *f64, consumed:
 extern function json_parse_bool_c(ptr: *u8, len: i32, out: *i32, consumed: *i32): i32;
 extern function json_parse_null_c(ptr: *u8, len: i32, consumed: *i32): i32;
 
-extern function parse_row(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
+/* csv.x also exports parse_row, but that name is not a kept global.
+ * The stable face is csv_parse_row_c, which parse_row forwards to.
+ */
+extern function csv_parse_row_c(ptr: *u8, len: i32, offset: i32, field_starts: *i32,
   field_lens: *i32, max_fields: i32, out_count: *i32): i32;
 
 extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
@@ -857,7 +860,7 @@ export function schema_decode_csv_row_c(handle: i64, row: *u8, row_len: i32, off
   let cl: i32 = 0;
   if (sch == 0 || row == 0) { return SCH_ERR_NULL; }
   sch_clear_values(sch);
-  unsafe { parse_row(row, row_len, offset, &starts[0], &lens[0], SCH_MAX_FIELDS, &count); }
+  unsafe { csv_parse_row_c(row, row_len, offset, &starts[0], &lens[0], SCH_MAX_FIELDS, &count); }
   if (count <= 0) {
     sch_set_error(sch, 0, &SCH_LIT_CSV_PARSE_ERROR[0]);
     return SCH_ERR_INVALID;
@@ -1086,7 +1089,7 @@ export function schema_smoke_c(): i32 {
   if (schema_get_i32_c(sch, &SCH_LIT_AGE[0], 3, &age) != SCH_OK || age != 25) { return 13; }
   if (schema_get_bool_c(sch, &SCH_LIT_ACTIVE[0], 6, &active) != SCH_OK || active != 0) { return 14; }
   let _u_rc_17: i32 = 0;
-  unsafe { _u_rc_17 = parse_row(csv, csv_len, 0, &starts[0], &lens[0], 4, &count); }
+  unsafe { _u_rc_17 = csv_parse_row_c(csv, csv_len, 0, &starts[0], &lens[0], 4, &count); }
   if (_u_rc_17 < 0) { return 15; }
   if (count != 3) { return 15; }
   if (schema_map_columns_c(sch, csv, &starts[0], &lens[0], count) != SCH_OK) { return 16; }

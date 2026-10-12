@@ -11,30 +11,48 @@ const simd = import("std.simd.builtin");
 function main(): i32 {
   let a: Vec4f = [1.0, 2.0, 3.0, 4.0];
   let b: Vec4f = [1.0, 1.0, 1.0, 1.0];
-  let s: Vec4f = simd.add_f32x4(a, b);
+  let s: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.add_f32x4(a, b, &s[0]) != 0) {
+    return 1;
+  }
   if (s[0] < 1.99 || s[0] > 2.01) {
     return 1;
   }
-  let p: Vec4f = simd.mul_f32x4(s, b);
+  let p: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.mul_f32x4(s, b, &p[0]) != 0) {
+    return 2;
+  }
   if (p[0] < 1.99 || p[0] > 2.01) {
     return 2;
   }
-  let d: Vec4f = simd.sub_f32x4(p, b);
+  let d: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.sub_f32x4(p, b, &d[0]) != 0) {
+    return 3;
+  }
   if (d[0] < 0.99 || d[0] > 1.01) {
     return 3;
   }
   let fa: Vec4f = [1.0, 1.0, 1.0, 1.0];
   let fb: Vec4f = [2.0, 2.0, 2.0, 2.0];
   let fc: Vec4f = [3.0, 3.0, 3.0, 3.0];
-  let fr: Vec4f = simd.fma_f32x4(fa, fb, fc);
+  let fr: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.fma_f32x4(fa, fb, fc, &fr[0]) != 0) {
+    return 4;
+  }
   if (fr[0] < 6.99 || fr[0] > 7.01) {
     return 4;
   }
-  let hs: f32 = simd.hsum_f32x4(a);
+  let hs: f32 = 0.0;
+  if (simd.hsum_f32x4(a, &hs) != 0) {
+    return 5;
+  }
   if (hs < 9.99 || hs > 10.01) {
     return 5;
   }
-  let dt: f32 = simd.dot_f32x4(a, b);
+  let dt: f32 = 0.0;
+  if (simd.dot_f32x4(a, b, &dt) != 0) {
+    return 6;
+  }
   if (dt < 9.99 || dt > 10.01) {
     return 6;
   }

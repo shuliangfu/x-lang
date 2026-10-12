@@ -176,6 +176,8 @@ size_t driver_module_static_size(void);
  */
 uint8_t *driver_preamble_io_net_lines_raw(void);
 uint8_t *driver_preamble_fs_path_lines_raw(void);
+int32_t *driver_preamble_io_net_lines_n_raw(void);
+int32_t *driver_preamble_fs_path_lines_n_raw(void);
 uint8_t *driver_preamble_io_net_line_at(int32_t i);
 int32_t driver_preamble_io_net_line_count(void);
 uint8_t *driver_preamble_fs_path_line_at(int32_t i);

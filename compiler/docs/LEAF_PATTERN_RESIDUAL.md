@@ -8,7 +8,7 @@
 > of `compiler/Makefile` (11.3.1). Machine check:
 > `compiler/scripts/leaf_pattern_residual.sh --check` ·
 > `./xbuild leaf-patterns --check`.  
-> **Status map:** `analysis/C迁移追踪.md` §11.3 / §11.3.1 (status only).  
+> **Status map:** `analysis/终局待办.md`（阶段 D）.  
 > **Wave rows:** `analysis/自举进度.md` only.  
 > **PLATFORM: SHARED** — residual classes are portable; ABI / UNAME recipe bodies
 > stay in Makefile / mk until each class is swallowed by a named shell body.
@@ -687,8 +687,8 @@ Family: R1_EXTRA_CFLAGS_OBJS (Makefile list authority)
   runtime_sqlite_glue.o                ← seeds/runtime_sqlite_glue.from_x.c
                                          + -DXLANG_DB_USE_SQLITE3
   runtime_sqlite_glue_stub.o           ← seeds/runtime_sqlite_glue.from_x.c (no -D)
-  src/asm/parser_asm_parse_expr_link.o ← seeds/parser_asm_parse_expr_link.from_x.c
-                                         + $(PARSER_ASM_LINK_ALIAS_CFLAGS)
+  src/asm/parser_asm_parse_expr_link.o ← src/asm/parser_asm_parse_expr_link.x
+                                         (w1533: C seed deleted; g05 pure asm, no host cc)
 
 Body (G.7 same ensure_host_cc_seed_o.sh):
   scripts/ensure_host_cc_seed_o.sh one OUT SEED [extras...]
@@ -1517,7 +1517,7 @@ After (wave776):
 
 ## References
 
-- `analysis/C迁移追踪.md` §11.3 · §11.3.1  
+- `analysis/终局待办.md`  
 - `compiler/docs/BUILD_DAG.md` §5 residual make graph  
 - `compiler/docs/PLATFORM_LINKER.md` (R6 / UNAME leaf cross-ref)  
 - `compiler/scripts/driver_seed_obj_catalog.sh` (list authority)  

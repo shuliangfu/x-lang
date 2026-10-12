@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1142: one translation unit exits 139. Darwin compiles five pieces.
+// Ident helpers stay with pack. Prep calls sit in unsafe so the wrap
+// piece can declare the helper as an extern. PLATFORM: SHARED.
+
 // pthin_simd.x — G-02f-288 P7 parser thin simd product bodies.
 //
 // 7.2.1 P7b Route C productize (2026-09-13): after P3b type_ref, simd.inc
@@ -120,6 +124,7 @@ const EXPR_CALL: i32 = 48;
  * @param want_len i32 — required spelling length
  * @return i32 — 1 if data is live, ident_len==want_len, and the span fits
  */
+#[no_mangle]
 function parser_asm_simd_ident_span_ok(data: *u8, length: usize, token_start: usize, ident_len: i32, want_len: i32): i32 {
   if (data == 0 as *u8 || ident_len != want_len || ident_len <= 0) {
     return 0;
@@ -137,6 +142,7 @@ function parser_asm_simd_ident_span_ok(data: *u8, length: usize, token_start: us
  * @param i i32 — byte offset within the IDENT
  * @return u8 — data[token_start + i]
  */
+#[no_mangle]
 function parser_asm_simd_ident_byte(data: *u8, token_start: usize, i: i32): u8 {
   let c: u8 = 0;
   unsafe {
@@ -266,6 +272,7 @@ export function parser_asm_simd_callee_name_fill_c(is_shuffle: i32, out: *u8): i
  * @return i32 — new expr ref, or 0 on null/alloc fail
  * PLATFORM: SHARED — P7c helper. Not a second wrap authority.
  */
+#[no_mangle]
 function skip_simd_wrap_prep(arena: *u8, kind: i32): i32 {
   let ref: i32 = 0;
   if (arena == 0 as *u8) {
@@ -312,14 +319,21 @@ export function parser_asm_simd_call_wrap_into_c(arena: *u8, name: *u8, nlen: i3
   if (n < 0) {
     n = 0;
   }
-  callee_ref = skip_simd_wrap_prep(arena, EXPR_VAR);
+  // Same-file call is legal here. The Darwin splitter compiles this
+  // function alone and declares skip_simd_wrap_prep as an extern, and
+  // an extern call must sit in unsafe. Semantics match the direct call.
+  unsafe {
+    callee_ref = skip_simd_wrap_prep(arena, EXPR_VAR);
+  }
   if (callee_ref == 0) {
     return 0;
   }
   unsafe {
     pipeline_expr_set_var_name(arena, callee_ref, name, n);
   }
-  call_ref = skip_simd_wrap_prep(arena, EXPR_CALL);
+  unsafe {
+    call_ref = skip_simd_wrap_prep(arena, EXPR_CALL);
+  }
   if (call_ref == 0) {
     return 0;
   }

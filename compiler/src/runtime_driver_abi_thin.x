@@ -192,6 +192,12 @@ export extern "C" function driver_preamble_io_net_lines_raw(): *u8;
 /** Always-seed Cap-giant-string data residual: address of driver_preamble_fs_path_lines[].
  * PLATFORM: SHARED — same pattern as io_net_lines_raw. */
 export extern "C" function driver_preamble_fs_path_lines_raw(): *u8;
+/** Always-seed residual: address of driver_preamble_io_net_lines_n (rt_preamble authority).
+ * PLATFORM: SHARED — pure thin bounds; no hardcoded N. */
+export extern "C" function driver_preamble_io_net_lines_n_raw(): *i32;
+/** Always-seed residual: address of driver_preamble_fs_path_lines_n (rt_preamble authority).
+ * PLATFORM: SHARED — pure thin bounds; no hardcoded N. */
+export extern "C" function driver_preamble_fs_path_lines_n_raw(): *i32;
 /** Always-seed Cap-global-bss data residual: address of driver_arena_static[] (rt_arena_buf TU).
  * Wave37 pure slot/size wraps this; pure does not own the 128MiB array body.
  * PLATFORM: SHARED — base address only. */
@@ -221,8 +227,13 @@ export extern "C" function unlink(path: *u8): i32;
 // Authority lives in this thin TU under PREFER hybrid; cold seed keeps C static BSS.
 // Use i32[1] so &g[0] is a stable *i32 (scalar let address form is less portable in -E).
 // nostdlib: plain BSS (not TLS) — see seed comment on large_stack_thread flag.
+// LSP collector state (runtime_lsp_glue owner); hard-diag counter skips collect mode.
+export extern "C" function lsp_diag_get_enabled(): i32;
 let g_driver_check_only_flag: i32[1] = [0];
 let g_driver_check_diag_emitted_flag: i32[1] = [0];
+// Count of hard typeck diagnostics printed to the user (stderr / JSON).
+// Process exit must be non-zero when this is > 0 (see main_entry).
+let g_driver_typeck_hard_diag_n: i32[1] = [0];
 let g_driver_freestanding_flag: i32[1] = [0];
 let g_driver_sanitize_address_flag: i32[1] = [0];
 let g_driver_fmt_check_only_flag: i32[1] = [0];
@@ -248,8 +259,14 @@ let g_driver_path_last_preprocess_len: i64[1] = [0];
 // phase 0=parse 1=typeck 2=codegen. Hybrid thin owns acc_ms/start_sec/active cells;
 // cold seed keeps C static BSS. flush Cap (diag_reportf floats) reads via
 // driver_compile_phase_acc_ms_get + driver_compile_phase_timing_clear.
-let g_compile_phase_acc_ms: f64[3] = [0.0, 0.0, 0.0];
-let g_compile_phase_start_sec: f64[3] = [0.0, 0.0, 0.0];
+// PLATFORM: SHARED — the pinned stage0 egg cannot prepare an f64 array modlet.
+// Scalar cells are the same zeros. Indexed loads branch on the phase.
+let g_compile_phase_acc_ms_0: f64 = 0.0;
+let g_compile_phase_acc_ms_1: f64 = 0.0;
+let g_compile_phase_acc_ms_2: f64 = 0.0;
+let g_compile_phase_start_sec_0: f64 = 0.0;
+let g_compile_phase_start_sec_1: f64 = 0.0;
+let g_compile_phase_start_sec_2: f64 = 0.0;
 let g_compile_phase_active: i32[3] = [0, 0, 0];
 
 // See implementation.
@@ -870,6 +887,42 @@ export function driver_check_diag_emitted_note(): void {
   }
 }
 
+/**
+ * Record one hard typeck diagnostic before it is reported to the user.
+ * Called by the .x report sites (typeck.x typeck_report_hard_t001,
+ * runtime_driver_diagnostic_thin.x driver_diag_report_hard_t001 / XT001).
+ * LSP collect mode keeps diagnostics in the collector, so it is not counted.
+ * Soft diagnostics suppressed during exploratory dep typeck never reach it.
+ * @return void
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_typeck_hard_diag_note(): void {
+  unsafe {
+    if (lsp_diag_get_enabled() != 0) {
+      return;
+    }
+    let p: *i32 = &g_driver_typeck_hard_diag_n[0];
+    if (p[0] < 2147483647) {
+      p[0] = p[0] + 1;
+    }
+  }
+}
+
+/**
+ * Number of hard typeck diagnostics printed so far in this process.
+ * @return i32 — 0 when none
+ * PLATFORM: SHARED.
+ */
+#[no_mangle]
+export function driver_typeck_hard_diag_count(): i32 {
+  unsafe {
+    let p: *i32 = &g_driver_typeck_hard_diag_n[0];
+    return p[0];
+  }
+  return 0;
+}
+
 /** Exported function `driver_check_diag_emitted_reset`.
  * Implements `driver_check_diag_emitted_reset`.
  * @return void
@@ -1104,7 +1157,8 @@ export function driver_compile_phase_index_ok(phase: i32): i32 {
  */
 #[no_mangle]
 export function driver_compile_phase_timing_enabled(): i32 {
-  return driver_env_nonnull("XLANG_COMPILE_PHASE_TIMING");
+  // Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off).
+  return 0;
 }
 
 /** Load accumulated phase ms from thin BSS (0 if phase out of range).
@@ -1114,16 +1168,22 @@ export function driver_compile_phase_acc_ms_get(phase: i32): f64 {
   if (driver_compile_phase_index_ok(phase) == 0) {
     return 0.0;
   }
-  return g_compile_phase_acc_ms[phase];
+  if (phase == 0) {
+    return g_compile_phase_acc_ms_0;
+  }
+  if (phase == 1) {
+    return g_compile_phase_acc_ms_1;
+  }
+  return g_compile_phase_acc_ms_2;
 }
 
 /** Clear phase timing accumulators and active flags (same cells as cold seed memset).
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C twin; FROM_X rest flush Cap uses this. */
 #[no_mangle]
 export function driver_compile_phase_timing_clear(): void {
-  g_compile_phase_acc_ms[0] = 0.0;
-  g_compile_phase_acc_ms[1] = 0.0;
-  g_compile_phase_acc_ms[2] = 0.0;
+  g_compile_phase_acc_ms_0 = 0.0;
+  g_compile_phase_acc_ms_1 = 0.0;
+  g_compile_phase_acc_ms_2 = 0.0;
   g_compile_phase_active[0] = 0;
   g_compile_phase_active[1] = 0;
   g_compile_phase_active[2] = 0;
@@ -1134,14 +1194,8 @@ export function driver_compile_phase_timing_clear(): void {
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_begin(phase: i32): void {
-  if (driver_compile_phase_timing_enabled() == 0) {
-    return;
-  }
-  if (driver_compile_phase_index_ok(phase) == 0) {
-    return;
-  }
-  g_compile_phase_start_sec[phase] = compile_phase_now_sec();
-  g_compile_phase_active[phase] = 1;
+  // Class AS: Cap phase timing begin retired.
+  let _p: i32 = phase;
 }
 
 /** Accumulate phase duration into acc_ms (ms) and clear active.
@@ -1149,20 +1203,8 @@ export function driver_compile_phase_timing_begin(phase: i32): void {
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps C _impl; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_end(phase: i32): void {
-  if (driver_compile_phase_timing_enabled() == 0) {
-    return;
-  }
-  if (driver_compile_phase_index_ok(phase) == 0) {
-    return;
-  }
-  if (g_compile_phase_active[phase] == 0) {
-    return;
-  }
-  let now: f64 = compile_phase_now_sec();
-  // PLATFORM: SHARED — use (1000 as f64); decimal f64 lit 1000.0 lowers to 0.0 under -E.
-  g_compile_phase_acc_ms[phase] =
-    g_compile_phase_acc_ms[phase] + (now - g_compile_phase_start_sec[phase]) * (1000 as f64);
-  g_compile_phase_active[phase] = 0;
+  // Class AS: Cap phase timing end retired.
+  let _p: i32 = phase;
 }
 
 /** Print compile phase timing note then clear thin BSS.
@@ -1171,26 +1213,7 @@ export function driver_compile_phase_timing_end(phase: i32): void {
  * PLATFORM: SHARED — pure authority in thin; cold seed keeps integer-ms twin; FROM_X no pure-dup. */
 #[no_mangle]
 export function driver_compile_phase_timing_flush(): void {
-  if (driver_compile_phase_timing_enabled() == 0) {
-    return;
-  }
-  unsafe {
-    let a0: i32 = driver_compile_phase_acc_ms_get(0) as i32;
-    let a1: i32 = driver_compile_phase_acc_ms_get(1) as i32;
-    let a2: i32 = driver_compile_phase_acc_ms_get(2) as i32;
-    let total: i32 = a0 + a1 + a2;
-    let msg: u8[192] = [];
-    let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "compile phase timing: parse_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, a0);
-    at = driver_diag_append_cstr(&msg[0], 192, at, " typeck_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, a1);
-    at = driver_diag_append_cstr(&msg[0], 192, at, " codegen_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, a2);
-    at = driver_diag_append_cstr(&msg[0], 192, at, " total_ms=");
-    at = driver_diag_append_i32(&msg[0], 192, at, total);
-    diag_report(0 as *u8, 0, 0, "note", &msg[0], 0 as *u8);
-  }
-  driver_compile_phase_timing_clear();
+  // Class AS: Cap XLANG_COMPILE_PHASE_TIMING flush note retired.
 }
 
 // ---- G-02f-345：ascii_toupper / typeck_skip / sanitize_get ----
@@ -1389,7 +1412,8 @@ export function driver_set_pipeline_entry_source_len(len: i64): void {
  */
 #[no_mangle]
 export function compile_phase_timing_enabled(): i32 {
-  return driver_env_nonnull("XLANG_COMPILE_PHASE_TIMING");
+  // Class AS: Cap XLANG_COMPILE_PHASE_TIMING retired (always off).
+  return 0;
 }
 
 /** Map target OS kind (1..4) to a static define literal pointer (OS_LINUX/…).
@@ -1732,7 +1756,8 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
 }
 
 /** Load pipeline entry source length from thin BSS; optionally emit a debug note.
- * Wave13 pure: when XLANG_DEBUG_PIPE is truthy (non-empty and not '0'), assemble
+ * Wave13 pure / Class AI: length cell only — DEBUG_PIPE note retired.
+ * Was: when XLANG_DEBUG_PIPE truthy, assemble
  * "pipeline debug: entry_source_len_global=<len>" via driver_diag_append_cstr +
  * driver_abi_append_i64 + diag_report (no va_list diag_reportf). Env gate reuses
  * driver_env_flag_truthy (same shape as driver_diag_env_debug_pipe / G.7).
@@ -1740,15 +1765,9 @@ export function driver_run_on_large_stack_pthread(fn: *u8, arg: *u8): void {
  * PLATFORM: SHARED — hybrid pure authority for the length cell + debug note. */
 #[no_mangle]
 export function driver_pipeline_entry_source_len_load_and_maybe_debug(): i64 {
+  // Class AI: XLANG_DEBUG_PIPE entry_source_len note retired (was append+diag_report).
   unsafe {
-    let len: i64 = g_pipeline_entry_source_len[0];
-    if (driver_env_flag_truthy("XLANG_DEBUG_PIPE") != 0) {
-      let msg: u8[96] = [0];
-      let at: i32 = driver_diag_append_cstr(&msg[0], 96, 0, "pipeline debug: entry_source_len_global=");
-      at = driver_abi_append_i64(&msg[0], 96, at, len);
-      diag_report(0 as *u8, 0, 0, "note", &msg[0], 0 as *u8);
-    }
-    return len;
+    return g_pipeline_entry_source_len[0];
   }
   return 0;
 }
@@ -2805,43 +2824,34 @@ export function driver_pipeline_dep_ctx_set_skip_codegen_dep_0(ctx: *u8, v: i32)
 }
 
 // ---- Wave20 Cap residual pure: rt_preamble line_at/count bridge (PLATFORM: SHARED) ----
-// Cap-giant-string data authority stays in seeds/rt_preamble.from_x.c
-//   (driver_preamble_io_net_lines[] / fs_path_lines[] + _n). .x cannot host giant string tables.
-// Hybrid pure owns the public line_at/count surface used by rt_preamble.x write_* loops.
-// Always-seed residual: driver_preamble_*_lines_raw() = base of pointer table (LP64 *u8 slots).
+// Cap-giant-string table slots live in rt_preamble.x (w1495); counts
+// driver_preamble_*_lines_n are the single authority beside those arrays
+// (w2060). Hybrid pure owns the public line_at/count surface used by
+// rt_preamble.x write_* loops.
+// Always-seed residual: *_lines_raw() = table base; *_lines_n_raw() = &count.
 // Index via G.7 xlang_ptr_slot_get (same authority as defines_set_at / work_p).
-// Counts are fixed to match sizeof(...)/sizeof(*...) in rt_preamble.from_x.c
-// (wave29 re-count: io_net=224 / fs_path=21; was 219 after preamble rows grew).
-// When adding/removing a table row, update N here in the same commit as the C table.
-// Cold seed keeps C line_at/count twins (uses *_lines_n from sizeof); FROM_X rest drops pure-dup (H↓).
-// Wave22 pure: driver_preamble_fputs (g05 FILE* cast helper). Still seed: giant string text tables.
-
-/**
- * Fixed io_net preamble line count (must match driver_preamble_io_net_lines_n).
- * @return i32 — 224 (wave29; sizeof table / sizeof slot)
- * PLATFORM: SHARED — wave20 pure; wave29 N sync with seeds/rt_preamble.from_x.c.
- */
-function driver_abi_preamble_io_net_n(): i32 {
-  return 224;
-}
-
-/** Fixed fs_path preamble line count (must match driver_preamble_fs_path_lines_n).
- * PLATFORM: SHARED — wave20 pure; keep in sync with seeds/rt_preamble.from_x.c. */
-function driver_abi_preamble_fs_path_n(): i32 {
-  return 21;
-}
+// Cold seed keeps C line_at/count twins (extern *_lines_n); FROM_X rest drops
+// pure-dup (H↓). Wave22 pure: driver_preamble_fputs. No hardcoded 224/218/21.
 
 /** Return the i-th io_net Cap-giant-string preamble line (C string as *u8).
  * Out-of-range or negative i → null. Null table base → null.
- * Wave20 pure: bounds + G.7 xlang_ptr_slot_get on always-seed raw base.
+ * Wave20 pure: bounds from rt_preamble *_lines_n + G.7 xlang_ptr_slot_get.
  * extern calls (raw + ptr_slot) require unsafe (same as wave16 work_p_get).
  * PLATFORM: SHARED — pure authority under PREFER hybrid; cold seed keeps C index. */
 #[no_mangle]
 export function driver_preamble_io_net_line_at(i: i32): *u8 {
+  let n: i32 = 0;
   if (i < 0) {
     return 0 as *u8;
   }
-  if (i >= driver_abi_preamble_io_net_n()) {
+  unsafe {
+    let np: *i32 = driver_preamble_io_net_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0 as *u8;
+    }
+    n = *np;
+  }
+  if (i >= n) {
     return 0 as *u8;
   }
   unsafe {
@@ -2855,25 +2865,40 @@ export function driver_preamble_io_net_line_at(i: i32): *u8 {
 }
 
 /**
- * Number of io_net Cap-giant-string preamble lines (224).
- * @return i32 — fixed N; must match seeds/rt_preamble.from_x.c table size
- * Wave20 pure; wave29 N sync. PLATFORM: SHARED.
+ * Number of io_net Cap-giant-string preamble lines.
+ * @return i32 — authority driver_preamble_io_net_lines_n from rt_preamble.x
+ * PLATFORM: SHARED.
  */
 #[no_mangle]
 export function driver_preamble_io_net_line_count(): i32 {
-  return driver_abi_preamble_io_net_n();
+  unsafe {
+    let np: *i32 = driver_preamble_io_net_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0;
+    }
+    return *np;
+  }
+  return 0;
 }
 
 /** Return the i-th fs_path Cap-giant-string preamble line (C string as *u8).
  * Out-of-range or negative i → null. Null table base → null.
- * Wave20 pure: bounds + G.7 xlang_ptr_slot_get on always-seed raw base.
+ * Wave20 pure: bounds from rt_preamble *_lines_n + G.7 xlang_ptr_slot_get.
  * extern calls require unsafe. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_preamble_fs_path_line_at(i: i32): *u8 {
+  let n: i32 = 0;
   if (i < 0) {
     return 0 as *u8;
   }
-  if (i >= driver_abi_preamble_fs_path_n()) {
+  unsafe {
+    let np: *i32 = driver_preamble_fs_path_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0 as *u8;
+    }
+    n = *np;
+  }
+  if (i >= n) {
     return 0 as *u8;
   }
   unsafe {
@@ -2886,11 +2911,18 @@ export function driver_preamble_fs_path_line_at(i: i32): *u8 {
   return 0 as *u8;
 }
 
-/** Number of fs_path Cap-giant-string preamble lines (21).
- * Wave20 pure. PLATFORM: SHARED. */
+/** Number of fs_path Cap-giant-string preamble lines.
+ * Authority driver_preamble_fs_path_lines_n from rt_preamble.x. PLATFORM: SHARED. */
 #[no_mangle]
 export function driver_preamble_fs_path_line_count(): i32 {
-  return driver_abi_preamble_fs_path_n();
+  unsafe {
+    let np: *i32 = driver_preamble_fs_path_lines_n_raw();
+    if (np == 0 as *i32) {
+      return 0;
+    }
+    return *np;
+  }
+  return 0;
 }
 
 // ---- Wave21 Cap residual pure: driver_entry_fmt_argv_slot (PLATFORM: SHARED) ----
@@ -4059,22 +4091,10 @@ export function driver_parsed_apply_preamble_skip(dep_paths: *u8, n_deps: i32): 
  */
 #[no_mangle]
 export function driver_parsed_maybe_dump_prep(input_path: *u8, src: *u8, src_len: usize): void {
-  unsafe {
-    if (link_abi_getenv("XLANG_DUMP_PREP") == 0 as *u8) {
-      return;
-    }
-    if (src == 0 as *u8) {
-      return;
-    }
-    // runtime_io_abi: 0 = success (matches cold seed twin).
-    if (xlang_write_path_bytes("/tmp/xlang_prep_entry.bin", src, src_len as i64) == 0) {
-      let msg: u8[192] = [];
-      let at: i32 = driver_diag_append_cstr(&msg[0], 192, 0, "dumped prep entry (");
-      at = driver_abi_append_i64(&msg[0], 192, at, src_len as i64);
-      at = driver_diag_append_cstr(&msg[0], 192, at, " bytes) to /tmp/xlang_prep_entry.bin");
-      diag_report(input_path, 0, 0, "note", &msg[0], 0 as *u8);
-    }
-  }
+  // Class AT: Cap XLANG_DUMP_PREP retired (always no-op).
+  let _ip: *u8 = input_path;
+  let _s: *u8 = src;
+  let _n: usize = src_len;
 }
 
 // ---- Wave32 Cap residual pure: parsed ABI field accessors + try_c_after_pp ----

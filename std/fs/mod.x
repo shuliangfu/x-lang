@@ -544,25 +544,43 @@ export function munmap(ptr: *u8, size: usize): i32 { return fs_munmap_c(ptr, siz
  * @return void
  */
 export function from_fd(fd: i32, _unused: i32): usize { return (fd as usize); }
-/** Exported function `read_fd`.
- * Read path helper `read_fd`.
- * @param fd i32
- * @param ptr *u8
- * @param len usize
- * @return i32
+/**
+ * Read `len` bytes from an open descriptor.
+ *
+ * The old body called std.io with timeout hardcoded to 0. The asm backend
+ * skips co-emitting std.io, and the mangled io.read symbol is absent from
+ * the tiny user link. This calls the posix read already defined in this
+ * module. A negative return is an error. `ptr` is the destination; `len`
+ * is the byte count. A short count is returned as i32.
+ *
+ * @param fd open descriptor
+ * @param ptr destination buffer
+ * @param len maximum bytes to read
+ * @return bytes read, or a negative error
+ *
+ * PLATFORM: POSIX — Windows fs_posix_read_c forwards to the win32 leaf.
  */
 export function read_fd(fd: i32, ptr: *u8, len: usize): i32 {
-  return io.read(io.from_fd(fd, 0), ptr, len, 0 as u32);
+  let n: i64 = fs_posix_read_c(fd, ptr, len);
+  return n as i32;
 }
-/** Exported function `write_fd`.
- * Write path helper `write_fd`.
- * @param fd i32
- * @param ptr *u8
- * @param len usize
- * @return i32
+/**
+ * Write `len` bytes to an open descriptor.
+ *
+ * Same link constraint as read_fd: std.io.write is not on the asm user
+ * link, and the old timeout argument was always 0. This calls the posix
+ * write already defined in this module. A short count is returned as i32.
+ *
+ * @param fd open descriptor
+ * @param ptr source buffer
+ * @param len bytes to write
+ * @return bytes written, or a negative error
+ *
+ * PLATFORM: POSIX — Windows fs_posix_write_c forwards to the win32 leaf.
  */
 export function write_fd(fd: i32, ptr: *u8, len: usize): i32 {
-  return io.write(io.from_fd(fd, 0), ptr, len, 0 as u32);
+  let n: i64 = fs_posix_write_c(fd, ptr, len);
+  return n as i32;
 }
 /** See implementation for details. */
 export function read_batch_fd(fd: i32, p0: *u8, l0: usize, p1: *u8, l1: usize, p2: *u8, l2: usize, p3:

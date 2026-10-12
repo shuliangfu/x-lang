@@ -1,4 +1,4 @@
-// Thin pure override: asm_local_slot_bytes NL-04 dep-max product entry.
+// Thin pure: slot_bytes FULL leaf (helpers + asm_local_slot_bytes).
 // G.7: bodies MUST match pipe_slot_bytes_named_in_mod /
 // pipe_local_slot_bytes_mod / asm_fixed_array_total_bytes_mod /
 // asm_local_slot_bytes in runtime_pipeline_abi.x (same exported symbol).
@@ -7,7 +7,11 @@
 // PageMmapHeap) — freestanding fs smoke exit=5. Seed-first merge was
 // tried and dropped driver_diag on Ubuntu GNU ld; this strong thin
 // first-wins ld -r over WEAK pure without reordering hybrid.
-// ensure injects via pipeline_abi_inject_slot_bytes_thin.
+// ensure: inject_slot_bytes_thin injects THIS on MACOS; LINUX injects
+//   slot_bytes_helpers_thin only (see wave415).
+// wave400/415: MACOS PREFER full; LINUX PREFER helpers-only.
+//   Ubuntu full tip T001@asm_local MISATTRIBUTED; helpers -c green;
+//   asm_local tip reinject still BAN on LINUX.
 // PLATFORM: SHARED freestanding slot sizing · LINUX gold · MACOS co-path.
 
 export extern function pipeline_type_named_name_into(arena: *u8, type_ref: i32, out: *u8): i32;
@@ -52,6 +56,8 @@ export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i3
  * wave268 pure: G.7 authority (was static asm_slot_bytes_named_in_mod).
  * PLATFORM: SHARED freestanding nest ZST · LINUX gold.
  */
+// w2055: slot.o overrides the pabi copy by this bare name.
+#[no_mangle]
 function pipe_slot_bytes_named_in_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   /* Cap 4.2.8: type_named_name_into memset(out,0,256). */
   let name: u8[256] = [];
@@ -242,7 +248,11 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
     return 0;
   }
   if (mod == 0 as *u8) {
-    mod = pipeline_asm_glue_emit_module_ref();
+    // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+    // PLATFORM: SHARED — asm typeck contract; mega thin small-file reproduce.
+    unsafe {
+      mod = pipeline_asm_glue_emit_module_ref();
+    }
   }
   if (mod == 0 as *u8) {
     return 0;
@@ -312,6 +322,8 @@ export function asm_fixed_array_total_bytes_mod(arena: *u8, type_ref: i32, mod: 
  * wave268 pure: G.7 authority (was static asm_local_slot_bytes_mod).
  * PLATFORM: SHARED freestanding stack · LINUX gold · MACOS co-path.
  */
+// w2055: slot.o overrides the pabi copy by this bare name.
+#[no_mangle]
 function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   let nt: i32 = 0;
   let ko: i32 = 0;
@@ -377,10 +389,15 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
   // PLATFORM: SHARED freestanding · LINUX gold.
   if (ko == 8) {
     if (mod == 0 as *u8) {
-      mod = pipeline_asm_glue_emit_module_ref();
+      // M2 class A: export-extern call must sit in unsafe (-backend asm T001).
+      unsafe {
+        mod = pipeline_asm_glue_emit_module_ref();
+      }
     }
     sz = pipe_slot_bytes_named_in_mod(arena, type_ref, mod);
-    dep = pipeline_asm_emit_dep_pipe_c();
+    unsafe {
+      dep = pipeline_asm_emit_dep_pipe_c();
+    }
     if (dep != 0 as *u8) {
       unsafe {
         nd = pipeline_dep_ctx_ndep(dep);
@@ -484,7 +501,9 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
        * glue_type_size_simple lanes*esz). Do not add an i32x4 name table.
        * PLATFORM: SHARED — LINUX|x86 high-end is the live overlap;
        * MACOS|ARM64 low-end was false-green. */
-      arr_sz = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      unsafe {
+        arr_sz = glue_fixed_array_total_bytes_c(arena, type_ref, 0);
+      }
       if (arr_sz > 0) {
         if (arr_sz % 8 != 0) {
           arr_sz = arr_sz + (8 - (arr_sz % 8));
@@ -537,9 +556,13 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
                         if (ssz <= 0) {
                           /* Same SIMD-named miss as 1D: layout 0 → size_simple. */
                           if (mod == (0 as *u8)) {
-                            mod = pipeline_asm_glue_emit_module_ref();
+                            unsafe {
+                              mod = pipeline_asm_glue_emit_module_ref();
+                            }
                           }
-                          ssz = glue_type_size_simple(mod, arena, ce, 0);
+                          unsafe {
+                            ssz = glue_type_size_simple(mod, arena, ce, 0);
+                          }
                         }
                         if (ssz > 0) {
                           leaf_esz = ssz;
@@ -589,9 +612,13 @@ function pipe_local_slot_bytes_mod(arena: *u8, type_ref: i32, mod: *u8): i32 {
               /* TYPE_NAMED leftover after total_bytes miss: size_simple
                * (SIMD 16), not pointer-sized 8. */
               if (mod == (0 as *u8)) {
-                mod = pipeline_asm_glue_emit_module_ref();
+                unsafe {
+                  mod = pipeline_asm_glue_emit_module_ref();
+                }
               }
-              ssz = glue_type_size_simple(mod, arena, elem_ref, 0);
+              unsafe {
+                ssz = glue_type_size_simple(mod, arena, elem_ref, 0);
+              }
               if (ssz > 0) {
                 esz = ssz;
               } else {

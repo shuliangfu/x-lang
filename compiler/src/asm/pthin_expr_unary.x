@@ -24,9 +24,9 @@
 // Language has no Expr by-value; the C trampoline in unary.inc holds
 // parse_expr_result* and forwards out.ok / out.expr_ref. Sidecar writes
 // go through the PABI writer family (set_common_zeros / set_kind /
-// set_line_col) plus pipeline_expr_set_unary_operand_c defined in the
-// P4u seed (pabi inject-only skips new rest symbols; do not FORCE the
-// mega). parse_unary stays C and calls the historical wrap symbol.
+// set_line_col) plus pipeline_expr_set_unary_operand_c defined in
+// pthin_expr_unary_set.x (one writer; do not copy the store).
+// parse_unary stays the dest-buffer in this file.
 // Do not copy wrap into parse_unary. Do not merge binop_wrap (different
 // left/right fields). Do not open a new P-lane. Contiguous already-T AUDIT_CALL padding is gated in the .inc
 // under XLANG_PARSER_STRETCH_AUDIT (product AUDIT_CALL is already
@@ -38,9 +38,10 @@
 // Token walk reuses P9a peek/step (same family as P5f parse_if_expr).
 // Unary prefix: peek kind, step, recurse this dest-buffer, wrap via
 // P4uc wrap_operand_into_c. Non-prefix: parse_primary through the
-// pointer-face shim in unary.inc (zero-algorithm over the historical
-// by-value parser_parse_primary_into; language has no struct-by-value).
-// C trampoline keeps AUDIT_CALL padding and publishes next_lex.
+// pointer-face shim in pthin_expr_unary_tramp.x (zero-algorithm over
+// the historical by-value parser_parse_primary_into; language has no
+// struct-by-value). The by-value face in that file publishes next_lex.
+// Stretch-audit calls stay in the C seed and are not copied.
 // Do not copy wrap into parse. Do not merge binop parse. Do not
 // dest-buffer parse_primary this wave. Do not open a new P-lane.
 //
@@ -90,8 +91,8 @@ export extern "C" function parser_asm_lex_peek_tok_line_c(lex_inout: *u8, source
 /** P9a: peek tok.col of the next token. */
 export extern "C" function parser_asm_lex_peek_tok_col_c(lex_inout: *u8, source: *u8): i32;
 /**
- * Pointer-face parse_primary. Zero-algorithm C shim in unary.inc:
- * copies lexer, calls parser_parse_primary_into, writes ok/ref/next_lex.
+ * Pointer-face parse_primary. Defined in pthin_expr_unary_tramp.x.
+ * Copies the lexer, calls parser_parse_primary_into, writes ok/ref/next_lex.
  */
 export extern "C" function parser_parse_primary_ptr_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32;
 
@@ -185,8 +186,8 @@ export function parser_asm_unary_wrap_operand_into_c(arena: *u8, out_ok: *i32, o
  * @param out_ok *i32 — parse_expr_result.ok
  * @param out_expr_ref *i32 — parse_expr_result.expr_ref
  * @return i32 — 1 success (out_ok=1); 0 failure
- * PLATFORM: SHARED — product P4ud B-minus. C trampoline keeps AUDIT
- * and the by-value parse_expr_result face. Do not open a new lane.
+ * PLATFORM: SHARED — product P4ud B-minus. The by-value face lives in
+ * pthin_expr_unary_tramp.x. Do not add a fourth function here.
  */
 #[no_mangle]
 export function parser_asm_parse_unary_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {

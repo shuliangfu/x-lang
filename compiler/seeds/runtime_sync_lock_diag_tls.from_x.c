@@ -2,7 +2,11 @@
  * G-02f-119 true .x pure helpers.
  * G-02f-102 helper gates.
  * G-02f-101 append helper gates. — G-02f-19 product TU
- * Product: runtime_sync_lock_diag_tls.o; logic still C until full .x port.
+ * Product: runtime_sync_lock_diag_tls.o.
+ * Darwin arm64 product body is src/asm/runtime_sync_lock_diag_tls.x
+ * plus src/asm/runtime_sync_lock_diag_tls_darwin.x (pure asm, then ld -r).
+ * The held stack there is a pthread_key malloc, not __thread.
+ * Linux, Windows, and the pure-asm-fault backup stay this C seed.
  */
 /**
  * runtime_sync_lock_diag_tls.c — STD-111 锁诊断 TLS + 元数据表（F-sync-lock-diag v2）

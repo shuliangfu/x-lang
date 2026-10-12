@@ -363,31 +363,10 @@ export function link_diag_freestanding_unsupported(): void {
  */
 #[no_mangle]
 export function link_diag_ld_debug_push(rel: *u8, stage: *u8, path: *u8): void {
-  let r: *u8 = rel;
-  let st: *u8 = stage;
-  let p: *u8 = path;
-  let msg: u8[320] = [];
-  let kind: *u8 = 0 as *u8;
-  if (r == 0 as *u8) {
-    r = "(null)";
-  }
-  if (st == 0 as *u8) {
-    st = "path";
-  }
-  if (p == 0 as *u8) {
-    p = "(null)";
-  }
-  msg[0] = 0;
-  labi_diag_append(&msg[0], 320, "ld debug: push ");
-  labi_diag_append(&msg[0], 320, r);
-  labi_diag_append(&msg[0], 320, " ");
-  labi_diag_append(&msg[0], 320, st);
-  labi_diag_append(&msg[0], 320, "=");
-  labi_diag_append(&msg[0], 320, p);
-  kind = "note";
-  unsafe {
-    diag_report_with_code(0 as *u8, 0, 0, kind, 0 as *u8, &msg[0], 0 as *u8);
-  }
+  // Class AK: XLANG_DEBUG_LD push note retired (keep symbol).
+  (void)rel;
+  (void)stage;
+  (void)path;
 }
 
 /** Exported function `link_diag_ld_debug_argv`.

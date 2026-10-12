@@ -37,7 +37,7 @@ export extern function typeck_float64_bits_lo(d: f64): i32;
 export extern function typeck_float64_bits_hi(d: f64): i32;
 /*
  * F2 TYPE_DYN(17) dyn-coerce impl-lookup authority (single G.7 source — body lives
- * in seeds/parser_asm/parser_asm_skip_tl_slice.inc as the twin of
+ * in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) as the twin of
  * xlang_skip_impl_self_matches_for_c; typeck must NOT iterate
  * g_xlang_skip_impl_* globals directly).
  *
@@ -59,7 +59,7 @@ export extern function xlang_skip_impl_concrete_implements_trait_c(arena: *void,
  * accessors are used by codegen to enumerate trait methods when building the
  * per-impl function-pointer array at the concrete->dyn coerce site.
  *
- * Bodies live in seeds/parser_asm/parser_asm_skip_tl_slice.inc (twins of
+ * Bodies live in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) (twins of
  * xlang_skip_impl_self_matches_for_c). typeck must NOT iterate
  * g_xlang_skip_trait_reg_* globals directly.
  * PLATFORM: SHARED.
@@ -338,6 +338,34 @@ export extern function pipeline_dep_ctx_import_path_len(ctx: *PipelineDepCtx, id
 export extern function pipeline_dep_ctx_import_path_copy64(ctx: *PipelineDepCtx, idx: i32, dst: *u8): void;
 export extern function parser_get_module_num_imports(module: *Module): i32;
 export extern function pipeline_dep_ctx_arena_at(ctx: *PipelineDepCtx, idx: i32): *ASTArena;
+/* Win/live-dep: prefer driver_dep_module_buf when ctx slot is stale/null. PLATFORM: SHARED. */
+export extern function typeck_driver_dep_module_buf(i: i32): *u8;
+/**
+ * Dependency arena pointer stashed by the driver when the dep-ctx arena slot is null.
+ * Twin of typeck_driver_dep_module_buf. The body is typeck_driver_dep_arena_buf in
+ * runtime_pipeline_abi.x; this declaration is the same-TU forward so the layout merge
+ * can call it. One i32 slot index, one pointer result.
+ * @param i i32 — dependency slot index; negative or empty slots return null
+ * @return *u8 — ASTArena pointer for that slot, or null when the slot is empty
+ * PLATFORM: SHARED — declaration only; the store lives with the module-buf twin.
+ */
+export extern function typeck_driver_dep_arena_buf(i: i32): *u8;
+export function typeck_live_dep_module(ctx: *PipelineDepCtx, dep_i: i32): *Module {
+  unsafe {
+    let dm: *Module = 0 as *Module;
+    if (ctx != 0 as *PipelineDepCtx && dep_i >= 0) {
+      dm = pipeline_dep_ctx_module_at(ctx, dep_i);
+    }
+    if (dm != 0 as *Module) {
+      return dm;
+    }
+    let alt: *u8 = typeck_driver_dep_module_buf(dep_i);
+    if (alt != 0 as *u8) {
+      return alt as *Module;
+    }
+    return dm;
+  }
+}
 /* See implementation. */
 export extern function pipeline_dep_ctx_set_current_func_index(ctx: *PipelineDepCtx, ix: i32): void;
 /* See implementation. */
@@ -469,6 +497,22 @@ j: i32, out: *u8): void;
  * PLATFORM: SHARED
  */
 export extern function lsp_diag_report_typeck(line: i32, col: i32, msg: *u8): void;
+/* Process exit contract counter (runtime_driver_abi_thin.x). */
+export extern function driver_typeck_hard_diag_note(): void;
+/**
+ * Hard typeck diagnostic (T001): count it, then report via lsp_diag_report_typeck.
+ * @param line i32
+ * @param col i32
+ * @param msg *u8 — formatted message
+ * @return void
+ * PLATFORM: SHARED.
+ */
+export function typeck_report_hard_t001(line: i32, col: i32, msg: *u8): void {
+  unsafe {
+    driver_typeck_hard_diag_note();
+    lsp_diag_report_typeck(line, col, msg);
+  }
+}
 /* R2 (8.3.3): field_access/soa authority in typeck.x; host-cc thin C leaves retired
  * (pipeline_typeck_field_access.c / pipeline_typeck_soa.c deleted). Product callers
  * use typeck_* / typeck_soa_* / typeck_reject_bare_import_const directly.
@@ -1694,7 +1738,16 @@ nm_len: i32): bool {
     }
     let i: i32 = 0;
     while (i < nm_len) {
-      if (pipeline_module_import_binding_name_byte_at(module, imp_ix, i) != nm[i]) {
+      /*
+       * Keep each side in its own local. An inline `byte_at(...) != nm[i]`
+       * is emitted as `index != nm[i]`: the asm backend reuses the
+       * call-result register for the index while that result is still live.
+       * Length compares above are already locals and stay correct.
+       * PLATFORM: SHARED — same byte compare on macOS, Ubuntu, and Windows.
+       */
+      let got: i32 = pipeline_module_import_binding_name_byte_at(module, imp_ix, i) as i32;
+      let want: i32 = nm[i] as i32;
+      if (got != want) {
         return false;
       }
       i = i + 1;
@@ -1792,7 +1845,16 @@ export function typeck_top_level_let_name_equal(module: *Module, tl_ix: i32, nm:
     }
     let i: i32 = 0;
     while (i < nm_len) {
-      if (pipeline_module_top_level_let_name_byte_at(module, tl_ix, i) != nm[i]) {
+      /*
+       * Keep each side in its own local. An inline `byte_at(...) != nm[i]`
+       * is emitted as `index != nm[i]`: the asm backend reuses the
+       * call-result register for the index while that result is still live.
+       * The length compare above is already a local and stays correct.
+       * PLATFORM: SHARED — same byte compare on macOS, Ubuntu, and Windows.
+       */
+      let got: i32 = pipeline_module_top_level_let_name_byte_at(module, tl_ix, i) as i32;
+      let want: i32 = nm[i] as i32;
+      if (got != want) {
         return false;
       }
       i = i + 1;
@@ -1835,7 +1897,10 @@ dep_ix: i32): i32 {
     if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || nm == 0 as *u8 || nlen <= 0) {
       return -1;
     }
-    if (dep_ix >= typeck_module_num_imports(module)) {
+    // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_const: i32 = typeck_module_num_imports(module);
+    if (dep_ix >= nimp_const) {
       return -1;
     }
     dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
@@ -1860,7 +1925,13 @@ export function typeck_import_last_segment_into(module: *Module, imp_ix: i32, ou
     let start: i32 = 0;
     let i: i32 = 0;
     let seg_len: i32 = 0;
-    if (module == 0 as *Module || out == 0 as *u8 || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || out == 0 as *u8 || imp_ix < 0) {
+      return 0;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing imp_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_last: i32 = typeck_module_num_imports(module);
+    if (imp_ix >= nimp_last) {
       return 0;
     }
     pl = pipeline_module_import_path_len(module, imp_ix);
@@ -1900,7 +1971,13 @@ export function typeck_resolve_dep_index_for_import(module: *Module, ctx: *Pipel
     let dep_i: i32 = 0;
     let nd: i32 = 0;
     let path_buf: u8[128] = [];
-    if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx || imp_ix < 0) {
+      return -1;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing imp_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_res: i32 = typeck_module_num_imports(module);
+    if (imp_ix >= nimp_res) {
       return -1;
     }
     plen = pipeline_module_import_path_len(module, imp_ix);
@@ -1950,7 +2027,13 @@ export function typeck_import_const_binding_hint_at(module: *Module, dep_ix: i32
     let import_kind: i32 = 0;
     let bl: i32 = 0;
     let i: i32 = 0;
-    if (module == 0 as *Module || out == 0 as *u8 || dep_ix < 0 || dep_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || out == 0 as *u8 || dep_ix < 0) {
+      return 0;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_hint: i32 = typeck_module_num_imports(module);
+    if (dep_ix >= nimp_hint) {
       return 0;
     }
     import_kind = pipeline_module_import_kind_at(module, dep_ix);
@@ -2013,17 +2096,27 @@ expr_ref: i32, ctx: *PipelineDepCtx, vbuf: *u8, vnlen: i32): i32 {
 }
 
 /**
-* See implementation.
-*/
+ * Find the struct-layout slot whose name equals nm[0..nlen).
+ * @param module *Module — module that owns struct_layouts; null is not searched
+ * @param nm *u8 — type-name bytes; not required to be NUL-terminated
+ * @param nlen i32 — byte count compared by typeck_layout_name_equal
+ * @return i32 — layout index, or -1 when no layout matches
+ * PLATFORM: SHARED — pipeline_module_num_struct_layouts_at is export-extern.
+ * The asm backend rejects that call outside unsafe. The -E path allows it.
+ */
 export function typeck_find_layout_idx_by_type_name(module: *Module, nm: *u8, nlen: i32): i32 {
-  let k: i32 = 0;
-  while (k < module.num_struct_layouts) {
-    if (typeck_layout_name_equal(module, k, nm, nlen)) {
-      return k;
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  unsafe {
+    let k: i32 = 0;
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl) {
+      if (typeck_layout_name_equal(module, k, nm, nlen)) {
+        return k;
+      }
+      k = k + 1;
     }
-    k = k + 1;
+    return - 1;
   }
-  return - 1;
 }
 
 /** Exported function `typeck_x_named_builtin_align`.
@@ -2036,6 +2129,17 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   if (nm == 0 as *u8 || nlen <= 0) {
     return 0;
   }
+  /*
+   * Cap residual TYPE_NAMED integers (no TypeKind).
+   * Cell width is 4 — same as Cap residual array INDEX esz-4 — so
+   * bake cells hold folder mask/sext and field loads can use LDRSW /
+   * movslq. True 1/2-byte pack waits on signed byte/halfword load
+   * encoders in the field emit path.
+   * PLATFORM: SHARED.
+   */
+  if (nlen == 2 && nm[0] == 105 && nm[1] == 56) { return 4; }
+  if (nlen == 3 && nm[0] == 105 && nm[1] == 49 && nm[2] == 54) { return 4; }
+  if (nlen == 3 && nm[0] == 117 && nm[1] == 49 && nm[2] == 54) { return 4; }
   if (nlen == 3 && nm[0] == 105 && nm[1] == 51 && nm[2] == 50) { return 4; }
   if (nlen == 3 && nm[0] == 117 && nm[1] == 51 && nm[2] == 50) { return 4; }
   if (nlen == 4 && nm[0] == 98 && nm[1] == 111 && nm[2] == 111 && nm[3] == 108) { return 4; }
@@ -2051,17 +2155,19 @@ export function typeck_x_named_builtin_align(nm: *u8, nlen: i32): i32 {
   return 0;
 }
 
-/** Exported function `typeck_x_named_builtin_size`.
- * Implements `typeck_x_named_builtin_size`.
- * @param nm *u8
- * @param nlen i32
- * @return i32
+/**
+ * Size of a named builtin spelling. Align equals size for these scalars.
+ * Cap residual i8/i16/u16 use 4-byte cells (wave1007; matches INDEX esz-4).
+ * @param nm *u8 — type name bytes
+ * @param nlen i32 — name length
+ * @return i32 — 1, 2, 4, or 8; 0 if unknown
+ * PLATFORM: SHARED.
  */
 export function typeck_x_named_builtin_size(nm: *u8, nlen: i32): i32 {
   let a: i32 = typeck_x_named_builtin_align(nm, nlen);
-  if (a == 1 && nlen == 2 && nm[0] == 117 && nm[1] == 56) { return 1; }
-  if (a == 4) { return 4; }
-  if (a == 8) { return 8; }
+  if (a == 1 || a == 2 || a == 4 || a == 8) {
+    return a;
+  }
   return 0;
 }
 
@@ -2277,7 +2383,10 @@ export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, n
       return -1;
     }
     k = 0;
-    while (k < pipeline_module_num_struct_layouts_at(module)) {
+    // PLATFORM: WINDOWS — finish the count call before comparing k.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nsl_soa: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl_soa) {
       ln = pipeline_module_struct_layout_name_len(module, k);
       if (ln == name_len) {
         j = 0;
@@ -2535,8 +2644,10 @@ export function typeck_soa_field_soa_index(module: *Module, arena: *ASTArena, ex
     ftr = 0;
     stride = 0;
     col_base = 0;
+    // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+    let nfields_soa: i32 = pipeline_module_struct_layout_num_fields(layout_mod, li);
     j = 0;
-    while (j < pipeline_module_struct_layout_num_fields(layout_mod, li)) {
+    while (j < nfields_soa) {
       fnlen = pipeline_module_struct_layout_field_name_len(layout_mod, li, j);
       if (fnlen == fl) {
         pipeline_module_struct_layout_field_name_into(layout_mod, li, j, &fb[0]);
@@ -2643,9 +2754,21 @@ export function typeck_soa_array_storage_size_glue(module: *Module, arena: *ASTA
 }
 
 /**
-* See implementation.
-* See implementation.
-*/
+ * Struct size and alignment, and the zero-padding verdict.
+ * check_pad == 0 returns the Cap residual cell size (i8/i16/u16 stay 4).
+ * check_pad != 0 reports a gap only when the same gap exists at language
+ * width (i8 = 1, i16/u16 = 2). A dense language layout is not implicit
+ * padding. Explicit align(N) wider than that width still counts.
+ * @param module *Module — layout table owner
+ * @param arena *ASTArena — type pool for field sizes
+ * @param li i32 — struct layout index
+ * @param depth i32 — nested-layout depth; above 64 fails
+ * @param check_pad i32 — 1 diagnoses implicit padding; 0 only measures
+ * @param out_sz *i32 — byte size out; required
+ * @param out_al *i32 — alignment out; required
+ * @return i32 — 0 when the layout is usable, -1 on a real gap or bad size
+ * PLATFORM: SHARED — verdict only; cell size for check_pad == 0 is unchanged.
+ */
 export function typeck_struct_layout_metrics(module: *Module, arena: *ASTArena, li: i32, depth: i32,
 check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -2665,6 +2788,21 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     let fsize: i32 = 0;
     let end_pad: i32 = 0;
     let fa: i32 = 0;
+    let natural_clean: i32 = 0;
+    let natural_bad: i32 = 0;
+    let c2: i32 = 0;
+    let ma2: i32 = 1;
+    let j2: i32 = 0;
+    let ftr2: i32 = 0;
+    let fa2: i32 = 0;
+    let A2: i32 = 0;
+    let sz2: i32 = 0;
+    let nat: i32 = 0;
+    let ko2: i32 = 0;
+    let nl2: i32 = 0;
+    let rem2: i32 = 0;
+    let gap2: i32 = 0;
+    let nb: *u8 = 0 as *u8;
     /* See implementation. */
     let layout_nm: *u8 = typeck_scratch64_slot(2);
     let field_nm: *u8 = typeck_scratch64_slot(3);
@@ -2672,7 +2810,10 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     *i32) {
       return - 1;
     }
-    if (li < 0 || li >= pipeline_module_num_struct_layouts_at(module) || depth > 64) {
+    // PLATFORM: WINDOWS — finish the count call before comparing li.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nsl_metrics: i32 = pipeline_module_num_struct_layouts_at(module);
+    if (li < 0 || li >= nsl_metrics || depth > 64) {
       return - 1;
     }
     nf = pipeline_module_struct_layout_num_fields(module, li);
@@ -2704,6 +2845,72 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       typeck_i32_ptr_store(out_al, 1);
       return 0;
     }
+    // Language width of i8/i16/u16 is 1/2. The cell walk below still uses
+    // the 4-byte Cap residual size. A gap that is absent at language width
+    // is not implicit padding. Explicit align(N) wider than that width,
+    // and every other scalar, still diagnose.
+    // PLATFORM: SHARED — check_pad verdict only.
+    natural_clean = 0;
+    if (check_pad != 0 && allow == 0) {
+      c2 = 0;
+      ma2 = 1;
+      j2 = 0;
+      natural_bad = 0;
+      while (j2 < nf && natural_bad == 0) {
+        ftr2 = pipeline_module_struct_layout_field_type_ref(module, li, j2);
+        fa2 = pipeline_module_struct_layout_field_align_at(module, li, j2);
+        A2 = typeck_x_type_align(module, arena, ftr2, depth);
+        if (A2 <= 0) {
+          A2 = 1;
+        }
+        if (fa2 > A2) {
+          A2 = fa2;
+        }
+        sz2 = typeck_x_type_size(module, arena, ftr2, depth);
+        nat = 0;
+        ko2 = pipeline_type_kind_ord_at(arena, ftr2);
+        // Name bytes are read after type_size, which reuses scratch slot 4.
+        if (ko2 == 8) {
+          nb = typeck_scratch64_slot(4);
+          nl2 = pipeline_type_named_name_into(arena, ftr2, nb);
+          if (nl2 == 2 && nb[0] == 105 && nb[1] == 56) {
+            nat = 1;
+          }
+          if (nl2 == 3 && nb[0] == 105 && nb[1] == 49 && nb[2] == 54) {
+            nat = 2;
+          }
+          if (nl2 == 3 && nb[0] == 117 && nb[1] == 49 && nb[2] == 54) {
+            nat = 2;
+          }
+        }
+        if (nat > 0 && fa2 <= nat) {
+          A2 = nat;
+          sz2 = nat;
+        }
+        if (sz2 < 0 || (sz2 == 0 && typeck_type_is_empty_struct(module, arena, ftr2, depth) == 0)) {
+          natural_bad = 1;
+        } else {
+          rem2 = c2 % A2;
+          gap2 = A2 - rem2;
+          gap2 = gap2 % A2;
+          if (gap2 > 0) {
+            natural_bad = 1;
+          } else {
+            c2 = c2 + sz2;
+            if (A2 > ma2) {
+              ma2 = A2;
+            }
+            j2 = j2 + 1;
+          }
+        }
+      }
+      if (natural_bad == 0 && ma2 > 0 && (c2 % ma2) != 0) {
+        natural_bad = 1;
+      }
+      if (natural_bad == 0) {
+        natural_clean = 1;
+      }
+    }
     j = 0;
     while (j < nf) {
       ftr = pipeline_module_struct_layout_field_type_ref(module, li, j);
@@ -2720,7 +2927,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
       rem = current % A;
       gap = A - rem;
       gap = gap % A;
-      if (check_pad != 0 && gap > 0 && allow == 0) {
+      if (check_pad != 0 && gap > 0 && allow == 0 && natural_clean == 0) {
         driver_diagnostic_typeck_struct_padding_before(layout_nm, layout_nlen, gap, field_nm, flen);
         return - 1;
       }
@@ -2741,7 +2948,7 @@ check_pad: i32, out_sz: *i32, out_al: *i32): i32 {
     }
     if (max_align > 0 && (current % max_align) != 0) {
       end_pad = max_align - (current % max_align);
-      if (check_pad != 0 && end_pad > 0 && allow == 0) {
+      if (check_pad != 0 && end_pad > 0 && allow == 0 && natural_clean == 0) {
         driver_diagnostic_typeck_struct_padding_trailing(layout_nm, layout_nlen, end_pad);
         return - 1;
       }
@@ -2800,10 +3007,13 @@ field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
-    while (k < module.num_struct_layouts) {
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
-        while (j < pipeline_module_struct_layout_num_fields(module, k)) {
+        // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+        let nfields_off: i32 = pipeline_module_struct_layout_num_fields(module, k);
+        while (j < nfields_off) {
           if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
             let stored: i32 = pipeline_module_struct_layout_field_offset_at(module, k, j);
             if (stored != 0) {
@@ -2829,10 +3039,13 @@ field_name: *u8, field_name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let k: i32 = 0;
-    while (k < module.num_struct_layouts) {
+    let nsl: i32 = pipeline_module_num_struct_layouts_at(module);
+    while (k < nsl) {
       if (typeck_layout_name_equal(module, k, type_name, type_name_len)) {
         let j: i32 = 0;
-        while (j < pipeline_module_struct_layout_num_fields(module, k)) {
+        // PLATFORM: WINDOWS — hoist the pure field count out of the compare.
+        let nfields_ty: i32 = pipeline_module_struct_layout_num_fields(module, k);
+        while (j < nfields_ty) {
           if (typeck_layout_field_name_equal(module, k, j, field_name, field_name_len)) {
             return pipeline_module_struct_layout_field_type_ref(module, k, j);
           }
@@ -2916,6 +3129,10 @@ type_name_len: i32, field_name: *u8, field_name_len: i32): i32 {
  *   next_field_offset — shared typeck_scratch64 slots can clobber field_nm.
  *   G.7: single authority ensure_struct_layout_from_struct_lit; seed typeck_gen
  *   same commit when regen.
+ *   A qualified lit name (token.Token) binds to the bare layout (Token) already
+ *   merged from the defining module. Allocating a second layout leaves
+ *   allow(padding) clear, and the dep-prerun padding check then rejects every
+ *   importer of lexer. PLATFORM: SHARED.
  *
  * @param module *Module — owning struct_layouts table
  * @param arena *ASTArena — STRUCT_LIT expr pool
@@ -2979,6 +3196,31 @@ expr_ref: i32): i32 {
         break;
       }
       k = k + 1;
+    }
+    /* Qualified name token.Token: use the bare Token layout from the import
+     * merge. A new slot would not copy allow(padding). PLATFORM: SHARED. */
+    if (found_idx < 0) {
+      let dot_at: i32 = 0 - 1;
+      let si: i32 = 0;
+      while (si < name_len) {
+        if (lit_nm[si] == 46) {
+          dot_at = si;
+        }
+        si = si + 1;
+      }
+      if (dot_at >= 0 && dot_at + 1 < name_len) {
+        let suf_len: i32 = name_len - (dot_at + 1);
+        k = 0;
+        while (k < nsl) {
+          pipeline_module_struct_layout_name_into(module, k, layout_nm);
+          sname_len = pipeline_module_struct_layout_name_len(module, k);
+          if (sname_len == suf_len && name_equal(layout_nm, sname_len, &lit_nm[dot_at + 1], suf_len)) {
+            found_idx = k;
+            break;
+          }
+          k = k + 1;
+        }
+      }
     }
     if (found_idx >= 0) {
       idx_m = found_idx;
@@ -3512,6 +3754,11 @@ out_type_ref: *i32): i32 {
  * Single authority for both import-list and const-import sugar hops (G.7).
  * Also stamps base as TYPE_NAMED(base_name) when base is still untyped so the
  * outer `binding.Enum.Variant` hop can peel via layout_named.
+ * The enum-name compare loads each side into its own local. An inline
+ * `byte_at(...) != field_name[i]` is emitted as `index != field_name[i]`,
+ * so a dep enum name never matches and `token.TokenKind.TOKEN_RETURN`
+ * hard-fails as an unknown field. Same-module `Color.RED` does not use
+ * this compare.
  *
  * @param dep_mod *Module — dependency with module enum table
  * @param arena *ASTArena — caller arena for named type alloc
@@ -3545,7 +3792,13 @@ field_name_len: i32): i32 {
       if (el == field_name_len && el > 0) {
         bi = 0;
         while (bi < el) {
-          if (pipeline_module_enum_name_byte_at(dep_mod, ek, bi) != field_name[bi]) {
+          // Keep the call result and the index in different locals.
+          // Inline `byte_at(...) != field_name[bi]` reuses the result
+          // register for `bi` before the compare, so the name never matches.
+          // PLATFORM: SHARED.
+          let got: i32 = pipeline_module_enum_name_byte_at(dep_mod, ek, bi) as i32;
+          let want: i32 = field_name[bi] as i32;
+          if (got != want) {
             break;
           }
           bi = bi + 1;
@@ -4349,7 +4602,7 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (ast.ref_is_null(elem_ty) || elem_ty <= 0 || elem_ty > arena.num_types) {
         line_f = pipeline_expr_line_at(arena, expr_ref);
         col_f = pipeline_expr_col_at(arena, expr_ref);
-        lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+        typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
         return -1;
       }
       peeled_e = typeck_resolve_type_alias_ref_local(module, arena, elem_ty, 0);
@@ -4363,13 +4616,34 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (bt_kind == ord_type_slice || bt_kind == ord_type_array || bt_kind == ord_type_vector) {
       line_f = pipeline_expr_line_at(arena, expr_ref);
       col_f = pipeline_expr_col_at(arena, expr_ref);
-      lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+      typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
       return -1;
     }
     if (bt_kind == ord_type_named) {
       nlen = pipeline_type_named_name_into(arena, check_ty, &nbuf[0]);
       if (nlen <= 0 || nlen > 255) {
         return 0;
+      }
+      /* Parity with typeck_field_layout_named: strip last "mod." so dep layouts match. */
+      {
+        let dot_pos: i32 = 0 - 1;
+        let si: i32 = 0;
+        while (si < nlen) {
+          if (nbuf[si] == 46) {
+            dot_pos = si;
+          }
+          si = si + 1;
+        }
+        if (dot_pos >= 0 && dot_pos + 1 < nlen) {
+          let suffix_len: i32 = nlen - (dot_pos + 1);
+          si = 0;
+          while (si < suffix_len) {
+            nbuf[si] = nbuf[dot_pos + 1 + si];
+            si = si + 1;
+          }
+          nbuf[suffix_len] = 0;
+          nlen = suffix_len;
+        }
       }
       has_struct = 0;
       has_enum = 0;
@@ -4476,7 +4750,7 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
       if (has_struct == 0 && has_enum == 0) {
         line_f = pipeline_expr_line_at(arena, expr_ref);
         col_f = pipeline_expr_col_at(arena, expr_ref);
-        lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+        typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
         return -1;
       }
       line_f = pipeline_expr_line_at(arena, expr_ref);
@@ -4485,13 +4759,13 @@ expr_ref: i32, base_ref: i32, ctx: *PipelineDepCtx): i32 {
         driver_diagnostic_typeck_enum_no_variant(line_f, col_f);
         return -1;
       }
-      lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+      typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
       return -1;
     }
     /* Scalar / other first-class types: no fields. */
     line_f = pipeline_expr_line_at(arena, expr_ref);
     col_f = pipeline_expr_col_at(arena, expr_ref);
-    lsp_diag_report_typeck(line_f, col_f, "unknown field on this type");
+    typeck_report_hard_t001(line_f, col_f, "unknown field on this type");
     return -1;
   }
 }
@@ -5114,7 +5388,15 @@ base_ref: i32, ctx: *PipelineDepCtx): void {
   }
 }
 
-/** See implementation for details. */
+/**
+ * Compare a VAR callee's name with one function in a module.
+ * @param arena *ASTArena — callee expression owner
+ * @param callee_expr_ref i32 — EXPR_VAR callee; any other kind returns false
+ * @param mod *Module — function table, local or a dependency
+ * @param func_index i32 — function index in mod; out of range returns false
+ * @return bool — true when both names are the same non-empty byte string
+ * PLATFORM: SHARED — bare-call resolve on macOS, Ubuntu, and Windows.
+ */
 export function expr_var_name_equal_func(arena: *ASTArena, callee_expr_ref: i32, mod: *Module,
 func_index: i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
@@ -5139,7 +5421,17 @@ func_index: i32): bool {
     }
     pipeline_expr_var_name_into(arena, callee_expr_ref, vbuf);
     while (i < a_len) {
-      if (pipeline_module_func_name_byte_at(mod, func_index, i) != vbuf[i]) {
+      /*
+       * Keep each side in its own local. An inline `byte_at(...) != vbuf[i]`
+       * is emitted as `index != vbuf[i]`: the asm backend reuses the
+       * call-result register for the index while that result is still live.
+       * A bare call then matches no function, and the zero func-index slot
+       * is read as function 0. Length compares above are already locals.
+       * PLATFORM: SHARED — same byte compare on macOS, Ubuntu, and Windows.
+       */
+      let got: i32 = pipeline_module_func_name_byte_at(mod, func_index, i) as i32;
+      let want: i32 = vbuf[i] as i32;
+      if (got != want) {
         return false;
       }
       i = i + 1;
@@ -5468,22 +5760,24 @@ caller_arena: *ASTArena, nm: *u8, nlen: i32): i32 {
 
 /**
  * Resolve a dep module return type_ref into the caller's arena.
- * For TYPE_NAMED with entry module set, applies import-binding prefix so
- * `let v: vec.Vec_u8` matches dep `Vec_u8`. Otherwise delegates to
- * dep_return_type_to_caller_arena (recursive compound map).
- * @param from_dep_index i32 — dep slot; <0 → 0
- * @param dep_return_type_ref i32 — type_ref valid in dep arena
+ * The ctx arena slot and pipeline_get_dep_arena_slot can both be null while
+ * the driver still holds the parsed dep types. When typeck_driver_dep_arena_buf
+ * is non-null it wins. For TYPE_NAMED with the entry module set, applies the
+ * import-binding prefix so `let v: vec.Vec_u8` matches dep `Vec_u8`. Otherwise
+ * delegates to dep_return_type_to_caller_arena (recursive compound map).
+ * @param from_dep_index i32 — dep slot; negative returns 0
+ * @param dep_return_type_ref i32 — type_ref valid in the dep arena
  * @param caller_arena *ASTArena — destination type pool
- * @param ctx *PipelineDepCtx — dep arenas / modules
- * @return i32 — caller-arena type_ref, or 0
- * wave254 pure leave: was residual pipeline_typeck_get_dep_return_type_in_caller_arena_c.
- * PLATFORM: SHARED freestanding typeck dep map.
+ * @param ctx *PipelineDepCtx — dep arenas and modules; null returns 0
+ * @return i32 — caller-arena type_ref, or 0 when the arena or the type is missing
+ * PLATFORM: SHARED — live dep arena buffer, same on macOS, Ubuntu, and Windows.
  */
 export function get_dep_return_type_in_caller_arena(from_dep_index: i32, dep_return_type_ref: i32,
 caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
     let dep_arena: *ASTArena = 0 as *ASTArena;
+    let alt_arena: *ASTArena = 0 as *ASTArena;
     let kind: i32 = 0;
     let nlen: i32 = 0;
     let nm_buf: *u8 = typeck_scratch64_slot(0);
@@ -5494,12 +5788,38 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
     dep_arena = pipeline_dep_ctx_arena_at(ctx, from_dep_index);
     if (dep_arena == 0 as *ASTArena) {
       dep_arena = pipeline_get_dep_arena_slot(from_dep_index);
-      if (dep_arena == 0 as *ASTArena) {
-        return 0;
+    }
+    /*
+     * Live buffer beats a null or stale sidecar, but only when it is the arena of
+     * the module the caller resolved. Driver buffers are indexed by the driver's
+     * global dep slot. A dep-prerun ctx is compact-mapped (import order of the dep
+     * module), so its slot i can name a different module than driver slot i; the
+     * driver arena would then decode the ctx module's type_refs against the wrong
+     * pool (std.io.driver -> core.xlang_io_register T001 under dep typeck).
+     * Use the driver arena when the ctx module is that driver module, or when the
+     * ctx slot is null / function-less so callers fell back to the driver module.
+     * Entry ctx keeps the old behaviour (ctx slot i == driver slot i).
+     * PLATFORM: SHARED.
+     */
+    alt_arena = typeck_driver_dep_arena_buf(from_dep_index) as *ASTArena;
+    if (alt_arena != 0 as *ASTArena) {
+      let ctx_dm: *Module = pipeline_dep_ctx_module_at(ctx, from_dep_index);
+      let drv_dm: *Module = typeck_driver_dep_module_buf(from_dep_index) as *Module;
+      if (dep_arena == 0 as *ASTArena || ctx_dm == 0 as *Module || ctx_dm == drv_dm) {
+        dep_arena = alt_arena;
+      } else if (pipeline_module_num_funcs(ctx_dm) == 0 && drv_dm != 0 as *Module
+          && pipeline_module_num_funcs(drv_dm) > 0) {
+        dep_arena = alt_arena;
       }
     }
+    if (dep_arena == 0 as *ASTArena) {
+      return 0;
+    }
     // Bootstrap: dep_index may be >= ndep when slot is still bound.
-    if (from_dep_index >= pipeline_dep_ctx_ndep(ctx)) {
+    // PLATFORM: WINDOWS — finish the count call before comparing from_dep_index.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let ndep_ret: i32 = pipeline_dep_ctx_ndep(ctx);
+    if (from_dep_index >= ndep_ret) {
       if (pipeline_dep_ctx_module_at(ctx, from_dep_index) == 0 as *Module) {
         return 0;
       }
@@ -5839,7 +6159,22 @@ field_name_len: i32): i32 {
   return 0;
 }
 
-/* See implementation. */
+/**
+ * Field type from this module's layout, then dependency modules.
+ * A declared field type wins over the spelling heuristic. A field named
+ * name is [64]u8 only when no layout type is stored and the owner is one
+ * of the compiler AST names handled below (Expr, Type, Func, Param,
+ * StructLayout).
+ * @param module *Module — layouts searched first; null yields no local hit
+ * @param arena *ASTArena — arena that owns synthesized type refs
+ * @param ctx *PipelineDepCtx — dependency modules; null skips that walk
+ * @param type_name *u8 — struct name bytes
+ * @param type_name_len i32 — byte length of type_name
+ * @param field_name *u8 — field name bytes
+ * @param field_name_len i32 — byte length of field_name
+ * @return i32 — type ref, or 0 when none applies
+ * PLATFORM: SHARED — type-ref lookup only; emit is unchanged.
+ */
 export function get_field_type_ref_from_layout_deps(module: *Module, arena: *ASTArena,
 ctx: *PipelineDepCtx, type_name: *u8, type_name_len: i32, field_name: *u8,
 field_name_len: i32): i32 {
@@ -5873,15 +6208,9 @@ field_name_len: i32): i32 {
     18)) {
       return ensure_i32_type_ref(arena);
     }
-    let u8_inline: i32 = typeck_inline_u8_64_array_field_type_ref(arena, field_name, field_name_len);
-    if (u8_inline != 0) {
-      return u8_inline;
-    }
-    let i32_arr_inline: i32 = typeck_expr_inline_array_field_type_ref(arena, field_name,
-    field_name_len);
-    if (i32_arr_inline != 0) {
-      return i32_arr_inline;
-    }
+    // Declared layout type wins. The u8[64] / i32[16] spelling heuristic
+    // stays on the Expr / Type / Func / Param / StructLayout gates below,
+    // so a user field named name keeps the type written in the struct.
     let r: i32 = get_field_type_ref_from_layout(module, type_name, type_name_len, field_name,
     field_name_len);
     if (r != 0) {
@@ -6174,6 +6503,22 @@ ctx: *PipelineDepCtx): void {
     while (di < nd_merge) {
       dm = pipeline_dep_ctx_module_at(ctx, di);
       darena = pipeline_dep_ctx_arena_at(ctx, di);
+      let altm: *Module = typeck_driver_dep_module_buf(di) as *Module;
+      let altar: *ASTArena = typeck_driver_dep_arena_buf(di) as *ASTArena;
+      let dm_nsl: i32 = 0;
+      let alt_nsl: i32 = 0;
+      if (dm != 0 as *Module) {
+        dm_nsl = pipeline_module_num_struct_layouts_at(dm);
+      }
+      if (altm != 0 as *Module) {
+        alt_nsl = pipeline_module_num_struct_layouts_at(altm);
+      }
+      if (dm == 0 as *Module || (dm_nsl == 0 && alt_nsl > 0)) {
+        dm = altm;
+      }
+      if (darena == 0 as *ASTArena) {
+        darena = altar;
+      }
       if (dm == 0 as *Module || darena == 0 as *ASTArena) {
         di = di + 1;
         continue;
@@ -6212,9 +6557,10 @@ ctx: *PipelineDepCtx): void {
             need = 1;
           } else {
             weak_entry = false;
+            // PLATFORM: WINDOWS — one pure count for the three compares below.
+            let nfields_ex: i32 = pipeline_module_struct_layout_num_fields(mod, ex);
             /* See implementation. */
-            if (pipeline_module_struct_layout_num_fields(mod,
-            ex) >= 2 && pipeline_module_struct_layout_field_type_ref(mod, ex, 1) == 0) {
+            if (nfields_ex >= 2 && pipeline_module_struct_layout_field_type_ref(mod, ex, 1) == 0) {
               weak_entry = true;
             }
             /* See implementation. */
@@ -6227,8 +6573,7 @@ ctx: *PipelineDepCtx): void {
                 is_expr_nm = true;
               }
             }
-            if (nf_dep > pipeline_module_struct_layout_num_fields(mod,
-            ex) || weak_entry || is_expr_nm) {
+            if (nf_dep > nfields_ex || weak_entry || is_expr_nm) {
               need = 1;
             }
             // wave1220 P5: also re-copy when field counts match but types may differ.
@@ -6238,8 +6583,7 @@ ctx: *PipelineDepCtx): void {
             // count, the old `>` condition skipped the re-copy, leaving wrong field
             // types. Using `>=` ensures dep authority always overwrites struct-lit
             // guesses. PLATFORM: SHARED — typeck only, no runtime impact.
-            if (nf_dep > 0 && nf_dep >= pipeline_module_struct_layout_num_fields(mod,
-            ex) && pipeline_module_struct_layout_num_fields(mod, ex) > 0) {
+            if (nf_dep > 0 && nf_dep >= nfields_ex && nfields_ex > 0) {
               need = 1;
             }
             /* See implementation. */
@@ -6408,7 +6752,10 @@ want_apply: i32): i32 {
         }
         return ret;
       }
-      if (dep_i < typeck_module_num_imports(module)) {
+      // PLATFORM: WINDOWS — finish the count call before comparing dep_i.
+      // The x86 emit pushes the index and the callee homes rcx over that push.
+      let nimp_scan: i32 = typeck_module_num_imports(module);
+      if (dep_i < nimp_scan) {
         ret = resolve_call_select_import_return_type(module, arena, callee_expr_ref, callee_ord,
         dep_i, ctx, fn_slot);
         if (ret != 0) {
@@ -7096,7 +7443,13 @@ export function typeck_import_segment_at(module: *Module, imp_ix: i32, want_seg:
 ostr: *i32, olen: *i32): bool {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
-    if (module == 0 as *Module || imp_ix < 0 || imp_ix >= typeck_module_num_imports(module)) {
+    if (module == 0 as *Module || imp_ix < 0) {
+      return false;
+    }
+    // PLATFORM: WINDOWS — finish the count call before comparing imp_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_seg: i32 = typeck_module_num_imports(module);
+    if (imp_ix >= nimp_seg) {
       return false;
     }
     let pl: i32 = pipeline_module_import_path_len(module, imp_ix);
@@ -7415,7 +7768,10 @@ func_index_out: *i32): i32 {
     if (module == 0 as *Module || ctx == 0 as *PipelineDepCtx) {
       return 0;
     }
-    if (dep_ix < 0 || dep_ix >= typeck_module_num_imports(module) || callee_ord != ord_var) {
+    // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+    // The x86 emit pushes the index and the callee homes rcx over that push.
+    let nimp_sel: i32 = typeck_module_num_imports(module);
+    if (dep_ix < 0 || dep_ix >= nimp_sel || callee_ord != ord_var) {
       return 0;
     }
     import_kind = pipeline_module_import_kind_at(module, dep_ix);
@@ -7508,7 +7864,10 @@ callee_ord: i32, ctx: *PipelineDepCtx, dep_i: i32, imax: i32): i32 {
       if (ret != 0) {
         return ret;
       }
-      if (dep_i < typeck_module_num_imports(module)) {
+      // PLATFORM: WINDOWS — finish the count call before comparing dep_i.
+      // The x86 emit pushes the index and the callee homes rcx over that push.
+      let nimp_callee: i32 = typeck_module_num_imports(module);
+      if (dep_i < nimp_callee) {
         ret = resolve_call_select_import_return_type(module, arena, callee_expr_ref, callee_ord,
         dep_i, ctx, null_po);
         if (ret != 0) {
@@ -7973,7 +8332,15 @@ export function type_refs_equal_same_kind(arena: *ASTArena, a: i32, b: i32, kind
       return type_refs_equal(arena, ea, eb);
     }
     if (kind_ord == ord_array || kind_ord == ord_vector) {
-      if (pipeline_type_array_size_at(arena, a) != pipeline_type_array_size_at(arena, b)) {
+      /*
+       * PLATFORM: WINDOWS — both lengths are locals before the compare.
+       * Oct 6 saves the first pipeline_type_array_size_at result with
+       * push/pop. The callee homes rcx over that push, so two equal
+       * lengths compare unequal and `name: z64` rejects u8[256].
+       */
+      let sa_len: i32 = pipeline_type_array_size_at(arena, a);
+      let sb_len: i32 = pipeline_type_array_size_at(arena, b);
+      if (sa_len != sb_len) {
         return false;
       }
       ea = pipeline_type_elem_ref_at(arena, a);
@@ -11691,8 +12058,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (ctx != 0 as *PipelineDepCtx) {
       func_ix = pipeline_dep_ctx_current_func_index(ctx);
     }
+    // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+    let nfunc_encl: i32 = 0;
+    if (module != 0 as *Module) {
+      nfunc_encl = pipeline_module_num_funcs(module);
+    }
     if (module != 0 as *Module && ctx != 0 as *PipelineDepCtx && func_ix >= 0 &&
-    func_ix < pipeline_module_num_funcs(module)) {
+    func_ix < nfunc_encl) {
       func_ret = pipeline_module_func_return_type_at(module, func_ix);
       if (!ast.ref_is_null(func_ret)) {
         enclosing_return_type_ref = func_ret;
@@ -13187,7 +13559,7 @@ expect_ref: i32, src_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, "> slice to unbound T[]", 22);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     if (typeck_slice_region_conflict(arena, expect_ref, src_ref) != 0) {
@@ -13217,7 +13589,7 @@ expect_ref: i32, src_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, ">", 1);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     return 0;
@@ -13283,7 +13655,7 @@ op_ref: i32, func_return_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, "> slice as unbound T[]", 22);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     if (typeck_slice_region_conflict(arena, func_return_ref, got_ref) != 0) {
@@ -13313,7 +13685,7 @@ op_ref: i32, func_return_ref: i32): i32 {
       p = typeck_diag_append_lit(&msg[0], p, 255, &sb[0], slen);
       p = typeck_diag_append_lit(&msg[0], p, 255, ">", 1);
       msg[p] = 0;
-      lsp_diag_report_typeck(line, col, &msg[0]);
+      typeck_report_hard_t001(line, col, &msg[0]);
       return 0 - 1;
     }
     return 0;
@@ -13694,7 +14066,7 @@ site_expr_ref: i32, left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
         p = typeck_diag_append_lit(&msg[0], 0, 79,
         "struct stack escape: cannot store address of local struct in outer lifetime", 73);
         msg[p] = 0;
-        lsp_diag_report_typeck(line, col, &msg[0]);
+        typeck_report_hard_t001(line, col, &msg[0]);
         return 0 - 1;
       }
       pi = pi + 1;
@@ -13778,7 +14150,7 @@ left_ref: i32, right_ref: i32, ctx: *PipelineDepCtx): i32 {
     /* "scope borrow escape" len 19 */
     p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -13816,7 +14188,7 @@ op_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
     p = typeck_diag_append_lit(&msg[0], 0, 23, "scope borrow escape", 19);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -13971,7 +14343,7 @@ left_ref: i32, ctx: *PipelineDepCtx): i32 {
     /* "allocator region escape" len 24 */
     p = typeck_diag_append_lit(&msg[0], 0, 27, "allocator region escape", 24);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14005,7 +14377,7 @@ return_type_ref: i32): i32 {
     typeck_expr_diag_line_col(arena, site_expr_ref, &line, &col);
     p = typeck_diag_append_lit(&msg[0], 0, 27, "allocator region escape", 24);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14083,7 +14455,7 @@ param_ref: i32, arg_ref: i32): i32 {
     p = typeck_diag_append_lit(&msg[0], 0, 63,
     "no matching overload (incompatible struct pointer argument)", 56);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -14220,7 +14592,7 @@ ctx: *PipelineDepCtx): i32 {
                           p = typeck_diag_append_lit(&msg[0], 0, 95,
                           "struct stack escape: cannot pass address of local struct with outer struct pointer", 78);
                           msg[p] = 0;
-                          lsp_diag_report_typeck(line, col, &msg[0]);
+                          typeck_report_hard_t001(line, col, &msg[0]);
                           return 0 - 1;
                         }
                       }
@@ -14687,10 +15059,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * G.7: driver_diagnostic_typeck_invalid_void_binop; unary -/~ void same diag.
        * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
        */
-      if (lko == ord_void || rko == ord_void) {
+      /*
+       * Each compare is its own if. A chained `lko == ord_void || rko == ord_void`
+       * is one EXPR_LOGOR whose second equality reused the 0/1 result of the
+       * first sete. That result had overwritten the register holding ord_void,
+       * so the right operand was compared with 0. TYPE_I32 is ordinal 0, so
+       * every right-hand i32 was rejected as void (Windows bootstrap image
+       * that compiled this function). The two ifs are the same predicate and
+       * each equality reloads ord_void.
+       * PLATFORM: SHARED — same rejection on every host. The bootstrap image
+       * miscompiled only the chained form.
+       */
+      if (lko == ord_void) {
         let line_vb: i32 = pipeline_expr_line_at(arena, expr_ref);
         let col_vb: i32 = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_void_binop(line_vb, col_vb);
+        return -1;
+      }
+      if (rko == ord_void) {
+        let line_vb2: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_vb2: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_void_binop(line_vb2, col_vb2);
         return -1;
       }
       /*
@@ -14702,10 +15091,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * remove bool→i32 promotion block below.
        * PLATFORM: SHARED — seed typeck_gen + empty_surface + diagnostic twin same commit.
        */
-      if (lko == ord_bool || rko == ord_bool) {
+      /*
+       * Same chained-or lowering as the void check above: the second compare
+       * would test the right kind against 0 or 1, not against ord_bool.
+       * Split so a right-hand bool is still rejected.
+       * PLATFORM: SHARED.
+       */
+      if (lko == ord_bool) {
         let line_bb: i32 = pipeline_expr_line_at(arena, expr_ref);
         let col_bb: i32 = pipeline_expr_col_at(arena, expr_ref);
         driver_diagnostic_typeck_invalid_bool_binop(line_bb, col_bb);
+        return -1;
+      }
+      if (rko == ord_bool) {
+        let line_bb2: i32 = pipeline_expr_line_at(arena, expr_ref);
+        let col_bb2: i32 = pipeline_expr_col_at(arena, expr_ref);
+        driver_diagnostic_typeck_invalid_bool_binop(line_bb2, col_bb2);
         return -1;
       }
       /* Pointer ± integer is the only legal pointer arithmetic (C-like). */
@@ -14726,7 +15127,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
        * adjacent string lits wave282), mul/div/mod/bitops with ptr, int-ptr, etc.
        * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool infer twin same commit.
        */
-      if (lko == ord_ptr || rko == ord_ptr) {
+      /*
+       * Each side is its own compare. A chained `lko == ord_ptr || rko == ord_ptr`
+       * keeps ord_ptr in the register that sete overwrites, so the second
+       * compare tests the right kind against 0. TYPE_I32 is ordinal 0, so
+       * every right-hand i32 took this path and + - * / << & were rejected
+       * as pointer arithmetic (Windows bootstrap image that compiled this
+       * function). The flag is the same predicate. Each equality reloads
+       * ord_ptr. `saw_ptr != 0` is a single compare.
+       * PLATFORM: SHARED — same rejection on every host. The bootstrap image
+       * miscompiled only the chained form.
+       */
+      let saw_ptr: i32 = 0;
+      if (lko == ord_ptr) {
+        saw_ptr = 1;
+      }
+      if (rko == ord_ptr) {
+        saw_ptr = 1;
+      }
+      if (saw_ptr != 0) {
         let line_pb: i32 = pipeline_expr_line_at(arena, expr_ref);
         let col_pb: i32 = pipeline_expr_col_at(arena, expr_ref);
         if (expr_kind == ord_add) {
@@ -14738,11 +15157,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
           return -1;
         }
         if (expr_kind == ord_sub) {
-          if (lko == ord_ptr && rko == ord_ptr) {
-            /* Pointer difference yields isize (not a pointer). */
-            out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_isize);
-            pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
-            return 0;
+          /*
+           * Nested compares, not `lko == ord_ptr && rko == ord_ptr`. The same
+           * sete clobber made a real pointer difference fail the second
+           * compare: the right kind was tested against 0, not ord_ptr.
+           * PLATFORM: SHARED.
+           */
+          if (lko == ord_ptr) {
+            if (rko == ord_ptr) {
+              /* Pointer difference yields isize (not a pointer). */
+              out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_isize);
+              pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
+              return 0;
+            }
           }
           if (!ast.ref_is_null(out_ar)) {
             pipeline_expr_set_resolved_type_ref(arena, expr_ref, out_ar);
@@ -14806,12 +15233,35 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         }
       }
       if (ast.ref_is_null(out_ar)) {
+        /*
+         * PLATFORM: WINDOWS — lane counts are locals before the compare.
+         * The same push/pop that rejects equal u8[256] lengths would
+         * reject equal vector lanes. The else-if chain stays on this if.
+         */
+        let vec_lsz: i32 = 0;
+        let vec_rsz: i32 = 0;
+        if (lko == ord_type_vector && rko == ord_type_vector) {
+          vec_lsz = pipeline_type_array_size_at(arena, lt_ar);
+          vec_rsz = pipeline_type_array_size_at(arena, rt_ar);
+        }
         if (lko == ord_type_vector && rko == ord_type_vector
-        && pipeline_type_array_size_at(arena, lt_ar) == pipeline_type_array_size_at(arena, rt_ar)
+        && vec_lsz == vec_rsz
         && type_refs_equal(arena, pipeline_type_elem_ref_at(arena, lt_ar),
         pipeline_type_elem_ref_at(arena, rt_ar))) {
           out_ar = lt_ar;
-        } else if (lko == ord_i64 || rko == ord_i64) {
+        } else if (lko == ord_i64) {
+          /*
+           * Not `lko == ord_i64 || rko == ord_i64`. The & | ^ % arm above
+           * compares an operand kind with ord_lit. That sete overwrites the
+           * register still holding ord_i64, and the chained form does not
+           * reload it, so the compare treats every i32 (ordinal 0) as i64.
+           * The binop result becomes i64: `a & b`, `a % 16`, and `esz & 255`
+           * then fail the i32 use. + - * / << >> do not enter that arm and
+           * stayed i32. Each side is its own compare so ord_i64 is reloaded.
+           * PLATFORM: SHARED. The bootstrap image miscompiled only the chain.
+           */
+          out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64);
+        } else if (rko == ord_i64) {
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_i64);
         } else if (lko == ord_f32
         && typeck_coerce_init_float_lit_to_decl(arena, bop_r, lt_ar, ord_f32, rk_expr) != 0) {
@@ -14825,12 +15275,19 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
         } else if (rko == ord_f32
         && typeck_coerce_init_float_lit_to_decl(arena, bop_l, rt_ar, ord_f32, lk_expr) != 0) {
           out_ar = rt_ar;
-        } else if (lko == ord_f64 || rko == ord_f64) {
+        } else if (lko == ord_f64) {
           /* wave296: usual arithmetic conversion — any f64 operand widens the binop to f64
            * (f32*f64 / f64*f32 must not resolve as f32; freestanding cast/mul need mulsd bits).
+           * Split, not `lko == ord_f64 || rko == ord_f64`. Same sete clobber as ord_i64:
+           * a right-hand i32 is ordinal 0 and would widen to f64. Each compare reloads.
            * PLATFORM: SHARED — seed typeck_gen + empty_surface + ast_pool twin same commit. */
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f64);
-        } else if (lko == ord_f32 || rko == ord_f32) {
+        } else if (rko == ord_f64) {
+          out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f64);
+        } else if (lko == ord_f32) {
+          /* Same reload as ord_f64. Not `lko == ord_f32 || rko == ord_f32`. */
+          out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32);
+        } else if (rko == ord_f32) {
           out_ar = typeck_ensure_primitive_by_kind_ord(arena, ord_f32);
         } else if (type_refs_equal(arena, lt_ar, rt_ar)) {
           out_ar = lt_ar;
@@ -17393,9 +17850,38 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             func_ix = 0 - 1;
             if (dep_slot >= 0) {
               dm = pipeline_dep_ctx_module_at(ctx, dep_slot);
+              /*
+               * The ctx module slot can be null or an empty shell while the
+               * driver still holds the parsed dep module. Use that buffer only
+               * when the ctx module has no functions. Same preference as the
+               * host-cc paste of this method-call import path.
+               * PLATFORM: SHARED — driver dep module buffer on macOS, Ubuntu, Windows.
+               */
+              if (dm == 0 as *Module || pipeline_module_num_funcs(dm) == 0) {
+                let alt_dm: *u8 = typeck_driver_dep_module_buf(dep_slot);
+                if (alt_dm != 0 as *u8 && pipeline_module_num_funcs(alt_dm as *Module) > 0) {
+                  dm = alt_dm as *Module;
+                }
+              }
               if (dm != 0 as *Module && pipeline_module_num_funcs(dm) > 0) {
                 import_ret_ty = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
                   dm, arena, &method_nm[0], method_nlen, dep_slot, num_args, expr_ref, 1, ctx, &func_ix);
+                /*
+                 * A dep-indexed overload map can miss while the unbound return
+                 * type_ref is still valid in the dep module. Retry unbound,
+                 * then map that type into the caller arena.
+                 */
+                if (import_ret_ty <= 0) {
+                  let local_ret: i32 = 0;
+                  let local_fi: i32 = 0 - 1;
+                  local_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+                    dm, arena, &method_nm[0], method_nlen, 0 - 1, num_args, expr_ref, 1, ctx,
+                    &local_fi);
+                  if (local_ret > 0) {
+                    import_ret_ty = get_dep_return_type_in_caller_arena(dep_slot, local_ret, arena, ctx);
+                    func_ix = local_fi;
+                  }
+                }
                 if (import_ret_ty > 0) {
                   dep_ix = dep_slot;
                 }
@@ -17411,6 +17897,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                 let try_ret: i32 = 0;
                 if (try_di != dep_slot) {
                   try_dm = pipeline_dep_ctx_module_at(ctx, try_di);
+                  if (try_dm == 0 as *Module || pipeline_module_num_funcs(try_dm) == 0) {
+                    let alt_tdm: *u8 = typeck_driver_dep_module_buf(try_di);
+                    if (alt_tdm != 0 as *u8 && pipeline_module_num_funcs(alt_tdm as *Module) > 0) {
+                      try_dm = alt_tdm as *Module;
+                    }
+                  }
                   if (try_dm != 0 as *Module && pipeline_module_num_funcs(try_dm) > 0) {
                     try_ret = pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
                       try_dm, arena, &method_nm[0], method_nlen, try_di, num_args, expr_ref, 1, ctx,
@@ -17743,7 +18235,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     p = typeck_diag_append_lit(&msg[0], 0, 255, "no impl for type with method ", 29);
     p = typeck_diag_append_lit(&msg[0], p, 255, &method_nm[0], method_nlen);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -17921,13 +18413,70 @@ tgt_ty: i32): i32 {
     if (s_num != 0 && t_num != 0) {
       return 1;
     }
-    /* integer ↔ pointer (kernel MMIO / address casts). */
-    if ((s_int != 0 && tk == ord_ptr) || (t_int != 0 && sk == ord_ptr)) {
-      return 1;
+    /*
+     * Integer to pointer, and pointer to integer (kernel MMIO / address).
+     * Not one `||` of two `&&` compares that share ord_ptr.
+     * The first arm loads ord_ptr. sete overwrites that register.
+     * The second arm does not reload it, so a pointer source misses.
+     * Integer to pointer is the first arm and already accepts.
+     * `*u8 as usize` in g02f_store_ptr_at was rejected as an illegal cast.
+     * Each side stores its own flag. Each equality reloads ord_ptr.
+     * The acceptance tests read those flags, not ord_ptr.
+     * Not a nested compare of ord_ptr: that form tests the kind against 1.
+     * PLATFORM: SHARED. The bootstrap image miscompiled the chained form.
+     */
+    let src_as_int: i32 = 0;
+    let tgt_as_ptr: i32 = 0;
+    let tgt_as_int: i32 = 0;
+    let src_as_ptr: i32 = 0;
+    if (s_int != 0) {
+      src_as_int = 1;
     }
-    /* pointer ↔ pointer (reinterpret pointee). */
-    if (sk == ord_ptr && tk == ord_ptr) {
-      return 1;
+    if (tk == ord_ptr) {
+      tgt_as_ptr = 1;
+    }
+    if (t_int != 0) {
+      tgt_as_int = 1;
+    }
+    if (sk == ord_ptr) {
+      src_as_ptr = 1;
+    }
+    if (src_as_int != 0) {
+      if (tgt_as_ptr != 0) {
+        return 1;
+      }
+    }
+    if (tgt_as_int != 0) {
+      if (src_as_ptr != 0) {
+        return 1;
+      }
+    }
+    /*
+     * Pointer to pointer (reinterpret the pointee).
+     * Not a nested `if (sk == ord_ptr) { if (tk == ord_ptr) }`.
+     * That outer compare's sete overwrites the register holding ord_ptr
+     * and leaves 1 on the true path. The inner compare is still in that
+     * path, so it tests the target kind against 1. A real pointer target
+     * misses. `*u8 as *u64` in the Windows writev stub then fails as an
+     * illegal cast. Same-type pointer casts never reach here.
+     * Each side stores its own flag, the same shape as the pointer-binop
+     * check. Each equality reloads ord_ptr. The flags are a different
+     * local from ord_ptr, so the acceptance test does not reread the
+     * clobbered register.
+     * PLATFORM: SHARED. The bootstrap image miscompiled the nested form.
+     */
+    let src_is_ptr: i32 = 0;
+    let tgt_is_ptr: i32 = 0;
+    if (sk == ord_ptr) {
+      src_is_ptr = 1;
+    }
+    if (tk == ord_ptr) {
+      tgt_is_ptr = 1;
+    }
+    if (src_is_ptr != 0) {
+      if (tgt_is_ptr != 0) {
+        return 1;
+      }
     }
     return 0;
   }
@@ -18912,7 +19461,8 @@ export function func_body_has_implicit_return_tail(arena: *ASTArena, body_ref: i
     if (dbg != 0 as *u8) {
       // Debug only; residual used fprintf — keep gate, omit host I/O in pure.
     }
-    if (ast.ast_expr_disallows_implicit_tail(arena, tail_ref)) {
+    // The helper returns i32. A nonzero value means this tail is not implicit.
+    if (ast.ast_expr_disallows_implicit_tail(arena, tail_ref) != 0) {
       return false;
     }
     if (tail_kind == 26) {
@@ -20145,6 +20695,9 @@ export function typeck_x_ast_impl(module: *Module, arena: *ASTArena, ctx: *Pipel
     if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return -2;
     }
+    /* Win si T001: merge dep struct layouts into entry before FIELD_ACCESS typeck.
+     * Backend merge runs after typeck — too late for hard_fail. PLATFORM: SHARED. */
+    typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
     /* wave421 Cap residual pure — missing method before per-func check_block.
      * Root: incomplete impl Trait for T was false-green (only free-fn hoist).
      * G.7: xlang_trait_check_impls_complete_c (skip_tl registry). Soft: bounds/dyn. */
@@ -20208,6 +20761,8 @@ export function typeck_x_ast_library(module: *Module, arena: *ASTArena, ctx: *Pi
     if (module == 0 as *Module || arena == 0 as *ASTArena || ctx == 0 as *PipelineDepCtx) {
       return -5;
     }
+    /* Win si T001: merge dep layouts before library FIELD_ACCESS typeck. PLATFORM: SHARED. */
+    typeck_merge_dep_struct_layouts_into_entry(module, arena, ctx);
     if (typeck_validate_struct_layouts_zero_padding(module, arena) != 0) {
       return -7;
     }
@@ -21149,7 +21704,7 @@ call_expr_ref: i32, ctx: *PipelineDepCtx): i32 {
                       p = typeck_diag_append_lit(&msg[0], 0, 95,
                       "struct stack escape: cannot pass address of local struct with outer struct pointer", 78);
                       msg[p] = 0;
-                      lsp_diag_report_typeck(line, col, &msg[0]);
+                      typeck_report_hard_t001(line, col, &msg[0]);
                       return -1;
                     }
                   }
@@ -21285,7 +21840,7 @@ site_expr_ref: i32, return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     p = typeck_diag_append_lit(&msg[0], p, 255, &ctx.typeck_scope_region_label[0], rlen);
     p = typeck_diag_append_lit(&msg[0], p, 255, "> slice as unbound T[]", 22);
     msg[p] = 0;
-    lsp_diag_report_typeck(line, col, &msg[0]);
+    typeck_report_hard_t001(line, col, &msg[0]);
     return 0 - 1;
   }
 }
@@ -22419,8 +22974,14 @@ max_map: i32, depth: i32): i32 {
         return -1;
       }
       if (fk == ord_array || fk == ord_vector) {
-        if (pipeline_type_array_size_at(formal_arena, formal_ty)
-        != pipeline_type_array_size_at(arg_arena, arg_ty)) {
+        /*
+         * PLATFORM: WINDOWS — both lengths are locals before the compare.
+         * Oct 6's push of the formal length is overwritten by the arg
+         * length call, so equal array patterns fail to unify.
+         */
+        let fsz_u: i32 = pipeline_type_array_size_at(formal_arena, formal_ty);
+        let asz_u: i32 = pipeline_type_array_size_at(arg_arena, arg_ty);
+        if (fsz_u != asz_u) {
           return -1;
         }
       }
@@ -22982,19 +23543,26 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
         return 0;
       }
     }
-    if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx && dep_ix < pipeline_dep_ctx_ndep(ctx)) {
-      dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
-      da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
-      if (dm != 0 as *Module) {
-        search_mod = dm;
-        if (da != 0 as *ASTArena) {
-          search_arena = da;
+    if (dep_ix >= 0 && ctx != 0 as *PipelineDepCtx) {
+      // PLATFORM: WINDOWS — finish the count call before comparing dep_ix.
+      // The x86 emit pushes the index and the callee homes rcx over that push.
+      let ndep_fix: i32 = pipeline_dep_ctx_ndep(ctx);
+      if (dep_ix < ndep_fix) {
+        dm = pipeline_dep_ctx_module_at(ctx, dep_ix);
+        da = pipeline_dep_ctx_arena_at(ctx, dep_ix);
+        if (dm != 0 as *Module) {
+          search_mod = dm;
+          if (da != 0 as *ASTArena) {
+            search_arena = da;
+          }
         }
       }
     }
     if (func_idx < 0) {
+      // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+      let nfunc_search: i32 = pipeline_module_num_funcs(search_mod);
       j = 0;
-      while (j < pipeline_module_num_funcs(search_mod)) {
+      while (j < nfunc_search) {
         if (pipeline_module_func_name_equal_at(search_mod, j, &cnm[0], cnml) != 0) {
           func_idx = j;
           break;
@@ -23012,8 +23580,10 @@ call_expr_ref: i32, ctx: *PipelineDepCtx, expected_ret: i32): i32 {
           di = di + 1;
           continue;
         }
+        // PLATFORM: WINDOWS — hoist the pure count out of the compare.
+        let nfunc_dm: i32 = pipeline_module_num_funcs(dm);
         j = 0;
-        while (j < pipeline_module_num_funcs(dm)) {
+        while (j < nfunc_dm) {
           if (pipeline_module_func_name_equal_at(dm, j, &cnm[0], cnml) != 0) {
             func_idx = j;
             search_mod = dm;
@@ -23311,7 +23881,11 @@ export function pipeline_typeck_set_entry_module_for_dep_map_c(module: *Module):
 #[no_mangle]
 export function pipeline_typeck_get_dep_return_type_in_caller_arena_c(from_dep_index: i32,
 dep_return_type_ref: i32, caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
-  return get_dep_return_type_in_caller_arena(from_dep_index, dep_return_type_ref, caller_arena, ctx);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // The early export-extern declaration makes this call an extern call on the asm path.
+  unsafe {
+    return get_dep_return_type_in_caller_arena(from_dep_index, dep_return_type_ref, caller_arena, ctx);
+  }
 }
 
 /**
@@ -23447,8 +24021,12 @@ export function pipeline_typeck_find_func_return_type_in_module_by_name_call_str
 export function pipeline_typeck_find_func_return_type_in_module_by_name_strict_minimal(
   mod: *Module, caller_arena: *ASTArena, name: *u8, name_len: i32, from_dep_index: i32,
   want_arity: i32, ctx: *PipelineDepCtx, func_index_out: *i32): i32 {
-  return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
-    mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out);
+  // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // The early export-extern declaration makes this call an extern call on the asm path.
+  unsafe {
+    return pipeline_typeck_find_func_return_type_in_module_by_name_call_strict_minimal(
+      mod, caller_arena, name, name_len, from_dep_index, want_arity, 0, 0, ctx, func_index_out);
+  }
 }
 
 /**
@@ -24414,7 +24992,7 @@ name: *u8, name_len: i32): i32 {
         line = pipeline_expr_line_at(arena, expr_ref);
         col = pipeline_expr_col_at(arena, expr_ref);
       }
-      lsp_diag_report_typeck(line, col, "linear value used after move" as *u8);
+      typeck_report_hard_t001(line, col, "linear value used after move" as *u8);
       return 0 - 1;
     }
     if (g_typeck_linear_moved_n < 128) {

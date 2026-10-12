@@ -1,10 +1,12 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// runtime_net_udp_batch.x — Thin .x exports delegating to
-// seeds/runtime_net_udp_batch.from_x.c via xlang_net_cap.h (SHARED Cap 9.1.7).
+// runtime_net_udp_batch.x — Thin .x exports.
+// Darwin arm64 bodies are src/asm/runtime_net_udp_batch_darwin.x
+// (libSystem sendto, recvfrom, and poll). Linux and Windows bodies
+// stay seeds/runtime_net_udp_batch.from_x.c via xlang_net_cap.h.
 //
-// PLATFORM: SHARED — Linux & Darwin raw syscalls + Windows Winsock Cap.
+// PLATFORM: SHARED — Linux Cap, Darwin libSystem, Windows Winsock Cap.
 
 export extern "C" function xlang_udp_batch_set_addr_port_impl(sin: *u8, addr_u32: u32, port_u32: u32): void;
 export extern "C" function xlang_udp_batch_poll_readable_impl(fd: i32, timeout_ms: u32): i32;

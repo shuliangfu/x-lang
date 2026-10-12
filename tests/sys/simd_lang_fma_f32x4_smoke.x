@@ -12,7 +12,10 @@ function main(): i32 {
   let a: Vec4f = [1.0, 1.0, 1.0, 1.0];
   let b: Vec4f = [2.0, 2.0, 2.0, 2.0];
   let c: Vec4f = [3.0, 3.0, 3.0, 3.0];
-  let r: Vec4f = simd.fma_f32x4(a, b, c);
+  let r: Vec4f = [0.0, 0.0, 0.0, 0.0];
+  if (simd.fma_f32x4(a, b, c, &r[0]) != 0) {
+    return 1;
+  }
   if (r[0] < 6.99 || r[0] > 7.01) {
     return 1;
   }

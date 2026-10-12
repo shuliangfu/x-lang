@@ -24,6 +24,14 @@
 // 7.2.1 ninth knife (2026-09-10): authority moved from the hand-written C
 // seed (seeds/pipeline_asm_run_all_alias.from_x.c, promoted from a retired
 // .inc) to this .x source. PLATFORM: SHARED.
+// Darwin arm64 product object is this file via -backend asm.
+// A failing parse or typecheck returns immediately. A codegen skip returns 0.
+// This object is not pipeline_asm_typecheck_alias.o.
+// Linux uses this file with -lib-name "". Without that flag the
+// second export is pipeline_run_x_pipeline_impl, not run_x_pipeline_impl.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps -x -E and then host cc.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on -x -E.
 
 /** Pipeline phase impls (pipeline_x.o / strict_core partial exports). */
 export extern function pipeline_impl_phase_parse_load(module: *u8, arena: *u8, source_data: *u8, source_len: usize, ctx: *u8): i32;

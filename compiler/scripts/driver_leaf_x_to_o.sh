@@ -413,11 +413,23 @@ EOF
   exit 0
 }
 
+
+# BusyBox/w64devkit mktemp (and BSD) require XXXXXX at end of TEMPLATE — no .c/.o suffix.
+# PLATFORM: SHARED — create bare temp then rename to .c for cc without -x c.
+_xlang_mktemp_c() {
+  local _t _pref="${1:-xlang}"
+  _t=$(mktemp "${TMPDIR:-/tmp}/${_pref}.XXXXXX") || return 1
+  mv "$_t" "${_t}.c" || { rm -f "$_t"; return 1; }
+  printf '%s\n' "${_t}.c"
+}
+
 # wave860: BASE_CFLAGS from make export leaf when unset (G.7; not physical delete).
 # Composition needs make expansion (OPT CFLAGS, PIPELINE_GEN_CFLAGS clang ifeq).
 # PLATFORM: SHARED — KEY=value from export target; fallback matches historic default.
 _load_driver_leaf_base_cflags_via_make() {
   local raw line
+  # wave941+: Makefile may be absent (phys delete). Skip make noise; caller falls back.
+  [ -f Makefile ] || return 1
   raw=$(MAKEFLAGS= "${MAKE:-make}" -s export-driver-leaf-base-cflags) || return 1
   while IFS= read -r line || [ -n "$line" ]; do
     case "$line" in
@@ -429,20 +441,90 @@ _load_driver_leaf_base_cflags_via_make() {
 
 # True when this host's product -E binary is a leftover Windows PE that cannot
 # compile tip .x sources without name mangling (_reti32) or stdout clashes.
+# driver_fmt_x.o, driver_check_x.o, driver_test_x.o, driver_build_x.o,
+# driver_run_x.o, driver_compile_x.o, driver_emit_x.o, and
+# lsp_io_std_heap_x.o are the exceptions.
+# The product xlang-c.exe -E of src/driver/fmt.x compiles to the same T driver_cmd_fmt /
+# U driver_run_fmt body as the cold seed. The same binary -E of
+# src/driver/check.x compiles to T driver_cmd_check /
+# U driver_run_compiler_check. The same binary -E of src/driver/test.x
+# compiles to T driver_cmd_test / U driver_run_test. The same binary -E of
+# src/driver/build.x compiles to T build_cmd_build / U driver_build_build_x /
+# U main_run_compiler_x_path_impl. The same binary -E of src/driver/run.x
+# compiles to T driver_run_eq_word / T driver_cmd_run /
+# U driver_exec_compiled / U main_run_compiler_x_path_impl. That body checks
+# argc < 2 before calling main_run_compiler_x_path_impl, matching run.x and
+# the Linux and Darwin objects. The linux cold seed calls main_run first, so
+# it is not a build input for this leaf on Windows. The same binary -E of
+# src/driver/compile.x compiles to the same T set as the cold seed, from
+# driver_compile_dispatch_asm_backend through driver_target_has_arm, with
+# .text 0x13c0. parse_argv_step follows compile.x: when the next argv is a
+# value, apply the flag and return i+2, otherwise return i+1. The linux cold
+# seed spells that guard as next == 0 return i+1 else apply. Linux and Darwin
+# objects take the apply path when the check is nonzero. The cold seed is not
+# a Windows build input for this leaf. The same binary -E of src/driver/emit.x
+# compiles to the same T set as the cold seed, from driver_emit_state_key
+# through driver_dispatch_x_emit_to_c, plus the ew_* wraps and
+# emit_release_entry_heaps. run_x_emit_x follows emit.x: CodegenOutBuf is left
+# uninitialized and only length is stored, and PipelineDepCtx is memset to
+# 0x800648. The linux cold seed zero-fills CodegenOutBuf.data and memsets
+# 0x800540. Linux and Darwin objects use 0x800648. The cold seed is not a
+# Windows build input for this leaf. The same binary -E of
+# src/lsp/lsp_io_std_heap.x compiles to T lsp_io_std_heap_std_heap_alloc /
+# T lsp_io_std_heap_std_heap_alloc_zeroed / T lsp_io_std_heap_std_heap_free
+# and U malloc / U calloc / U free. Each body follows lsp_io_std_heap.x:
+# a zero size returns 0, otherwise malloc or calloc(1, size), and a null
+# pointer returns before free. The linux cold seed spells that guard as a
+# statement-expression temp and uses a 0x30-byte frame. Linux and Darwin
+# objects use the direct compare. The cold seed is not a Windows build
+# input for this leaf. The same binary -E of src/preprocess/preprocess.x
+# compiles to the same T set as the Linux and Darwin objects: the pp_*
+# helpers, parse_copy_cond_from_line, parse_directive_into,
+# preprocess_apply_directive_kind, preprocess_line_keeping, preprocess_x,
+# and preprocess_x_buf. Those bodies call preprocess_if_stack_* and
+# preprocess_eval_condition_c. The linux cold seed exports
+# preprocess_parse_copy_cond_from_line and preprocess_parse_directive_into
+# instead of the pp_* helpers. The cold seed is not a Windows build input
+# for this leaf. The nest-1..64 xlang_slice_* layouts
+# in that -E dump are the shared prelude. The unsuffixed ./xlang-c on a
+# Windows tree can be a different PE that rejects these files with P001, so
+# pick_xlang does not use it for these leaves.
 # PLATFORM: WINDOWS — 2026-07-31 leftover PE fallback to cold seeds.
 driver_leaf_windows_leftover_pe_cannot_e() {
   case "$(uname -s 2>/dev/null)" in
-    MINGW*|MSYS*|CYGWIN*) return 0 ;;
+    Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+      case "${DRIVER_LEAF_OUT_BASE:-}" in
+        driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o|preprocess_x.o) return 1 ;;
+      esac
+      return 0
+      ;;
   esac
   return 1
 }
 
 # Pick first usable xlang binary for -E preprocessing of driver/lsp leaves.
 # PLATFORM: SHARED — on Windows leftover-PE, returns 1 to force cold seed fallback.
+# PLATFORM: WINDOWS — driver_fmt_x.o, driver_check_x.o, driver_test_x.o,
+# driver_build_x.o, driver_run_x.o, driver_compile_x.o, driver_emit_x.o,
+# lsp_io_std_heap_x.o, and preprocess_x.o use xlang-c.exe, not an
+# unsuffixed ./xlang-c.
 pick_xlang() {
   if driver_leaf_windows_leftover_pe_cannot_e; then
     return 1
   fi
+  case "${DRIVER_LEAF_OUT_BASE:-}" in
+    driver_fmt_x.o|driver_check_x.o|driver_test_x.o|driver_build_x.o|driver_run_x.o|driver_compile_x.o|driver_emit_x.o|lsp_io_std_heap_x.o|preprocess_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          if [ -x ./xlang-c.exe ]; then
+            printf '%s\n' ./xlang-c.exe
+            return 0
+          fi
+          return 1
+          ;;
+      esac
+      ;;
+  esac
   for b in ./xlang ./xlang-c ./bootstrap_xlangc; do
     if [ -x "$b" ]; then
       printf '%s\n' "$b"
@@ -497,11 +579,31 @@ driver_leaf_build() {
   OUT_O="$2"
   SYM_RENAME="${3:-}"
   COLD_SEED="${4:-}"
+  # Visible to pick_xlang / the Windows cold-seed guard in this same shell.
+  DRIVER_LEAF_OUT_BASE="${OUT_O##*/}"
 
   if [ ! -f "$X_SRC" ]; then
     echo "driver_leaf_x_to_o: missing $X_SRC" >&2
     exit 1
   fi
+
+  # PLATFORM: WINDOWS — leftover-PE pick_xlang skips -E and the cold seed
+  # then driver_gen.c is host-cc. The product can -E src/main.x with
+  # -lib-name main. Compile that object here and do not fall through.
+  case "${OUT_O##*/}" in
+    driver_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          if bash scripts/ensure_driver_gen.sh emit-o "$OUT_O"; then
+            echo "driver_leaf_x_to_o: $OUT_O <- src/main.x (-lib-name main)"
+            return 0
+          fi
+          echo "driver_leaf_x_to_o: driver_x.o main.x -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+  esac
 
   CC="${CC:-cc}"
   # wave860: shell-load BASE_CFLAGS via export leaf when unset (G.7).
@@ -588,7 +690,7 @@ driver_leaf_build() {
   esac
 
   if XLANG_BIN=$(pick_xlang); then
-    tmp="$(mktemp "${TMPDIR:-/tmp}/driver_leaf.XXXXXX.c")"
+    tmp="$(_xlang_mktemp_c driver_leaf)" || exit 1
     # -E alarm guard (wave338: per-leaf scalable; was hardcoded 30s).
     # shellcheck disable=SC2086
     _e_rc=0
@@ -631,23 +733,23 @@ driver_leaf_build() {
         echo '#include <sys/uio.h>'
         echo '#include <poll.h>'
         echo '#endif'
-        sed -e '/^#include /d' \
-            -e '/^extern ssize_t read(/d' \
-            -e '/^extern ssize_t write(/d' \
-            -e '/^extern int32_t open(/d' \
-            -e '/^extern int open(/d' \
-            -e '/^extern int32_t fcntl(/d' \
-            -e '/^extern int fcntl(/d' \
-            -e '/^extern int32_t close(/d' \
-            -e '/^extern int close(/d' \
-            -e '/^extern uint8_t \* calloc(/d' \
-            -e '/^extern uint8_t \* malloc(/d' \
-            -e '/^extern void free(/d' \
-            -e '/^extern char \* getenv(/d' \
-            -e '/^extern uint8_t \* getenv(/d' \
-            -e '/^extern int32_t unlink(/d' \
-            -e '/^extern int unlink(/d' \
-            -e '/^extern size_t strlen(/d' \
+        sed -e '\|^#include |d' \
+            -e '\|^extern ssize_t read(|d' \
+            -e '\|^extern ssize_t write(|d' \
+            -e '\|^extern int32_t open(|d' \
+            -e '\|^extern int open(|d' \
+            -e '\|^extern int32_t fcntl(|d' \
+            -e '\|^extern int fcntl(|d' \
+            -e '\|^extern int32_t close(|d' \
+            -e '\|^extern int close(|d' \
+            -e '\|^extern uint8_t \* calloc(|d' \
+            -e '\|^extern uint8_t \* malloc(|d' \
+            -e '\|^extern void free(|d' \
+            -e '\|^extern char \* getenv(|d' \
+            -e '\|^extern uint8_t \* getenv(|d' \
+            -e '\|^extern int32_t unlink(|d' \
+            -e '\|^extern int unlink(|d' \
+            -e '\|^extern size_t strlen(|d' \
             "$tmp"
       } >"${tmp}.full" && mv "${tmp}.full" "$tmp"
       # G.7 post_E_fixup (wave335):
@@ -655,7 +757,7 @@ driver_leaf_build() {
       #   · init_globals cross-module scrub (parser_x.o only)
       #   · 5 missing public-API body append (typeck_x.o only)
       # Script lives next to this shell driver; always invoke from compiler/ (orig pwd).
-      tmp_fix="$(mktemp "${TMPDIR:-/tmp}/driver_leaf_fix.XXXXXX.c")"
+      tmp_fix="$(_xlang_mktemp_c driver_leaf_fix)" || exit 1
       ( cd "$_orig_pwd" && \
         python3 scripts/post_E_fixup.py "$tmp" "$tmp_fix" \
           $SCRUB_INIT_GLOBALS_FLAG $APPEND_TYPECK_BODIES_FLAG ) \
@@ -688,16 +790,115 @@ driver_leaf_build() {
     echo "driver_leaf_x_to_o: PREFER_X_O failed for $X_SRC; try cold seed" >&2
   fi
 
+  # PLATFORM: WINDOWS — fmt.x, check.x, test.x, build.x, run.x, compile.x,
+  # emit.x, lsp_io_std_heap.x, and preprocess.x are compiled by xlang-c.exe
+  # -E above. The linux cold seed is not a build input for these leaves.
+  # Other leaves stay on the leftover-PE cold path. Darwin and Linux are
+  # unchanged.
+  case "${DRIVER_LEAF_OUT_BASE:-}" in
+    driver_fmt_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_fmt_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_check_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_check_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_test_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_test_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_build_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_build_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_run_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_run_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_compile_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_compile_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    driver_emit_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: driver_emit_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    lsp_io_std_heap_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: lsp_io_std_heap_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+    preprocess_x.o)
+      case "$(uname -s 2>/dev/null)" in
+        Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+          echo "driver_leaf_x_to_o: preprocess_x.o -E failed; no cold seed on Windows" >&2
+          return 1
+          ;;
+      esac
+      ;;
+  esac
+
   if [ -n "$COLD_SEED" ] && [ -f "$COLD_SEED" ]; then
     # PLATFORM: SHARED — cold seed may contain extern decls that conflict with
     # system headers on macOS (void* vs uint8_t*). Strip before compile.
     # wave1035: apply SYM_RENAME to cold seed too (lsp_io seed has un-renamed
     # std_heap_alloc_usize etc.; historic path used -D flags at cc time).
-    _seed_tmp="$(mktemp "${TMPDIR:-/tmp}/cold_seed.XXXXXX.c")"
-    sed -e '/^extern uint8_t \* malloc(/d' \
-        -e '/^extern void free(/d' \
-        -e '/^extern uint8_t \* calloc(/d' \
-        "$COLD_SEED" > "$_seed_tmp"
+    _seed_tmp="$(_xlang_mktemp_c cold_seed)" || return 1
+    # PLATFORM: WINDOWS — Linux archaeology seeds redeclare mmap/lseek/… and
+    # conflict with MinGW headers; strip like malloc/free (SHARED sed, Win-only extras).
+    _seed_sed=(
+      -e '\|^extern uint8_t \* malloc(|d'
+      -e '\|^extern void free(|d'
+      -e '\|^extern uint8_t \* calloc(|d'
+    )
+    case "$(uname -s 2>/dev/null)" in
+      Windows_NT*|MINGW*|MSYS*|CYGWIN*)
+        _seed_sed+=(
+          -e '\|^extern uint8_t \* mmap(|d'
+          -e '\|^extern void \* mmap(|d'
+          -e '\|^extern int32_t munmap(|d'
+          -e '\|^extern int munmap(|d'
+          -e '\|^extern int32_t ftruncate(|d'
+          -e '\|^extern int ftruncate(|d'
+          -e '\|^extern int64_t lseek(|d'
+          -e '\|^extern long lseek(|d'
+          -e '\|^extern off_t lseek(|d'
+        )
+        ;;
+    esac
+    sed "${_seed_sed[@]}" "$COLD_SEED" > "$_seed_tmp"
     apply_rename "$_seed_tmp" "$SYM_RENAME"
     # shellcheck disable=SC2086
     if $CC $BASE_CFLAGS -c -o "$OUT_O" "$_seed_tmp" 2>/dev/null; then

@@ -8,25 +8,28 @@ const string = import("std.string");
 function main(): i32 {
   let a_buf: u8[2] = [97, 98];
   let b_buf: u8[2] = [97, 99];
-  let a: String = string.string_from_slice(&a_buf[0], 2);
-  let b: String = string.string_from_slice(&b_buf[0], 2);
+  let a: String = { length: 0 };
+  if (string.string_from_slice(&a_buf[0], 2, &a) != 0) { return 1; }
+  let b: String = { length: 0 };
+  if (string.string_from_slice(&b_buf[0], 2, &b) != 0) { return 1; }
   if (string.string_compare(a, b) >= 0) { return 1; }
   if (string.string_compare(b, a) <= 0) { return 2; }
   if (string.string_compare(a, a) != 0) { return 3; }
-  let s: String = string.new();
-  if (string.string_append_char(&s, 104) != 0) { return 4; }
+  let s: String = { length: 0 };
+  if (string.new(&s) != 0) { return 4; }
+  if (string.string_append_char(&s, 104 as u8) != 0) { return 4; }
   if (string.length(s) != 1) { return 5; }
   let hi: u8[2] = [105, 0];
   if (string.string_append_slice(&s, &hi[0], 1) != 0) { return 6; }
-  if (string.string_find_char(s, 104) != 0) { return 7; }
-  if (string.string_find_char(s, 105) != 1) { return 8; }
-  if (string.string_find_char(s, 122) != -1) { return 9; }
+  if (string.string_find_char(s, 104 as u8) != 0) { return 7; }
+  if (string.string_find_char(s, 105 as u8) != 1) { return 8; }
+  if (string.string_find_char(s, 122 as u8) != -1) { return 9; }
   let pre: u8[1] = [104];
   if (string.string_starts_with(s, &pre[0], 1) != 1) { return 10; }
   let suf: u8[1] = [105];
   if (string.string_ends_with(s, &suf[0], 1) != 1) { return 11; }
   let out: u8[8] = [0, 0, 0, 0, 0, 0, 0, 0];
   if (string.string_copy_to(s, &out[0], 8) != 2) { return 12; }
-  if (out[0] != 104 || out[1] != 105) { return 13; }
+  if (out[0] != (104 as u8) || out[1] != (105 as u8)) { return 13; }
   return 0;
 }

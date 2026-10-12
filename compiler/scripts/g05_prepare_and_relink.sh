@@ -54,6 +54,12 @@ if [ "$_cli_sync_set" = "1" ]; then
   :
 fi
 
+# Class BV: compact token/typekind tag tables (strong; leftover Cap stubs weak).
+if [[ ! -s src/token_typekind_tag_tables.o || seeds/token_typekind_tag_tables.c -nt src/token_typekind_tag_tables.o ]]; then
+  echo "g05_prepare_and_relink: cc -c seeds/token_typekind_tag_tables.c"
+  ${CC:-cc} ${CFLAGS:--O2} -I include -c seeds/token_typekind_tag_tables.c -o src/token_typekind_tag_tables.o
+fi
+
 echo "g05_prepare_and_relink: ensure prereqs (shell, no make)"
 bash scripts/g05_ensure_relink_prereqs.sh
 
@@ -67,8 +73,25 @@ export G05_SYNC_ASM=0
 bash scripts/g05_relink_xlang.sh
 
 if [ "$SYNC_ASM" = "1" ]; then
-  cp -f "${G05_OUT:-xlang}" xlang_asm
-  echo "g05_prepare_and_relink: xlang_asm OK (synced from ${G05_OUT:-xlang})"
+  _sync_src="${G05_OUT:-xlang}"
+  # MinGW -o xlang often materializes as xlang.exe. PLATFORM: WINDOWS.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ -f "${_sync_src}.exe" ]; then
+        _sync_src="${_sync_src}.exe"
+      fi
+      ;;
+  esac
+  cp -f "$_sync_src" xlang_asm
+  # Keep xlang_asm.exe for PE tools that expect the .exe suffix.
+  case "$(uname -s 2>/dev/null)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+      if [ -f "$_sync_src" ]; then
+        cp -f "$_sync_src" xlang_asm.exe 2>/dev/null || true
+      fi
+      ;;
+  esac
+  echo "g05_prepare_and_relink: xlang_asm OK (synced from $_sync_src)"
 fi
 
 # Stage-2: pin egg may have baked fmt_check_cmd_driver via host-C (auto-deny
@@ -106,7 +129,20 @@ if [ -n "$_stage2_xl" ] \
       export G05_SYNC_ASM=0
       bash scripts/g05_relink_xlang.sh
       if [ "$SYNC_ASM" = "1" ]; then
-        cp -f "${G05_OUT:-xlang}" xlang_asm
+        _sync_src="${G05_OUT:-xlang}"
+        case "$(uname -s 2>/dev/null)" in
+          MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+            if [ -f "${_sync_src}.exe" ]; then
+              _sync_src="${_sync_src}.exe"
+            fi
+            ;;
+        esac
+        cp -f "$_sync_src" xlang_asm
+        case "$(uname -s 2>/dev/null)" in
+          MINGW*|MSYS*|CYGWIN*|Windows_NT*)
+            cp -f "$_sync_src" xlang_asm.exe 2>/dev/null || true
+            ;;
+        esac
         echo "g05_prepare_and_relink: stage2 xlang_asm re-synced"
       fi
     else
@@ -115,6 +151,14 @@ if [ -n "$_stage2_xl" ] \
   else
     echo "g05_prepare_and_relink: WARN stage2 fmt ensure failed (keep prior .o)" >&2
   fi
+fi
+
+# PLATFORM: LINUX — tip asm slot frames (sub $0x1038 / $0x8a8) overlap
+# u8[4] with Option_ptr_u8. Host-cc the authoritative .x thins and
+# trampoline. Good prologues (warm gcc / Darwin / already trampolined)
+# return in the probe, before -E. PLATFORM: SHARED call, Linux body.
+if [ -f scripts/overlay_tip_slot_bytes_gcc.sh ] && [ -f xlang_asm ]; then
+  bash scripts/overlay_tip_slot_bytes_gcc.sh xlang_asm
 fi
 
 echo "g05_prepare_and_relink OK"

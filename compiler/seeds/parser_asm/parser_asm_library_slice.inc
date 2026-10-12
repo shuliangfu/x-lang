@@ -6,9 +6,13 @@
  * 依赖同 TU 内 parser_asm_type_ref_slice.inc 的 struct ast_Type / PARSER_ASM_TYPE_*。
  *
  * Hybrid P6d: XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X skips the Type/Expr wrap
- * soup (bodies in src/asm/pthin_fn_block.x). Parse / scan / block zeros /
- * module func slot stay here (struct-by-value result). Cold: no define,
- * full twin. Do not reuse XLANG_PTHIN_FN_BLOCK_FROM_X for P6d bodies.
+ * soup (bodies in src/asm/pthin_fn_block.x). Hybrid P6g:
+ * XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X skips the remaining compositor
+ * (labeled block + maybe layout + module func slot; body in
+ * pthin_fn_block.x). Published face stays slice_c (by-value result).
+ * C trampoline holds scan and writes ok/next_lex/name. Scan stays
+ * P15b. Cold: no define, full twin. Do not reuse
+ * XLANG_PTHIN_FN_BLOCK_FROM_X for P6d/P6g bodies.
  * PLATFORM: SHARED
  */
 #ifndef PARSER_ASM_LIBRARY_SLICE_INCLUDED
@@ -103,6 +107,13 @@ extern int32_t parser_asm_library_bool_eq_shape_wrap_into_c(void *arena, uint8_t
                                                            uint8_t *type_name, int32_t tnlen, uint8_t *field_name,
                                                            int32_t flen, int32_t *out_bool_tr, int32_t *out_token_tr);
 #endif
+#ifdef XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X
+extern int32_t parser_asm_parse_one_function_library_finish_x_into_c(void *arena, void *module, int32_t eq_ref,
+                                                                    int32_t bool_ty, int32_t token_ty, uint8_t *name,
+                                                                    int32_t nlen, uint8_t *pname, int32_t pnlen,
+                                                                    uint8_t *tname, int32_t tnlen, uint8_t *fname,
+                                                                    int32_t flen);
+#endif
 
 /** 失败快照：ok=false，next_lex 为调用方传入 lex。 */
 static struct parser_asm_library_parse_result parser_asm_library_fail_c(struct parser_asm_lexer lex) {
@@ -133,13 +144,15 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
   int32_t vi;
   int32_t fi;
 #endif
+#ifndef XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X
   struct ast_Block b;
+  int32_t idx;
+  int32_t block_ref;
+  int32_t fi_lib;
+#endif
   int32_t bool_type_ref;
   int32_t token_type_ref;
   int32_t eq_ref;
-  int32_t block_ref;
-  int32_t fi_lib;
-  int32_t idx;
 
   fail = parser_asm_library_fail_c(lex);
   if (!arena || !module || !source)
@@ -261,6 +274,24 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
   ast_ast_arena_expr_set(arena, eq_ref, eqe);
 #endif /* XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X library wrap family */
 
+#ifdef XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X
+  /* PLATFORM: SHARED — P6g trampoline. Language has no library_parse_result
+   * by-value; C writes ok/next_lex/name after .x success. Scan + wrap
+   * already ran. Writer = init_labeled_block_c + P6b name_exists +
+   * pipeline_module_func_*. */
+  if (eq_ref == 0 || bool_type_ref == 0 || token_type_ref == 0)
+    return fail;
+  if (parser_asm_parse_one_function_library_finish_x_into_c(
+          arena, module, eq_ref, bool_type_ref, token_type_ref, scan.name, scan.name_len, scan.param_name,
+          scan.param_name_len, scan.param_type_name, scan.param_type_len, scan.field_name, scan.field_len) == 0)
+    return fail;
+  memset(&fail, 0, sizeof(fail));
+  fail.ok = 1;
+  fail.next_lex = scan.next_lex;
+  fail.name_len = scan.name_len;
+  memcpy(fail.name, scan.name, (size_t)scan.name_len);
+  return fail;
+#else
   block_ref = ast_ast_arena_block_alloc(arena);
   if (block_ref == 0)
     return fail;
@@ -307,6 +338,7 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
   fail.name_len = scan.name_len;
   memcpy(fail.name, scan.name, (size_t)scan.name_len);
   return fail;
+#endif /* XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X remaining compositor */
 }
 
 #endif /* PARSER_ASM_LIBRARY_SLICE_INCLUDED */

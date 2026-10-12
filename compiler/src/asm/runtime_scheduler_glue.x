@@ -141,11 +141,12 @@ export function xlang_async_spawn_ctx_echo_task(): i32 {
  * Implements `xlang_async_q_occupancy`.
  * @param head u32
  * @param tail u32
- * @return u32
+ * @return i32 — occupancy bits in eax; #[no_mangle] link name unchanged
  */
 #[no_mangle]
-export function xlang_async_q_occupancy(head: u32, tail: u32): u32 {
-  return tail - head;
+export function xlang_async_q_occupancy(head: u32, tail: u32): i32 {
+  // PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
+  return (tail - head) as i32;
 }
 
 // See implementation.
@@ -187,6 +188,7 @@ export function xlang_async_io_wait_enabled(): i32 {
       if (e[1] == 0) { return 1; }
     }
   }
+  return 0;
 }
 
 /** Gate: XLANG_ASYNC_AFFINITY == "1" (exact).
@@ -205,6 +207,7 @@ export function xlang_async_affinity_enabled(): i32 {
       if (e[1] == 0) { return 1; }
     }
   }
+  return 0;
 }
 
 // Parse unsigned decimal; defaults handled by callers.
@@ -212,71 +215,73 @@ export function xlang_async_affinity_enabled(): i32 {
  * Implements `env_parse_u32_default`.
  * @param e *u8
  * @param defv u32
- * @return u32
+ * @return i32 — parsed bits in eax; #[no_mangle] link name unchanged
  */
-export function env_parse_u32_default(e: *u8, defv: u32): u32 {
-  if (e == 0) { return defv; }
-  if (e[0] == 0) { return defv; }
+export function env_parse_u32_default(e: *u8, defv: u32): i32 {
+  // PLATFORM: SHARED — the installed product cannot asm-emit a u32 return.
+  if (e == 0) { return defv as i32; }
+  if (e[0] == 0) { return defv as i32; }
   let v: u32 = 0;
   let i: i32 = 0;
   while (i < 16) {
     let c: u8 = e[i];
     if (c < 48) { break; }
     if (c > 57) { break; }
-    v = v * 10 + (c - 48);
+    v = v * 10 + ((c - 48) as u32);
     i = i + 1;
   }
-  if (i == 0) { return defv; }
-  return v;
+  if (i == 0) { return defv as i32; }
+  return v as i32;
 }
 
 /** Parse XLANG_ASYNC_RUNTIME_TRACE_TOPN (clamp 1..64, default 20).
- * @return u32 — top-N events for trace summary
+ * @return i32 — top-N events for trace summary; low bits in eax
  * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function xlang_async_trace_topn(): u32 {
+export function xlang_async_trace_topn(): i32 {
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE_TOPN via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_TOPN");
-    let v: u32 = env_parse_u32_default(e, 20);
+    let v: u32 = env_parse_u32_default(e, 20) as u32;
     if (v < 1) { return 1; }
     if (v > 64) { return 64; }
-    return v;
+    return v as i32;
   }
   return 20;
 }
 
 /** Parse XLANG_ASYNC_RUNTIME_TRACE_SAMPLE (min 1, default 1).
- * @return u32 — sample rate (1 = every event)
+ * @return i32 — sample rate (1 = every event); low bits in eax
  * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function xlang_async_trace_sample_rate(): u32 {
+export function xlang_async_trace_sample_rate(): i32 {
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE_SAMPLE via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_SAMPLE");
-    let v: u32 = env_parse_u32_default(e, 1);
+    let v: u32 = env_parse_u32_default(e, 1) as u32;
     if (v < 1) { return 1; }
-    return v;
+    return v as i32;
   }
   return 1;
 }
 
 /** Parse XLANG_ASYNC_RUNTIME_TRACE_SLOW_US (default 500 microseconds).
- * @return u64 — slow-event threshold in microseconds
+ * @return i64 — slow-event threshold in microseconds; rax bits, link name unchanged
  * wave230 G.7: env via public pure thin link_abi_getenv (not raw libc getenv).
  * PLATFORM: SHARED — host residual only link_abi_getenv_impl.
  */
 #[no_mangle]
-export function xlang_async_trace_slow_us(): u64 {
+export function xlang_async_trace_slow_us(): i64 {
+  // PLATFORM: SHARED — the installed product cannot asm-emit a u64 literal return.
   unsafe {
     // wave230 G.7: XLANG_ASYNC_RUNTIME_TRACE_SLOW_US via link_abi_getenv.
     let e: *u8 = link_abi_getenv("XLANG_ASYNC_RUNTIME_TRACE_SLOW_US");
-    let v: u32 = env_parse_u32_default(e, 500);
-    return v;
+    let v: u32 = env_parse_u32_default(e, 500) as u32;
+    return v as i64;
   }
   return 500;
 }

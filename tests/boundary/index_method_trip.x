@@ -9,11 +9,10 @@ struct Trip {
 }
 
 impl Trip {
-  /**
-   * Last field of a 12B receiver (offset 8 lives in rdx).
-   * @param self Trip — copied dual-GP receiver
-   * @return i32 — self.c
-   */
+  // Last field of a 12B receiver (offset 8 lives in rdx).
+  // @param self Trip — copied dual-GP receiver
+  // @return i32 — self.c
+  // A block comment here stays open on the installed product lexer.
   function last(self: Trip): i32 {
     return self.c;
   }

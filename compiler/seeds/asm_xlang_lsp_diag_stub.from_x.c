@@ -4,6 +4,9 @@
  * forward). Full LSP lives on bootstrap-driver-seed xlang / xlang-x; cannot link full
  * lsp_diag_x.o next to pipeline_x.o (duplicate ast symbols).
  * Host leaf scripts/asm_xlang_lsp_diag_stub.c deleted (wave297); ensure seed-only .o.
+ * Darwin arm64 and Linux product body is
+ * src/asm/asm_xlang_lsp_diag_stub_darwin.x.
+ * A Linux miss does not exec cc. Windows keeps this C seed.
  * PLATFORM: SHARED — build_xlang_asm / strict_glue / experimental_bootstrap.
  */
 

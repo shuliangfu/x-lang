@@ -2,7 +2,7 @@
 
 > **文档目的**：规划 `xlang.dev` 下的 Xlang 生态核心网站体系，只围绕 Xlang 语言生态必需的网站，不铺陈非生态内容。
 >
-> **配套文档**：[xlang-registry-架构规划.md](xlang-registry-架构规划.md)（Registry 详细架构）、[xlang-toml-实现分析.md](xlang-toml-实现分析.md)、[自举方法.md](自举方法.md)。
+> **配套文档**：[xlang-registry-架构规划.md](xlang-registry-架构规划.md)（Registry 详细架构）、[xlang-toml-实现分析.md](xlang-toml-实现分析.md)、[自举效率方法-M2主链.md](自举效率方法-M2主链.md)。
 >
 > **域名状态**：`xlang.dev` + `registry.xlang.dev` 已注册（2026-07-21 确认）。其余子域名均为 `xlang.dev` 子域，无需单独注册，只需 DNS 占位。
 >
@@ -397,7 +397,7 @@ xlanglang-web/                       # dweb 项目（一个仓库搞定全部网
 |------|------|
 | [xlang-registry-架构规划.md](xlang-registry-架构规划.md) | Registry 的详细架构（本文档 §3.4 摘要） |
 | [xlang-toml-实现分析.md](xlang-toml-实现分析.md) | xlang.toml 配置（包管理器依赖） |
-| [自举方法.md](自举方法.md) | 自举完成是 P1 的前置 |
+| [自举效率方法-M2主链.md](自举效率方法-M2主链.md) | 自举完成是 P1 的前置 |
 | [当前问题分析.md](当前问题分析.md) | 当前阻塞项，不包含网站 |
 
 ---

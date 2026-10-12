@@ -6,5 +6,7 @@
  * @return i32
  */
 function main(): i32 {
-  return 1 < 2
+  /* A comparison is bool. main returns that as 1 or 0. */
+  if (1 < 2) { return 1; }
+  return 0;
 }

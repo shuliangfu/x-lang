@@ -76,11 +76,22 @@ allow(padding) struct PosixStatBuf {
 }
 
 /* See implementation. */
+/**
+ * Darwin stat buffer.
+ *
+ * The asm layout gives every u16 a 4-byte cell (Cap residual, same rule as
+ * INDEX). Darwin stores st_mode and st_nlink in one 4-byte slot at offset 4.
+ * A second u16 cell pushed st_ino to 16 and st_size to 104, so stat read
+ * st_blocks. One u16 cell at offset 4 covers that slot: the low 16 bits are
+ * the mode. Clang keeps u16 at 2 bytes and pads the next u64 to offset 8,
+ * which is the same nlink slot. st_nlink is not read.
+ *
+ * PLATFORM: MACOS|DARWIN.
+ */
 #[cfg(target_os = "macos")]
 allow(padding) struct PosixStatBuf {
   st_dev: i32;
   st_mode: u16;
-  st_nlink: u16;
   st_ino: u64;
   st_uid: u32;
   st_gid: u32;
@@ -108,13 +119,18 @@ allow(padding) struct PosixStatBuf {
 /* See implementation. */
 extern "C" function xlang_sys_read(fd: i32, buf: *u8, count: usize): isize;
 extern "C" function xlang_sys_write(fd: i32, buf: *u8, count: usize): isize;
-extern "C" function xlang_sys_readv(fd: i32, iov: *u8, iovcnt: i32): isize;
+// PLATFORM: POSIX — the asm object calls libc. There is no C preamble in
+// that object, so these uint8_t * declarations never meet the system headers.
+extern "C" function readv(fd: i32, iov: *u8, iovcnt: i32): isize;
+// xlang_sys_writev stays: runtime_asm_io_stubs.o defines it. PLATFORM: POSIX.
 extern "C" function xlang_sys_writev(fd: i32, iov: *u8, iovcnt: i32): isize;
-extern "C" function xlang_sys_poll(fds: *u8, nfds: i32, timeout: i32): i32;
+// PLATFORM: POSIX — libc poll. nfds is the entry count (nfds_t).
+extern "C" function poll(fds: *u8, nfds: u64, timeout: i32): i32;
 extern "C" function open(path: *u8, flags: i32, mode: i32): i32;
 extern "C" function close(fd: i32): i32;
-extern "C" function xlang_sys_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
-extern "C" function xlang_sys_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+// PLATFORM: POSIX — libc pread/pwrite. The asm object does not include unistd.h.
+extern "C" function pread(fd: i32, buf: *u8, count: usize, offset: i64): isize;
+extern "C" function pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize;
 extern "C" function mmap(addr: *u8, len: usize, prot: i32, flags: i32, fd: i32, offset: i64): *u8;
 extern "C" function munmap(addr: *u8, len: usize): i32;
 extern "C" function fstat(fd: i32, st: *PosixStatBuf): i32;
@@ -123,9 +139,9 @@ extern "C" function fsync(fd: i32): i32;
 extern "C" function fchmod(fd: i32, mode: u32): i32;
 extern "C" function chmod(path: *u8, mode: u32): i32;
 extern "C" function mkdir(path: *u8, mode: u32): i32;
-/* See implementation. */
-extern "C" function xlang_fs_unlink(path: *u8): i32;
-extern "C" function xlang_fs_rmdir(path: *u8): i32;
+// PLATFORM: POSIX — libc unlink/rmdir. The asm object has no C preamble.
+extern "C" function unlink(path: *u8): i32;
+extern "C" function rmdir(path: *u8): i32;
 extern "C" function umask(mask: u32): u32;
 /* Cap residual 9.1.10: POSIX (Linux and Darwin) dir via xlang_dir_cap.h (no libc opendir). */
 extern "C" function xlang_dir_opendir(name: *u8): *u8;
@@ -138,8 +154,10 @@ extern "C" function strlen(s: *u8): usize;
 #[cfg(target_os = "linux")]
 extern "C" function __errno_location(): *i32;
 
+// PLATFORM: MACOS|DARWIN — libSystem spells C __error as ___error.
+// This compiler emits the extern name as written, so two underscores stay unresolved.
 #[cfg(target_os = "macos")]
-extern "C" function __error(): *i32;
+extern "C" function ___error(): *i32;
 extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
 extern "C" function usleep(usec: u32): i32;
 extern "C" function madvise(addr: *u8, len: usize, advice: i32): i32;
@@ -186,28 +204,29 @@ export function fs_libc_write(fd: i32, buf: *u8, count: usize): isize {
   unsafe { return xlang_sys_write(fd, buf, count); }
   return 0 as isize; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_pread`.
- * Read path helper `fs_libc_pread`.
- * @param fd i32
- * @param buf *u8
- * @param count usize
- * @param offset i64
- * @return isize
+/**
+ * Read `count` bytes at `offset` via libc `pread`.
+ *
+ * The asm object does not contain the C preamble inline, so this call is
+ * the libc symbol. `offset` is from the start of the file. Returns the
+ * byte count, or a negative error.
+ *
+ * PLATFORM: POSIX
  */
 export function fs_libc_pread(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return xlang_sys_pread(fd, buf, count, offset); }
+  unsafe { return pread(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_pwrite`.
- * Write path helper `fs_libc_pwrite`.
- * @param fd i32
- * @param buf *u8
- * @param count usize
- * @param offset i64
- * @return isize
+/**
+ * Write `count` bytes at `offset` via libc `pwrite`.
+ *
+ * The asm object has no C preamble. This does not move the descriptor offset.
+ * Returns the byte count, or a negative error.
+ *
+ * PLATFORM: POSIX
  */
 export function fs_libc_pwrite(fd: i32, buf: *u8, count: usize, offset: i64): isize {
-  unsafe { return xlang_sys_pwrite(fd, buf, count, offset); }
+  unsafe { return pwrite(fd, buf, count, offset); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_mmap`.
@@ -378,22 +397,27 @@ export function fs_libc_mkdir(path: *u8, mode: u32): i32 {
   unsafe { return mkdir(path, mode); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_unlink`.
- * Implements `fs_libc_unlink`.
- * @param path *u8
- * @return i32
+/**
+ * Remove the directory entry at `path` via libc `unlink`.
+ *
+ * The asm object has no C preamble. `path` must be NUL-terminated.
+ * Returns 0, or -1 on failure.
+ *
+ * PLATFORM: POSIX
  */
 export function fs_libc_unlink(path: *u8): i32 {
-  unsafe { return xlang_fs_unlink(path); }
+  unsafe { return unlink(path); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_rmdir`.
- * Implements `fs_libc_rmdir`.
- * @param path *u8
- * @return i32
+/**
+ * Remove an empty directory at `path` via libc `rmdir`.
+ *
+ * The asm object has no C preamble. Returns 0, or -1 on failure.
+ *
+ * PLATFORM: POSIX
  */
 export function fs_libc_rmdir(path: *u8): i32 {
-  unsafe { return xlang_fs_rmdir(path); }
+  unsafe { return rmdir(path); }
   return 0; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_umask`.
@@ -405,15 +429,15 @@ export function fs_libc_umask(mask: u32): u32 {
   unsafe { return umask(mask); }
   return 0 as u32; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_readv`.
- * Read path helper `fs_libc_readv`.
- * @param fd i32
- * @param iov *Iovec
- * @param iovcnt i32
- * @return isize
+/**
+ * Scatter-read `iovcnt` entries from `fd` via libc `readv`.
+ *
+ * The asm object has no C preamble. Returns the byte count, or a negative error.
+ *
+ * PLATFORM: POSIX
  */
 export function fs_libc_readv(fd: i32, iov: *Iovec, iovcnt: i32): isize {
-  unsafe { return xlang_sys_readv(fd, iov as *u8, iovcnt); }
+  unsafe { return readv(fd, iov as *u8, iovcnt); }
   return 0 as isize; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_writev`.
@@ -509,7 +533,8 @@ export function fs_libc_errno_location(): *i32 {
 #[cfg(target_os = "macos")]
 export function fs_libc_errno_location(): *i32 {
   let p: *i32 = 0 as *i32;
-  unsafe { p = __error(); }
+  // PLATFORM: MACOS|DARWIN — three underscores match libSystem ___error.
+  unsafe { p = ___error(); }
   return p;
 }
 /** Exported function `fs_libc_fcntl`.
@@ -543,15 +568,17 @@ export function fs_libc_madvise(addr: *u8, len: usize, advice: i32): i32 {
   unsafe { return madvise(addr, len, advice); }
   return 0; // unreachable — typeck workaround
 }
-/** Exported function `fs_libc_poll`.
- * Implements `fs_libc_poll`.
- * @param fds *PollFd
- * @param nfds u64
- * @param timeout i32
- * @return i32
+/**
+ * Wait on `nfds` poll entries via libc `poll`.
+ *
+ * The asm object has no C preamble. `nfds` is the entry count. `timeout`
+ * is milliseconds; negative waits forever. Returns the ready count, or a
+ * negative error.
+ *
+ * PLATFORM: POSIX
  */
 export function fs_libc_poll(fds: *PollFd, nfds: u64, timeout: i32): i32 {
-  unsafe { return xlang_sys_poll(fds as *u8, nfds as i32, timeout); }
+  unsafe { return poll(fds as *u8, nfds, timeout); }
   return 0; // unreachable — typeck workaround
 }
 /** Exported function `fs_libc_posix_fadvise`.
@@ -942,11 +969,12 @@ export function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
   let copied: usize = 0;
   while (copied < len) {
     let chunk: usize = len - copied;
-    if (chunk > 262144) {
-      chunk = 262144;
+    // 262144 is i32. usize and i32 cannot be compared.
+    if (chunk > (262144 as usize)) {
+      chunk = 262144 as usize;
     }
     let nr: isize = fs_libc_read(fd_in, &buf[0], chunk);
-    if (nr <= 0) {
+    if (nr <= (0 as isize)) {
       break;
     }
     let nw: isize = fs_libc_write(fd_out, &buf[0], nr as usize);
@@ -954,7 +982,8 @@ export function fs_copy_rw_fallback(fd_in: i32, fd_out: i32, len: usize): i64 {
       return -1;
     }
     copied = copied + (nr as usize);
-    if ((nr) < chunk) {
+    // nr is isize and chunk is usize.
+    if (nr < (chunk as isize)) {
       break;
     }
   }

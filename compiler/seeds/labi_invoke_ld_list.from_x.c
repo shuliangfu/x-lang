@@ -164,6 +164,20 @@ void labi_std_append_process_argv_if(int need, const char *link_argv0,
     const char **lib_roots, int n_lib_roots, ShuAsmLdPathBank *bank,
     const char **argv, int *la, int max_la);
 
+/* Class AU: zero ShuAsmLdStdLinkFlags (12xi32) then have_io+have_fs.
+ * Always compiled (even under FROM_X): prefer L6 .x must not use f[zi]=0 —
+ * tip asm codegen treats &f_local as the array base and zeros the loop
+ * counter (zi at fp+0xd0), hanging append_std_objs_for_user.
+ * PLATFORM: SHARED — G.7 single reset authority for plan-shell init.
+ */
+void labi_std_link_flags_reset(ShuAsmLdStdLinkFlags *flags) {
+  if (!flags)
+    return;
+  memset(flags, 0, sizeof *flags);
+  flags->have_io = 1;
+  flags->have_fs = 1;
+}
+
 #ifndef XLANG_LABI_INVOKE_LD_LIST_FROM_X
 
 /* wave215/255: pure thin invoke_cc_argv_resolve_existing_path (cold twin ≡ .x).
@@ -1373,12 +1387,8 @@ void xlang_asm_ld_append_std_objs_for_user(const char *link_argv0, const char *u
   int n_steps;
   int si;
   memset(local_have, 0, sizeof local_have);
-  if (flags)
-    memset(flags, 0, sizeof *flags);
-  if (flags)
-    flags->have_fs = 1;
-  if (flags)
-    flags->have_io = 1;
+  /* Class AU: shared reset (prefer .x calls same helper — avoid f[zi] codegen hang). */
+  labi_std_link_flags_reset(flags);
   n_steps = labi_std_plan_count();
   for (si = 0; si < n_steps; si++) {
     int op = 0;

@@ -215,15 +215,18 @@ export allow(padding) struct Token {
 /**
  * True when token is EOF.
  * @param t Token — token value
- * @return bool — true iff kind is TOKEN_EOF
+ * @return i32 — 1 iff kind is TOKEN_EOF, else 0
  * PLATFORM: SHARED
+ * The installed type checker rejects a bool return. The C seed already
+ * declares this helper as int, and 1 or 0 is returned in eax.
  *
  * Body uses a local binding for TOKEN_EOF. Direct `t.kind == TokenKind.TOKEN_EOF`
  * has been observed to leave Func.is_export=0 under L7 (pe_fn stack latch lost
  * across heavy OneFuncResult / enum-field compare parse). Prefer heap latch of
  * pending_export in a follow-up; this form is the stable source-side guard.
  */
-export function token_is_eof(t: Token): bool {
+export function token_is_eof(t: Token): i32 {
   let eof_kind: TokenKind = TokenKind.TOKEN_EOF;
-  return t.kind == eof_kind;
+  if (t.kind == eof_kind) { return 1; }
+  return 0;
 }

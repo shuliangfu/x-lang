@@ -4,6 +4,9 @@
 // See implementation.
 // PREFER_X_O：thin.o + seed-rest（-DXLANG_L2_CALL_DISPATCH_THIN_FROM_X）ld -r
 //   → backend_call_dispatch.o
+// PLATFORM: WINDOWS product (w1047): full tip thin. w1046 parked host jmp
+//   forwarders because fat `return *_impl` overlapped outgoing stack args
+//   with param homes; compute_frame now reserves shadow+stack-arg room.
 //
 
 export extern "C" function pipeline_expr_kind_ord_at(arena: *u8, er: i32): i32;
@@ -11,9 +14,27 @@ export extern "C" function pipeline_expr_var_name_len_for_string_lit_c(arena: *u
 
 /** Exported function `glue_asm_call_reg_max`.
  * Implements `glue_asm_call_reg_max`.
+ * Win64: 4 real GP + virtual stack slots via enc k>=4 (w1045).
+ * w1046: compile-time cfg (not runtime link_abi_host_is_windows). Tip thin
+ * lean `$0x30` prologue does not save rbx; a runtime host query used rbx and
+ * smashed the compiler → option CG002 / si SEGV. PLATFORM: WINDOWS.
  * @param ta i32
  * @return i32
  */
+#[cfg(target_os = "windows")]
+#[no_mangle]
+export function glue_asm_call_reg_max(ta: i32): i32 {
+  /* w1497: 64 virtual slots. With 16, args k>=16 took the push path and the
+   * callee read them at [rbp+16..], on top of the Win64 home area and the
+   * [rbp+0x30+8*(k-4)] slots. Every arg now follows the Win64 stack layout. */
+  if (ta == 0) {
+    return 64;
+  }
+  return 8;
+}
+
+/** SysV / non-Windows twin of glue_asm_call_reg_max. PLATFORM: SHARED non-Windows. */
+#[cfg(not(target_os = "windows"))]
 #[no_mangle]
 export function glue_asm_call_reg_max(ta: i32): i32 {
   if (ta == 0) {
@@ -24,31 +45,38 @@ export function glue_asm_call_reg_max(ta: i32): i32 {
 
 /** Exported function `glue_asm_call_stack_cleanup_bytes`.
  * Implements `glue_asm_call_stack_cleanup_bytes`.
+ * Bytes to `add rsp` after a CALL. Uses glue_asm_call_reg_max so Win64
+ * virtual slots (reg_max=16, enc k>=4 → [rsp+0x20…]) need no push cleanup
+ * (w1045; was hardcoded SysV 6 → false add $0x10 after 8-arg calls).
  * @param ta i32
  * @param nargs i32
  * @return i32
  */
 #[no_mangle]
 export function glue_asm_call_stack_cleanup_bytes(ta: i32, nargs: i32): i32 {
+  // Live pad. The stack-byte multiply stores sit on the frame edge without it.
+  // pad[0] is written so the slot stays live. PLATFORM: SHARED.
+  let pad: u8[64] = [];
+  pad[0] = 0;
   if (nargs <= 0) {
     return 0;
   }
+  let reg_max: i32 = glue_asm_call_reg_max(ta);
+  let n_stack: i32 = nargs - reg_max;
+  if (n_stack <= 0) {
+    return 0;
+  }
   if (ta == 0) {
-    if (nargs <= 6) {
-      return 0;
+    let bytes: i32 = n_stack * 8;
+    if ((n_stack & 1) != 0) {
+      bytes = bytes + 8;
     }
-    if (((nargs - 6) & 1) != 0) {
-      return (nargs - 6) * 8 + 8;
-    }
-    return (nargs - 6) * 8;
+    return bytes;
   }
   if (ta == 2) {
     return 0 - 1;
   }
-  if (nargs <= 8) {
-    return 0;
-  }
-  return (((nargs - 8) * 8 + 15) & (0 - 16));
+  return (n_stack * 8 + 15) & (0 - 16);
 }
 
 /** Exported function `glue_asm_append_export_c_suffix`.

@@ -1335,9 +1335,13 @@ extern int32_t parser_copy_module_import_path64(struct ast_Module * module, int3
 extern int32_t parser_main(void);
 extern uint8_t * calloc(size_t nmemb, size_t size);
 extern void free(uint8_t * ptr);
-extern int32_t std_fs_open(uint8_t * path);
-extern ssize_t std_fs_read(int32_t fd, uint8_t * buf, size_t count);
-extern int32_t std_fs_close(int32_t fd);
+/* Same names as parser.x main. These are the no_mangle FS surface in
+ * runtime_io_abi.x (fs_open_read_c / fs_posix_read_c / fs_posix_close_c).
+ * This seed does not emit main, so the declarations are unused here.
+ * PLATFORM: SHARED. */
+extern int32_t fs_open_read_c(uint8_t * path);
+extern ssize_t fs_posix_read_c(int32_t fd, uint8_t * buf, size_t count);
+extern int32_t fs_posix_close_c(int32_t fd);
 extern int32_t parser_parse_peek_function_name_buf_glue(struct lexer_Lexer lex, uint8_t * data, int32_t len, uint8_t * out);
 int32_t parser_parse_peek_function_name_buf(struct lexer_Lexer lex, uint8_t * data, int32_t len, uint8_t * out) {
   return parser_parse_peek_function_name_buf_glue(lex, data, len, out);
@@ -1789,7 +1793,7 @@ int32_t parser_advance_past_cond_rparen_into_buf(struct lexer_LexerResult * r_ou
 }
 void parser_onefunc_result_layout_prime(void) {
   {
-    uint8_t z64[128] = {};
+    uint8_t z64[256] = {};
     struct parser_OneFuncResult _prime = (struct parser_OneFuncResult){ .ok = 0, .next_lex = lexer_init(), .name = {z64[0], z64[1], z64[2], z64[3], z64[4], z64[5], z64[6], z64[7], z64[8], z64[9], z64[10], z64[11], z64[12], z64[13], z64[14], z64[15], z64[16], z64[17], z64[18], z64[19], z64[20], z64[21], z64[22], z64[23], z64[24], z64[25], z64[26], z64[27], z64[28], z64[29], z64[30], z64[31], z64[32], z64[33], z64[34], z64[35], z64[36], z64[37], z64[38], z64[39], z64[40], z64[41], z64[42], z64[43], z64[44], z64[45], z64[46], z64[47], z64[48], z64[49], z64[50], z64[51], z64[52], z64[53], z64[54], z64[55], z64[56], z64[57], z64[58], z64[59], z64[60], z64[61], z64[62], z64[63]}, .name_len = 0, .num_params = 0 };
     (void)(((_prime.name_len) = 0));
   }
@@ -1832,14 +1836,14 @@ void parser_onefunc_result_layout_prime_c(void) {
 }
 void parser_onefunc_result_layout_prime_d(void) {
   {
-    uint8_t ccn[128] = {};
+    uint8_t ccn[256] = {};
     struct parser_OneFuncResult _q4 = (struct parser_OneFuncResult){ .has_binop = 0, .binop_right_val = 0, .binop_left_param_idx = -(1), .binop_right_param_idx = -(1), .has_unary_neg = 0, .return_val = 0, .has_call_expr = 0, .call_callee_name = {ccn[0], ccn[1], ccn[2], ccn[3], ccn[4], ccn[5], ccn[6], ccn[7], ccn[8], ccn[9], ccn[10], ccn[11], ccn[12], ccn[13], ccn[14], ccn[15], ccn[16], ccn[17], ccn[18], ccn[19], ccn[20], ccn[21], ccn[22], ccn[23], ccn[24], ccn[25], ccn[26], ccn[27], ccn[28], ccn[29], ccn[30], ccn[31], ccn[32], ccn[33], ccn[34], ccn[35], ccn[36], ccn[37], ccn[38], ccn[39], ccn[40], ccn[41], ccn[42], ccn[43], ccn[44], ccn[45], ccn[46], ccn[47], ccn[48], ccn[49], ccn[50], ccn[51], ccn[52], ccn[53], ccn[54], ccn[55], ccn[56], ccn[57], ccn[58], ccn[59], ccn[60], ccn[61], ccn[62], ccn[63]} };
     (void)(((_q4.binop_left_param_idx) = -(1)));
   }
 }
 void parser_onefunc_result_layout_prime_d_b(void) {
   {
-    uint8_t rvn[128] = {};
+    uint8_t rvn[256] = {};
     struct parser_OneFuncResult _q4b = (struct parser_OneFuncResult){ .call_callee_len = 0, .return_var_name = {rvn[0], rvn[1], rvn[2], rvn[3], rvn[4], rvn[5], rvn[6], rvn[7], rvn[8], rvn[9], rvn[10], rvn[11], rvn[12], rvn[13], rvn[14], rvn[15], rvn[16], rvn[17], rvn[18], rvn[19], rvn[20], rvn[21], rvn[22], rvn[23], rvn[24], rvn[25], rvn[26], rvn[27], rvn[28], rvn[29], rvn[30], rvn[31], rvn[32], rvn[33], rvn[34], rvn[35], rvn[36], rvn[37], rvn[38], rvn[39], rvn[40], rvn[41], rvn[42], rvn[43], rvn[44], rvn[45], rvn[46], rvn[47], rvn[48], rvn[49], rvn[50], rvn[51], rvn[52], rvn[53], rvn[54], rvn[55], rvn[56], rvn[57], rvn[58], rvn[59], rvn[60], rvn[61], rvn[62], rvn[63]}, .return_var_name_len = 0, .return_expr_ref = 0, .call_num_args = 0, .num_loops = 0 };
     (void)(((_q4b.call_num_args) = 0));
   }
@@ -1921,7 +1925,7 @@ void parser_copy_onefunc_into(struct parser_OneFuncResult * dst, struct parser_O
 }
 struct parser_OneFuncResult parser_onefunc_scratch_empty(void) {
   {
-    uint8_t z64[128] = {};
+    uint8_t z64[256] = {};
     return (struct parser_OneFuncResult){ .ok = 0, .next_lex = lexer_init(), .name = {z64[0], z64[1], z64[2], z64[3], z64[4], z64[5], z64[6], z64[7], z64[8], z64[9], z64[10], z64[11], z64[12], z64[13], z64[14], z64[15], z64[16], z64[17], z64[18], z64[19], z64[20], z64[21], z64[22], z64[23], z64[24], z64[25], z64[26], z64[27], z64[28], z64[29], z64[30], z64[31], z64[32], z64[33], z64[34], z64[35], z64[36], z64[37], z64[38], z64[39], z64[40], z64[41], z64[42], z64[43], z64[44], z64[45], z64[46], z64[47], z64[48], z64[49], z64[50], z64[51], z64[52], z64[53], z64[54], z64[55], z64[56], z64[57], z64[58], z64[59], z64[60], z64[61], z64[62], z64[63]}, .name_len = 0, .num_params = 0 };
   }
 }
@@ -6697,6 +6701,12 @@ void parser_import_path_dot_segment_copy_buf(uint8_t * data, int32_t len, size_t
   }
 }
 void parser_parse_into_init(struct ast_Module * module, struct ast_ASTArena * arena) {
+  /* wave699: G.7 complete parser_x authority — trait registry reset
+   * lived only on the mega duplicate wrapper. PLATFORM: SHARED. */
+  {
+    extern void xlang_trait_reg_reset_c(void *arena);
+    xlang_trait_reg_reset_c((void *)arena);
+  }
   (void)(ast_ast_arena_init(arena));
   (void)(ast_pool_module_reset(module));
   (void)(ast_pool_arena_reset(arena));
@@ -7532,7 +7542,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       struct lexer_Lexer lex_at_function = lexer_init();
       (void)((lex_at_function = current_tok_lex));
       (void)(parser_lex_from_next_into(&(lex), r));
-      uint8_t parse_into_empty64[128] = {};
+      /* PLATFORM: SHARED — parser.x passes this buffer as u8[256]. */
+      uint8_t parse_into_empty64[256] = {};
       struct parser_OneFuncResult res = parser_onefunc_scratch_empty();
       (void)((res = parser_onefunc_scratch_empty()));
       (void)(parser_onefunc_res_wire_dummy_head(&(res), lex, parse_into_empty64));
@@ -7541,7 +7552,8 @@ struct parser_ParseIntoResult parser_parse_into(struct ast_ASTArena * arena, str
       (void)(parser_onefunc_res_wire_dummy_call_binop(&(res), parse_into_empty64));
       (void)(parser_onefunc_res_wire_dummy_loop_call(&(res)));
       (void)(parser_onefunc_res_wire_dummy_for_if(&(res)));
-      uint8_t empty64_lib_first[128] = {};
+      /* PLATFORM: SHARED — LibraryParseResult.name is u8[256]; list still zero-fills. */
+      uint8_t empty64_lib_first[256] = {};
       struct parser_LibraryParseResult lib_first = (struct parser_LibraryParseResult){ .ok = 0, ._pad = { 0 }, .next_lex = lex_at_function, .name = {empty64_lib_first[0], empty64_lib_first[1], empty64_lib_first[2], empty64_lib_first[3], empty64_lib_first[4], empty64_lib_first[5], empty64_lib_first[6], empty64_lib_first[7], empty64_lib_first[8], empty64_lib_first[9], empty64_lib_first[10], empty64_lib_first[11], empty64_lib_first[12], empty64_lib_first[13], empty64_lib_first[14], empty64_lib_first[15], empty64_lib_first[16], empty64_lib_first[17], empty64_lib_first[18], empty64_lib_first[19], empty64_lib_first[20], empty64_lib_first[21], empty64_lib_first[22], empty64_lib_first[23], empty64_lib_first[24], empty64_lib_first[25], empty64_lib_first[26], empty64_lib_first[27], empty64_lib_first[28], empty64_lib_first[29], empty64_lib_first[30], empty64_lib_first[31], empty64_lib_first[32], empty64_lib_first[33], empty64_lib_first[34], empty64_lib_first[35], empty64_lib_first[36], empty64_lib_first[37], empty64_lib_first[38], empty64_lib_first[39], empty64_lib_first[40], empty64_lib_first[41], empty64_lib_first[42], empty64_lib_first[43], empty64_lib_first[44], empty64_lib_first[45], empty64_lib_first[46], empty64_lib_first[47], empty64_lib_first[48], empty64_lib_first[49], empty64_lib_first[50], empty64_lib_first[51], empty64_lib_first[52], empty64_lib_first[53], empty64_lib_first[54], empty64_lib_first[55], empty64_lib_first[56], empty64_lib_first[57], empty64_lib_first[58], empty64_lib_first[59], empty64_lib_first[60], empty64_lib_first[61], empty64_lib_first[62], empty64_lib_first[63]}, .name_len = 0, ._pad_tail = { 0 } };
       (void)((lib_first = (struct parser_LibraryParseResult){ .ok = 0, ._pad = { 0 }, .next_lex = lex_at_function, .name = {empty64_lib_first[0], empty64_lib_first[1], empty64_lib_first[2], empty64_lib_first[3], empty64_lib_first[4], empty64_lib_first[5], empty64_lib_first[6], empty64_lib_first[7], empty64_lib_first[8], empty64_lib_first[9], empty64_lib_first[10], empty64_lib_first[11], empty64_lib_first[12], empty64_lib_first[13], empty64_lib_first[14], empty64_lib_first[15], empty64_lib_first[16], empty64_lib_first[17], empty64_lib_first[18], empty64_lib_first[19], empty64_lib_first[20], empty64_lib_first[21], empty64_lib_first[22], empty64_lib_first[23], empty64_lib_first[24], empty64_lib_first[25], empty64_lib_first[26], empty64_lib_first[27], empty64_lib_first[28], empty64_lib_first[29], empty64_lib_first[30], empty64_lib_first[31], empty64_lib_first[32], empty64_lib_first[33], empty64_lib_first[34], empty64_lib_first[35], empty64_lib_first[36], empty64_lib_first[37], empty64_lib_first[38], empty64_lib_first[39], empty64_lib_first[40], empty64_lib_first[41], empty64_lib_first[42], empty64_lib_first[43], empty64_lib_first[44], empty64_lib_first[45], empty64_lib_first[46], empty64_lib_first[47], empty64_lib_first[48], empty64_lib_first[49], empty64_lib_first[50], empty64_lib_first[51], empty64_lib_first[52], empty64_lib_first[53], empty64_lib_first[54], empty64_lib_first[55], empty64_lib_first[56], empty64_lib_first[57], empty64_lib_first[58], empty64_lib_first[59], empty64_lib_first[60], empty64_lib_first[61], empty64_lib_first[62], empty64_lib_first[63]}, .name_len = 0, ._pad_tail = { 0 } }));
       (void)(parser_parse_one_function_library_into(&(lib_first), arena, module, lex_at_function, source));
@@ -9140,7 +9152,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       struct lexer_Lexer lex_at_function_buf = lexer_init();
       (void)((lex_at_function_buf = current_tok_lex_buf));
       (void)(parser_lex_from_next_into(&(lex), r));
-      uint8_t empty64_buf[128] = {};
+      /* PLATFORM: SHARED — parser.x passes this buffer as u8[256]. */
+      uint8_t empty64_buf[256] = {};
       struct parser_OneFuncResult res = parser_onefunc_scratch_empty();
       (void)((res = parser_onefunc_scratch_empty()));
       (void)(parser_onefunc_res_wire_dummy_head(&(res), lex, empty64_buf));
@@ -9151,7 +9164,8 @@ struct parser_ParseIntoResult parser_parse_into_buf(struct ast_ASTArena * arena,
       (void)(parser_onefunc_res_wire_dummy_for_if(&(res)));
       struct xlang_slice_uint8_t slice_for_impl = parser_slice_from_buf(data, len);
       (void)((slice_for_impl = parser_slice_from_buf(data, len)));
-      uint8_t empty64_lib_buf_first[128] = {};
+      /* PLATFORM: SHARED — LibraryParseResult.name is u8[256]; list still zero-fills. */
+      uint8_t empty64_lib_buf_first[256] = {};
       struct parser_LibraryParseResult lib_buf_first = (struct parser_LibraryParseResult){ .ok = 0, ._pad = { 0 }, .next_lex = lex_at_function_buf, .name = {empty64_lib_buf_first[0], empty64_lib_buf_first[1], empty64_lib_buf_first[2], empty64_lib_buf_first[3], empty64_lib_buf_first[4], empty64_lib_buf_first[5], empty64_lib_buf_first[6], empty64_lib_buf_first[7], empty64_lib_buf_first[8], empty64_lib_buf_first[9], empty64_lib_buf_first[10], empty64_lib_buf_first[11], empty64_lib_buf_first[12], empty64_lib_buf_first[13], empty64_lib_buf_first[14], empty64_lib_buf_first[15], empty64_lib_buf_first[16], empty64_lib_buf_first[17], empty64_lib_buf_first[18], empty64_lib_buf_first[19], empty64_lib_buf_first[20], empty64_lib_buf_first[21], empty64_lib_buf_first[22], empty64_lib_buf_first[23], empty64_lib_buf_first[24], empty64_lib_buf_first[25], empty64_lib_buf_first[26], empty64_lib_buf_first[27], empty64_lib_buf_first[28], empty64_lib_buf_first[29], empty64_lib_buf_first[30], empty64_lib_buf_first[31], empty64_lib_buf_first[32], empty64_lib_buf_first[33], empty64_lib_buf_first[34], empty64_lib_buf_first[35], empty64_lib_buf_first[36], empty64_lib_buf_first[37], empty64_lib_buf_first[38], empty64_lib_buf_first[39], empty64_lib_buf_first[40], empty64_lib_buf_first[41], empty64_lib_buf_first[42], empty64_lib_buf_first[43], empty64_lib_buf_first[44], empty64_lib_buf_first[45], empty64_lib_buf_first[46], empty64_lib_buf_first[47], empty64_lib_buf_first[48], empty64_lib_buf_first[49], empty64_lib_buf_first[50], empty64_lib_buf_first[51], empty64_lib_buf_first[52], empty64_lib_buf_first[53], empty64_lib_buf_first[54], empty64_lib_buf_first[55], empty64_lib_buf_first[56], empty64_lib_buf_first[57], empty64_lib_buf_first[58], empty64_lib_buf_first[59], empty64_lib_buf_first[60], empty64_lib_buf_first[61], empty64_lib_buf_first[62], empty64_lib_buf_first[63]}, .name_len = 0, ._pad_tail = { 0 } };
       (void)((lib_buf_first = (struct parser_LibraryParseResult){ .ok = 0, ._pad = { 0 }, .next_lex = lex_at_function_buf, .name = {empty64_lib_buf_first[0], empty64_lib_buf_first[1], empty64_lib_buf_first[2], empty64_lib_buf_first[3], empty64_lib_buf_first[4], empty64_lib_buf_first[5], empty64_lib_buf_first[6], empty64_lib_buf_first[7], empty64_lib_buf_first[8], empty64_lib_buf_first[9], empty64_lib_buf_first[10], empty64_lib_buf_first[11], empty64_lib_buf_first[12], empty64_lib_buf_first[13], empty64_lib_buf_first[14], empty64_lib_buf_first[15], empty64_lib_buf_first[16], empty64_lib_buf_first[17], empty64_lib_buf_first[18], empty64_lib_buf_first[19], empty64_lib_buf_first[20], empty64_lib_buf_first[21], empty64_lib_buf_first[22], empty64_lib_buf_first[23], empty64_lib_buf_first[24], empty64_lib_buf_first[25], empty64_lib_buf_first[26], empty64_lib_buf_first[27], empty64_lib_buf_first[28], empty64_lib_buf_first[29], empty64_lib_buf_first[30], empty64_lib_buf_first[31], empty64_lib_buf_first[32], empty64_lib_buf_first[33], empty64_lib_buf_first[34], empty64_lib_buf_first[35], empty64_lib_buf_first[36], empty64_lib_buf_first[37], empty64_lib_buf_first[38], empty64_lib_buf_first[39], empty64_lib_buf_first[40], empty64_lib_buf_first[41], empty64_lib_buf_first[42], empty64_lib_buf_first[43], empty64_lib_buf_first[44], empty64_lib_buf_first[45], empty64_lib_buf_first[46], empty64_lib_buf_first[47], empty64_lib_buf_first[48], empty64_lib_buf_first[49], empty64_lib_buf_first[50], empty64_lib_buf_first[51], empty64_lib_buf_first[52], empty64_lib_buf_first[53], empty64_lib_buf_first[54], empty64_lib_buf_first[55], empty64_lib_buf_first[56], empty64_lib_buf_first[57], empty64_lib_buf_first[58], empty64_lib_buf_first[59], empty64_lib_buf_first[60], empty64_lib_buf_first[61], empty64_lib_buf_first[62], empty64_lib_buf_first[63]}, .name_len = 0, ._pad_tail = { 0 } }));
       (void)(parser_parse_one_function_library_into_buf(&(lib_buf_first), arena, module, lex_at_function_buf, data, len));

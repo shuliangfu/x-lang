@@ -1,4 +1,6 @@
 /* seeds/rt_fs_open.from_x.c — G-02f-308 P2 runtime rest (path open)
+ * w1135: pure asm is rt_fs_open.x plus rt_fs_open_call.x. The copy loop
+ * and the 512-byte open buffer are separate translation units.
  * Logic source: src/runtime/rt_fs_open.x
  * Hybrid: XLANG_RT_FS_OPEN_FROM_X + ld -r into runtime_driver_no_c.o
  *

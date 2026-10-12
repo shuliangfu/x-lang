@@ -1,7 +1,9 @@
-/* parser_asm_foundation_slice.inc — G-02f-329 P20 expr foundation
+/* parser_asm_foundation_slice.inc — G-02f-329 / Class AD P20 foundation
  * Hybrid: XLANG_PTHIN_FOUNDATION_FROM_X via seeds/pthin_foundation.from_x.c
  * arena_expr_get / arena_expr_set / expr_set_common_zeros
  * lexer_init is in the seed TU (and default mega wrap) separately.
+ * Class AD: Cap expr-watch stripped; zeros may come from pthin_foundation.x
+ * under XLANG_PTHIN_FOUNDATION_BODIES_FROM_X.
  */
 #ifndef PARSER_ASM_FOUNDATION_SLICE_INC
 #define PARSER_ASM_FOUNDATION_SLICE_INC
@@ -17,43 +19,19 @@ struct parser_asm_ast_expr parser_asm_arena_expr_get_c(void *arena, int32_t ref)
 
 static void parser_asm_arena_expr_set_c(void *arena, int32_t ref, struct parser_asm_ast_expr ae) {
   struct ast_Expr e;
-  const char *trace_name;
-  const char *trace_type;
-  int trace_ty;
-  int trace_hit;
   memcpy(&e, &ae, sizeof(e));
-  trace_name = getenv("XLANG_TRACE_EXPR_NAME");
-  trace_type = getenv("XLANG_TRACE_TYPE_REF");
-  trace_ty = 0;
-  trace_hit = 0;
-  if (trace_name && *trace_name && e.var_name_len > 0) {
-    size_t want_len = strlen(trace_name);
-    if ((int32_t)want_len == e.var_name_len && want_len < sizeof(e.var_name) &&
-        memcmp(e.var_name, trace_name, want_len) == 0)
-      trace_hit = 1;
-  }
-  if (trace_type && *trace_type) {
-    trace_ty = atoi(trace_type);
-    if (trace_ty != 0 && e.resolved_type_ref == trace_ty)
-      trace_hit = 1;
-  }
-  if (trace_hit) {
-    /* Cap residual 9.5.3: Cap IO debug print (was libc fprintf; PLATFORM: SHARED). */
-    { char _db[384]; int _dn = snprintf(_db, sizeof _db,
-        "note: parser expr watch: expr=%d kind=%d block=%d ty=%d left=%d right=%d name_len=%d name=%.*s\n",
-        (int)ref, (int)e.kind, (int)e.block_ref, (int)e.resolved_type_ref,
-        (int)e.binop_left_ref, (int)e.binop_right_ref, (int)e.var_name_len,
-        (int)e.var_name_len, (const char *)e.var_name);
-      if (_dn > 0) (void)xlang_io_write(2, _db, (size_t)_dn); }
-  }
+  /* Class AD: Cap residual expr-watch (getenv/snprintf/xlang_io_write) removed. */
   ast_arena_expr_set(arena, ref, e);
 }
 
 /**
- * expr_set_common_zeros C 实现：与 parser.x 字段清零顺序一致；match 占位同 ast.expr_init_match_enum。
+ * expr_set_common_zeros C 实现：与 parser.x 字段清零顺序一致；match 占位同 ast.expr_init_match_enum.
  * hybrid 跨 TU：P10 glue 以 extern 引用，故非 static（G-02f-326）。
- * （P4 expr seeds 仍可保留本地 static 副本，不冲突。）
+ * Class AD P20b：BODIES_FROM_X → pure-asm in pthin_foundation.x.
  */
+#ifdef XLANG_PTHIN_FOUNDATION_BODIES_FROM_X
+void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e);
+#else
 void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
   if (!e)
     return;
@@ -97,5 +75,6 @@ void parser_asm_expr_set_common_zeros_c(struct parser_asm_ast_expr *e) {
   e->call_resolved_func_index = -1;
   e->call_resolved_dep_index = -1;
 }
+#endif /* XLANG_PTHIN_FOUNDATION_BODIES_FROM_X */
 
 #endif /* PARSER_ASM_FOUNDATION_SLICE_INC */

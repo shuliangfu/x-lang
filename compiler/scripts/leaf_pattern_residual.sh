@@ -783,7 +783,7 @@ RT_SEED_SLICE_LIST_MK_WAVE=wave898
 # (wave749/788; no second product mk). Body = ensure try-heat. NOT physical delete.
 PHYS_DEL_R1_CORE_SEED_LIST_MK=1
 PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899
-PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5
+PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=4
 PHYS_DEL_R1_CORE_SEED_LIST_MK_VIA=mk_r1_core_seed_objs_multi_target_thin
 PHYS_DEL_R1_CORE_SEED_LIST_MK_NOTE=list_multi_target_force_thin_edges_remain
 SWALLOWED_R1_CORE_SEED_LIST_MK=1
@@ -2562,6 +2562,8 @@ EOF
       g05_target_cpu_prefer=1
     fi
     # wave769: g05 L2 asm three via try-l2-asm-prefer (no dual hybrid)
+    # w1533: the prefer table no longer names the three deleted C seeds.
+    # The helper name stays so this inventory grep still matches.
     if [ -f "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" ] \
       && grep -q 'try-l2-asm-prefer\|l2-asm-prefer' \
         "$ROOT/compiler/scripts/g05_ensure_relink_prereqs.sh" 2>/dev/null \
@@ -3784,8 +3786,8 @@ fi
 if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899' <<<"$_out"; then
   bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_WAVE=wave899"
 fi
-if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5' <<<"$_out"; then
-  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=5 (wave899)"
+if ! grep -q 'PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=4' <<<"$_out"; then
+  bad "dump must set PHYS_DEL_R1_CORE_SEED_LIST_MK_COUNT=4 (wave899)"
 fi
 if ! grep -q 'SWALLOWED_R1_CORE_SEED_LIST_MK=1' <<<"$_out"; then
   bad "dump must set SWALLOWED_R1_CORE_SEED_LIST_MK=1 (wave899)"
@@ -5239,8 +5241,8 @@ _sx_list_n=$(
   tr ' \t\\\n' ' ' < "$_SX_MK" | tr -s ' ' '\n' | grep -cE '\.\./std/.+\.o' || true
 )
 # Floor tracks mk/std_x_product_objs.mk (post_ship inventory; was 21 pre-retire).
-if [ "${_sx_list_n:-0}" -ne 17 ]; then
-  bad "wave895 expected 17 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
+if [ "${_sx_list_n:-0}" -ne 7 ]; then
+  bad "wave895 expected 7 STD_X_PRODUCT_OBJS members, got ${_sx_list_n:-0}"
 fi
 if ! grep -q 'include mk/std_x_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/std_x_product_objs.mk (wave895)"
@@ -5337,8 +5339,8 @@ _fm_list_n=$(
   tr ' \t\\\n' ' ' < "$_FM_MK" | tr -s ' ' '\n' | grep -cE '\.\./(std|core)/.+\.o' || true
 )
 # Floor tracks mk/formal_mod_product_objs.mk (post_ship inventory; was 38).
-if [ "${_fm_list_n:-0}" -ne 59 ]; then
-  bad "wave894 expected 59 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
+if [ "${_fm_list_n:-0}" -ne 73 ]; then
+  bad "wave894 expected 73 FORMAL_MOD_PRODUCT_OBJS members, got ${_fm_list_n:-0}"
 fi
 if ! grep -q 'include mk/formal_mod_product_objs.mk' "$MF"; then
   mf_bad "Makefile must include mk/formal_mod_product_objs.mk (wave894)"
@@ -12022,7 +12024,7 @@ if grep -nE '^(export )?R1_SEED_MAP_OBJS=' compiler/scripts/ensure_host_cc_seed_
   bad "ensure_host_cc_seed_o.sh must not hardcode R1_SEED_MAP_OBJS= (G.7)"
 fi
 # Core-seed leaves must not keep inline $(CC) -c seed recipes
-if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/x_seed_bridge\.o|src/seed_link_compat\.o):' "$MF" \
+if grep -A1 -E '^(src/diag\.o|src/runtime_link_abi\.o|src/runtime_c_import\.o|src/seed_link_compat\.o):' "$MF" \
   | grep -qE '\$\(CC\).*-c seeds/'; then
   mf_bad "Makefile core-seed leaves still have inline \$(CC) -c (wave749 thin required)"
 fi

@@ -11,13 +11,15 @@ function main(): i32 {
   let src: u8[4] = [1, 2, 3, 4];
   let dst: u8[4] = [0, 0, 0, 0];
   builtin.copy(dst, src, 4);
-  if (dst[0] != 1 || dst[3] != 4) { return 1; }
+  /* Byte lanes are u8. Compare them to u8. */
+  if (dst[0] != (1 as u8) || dst[3] != (4 as u8)) { return 1; }
   if (builtin.min_i32(3, 7) != 3 || builtin.max_i32(3, 7) != 7) { return 2; }
   if (builtin.min_u32(5, 2) != 2 || builtin.max_u32(5, 2) != 5) { return 3; }
   if (builtin.clz_u32(1) != 31 || builtin.ctz_u32(4) != 2 || builtin.popcount_u32(5) != 2) { return 4; }
-  if (builtin.bswap_u32(16777216 as u32) != 1 as u32) { return 7; }
-  if (builtin.rotl_u32(1 as u32, 1 as u32) != 2 as u32) { return 8; }
-  if (builtin.rotr_u32(2 as u32, 1 as u32) != 1 as u32) { return 9; }
+  /* bswap, rotl, and rotr return the low 32 bits in eax as i32. */
+  if (builtin.bswap_u32(16777216 as u32) != 1) { return 7; }
+  if (builtin.rotl_u32(1 as u32, 1 as u32) != 2) { return 8; }
+  if (builtin.rotr_u32(2 as u32, 1 as u32) != 1) { return 9; }
   if (builtin.clz_u32(0 as u32) != 32 || builtin.ctz_u32(0 as u32) != 32 || builtin.popcount_u32(0 as u32) != 0) { return 5; }
   if (builtin.clz_u32(2147483648 as u32) != 0 || builtin.popcount_u32(2147483648 as u32) != 1) { return 6; }
   if (false) { builtin.unreachable(); builtin.abort(); }

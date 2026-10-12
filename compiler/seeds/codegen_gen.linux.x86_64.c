@@ -1662,7 +1662,7 @@ extern int32_t typeck_is_cap_va_builtin_name(uint8_t * name, int32_t name_len);
  * xlang_skip_trait_method_ret_kind_c gives the builtin return kind for the
  * function-pointer cast (only needed if the cast tightens past void).
  *
- * Bodies live in seeds/parser_asm/parser_asm_skip_tl_slice.inc (twins of
+ * Bodies live in analysis/archive/parser_asm/parser_asm_skip_tl_slice.inc (Class BZ) (twins of
  * xlang_skip_impl_self_matches_for_c). codegen must NOT iterate
  * g_xlang_skip_trait_reg_* globals directly.
  * PLATFORM: SHARED.

@@ -20,7 +20,7 @@
  * write (xlang_io_write) — the main TU got this include when the Cap change
  * landed; this hybrid seed TU was missed, so its cc failed and the g05 hybrid
  * lane silently fell back to the full seed. Same include, same authority. */
-#include <xlang_io_cap.h>
+/* Class AH: Cap IO include retired with skip-function debug strip. */
 
 #include "parser_asm_stretch_audit_gate.h"
 #include "token.h"

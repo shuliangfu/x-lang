@@ -1,8 +1,9 @@
-/* Generated from src/lsp/lsp_diag_pipeline_ctx.x (G-02f-28 true .x + C tail; G-02f-74/98 lsp ctx gates).
- * G-02f-331：PREFER_X_O hybrid 时 thin 别名由 .x→-E，rest 用 XLANG_L2_LSP_CTX_THIN_FROM_X。
- * Regen: ./xlang-c -E -L .. src/lsp/lsp_diag_pipeline_ctx.x > /tmp/ldpc.c
- *         then re-apply weak polish + C tail (fill_paths/state/write_all).
- * .x covers: sizeof bridge + typeck_ → bare name aliases.
+/* seeds/lsp_diag_pipeline_ctx.from_x.c — C tail for lsp_diag_pipeline_ctx.o.
+ * wave852: nine thin aliases are only in src/lsp/lsp_diag_pipeline_ctx.x.
+ * This file keeps fill_paths/state/write_all/debug/main _impl and the
+ * 16388-byte state buffer. Product link pure-asms the .x, weakens the
+ * eight aliases (alloc stays strong), then cc's this tail. No gcc -E.
+ * PLATFORM: SHARED.
  */
 #include <xlang_weak.h>
 #include <stddef.h>
@@ -33,80 +34,11 @@ extern int32_t typeck_lsp_diag_references_at(uint8_t * source, int32_t source_le
 extern int32_t typeck_lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col);
 extern int32_t typeck_lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap);
 extern void lsp_diag_invalidate_cache(void);
-#ifndef XLANG_L2_LSP_CTX_THIN_FROM_X
-size_t lsp_diag_x_alloc_dep_ctx_size(void) {
-  (void)(({   {
-    size_t r = pipeline_sizeof_dep_ctx();
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_build_diagnostics_response(int32_t id_val, uint8_t * source, int32_t source_len, uint8_t * out_buf, int32_t out_cap) {
-  (void)(({   {
-    int32_t r = typeck_lsp_build_diagnostics_response(id_val, source, source_len, out_buf, out_cap);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_diag_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
-  (void)(({   {
-    int32_t r = typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_diag_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
-  (void)(({   {
-    int32_t r = typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_hover_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, uint8_t * out_buf, int32_t out_cap) {
-  (void)(({   {
-    int32_t r = typeck_lsp_diag_hover_at(source, source_len, line_0, col_0, out_buf, out_cap);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_references_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_lines, int32_t * out_cols, int32_t max_refs) {
-  (void)(({   {
-    int32_t r = typeck_lsp_diag_references_at(source, source_len, line_0, col_0, out_lines, out_cols, max_refs);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_diag_definition_at(uint8_t * source, int32_t source_len, int32_t line_0, int32_t col_0, int32_t * out_line, int32_t * out_col) {
-  (void)(({   {
-    int32_t r = typeck_lsp_diag_definition_at(source, source_len, line_0, col_0, out_line, out_col);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK int32_t lsp_build_semantic_tokens_response(int32_t id_val, uint8_t * doc_buf, int32_t doc_len, uint8_t * out_buf, int32_t out_cap) {
-  (void)(({   {
-    int32_t r = typeck_lsp_build_semantic_tokens_response(id_val, doc_buf, doc_len, out_buf, out_cap);
-    return r;
-  }
- }));
-  return 0;
-}
-XLANG_WEAK void lsp_io_lsp_diag_invalidate_cache(void) {
-  (void)(({   {
-    (void)(lsp_diag_invalidate_cache());
-  }
- }));
-}
-
-#else
-/* G-02f-331：thin 由 src/lsp/lsp_diag_pipeline_ctx.x（-E）提供；rest 仅 C 尾 / _impl */
+/* wave852: the nine thin aliases live only in src/lsp/lsp_diag_pipeline_ctx.x.
+ * PLATFORM: SHARED — product pure-asm of that .x. No C body, no gcc -E.
+ * lsp_diag_x_alloc_dep_ctx_size stays a strong definition; the other eight
+ * aliases are weak so lsp_diag_x strong defs still win. The C tail below
+ * (_impl, state buffer, lsp_definition_at) is still host-cc. */
 extern size_t lsp_diag_x_alloc_dep_ctx_size(void);
 extern int32_t lsp_build_diagnostics_response(int32_t, uint8_t *, int32_t, uint8_t *, int32_t);
 extern int32_t lsp_diag_hover_at(uint8_t *, int32_t, int32_t, int32_t, uint8_t *, int32_t);
@@ -116,7 +48,6 @@ extern int32_t lsp_references_at(uint8_t *, int32_t, int32_t, int32_t, int32_t *
 extern int32_t lsp_diag_definition_at(uint8_t *, int32_t, int32_t, int32_t, int32_t *, int32_t *);
 extern int32_t lsp_build_semantic_tokens_response(int32_t, uint8_t *, int32_t, uint8_t *, int32_t);
 extern void lsp_io_lsp_diag_invalidate_cache(void);
-#endif
 
 /* ---- C tail (G-02f-28): fill_paths / state buf / large-stack main / write_all ---- */
 

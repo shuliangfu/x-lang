@@ -1,75 +1,70 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// runtime_random_fill.x — R2 full wave514
+// runtime_random_fill.x — Darwin arm64 user-domain CSPRNG fill.
 //
-// CSPRNG OS glue: random_fill_bytes_c for crypto-secure random byte fill
-// (Windows BCryptGenRandom / Linux raw getrandom / macOS raw getentropy
-// via xlang_random_cap.h).
-// Windows BCrypt algorithm handle lazy init (random_get_alg) is also thin.
-// OS API calls are delegated to C bridge functions declared below as
-// extern "C", implemented in seeds/runtime_random_fill.from_x.c and linked
-// via the product pipeline (thin+rest ld -r pattern).
+// This is the whole product body of runtime_random_fill.o on Darwin arm64.
+// The cold ensure path pure-asms this file and does not pass the C seed to
+// host cc. Linux and Windows still compile seeds/runtime_random_fill.from_x.c:
+// Linux uses the raw getrandom syscall in include/xlang_random_cap.h, and
+// Windows uses BCryptGenRandom. That header function is static inline, so
+// it is not a linkable symbol this object can call.
 //
-// PLATFORM: SHARED Cap (9.1.6)
-// Cap residual 9.1.6: full-closure Cap convergence (no libc getrandom / getentropy).
+// Darwin product bytes come from libSystem getentropy, in chunks of at most
+// 256. The return contract matches the header: full length on success, 0 for
+// a zero length, -1 for a null buffer or a negative length, and a partial
+// count when a later chunk fails after some bytes were written.
 //
-// Wave514 (2026-07-27): R2 migration. random_fill_bytes_c business logic
-// moved to .x; the .c seed provides _impl OS bridge implementations only.
-
-/* === C bridge declarations (implemented in runtime_random_fill.from_x.c) === */
+// Public names stay strong. random_fill_bytes_c is the symbol std/random and
+// std/uuid undefined-reference. random_get_alg stays a null stub, which is
+// what the non-Windows C seed returned. The C _impl bridges are not emitted
+// here; nothing outside this TU referenced them.
+//
+// This object is a user / STD_AND_PANIC companion. It is not in the g05
+// compiler image. A missing object after a pure-asm fault falls back to the
+// C seed, which still uses the raw Darwin syscall.
+//
+// PLATFORM: MACOS|DARWIN arm64.
 
 /**
- * Bridge: return Windows BCrypt RNG algorithm handle (lazy init).
- * Windows: BCryptOpenAlgorithmProvider via InitOnceExecuteOnce
- * Non-Windows: returns NULL (stub; random_fill_bytes_impl handles platform branch)
- * @return BCRYPT_ALG_HANDLE as *u8 (NULL on non-Windows)
+ * libSystem getentropy. One call accepts at most 256 bytes.
+ * @param buf *u8 — destination; caller owns; must not be null for a positive length
+ * @param n usize — byte count for this call; 1 through 256
+ * @return i32 — 0 on success, -1 on failure
+ * PLATFORM: MACOS|DARWIN — libSystem, not the raw syscall in xlang_random_cap.h
  */
-export extern "C" function random_get_alg_impl(): *u8;
+export extern "C" function getentropy(buf: *u8, n: usize): i32;
 
 /**
- * Bridge: fill buffer with crypto-secure random bytes.
- * Windows: BCryptGenRandom
- * Linux: Cap getrandom loop (xlang_random_cap.h; handles EINTR)
- * macOS: getentropy chunked (≤GETENTROPY_MAX per call)
- * @param buf output buffer
- * @param len byte count (≥0)
- * @return bytes written on success; -1 on failure; partial write count if interrupted
+ * Read path helper for codegen discovery.
+ * @return i32 — always 0
+ * PLATFORM: MACOS|DARWIN
  */
-export extern "C" function random_fill_bytes_impl(buf: *u8, len: i32): i32;
-
-/* === Public API (R2 full: thin wrappers in .x, OS calls in rest C) === */
-
-/**
- * Exported function `runtime_random_fill_x_doc_anchor`.
- * Read path helper for codegen discovery; returns 0.
- * @return i32
- */
+#[no_mangle]
 export function runtime_random_fill_x_doc_anchor(): i32 {
   return 0;
 }
 
 /**
- * Exported function `random_get_alg`.
- * Return Windows BCrypt RNG algorithm handle. Thin-only wrapper;
- * non-Windows always returns NULL (handled by rest stub).
- * @return BCRYPT_ALG_HANDLE as *u8
+ * Non-Windows BCrypt handle. Darwin has no BCrypt provider, so this is null.
+ * @return *u8 — always null on Darwin
+ * PLATFORM: MACOS|DARWIN
  */
 #[no_mangle]
 export function random_get_alg(): *u8 {
-  unsafe {
-    return random_get_alg_impl();
-  }
+  return 0;
 }
 
 /**
- * Exported function `random_fill_bytes_c`.
- * Write `len` bytes of crypto-secure random data into `buf`.
- * Returns bytes written on success (== len); -1 on failure;
- * partial write count if interrupted before completion.
- * @param buf output buffer
- * @param len byte count (≥0)
- * @return bytes written or -1
+ * Fill buf with len crypto-secure bytes.
+ * Null or a negative length returns -1. A zero length returns 0 and does
+ * not call getentropy. Longer requests are split into 256-byte chunks.
+ * A chunk failure returns how many bytes were already written, or -1 when
+ * the first chunk failed.
+ * @param buf *u8 — destination buffer; null is rejected
+ * @param len i32 — byte count; negative is rejected; zero is a no-op
+ * @return i32 — len on full success, 0 when len is 0, a partial count, or -1
+ * PLATFORM: MACOS|DARWIN — libSystem getentropy, chunk cap 256
  */
 #[no_mangle]
 export function random_fill_bytes_c(buf: *u8, len: i32): i32 {
@@ -79,7 +74,24 @@ export function random_fill_bytes_c(buf: *u8, len: i32): i32 {
   if (len == 0) {
     return 0;
   }
-  unsafe {
-    return random_fill_bytes_impl(buf, len);
+  let done: i32 = 0;
+  while (done < len) {
+    let chunk: i32 = len - done;
+    // getentropy rejects a length above 256. Match GETENTROPY_MAX.
+    if (chunk > 256) {
+      chunk = 256;
+    }
+    let rc: i32 = 0;
+    unsafe {
+      rc = getentropy(&buf[done], chunk as usize);
+    }
+    if (rc != 0) {
+      if (done > 0) {
+        return done;
+      }
+      return -1;
+    }
+    done = done + chunk;
   }
+  return len;
 }

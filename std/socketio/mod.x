@@ -77,7 +77,7 @@ extern "C" function net_ws_read_frame_c(fd: i32, tls_ctx: i64, out_opcode: *i32,
 extern "C" function net_close_socket_c(fd: i32): i32;
 extern "C" function net_tls_close_c(ctx_handle: i64): i32;
 
-extern "C" function sio_eio_encode_packet_c(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
+extern "C" function sio_eio_encode_packet_c(pkt_type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32;
 extern "C" function sio_eio_decode_packet_c(buf: *u8, len: i32, out_type: *i32, out_payload: *u8, out_cap: i32,
   out_payload_len: *i32): i32;
 extern "C" function sio_encode_event_packet_c(event: *u8, event_len: i32, data: *u8, data_len: i32, out: *u8,
@@ -565,27 +565,48 @@ export function ws_finish_eio_upgrade(stream: SioWsStream, timeout_ms: u32): i32
   return 0; // unreachable — typeck workaround
 }
 
-/* See implementation. */
+/**
+ * Write a failed stream into out.
+ * SioWsStream is 16 bytes, so returning it by value does not asm-emit.
+ * @param out *SioWsStream — caller storage; null is left untouched
+ * @return i32 — always -1
+ * PLATFORM: SHARED
+ */
+export function sio_stream_fail(out: *SioWsStream): i32 {
+  if (out != 0) {
+    out.fd = -1;
+    out.tls_ctx = 0;
+  }
+  return -1;
+}
+
+/**
+ * Open a websocket and write the stream into out.
+ * @param out *SioWsStream — caller storage; must not be null
+ * @return i32 — 0 when fd is valid, -1 when the slot holds a failed stream
+ * PLATFORM: SHARED
+ */
 export function connect_ws(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, url_buf: *u8, url_cap: i32,
-  timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
+  timeout_ms: u32, out: *SioWsStream): i32 {
   let fd: i32 = -1;
   let tls: i64 = 0;
   let n: i32 = 0;
   let key: u8[1] = [0];
-  if (http_base == 0 || sid == 0 || url_buf == 0) { return bad; }
+  if (http_base == 0 || sid == 0 || url_buf == 0) { return sio_stream_fail(out); }
   n = build_ws_connect_url(http_base, base_len, sid, sid_len, url_buf, url_cap);
-  if (n <= 0) { return bad; }
+  if (n <= 0) { return sio_stream_fail(out); }
   /* See implementation. */
   let ws_rc: i32 = 0;
   unsafe { ws_rc = net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls); }
-  if (ws_rc != 0) { return bad; }
+  if (ws_rc != 0) { return sio_stream_fail(out); }
   /* See implementation. */
   if (ws_finish_eio_upgrade({ fd: fd, tls_ctx: tls }, timeout_ms) != 0) {
     let probe_skip: i32 = 0;
     probe_skip = probe_skip + 0;
   }
-  return { fd: fd, tls_ctx: tls };
+  out.fd = fd;
+  out.tls_ctx = tls;
+  return 0;
 }
 
 /** Exported function `send_connect_packet`.
@@ -620,23 +641,24 @@ export function send_connect_ns_packet(stream: SioWsStream, ns: *u8, ns_len: i32
 
 /* See implementation. */
 export function connect_ws_ns(http_base: *u8, base_len: i32, sid: *u8, sid_len: i32, ns: *u8, ns_len: i32,
-  url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
-  let stream: SioWsStream = bad;
+  url_buf: *u8, url_cap: i32, timeout_ms: u32, out: *SioWsStream): i32 {
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
   let pre: u8[256] = [];
   let plen: i32 = 0;
-  if (http_base == 0 || sid == 0 || url_buf == 0) { return bad; }
-  stream = connect_ws(http_base, base_len, sid, sid_len, url_buf, url_cap, timeout_ms);
-  if (stream.fd < 0) { return bad; }
+  if (http_base == 0 || sid == 0 || url_buf == 0) { return sio_stream_fail(out); }
+  connect_ws(http_base, base_len, sid, sid_len, url_buf, url_cap, timeout_ms, &stream);
+  if (stream.fd < 0) { return sio_stream_fail(out); }
   /* See implementation. */
   if (ws_read_text(stream, &pre[0], 256, timeout_ms, &plen) != 0) {
     plen = 0;
   }
   if (send_connect_ns_packet(stream, ns, ns_len) < 0) {
     ws_close_stream(stream);
-    return bad;
+    return sio_stream_fail(out);
   }
-  return stream;
+  out.fd = stream.fd;
+  out.tls_ctx = stream.tls_ctx;
+  return 0;
 }
 
 /** Exported function `ws_read_text`.
@@ -686,7 +708,7 @@ export function client_ws_ns_event_roundtrip(http_base: *u8, base_len: i32, sid:
   let plen: i32 = 0;
   if (http_base == 0 || sid == 0 || event == 0 || url_buf == 0) { return -1; }
   if (reply_event == 0 || reply_data == 0 || reply_data_len == 0) { return -1; }
-  stream = connect_ws_ns(http_base, base_len, sid, sid_len, ns, ns_len, url_buf, url_cap, timeout_ms);
+  connect_ws_ns(http_base, base_len, sid, sid_len, ns, ns_len, url_buf, url_cap, timeout_ms, &stream);
   if (stream.fd < 0) { return -1; }
   if (emit_event_ws(stream, event, event_len, data, data_len) < 0) {
     ws_close_stream(stream);
@@ -744,52 +766,54 @@ export function build_ws_eio_url_fresh(http_base: *u8, base_len: i32, out: *u8, 
  * @param timeout_ms u32
  * @return SioWsStream
  */
-export function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: i32, timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
+export function connect_ws_fresh(http_base: *u8, base_len: i32, url_buf: *u8, url_cap: i32, timeout_ms: u32, out: *SioWsStream): i32 {
   let fd: i32 = -1;
   let tls: i64 = 0;
   let n: i32 = 0;
   let key: u8[1] = [0];
   let open_buf: u8[512] = [];
   let olen: i32 = 0;
-  let stream: SioWsStream = bad;
-  if (http_base == 0 || url_buf == 0) { return bad; }
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
+  if (http_base == 0 || url_buf == 0) { return sio_stream_fail(out); }
   n = build_ws_eio_url_fresh(http_base, base_len, url_buf, url_cap);
-  if (n <= 0) { return bad; }
+  if (n <= 0) { return sio_stream_fail(out); }
   let ws_rc: i32 = 0;
   unsafe { ws_rc = net_ws_connect_url_c(url_buf, n, &key[0], 0, timeout_ms, &fd, &tls); }
-  if (ws_rc != 0) { return bad; }
+  if (ws_rc != 0) { return sio_stream_fail(out); }
   stream.fd = fd;
   stream.tls_ctx = tls;
   if (ws_read_text(stream, &open_buf[0], 512, timeout_ms, &olen) != 0) {
     ws_close_stream(stream);
-    return bad;
+    return sio_stream_fail(out);
   }
   if (olen < 2 || open_buf[0] != 48) {
     ws_close_stream(stream);
-    return bad;
+    return sio_stream_fail(out);
   }
-  return stream;
+  out.fd = stream.fd;
+  out.tls_ctx = stream.tls_ctx;
+  return 0;
 }
 
 /* See implementation. */
 export function connect_ws_fresh_ns(http_base: *u8, base_len: i32, ns: *u8, ns_len: i32, url_buf: *u8, url_cap: i32,
-  timeout_ms: u32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
-  let stream: SioWsStream = bad;
+  timeout_ms: u32, out: *SioWsStream): i32 {
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
   let ack: u8[256] = [];
   let alen: i32 = 0;
-  stream = connect_ws_fresh(http_base, base_len, url_buf, url_cap, timeout_ms);
-  if (stream.fd < 0) { return bad; }
+  connect_ws_fresh(http_base, base_len, url_buf, url_cap, timeout_ms, &stream);
+  if (stream.fd < 0) { return sio_stream_fail(out); }
   if (send_connect_ns_packet(stream, ns, ns_len) < 0) {
     ws_close_stream(stream);
-    return bad;
+    return sio_stream_fail(out);
   }
   /* See implementation. */
   if (ws_read_text(stream, &ack[0], 256, timeout_ms, &alen) != 0) {
     alen = 0;
   }
-  return stream;
+  out.fd = stream.fd;
+  out.tls_ctx = stream.tls_ctx;
+  return 0;
 }
 
 /* See implementation. */
@@ -804,7 +828,7 @@ export function client_ws_fresh_ns_event_roundtrip(http_base: *u8, base_len: i32
   let plen: i32 = 0;
   if (http_base == 0 || event == 0 || url_buf == 0) { return -1; }
   if (reply_event == 0 || reply_data == 0 || reply_data_len == 0) { return -1; }
-  stream = connect_ws_fresh_ns(http_base, base_len, ns, ns_len, url_buf, url_cap, timeout_ms);
+  connect_ws_fresh_ns(http_base, base_len, ns, ns_len, url_buf, url_cap, timeout_ms, &stream);
   if (stream.fd < 0) { return -1; }
   if (emit_event_ws_ns(stream, ns, ns_len, event, event_len, data, data_len) < 0) {
     ws_close_stream(stream);
@@ -848,7 +872,7 @@ export function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, n
   let auth_ev: u8[8] = [97, 117, 116, 104, 0];
   if (http_base == 0 || auth_tok == 0 || ping_event == 0 || url_buf == 0) { return -1; }
   if (reply_event == 0 || reply_data == 0 || reply_data_len == 0) { return -1; }
-  stream = connect_ws_fresh_ns(http_base, base_len, ns, ns_len, url_buf, url_cap, timeout_ms);
+  connect_ws_fresh_ns(http_base, base_len, ns, ns_len, url_buf, url_cap, timeout_ms, &stream);
   if (stream.fd < 0) { return -1; }
   if (emit_event_ws_ns(stream, ns, ns_len, &auth_ev[0], 4, auth_tok, auth_tok_len) < 0) {
     ws_close_stream(stream);
@@ -903,24 +927,25 @@ export function client_ws_fresh_ns_mw_roundtrip(http_base: *u8, base_len: i32, n
  * See implementation.
  */
 export function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8, url_cap: i32,
-  timeout_ms: u32, prefer_ws: i32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
-  let stream: SioWsStream = bad;
-  if (c == 0 || base_url == 0 || sid_out == 0 || url_buf == 0) { return bad; }
-  if (connect_handshake(c, base_url, base_len, sid_out, sid_cap, timeout_ms) <= 0) { return bad; }
+  timeout_ms: u32, prefer_ws: i32, out: *SioWsStream): i32 {
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
+  if (c == 0 || base_url == 0 || sid_out == 0 || url_buf == 0) { return sio_stream_fail(out); }
+  if (connect_handshake(c, base_url, base_len, sid_out, sid_cap, timeout_ms) <= 0) { return sio_stream_fail(out); }
   if (prefer_ws != 0 && c.has_websocket != 0) {
     c.transport = transport_websocket();
-    stream = connect_ws(base_url, base_len, sid_out, c.sid_len, url_buf, url_cap, timeout_ms);
+    connect_ws(base_url, base_len, sid_out, c.sid_len, url_buf, url_cap, timeout_ms, &stream);
     if (stream.fd >= 0) {
       if (send_connect_packet(stream) >= 0) {
         reconnect_reset(c);
-        return stream;
+        out.fd = stream.fd;
+        out.tls_ctx = stream.tls_ctx;
+        return 0;
       }
       ws_close_stream(stream);
     }
   }
   c.transport = transport_polling();
-  return bad;
+  return sio_stream_fail(out);
 }
 
 /**
@@ -928,21 +953,22 @@ export function connect(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u
  * See implementation.
  */
 export function connect_ns(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, ns: *u8, ns_len: i32,
-  url_buf: *u8, url_cap: i32, timeout_ms: u32, prefer_ws: i32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
-  let stream: SioWsStream = bad;
-  if (c == 0 || base_url == 0 || sid_out == 0 || url_buf == 0) { return bad; }
-  if (connect_handshake(c, base_url, base_len, sid_out, sid_cap, timeout_ms) <= 0) { return bad; }
+  url_buf: *u8, url_cap: i32, timeout_ms: u32, prefer_ws: i32, out: *SioWsStream): i32 {
+  let stream: SioWsStream = { fd: -1, tls_ctx: 0 };
+  if (c == 0 || base_url == 0 || sid_out == 0 || url_buf == 0) { return sio_stream_fail(out); }
+  if (connect_handshake(c, base_url, base_len, sid_out, sid_cap, timeout_ms) <= 0) { return sio_stream_fail(out); }
   if (prefer_ws != 0 && c.has_websocket != 0) {
     c.transport = transport_websocket();
-    stream = connect_ws_ns(base_url, base_len, sid_out, c.sid_len, ns, ns_len, url_buf, url_cap, timeout_ms);
+    connect_ws_ns(base_url, base_len, sid_out, c.sid_len, ns, ns_len, url_buf, url_cap, timeout_ms, &stream);
     if (stream.fd >= 0) {
       reconnect_reset(c);
-      return stream;
+      out.fd = stream.fd;
+      out.tls_ctx = stream.tls_ctx;
+      return 0;
     }
   }
   c.transport = transport_polling();
-  return bad;
+  return sio_stream_fail(out);
 }
 
 /** Exported function `reconnect_delay`.
@@ -985,12 +1011,11 @@ export function reconnect_reset(c: *SioClient): void {
  * See implementation.
  */
 export function reconnect_once(c: *SioClient, base_url: *u8, base_len: i32, sid_out: *u8, sid_cap: i32, url_buf: *u8,
-  url_cap: i32, timeout_ms: u32, prefer_ws: i32): SioWsStream {
-  let bad: SioWsStream = { fd: -1, tls_ctx: 0 };
-  if (c == 0) { return bad; }
-  if (!can_reconnect(c)) { return bad; }
+  url_cap: i32, timeout_ms: u32, prefer_ws: i32, out: *SioWsStream): i32 {
+  if (c == 0) { return sio_stream_fail(out); }
+  if (!can_reconnect(c)) { return sio_stream_fail(out); }
   c.sid_len = 0;
-  return connect(c, base_url, base_len, sid_out, sid_cap, url_buf, url_cap, timeout_ms, prefer_ws);
+  return connect(c, base_url, base_len, sid_out, sid_cap, url_buf, url_cap, timeout_ms, prefer_ws, out);
 }
 
 /** Exported function `emit_event_ws`.
@@ -1930,15 +1955,16 @@ export function p3_complete_smoke(): i32 {
 
 /** Exported function `eio_encode_packet`.
  * Implements `eio_encode_packet`.
- * @param type i32
+ * @param pkt_type i32
  * @param payload *u8
  * @param payload_len i32
  * @param out *u8
  * @param out_cap i32
  * @return i32
  */
-export function eio_encode_packet(type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
-  unsafe { return sio_eio_encode_packet_c(type, payload, payload_len, out, out_cap); }
+export function eio_encode_packet(pkt_type: i32, payload: *u8, payload_len: i32, out: *u8, out_cap: i32): i32 {
+  /* `type` is a keyword, so the packet kind parameter is pkt_type. */
+  unsafe { return sio_eio_encode_packet_c(pkt_type, payload, payload_len, out, out_cap); }
   return 0; // unreachable — typeck workaround
 }
 

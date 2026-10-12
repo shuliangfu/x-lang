@@ -63,8 +63,8 @@ case "$MODE" in
     echo "bootstrap-token OK"
     ;;
   lexer)
-    # Self-host 9.1: compile lexer.x (import token); multi-file + cross-module enum
-    "$XLANG" -L src/lexer src/lexer/lexer.x -o /tmp/xlang_lexer_test
+    # Self-host 9.1: lexer_standalone.x imports lexer + token. main stays out of lexer.x.
+    "$XLANG" -L src/lexer src/lexer/lexer_standalone.x -o /tmp/xlang_lexer_test
     /tmp/xlang_lexer_test
     echo "bootstrap-lexer OK"
     ;;

@@ -10,7 +10,10 @@ const heap = import("std.heap");
  * @return i32
  */
 function main(): i32 {
-  let ss: StackStr = string.stack_str_new();
+  let ss: StackStr = { length: 0 };
+  if (string.stack_str_new(&ss) != 0) {
+    return 1;
+  }
   let src: u8[5] = [104, 101, 108, 108, 111];
   if (string.stack_str_from_slice(&ss, &src[0], 5) != 0) {
     return 1;
@@ -24,14 +27,14 @@ function main(): i32 {
   if (string.string_view_eq(v, exp) != 1) {
     return 3;
   }
-  if (string.stack_str_append_char(&ss, 33) != 0) {
+  if (string.stack_str_append_char(&ss, 33 as u8) != 0) {
     return 4;
   }
   let v2: StrView = string.stack_str_view(&ss);
   if (string.length(v2) != 6) {
     return 5;
   }
-  if (string.string_view_get(v2, 5) != 33) {
+  if (string.string_view_get(v2, 5) != (33 as u8)) {
     return 6;
   }
   let arena: Arena64 = heap.arena64_empty();
@@ -45,11 +48,11 @@ function main(): i32 {
     heap.arena64_deinit(&arena);
     return 8;
   }
-  if (string.string_view_get(joined, 5) != 33) {
+  if (string.string_view_get(joined, 5) != (33 as u8)) {
     heap.arena64_deinit(&arena);
     return 9;
   }
-  if (string.string_view_get(joined, 6) != 32) {
+  if (string.string_view_get(joined, 6) != (32 as u8)) {
     heap.arena64_deinit(&arena);
     return 10;
   }

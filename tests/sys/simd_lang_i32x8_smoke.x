@@ -11,18 +11,27 @@ const simd = import("std.simd.builtin");
 function main(): i32 {
   let a: Vec8i = [1, 2, 3, 4, 5, 6, 7, 8];
   let b: Vec8i = [1, 1, 1, 1, 1, 1, 1, 1];
-  let s: Vec8i = simd.add_i32x8(a, b);
+  let s: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  if (simd.add_i32x8(a, b, &s[0]) != 0) {
+    return 1;
+  }
   if (s[0] != 2) {
     return 1;
   }
   if (s[7] != 9) {
     return 2;
   }
-  let p: Vec8i = simd.mul_i32x8(s, b);
+  let p: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  if (simd.mul_i32x8(s, b, &p[0]) != 0) {
+    return 3;
+  }
   if (p[0] != 2) {
     return 3;
   }
-  let d: Vec8i = simd.sub_i32x8(p, b);
+  let d: Vec8i = [0, 0, 0, 0, 0, 0, 0, 0];
+  if (simd.sub_i32x8(p, b, &d[0]) != 0) {
+    return 4;
+  }
   if (d[0] != 1) {
     return 4;
   }

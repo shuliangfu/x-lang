@@ -344,20 +344,12 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     const char **lib_roots, int n_lib_roots, void *bank, const char **argv, int *la, int max_la,
     int *flag_out) {
   const char *p = NULL;
-  int debug_runtime_obj = 0;
   int before;
   if (!la || *la >= max_la - 1)
     return 0;
-  if (rel && (strcmp(rel, "compiler/runtime_asm_io_stubs.o") == 0
-          || strcmp(rel, "compiler/runtime_process_argv.o") == 0))
-    debug_runtime_obj = 1;
-  /* wave223 G.7: link_abi_getenv (not raw getenv). */
-  if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-    link_diag_ld_debug_push(rel, "primary", primary ? primary : "(null)");
+  /* Class AK: XLANG_DEBUG_LD Cap notes retired (mirror thin). */
   if (primary && primary[0])
     p = asm_link_obj_skip_missing(primary);
-  if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-    link_diag_ld_debug_push(rel, "after-primary", p ? p : "(null)");
   if (!p && rel && rel[0])
     p = asm_link_obj_skip_missing(xlang_rel_o_path_from_argv0(link_argv0, rel));
   if (!p && bank && rel && rel[0])
@@ -371,8 +363,6 @@ int link_abi_asm_ld_push_obj(const char *primary, const char *link_argv0, const 
     else
       return 0;
   }
-  if (debug_runtime_obj && link_abi_getenv("XLANG_DEBUG_LD"))
-    link_diag_ld_debug_push(rel, "final", p ? p : "(null)");
   /* Single-authority append: wave147 push_stable bank=null after hard bank. */
   before = *la;
   link_abi_asm_ld_argv_push_stable(NULL, argv, la, max_la, p);

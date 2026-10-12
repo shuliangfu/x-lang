@@ -14,6 +14,10 @@
  *
  * G.7: single formal vehicle for pure-asm product link (catalog key
  * std/compress/compress.o). formal_mod kind=c_face.
+ * Darwin arm64 product body is compiler/src/asm/std_compress_formal_darwin.x.
+ * The brotli-lib extern is renamed with llvm-objcopy after asm emit.
+ * This file stays the Linux and Windows face, and the Darwin fallback
+ * when pure asm leaves no object.
  */
 #include <stdint.h>
 

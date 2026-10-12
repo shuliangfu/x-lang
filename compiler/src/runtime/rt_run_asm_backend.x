@@ -70,6 +70,15 @@ export extern function xlang_collect_deps_transitive(
 export extern function xlang_merge_direct_then_transitive_deps(
   module: *u8, n_imports: i32, cls: *u8, clens: *u8, cpaths: *u8, n_closure: i32,
   dep_sources: *u8, dep_lens: *u8, dep_paths: *u8, n_deps: *i32): i32;
+/**
+ * Match a quoted import path to a loaded dep slot.
+ * @param import_path *u8 — NUL-terminated import key; null returns -1
+ * @param all_paths *u8 — dep path pointer table; null returns -1
+ * @param n_all i32 — loaded slot count
+ * @return i32 — slot index, or -1 when the key is not loaded
+ * PLATFORM: SHARED — same key bytes load_deps stored in dep_paths.
+ */
+export extern function xlang_find_loaded_import_index(import_path: *u8, all_paths: *u8, n_all: i32): i32;
 export extern function xlang_dep_prerun_entry_dir(
   entry_dir: *u8, lib_roots: *u8, n_lib: i32): *u8;
 export extern function xlang_pipeline_dep_prerun_parse_only(
@@ -118,6 +127,8 @@ export extern function driver_asm_parse_metric_only_from_env(): i32;
 export extern function driver_freestanding_get(): i32;
 export extern function driver_check_only_get(): i32;
 export extern function driver_check_diag_emitted_get(): i32;
+/* T001 rc contract: count of hard typeck diagnostics printed outside LSP. */
+export extern "C" function driver_typeck_hard_diag_count(): i32;
 export extern function driver_x_pipeline_skip_typeck_set(v: i32): void;
 export extern function driver_x_pipeline_skip_codegen_set(v: i32): void;
 export extern function driver_deps_are_std_core_closure_only(dep_paths: *u8, n: i32): i32;
@@ -179,6 +190,9 @@ export extern function driver_asm_try_c_typeck_precheck(
   input_path: *u8, src: *u8, lib_roots: *u8, n_lib: i32): i32;
 export extern function driver_asm_use_compiler_impl_c(): i32;
 export extern function driver_asm_work_reset(): void;
+/* w2060: argv reader and the -lib-name slot (rt_emit_state.x authority). */
+export extern function driver_get_argv_i(argc: i32, argv: *u8, i: i32, buf: *u8, max: i32): i32;
+export extern "C" function xlang_driver_x_emit_set_lib_name(buf: *u8, len: i32): void;
 export extern function driver_asm_work_p_get(i: i32): *u8;
 export extern function driver_asm_work_p_set(i: i32, v: *u8): void;
 export extern function driver_asm_work_i_get(i: i32): i32;
@@ -1099,9 +1113,13 @@ export function rt_ab_step_open_out(): i32 {
     }
   }
   if (n_deps > 0) {
+    /* pipeline_set_dep_slots / pure twin always walk 32 slots; calloc(n_deps)
+     * alone OOB-reads past the table when n_deps < 32 (Win option n_deps=1
+     * → SIGSEGV in pipeline_set_dep_slots). Match seed stack dep_arenas[32].
+     * PLATFORM: SHARED — product -o with any n_deps in 1..32. */
     unsafe {
-      da = driver_ptr_table_calloc(n_deps);
-      dm = driver_ptr_table_calloc(n_deps);
+      da = driver_ptr_table_calloc(32);
+      dm = driver_ptr_table_calloc(32);
     }
     if (da == 0 as *u8) {
       return 1;
@@ -1221,9 +1239,313 @@ export function rt_ab_step_open_out(): i32 {
   return 0;
 }
 
+/**
+ * Return 1 when b can continue an identifier.
+ * @param b u8 — source byte
+ * @return i32 — 1 for ASCII letter, digit, or underscore; else 0
+ * PLATFORM: SHARED — used only to reject import-keyword prefixes.
+ */
+function rt_ab_is_ident_byte(b: u8): i32 {
+  if (b >= 48) {
+    if (b <= 57) {
+      return 1;
+    }
+  }
+  if (b >= 65) {
+    if (b <= 90) {
+      return 1;
+    }
+  }
+  if (b >= 97) {
+    if (b <= 122) {
+      return 1;
+    }
+  }
+  if (b == 95) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+ * Return 1 when src[i..] is the keyword import and the previous byte is not an identifier.
+ * @param src *u8 — preprocessed dep source; null returns 0
+ * @param n i32 — byte length; reads only [0, n)
+ * @param i i32 — candidate start; negative returns 0
+ * @return i32 — 1 when the six bytes are import
+ * PLATFORM: SHARED — quoted import("path") form stored by load_deps.
+ */
+function rt_ab_at_import_kw(src: *u8, n: i32, i: i32): i32 {
+  let prev: u8 = 0;
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  if (i < 0) {
+    return 0;
+  }
+  if (i + 6 > n) {
+    return 0;
+  }
+  if (i > 0) {
+    unsafe {
+      prev = src[i - 1];
+    }
+    if (rt_ab_is_ident_byte(prev) != 0) {
+      return 0;
+    }
+  }
+  unsafe {
+    if (src[i] != 105) {
+      return 0;
+    }
+    if (src[i + 1] != 109) {
+      return 0;
+    }
+    if (src[i + 2] != 112) {
+      return 0;
+    }
+    if (src[i + 3] != 111) {
+      return 0;
+    }
+    if (src[i + 4] != 114) {
+      return 0;
+    }
+    if (src[i + 5] != 116) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+/**
+ * Return 1 when this loaded slot still names an unpublished dep.
+ * Scans the preprocessed source for import("path"), then asks
+ * xlang_find_loaded_import_index. A path that is not in the loaded set
+ * does not block. The slot array is not reordered.
+ * @param ds *u8 — dep source pointer table
+ * @param dl *u8 — dep source length table
+ * @param dp *u8 — dep path pointer table (import keys)
+ * @param n_deps i32 — loaded count; values above 32 do not block
+ * @param slot i32 — candidate slot
+ * @param seen *u8 — 32 visit bytes; 0 means not published yet
+ * @return i32 — 1 if some matched slot is still unseen; else 0
+ * PLATFORM: SHARED — cold twin is rt_ab_dep_waits_unvisited in the asm-backend seed.
+ */
+function rt_ab_dep_waits_unvisited(ds: *u8, dl: *u8, dp: *u8, n_deps: i32, slot: i32, seen: *u8): i32 {
+  let src: *u8 = 0 as *u8;
+  let len_z: usize = 0;
+  let n: i32 = 0;
+  let i: i32 = 0;
+  let p: i32 = 0;
+  let ws: i32 = 0;
+  let c: u8 = 0;
+  let open_b: u8 = 0;
+  let q: u8 = 0;
+  let path_buf: u8[65] = [];
+  let k: i32 = 0;
+  let g: i32 = 0;
+  let sv: u8 = 0;
+  if (ds == 0 as *u8) {
+    return 0;
+  }
+  if (dl == 0 as *u8) {
+    return 0;
+  }
+  if (dp == 0 as *u8) {
+    return 0;
+  }
+  if (seen == 0 as *u8) {
+    return 0;
+  }
+  if (slot < 0) {
+    return 0;
+  }
+  if (n_deps <= 0) {
+    return 0;
+  }
+  if (n_deps > 32) {
+    return 0;
+  }
+  unsafe {
+    src = driver_ptr_table_get(ds, slot);
+    len_z = driver_size_table_get(dl, slot);
+  }
+  if (src == 0 as *u8) {
+    return 0;
+  }
+  if (len_z > 2147483647) {
+    return 0;
+  }
+  n = len_z as i32;
+  while (i + 6 <= n) {
+    if (rt_ab_at_import_kw(src, n, i) != 0) {
+      p = i + 6;
+      ws = 0;
+      // At most 16 bytes of space, tab, CR, or LF between import and '('.
+      while (ws < 16) {
+        if (p >= n) {
+          break;
+        }
+        unsafe {
+          c = src[p];
+        }
+        if (c != 32) {
+          if (c != 9) {
+            if (c != 10) {
+              if (c != 13) {
+                break;
+              }
+            }
+          }
+        }
+        p = p + 1;
+        ws = ws + 1;
+      }
+      open_b = 0;
+      if (p < n) {
+        unsafe {
+          open_b = src[p];
+        }
+      }
+      if (open_b == 40) {
+        p = p + 1;
+        ws = 0;
+        while (ws < 16) {
+          if (p >= n) {
+            break;
+          }
+          unsafe {
+            c = src[p];
+          }
+          if (c != 32) {
+            if (c != 9) {
+              if (c != 10) {
+                if (c != 13) {
+                  break;
+                }
+              }
+            }
+          }
+          p = p + 1;
+          ws = ws + 1;
+        }
+        q = 0;
+        if (p < n) {
+          unsafe {
+            q = src[p];
+          }
+        }
+        if (q == 34) {
+          p = p + 1;
+          unsafe {
+            memset(&path_buf[0], 0, 65);
+          }
+          k = 0;
+          while (k < 64) {
+            if (p >= n) {
+              break;
+            }
+            unsafe {
+              c = src[p];
+            }
+            if (c == 34) {
+              break;
+            }
+            if (c == 0) {
+              break;
+            }
+            unsafe {
+              path_buf[k] = c;
+            }
+            k = k + 1;
+            p = p + 1;
+          }
+          if (k > 0) {
+            if (k < 65) {
+              unsafe {
+                path_buf[k] = 0;
+                g = xlang_find_loaded_import_index(&path_buf[0], dp, n_deps);
+              }
+              if (g >= 0) {
+                if (g < 32) {
+                  if (g != slot) {
+                    unsafe {
+                      sv = seen[g];
+                    }
+                    if (sv == 0) {
+                      return 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          if (p < n) {
+            i = p + 1;
+            continue;
+          }
+          return 0;
+        }
+      }
+    }
+    i = i + 1;
+  }
+  return 0;
+}
+
+/**
+ * Pick the next dep slot whose quoted imports are already published.
+ * @param ds *u8 — dep source pointer table
+ * @param dl *u8 — dep source length table
+ * @param dp *u8 — dep path pointer table
+ * @param n_deps i32 — loaded count; must be 1..32
+ * @param seen *u8 — 32 visit bytes; 0 means not published yet
+ * @return i32 — slot index. A cycle returns the lowest unpublished slot.
+ * PLATFORM: SHARED — does not reorder the dep array. Publish keeps the slot index.
+ */
+function rt_ab_prerun_next_slot(ds: *u8, dl: *u8, dp: *u8, n_deps: i32, seen: *u8): i32 {
+  let s: i32 = 0;
+  let sv: u8 = 0;
+  if (n_deps <= 0) {
+    return 0;
+  }
+  if (seen == 0 as *u8) {
+    return 0;
+  }
+  if (n_deps > 32) {
+    return 0;
+  }
+  while (s < n_deps) {
+    unsafe {
+      sv = seen[s];
+    }
+    if (sv == 0) {
+      if (rt_ab_dep_waits_unvisited(ds, dl, dp, n_deps, s, seen) == 0) {
+        return s;
+      }
+    }
+    s = s + 1;
+  }
+  s = 0;
+  while (s < n_deps) {
+    unsafe {
+      sv = seen[s];
+    }
+    if (sv == 0) {
+      return s;
+    }
+    s = s + 1;
+  }
+  return 0;
+}
+
 /** Step: dep prerun (parse/typeck) + publish slots. Returns 0 ok / 1 fail.
+ * Slots are visited only after every quoted import("path") that names another
+ * loaded slot has been published. The publish index stays the load-deps slot.
+ * Above 32 deps the walk stays slot order (merge already caps the product at 32).
  * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
- * PLATFORM: SHARED — link-name contract; dual-host prove. */
+ * PLATFORM: SHARED — link-name contract; dual-host prove.
+ */
 #[no_mangle]
 export function rt_ab_step_prerun(): i32 {
   let n_deps: i32 = 0;
@@ -1249,6 +1571,10 @@ export function rt_ab_step_prerun(): i32 {
   let ec_loop: i32 = 0;
   let skip_tk: i32 = 0;
   let need_import_map: i32 = 0;
+  let prerun_seen: u8[32] = [];
+  let prerun_zi: i32 = 0;
+  let prerun_step: i32 = 0;
+  let prerun_topo: i32 = 0;
   unsafe {
     n_deps = driver_asm_work_i_get(ai_ndeps());
     emit_elf = driver_asm_work_i_get(ai_emit_elf());
@@ -1270,11 +1596,26 @@ export function rt_ab_step_prerun(): i32 {
   unsafe {
     skip_tk = driver_asm_build_skip_typeck();
   }
+  // Dependency-first visit. seen[slot]=1 only after that slot is published.
+  prerun_topo = 1;
+  if (n_deps > 32) {
+    prerun_topo = 0;
+  }
+  prerun_zi = 0;
+  while (prerun_zi < 32) {
+    prerun_seen[prerun_zi] = 0;
+    prerun_zi = prerun_zi + 1;
+  }
   if (emit_elf != 0) {
     if (eo != 0) {
       if (skip_tk != 0) {
-        j = 0;
-        while (j < n_deps) {
+        prerun_step = 0;
+        while (prerun_step < n_deps) {
+          if (prerun_topo != 0) {
+            j = rt_ab_prerun_next_slot(ds, dl, dp, n_deps, &prerun_seen[0]);
+          } else {
+            j = prerun_step;
+          }
           unsafe {
             dep_src = driver_ptr_table_get(ds, j);
             dep_len = driver_size_table_get(dl, j);
@@ -1291,14 +1632,26 @@ export function rt_ab_step_prerun(): i32 {
             driver_dep_publish_slot(
               j, driver_ptr_table_get(da, j), driver_ptr_table_get(dm, j), dep_path);
           }
-          j = j + 1;
+          if (prerun_topo != 0) {
+            if (j >= 0) {
+              if (j < 32) {
+                prerun_seen[j] = 1;
+              }
+            }
+          }
+          prerun_step = prerun_step + 1;
         }
         return 0;
       }
     }
   }
-  j = 0;
-  while (j < n_deps) {
+  prerun_step = 0;
+  while (prerun_step < n_deps) {
+    if (prerun_topo != 0) {
+      j = rt_ab_prerun_next_slot(ds, dl, dp, n_deps, &prerun_seen[0]);
+    } else {
+      j = prerun_step;
+    }
     unsafe {
       one = driver_pipeline_dep_ctx_calloc();
       dep_out = driver_codegen_outbuf_calloc();
@@ -1443,7 +1796,14 @@ export function rt_ab_step_prerun(): i32 {
       driver_dep_publish_slot(
         j, driver_ptr_table_get(da, j), driver_ptr_table_get(dm, j), dep_path);
     }
-    j = j + 1;
+    if (prerun_topo != 0) {
+      if (j >= 0) {
+        if (j < 32) {
+          prerun_seen[j] = 1;
+        }
+      }
+    }
+    prerun_step = prerun_step + 1;
   }
   return 0;
 }
@@ -1847,6 +2207,71 @@ export function rt_ab_step_finish(): i32 {
   return 0;
 }
 
+/** w2060: record "-lib-name <v>" from argv into the rt_emit_state slot so
+ * asm_asm_codegen_elf_o uses it instead of the path-derived entry prefix.
+ * An empty value ("-lib-name \"\"") is stored as an explicit empty name
+ * (bare exports, as xlang_compile_std_module.sh --bare-impl expects). A
+ * flag-shaped value is ignored. The cold seed body never filled the path
+ * slot, so it emitted bare names for every entry; this body fills it, so
+ * the explicit flag has to be honored here. PLATFORM: SHARED. */
+function rt_ab_capture_lib_name(argc: i32, argv: *u8): void {
+  let buf: u8[128] = [];
+  let i: i32 = 1;
+  let n: i32 = 0;
+  let hit: i32 = 0;
+  if (argv == 0 as *u8) {
+    return;
+  }
+  while (i + 1 < argc) {
+    hit = 0;
+    unsafe {
+      n = driver_get_argv_i(argc, argv, i, &buf[0], 128);
+    }
+    if (n == 9) {
+      if (buf[0] == 45 && buf[1] == 108 && buf[2] == 105 && buf[3] == 98 && buf[4] == 45
+          && buf[5] == 110 && buf[6] == 97 && buf[7] == 109 && buf[8] == 101) {
+        hit = 1;
+      }
+    }
+    if (hit != 0) {
+      unsafe {
+        n = driver_get_argv_i(argc, argv, i + 1, &buf[0], 128);
+      }
+      if (n == 0) {
+        unsafe { xlang_driver_x_emit_set_lib_name(&buf[0], 0); }
+      }
+      if (n > 0 && n < 64) {
+        if (buf[0] != 45) {
+          unsafe { xlang_driver_x_emit_set_lib_name(&buf[0], n); }
+        }
+      }
+      i = i + 2;
+    } else {
+      i = i + 1;
+    }
+  }
+}
+
+/**
+ * T001 rc contract: a hard typeck diagnostic printed for the entry or any dep
+ * (counted by driver_typeck_hard_diag_note) fails the compile. Releases the
+ * work state and drops the partial -o output so no stale artifact survives.
+ * @param out_path *u8 — product -o path; may be null (smoke)
+ * @return i32 — 1 when the compile must fail (state already cleaned), else 0
+ */
+function rt_ab_fail_on_hard_diag(out_path: *u8): i32 {
+  unsafe {
+    if (driver_typeck_hard_diag_count() <= 0) {
+      return 0;
+    }
+    driver_asm_work_cleanup();
+    if (out_path != 0 as *u8) {
+      driver_unlink_failed_output(out_path);
+    }
+  }
+  return 1;
+}
+
 /** Public entry: run -backend asm pipeline via work slots and eight steps. Seeds path/out/lib/target/argv then read_pp through finish.
  * Track-L: no_mangle keeps surface short name (not module-prefix mangled).
  * PLATFORM: SHARED — link-name contract; dual-host prove. */
@@ -1881,6 +2306,7 @@ export function driver_run_asm_backend(
     driver_asm_work_p_set(ap_lib(), lib);
     driver_asm_work_i_set(ai_nlib(), nlib);
     driver_asm_work_i_set(ai_argc(), argc);
+    rt_ab_capture_lib_name(argc, argv);
     ndef = driver_asm_collect_defines(argc, argv);
     defs = driver_asm_defines_as_u8();
     driver_asm_work_i_set(ai_ndef(), ndef);
@@ -1964,11 +2390,17 @@ export function driver_run_asm_backend(
     unsafe { driver_asm_work_cleanup(); }
     return 1;
   }
+  if (rt_ab_fail_on_hard_diag(out_path) != 0) {
+    return 1;
+  }
   unsafe {
     rc = rt_ab_step_pipeline();
   }
   if (rc != 0) {
     unsafe { driver_asm_work_cleanup(); }
+    return 1;
+  }
+  if (rt_ab_fail_on_hard_diag(out_path) != 0) {
     return 1;
   }
   unsafe {

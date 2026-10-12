@@ -18,14 +18,17 @@ export function runtime_arrow_simd_glue_x_doc_anchor(): i32 {
   return 0;
 }
 
-/* See implementation. */
+/* Write the f32 sum through out. The installed product cannot asm-emit an f32 return,
+ * and xmm0 is not interchangeable with a general register.
+ * PLATFORM: SHARED — link name unchanged.
+ */
 
 #[no_mangle]
-export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
-  unsafe {
-    return arrow_f32_sum_kernel_impl(data, n);
-  }
-  return 0.0 as f32;
+export function arrow_f32_sum_kernel(out: *f32, data: *u8, n: i32): i32 {
+  let v: f32 = 0.0;
+  unsafe { v = arrow_f32_sum_kernel_impl(data, n); }
+  unsafe { *out = v; }
+  return 0;
 }
 
 /** Exported function `arrow_f32_dot_kernel`.
@@ -33,14 +36,16 @@ export function arrow_f32_sum_kernel(data: *u8, n: i32): f32 {
  * @param a *u8
  * @param b *u8
  * @param n i32
- * @return f32
+ * @param out receives the dot product; must not be null
+ * @return i32 — always 0; the value is in out
+ * PLATFORM: SHARED — the installed product cannot asm-emit an f32 return.
  */
 #[no_mangle]
-export function arrow_f32_dot_kernel(a: *u8, b: *u8, n: i32): f32 {
-  unsafe {
-    return arrow_f32_dot_kernel_impl(a, b, n);
-  }
-  return 0.0 as f32;
+export function arrow_f32_dot_kernel(out: *f32, a: *u8, b: *u8, n: i32): i32 {
+  let v: f32 = 0.0;
+  unsafe { v = arrow_f32_dot_kernel_impl(a, b, n); }
+  unsafe { *out = v; }
+  return 0;
 }
 
 /** Exported function `arrow_i32_sum_valid_kernel`.
@@ -63,12 +68,14 @@ export function arrow_i32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): i32 {
  * @param data *u8
  * @param bm *u8
  * @param n i32
- * @return f32
+ * @param out receives the sum; must not be null
+ * @return i32 — always 0; the value is in out
+ * PLATFORM: SHARED — the installed product cannot asm-emit an f32 return.
  */
 #[no_mangle]
-export function arrow_f32_sum_valid_kernel(data: *u8, bm: *u8, n: i32): f32 {
-  unsafe {
-    return arrow_f32_sum_valid_kernel_impl(data, bm, n);
-  }
-  return 0.0 as f32;
+export function arrow_f32_sum_valid_kernel(out: *f32, data: *u8, bm: *u8, n: i32): i32 {
+  let v: f32 = 0.0;
+  unsafe { v = arrow_f32_sum_valid_kernel_impl(data, bm, n); }
+  unsafe { *out = v; }
+  return 0;
 }

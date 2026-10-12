@@ -1557,9 +1557,17 @@ int fmt_check_cmd_slice_marker(void) {
  * that do not link the nostdlib stubs object.
  * PLATFORM: SHARED.
  */
+/* wave766 Class Q: when XLANG_L2_FMT_CHECK_THIN_FROM_X, gate lives in
+ * labi_host_lit.x (Class M pure-asm). Skip Cap WEAK host-cc here so product
+ * has a single authority (Win=1 / POSIX=0). Cold non-thin still keeps weak 0.
+ * PLATFORM: SHARED — Darwin + Ubuntu + Win. */
+#ifndef XLANG_L2_FMT_CHECK_THIN_FROM_X
 __attribute__((weak)) int bootstrap_nostdlib_pthread_is_stub(void) {
     return 0;
 }
+#else
+int bootstrap_nostdlib_pthread_is_stub(void);
+#endif
 
 /*
  * Shared control for fork-mode spinner child.

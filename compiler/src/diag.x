@@ -58,45 +58,49 @@ export extern "C" function diag_io_fprint_src_line(o: *u8, line: i32, start: *u8
 export extern "C" function diag_io_fprint_gutter_bar(o: *u8, width: i32): void;
 export extern "C" function diag_io_fprint_caret_mark(o: *u8, cc: *u8, rs: *u8, detail: *u8): void;
 
+// PLATFORM: SHARED
+// The installed type checker rejects a function that returns *u8 or usize.
+// These helpers keep their link names and carry the pointer or usize bits in
+// rax as i64. Callers in this file cast the bits back to *u8 or usize.
 // diag_palette_kind_color: see function docblock below.
 /** Exported function `diag_palette_kind_color`.
  * Implements `diag_palette_kind_color`.
  * @param kind *u8
- * @return *u8
+ * @return i64
  */
-export function diag_palette_kind_color(kind: *u8): *u8 {
+export function diag_palette_kind_color(kind: *u8): i64 {
   unsafe {
-    if (kind == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
-    if (kind[0] == 0) { return diag_color_prefix("", "\x1b[1;37m"); }
-    if (diag_kind_contains(kind, "error") != 0) { return diag_color_prefix("", "\x1b[1;31m"); }
-    if (diag_kind_contains(kind, "warning") != 0) { return diag_color_prefix("", "\x1b[1;33m"); }
-    if (diag_kind_is_exact(kind, "info") != 0) { return diag_color_prefix("", "\x1b[1;36m"); }
-    if (diag_kind_is_exact(kind, "note") != 0) { return diag_color_prefix("", "\x1b[1;34m"); }
-    if (diag_kind_is_exact(kind, "help") != 0) { return diag_color_prefix("", "\x1b[1;32m"); }
-    if (diag_kind_is_exact(kind, "hint") != 0) { return diag_color_prefix("", "\x1b[1;32m"); }
-    return diag_color_prefix("", "\x1b[1;37m");
+    if (kind == 0) { return (diag_color_prefix("", "\x1b[1;37m")) as i64; }
+    if (kind[0] == 0) { return (diag_color_prefix("", "\x1b[1;37m")) as i64; }
+    if (diag_kind_contains(kind, "error") != 0) { return (diag_color_prefix("", "\x1b[1;31m")) as i64; }
+    if (diag_kind_contains(kind, "warning") != 0) { return (diag_color_prefix("", "\x1b[1;33m")) as i64; }
+    if (diag_kind_is_exact(kind, "info") != 0) { return (diag_color_prefix("", "\x1b[1;36m")) as i64; }
+    if (diag_kind_is_exact(kind, "note") != 0) { return (diag_color_prefix("", "\x1b[1;34m")) as i64; }
+    if (diag_kind_is_exact(kind, "help") != 0) { return (diag_color_prefix("", "\x1b[1;32m")) as i64; }
+    if (diag_kind_is_exact(kind, "hint") != 0) { return (diag_color_prefix("", "\x1b[1;32m")) as i64; }
+    return (diag_color_prefix("", "\x1b[1;37m")) as i64;
   }
-  return "";
+  return ("") as i64;
 }
 
 /** Exported function `diag_palette_caret_color`.
  * Implements `diag_palette_caret_color`.
  * @param kind *u8
- * @return *u8
+ * @return i64
  */
-export function diag_palette_caret_color(kind: *u8): *u8 {
+export function diag_palette_caret_color(kind: *u8): i64 {
   unsafe {
-    if (kind == 0) { return diag_color_prefix("", "\x1b[37m"); }
-    if (kind[0] == 0) { return diag_color_prefix("", "\x1b[37m"); }
-    if (diag_kind_contains(kind, "error") != 0) { return diag_color_prefix("", "\x1b[31m"); }
-    if (diag_kind_contains(kind, "warning") != 0) { return diag_color_prefix("", "\x1b[33m"); }
-    if (diag_kind_is_exact(kind, "info") != 0) { return diag_color_prefix("", "\x1b[36m"); }
-    if (diag_kind_is_exact(kind, "note") != 0) { return diag_color_prefix("", "\x1b[34m"); }
-    if (diag_kind_is_exact(kind, "help") != 0) { return diag_color_prefix("", "\x1b[32m"); }
-    if (diag_kind_is_exact(kind, "hint") != 0) { return diag_color_prefix("", "\x1b[32m"); }
-    return diag_color_prefix("", "\x1b[37m");
+    if (kind == 0) { return (diag_color_prefix("", "\x1b[37m")) as i64; }
+    if (kind[0] == 0) { return (diag_color_prefix("", "\x1b[37m")) as i64; }
+    if (diag_kind_contains(kind, "error") != 0) { return (diag_color_prefix("", "\x1b[31m")) as i64; }
+    if (diag_kind_contains(kind, "warning") != 0) { return (diag_color_prefix("", "\x1b[33m")) as i64; }
+    if (diag_kind_is_exact(kind, "info") != 0) { return (diag_color_prefix("", "\x1b[36m")) as i64; }
+    if (diag_kind_is_exact(kind, "note") != 0) { return (diag_color_prefix("", "\x1b[34m")) as i64; }
+    if (diag_kind_is_exact(kind, "help") != 0) { return (diag_color_prefix("", "\x1b[32m")) as i64; }
+    if (diag_kind_is_exact(kind, "hint") != 0) { return (diag_color_prefix("", "\x1b[32m")) as i64; }
+    return (diag_color_prefix("", "\x1b[37m")) as i64;
   }
-  return "";
+  return ("") as i64;
 }
 
 // diag_report_human: see function docblock below.
@@ -117,10 +121,10 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
     let err: *u8 = diag_stderr();
     let actual_file: *u8 = file;
     if (actual_file == 0) { actual_file = diag_ctx_get_file(); }
-    let kind_color: *u8 = diag_palette_kind_color(kind);
-    let path_color: *u8 = diag_color_prefix("", "\x1b[34m");
-    let caret_color: *u8 = diag_palette_caret_color(kind);
-    let reset: *u8 = diag_color_reset();
+    let kind_color: *u8 = diag_palette_kind_color(kind) as *u8;
+    let path_color: *u8 = diag_color_prefix("", "\x1b[34m") as *u8;
+    let caret_color: *u8 = diag_palette_caret_color(kind) as *u8;
+    let reset: *u8 = diag_color_reset() as *u8;
     let line_start_slot: u8[8] = [];
     let line_len_slot: u8[8] = [];
     let have_line: i32 = 0;
@@ -152,8 +156,8 @@ export function diag_report_human(file: *u8, line: i32, col: i32, kind: *u8, cod
       diag_io_fflush(err);
       return;
     }
-    let line_start: *u8 = diag_snap_load_ptr(&line_start_slot[0], 0);
-    let line_len_u: usize = diag_snap_load_usize(&line_len_slot[0], 0);
+    let line_start: *u8 = diag_snap_load_ptr(&line_start_slot[0], 0) as *u8;
+    let line_len_u: usize = diag_snap_load_usize(&line_len_slot[0], 0) as usize;
     let line_len: i32 = line_len_u as i32;
     let width: i32 = diag_line_digits(line);
     diag_io_fprint_gutter_blank(err, width);
@@ -217,26 +221,26 @@ export function diag_report_with_code(file: *u8, line: i32, col: i32, kind: *u8,
 // diag_get_file: see function docblock below.
 /** Exported function `diag_get_file`.
  * Implements `diag_get_file`.
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_get_file(): *u8 {
+export function diag_get_file(): i64 {
   unsafe {
-    return diag_ctx_get_file();
+    return (diag_ctx_get_file()) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `diag_get_source`.
  * Implements `diag_get_source`.
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_get_source(): *u8 {
+export function diag_get_source(): i64 {
   unsafe {
-    return diag_ctx_get_source();
+    return (diag_ctx_get_source()) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `diag_get_source_len`.
@@ -335,10 +339,10 @@ export function diag_snap_store_i32(snap: *u8, off: i32, val: i32): void {
  * Implements `diag_snap_load_ptr`.
  * @param snap *u8
  * @param off i32
- * @return *u8
+ * @return i64
  */
-export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
-  if (snap == 0) { return 0 as *u8; }
+export function diag_snap_load_ptr(snap: *u8, off: i32): i64 {
+  if (snap == 0) { return (0 as *u8) as i64; }
   let q: *u8 = snap;
   let i: i32 = 0;
   while (i < off) {
@@ -356,17 +360,17 @@ export function diag_snap_load_ptr(snap: *u8, off: i32): *u8 {
   a = a + (q[5] as usize) * (m4 * m);
   a = a + (q[6] as usize) * (m4 * m2);
   a = a + (q[7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  return (a as *u8) as i64;
 }
 
 /** Exported function `diag_snap_load_usize`.
  * Implements `diag_snap_load_usize`.
  * @param snap *u8
  * @param off i32
- * @return usize
+ * @return i64
  */
-export function diag_snap_load_usize(snap: *u8, off: i32): usize {
-  if (snap == 0) { return 0; }
+export function diag_snap_load_usize(snap: *u8, off: i32): i64 {
+  if (snap == 0) { return (0) as i64; }
   let q: *u8 = snap;
   let i: i32 = 0;
   while (i < off) {
@@ -384,7 +388,7 @@ export function diag_snap_load_usize(snap: *u8, off: i32): usize {
   a = a + (q[5] as usize) * (m4 * m);
   a = a + (q[6] as usize) * (m4 * m2);
   a = a + (q[7] as usize) * (m4 * m2 * m);
-  return a;
+  return (a) as i64;
 }
 
 /** Exported function `diag_snap_load_i32`.
@@ -449,9 +453,9 @@ export function diag_push_file(snapshot: *u8, path: *u8, source: *u8, source_len
 export function diag_restore(snapshot: *u8): void {
   if (snapshot == 0) { return; }
   unsafe {
-    let p: *u8 = diag_snap_load_ptr(snapshot, 0);
-    let s: *u8 = diag_snap_load_ptr(snapshot, 8);
-    let sl: usize = diag_snap_load_usize(snapshot, 16);
+    let p: *u8 = diag_snap_load_ptr(snapshot, 0) as *u8;
+    let s: *u8 = diag_snap_load_ptr(snapshot, 8) as *u8;
+    let sl: usize = diag_snap_load_usize(snapshot, 16) as usize;
     let c: i32 = diag_snap_load_i32(snapshot, 24);
     diag_ctx_set_all(p, s, sl as i64, c);
   }
@@ -474,40 +478,40 @@ export function diag_code_is_known(code: *u8): i32 {
 /** Exported function `diag_code_kind`.
  * Implements `diag_code_kind`.
  * @param code *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_code_kind(code: *u8): *u8 {
+export function diag_code_kind(code: *u8): i64 {
   unsafe {
-    return diag_entry_kind(code);
+    return (diag_entry_kind(code)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `diag_code_summary`.
  * Implements `diag_code_summary`.
  * @param code *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_code_summary(code: *u8): *u8 {
+export function diag_code_summary(code: *u8): i64 {
   unsafe {
-    return diag_entry_summary(code);
+    return (diag_entry_summary(code)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 /** Exported function `diag_code_details`.
  * Implements `diag_code_details`.
  * @param code *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_code_details(code: *u8): *u8 {
+export function diag_code_details(code: *u8): i64 {
   unsafe {
-    return diag_entry_details(code);
+    return (diag_entry_details(code)) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 // diag_print_known_codes: see function docblock below.
@@ -675,34 +679,34 @@ export function diag_should_color(): i32 {
  * Implements `diag_color_prefix`.
  * @param plain *u8
  * @param color *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_color_prefix(plain: *u8, color: *u8): *u8 {
+export function diag_color_prefix(plain: *u8, color: *u8): i64 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
-      return color;
+      return (color) as i64;
     }
-    return plain;
+    return (plain) as i64;
   }
-  return plain;
+  return (plain) as i64;
 }
 
 // G-02f-154：use_color ? ANSI reset : ""
 /** Exported function `diag_color_reset`.
  * Implements `diag_color_reset`.
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_color_reset(): *u8 {
+export function diag_color_reset(): i64 {
   unsafe {
     if (diag_ctx_get_use_color() != 0) {
       // "\x1b[0m"
-      return "\x1b[0m";
+      return ("\x1b[0m") as i64;
     }
-    return "";
+    return ("") as i64;
   }
-  return "";
+  return ("") as i64;
 }
 
 // diag_store_ptr_le: see function docblock below.
@@ -929,7 +933,7 @@ export function diag_json_write_str(out: *u8, s: *u8): void {
 export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code: *u8, msg: *u8): void {
   unsafe {
     let err: *u8 = diag_stderr();
-    let sev: *u8 = diag_json_severity(kind);
+    let sev: *u8 = diag_json_severity(kind) as *u8;
     diag_io_fputs("{\"severity\":", err);
     diag_json_write_str(err, sev);
     diag_io_fputs(",\"code\":", err);
@@ -969,20 +973,20 @@ export function diag_report_json(file: *u8, line: i32, col: i32, kind: *u8, code
  * @param code *u8
  * @param out *u8
  * @param out_cap i64
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
-  if (code == 0) { return 0 as *u8; }
+export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): i64 {
+  if (code == 0) { return (0 as *u8) as i64; }
   unsafe {
     let n: i64 = diag_code_table_len();
-    if (n <= 0) { return 0 as *u8; }
+    if (n <= 0) { return (0 as *u8) as i64; }
     let code_len: i32 = 0;
     while (code_len < 256) {
       if (code[code_len] == 0) { break; }
       code_len = code_len + 1;
     }
-    if (code_len <= 0) { return 0 as *u8; }
+    if (code_len <= 0) { return (0 as *u8) as i64; }
     let best_dist: i32 = 999;
     let best: *u8 = 0 as *u8;
     let i: i64 = 0;
@@ -997,9 +1001,9 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
       }
       i = i + 1;
     }
-    if (best == 0) { return 0 as *u8; }
-    if (best_dist > 3) { return 0 as *u8; }
-    if (best_dist > code_len + 1) { return 0 as *u8; }
+    if (best == 0) { return (0 as *u8) as i64; }
+    if (best_dist > 3) { return (0 as *u8) as i64; }
+    if (best_dist > code_len + 1) { return (0 as *u8) as i64; }
     if (out != 0) {
       if (out_cap > 0) {
         let lim: i64 = out_cap - 1;
@@ -1011,12 +1015,12 @@ export function diag_code_suggest(code: *u8, out: *u8, out_cap: i64): *u8 {
           j = j + 1;
         }
         out[j as i32] = 0;
-        return out;
+        return (out) as i64;
       }
     }
-    return best;
+    return (best) as i64;
   }
-  return 0 as *u8;
+  return (0 as *u8) as i64;
 }
 
 // diag_levenshtein_ci: see function docblock below.
@@ -1195,25 +1199,25 @@ export function diag_code_eq(lhs: *u8, rhs: *u8): i32 {
 /** Exported function `diag_json_severity`.
  * Implements `diag_json_severity`.
  * @param kind *u8
- * @return *u8
+ * @return i64
  */
 #[no_mangle]
-export function diag_json_severity(kind: *u8): *u8 {
-  if (kind == 0) { return "error"; }
-  if (kind[0] == 0) { return "error"; }
+export function diag_json_severity(kind: *u8): i64 {
+  if (kind == 0) { return ("error") as i64; }
+  if (kind[0] == 0) { return ("error") as i64; }
   // contains "warning"
   let i: i32 = 0;
   while (i < 256) {
     if (kind[i] == 0) { break; }
     if (kind[i]==119 && kind[i+1]==97 && kind[i+2]==114 && kind[i+3]==110 && kind[i+4]==105 && kind[i+5]==110 && kind[i+6]==103) {
-      return "warning";
+      return ("warning") as i64;
     }
     i = i + 1;
   }
   // exact info
-  if (kind[0]==105 && kind[1]==110 && kind[2]==102 && kind[3]==111 && kind[4]==0) { return "info"; }
-  if (kind[0]==110 && kind[1]==111 && kind[2]==116 && kind[3]==101 && kind[4]==0) { return "note"; }
-  if (kind[0]==104 && kind[1]==101 && kind[2]==108 && kind[3]==112 && kind[4]==0) { return "help"; }
-  if (kind[0]==104 && kind[1]==105 && kind[2]==110 && kind[3]==116 && kind[4]==0) { return "help"; }
-  return "error";
+  if (kind[0]==105 && kind[1]==110 && kind[2]==102 && kind[3]==111 && kind[4]==0) { return ("info") as i64; }
+  if (kind[0]==110 && kind[1]==111 && kind[2]==116 && kind[3]==101 && kind[4]==0) { return ("note") as i64; }
+  if (kind[0]==104 && kind[1]==101 && kind[2]==108 && kind[3]==112 && kind[4]==0) { return ("help") as i64; }
+  if (kind[0]==104 && kind[1]==105 && kind[2]==110 && kind[3]==116 && kind[4]==0) { return ("help") as i64; }
+  return ("error") as i64;
 }

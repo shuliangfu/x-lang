@@ -13,11 +13,14 @@ const option = import("core.option");
 function main(): i32 {
   let data: i32[4] = [1, 2, 3, 4];
   let s: i32[] = data;
-  let it: SliceIter_i32 = iterator.iter_i32(s);
+  /* iter_i32 and next_i32 write through an out pointer. */
+  let it: SliceIter_i32 = { ptr: 0, length: 0 as usize, index: 0 as usize };
+  iterator.iter_i32(s, &it);
   let sum: i32 = 0;
   let done: bool = false;
   while (!done) {
-    let o: Option_i32 = iterator.next_i32(&it);
+    let o: Option_i32 = { is_some: false, value: 0 };
+    iterator.next_i32(&it, &o);
     if (option.is_none_i32(o)) {
       done = true;
     } else {

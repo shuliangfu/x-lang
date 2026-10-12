@@ -11,6 +11,9 @@
  * do not dump unique names into labi_od_async_scheduler_sym_* (that table is C ABI
  * for scheduler.o skip-missing, never unique import METHOD std_async_*).
  * formal_mod kind=c_face.
+ * Darwin arm64 product body is compiler/src/asm/std_async_formal_darwin.x.
+ * It forwards to the scheduler glue. This file stays the Linux and Windows
+ * face, and the Darwin fallback when pure asm leaves no object.
  */
 #include <stdint.h>
 

@@ -1,5 +1,7 @@
 /* seeds/runtime_lexer_glue.from_x.c — G-02f-21 product TU
- * Logic still C until full .x port.
+ * Darwin arm64 and Linux product body is
+ * src/asm/runtime_lexer_glue_darwin.x.
+ * A Linux miss does not exec cc. Windows keeps this C seed.
  */
 /**
  * runtime_lexer_glue.c — Lexer 创建/释放（从 src/lexer/lexer.c 迁移）

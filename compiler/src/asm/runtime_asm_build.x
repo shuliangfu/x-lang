@@ -3,6 +3,11 @@
 //
 // See implementation.
 // See implementation.
+// Darwin arm64 merges this file with src/asm/runtime_asm_build_main.x.
+// A TU that defines main emits only main, so the entry stays in that file.
+// A Linux miss returns 1 and does not exec cc.
+// Windows keeps host cc of seeds/runtime_asm_build.from_x.c.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX. WINDOWS stays on the C seed.
 
 export extern "C" function xlang_forward_main_to_main_entry(argc: i32, argv: *u8): i32;
 export extern "C" function driver_skip_codegen_dep_0_get(): i32;

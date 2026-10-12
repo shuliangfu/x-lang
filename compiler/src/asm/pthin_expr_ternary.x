@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+// w1141: one translation unit exits 139. Darwin compiles each function
+// and links the four pieces. PLATFORM: SHARED.
 // pthin_expr_ternary.x — G-02f-285 P4 parser thin ternary/assign product bodies.
 //
 // 7.2.1 P4tb Route C (2026-09-15): first bodies in this P-lane file
@@ -28,8 +30,9 @@
 // parser_parse_expr_ptr_into_c (G.7: one expr ptr shim; do not copy;
 // C twin's then is parse_expr_into = assign-level). Else: recurse
 // this dest-buffer (right-assoc; C twin calls parse_ternary_into).
-// Wrap stays P4tb. C trampoline keeps AUDIT and the by-value
-// parse_expr_result face.
+// Wrap stays P4tb. Product g05 compiles pthin_expr_ternary_tramp.x
+// for the by-value faces, the logor pointer shim, and the marker.
+// Stretch-audit stays in the C seed for prove and is not copied.
 // 7.2.1 P4te B-minus (2026-09-16): 有则补全 parse_assign dest-buffer.
 // Token walk reuses P9a peek/step plus peek_tok_line/col (assign wrap
 // needs the token's line/col; P4bc wrap hardcodes 0,0). Left/right
@@ -82,7 +85,7 @@ export extern "C" function pipeline_expr_set_if_c(a: *u8, er: i32, cond_ref: i32
 /**
  * P4bc consumer-wave writer: write Expr.binop_left_ref / binop_right_ref.
  * G.7: one writer for those slots (binop wrap and assign wrap share them).
- * Lives in the P4bc seed; do not copy into this seed; do not FORCE pabi mega.
+ * Lives in pthin_expr_binop_set.x; do not copy it here; do not FORCE pabi mega.
  */
 export extern "C" function pipeline_expr_set_binop_operands_c(a: *u8, er: i32, left_ref: i32, right_ref: i32): void;
 /** P9a: peek next kind without advancing. */
@@ -314,8 +317,9 @@ export function parser_asm_parse_ternary_x_into_c(arena: *u8, lex_inout: *u8, so
  * @param out_ok *i32 — parse_expr_result.ok
  * @param out_expr_ref *i32 — parse_expr_result.expr_ref
  * @return i32 — 1 success (out_ok=1); 0 failure
- * PLATFORM: SHARED — product P4te B-minus. C trampoline keeps AUDIT
- * and the by-value parse_expr_result face. Do not open a new lane.
+ * PLATFORM: SHARED — product P4te B-minus. Product g05 compiles
+ * pthin_expr_ternary_tramp.x for the by-value face. Stretch-audit
+ * stays in the C seed for prove and is not copied. Do not open a new lane.
  */
 #[no_mangle]
 export function parser_asm_parse_assign_x_into_c(arena: *u8, lex_inout: *u8, source: *u8, out_ok: *i32, out_expr_ref: *i32): i32 {

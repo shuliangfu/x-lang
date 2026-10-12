@@ -4,6 +4,14 @@
  * Product: runtime_env_os.o; R2 full mode: .x provides public API (thin),
  * this file provides OS bridge _impl functions (rest).
  *
+ * PLATFORM: MACOS|DARWIN arm64 — product body is
+ * src/asm/runtime_env_os.x plus src/asm/runtime_env_os_darwin.x,
+ * pure-asm then ld -r. Reads call link_abi_getenv. setenv edits the
+ * Darwin environ block and does not call libc setenv. This C file is
+ * the Linux body, the Windows body, and the Darwin backup when
+ * pure-asm faults and the staged object is missing. Do not delete
+ * these bodies. Do not gcc -E this seed as the repair.
+ *
  * wave252 G.7: POSIX getenv residual via public face link_abi_getenv (not raw getenv).
  * wave253: face body in runtime_link_abi_user_env.o (declaration only here).
  * Windows path keeps GetEnvironmentVariableA (PLATFORM: WINDOWS).

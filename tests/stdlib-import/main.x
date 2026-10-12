@@ -14,7 +14,10 @@ function main(): i32 {
   let a: i32 = types.placeholder();
   // See implementation.
   // See implementation.
-  let b: i32 = option.unwrap_or_i32(option.some_i32(42), 0);
+  /* some_i32 writes through an out pointer. */
+  let s: Option_i32 = { is_some: false, value: 0 };
+  option.some_i32(&s, 42);
+  let b: i32 = option.unwrap_or_i32(s, 0);
   let res: Result_i32 = result.ok_i32(1);
   // See implementation.
   let c: i32 = 0;

@@ -77,7 +77,7 @@ case "$os" in
   linux) os="linux" ;;
   freebsd) os="freebsd" ;;
   # PLATFORM: WINDOWS — Git Bash uname is MINGW64_NT-10.0-*; MSYS2 is MSYS_NT-*.
-  mingw*|msys*|cygwin*) os="windows" ;;
+  windows_nt*|mingw*|msys*|cygwin*) os="windows" ;;
 esac
 
 seed_var="seeds/bootstrap_xlangc.${os}.${arch}"

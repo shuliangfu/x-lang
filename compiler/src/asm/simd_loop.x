@@ -444,7 +444,14 @@ export function glue_simd_loop_emit_chunk_binop_c(elf_ctx: *u8, binop_ko: i32, c
  */
 #[no_mangle]
 export function glue_emit_full_const_peel_c(elf_ctx: *u8, binop_ko: i32, off_a: i32, off_b: i32, off_d: i32, n_lit: i32, lanes: i32, esz: i32, ta: i32, feats: u32): i32 {
-  let chunks: i32 = n_lit / lanes;
+  // lanes is 4 or 8 (glue_simd_loop_pick_lanes_c). Shift instead of `/`:
+  // a variable divisor emits a zero check that calls xlang_panic_, which
+  // g05 pure asm rejects (w2055).
+  let lane_sh: i32 = 0;
+  if (lanes == 4) { lane_sh = 2; }
+  if (lanes == 8) { lane_sh = 3; }
+  if (lane_sh == 0) { return 0; }
+  let chunks: i32 = n_lit >> lane_sh;
   if (chunks <= 0) { return 0; }
   if ((chunks * lanes) != n_lit) { return 0; }
   let chunk: i32 = 0;
@@ -635,7 +642,8 @@ export function glue_try_simd_peel_index_add_while_elf_c(arena: *u8, elf_ctx: *u
     if (glue_simd_loop_pick_lanes_c(feats, binop_ko, &lanes) != 0) { return 0; }
     if (n_is_const != 0) {
       if (n_lit > 0) {
-        if ((n_lit % lanes) == 0) {
+        // lanes is 4 or 8; mask instead of `%` (no zero-check panic, w2055).
+        if ((n_lit & (lanes - 1)) == 0) {
           if (n_lit <= array_n) {
             if (glue_var_is_array_i32_n_c(arena, dst_base, n_lit) != 0) {
               return glue_emit_full_const_peel_c(elf_ctx, binop_ko, off_a, off_b, off_d, n_lit, lanes, esz, ta, feats);
@@ -1003,4 +1011,28 @@ export function glue_emit_f32_soa_sum_strip_c(arena: *u8, elf_ctx: *u8, ctx: *u8
   unsafe { r = backend_enc_label_arch(elf_ctx, &epi_done[0], done_len, 0, ta); }
   if (r != 0) { return 0 - 1; }
   return 1;
+}
+
+/**
+ * Slice presence marker for this translation unit.
+ * w1525 (5.9): moved here from the host C seed rest; returns 0, the value
+ * the former product rest returned. No product caller reads it. The ensure
+ * nm gate only checks the symbol exists.
+ * @return i32 — always 0
+ * PLATFORM: SHARED — pure asm; no seed rest, no host cc.
+ */
+#[no_mangle]
+export function simd_loop_slice_marker(): i32 {
+  return 0;
+}
+
+/**
+ * w1525 anchor: proves the object was built from this .x alone (no seed rest).
+ * The ensure step and g05 refuse an object that lacks it.
+ * @return i32 — always 1525
+ * PLATFORM: SHARED — pure asm.
+ */
+#[no_mangle]
+export function simd_loop_x_w1525_anchor(): i32 {
+  return 1525;
 }

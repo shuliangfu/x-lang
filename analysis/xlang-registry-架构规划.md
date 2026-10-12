@@ -2,7 +2,7 @@
 
 > **文档目的**：规划 Xlang 官方包管理网站（Xlang Registry，域名 `registry.xlang.dev`）的整体架构、实施路线与依赖格式。
 >
-> **配套文档**：[xlang-toml-实现分析.md](xlang-toml-实现分析.md)、[xlang.toml](../xlang.toml)、[自举方法.md](自举方法.md)。
+> **配套文档**：[xlang-toml-实现分析.md](xlang-toml-实现分析.md)、[xlang.toml](../xlang.toml)、[自举效率方法-M2主链.md](自举效率方法-M2主链.md)。
 >
 > **域名状态**：`registry.xlang.dev` 已注册（2026-07-21 确认）。
 >
@@ -601,7 +601,7 @@ git-fetch-with-cli = true     # 用系统 git 而非内置
 |------|------|
 | [xlang.toml](../xlang.toml) | `[dependencies]` 占位，阶段 1 定型 |
 | [xlang-toml-实现分析.md](xlang-toml-实现分析.md) | xlang.toml 阶段 4 = 本文档阶段 1 |
-| [自举方法.md](自举方法.md) | 自举完成是本文档阶段 1 的前置 |
+| [自举效率方法-M2主链.md](自举效率方法-M2主链.md) | 自举完成是本文档阶段 1 的前置 |
 | [当前问题分析.md](当前问题分析.md) | 当前阻塞项，不包含包管理 |
 
 ---
