@@ -260,7 +260,11 @@ _GLUE_SUFFIX="src/runtime_driver_strict_glue_stubs.o"
 # Do NOT empty this when no_c is U; if no_c ever merges strong defs, fix no_c merge
 # first — do not leave slices empty as a "dup-symbol" workaround.
 # 含 rt_parse_diag：runtime_report_parse_recovery_diagnostics（冷启动 no_c 为 U）
-_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o"
+_RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/runtime/rt_preamble.o src/runtime/rt_stack.o src/runtime/rt_parse_diag.o src/runtime/rt_run_exec.o"
+# knife 254 / 9.2 tip cold: rt_run_exec covers driver_exec_* / driver_run_test /
+# driver_print_target_cpu_features_c that lived only in Darwin leftover
+# pabi_weak egg. Do not silently omit — tip cold L2 needs them on the
+# link line. PLATFORM: SHARED · MACOS tip cold · LINUX gold.
 # DRIVER_SEED_OBJS 展开（MAIN + runtime ABI + no_c + process argv + rt slices + x frontend + support + shims）
 # PLATFORM: SHARED — runtime_process_argv.o provides process_xlang_argc/argv_get
 # (Makefile DRIVER_SEED_OBJS). Without it g05 link fails U process_xlang_* from
@@ -277,11 +281,23 @@ _RT_SEED_SLICE_OBJS="src/runtime/rt_arena_buf.o src/runtime/rt_emit_state.o src/
 # PLATFORM: SHARED PREFER_ASM sidecar · LINUX gold · MACOS co-path.
 _PABI_WPO_CAP=""
 _PABI_WPO_THIN=""
+_PABI_WPO_ALIAS=""
 if [ -s src/runtime_pipeline_abi_asm_wpo_thin.o ]; then
   _PABI_WPO_THIN="src/runtime_pipeline_abi_asm_wpo_thin.o"
 elif [ -s src/runtime_pipeline_abi_asm_wpo_cap.o ]; then
   _PABI_WPO_CAP="src/runtime_pipeline_abi_asm_wpo_cap.o"
 fi
+# knife 254 / 9.2 tip cold: tip thin exports pipeline_asm_wpo_collect_walk;
+# leftover egg alone had the short asm_wpo_collect_walk T. Darwin alias
+# covers tip cold without copying archive .prev into the product.
+# PLATFORM: MACOS tip cold.
+case "$UNAME_S" in
+  Darwin*)
+    if [ -s src/runtime/asm_wpo_collect_walk_alias.o ]; then
+      _PABI_WPO_ALIAS="src/runtime/asm_wpo_collect_walk_alias.o"
+    fi
+    ;;
+esac
 # wave743: leftover gcc append_reloc_typed sidecar (PAGE21 owner bind).
 # Strong T first-wins leftover gcc weak T that COMMON lea calls. Do not
 # ld -r into pabi. PLATFORM: SHARED leftover gcc sidecar · MACOS writer.
@@ -300,7 +316,11 @@ fi
 # leftover gcc weak emit/append/poke so compact macho_write sees bake.
 # Do not ld -r into pabi. PLATFORM: SHARED leftover gcc sidecar · MACOS writer.
 _PABI_DATA_LEN=""
-if [ -s src/runtime_pipeline_abi_data_len.o ]; then
+# knife 254 / 9.2: when tip elf_ctx_thin is present it already defines the
+# overlapping pipeline_elf_ctx_{emit_data_len,append_data_*,data_*,reset_data}
+# faces — skip data_len to avoid Darwin duplicate strong T.
+# PLATFORM: SHARED tip cold.
+if [ -z "${_PABI_ELF_CTX:-}" ] && [ -s src/runtime_pipeline_abi_data_len.o ]; then
   _PABI_DATA_LEN="src/runtime_pipeline_abi_data_len.o"
 fi
 # wave745: leftover gcc const_lit is_const + load_operand file-level let
@@ -527,24 +547,31 @@ case "$UNAME_S" in
     fi
     ;;
 esac
-# w1487 / w2060: Windows tail-jmp comes from the same tip thin Darwin and
-# Linux already inject. That thin has the w1483 single-statement gate, so a
-# body that is not one forwarder stays on the normal prologue path. The
-# host-cc overlay that always returned 0 is not a build input. Missing
-# object exits 1. Egg w499 is still weakened below so this T first-wins.
-# PLATFORM: WINDOWS | MSYS | MINGW only.
+# w1487 / w2060 / knife 254: tip thin for w499_mega_try_tail_jmp. Darwin
+# leftover historically held this T; tip FROM_X egg leaves it U. Link the
+# tip thin on Darwin + Linux + Windows so first-wins covers. Missing object
+# exits 1. PLATFORM: SHARED.
 _PABI_TAIL_JMP_OFF=""
-case "$UNAME_S" in
-  MINGW*|MSYS*|CYGWIN*|Windows_NT*)
-    _g05_pure_overlay src/runtime_pipeline_abi_asm_codegen_mega_emit_tail_jmp_thin.x \
-      build_asm/selfhost_pabi/tail_jmp_off.o w499_mega_try_tail_jmp
-    if [ ! -s build_asm/selfhost_pabi/tail_jmp_off.o ]; then
-      echo "g05_relink_env: ERROR Windows tail-jmp .x did not build" >&2
-      exit 1
-    fi
-    _PABI_TAIL_JMP_OFF="build_asm/selfhost_pabi/tail_jmp_off.o"
-    ;;
-esac
+_g05_pure_overlay src/runtime_pipeline_abi_asm_codegen_mega_emit_tail_jmp_thin.x \
+  build_asm/selfhost_pabi/tail_jmp_off.o w499_mega_try_tail_jmp
+if [ ! -s build_asm/selfhost_pabi/tail_jmp_off.o ]; then
+  echo "g05_relink_env: ERROR tail-jmp .x did not build" >&2
+  exit 1
+fi
+_PABI_TAIL_JMP_OFF="build_asm/selfhost_pabi/tail_jmp_off.o"
+# Weaken egg/pabi_weak copy when present so tip thin first-wins.
+if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+  fi
+  if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+      | grep -E " _w499_mega_try_tail_jmp$" | grep -qv weak; then
+    "$_oc" --weaken-symbol=_w499_mega_try_tail_jmp \
+      build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+  fi
+fi
 # w1497: Windows param-home canonicalize overlay. Egg mega_body calls the
 # same-TU leftover-PE param_home that homes i32 formals without cltq, so a
 # C caller's stack `movl` leaves garbage upper bits. Strong T first-wins;
@@ -4973,7 +5000,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_WPO_ALIAS $_PABI_RELOC_TYPED $_PABI_ELF_CTX $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
@@ -4985,7 +5012,20 @@ if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" 
 else
   _AST_GEN2=""
 fi
-G05_OBJS="$_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2"
+# knife 254 / 9.2 tip cold: Darwin archive_leaf_extract holds tip faces that
+# pabi_weak only UNDEFs after 9.1 seed hollow (struct_lit / copy_large /
+# modlet bake / index scaled / simd splat). Link ahead of pabi_weak when
+# present. PLATFORM: MACOS tip cold.
+_PABI_ARCHIVE_LEAF=""
+case "$UNAME_S" in
+  Darwin*)
+    if [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      _PABI_ARCHIVE_LEAF="build_asm/selfhost_pabi/archive_leaf_extract.o"
+    fi
+    ;;
+esac
+
+G05_OBJS="$_PABI_ARCHIVE_LEAF $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2"
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
