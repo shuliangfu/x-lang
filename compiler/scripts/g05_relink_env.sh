@@ -5012,10 +5012,10 @@ if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" 
 else
   _AST_GEN2=""
 fi
-# knife 254 / 9.2 tip cold: Darwin archive_leaf_extract holds tip faces that
-# pabi_weak only UNDEFs after 9.1 seed hollow (struct_lit / copy_large /
-# modlet bake / index scaled / simd splat). Link ahead of pabi_weak when
-# present. PLATFORM: MACOS tip cold.
+# knife 254 / 9.2 tip cold: Darwin archive_leaf_extract holds faces that
+# pabi_weak only UNDEFs after 9.1 seed hollow. Link LAST so tip objects
+# first-win; archive only fills remaining U (not .prev reinject ahead).
+# PLATFORM: MACOS tip cold.
 _PABI_ARCHIVE_LEAF=""
 _PABI_M8_RELOC_STUBS=""
 case "$UNAME_S" in
@@ -5053,7 +5053,7 @@ case "$UNAME_S" in
     ;;
 esac
 
-G05_OBJS="$_PABI_ARCHIVE_LEAF $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2"
+G05_OBJS="$_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
