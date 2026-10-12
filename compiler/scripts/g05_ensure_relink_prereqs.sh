@@ -1126,6 +1126,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
       bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
       || echo "g05_ensure: try-rt-prefer failed (non-fatal if unused)" >&2
+    # knife256 / 10.2: seed-only R10 left run_compiler_c U; force rebuild once.
+    if [ -f src/runtime_driver_no_c.o ] \
+      && ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
+      echo "g05_ensure: runtime_driver_no_c.o missing run_compiler_c; FORCE try-rt-prefer"
+      XLANG_HOST_CC_SEED_FORCE=1 XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
+        bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
+        || { echo "g05_ensure: try-rt-prefer FORCE for run_compiler_c failed" >&2; exit 1; }
+      if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
+        echo "g05_ensure: runtime_driver_no_c.o still missing run_compiler_c after FORCE" >&2
+        exit 1
+      fi
+    fi
     # w2060: driver_run_asm_backend must be the src/runtime/rt_run_asm_backend.x
     # body (fills the driver_asm work slots → entry exports keep the module
     # prefix). A stale or cold-seed leaf stops ensure here. PLATFORM: SHARED.

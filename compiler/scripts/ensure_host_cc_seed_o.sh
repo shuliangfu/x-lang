@@ -17741,17 +17741,23 @@ ensure_rt_prefer_one() {
                 && rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_thin_o" \
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_ENTRY_FROM_X \
                      -c -o "$_rt_ent_rest_o" "$_rt_entry_seed" \
-                && pure_ld_partial_merge "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null; then
+                && pure_ld_partial_merge "$_rt_ent_o" "$_rt_ent_thin_o" "$_rt_ent_rest_o" 2>/dev/null \
+                && nm "$_rt_ent_o" 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
                 _rt_entry_ok=1
                 echo "rt-prefer: R10 entry ← full .x + rest marker (R2 full H=0)"
               fi
               rm -f "$_rt_ent_thin_o" "$_rt_ent_rest_o"
             fi
-            if [ "$_rt_entry_ok" = "0" ]; then
-              # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_ent_o" "$_rt_entry_seed"; then
+            # knife256 / 10.2: 记253 removed cold bodies under #ifndef FROM_X.
+            # Seed-only never defines run_compiler_c; g05 then UNDEF at pure-ld.
+            # Fall back to pure-asm .x alone (no host-cc). PLATFORM: SHARED.
+            if [ "$_rt_entry_ok" = "0" ] && [ -f "$_rt_entry_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_entry_x" "$_rt_ent_o" \
+                && nm "$_rt_ent_o" 2>/dev/null | grep -qE " T _?run_compiler_c$"; then
                 _rt_entry_ok=1
-                echo "rt-prefer: R10 entry gates ← $_rt_entry_seed (G-02f-301/310 seed slice)"
+                echo "rt-prefer: R10 entry ← pure-asm $_rt_entry_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R10 entry pure-asm failed (run_compiler_c missing)" >&2
               fi
             fi
           fi
