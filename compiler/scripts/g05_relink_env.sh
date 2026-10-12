@@ -471,6 +471,15 @@ if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_load_bytes_for_type_ref=build_asm/selfhost_pabi/field_cap_residual_load.o"
   _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_field_access_emit_scalar_load_from_rax_elf_c=build_asm/selfhost_pabi/field_cap_residual_load.o"
 fi
+# 记213: AAPCS64 f64/f32 epilogue fmov (ta==1). Old mega only did ta==0 SysV,
+# so math.pi/e out-pointer locals left garbage in d0. PLATFORM: SHARED.
+_g05_pure_overlay src/runtime_pipeline_abi_asm_codegen_mega_emit_epilogue_thin.x \
+  build_asm/selfhost_pabi/emit_epilogue_f64.o w499_mega_emit_epilogue
+if [ -s build_asm/selfhost_pabi/emit_epilogue_f64.o ]; then
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_epilogue=build_asm/selfhost_pabi/emit_epilogue_f64.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_f64_ret=build_asm/selfhost_pabi/emit_epilogue_f64.o"
+  _G05_LINK_WINNERS="$_G05_LINK_WINNERS _w499_mega_emit_f32_ret=build_asm/selfhost_pabi/emit_epilogue_f64.o"
+fi
 # w1486 / w2060: Windows block-entry VAR-slot cache clear lives in
 # backend_emit_block_body_sync_elf in the let-order thin below. That
 # function clears only when link_abi_host_is_windows() is set, then binds
@@ -1171,6 +1180,9 @@ fi
 # PLATFORM: LINUX
 if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
   _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
+fi
+if [ -n "$_PABI_SELFHOST" ] && [ -s build_asm/selfhost_pabi/emit_epilogue_f64.o ]; then
+  _PABI_SELFHOST="build_asm/selfhost_pabi/emit_epilogue_f64.o $_PABI_SELFHOST"
 fi
 # w1009: let-after-assign stmt_order (pass1 deferred lets). First-wins.
 # PLATFORM: LINUX
@@ -2127,6 +2139,9 @@ EOF
   # Strong beats pabi_weak glue + load_byte_sz. PLATFORM: MACOS|DARWIN.
   if [ -s build_asm/selfhost_pabi/field_cap_residual_load.o ]; then
     _PABI_SELFHOST="build_asm/selfhost_pabi/field_cap_residual_load.o $_PABI_SELFHOST"
+  fi
+  if [ -s build_asm/selfhost_pabi/emit_epilogue_f64.o ]; then
+    _PABI_SELFHOST="build_asm/selfhost_pabi/emit_epilogue_f64.o $_PABI_SELFHOST"
   fi
   # w1484: arm64 call_spill ×2 root fix (compute_frame_size overlay). The
   # Darwin pabi_weak w189 param_ptr_slot bodies were emitted by a product

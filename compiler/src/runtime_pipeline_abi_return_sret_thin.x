@@ -24,6 +24,7 @@ export extern function glue_index_scratch_spills_cleanup_all_elf_c(elf_ctx: *u8,
 export extern function glue_async_cps_emit_phase_reset(elf_ctx: *u8, ta: i32): i32;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function backend_enc_jmp_arch(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
+export extern function backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 export extern function pipeline_elf_ctx_append_bytes(ctx: *u8, ptr: *u8, n: i32): i32;
 export extern function pipeline_asm_emit_ctx_sret_active_get(): i32;
 export extern function pipeline_asm_emit_ctx_sret_home_off_get(): i32;
@@ -437,6 +438,39 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       if (act != 0 && home >= 0 && rsz > 16) {
         if (w1521_rs_copy_to_dest(elf_ctx, home, rsz) < 0) {
           return 0 - 1;
+        }
+      }
+    }
+    /* 记213: f64 return — bits sit in rax/x0; place in xmm0/d0 before
+     * jmp tail_join. Without this, only leftover FP from a prior f64
+     * callee works (math.floor) while lit/local/out-pointer f64 returns
+     * fail (math.pi). Integer returns ignore the FP reg.
+     * PLATFORM: MACOS|ARM64 AAPCS64 · LINUX x86_64 SysV. */
+    if ((ta == 0 || ta == 1) && ret_op != 0) {
+      let mod_f: *u8 = 0 as *u8;
+      let fi_f: i32 = 0;
+      let rty_f: i32 = 0;
+      let rkind_f: i32 = 0;
+      unsafe {
+        mod_f = pipeline_asm_emit_module_ref_c();
+        fi_f = pipeline_asm_emit_func_index_c();
+      }
+      if (mod_f != (0 as *u8) && fi_f >= 0) {
+        unsafe {
+          rty_f = pipeline_module_func_return_type_at(mod_f, fi_f);
+        }
+        if (rty_f > 0) {
+          unsafe {
+            rkind_f = pipeline_type_kind_ord_at(arena, rty_f);
+          }
+          if (rkind_f == 15) {
+            unsafe {
+              rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta);
+            }
+            if (rc != 0) {
+              return 0 - 1;
+            }
+          }
         }
       }
     }

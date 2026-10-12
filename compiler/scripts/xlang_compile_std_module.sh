@@ -335,7 +335,7 @@ formal_mod_spec_for_key() {
     std/hash/hash.o) printf '%s' "mod|1|../std/hash/mod.x|../std/hash/hash.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — math.x is the bare-impl file.
     # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
-    # mod.x stays on the C path. WINDOWS stays on the C path.
+    # mod.x has Darwin+Linux pure-asm arm (记213). WINDOWS stays on the C path.
     std/math/math.o) printf '%s' "mod|1|../std/math/mod.x|../std/math/math.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.sort is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_sort_*.
@@ -2009,10 +2009,48 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/math/mod.x|std/math/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.math mod.x (记213).
+      # Do not pass -lib-name "". Exports stay std_math_*.
+      # Root: tip return_sret AAPCS64/SysV f64 return places rax/x0 bits in
+      # xmm0/d0 before jmp tail_join (out-pointer pi/e and lit/local f64).
+      # A miss stops here. math.x has its own bare-impl arm. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _mathm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_mathm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/mathm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_pi$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_e$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_tau$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_floor$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_ceil$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_sqrt$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_sin$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_abs$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_special_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_math_fenv_available$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/mathm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/math/math.x|std/math/math.x)
       # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.math.
       # -lib-name "" keeps math_pi_c, math_e_c, and math_tau_c.
-      # A miss stops here. mod.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. mod.x has its own arm (记213). Windows keeps the C path.
       # Do not fall through to cc for this file.
       _math_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_math_os" in
@@ -2033,6 +2071,8 @@ for x_path in "$@"; do
             continue
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/math_x_asm_${idx}.log" >&2
+          exit 1
           ;;
       esac
       ;;

@@ -31,7 +31,7 @@ const W328_GLUE_TYPE_KIND_F64_ORD: i32 = 15;
 const W328_TYPE_KIND_VOID_ORD: i32 = 16;
 
 /**
- * Place f32 return in xmm0 (x86_64 SysV).
+ * Place f32 return in xmm0/s0 (x86_64 SysV / AAPCS64).
  * @return 0 ok, nonzero on emit failure
  * PLATFORM: SHARED — wave499 micro-peer under epilogue.
  */
@@ -45,7 +45,7 @@ export function w499_mega_emit_f32_ret(elf_ctx: *u8, ta: i32): i32 {
 }
 
 /**
- * Place f64 return in xmm0 (x86_64 SysV).
+ * Place f64 return in xmm0/d0 (x86_64 SysV / AAPCS64).
  * @return 0 ok, nonzero on emit failure
  * PLATFORM: SHARED — wave499 micro-peer under epilogue.
  */
@@ -76,7 +76,7 @@ export function w499_mega_emit_void_main(elf_ctx: *u8, ta: i32): i32 {
  * Scalar float return + void main → 0 + epilogue + cps end.
  * @return 0 ok, -1 on emit failure
  * PLATFORM: SHARED — wave499 mega emit_one peer.
- *   LINUX+MACOS x86_64 SysV float return; Zig-like void main exit 0.
+ *   LINUX+MACOS x86_64 SysV + MACOS|ARM64 AAPCS64 float return; Zig-like void main exit 0.
  */
 #[no_mangle]
 export function w499_mega_emit_epilogue(
@@ -93,17 +93,20 @@ export function w499_mega_emit_epilogue(
     pipe_store_i32_le(&cell[0], 0, pipeline_type_kind_ord_at(a, rty));
     rkind = w499e_c32(&cell[0]);
     if (rty <= 0) { rkind = neg1; }
-    if (ta == 0 && rkind == W328_GLUE_TYPE_KIND_F32_ORD) {
+    /* 记213: AAPCS64 (ta==1) also needs fmov d0/s0 from GP bits at epilogue.
+     * Without it, out-pointer f64 locals (math.pi/e) leave garbage in d0 while
+     * direct libm f64 returns only work by leftover d0. PLATFORM: MACOS|ARM64. */
+if ((ta == 0 || ta == 1) && rkind == 14) {
       pipe_store_i32_le(&cell[0], 0, w499_mega_emit_f32_ret(elf_ctx, ta));
       if (w499e_c32(&cell[0]) != 0) { return neg1; }
     }
-    if (ta == 0 && rkind == W328_GLUE_TYPE_KIND_F64_ORD) {
+    if ((ta == 0 || ta == 1) && rkind == 15) {
       pipe_store_i32_le(&cell[0], 0, w499_mega_emit_f64_ret(elf_ctx, ta));
       if (w499e_c32(&cell[0]) != 0) { return neg1; }
     }
     pipe_store_i32_le(&cell[0], 0, pipeline_module_main_func_index(m));
     main_fi = w499e_c32(&cell[0]);
-    if (rkind == W328_TYPE_KIND_VOID_ORD && i == main_fi) {
+    if (rkind == 16 && i == main_fi) {
       pipe_store_i32_le(&cell[0], 0, w499_mega_emit_void_main(elf_ctx, ta));
       if (w499e_c32(&cell[0]) != 0) { return neg1; }
     }
