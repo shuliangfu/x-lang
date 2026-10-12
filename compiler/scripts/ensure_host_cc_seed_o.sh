@@ -25091,44 +25091,50 @@ pipeline_abi_inject_asm_wpo_thin() {
   local thin_x="src/runtime_pipeline_abi_asm_wpo_thin.x"
   local thin_o="src/runtime_pipeline_abi_asm_wpo_thin.o"
   local stamp="src/.pabi_w745_asm_wpo_thin_prefer.stamp"
-  local xlang
+  local xlang _wpo_log
   [ -s "$o" ] && [ -f "$thin_x" ] || return 0
   rm -f src/.pabi_w369b_asm_wpo.stamp src/.pabi_w311_asm_wpo.stamp src/.pabi_w369_asm_wpo.stamp
-  if [ -f "$stamp" ] && [ -s "$thin_o" ] \
-    && [ ! "$thin_x" -nt "$stamp" ]; then
+  # 记247／8.4: FORCE or missing/stale thin.o always cold-rebuild from .x.
+  # Do not pin a leftover .o when tip can emit (CG002 closed on tip).
+  if [ "${FORCE:-0}" != "1" ] && [ -f "$stamp" ] && [ -s "$thin_o" ] \
+    && [ ! "$thin_x" -nt "$stamp" ] && [ ! "$thin_x" -nt "$thin_o" ]; then
     return 0
   fi
-  xlang="$(pwd)/xlang_asm"
-  [ -x "$xlang" ] || xlang="$(pwd)/xlang"
-  [ -x "$xlang" ] || {
+  # Prefer product xlang over xlang_asm (egg may lag tip CG002 heal).
+  if [ -x "$(pwd)/xlang" ]; then
+    xlang="$(pwd)/xlang"
+  elif [ -x "$(pwd)/xlang_asm" ]; then
+    xlang="$(pwd)/xlang_asm"
+  elif [ -x "$(pwd)/xlang.exe" ]; then
+    xlang="$(pwd)/xlang.exe"
+  else
     log "pipeline_abi w745-asm-wpo-thin: no xlang to -c thin"
-    return 0
-  }
-  # Skip compile until const_lit sidecar is linked into xlang.
-  # Leftover gcc (Darwin weak / LINUX W) folds mutable let init → smash at().
-  # const_lit.o newer than xlang means this inject pass has not g05'd yet.
-  # PLATFORM: SHARED — first g05 after pull keeps cap until this heals.
-  if [ -s src/runtime_pipeline_abi_const_lit.o ] \
-      && [ src/runtime_pipeline_abi_const_lit.o -nt "$xlang" ]; then
-    log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar linked"
-    return 0
-  fi
-  if nm -m "$xlang" 2>/dev/null | grep 'asm_module_top_level_const_lit_i32$' \
-      | grep -q 'weak'; then
-    log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar live"
-    return 0
-  fi
-  if nm -g "$xlang" 2>/dev/null | grep 'asm_module_top_level_const_lit_i32$' \
-      | grep -q ' W '; then
-    log "pipeline_abi w745-asm-wpo-thin: skip -c until const_lit sidecar live"
-    return 0
-  fi
-  if ! g05_xasm "$xlang" -backend asm -c "$thin_x" -o "$thin_o"; then
-    log "pipeline_abi w745-asm-wpo-thin: PREFER -c failed"
     return 1
   fi
+  # 记247／8.4: no const_lit weak/mtime skip. Tip cold -c of this thin
+  # succeeds on mac+ubuntu+windows even when tip still lists W const_lit
+  # (Ubuntu); CG002/empty fail-closed below is the hard gate. Old mtime
+  # skip pinned leftover thin.o and blocked product PREFER. PLATFORM: SHARED.
+  _wpo_log="$(mktemp "${TMPDIR:-/tmp}/pabi_wpo_thin.XXXXXX")"
+  rm -f "$thin_o"
+  # -L .. -L . matches product cold emit; -o must end in .o (g05_xasm stages).
+  if ! g05_xasm "$xlang" -backend asm -c -L .. -L . -o "$thin_o" "$thin_x" \
+      >"$_wpo_log" 2>&1 \
+    || [ ! -s "$thin_o" ]; then
+    log "pipeline_abi w745-asm-wpo-thin: PREFER -c failed (CG002 or empty)"
+    cat "$_wpo_log" >&2 || true
+    rm -f "$_wpo_log" "$thin_o"
+    return 1
+  fi
+  if grep -q 'CG002' "$_wpo_log" 2>/dev/null; then
+    log "pipeline_abi w745-asm-wpo-thin: CG002 in emit log"
+    cat "$_wpo_log" >&2 || true
+    rm -f "$_wpo_log" "$thin_o"
+    return 1
+  fi
+  rm -f "$_wpo_log"
   touch "$stamp"
-  log "pipeline_abi w745-asm-wpo-thin: PREFER_ASM sidecar (g05 prepend, no ld -r)"
+  log "pipeline_abi w745-asm-wpo-thin: PREFER_ASM sidecar (cold .x → .o, g05 prepend)"
   return 0
 }
 
