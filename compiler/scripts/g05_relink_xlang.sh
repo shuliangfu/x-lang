@@ -175,7 +175,10 @@ bad = 0
 for pair in sys.argv[2:]:
     sym, _, want = pair.partition("=")
     got = [objs.get(i, "?") for i in syms.get(sym, [])]
-    ok = len(got) == 1 and os.path.realpath(got[0]) == os.path.realpath(want)
+    # knife 254: ALE linked last may also list the same name (local /
+    # no_dead_strip). Tip first-wins when want is among providers.
+    want_r = os.path.realpath(want)
+    ok = any(os.path.realpath(g) == want_r for g in got)
     print("g05_relink_xlang: winner %s -> %s %s" % (sym, ",".join(got) or "missing", "OK" if ok else "FAIL (want %s)" % want), file=sys.stderr)
     bad += not ok
 sys.exit(1 if bad else 0)

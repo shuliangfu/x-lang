@@ -661,7 +661,13 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
   _cap_x=src/runtime_pipeline_abi_elf_undef_cap_thin.x
   _cap_o=build_asm/selfhost_pabi/elf_undef_cap.o
   _G05_PO_OUT=""
-  if [ -f "$_cap_x" ] && [ -x ./xlang_asm ]; then
+  # knife 254 / 9.2: prefer last-known-good ./xlang over mid-cold xlang_asm
+  # (same as _g05_pure_overlay). Hardcoding xlang_asm SEGV/empty-body → crash log.
+  _cap_bin=""
+  if [ -x ./xlang ]; then _cap_bin=./xlang
+  elif [ -x ./xlang_asm ]; then _cap_bin=./xlang_asm
+  fi
+  if [ -f "$_cap_x" ] && [ -n "$_cap_bin" ]; then
     mkdir -p build_asm/selfhost_pabi
     rm -f "$_cap_o" "$_cap_o.tmp.o"
     # macOS has no timeout(1); perl alarm gives the same 240s cap there
@@ -674,15 +680,15 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
     _cap_try=1
     while [ "$_cap_try" -le 3 ]; do
       _cap_rc=0
-      $_cap_to ./xlang_asm -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
+      $_cap_to "$_cap_bin" -backend asm -c "$_cap_x" -o "$_cap_o.tmp.o" \
         >/dev/null 2>&1 || _cap_rc=$?
       if [ "$_cap_rc" -eq 0 ] && [ -s "$_cap_o.tmp.o" ]; then
         mv -f "$_cap_o.tmp.o" "$_cap_o"
         break
       fi
       if [ "$_cap_rc" -eq 124 ] || [ "$_cap_rc" -ge 128 ]; then
-        printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
-          "$(date +%H:%M:%S)" "$_cap_rc" "$_cap_x" \
+        printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
+          "$(date +%H:%M:%S)" "$_cap_rc" "$_cap_bin" "$_cap_x" \
           >>build_asm/g05_xasm_crash.log 2>/dev/null || true
       fi
       rm -f "$_cap_o.tmp.o"
@@ -711,8 +717,8 @@ if [ "${XLANG_ELF_UNDEF_CAP_OVERLAY:-1}" = "1" ]; then
         "$(date +%H:%M:%S)" "$_cap_x" \
         >>build_asm/g05_xasm_crash.log 2>/dev/null || true
     fi
-  elif [ ! -x ./xlang_asm ]; then
-    echo "g05_relink_env: WARNING pure overlay $_cap_x not built (no ./xlang_asm)" >&2
+  elif [ -z "$_cap_bin" ]; then
+    echo "g05_relink_env: WARNING pure overlay $_cap_x not built (no ./xlang or ./xlang_asm)" >&2
   fi
   _PABI_ELF_UNDEF_CAP="$_G05_PO_OUT"
 fi
@@ -2257,16 +2263,21 @@ EOF
   # PLATFORM: MACOS|DARWIN.
   _pps_x=src/runtime_pipeline_abi_param_ptr_slot_thin.x
   _pps_o=build_asm/selfhost_pabi/param_ptr_slot_a64.o
-  if [ -f "$_pps_x" ] && [ -x ./xlang_asm ]; then
+  # knife 254 / 9.2: prefer ./xlang over mid-cold xlang_asm (SEGV→crash log).
+  _pps_bin=""
+  if [ -x ./xlang ]; then _pps_bin=./xlang
+  elif [ -x ./xlang_asm ]; then _pps_bin=./xlang_asm
+  fi
+  if [ -f "$_pps_x" ] && [ -n "$_pps_bin" ]; then
     # w2060: always rebuild with the current product (see cimp below).
       rm -f "$_pps_o"
       for _pps_try in 1 2 3 4 5 6 7 8; do
         _pps_rc=0
-        ./xlang_asm -backend asm -c "$_pps_x" -o "$_pps_o.tmp.o" >/dev/null 2>&1 || _pps_rc=$?
+        "$_pps_bin" -backend asm -c "$_pps_x" -o "$_pps_o.tmp.o" >/dev/null 2>&1 || _pps_rc=$?
         # w1484 crash detector: same log as ensure's g05_xasm; relink fails on it.
         if [ "$_pps_rc" -eq 124 ] || [ "$_pps_rc" -ge 128 ]; then
-          printf '%s rc=%s g05_relink_env: ./xlang_asm -backend asm -c %s\n' \
-            "$(date +%H:%M:%S)" "$_pps_rc" "$_pps_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
+          printf '%s rc=%s g05_relink_env: %s -backend asm -c %s\n' \
+            "$(date +%H:%M:%S)" "$_pps_rc" "$_pps_bin" "$_pps_x" >>build_asm/g05_xasm_crash.log 2>/dev/null || true
         fi
         if [ "$_pps_rc" -eq 0 ] \
           && nm -m "$_pps_o.tmp.o" 2>/dev/null | grep -q 'external _w189_param_at_is_type_ptr$'; then
@@ -2328,20 +2339,25 @@ EOF
   # PLATFORM: MACOS|DARWIN.
   _cimp_x=src/runtime_pipeline_abi_collect_imports_thin.x
   _cimp_o=build_asm/selfhost_pabi/cimp_a64.o
-  if [ "$UNAME_S" = "Darwin" ] && [ -f "$_cimp_x" ] && [ -x ./xlang_asm ] \
+  # knife 254 / 9.2: prefer ./xlang over mid-cold xlang_asm.
+  _cimp_bin=""
+  if [ -x ./xlang ]; then _cimp_bin=./xlang
+  elif [ -x ./xlang_asm ]; then _cimp_bin=./xlang_asm
+  fi
+  if [ "$UNAME_S" = "Darwin" ] && [ -f "$_cimp_x" ] && [ -n "$_cimp_bin" ] \
     && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
     # w2060: always rebuild (as on Windows). An mtime test kept objects
     # compiled by an earlier product whenever ./xlang_asm was restored with
     # an older mtime (cp -p), so a broken product's sidecars reached the link.
       rm -f "$_cimp_o"
-      if XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_cimp_x" -o "$_cimp_o.tmp.o" >/dev/null 2>&1 \
+      if XLANG_PREFER_ASM_O=1 "$_cimp_bin" -backend asm -c "$_cimp_x" -o "$_cimp_o.tmp.o" >/dev/null 2>&1 \
         && nm -m "$_cimp_o.tmp.o" 2>/dev/null | grep -v weak \
           | grep -q 'external _xlang_module_collect_imports_from_buf$' \
         && ! nm -u "$_cimp_o.tmp.o" 2>/dev/null | grep -qx '_lexer_init'; then
         mv -f "$_cimp_o.tmp.o" "$_cimp_o"
       else
         rm -f "$_cimp_o.tmp.o"
-        echo "g05_relink_env: $_cimp_x failed (Darwin cimp)" >&2
+        echo "g05_relink_env: $_cimp_x failed (Darwin cimp via $_cimp_bin)" >&2
         exit 1
       fi
     _oc=""
@@ -2477,12 +2493,64 @@ EOF
     build_asm/selfhost_pabi/arm64_param_home_a64.o \
     "_pipeline_asm_emit_param_home_elf_c" \
     "arm64 param home"
-  # w2060: struct-lit field CALL/wide copy. Leftover win_emit truncates to 8B.
-  # Pure-asm thin via tip product (g05_darwin_pabi_thin_sidecar). PLATFORM: MACOS|DARWIN.
-  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_struct_lit_fields_thin.x \
+  # knife 254 / 9.2 struct_lit_*: tip owns win_emit + pipeline_asm_emit_struct_lit
+  # {_fields,_elf}. Do not use g05_darwin_pabi_thin_sidecar (sets PREFER).
+  # Do not take these T from archive_leaf (stale CG002). Rebuild every
+  # Darwin relink with no PREFER; weaken ALE / pabi_weak copies.
+  # PLATFORM: MACOS|DARWIN.
+  unset XLANG_PREFER_ASM_O
+  _g05_pure_overlay src/runtime_pipeline_abi_struct_lit_fields_thin.x \
     build_asm/selfhost_pabi/struct_lit_fields_a64.o \
-    "_win_emit_struct_lit_fields_into_parked_rbx" \
-    "struct lit fields" 
+    pipeline_asm_emit_struct_lit_fields_elf_c
+  _slf_o=build_asm/selfhost_pabi/struct_lit_fields_a64.o
+  if [ ! -s "$_slf_o" ]; then
+    echo "g05_relink_env: ERROR Darwin struct_lit_fields .x did not build" >&2
+    exit 1
+  fi
+  for _slf_need in win_emit_struct_lit_fields_into_parked_rbx \
+      pipeline_asm_emit_struct_lit_fields_elf_c \
+      pipeline_asm_emit_struct_lit_elf_c \
+      pipeline_asm_emit_struct_let_init_elf_c; do
+    if ! nm "$_slf_o" 2>/dev/null | awk -v n="$_slf_need" '{s=$NF; sub(/^_/,"",s); if (s==n && ($2=="T" || $0 ~ /external/)) f=1} END{exit f?0:1}'; then
+      echo "g05_relink_env: ERROR Darwin struct_lit_fields lacks T $_slf_need" >&2
+      exit 1
+    fi
+  done
+  if nm "$_slf_o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="xlang_panic_") e=1} END{exit e?0:1}'; then
+    echo "g05_relink_env: ERROR Darwin struct_lit_fields references xlang_panic_" >&2
+    exit 1
+  fi
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+  fi
+  # ALE marks these weak+[no dead strip]; plain --weaken leaves the stale
+  # body as the live root and Darwin dead_strip drops tip strong faces.
+  # Redefine ALE names to *_archivestub_dead so tip is the only def.
+  for _slf_w in _win_emit_struct_lit_fields_into_parked_rbx \
+      _pipeline_asm_emit_struct_lit_fields_elf_c \
+      _pipeline_asm_emit_struct_lit_elf_c \
+      _pipeline_asm_emit_struct_let_init_elf_c; do
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+          | grep -E " ${_slf_w}$" >/dev/null; then
+        "$_oc" --redefine-sym="${_slf_w}=${_slf_w}_ale_superseded_w254" \
+          build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+          || { echo "g05_relink_env: redefine ALE $_slf_w failed" >&2; exit 1; }
+      fi
+    fi
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -E " ${_slf_w}$" | grep -qv undefined; then
+        "$_oc" --redefine-sym="${_slf_w}=${_slf_w}_pabi_stubdead" \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          || { echo "g05_relink_env: redefine pabi_weak $_slf_w failed" >&2; exit 1; }
+      fi
+    fi
+    _G05_LINK_WINNERS="$_G05_LINK_WINNERS ${_slf_w}=$_slf_o"
+  done
+  _PABI_SELFHOST="$_slf_o $_PABI_SELFHOST"
   # w1009: let-after-assign body_sync. Leftover body_sync is strong T in
   # pabi_weak — weaken so strong thin first-wins for same-TU callers too.
   # Prefer --weaken-symbol (works with Homebrew llvm-objcopy); redefine only
