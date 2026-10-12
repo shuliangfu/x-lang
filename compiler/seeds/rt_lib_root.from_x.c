@@ -24,51 +24,7 @@ extern void driver_emit_lib_root_copy(uint8_t *state, int32_t i, uint8_t *dst, i
 extern char *link_abi_getenv(const char *name);
 
 #ifndef XLANG_RT_LIB_ROOT_FROM_X
-/**
- * 判断 lib root 指针可安全解引用（避开 NULL/空串；冷启动 C 体额外低位 tag）。
- */
-int driver_lib_root_ptr_usable(const char *p) {
-  return p && (uintptr_t)p >= 4096u && p[0] != '\0';
-}
-
-/**
- * 写入默认 lib root：优先 XLANG_LIB（拷贝到 root_buf），否则 "."。
- * wave227 G.7: link_abi_getenv (not raw getenv); host residual = link_abi_getenv_impl.
- */
-void driver_lib_root_default(char root_buf[512]) {
-  const char *def = link_abi_getenv("XLANG_LIB");
-  root_buf[0] = '.';
-  root_buf[1] = '\0';
-  if (!driver_lib_root_ptr_usable(def))
-    return;
-  strncpy(root_buf, def, 511);
-  root_buf[511] = '\0';
-}
-
-/** 从 ast_pool sidecar 键填充 lib_roots 数组；返回根数量。 */
-int driver_lib_roots_from_key(uint8_t *lib_key, const char **out_arr, char bufs[X_FULL_MAX_LIB_ROOTS][512]) {
-  int n = (int)driver_emit_lib_root_count(lib_key);
-  int i;
-  if (n <= 0) {
-    driver_lib_root_default(bufs[0]);
-    out_arr[0] = bufs[0];
-    return 1;
-  }
-  if (n > X_FULL_MAX_LIB_ROOTS)
-    n = X_FULL_MAX_LIB_ROOTS;
-  for (i = 0; i < n; i++) {
-    int32_t llen = driver_emit_lib_root_len(lib_key, i);
-    if (llen <= 0 || llen >= 512) {
-      bufs[i][0] = '.';
-      bufs[i][1] = '\0';
-    } else {
-      driver_emit_lib_root_copy(lib_key, i, (uint8_t *)bufs[i], 512);
-      bufs[i][llen] = '\0';
-    }
-    out_arr[i] = bufs[i];
-  }
-  return n;
-}
+/* 记253／9.1: cold under #ifndef XLANG_RT_LIB_ROOT_FROM_X removed */
 #else
 int driver_lib_root_ptr_usable(const char *p);
 void driver_lib_root_default(char root_buf[512]);

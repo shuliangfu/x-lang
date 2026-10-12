@@ -17,32 +17,13 @@
 #include <unistd.h>
 
 #ifndef XLANG_RT_FS_OPEN_FROM_X
-/** path[0..path_len-1] 打开只读；失败 -1。 */
-int driver_fs_open_read_path(const uint8_t *path, int path_len) {
-  if (!path || path_len <= 0 || path_len >= 512)
-    return -1;
-  char buf[512];
-  memcpy(buf, path, (size_t)path_len);
-  buf[path_len] = '\0';
-  return open(buf, O_RDONLY, 0);
-}
-
-/** path[0..path_len-1] 打开写（CREAT|TRUNC 0644）；失败 -1。 */
-int driver_fs_open_write(const uint8_t *path, int path_len) {
-  if (!path || path_len <= 0 || path_len >= 512)
-    return -1;
-  char buf[512];
-  memcpy(buf, path, (size_t)path_len);
-  buf[path_len] = '\0';
+/* 记253／9.1: cold under #ifndef XLANG_RT_FS_OPEN_FROM_X removed */
 #ifdef O_WRONLY
 #ifdef O_CREAT
 #ifdef O_TRUNC
-  return open(buf, O_WRONLY | O_CREAT | O_TRUNC, (mode_t)0644);
 #endif
 #endif
 #endif
-  return -1;
-}
 #else
 int driver_fs_open_read_path(const uint8_t *path, int path_len);
 int driver_fs_open_write(const uint8_t *path, int path_len);

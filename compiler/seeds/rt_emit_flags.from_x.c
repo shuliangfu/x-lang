@@ -36,27 +36,7 @@ typedef struct DriverCompileStateSU {
 } DriverCompileStateSU;
 
 #ifndef XLANG_RT_EMIT_FLAGS_FROM_X
-/** argv 是否含 -E / -E-extern。 */
-int driver_argv_has_emit_c_flag(int argc, char **argv) {
-  int i;
-  if (argc < 2 || !argv)
-    return 0;
-  for (i = 1; i < argc; i++) {
-    if (!strcmp(argv[i], "-E") || !strcmp(argv[i], "-E-extern"))
-      return 1;
-  }
-  return 0;
-}
-
-void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state) {
-  if (state)
-    state->use_lto = 1;
-}
-
-void driver_compile_argv_set_print_target_cpu_c(DriverCompileStateSU *state) {
-  if (state)
-    state->print_target_cpu = 1;
-}
+/* 记253／9.1: cold under #ifndef XLANG_RT_EMIT_FLAGS_FROM_X removed */
 #else
 int driver_argv_has_emit_c_flag(int argc, char **argv);
 void driver_compile_argv_set_use_lto_c(DriverCompileStateSU *state);
