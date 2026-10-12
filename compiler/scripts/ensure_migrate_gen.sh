@@ -338,11 +338,14 @@ ensure_parser_gen() {
     fi
   fi
 
-  # Stale local without assemble this run: allow archaeology pin restore if contract fails.
-  if [ "$did_assemble" != "1" ] && [ "$XLANG_PARSER_ALLOW_PIN" = "1" ]; then
-    if ! parser_gen_contract_ok parser_gen.c; then
-      if seed_ok "$seed" && parser_gen_contract_ok "$seed"; then
-        cp -f "$seed" parser_gen.c
+  # Contract fail after assemble or stale local: archaeology pin only when ALLOW_PIN.
+  # Assemble remains first; pin is never pin-first (knife 254 / 9.2).
+  if ! parser_gen_contract_ok parser_gen.c; then
+    if [ "$XLANG_PARSER_ALLOW_PIN" = "1" ] && seed_ok "$seed" && parser_gen_contract_ok "$seed"; then
+      cp -f "$seed" parser_gen.c
+      if [ "$did_assemble" = "1" ]; then
+        log "parser_gen.c: tip assemble failed contract → archaeology seed"
+      else
         log "parser_gen.c: local failed contract → archaeology seed"
       fi
     fi
@@ -642,11 +645,15 @@ ensure_codegen_gen() {
     fi
   fi
 
-  # Stale local without assemble this run: allow archaeology pin restore if contract fails.
-  if [ "$did_assemble" != "1" ] && [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ]; then
-    if ! codegen_gen_contract_ok codegen_gen.c; then
-      if seed_ok "$seed" && codegen_gen_contract_ok "$seed"; then
-        cp -f "$seed" codegen_gen.c
+  # Contract fail (stale local OR tip assemble missing surgical leaves such as
+  # codegen_builtin_type_name_into body): archaeology pin only when ALLOW_PIN.
+  # Assemble remains first; pin is never pin-first (knife 254 / 9.2).
+  if ! codegen_gen_contract_ok codegen_gen.c; then
+    if [ "$XLANG_CODEGEN_ALLOW_PIN" = "1" ] && seed_ok "$seed" && codegen_gen_contract_ok "$seed"; then
+      cp -f "$seed" codegen_gen.c
+      if [ "$did_assemble" = "1" ]; then
+        log "codegen_gen.c: tip assemble failed contract → archaeology seed"
+      else
         log "codegen_gen.c: local failed contract → archaeology seed"
       fi
     fi

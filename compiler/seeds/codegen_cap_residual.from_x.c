@@ -422,3 +422,49 @@ int32_t run_x_pipeline_codegen_one_dep_prepare_c(struct ast_PipelineDepCtx *ctx,
     dep_path_buf[i] = 0;
   return pipeline_prepare_dep_codegen_path_c(ctx, dep_j, dep_path_buf);
 }
+
+/* knife 254 / 9.2: tip codegen.x only externs this face; product
+ * contract needs the body (was pin-only). Append so assemble is
+ * authority without seed pin-first. PLATFORM: SHARED Cap residual. */
+int32_t codegen_builtin_type_name_into(int32_t kind_ord, uint8_t * out) {
+  {
+    if ((out ==0)) {
+      return 0;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_I32))) {
+      out[0] = 105; out[1] = 51; out[2] = 50; return 3;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_BOOL))) {
+      out[0] = 98; out[1] = 111; out[2] = 111; out[3] = 108; return 4;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_U8))) {
+      out[0] = 117; out[1] = 56; return 2;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_U32))) {
+      out[0] = 117; out[1] = 51; out[2] = 50; return 3;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_U64))) {
+      out[0] = 117; out[1] = 54; out[2] = 52; return 3;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_I64))) {
+      out[0] = 105; out[1] = 54; out[2] = 52; return 3;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_USIZE))) {
+      out[0] = 117; out[1] = 115; out[2] = 105; out[3] = 122; out[4] = 101; return 5;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_ISIZE))) {
+      out[0] = 105; out[1] = 115; out[2] = 105; out[3] = 122; out[4] = 101; return 5;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_F32))) {
+      out[0] = 102; out[1] = 51; out[2] = 50; return 3;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_F64))) {
+      out[0] = 102; out[1] = 54; out[2] = 52; return 3;
+    }
+    if ((kind_ord == (ast_TypeKind_TYPE_VOID))) {
+      out[0] = 118; out[1] = 111; out[2] = 105; out[3] = 100; return 4;
+    }
+    return 0;
+  }
+}
+
