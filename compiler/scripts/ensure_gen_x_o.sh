@@ -349,6 +349,28 @@ build_lexer_x() {
     log "lexer_x.o <- pure-asm src/lexer/lexer.x (w1546)"
     return 0
   fi
+  # knife256 / 10.2: product tip may T001 on imported Token allow(padding) or
+  # SEGV on huge lexer.x; pin egg / xlang-c still pure-asm emits store-not-return
+  # (no tip u8[] 1024 clamp). Prefer them before declaring failure — no host cc.
+  # PLATFORM: MACOS|DARWIN arm64 cold L4.
+  rm -f lexer_x.o
+  for _lex_xl in ./xlang-c ./bootstrap_xlangc; do
+    if [ -x "$_lex_xl" ]; then
+      if (
+        # shellcheck disable=SC1091
+        . scripts/pure_ld_shared.sh
+        export XLANG_PREFER_ASM_O=1
+        export XLANG="$_lex_xl"
+        unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+        export G05_X_O_WEAK_FUNCS=xlang_panic_
+        pure_asm_x_to_o lexer_x.o src/lexer/lexer.x
+      ) && [ -s lexer_x.o ]; then
+        log "lexer_x.o <- pure-asm src/lexer/lexer.x via $_lex_xl (w1546/knife256)"
+        return 0
+      fi
+      rm -f lexer_x.o
+    fi
+  done
   rm -f lexer_x.o
   log "lexer_x.o pure-asm failed (w1546; no cc fallback)"
   return 1
