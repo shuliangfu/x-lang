@@ -1810,6 +1810,86 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/regex/mod.x|std/regex/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.regex mod.x (记240).
+      # Tip asm emits std_regex_*; product regex.x already fail-closed in
+      # std_x. Bare module.sh still -x -E→cc. Fail-closed; Windows keeps C.
+      _rxm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rxm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/rxm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_compile$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_free$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_regex_group_count$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/rxm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/channel/channel.x|std/channel/channel.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.channel (记240).
+      # -lib-name "" keeps channel_f_channel_v1_marker_c. Fail-closed.
+      # Windows keeps C.
+      _chx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_chx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/chx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?channel_f_channel_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/chx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/thread/thread.x|std/thread/thread.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.thread (记240).
+      # -lib-name "" keeps thread_f_thread_v1_marker_c. Fail-closed.
+      # Windows keeps C.
+      _thx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_thx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/thx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?thread_f_thread_v1_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/thx_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/fs/mod.x|std/fs/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.fs mod.x (记239).
       # Tip asm emits std_fs_*; -x -E fails typeck on std.io co-emit.
