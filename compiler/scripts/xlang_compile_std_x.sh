@@ -761,6 +761,70 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/fs/posix.x|std/fs/posix.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.fs.posix (记238).
+      # No -lib-name "": import face std_fs_posix_fs_* (fs formal same).
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Product fs.o via xlang_compile_std_fs_formal already fail-closed;
+      # this arm covers direct std_x auto compiles. Windows keeps C.
+      _fsp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_fsp_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _fsp_log="$(mktemp "${TMPDIR:-/tmp}/std_fsp_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_fsp_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_open_read_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_posix_read_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_posix_write_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_posix_fs_last_error_c$' \
+            && ! nm "$out_o" 2>/dev/null | grep -qE ' U _?xlang_fs_unlink$' \
+            && ! nm "$out_o" 2>/dev/null | grep -qE ' U _?xlang_sys_pread$'; then
+            rm -f "$_fsp_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_fsp_log" >&2
+          rm -f "$_fsp_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/fs/freestanding_linux.x|std/fs/freestanding_linux.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.fs.freestanding_linux (记238).
+      # No -lib-name "": import face std_fs_freestanding_linux_freestanding_*.
+      # Tip asm green; soft default could still fall to -E+cc. Fail-closed.
+      # Windows keeps C path.
+      _fff_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_fff_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _fff_log="$(mktemp "${TMPDIR:-/tmp}/std_fff_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -o "$out_o" "$x_path" \
+              >"$_fff_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_freestanding_linux_freestanding_fs_available$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_freestanding_linux_freestanding_fs_module_anchor$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?std_fs_freestanding_linux_freestanding_open_read$'; then
+            rm -f "$_fff_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_fff_log" >&2
+          rm -f "$_fff_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/regex/regex.x|std/regex/regex.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
       # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
