@@ -5212,30 +5212,11 @@ esac
 case "$UNAME_S" in
   Darwin*)
     if [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
-      python3 - build_asm/selfhost_pabi/pabi_weak.o <<'PY' || {
+      if ! python3 "$_G05_ROOT/scripts/pabi_patch_emachine_off_10a_to_299.py" \
+          build_asm/selfhost_pabi/pabi_weak.o; then
         echo "g05_relink_env: patch pabi_weak e_machine off failed (Darwin)" >&2
         exit 1
-      }
-import struct, sys
-path = sys.argv[1]
-data = bytearray(open(path, "rb").read())
-old_imm, new_imm = 0x10A, 0x299
-n = 0
-for rd in range(32):
-    old = struct.pack("<I", 0xF2A00000 | (old_imm << 5) | rd)
-    new = struct.pack("<I", 0xF2A00000 | (new_imm << 5) | rd)
-    start = 0
-    while True:
-        i = data.find(old, start)
-        if i < 0:
-            break
-        data[i:i+4] = new
-        n += 1
-        start = i + 4
-if n:
-    open(path, "wb").write(data)
-    sys.stderr.write("g05_relink_env: patched pabi_weak mega e_machine off 0x10a->0x299 (%d insn)\n" % n)
-PY
+      fi
     fi
     ;;
 esac
