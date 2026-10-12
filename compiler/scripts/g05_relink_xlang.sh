@@ -249,6 +249,20 @@ case "$(uname -s 2>/dev/null)" in
     ;;
 esac
 
+# knife253 / 9.1: Darwin ale leftovers define local (t) twins of global (T)
+# symbols; same-TU calls bind the short local and break struct-lit / option L2.
+# Trampoline every t->T pair in the freshly linked product, then ad-hoc codesign
+# (TEXT was rewritten). PLATFORM: DARWIN only.
+case "$(uname -s 2>/dev/null)" in
+  Darwin)
+    if [ -f scripts/darwin_tramp_local_shadows_to_global.py ]; then
+      python3 scripts/darwin_tramp_local_shadows_to_global.py "$OUT"         || { echo "g05_relink_xlang: darwin_tramp_local_shadows_to_global failed" >&2; exit 1; }
+      codesign --sign - --force --timestamp=none "$OUT" 2>/dev/null         || codesign -f -s - "$OUT"         || { echo "g05_relink_xlang: codesign after trampoline failed" >&2; exit 1; }
+      echo "g05_relink_xlang: Darwin local-shadow trampolines + codesign OK" >&2
+    fi
+    ;;
+esac
+
 # w1499: copy onto a fresh inode. macOS keeps the code signature of an
 # executable it already ran cached per vnode, so cp over the old file can make
 # the next exec die with SIGKILL ("load code signature error 2").
