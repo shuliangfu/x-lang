@@ -762,18 +762,22 @@ export function call_dispatch_store_i32_le(p: *u8, off: i32, v: i32): void {
 #[no_mangle]
 export function call_dispatch_load_ptr_le(p: *u8, off: i32): *u8 {
   if (p == 0) { return 0 as *u8; }
+  /* knife 254 / 9.2: tip pure-asm emits mul w for usize*, so m2*m2 (=2^32)
+   * wraps to 0 and high pointer bytes are dropped → mod_ref SEGV on Darwin
+   * tip cold hello/option/si. Build lo/hi with small muls then hi<<32 (lsl x).
+   * PLATFORM: SHARED — LP64 LE ptr load. */
   let m: usize = 256;
-  let m2: usize = m * m;
-  let m4: usize = m2 * m2;
-  let a: usize = p[off] as usize;
-  a = a + (p[off + 1] as usize) * m;
-  a = a + (p[off + 2] as usize) * m2;
-  a = a + (p[off + 3] as usize) * (m2 * m);
-  a = a + (p[off + 4] as usize) * m4;
-  a = a + (p[off + 5] as usize) * (m4 * m);
-  a = a + (p[off + 6] as usize) * (m4 * m2);
-  a = a + (p[off + 7] as usize) * (m4 * m2 * m);
-  return a as *u8;
+  let m2: usize = 65536;
+  let m3: usize = 16777216;
+  let lo: usize = p[off] as usize;
+  lo = lo + (p[off + 1] as usize) * m;
+  lo = lo + (p[off + 2] as usize) * m2;
+  lo = lo + (p[off + 3] as usize) * m3;
+  let hi: usize = p[off + 4] as usize;
+  hi = hi + (p[off + 5] as usize) * m;
+  hi = hi + (p[off + 6] as usize) * m2;
+  hi = hi + (p[off + 7] as usize) * m3;
+  return (lo + (hi << 32)) as *u8;
 }
 
 // glue_asm_call_reg_max: see function docblock below.

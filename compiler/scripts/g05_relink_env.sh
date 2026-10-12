@@ -5208,9 +5208,10 @@ esac
 # uses AsmFuncCtx frame sub sp,#0x8d0 while restored/ALE use #0xa50. Tip
 # backend_call_dispatch reads module_ref at ctx+16 expecting the 0xa50 layout
 # → garbage mod_ref → parser_get_module_num_imports SEGV on hello/option/si.
-# Prefer ALE mega_body (0xa50 + 0x299 e_machine): redefine pabi T stubdead and
-# globalize ALE local. Same-TU pabi bl still hits stubdead body (keep e_machine
-# patch below). External seed_mega → ALE. PLATFORM: MACOS tip cold.
+# Prefer ALE mega_body + ast_to_elf_c (0xa50 + 0x299): redefine pabi copies
+# stubdead and globalize ALE. Covering both faces avoids same-TU bl→stubdead
+# keeping the 0x8d0 body on the emit path. Keep e_machine patch below.
+# PLATFORM: MACOS tip cold.
 case "$UNAME_S" in
   Darwin*)
     if [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
@@ -5221,19 +5222,24 @@ case "$UNAME_S" in
       elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
       fi
       if [ -n "$_oc" ]; then
-        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-            | grep -E " _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c$" \
-            | grep -qv undefined; then
-          "$_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c_pabi_stubdead \
-            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-            || { echo "g05_relink_env: redefine pabi_weak mega_body failed (Darwin ALE prefer)" >&2; exit 1; }
-        fi
-        if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
-            | grep -E " _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c$" >/dev/null; then
-          "$_oc" --globalize-symbol=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c \
-            build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
-            || { echo "g05_relink_env: globalize ALE mega_body failed (Darwin ALE prefer)" >&2; exit 1; }
-        fi
+        # Same-TU: pabi ast_to_elf_c bl mega_body — redefine-sym renames that
+        # bl to stubdead and keeps the 0x8d0 body live. Prefer ALE for BOTH
+        # faces so the call chain stays on the 0xa50 layout.
+        for _ale_w in _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c \
+            _pipeline_backend_asm_codegen_ast_to_elf_c; do
+          if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              | grep -E " ${_ale_w}$" | grep -qv undefined; then
+            "$_oc" --redefine-sym="${_ale_w}=${_ale_w}_pabi_stubdead" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              || { echo "g05_relink_env: redefine pabi_weak $_ale_w failed (Darwin ALE prefer)" >&2; exit 1; }
+          fi
+          if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+              | grep -E " ${_ale_w}$" >/dev/null; then
+            "$_oc" --globalize-symbol="${_ale_w}" \
+              build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+              || { echo "g05_relink_env: globalize ALE $_ale_w failed (Darwin ALE prefer)" >&2; exit 1; }
+          fi
+        done
       fi
     fi
     ;;
