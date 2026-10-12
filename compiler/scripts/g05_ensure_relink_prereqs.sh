@@ -1196,10 +1196,16 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   # PLATFORM: SHARED product daily path · default PREFER=1 (g05 historic).
   if [ -f scripts/ensure_host_cc_seed_o.sh ]; then
     echo "g05_ensure: r3-prefer-family R3_COLD_SEED_OBJS (wave764)"
+    # 记251／8.8: family failure is fatal — do not continue on a warm/missing
+    # try_inline (or other R3) object. Anchor checks below stay as belt.
+    # PLATFORM: SHARED.
     XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
       CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
       bash scripts/ensure_host_cc_seed_o.sh r3-prefer-family \
-      || echo "g05_ensure: r3-prefer-family failed (non-fatal if unused)" >&2
+      || {
+        echo "g05_ensure: ERROR r3-prefer-family failed (refusing warm/missing R3 objects)" >&2
+        exit 1
+      }
     # w1524 (5.11): backend_call_dispatch.o is the full .x alone (C seed
     # deleted). The family above swallows per-leaf failures, so refuse to
     # go on with an object that lacks the w1524 anchor. PLATFORM: SHARED.

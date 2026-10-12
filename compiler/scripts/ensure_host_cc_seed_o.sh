@@ -5867,6 +5867,14 @@ ensure_one() {
     return 0
   fi
 
+  # 记251／8.8: try_inline has no C seed (deleted w1527). Full .x pure asm
+  # only — never host-cc a missing seed, never keep a warm bypass object.
+  # PLATFORM: SHARED.
+  if [ "$out" = "src/asm/backend_try_inline_dispatch.o" ]; then
+    XLANG_PURE_ASM_ALLOW_U_PANIC=1 ensure_r3_full_x_pure_w1525 "$out"       src/asm/backend_try_inline_dispatch.x       backend_try_inline_dispatch_x_w1527_anchor backend_try_inline_dispatch_slice_marker       glue_asm_ctx_module_ref_c glue_asm_ctx_module_ref_c_impl g02f_load_ptr_at       try_inline_x_plus_k_call_elf || return 1
+    return 0
+  fi
+
   # w1076: Darwin arm64 user-domain getenv face is the .x, not this seed.
   # Linux and Windows keep host-cc of the C seed (environ symbol differs).
   # PLATFORM: MACOS|DARWIN arm64.
@@ -14759,7 +14767,9 @@ r3_prefer_leaf_spec() {
       printf '%s\n' "src/asm/backend_arch_emit_dispatch_thin.x|XLANG_L2_ARCH_EMIT_THIN_FROM_X|-|src/asm/backend_arch_emit_dispatch.x|XLANG_BACKEND_ARCH_EMIT_DISPATCH_FROM_X"
       ;;
     src/asm/backend_try_inline_dispatch.o)
-      printf '%s\n' "src/asm/backend_try_inline_dispatch_thin.x|XLANG_L2_TRY_INLINE_THIN_FROM_X|-|src/asm/backend_try_inline_dispatch.x|XLANG_BACKEND_TRY_INLINE_DISPATCH_FROM_X"
+      # 记251／8.8: full .x alone (w1527). Thin+seed hybrid was the Darwin
+      # miscompile path (same exports, wrong codegen → L2 3/5). Seed deleted.
+      printf '%s\n' "src/asm/backend_try_inline_dispatch.x|-|-|-|-"
       ;;
     src/asm/backend_call_dispatch.o)
       printf '%s\n' "src/asm/backend_call_dispatch_thin.x|XLANG_L2_CALL_DISPATCH_THIN_FROM_X|-|src/asm/backend_call_dispatch.x|XLANG_BACKEND_CALL_DISPATCH_FROM_X"
@@ -15966,7 +15976,9 @@ try_ensure_r3_prefer_one() {
   if ! list_has_word "$o" "$list"; then
     return 3
   fi
-  ensure_r3_prefer_one "$o"
+  # 记251／8.8: do not swallow ensure_r3_prefer_one failure (old return 0
+  # left a warm/missing .o in place). PLATFORM: SHARED.
+  ensure_r3_prefer_one "$o" || return 1
   return 0
 }
 
