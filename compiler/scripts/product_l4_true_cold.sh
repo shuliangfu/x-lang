@@ -12,8 +12,8 @@
 #   1) Wipe ALL *.o under compiler/ std/ core/ (no selective delete)
 #   2) Delete product binaries that must be this-wave rebuilds
 #   3) remaining_o must be 0 before rebuild
-#   4) Pin linux.x86_64 seed gens into host-local *_gen.c (typeck_gen is
-#      gitignored and otherwise survives .o wipe with stale void-main)
+#   4) Frontend *_gen.c: tip assemble authority (9.2); seed pin only when
+#      XLANG_L4_ALLOW_SEED_PIN=1 (archaeology). Default drops stale parser/codegen gens
 #   5) bootstrap-driver-seed (shell; Makefile deleted wave941)
 #   6) g05_prepare_and_relink --sync → this-wave xlang_asm
 #   7) product L2 matrix (product_l2_matrix.sh — never ad-hoc set -e /tmp/rv)
@@ -29,7 +29,7 @@
 #   second body. Update this script when the L4 recipe changes.
 #   Related (not a second L4 product entry):
 #     XLANG_L4_COLD=1 tests/run-all-bstrict.sh  — bstrict-internal purge path;
-#     product L4 still goes through this script so matrix + seed pin stay one.
+#     product L4 still goes through this script so matrix + gen policy stay one.
 #
 # Usage (repo root):
 #   ./xbuild l4
@@ -42,6 +42,7 @@
 #   XLANG_L4_LOG       log path (default: /tmp/xlang_l4_<host>_<sha>.log)
 #   XLANG_L4_NO_BSTRICT=1  same as --no-bstrict
 #   XLANG_L4_REBUILD_ONLY=1 same as --rebuild-only
+#   XLANG_L4_ALLOW_SEED_PIN=1  archaeology: pin seeds/*_gen → local (default 0 / 9.2)
 #   XLANG_BSTRICT_SCRIPT_TIMEOUT  forwarded to run-all-bstrict
 #                                 Darwin L4 default 1200s (mega asm gates
 #                                 ~840s serial). Ubuntu keeps 300s.
@@ -252,18 +253,32 @@ fi
 log "step3: remaining_o=0 OK (xlang_asm absent)"
 _l4_step_end
 
-# --- 4) Pin product seed gens (Linux gold source; mac develops same pin) ---
-# PLATFORM: SHARED pin semantic; host-local typeck_gen.c is gitignored and
-# survives .o wipe → must re-pin or void-main stale seed rejects cold.
+# --- 4) Frontend *_gen.c: tip assemble authority (knife 254 / 9.2) ---
+# Default: do NOT pin-first from seeds/*_gen.linux.x86_64.c.
+# Opt-in archaeology: XLANG_L4_ALLOW_SEED_PIN=1 restores the old cp pin egg.
+# Otherwise drop stale local parser/codegen gens so cold cannot silently reuse
+# pin copies; ensure_migrate_gen (assemble-first) may refresh when a -E binary
+# exists. typeck stays assemble-first via ensure (ALLOW_PIN egg only).
+# PLATFORM: SHARED — tip cold not pin-first; archaeology switch default off.
 _l4_step_begin "4_seed_pin"
-log "step4: pin seeds/*_gen.linux.x86_64.c → compiler/*_gen.c"
-(
-  cd compiler
-  cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
-  cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
-  cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
-) || fail "seed pin copy failed"
-log "step4: seed pin OK"
+if [ "${XLANG_L4_ALLOW_SEED_PIN:-0}" = "1" ]; then
+  log "step4: archaeology seed pin (XLANG_L4_ALLOW_SEED_PIN=1)"
+  (
+    cd compiler
+    cp -f seeds/codegen_gen.linux.x86_64.c codegen_gen.c
+    cp -f seeds/parser_gen.linux.x86_64.c parser_gen.c
+    cp -f seeds/typeck_gen.linux.x86_64.c typeck_gen.c
+  ) || fail "seed pin copy failed"
+  log "step4: seed pin OK (archaeology)"
+else
+  log "step4: no seed pin-first (9.2); drop stale parser/codegen local gens"
+  (
+    cd compiler
+    rm -f parser_gen.c codegen_gen.c
+    # typeck_gen.c: leave for ensure archaeology egg if present; do not re-pin
+  ) || fail "drop stale gen failed"
+  log "step4: pin-first skipped (assemble authority)"
+fi
 _l4_step_end
 
 # --- 5) Cold bootstrap-driver-seed (shell; no Makefile) ---
