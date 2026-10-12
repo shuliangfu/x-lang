@@ -4736,10 +4736,19 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
   g05_frontend_x_drop_stale typeck_x src/typeck src/parser src/lexer src/ast
   if [ ! -f typeck_x.o ]; then
     echo "g05_ensure: typeck_x.o missing; pure-asm src/typeck/typeck.x (no host-cc)"
+    _tck_ok=0
     if bash scripts/ensure_gen_x_o.sh typeck_x && g05_stamp_frontend_x_pure_asm . typeck_x; then
-      echo "g05_ensure: typeck_x.o <- tip pure-asm OK (missing-path)"
-    else
-      echo "g05_ensure: typeck_x pure-asm failed (missing); restore Track L cold seed" >&2
+      _tsz=$(wc -c <typeck_x.o | tr -d ' ')
+      if [ "$_tsz" -ge 300000 ]         && nm -gU typeck_x.o 2>/dev/null | grep -E 'T _?typeck_x_ast_check_one_func$' >/dev/null; then
+        echo "g05_ensure: typeck_x.o <- tip pure-asm OK (missing-path; $_tsz bytes)"
+        _tck_ok=1
+      else
+        echo "g05_ensure: typeck_x tip pure-asm hollow ($_tsz); Track L restore" >&2
+        rm -f typeck_x.o typeck_x.pure_asm
+      fi
+    fi
+    if [ "$_tck_ok" != "1" ]; then
+      echo "g05_ensure: typeck_x pure-asm failed/hollow (missing); restore Track L cold seed" >&2
       export XLANG_MIGRATE_TRACK_L_COLD_SEED=1
       if ! bash scripts/migrate_x_objs.sh typeck_x.o >&2; then
         echo "g05_ensure: typeck_x.o Track L restore failed (missing-path)" >&2
