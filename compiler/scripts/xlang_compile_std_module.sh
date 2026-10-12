@@ -1810,6 +1810,126 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/async/executor_trait.x|std/async/executor_trait.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.async.executor_trait (记242).
+      # Tip emits std_async_executor_trait_*; module -x -E→cc. Fail-closed.
+      _aet_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_aet_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/aet_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_async_executor_trait_executor_trait_module_anchor$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/aet_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/atomic/builtin.x|std/atomic/builtin.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.atomic.builtin (记242).
+      # Tip emits std_atomic_builtin_atomic_*; module -x -E→cc. Fail-closed.
+      _atb_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_atb_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/atb_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_load_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_store_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_atomic_builtin_atomic_cas_i32$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/atb_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/compress/common.x|std/compress/common.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker compress.common (记242).
+      # -lib-name "" keeps compress_common_zero_c_marker_c. Fail-closed.
+      _cmc_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_cmc_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/cmc_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?compress_common_zero_c_marker_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/cmc_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/simd/mod.x|std/simd/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.simd mod.x (记242).
+      # Tip emits std_simd_*; simd.x already fail-closed in std_x. Fail-closed.
+      _smm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_smm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/smm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_hw_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_recommend_path$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_simd_hsum$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/smm_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/process/process.x|std/process/process.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare process.x thin (记242).
+      # -lib-name "" → process_args_count_c／process_arg_c. Fail-closed.
+      _ppx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ppx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/ppx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?process_args_count_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?process_arg_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/ppx_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
+    ../std/runtime/runtime.x|std/runtime/runtime.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare runtime.x (记242).
+      # -lib-name "" → runtime_abort／runtime_panic. Fail-closed.
+      _rrx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rrx_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/rrx_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?runtime_abort$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?runtime_panic$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/rrx_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
     ../std/backtrace/backtrace.x|std/backtrace/backtrace.x)
       # PLATFORM: MACOS|DARWIN|LINUX — bare-impl marker for std.backtrace (记241).
       # -lib-name "" keeps backtrace_f_backtrace_v1/v2_marker_c. Fail-closed.
