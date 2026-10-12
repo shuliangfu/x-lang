@@ -5017,15 +5017,43 @@ fi
 # modlet bake / index scaled / simd splat). Link ahead of pabi_weak when
 # present. PLATFORM: MACOS tip cold.
 _PABI_ARCHIVE_LEAF=""
+_PABI_M8_RELOC_STUBS=""
 case "$UNAME_S" in
   Darwin*)
     if [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
       _PABI_ARCHIVE_LEAF="build_asm/selfhost_pabi/archive_leaf_extract.o"
     fi
+    # knife 254 / 9.2: m8_reloc_stubs supplies m8_tail delegate names +
+    # g_pipeline_elf_reloc_* BSS that pabi_weak / reloc_typed UNDEF after
+    # 9.1 hollow. PLATFORM: MACOS tip cold.
+    if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ]; then
+      _PABI_M8_RELOC_STUBS="build_asm/selfhost_pabi/m8_reloc_stubs.o"
+    fi
     ;;
 esac
 
-G05_OBJS="$_PABI_ARCHIVE_LEAF $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2"
+# knife 254 / 9.2: tip asm_expr_rec and pabi_weak both define
+# leftover_emit_struct_lit_into_parked_rbx. Weaken egg so tip first-wins.
+# PLATFORM: MACOS tip cold.
+case "$UNAME_S" in
+  Darwin*)
+    if [ -s build_asm/selfhost_pabi/asm_expr_rec.o ] \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+          | grep -E " _leftover_emit_struct_lit_into_parked_rbx$" | grep -qv weak; then
+        "$_oc" --weaken-symbol=_leftover_emit_struct_lit_into_parked_rbx \
+          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      fi
+    fi
+    ;;
+esac
+
+G05_OBJS="$_PABI_ARCHIVE_LEAF $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2"
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
