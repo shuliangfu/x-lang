@@ -1144,12 +1144,12 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
     # Force rebuild when any product face is missing (hollow stubs must not win).
     _noc_need_force=0
     if [ -f src/runtime_driver_no_c.o ]; then
-      nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?asm_codegen_ast$" \
-        || _noc_need_force=1
-      nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?driver_run_compiler_full_x_impl_c$" \
-        || _noc_need_force=1
-      nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?driver_run_compiler_parsed$" \
-        || _noc_need_force=1
+      for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c \
+          driver_run_compiler_parsed driver_argv_has_emit_c_flag \
+          driver_compile_parse_argv_impl_c; do
+        nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$" \
+          || _noc_need_force=1
+      done
     fi
     if [ "$_noc_need_force" = "1" ]; then
       echo "g05_ensure: runtime_driver_no_c.o missing asm_codegen_ast/impl_c/parsed; FORCE try-rt-prefer"
@@ -1158,7 +1158,9 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
         bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
         || { echo "g05_ensure: try-rt-prefer FORCE for hollow faces failed" >&2; exit 1; }
-      for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c driver_run_compiler_parsed; do
+      for _need in asm_codegen_ast driver_run_compiler_full_x_impl_c \
+          driver_run_compiler_parsed driver_argv_has_emit_c_flag \
+          driver_compile_parse_argv_impl_c; do
         if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?${_need}$"; then
           echo "g05_ensure: runtime_driver_no_c.o still missing $_need after FORCE" >&2
           exit 1

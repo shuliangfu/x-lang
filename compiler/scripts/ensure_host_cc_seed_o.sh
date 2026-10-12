@@ -17619,9 +17619,23 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_ef_ok" = "0" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_e_o" "$_rt_ef_seed" \
+                && nm "$_rt_e_o" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
                 _rt_ef_ok=1
                 echo "rt-prefer: R5-lite emit_flags ← $_rt_ef_seed (G-02f-264 seed slice)"
+              else
+                rm -f "$_rt_e_o"
+                echo "rt-prefer: R5 emit_flags seed lacks argv_has_emit (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold emit_flags. PLATFORM: SHARED.
+            if [ "$_rt_ef_ok" = "0" ] && [ -f "$_rt_ef_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_ef_x" "$_rt_e_o" \
+                && nm "$_rt_e_o" 2>/dev/null | grep -qE " T _?driver_argv_has_emit_c_flag$"; then
+                _rt_ef_ok=1
+                echo "rt-prefer: R5 emit_flags ← pure-asm $_rt_ef_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R5 emit_flags pure-asm failed (argv_has_emit missing)" >&2
               fi
             fi
           fi
@@ -17676,9 +17690,23 @@ ensure_rt_prefer_one() {
             if [ "$_rt_compile_ok" = "0" ]; then
               # shellcheck disable=SC2086
               # shellcheck disable=SC2046,SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $(host_cc_win_compat_cflags) -c -o "$_rt_cmp_o" "$_rt_compile_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc $(host_cc_win_compat_cflags) -c -o "$_rt_cmp_o" "$_rt_compile_seed" \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -qE " T _?driver_compile_parse_argv_impl_c$"; then
                 _rt_compile_ok=1
                 echo "rt-prefer: R6 compile pure ← $_rt_compile_seed (G-02f-291~296 seed slice)"
+              else
+                rm -f "$_rt_cmp_o"
+                echo "rt-prefer: R6 compile seed lacks parse_argv_impl (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold compile bodies. PLATFORM: SHARED.
+            if [ "$_rt_compile_ok" = "0" ] && [ -f "$_rt_compile_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_compile_x" "$_rt_cmp_o" \
+                && nm "$_rt_cmp_o" 2>/dev/null | grep -qE " T _?driver_compile_parse_argv_impl_c$"; then
+                _rt_compile_ok=1
+                echo "rt-prefer: R6 compile ← pure-asm $_rt_compile_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R6 compile pure-asm failed (parse_argv_impl missing)" >&2
               fi
             fi
           fi
