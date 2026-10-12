@@ -159,15 +159,21 @@ fi
 if [ "$(uname -s)" = "Darwin" ]; then
   _pabi=src/runtime_pipeline_abi.o
   _oc=""
-  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy llvm-objcopy; do
-    if command -v "$_c" >/dev/null 2>&1 || [ -x "$_c" ]; then _oc=$_c; break; fi
+  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    if [ -x "$_c" ]; then _oc=$_c; break; fi
   done
+  if [ -z "$_oc" ] && command -v llvm-objcopy >/dev/null 2>&1; then
+    _oc=$(command -v llvm-objcopy)
+  fi
+  if [ -z "$_oc" ]; then
+    note "llvm-objcopy missing; hollow/tip strong dups may fail phase1 pure-ld"
+  fi
   if [ -f "$_pabi" ] && [ -n "$_oc" ]; then
     if dd if="$_pabi" bs=8 count=1 2>/dev/null | grep -q '^!<arch>'; then
       _flat_dir=$(mktemp -d "${TMPDIR:-/tmp}/pabi_flat.XXXXXX")
-      (
+      if (
         cd "$_flat_dir" || exit 1
-        ar -x "$OLDPWD/$_pabi" || exit 1
+        ar -x "$(pwd -P 2>/dev/null || pwd)/../$_pabi" 2>/dev/null || ar -x "$OLDPWD/$_pabi" || exit 1
         _thin=$(ls pabi_thin.* 2>/dev/null | head -1)
         _rest=$(ls pabi_rest.* 2>/dev/null | head -1)
         if [ -n "$_thin" ] && [ -n "$_rest" ]; then
@@ -178,15 +184,29 @@ if [ "$(uname -s)" = "Darwin" ]; then
           cp -f pabi_flat.o "$OLDPWD/$_pabi"
           echo "bootstrap_driver_seed_link: flattened libtool $_pabi → MH_OBJECT" >&2
         fi
-      ) || note "pabi flatten skipped/failed (keep archive)"
+      ); then
+        :
+      else
+        note "pabi flatten skipped/failed (keep archive)"
+      fi
       rm -rf "$_flat_dir"
     fi
-    # hollow-owned strongs must beat tip (Apple ld: no multiply_defined)
-    for _hs in       _parser_asm_copy_slice_to_name64_buf_c       _platform_macho_write_macho_o_to_buf       _pipeline_elf_ctx_add_label       _pipeline_elf_ctx_add_sym       _pipeline_asm_emit_return_elf_impl       _backend_emit_block_body_sync_elf       _pipeline_asm_emit_block_body_sync_elf       _pipeline_asm_emit_expr_elf_fast
+    # Always attempt weaken (no nm guard — archive nm layout varies).
+    for _hs in \
+      _parser_asm_copy_slice_to_name64_buf_c \
+      _platform_macho_write_macho_o_to_buf \
+      _pipeline_elf_ctx_add_label \
+      _pipeline_elf_ctx_add_sym \
+      _pipeline_asm_emit_return_elf_impl \
+      _backend_emit_block_body_sync_elf \
+      _pipeline_asm_emit_block_body_sync_elf \
+      _pipeline_asm_emit_expr_elf_fast
     do
       for _to in src/runtime_pipeline_abi.o parser_asm_thin_glue.o; do
-        if [ -f "$_to" ] && nm -gU "$_to" 2>/dev/null | awk '/ T /{print $NF}' | grep -qx "$_hs"; then
-          "$_oc" --weaken-symbol="$_hs" "$_to" 2>/dev/null || true
+        if [ -f "$_to" ]; then
+          if "$_oc" --weaken-symbol="$_hs" "$_to" 2>/dev/null; then
+            note "weakened $_hs in $_to"
+          fi
         fi
       done
     done
@@ -195,6 +215,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
     fi
   fi
 fi
+
 if [ -z "$SEED_LINK_CC" ] && [ -z "$SEED_LINK_LD" ]; then
   fail "incomplete export (CC/LD) from $export_target"
 fi
