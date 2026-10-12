@@ -17605,7 +17605,7 @@ ensure_rt_prefer_one() {
                 && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_RT_RUN_EXEC_FROM_X \
                      -c -o "$_rt_run_rest_o" "$_rt_run_seed" \
                 && pure_ld_partial_merge "$_rt_run_o" "$_rt_run_thin_o" "$_rt_run_rest_o" 2>/dev/null \
-                && nm "$_rt_run_o" 2>/dev/null | grep -q " T driver_run_test$"; then
+                && nm "$_rt_run_o" 2>/dev/null | grep -qE " T _?driver_run_test$"; then
                 _rt_run_ok=1
                 echo "rt-prefer: R7 run/exec ← full .x + rest marker (R2 full H=0)"
               else
@@ -17677,8 +17677,14 @@ ensure_rt_prefer_one() {
               # be the Darwin step. Linux still uses the existing prefer.
               _rt_diag_thin_ok=0
               if [ "$(uname -s)" = "Darwin" ]; then
+                # knife256 / 10.2 cold: darwin_pure needs xlang_asm (wiped in
+                # true L4). Fall through to egg Track L (bootstrap_xlangc)
+                # before hollow 记253 seed. PLATFORM: DARWIN arm64.
                 if rt_diag_errno_darwin_pure "$_rt_diag_thin_o"; then
                   _rt_diag_thin_ok=1
+                elif rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o"; then
+                  _rt_diag_thin_ok=1
+                  echo "rt-prefer: rest diag_errno ← egg pure-asm .x (knife256 cold; no xlang_asm)" >&2
                 fi
               elif rt_prefer_try_x_to_o "$_rt_diag_x" "$_rt_diag_thin_o"; then
                 _rt_diag_thin_ok=1
