@@ -5008,7 +5008,7 @@ case "$UNAME_S" in
       _cg_has_cap=0
       if [ -f codegen_x.o ] && nm codegen_x.o 2>/dev/null | grep -q ' T _*codegen_set_host_call_arg_param_ty$'; then
         _cg_has_cap=1
-        echo "g05_relink_env: codegen cap residual satisfied by codegen_x.o (Track L / paste)"
+        echo "g05_relink_env: codegen cap residual satisfied by codegen_x.o (Track L / paste)" >&2
       fi
       # Knife 255 / 10.1: product path forbids host-cc here. Keep a present
       # object; archaeology rebuild only with XLANG_TYPECK_HOST_CC=1.
@@ -5067,7 +5067,7 @@ case "$UNAME_S" in
       # + slots. Skip separate object when sentinel is defined — no host-cc.
       # PLATFORM: SHARED.
       if [ -f typeck_x.o ] && nm typeck_x.o 2>/dev/null | grep -q ' T _*typeck_set_allow_legacy_extern_calls$'; then
-        echo "g05_relink_env: typeck cap residual satisfied by typeck_x.o (Track L / paste)"
+        echo "g05_relink_env: typeck cap residual satisfied by typeck_x.o (Track L / paste)" >&2
         _TYPECK_CAP_RESIDUAL=""
         # fall through: leave empty; skip tip-compile / host-cc / missing fail
         :
