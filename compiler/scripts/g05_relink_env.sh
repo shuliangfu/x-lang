@@ -5146,6 +5146,64 @@ case "$UNAME_S" in
     ;;
 esac
 
+# knife 254 / 9.2: Darwin tip elf_ctx_thin owns pipeline_elf_ctx_emit_data_len /
+# append_data_zeros / data_poke_u8. Clean pabi_weak still has strong T copies —
+# redefine so tip first-wins (Darwin ld has no multidef). PLATFORM: MACOS tip cold.
+case "$UNAME_S" in
+  Darwin*)
+    if [ -s src/runtime_pipeline_abi_elf_ctx_thin.o ] \
+      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ]; then
+        for _ec_w in _pipeline_elf_ctx_emit_data_len \
+            _pipeline_elf_ctx_append_data_zeros \
+            _pipeline_elf_ctx_data_poke_u8; do
+          if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              | grep -E " ${_ec_w}$" | grep -qv undefined; then
+            "$_oc" --redefine-sym="${_ec_w}=${_ec_w}_pabi_stubdead" \
+              build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+              || { echo "g05_relink_env: redefine pabi_weak $_ec_w failed (Darwin elf_ctx)" >&2; exit 1; }
+          fi
+        done
+      fi
+    fi
+    # knife 254 / 9.2: m8_reloc_stubs fills pabi_weak U after hollow, but clean
+    # archive_leaf still defines the same m8_tail / reloc BSS / emit_heavy_safe
+    # faces as strong T. Redefine ALE copies so stubs first-win; ALE still fills
+    # other remaining U. PLATFORM: MACOS tip cold.
+    if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ] \
+      && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ]; then
+        for _m8_w in _asm_backend_m8_tail_thin_delegate_c_name \
+            _asm_driver_m8_tail_thin_delegate_c_name \
+            _asm_parser_m8_tail_thin_delegate_c_name \
+            _asm_pipeline_m8_tail_thin_delegate_c_name \
+            _asm_typeck_m8_tail_thin_delegate_c_name \
+            _asm_parser_emit_heavy_safe_helper \
+            _g_pipeline_elf_reloc_r_pcrel \
+            _g_pipeline_elf_reloc_r_type \
+            _g_pipeline_elf_reloc_sidecar_owner; do
+          if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+              | grep -E " ${_m8_w}$" >/dev/null; then
+            "$_oc" --redefine-sym="${_m8_w}=${_m8_w}_ale_superseded_w254" \
+              build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+              || { echo "g05_relink_env: redefine ALE $_m8_w failed (Darwin m8 stubs)" >&2; exit 1; }
+          fi
+        done
+      fi
+    fi
+    ;;
+esac
+
 # knife 254 / 9.2: tip asm_expr_rec and pabi_weak both define
 # leftover_emit_struct_lit_into_parked_rbx. Weaken egg so tip first-wins.
 # PLATFORM: MACOS tip cold.
