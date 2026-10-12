@@ -1082,8 +1082,10 @@ if [ -x ./xlang_asm ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_call_arg_resolve_var_stack_off_elf_c=$_G05_W211_CALL_ARG"
     fi
   else
-    echo "g05_relink_env: ERROR 记211 call_arg_const_off_thin.x did not build" >&2
-    exit 1
+    # knife256/10.2: Darwin tip egg often misses this thin; Cap/pabi already
+    # carry glue_call_arg_resolve_var_stack_off_elf_c. Do not hard-stop g05.
+    # PLATFORM: SHARED (Linux gold still prefers a fresh tip thin when emit works).
+    echo "g05_relink_env: WARNING 记211 call_arg_const_off_thin.x did not build (Cap/pabi keep)" >&2
   fi
   # Weaken Cap / measured pabi copies so tip thin first-wins cleanly.
   _oc=""
