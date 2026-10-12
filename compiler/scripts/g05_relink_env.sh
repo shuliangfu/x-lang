@@ -5204,6 +5204,39 @@ case "$UNAME_S" in
     ;;
 esac
 
+# knife 254 / 9.2: Darwin tip elf_ctx layout uses pipe_elf_off_e_machine
+# 0x2990018. Clean pabi_weak mega_body still stores e_machine at stale
+# 0x10a0018, so macho_write reads 0 and emits x86_64. ALE local mega_body
+# has the 0x299 stores — redefine pabi copy stubdead and globalize ALE so
+# tip-cold first-wins the correct body. PLATFORM: MACOS tip cold.
+case "$UNAME_S" in
+  Darwin*)
+    if [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+      && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+      _oc=""
+      if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+      elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+      elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+      fi
+      if [ -n "$_oc" ]; then
+        if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            | grep -E " _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c$" \
+            | grep -qv undefined; then
+          "$_oc" --redefine-sym=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c_pabi_stubdead \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            || { echo "g05_relink_env: redefine pabi_weak mega_body failed (Darwin e_machine off)" >&2; exit 1; }
+        fi
+        if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+            | grep -E " _pipeline_backend_asm_codegen_ast_to_elf_mega_body_c$" >/dev/null; then
+          "$_oc" --globalize-symbol=_pipeline_backend_asm_codegen_ast_to_elf_mega_body_c \
+            build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+            || { echo "g05_relink_env: globalize ALE mega_body failed (Darwin e_machine off)" >&2; exit 1; }
+        fi
+      fi
+    fi
+    ;;
+esac
+
 # knife 254 / 9.2: tip asm_expr_rec and pabi_weak both define
 # leftover_emit_struct_lit_into_parked_rbx. Weaken egg so tip first-wins.
 # PLATFORM: MACOS tip cold.
