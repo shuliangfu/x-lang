@@ -7,6 +7,8 @@
  * integer/bool/hex/f64 formatting (enough for soft residual green).
  *
  * G.7: single formal vehicle for pure-asm product link (std/fmt/fmt.o).
+ * 记225: Darwin arm64 + Linux product path is src/asm/std_fmt_formal_darwin.x
+ * (fail-closed pure-asm). This C face remains the Windows / miss residual.
  * formal_mod kind=c_face.
  */
 #include <stdint.h>
