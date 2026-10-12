@@ -881,7 +881,7 @@ case "${1:-}" in
       # w1110: Darwin arm64 std/compress/compress.o is the .x.
       # w1111: Darwin arm64 std/runtime/runtime.o is the .x.
       # Other c_face keys stay cc -c. Do not match core/debug/debug.o.
-      # PLATFORM: MACOS|DARWIN arm64. Linux and Windows keep the C face.
+      # PLATFORM: MACOS|DARWIN arm64 | LINUX (记217 debug). Other c_faces: Darwin-only; Windows C.
       _dbg_darwin=0
       _dbg_x=""
       _as_darwin=0
@@ -895,9 +895,11 @@ case "${1:-}" in
       _rt_darwin=0
       _rt_x=""
       if [ "$_key" = "std/debug/debug.o" ]; then
+        # 记217: Linux joins Darwin arm64 pure-asm (same .x; write libc).
+        # Windows keeps formal_surface.c.
         _dbg_os="$(uname -s 2>/dev/null || echo Unknown)"
         _dbg_mach="$(uname -m 2>/dev/null || echo unknown)"
-        if [ "$_dbg_os" = "Darwin" ] && [ "$_dbg_mach" = "arm64" ]; then
+        if { [ "$_dbg_os" = "Darwin" ] && [ "$_dbg_mach" = "arm64" ]; } || [ "$_dbg_os" = "Linux" ]; then
           _dbg_x="src/asm/std_debug_formal_darwin.x"
           if [ ! -f "$_dbg_x" ]; then
             _dbg_x="../compiler/src/asm/std_debug_formal_darwin.x"

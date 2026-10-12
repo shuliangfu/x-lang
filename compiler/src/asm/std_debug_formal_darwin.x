@@ -7,15 +7,15 @@
 // libSystem write. The name does not start with an underscore, so the
 // Mach-O undefined symbol is _write. A newline is the byte 10 on the
 // stack: this compiler cannot store a file-level let. Each function
-// makes one extern call. Linux and Windows keep formal_surface.c.
-// PLATFORM: MACOS|DARWIN arm64.
+// makes one extern call. Windows keeps formal_surface.c.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX.
 
 extern function write(fd: i32, buf: *u8, n: usize): isize;
 
 /**
  * Write one newline to stderr.
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function debug_write_nl(): i32 {
   let nl: u8 = 10;
@@ -31,7 +31,7 @@ function debug_write_nl(): i32 {
  * @param ptr bytes, or null
  * @param len byte count
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function debug_write_bytes(ptr: *u8, len: i32): i32 {
   if (ptr == 0) {
@@ -49,7 +49,7 @@ function debug_write_bytes(ptr: *u8, len: i32): i32 {
 /**
  * Anchor for this Darwin debug object.
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_debug_formal_darwin_x_doc_anchor(): i32 {
@@ -61,7 +61,7 @@ export function std_debug_formal_darwin_x_doc_anchor(): i32 {
  * This face does not abort.
  * @param b condition, non-zero is true
  * @return i32 — 0 or -1
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_debug_assert(b: i32): i32 {
@@ -76,7 +76,7 @@ export function std_debug_assert(b: i32): i32 {
  * @param ptr bytes, or null
  * @param len byte count
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_debug_println_u8_ptr_i32(ptr: *u8, len: i32): i32 {
@@ -89,7 +89,7 @@ export function std_debug_println_u8_ptr_i32(ptr: *u8, len: i32): i32 {
  * @param ptr bytes, or null
  * @param len byte count
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_debug_print_u8_ptr_i32(ptr: *u8, len: i32): i32 {

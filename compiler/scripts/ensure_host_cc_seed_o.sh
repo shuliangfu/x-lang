@@ -1372,15 +1372,17 @@ ensure_process_import_alias_darwin_pure() {
   return 0
 }
 
-# w1106: Darwin arm64 std/debug/debug.o writes stderr with libSystem write.
-# The newline is the byte 10. Linux and Windows keep the C face.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1106 / 记217: Darwin arm64 + Linux std/debug/debug.o from .x (write libc).
+# Newline is byte 10. Windows keeps the C face. Linux miss does not exec cc.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
 ensure_std_debug_formal_darwin_pure() {
   local o="${1:-../std/debug/debug.o}"
   local xsrc="src/asm/std_debug_formal_darwin.x"
   local csrc="../std/debug/formal_surface.c"
   local try=0
+  local _pa_os
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o debug-formal: missing $xsrc" >&2
     return 1
@@ -1391,9 +1393,9 @@ ensure_std_debug_formal_darwin_pure() {
   fi
   mkdir -p "$(dirname "$o")"
   # w1199: some pure-asm tries segfault. Retry before the eight-try
-  # path. A failed retry still falls back to that path and then the
-  # C face. Symbols stay strong. write stays undefined.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # path. A failed retry still falls back to that path; Darwin may then
+  # use the C face. Linux is fail-closed (no cc).
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh debug-formal-retry "$o"; then
     log "prefer debug formal ← pure-asm six symbols (w1199)"
@@ -1406,27 +1408,24 @@ ensure_std_debug_formal_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      local _dg_short _dg_ok
+      local _dg_ok
       _dg_ok=1
-      for _dg_short in \
-        _std_debug_assert \
-        _std_debug_print_u8_ptr_i32 \
-        _std_debug_println_u8_ptr_i32 \
-        _std_debug_formal_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_dg_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
-          _dg_ok=0
-          break
-        fi
-      done
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_debug_assert$'; then _dg_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_debug_print_u8_ptr_i32$'; then _dg_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_debug_println_u8_ptr_i32$'; then _dg_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_debug_formal_darwin_x_doc_anchor$'; then _dg_ok=0; fi
       if [ "$_dg_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o debug-formal: required text symbols missing" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_write" { n++ } END { exit (n==1)?0:1 }'; then
-        echo "ensure_host_cc_seed_o debug-formal: write is not undefined" >&2
-        rm -f "$o"
-        continue
+      if ! nm -u "$o" 2>/dev/null | grep -qE '^_?write$| _?write$'; then
+        # nm -u formats vary: symbol alone or with type
+        if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="write" || s=="_write" { n++ } END { exit (n>=1)?0:1 }'; then
+          echo "ensure_host_cc_seed_o debug-formal: write is not undefined" >&2
+          rm -f "$o"
+          continue
+        fi
       fi
       log "pure-asm $xsrc → $o"
       return 0
@@ -1434,6 +1433,12 @@ ensure_std_debug_formal_darwin_pure() {
     echo "ensure_host_cc_seed_o debug-formal: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin may compile the C face.
+  # PLATFORM: LINUX.
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o debug-formal: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $csrc → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -1441,6 +1446,7 @@ ensure_std_debug_formal_darwin_pure() {
   fi
   return 0
 }
+
 
 # w1107: Darwin arm64 std/async/async.o forwards the leftover import names.
 # The scheduler body stays in the C glue. Linux and Windows keep the C face.
@@ -8491,22 +8497,36 @@ io_formal_retry_pure() {
 debug_formal_retry_pure() {
   local o="${1:-}"
   local xsrc="src/asm/std_debug_formal_darwin.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+  local try n
+  local _os _mach
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  # 记217: Linux joins Darwin arm64. Other hosts return 1.
+  if [ "$_os" = "Darwin" ]; then
+    if [ "$_mach" != "arm64" ]; then
+      return 1
+    fi
+  elif [ "$_os" != "Linux" ]; then
     return 1
   fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
-    return 1
-  fi
+  # Prefer xlang_asm when present; else ./xlang (Linux product tip).
   try=0
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
+    if [ -x ./xlang_asm ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    elif [ -x ./xlang ]; then
+      if ./xlang -backend asm -c -L .. -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    else
+      return 1
     fi
     rm -f "$o"
   done
@@ -8518,14 +8538,11 @@ debug_formal_retry_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _std_debug_formal_darwin_x_doc_anchor _std_debug_assert \
-    _std_debug_print_u8_ptr_i32 _std_debug_println_u8_ptr_i32; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
-  done
-  if ! nm -u "$o" | awk '{ s=$NF } s=="_write" { n++ } END { exit (n==1)?0:1 }'; then
+  if ! nm "$o" | grep -qE ' T _?std_debug_formal_darwin_x_doc_anchor$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_debug_assert$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_debug_print_u8_ptr_i32$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_debug_println_u8_ptr_i32$'; then rm -f "$o"; return 1; fi
+  if ! nm -u "$o" | awk '{ s=$NF } s=="write" || s=="_write" { n++ } END { exit (n>=1)?0:1 }'; then
     rm -f "$o"
     return 1
   fi
@@ -31754,9 +31771,9 @@ case "$MODE" in
     exit $?
     ;;
   debug-formal-retry|debug_formal_retry_pure)
-    # w1199: six pure-asm symbols of std_debug_formal_darwin.x.
+    # w1199 / 记217: six pure-asm symbols of std_debug_formal_darwin.x.
     # Does not write std/debug/debug.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o debug-formal-retry: need <out.o>" >&2
       exit 2
@@ -32846,9 +32863,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   debug-formal-pure|debug_formal_pure)
-    # w1106: Darwin arm64 std/debug formal face from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1106 / 记217: Darwin arm64 + Linux std/debug formal face from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 (no cc).
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o debug-formal-pure: need <out.o>" >&2
       exit 2
