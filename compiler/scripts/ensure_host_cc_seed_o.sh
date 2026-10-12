@@ -5809,6 +5809,104 @@ ensure_net_udp_batch_darwin_pure() {
   return 0
 }
 
+
+# knife 256 / 10.2: pure-asm leaf when C seed was deleted (5.11 / w1533).
+# Mirrors g05_ensure whole-object pure asm; used by bootstrap try-heat.
+# PLATFORM: SHARED. Fail closed — no host-cc fallback.
+ensure_deleted_seed_leaf_pure() {
+  local o="$1"
+  local x=""
+  case "$o" in
+    src/asm/user_asm_seed_bridge.o) x=src/asm/user_asm_seed_bridge.x ;;
+    src/asm/asm_backend_compat_stubs.o) x=src/asm/asm_backend_compat_stubs.x ;;
+    src/asm/backend_x86_64_enc_c.o) x=src/asm/backend_x86_64_enc_c.x ;;
+    src/asm/backend_arm64_enc_c.o) x=src/asm/backend_arm64_enc_c.x ;;
+    src/asm/parser_asm_parse_expr_link.o)
+      # Darwin has a dedicated one-shot helper; other hosts use the .x.
+      if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+        && [ -f src/asm/parser_asm_parse_expr_link_darwin.x ]; then
+        ensure_parse_expr_link_darwin_pure "$o" || return 1
+        return 0
+      fi
+      x=src/asm/parser_asm_parse_expr_link.x
+      ;;
+    src/x_seed_bridge.o) x=src/x_seed_bridge.x ;;
+    src/runtime/rt_emit_state.o) x=src/runtime/rt_emit_state.x ;;
+    *)
+      echo "ensure_host_cc_seed_o: ensure_deleted_seed_leaf_pure: unknown $o" >&2
+      return 1
+      ;;
+  esac
+  if [ ! -f "$x" ]; then
+    echo "ensure_host_cc_seed_o: missing $x for $o" >&2
+    return 1
+  fi
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $x; deleted-seed pure)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  local try=0 done=0
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS G05_X_O_SYM_RENAME
+      pure_asm_x_to_o "$o" "$x"
+    ) && [ -s "$o" ]; then
+      done=1
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ "$done" != "1" ]; then
+    echo "ensure_host_cc_seed_o: pure-asm failed for $x → $o (no seed fallback)" >&2
+    return 1
+  fi
+  log "pure-asm $x → $o (knife256 deleted-seed; no host-cc)"
+  return 0
+}
+
+# knife 256 / 10.2: bootstrap try-heat twin of g05 w1516 runtime_asm_io_stubs.
+# PLATFORM: SHARED.
+ensure_runtime_asm_io_stubs_pure() {
+  local o=runtime_asm_io_stubs.o
+  local x=src/asm/runtime_asm_io_stubs.x
+  if [ ! -f "$x" ]; then
+    echo "ensure_host_cc_seed_o: missing $x" >&2
+    return 1
+  fi
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] && [ ! "$x" -nt "$o" ] \
+    && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+    log "skip $o (up-to-date pure-asm w1516)"
+    return 0
+  fi
+  local try=0 done=0
+  while [ "$try" -lt 3 ]; do
+    try=$((try + 1))
+    rm -f "$o"
+    if (
+      export XLANG_PREFER_ASM_O=1
+      unset G05_X_O_WEAK G05_X_O_SYM_RENAME
+      # Darwin/Linux weaken the historic io face set; keep minimal for cold.
+      export G05_X_O_WEAK_FUNCS="xlang_sys_write,xlang_sys_read,xlang_sys_writev,xlang_sys_mmap,xlang_sys_munmap,xlang_target_cpu_detect_host"
+      pure_asm_x_to_o "$o" "$x"
+    ) && [ -s "$o" ] \
+      && nm "$o" 2>/dev/null | grep -q "T _*runtime_asm_io_stubs_x_doc_anchor\$"; then
+      done=1
+      break
+    fi
+    rm -f "$o"
+  done
+  if [ "$done" != "1" ]; then
+    echo "ensure_host_cc_seed_o: pure-asm failed for $x → $o (w1516; no seed)" >&2
+    return 1
+  fi
+  log "pure-asm $x → $o (w1516/knife256; no host-cc)"
+  return 0
+}
+
 ensure_one() {
   local out="$1"
   local seed="$2"
@@ -5836,16 +5934,13 @@ ensure_one() {
     return 0
   fi
 
-  # w1516 (5.7b): runtime_asm_io_stubs.o has no C seed any more. It is built
-  # only from src/asm/runtime_asm_io_stubs.x by product pure asm in
-  # scripts/g05_ensure_relink_prereqs.sh. Here we accept an existing object and
-  # never cc. PLATFORM: SHARED.
+  # w1516 (5.7b) / knife 256 (10.2): runtime_asm_io_stubs.o has no C seed.
+  # Build from src/asm/runtime_asm_io_stubs.x via product pure asm (same as
+  # g05_ensure). Bootstrap try-heat must not require g05 first.
+  # PLATFORM: SHARED.
   if [ "$out" = "runtime_asm_io_stubs.o" ]; then
-    if [ -f runtime_asm_io_stubs.o ]; then
-      return 0
-    fi
-    echo "ensure_host_cc_seed_o: runtime_asm_io_stubs.o missing; build it from src/asm/runtime_asm_io_stubs.x via scripts/g05_ensure_relink_prereqs.sh" >&2
-    exit 1
+    ensure_runtime_asm_io_stubs_pure || exit 1
+    return 0
   fi
 
   # w1528 (5.9): src/driver/target_cpu.o has no C seed. Full .x pure asm only.
@@ -5856,9 +5951,38 @@ ensure_one() {
     return 0
   fi
 
+  # knife 256 / 10.2: seeds deleted in 5.11 (w1533) and rt-slice pure-asm
+  # (w1493–w1496). try-heat → ensure_one must pure-asm the .x, never exit on
+  # missing seed. Fail closed (no host-cc fallback). PLATFORM: SHARED.
   if [ ! -f "$seed" ]; then
-    echo "ensure_host_cc_seed_o: missing seed $seed" >&2
-    exit 1
+    case "$out" in
+      src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|src/asm/backend_arm64_enc_c.o|src/asm/parser_asm_parse_expr_link.o|src/x_seed_bridge.o)
+        ensure_deleted_seed_leaf_pure "$out" || exit 1
+        return 0
+        ;;
+      src/runtime/rt_emit_state.o)
+        # Egg pure-asm lacks one Lxml common vs tip prefer gate; cold uses
+        # whole .x pure-asm (g05 prefer refreshes later). PLATFORM: SHARED.
+        ensure_deleted_seed_leaf_pure "$out" || exit 1
+        return 0
+        ;;
+      src/runtime/rt_preamble.o)
+        ensure_rt_preamble_prefer || exit 1
+        return 0
+        ;;
+      src/runtime/rt_stack.o)
+        ensure_rt_stack_prefer || exit 1
+        return 0
+        ;;
+      src/runtime/rt_parse_diag.o)
+        ensure_rt_parse_diag_prefer || exit 1
+        return 0
+        ;;
+      *)
+        echo "ensure_host_cc_seed_o: missing seed $seed" >&2
+        exit 1
+        ;;
+    esac
   fi
   # w862: thin enc publics and the slice marker are in the .x.
   # Do not cc the tail alone. PLATFORM: SHARED.
@@ -10409,7 +10533,12 @@ rt_abk_authority_check() {
   for c in driver_asm_work_reset driver_asm_work_p_set; do
     printf '%s\n' "$syms" | awk -v s="$c" '($1=="U" || $1=="T") && $2==s { f=1 } END { exit f ? 0 : 1 }' || return 1
   done
-  printf '%s\n' "$syms" | awk '$2 ~ /^rt_run_asm_backend_rt_ab_/ { f=1 } END { exit f ? 0 : 1 }' || return 1
+  # knife 256 / 10.2: tip emits module-prefixed locals
+  # (rt_run_asm_backend_rt_ab_*); the pin egg emits unprefixed rt_ab_*.
+  # Both carry driver_run_asm_backend + ap_path + work-slot U/T above, which
+  # the cold seed body lacks. Accept either local shape so L4 bootstrap
+  # (egg-only) can pure-asm this leaf. PLATFORM: SHARED.
+  printf '%s\n' "$syms" | awk '$2 ~ /^rt_run_asm_backend_rt_ab_/ || $2 ~ /^rt_ab_/ { f=1 } END { exit f ? 0 : 1 }' || return 1
   return 0
 }
 
@@ -10420,10 +10549,16 @@ rt_run_asm_backend_pure_any() {
   local o="${1:-}"
   local xsrc="src/runtime/rt_run_asm_backend.x"
   [ -n "$o" ] && [ -f "$xsrc" ] || return 1
+  # knife 256 / 10.2: Darwin tip path wants ./xlang_asm (darwin_pure).
+  # L4 true-cold wipes xlang_asm before bootstrap; fall through to egg
+  # pure_asm_x_to_o (bootstrap_xlangc / xlang-c) with the same authority
+  # check. PLATFORM: SHARED.
   if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
-    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
-    rt_run_asm_backend_darwin_pure "$o"
-    return $?
+    && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ] \
+    && [ -x ./xlang_asm ]; then
+    if rt_run_asm_backend_darwin_pure "$o"; then
+      return 0
+    fi
   fi
   rm -f "$o"
   if ! ( export XLANG_PREFER_ASM_O=1; pure_asm_x_to_o "$o" "$xsrc" ); then
@@ -32045,6 +32180,19 @@ try_heat_one() {
   try_ensure_gen_x_one "$o"; rc=$?; set -e
   [ "$rc" -eq 0 ] && return 0
   [ "$rc" -ne 3 ] && return "$rc"
+  # knife 256 / 10.2: DRIVER_SEED_PREREQS leaves not in R1 tables but
+  # product-pure-asm (deleted C seed). Claim here so try-heat does not
+  # return 3 and fail bootstrap. PLATFORM: SHARED.
+  case "$o" in
+    runtime_asm_io_stubs.o)
+      ensure_runtime_asm_io_stubs_pure || return 1
+      return 0
+      ;;
+    src/x_seed_bridge.o|src/runtime/rt_emit_state.o|src/asm/user_asm_seed_bridge.o|src/asm/asm_backend_compat_stubs.o|src/asm/backend_x86_64_enc_c.o|src/asm/backend_arm64_enc_c.o|src/asm/parser_asm_parse_expr_link.o)
+      ensure_deleted_seed_leaf_pure "$o" || return 1
+      return 0
+      ;;
+  esac
   # Honest residual: not an ensure-owned leaf (make graph / non-catalog).
   return 3
 }

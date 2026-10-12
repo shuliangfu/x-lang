@@ -217,6 +217,13 @@ _l4_print_step_summary() {
 } >"$LOG"
 
 log "mode=$MODE SHA=$SHA host=$HOST"
+# knife 256 / 10.2: egg cannot pure-asm frontend mega (parser.x); bootstrap
+# migrate uses archaeology pin seed snapshot (XLANG_MIGRATE_TRACK_L_COLD_SEED).
+# g05 --sync then replaces with tip pure-asm. Default still tip-assemble for gen.
+# PLATFORM: SHARED — cold L4 only; does not re-enable pin-first (9.2).
+export XLANG_MIGRATE_TRACK_L_COLD_SEED="${XLANG_MIGRATE_TRACK_L_COLD_SEED:-1}"
+export XLANG_TYPECK_HOST_CC="${XLANG_TYPECK_HOST_CC:-0}"
+
 log "log file: $LOG"
 
 # --- 1) Full wipe .o ---
