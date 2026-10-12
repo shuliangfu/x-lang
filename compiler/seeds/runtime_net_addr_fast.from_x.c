@@ -25,13 +25,7 @@ typedef socklen_t xlang_socklen_t;
  * 语义差异：.x 用手动字节解析（无 libc 依赖）；seed 用 struct cast + ntohl/ntohs（libc 依赖）。两者语义等价。
  * rest 跨调用依赖：net_tcp_local/peer_addr_c 调用 net_sockaddr_in_pack_addr_port_c（thin 提供）。 */
 #ifndef XLANG_RUNTIME_NET_ADDR_FAST_FROM_X
-/* G-02f-151：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr) {
-    struct sockaddr_in *sa = (struct sockaddr_in *)(void *)sin_ptr;
-    uint32_t addr = ntohl(sa->sin_addr.s_addr);
-    uint32_t port = (uint32_t)ntohs(sa->sin_port);
-    return ((int64_t)addr << 32) | (int64_t)(port & 0xffffu);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_ADDR_FAST_FROM_X removed */
 #else
 /* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
 extern int64_t net_sockaddr_in_pack_addr_port_c(uint8_t *sin_ptr);

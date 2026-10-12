@@ -21,10 +21,7 @@ int32_t net_dns_ai_addconfig_c_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_dns_ai_addconfig_c(void) {
-    return net_dns_ai_addconfig_c_impl_c();
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X removed */
 #endif
 
 int32_t net_dns_map_gai_error_c_impl_c(int err) {
@@ -38,10 +35,6 @@ int32_t net_dns_map_gai_error_c_impl_c(int err) {
 }
 
 #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_dns_map_gai_error_c(int err) {
-    return net_dns_map_gai_error_c_impl_c(err);
-}
 #endif
 
 int32_t net_dns_ensure_wsa_c_impl_c(void) {
@@ -49,10 +42,6 @@ int32_t net_dns_ensure_wsa_c_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_DNS_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_dns_ensure_wsa_c(void) {
-    return net_dns_ensure_wsa_c_impl_c();
-}
 #endif
 
 uint32_t net_resolve_ipv4_c(uint8_t *hostname) {

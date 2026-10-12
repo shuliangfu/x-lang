@@ -64,10 +64,7 @@ void xlang_udp_batch_set_addr_port_impl(struct sockaddr_in *sin, uint32_t addr_u
 }
 
 #ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void xlang_udp_batch_set_addr_port(struct sockaddr_in *sin, uint32_t addr_u32, uint32_t port_u32) {
-    xlang_udp_batch_set_addr_port_impl(sin, addr_u32, port_u32);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X removed */
 #endif
 
 /** poll 可读；失败 -1。 */
@@ -86,10 +83,6 @@ int xlang_udp_batch_poll_readable_impl(int fd, uint32_t timeout_ms) {
 }
 
 #ifndef XLANG_RUNTIME_NET_UDP_BATCH_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int xlang_udp_batch_poll_readable(int fd, uint32_t timeout_ms) {
-    return xlang_udp_batch_poll_readable_impl(fd, timeout_ms);
-}
 #endif
 
 /**

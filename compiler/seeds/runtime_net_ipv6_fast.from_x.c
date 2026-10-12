@@ -106,10 +106,7 @@ int32_t net_ipv6_ensure_wsa_c_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_ipv6_ensure_wsa_c(void) {
-    return net_ipv6_ensure_wsa_c_impl_c();
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X removed */
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -119,10 +116,6 @@ int32_t net_ipv6_close_socket_c_impl_c(int32_t fd) {
 }
 
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_ipv6_close_socket_c(int32_t fd) {
-    return net_ipv6_close_socket_c_impl_c(fd);
-}
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -132,10 +125,6 @@ int32_t net_ipv6_set_nonblock_c_impl_c(int32_t fd) {
 }
 
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_ipv6_set_nonblock_c(int32_t fd) {
-    return net_ipv6_set_nonblock_c_impl_c(fd);
-}
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -152,10 +141,6 @@ int32_t net_ipv6_poll_writable_c_impl_c(int32_t fd, uint32_t timeout_ms) {
 }
 
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_ipv6_poll_writable_c(int32_t fd, uint32_t timeout_ms) {
-    return net_ipv6_poll_writable_c_impl_c(fd, timeout_ms);
-}
 #endif
 
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
@@ -169,10 +154,6 @@ int32_t net_ipv6_connect_retry_ok_c_impl_c(void) {
 }
 
 #ifndef XLANG_RUNTIME_NET_IPV6_FAST_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t net_ipv6_connect_retry_ok_c(void) {
-    return net_ipv6_connect_retry_ok_c_impl_c();
-}
 #endif
 
 int32_t net_tcp_connect_ipv6_c(uint8_t *addr_16, uint32_t port_u32, uint32_t timeout_ms) {
