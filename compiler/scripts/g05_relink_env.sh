@@ -1867,6 +1867,58 @@ if [ "$UNAME_S" = "Darwin" ]; then
     exit 1
   fi
 fi
+# knife 254 / 9.2 copy_large (first face): Darwin tip cold UNDEFs
+# glue_copy_large_struct_from_rax_ptr_elf_c after 9.1 hollow. archive_leaf
+# also defines it, but that blob first-wins stale struct_lit emit faces
+# (CG002). Host-cc the existing leftover seed every Darwin relink — do
+# not add a new .c overlay, do not PREFER into the egg, do not pull this
+# T from archive_leaf. Pure .x of this body SEGV on tip (rc 139); seed
+# body matches arm64 (x19) and x86 paths. Link ahead of pabi_weak and
+# archive_leaf; weaken ALE's copy when present. PLATFORM: MACOS|DARWIN.
+if [ "$UNAME_S" = "Darwin" ]; then
+  _cl_c=seeds/win_copy_large_struct_override.c
+  _cl_o=build_asm/selfhost_pabi/copy_large_a64.o
+  mkdir -p build_asm/selfhost_pabi
+  if [ ! -s "$_cl_o" ] || [ "$_cl_c" -nt "$_cl_o" ]; then
+    if ! cc -O2 -c -o "$_cl_o.tmp.o" "$_cl_c"; then
+      rm -f "$_cl_o.tmp.o"
+      echo "g05_relink_env: ERROR Darwin copy_large seed cc failed" >&2
+      exit 1
+    fi
+    mv -f "$_cl_o.tmp.o" "$_cl_o"
+  fi
+  if [ ! -s "$_cl_o" ]; then
+    echo "g05_relink_env: ERROR Darwin copy_large .o missing" >&2
+    exit 1
+  fi
+  if ! nm "$_cl_o" 2>/dev/null | awk '{s=$NF; sub(/^_/,"",s); if (s=="glue_copy_large_struct_from_rax_ptr_elf_c" && ($2=="T" || $0 ~ /external/)) f=1} END{exit f?0:1}'; then
+    echo "g05_relink_env: ERROR Darwin copy_large lacks T glue_copy_large_struct_from_rax_ptr_elf_c" >&2
+    exit 1
+  fi
+  _oc=""
+  if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+  elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+  elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+  fi
+  if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/archive_leaf_extract.o ]; then
+    if nm -m build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+        | grep -E " _glue_copy_large_struct_from_rax_ptr_elf_c$" | grep -qv weak; then
+      "$_oc" --weaken-symbol=_glue_copy_large_struct_from_rax_ptr_elf_c \
+        build_asm/selfhost_pabi/archive_leaf_extract.o 2>/dev/null \
+        || { echo "g05_relink_env: weaken ALE copy_large failed" >&2; exit 1; }
+    fi
+  fi
+  if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    if nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        | grep -E " _glue_copy_large_struct_from_rax_ptr_elf_c$" | grep -qv weak; then
+      "$_oc" --weaken-symbol=_glue_copy_large_struct_from_rax_ptr_elf_c \
+        build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+        || { echo "g05_relink_env: weaken pabi_weak copy_large failed" >&2; exit 1; }
+    fi
+  fi
+  _PABI_SELFHOST="$_cl_o ${_PABI_SELFHOST:-}"
+  _G05_LINK_WINNERS="${_G05_LINK_WINNERS:-} _glue_copy_large_struct_from_rax_ptr_elf_c=$_cl_o"
+fi
 # w2060: wide STRUCT_LIT / FIELD / VAR store. pabi_weak's
 # _glue_store_retval_pair_to_rbp_elf_c is weak and is not the __text
 # atom. Its sz>16 gate copies kinds 45, 47, 48, and 49. A kind below
