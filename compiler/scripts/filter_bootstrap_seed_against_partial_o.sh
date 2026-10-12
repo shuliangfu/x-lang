@@ -120,12 +120,21 @@ run_filter() {
     extra_omits+=(--omit src/asm/backend_enc_dispatch.o)
   fi
   # PLATFORM: SHARED — bash required (arrays); Ubuntu dash rejects OMITS=().
-  exec bash scripts/filter_o_export_against_deps.sh \
-    --src "$src" \
-    --out "$out" \
-    --stem "$stem" \
-    --omit "$partial" \
-    "${extra_omits[@]}"
+  # Darwin bash 3.2 + set -u: empty "${arr[@]}" is unbound — expand only when set.
+  if [ "${#extra_omits[@]}" -gt 0 ]; then
+    exec bash scripts/filter_o_export_against_deps.sh \
+      --src "$src" \
+      --out "$out" \
+      --stem "$stem" \
+      --omit "$partial" \
+      "${extra_omits[@]}"
+  else
+    exec bash scripts/filter_o_export_against_deps.sh \
+      --src "$src" \
+      --out "$out" \
+      --stem "$stem" \
+      --omit "$partial"
+  fi
 }
 
 ensure_src_via_try_heat() {
