@@ -1140,6 +1140,20 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
         exit 1
       fi
     fi
+    # knife256 / 10.2: 记253 hollowed R9 seed; force rebuild for asm_codegen_ast.
+    if [ -f src/runtime_driver_no_c.o ] \
+      && ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
+      echo "g05_ensure: runtime_driver_no_c.o missing asm_codegen_ast; FORCE try-rt-prefer"
+      XLANG_HOST_CC_SEED_FORCE=1 XLANG_G05_PREFER_X_O="${XLANG_G05_PREFER_X_O:-1}" \
+        CC="$CC" CFLAGS="${CFLAGS:--Wall -Wextra -I. -Iinclude -Isrc}" \
+        RUNTIME_DRIVER_NO_C_CFLAGS="$RUNTIME_DRIVER_NO_C_CFLAGS" \
+        bash scripts/ensure_host_cc_seed_o.sh try-rt-prefer src/runtime_driver_no_c.o \
+        || { echo "g05_ensure: try-rt-prefer FORCE for asm_codegen_ast failed" >&2; exit 1; }
+      if ! nm src/runtime_driver_no_c.o 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
+        echo "g05_ensure: runtime_driver_no_c.o still missing asm_codegen_ast after FORCE" >&2
+        exit 1
+      fi
+    fi
     # w2060: driver_run_asm_backend must be the src/runtime/rt_run_asm_backend.x
     # body (fills the driver_asm work slots → entry exports keep the module
     # prefix). A stale or cold-seed leaf stops ensure here. PLATFORM: SHARED.
@@ -5106,6 +5120,45 @@ if [ "${XLANG_NO_C_SEED_LINK:-0}" != "1" ] && [ "${XLANG_LEGACY_C_FRONTEND:-0}" 
       fi
     fi
   fi
+fi
+
+# knife256 / 10.2: tip-cold elf_ctx_thin sidecar (inject-elf-ctx is HARD BAN
+# reinject / stamp-only). After L4 wipe, missing .o pulls host-cc data_len
+# which UNDEFs g_pipeline_elf_data_*. Pure-asm the thin so g05 skips data_len.
+# PLATFORM: SHARED · MACOS tip cold · LINUX gold.
+_elf_ctx_x=src/runtime_pipeline_abi_elf_ctx_thin.x
+_elf_ctx_o=src/runtime_pipeline_abi_elf_ctx_thin.o
+if [ -f "$_elf_ctx_x" ]; then
+  if [ ! -s "$_elf_ctx_o" ] || [ "$_elf_ctx_x" -nt "$_elf_ctx_o" ]; then
+    _elf_bin=""
+    if [ -x ./xlang ]; then _elf_bin=./xlang
+    elif [ -x ./xlang_asm ]; then _elf_bin=./xlang_asm
+    elif [ -x ./bootstrap_xlangc ]; then _elf_bin=./bootstrap_xlangc
+    fi
+    if [ -n "$_elf_bin" ]; then
+      echo "g05_ensure: elf_ctx_thin ← pure-asm $_elf_ctx_x (knife256; skip data_len)" >&2
+      rm -f "$_elf_ctx_o"
+      if ! "$_elf_bin" -backend asm -c -L .. -L . -o "$_elf_ctx_o" "$_elf_ctx_x" \
+          || [ ! -s "$_elf_ctx_o" ] \
+          || ! nm "$_elf_ctx_o" 2>/dev/null | grep -qE " T _?pipeline_elf_ctx_emit_data_len$"; then
+        echo "g05_ensure: WARN elf_ctx_thin pure-asm failed (data_len BSS path remains)" >&2
+        rm -f "$_elf_ctx_o"
+      else
+        echo "g05_ensure: elf_ctx_thin OK ($_elf_ctx_o)" >&2
+      fi
+    else
+      echo "g05_ensure: WARN no xlang for elf_ctx_thin pure-asm" >&2
+    fi
+  fi
+fi
+
+# knife256 / 10.2: refresh Darwin phase1 hollow-fill so m8_reloc_stubs carries
+# g_pipeline_elf_data_* BSS for g05 when data_len is still linked.
+# PLATFORM: MACOS tip cold.
+if [ "$(uname -s)" = "Darwin" ] && [ -f scripts/darwin_phase1_hollow_fill.sh ]; then
+  echo "g05_ensure: darwin_phase1_hollow_fill refresh (knife256 BSS)" >&2
+  bash scripts/darwin_phase1_hollow_fill.sh >&2 \
+    || echo "g05_ensure: WARN hollow_fill refresh failed" >&2
 fi
 
 # w1483: Linux selfhost_pabi tip refresh (pabi_alias + arr_struct_lit peers).

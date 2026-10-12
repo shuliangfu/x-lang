@@ -17726,9 +17726,26 @@ ensure_rt_prefer_one() {
             fi
             if [ "$_rt_asm_ok" = "0" ] && [ -f "$_rt_asm_seed" ]; then
               # shellcheck disable=SC2086
-              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed"; then
+              if $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_rt_asm_o" "$_rt_asm_seed" \
+                && nm "$_rt_asm_o" 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
                 _rt_asm_ok=1
                 echo "rt-prefer: R9 asm stub ← $_rt_asm_seed (G-02f-300 seed slice cold)"
+              else
+                # 记253／9.1 emptied cold bodies; marker-only is not a definition.
+                rm -f "$_rt_asm_o"
+                echo "rt-prefer: R9 asm stub seed lacks asm_codegen_ast (记253 hollow) → pure-asm" >&2
+              fi
+            fi
+            # knife256 / 10.2: 记253 removed cold asm_codegen_ast under #ifndef FROM_X.
+            # Seed-only is marker-only; g05 then UNDEF from experimental bridge.
+            # Fall back to pure-asm .x alone (no host-cc). PLATFORM: SHARED.
+            if [ "$_rt_asm_ok" = "0" ] && [ -f "$_rt_asm_stub_x" ]; then
+              if rt_prefer_try_x_to_o "$_rt_asm_stub_x" "$_rt_asm_o" \
+                && nm "$_rt_asm_o" 2>/dev/null | grep -qE " T _?asm_codegen_ast$"; then
+                _rt_asm_ok=1
+                echo "rt-prefer: R9 asm stub ← pure-asm $_rt_asm_stub_x alone (knife256; no seed-only)"
+              else
+                echo "rt-prefer: R9 asm stub pure-asm failed (asm_codegen_ast missing)" >&2
               fi
             fi
           fi

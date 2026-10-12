@@ -517,6 +517,21 @@ _driver_x_emit_lib_name_buf:
 	.align 3
 _driver_x_emit_lib_name_len:
 	.space 4
+
+	/* knife256 / 10.2: dual F7 data homes for data_len sidecar / tip cold.
+	 * CAP=65536 matches W744_PIPE_ELF_DATA_CAP. Weak so tip/pabi strong wins.
+	 * PLATFORM: MACOS arm64 · as only · g05 via m8_reloc_stubs.o.
+	 */
+	.globl _g_pipeline_elf_data_len
+	.weak_definition _g_pipeline_elf_data_len
+	.align 3
+_g_pipeline_elf_data_len:
+	.space 4
+	.globl _g_pipeline_elf_data_buf
+	.weak_definition _g_pipeline_elf_data_buf
+	.align 3
+_g_pipeline_elf_data_buf:
+	.space 65536
 STUB
 as -o "$OUT/m8_reloc_stubs.o" "$OUT/m8_reloc_stubs.s"
 [ -s "$OUT/m8_reloc_stubs.o" ] || { echo "darwin_phase1_hollow_fill: as failed" >&2; exit 1; }
@@ -526,6 +541,9 @@ as -o "$OUT/m8_reloc_stubs.o" "$OUT/m8_reloc_stubs.s"
 # driver_build_build_x / driver_exec_* when no_c carries tip faces.
 # PLATFORM: MACOS arm64.
 _oc=$(command -v llvm-objcopy 2>/dev/null || command -v objcopy 2>/dev/null || true)
+if [ -z "$_oc" ] && [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+  _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+fi
 if [ -z "$_oc" ] && [ -x /usr/bin/xcrun ]; then
   _oc=$(xcrun -f llvm-objcopy 2>/dev/null || true)
 fi
