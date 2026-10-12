@@ -352,6 +352,8 @@ formal_mod_spec_for_key() {
     # Do not pass -lib-name "". Exports stay std_context_*.
     # context.x has Darwin+Linux pure-asm arm (记212). WINDOWS stays on the C path.
     std/context/context.o) printf '%s' "mod|1|../std/context/mod.x|../std/context/context.x" ;;
+    # PLATFORM: MACOS|DARWIN|LINUX — error mod.x has pure-asm arm (记215).
+    # WINDOWS stays on the C path.
     std/error/error.o) printf '%s' "mod|0|../std/error/mod.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — std.json is one asm leaf.
     # WINDOWS stays on the C path. Import mangle stays std_json_*.
@@ -2290,6 +2292,44 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/brotli_lib_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/error/mod.x|std/error/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.error mod.x (记215).
+      # Do not pass -lib-name "". Exports stay std_error_*.
+      # Root: tip export_sym appends _c to net_err_* / fs_err_not_found; C
+      # exports without _c. Source adds #[no_mangle] std_error_* aliases.
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _err_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_err_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/err_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_fs_err_not_found$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_net_err_timeout$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_net_err_cancelled$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_net_err_generic$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_io_err_timeout$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_code$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_is_ok$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_from_code$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_chain_empty$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_error_base_io$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/err_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

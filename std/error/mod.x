@@ -191,6 +191,19 @@ export function base_fs(): i32 { return -1100; }
  */
 export function fs_err_not_found(): i32 { return -1101; }
 
+/* 记215: tip export_sym appends _c to net_err_* / fs_err_not_found (io_err_*
+ * unaffected). C object exports std_error_* without _c. no_mangle full names
+ * restore the product surface; short names remain for in-module calls.
+ * PLATFORM: SHARED. */
+#[no_mangle]
+export function std_error_net_err_timeout(): i32 { return net_err_timeout(); }
+#[no_mangle]
+export function std_error_net_err_cancelled(): i32 { return net_err_cancelled(); }
+#[no_mangle]
+export function std_error_net_err_generic(): i32 { return net_err_generic(); }
+#[no_mangle]
+export function std_error_fs_err_not_found(): i32 { return fs_err_not_found(); }
+
 // See implementation.
 
 /** Exported function `mod_tag_io`.
