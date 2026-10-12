@@ -925,9 +925,11 @@ case "${1:-}" in
         fi
       fi
       if [ "$_key" = "std/io/io.o" ]; then
+        # 记220: Linux joins Darwin arm64 pure-asm (ctx timeout / read_ctx / write_ctx).
+        # Windows keeps formal_surface.c.
         _io_os="$(uname -s 2>/dev/null || echo Unknown)"
         _io_mach="$(uname -m 2>/dev/null || echo unknown)"
-        if [ "$_io_os" = "Darwin" ] && [ "$_io_mach" = "arm64" ]; then
+        if { [ "$_io_os" = "Darwin" ] && [ "$_io_mach" = "arm64" ]; } || [ "$_io_os" = "Linux" ]; then
           _io_x="src/asm/std_io_formal_darwin.x"
           if [ ! -f "$_io_x" ]; then
             _io_x="../compiler/src/asm/std_io_formal_darwin.x"

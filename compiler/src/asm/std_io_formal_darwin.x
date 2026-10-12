@@ -9,7 +9,7 @@
 // milliseconds, with a floor of 1 and a cap of 2147483647.
 // Live reads and writes forward to std_io_read and std_io_write.
 // Each helper makes one extern call. Linux and Windows keep the C face.
-// PLATFORM: MACOS|DARWIN arm64.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX.
 
 extern function std_context_is_cancelled(handle: i64): i32;
 extern function std_context_remaining_ns(handle: i64): i64;
@@ -22,7 +22,7 @@ extern function std_io_write(handle: u64, ptr: *u8, len: u64, timeout_ms: u32): 
 /**
  * Anchor for this Darwin io object.
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_formal_darwin_x_doc_anchor(): i32 {
@@ -33,7 +33,7 @@ export function std_io_formal_darwin_x_doc_anchor(): i32 {
  * Ask whether the context is cancelled.
  * @param handle context handle
  * @return i32 — non-zero when cancelled
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_ctx_cancelled(handle: i64): i32 {
   let n: i32 = 0;
@@ -47,7 +47,7 @@ function io_ctx_cancelled(handle: i64): i32 {
  * Remaining time on the context, in nanoseconds.
  * @param handle context handle
  * @return i64 — remaining nanoseconds
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_ctx_remaining(handle: i64): i64 {
   let n: i64 = 0;
@@ -61,7 +61,7 @@ function io_ctx_remaining(handle: i64): i64 {
  * Deadline on the context, in nanoseconds.
  * @param handle context handle
  * @return i64 — deadline, or 0 when none
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_ctx_deadline(handle: i64): i64 {
   let n: i64 = 0;
@@ -77,7 +77,7 @@ function io_ctx_deadline(handle: i64): i64 {
  * Values past i32 max clamp to 2147483647.
  * @param rem remaining nanoseconds
  * @return i32 — timeout in milliseconds
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_ms_from_rem(rem: i64): i32 {
   if (rem <= 0) {
@@ -98,7 +98,7 @@ function io_ms_from_rem(rem: i64): i32 {
  * @param handle context handle
  * @param rem remaining nanoseconds
  * @return i32 — 1 when expired
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_ctx_expired(handle: i64, rem: i64): i32 {
   let dl: i64 = io_ctx_deadline(handle);
@@ -114,7 +114,7 @@ function io_ctx_expired(handle: i64, rem: i64): i32 {
  * Map a context to a timeout in milliseconds.
  * @param handle context handle
  * @return i32 — -1 cancelled, -2 expired, otherwise milliseconds
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_timeout_from_ctx(handle: i64): i32 {
@@ -131,7 +131,7 @@ export function std_io_timeout_from_ctx(handle: i64): i32 {
 /**
  * Cancelled error code from std.error.
  * @return i32 — std_error_io_err_cancelled
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_err_cancelled(): i32 {
   let n: i32 = 0;
@@ -144,7 +144,7 @@ function io_err_cancelled(): i32 {
 /**
  * Timeout error code from std.error.
  * @return i32 — std_error_io_err_timeout
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_err_timeout(): i32 {
   let n: i32 = 0;
@@ -161,7 +161,7 @@ function io_err_timeout(): i32 {
  * @param len byte count
  * @param timeout_ms timeout in milliseconds
  * @return i32 — std_io_read
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_read_go(handle: u64, ptr: *u8, len: u64, timeout_ms: u32): i32 {
   let n: i32 = 0;
@@ -178,7 +178,7 @@ function io_read_go(handle: u64, ptr: *u8, len: u64, timeout_ms: u32): i32 {
  * @param len byte count
  * @param timeout_ms timeout in milliseconds
  * @return i32 — std_io_write
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_write_go(handle: u64, ptr: *u8, len: u64, timeout_ms: u32): i32 {
   let n: i32 = 0;
@@ -195,7 +195,7 @@ function io_write_go(handle: u64, ptr: *u8, len: u64, timeout_ms: u32): i32 {
  * @param ptr buffer
  * @param len byte count
  * @return i32 — error code or the forwarded read
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_read_by_tm(tm: i32, handle: u64, ptr: *u8, len: u64): i32 {
   if (tm == (0 - 1)) {
@@ -214,7 +214,7 @@ function io_read_by_tm(tm: i32, handle: u64, ptr: *u8, len: u64): i32 {
  * @param ptr buffer
  * @param len byte count
  * @return i32 — error code or the forwarded write
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function io_write_by_tm(tm: i32, handle: u64, ptr: *u8, len: u64): i32 {
   if (tm == (0 - 1)) {
@@ -233,7 +233,7 @@ function io_write_by_tm(tm: i32, handle: u64, ptr: *u8, len: u64): i32 {
  * @param len byte count
  * @param ctx context handle
  * @return i32 — error code or std_io_read
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_read_ctx(handle: u64, ptr: *u8, len: u64, ctx: i64): i32 {
@@ -248,7 +248,7 @@ export function std_io_read_ctx(handle: u64, ptr: *u8, len: u64, ctx: i64): i32 
  * @param len byte count
  * @param ctx context handle
  * @return i32 — error code or std_io_write
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_io_write_ctx(handle: u64, ptr: *u8, len: u64, ctx: i64): i32 {

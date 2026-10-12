@@ -1512,15 +1512,17 @@ ensure_std_async_formal_darwin_pure() {
   return 0
 }
 
-# w1108: Darwin arm64 std/io/io.o maps a context handle to a timeout.
-# The handle is one i64. Linux and Windows keep the C face.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1108 / 记220: Darwin arm64 + Linux std/io/io.o from .x (ctx timeout faces).
+# Windows keeps the C face. Linux miss does not exec cc.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
 ensure_std_io_formal_darwin_pure() {
   local o="${1:-../std/io/io.o}"
   local xsrc="src/asm/std_io_formal_darwin.x"
   local csrc="../std/io/formal_surface.c"
   local try=0
+  local _pa_os
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o io-formal: missing $xsrc" >&2
     return 1
@@ -1530,10 +1532,9 @@ ensure_std_io_formal_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
-  # w1200: some pure-asm tries segfault. Retry before the eight-try
-  # path. A failed retry still falls back to that path and then the
-  # C face. Symbols stay strong. std_io_read stays undefined.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1200: some pure-asm tries segfault. Retry before the eight-try path.
+  # Darwin may then use C face. Linux is fail-closed (no cc).
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh io-formal-retry "$o"; then
     log "prefer io formal ← pure-asm fifteen symbols (w1200)"
@@ -1546,24 +1547,18 @@ ensure_std_io_formal_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      local _io_short _io_ok
+      local _io_ok
       _io_ok=1
-      for _io_short in \
-        _std_io_timeout_from_ctx \
-        _std_io_read_ctx \
-        _std_io_write_ctx \
-        _std_io_formal_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_io_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
-          _io_ok=0
-          break
-        fi
-      done
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_timeout_from_ctx$'; then _io_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_read_ctx$'; then _io_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_write_ctx$'; then _io_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_io_formal_darwin_x_doc_anchor$'; then _io_ok=0; fi
       if [ "$_io_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o io-formal: required text symbols missing" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_std_io_read" { n++ } END { exit (n==1)?0:1 }'; then
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="std_io_read" || s=="_std_io_read" { n++ } END { exit (n>=1)?0:1 }'; then
         echo "ensure_host_cc_seed_o io-formal: std_io_read is not undefined" >&2
         rm -f "$o"
         continue
@@ -1574,6 +1569,10 @@ ensure_std_io_formal_darwin_pure() {
     echo "ensure_host_cc_seed_o io-formal: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o io-formal: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $csrc → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -8449,22 +8448,35 @@ driver_formal_retry_pure() {
 io_formal_retry_pure() {
   local o="${1:-}"
   local xsrc="src/asm/std_io_formal_darwin.x"
-  local try n c
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+  local try n
+  local _os _mach
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  # 记220: Linux joins Darwin arm64. Other hosts return 1.
+  if [ "$_os" = "Darwin" ]; then
+    if [ "$_mach" != "arm64" ]; then
+      return 1
+    fi
+  elif [ "$_os" != "Linux" ]; then
     return 1
   fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
   try=0
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
+    if [ -x ./xlang_asm ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    elif [ -x ./xlang ]; then
+      if ./xlang -backend asm -c -L .. -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    else
+      return 1
     fi
     rm -f "$o"
   done
@@ -8476,14 +8488,11 @@ io_formal_retry_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _std_io_formal_darwin_x_doc_anchor _std_io_timeout_from_ctx \
-    _std_io_read_ctx _std_io_write_ctx; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
-      rm -f "$o"
-      return 1
-    fi
-  done
-  if ! nm -u "$o" | awk '{ s=$NF } s=="_std_io_read" { n++ } END { exit (n==1)?0:1 }'; then
+  if ! nm "$o" | grep -qE ' T _?std_io_formal_darwin_x_doc_anchor$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_io_timeout_from_ctx$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_io_read_ctx$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_io_write_ctx$'; then rm -f "$o"; return 1; fi
+  if ! nm -u "$o" | awk '{ s=$NF } s=="std_io_read" || s=="_std_io_read" { n++ } END { exit (n>=1)?0:1 }'; then
     rm -f "$o"
     return 1
   fi
@@ -31762,9 +31771,9 @@ case "$MODE" in
     exit $?
     ;;
   io-formal-retry|io_formal_retry_pure)
-    # w1200: fifteen pure-asm symbols of std_io_formal_darwin.x.
+    # w1200 / 记220: fifteen pure-asm symbols of std_io_formal_darwin.x.
     # Does not write std/io/io.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o io-formal-retry: need <out.o>" >&2
       exit 2
