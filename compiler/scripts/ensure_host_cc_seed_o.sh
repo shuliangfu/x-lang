@@ -196,7 +196,7 @@
 #     seed-map:        o→seed map (stem ≠ seed stem) + optional orch extras
 #
 # Families (list authority = catalog KEY):
-#   RT_SEED_SLICE_OBJS     — five Cap residual slices under src/runtime/
+#   RT_SEED_SLICE_OBJS     — six Cap residual slices under src/runtime/ (knife256 +rt_run_exec)
 #   R1_CORE_SEED_OBJS      — diag + runtime_link_abi + runtime_c_import +
 #                            seed_link_compat
 #   R1_FRONTEND_GLUE_OBJS  — lexer.o / ast.o / lsp_diag.o (runtime_*_glue seeds)
@@ -14557,6 +14557,44 @@ ensure_rt_stack_prefer() {
   return 1
 }
 
+
+ensure_rt_run_exec_prefer() {
+  # knife256 / 10.2: g05_relink_env links rt_run_exec.o (knife 254) but the
+  # catalog RT_SEED_SLICE_OBJS had only five members, so L4 wipe left it
+  # missing and g05 aborted. Pure-asm src/runtime/rt_run_exec.x — no host-cc.
+  # PLATFORM: SHARED.
+  local o="src/runtime/rt_run_exec.o"
+  local xsrc="src/runtime/rt_run_exec.x"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o try-rt-run-exec-prefer: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && nm "$o" 2>/dev/null | grep -qE " T _?driver_run_test$"; then
+    log "skip up-to-date $o (rt-run-exec)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  if ! (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
+    pure_asm_x_to_o "$o" "$xsrc"
+  ); then
+    echo "ensure: rt_run_exec pure-asm failed (no host-cc fallback)" >&2
+    return 1
+  fi
+  if ! nm "$o" 2>/dev/null | grep -qE " T _?driver_run_test$"; then
+    echo "ensure: rt_run_exec.o missing driver_run_test after pure-asm" >&2
+    return 1
+  fi
+  log "rt-run-exec $o <- pure-asm $xsrc (knife256; no host-cc)"
+  return 0
+}
+
 ensure_rt_slice() {
   local list o n=0
   list="$(catalog_key_words "RT_SEED_SLICE_OBJS")"
@@ -14573,6 +14611,8 @@ ensure_rt_slice() {
       ensure_rt_preamble_prefer || exit 1
     elif [ "$o" = "src/runtime/rt_stack.o" ]; then
       ensure_rt_stack_prefer || exit 1
+    elif [ "$o" = "src/runtime/rt_run_exec.o" ]; then
+      ensure_rt_run_exec_prefer || exit 1
     else
       ensure_one "$o" "$(seed_for_o "$o")"
     fi
@@ -30878,7 +30918,7 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
       fi
     done
     # Catalog expand + seed map resolve (G.7 lists stay mk; shell owns seed paths).
-    check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
+    check_family "RT_SEED_SLICE_OBJS" 6 "rt-slice" "basename" "src/runtime/"
     check_family "R1_CORE_SEED_OBJS" 4 "core-seed" "basename" "src/"
     check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
     check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
@@ -31188,7 +31228,7 @@ R3_COLD_SEED_OBJS DRIVER_SEED_PANIC_OBJS DRIVER_SEED_TYPECK_F64_OBJS DRIVER_SEED
     bad "DRIVER_SEED_PANIC_OBJS not defined in Makefile/mk (wave760 R2 panic list)"
   fi
 
-  check_family "RT_SEED_SLICE_OBJS" 5 "rt-slice" "basename" "src/runtime/"
+  check_family "RT_SEED_SLICE_OBJS" 6 "rt-slice" "basename" "src/runtime/"
   check_family "R1_CORE_SEED_OBJS" 4 "core-seed" "basename" "src/"
   check_family "R1_FRONTEND_GLUE_OBJS" 3 "frontend-glue" "frontend-glue" "src/"
   check_family "R1_MAIN_RUNTIME_OBJS" 7 "main-runtime" "main-runtime" "src/"
