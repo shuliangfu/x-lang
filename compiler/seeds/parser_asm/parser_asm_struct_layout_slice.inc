@@ -35,37 +35,7 @@ extern int32_t pipeline_struct_layout_next_field_offset_ex(void *module, void *a
                                                              int32_t new_field_type_ref, int32_t field_align_req);
 
 #ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
-/** struct Name 后修饰符：TOKEN_* 或 Ident 拼写（lexer 路径差异兼容）。 */
-static int parser_asm_tok_is_modifier_packed(struct parser_asm_lexer_result *r,
-                                              struct parser_asm_slice_u8 *source) {
-  size_t start;
-  if (r->tok.kind == (int32_t)TOKEN_PACKED)
-    return 1;
-  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len != 6)
-    return 0;
-  if (!source || !source->data)
-    return 0;
-  start = (size_t)r->next_lex.pos - (size_t)r->tok.ident_len;
-  if (start + 6u > source->length)
-    return 0;
-  return memcmp((const char *)source->data + start, "packed", 6) == 0;
-}
-
-/** struct Name 后 soa 修饰符（与 packed 同理）。 */
-static int parser_asm_tok_is_modifier_soa(struct parser_asm_lexer_result *r,
-                                           struct parser_asm_slice_u8 *source) {
-  size_t start;
-  if (r->tok.kind == (int32_t)TOKEN_SOA)
-    return 1;
-  if (r->tok.kind != (int32_t)TOKEN_IDENT || r->tok.ident_len != 3)
-    return 0;
-  if (!source || !source->data)
-    return 0;
-  start = (size_t)r->next_lex.pos - (size_t)r->tok.ident_len;
-  if (start + 3u > source->length)
-    return 0;
-  return memcmp((const char *)source->data + start, "soa", 3) == 0;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X removed */
 #else
 /* Hybrid P6c: dest-buffer bodies in pthin_fn_block.x; trampoline keeps the
  * historical (lexer_result*, slice*) call sites in parse_struct_record_layout.
@@ -158,87 +128,6 @@ extern int32_t parser_asm_stretch_struct_layout_name_audit_c(const uint8_t *name
  * so BODIES_FROM_X must keep an extern (not a silent skip).
  */
 #ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
-int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen) {
-  int32_t k;
-  int32_t nsl;
-  int32_t ii;
-  int32_t same;
-  if (!module || !nm || nlen <= 0)
-    return 0;
-  nsl = pipeline_module_num_struct_layouts_at(module);
-  for (k = 0; k < nsl; k++) {
-    if (pipeline_module_struct_layout_name_len(module, k) != nlen)
-      continue;
-    same = 1;
-    for (ii = 0; ii < nlen && ii < 64; ii++) {
-      if (pipeline_module_struct_layout_name_byte_at(module, k, ii) != nm[ii]) {
-        same = 0;
-        break;
-      }
-    }
-    if (same)
-      return 1;
-  }
-  return 0;
-}
-
-/** 返回首个与 nm 同名的 struct_layouts 下标，无则 -1。 */
-int32_t parser_asm_struct_layout_first_name_match_idx_c(void *module, uint8_t *nm, int32_t nlen) {
-  int32_t k;
-  int32_t nsl;
-  int32_t ii;
-  int32_t same;
-  if (!module || !nm || nlen <= 0)
-    return -1;
-  nsl = pipeline_module_num_struct_layouts_at(module);
-  for (k = 0; k < nsl; k++) {
-    if (pipeline_module_struct_layout_name_len(module, k) != nlen)
-      continue;
-    same = 1;
-    for (ii = 0; ii < nlen && ii < 64; ii++) {
-      if (pipeline_module_struct_layout_name_byte_at(module, k, ii) != nm[ii]) {
-        same = 0;
-        break;
-      }
-    }
-    if (same)
-      return k;
-  }
-  return -1;
-}
-
-/** 是否存在与 nm 同名的占位 layout 槽（library 预注册覆盖）。 */
-int32_t parser_asm_struct_layout_placeholder_idx_c(void *module, uint8_t *nm, int32_t nlen) {
-  int32_t k;
-  int32_t nsl;
-  int32_t ii;
-  int32_t same;
-  int32_t nf;
-  if (!module || !nm || nlen <= 0)
-    return -1;
-  nsl = pipeline_module_num_struct_layouts_at(module);
-  for (k = 0; k < nsl; k++) {
-    if (pipeline_module_struct_layout_name_len(module, k) != nlen)
-      continue;
-    same = 1;
-    for (ii = 0; ii < nlen && ii < 64; ii++) {
-      if (pipeline_module_struct_layout_name_byte_at(module, k, ii) != nm[ii]) {
-        same = 0;
-        break;
-      }
-    }
-    if (!same)
-      continue;
-    nf = pipeline_module_struct_layout_num_fields(module, k);
-    if (nf == 0)
-      return k;
-    if (nf == 1 && pipeline_module_struct_layout_field_name_len(module, k, 0) == 0)
-      return k;
-    if (nf == 1 && pipeline_module_struct_layout_field_type_ref(module, k, 0) == 0)
-      return k;
-  }
-  return -1;
-}
 #else
 extern int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t *nm, int32_t nlen);
 extern int32_t parser_asm_struct_layout_first_name_match_idx_c(void *module, uint8_t *nm, int32_t nlen);

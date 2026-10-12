@@ -89,17 +89,7 @@ extern int32_t parser_asm_struct_layout_name_exists_arr_c(void *module, uint8_t 
 extern int32_t parser_asm_stretch_library_fn_shape_audit_c(void *lex_inout, void *source);
 
 #ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
-/** 与 parser.x ast.expr_init_match_enum 一致：清零 match 占位字段。
- * PLATFORM: SHARED — cold twin only; hybrid P6d dest-buffer wrap uses
- * pabi set_common_zeros_c. Gated so hybrid -Werror does not see an
- * unused static. */
-static void parser_asm_lib_expr_init_match_c(struct ast_Expr *e) {
-  if (!e)
-    return;
-  e->match_matched_ref = 0;
-  e->match_arm_base = 0;
-  e->match_num_arms = 0;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X removed */
 #endif /* !XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X */
 
 #ifdef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
@@ -131,24 +121,9 @@ struct parser_asm_library_parse_result parser_asm_parse_one_function_library_sli
   struct parser_asm_library_parse_scan_result scan;
   struct parser_asm_library_parse_result fail;
 #ifndef XLANG_PTHIN_FN_BLOCK_BODIES_FROM_X
-  struct ast_Type bt;
-  struct ast_Type tt;
-  struct ast_Expr ve;
-  struct ast_Expr fe;
-  struct ast_Expr ene;
-  struct ast_Expr eqe;
-  int32_t var_ref;
-  int32_t field_ref;
-  int32_t enum_ref;
-  int32_t ti;
-  int32_t vi;
-  int32_t fi;
 #endif
 #ifndef XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X
-  struct ast_Block b;
-  int32_t idx;
-  int32_t block_ref;
-  int32_t fi_lib;
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_FN_BLOCK_LIBRARY_FROM_X removed */
 #endif
   int32_t bool_type_ref;
   int32_t token_type_ref;

@@ -21,18 +21,7 @@
 
 /* ---- thin L3908-4287 ---- */
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-/**
- * import_path_dot_segment_len：import 路径段长度（IDENT/I32/ASYNC），非法 token 返回 -1。
- */
-int32_t parser_asm_import_path_dot_segment_len_c(struct parser_asm_token tok) {
-  if (tok.kind == (int32_t)TOKEN_IDENT && tok.ident_len > 0)
-    return tok.ident_len;
-  if (tok.kind == (int32_t)TOKEN_I32)
-    return 3;
-  if (tok.kind == (int32_t)TOKEN_ASYNC)
-    return 5;
-  return -1;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X removed */
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
@@ -58,19 +47,6 @@ int32_t parser_token_is_label_start_glue(struct parser_asm_lexer_result r, struc
 }
 
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-/**
- * import_path_dot_segment_copy：将 source[token_start..+seg_len) 写入 path_buf[path_len..]。
- */
-void parser_asm_import_path_dot_segment_copy_slice_c(struct parser_asm_slice_u8 *source, size_t token_start,
-                                                     int32_t seg_len, uint8_t *path_buf, int32_t path_len) {
-  int32_t i;
-  if (!path_buf || seg_len <= 0)
-    return;
-  for (i = 0; i < seg_len; i++) {
-    if (source && source->data && token_start + (size_t)i < source->length)
-      path_buf[path_len + i] = source->data[token_start + (size_t)i];
-  }
-}
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
@@ -132,28 +108,6 @@ int32_t parser_asm_struct_field_name_from_tok_slice_c(struct parser_asm_lexer_re
 #endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X struct_field_name */
 
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-/**
- * struct_field_name_tok_kind：token kind 是否为合法字段名起点。
- * PLATFORM: SHARED — include TOKEN_TYPE (keyword-as-field-name).
- */
-int32_t parser_asm_struct_field_name_tok_kind_c(int32_t k) {
-  if (parser_asm_stretch_struct_field_name_kind_c(k) != 0)
-    return 1;
-  return k == (int32_t)TOKEN_IDENT || k == (int32_t)TOKEN_SOA || k == (int32_t)TOKEN_PACKED ||
-         k == (int32_t)TOKEN_TYPE;
-}
-
-/**
- * struct_field_continues_tok_kind：字段列表是否可继续（含 align(N) 前缀）。
- */
-int32_t parser_asm_struct_field_continues_tok_kind_c(int32_t k) {
-  if (parser_asm_stretch_struct_field_continues_kind_c(k) != 0)
-    return 1;
-  /* let/const 字段前缀：多字段 struct 在 ; 后下一字段以 let/const 开头 */
-  if (k == (int32_t)TOKEN_LET || k == (int32_t)TOKEN_CONST)
-    return 1;
-  return parser_asm_struct_field_name_tok_kind_c(k) != 0 || k == (int32_t)TOKEN_ALIGN;
-}
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
@@ -171,12 +125,6 @@ int32_t parser_asm_parser_token_is_label_start_slice_c(struct parser_asm_lexer_r
 }
 
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-/**
- * lexer_pos_before_run：由 token 结束位置与 run_len 反推起点。
- */
-size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len) {
-  return end_pos - (size_t)run_len;
-}
 #else
 extern size_t parser_asm_lexer_pos_before_run_c(size_t end_pos, int32_t run_len);
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
@@ -261,19 +209,6 @@ int32_t parser_asm_lexer_token_run_len_c(struct parser_asm_token tok) {
 #endif /* XLANG_PTHIN_HELPERS_BODIES_FROM_X run_len */
 
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-/**
- * parser_match_kw_immediately_before：ident 前是否为 "match "（6 字节）。
- */
-int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_slice_u8 *source,
-                                                            size_t ident_start) {
-  size_t p;
-  if (!source || !source->data || ident_start < 6)
-    return 0;
-  p = ident_start - 6;
-  return source->data[p] == (uint8_t)'m' && source->data[p + 1] == (uint8_t)'a' &&
-         source->data[p + 2] == (uint8_t)'t' && source->data[p + 3] == (uint8_t)'c' &&
-         source->data[p + 4] == (uint8_t)'h' && source->data[p + 5] == (uint8_t)' ';
-}
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X */
 
 /**
@@ -284,20 +219,6 @@ int32_t parser_asm_parser_match_kw_immediately_before_slice_c(struct parser_asm_
  * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
-                                               size_t next_pos, uint8_t *data, size_t length) {
-  size_t start;
-  if (!data || kind != (int32_t)TOKEN_IDENT || ident_len != 6)
-    return 0;
-  start = token_start;
-  if (start == 0)
-    start = parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
-  if (start + 6 > length)
-    return 0;
-  return data[start] == (uint8_t)'u' && data[start + 1] == (uint8_t)'n' &&
-         data[start + 2] == (uint8_t)'s' && data[start + 3] == (uint8_t)'a' &&
-         data[start + 4] == (uint8_t)'f' && data[start + 5] == (uint8_t)'e';
-}
 #else
 extern int32_t parser_asm_ident_is_unsafe_stmt_kind_c(int32_t kind, int32_t ident_len, size_t token_start,
                                                       size_t next_pos, uint8_t *data, size_t length);
@@ -335,27 +256,6 @@ int32_t parser_asm_ident_is_unsafe_stmt_slice_c(struct parser_asm_lexer_result r
  * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos) {
-  struct parser_asm_token t;
-  int32_t span;
-  if (token_start == 0) {
-    if (kind == (int32_t)TOKEN_STRING) {
-      span = ident_len + 2;
-      if (span < 2)
-        span = 2;
-      return parser_asm_lexer_pos_before_run_c(next_pos, span);
-    }
-    if (kind == (int32_t)TOKEN_IDENT && ident_len > 0)
-      return parser_asm_lexer_pos_before_run_c(next_pos, ident_len);
-    memset(&t, 0, sizeof(t));
-    t.kind = kind;
-    t.ident_len = ident_len;
-    return parser_asm_lexer_pos_before_run_c(next_pos, parser_asm_lexer_token_run_len_c(t));
-  }
-  if (kind == (int32_t)TOKEN_STRING)
-    return token_start - (size_t)1;
-  return token_start;
-}
 #else
 extern size_t parser_asm_lex_at_token_pos_c(int32_t kind, size_t token_start, int32_t ident_len, size_t next_pos);
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X lex_at_token pos */
@@ -386,10 +286,6 @@ struct parser_asm_lexer parser_asm_lex_at_token_from_result_c(struct parser_asm_
  * pos_before_run_c) — otherwise cold mode leaves a hard UNDEF.
  */
 #ifndef XLANG_PTHIN_HELPERS_BODIES_FROM_X
-int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind) {
-  return kind == (int32_t)TOKEN_RETURN || kind == (int32_t)TOKEN_IF || kind == (int32_t)TOKEN_WHILE ||
-         kind == (int32_t)TOKEN_FOR || kind == (int32_t)TOKEN_MATCH || kind == (int32_t)TOKEN_RBRACE;
-}
 #else
 extern int32_t parser_asm_rewind_following_stmt_kind_c(int32_t kind);
 #endif /* !XLANG_PTHIN_HELPERS_BODIES_FROM_X rewind kind */

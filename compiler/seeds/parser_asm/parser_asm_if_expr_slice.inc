@@ -33,48 +33,7 @@ extern int32_t parser_asm_stretch_if_expr_branch_audit_c(void *lex_inout, void *
 extern int32_t parser_asm_stretch_else_if_chain_audit_c(void *lex_inout, void *source);
 
 #ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X
-/** expr_set_common_zeros：与 parser.x 字段清零顺序一致。 Cold twin only. */
-static void parser_asm_if_expr_common_zeros_c(struct ast_Expr *e) {
-  if (!e)
-    return;
-  e->resolved_type_ref = 0;
-  e->binop_left_ref = 0;
-  e->binop_right_ref = 0;
-  e->unary_operand_ref = 0;
-  e->if_cond_ref = 0;
-  e->if_then_ref = 0;
-  e->if_else_ref = 0;
-  e->block_ref = 0;
-  e->match_matched_ref = 0;
-  e->match_arm_base = 0;
-  e->match_num_arms = 0;
-  e->enum_variant_tag = 0;
-  e->field_access_base_ref = 0;
-  e->field_access_field_len = 0;
-  e->field_access_is_enum_variant = 0;
-  e->field_access_offset = 0;
-  e->index_base_ref = 0;
-  e->index_index_ref = 0;
-  e->index_base_is_slice = 0;
-  e->call_callee_ref = 0;
-  e->call_arg_base = 0;
-  e->call_num_args = 0;
-  e->method_call_base_ref = 0;
-  e->method_call_name_len = 0;
-  e->method_call_arg_base = 0;
-  e->method_call_num_args = 0;
-  e->const_folded_val = 0;
-  e->const_folded_valid = 0;
-  e->index_proven_in_bounds = 0;
-  e->struct_lit_field_base = 0;
-  e->struct_lit_num_fields = 0;
-  e->array_lit_elem_base = 0;
-  e->array_lit_num_elems = 0;
-  e->as_operand_ref = 0;
-  e->as_target_type_ref = 0;
-  e->call_resolved_func_index = -1;
-  e->call_resolved_dep_index = -1;
-}
+/* 记253／9.1: cold under #ifndef XLANG_PTHIN_CTRL_BODIES_FROM_X removed */
 #endif /* !XLANG_PTHIN_CTRL_BODIES_FROM_X common_zeros */
 
 /**
