@@ -350,7 +350,7 @@ _l4_step_begin "7_product_l2_matrix"
 log "step7: product L2 matrix (./xbuild l2-matrix body)"
 set +e
 bash compiler/scripts/product_l2_matrix.sh --xlang "$XLANG" 2>&1 | tee -a "$LOG"
-MATRIX_RC=$?
+MATRIX_RC=${PIPESTATUS[0]}
 set -e
 if [ "$MATRIX_RC" -ne 0 ]; then
   fail "product L2 matrix failed (rc=$MATRIX_RC); see $LOG"
@@ -373,7 +373,7 @@ XLANG_BSTRICT_SKIP_BUILD=1 \
   XLANG="$XLANG" \
   XLANG_BSTRICT_JOBS="${XLANG_BSTRICT_JOBS:-1}" \
   bash tests/run-all-bstrict.sh 2>&1 | tee -a "$LOG"
-BSTRICT_RC=$?
+BSTRICT_RC=${PIPESTATUS[0]}
 set -e
 if [ "$BSTRICT_RC" -ne 0 ]; then
   fail "run-all-bstrict failed (rc=$BSTRICT_RC); see $LOG"
