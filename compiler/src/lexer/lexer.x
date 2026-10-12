@@ -1786,7 +1786,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "let" as *u8) != 0)) {
     let t: Token = {
@@ -1798,7 +1807,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "const" as *u8) != 0)) {
     let t: Token = {
@@ -1810,7 +1828,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "if" as *u8) != 0)) {
     let t: Token = {
@@ -1822,7 +1849,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "else" as *u8) != 0)) {
     let t: Token = {
@@ -1834,7 +1870,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "while" as *u8) != 0)) {
     let t: Token = {
@@ -1846,7 +1891,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "loop" as *u8) != 0)) {
     let t: Token = {
@@ -1858,7 +1912,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "for" as *u8) != 0)) {
     let t: Token = {
@@ -1870,7 +1933,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "break" as *u8) != 0)) {
     let t: Token = {
@@ -1882,7 +1954,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 8 && (match_keyword(data, start, 8, "continue" as *u8) != 0)) {
     let t: Token = {
@@ -1894,7 +1975,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "return" as *u8) != 0)) {
     let t: Token = {
@@ -1906,7 +1996,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "panic" as *u8) != 0)) {
     let t: Token = {
@@ -1918,7 +2017,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "defer" as *u8) != 0)) {
     let t: Token = {
@@ -1930,7 +2038,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "region" as *u8) != 0)) {
     let t: Token = {
@@ -1942,7 +2059,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 10 && (match_keyword(data, start, 10, "with_arena" as *u8) != 0)) {
     let t: Token = {
@@ -1954,7 +2080,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "match" as *u8) != 0)) {
     let t: Token = {
@@ -1966,7 +2101,16 @@ export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, l
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  try_keyword_b(out, data, start, len, line0, col0);
     return;
@@ -1994,7 +2138,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "type" as *u8) != 0)) {
     let t: Token = {
@@ -2006,7 +2159,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "packed" as *u8) != 0)) {
     let t: Token = {
@@ -2018,7 +2180,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "soa" as *u8) != 0)) {
     let t: Token = {
@@ -2030,7 +2201,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "align" as *u8) != 0)) {
     let t: Token = {
@@ -2042,7 +2222,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "enum" as *u8) != 0)) {
     let t: Token = {
@@ -2054,7 +2243,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "goto" as *u8) != 0)) {
     let t: Token = {
@@ -2066,7 +2264,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "trait" as *u8) != 0)) {
     let t: Token = {
@@ -2078,7 +2285,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "impl" as *u8) != 0)) {
     let t: Token = {
@@ -2090,7 +2306,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "self" as *u8) != 0)) {
     let t: Token = {
@@ -2102,7 +2327,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 1 && data[start] == 95) {
     let t: Token = {
@@ -2114,7 +2348,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "import" as *u8) != 0)) {
     let t: Token = {
@@ -2126,7 +2369,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "extern" as *u8) != 0)) {
     let t: Token = {
@@ -2138,7 +2390,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "async" as *u8) != 0)) {
     let t: Token = {
@@ -2150,7 +2411,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "await" as *u8) != 0)) {
     let t: Token = {
@@ -2162,7 +2432,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "run" as *u8) != 0)) {
     let t: Token = {
@@ -2174,7 +2453,16 @@ function try_keyword_b(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  try_keyword_c(out, data, start, len, line0, col0);
     return;
@@ -2202,7 +2490,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   /** export：e x p o r t */  if (nlen == 6 && (match_keyword(data, start, 6, "export" as *u8) != 0)) {
@@ -2215,7 +2512,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "i32" as *u8) != 0)) {
     let t: Token = {
@@ -2227,7 +2533,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "bool" as *u8) != 0)) {
     let t: Token = {
@@ -2239,7 +2554,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "u8" as *u8) != 0)) {
     let t: Token = {
@@ -2251,7 +2575,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "u32" as *u8) != 0)) {
     let t: Token = {
@@ -2263,7 +2596,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "u64" as *u8) != 0)) {
     let t: Token = {
@@ -2275,7 +2617,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "i64" as *u8) != 0)) {
     let t: Token = {
@@ -2287,7 +2638,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "usize" as *u8) != 0)) {
     let t: Token = {
@@ -2299,7 +2659,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "isize" as *u8) != 0)) {
     let t: Token = {
@@ -2311,7 +2680,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "true" as *u8) != 0)) {
     let t: Token = {
@@ -2323,7 +2701,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "false" as *u8) != 0)) {
     let t: Token = {
@@ -2335,7 +2722,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   /*
@@ -2352,7 +2748,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "f32" as *u8) != 0)) {
     let t: Token = {
@@ -2364,7 +2769,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 3 && (match_keyword(data, start, 3, "f64" as *u8) != 0)) {
     let t: Token = {
@@ -2376,7 +2790,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 4 && (match_keyword(data, start, 4, "void" as *u8) != 0)) {
     let t: Token = {
@@ -2388,7 +2811,16 @@ function try_keyword_c(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  try_keyword_d(out, data, start, len, line0, col0);
     return;
@@ -2416,7 +2848,16 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "i3x8" as *u8) != 0)) {
     let t: Token = {
@@ -2428,7 +2869,16 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "i3x16" as *u8) != 0)) {
     let t: Token = {
@@ -2440,7 +2890,16 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "u3x4" as *u8) != 0)) {
     let t: Token = {
@@ -2452,7 +2911,16 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 5 && (match_keyword(data, start, 5, "u3x8" as *u8) != 0)) {
     let t: Token = {
@@ -2464,7 +2932,16 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 6 && (match_keyword(data, start, 6, "u3x16" as *u8) != 0)) {
     let t: Token = {
@@ -2476,7 +2953,16 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }  if (nlen == 2 && (match_keyword(data, start, 2, "as" as *u8) != 0)) {
     let t: Token = {
@@ -2488,26 +2974,31 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
       ident: (0 as *u8),
       ident_len: 0
     };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   // Cap 4.2.8: AST name slots are 255 bytes. Longer identifiers set the L012 sticky note.
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: Token = {
-    kind: (59 as TokenKind),
-    line: line0,
-    col: col0,
-    int_val: (0 as i64),
-    float_val: 0.0,
-    ident: (0 as *u8),
-    ident_len: nlen };
-  // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
-  // `&t` is a block local. Passing it with outer *Token is T001 unless
-  // the call is in unsafe. The callee copies 48 bytes and drops the pointer.
+  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
+  // knife256 / 10.2: store_token then force kind from t.kind (cast literal SEGVd).
   // PLATFORM: SHARED.
   unsafe { lexer_store_token(out, &t); }
+  out.kind = t.kind;
+  out.line = t.line;
+  out.col = t.col;
+  out.ident_len = t.ident_len;
   return;
 }
 
@@ -2518,176 +3009,437 @@ i32): void {
   if (nlen == 8 && (match_keyword_buf(data, data_len, start, 8, "function" as *u8) != 0)) {
     let t: Token = { kind: (1 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "let" as *u8) != 0)) {
     let t: Token = { kind: (2 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "const" as *u8) != 0)) {
     let t: Token = { kind: (3 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "if" as *u8) != 0)) {
     let t: Token = { kind: (4 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
       0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "else" as *u8) != 0)) {
     let t: Token = { kind: (5 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "return" as *u8) != 0)) {
     let t: Token = { kind: (11 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "struct" as *u8) != 0)) {
     let t: Token = { kind: (19 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "type" as *u8) != 0)) {
     let t: Token = { kind: (20 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "enum" as *u8) != 0)) {
     let t: Token = { kind: (47 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "match" as *u8) != 0)) {
     let t: Token = { kind: (18 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "true" as *u8) != 0)) {
     let t: Token = { kind: (75 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "false" as *u8) != 0)) {
     let t: Token = { kind: (76 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   /* wave668: `null` → TOKEN_NULL (132). G.7 ≡ try_keyword. PLATFORM: SHARED. */
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "null" as *u8) != 0)) {
     let t: Token = { kind: (132 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "f64" as *u8) != 0)) {
     let t: Token = { kind: (78 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "void" as *u8) != 0)) {
     let t: Token = { kind: (79 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "i32" as *u8) != 0)) {
     let t: Token = { kind: (60 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 4 && (match_keyword_buf(data, data_len, start, 4, "bool" as *u8) != 0)) {
     let t: Token = { kind: (61 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "u8" as *u8) != 0)) {
     let t: Token = { kind: (62 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
       0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "usize" as *u8) != 0)) {
     let t: Token = { kind: (66 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "isize" as *u8) != 0)) {
     let t: Token = { kind: (67 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 2 && (match_keyword_buf(data, data_len, start, 2, "as" as *u8) != 0)) {
     let t: Token = { kind: (128 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val:
       0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "import" as *u8) != 0)) {
     let t: Token = { kind: (53 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "extern" as *u8) != 0)) {
     let t: Token = { kind: (54 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "async" as *u8) != 0)) {
     let t: Token = { kind: (55 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "await" as *u8) != 0)) {
     let t: Token = { kind: (56 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 3 && (match_keyword_buf(data, data_len, start, 3, "run" as *u8) != 0)) {
     let t: Token = { kind: (57 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 5 && (match_keyword_buf(data, data_len, start, 5, "spawn" as *u8) != 0)) {
     let t: Token = { kind: (58 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 6 && (match_keyword_buf(data, data_len, start, 6, "export" as *u8) != 0)) {
     let t: Token = { kind: (131 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   if (nlen == 1 && start < (data_len as usize) && data[start] == 95) {
     let t: Token = { kind: (52 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    unsafe { *out = (t); }
+    // knife256 / 10.2: tip `*out = t` (48B Token) can leave kind=0 (P001).
+    // Field stores; avoid by-value stack slot / struct-assign trunc.
+    // PLATFORM: SHARED.
+    out.kind = t.kind;
+    out.line = t.line;
+    out.col = t.col;
+    out.int_val = t.int_val;
+    out.float_val = t.float_val;
+    out.ident = t.ident;
+    out.ident_len = t.ident_len;
     return;
   }
   // wave Cap 4.2.8: G.7 mirror try_keyword — L012 when non-keyword span > 255.
@@ -2696,11 +3448,13 @@ i32): void {
   }
   let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
     float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
-  // Whole-token image. `*out = t` drops ident_len on the Windows bootstrap.
-  // `&t` is a block local. Passing it with outer *Token is T001 unless
-  // the call is in unsafe. The callee copies 48 bytes and drops the pointer.
+  // knife256 / 10.2: store_token then force kind from t.kind (cast literal SEGVd).
   // PLATFORM: SHARED.
   unsafe { lexer_store_token(out, &t); }
+  out.kind = t.kind;
+  out.line = t.line;
+  out.col = t.col;
+  out.ident_len = t.ident_len;
   return;
 }
 
@@ -3517,6 +4271,19 @@ export function lexer_apply_optional_exponent(l: Lexer, data: u8[], fval: f64, o
  * @param data u8[]
  * @return void
  */
+
+/**
+ * knife256 / 10.2: tip may evaluate call args before prior stores to the same
+ * *LexerResult. Separate functions force store-then-load sequencing for the
+ * ident start parked in out.token_start. PLATFORM: SHARED.
+ */
+function lexer_park_token_start(out: *LexerResult, pos: usize): void {
+  out.token_start = pos;
+}
+function lexer_parked_token_start(out: *LexerResult): usize {
+  return out.token_start;
+}
+
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
   let c: u8 = data[l.pos];
   /* See implementation. */
@@ -3627,19 +4394,30 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     return;
   }
   if ((is_alpha(c) != 0)) {
-    let start: usize = l.pos;
-    let line0: i32 = l.line;
-    let col0: i32 = l.col;
+    // knife256 / 10.2: tip hoists block lets + may eval call args before stores.
+    // Park start via helper (sequenced); peel pointer-to-fat; try_keyword_buf.
+    // PLATFORM: SHARED.
+    lexer_park_token_start(out, l.pos);
+    let line_save: i32 = l.line;
+    let col_save: i32 = l.col;
     advance_one(&l, c);
     while (l.pos < data.length && (is_alnum_underscore(data[l.pos]) != 0)) {
       advance_one(&l, data[l.pos]);
     }
-    let len: usize = l.pos - start;
-    let tok: Token = { kind: (0 as TokenKind), line: line0, col: col0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    try_keyword(&tok, data, start, len, line0, col0);
+    let start_parked: usize = lexer_parked_token_start(out);
+    let span_len: usize = l.pos - start_parked;
+    let tok: Token = { kind: (0 as TokenKind), line: line_save, col: col_save, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
+    let peel: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+    let fat_hdr: *u8 = (0 as *u8);
+    unsafe {
+      memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
+      memcpy((&peel as *u8), fat_hdr, (16 as usize));
+      try_keyword_buf(&tok, peel.data, (peel.length as i32), start_parked, span_len, line_save, col_save);
+    }
     write_next_lex_into(out, l);
     write_tok_into(out, tok);
-    out.token_start = start;
+    // write_next_lex_into clears token_start; parser needs the ident span.
+    lexer_park_token_start(out, start_parked);
     return;
   }
   if ((is_digit(c) != 0)) {
