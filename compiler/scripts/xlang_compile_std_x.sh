@@ -490,6 +490,123 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+
+    ../std/net/sock.x|std/net/sock.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.sock (记231).
+      # Tip Apple variadic spill makes Darwin ioctl(FIONBIO)/fcntl 3rd-on-stack
+      # match C. -lib-name "" keeps net_fionbio_c / set_blocking / close.
+      # A miss stops here so this file never execs cc. Windows keeps C path.
+      _sock_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_sock_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _sock_log="$(mktemp "${TMPDIR:-/tmp}/std_sock_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_sock_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_sock_set_blocking_fd_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_set_blocking_c$'; then
+            rm -f "$_sock_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_sock_log" >&2
+          rm -f "$_sock_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/udp.x|std/net/udp.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.udp (记231 Apple va + ioctl).
+      # -lib-name "" keeps set_nonblock / errno_ptr / fionbio. Miss → no cc.
+      _udp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_udp_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _udp_log="$(mktemp "${TMPDIR:-/tmp}/std_udp_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_udp_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_set_nonblock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_udp_errno_ptr_c$'; then
+            rm -f "$_udp_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_udp_log" >&2
+          rm -f "$_udp_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/tcp.x|std/net/tcp.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.tcp (记231 Apple va + ioctl).
+      # -lib-name "" keeps set_nonblock / connect / errno_ptr. Miss → no cc.
+      _tcp_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tcp_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _tcp_log="$(mktemp "${TMPDIR:-/tmp}/std_tcp_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_tcp_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_set_nonblock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_errno_ptr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_connect_c$'; then
+            rm -f "$_tcp_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_tcp_log" >&2
+          rm -f "$_tcp_log"
+          return 1
+          ;;
+      esac
+      ;;
+    ../std/net/ipv6.x|std/net/ipv6.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.net.ipv6 (记231 Apple va + ioctl).
+      # macos-first cfg consts (记230 tip inactive-cfg P012). Miss → no cc.
+      _ipv6_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_ipv6_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _ipv6_log="$(mktemp "${TMPDIR:-/tmp}/std_ipv6_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_ipv6_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_fionbio_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_ipv6_set_nonblock_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_ipv6_errno_ptr_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?net_tcp_connect_ipv6_c$'; then
+            rm -f "$_ipv6_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_ipv6_log" >&2
+          rm -f "$_ipv6_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/regex/regex.x|std/regex/regex.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
       # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W

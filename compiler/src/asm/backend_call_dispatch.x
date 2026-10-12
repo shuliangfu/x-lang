@@ -279,6 +279,7 @@ export extern function driver_get_current_dep_path_for_codegen(): *u8;
 export extern function pipeline_asm_module_func_name_len_at(m: *u8, fi: i32): i32;
 export extern function pipeline_asm_module_func_name_copy64(m: *u8, fi: i32, dst: *u8): void;
 export extern function pipeline_module_func_num_params_at(m: *u8, fi: i32): i32;
+export extern function pipeline_module_func_is_variadic_at(m: *u8, fi: i32): i32;
 export extern function pipeline_module_func_param_type_ref_at(m: *u8, fi: i32, pi: i32): i32;
 export extern function pipeline_type_elem_ref_at(a: *u8, tr: i32): i32;
 /** TYPE_ARRAY size (N in T[N]) for mid suffix `_aN`. PLATFORM: SHARED. */
@@ -3756,6 +3757,14 @@ export function pipeline_asm_emit_call_args_elf_c(
         /* w2060: AAPCS64 byref via glue_aapcs64_arg_is_byref_c (sz>16, not HFA).
          * HFA stays in V regs. Matches host-C METHOD is_mem=2. ta==1 only here. */
         is_mem_a[i] = 0;
+        /* 记231: Apple variadic extras → stack (gp_start/fp_slot = -1). */
+        if (glue_apple_va_force_stack_c(arena, expr_ref, i) != 0) {
+          gp_units[i] = 1;
+          gp_start[i] = 0 - 1;
+          fp_slot[i] = 0 - 1;
+          i = i + 1;
+          continue;
+        }
         if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty_i, sz_i) != 0) {
           is_mem_a[i] = 2;
         }
@@ -8564,6 +8573,35 @@ export function glue_sysv_x86_call_n_stack_c(arena: *u8, call: i32, nargs: i32):
  * @param nargs i32 — argument count
  * @return i32 — stack word count (not yet 16-aligned)
  */
+
+/**
+ * 记231: Apple ARM64 variadic caller — args past named formals go on the
+ * stack (clang/Apple PCS), not xN/vN. Linux AAPCS64 keeps register-first.
+ * @return 1 when this arg_index must be stack-class on Apple host
+ * PLATFORM: MACOS|ARM64 Apple variadic only.
+ */
+function glue_apple_va_force_stack_c(arena: *u8, call: i32, arg_index: i32): i32 {
+  if (arena == 0 as *u8) { return 0; }
+  if (call <= 0) { return 0; }
+  if (arg_index < 0) { return 0; }
+  unsafe {
+    let apple: i32 = 0;
+    apple = xlang_host_is_apple_aarch64();
+    if (apple == 0) { return 0; }
+    let m: *u8 = pipeline_asm_emit_module_ref_c();
+    if (m == 0 as *u8) { return 0; }
+    let fi: i32 = pipeline_expr_call_resolved_func_index_at(arena, call);
+    if (fi < 0) {
+      fi = pipeline_typeck_resolve_call_func_index_for_emit_c(m, arena, call);
+    }
+    if (fi < 0) { return 0; }
+    if (pipeline_module_func_is_variadic_at(m, fi) == 0) { return 0; }
+    let np: i32 = pipeline_module_func_num_params_at(m, fi);
+    if (arg_index >= np) { return 1; }
+  }
+  return 0;
+}
+
 function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32): i32 {
   // LANG-007: pure-asm typeck keeps allow_legacy_extern off, so the
   // body-less extern calls in this function sit in one unsafe block.
@@ -8579,6 +8617,12 @@ function glue_aapcs64_call_n_stack_c(arena: *u8, ctx: *u8, call: i32, nargs: i32
     let ar: i32 = pipeline_expr_call_arg_ref(arena, call, j);
     let pty: i32 = glue_call_param_type_ref_at(arena, call, j);
     let sz: i32 = glue_sysv_arg_byte_size_c(arena, ctx, pty, ar);
+    /* 记231: Apple variadic extras → stack word (match clang). */
+    if (glue_apple_va_force_stack_c(arena, call, j) != 0) {
+      nw = nw + 1;
+      j = j + 1;
+      continue;
+    }
     if (glue_aapcs64_arg_is_byref_c(arena, ctx, pty, sz) != 0) {
       if (gp + 1 <= reg_max) {
         gp = gp + 1;

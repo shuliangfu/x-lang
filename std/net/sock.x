@@ -36,9 +36,11 @@ export const F_SETFL: i32 = 4;
 extern "C" function close(fd: i32): i32;
 
 #[cfg(not(target_os = "windows"))]
-extern "C" function fcntl(fd: i32, cmd: i32, arg: i32): i32;
+/* 记231: Darwin libc fcntl is variadic; Apple ARM64 puts 3rd+ on stack. */
+extern "C" function fcntl(fd: i32, cmd: i32, ...): i32;
 #[cfg(not(target_os = "windows"))]
-extern "C" function ioctl(fd: i32, req: u64, arg: *i32): i32;
+/* 记231: Darwin libc ioctl is variadic; tip Apple va spill for 3rd+. */
+extern "C" function ioctl(fd: i32, req: u64, ...): i32;
 
 /* 记230: tip export const u64 with bit31 set sign-extends (0x8004667e →
  * 0xffffffff8004667e). Build FIONBIO via shift so movz/movk stay zero-ext. */
