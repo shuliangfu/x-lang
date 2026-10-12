@@ -16634,6 +16634,10 @@ rt_prefer_try_x_to_o() {
     # pure thin surface owns the product names; cast residual stays in this harness
     # (same pattern as stdout_ptr / realpath_opaque). Cold twin under seed #ifndef FROM_X.
     # Match pure .x export: *u8 arg / *u8 return (not void* — gcc conflicts with pure body).
+    # 记248／8.5: mega .x calls asm_parser_emit_heavy_force_stub before its
+    # export-extern site; -E would hit implicit-decl and abort hybrid thin.
+    # Body lives in parser_force_stub_thin (g05 overlay). PLATFORM: SHARED.
+    echo 'extern int32_t asm_parser_emit_heavy_force_stub(uint8_t *m, int32_t func_index);'
     echo 'extern uint8_t *pipeline_run_x_thread_fn(uint8_t *);'
     echo 'extern uint8_t *xlang_asm_codegen_elf_o_thread_fn(uint8_t *);'
     echo 'static inline uint8_t *xlang_driver_pipeline_run_x_thread_fn_ptr(void) {'
@@ -18979,8 +18983,13 @@ ensure_pipeline_abi_prefer_one() {
     # w836: same for elf_codegen_forwarders (19 faces).
     # Pure-asm thin inject supplies them. Windows / cold omit these macros.
     # PLATFORM: POSIX — WINDOWS keeps the C bodies (cannot -E tip thins).
+    # 记248／8.5: rest Cap faces are declared by thin/-E or left U for g05
+    # overlays; gcc C99 treats missing decls as errors and aborted hybrid.
+    # -Wno-implicit-function-declaration keeps FROM_X rest compilable without
+    # editing the banned seed. PLATFORM: SHARED · LINUX from-zero gold.
     if XLANG_PREFER_ASM_O_RT=0 G05_X_O_WEAK=1 rt_prefer_try_x_to_o "$x_src" "$thin_o" \
-      && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -DXLANG_USE_X_PIPELINE \
+      && $CC $BASE_CFLAGS -Wno-implicit-function-declaration -I. -Iinclude -Isrc \
+           -DXLANG_USE_X_PIPELINE \
            -DXLANG_RUNTIME_PIPELINE_ABI_FROM_X \
            -DXLANG_RUNTIME_PIPELINE_ABI_MODLET_IN_REST \
            -DXLANG_PABI_AST_FORWARDERS_ASM \
@@ -19270,13 +19279,13 @@ ensure_pipeline_abi_prefer_one() {
       return 0
     fi
   fi
-  if ! ensure_one "$o" "$seed" $cold_flags; then
-    echo "ensure_host_cc_seed_o: pipeline_abi cold seed failed and no hybrid $o" >&2
-    echo "  need: pin egg (./xbuild bootstrap-driver-seed installs select_bootstrap)" >&2
-    return 1
-  fi
+  # 记248／8.5: cold full seed (ensure_one of from_x) hits void*/struct*
+  # dual-decl type conflicts and never produces a leaf. Do not retreat to it
+  # when OUT is missing — hybrid thin+rest (.x -E + FROM_X rest) is the only
+  # from-zero path. PLATFORM: SHARED · LINUX gold.
   if [ ! -s "$o" ]; then
-    echo "ensure_host_cc_seed_o: pipeline_abi ensure finished without $o" >&2
+    echo "ensure_host_cc_seed_o: pipeline_abi hybrid failed and no $o (cold full seed banned; 记248/8.5)" >&2
+    echo "  need: working tip xlang for try-pipeline-abi-prefer hybrid thin+rest" >&2
     return 1
   fi
   pipeline_abi_inject_reent_deep_copy_thin "$o" || true
