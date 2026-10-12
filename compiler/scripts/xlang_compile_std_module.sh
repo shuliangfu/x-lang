@@ -2585,6 +2585,30 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/net/tls_stub_import_alias.x|std/net/tls_stub_import_alias.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — tls_stub_import_alias (记245).
+      # -lib-name "" → std_net_tls_stub_*／std_net_tcp_pool_* (net_merge face).
+      # net_merge already fail-closed; this covers bare module.sh. Fail-closed.
+      # Windows keeps C.
+      _tia_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_tia_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -lib-name "" -o "$obj" "$x_path" \
+              >"$tmp_dir/tia_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_is_available_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tls_stub_net_tls_backend_name_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tcp_pool_net_tcp_pool_create_c$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_net_tcp_pool_net_tcp_pool_smoke_c$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then obj_files="$obj"; else obj_files="$obj_files $obj"; fi
+            idx=$((idx + 1)); continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/tia_x_asm_${idx}.log" >&2; exit 1
+          ;;
+      esac
+      ;;
     ../std/net/mod.x|std/net/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.net mod.x (记232).
       # Tip asm already emits the std_net_* import face (no -lib-name "").
