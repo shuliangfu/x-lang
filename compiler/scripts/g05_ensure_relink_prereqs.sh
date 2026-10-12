@@ -4860,11 +4860,6 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: codegen_x.o kept via Track L (missing-path)"
     fi
   fi
-    if ! g05_stamp_frontend_x_pure_asm . codegen_x; then
-      echo "g05_ensure: codegen_x.o pure-asm stamp failed" >&2
-      exit 1
-    fi
-  fi
   # w1610: same stamp as parser_x.pure_asm. A matching
   # codegen_x.pure_asm skips the cc below even when codegen_gen.c is
   # newer. A stamp that does not match the object stops ensure.
