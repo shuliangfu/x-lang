@@ -1,5 +1,6 @@
 // 记211: tip call_arg_resolve — const_lit fold first → -1 (Cap emit mov-imm).
-// tipU pipe cells. PLATFORM: SHARED freestanding · tip pure overlay.
+// tipU pipe cells. PRODUCT: _g05_pure_overlay first-wins.
+// PLATFORM: SHARED freestanding · LINUX gold · MACOS co-path.
 
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
 export extern function pipe_store_i32_le(base: *u8, off: i32, v: i32): void;
@@ -17,7 +18,6 @@ export function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, 
     let name: u8[256];
     let imm_cell: u8[8];
     let mod: *u8;
-    let off: i32;
     let vlen: i32;
     if (arena == 0 as *u8 || ctx == 0 as *u8 || var_expr_ref <= 0) {
       return 0 - 1;

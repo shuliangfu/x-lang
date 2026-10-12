@@ -954,8 +954,13 @@ if [ -x ./xlang_asm ]; then
     asm_module_top_level_const_lit_i32
   if [ -s build_asm/selfhost_pabi/const_lit_fold.o ]; then
     _G05_W211_CONST_LIT="build_asm/selfhost_pabi/const_lit_fold.o"
-    # Tip replaces Cap leftover const_lit.o as the link winner.
-    _PABI_CONST_LIT="$_G05_W211_CONST_LIT"
+    # Darwin: tip fold wins. Linux: Cap leftover gcc const_lit (NEG/BINOP)
+    # is tipU-safe fold authority; tip thin still built for cold-chain parity.
+    if [ "$UNAME_S" = "Linux" ] && [ -s src/runtime_pipeline_abi_const_lit.o ]; then
+      _PABI_CONST_LIT="src/runtime_pipeline_abi_const_lit.o"
+    else
+      _PABI_CONST_LIT="$_G05_W211_CONST_LIT"
+    fi
     if [ "$UNAME_S" = "Darwin" ]; then
       _G05_LINK_WINNERS="$_G05_LINK_WINNERS _asm_module_top_level_const_lit_i32=$_G05_W211_CONST_LIT"
     else
