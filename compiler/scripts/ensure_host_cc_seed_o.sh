@@ -1448,15 +1448,17 @@ ensure_std_debug_formal_darwin_pure() {
 }
 
 
-# w1107: Darwin arm64 std/async/async.o forwards the leftover import names.
-# The scheduler body stays in the C glue. Linux and Windows keep the C face.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1107 / 记219: Darwin arm64 + Linux std/async/async.o from .x (scheduler glue U).
+# Windows keeps the C face. Linux miss does not exec cc.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
 ensure_std_async_formal_darwin_pure() {
   local o="${1:-../std/async/async.o}"
   local xsrc="src/asm/std_async_formal_darwin.x"
   local csrc="../std/async/formal_surface.c"
   local try=0
+  local _pa_os
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o async-formal: missing $xsrc" >&2
     return 1
@@ -1473,25 +1475,19 @@ ensure_std_async_formal_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      local _af_short _af_ok
+      local _af_ok
       _af_ok=1
-      for _af_short in \
-        _std_async_placeholder \
-        _std_async_drain_idle \
-        _std_async_scheduler_reset \
-        _std_async_net_fs_async_smoke \
-        _std_async_formal_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_af_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
-          _af_ok=0
-          break
-        fi
-      done
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_async_placeholder$'; then _af_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_async_drain_idle$'; then _af_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_async_scheduler_reset$'; then _af_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_async_net_fs_async_smoke$'; then _af_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_async_formal_darwin_x_doc_anchor$'; then _af_ok=0; fi
       if [ "$_af_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o async-formal: required text symbols missing" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_xlang_async_run_drain_until_idle" { n++ } END { exit (n==1)?0:1 }'; then
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="xlang_async_run_drain_until_idle" || s=="_xlang_async_run_drain_until_idle" { n++ } END { exit (n>=1)?0:1 }'; then
         echo "ensure_host_cc_seed_o async-formal: drain symbol is not undefined" >&2
         rm -f "$o"
         continue
@@ -1502,6 +1498,12 @@ ensure_std_async_formal_darwin_pure() {
     echo "ensure_host_cc_seed_o async-formal: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  # Linux miss does not exec cc. Darwin may compile the C face.
+  # PLATFORM: LINUX.
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o async-formal: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $csrc → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -32849,9 +32851,9 @@ case "$MODE" in
     exit "$_irc"
     ;;
   async-formal-pure|async_formal_pure)
-    # w1107: Darwin arm64 std/async formal face from .x.
-    # Does not run the rest of ensure. Linux callers should not use this mode.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # w1107 / 记219: Darwin arm64 + Linux std/async formal face from .x.
+    # Does not run the rest of ensure. Linux miss returns 1 (no cc).
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o async-formal-pure: need <out.o>" >&2
       exit 2

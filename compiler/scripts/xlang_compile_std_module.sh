@@ -910,9 +910,11 @@ case "${1:-}" in
         fi
       fi
       if [ "$_key" = "std/async/async.o" ]; then
+        # 记219: Linux joins Darwin arm64 pure-asm (forward to scheduler glue).
+        # Windows keeps formal_surface.c.
         _as_os="$(uname -s 2>/dev/null || echo Unknown)"
         _as_mach="$(uname -m 2>/dev/null || echo unknown)"
-        if [ "$_as_os" = "Darwin" ] && [ "$_as_mach" = "arm64" ]; then
+        if { [ "$_as_os" = "Darwin" ] && [ "$_as_mach" = "arm64" ]; } || [ "$_as_os" = "Linux" ]; then
           _as_x="src/asm/std_async_formal_darwin.x"
           if [ ! -f "$_as_x" ]; then
             _as_x="../compiler/src/asm/std_async_formal_darwin.x"
