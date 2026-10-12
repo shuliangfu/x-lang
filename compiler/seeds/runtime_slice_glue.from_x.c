@@ -21,39 +21,5 @@
 #include <stddef.h>
 
 #ifndef XLANG_RUNTIME_SLICE_GLUE_FROM_X
-/* G-02f-rest：rest→.x 迁移：3 个 slice struct + 6 个函数真迁 .x，PREFER_X_O 路径下整体跳过 */
-struct xlang_slice_int32_t { int32_t *data; size_t length; };
-struct xlang_slice_uint8_t  { uint8_t  *data; size_t length; };
-struct xlang_slice_uint64_t { uint64_t *data; size_t length; };
-
-/* from_ptr：直接包装 (ptr,len) 为切片，不做边界检查。结果写入 out。 */
-void core_slice_i32_from_ptr_c(struct xlang_slice_int32_t *out, int32_t *data, size_t length) {
-    out->data = data; out->length = length;
-}
-void core_slice_u8_from_ptr_c(struct xlang_slice_uint8_t *out, uint8_t *data, size_t length) {
-    out->data = data; out->length = length;
-}
-void core_slice_u64_from_ptr_c(struct xlang_slice_uint64_t *out, uint64_t *data, size_t length) {
-    out->data = data; out->length = length;
-}
-
-/* subslice：从 start 起取 len 个元素；越界钳制（start>=total → 空，尾部不足截断）。结果写入 out。 */
-void core_subslice_i32_c(struct xlang_slice_int32_t *out, int32_t *data, size_t total_len, size_t start, size_t len) {
-    if (start >= total_len) { out->data = data; out->length = 0; return; }
-    size_t avail = total_len - start;
-    if (len > avail) len = avail;
-    out->data = data + start; out->length = len;
-}
-void core_subslice_u8_c(struct xlang_slice_uint8_t *out, uint8_t *data, size_t total_len, size_t start, size_t len) {
-    if (start >= total_len) { out->data = data; out->length = 0; return; }
-    size_t avail = total_len - start;
-    if (len > avail) len = avail;
-    out->data = data + start; out->length = len;
-}
-void core_subslice_u64_c(struct xlang_slice_uint64_t *out, uint64_t *data, size_t total_len, size_t start, size_t len) {
-    if (start >= total_len) { out->data = data; out->length = 0; return; }
-    size_t avail = total_len - start;
-    if (len > avail) len = avail;
-    out->data = data + start; out->length = len;
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_SLICE_GLUE_FROM_X removed */
 #endif /* XLANG_RUNTIME_SLICE_GLUE_FROM_X */
