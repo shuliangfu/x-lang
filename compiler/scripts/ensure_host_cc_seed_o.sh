@@ -3517,17 +3517,18 @@ ensure_lexer_glue_darwin_pure() {
   return 0
 }
 
-# w1110: Darwin arm64 std/compress/compress.o forwards to the submodule symbols.
-# The 24-byte stream record arrives as a pointer. The brotli-lib extern is
-# renamed after asm emit. Linux and Windows keep the C face.
-# Match std/compress/compress.o only.
-# PLATFORM: MACOS|DARWIN arm64.
+# w1110 / 记222: Darwin arm64 + Linux std/compress/compress.o from .x.
+# Forwards to submodule symbols; brotli-lib U renamed via objcopy.
+# Windows keeps the C face. Linux miss does not exec cc.
+# PLATFORM: MACOS|DARWIN arm64 | LINUX.
 # $1 = output object. cwd is compiler/.
 ensure_std_compress_formal_darwin_pure() {
   local o="${1:-../std/compress/compress.o}"
   local xsrc="src/asm/std_compress_formal_darwin.x"
   local csrc="../std/compress/formal_surface.c"
   local try=0
+  local _pa_os _cz_oc _cz_from _cz_to
+  _pa_os="$(uname -s 2>/dev/null || echo Unknown)"
   if [ ! -f "$xsrc" ]; then
     echo "ensure_host_cc_seed_o compress-formal: missing $xsrc" >&2
     return 1
@@ -3537,10 +3538,9 @@ ensure_std_compress_formal_darwin_pure() {
     return 0
   fi
   mkdir -p "$(dirname "$o")"
-  # w1209: some pure-asm tries segfault. Retry before the eight-try
-  # path. The brotli-lib name is already renamed. A failed retry still
-  # falls back to that path and then the C face. Symbols stay strong.
-  # PLATFORM: MACOS|DARWIN arm64.
+  # w1209: some pure-asm tries segfault. Retry before eight-try.
+  # Darwin may then use C face. Linux is fail-closed (no cc).
+  # PLATFORM: MACOS|DARWIN arm64 | LINUX.
   if [ -f scripts/ensure_host_cc_seed_o.sh ] \
     && bash scripts/ensure_host_cc_seed_o.sh compress-formal-retry "$o"; then
     log "prefer compress formal ← pure-asm forty-one symbols (w1209)"
@@ -3553,79 +3553,87 @@ ensure_std_compress_formal_darwin_pure() {
       export XLANG_PREFER_ASM_O=1
       pure_asm_x_to_o "$o" "$xsrc"
     ) && [ -s "$o" ]; then
-      local _cz_short _cz_ok _cz_oc
+      local _cz_ok
       _cz_ok=1
-      for _cz_short in \
-        _std_compress_gzip_compress \
-        _std_compress_gzip_decompress \
-        _std_compress_brotli_compress \
-        _std_compress_brotli_decompress \
-        _std_compress_zstd_compress \
-        _std_compress_zstd_decompress \
-        _std_compress_format_gzip \
-        _std_compress_format_brotli \
-        _std_compress_format_zstd \
-        _std_compress_mode_compress \
-        _std_compress_mode_decompress \
-        _std_compress_compress_state_bytes_for \
-        _std_compress_compress_state_bytes \
-        _std_compress_compress_init \
-        _std_compress_compress_process \
-        _std_compress_compress_end \
-        _std_compress_gzip_stream_state_bytes \
-        _std_compress_brotli_stream_state_bytes \
-        _std_compress_zstd_stream_state_bytes \
-        _std_compress_gzip_stream_init_compress \
-        _std_compress_gzip_stream_init_decompress \
-        _std_compress_gzip_stream_compress \
-        _std_compress_gzip_stream_decompress \
-        _std_compress_gzip_stream_end \
-        _std_compress_brotli_stream_init_compress \
-        _std_compress_brotli_stream_init_decompress \
-        _std_compress_brotli_stream_compress \
-        _std_compress_brotli_stream_decompress \
-        _std_compress_brotli_stream_end \
-        _std_compress_zstd_stream_init_compress \
-        _std_compress_zstd_stream_init_decompress \
-        _std_compress_zstd_stream_compress \
-        _std_compress_zstd_stream_decompress \
-        _std_compress_zstd_stream_end \
-        _std_compress_brotli_lib_compress_brotli_stream_init_decompress_ \
-        _std_compress_formal_darwin_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_cz_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
-          _cz_ok=0
-          break
-        fi
-      done
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_format_gzip$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_format_brotli$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_format_zstd$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_mode_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_mode_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_compress_state_bytes_for$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_compress_state_bytes$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_compress_init$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_compress_process$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_compress_end$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_stream_state_bytes$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_stream_state_bytes$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_stream_state_bytes$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_stream_init_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_stream_init_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_stream_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_stream_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_gzip_stream_end$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_stream_init_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_stream_init_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_stream_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_stream_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_stream_end$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_stream_init_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_stream_init_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_stream_compress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_stream_decompress$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_zstd_stream_end$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_brotli_lib_compress_brotli_stream_init_decompress_$'; then _cz_ok=0; fi
+      if ! nm "$o" 2>/dev/null | grep -qE ' T _?std_compress_formal_darwin_x_doc_anchor$'; then _cz_ok=0; fi
       if [ "$_cz_ok" != "1" ]; then
         echo "ensure_host_cc_seed_o compress-formal: required text symbols missing" >&2
         rm -f "$o"
         continue
       fi
       _cz_oc=""
-      if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
-        _cz_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
-      elif command -v llvm-objcopy >/dev/null 2>&1; then
-        _cz_oc="$(command -v llvm-objcopy)"
+      if [ -f scripts/pure_ld_shared.sh ]; then
+        # shellcheck disable=SC1091
+        . scripts/pure_ld_shared.sh
+        _cz_oc="$(pure_asm_find_objcopy)" || _cz_oc=""
       fi
       if [ -z "$_cz_oc" ]; then
-        echo "ensure_host_cc_seed_o compress-formal: llvm-objcopy missing" >&2
+        if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+          _cz_oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+        elif command -v llvm-objcopy >/dev/null 2>&1; then
+          _cz_oc="$(command -v llvm-objcopy)"
+        elif command -v objcopy >/dev/null 2>&1; then
+          _cz_oc="$(command -v objcopy)"
+        fi
+      fi
+      if [ -z "$_cz_oc" ]; then
+        echo "ensure_host_cc_seed_o compress-formal: objcopy missing" >&2
         rm -f "$o"
         continue
       fi
-      if ! "$_cz_oc" --redefine-sym \
-        _cz_brotli_lib_init_d_c=_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c \
-        "$o"; then
+      if [ "$_pa_os" = "Darwin" ]; then
+        _cz_from=_cz_brotli_lib_init_d_c
+        _cz_to=_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c
+      else
+        _cz_from=cz_brotli_lib_init_d_c
+        _cz_to=std_compress_brotli_lib_compress_brotli_stream_init_decompress_c
+      fi
+      if ! "$_cz_oc" --redefine-sym "$_cz_from=$_cz_to" "$o"; then
         echo "ensure_host_cc_seed_o compress-formal: undef rename failed" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_std_compress_gzip_gzip_compress" { n++ } END { exit (n==1)?0:1 }'; then
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="std_compress_gzip_gzip_compress" || s=="_std_compress_gzip_gzip_compress" { n++ } END { exit (n>=1)?0:1 }'; then
         echo "ensure_host_cc_seed_o compress-formal: gzip compress is not undefined" >&2
         rm -f "$o"
         continue
       fi
-      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" { n++ } END { exit (n==1)?0:1 }'; then
+      if ! nm -u "$o" 2>/dev/null | awk '{ s=$NF } s=="std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" || s=="_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" { n++ } END { exit (n>=1)?0:1 }'; then
         echo "ensure_host_cc_seed_o compress-formal: brotli-lib undef was not renamed" >&2
         rm -f "$o"
         continue
@@ -3636,6 +3644,10 @@ ensure_std_compress_formal_darwin_pure() {
     echo "ensure_host_cc_seed_o compress-formal: pure-asm try $try failed" >&2
     rm -f "$o"
   done
+  if [ "$_pa_os" = "Linux" ]; then
+    echo "ensure_host_cc_seed_o compress-formal: pure-asm failed for $xsrc" >&2
+    return 1
+  fi
   if [ ! -s "$o" ]; then
     log "cc -c $csrc → $o (pure-asm missing object)"
     # shellcheck disable=SC2086
@@ -7980,22 +7992,35 @@ phase_parse_retry_pure() {
 compress_formal_retry_pure() {
   local o="${1:-}"
   local xsrc="src/asm/std_compress_formal_darwin.x"
-  local try n c oc
-  if [ "$(uname -s 2>/dev/null || echo Unknown)" != "Darwin" ]; then
+  local try n oc from to
+  local _os _mach
+  _os="$(uname -s 2>/dev/null || echo Unknown)"
+  _mach="$(uname -m 2>/dev/null || echo unknown)"
+  # 记222: Linux joins Darwin arm64. Other hosts return 1.
+  if [ "$_os" = "Darwin" ]; then
+    if [ "$_mach" != "arm64" ]; then
+      return 1
+    fi
+  elif [ "$_os" != "Linux" ]; then
     return 1
   fi
-  if [ "$(uname -m 2>/dev/null || echo unknown)" != "arm64" ]; then
-    return 1
-  fi
-  if [ -z "$o" ] || [ ! -f "$xsrc" ] || [ ! -x ./xlang_asm ]; then
+  if [ -z "$o" ] || [ ! -f "$xsrc" ]; then
     return 1
   fi
   try=0
   while [ "$try" -lt 12 ]; do
     try=$((try + 1))
     rm -f "$o"
-    if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
-      break
+    if [ -x ./xlang_asm ]; then
+      if g05_xasm ./xlang_asm -backend asm -c "$xsrc" -o "$o" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    elif [ -x ./xlang ]; then
+      if ./xlang -backend asm -c -L .. -o "$o" "$xsrc" >/dev/null 2>&1 && [ -s "$o" ]; then
+        break
+      fi
+    else
+      return 1
     fi
     rm -f "$o"
   done
@@ -8007,28 +8032,42 @@ compress_formal_retry_pure() {
     rm -f "$o"
     return 1
   fi
-  for c in _std_compress_formal_darwin_x_doc_anchor _std_compress_format_gzip \
-    _std_compress_format_brotli _std_compress_compress_state_bytes; do
-    if ! nm "$o" | awk -v s="$c" '$2=="T" && $3==s { found=1 } END { exit found ? 0 : 1 }'; then
+  if ! nm "$o" | grep -qE ' T _?std_compress_formal_darwin_x_doc_anchor$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_compress_format_gzip$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_compress_format_brotli$'; then rm -f "$o"; return 1; fi
+  if ! nm "$o" | grep -qE ' T _?std_compress_compress_state_bytes$'; then rm -f "$o"; return 1; fi
+  oc=""
+  if [ -f scripts/pure_ld_shared.sh ]; then
+    # shellcheck disable=SC1091
+    . scripts/pure_ld_shared.sh
+    oc="$(pure_asm_find_objcopy)" || oc=""
+  fi
+  if [ -z "$oc" ]; then
+    if [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then
+      oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then
+      oc="$(command -v objcopy)"
+    else
       rm -f "$o"
       return 1
     fi
-  done
-  oc="$(pure_asm_find_objcopy)" || {
-    rm -f "$o"
-    return 1
-  }
-  if ! "$oc" --redefine-sym \
-    _cz_brotli_lib_init_d_c=_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c \
-    "$o"; then
+  fi
+  if [ "$_os" = "Darwin" ]; then
+    from=_cz_brotli_lib_init_d_c
+    to=_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c
+  else
+    from=cz_brotli_lib_init_d_c
+    to=std_compress_brotli_lib_compress_brotli_stream_init_decompress_c
+  fi
+  if ! "$oc" --redefine-sym "$from=$to" "$o"; then
     rm -f "$o"
     return 1
   fi
-  if ! nm -u "$o" | awk '{ s=$NF } s=="_std_compress_gzip_gzip_compress" { n++ } END { exit (n==1)?0:1 }'; then
+  if ! nm -u "$o" | awk '{ s=$NF } s=="std_compress_gzip_gzip_compress" || s=="_std_compress_gzip_gzip_compress" { n++ } END { exit (n>=1)?0:1 }'; then
     rm -f "$o"
     return 1
   fi
-  if ! nm -u "$o" | awk '{ s=$NF } s=="_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" { n++ } END { exit (n==1)?0:1 }'; then
+  if ! nm -u "$o" | awk '{ s=$NF } s=="std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" || s=="_std_compress_brotli_lib_compress_brotli_stream_init_decompress_c" { n++ } END { exit (n>=1)?0:1 }'; then
     rm -f "$o"
     return 1
   fi
@@ -31692,9 +31731,9 @@ case "$MODE" in
     exit $?
     ;;
   compress-formal-retry|compress_formal_retry_pure)
-    # w1209: forty-one pure-asm symbols of std_compress_formal_darwin.x.
+    # w1209 / 记222: forty-one pure-asm symbols of std_compress_formal_darwin.x.
     # Does not write std/compress/compress.o unless that path is passed.
-    # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
+    # PLATFORM: MACOS|DARWIN arm64 | LINUX. cwd is compiler/.
     if [ "$#" -lt 1 ]; then
       echo "ensure_host_cc_seed_o compress-formal-retry: need <out.o>" >&2
       exit 2

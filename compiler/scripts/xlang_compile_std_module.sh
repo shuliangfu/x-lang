@@ -955,9 +955,11 @@ case "${1:-}" in
         fi
       fi
       if [ "$_key" = "std/compress/compress.o" ]; then
+        # 记222: Linux joins Darwin arm64 pure-asm (forward + brotli-lib rename).
+        # Windows keeps formal_surface.c.
         _cz_os="$(uname -s 2>/dev/null || echo Unknown)"
         _cz_mach="$(uname -m 2>/dev/null || echo unknown)"
-        if [ "$_cz_os" = "Darwin" ] && [ "$_cz_mach" = "arm64" ]; then
+        if { [ "$_cz_os" = "Darwin" ] && [ "$_cz_mach" = "arm64" ]; } || [ "$_cz_os" = "Linux" ]; then
           _cz_x="src/asm/std_compress_formal_darwin.x"
           if [ ! -f "$_cz_x" ]; then
             _cz_x="../compiler/src/asm/std_compress_formal_darwin.x"

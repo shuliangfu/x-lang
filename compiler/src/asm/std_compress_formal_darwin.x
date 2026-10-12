@@ -11,7 +11,7 @@
 // the C face. The brotli-lib init extern is longer than this compiler
 // accepts, so the object spells it cz_brotli_lib_init_d_c and ensure
 // renames that undefined symbol to the real submodule name.
-// PLATFORM: MACOS|DARWIN arm64.
+// PLATFORM: MACOS|DARWIN arm64 | LINUX.
 
 extern function memcpy(dst: *u8, src: *u8, n: u64): *u8;
 extern function std_compress_gzip_gzip_compress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32;
@@ -40,7 +40,7 @@ extern function cz_brotli_lib_init_d_c(state: *u8, state_cap: i32): i32;
 /**
  * Anchor for this Darwin compress object.
  * @return i32 — always 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_formal_darwin_x_doc_anchor(): i32 {
@@ -52,7 +52,7 @@ export function std_compress_formal_darwin_x_doc_anchor(): i32 {
  * @param p record address
  * @param off byte offset
  * @return *u8 — field address
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function cz_at(p: *u8, off: i32): *u8 {
   return p + off;
@@ -62,7 +62,7 @@ function cz_at(p: *u8, off: i32): *u8 {
  * Store an i32 through a pointer.
  * @param p destination
  * @param v value
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function cz_store_i32(p: *u8, v: i32): void {
   let x: i32 = v;
@@ -76,7 +76,7 @@ function cz_store_i32(p: *u8, v: i32): void {
  * Load an i32 through a pointer.
  * @param p source
  * @return i32 — stored value
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function cz_load_i32(p: *u8): i32 {
   let v: i32 = 0;
@@ -91,7 +91,7 @@ function cz_load_i32(p: *u8): i32 {
  * Store a pointer through a pointer.
  * @param p destination
  * @param v pointer value
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function cz_store_ptr(p: *u8, v: *u8): void {
   let x: *u8 = v;
@@ -105,7 +105,7 @@ function cz_store_ptr(p: *u8, v: *u8): void {
  * Load a pointer through a pointer.
  * @param p source
  * @return *u8 — stored pointer
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 function cz_load_ptr(p: *u8): *u8 {
   let v: *u8 = 0;
@@ -119,7 +119,7 @@ function cz_load_ptr(p: *u8): *u8 {
 /**
  * Gzip format id.
  * @return i32 — 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_format_gzip(): i32 {
@@ -129,7 +129,7 @@ export function std_compress_format_gzip(): i32 {
 /**
  * Brotli format id.
  * @return i32 — 1
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_format_brotli(): i32 {
@@ -139,7 +139,7 @@ export function std_compress_format_brotli(): i32 {
 /**
  * Zstd format id.
  * @return i32 — 2
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_format_zstd(): i32 {
@@ -149,7 +149,7 @@ export function std_compress_format_zstd(): i32 {
 /**
  * Compress mode id.
  * @return i32 — 0
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_mode_compress(): i32 {
@@ -159,7 +159,7 @@ export function std_compress_mode_compress(): i32 {
 /**
  * Decompress mode id.
  * @return i32 — 1
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_mode_decompress(): i32 {
@@ -170,7 +170,7 @@ export function std_compress_mode_decompress(): i32 {
  * State bytes for one format. Unknown formats return -1.
  * @param format 0 gzip, 1 brotli, 2 zstd
  * @return i32 — 128, 32, 32, or -1
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_compress_state_bytes_for(format: i32): i32 {
@@ -189,7 +189,7 @@ export function std_compress_compress_state_bytes_for(format: i32): i32 {
 /**
  * Largest stream state, which is the gzip cap.
  * @return i32 — 128
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_compress_state_bytes(): i32 {
@@ -199,7 +199,7 @@ export function std_compress_compress_state_bytes(): i32 {
 /**
  * Gzip stream state cap.
  * @return i32 — 128
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_stream_state_bytes(): i32 {
@@ -209,7 +209,7 @@ export function std_compress_gzip_stream_state_bytes(): i32 {
 /**
  * Brotli stream state cap.
  * @return i32 — 32
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_stream_state_bytes(): i32 {
@@ -219,7 +219,7 @@ export function std_compress_brotli_stream_state_bytes(): i32 {
 /**
  * Zstd stream state cap.
  * @return i32 — 32
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_stream_state_bytes(): i32 {
@@ -233,7 +233,7 @@ export function std_compress_zstd_stream_state_bytes(): i32 {
  * @param out output
  * @param out_cap output capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_compress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
@@ -251,7 +251,7 @@ export function std_compress_gzip_compress(inp: *u8, in_len: i32, out: *u8, out_
  * @param out output
  * @param out_cap output capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_decompress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
@@ -269,7 +269,7 @@ export function std_compress_gzip_decompress(inp: *u8, in_len: i32, out: *u8, ou
  * @param out output
  * @param out_cap output capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_compress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
@@ -287,7 +287,7 @@ export function std_compress_brotli_compress(inp: *u8, in_len: i32, out: *u8, ou
  * @param out output
  * @param out_cap output capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_decompress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
@@ -305,7 +305,7 @@ export function std_compress_brotli_decompress(inp: *u8, in_len: i32, out: *u8, 
  * @param out output
  * @param out_cap output capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_compress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
@@ -323,7 +323,7 @@ export function std_compress_zstd_compress(inp: *u8, in_len: i32, out: *u8, out_
  * @param out output
  * @param out_cap output capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_decompress(inp: *u8, in_len: i32, out: *u8, out_cap: i32): i32 {
@@ -339,7 +339,7 @@ export function std_compress_zstd_decompress(inp: *u8, in_len: i32, out: *u8, ou
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_stream_init_compress(state: *u8, state_cap: i32): i32 {
@@ -355,7 +355,7 @@ export function std_compress_gzip_stream_init_compress(state: *u8, state_cap: i3
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_stream_init_decompress(state: *u8, state_cap: i32): i32 {
@@ -377,7 +377,7 @@ export function std_compress_gzip_stream_init_decompress(state: *u8, state_cap: 
  * @param is_last last-chunk flag
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
@@ -406,7 +406,7 @@ export function std_compress_gzip_stream_compress(state: *u8, state_cap: i32, in
  * @param out_cap output capacity
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, in_consumed: *i32): i32 {
@@ -422,7 +422,7 @@ export function std_compress_gzip_stream_decompress(state: *u8, state_cap: i32, 
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_gzip_stream_end(state: *u8, state_cap: i32): i32 {
@@ -438,7 +438,7 @@ export function std_compress_gzip_stream_end(state: *u8, state_cap: i32): i32 {
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_stream_init_compress(state: *u8, state_cap: i32): i32 {
@@ -454,7 +454,7 @@ export function std_compress_brotli_stream_init_compress(state: *u8, state_cap: 
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_stream_init_decompress(state: *u8, state_cap: i32): i32 {
@@ -476,7 +476,7 @@ export function std_compress_brotli_stream_init_decompress(state: *u8, state_cap
  * @param is_last last-chunk flag
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
@@ -505,7 +505,7 @@ export function std_compress_brotli_stream_compress(state: *u8, state_cap: i32, 
  * @param out_cap output capacity
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, in_consumed: *i32): i32 {
@@ -521,7 +521,7 @@ export function std_compress_brotli_stream_decompress(state: *u8, state_cap: i32
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_stream_end(state: *u8, state_cap: i32): i32 {
@@ -537,7 +537,7 @@ export function std_compress_brotli_stream_end(state: *u8, state_cap: i32): i32 
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_stream_init_compress(state: *u8, state_cap: i32): i32 {
@@ -553,7 +553,7 @@ export function std_compress_zstd_stream_init_compress(state: *u8, state_cap: i3
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_stream_init_decompress(state: *u8, state_cap: i32): i32 {
@@ -575,7 +575,7 @@ export function std_compress_zstd_stream_init_decompress(state: *u8, state_cap: 
  * @param is_last last-chunk flag
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_stream_compress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
@@ -604,7 +604,7 @@ export function std_compress_zstd_stream_compress(state: *u8, state_cap: i32, in
  * @param out_cap output capacity
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_stream_decompress(state: *u8, state_cap: i32, inp: *u8, in_len: i32, out: *u8, out_cap: i32, in_consumed: *i32): i32 {
@@ -620,7 +620,7 @@ export function std_compress_zstd_stream_decompress(state: *u8, state_cap: i32, 
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_zstd_stream_end(state: *u8, state_cap: i32): i32 {
@@ -636,7 +636,7 @@ export function std_compress_zstd_stream_end(state: *u8, state_cap: i32): i32 {
  * @param state state buffer
  * @param state_cap capacity
  * @return i32 — submodule result
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_brotli_lib_compress_brotli_stream_init_decompress_(state: *u8, state_cap: i32): i32 {
@@ -657,7 +657,7 @@ export function std_compress_brotli_lib_compress_brotli_stream_init_decompress_(
  * @param format 0 gzip, 1 brotli, 2 zstd
  * @param mode 0 compress, 1 decompress
  * @return i32 — submodule result or an error code
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_compress_init(sc: *u8, state: *u8, state_cap: i32, format: i32, mode: i32): i32 {
@@ -712,7 +712,7 @@ export function std_compress_compress_init(sc: *u8, state: *u8, state_cap: i32, 
  * @param is_last last-chunk flag
  * @param in_consumed consumed-byte slot
  * @return i32 — submodule result, or -9
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_compress_process(sc: *u8, inp: *u8, in_len: i32, out: *u8, out_cap: i32, is_last: i32, in_consumed: *i32): i32 {
@@ -758,7 +758,7 @@ export function std_compress_compress_process(sc: *u8, inp: *u8, in_len: i32, ou
  * Read a by-value stream record and end that stream.
  * @param sc address of the 24-byte record
  * @return i32 — submodule result, or -9
- * PLATFORM: MACOS|DARWIN
+ * PLATFORM: MACOS|DARWIN|LINUX
  */
 #[no_mangle]
 export function std_compress_compress_end(sc: *u8): i32 {
