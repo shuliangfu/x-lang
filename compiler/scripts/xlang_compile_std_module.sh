@@ -492,7 +492,7 @@ formal_mod_spec_for_key() {
     std/async/future.o) printf '%s' "mod|1|../std/async/future.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — unicode mod.x is asm.
     # Do not pass -lib-name "". Exports stay std_unicode_*.
-    # unicode.x stays on the C path. WINDOWS stays on the C path.
+    # unicode.x has Darwin+Linux pure-asm arm (记214). WINDOWS stays on the C path.
     std/unicode/unicode.o) printf '%s' "mod|1|../std/unicode/mod.x|../std/unicode/unicode.x" ;;
     # PLATFORM: MACOS|DARWIN|LINUX — same asm leaf rule as std.thread.
     # WINDOWS stays on the C path. Import mangle stays std_channel_*.
@@ -2297,7 +2297,7 @@ for x_path in "$@"; do
     ../std/unicode/mod.x|std/unicode/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.unicode mod.x.
       # Do not pass -lib-name "". Exports stay std_unicode_*.
-      # A miss stops here. unicode.x stays on the C path. Windows keeps the C path.
+      # A miss stops here. unicode.x has its own arm (记214). Windows keeps the C path.
       # Do not fall through to cc for this file.
       _uni_os="$(uname -s 2>/dev/null || echo Unknown)"
       case "$_uni_os" in
@@ -2324,6 +2324,44 @@ for x_path in "$@"; do
           fi
           echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
           cat "$tmp_dir/uni_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
+    ../std/unicode/unicode.x|std/unicode/unicode.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — bare-impl file for std.unicode (记214).
+      # Do not pass -lib-name "". Exports stay std_unicode_unicode_* (match C).
+      # Root: drop #[no_mangle] on category/to_lower/to_upper so tip prefixes
+      # like the C object (no_mangle left bare names and broke the link surface).
+      # A miss stops here. Windows keeps the C path.
+      # Do not fall through to cc for this file.
+      _unix_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_unix_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/unix_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_category$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_is_whitespace$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_is_ascii$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_to_lower$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_to_upper$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_grapheme_next$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_case_fold_rune$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_grapheme_case_smoke$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_unicode_ascii_cat_lookup$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_unicode_unicode_nfc_buf$'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/unix_x_asm_${idx}.log" >&2
           exit 1
           ;;
       esac

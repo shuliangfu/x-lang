@@ -192,7 +192,6 @@ export function unicode_is_combining_mark(rune: u32): i32 {
  * @param rune u32
  * @return i32
  */
-#[no_mangle]
 export function category(rune: u32): i32 {
   return unicode_ascii_cat_lookup(rune) as i32;
 }
@@ -223,7 +222,6 @@ export function is_ascii(rune: u32): i32 {
  * @param rune u32
  * @return u32
  */
-#[no_mangle]
 export function to_lower(rune: u32): u32 {
   if (rune >= 65 as u32 && rune <= 90 as u32) { return rune + 32; }
   return rune;
@@ -235,7 +233,6 @@ export function to_lower(rune: u32): u32 {
  * @param rune u32
  * @return u32
  */
-#[no_mangle]
 export function to_upper(rune: u32): u32 {
   if (rune >= 97 as u32 && rune <= 122 as u32) { return rune - 32; }
   return rune;
