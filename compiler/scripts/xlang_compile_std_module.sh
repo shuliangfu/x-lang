@@ -962,11 +962,12 @@ case "${1:-}" in
         fi
       fi
       if [ "$_key" = "std/runtime/runtime.o" ]; then
-        # PLATFORM: MACOS|DARWIN arm64 — four faces from the .x.
-        # Linux and Windows keep formal_surface.c.
+        # 记218: Linux joins Darwin arm64 — four faces from the .x.
+        # Windows keeps formal_surface.c. Miss is fail-closed (no cc).
+        # PLATFORM: MACOS|DARWIN arm64 | LINUX.
         _rt_os="$(uname -s 2>/dev/null || echo Unknown)"
         _rt_mach="$(uname -m 2>/dev/null || echo unknown)"
-        if [ "$_rt_os" = "Darwin" ] && [ "$_rt_mach" = "arm64" ]; then
+        if { [ "$_rt_os" = "Darwin" ] && [ "$_rt_mach" = "arm64" ]; } || [ "$_rt_os" = "Linux" ]; then
           _rt_x="src/asm/std_runtime_formal_darwin.x"
           if [ ! -f "$_rt_x" ]; then
             _rt_x="../compiler/src/asm/std_runtime_formal_darwin.x"
@@ -1063,7 +1064,7 @@ case "${1:-}" in
         exit 0
       fi
       if [ "$_rt_darwin" = "1" ]; then
-        # PLATFORM: MACOS|DARWIN arm64. A miss stops here.
+        # PLATFORM: MACOS|DARWIN arm64 | LINUX (记218). A miss stops here.
         # Do not fall through to cc for this face.
         _rt_log="$(mktemp "${TMPDIR:-/tmp}/std_rt_asm.XXXXXX")"
         if [ ! -x ./xlang ]; then
