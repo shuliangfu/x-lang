@@ -13,6 +13,7 @@ export extern "C" function net_wsa_ctor_impl_c(): void;
  * Anchor function for runtime_net_sock_fast .x module documentation.
  * @return i32 — always 0
  */
+#[no_mangle]
 export function runtime_net_sock_fast_x_doc_anchor(): i32 {
   return 0;
 }

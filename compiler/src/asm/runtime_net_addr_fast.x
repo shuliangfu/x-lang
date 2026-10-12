@@ -12,6 +12,7 @@
  * Implements `runtime_net_addr_fast_x_doc_anchor`.
  * @return i32
  */
+#[no_mangle]
 export function runtime_net_addr_fast_x_doc_anchor(): i32 {
   return 0;
 }

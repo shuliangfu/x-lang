@@ -27961,20 +27961,37 @@ ensure_net_sock_fast_darwin_pure() {
     fi
     if [ -s "$thin_o" ] && [ -s "$os_o" ] \
       && /usr/bin/ld -r -o "$o" "$thin_o" "$os_o"; then
-      # The thin defines net_ensure_wsa and net_wsa_ctor with a suffix.
-      # Callers use the short names. Rename the definitions.
+      # Tip export_sym appends _c even under #[no_mangle] (historic also
+      # emitted wsack/ctorsa). Product C face is bare net_ensure_wsa /
+      # net_wsa_ctor. Rename whichever form the thin emitted.
       # PLATFORM: MACOS|DARWIN arm64.
-      if nm "$o" 2>/dev/null | grep -q '_net_ensure_wsack'; then
+      if nm "$o" 2>/dev/null | grep -qE ' T _net_ensure_wsa(_c|ck)?$'; then
         local oc
         oc="$(pure_asm_find_objcopy)" || return 1
-        if ! "$oc" \
-          --redefine-sym '_net_ensure_wsack'='_net_ensure_wsa' \
-          --redefine-sym '_net_wsa_ctorsa'='_net_wsa_ctor' \
-          "$o"; then
-          echo "ensure_host_cc_seed_o net_sock: rename failed" >&2
-          rm -f "$o"
-          continue
+        _ns_ren=0
+        if nm "$o" 2>/dev/null | grep -q ' T _net_ensure_wsa_c$'; then
+          if ! "$oc" \
+            --redefine-sym '_net_ensure_wsa_c'='_net_ensure_wsa' \
+            --redefine-sym '_net_wsa_ctor_c'='_net_wsa_ctor' \
+            "$o"; then
+            echo "ensure_host_cc_seed_o net_sock: rename _c failed" >&2
+            rm -f "$o"
+            continue
+          fi
+          _ns_ren=1
+        elif nm "$o" 2>/dev/null | grep -q ' T _net_ensure_wsack$'; then
+          if ! "$oc" \
+            --redefine-sym '_net_ensure_wsack'='_net_ensure_wsa' \
+            --redefine-sym '_net_wsa_ctorsa'='_net_wsa_ctor' \
+            "$o"; then
+            echo "ensure_host_cc_seed_o net_sock: rename wsack failed" >&2
+            rm -f "$o"
+            continue
+          fi
+          _ns_ren=1
         fi
+        # bare _net_ensure_wsa already OK — no rename
+        : "$_ns_ren"
       fi
       local _ns_short _ns_ok
       _ns_ok=1
@@ -28230,10 +28247,73 @@ ensure_net_io_batch_fast_darwin_pure() {
   return 0
 }
 
+
+
+# w246: Darwin|Linux net_dns_fast.o from runtime_net_dns_fast.x (pure-asm).
+# Cap resolve stays U (xlang_dns_cap_resolve_*); same contract as std/net/dns.x.
+# Windows keeps the C seed below. PLATFORM: MACOS|DARWIN|LINUX.
+ensure_net_dns_fast_pure() {
+  local o="${1:-../std/net/net_dns_fast.o}"
+  local xsrc="src/asm/runtime_net_dns_fast.x"
+  local seed="seeds/runtime_net_dns_fast.from_x.c"
+  local try=0
+  local os
+  os="$(uname -s 2>/dev/null || echo Unknown)"
+  if [ ! -f "$xsrc" ]; then
+    echo "ensure_host_cc_seed_o net_dns: missing $xsrc" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+    log "skip $o (up-to-date vs $xsrc)"
+    return 0
+  fi
+  mkdir -p "$(dirname "$o")"
+  case "$os" in
+    Darwin|Linux)
+      while [ "$try" -lt 8 ]; do
+        try=$((try + 1))
+        rm -f "$o"
+        if ./xlang -backend asm -c -L .. -lib-name "" -o "$o" "$xsrc" 2>/dev/null \
+          && [ -s "$o" ] \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?net_dns_ai_addconfig_c$' \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?net_dns_map_gai_error_c$' \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?net_dns_ensure_wsa_c$' \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_c$' \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv4_ex_c$' \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?net_resolve_ipv6_ex_c$' \
+          && nm "$o" 2>/dev/null | grep -qE ' T _?runtime_net_dns_fast_x_doc_anchor$'; then
+          log "pure-asm $xsrc → $o"
+          return 0
+        fi
+        echo "ensure_host_cc_seed_o net_dns: pure-asm try $try failed" >&2
+        rm -f "$o"
+      done
+      echo "ensure_host_cc_seed_o net_dns: pure-asm failed for $xsrc" >&2
+      return 1
+      ;;
+  esac
+  log "cc -c $seed → $o (non Darwin/Linux)"
+  # shellcheck disable=SC2086
+  $CC ${CFLAGS:-} -I. -Iinclude -Isrc -c "$seed" -o "$o" || return 1
+  return 0
+}
+
 _std_core_net_fast_one() {
   local fast_o="$1" seed="$2" x_src="$3" from_x_def="$4" mode="$5" xbin="${6:-}"
   local prefer="${XLANG_G05_PREFER_X_O:-0}"
   local thin_o rest_o dir
+  # w246: Darwin|Linux net_dns_fast.o pure-asm (Cap U; no seed cc).
+  # PLATFORM: MACOS|DARWIN|LINUX.
+  if [ "$(basename "$fast_o")" = "net_dns_fast.o" ]; then
+    local nd_s
+    nd_s="$(uname -s 2>/dev/null || echo Unknown)"
+    case "$nd_s" in
+      Darwin|Linux)
+        ensure_net_dns_fast_pure "$fast_o" || return 1
+        return 0
+        ;;
+    esac
+  fi
   # w1095: Darwin arm64 builds net_addr_fast.o from the two .x files.
   # Linux and Windows keep the direct/host-cc path below.
   # PLATFORM: MACOS|DARWIN arm64.
@@ -28595,14 +28675,15 @@ ensure_std_core_prefer_one() {
           return 1
         fi
       fi
-      # Linux merge uses ld -r so this leaf does not execve(cc) for -r.
-      # PLATFORM: LINUX. Darwin keeps _std_core_ld_r (libtool fallback).
+      # Merge with zero execve(cc): Linux ld -r; Darwin XLANG_ZERO_CC_LD so
+      # pure_ld_partial_merge uses ld -r then libtool (never $CC -r).
+      # PLATFORM: LINUX|DARWIN. Windows stays seed+cc above.
       if [ "$_alias_os" = "Linux" ]; then
         if ! /usr/bin/ld -r -o "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
           rm -f "$tmp_args" "$tmp_alias"
           return 1
         fi
-      elif ! _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+      elif ! XLANG_ZERO_CC_LD=1 _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
         rm -f "$tmp_args" "$tmp_alias"
         return 1
       fi
@@ -28786,8 +28867,11 @@ TEOF
       _std_core_net_fast_one ../std/net/net_sock_fast.o \
         seeds/runtime_net_sock_fast.from_x.c src/asm/runtime_net_sock_fast.x \
         XLANG_RUNTIME_NET_SOCK_FAST_FROM_X thin_rest "$net_sub_xlang" || return 1
+      # Zero execve(cc) for the final partial merge: XLANG_ZERO_CC_LD forces
+      # ld -r (then Darwin libtool) instead of product-default $CC -r.
+      # PLATFORM: SHARED (LINUX|DARWIN). Windows net_merge still residual.
       # shellcheck disable=SC2086
-      if ! _std_core_ld_r "$o" $objs \
+      if ! XLANG_ZERO_CC_LD=1 _std_core_ld_r "$o" $objs \
         ../std/net/net_dns_fast.o ../std/net/net_io_batch_fast.o \
         ../std/net/net_addr_fast.o ../std/net/net_ipv6_fast.o \
         ../std/net/net_sock_fast.o; then

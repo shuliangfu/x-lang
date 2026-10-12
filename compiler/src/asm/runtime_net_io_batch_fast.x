@@ -29,6 +29,7 @@
  * Anchor for codegen discovery of this TU. Returns 0.
  * @return i32 always 0
  */
+#[no_mangle]
 export function runtime_net_io_batch_fast_x_doc_anchor(): i32 {
   return 0;
 }

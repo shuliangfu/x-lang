@@ -1,59 +1,65 @@
 // Copyright (C) 2026 ShuLiangfu <admin@shuliangfu.com>
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// runtime_net_dns_fast.x — Thin .x exports delegating to
-// seeds/runtime_net_dns_fast.from_x.c via xlang_dns_cap.h (SHARED Cap 9.1.7).
-//
-// PLATFORM: SHARED — Linux & Darwin raw syscalls + Windows Winsock Cap.
+// runtime_net_dns_fast.x — Darwin|Linux pure-asm faces for net_dns_fast.o.
+// Cap residual 9.1.7: xlang_dns_cap_resolve_* stay U (same contract as
+// std/net/dns.x). Windows keeps seeds/runtime_net_dns_fast.from_x.c.
+// PLATFORM: SHARED. MACOS|DARWIN|LINUX pure-asm product ensure path.
 
-export extern "C" function net_dns_ai_addconfig_c_impl_c(): i32;
-export extern "C" function net_dns_map_gai_error_c_impl_c(err: i32): i32;
-export extern "C" function net_dns_ensure_wsa_c_impl_c(): i32;
+extern "C" function xlang_dns_cap_resolve_ipv4(hostname: *u8, out_addr: *u32, out_err: *i32): i32;
+extern "C" function xlang_dns_cap_resolve_ipv6(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32;
 
-/**
- * Anchor function for runtime_net_dns_fast .x module documentation.
- * @return i32 — always 0
- */
+/** Anchor for codegen discovery of this TU. @return i32 always 0 */
+#[no_mangle]
 export function runtime_net_dns_fast_x_doc_anchor(): i32 {
   return 0;
 }
 
-/**
- * Return platform-specific addrinfo add-config flags.
- * @return i32 — flags
- * PLATFORM: SHARED
- */
+#[cfg(target_os = "linux")]
 #[no_mangle]
 export function net_dns_ai_addconfig_c(): i32 {
-  unsafe {
-    return net_dns_ai_addconfig_c_impl_c();
-  }
-  return 0;
+  return 32;
 }
 
-/**
- * Map getaddrinfo error code to normalized internal error (1=NONAME 2=NODATA 3=AGAIN 4=system).
- * @param err i32 — platform error code
- * @return i32 — normalized error code in [1, 4]
- * PLATFORM: SHARED
- */
+#[cfg(not(target_os = "linux"))]
+#[no_mangle]
+export function net_dns_ai_addconfig_c(): i32 {
+  return 1024;
+}
+
 #[no_mangle]
 export function net_dns_map_gai_error_c(err: i32): i32 {
-  unsafe {
-    return net_dns_map_gai_error_c_impl_c(err);
-  }
+  if (err == 1) { return 1; }
+  if (err == 2) { return 2; }
+  if (err == 3) { return 3; }
+  return 4;
+}
+
+#[no_mangle]
+export function net_dns_ensure_wsa_c(): i32 {
   return 0;
 }
 
-/**
- * Ensure Winsock is initialized for DNS queries on Windows; no-op on POSIX.
- * @return i32 — 0 on success, negative on error
- * PLATFORM: SHARED
- */
 #[no_mangle]
-export function net_dns_ensure_wsa_c(): i32 {
-  unsafe {
-    return net_dns_ensure_wsa_c_impl_c();
+export function net_resolve_ipv4_c(hostname: *u8): u32 {
+  let addr: u32 = 0;
+  let err: i32 = 0;
+  if (net_resolve_ipv4_ex_c(hostname, &addr, &err) != 0) {
+    return 0 as u32;
   }
-  return 0;
+  return addr;
+}
+
+#[no_mangle]
+export function net_resolve_ipv4_ex_c(hostname: *u8, out_addr: *u32, out_err: *i32): i32 {
+  unsafe {
+    return xlang_dns_cap_resolve_ipv4(hostname, out_addr, out_err);
+  }
+}
+
+#[no_mangle]
+export function net_resolve_ipv6_ex_c(hostname: *u8, out_addr_16: *u8, out_err: *i32): i32 {
+  unsafe {
+    return xlang_dns_cap_resolve_ipv6(hostname, out_addr_16, out_err);
+  }
 }

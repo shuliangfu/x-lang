@@ -16,6 +16,7 @@ export extern "C" function net_ipv6_connect_retry_ok_c_impl_c(): i32;
  * Anchor function for runtime_net_ipv6_fast .x module documentation.
  * @return i32 — always 0
  */
+#[no_mangle]
 export function runtime_net_ipv6_fast_x_doc_anchor(): i32 {
   return 0;
 }
