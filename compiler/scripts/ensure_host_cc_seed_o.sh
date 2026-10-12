@@ -27881,7 +27881,7 @@ ensure_net_addr_fast_darwin_pure() {
         _net_tcp_set_addr_port_buf_c \
         _net_udp_set_addr_port_buf_c \
         _runtime_net_addr_fast_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_na_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        if ! nm "$o" 2>/dev/null | awk -v s="$_na_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _na_ok=0
           break
         fi
@@ -27972,21 +27972,30 @@ ensure_net_sock_fast_darwin_pure() {
       # emitted wsack/ctorsa). Product C face is bare net_ensure_wsa /
       # net_wsa_ctor. Rename whichever form the thin emitted.
       # PLATFORM: MACOS|DARWIN arm64.
-      if nm "$o" 2>/dev/null | grep -qE ' T _net_ensure_wsa(_c|ck)?$'; then
+      # Mach-O nm keeps leading _; ELF does not. Match both.
+      if nm "$o" 2>/dev/null | grep -qE ' T _?net_ensure_wsa(_c|ck)?$'; then
         local oc
         oc="$(pure_asm_find_objcopy)" || return 1
         _ns_ren=0
-        if nm "$o" 2>/dev/null | grep -q ' T _net_ensure_wsa_c$'; then
+        if nm "$o" 2>/dev/null | grep -qE ' T _?net_ensure_wsa_c$'; then
           if ! "$oc" \
             --redefine-sym '_net_ensure_wsa_c'='_net_ensure_wsa' \
+            --redefine-sym 'net_ensure_wsa_c'='net_ensure_wsa' \
             --redefine-sym '_net_wsa_ctor_c'='_net_wsa_ctor' \
-            "$o"; then
-            echo "ensure_host_cc_seed_o net_sock: rename _c failed" >&2
-            rm -f "$o"
-            continue
+            --redefine-sym 'net_wsa_ctor_c'='net_wsa_ctor' \
+            "$o" 2>/dev/null; then
+            # Some objcopy reject unknown from-syms; try ELF-only pair.
+            if ! "$oc" \
+              --redefine-sym 'net_ensure_wsa_c'='net_ensure_wsa' \
+              --redefine-sym 'net_wsa_ctor_c'='net_wsa_ctor' \
+              "$o"; then
+              echo "ensure_host_cc_seed_o net_sock: rename _c failed" >&2
+              rm -f "$o"
+              continue
+            fi
           fi
           _ns_ren=1
-        elif nm "$o" 2>/dev/null | grep -q ' T _net_ensure_wsack$'; then
+        elif nm "$o" 2>/dev/null | grep -qE ' T _?net_ensure_wsack$'; then
           if ! "$oc" \
             --redefine-sym '_net_ensure_wsack'='_net_ensure_wsa' \
             --redefine-sym '_net_wsa_ctorsa'='_net_wsa_ctor' \
@@ -27997,7 +28006,6 @@ ensure_net_sock_fast_darwin_pure() {
           fi
           _ns_ren=1
         fi
-        # bare _net_ensure_wsa already OK — no rename
         : "$_ns_ren"
       fi
       local _ns_short _ns_ok
@@ -28023,7 +28031,7 @@ ensure_net_sock_fast_darwin_pure() {
         _net_udp_errno_ptr_c \
         _net_ipv6_errno_ptr_c \
         _runtime_net_sock_fast_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_ns_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        if ! nm "$o" 2>/dev/null | awk -v s="$_ns_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _ns_ok=0
           break
         fi
@@ -28127,7 +28135,7 @@ ensure_net_ipv6_fast_darwin_pure() {
         _net_tcp_connect_ipv6_c \
         _net_tcp_listen_ipv6_c \
         _runtime_net_ipv6_fast_x_doc_anchor; do
-        if ! nm "$o" 2>/dev/null | awk -v s="$_nv_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+        if ! nm "$o" 2>/dev/null | awk -v s="$_nv_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
           _nv_ok=0
           break
         fi
@@ -28226,7 +28234,7 @@ ensure_net_io_batch_fast_darwin_pure() {
           _net_udp_recv_many_buf_impl_c \
           _net_udp_send_many_buf_impl_c \
           _runtime_net_io_batch_fast_x_doc_anchor; do
-          if ! nm "$o" 2>/dev/null | awk -v s="$_ni_short" '$2=="T" && $3==s { n++ } END { exit (n==1)?0:1 }'; then
+          if ! nm "$o" 2>/dev/null | awk -v s="$_ni_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
             _ni_ok=0
             break
           fi
