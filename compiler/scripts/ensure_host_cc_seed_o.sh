@@ -5875,6 +5875,13 @@ ensure_one() {
     return 0
   fi
 
+  # 记252／8.9: rdabi never host-cc the full outdated seed.
+  # PLATFORM: SHARED.
+  if [ "$out" = "src/runtime_driver_abi.o" ]; then
+    ensure_rdabi_thin_prefer || return 1
+    return 0
+  fi
+
   # w1076: Darwin arm64 user-domain getenv face is the .x, not this seed.
   # Linux and Windows keep host-cc of the C seed (environ symbol differs).
   # PLATFORM: MACOS|DARWIN arm64.
@@ -14738,7 +14745,9 @@ r3_prefer_leaf_spec() {
       printf '%s\n' "src/runtime_io_abi.x|XLANG_L2_RIO_THIN_FROM_X,XLANG_RUNTIME_IO_ABI_FROM_X|-|-|-"
       ;;
     src/runtime_driver_abi.o)
-      printf '%s\n' "src/runtime_driver_abi_thin.x|XLANG_L2_RDABI_THIN_FROM_X|-|-|-"
+      # 记252／8.9: thin+FROM_X rest only. Full-seed cold lacks thin helpers
+      # (e.g. driver_abi_cstr_len) and historically broke L2. nm gate refuses seed-only.
+      printf '%s\n' "src/runtime_driver_abi_thin.x|XLANG_L2_RDABI_THIN_FROM_X|driver_abi_cstr_len|-|-"
       ;;
     src/runtime_driver_diagnostic.o)
       # w853: ensure_r3_prefer_one does not use this spec. Thin publics are
@@ -15803,6 +15812,64 @@ ensure_r3_full_x_pure_w1525() {
   return 0
 }
 
+# 记252／8.9: runtime_driver_abi.o — thin.x + seed rest with
+# XLANG_L2_RDABI_THIN_FROM_X only. Never host-cc the full outdated seed
+# (missing thin helpers / historically broke product L2). Failure leaves
+# the previous .o and returns 1. PLATFORM: SHARED.
+ensure_rdabi_thin_prefer() {
+  local o="src/runtime_driver_abi.o"
+  local x_src="src/runtime_driver_abi_thin.x"
+  local seed="seeds/runtime_driver_abi.from_x.c"
+  local xlang_bin=""
+  local stale=0
+
+  if [ ! -f "$x_src" ] || [ ! -f "$seed" ]; then
+    echo "ensure: rdabi missing $x_src or $seed; no full-seed cold fallback" >&2
+    return 1
+  fi
+  if [ "$FORCE" != "1" ] && [ -f "$o" ]; then
+    [ "$seed" -nt "$o" ] && stale=1
+    [ "$x_src" -nt "$o" ] && stale=1
+    if [ "$stale" = "0" ] && ensure_sibling_x_newer "$o"; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" "driver_abi_cstr_len"; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" "runtime_driver_abi_slice_marker"; then
+      stale=1
+    fi
+    if [ "$stale" = "0" ]; then
+      log "skip up-to-date $o (rdabi thin+FROM_X rest; 8.9 no full-seed cold)"
+      return 0
+    fi
+  fi
+
+  if [ -x ./xlang_asm ]; then
+    xlang_bin=./xlang_asm
+  elif [ -x ./xlang ]; then
+    xlang_bin=./xlang
+  elif [ -x ./xlang-c ]; then
+    xlang_bin=./xlang-c
+  else
+    echo "ensure: rdabi prefer has no compiler; no full-seed cold fallback" >&2
+    return 1
+  fi
+
+  if ! XLANG_PURE_ASM_ALLOW_U_PANIC=1 \
+    r3_prefer_try_step "$o" "$x_src" "XLANG_L2_RDABI_THIN_FROM_X" \
+      "driver_abi_cstr_len" "$seed" "$xlang_bin"; then
+    echo "ensure: rdabi thin+FROM_X prefer failed; refusing outdated full-seed cold (8.9)" >&2
+    return 1
+  fi
+  if ! r3_prefer_nm_has_sym "$o" "runtime_driver_abi_slice_marker"; then
+    echo "ensure: rdabi missing slice_marker after prefer; refusing install" >&2
+    return 1
+  fi
+  log "rdabi thin+FROM_X rest $o (8.9; no full-seed cold)"
+  return 0
+}
+
 ensure_r3_prefer_one() {
   # Prefer ladder (full→thin) or cold seed for one R3_COLD member (no membership check).
   local o="$1"
@@ -15812,6 +15879,11 @@ ensure_r3_prefer_one() {
   local ok=0
   local stale=0
 
+  # 记252／8.9: rdabi never falls through to full-seed ensure_one.
+  if [ "$o" = "src/runtime_driver_abi.o" ]; then
+    ensure_rdabi_thin_prefer || return 1
+    return 0
+  fi
   # w849: do not gcc -E this TU and do not cold-cc the marker alone.
   if [ "$o" = "src/asm/backend_arch_emit_dispatch.o" ]; then
     ensure_arch_emit_dispatch_pure || return 1

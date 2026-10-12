@@ -1240,6 +1240,14 @@ if [ "${G05_SKIP_HOT_REBUILD:-}" != "1" ]; then
       echo "g05_ensure: ERROR src/asm/backend_try_inline_dispatch.o lacks the w1527 anchor (full .x pure asm failed; no C fallback)" >&2
       exit 1
     fi
+    # 记252／8.9: runtime_driver_abi.o must be thin+FROM_X rest, not full-seed
+    # cold (full seed lacks driver_abi_cstr_len and historically broke L2).
+    # PLATFORM: SHARED.
+    if ! nm src/runtime_driver_abi.o 2>/dev/null | tr -d '\r' \
+      | grep -q " [TW] _*driver_abi_cstr_len\$"; then
+      echo "g05_ensure: ERROR src/runtime_driver_abi.o lacks driver_abi_cstr_len (full-seed cold refused; 8.9)" >&2
+      exit 1
+    fi
   else
     echo "g05_ensure: missing ensure_host_cc_seed_o.sh; R3_COLD prefer residual" >&2
   fi
