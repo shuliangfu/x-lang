@@ -14884,6 +14884,12 @@ try_ensure_r1_one() {
     ensure_ldpc_prefer_one "$o" || return 1
     return 0
   fi
+  # wave771 / knife 256 (10.2): other-L2 table (fmt_check / lsp_diag / slc / strict).
+  # Prefer hybrid owns the body; do not bare-cc emptied cold. PLATFORM: SHARED.
+  if [ -n "$(other_l2_prefer_spec_for_out "$o")" ]; then
+    ensure_other_l2_prefer_one "$o" || return 1
+    return 0
+  fi
   # w847/w863/w864/w865/w866/w867/w868/w869/w870/w871/w872/w873/w874/w875/w876: alias bodies that live in the .x are not in the seed.
   # Seed-only cc drops them. Do not gate on XLANG_G05_PREFER_X_O.
   # PLATFORM: SHARED.
@@ -27420,9 +27426,11 @@ ensure_other_l2_prefer_one() {
 
   mkdir -p "$(dirname "$o")"
 
-  # PREFER thin/full .x + seed-rest only when PREFER=1 (Darwin cold-chain twin).
-  if [ "$prefer" = "1" ] && [ -f "$x_src" ] \
-    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ]; }; then
+  # knife 256 / 10.2: always try thin+FROM_X rest when a compiler exists.
+  # sat/try-heat often set PREFER=0; bare cold seed is emptied (orphan #else)
+  # for fmt/lsp and must not be host-cc'd. PLATFORM: SHARED.
+  if [ -f "$x_src" ] \
+    && { [ -x ./xlang ] || [ -x ./xlang-c ] || [ -x ./bootstrap_xlangc ] || [ -x ./xlang_asm ]; }; then
     thin_o="$(mktemp "${TMPDIR:-/tmp}/ol2_thin.XXXXXX")"
     rest_o="$(mktemp "${TMPDIR:-/tmp}/ol2_rest.XXXXXX")"
     _thin_ok=0
@@ -27515,13 +27523,22 @@ ensure_other_l2_prefer_one() {
     return 0
   fi
 
-  # Cold full seed (ensure_one twin / PREFER=0). fmt keeps USE_X_PIPELINE.
+  # knife 256 / 10.2: fmt/lsp cold seeds emptied — no bare host-cc fallback.
+  case "$leaf_kind" in
+    fmt|fmt_core|lsp)
+      echo "ensure_host_cc_seed_o try-other-l2-prefer: hybrid failed for $o ($leaf_kind); cold seed emptied, no host-cc" >&2
+      return 1
+      ;;
+  esac
+
+  # Cold full seed for leaves whose seed still compiles (e.g. slc).
+  # Propagate ensure_one rc (honesty). PLATFORM: SHARED.
   if [ -f "$o" ] && [ "$prefer" = "1" ]; then
     FORCE=1
-    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}"
+    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}" || return 1
     FORCE=0
   else
-    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}"
+    ensure_one "$o" "$seed" "${cold_extra[@]+"${cold_extra[@]}"}" || return 1
   fi
   return 0
 }
@@ -27535,7 +27552,7 @@ try_ensure_other_l2_prefer_one() {
   if [ -z "$(other_l2_prefer_spec_for_out "$o")" ]; then
     return 3
   fi
-  ensure_other_l2_prefer_one "$o"
+  ensure_other_l2_prefer_one "$o" || return 1
   return 0
 }
 
