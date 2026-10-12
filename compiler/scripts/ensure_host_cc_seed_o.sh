@@ -14857,23 +14857,34 @@ ensure_diag_prefer() {
 # (记253／9.1 removed #include slices). Bare cc → 336B empty → phase1 UNDEFs
 # for xlang_trait_* / xlang_skip_trait_method_* / parser_*_glue.
 # Build via g05 PREFER hybrid (egg Track L / pure-asm pieces + FROM_X rests).
-# Darwin Class CB may exit partial without xlang_asm; keep the object when
-# nm-gate passes (trait faces + enough T symbols). PLATFORM: SHARED.
+# Darwin Class CB keeps first-pass hybrid on partial (knife256).
+# nm-gate: never `nm | grep -q` under set -o pipefail (SIGPIPE → false fail).
+# PLATFORM: SHARED.
 ensure_parser_asm_thin_glue_prefer() {
   local o="parser_asm_thin_glue.o"
   local n=0
   local g05log="${TMPDIR:-/tmp}/xlang_ensure_pthin_g05.log"
-  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ] \
-    && nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_reg_reset_c\$" \
-    && nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_check_impls_complete_c\$" \
-    && nm "$o" 2>/dev/null | grep -qE " T _?xlang_skip_trait_method_slot_c\$"; then
-    n=$(nm "$o" 2>/dev/null | grep -c " T " || true)
-    if [ "${n:-0}" -ge 200 ]; then
-      log "skip up-to-date $o (pthin prefer; T=$n trait faces)"
-      return 0
+  local nmfile
+  nmfile=$(mktemp "${TMPDIR:-/tmp}/xlang_pthin_nm.XXXXXX") || return 1
+  _pthin_nm_gate() {
+    # $1 = nm listing file. Return 0 if trait faces present.
+    grep -E " T _?xlang_trait_reg_reset_c\$" "$1" >/dev/null \
+      && grep -E " T _?xlang_trait_check_impls_complete_c\$" "$1" >/dev/null \
+      && grep -E " T _?xlang_skip_trait_method_slot_c\$" "$1" >/dev/null
+  }
+  if [ "${FORCE:-0}" != "1" ] && [ -s "$o" ]; then
+    nm "$o" >"$nmfile" 2>/dev/null || true
+    if _pthin_nm_gate "$nmfile"; then
+      n=$(grep -c " T " "$nmfile" || true)
+      if [ "${n:-0}" -ge 200 ]; then
+        rm -f "$nmfile"
+        log "skip up-to-date $o (pthin prefer; T=$n trait faces)"
+        return 0
+      fi
     fi
   fi
   if [ ! -f scripts/g05_ensure_relink_prereqs.sh ]; then
+    rm -f "$nmfile"
     echo "ensure_parser_asm_thin_glue_prefer: missing g05_ensure_relink_prereqs.sh" >&2
     return 1
   fi
@@ -14883,21 +14894,22 @@ ensure_parser_asm_thin_glue_prefer() {
     if [ ! -x ./xlang ] && [ ! -x ./xlang-c ] && [ -x ./bootstrap_xlangc ]; then
       export XLANG=./bootstrap_xlangc
     fi
-    # g05 Darwin Class CB keeps first-pass hybrid on partial (knife256).
-    # nm-gate below is the ensure contract; g05 may still fail later steps.
     bash scripts/g05_ensure_relink_prereqs.sh
   ) >"$g05log" 2>&1 || true
   if [ ! -s "$o" ]; then
+    rm -f "$nmfile"
     echo "ensure_parser_asm_thin_glue_prefer: missing $o after g05 prefer (log=$g05log)" >&2
     return 1
   fi
-  if ! nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_reg_reset_c\$" \
-    || ! nm "$o" 2>/dev/null | grep -qE " T _?xlang_trait_check_impls_complete_c\$" \
-    || ! nm "$o" 2>/dev/null | grep -qE " T _?xlang_skip_trait_method_slot_c\$"; then
-    echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (trait faces; log=$g05log)" >&2
+  nm "$o" >"$nmfile" 2>/dev/null || true
+  if ! _pthin_nm_gate "$nmfile"; then
+    echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (trait faces; size=$(wc -c <"$o" | tr -d ' '); log=$g05log)" >&2
+    grep -E "xlang_trait_reg_reset|xlang_trait_check_impls|xlang_skip_trait_method_slot" "$nmfile" | head -20 >&2 || true
+    rm -f "$nmfile"
     return 1
   fi
-  n=$(nm "$o" 2>/dev/null | grep -c " T " || true)
+  n=$(grep -c " T " "$nmfile" || true)
+  rm -f "$nmfile"
   if [ "${n:-0}" -lt 100 ]; then
     echo "ensure_parser_asm_thin_glue_prefer: nm-gate failed (T=$n want >=100; log=$g05log)" >&2
     return 1
