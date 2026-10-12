@@ -5623,7 +5623,7 @@ for x_path in "$@"; do
           if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
               >"$tmp_dir/std_sys_mod_asm_${idx}.log" 2>&1 \
             && [ -s "$obj" ] \
-            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_macos_write_available$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_(macos_write_available|freestanding_write_available)$' \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_mmap_available$' \
             && nm "$obj" 2>/dev/null | grep -qE ' T _?std_sys_munmap$'; then
             echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
