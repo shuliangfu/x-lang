@@ -149,6 +149,52 @@ if [ -s "$_HOLLOW_MANIFEST" ]; then
     note "Darwin hollow-fill prepended ($(printf '%s\n' $_hollow_objs | wc -w | tr -d ' ') objs)"
   fi
 fi
+
+# knife256 / 10.2: Darwin cold prefer may leave runtime_pipeline_abi.o as a
+# libtool archive (thin+rest). Apple ld -force_load then hits internal strong
+# dups. Flatten to one MH_OBJECT (rest weakened where thin already defines).
+# Also weaken tip copies of hollow-owned strong symbols (multiply_defined
+# obsolete). Re-apply mega e_machine off 0x10a→0x299 when needed.
+# PLATFORM: MACOS phase1/final.
+if [ "$(uname -s)" = "Darwin" ]; then
+  _pabi=src/runtime_pipeline_abi.o
+  _oc=""
+  for _c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy llvm-objcopy; do
+    if command -v "$_c" >/dev/null 2>&1 || [ -x "$_c" ]; then _oc=$_c; break; fi
+  done
+  if [ -f "$_pabi" ] && [ -n "$_oc" ]; then
+    if dd if="$_pabi" bs=8 count=1 2>/dev/null | grep -q '^!<arch>'; then
+      _flat_dir=$(mktemp -d "${TMPDIR:-/tmp}/pabi_flat.XXXXXX")
+      (
+        cd "$_flat_dir" || exit 1
+        ar -x "$OLDPWD/$_pabi" || exit 1
+        _thin=$(ls pabi_thin.* 2>/dev/null | head -1)
+        _rest=$(ls pabi_rest.* 2>/dev/null | head -1)
+        if [ -n "$_thin" ] && [ -n "$_rest" ]; then
+          while read -r _sym; do
+            "$_oc" --weaken-symbol="$_sym" "$_rest" 2>/dev/null || true
+          done < <(nm -gU "$_thin" 2>/dev/null | awk '/ T /{print $NF}')
+          ld -r -o pabi_flat.o "$_thin" "$_rest" || exit 1
+          cp -f pabi_flat.o "$OLDPWD/$_pabi"
+          echo "bootstrap_driver_seed_link: flattened libtool $_pabi → MH_OBJECT" >&2
+        fi
+      ) || note "pabi flatten skipped/failed (keep archive)"
+      rm -rf "$_flat_dir"
+    fi
+    # hollow-owned strongs must beat tip (Apple ld: no multiply_defined)
+    for _hs in       _parser_asm_copy_slice_to_name64_buf_c       _platform_macho_write_macho_o_to_buf       _pipeline_elf_ctx_add_label       _pipeline_elf_ctx_add_sym       _pipeline_asm_emit_return_elf_impl       _backend_emit_block_body_sync_elf       _pipeline_asm_emit_block_body_sync_elf       _pipeline_asm_emit_expr_elf_fast
+    do
+      for _to in src/runtime_pipeline_abi.o parser_asm_thin_glue.o; do
+        if [ -f "$_to" ] && nm -gU "$_to" 2>/dev/null | awk '/ T /{print $NF}' | grep -qx "$_hs"; then
+          "$_oc" --weaken-symbol="$_hs" "$_to" 2>/dev/null || true
+        fi
+      done
+    done
+    if [ -f scripts/pabi_patch_emachine_off_10a_to_299.py ]; then
+      python3 scripts/pabi_patch_emachine_off_10a_to_299.py "$_pabi" 2>/dev/null || true
+    fi
+  fi
+fi
 if [ -z "$SEED_LINK_CC" ] && [ -z "$SEED_LINK_LD" ]; then
   fail "incomplete export (CC/LD) from $export_target"
 fi

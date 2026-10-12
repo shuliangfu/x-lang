@@ -930,6 +930,98 @@ _parser_asm_copy_slice_to_name64_buf_c:
 	ret
 LEXPARK
 
+
+
+# knife256/10.2: WEAK aliases for cold archive pabi (missing ast_pipeline_* /
+# tip-thin bodies). Strong tip/MH_OBJECT pabi wins when present.
+# PLATFORM: MACOS.
+cat >> "$OUT/m8_reloc_stubs.s" <<'ALIASES'
+	.globl _ast_pipeline_block_append_labeled
+	.weak_definition _ast_pipeline_block_append_labeled
+_ast_pipeline_block_append_labeled:
+	b	_pipeline_block_append_labeled
+	.globl _ast_pipeline_block_const_init_ref
+	.weak_definition _ast_pipeline_block_const_init_ref
+_ast_pipeline_block_const_init_ref:
+	b	_ast_ast_block_const_init_ref
+	.globl _ast_pipeline_block_const_name_copy64
+	.weak_definition _ast_pipeline_block_const_name_copy64
+_ast_pipeline_block_const_name_copy64:
+	b	_pipeline_block_const_name_copy64
+	.globl _ast_pipeline_block_const_name_len
+	.weak_definition _ast_pipeline_block_const_name_len
+_ast_pipeline_block_const_name_len:
+	b	_pipeline_block_const_name_len
+	.globl _ast_pipeline_block_expr_stmt_ref
+	.weak_definition _ast_pipeline_block_expr_stmt_ref
+_ast_pipeline_block_expr_stmt_ref:
+	b	_ast_ast_block_expr_stmt_ref
+	.globl _ast_pipeline_block_if_cond_ref
+	.weak_definition _ast_pipeline_block_if_cond_ref
+_ast_pipeline_block_if_cond_ref:
+	b	_ast_ast_block_if_cond_ref
+	.globl _ast_pipeline_block_if_else_body_ref
+	.weak_definition _ast_pipeline_block_if_else_body_ref
+_ast_pipeline_block_if_else_body_ref:
+	b	_ast_ast_block_if_else_body_ref
+	.globl _ast_pipeline_block_if_then_body_ref
+	.weak_definition _ast_pipeline_block_if_then_body_ref
+_ast_pipeline_block_if_then_body_ref:
+	b	_ast_ast_block_if_then_body_ref
+	.globl _ast_pipeline_block_let_init_ref
+	.weak_definition _ast_pipeline_block_let_init_ref
+_ast_pipeline_block_let_init_ref:
+	b	_ast_ast_block_let_init_ref
+	.globl _ast_pipeline_block_let_name_copy64
+	.weak_definition _ast_pipeline_block_let_name_copy64
+_ast_pipeline_block_let_name_copy64:
+	b	_pipeline_block_let_name_copy64
+	.globl _ast_pipeline_block_let_name_len
+	.weak_definition _ast_pipeline_block_let_name_len
+_ast_pipeline_block_let_name_len:
+	b	_pipeline_block_let_name_len
+	.globl _ast_pipeline_dep_ctx_module_at
+	.weak_definition _ast_pipeline_dep_ctx_module_at
+_ast_pipeline_dep_ctx_module_at:
+	b	_pipeline_dep_ctx_module_at
+	.globl _ast_pipeline_dep_ctx_ndep
+	.weak_definition _ast_pipeline_dep_ctx_ndep
+_ast_pipeline_dep_ctx_ndep:
+	b	_pipeline_dep_ctx_ndep
+	.globl _pipeline_sizeof_elf_ctx
+	.weak_definition _pipeline_sizeof_elf_ctx
+_pipeline_sizeof_elf_ctx:
+	movz	x0, #0x30
+	movk	x0, #0x330, lsl #16
+	ret
+	.globl _pipeline_copy_lib_root_to_buf256
+	.weak_definition _pipeline_copy_lib_root_to_buf256
+_pipeline_copy_lib_root_to_buf256:
+	cbz	x2, 1f
+	mov	x3, x2
+	mov	w4, #256
+0:	strb	wzr, [x3], #1
+	subs	w4, w4, #1
+	b.ne	0b
+1:	mov	w0, #0
+	ret
+	.globl _glue_local_var_slot_needs_ptr_load_elf_c
+	.weak_definition _glue_local_var_slot_needs_ptr_load_elf_c
+_glue_local_var_slot_needs_ptr_load_elf_c:
+	mov	w0, #0
+	ret
+	.globl _typeck_x_type_align_from_layout_glue
+	.weak_definition _typeck_x_type_align_from_layout_glue
+_typeck_x_type_align_from_layout_glue:
+	mov	w0, #8
+	ret
+	.globl _typeck_x_type_size_from_layout_glue
+	.weak_definition _typeck_x_type_size_from_layout_glue
+_typeck_x_type_size_from_layout_glue:
+	mov	w0, #8
+	ret
+ALIASES
+
 as -o "$OUT/m8_reloc_stubs.o" "$OUT/m8_reloc_stubs.s"
 [ -s "$OUT/m8_reloc_stubs.o" ] || { echo "darwin_phase1_hollow_fill: as failed" >&2; exit 1; }
 
