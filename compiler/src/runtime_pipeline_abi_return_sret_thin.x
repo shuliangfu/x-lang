@@ -445,7 +445,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
      * jmp tail_join. Without this, only leftover FP from a prior f64
      * callee works (math.floor) while lit/local/out-pointer f64 returns
      * fail (math.pi). Integer returns ignore the FP reg.
-     * PLATFORM: MACOS|ARM64 AAPCS64 · LINUX x86_64 SysV. */
+     * 记226: same for F32(14) — vec3f_soa_get_x left bits in x0; C read s0
+     * (saw pointer junk). fmov d0,x0 covers both (s0 is low of d0).
+     * Literal 14/15 avoid named-const adrp miss. PLATFORM: SHARED. */
     if ((ta == 0 || ta == 1) && ret_op != 0) {
       let mod_f: *u8 = 0 as *u8;
       let fi_f: i32 = 0;
@@ -463,7 +465,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
           unsafe {
             rkind_f = pipeline_type_kind_ord_at(arena, rty_f);
           }
-          if (rkind_f == 15) {
+          if (rkind_f == 15 || rkind_f == 14) {
             unsafe {
               rc = backend_enc_mov_rax_to_xmm_arg_reg_arch(elf_ctx, 0, ta);
             }

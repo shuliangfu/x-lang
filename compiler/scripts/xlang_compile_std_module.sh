@@ -2086,6 +2086,41 @@ for x_path in "$@"; do
           ;;
       esac
       ;;
+    ../std/vec/mod.x|std/vec/mod.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.vec mod.x (记226).
+      # Do not pass -lib-name "". Exports stay std_vec_*.
+      # Root: tip asm scored heap.alloc(i32) by args only so *f32/*f64/*u8
+      # collapsed to retu64; source calls heap_libc.heap_alloc_*_c.
+      # Tip return_sret also fmovs F32(14) (soa get_x). Miss fail-closed.
+      # Windows keeps the C path. Do not fall through to cc for this file.
+      _vecm_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_vecm_os" in
+        Darwin|Linux)
+          if "$XLANG_BIN" -backend asm -c -L .. -o "$obj" "$x_path" \
+              >"$tmp_dir/vecm_x_asm_${idx}.log" 2>&1 \
+            && [ -s "$obj" ] \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_new_retVec_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_with_capacity_Vec_i32_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_with_capacity_Vec_f64_ptr_i32$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_vec3f_soa_with_capacity$' \
+            && nm "$obj" 2>/dev/null | grep -qE ' T _?std_vec_vec3f_soa_get_x$' \
+            && nm -u "$obj" 2>/dev/null | grep -qE 'std_heap_libc_heap_alloc_f32_c' \
+            && nm -u "$obj" 2>/dev/null | grep -qE 'std_heap_libc_heap_alloc_f64_c'; then
+            echo "xlang_compile_std_module: $obj <- $x_path (pure-asm)"
+            if [ -z "$obj_files" ]; then
+              obj_files="$obj"
+            else
+              obj_files="$obj_files $obj"
+            fi
+            idx=$((idx + 1))
+            continue
+          fi
+          echo "xlang_compile_std_module.sh: pure-asm failed for $x_path" >&2
+          cat "$tmp_dir/vecm_x_asm_${idx}.log" >&2
+          exit 1
+          ;;
+      esac
+      ;;
     ../std/math/mod.x|std/math/mod.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.math mod.x (记213).
       # Do not pass -lib-name "". Exports stay std_math_*.

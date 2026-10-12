@@ -28,6 +28,10 @@
 // new/with_capacity、push/pop、get/len/capacity、clear/truncate/reserve、extend_from_slice；
 // Go: append(slice, ...)、len、cap。
 const heap = import("std.heap");
+const heap_libc = import("std.heap.libc");
+// 记226: tip asm scores heap.alloc(i32) by args only — return-type
+// overloads (*f32/*f64/*u8/*u64) collapse to retu64. Call unique
+// heap_libc.heap_alloc_*_c so U mids match C formal (and size).
 /** Exported function `default_cap`.
  * Implements `default_cap`.
  * @return i32
@@ -852,7 +856,7 @@ export function with_capacity(v: *Vec_f64, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let p: *f64 = heap.alloc(capacity);
+  let p: *f64 = heap_libc.heap_alloc_f64_c(capacity);
   if (p == 0) {
     v.cap = 0;
     return -1;
@@ -875,7 +879,7 @@ export function reserve_one(v: *Vec_f64): i32 {
   if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  let p: *f64 = if (v.ptr == 0) { heap.alloc(want) } else { heap.realloc(v.ptr, want) };
+  let p: *f64 = if (v.ptr == 0) { heap_libc.heap_alloc_f64_c(want) } else { heap.realloc(v.ptr, want) };
   if (p == 0) { return -1; }
   if (0 == 0) {
     v.ptr = p;
@@ -893,7 +897,7 @@ export function reserve_one(v: *Vec_f64): i32 {
  */
 export function reserve(v: *Vec_f64, new_cap: i32): i32 {
   if (new_cap <= v.cap) { return 0; }
-  let p: *f64 = if (v.ptr == 0) { heap.alloc(new_cap) } else { heap.realloc(v.ptr, new_cap) };
+  let p: *f64 = if (v.ptr == 0) { heap_libc.heap_alloc_f64_c(new_cap) } else { heap.realloc(v.ptr, new_cap) };
   if (p == 0) { return -1; }
   if (0 == 0) {
     v.ptr = p;
@@ -1017,9 +1021,9 @@ export function vec3f_soa_with_capacity(v: *Vec3f_soa, capacity: i32): i32 {
     v.cap = 0;
     return 0;
   }
-  let px: *f32 = heap.alloc(capacity);
-  let py: *f32 = heap.alloc(capacity);
-  let pz: *f32 = heap.alloc(capacity);
+  let px: *f32 = heap_libc.heap_alloc_f32_c(capacity);
+  let py: *f32 = heap_libc.heap_alloc_f32_c(capacity);
+  let pz: *f32 = heap_libc.heap_alloc_f32_c(capacity);
   if (px == 0 || py == 0 || pz == 0) {
     if (px != 0) { heap.free(px); }
     if (py != 0) { heap.free(py); }
@@ -1046,9 +1050,9 @@ export function vec3f_soa_reserve_one(v: *Vec3f_soa): i32 {
   if (v.length < v.cap) { return 0; }
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
-  let px: *f32 = if (v.col_x == 0) { heap.alloc(want) } else { heap.realloc(v.col_x, want) };
-  let py: *f32 = if (v.col_y == 0) { heap.alloc(want) } else { heap.realloc(v.col_y, want) };
-  let pz: *f32 = if (v.col_z == 0) { heap.alloc(want) } else { heap.realloc(v.col_z, want) };
+  let px: *f32 = if (v.col_x == 0) { heap_libc.heap_alloc_f32_c(want) } else { heap.realloc(v.col_x, want) };
+  let py: *f32 = if (v.col_y == 0) { heap_libc.heap_alloc_f32_c(want) } else { heap.realloc(v.col_y, want) };
+  let pz: *f32 = if (v.col_z == 0) { heap_libc.heap_alloc_f32_c(want) } else { heap.realloc(v.col_z, want) };
   if (px == 0 || py == 0 || pz == 0) {
     return -1;
   }
@@ -1171,7 +1175,7 @@ export function vec3f_aos_with_capacity(v: *Vec3f_aos, capacity: i32): i32 {
     return 0;
   }
   let words: i32 = capacity * 3;
-  let p: *f32 = heap.alloc(words);
+  let p: *f32 = heap_libc.heap_alloc_f32_c(words);
   if (p == 0) {
     v.cap = 0;
     return -1;
@@ -1194,7 +1198,7 @@ export function vec3f_aos_reserve_one(v: *Vec3f_aos): i32 {
   let want: i32 = if (v.cap <= 0) { 8 } else { v.cap * 2 };
   if (want <= 0) { return -1; }
   let words: i32 = want * 3;
-  let p: *f32 = if (v.ptr == 0) { heap.alloc(words) } else { heap.realloc(v.ptr, words) };
+  let p: *f32 = if (v.ptr == 0) { heap_libc.heap_alloc_f32_c(words) } else { heap.realloc(v.ptr, words) };
   if (p == 0) {
     return -1;
   }
