@@ -5327,20 +5327,31 @@ esac
 
 # knife 254 / 9.2: tip asm_expr_rec and pabi_weak both define
 # leftover_emit_struct_lit_into_parked_rbx. Weaken egg so tip first-wins.
+# knife256 / 10.2: without pabi_weak, tip cold links src/runtime_pipeline_abi.o
+# which also has strong T — weaken that copy too (same as Linux _PABI_LINK_O).
 # PLATFORM: MACOS tip cold.
 case "$UNAME_S" in
   Darwin*)
-    if [ -s build_asm/selfhost_pabi/asm_expr_rec.o ] \
-      && [ -s build_asm/selfhost_pabi/pabi_weak.o ]; then
+    if [ -s build_asm/selfhost_pabi/asm_expr_rec.o ]; then
       _oc=""
       if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
       elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
       elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
       fi
-      if [ -n "$_oc" ] && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
-          | grep -E " _leftover_emit_struct_lit_into_parked_rbx$" | grep -qv weak; then
-        "$_oc" --weaken-symbol=_leftover_emit_struct_lit_into_parked_rbx \
-          build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+      if [ -n "$_oc" ]; then
+        if [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+          && nm -m build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null \
+            | grep -E " _leftover_emit_struct_lit_into_parked_rbx$" | grep -qv weak; then
+          "$_oc" --weaken-symbol=_leftover_emit_struct_lit_into_parked_rbx \
+            build_asm/selfhost_pabi/pabi_weak.o 2>/dev/null || true
+        fi
+        if [ -s src/runtime_pipeline_abi.o ] \
+          && nm -m src/runtime_pipeline_abi.o 2>/dev/null \
+            | grep -E " _leftover_emit_struct_lit_into_parked_rbx$" | grep -qv weak; then
+          "$_oc" --weaken-symbol=_leftover_emit_struct_lit_into_parked_rbx \
+            src/runtime_pipeline_abi.o 2>/dev/null \
+            || echo "g05_relink_env: WARN weaken leftover_emit in pabi egg failed" >&2
+        fi
       fi
     fi
     ;;
