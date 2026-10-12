@@ -4752,7 +4752,7 @@ export function arch_arm64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32 {
 
 /**
  * Emit ARM64 `sub w0, w0, w1`.
- * The instruction word is 1258356736. A null context returns -1 from append.
+ * The instruction word is 3405840384 (sub x0,x0,x1). A null context returns -1 from append.
  * @param elf_ctx *u8 — emit context; null is rejected by append
  * @return i32 — 0 when the word is appended, -1 on failure
  * PLATFORM: SHARED — product link name. This symbol stays strong.
@@ -4760,7 +4760,10 @@ export function arch_arm64_enc_enc_add_rax_rbx(elf_ctx: *u8): i32 {
  */
 #[no_mangle]
 export function arch_arm64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32 {
-  return backend_enc_append_u32_le_c(elf_ctx, 1258356736 as u32);
+  // 记229: 0xCB010000 = sub x0,x0,x1 (64-bit). Was 0x4B010000 sub w0,w0,w1
+  // which cleared Darwin user ptr high bits (ptr-int / regex [0-9] class).
+  // Twin of Stage 12.0.5 ptr+int → rax_plus_rbx_scale1 (ADD X). PLATFORM: SHARED.
+  return backend_enc_append_u32_le_c(elf_ctx, 3405840384 as u32);
 }
 
 
@@ -8488,7 +8491,11 @@ export function arch_x86_64_enc_enc_store_rax_to_rbx_offset(elf_ctx: *u8, offset
  */
 #[no_mangle]
 export function arch_x86_64_enc_enc_sub_rax_rbx(elf_ctx: *u8): i32 {
-  // bytes 41, 216.
+  // 记229: 48 29 d8 = REX.W sub rax, rbx (64-bit). Was 29 d8 (32-bit).
+  // Match backend_x86_64_enc_c.x; twin of arm64 X-sub. PLATFORM: SHARED.
+  if (backend_enc_append_u8_c(elf_ctx, 72) != 0) {
+    return 0 - 1;
+  }
   if (backend_enc_append_u8_c(elf_ctx, 41) != 0) {
     return 0 - 1;
   }

@@ -49064,8 +49064,9 @@ export function glue_try_emit_ptr_arith_scaled_elf_c(arena: *u8, elf_ctx: *u8, c
       }
     }
     if (is_sub != 0) {
-      /* ptr-int / ptr-ptr byte diff: x86 REX.W sub is 64-bit; arm64 enc_sub
-       * is 32-bit W residual for large offsets until dedicated 64-bit sub. */
+      /* 记229: ptr-int / ptr-ptr byte diff — enc_sub_rax_rbx is 64-bit on both
+       * arches (arm64 SUB X; x86 REX.W). Twin of Stage 12.0.5 ptr+int scale1 ADD.
+       * Prior arm64 W residual truncated Darwin user ptrs (regex [0-9] class). */
       if (backend_enc_sub_rax_rbx_arch(elf_ctx, ta) != 0) {
         return -1;
       }

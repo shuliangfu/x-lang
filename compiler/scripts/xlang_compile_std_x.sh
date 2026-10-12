@@ -490,6 +490,38 @@ std_x_compile_one() {
           ;;
       esac
       ;;
+    ../std/regex/regex.x|std/regex/regex.x)
+      # PLATFORM: MACOS|DARWIN|LINUX — std.regex regex.x (记229).
+      # Tip enc_sub_rax_rbx is now 64-bit (arm64 SUB X / x86 REX.W); prior W
+      # residual truncated Darwin ptr-int so [0-9] on x5y smoke returned 6.
+      # -lib-name "" keeps regex_min_smoke_c / regex_match_c / regex_compile_c.
+      # A miss stops here so this file never execs cc. Windows keeps C path.
+      _rx_os="$(uname -s 2>/dev/null || echo Unknown)"
+      case "$_rx_os" in
+        Darwin|Linux)
+          if [ ! -x ./xlang ]; then
+            echo "xlang_compile_std_x.sh: pure-asm needs ./xlang for $x_path" >&2
+            return 1
+          fi
+          _rx_log="$(mktemp "${TMPDIR:-/tmp}/std_rx_asm.XXXXXX")"
+          if ./xlang -backend asm -c -L .. -lib-name "" -o "$out_o" "$x_path" \
+              >"$_rx_log" 2>&1 \
+            && [ -s "$out_o" ] \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_min_smoke_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_match_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_compile_c$' \
+            && nm "$out_o" 2>/dev/null | grep -qE ' T _?regex_min_class_hit$'; then
+            rm -f "$_rx_log"
+            echo "xlang_compile_std_x: $out_o <- $x_path (pure-asm)"
+            return 0
+          fi
+          echo "xlang_compile_std_x.sh: pure-asm failed for $x_path" >&2
+          cat "$_rx_log" >&2
+          rm -f "$_rx_log"
+          return 1
+          ;;
+      esac
+      ;;
     ../std/simd/simd.x|std/simd/simd.x)
       # PLATFORM: MACOS|DARWIN|LINUX — std.simd simd.x is one asm leaf.
       # -lib-name "" keeps simd_recommend_path_c, simd_hw_available_c,

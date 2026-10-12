@@ -354,11 +354,11 @@ export function enc_sub_rbx_rax_then_mov(ctx: *ElfCodegenCtx): i32 {
  * @return i32
  */
 export function enc_sub_rax_rbx(ctx: *ElfCodegenCtx): i32 {
-  /* 0x4B010000 — SUB W0, W0, W1 (32-bit, Rm=1=rbx). SUB is NOT commutative so
-   * Rm must be 1. G.7 authority: seed arch_arm64_enc_enc_sub_rax_rbx must emit
-   * the same 0x4B010000 (prior seed 0x4B000001 was SUB W1,W0,W0 = 0, wrong).
+  /* 记229: 0xCB010000 — SUB X0, X0, X1 (64-bit, Rm=1=rbx). Was 0x4B010000 W
+   * which truncated Darwin user pointers (ptr-int / regex class). SUB is NOT
+   * commutative so Rm must be 1. G.7: match arch_arm64_enc_enc_sub_rax_rbx.
    * PLATFORM: MACOS|ARM64. */
-  return enc_u32_le(ctx, 1258356736);
+  return enc_u32_le(ctx, 3405840384);
 }
 
 /** mul w0, w0, w1。 */
