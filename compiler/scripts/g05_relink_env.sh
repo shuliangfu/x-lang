@@ -947,6 +947,7 @@ _G05_LINK_WINNERS=""
 _G05_W211_CONST_LIT=""
 _G05_W211_REGISTER=""
 _G05_W211_VAR_OFF=""
+_G05_W211_CALL_ARG=""
 if [ -x ./xlang_asm ]; then
   _g05_pure_overlay src/runtime_pipeline_abi_const_lit_fold_thin.x \
     build_asm/selfhost_pabi/const_lit_fold.o \
@@ -992,6 +993,20 @@ if [ -x ./xlang_asm ]; then
     echo "g05_relink_env: ERROR 记211 const_var_off_thin.x did not build" >&2
     exit 1
   fi
+  _g05_pure_overlay src/runtime_pipeline_abi_call_arg_const_off_thin.x \
+    build_asm/selfhost_pabi/call_arg_const_off.o \
+    glue_call_arg_resolve_var_stack_off_elf_c
+  if [ -s build_asm/selfhost_pabi/call_arg_const_off.o ]; then
+    _G05_W211_CALL_ARG="build_asm/selfhost_pabi/call_arg_const_off.o"
+    if [ "$UNAME_S" = "Darwin" ]; then
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS _glue_call_arg_resolve_var_stack_off_elf_c=$_G05_W211_CALL_ARG"
+    else
+      _G05_LINK_WINNERS="$_G05_LINK_WINNERS glue_call_arg_resolve_var_stack_off_elf_c=$_G05_W211_CALL_ARG"
+    fi
+  else
+    echo "g05_relink_env: ERROR 记211 call_arg_const_off_thin.x did not build" >&2
+    exit 1
+  fi
   # Weaken Cap / measured pabi copies so tip thin first-wins cleanly.
   _oc=""
   if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
@@ -1012,6 +1027,8 @@ if [ -x ./xlang_asm ]; then
         "$_oc" --weaken-symbol=asm_module_top_level_const_lit_i32 "$_w211o" 2>/dev/null || true
         "$_oc" --weaken-symbol=pipeline_asm_register_module_top_level_lets_c "$_w211o" 2>/dev/null || true
         "$_oc" --weaken-symbol=glue_var_expr_stack_off_elf_c "$_w211o" 2>/dev/null || true
+        "$_oc" --weaken-symbol=glue_call_arg_resolve_var_stack_off_elf_c "$_w211o" 2>/dev/null || true
+        "$_oc" --weaken-symbol=_glue_call_arg_resolve_var_stack_off_elf_c "$_w211o" 2>/dev/null || true
         "$_oc" --weaken-symbol=_glue_var_expr_stack_off_elf_c "$_w211o" 2>/dev/null || true
       done
       if [ -n "${_PABI_LINK_O:-}" ] && [ -s "${_PABI_LINK_O}" ]; then
@@ -4906,7 +4923,7 @@ case "$UNAME_S" in
     ;;
 esac
 _X_FRONTEND="parser_x.o lexer_x.o typeck_x.o ${_TYPECK_CAP_RESIDUAL} ${_TYPECK_CTFE} codegen_x.o x_frontend_link_alias.o ${_WIN_V1_CALL_ALIAS}"
-_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
+_DRIVER_SEED_OBJS="$_PABI_ELF_LAYOUT_64K $_PABI_INDEX_BASE_FIELD $_PABI_RETURN_SRET $_PABI_MODLET_FLOAT_IMM $_PABI_STRUCT_LIT_FIELD $_PABI_F32_DEMOTE $_PABI_ASM_EXPR $_PABI_ASSIGN_VAR $_PABI_MODLET_STRPOOL $_PABI_BINOP_WIDE $_PABI_PARSER_MEGA_ALLOW $_PABI_PARSER_FORCE_STUB $_PABI_PARSER_THIN_DELEGATE $_PABI_ELF_UNDEF_CAP $_PABI_NAMED_SIZE $_PABI_WIN_PARAM_HOME $_PABI_TAIL_JMP_OFF $_PABI_CALL_SPILL $_PABI_FRAME_SIZE $_PABI_REENT_NOCAP $_PABI_REENT_SUM $_PABI_SELFHOST $_WIN_ASSIGN_OVERRIDES $_PABI_WPO_THIN $_PABI_WPO_CAP $_PABI_RELOC_TYPED $_PABI_DATA_LEN $_G05_W211_CALL_ARG $_G05_W211_VAR_OFF $_G05_W211_REGISTER $_PABI_CONST_LIT $_MAIN_LINK_O src/runtime_io_abi.o src/runtime_link_abi.o src/runtime_driver_abi.o src/runtime_driver_diagnostic.o src/diag.o $_PANIC_LINK_O $_PABI_SKIP_HEAVY $_PABI_LINK_O $_DRIVER_SEED_RUNTIME_O $_RT_SEED_SLICE_OBJS runtime_process_argv.o src/driver/fmt_check_cmd_driver.o src/driver/target_cpu.o src/asm/simd_enc.o src/asm/simd_loop.o $_LEXER_LINK_O $_AST_LINK_O $_X_FRONTEND $_CODEGEN_CAP_RESIDUAL $_DRIVER_SEED_SUPPORT src/x_seed_bridge.o $_SEED_LINK_COMPAT src/token_typekind_tag_tables.o"
 
 # 最终链接 obj 序（与 make g05-export-relink 一致）
 # ast_gen2.o: in LEGACY mode, append at link END (mirrors Makefile xlang-c LEGACY L2501
