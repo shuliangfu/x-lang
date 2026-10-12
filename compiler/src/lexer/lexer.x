@@ -93,6 +93,9 @@ allow(padding) struct LexerBuf {
 
 /** Copy bytes. Token stores use 48; LexerBuf uses 16. */
 export extern "C" function memcpy(dst: *u8, src: *u8, n: usize): *u8;
+export extern "C" function lexer_src_park(data: *u8, len: i32): void;
+export extern "C" function lexer_src_data_store(out: *u8): void;
+export extern "C" function lexer_src_len_store(out: *u8): void;
 
 /**
  * Copy one Token image (48 bytes) onto dst.
@@ -1774,6 +1777,16 @@ export function match_keyword_buf(data: *u8, data_len: i32, start: usize, len: i
  * tags. PLATFORM: SHARED.
  */
 // PLATFORM: SHARED — Token is written through out. Link name is unchanged.
+
+function lexer_write_ident_token(out: *Token, line0: i32, col0: i32, nlen: i32): void {
+  if (out == 0) { return; }
+  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
+    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
+  out.kind = t.kind; out.line = t.line; out.col = t.col;
+  out.int_val = t.int_val; out.float_val = t.float_val;
+  out.ident = t.ident; out.ident_len = t.ident_len;
+}
+
 export function try_keyword(out: *Token, data: u8[], start: usize, len: usize, line0: i32, col0: i32): void {
   let nlen: i32 = len as i32;
   if (nlen == 8 && (match_keyword(data, start, 8, "function" as *u8) != 0)) {
@@ -2990,15 +3003,6 @@ function try_keyword_d(out: *Token, data: u8[], start: usize, len: usize, line0:
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
-  // knife256 / 10.2: store_token then force kind from t.kind (cast literal SEGVd).
-  // PLATFORM: SHARED.
-  unsafe { lexer_store_token(out, &t); }
-  out.kind = t.kind;
-  out.line = t.line;
-  out.col = t.col;
-  out.ident_len = t.ident_len;
   return;
 }
 
@@ -3446,15 +3450,6 @@ i32): void {
   if (nlen > 255) {
     lexer_note_ident_too_long(line0, col0);
   }
-  let t: Token = { kind: (59 as TokenKind), line: line0, col: col0, int_val: (0 as i64),
-    float_val: 0.0, ident: (0 as *u8), ident_len: nlen };
-  // knife256 / 10.2: store_token then force kind from t.kind (cast literal SEGVd).
-  // PLATFORM: SHARED.
-  unsafe { lexer_store_token(out, &t); }
-  out.kind = t.kind;
-  out.line = t.line;
-  out.col = t.col;
-  out.ident_len = t.ident_len;
   return;
 }
 
@@ -3992,19 +3987,45 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
  */
 // PLATFORM: SHARED — the advanced cursor is written through out.
 export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]): void {
+  // knife256 / 10.2: peel → buf (tip u8[] mid-fn → 0x2a). PLATFORM: SHARED.
+  let peel: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+  let fat_hdr: *u8 = (0 as *u8);
+  unsafe {
+    memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
+    memcpy((&peel as *u8), fat_hdr, (16 as usize));
+  }
+  skip_whitespace_and_comments_buf(out, lex, peel.data, (peel.length as i32));
+}
+
+
+/** See implementation for details. */
+/**
+ * Same as skip_whitespace_and_comments for raw (data, len) buffers.
+ * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
+ */
+export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
+  // knife256 / 10.2: park to hollow BSS; reload via out-ptr stores. PLATFORM: SHARED.
+  let sp: *u8 = (0 as *u8);
+  let slen: usize = 0;
+  unsafe {
+    lexer_src_park(data, len);
+    lexer_src_data_store((&sp as *u8));
+    lexer_src_len_store((&slen as *u8));
+  }
+
   let l: Lexer = lex;
   // Nesting depth for block comments; 0 means not inside a block comment.
   let depth: i32 = 0;
-  while (l.pos < data.length) {
-    let c: u8 = data[l.pos];
+  while (l.pos < slen) {
+    let c: u8 = sp[l.pos];
     if (c == 32 || c == 9 || c == 10 || c == 13) {
       advance_one(&l, c);
-    } else if (c == 47 && l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 47) {
+    } else if (c == 47 && l.pos + (1 as usize) < slen && sp[l.pos + (1 as usize)] == 47) {
       // Line comment // ...
-      while (l.pos < data.length && data[l.pos] != 10) {
-        advance_one(&l, data[l.pos]);
+      while (l.pos < slen && sp[l.pos] != 10) {
+        advance_one(&l, sp[l.pos]);
       }
-    } else if (c == 47 && l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 42) {
+    } else if (c == 47 && l.pos + (1 as usize) < slen && sp[l.pos + (1 as usize)] == 42) {
       // Block comment /* ... */ with nesting (depth counter).
       // Capture open caret before consuming the slash-star pair.
       let open_line: i32 = l.line;
@@ -4012,21 +4033,21 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
       advance_one(&l, 47);
       advance_one(&l, 42);
       depth = 1;
-      while (l.pos < data.length && depth > 0) {
+      while (l.pos < slen && depth > 0) {
         // Prefer path-safe /* nest-open before */ nest-close when both could match.
-        if (l.pos + (1 as usize) < data.length && data[l.pos] == 47 && data[l.pos + (1 as usize)] == 42) {
+        if (l.pos + (1 as usize) < slen && sp[l.pos] == 47 && sp[l.pos + (1 as usize)] == 42) {
           // Decide whether this interior /* is a true nest or a path glob.
           let nest_ok: i32 = 1;
           if (l.pos > (0 as usize)) {
-            let prev: u8 = data[l.pos - (1 as usize)];
+            let prev: u8 = sp[l.pos - (1 as usize)];
             if (lexer_block_comment_prev_is_path_like(prev) != 0) {
               nest_ok = 0;
             }
           }
           // /*.ext path globs after newline / outer open (prev not path-like).
           if (nest_ok != 0) {
-            if (l.pos + (2 as usize) < data.length) {
-              if (data[l.pos + (2 as usize)] == 46) {
+            if (l.pos + (2 as usize) < slen) {
+              if (sp[l.pos + (2 as usize)] == 46) {
                 nest_ok = 0;
               }
             }
@@ -4037,14 +4058,14 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
             depth = depth + 1;
           } else {
             // Path glob or non-nest: consume only '/' so '*' is ordinary body text.
-            advance_one(&l, data[l.pos]);
+            advance_one(&l, sp[l.pos]);
           }
-        } else if (l.pos + (1 as usize) < data.length && data[l.pos] == 42 && data[l.pos + (1 as usize)] == 47) {
+        } else if (l.pos + (1 as usize) < slen && sp[l.pos] == 42 && sp[l.pos + (1 as usize)] == 47) {
           advance_one(&l, 42);
           advance_one(&l, 47);
           depth = depth - 1;
         } else {
-          advance_one(&l, data[l.pos]);
+          advance_one(&l, sp[l.pos]);
         }
       }
       // EOF with depth > 0: unclosed block comment (body swallowed to EOF).
@@ -4055,12 +4076,12 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
       depth = 0;
     } else if (c == 35) {
       // Bare # line comment; leave #[cfg]/attrs to the token scanner.
-      if (l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 91) {
+      if (l.pos + (1 as usize) < slen && sp[l.pos + (1 as usize)] == 91) {
         unsafe { *out = (l); }
         return;
       } else {
-        while (l.pos < data.length && data[l.pos] != 10) {
-          advance_one(&l, data[l.pos]);
+        while (l.pos < slen && sp[l.pos] != 10) {
+          advance_one(&l, sp[l.pos]);
         }
       }
     } else {
@@ -4070,18 +4091,9 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
   }
   unsafe { *out = (l); }
   return;
+
 }
 
-/** See implementation for details. */
-/**
- * Same as skip_whitespace_and_comments for raw (data, len) buffers.
- * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
- */
-export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
-  unsafe {
-    skip_whitespace_and_comments(out, lex, lexer_slice_from_raw(data, len));
-  }
-}
 
 /**
  * Slice API for one token. Symbol is lexer_next_slice, matching the host-cc
@@ -4285,6 +4297,24 @@ function lexer_parked_token_start(out: *LexerResult): usize {
 }
 
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
+  // knife256 / 10.2: rewrite caller's fat in place from parked BSS so data[i]
+  // sees live bytes even when tip smashed the u8[] param to 0x2a. PLATFORM: SHARED.
+  {
+    let sp: *u8 = (0 as *u8);
+    let slen: usize = 0;
+    let fat_hdr: *u8 = (0 as *u8);
+    let fixed: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+    unsafe {
+      lexer_src_data_store((&sp as *u8));
+      lexer_src_len_store((&slen as *u8));
+      fixed.data = sp;
+      fixed.length = slen;
+      memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
+      if (((fat_hdr as usize) > (4096 as usize))) {
+        memcpy(fat_hdr, (&fixed as *u8), (16 as usize));
+      }
+    }
+  }
   let c: u8 = data[l.pos];
   /* See implementation. */
   if (lexer_try_cfg_attr_into(out, l, data) != 0) {
@@ -4415,8 +4445,12 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       try_keyword_buf(&tok, peel.data, (peel.length as i32), start_parked, span_len, line_save, col_save);
     }
     write_next_lex_into(out, l);
-    write_tok_into(out, tok);
-    // write_next_lex_into clears token_start; parser needs the ident span.
+    let kind_i: i32 = (tok.kind as i32);
+    if (kind_i == 0) {
+      lexer_write_ident_token(&out.tok, line_save, col_save, (span_len as i32));
+    } else {
+      write_tok_into(out, tok);
+    }
     lexer_park_token_start(out, start_parked);
     return;
   }
@@ -5163,15 +5197,30 @@ export function write_tok_into(out: *LexerResult, t: Token): void {
  */
 export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void {
   let l: Lexer = lex;
+  // knife256 / 10.2: peel+park before skip/body; tip smashes u8[] to 0x2a.
+  // PLATFORM: SHARED.
+  let peel: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
+  let fat_hdr: *u8 = (0 as *u8);
+  unsafe {
+    memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
+    memcpy((&peel as *u8), fat_hdr, (16 as usize));
+    lexer_src_park(peel.data, (peel.length as i32));
+  }
   skip_whitespace_and_comments(&l, lex, data);
-  if (l.pos >= data.length) {
+  let sp: *u8 = (0 as *u8);
+  let slen: usize = 0;
+  unsafe {
+    lexer_src_data_store((&sp as *u8));
+    lexer_src_len_store((&slen as *u8));
+  }
+  if (l.pos >= slen) {
     let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, t);
     return;
   }
-  if (data[l.pos] == 0) {
+  if (sp[l.pos] == 0) {
     let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);

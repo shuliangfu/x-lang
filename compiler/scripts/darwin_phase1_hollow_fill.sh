@@ -533,6 +533,82 @@ _g_pipeline_elf_data_len:
 _g_pipeline_elf_data_buf:
 	.space 65536
 STUB
+# knife256 / 10.2: real BSS for tip lexer skip park (tip .x emits no __DATA).
+# PLATFORM: MACOS arm64 · as only.
+cat >> "$OUT/m8_reloc_stubs.s" <<'LEXPARK'
+	.bss
+	.align 3
+	.globl _g_lex_src_data
+_g_lex_src_data:
+	.quad 0
+	.globl _g_lex_src_len
+_g_lex_src_len:
+	.quad 0
+	.text
+	.align 2
+	.globl _lexer_src_park
+_lexer_src_park:
+	// x0=data *u8, w1=len i32. Sticky: ignore null/poison (<4096).
+	mov	x2, #0x1000
+	cmp	x0, x2
+	b.ls	1f
+	adrp	x2, _g_lex_src_data@PAGE
+	str	x0, [x2, _g_lex_src_data@PAGEOFF]
+	adrp	x2, _g_lex_src_len@PAGE
+	sxtw	x1, w1
+	str	x1, [x2, _g_lex_src_len@PAGEOFF]
+1:
+	ret
+	.globl _lexer_src_data_store
+_lexer_src_data_store:
+	// x0 = *u8*  (out: store parked data pointer)
+	adrp	x1, _g_lex_src_data@PAGE
+	ldr	x1, [x1, _g_lex_src_data@PAGEOFF]
+	str	x1, [x0]
+	ret
+	.globl _lexer_src_len_store
+_lexer_src_len_store:
+	// x0 = *i64*  (out: store parked len as i64/usize)
+	adrp	x1, _g_lex_src_len@PAGE
+	ldr	x1, [x1, _g_lex_src_len@PAGEOFF]
+	str	x1, [x0]
+	ret
+	// knife256 / 10.2: strong override — tip may pass source=0x3a.
+	// Prefer parked BSS when source is null/poison (<4096). PLATFORM: MACOS.
+	.globl _parser_asm_copy_slice_to_name64_buf_c
+_parser_asm_copy_slice_to_name64_buf_c:
+	// x0=source, w1=source_len, x2=start, w3=nlen, x4=out
+	// Always prefer parked lexer BSS when set (tip source smash).
+	cbz	x4, 9f
+	cmp	w3, #0
+	b.le	9f
+	adrp	x5, _g_lex_src_data@PAGE
+	ldr	x5, [x5, _g_lex_src_data@PAGEOFF]
+	adrp	x6, _g_lex_src_len@PAGE
+	ldr	x6, [x6, _g_lex_src_len@PAGEOFF]
+	cbnz	x5, 2f
+	mov	x5, x0
+	sxtw	x6, w1
+2:
+	cbz	x5, 9f
+	mov	w8, #0			// i = 0
+3:
+	cmp	w8, w3
+	b.ge	9f
+	sxtw	x9, w8
+	add	x9, x2, x9		// off = start + i
+	cmp	x9, x6
+	b.hs	4f
+	ldrb	w10, [x5, x9]
+	sxtw	x11, w8
+	strb	w10, [x4, x11]
+4:
+	add	w8, w8, #1
+	b	3b
+9:
+	ret
+LEXPARK
+
 as -o "$OUT/m8_reloc_stubs.o" "$OUT/m8_reloc_stubs.s"
 [ -s "$OUT/m8_reloc_stubs.o" ] || { echo "darwin_phase1_hollow_fill: as failed" >&2; exit 1; }
 
@@ -552,7 +628,7 @@ if [ -n "$_oc" ]; then
   while read -r _sym; do
     [ -n "$_sym" ] || continue
     _weak_args+=(--weaken-symbol "$_sym")
-  done < <(nm -gU "$OUT/m8_reloc_stubs.o" 2>/dev/null | awk '/ T /{print $NF}')
+  done < <(nm -gU "$OUT/m8_reloc_stubs.o" 2>/dev/null | awk '/ T /{print $NF}' | grep -Ev 'lexer_src_|parser_asm_copy_slice_to_name64_buf_c|g_lex_src_')
   if [ "${#_weak_args[@]}" -gt 0 ]; then
     "$_oc" "${_weak_args[@]}" "$OUT/m8_reloc_stubs.o" \
       || { echo "darwin_phase1_hollow_fill: weaken stubs failed" >&2; exit 1; }

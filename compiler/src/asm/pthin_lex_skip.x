@@ -270,20 +270,35 @@ export function parser_asm_angle_list_token_is_stmt_boundary_c(k: i32): i32 {
  * PLATFORM: SHARED — buf-path authority; slice wrappers stay C trampolines.
  */
 #[no_mangle]
+export extern "C" function lexer_src_data_store(out: *u8): void;
+export extern "C" function lexer_src_len_store(out: *u8): void;
+
 export function parser_asm_copy_slice_to_name64_buf_c(source: *u8, source_len: i32, start: usize, nlen: i32, out: *u8): void {
+  // knife256 / 10.2: tip may pass source=0x3a (smashed u8[]); use parked lexer BSS.
+  // PLATFORM: SHARED.
   let i: i32 = 0;
   let off: usize = 0;
   let slen: usize = 0;
   let c: u8 = 0;
-  if (source == 0 as *u8 || out == 0 as *u8 || nlen <= 0) {
+  let sp: *u8 = source;
+  if (out == 0 as *u8 || nlen <= 0) {
     return;
   }
   slen = source_len as usize;
+  if (sp == 0 as *u8 || ((sp as usize) <= (4096 as usize))) {
+    unsafe {
+      lexer_src_data_store((&sp as *u8));
+      lexer_src_len_store((&slen as *u8));
+    }
+  }
+  if (sp == 0 as *u8) {
+    return;
+  }
   while (i < nlen) {
     off = start + i as usize;
     if (off < slen) {
       unsafe {
-        c = source[off];
+        c = sp[off];
         out[i] = c;
       }
     }
