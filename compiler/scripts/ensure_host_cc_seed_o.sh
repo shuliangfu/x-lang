@@ -7008,6 +7008,42 @@ ensure_rt_emit_state_prefer() {
     fi
     return 0
   fi
+  # knife256 / 10.2 cold: Lxml rename can fail (egg hash drift / 9 of 10).
+  # Keep pure-asm function faces and merge named BSS from cold seed so
+  # seed-phase1 resolves driver_x_emit_*. PLATFORM: SHARED.
+  if [ -s "$thin" ] || (
+    if [ "${XLANG_PREFER_ASM_O_RT:-1}" = "1" ]; then
+      export XLANG_PREFER_ASM_O=1
+    elif [ "${XLANG_ALLOW_TREE_PREFER_ASM:-0}" != "1" ]; then
+      unset XLANG_PREFER_ASM_O
+    fi
+    unset G05_X_O_WEAK G05_X_O_WEAK_FUNCS
+    pure_asm_x_to_o "$thin" "$xsrc"
+  ); then
+    _bss_cold="seeds/rt_emit_state_bss_cold.from_x.c"
+    _bss_o=$(mktemp "${TMPDIR:-/tmp}/rtemit_bss.XXXXXX") || true
+    if [ -n "$_bss_o" ] && [ -f "$_bss_cold" ] && [ -s "$thin" ]; then
+      rm -f "$_bss_o"
+      _bss_o="${_bss_o}.o"
+      _merged=$(mktemp "${TMPDIR:-/tmp}/rtemit_merged.XXXXXX") || true
+      if [ -n "$_merged" ]         && $CC $BASE_CFLAGS -I. -Iinclude -Isrc -c -o "$_bss_o" "$_bss_cold"         && pure_ld_partial_merge "$_merged" "$thin" "$_bss_o" 2>/dev/null; then
+        miss=0
+        for s in $(rt_emit_state_bss_names); do
+          if ! r3_prefer_nm_has_sym "$_merged" "$s"; then
+            echo "ensure: rt-emit-state cold BSS lacks $s" >&2
+            miss=1
+          fi
+        done
+        if [ "$miss" = "0" ]; then
+          mv -f "$_merged" "$o"
+          rm -f "$thin" "$_bss_o"
+          log "rt-emit-state $o <- pure-asm $xsrc + cold BSS (knife256; Lxml rename skipped)"
+          return 0
+        fi
+      fi
+      rm -f "$_bss_o" "${_merged:-}"
+    fi
+  fi
   echo "ensure: rt-emit-state pure-asm failed; no seed fallback (w1493)" >&2
   rm -f "$thin"
   return 1
