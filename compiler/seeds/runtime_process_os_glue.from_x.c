@@ -121,9 +121,7 @@ uint8_t *process_getenv_impl(uint8_t *name) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-uint8_t *process_getenv_c(uint8_t *name) {
-    return process_getenv_impl(name);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X removed */
 #endif
 
 /**
@@ -139,9 +137,6 @@ int32_t process_setenv_impl(uint8_t *name, uint8_t *value, int32_t overwrite) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_setenv_c(uint8_t *name, uint8_t *value, int32_t overwrite) {
-    return process_setenv_impl(name, value, overwrite);
-}
 #endif
 
 /**
@@ -156,9 +151,6 @@ int32_t process_unsetenv_impl(uint8_t *name) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_unsetenv_c(uint8_t *name) {
-    return process_unsetenv_impl(name);
-}
 #endif
 
 /** Cap residual 9.1.3: process_getpid_impl via Cap xlang_proc_getpid (no libc getpid).
@@ -170,9 +162,6 @@ int32_t process_getpid_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_getpid_c(void) {
-    return process_getpid_impl();
-}
 #endif
 
 /** Cap residual 9.1.3: process_getppid_impl via Cap xlang_proc_getppid (no libc getppid).
@@ -184,9 +173,6 @@ int32_t process_getppid_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_getppid_c(void) {
-    return process_getppid_impl();
-}
 #endif
 
 /* getcwd 缓存：进程内多次 getcwd 且未 chdir 时避免重复 syscall；chdir 时失效。最大路径 4K。 */
@@ -217,9 +203,6 @@ int32_t process_getcwd_impl(uint8_t *buf, int32_t buf_size) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_getcwd_c(uint8_t *buf, int32_t buf_size) {
-    return process_getcwd_impl(buf, buf_size);
-}
 #endif
 
 /**
@@ -239,9 +222,6 @@ uint8_t *process_getcwd_ptr_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-uint8_t *process_getcwd_ptr_c(void) {
-    return process_getcwd_ptr_impl();
-}
 #endif
 
 /** 返回当前 getcwd 缓存长度（不含 NUL）；未缓存或已失效为 0。与 process_getcwd_ptr_c 配套使用。 */
@@ -250,9 +230,6 @@ int32_t process_getcwd_cached_len_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_getcwd_cached_len_c(void) {
-    return process_getcwd_cached_len_impl();
-}
 #endif
 
 /** Change cwd to path (NUL-terminated). Returns 0 ok, -1 fail. Invalidates getcwd cache.
@@ -267,9 +244,6 @@ int32_t process_chdir_impl(uint8_t *path) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_chdir_c(uint8_t *path) {
-    return process_chdir_impl(path);
-}
 #endif
 
 /* self_exe_path 缓存：可执行路径在进程生命周期内不变，首次 syscall 后缓存，后续仅 memcpy。 */
@@ -323,9 +297,6 @@ int32_t process_self_exe_path_impl(uint8_t *buf, int32_t buf_size) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_self_exe_path_c(uint8_t *buf, int32_t buf_size) {
-    return process_self_exe_path_impl(buf, buf_size);
-}
 #endif
 
 /**
@@ -362,9 +333,6 @@ uint8_t *process_self_exe_path_ptr_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-uint8_t *process_self_exe_path_ptr_c(void) {
-    return process_self_exe_path_ptr_impl();
-}
 #endif
 
 /** 返回当前 self_exe_path 缓存长度（不含 NUL）；未缓存为 0。与 process_self_exe_path_ptr_c 配套使用。 */
@@ -373,18 +341,12 @@ int32_t process_self_exe_path_cached_len_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_self_exe_path_cached_len_c(void) {
-    return process_self_exe_path_cached_len_impl();
-}
 #endif
 
 #if !defined(_WIN32) && !defined(_WIN64)
 void process_nop_sigchld_impl(int32_t sig) { (void)sig; }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-void process_nop_sigchld(int32_t sig) {
-    process_nop_sigchld_impl(sig);
-}
 #endif
 
 #else
@@ -450,9 +412,6 @@ int32_t process_spawn_impl(uint8_t *program, uint8_t *argv_ptr) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_spawn_c(uint8_t *program, uint8_t *argv_ptr) {
-    return process_spawn_impl(program, argv_ptr);
-}
 #endif
 
 /**
@@ -476,9 +435,6 @@ int32_t process_exec_impl(uint8_t *program, uint8_t *argv_ptr) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_exec_c(uint8_t *program, uint8_t *argv_ptr) {
-    return process_exec_impl(program, argv_ptr);
-}
 #endif
 
 /**
@@ -517,9 +473,6 @@ int32_t process_waitpid_impl(int32_t pid) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_waitpid_c(int32_t pid) {
-    return process_waitpid_impl(pid);
-}
 #endif
 
 /**
@@ -532,9 +485,6 @@ int32_t process_spawn_simple_impl(uint8_t *program) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_spawn_simple_c(uint8_t *program) {
-    return process_spawn_simple_impl(program);
-}
 #endif
 
 /** spawn_io 与 mod.x SpawnIo 布局一致（三 i32 fd）。 */
@@ -558,9 +508,6 @@ int32_t process_dup_stdio_posix_impl(int32_t fd, int32_t slot) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_dup_stdio_posix(int32_t fd, int32_t slot) {
-    return process_dup_stdio_posix_impl(fd, slot);
-}
 #endif
 
 #else
@@ -645,9 +592,6 @@ int32_t process_spawn_io_impl(uint8_t *program, uint8_t *argv_ptr, void *io_void
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_spawn_io_c(uint8_t *program, uint8_t *argv_ptr, void *io) {
-    return process_spawn_io_impl(program, argv_ptr, io);
-}
 #endif
 
 /**
@@ -660,9 +604,6 @@ int32_t process_exec_simple_impl(uint8_t *program) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_exec_simple_c(uint8_t *program) {
-    return process_exec_simple_impl(program);
-}
 #endif
 
 /**
@@ -701,7 +642,4 @@ int32_t process_pipe_impl(int32_t *read_fd, int32_t *write_fd) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_OS_GLUE_FROM_X
-int32_t process_pipe_c(int32_t *read_fd, int32_t *write_fd) {
-    return process_pipe_impl(read_fd, write_fd);
-}
 #endif

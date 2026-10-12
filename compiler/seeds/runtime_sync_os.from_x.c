@@ -96,7 +96,7 @@ void *sync_mutex_new_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-void *sync_mutex_new_c(void) { return sync_mutex_new_impl(); }
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X removed */
 #endif
 
 /** Lock; blocks until acquired. Returns 0 success, -1 failure (e.g. m is NULL). */
@@ -120,7 +120,6 @@ int32_t sync_mutex_lock_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_mutex_lock_c(void *m) { return sync_mutex_lock_impl(m); }
 #endif
 
 /** Try-lock; non-blocking. Returns 0 success, non-zero not acquired (busy or m NULL). */
@@ -144,7 +143,6 @@ int32_t sync_mutex_try_lock_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_mutex_try_lock_c(void *m) { return sync_mutex_try_lock_impl(m); }
 #endif
 
 /** Unlock. Returns 0 success, -1 failure (e.g. m is NULL). */
@@ -168,7 +166,6 @@ int32_t sync_mutex_unlock_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_mutex_unlock_c(void *m) { return sync_mutex_unlock_impl(m); }
 #endif
 
 /** Destroy and free mutex; m must not be used after this call. */
@@ -184,7 +181,6 @@ void sync_mutex_free_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-void sync_mutex_free_c(void *m) { sync_mutex_free_impl(m); }
 #endif
 
 #if defined(__linux__) || defined(__APPLE__) || defined(_WIN32) || defined(_WIN64)
@@ -215,7 +211,6 @@ void *sync_rwlock_new_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-void *sync_rwlock_new_c(void) { return sync_rwlock_new_impl(); }
 #endif
 
 /** Acquire read lock; returns 0 success, -1 failure. */
@@ -230,7 +225,6 @@ int32_t sync_rwlock_read_lock_impl(void *rw) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_rwlock_read_lock_c(void *rw) { return sync_rwlock_read_lock_impl(rw); }
 #endif
 
 /** Acquire write lock; returns 0 success, -1 failure. */
@@ -245,7 +239,6 @@ int32_t sync_rwlock_write_lock_impl(void *rw) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_rwlock_write_lock_c(void *rw) { return sync_rwlock_write_lock_impl(rw); }
 #endif
 
 /** Release read lock; returns 0 success, -1 failure. */
@@ -260,7 +253,6 @@ int32_t sync_rwlock_read_unlock_impl(void *rw) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_rwlock_read_unlock_c(void *rw) { return sync_rwlock_read_unlock_impl(rw); }
 #endif
 
 /** Release write lock; returns 0 success, -1 failure. */
@@ -275,7 +267,6 @@ int32_t sync_rwlock_write_unlock_impl(void *rw) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_rwlock_write_unlock_c(void *rw) { return sync_rwlock_write_unlock_impl(rw); }
 #endif
 
 /** Destroy RwLock. */
@@ -291,7 +282,6 @@ void sync_rwlock_free_impl(void *rw) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-void sync_rwlock_free_c(void *rw) { sync_rwlock_free_impl(rw); }
 #endif
 
 #if defined(__linux__) || defined(__APPLE__) || defined(_WIN32) || defined(_WIN64)
@@ -322,7 +312,6 @@ void *sync_condvar_new_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-void *sync_condvar_new_c(void) { return sync_condvar_new_impl(); }
 #endif
 
 /** Wait on condvar while holding mutex. */
@@ -339,7 +328,6 @@ int32_t sync_condvar_wait_impl(void *cv, void *mutex) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_condvar_wait_c(void *cv, void *mutex) { return sync_condvar_wait_impl(cv, mutex); }
 #endif
 
 /** Wake one waiting thread. */
@@ -354,7 +342,6 @@ int32_t sync_condvar_signal_impl(void *cv) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_condvar_signal_c(void *cv) { return sync_condvar_signal_impl(cv); }
 #endif
 
 /** Wake all waiting threads. */
@@ -369,7 +356,6 @@ int32_t sync_condvar_broadcast_impl(void *cv) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-int32_t sync_condvar_broadcast_c(void *cv) { return sync_condvar_broadcast_impl(cv); }
 #endif
 
 /** Destroy Condvar. */
@@ -385,7 +371,6 @@ void sync_condvar_free_impl(void *cv) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_OS_FROM_X
-void sync_condvar_free_c(void *cv) { sync_condvar_free_impl(cv); }
 #endif
 
 typedef struct {

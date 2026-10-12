@@ -207,8 +207,7 @@ int parse_http_url_impl(const uint8_t *url, int32_t url_len,
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int parse_http_url(const uint8_t *url, int32_t url_len, char *host_buf, int host_cap, char *port_buf, int port_cap, char *path_buf, int path_cap, int32_t *out_is_https) { return parse_http_url_impl(url, url_len, host_buf, host_cap, port_buf, port_cap, path_buf, path_cap, out_is_https); }
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X removed */
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -250,8 +249,6 @@ void http_transport_close_impl(http_transport_t *tr) {
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/http/runtime_http_glue.x）提供 wrapper 调用 _impl */
-void http_transport_close(http_transport_t *tr) { http_transport_close_impl(tr); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -268,8 +265,6 @@ int32_t http_transport_start_tls_impl(http_transport_t *tr, int32_t is_https, co
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) { return http_transport_start_tls_impl(tr, is_https, host); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -298,8 +293,6 @@ int32_t http_transport_send_all_impl(http_transport_t *tr, const char *data, int
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) { return http_transport_send_all_impl(tr, data, len); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -332,8 +325,6 @@ int32_t http_transport_recv_fill_impl(http_transport_t *tr, uint8_t *out_buf, in
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap, uint32_t timeout_ms) { return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -341,13 +332,6 @@ int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t
 
 /** 判定 HTTP 方法是否携带请求体（POST/PUT/PATCH）。 */
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-119：逻辑源 .x（真迁）；DIRECT 模式，rest 模式下 seed 不提供 */
-int http_method_has_body(const char *method) {
-  if (!method)
-    return 0;
-  return (strcmp(method, "POST") == 0 || strcmp(method, "PUT") == 0 ||
-          strcmp(method, "PATCH") == 0);
-}
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -372,8 +356,6 @@ int http_format_request_impl(const char *method, const char *path_buf, const cha
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int http_format_request(const char *method, const char *path_buf, const char *host_buf, int32_t body_len, char *req, int req_cap) { return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -502,8 +484,6 @@ int32_t http_set_timeouts_impl(int fd, uint32_t timeout_ms) {
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_set_timeouts(int fd, uint32_t timeout_ms) { return http_set_timeouts_impl(fd, timeout_ms); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -563,8 +543,6 @@ done:
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_connect_timeout(int fd, const struct addrinfo *res, uint32_t timeout_ms) { return http_connect_timeout_impl(fd, res, timeout_ms); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -839,15 +817,6 @@ int32_t http_request_timeout_ex_c_impl(const char *method, const uint8_t *url, i
   return total;
 }
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
-                                         const uint8_t *body, int32_t body_len, uint8_t *out_buf,
-                                         int32_t out_cap, uint32_t timeout_ms) {
-  {
-    return http_request_timeout_ex_c_impl(method, url, url_len, body, body_len, out_buf, out_cap, timeout_ms);
-  }
-  return 0;
-}
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -955,8 +924,6 @@ int32_t http_drain_request_impl(int fd) {
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t http_drain_request(int fd) { return http_drain_request_impl(fd); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
@@ -981,8 +948,6 @@ int32_t xlang_http_send_all_impl(int fd, const char *buf, int len, int is_socket
 }
 
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin 提供 wrapper 调用 _impl */
-int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket) { return xlang_http_send_all_impl(fd, buf, len, is_socket); }
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 

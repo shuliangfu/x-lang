@@ -104,8 +104,7 @@ void xlang_process_argv_bind_from_crt_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_PROCESS_ARGV_FROM_X
-/* G-02f-20 thin+rest：IMPL 模式，thin（src/asm/runtime_process_argv.x）提供 wrapper 调用 _impl */
-void xlang_process_argv_bind_from_crt(void) { xlang_process_argv_bind_from_crt_impl(); }
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_PROCESS_ARGV_FROM_X removed */
 #endif /* XLANG_RUNTIME_PROCESS_ARGV_FROM_X */
 
 

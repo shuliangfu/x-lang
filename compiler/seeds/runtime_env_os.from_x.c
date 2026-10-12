@@ -66,13 +66,7 @@
  * 宏边界：XLANG_RUNTIME_ENV_OS_FROM_X
  * rest 跨调用依赖：env_getenv_c/env_getenv_ptr_c/env_getenv_exists_c 调用 env_build_key（thin 提供） */
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-/* G-02f-123：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-int env_build_key(const uint8_t * restrict key, int32_t key_len, char * restrict key_buf) {
-    if (key == NULL || key_len <= 0 || key_len >= ENV_KEY_MAX) return -1;
-    memcpy(key_buf, key, (size_t)key_len);
-    key_buf[key_len] = '\0';
-    return 0;
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_ENV_OS_FROM_X removed */
 #else
 /* rest 模式：thin 函数由 .x 提供，extern 声明供 rest 部分调用 */
 extern int env_build_key(const uint8_t *key, int32_t key_len, char *key_buf);
@@ -131,10 +125,6 @@ int32_t env_getenv_c_impl(const uint8_t * restrict key, int32_t key_len, uint8_t
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_HOT
-int32_t env_getenv_c(const uint8_t * restrict key, int32_t key_len, uint8_t * restrict out, int32_t out_cap) {
-    return env_getenv_c_impl(key, key_len, out, out_cap);
-}
 #endif
 
 /**
@@ -158,10 +148,6 @@ uint8_t *env_getenv_ptr_c_impl(const uint8_t * restrict key, int32_t key_len, in
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_HOT
-uint8_t *env_getenv_ptr_c(const uint8_t * restrict key, int32_t key_len, int32_t *out_len) {
-    return env_getenv_ptr_c_impl(key, key_len, out_len);
-}
 #endif
 
 /**
@@ -178,10 +164,6 @@ uint8_t *env_getenv_z_c_impl(const uint8_t *key_z, int32_t *out_len) {
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_HOT
-uint8_t *env_getenv_z_c(const uint8_t *key_z, int32_t *out_len) {
-    return env_getenv_z_c_impl(key_z, out_len);
-}
 #endif
 
 /**
@@ -205,10 +187,6 @@ int32_t env_getenv_exists_c_impl(const uint8_t * restrict key, int32_t key_len) 
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_HOT
-int32_t env_getenv_exists_c(const uint8_t * restrict key, int32_t key_len) {
-    return env_getenv_exists_c_impl(key, key_len);
-}
 #endif
 
 /**
@@ -225,10 +203,6 @@ int32_t env_setenv_c_impl(const uint8_t *name, const uint8_t *value, int32_t ove
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_COLD
-int32_t env_setenv_c(const uint8_t *name, const uint8_t *value, int32_t overwrite) {
-    return env_setenv_c_impl(name, value, overwrite);
-}
 #endif
 
 /**
@@ -244,10 +218,6 @@ int32_t env_unsetenv_c_impl(const uint8_t *name) {
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_COLD
-int32_t env_unsetenv_c(const uint8_t *name) {
-    return env_unsetenv_c_impl(name);
-}
 #endif
 
 /**
@@ -319,9 +289,6 @@ int32_t env_temp_dir_c_impl(uint8_t *out, int32_t out_cap) {
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-int32_t env_temp_dir_c(uint8_t *out, int32_t out_cap) {
-    return env_temp_dir_c_impl(out, out_cap);
-}
 #endif
 
 #if !defined(_WIN32) && !defined(_WIN64)
@@ -358,10 +325,6 @@ int32_t env_iter_count_c_impl(void) {
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_COLD
-int32_t env_iter_count_c(void) {
-    return env_iter_count_c_impl();
-}
 #endif
 
 /**
@@ -435,9 +398,4 @@ int32_t env_iter_at_c_impl(int32_t index, uint8_t *key_out, int32_t key_cap,
 }
 
 #ifndef XLANG_RUNTIME_ENV_OS_FROM_X
-ENV_COLD
-int32_t env_iter_at_c(int32_t index, uint8_t *key_out, int32_t key_cap,
-                      uint8_t *val_out, int32_t val_cap) {
-    return env_iter_at_c_impl(index, key_out, key_cap, val_out, val_cap);
-}
 #endif

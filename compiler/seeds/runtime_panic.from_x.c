@@ -113,10 +113,7 @@ void xlang_crash_evidence_minimal_impl(int has_msg, int msg_val) {
 }
 
 #ifndef XLANG_RUNTIME_PANIC_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void xlang_crash_evidence_minimal(int has_msg, int msg_val) {
-  xlang_crash_evidence_minimal_impl(has_msg, msg_val);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_PANIC_FROM_X removed */
 #endif
 
 

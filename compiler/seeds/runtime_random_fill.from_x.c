@@ -70,10 +70,7 @@ void *random_get_alg_impl(void) {
 #endif
 
 #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X
-/* Cold mode fallback: public wrapper provided by seed. */
-void *random_get_alg(void) {
-    return random_get_alg_impl();
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X removed */
 #endif
 
 /* ========== random_fill_bytes_impl ========== */
@@ -89,8 +86,4 @@ int32_t random_fill_bytes_impl(uint8_t *buf, int32_t len) {
 }
 
 #ifndef XLANG_RUNTIME_RANDOM_FILL_FROM_X
-/* Cold mode fallback: public wrapper provided by seed. */
-int32_t random_fill_bytes_c(uint8_t *buf, int32_t len) {
-    return random_fill_bytes_impl(buf, len);
-}
 #endif

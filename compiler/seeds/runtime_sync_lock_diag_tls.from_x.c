@@ -81,10 +81,7 @@ int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t sync_lock_diag_find_meta_idx(void *m) {
-    return sync_lock_diag_find_meta_idx_impl(m);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X removed */
 #endif
 
 
@@ -102,10 +99,6 @@ int32_t sync_lock_diag_get_order_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-int32_t sync_lock_diag_get_order(void *m) {
-    return sync_lock_diag_get_order_impl(m);
-}
 #endif
 
 
@@ -278,13 +271,6 @@ void sync_lock_diag_clear_c(void) {
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
-int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
-    if (out == NULL || pos < 0 || pos >= cap) {
-        return -1;
-    }
-    out[pos] = b;
-    return pos + 1;
-}
 #endif
 
 
@@ -294,17 +280,6 @@ int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
-int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
-                                         const uint8_t *s, int32_t n) {
-    int32_t i;
-    for (i = 0; i < n; i++) {
-        pos = sync_lock_diag_append_byte(out, pos, cap, s[i]);
-        if (pos < 0) {
-            return -1;
-        }
-    }
-    return pos;
-}
 #endif
 
 
@@ -314,37 +289,6 @@ int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap,
 /* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
-int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
-    uint8_t tmp[16];
-    int32_t n = 0;
-    int32_t x = v;
-    if (out == NULL || pos < 0 || cap <= pos) {
-        return -1;
-    }
-    if (x == 0) {
-        return sync_lock_diag_append_byte(out, pos, cap, (uint8_t)'0');
-    }
-    if (x < 0) {
-        pos = sync_lock_diag_append_byte(out, pos, cap, (uint8_t)'-');
-        if (pos < 0) {
-            return -1;
-        }
-        x = -x;
-    }
-    while (x > 0) {
-        tmp[n] = (uint8_t)('0' + (x % 10));
-        n++;
-        x = x / 10;
-    }
-    while (n > 0) {
-        n--;
-        pos = sync_lock_diag_append_byte(out, pos, cap, tmp[n]);
-        if (pos < 0) {
-            return -1;
-        }
-    }
-    return pos;
-}
 #endif
 
 

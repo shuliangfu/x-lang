@@ -90,24 +90,7 @@ uint32_t crypto_rotl32_impl(uint32_t x, uint32_t n) {
 /* G-02f-115：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
 #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
-int32_t crypto_i32_sub_c(int32_t a, int32_t b) {
-  return crypto_i32_sub_impl(a, b);
-}
-
-/* ---------- SHA-256 / HMAC-SHA256（seed asm 单文件仅首函数可 emit；完整实现放 C） ---------- */
-/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t xlang_sha256_rotr32(uint32_t x, uint32_t n) {
-  return xlang_sha256_rotr32_impl(x, n);
-}
-/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t xlang_sha256_ch(uint32_t x, uint32_t y, uint32_t z) {
-  return xlang_sha256_ch_impl(x, y, z);
-}
-/* G-02f-114：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-uint32_t xlang_sha256_maj(uint32_t x, uint32_t y, uint32_t z) {
-  return xlang_sha256_maj_impl(x, y, z);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X removed */
 #endif /* XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X */
 /* G-02f-165：逻辑源 .x（批折叠）；seed 保留同语义 C 供产品 cc */
 /* G-02f-20 thin+rest：_impl 实现；thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
@@ -143,10 +126,6 @@ void xlang_sha256_block_impl(uint32_t *H, const uint8_t *block) {
 }
 
 #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：public wrapper 由 seed 提供 */
-void xlang_sha256_block(uint32_t *H, const uint8_t *block) {
-  xlang_sha256_block_impl(H, block);
-}
 #endif
 
 CRYPTO_HOT
@@ -311,10 +290,6 @@ uint32_t crypto_rotr32_c(uint32_t x, uint32_t n) {
 /** u32 左旋转；n 取模 32。 */
 /* G-02f-20 thin+rest：thin（src/asm/runtime_crypto_inc_glue.x）提供 public wrapper */
 #ifndef XLANG_RUNTIME_CRYPTO_INC_GLUE_FROM_X
-/* 完整模式（未定义 thin 宏）：thin 函数由 seed 提供 */
-uint32_t crypto_rotl32_c(uint32_t x, uint32_t n) {
-  return crypto_rotl32_impl(x, n);
-}
 #endif
 
 /** AES S-box（FIPS-197）；idx 越界返回 0。 */

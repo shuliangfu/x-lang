@@ -74,34 +74,7 @@
 #undef ed25519_keygen
 
 #ifndef XLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X
-/* Cold path public wrappers: when XLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X is
- * NOT defined, these wrappers provide the full implementation (call _impl_c).
- * When the guard IS defined, the thin (.x) provides the wrappers and calls
- * _impl_c above (emitted by .inc via macro rename).
- *
- * 【Why 根因】.inc 文件经宏重命名发射 *_impl_c 实现符号；公开符号
- * ed25519_ref10_create_keypair/sign/verify 需由 wrapper 提供，被 ed25519.x
- * extern 引用。冷路径下 wrapper 在本 TU；R2 路径下 wrapper 在 thin (.x)。
- *
- * 【Invariant】wrapper 签名与 ed25519.x extern 声明完全一致；参数指针
- * 非空由调用方（ed25519.x crypto_ed25519_*_c）保证。
- *
- * 【Asm/Perf】仅转发调用，cc -O2 内联展开为 jmp _impl_c，零开销。 */
-void ed25519_ref10_create_keypair(unsigned char *public_key, unsigned char *private_key,
-                                  const unsigned char *seed) {
-  ed25519_ref10_create_keypair_impl_c(public_key, private_key, seed);
-}
-
-void ed25519_ref10_sign(unsigned char *signature, const unsigned char *message,
-                        size_t message_len, const unsigned char *public_key,
-                        const unsigned char *private_key) {
-  ed25519_ref10_sign_impl_c(signature, message, message_len, public_key, private_key);
-}
-
-int ed25519_ref10_verify(const unsigned char *signature, const unsigned char *message,
-                         size_t message_len, const unsigned char *public_key) {
-  return ed25519_ref10_verify_impl_c(signature, message, message_len, public_key);
-}
+/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X removed */
 #endif /* !XLANG_RUNTIME_ED25519_REF10_GLUE_FROM_X */
 
 /*
