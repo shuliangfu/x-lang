@@ -2749,7 +2749,11 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
             return;
           }
           let st_res: TopLevelLetResult = { ok: false, next_lex: lex_st };
-          parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_r2.tok.kind == token.TokenKind.TOKEN_CONST, &st_res);
+          let st_is_c: i32 = 0;
+          if (st_r2.tok.kind == token.TokenKind.TOKEN_CONST) {
+            st_is_c = 1;
+          }
+          parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_is_c, &st_res);
           if (!st_res.ok) {
             out.ok = false;
             return;
@@ -6674,7 +6678,11 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
               return;
             }
             let st_res: TopLevelLetResult = { ok: false, next_lex: lex_st };
-            parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_r2.tok.kind == token.TokenKind.TOKEN_CONST, &st_res);
+            let st_is_c: i32 = 0;
+            if (st_r2.tok.kind == token.TokenKind.TOKEN_CONST) {
+              st_is_c = 1;
+            }
+            parse_one_top_level_let_into(arena, st_mod, st_r2.next_lex, source, st_is_c, &st_res);
             if (!st_res.ok) {
               set_onefunc_fail(out, lex);
               return;
@@ -10956,7 +10964,7 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
  * See implementation.
  */
 /* See implementation. */
-export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void;
+export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: i32, out: *TopLevelLetResult): void;
 /** Exported function `parse_one_top_level_let_into`.
  * Implements `parse_one_top_level_let_into`.
  * @param arena *ASTArena
@@ -10967,7 +10975,7 @@ export extern function parser_parse_one_top_level_let_into_glue(arena: *ASTArena
  * @param out *TopLevelLetResult
  * @return void
  */
-export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: bool, out: *TopLevelLetResult): void {
+export function parse_one_top_level_let_into(arena: *ASTArena, module: *Module, lex: Lexer, source: u8[], is_const: i32, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
   parser_parse_one_top_level_let_into_glue(arena, module, lex, source, is_const, out);
@@ -11587,7 +11595,7 @@ export function parser_vector_type_ref_from_ident_spelling_buf(arena: *ASTArena,
  * @param out *TopLevelLetResult
  * @return void
  */
-export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: bool, out: *TopLevelLetResult): void {
+export function parse_one_top_level_let_into_buf(arena: *ASTArena, module: *Module, lex: Lexer, data: *u8, len: i32, is_const: i32, out: *TopLevelLetResult): void {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   // PLATFORM: WINDOWS — do not `let slice = parser_slice_view(...)`.
   // That call-return store copies at most 1024 bytes, and lex.pos is an
@@ -12082,7 +12090,12 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
       module.pending_export = 0;
       let ntl_before: i32 = module.num_top_level_lets;
       let toplevel_res: TopLevelLetResult = { ok: false, next_lex: lex };
-      parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, r.tok.kind == token.TokenKind.TOKEN_CONST, &toplevel_res);
+      /* Cap tip: i32-field==enum as bool call-arg used 64-bit ldr → is_const always 0 (P010 on const). */
+      let tl_is_c: i32 = 0;
+      if (r.tok.kind == token.TokenKind.TOKEN_CONST) {
+        tl_is_c = 1;
+      }
+      parse_one_top_level_let_into_buf(arena, module, r.next_lex, data, len, tl_is_c, &toplevel_res);
       if (toplevel_res.ok) {
         if (pe_tl != 0 && module.num_top_level_lets > ntl_before) {
           pipeline_module_top_level_let_set_is_export(module, module.num_top_level_lets - 1, 1);
