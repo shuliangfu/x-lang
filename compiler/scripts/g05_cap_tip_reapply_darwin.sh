@@ -83,20 +83,11 @@ export XLANG_G05_ALLOW_STALE_LEAF="${XLANG_G05_ALLOW_STALE_LEAF:-1}"
 export G05_OUT='xlang.cap_g05_l2'
 export G05_SYNC_ASM=0
 
-# Cap tip L4: demote m8_g05 only when Cap tip pabi overlay already has T (else keep m8)
+# Cap tip L4: demote m8_g05 only when thin overlay is IN G05_OBJS and has T.
+# (assign_emit_thin may exist on disk but omit from frozen env — demoting then
+# leaves undef assign_elf_c. INDEX prepend below adds it; demote runs after.)
 if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ]; then
   cp -f build_asm/selfhost_pabi/m8_reloc_stubs.o build_asm/selfhost_pabi/m8_reloc_stubs_g05.o
-  _oc="${LLVM_OBJCOPY:-}"
-  [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
-  if [ -n "$_oc" ]; then
-    for _pair in       "build_asm/selfhost_pabi/body_sync_let_order.o|_backend_emit_block_body_sync_elf"       "build_asm/selfhost_pabi/body_sync_let_order.o|_pipeline_asm_emit_block_body_sync_elf"       "build_asm/selfhost_pabi/return_sret.o|_pipeline_asm_emit_return_elf_impl"       "build_asm/selfhost_pabi/macho_write_a64.o|_platform_macho_write_macho_o_to_buf"       "build_asm/selfhost_pabi/assign_emit_thin_a64.o|_pipeline_asm_emit_assign_elf_c"; do
-      _thin="${_pair%%|*}"
-      _s="${_pair##*|}"
-      if [ -s "$_thin" ] && nm -gU "$_thin" 2>/dev/null | grep -q "T ${_s}$"; then
-        "$_oc" --redefine-sym="${_s}=${_s}_m8_g05_dead" build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null || true
-      fi
-    done
-  fi
 fi
 
 # knife256/10.2: Cap tip frozen env omits assign dispatcher; m8 hollow returns 0
@@ -158,6 +149,28 @@ if [ -s build_asm/selfhost_pabi/diag_report_human_cap_a64.o ]; then
       echo "g05_cap_tip_reapply: prepended diag_report_human_cap_a64.o (L003)" >&2
       ;;
   esac
+fi
+
+# Demote m8 symbols whose Cap tip thins are now in G05_OBJS (after INDEX/L003 prepend).
+_oc="${LLVM_OBJCOPY:-}"
+[ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+  for _pair in \
+    "build_asm/selfhost_pabi/body_sync_let_order.o|_backend_emit_block_body_sync_elf" \
+    "build_asm/selfhost_pabi/body_sync_let_order.o|_pipeline_asm_emit_block_body_sync_elf" \
+    "build_asm/selfhost_pabi/return_sret.o|_pipeline_asm_emit_return_elf_impl" \
+    "build_asm/selfhost_pabi/macho_write_a64.o|_platform_macho_write_macho_o_to_buf" \
+    "build_asm/selfhost_pabi/assign_emit_thin_a64.o|_pipeline_asm_emit_assign_elf_c"; do
+    _thin="${_pair%%|*}"
+    _s="${_pair##*|}"
+    case " $G05_OBJS " in
+      *" ${_thin} "*)
+        if [ -s "$_thin" ] && nm -gU "$_thin" 2>/dev/null | grep -q "T ${_s}$"; then
+          "$_oc" --redefine-sym="${_s}=${_s}_m8_g05_dead" build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null || true
+        fi
+        ;;
+    esac
+  done
 fi
 
 rm -f xlang.cap_g05_l2
