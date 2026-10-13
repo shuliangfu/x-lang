@@ -359,6 +359,7 @@ export extern function glue_call_return_byte_size_c(arena: *u8, call_expr_ref: i
  * PLATFORM: SHARED — wave191 pure leave.
  */
 export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 /** AAPCS64: mov x8, x0 (set Indirect Result Location). PLATFORM: MACOS|ARM64. */
 export extern function glue_arm64_mov_x0_to_x8_elf_c(elf: *u8): i32;
 /** AAPCS64: mov x0, x8 (save incoming sret dest). PLATFORM: MACOS|ARM64. */
@@ -1347,26 +1348,48 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
           if (alt > sz) { sz = alt; }
         }
       } else {
-        // Non-CALL VAR/FIELD/…: MEMORY-class widen when soft (ctx may be null).
-        // Only TYPE_NAMED named_layout >16 (ErrorChain 20B). Do NOT use
-        // type_ref_byte_size — ARRAY payload (e.g. [2]Wide=40) would undo E*
-        // pack (ret_idx(a) / slice_oob). PLATFORM: SHARED · LINUX SysV gold.
+        // Non-CALL VAR/FIELD/…: widen TYPE_NAMED when soft (ctx may be null).
+        // knife256/10.2 Cap tip: named_layout 9–16 (Lexer {usize,i32,i32}) must
+        // dual-GP. Prior only widened >16 (MEMORY ErrorChain). Soft sz=8 then
+        // used 1 GPR → next arg (source*) landed in callee line → L003.
+        // Still ban type_ref_byte_size for non-NAMED (ARRAY E* pack).
+        // PLATFORM: SHARED · LINUX SysV gold · MACOS|ARM64 AAPCS64 Cap tip.
         if (sz <= 16) {
           if (pty > 0) {
             if (pipeline_type_kind_ord_at(arena, pty) == 8) {
               alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
-              if (alt > 16) {
+              if (alt > 8) {
                 if (alt > sz) { sz = alt; }
               }
+              if (sz <= 8) {
+                alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
+                if (alt > 8) {
+                  if (alt <= 16) {
+                    if (alt > sz) { sz = alt; }
+                  }
+                }
+              }
+              alt = glue_sysv_dual_gp_byte_size_c(arena, pty);
+              if (alt > sz) { sz = alt; }
             }
           }
           tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
           if (tr > 0) {
             if (pipeline_type_kind_ord_at(arena, tr) == 8) {
               alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
-              if (alt > 16) {
+              if (alt > 8) {
                 if (alt > sz) { sz = alt; }
               }
+              if (sz <= 8) {
+                alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
+                if (alt > 8) {
+                  if (alt <= 16) {
+                    if (alt > sz) { sz = alt; }
+                  }
+                }
+              }
+              alt = glue_sysv_dual_gp_byte_size_c(arena, tr);
+              if (alt > sz) { sz = alt; }
             }
           }
         }

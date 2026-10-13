@@ -2456,6 +2456,12 @@ EOF
     build_asm/selfhost_pabi/dep_prerun_parse_only_a64.o \
     "_xlang_pipeline_dep_prerun_parse_only _xlang_pipeline_dep_prerun_parse_only_impl" \
     "dep prerun parse only"
+  # knife256 / 10.2 Cap tip: dual-GP byte size (Lexer 16B INTEGER).
+  # PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
+    build_asm/selfhost_pabi/dual_gp_byte_size_a64.o \
+    "_glue_sysv_dual_gp_byte_size_c" \
+    "dual gp byte size"
   # knife256 / 10.2 Cap tip: trait_check → generic_bound_scan SEGV/L003 on
   # const-import dep prerun. No-op completeness walk; LEGACY product keeps real body.
   # PLATFORM: MACOS|DARWIN.
