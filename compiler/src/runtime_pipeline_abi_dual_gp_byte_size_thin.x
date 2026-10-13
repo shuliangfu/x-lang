@@ -97,6 +97,17 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
       return 16;
     }
   }
+  // Option_ptr_u8 (13) — bool + *u8 = 16B; Cap tip hollow NAMED was size_simple 8
+  // and dropped x1 on some_ptr/map/expect (option L2 run -16). PLATFORM: SHARED.
+  if (bl == 13) {
+    if (name[base_off] == 79 && name[base_off + 1] == 112 && name[base_off + 2] == 116 &&
+        name[base_off + 3] == 105 && name[base_off + 4] == 111 && name[base_off + 5] == 110 &&
+        name[base_off + 6] == 95 && name[base_off + 7] == 112 && name[base_off + 8] == 116 &&
+        name[base_off + 9] == 114 && name[base_off + 10] == 95 && name[base_off + 11] == 117 &&
+        name[base_off + 12] == 56) {
+      return 16;
+    }
+  }
   // ParserAsmLexLexer (17)
   if (bl == 17) {
     if (name[base_off] == 80 && name[base_off + 1] == 97 && name[base_off + 2] == 114 &&
