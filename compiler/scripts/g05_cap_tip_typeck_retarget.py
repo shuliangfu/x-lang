@@ -46,6 +46,7 @@ def main() -> int:
         b"_typeck_call_arg_repr_compatible_ok": b"_typeck_call_arg_repr_compatible_ok__demoted",
         b"_typeck_get_dep_return_type_in_caller_arena": b"_typeck_get_dep_return_type_in_caller_arena__demoted",
         b"_typeck_type_refs_equal": b"_typeck_type_refs_equal__demoted",
+        b"_typeck_field_unknown_hard_fail": b"_typeck_field_unknown_hard_fail__demoted",
     }
     demoted_names = set(demoted_of.values())
     targets = list(demoted_of.keys())
