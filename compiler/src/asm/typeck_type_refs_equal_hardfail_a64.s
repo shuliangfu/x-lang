@@ -1,10 +1,12 @@
 /* Cap tip typeck_type_refs_equal soft (knife256/10.2 LANG-004).
- * Tip demoted blank-accepts BOTH TYPE_NAMED → free T UFCS vs concrete A.
- * Gate before demoted/blank: exactly one free type-param AND other side's
- * SoA name C-string length in 1..2 → reject (struct A / B). Longer names
- * (Result_i32 / Option_i32 / StrView) keep blank import equal.
+ * Both CONCRETE TYPE_NAMED return demoted (last-segment / mangle). Blank-accept
+ * made Set_i32 ≡ Set_u64, so the first same-arity *Struct overload always won
+ * and the struct-pointer check then rejected the stamped callee.
+ * One free type-param XOR the other: name length 1..2 rejects (struct A / B).
+ * Longer concrete names on that one-free path, and both-free, stay blank-equal
+ * (free T vs Result_i32 / Option_i32 / StrView).
  * pipe_ar_ty_name_len may be storage width; use strlen(slot+4).
- * PLATFORM: MACOS|ARM64 Cap tip. */
+ * PLATFORM: MACOS|ARM64 Cap tip. Contract is SHARED named equality. */
 	.section __TEXT,__text,regular,pure_instructions
 	.globl _typeck_type_refs_equal
 	.p2align 2
@@ -49,7 +51,7 @@ _typeck_type_refs_equal:
 	bl	_typeck_type_is_free_type_param
 	mov	w24, w0
 	eor	w25, w23, w24
-	cbz	w25, Lblank
+	cbz	w25, Lboth_class
 	/* non-free side */
 	cmp	w23, #0
 	b.eq	1f
@@ -77,6 +79,16 @@ _typeck_type_refs_equal:
 	cmp	w1, #2
 	b.gt	Lblank
 	b	Lret0
+Lboth_class:
+	/* w23/w24 are is_free(a)/is_free(b). Both concrete → demoted result.
+	 * Both free → blank-equal (Lblank forces 1). */
+	cbnz	w23, Lblank
+	cbnz	w24, Lblank
+	mov	x0, x19
+	mov	w1, w20
+	mov	w2, w21
+	bl	_typeck_type_refs_equal__demoted
+	b	Ldone
 Lblank:
 	mov	x0, x19
 	mov	w1, w20
