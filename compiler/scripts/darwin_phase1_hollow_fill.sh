@@ -277,8 +277,10 @@ Lfast_var_modlet:
 	mov	w0, #0
 	b	Lfast_ret
 Lfast_var_fail_pop:
+	/* knife256/10.2: toplevel const not in locals/modlet — defer to full
+	 * emit_expr_elf_c (-99), do not hard-fail CG002. */
 	add	sp, sp, #0x110
-	mov	w0, #-1
+	mov	w0, #-99
 	b	Lfast_ret
 Lfast_ret:
 	ldr	x23, [sp, #0x30]
@@ -570,7 +572,10 @@ _pipeline_elf_ctx_add_sym:
 	mov	x0, x19
 	bl	_pipe_elf_sym_off_offset
 	str	w22, [x27, w0, sxtw]
-	bl	_pipe_elf_shnx_text
+	/* knife256/10.2: honor shndx_override (data=4) — was always TEXT,
+	 * so Lxml_* landed in __TEXT and toplevel-let bus-errored. */
+	mov	x0, x19
+	bl	_pipe_elf_current_shndx
 	mov	w22, w0
 	mov	x0, x19
 	bl	_pipe_elf_sym_off_shndx

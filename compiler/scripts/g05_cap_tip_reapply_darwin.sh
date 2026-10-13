@@ -203,11 +203,38 @@ if [ -s build_asm/selfhost_pabi/rt_fmt_one_a64.o ]; then
       echo "g05_cap_tip_reapply: prepended rt_fmt_one_a64.o" >&2
       ;;
   esac
+# llvm-objcopy before fmt demote (set -u)
+_oc_sz="${LLVM_OBJCOPY:-}"
+[ -n "$_oc_sz" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_sz=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+[ -n "$_oc_sz" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc_sz=/usr/local/opt/llvm/bin/llvm-objcopy; }
   for _fmt_stub in build_asm/selfhost_pabi/m8_reloc_stubs.o build_asm/selfhost_pabi/m8_reloc_stubs_g05.o; do
     if [ -s "$_fmt_stub" ] && nm "$_fmt_stub" 2>/dev/null | grep -q 'T _driver_fmt_one_file$'; then
       "$_oc_sz" --redefine-sym=_driver_fmt_one_file=_driver_fmt_one_file__demoted "$_fmt_stub"         && echo "g05_cap_tip_reapply: demoted $_fmt_stub driver_fmt_one_file" >&2 || true
     fi
   done
+fi
+
+
+# knife256/10.2: Cap tip bake_scalar + add_common over m8 hollow ret0 (toplevel-let DATA).
+if [ -s build_asm/selfhost_pabi/bake_scalar_imm_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/bake_scalar_imm_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/bake_scalar_imm_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended bake_scalar_imm_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/add_common_sym_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/add_common_sym_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/add_common_sym_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended add_common_sym_soft.o" >&2
+      ;;
+  esac
 fi
 
 if [ -s build_asm/selfhost_pabi/call_return_byte_size_result_soft.o ]; then
