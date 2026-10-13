@@ -151,6 +151,53 @@ if [ -s build_asm/selfhost_pabi/diag_report_human_cap_a64.o ]; then
   esac
 fi
 
+
+# knife256/10.2: Cap tip diag snap/ctx hollow → check SEGV. Soft LE loaders +
+# ctx getters/setters/restore/push_file; demote Cap tip diag.o twins.
+# PLATFORM: MACOS Cap tip.
+if [ ! -s build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o ]; then
+  if [ -s "$CACHE/pabi/diag_snap_load_ptr_a64.o" ]; then
+    cp -f "$CACHE/pabi/diag_snap_load_ptr_a64.o" build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o
+  elif [ -f src/asm/diag_snap_load_ptr_a64.s ]; then
+    clang -c -o build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o src/asm/diag_snap_load_ptr_a64.s \
+      || { echo "g05_cap_tip_reapply: diag_snap soft assemble failed" >&2; exit 1; }
+  fi
+fi
+if [ -s build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/diag_snap_load_ptr_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended diag_snap_load_ptr_a64.o (check)" >&2
+      ;;
+  esac
+fi
+if [ -n "$OC_L003" ] && [ -s src/diag.o ]; then
+  [ -s src/diag.o.bak_cap ] || cp -f src/diag.o src/diag.o.bak_cap
+  # Restore bak then demote report+ctx+snap so softs first-win (same-TU calls)
+  cp -f src/diag.o.bak_cap src/diag.o
+  "$OC_L003" \
+    --redefine-sym=_diag_report_human=_diag_report_human_diag_o_dead \
+    --redefine-sym=_diag_report_with_code=_diag_report_with_code_diag_o_dead \
+    --redefine-sym=_diag_report=_diag_report_diag_o_dead \
+    --redefine-sym=_diag_restore=_diag_restore_diag_o_dead \
+    --redefine-sym=_diag_push_file=_diag_push_file_diag_o_dead \
+    --redefine-sym=_diag_ctx_get_file=_diag_ctx_get_file_diag_o_dead \
+    --redefine-sym=_diag_ctx_get_source=_diag_ctx_get_source_diag_o_dead \
+    --redefine-sym=_diag_ctx_get_source_len=_diag_ctx_get_source_len_diag_o_dead \
+    --redefine-sym=_diag_ctx_get_use_color=_diag_ctx_get_use_color_diag_o_dead \
+    --redefine-sym=_diag_ctx_set_all=_diag_ctx_set_all_diag_o_dead \
+    --redefine-sym=_diag_snap_load_ptr=_diag_snap_load_ptr_diag_o_dead \
+    --redefine-sym=_diag_snap_load_usize=_diag_snap_load_usize_diag_o_dead \
+    --redefine-sym=_diag_snap_load_i32=_diag_snap_load_i32_diag_o_dead \
+    --redefine-sym=_diag_snap_store_ptr=_diag_snap_store_ptr_diag_o_dead \
+    --redefine-sym=_diag_snap_store_usize=_diag_snap_store_usize_diag_o_dead \
+    --redefine-sym=_diag_snap_store_i32=_diag_snap_store_i32_diag_o_dead \
+    src/diag.o
+  echo "g05_cap_tip_reapply: demoted Cap tip diag report/ctx/snap" >&2
+fi
+
 # Demote m8 symbols whose Cap tip thins are now in G05_OBJS (after INDEX/L003 prepend).
 _oc="${LLVM_OBJCOPY:-}"
 [ -n "$_oc" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
