@@ -12,6 +12,12 @@ OUT="$ROOT/std/string/string.o"
 XLANG="${XLANG:-$COMP/xlang}"
 [ -x "$XLANG" ] || XLANG="$COMP/xlang"
 [ -x "$XLANG" ] || { echo "no xlang" >&2; exit 1; }
+# knife256/10.2: Cap tip import resolve needs cwd=ROOT (else IMP001
+# .../std/debug/std/heap.x). Absolute -L alone is not enough.
+_xlang_at_root() {
+  ( cd "$ROOT" && exec "$XLANG" "$@" )
+}
+XLANG_RUN=_xlang_at_root
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT INT TERM
@@ -27,7 +33,7 @@ trap 'rm -rf "$tmp"' EXIT INT TERM
 mod_asm=0
 case "$(uname -s 2>/dev/null)" in
   Darwin|Linux)
-    if "$XLANG" -backend asm -c -L "$ROOT" -o "$tmp/mod.o" "$ROOT/std/string/mod.x" \
+    if "$XLANG_RUN" -backend asm -c -L "$ROOT" -o "$tmp/mod.o" "$ROOT/std/string/mod.x" \
         >"$tmp/mod_asm.log" 2>&1 \
       && [ -s "$tmp/mod.o" ] \
       && nm "$tmp/mod.o" 2>/dev/null | grep -qE ' T _?std_string_new$'; then
@@ -44,7 +50,7 @@ esac
 if [ "$mod_asm" != "1" ]; then
 # mod.x → C via -x -E (entry-only). PLATFORM: WINDOWS.
 # PLATFORM: SHARED — do not rm global /tmp/xlang_xlang_x.*.c (races with concurrent -o).
-if ! "$XLANG" build -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
+if ! "$XLANG_RUN" build -x -E -L "$ROOT" "$ROOT/std/string/mod.x" >"$tmp/mod.c" 2>"$tmp/mod.log"; then
   echo "xlang_compile_std_string_o: -x -E mod.x failed" >&2
   cat "$tmp/mod.log" >&2
   exit 1
@@ -297,7 +303,7 @@ elif [ "$sx_pure" != "1" ] && [ -f "$COMP/seeds/runtime_string_fast.from_x.c" ];
 elif [ "$sx_pure" != "1" ]; then
   XLANG_KEEP_C=1 "$XLANG" build -L "$ROOT" -lib-name "" -o "$tmp/sx.o" "$ROOT/std/string/string.x" >"$tmp/sx.log" 2>&1 || true
   if [ ! -f "$tmp/sx.o" ]; then
-    if "$XLANG" build -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
+    if "$XLANG_RUN" build -x -E -lib-name "" -L "$ROOT" "$ROOT/std/string/string.x" >"$tmp/sx.c" 2>"$tmp/sx.err"; then
       cc $CFLAGS -c "$tmp/sx.c" -o "$tmp/sx.o"
     else
       echo "xlang_compile_std_string_o: string.x bare failed (no seed, -lib-name unsupported)" >&2

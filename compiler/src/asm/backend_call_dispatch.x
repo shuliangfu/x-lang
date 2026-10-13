@@ -1355,19 +1355,19 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
         // type_ref / dual_gp when result is 9–16 only (ARRAY E* pack stays
         // ≤8). PLATFORM: SHARED · LINUX SysV gold · MACOS|ARM64 Cap tip.
         if (sz <= 8) {
+          // knife256/10.2: widen 9–16 (dual-GP) AND >16 (AAPCS64 byref /
+          // SysV MEMORY). Prior alt<=16-only left String(260) at soft 8 →
+          // Cap tip loaded first qword into x0 for length(s) → SEGV.
+          // ARRAY/SLICE/PTR still forced to 8 below. PLATFORM: SHARED.
           if (pty > 0) {
             alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
             if (alt > 8) {
-              if (alt <= 16) {
-                if (alt > sz) { sz = alt; }
-              }
+              if (alt > sz) { sz = alt; }
             }
             if (sz <= 8) {
               alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
               if (alt > 8) {
-                if (alt <= 16) {
-                  if (alt > sz) { sz = alt; }
-                }
+                if (alt > sz) { sz = alt; }
               }
             }
             alt = glue_sysv_dual_gp_byte_size_c(arena, pty);
@@ -1377,16 +1377,12 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
           if (tr > 0) {
             alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
             if (alt > 8) {
-              if (alt <= 16) {
-                if (alt > sz) { sz = alt; }
-              }
+              if (alt > sz) { sz = alt; }
             }
             if (sz <= 8) {
               alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
               if (alt > 8) {
-                if (alt <= 16) {
-                  if (alt > sz) { sz = alt; }
-                }
+                if (alt > sz) { sz = alt; }
               }
             }
             alt = glue_sysv_dual_gp_byte_size_c(arena, tr);
@@ -7863,9 +7859,14 @@ export function glue_asm_type_ref_to_suffix_c(a: *u8, type_ref: i32, out: *u8, o
       return 0;
     }
     // NAMED / user types: prefer type name (String, StrView, Vec_u8, …).
+    // knife256/10.2: Cap tip dep wrap smash can leave name_len>0 with zero
+    // bytes → mid length_ (false len) → U _std_string_length_. Reject empty.
     let n2: i32 = pipeline_type_named_name_into(a, type_ref, out);
     if (n2 > 0) {
       if (n2 < out_cap) {
+        if (out[0] == 0) {
+          return 0;
+        }
         let si: i32 = 0;
         while (si < n2) {
           if (out[si] == 46) { // '.'
@@ -8412,6 +8413,15 @@ export function glue_asm_mangle_import_binding_call_sym_c(
           let nfunc_res2: i32 = pipeline_module_num_funcs(res_mod);
           if (use_fi < nfunc_res2) {
             mid_len = glue_asm_build_func_overload_mid_c(res_mod, res_arena, use_fi, &mid[0], 64);
+            // knife256/10.2: empty dep type names → bare mid despite overloads.
+            // Force caller-arg mid (entry arena types are intact). PLATFORM: SHARED.
+            if (mid_len > 0) {
+              if (glue_module_func_overload_count_c(res_mod, field_name, field_len) > 1) {
+                if (mid_len == field_len) {
+                  mid_len = 0 - 1;
+                }
+              }
+            }
             if (mid_len > 0) {
               // PLATFORM: SHARED — same bare gate as export sym builder.
               let mpre: i32 = glue_asm_link_prefix_len_after_nomangle_c(res_mod, use_fi, pre_len);

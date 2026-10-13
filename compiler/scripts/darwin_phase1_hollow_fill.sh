@@ -1003,17 +1003,22 @@ _lexer_src_len_store:
 	.globl _parser_asm_copy_slice_to_name64_buf_c
 _parser_asm_copy_slice_to_name64_buf_c:
 	// x0=source, w1=source_len, x2=start, w3=nlen, x4=out
-	// Always prefer parked lexer BSS when set (tip source smash).
+	// Prefer live source when valid (>4096); else parked BSS (tip smash 0x3a).
+	// Root: always-prefer-parked kept dep mod.x names empty → mid length_ →
+	// U _std_string_length_ vs T _std_string_length_String. PLATFORM: MACOS.
 	cbz	x4, 9f
 	cmp	w3, #0
 	b.le	9f
+	mov	x5, x0
+	sxtw	x6, w1
+	cbz	x5, 1f
+	cmp	x5, #4096
+	b.hi	2f
+1:
 	adrp	x5, _g_lex_src_data@PAGE
 	ldr	x5, [x5, _g_lex_src_data@PAGEOFF]
 	adrp	x6, _g_lex_src_len@PAGE
 	ldr	x6, [x6, _g_lex_src_len@PAGEOFF]
-	cbnz	x5, 2f
-	mov	x5, x0
-	sxtw	x6, w1
 2:
 	cbz	x5, 9f
 	mov	w8, #0			// i = 0

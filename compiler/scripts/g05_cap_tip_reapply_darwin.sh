@@ -29,6 +29,7 @@ fi
 [ -n "$OC" ] || { echo "need llvm-objcopy" >&2; exit 1; }
 
 echo "g05_cap_tip_reapply: cache=$CACHE"
+
 # Cap tip this-wave: ASM_DEBUG note path SEGVs on diag loc (ctx); keep off for reapply/L2.
 unset XLANG_ASM_DEBUG || true
 
@@ -79,6 +80,58 @@ bash scripts/g05_cap_tip_typeck_soft_prep.sh
 set -a
 # shellcheck disable=SC1091
 . scripts/g05_env_cap_tip_darwin.sh
+# knife256/10.2: nopark lex_source_data first-wins (sticky park poisons dep names).
+if [ ! -s build_asm/selfhost_pabi/lex_source_data_nopark_a64.o ]; then
+  _lsn=src/asm/lex_source_data_nopark_a64.s
+  [ -f "$_lsn" ] || _lsn=build_asm/selfhost_pabi/lex_source_data_nopark.s
+  [ -f "$_lsn" ] && as -o build_asm/selfhost_pabi/lex_source_data_nopark_a64.o "$_lsn"
+fi
+if [ -s build_asm/selfhost_pabi/lex_source_data_nopark_a64.o ]; then
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o ]; then
+    "$OC" --redefine-sym=_parser_asm_lex_source_data_c=_parser_asm_lex_source_data_c__park_dead \
+      --redefine-sym=_parser_asm_lex_source_length_c=_parser_asm_lex_source_length_c__park_dead \
+      build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o 2>/dev/null || true
+  fi
+  case " $G05_OBJS " in
+    *" lex_source_data_nopark_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/lex_source_data_nopark_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended lex_source_data_nopark_a64.o" >&2
+      ;;
+  esac
+fi
+
+# knife256/10.2: 256-slot wrap_buf first-wins (16-slot thin_glue smashes dep fats).
+if [ ! -s build_asm/selfhost_pabi/lex_wrap_buf_256_a64.o ] && [ -f src/asm/lex_wrap_buf_256_a64.s ]; then
+  as -o build_asm/selfhost_pabi/lex_wrap_buf_256_a64.o src/asm/lex_wrap_buf_256_a64.s
+fi
+if [ -s build_asm/selfhost_pabi/lex_wrap_buf_256_a64.o ]; then
+  if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o ]; then
+    "$OC" --redefine-sym=_parser_asm_lex_wrap_buf_c=_parser_asm_lex_wrap_buf_c__16slot_dead \
+      build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o 2>/dev/null || true
+  fi
+  case " $G05_OBJS " in
+    *" lex_wrap_buf_256_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/lex_wrap_buf_256_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended lex_wrap_buf_256_a64.o" >&2
+      ;;
+  esac
+fi
+
+# knife256/10.2: overload mid empty-reject → caller-arg mid for string.length.
+if [ -s build_asm/selfhost_pabi/glue_overload_mid_empty_reject_soft.o ]; then
+  case " $G05_OBJS " in
+    *" glue_overload_mid_empty_reject_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/glue_overload_mid_empty_reject_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended glue_overload_mid_empty_reject_soft.o" >&2
+      ;;
+  esac
+fi
 set +a
 # Prefer this-wave vehicles from cold g05 when present
 export G05_XLANG_C="${G05_XLANG_C:-xlang-c}"
@@ -542,6 +595,32 @@ fi
 rm -f xlang.cap_g05_l2
 
 
+# knife256/10.2: type_ref_to_suffix empty-reject (caller-arg mid needs it too).
+if [ -s build_asm/selfhost_pabi/glue_type_ref_suffix_empty_reject_soft.o ]; then
+  case " $G05_OBJS " in
+    *" glue_type_ref_suffix_empty_reject_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/glue_type_ref_suffix_empty_reject_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended glue_type_ref_suffix_empty_reject_soft.o" >&2
+      ;;
+  esac
+fi
+# knife256/10.2: demote dispatch mid so empty-reject soft first-wins (after ensure rebuild).
+# WEAKEN (not redefine): redefine rewrites call sites inside dispatch.o to __bcd_dead.
+if [ -n "${OC:-}" ] && [ -s src/asm/backend_call_dispatch.o ]; then
+  if [ -s build_asm/selfhost_pabi/glue_overload_mid_empty_reject_soft.o ]; then
+    "$OC" --weaken-symbol=_glue_asm_build_func_overload_mid_c \
+      src/asm/backend_call_dispatch.o 2>/dev/null \
+      && echo "g05_cap_tip_reapply: weakened dispatch overload mid (empty-reject wins)" >&2 || true
+  fi
+  if [ -s build_asm/selfhost_pabi/glue_type_ref_suffix_empty_reject_soft.o ]; then
+    "$OC" --weaken-symbol=_glue_asm_type_ref_to_suffix_c \
+      --weaken-symbol=_glue_type_kind_to_suffix_c \
+      src/asm/backend_call_dispatch.o 2>/dev/null \
+      && echo "g05_cap_tip_reapply: weakened dispatch type_ref_to_suffix (empty-reject wins)" >&2 || true
+  fi
+fi
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then
