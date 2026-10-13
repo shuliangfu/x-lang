@@ -1,5 +1,8 @@
-// knife256/10.2 Cap tip: soft-accept TYPE_NAMED when demoted misses import prefix.
-// PLATFORM: SHARED — Cap tip L2 sidecar.
+// knife256/10.2 Cap tip: when demoted equality misses, soft-accept if either
+// side is TYPE_NAMED (import-prefix Option_i32 vs option.Option_i32 assign).
+// struct_repr_fail PairA≠PairC is enforced by typeck_call_arg_ptr_named_soft
+// (inline last-segment; does not call this soft for same-arena ADDR_OF).
+// PLATFORM: SHARED — Cap tip L2 sidecar. Product still greens via demoted.
 export extern "C" function typeck_type_refs_equal__demoted(arena: *u8, a: i32, b: i32): i32;
 export extern "C" function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
 
