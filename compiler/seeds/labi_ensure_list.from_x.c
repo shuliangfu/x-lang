@@ -43,6 +43,9 @@ int link_abi_host_is_linux_x86_64(void);
 int link_abi_host_is_posix_aarch64(void);
 int xlang_link_obj_has_defined_sym(const char *o_path, const char *sym);
 int unlink(const char *path);
+/* Product thread-glue ensure spawns the existing thin+rest script. */
+int setenv(const char *name, const char *value, int overwrite);
+int xlang_spawn_sync(const char *prog, const char *const *argv);
 const char *xlang_runtime_panic_o_path(const char *argv0);
 const char *xlang_runtime_heap_user_o_path(const char *argv0);
 const char *xlang_runtime_test_fn_invoke_o_path(const char *argv0);
@@ -1108,10 +1111,116 @@ int xlang_ensure_runtime_sync_lock_diag_tls_o(const char *argv0) {
   return link_abi_ensure_from_catalog(argv0, 17, p);
 }
 
-/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+/* Cold _c wrappers under XLANG_RUNTIME_THREAD_GLUE_FROM_X were removed.
+ * Catalog host-cc of seeds/runtime_thread_glue.from_x.c therefore defines
+ * only *_impl. Public thread_*_c lives in src/asm/runtime_thread_glue.x.
+ * The one thin+rest merge is scripts/ensure_host_cc_seed_o.sh
+ * try-runtime-os-prefer (Darwin retry, Linux prefer, FROM_X rest,
+ * pure_ld_partial_merge). Product -o must call that script when the
+ * object is missing or does not define thread_create_c.
+ * The defined-sym cache is keyed by path and is not invalidated, so the
+ * completeness probe copies the object to a fresh /tmp path.
+ * PLATFORM: SHARED — the script owns Darwin / Linux / Windows policy.
+ * The _impl seed is host-cc'd inside that merge by design.
+ */
 int xlang_ensure_runtime_thread_glue_o(const char *argv0) {
-  const char *p = xlang_runtime_thread_glue_o_path(argv0);
-  return link_abi_ensure_from_catalog(argv0, 18, p);
+  const char *p;
+  char comp[4096];
+  char script[4096];
+  char chk[64];
+  char rev[16];
+  const char *cp_argv[4];
+  const char *sh_argv[5];
+  const char *prefix = "/tmp/xlang_tg_chk_";
+  static int seq = 0;
+  int n;
+  int i;
+  int r;
+  int rc;
+  int defines;
+
+  p = xlang_runtime_thread_glue_o_path(argv0);
+  if (p == NULL || p[0] == 0)
+    return -1;
+  defines = 0;
+  if (asm_link_obj_skip_missing(p) != NULL) {
+    n = seq;
+    if (n < 0)
+      n = 0;
+    seq = n + 1;
+    i = 0;
+    while (prefix[i] != 0 && i < 40) {
+      chk[i] = prefix[i];
+      i++;
+    }
+    r = 0;
+    if (n == 0) {
+      rev[r++] = '0';
+    } else {
+      while (n > 0 && r < 12) {
+        rev[r++] = (char)('0' + (n % 10));
+        n /= 10;
+      }
+    }
+    while (r > 0 && i < 58) {
+      r--;
+      chk[i++] = rev[r];
+    }
+    if (i + 3 >= (int)sizeof chk)
+      return -1;
+    chk[i++] = '.';
+    chk[i++] = 'o';
+    chk[i] = 0;
+    cp_argv[0] = "/bin/cp";
+    cp_argv[1] = p;
+    cp_argv[2] = chk;
+    cp_argv[3] = NULL;
+    if (xlang_spawn_sync("/bin/cp", cp_argv) == 0)
+      defines = xlang_link_obj_has_defined_sym(chk, "thread_create_c");
+    (void)unlink(chk);
+  }
+  if (defines != 0)
+    return 0;
+  if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) != 0)
+    return -1;
+  i = 0;
+  while (comp[i] != 0)
+    i++;
+  {
+    const char *leaf = "/scripts/ensure_host_cc_seed_o.sh";
+    int j = 0;
+    if (i + 40 >= (int)sizeof script)
+      return -1;
+    while (j < i) {
+      script[j] = comp[j];
+      j++;
+    }
+    r = 0;
+    while (leaf[r] != 0) {
+      script[j++] = leaf[r++];
+    }
+    script[j] = 0;
+  }
+  if (link_abi_path_readable(script) == 0)
+    return -1;
+  /* Child inherits these. Restored after wait so the parent link stays at
+   * the product default. The script reads them when the prefer body runs. */
+  (void)setenv("XLANG_G05_PREFER_X_O", "1", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "1", 1);
+  sh_argv[0] = "/bin/bash";
+  sh_argv[1] = script;
+  sh_argv[2] = "try-runtime-os-prefer";
+  sh_argv[3] = "runtime_thread_glue.o";
+  sh_argv[4] = NULL;
+  rc = xlang_spawn_sync("/bin/bash", sh_argv);
+  (void)setenv("XLANG_G05_PREFER_X_O", "0", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "0", 1);
+  if (rc != 0)
+    return -1;
+  /* Product path was not probed above, so this load is not a stale cache. */
+  if (xlang_link_obj_has_defined_sym(p, "thread_create_c") == 0)
+    return -1;
+  return 0;
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */

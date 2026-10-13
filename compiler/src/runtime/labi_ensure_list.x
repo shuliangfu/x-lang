@@ -9,7 +9,8 @@
 //   wave173 link_abi_ensure_from_catalog pure orch
 //     (catalog tables + pure byte joins + Cap residual resolve/access/cc/one_extra/stat).
 //   wave174 catalog thin ensure wraps pure (26× xlang_ensure_runtime_*_o)
-//     (peer *_o_path Cap residual + pure ensure_from_catalog; zero extra business logic).
+//     (peer *_o_path + ensure_from_catalog). Thread glue is the exception:
+//     cold _c wrappers are gone, so that leaf calls the existing thin+rest script.
 //   wave169 xlang_ensure_runtime_panic_o pure orch
 //     (peer panic_o_path + Cap residual resolve/access/cc/stat + host #if prefer).
 //   wave170 xlang_ensure_runtime_heap_user_o pure orch
@@ -47,6 +48,10 @@ export extern "C" function link_abi_host_is_posix_aarch64(): i32;
 // Cap residual (wave170 heap_user): nm/defined-sym probe + unlink incomplete stub .o.
 export extern "C" function xlang_link_obj_has_defined_sym(o_path: *u8, sym: *u8): i32;
 export extern "C" function unlink(path: *u8): i32;
+// Product thread-glue ensure spawns the existing thin+rest script.
+// PLATFORM: SHARED — argv is a NULL-terminated pointer table.
+export extern "C" function setenv(name: *u8, value: *u8, overwrite: i32): i32;
+export extern "C" function xlang_spawn_sync(prog: *u8, argv: **u8): i32;
 // Peer pure path ladder (labi_path_pure L0 / wave160-163 compiler_o_path_copy joins).
 export extern "C" function xlang_runtime_panic_o_path(argv0: *u8): *u8;
 export extern "C" function xlang_runtime_heap_user_o_path(argv0: *u8): *u8;
@@ -2213,19 +2218,26 @@ export function xlang_ensure_runtime_sync_lock_diag_tls_o(argv0: *u8): i32 {
   return link_abi_ensure_from_catalog(argv0, 17, p);
 }
 
+// Fresh /tmp probe names. The defined-sym cache is keyed by path and is not
+// invalidated, so a miss must not be probed on the product path itself.
+let g_thread_glue_symchk_seq: i32 = 0;
+
 /**
- * Catalog thin ensure wrap: ensure `runtime_thread_glue.o` via pure catalog orch.
- * @param argv0 *u8 — optional product host path for peer path resolve; may be null
- * @return i32 — 0 success / already present; -1 on resolve/source/cc/missing (diag written)
- * Pure thin wrap (wave174): Cap residual path peer `xlang_runtime_thread_glue_o_path` then
- *   pure `link_abi_ensure_from_catalog(argv0, 18, product_path)` (LABI_ENS_THREAD_GLUE).
- * Zero business logic beyond path peer + catalog_idx — G.7 single authority is
- *   ensure_from_catalog (wave173) + path peers (wave160/161).
- * Why: hybrid still had always-mega C bodies for 26 catalog ensure thin wraps after
- *   ensure_from_catalog pure (wave173). Soft residual closed: hybrid ensure_* thin = pure.
- * Cap residual: only peer *_o_path (static PATH_MAX buffer / compiler_o_path_copy).
- * PLATFORM: SHARED thin orch — dual-end L2 prove IDENTICAL + product matrix.
- * Track-L: #[no_mangle] keeps surface short name for hybrid ld -r / cold twin.
+ * Ensure compiler/runtime_thread_glue.o defines public thread_create_c.
+ * Cold _c wrappers were removed, so catalog host-cc of the seed defines
+ * only *_impl. The public names live in src/asm/runtime_thread_glue.x.
+ * The one thin+rest merge is scripts/ensure_host_cc_seed_o.sh
+ * try-runtime-os-prefer (Darwin retry, Linux prefer, FROM_X rest,
+ * pure_ld_partial_merge). This leaf calls that script when the object
+ * is missing or does not define thread_create_c.
+ * @param argv0 *u8 — product host path for compiler-dir resolve; may be null
+ * @return i32 — 0 when thread_create_c is defined; -1 on resolve/spawn/missing
+ * The defined-sym cache is not invalidated, so the completeness probe
+ * copies the object to a fresh /tmp path and never probes the product
+ * path until after the script returns.
+ * PLATFORM: SHARED — the script owns Darwin / Linux / Windows policy.
+ * The _impl seed is host-cc'd inside that merge by design.
+ * Track-L: #[no_mangle] keeps the surface short name.
  */
 #[no_mangle]
 export function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
@@ -2233,7 +2245,159 @@ export function xlang_ensure_runtime_thread_glue_o(argv0: *u8): i32 {
   unsafe {
     p = xlang_runtime_thread_glue_o_path(argv0);
   }
-  return link_abi_ensure_from_catalog(argv0, 18, p);
+  if (p == 0 as *u8) {
+    return 0 - 1;
+  }
+  if (p[0] == 0) {
+    return 0 - 1;
+  }
+  let defines: i32 = 0;
+  let have: *u8 = 0 as *u8;
+  unsafe {
+    have = asm_link_obj_skip_missing(p);
+  }
+  if (have != 0 as *u8) {
+    // Build /tmp/xlang_tg_chk_<seq>.o without touching the product-path cache.
+    let prefix: *u8 = "/tmp/xlang_tg_chk_";
+    let chk: u8[64] = [];
+    let i: i32 = 0;
+    while (prefix[i] != 0) {
+      if (i >= 40) {
+        return 0 - 1;
+      }
+      chk[i] = prefix[i];
+      i = i + 1;
+    }
+    let n: i32 = g_thread_glue_symchk_seq;
+    g_thread_glue_symchk_seq = n + 1;
+    if (n < 0) {
+      n = 0;
+    }
+    let rev: u8[16] = [];
+    let r: i32 = 0;
+    if (n == 0) {
+      rev[0] = 48;
+      r = 1;
+    } else {
+      while (n > 0) {
+        if (r >= 12) {
+          return 0 - 1;
+        }
+        let d: i32 = n % 10;
+        rev[r] = 48 + d;
+        r = r + 1;
+        n = n / 10;
+      }
+    }
+    while (r > 0) {
+      r = r - 1;
+      if (i >= 58) {
+        return 0 - 1;
+      }
+      chk[i] = rev[r];
+      i = i + 1;
+    }
+    if (i + 3 >= 64) {
+      return 0 - 1;
+    }
+    chk[i] = 46;
+    i = i + 1;
+    chk[i] = 111;
+    i = i + 1;
+    chk[i] = 0;
+    let cp: *u8 = "/bin/cp";
+    let cp_argv: *u8[4];
+    cp_argv[0] = cp;
+    cp_argv[1] = p;
+    cp_argv[2] = &chk[0];
+    cp_argv[3] = 0 as *u8;
+    let cp_rc: i32 = 0;
+    unsafe {
+      cp_rc = xlang_spawn_sync(cp, &cp_argv[0]);
+    }
+    if (cp_rc == 0) {
+      unsafe {
+        defines = xlang_link_obj_has_defined_sym(&chk[0], "thread_create_c");
+      }
+    }
+    unsafe {
+      let _u: i32 = unlink(&chk[0]);
+    }
+  }
+  if (defines != 0) {
+    return 0;
+  }
+  let comp: u8[4096] = [];
+  let rc: i32 = 0;
+  unsafe {
+    rc = xlang_resolve_compiler_dir(argv0, &comp[0], 4096);
+  }
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  let dn: i32 = 0;
+  while (comp[dn] != 0) {
+    dn = dn + 1;
+  }
+  let leaf: *u8 = "/scripts/ensure_host_cc_seed_o.sh";
+  let script: u8[4096] = [];
+  let j: i32 = 0;
+  if (dn + 40 >= 4096) {
+    return 0 - 1;
+  }
+  while (j < dn) {
+    script[j] = comp[j];
+    j = j + 1;
+  }
+  let s: i32 = 0;
+  while (leaf[s] != 0) {
+    script[j] = leaf[s];
+    j = j + 1;
+    s = s + 1;
+  }
+  script[j] = 0;
+  let readable: i32 = 0;
+  unsafe {
+    readable = link_abi_path_readable(&script[0]);
+  }
+  if (readable == 0) {
+    return 0 - 1;
+  }
+  // Child inherits these. Restored after wait so the parent link stays
+  // at the product default. The script reads them when prefer runs.
+  unsafe {
+    let _e0: i32 = setenv("XLANG_G05_PREFER_X_O", "1", 1);
+    let _e1: i32 = setenv("XLANG_HOST_CC_SEED_FORCE", "1", 1);
+  }
+  let bash: *u8 = "/bin/bash";
+  let mode: *u8 = "try-runtime-os-prefer";
+  let out_name: *u8 = "runtime_thread_glue.o";
+  let sh_argv: *u8[5];
+  sh_argv[0] = bash;
+  sh_argv[1] = &script[0];
+  sh_argv[2] = mode;
+  sh_argv[3] = out_name;
+  sh_argv[4] = 0 as *u8;
+  let sh_rc: i32 = 0;
+  unsafe {
+    sh_rc = xlang_spawn_sync(bash, &sh_argv[0]);
+  }
+  unsafe {
+    let _e2: i32 = setenv("XLANG_G05_PREFER_X_O", "0", 1);
+    let _e3: i32 = setenv("XLANG_HOST_CC_SEED_FORCE", "0", 1);
+  }
+  if (sh_rc != 0) {
+    return 0 - 1;
+  }
+  // Product path was not probed above, so this load is not a stale cache.
+  let ok: i32 = 0;
+  unsafe {
+    ok = xlang_link_obj_has_defined_sym(p, "thread_create_c");
+  }
+  if (ok == 0) {
+    return 0 - 1;
+  }
+  return 0;
 }
 
 /**
