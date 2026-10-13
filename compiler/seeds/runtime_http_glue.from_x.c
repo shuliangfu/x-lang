@@ -947,7 +947,71 @@ int32_t xlang_http_send_all_impl(int fd, const char *buf, int len, int is_socket
   return 0;
 }
 
+/* PLATFORM: SHARED — cold catalog cc (no -D XLANG_RUNTIME_HTTP_GLUE_FROM_X).
+ * 记253/9.1 emptied these public names. runtime_http_glue.x owns the same
+ * names when FROM_X is set. Each name with an *_impl is a zero-logic forward.
+ * http_method_has_body has no *_impl; the predicate matches runtime_http_glue.x.
+ */
 #ifndef XLANG_RUNTIME_HTTP_GLUE_FROM_X
+int parse_http_url(const uint8_t *url, int32_t url_len, char *host_buf, int host_cap,
+                   char *port_buf, int port_cap, char *path_buf, int path_cap,
+                   int32_t *out_is_https) {
+  return parse_http_url_impl(url, url_len, host_buf, host_cap, port_buf, port_cap,
+                             path_buf, path_cap, out_is_https);
+}
+
+void http_transport_close(http_transport_t *tr) {
+  http_transport_close_impl(tr);
+}
+
+int32_t http_transport_start_tls(http_transport_t *tr, int32_t is_https, const char *host) {
+  return http_transport_start_tls_impl(tr, is_https, host);
+}
+
+int32_t http_transport_send_all(http_transport_t *tr, const char *data, int len) {
+  return http_transport_send_all_impl(tr, data, len);
+}
+
+int32_t http_transport_recv_fill(http_transport_t *tr, uint8_t *out_buf, int32_t out_cap,
+                                 uint32_t timeout_ms) {
+  return http_transport_recv_fill_impl(tr, out_buf, out_cap, timeout_ms);
+}
+
+int http_method_has_body(const char *method) {
+  if (method == 0) return 0;
+  /* POST */
+  if (method[0] == 80 && method[1] == 79 && method[2] == 83 && method[3] == 84 &&
+      method[4] == 0)
+    return 1;
+  /* PUT */
+  if (method[0] == 80 && method[1] == 85 && method[2] == 84 && method[3] == 0)
+    return 1;
+  /* PATCH */
+  if (method[0] == 80 && method[1] == 65 && method[2] == 84 && method[3] == 67 &&
+      method[4] == 72 && method[5] == 0)
+    return 1;
+  return 0;
+}
+
+int http_format_request(const char *method, const char *path_buf, const char *host_buf,
+                        int32_t body_len, char *req, int req_cap) {
+  return http_format_request_impl(method, path_buf, host_buf, body_len, req, req_cap);
+}
+
+int32_t http_set_timeouts(int fd, uint32_t timeout_ms) {
+  return http_set_timeouts_impl(fd, timeout_ms);
+}
+
+int32_t http_request_timeout_ex_c(const char *method, const uint8_t *url, int32_t url_len,
+                                  const uint8_t *body, int32_t body_len, uint8_t *out_buf,
+                                  int32_t out_cap, uint32_t timeout_ms) {
+  return http_request_timeout_ex_c_impl(method, url, url_len, body, body_len,
+                                        out_buf, out_cap, timeout_ms);
+}
+
+int32_t xlang_http_send_all(int fd, const char *buf, int len, int is_socket) {
+  return xlang_http_send_all_impl(fd, buf, len, is_socket);
+}
 #endif /* XLANG_RUNTIME_HTTP_GLUE_FROM_X */
 
 
