@@ -81,6 +81,12 @@ set -a
 # shellcheck disable=SC1091
 . scripts/g05_env_cap_tip_darwin.sh
 # knife256/10.2: nopark lex_source_data first-wins (sticky park poisons dep names).
+# PLATFORM: MACOS — weaken nop9b's copies. Do NOT --redefine-sym them to
+# __park_dead: objcopy rewrites this object's own relocations, so
+# parser_asm_parse_one_extern_skip_into_c keeps calling the park body and
+# copies an extern's name out of the caller's sticky source (probe_ext_i32
+# landed as bytes from the importing file). A weak def lets the strong
+# nopark .o win for every call site, including nop9b's.
 if [ ! -s build_asm/selfhost_pabi/lex_source_data_nopark_a64.o ]; then
   _lsn=src/asm/lex_source_data_nopark_a64.s
   [ -f "$_lsn" ] || _lsn=build_asm/selfhost_pabi/lex_source_data_nopark.s
@@ -88,9 +94,15 @@ if [ ! -s build_asm/selfhost_pabi/lex_source_data_nopark_a64.o ]; then
 fi
 if [ -s build_asm/selfhost_pabi/lex_source_data_nopark_a64.o ]; then
   if [ -n "${OC:-}" ] && [ -s build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o ]; then
-    "$OC" --redefine-sym=_parser_asm_lex_source_data_c=_parser_asm_lex_source_data_c__park_dead \
-      --redefine-sym=_parser_asm_lex_source_length_c=_parser_asm_lex_source_length_c__park_dead \
-      build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o 2>/dev/null || true
+    _nop9b=build_asm/selfhost_pabi/parser_asm_thin_glue.nop9b.o
+    # A previous redefine left the public names as __park_dead. Put them
+    # back so relocations name the nopark symbols, then weaken.
+    "$OC" --redefine-sym=_parser_asm_lex_source_data_c__park_dead=_parser_asm_lex_source_data_c \
+      --redefine-sym=_parser_asm_lex_source_length_c__park_dead=_parser_asm_lex_source_length_c \
+      "$_nop9b" 2>/dev/null || true
+    "$OC" --weaken-symbol=_parser_asm_lex_source_data_c \
+      --weaken-symbol=_parser_asm_lex_source_length_c \
+      "$_nop9b" 2>/dev/null || true
   fi
   case " $G05_OBJS " in
     *" lex_source_data_nopark_a64.o "*) ;;
