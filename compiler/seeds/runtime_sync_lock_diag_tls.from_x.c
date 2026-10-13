@@ -81,7 +81,10 @@ int32_t sync_lock_diag_find_meta_idx_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
-/* 记253／9.1: cold under #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X removed */
+/* Cold catalog cc has no .x thin. PLATFORM: SHARED — same forward as the thin. */
+int32_t sync_lock_diag_find_meta_idx(void *m) {
+    return sync_lock_diag_find_meta_idx_impl(m);
+}
 #endif
 
 
@@ -99,6 +102,9 @@ int32_t sync_lock_diag_get_order_impl(void *m) {
 }
 
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+int32_t sync_lock_diag_get_order(void *m) {
+    return sync_lock_diag_get_order_impl(m);
+}
 #endif
 
 
@@ -267,28 +273,54 @@ void sync_lock_diag_clear_c(void) {
     sync_lock_diag_tls_clear_c();
 }
 
-/** 向 out[pos] 追加单字节；满则 -1。 */
-/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
+/** 向 out[pos] 追加单字节；满则 -1。
+ * PLATFORM: SHARED — cold catalog twin of runtime_sync_lock_diag_tls.x.
+ */
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+int32_t sync_lock_diag_append_byte(uint8_t *out, int32_t pos, int32_t cap, uint8_t b) {
+    if (out == NULL || pos < 0 || pos >= cap) return -1;
+    out[pos] = b;
+    return pos + 1;
+}
 #endif
-
-
-
 
 /** 向 out 追加 n 字节字面量。 */
-/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+int32_t sync_lock_diag_append_lit(uint8_t *out, int32_t pos, int32_t cap, const uint8_t *s, int32_t n) {
+    int32_t i;
+    for (i = 0; i < n; i++) {
+        pos = sync_lock_diag_append_byte(out, pos, cap, s[i]);
+        if (pos < 0) return -1;
+    }
+    return pos;
+}
 #endif
 
-
-
-
 /** 将 i32 十进制追加到 out；失败 -1。 */
-/* G-02f-119：逻辑源 .x（真迁）；seed 保留同语义 C 供产品 cc */
-/* G-02f-20 thin+rest：DIRECT 模式，thin（src/asm/runtime_sync_lock_diag_tls.x）提供完整实现 */
 #ifndef XLANG_RUNTIME_SYNC_LOCK_DIAG_TLS_FROM_X
+int32_t sync_lock_diag_append_i32(uint8_t *out, int32_t pos, int32_t cap, int32_t v) {
+    int32_t digs[16];
+    int32_t n = 0;
+    int32_t x;
+    if (out == NULL || pos < 0 || cap <= pos) return -1;
+    if (v == 0) return sync_lock_diag_append_byte(out, pos, cap, (uint8_t)'0');
+    x = v;
+    if (x < 0) {
+        pos = sync_lock_diag_append_byte(out, pos, cap, (uint8_t)'-');
+        if (pos < 0) return -1;
+        x = -x;
+    }
+    while (x > 0 && n < 16) {
+        digs[n++] = x - (x / 10) * 10;
+        x = x / 10;
+    }
+    while (n > 0) {
+        n--;
+        pos = sync_lock_diag_append_byte(out, pos, cap, (uint8_t)(digs[n] + '0'));
+        if (pos < 0) return -1;
+    }
+    return pos;
+}
 #endif
 
 
