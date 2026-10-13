@@ -446,6 +446,24 @@ if [ -s build_asm/selfhost_pabi/typeck_type_is_free_type_param_soft.o ]; then
       ;;
   esac
 fi
+if [ -s build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_soft.o $G05_OBJS"
+      echo "g05_cap_tip_reapply: prepended typeck_method_call_resolve_generic_bound_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/generic_bound_scan_from_stash_a64.o $G05_OBJS"
+      echo "g05_cap_tip_reapply: prepended generic_bound_scan_from_stash_a64.o" >&2
+      ;;
+  esac
+fi
 
 # Same-TU demoted call sites: trampoline __demoted -> soft.
 if [ -s build_asm/selfhost_pabi/typeck_soa_find_layout_idx_by_name_demoted_tramp_a64.o ]; then
@@ -466,6 +484,15 @@ if [ -s build_asm/selfhost_pabi/typeck_type_is_free_type_param_demoted_tramp_a64
       G05_OBJS="build_asm/selfhost_pabi/typeck_type_is_free_type_param_demoted_tramp_a64.o $G05_OBJS"
       export G05_OBJS
       echo "g05_cap_tip_reapply: prepended free_param demoted trampoline" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_demoted_tramp_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_demoted_tramp_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_demoted_tramp_a64.o $G05_OBJS"
+      echo "g05_cap_tip_reapply: prepended generic_bound demoted trampoline" >&2
       ;;
   esac
 fi

@@ -18027,8 +18027,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       }
     }
 
-    /* Same-module free-fn UFCS: method(self, args...) / auto-ref *T self. */
-    if (base_ty > 0 && method_nlen > 0) {
+    /* Same-module free-fn UFCS: method(self, args...) / auto-ref *T self.
+     * knife256/10.2 Cap tip: skip when receiver is a free type-param.
+     * Blank both-NAMED equal greened free T vs struct A (bound_method_nobound);
+     * free T must hit generic_bound then LANG-004, not UFCS. Keep import
+     * hollow NAMED equal for Result/Option/String. PLATFORM: SHARED Cap tip. */
+    if (base_ty > 0 && method_nlen > 0
+        && typeck_type_is_free_type_param(module, arena, base_ty) == 0) {
       let uj: i32 = 0;
       let uf_best: i32 = 0 - 1;
       let uf_best_score: i32 = 0 - 1;
