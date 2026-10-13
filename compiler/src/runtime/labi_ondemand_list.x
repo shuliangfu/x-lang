@@ -1413,10 +1413,12 @@ export function link_abi_user_o_needs_std_heap_page_mmap(user_o: *u8): i32 {
  */
 #[no_mangle]
 export function labi_od_sys_linux_sym_count(): i32 {
-  // 38 since 2026-09-09: +4 xlang_sys_* FFI externs the co-emitted
-  // std.sys.linux module leaves U (glue = std/sys/linux.o +
-  // compiler/src/asm/freestanding_io_x86_64.o; run-process BLD001 root).
-  return 38;
+  // 34 std.sys.linux export names. The old +4 xlang_sys_* FFI names
+  // are undefs of linux.o, not a reason to pull it. Darwin tcp.o
+  // undefs xlang_sys_connect; that hit pushed linux.o into a hosted
+  // Mach-O link (BLD001 xlang_sys_open / openat).
+  // PLATFORM: SHARED — twin of seeds/labi_od_needle_tables.c.
+  return 34;
 }
 
 /* Class BF: labi_od_sys_linux_sym_at → seeds/labi_od_needle_tables.c (always linked). */

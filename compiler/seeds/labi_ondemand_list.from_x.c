@@ -675,12 +675,11 @@ int link_abi_user_o_needs_std_heap_page_mmap(const char *user_o) {
 
 /* product sys_linux exact UNDEF table + needs pure orch.
  * PLATFORM: SHARED — exact symbols only (no prefix/strstr probes). */
-/* 38 since 2026-09-09: +4 xlang_sys_* FFI externs the co-emitted
- * std.sys.linux module leaves U (glue = std/sys/linux.o +
- * compiler/src/asm/freestanding_io_x86_64.o; hosted user programs
- * importing std.process died BLD001 — run-process FAIL root).
- * Mirrors the .x twin. */
-int labi_od_sys_linux_sym_count(void) { return 38; }
+/* 34 std.sys.linux export names. The old +4 xlang_sys_* FFI names are
+ * undefs of linux.o itself, not a reason to pull it. Darwin tcp.o
+ * undefs xlang_sys_connect; that hit pushed linux.o into a hosted
+ * Mach-O link (BLD001 xlang_sys_open / openat). Mirrors the .x twin. */
+int labi_od_sys_linux_sym_count(void) { return 34; }
 /* Class BF: labi_od_sys_linux_sym_at → seeds/labi_od_needle_tables.c (always linked). */
 const char *labi_od_sys_linux_sym_at(int i);
 
