@@ -5442,7 +5442,8 @@ case "$UNAME_S" in
         "build_asm/selfhost_pabi/return_sret.o|_pipeline_asm_emit_return_elf_impl" \
         "build_asm/selfhost_pabi/macho_write_a64.o|_platform_macho_write_macho_o_to_buf" \
         "build_asm/selfhost_pabi/body_sync_let_order.o|_backend_emit_block_body_sync_elf" \
-        "build_asm/selfhost_pabi/body_sync_let_order.o|_pipeline_asm_emit_block_body_sync_elf"
+        "build_asm/selfhost_pabi/body_sync_let_order.o|_pipeline_asm_emit_block_body_sync_elf" \
+        "build_asm/selfhost_pabi/assign_emit_thin_a64.o|_pipeline_asm_emit_assign_elf_c"
       do
         _thin="${_pair%%|*}"
         _sym="${_pair##*|}"
