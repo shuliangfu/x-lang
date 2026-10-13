@@ -195,22 +195,26 @@ _pipeline_asm_emit_assign_elf_c:
 	.globl _pipeline_asm_emit_block_body_sync_elf
 _pipeline_asm_emit_block_body_sync_elf:
 	b	_backend_emit_block_body_sync_elf
-	/* knife256/10.2: INT_LIT/BOOL → enc_mov_imm32; else -99 (RETURN→impl).
-	 * tip backend_emit_expr_elf is no-op; slow path cannot save hello. Strong. */
+	/* knife256/10.2: INT_LIT/BOOL + EXPR_VAR(3). Cap tip backend_emit_expr_elf
+	 * is hollow mov#0; without VAR, return acc after nested lets leaves last w0
+	 * (fmt_comprehensive 67≠65). Strong. PLATFORM: MACOS arm64 Cap tip. */
 	.globl _pipeline_asm_emit_expr_elf_fast
 _pipeline_asm_emit_expr_elf_fast:
 	cbz	x0, Lfast_unh
 	cbz	x1, Lfast_unh
+	cbz	x3, Lfast_unh
 	cmp	w2, #0
 	b.le	Lfast_unh
-	stp	x29, x30, [sp, #-0x30]!
+	stp	x29, x30, [sp, #-0x40]!
 	mov	x29, sp
 	stp	x19, x20, [sp, #0x10]
 	stp	x21, x22, [sp, #0x20]
-	mov	x19, x0
-	mov	x20, x1
-	mov	w21, w2
-	mov	w22, w4
+	str	x23, [sp, #0x30]
+	mov	x19, x0			/* arena */
+	mov	x20, x1			/* elf_ctx */
+	mov	w21, w2			/* expr_ref */
+	mov	x22, x3			/* ctx */
+	mov	w23, w4			/* ta */
 	mov	x0, x19
 	mov	w1, w21
 	bl	_pipeline_expr_kind_ord_at
@@ -218,6 +222,8 @@ _pipeline_asm_emit_expr_elf_fast:
 	b.eq	Lfast_lit
 	cmp	w0, #2
 	b.eq	Lfast_lit
+	cmp	w0, #3
+	b.eq	Lfast_var
 	mov	w0, #-99
 	b	Lfast_ret
 Lfast_lit:
@@ -226,12 +232,59 @@ Lfast_lit:
 	bl	_pipeline_expr_int_val_at
 	mov	w1, w0
 	mov	x0, x20
-	mov	w2, w22
+	mov	w2, w23
 	bl	_backend_enc_mov_imm32_to_w0_arch
+	b	Lfast_ret
+Lfast_var:
+	/* off = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, expr) */
+	mov	x0, x19
+	mov	x1, x22
+	mov	w2, w21
+	bl	_glue_call_arg_resolve_var_stack_off_elf_c
+	cmp	w0, #0
+	b.lt	Lfast_var_modlet
+	mov	w4, w0			/* off */
+	/* glue_load_var_as_value_to_rax_rdx_elf_c(elf, arena, ctx, expr, off, ta) */
+	mov	x0, x20
+	mov	x1, x19
+	mov	x2, x22
+	mov	w3, w21
+	mov	w5, w23
+	bl	_glue_load_var_as_value_to_rax_rdx_elf_c
+	b	Lfast_ret
+Lfast_var_modlet:
+	sub	sp, sp, #0x110
+	mov	x0, x19
+	mov	w1, w21
+	bl	_pipeline_expr_var_name_len
+	mov	w8, w0
+	cmp	w8, #0
+	b.le	Lfast_var_fail_pop
+	cmp	w8, #255
+	b.gt	Lfast_var_fail_pop
+	mov	x0, x19
+	mov	w1, w21
+	mov	x2, sp
+	bl	_pipeline_expr_var_name_into
+	mov	x0, x20
+	mov	x1, sp
+	mov	w2, w8
+	mov	w3, w23
+	bl	_pipeline_asm_modlet_load_to_rax_elf_c
+	cmp	w0, #0
+	b.ne	Lfast_var_fail_pop
+	add	sp, sp, #0x110
+	mov	w0, #0
+	b	Lfast_ret
+Lfast_var_fail_pop:
+	add	sp, sp, #0x110
+	mov	w0, #-1
+	b	Lfast_ret
 Lfast_ret:
+	ldr	x23, [sp, #0x30]
 	ldp	x21, x22, [sp, #0x20]
 	ldp	x19, x20, [sp, #0x10]
-	ldp	x29, x30, [sp], #0x30
+	ldp	x29, x30, [sp], #0x40
 	ret
 Lfast_unh:
 	mov	w0, #-99
@@ -1073,6 +1126,92 @@ _typeck_x_type_align_from_layout_glue:
 _typeck_x_type_size_from_layout_glue:
 	mov	w0, #8
 	ret
+	/* knife256/10.2 Cap tip L4: phase1 undefs after pipeline.x extern-only mega
+	 * + typeck/codegen pure-asm leaf gaps. Weak stubs; g05 Cap tip reapply
+	 * restores real faces. PLATFORM: MACOS arm64.
+	 */
+	.globl _pipeline_loop_should_continue_lib_root_c
+	.weak_definition _pipeline_loop_should_continue_lib_root_c
+_pipeline_loop_should_continue_lib_root_c:
+	mov	w0, #0
+	ret
+	.globl _pipeline_scratch_buf64
+	.weak_definition _pipeline_scratch_buf64
+_pipeline_scratch_buf64:
+	adrp	x0, _pipeline_scratch_buf64_bss@PAGE
+	add	x0, x0, _pipeline_scratch_buf64_bss@PAGEOFF
+	ret
+	.globl _pipeline_scratch_buf64_slot
+	.weak_definition _pipeline_scratch_buf64_slot
+_pipeline_scratch_buf64_slot:
+	adrp	x0, _pipeline_scratch_buf64_bss@PAGE
+	add	x0, x0, _pipeline_scratch_buf64_bss@PAGEOFF
+	ret
+	.globl _typeck_block_const_init_is_const
+	.weak_definition _typeck_block_const_init_is_const
+_typeck_block_const_init_is_const:
+	mov	w0, #0
+	ret
+	.globl _typeck_const_init_not_constant
+	.weak_definition _typeck_const_init_not_constant
+_typeck_const_init_not_constant:
+	mov	w0, #0
+	ret
+	.globl _typeck_expr_is_c_static_const_init
+	.weak_definition _typeck_expr_is_c_static_const_init
+_typeck_expr_is_c_static_const_init:
+	mov	w0, #0
+	ret
+	.globl _typeck_expr_is_const_with_module_consts
+	.weak_definition _typeck_expr_is_const_with_module_consts
+_typeck_expr_is_const_with_module_consts:
+	mov	w0, #0
+	ret
+	.globl _typeck_fold_block_const_init
+	.weak_definition _typeck_fold_block_const_init
+_typeck_fold_block_const_init:
+	mov	w0, #0
+	ret
+	.globl _typeck_fold_expr
+	.weak_definition _typeck_fold_expr
+_typeck_fold_expr:
+	mov	w0, #0
+	ret
+	.globl _typeck_fold_expr_in_block
+	.weak_definition _typeck_fold_expr_in_block
+_typeck_fold_expr_in_block:
+	mov	w0, #0
+	ret
+	.globl _typeck_get_allow_legacy_extern_calls
+	.weak_definition _typeck_get_allow_legacy_extern_calls
+_typeck_get_allow_legacy_extern_calls:
+	mov	w0, #0
+	ret
+	.globl _codegen_emit_slice_let_reent_finish
+	.weak_definition _codegen_emit_slice_let_reent_finish
+_codegen_emit_slice_let_reent_finish:
+	mov	w0, #0
+	ret
+	.globl _codegen_get_host_call_arg_param_ty
+	.weak_definition _codegen_get_host_call_arg_param_ty
+_codegen_get_host_call_arg_param_ty:
+	mov	w0, #0
+	ret
+	.globl _codegen_next_host_call_array_tmp_id
+	.weak_definition _codegen_next_host_call_array_tmp_id
+_codegen_next_host_call_array_tmp_id:
+	mov	w0, #0
+	ret
+	.globl _codegen_set_host_call_arg_param_ty
+	.weak_definition _codegen_set_host_call_arg_param_ty
+_codegen_set_host_call_arg_param_ty:
+	mov	w0, #0
+	ret
+	.bss
+	.align 4
+	.globl _pipeline_scratch_buf64_bss
+_pipeline_scratch_buf64_bss:
+	.space 64
 ALIASES
 
 as -o "$OUT/m8_reloc_stubs.o" "$OUT/m8_reloc_stubs.s"
@@ -1153,6 +1292,12 @@ if [ -s "$_p9a" ]; then
 fi
 if [ -s "$OUT/fix_extern_slice.o" ]; then
   echo "$OUT/fix_extern_slice.o" >>"$OUT/phase1_hollow_fill_objs.txt"
+  # Cap tip L4: fix_extern_slice and parser_asm_thin_glue both define
+  # _parser_asm_parse_one_extern_and_add_into_slice_c → phase1 dup. Prefer
+  # fix_extern_slice (x19 park fix); weaken thin_glue's copy.
+  if [ -n "${_oc:-}" ] && [ -f parser_asm_thin_glue.o ]; then
+    "$_oc" --weaken-symbol=_parser_asm_parse_one_extern_and_add_into_slice_c       parser_asm_thin_glue.o 2>/dev/null       && echo "darwin_phase1_hollow_fill: weakened parse_one_extern_slice in thin_glue (fix_extern_slice wins)"
+  fi
 fi
 echo "$OUT/m8_reloc_stubs.o" >>"$OUT/phase1_hollow_fill_objs.txt"
 echo "darwin_phase1_hollow_fill: OK stubs+bss manifest=$OUT/phase1_hollow_fill_objs.txt"
