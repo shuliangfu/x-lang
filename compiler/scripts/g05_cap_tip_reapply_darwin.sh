@@ -121,6 +121,45 @@ if [ -s build_asm/selfhost_pabi/assign_emit_thin_a64.o ]; then
   esac
 fi
 
+# knife256/10.2: Cap tip diag.o human/with_code/print_header X-codegen clobber
+# → SEGV on illegal char (L003). Demote Cap tip human/with_code; prepend
+# write-based overlay (src/asm/diag_report_human_cap_a64.s). PLATFORM: MACOS Cap tip.
+OC_L003="${LLVM_OBJCOPY:-}"
+if [ -z "$OC_L003" ]; then
+  for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
+    [ -x "$c" ] && OC_L003=$c && break
+  done
+fi
+if [ -n "$OC_L003" ] && [ -s src/diag.o ]; then
+  if nm -gU src/diag.o 2>/dev/null | grep -qE 'T _diag_report_human$|T _diag_report_with_code$|T _diag_report$'; then
+    [ -s src/diag.o.bak_cap ] || cp -f src/diag.o src/diag.o.bak_cap
+    "$OC_L003" \
+      --redefine-sym=_diag_report_human=_diag_report_human_diag_o_dead \
+      --redefine-sym=_diag_report_with_code=_diag_report_with_code_diag_o_dead \
+      --redefine-sym=_diag_report=_diag_report_diag_o_dead \
+      src/diag.o
+    echo "g05_cap_tip_reapply: demoted Cap tip diag human/with_code" >&2
+  fi
+fi
+if [ ! -s build_asm/selfhost_pabi/diag_report_human_cap_a64.o ]; then
+  if [ -s "$CACHE/pabi/diag_report_human_cap_a64.o" ]; then
+    cp -f "$CACHE/pabi/diag_report_human_cap_a64.o" build_asm/selfhost_pabi/diag_report_human_cap_a64.o
+  elif [ -f src/asm/diag_report_human_cap_a64.s ]; then
+    clang -c -o build_asm/selfhost_pabi/diag_report_human_cap_a64.o src/asm/diag_report_human_cap_a64.s \
+      || { echo "g05_cap_tip_reapply: L003 human overlay assemble failed" >&2; exit 1; }
+  fi
+fi
+if [ -s build_asm/selfhost_pabi/diag_report_human_cap_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/diag_report_human_cap_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/diag_report_human_cap_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended diag_report_human_cap_a64.o (L003)" >&2
+      ;;
+  esac
+fi
+
 rm -f xlang.cap_g05_l2
 bash scripts/g05_relink_xlang.sh
 
