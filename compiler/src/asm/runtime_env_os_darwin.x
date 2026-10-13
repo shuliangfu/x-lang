@@ -83,7 +83,7 @@ export extern "C" function free(p: *u8): void;
  * @return ***u8 — address of the process environ pointer
  * PLATFORM: MACOS|DARWIN
  */
-export extern "C" function __NSGetEnviron(): ***u8;
+export extern "C" function _NSGetEnviron(): ***u8;
 
 /**
  * Public getenv face. Defined by runtime_link_abi_user_env.x and, as
@@ -198,7 +198,7 @@ function env_os_owned_set(v: **u8): void {
  */
 function env_os_environ(): **u8 {
   unsafe {
-    let slot: ***u8 = __NSGetEnviron();
+    let slot: ***u8 = _NSGetEnviron();
     if (slot == 0) {
       return 0;
     }
@@ -213,7 +213,7 @@ function env_os_environ(): **u8 {
  */
 function env_os_publish(neu: **u8): void {
   unsafe {
-    let slot: ***u8 = __NSGetEnviron();
+    let slot: ***u8 = _NSGetEnviron();
     env_os_set_ptr(slot as **u8, neu as *u8);
   }
 }

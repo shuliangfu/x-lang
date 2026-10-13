@@ -1286,7 +1286,15 @@ ensure_process_import_alias_darwin_pure() {
     echo "ensure_host_cc_seed_o process-alias: missing $xsrc" >&2
     return 1
   fi
-  if [ "$FORCE" != "1" ] && [ -f "$o" ] && [ ! "$xsrc" -nt "$o" ]; then
+  # An empty mktemp placeholder is newer than the .x. -f plus mtime
+  # then skips and ld -r merges a zero-length alias, so process.o
+  # still has no std_process_*. Require a non-empty object that
+  # already exports the import METHOD face.
+  # PLATFORM: SHARED.
+  if [ "$FORCE" != "1" ] && [ -s "$o" ] && [ ! "$xsrc" -nt "$o" ] \
+    && r3_prefer_nm_has_sym "$o" std_process_args_count \
+    && r3_prefer_nm_has_sym "$o" std_process_arg \
+    && r3_prefer_nm_has_sym "$o" std_process_getenv; then
     log "skip $o (up-to-date vs $xsrc)"
     return 0
   fi
@@ -29238,6 +29246,43 @@ ensure_std_core_prefer_one() {
          [ src/asm/runtime_process_import_alias_linux.x -nt "$o" ]; then
         stale=1
       fi
+      # mtime misses a warm process.o merged before the import_alias face:
+      # every input is older, but std_process_* was never linked in.
+      # Product -o then leaves the import METHOD names undefined.
+      # PLATFORM: SHARED.
+      if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" std_process_args_count; then
+        stale=1
+      fi
+      if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" std_process_arg; then
+        stale=1
+      fi
+      if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" std_process_getenv; then
+        stale=1
+      fi
+      # PLATFORM: MACOS|DARWIN arm64 — os_glue calls env_setenv_c /
+      # env_unsetenv_c. The product asm linker scans only the user
+      # object, so those undefs inside process.o never pull
+      # runtime_env_os.o. The Darwin merge below absorbs that object.
+      # A process.o that lacks the symbols is stale.
+      if [ "$(uname -s 2>/dev/null || echo Unknown)" = "Darwin" ] \
+        && [ "$(uname -m 2>/dev/null || echo unknown)" = "arm64" ]; then
+        if [ -f runtime_env_os.o ] && [ runtime_env_os.o -nt "$o" ]; then
+          stale=1
+        fi
+        if [ -f src/asm/runtime_env_os.x ] && [ src/asm/runtime_env_os.x -nt "$o" ]; then
+          stale=1
+        fi
+        if [ -f src/asm/runtime_env_os_darwin.x ] \
+          && [ src/asm/runtime_env_os_darwin.x -nt "$o" ]; then
+          stale=1
+        fi
+        if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" env_setenv_c; then
+          stale=1
+        fi
+        if [ "$stale" = "0" ] && ! r3_prefer_nm_has_sym "$o" env_unsetenv_c; then
+          stale=1
+        fi
+      fi
 
     fi
     # wave796: net multi-merge source mtime (FORCE thin; G.7 single body).
@@ -29375,8 +29420,11 @@ ensure_std_core_prefer_one() {
 
     process_merge)
       # PLATFORM: SHARED — process.o = args_thin + argv + os_glue + import_alias.
-      # import_alias exports std_process_* for pure-asm import METHOD (G.7 complete
-      # process_merge; C-path co-emit of mod.x is not used on pure-asm product).
+      # PLATFORM: MACOS|DARWIN arm64 also absorbs runtime_env_os.o with weak
+      # text (same pure-asm body as the std.env leaf; a strong runtime_env_os.o
+      # still wins). import_alias exports std_process_* for pure-asm import
+      # METHOD (G.7 complete process_merge; C-path co-emit of mod.x is not
+      # used on pure-asm product).
       # 7.2.1 fourth knife: when the map pointed at the .x authority, regen the
       # stable gen via the product -x -E first (both bare wrappers verified);
       # $seed then names the gen file for the shared compile below.
@@ -29472,20 +29520,95 @@ ensure_std_core_prefer_one() {
           return 1
         fi
       fi
-      # Merge with zero execve(cc): Linux ld -r; Darwin XLANG_ZERO_CC_LD so
-      # pure_ld_partial_merge uses ld -r then libtool (never $CC -r).
-      # PLATFORM: LINUX|DARWIN. Windows stays seed+cc above.
-      if [ "$_alias_os" = "Linux" ]; then
-        if ! /usr/bin/ld -r -o "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+      # PLATFORM: MACOS|DARWIN arm64 — absorb runtime_env_os.o.
+      # os_glue calls env_setenv_c / env_unsetenv_c. The product asm
+      # linker scans only the user object, so an undef inside process.o
+      # never pulls the env leaf. This is the same pure-asm body, not a
+      # second libc setenv. Text is weakened on a copy so a later strong
+      # runtime_env_os.o still wins. The doc anchor sits at text offset 0;
+      # Darwin ld -r promotes that one symbol back to strong, so the copy
+      # localizes it first. The on-disk runtime_env_os.o stays strong.
+      # A host-cc of the C seed is refused.
+      _env_weak=""
+      if [ "$_alias_os" = "Darwin" ] && [ "$_alias_mach" = "arm64" ]; then
+        _env_log="$(mktemp "${TMPDIR:-/tmp}/proc_env_os.XXXXXX")"
+        if ! ensure_env_os_darwin_pure runtime_env_os.o >"$_env_log" 2>&1; then
+          cat "$_env_log" >&2
+          rm -f "$_env_log" "$tmp_args" "$tmp_alias"
+          return 1
+        fi
+        if grep -q 'cc -c' "$_env_log"; then
+          echo "ensure_host_cc_seed_o: process_merge refuses host-cc runtime_env_os.o" >&2
+          cat "$_env_log" >&2
+          rm -f "$_env_log" "$tmp_args" "$tmp_alias"
+          return 1
+        fi
+        cat "$_env_log"
+        rm -f "$_env_log"
+        if [ ! -s runtime_env_os.o ] \
+          || ! r3_prefer_nm_has_sym runtime_env_os.o runtime_env_os_darwin_env_os_environ \
+          || ! r3_prefer_nm_has_sym runtime_env_os.o env_setenv_c; then
+          echo "ensure_host_cc_seed_o: process_merge runtime_env_os.o is not the pure-asm Darwin body" >&2
           rm -f "$tmp_args" "$tmp_alias"
           return 1
         fi
-      elif ! XLANG_ZERO_CC_LD=1 _std_core_ld_r "$o" "$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias"; then
+        _env_weak="$(mktemp "${TMPDIR:-/tmp}/proc_env_weak.XXXXXX")"
+        rm -f "$_env_weak"
+        _env_weak="${_env_weak}.o"
+        if ! cp runtime_env_os.o "$_env_weak"; then
+          rm -f "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        fi
+        _env_oc="$(pure_asm_find_objcopy)" || {
+          echo "ensure_host_cc_seed_o: process_merge objcopy missing; no host cc" >&2
+          rm -f "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        }
+        _env_args=()
+        while IFS= read -r _env_sym; do
+          [ -n "$_env_sym" ] || continue
+          _env_args+=(--weaken-symbol="$_env_sym")
+        done <<EOF
+$(nm -gU "$_env_weak" 2>/dev/null | awk '$2=="T" { print $NF }')
+EOF
+        if [ "${#_env_args[@]}" -eq 0 ] \
+          || ! "$_env_oc" "${_env_args[@]}" "$_env_weak" \
+          || ! "$_env_oc" --localize-symbol=_runtime_env_os_x_doc_anchor "$_env_weak" \
+          || ! nm -m "$_env_weak" | awk '/_env_setenv_c$/ && /weak external/ { f=1 } END { exit f ? 0 : 1 }'; then
+          echo "ensure_host_cc_seed_o: process_merge failed to weaken runtime_env_os text" >&2
+          rm -f "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        fi
+      fi
+      # Merge with zero execve(cc): Linux ld -r; Darwin XLANG_ZERO_CC_LD so
+      # pure_ld_partial_merge uses ld -r then libtool (never $CC -r).
+      # PLATFORM: LINUX|DARWIN. Windows stays seed+cc above.
+      _proc_inputs=("$tmp_args" runtime_process_argv.o runtime_process_os_glue.o "$tmp_alias")
+      if [ -n "$_env_weak" ]; then
+        _proc_inputs+=("$_env_weak")
+      fi
+      if [ "$_alias_os" = "Linux" ]; then
+        if ! /usr/bin/ld -r -o "$o" "${_proc_inputs[@]}"; then
+          rm -f "$tmp_args" "$tmp_alias"
+          [ -n "$_env_weak" ] && rm -f "$_env_weak"
+          return 1
+        fi
+      elif ! XLANG_ZERO_CC_LD=1 _std_core_ld_r "$o" "${_proc_inputs[@]}"; then
         rm -f "$tmp_args" "$tmp_alias"
+        [ -n "$_env_weak" ] && rm -f "$_env_weak"
         return 1
       fi
+      if [ -n "$_env_weak" ]; then
+        if ! nm -m "$o" | awk '/_env_setenv_c$/ && /weak external/ { f=1 } END { exit f ? 0 : 1 }' \
+          || ! nm -m "$o" | awk '/_env_unsetenv_c$/ && /weak external/ { f=1 } END { exit f ? 0 : 1 }'; then
+          echo "ensure_host_cc_seed_o: process_merge env text is not weak in $o" >&2
+          rm -f "$o" "$tmp_args" "$tmp_alias" "$_env_weak"
+          return 1
+        fi
+      fi
       rm -f "$tmp_args" "$tmp_alias"
-      log "process_merge $o <- $seed + argv + os_glue + import_alias (try-std-core-prefer)"
+      [ -n "$_env_weak" ] && rm -f "$_env_weak"
+      log "process_merge $o <- $seed + argv + os_glue + import_alias${_env_weak:+ + env_os(weak)} (try-std-core-prefer)"
       return 0
       ;;
 
