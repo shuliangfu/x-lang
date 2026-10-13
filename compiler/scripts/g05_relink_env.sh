@@ -5486,6 +5486,9 @@ case "$UNAME_S" in
         _CAP_TIP_OV="$_CAP_TIP_OV $_ov"
       fi
     done
+    if [ "${XLANG_G05_CAP_CHECK:-0}" = "1" ] && [ -s build_asm/selfhost_pabi/fmt_check_cmd_thin_a64.o ]; then
+      _CAP_TIP_OV="$_CAP_TIP_OV build_asm/selfhost_pabi/fmt_check_cmd_thin_a64.o"
+    fi
     if [ -n "$_CAP_TIP_OV" ]; then
       if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
         if nm -gU build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
@@ -5501,6 +5504,18 @@ case "$UNAME_S" in
           "$_oc" --redefine-sym=_pipeline_asm_emit_lvalue_eff_addr_elf_c=_pipeline_asm_emit_lvalue_eff_addr_elf_c_m8_texttramp_dead \
             build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null || true
         fi
+      fi
+      if [ "${XLANG_G05_CAP_CHECK:-0}" = "1" ] && [ -n "$_oc" ] \
+        && [ -s build_asm/selfhost_pabi/fmt_check_cmd_thin_a64.o ] \
+        && [ -s src/driver/fmt_check_cmd_driver.o ]; then
+        # Demote every strong T that Cap leave thin also defines (Darwin no multidef).
+        while read -r _cs; do
+          [ -n "$_cs" ] || continue
+          if nm -gU src/driver/fmt_check_cmd_driver.o 2>/dev/null | grep -q "T ${_cs}$"; then
+            "$_oc" --redefine-sym="${_cs}=${_cs}_driver_hollow_dead" \
+              src/driver/fmt_check_cmd_driver.o 2>/dev/null || true
+          fi
+        done < <(nm -gU build_asm/selfhost_pabi/fmt_check_cmd_thin_a64.o 2>/dev/null | awk '/ T /{print $NF}')
       fi
       _CAP_TIP_FRONT="$_CAP_TIP_FRONT $_CAP_TIP_OV"
       echo "g05_relink_env: Darwin Cap tip overlays ($(echo $_CAP_TIP_OV | wc -w | tr -d ' ') objs: pthin/local_slot/lvalue)" >&2

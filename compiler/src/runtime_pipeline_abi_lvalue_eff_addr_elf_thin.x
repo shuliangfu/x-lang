@@ -63,22 +63,15 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
           }
         }
       }
-      // Also: VAR base with PTR type — local_slot LEA'd the slot; need load.
+      // VAR base with PTR type: local_slot may LEA the slot; load pointer value.
       if (pipeline_expr_kind_ord_at(arena, base) == 3) {
-        let dty: i32 = 0;
-        // prefer resolved type of the VAR expr
         let rty2: i32 = pipeline_expr_resolved_type_ref(arena, base);
         if (rty2 > 0) {
-          dty = pipeline_type_kind_ord_at(arena, rty2);
-        }
-        if (dty == 9) {
-          // local_slot may have LEA'd; if it loaded already, double-load is wrong.
-          // Cap tip local_slot tramp: needs_ptr_load → load value. PTR vars
-          // should needs_ptr_load=1 → already pointer value in rax. Skip.
-          // If needs_ptr_load=0 (lea), we must load. Probe: always load for
-          // PTR VAR base — matches seed assign_field ptr_base path intent.
-          // Safer: call load only when we know lea happened. Cap tip tramp
-          // loads when needs_ptr_load≠0. Assume PTR → already loaded.
+          if (pipeline_type_kind_ord_at(arena, rty2) == 9) {
+            if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+              return 0 - 1;
+            }
+          }
         }
       }
       let mod: *u8 = glue_emit_module_from_ctx(ctx);
