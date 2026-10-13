@@ -1242,28 +1242,42 @@ case "$XLANG_BIN" in
 esac
 XLANG_BIN_REAL="$XLANG_BIN"
 XLANG_REPO_ROOT="$(CDPATH= cd -- .. && pwd)"
+# PLATFORM: SHARED — /bin/sh (dash has no arrays). A joined string drops the
+# empty word in `-lib-name ""`, so bare impls compile as
+# std_context_context_ctx_*_c and the nm gate rejects them.
 xlang_bin_at_root() {
-  _args=
-  while [ "$#" -gt 0 ]; do
-    case "$1" in
-      -L)
-        shift
-        case "$1" in
-          ..) _args="$_args -L $XLANG_REPO_ROOT" ;;
-          *)  _args="$_args -L $1" ;;
-        esac
-        ;;
+  _xl_argc=$#
+  _xl_i=1
+  while [ "$_xl_i" -le "$_xl_argc" ]; do
+    eval "_xl_a${_xl_i}=\${$_xl_i}"
+    _xl_i=$((_xl_i + 1))
+  done
+  set --
+  _xl_i=1
+  while [ "$_xl_i" -le "$_xl_argc" ]; do
+    eval "_xl_cur=\${_xl_a${_xl_i}}"
+    _xl_next=$((_xl_i + 1))
+    if [ "$_xl_cur" = "-L" ] && [ "$_xl_next" -le "$_xl_argc" ]; then
+      eval "_xl_val=\${_xl_a${_xl_next}}"
+      if [ "$_xl_val" = ".." ]; then
+        set -- "$@" -L "$XLANG_REPO_ROOT"
+      else
+        set -- "$@" -L "$_xl_val"
+      fi
+      _xl_i=$((_xl_next + 1))
+      continue
+    fi
+    case "$_xl_cur" in
       ../*)
-        _args="$_args $XLANG_REPO_ROOT/${1#../}"
+        set -- "$@" "$XLANG_REPO_ROOT/${_xl_cur#../}"
         ;;
       *)
-        _args="$_args $1"
+        set -- "$@" "$_xl_cur"
         ;;
     esac
-    shift
+    _xl_i=$((_xl_i + 1))
   done
-  # shellcheck disable=SC2086
-  ( cd "$XLANG_REPO_ROOT" && exec "$XLANG_BIN_REAL" $_args )
+  ( cd "$XLANG_REPO_ROOT" && exec "$XLANG_BIN_REAL" "$@" )
 }
 XLANG_RUN=xlang_bin_at_root
 [ -x "$XLANG_BIN" ] || { echo "xlang_compile_std_module.sh: no xlang/xlang_asm/xlang-c found" >&2; exit 1; }
