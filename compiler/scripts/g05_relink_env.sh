@@ -2401,10 +2401,19 @@ EOF
       && [ -s build_asm/selfhost_pabi/pabi_weak.o ] || return 0
     # w2060: always rebuild with the current product (see cimp above).
       rm -f "$_ts_o"
+      # knife256/10.2: Cap tip xlang_asm may CG002 on Cap leave thins; fall
+      # back to restored ./xlang (same as pthin/af Cap leave compile). Do not
+      # FORCE_CC. PLATFORM: MACOS tip cold.
       if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1; then
         rm -f "$_ts_o.tmp.o"
-        echo "g05_relink_env: $_ts_x failed (Darwin $_ts_tag)" >&2
-        exit 1
+        if [ -x ./xlang ] && ./xlang --emit-obj "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1 \
+          && [ -s "$_ts_o.tmp.o" ]; then
+          echo "g05_relink_env: $_ts_x via restored ./xlang (Darwin $_ts_tag)" >&2
+        else
+          rm -f "$_ts_o.tmp.o"
+          echo "g05_relink_env: $_ts_x failed (Darwin $_ts_tag)" >&2
+          exit 1
+        fi
       fi
       for _ts_s in $_ts_syms; do
         if ! nm -m "$_ts_o.tmp.o" 2>/dev/null | grep -v weak | grep -q "external $_ts_s\$"; then
@@ -5381,7 +5390,125 @@ case "$UNAME_S" in
     ;;
 esac
 
-G05_OBJS="$_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
+# knife256 / 10.2: Darwin Cap tip cold — Cap leave assign_field family
+# (ptr/var_root/scalar dispatch) first-wins over assign_field_seed. Seed
+# only covers wide/ptr_base==exactly-16; `p.x=` on `*Point` CG002's and
+# blocks core/option → opt XP008. Also keep pthin_primary + local_slot_ptr
+# tramp overlays (call-with-args / field load). Front-of-G05_OBJS so Darwin
+# first-wins after _DRIVER_SEED_OBJS is already baked. Do not record link
+# winners. Do not PREFER. PLATFORM: MACOS tip cold.
+_CAP_TIP_FRONT=""
+case "$UNAME_S" in
+  Darwin*)
+    _oc=""
+    if command -v llvm-objcopy >/dev/null 2>&1; then _oc=llvm-objcopy
+    elif [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ]; then _oc=/opt/homebrew/opt/llvm/bin/llvm-objcopy
+    elif command -v objcopy >/dev/null 2>&1; then _oc=objcopy
+    fi
+    # Demote m8 hollow faces that tip thins already define (Darwin ld has
+    # no multidef). Keep emit_expr_elf_fast live (sole Cap tip provider).
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+      for _pair in \
+        "build_asm/selfhost_pabi/return_sret.o|_pipeline_asm_emit_return_elf_impl" \
+        "build_asm/selfhost_pabi/macho_write_a64.o|_platform_macho_write_macho_o_to_buf" \
+        "build_asm/selfhost_pabi/body_sync_let_order.o|_backend_emit_block_body_sync_elf" \
+        "build_asm/selfhost_pabi/body_sync_let_order.o|_pipeline_asm_emit_block_body_sync_elf"
+      do
+        _thin="${_pair%%|*}"
+        _sym="${_pair##*|}"
+        if [ -s "$_thin" ] \
+          && nm -gU build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+            | grep -q "T ${_sym}$"; then
+          "$_oc" --redefine-sym="${_sym}=${_sym}_m8_stubdead" \
+            build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+            || { echo "g05_relink_env: redefine m8 $_sym failed" >&2; exit 1; }
+        fi
+      done
+    fi
+    # assign_a64 vs av_assign_* / assign_var_compound — prefer Cap-era av.
+    if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/assign_a64.o ]; then
+      for _as in _glue_emit_assign_rhs_to_rax_elf_c _glue_emit_assign_rhs_elf_c; do
+        if nm -gU build_asm/selfhost_pabi/assign_a64.o 2>/dev/null | grep -q "T ${_as}$"; then
+          if nm -gU build_asm/selfhost_pabi/av_assign_rhsrax_to_rax.o 2>/dev/null | grep -q "T ${_as}$" \
+            || nm -gU build_asm/selfhost_pabi/assign_var_compound.o 2>/dev/null | grep -q "T ${_as}$"; then
+            "$_oc" --redefine-sym="${_as}=${_as}_assign_a64_stubdead" \
+              build_asm/selfhost_pabi/assign_a64.o 2>/dev/null \
+              || { echo "g05_relink_env: redefine assign_a64 $_as failed" >&2; exit 1; }
+          fi
+        fi
+      done
+    fi
+    _AF_CAP_LEAVE=""
+    for _af_o in \
+      build_asm/selfhost_pabi/af_assign_field_chain_walk_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_mag_fold_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_ptr_hit_step_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_ptr_hit_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_ptr_struct_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_ptr_array_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_ptr_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_scalar_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_struct_store_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_struct_pair_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_struct_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_array_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_depth1_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_simd_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_stores_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_root_finish_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_var_root_a64.o \
+      build_asm/selfhost_pabi/af_assign_field_a64.o
+    do
+      if [ -s "$_af_o" ]; then
+        _AF_CAP_LEAVE="$_AF_CAP_LEAVE $_af_o"
+      fi
+    done
+    if [ "${XLANG_G05_CAP_AF:-0}" = "1" ] && [ -n "$_AF_CAP_LEAVE" ] && [ -s build_asm/selfhost_pabi/af_assign_field_a64.o ]; then
+      if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/assign_field_seed.o ]; then
+        if nm -gU build_asm/selfhost_pabi/assign_field_seed.o 2>/dev/null \
+            | grep -q 'T _glue_emit_assign_field_elf_c$'; then
+          "$_oc" --redefine-sym=_glue_emit_assign_field_elf_c=_glue_emit_assign_field_elf_c_seed_stubdead \
+            build_asm/selfhost_pabi/assign_field_seed.o 2>/dev/null \
+            || { echo "g05_relink_env: redefine assign_field_seed dispatcher failed" >&2; exit 1; }
+        fi
+      fi
+      _CAP_TIP_FRONT="$_CAP_TIP_FRONT $_AF_CAP_LEAVE"
+      echo "g05_relink_env: Darwin Cap leave assign_field first-win ($(echo $_AF_CAP_LEAVE | wc -w | tr -d ' ') objs)" >&2
+    fi
+    _CAP_TIP_OV=""
+    for _ov in \
+      build_asm/selfhost_pabi/pthin_primary_body_a64.o \
+      build_asm/selfhost_pabi/pthin_primary_tramp_a64.o \
+      build_asm/selfhost_pabi/local_slot_ptr_tramp_a64.o \
+      build_asm/selfhost_pabi/lvalue_eff_addr_elf_a64.o
+    do
+      if [ -s "$_ov" ]; then
+        _CAP_TIP_OV="$_CAP_TIP_OV $_ov"
+      fi
+    done
+    if [ -n "$_CAP_TIP_OV" ]; then
+      if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+        if nm -gU build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+            | grep -q 'T _glue_enc_local_slot_ptr_or_addr_elf_c$'; then
+          "$_oc" --redefine-sym=_glue_enc_local_slot_ptr_or_addr_elf_c=_glue_enc_local_slot_ptr_or_addr_elf_c_m8_dead \
+            build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null || true
+        fi
+      fi
+      if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/lvalue_eff_addr_elf_a64.o ] \
+        && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+        if nm -gU build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+            | grep -q 'T _pipeline_asm_emit_lvalue_eff_addr_elf_c$'; then
+          "$_oc" --redefine-sym=_pipeline_asm_emit_lvalue_eff_addr_elf_c=_pipeline_asm_emit_lvalue_eff_addr_elf_c_m8_texttramp_dead \
+            build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null || true
+        fi
+      fi
+      _CAP_TIP_FRONT="$_CAP_TIP_FRONT $_CAP_TIP_OV"
+      echo "g05_relink_env: Darwin Cap tip overlays ($(echo $_CAP_TIP_OV | wc -w | tr -d ' ') objs: pthin/local_slot/lvalue)" >&2
+    fi
+    ;;
+esac
+
+G05_OBJS="$_CAP_TIP_FRONT $_PABI_M8_RELOC_STUBS $_DRIVER_SEED_OBJS driver_x.o $_PIPELINE_LINK_O lsp_x.o lsp_diag_x.o lsp_io_x.o preprocess_x.o $_DRIVER_SUBCMD src/lsp/lsp_diag.o src/lsp/lsp_diag_pipeline_sizes_nostub.o src/lsp/lsp_diag_pipeline_ctx.o lsp_io_std_heap_x.o $_USER_ASM_LINK $_GLUE_SUFFIX $_AST_GEN2 $_PABI_ARCHIVE_LEAF"
 
 G05_CFLAGS="$_BASE_CFLAGS $_DRIVER_SEED_LINK_FLAGS $_ASM_GLUE_DUP_LDFLAGS $_MAIN_LINK_FLAGS"
 
