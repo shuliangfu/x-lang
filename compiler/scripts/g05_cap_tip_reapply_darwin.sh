@@ -94,15 +94,38 @@ if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ]; then
   cp -f build_asm/selfhost_pabi/m8_reloc_stubs.o build_asm/selfhost_pabi/m8_reloc_stubs_g05.o
 fi
 
+# knife256/10.2: m8 hollow glue_emit_vector_type_let_init returns 0 →
+# VAR try_let false-success (while/count-up empty body). Prepend decline (-3).
+# PLATFORM: MACOS Cap tip.
+if [ -f src/asm/vector_let_init_decline_a64.s ]; then
+  clang -c -o build_asm/selfhost_pabi/vector_let_init_decline_a64.o src/asm/vector_let_init_decline_a64.s \
+    || { echo "g05_cap_tip_reapply: vector_let_init_decline assemble failed" >&2; exit 1; }
+fi
+if [ -s build_asm/selfhost_pabi/vector_let_init_decline_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/vector_let_init_decline_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/vector_let_init_decline_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended vector_let_init_decline_a64.o" >&2
+      ;;
+  esac
+fi
+
 # knife256/10.2: Cap tip frozen env omits assign dispatcher; m8 hollow returns 0
-# so a[i]= is a silent no-op (fmt-wrap 3≠16). Prepend INDEX-only thin
-# (src/asm/assign_emit_index_only_a64.s → assign_emit_thin_a64.o). FIELD/VAR/DEREF
-# stay no-op to keep Cap L2. Restore/build from cache or .s. PLATFORM: MACOS Cap tip.
-if [ ! -s build_asm/selfhost_pabi/assign_emit_thin_a64.o ]; then
+# so a[i]= is a silent no-op (fmt-wrap 3≠16). Prepend VAR+INDEX thin
+# (src/asm/assign_emit_index_only_a64.s → assign_emit_thin_a64.o). FIELD/DEREF stay no-op; VAR for while body. Restore/build from cache or .s. PLATFORM: MACOS Cap tip.
+# Prefer VAR+INDEX .s when present (while body i=i+1); do not keep stale INDEX-only .o.
+if [ -f src/asm/assign_emit_var_index_a64.s ]; then
+  clang -c -o build_asm/selfhost_pabi/assign_emit_thin_a64.o src/asm/assign_emit_var_index_a64.s \
+    || { echo "g05_cap_tip_reapply: assign_emit_var_index assemble failed" >&2; exit 1; }
+  echo "g05_cap_tip_reapply: rebuilt assign_emit_thin from var_index.s" >&2
+elif [ ! -s build_asm/selfhost_pabi/assign_emit_thin_a64.o ]; then
   if [ -s "$CACHE/pabi/assign_emit_thin_a64.o" ]; then
     cp -f "$CACHE/pabi/assign_emit_thin_a64.o" build_asm/selfhost_pabi/assign_emit_thin_a64.o
   elif [ -f src/asm/assign_emit_index_only_a64.s ]; then
-    clang -c -o build_asm/selfhost_pabi/assign_emit_thin_a64.o src/asm/assign_emit_index_only_a64.s       || { echo "g05_cap_tip_reapply: assign_emit_thin assemble failed" >&2; exit 1; }
+    clang -c -o build_asm/selfhost_pabi/assign_emit_thin_a64.o src/asm/assign_emit_index_only_a64.s \
+      || { echo "g05_cap_tip_reapply: assign_emit_thin assemble failed" >&2; exit 1; }
   fi
 fi
 if [ -s build_asm/selfhost_pabi/assign_emit_thin_a64.o ]; then

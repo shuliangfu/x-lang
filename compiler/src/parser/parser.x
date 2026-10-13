@@ -3070,7 +3070,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
-      while_idx_blk = pipeline_block_append_while(arena, block_ref, cond_ref_blk, block_res_blk.block_ref);
+      let body_br_blk: i32 = 0;
+      body_br_blk = block_res_blk.block_ref;
+      while_idx_blk = pipeline_block_append_while(arena, block_ref, cond_ref_blk, body_br_blk);
       if (while_idx_blk < 0) {
         out.ok = false;
         return;
@@ -3134,7 +3136,9 @@ function parse_block_into_with_scratch(arena: *ASTArena, lex_after_lbrace: Lexer
         out.ok = false;
         return;
       }
-      while_idx = pipeline_block_append_while(arena, block_ref, cond_ref, block_res.block_ref);
+      let body_br: i32 = 0;
+      body_br = block_res.block_ref;
+      while_idx = pipeline_block_append_while(arena, block_ref, cond_ref, body_br);
       if (while_idx < 0) {
         out.ok = false;
         return;
@@ -7168,7 +7172,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (!block_res_loop.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        while_idx_loop = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, block_res_loop.block_ref);
+        let body_br_loop: i32 = 0;
+        body_br_loop = block_res_loop.block_ref;
+        while_idx_loop = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref_loop, body_br_loop);
         if (while_idx_loop < 0) {
           set_onefunc_fail(out, lex); return;
         }
@@ -7217,7 +7223,9 @@ export function parse_one_function_impl(out: *OneFuncResult, arena: *ASTArena, l
         if (!block_res.ok) {
           set_onefunc_fail(out, lex); return;
         }
-        while_idx = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref, block_res.block_ref);
+        let body_br_of: i32 = 0;
+        body_br_of = block_res.block_ref;
+        while_idx = pipeline_onefunc_append_while(onefunc_result_pool_ptr(out), cond_ref, body_br_of);
         if (while_idx < 0) {
           set_onefunc_fail(out, lex); return;
         }

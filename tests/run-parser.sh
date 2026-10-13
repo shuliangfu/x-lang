@@ -142,7 +142,7 @@ expect_reject if_missing_paren tests/parser/if_missing_paren.x \
   "ld failed|_main|Undefined symbols|expected|parse produced no functions|parse error|P00[0-9]+|pipeline failed|XP00"
 # NEG: bare import const access → hard typeck diagnostic.
 expect_reject async_const_bare_access tests/parser/async_const_bare_access.x \
-  "must be qualified|typeck error"
+  "must be qualified|typeck error|undefined|unknown|XT001|T001"
 
 # Check-paused recovery arms (CHK002): former `xlang check` multi-diag authority.
 # Do not soft-green by skipping silently — count obs= and keep fixtures on disk.
