@@ -4387,21 +4387,27 @@ function lexer_parked_token_start(out: *LexerResult): usize {
 }
 
 export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): void {
-  // knife256 / 10.2: rewrite caller's fat in place from parked BSS so data[i]
-  // sees live bytes even when tip smashed the u8[] param to 0x2a. PLATFORM: SHARED.
+  // knife256 / 10.2 Cap tip: prior block loaded the fat's *data pointer* into
+  // fat_hdr then memcpy(fat_hdr, park, 16) — that wrote the park fat *over the
+  // source bytes* (dest was the file buffer, not the fat header). After
+  // resolve_read parked core.option, collect_imports/dep prerun corrupted
+  // option[0..16] → L003 @ attributed :21:2. Only rewrite the fat header when
+  // the data pointer itself looks smashed (< page). PLATFORM: SHARED.
   {
     let sp: *u8 = (0 as *u8);
     let slen: usize = 0;
-    let fat_hdr: *u8 = (0 as *u8);
+    let fat_addr: *u8 = (0 as *u8);
+    let data_ptr: usize = 0;
     let fixed: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
     unsafe {
+      fat_addr = (&data as *u8);
+      memcpy((&data_ptr as *u8), fat_addr, (8 as usize));
       lexer_src_data_store((&sp as *u8));
       lexer_src_len_store((&slen as *u8));
       fixed.data = sp;
       fixed.length = slen;
-      memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
-      if (((fat_hdr as usize) > (4096 as usize)) && (sp != (0 as *u8))) {
-        memcpy(fat_hdr, (&fixed as *u8), (16 as usize));
+      if ((data_ptr < (4096 as usize)) && (sp != (0 as *u8))) {
+        memcpy(fat_addr, (&fixed as *u8), (16 as usize));
       }
     }
   }
