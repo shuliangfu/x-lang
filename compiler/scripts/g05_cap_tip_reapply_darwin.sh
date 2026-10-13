@@ -181,6 +181,35 @@ if [ -s build_asm/selfhost_pabi/fill_local_slots_split_soft.o ]; then
 fi
 
 # knife256/10.2: Result call-return size soft
+# knife256/10.2: tip-compile rt_fmt_one.x when soft .o missing (m8 hollow ret0).
+if [ ! -s build_asm/selfhost_pabi/rt_fmt_one_a64.o ] && [ -f src/runtime/rt_fmt_one.x ]; then
+  _fmt_xl="$XLANG"
+  [ -x ./xlang.restored_1952 ] && _fmt_xl="./xlang.restored_1952"
+  if XLANG_PREFER_ASM_O=1 "$_fmt_xl" -backend asm -c src/runtime/rt_fmt_one.x \
+      -o build_asm/selfhost_pabi/rt_fmt_one_a64.o.tmp.o >/dev/null 2>&1 \
+    && nm -m build_asm/selfhost_pabi/rt_fmt_one_a64.o.tmp.o 2>/dev/null | grep -v weak | grep -q 'external _driver_fmt_one_file$'; then
+    mv -f build_asm/selfhost_pabi/rt_fmt_one_a64.o.tmp.o build_asm/selfhost_pabi/rt_fmt_one_a64.o
+    echo "g05_cap_tip_reapply: tip-compiled rt_fmt_one_a64.o" >&2
+  else
+    rm -f build_asm/selfhost_pabi/rt_fmt_one_a64.o.tmp.o
+  fi
+fi
+# knife256/10.2: Cap tip m8 hollow stubbed driver_fmt_one_file (ret0) — real rt_fmt_one first-wins.
+if [ -s build_asm/selfhost_pabi/rt_fmt_one_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/rt_fmt_one_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/rt_fmt_one_a64.o $G05_OBJS"
+      echo "g05_cap_tip_reapply: prepended rt_fmt_one_a64.o" >&2
+      ;;
+  esac
+  for _fmt_stub in build_asm/selfhost_pabi/m8_reloc_stubs.o build_asm/selfhost_pabi/m8_reloc_stubs_g05.o; do
+    if [ -s "$_fmt_stub" ] && nm "$_fmt_stub" 2>/dev/null | grep -q 'T _driver_fmt_one_file$'; then
+      "$_oc_sz" --redefine-sym=_driver_fmt_one_file=_driver_fmt_one_file__demoted "$_fmt_stub"         && echo "g05_cap_tip_reapply: demoted $_fmt_stub driver_fmt_one_file" >&2 || true
+    fi
+  done
+fi
+
 if [ -s build_asm/selfhost_pabi/call_return_byte_size_result_soft.o ]; then
   case " $G05_OBJS " in
     *" build_asm/selfhost_pabi/call_return_byte_size_result_soft.o "*) ;;
