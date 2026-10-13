@@ -87161,16 +87161,21 @@ export function pipeline_elf_write_o_standard_to_buf_c(ctx_bytes: *u8, out: *u8)
 }
 
 
+/**
+ * Extra strtab byte for one Mach-O leading '_'.
+ * Darwin adds that byte to every C identifier, including names that
+ * already start with '_' (`__error` becomes `___error`). Returning 0
+ * for a leading '_' left the std.net reloc as `__error`.
+ * Twin of runtime_pipeline_abi_macho_write_thin.x. A null name adds no byte.
+ * @param name_ptr *u8 — C identifier bytes; null returns 0
+ * @return i32 — 1 when a '_' must be written, 0 when name_ptr is null
+ * PLATFORM: MACOS|DARWIN — Mach-O strtab only. ELF does not call this.
+ */
 function pipe_macho_link_name_extra_byte(name_ptr: *u8): i32 {
   if (name_ptr == 0 as *u8) {
     return 0;
   }
-  unsafe {
-    if (name_ptr[0] != 95) {
-      return 1;
-    }
-  }
-  return 0;
+  return 1;
 }
 
 /**

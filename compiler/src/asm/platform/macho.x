@@ -117,15 +117,18 @@ export function macho_rel_name_eq(a: u8[256], a_len: i32, b_ptr: *u8, b_len: i32
 }
 
 /**
-* See implementation.
-* See implementation.
-* See implementation.
-*/
+ * Extra strtab byte for one Mach-O leading '_'.
+ * Same rule as pipe_macho_link_name_extra_byte: always one '_', so a C
+ * name `__error` is written `___error`. A null name adds no byte.
+ * @param name_ptr *u8 — C identifier bytes; null returns 0
+ * @return i32 — 1 when a '_' must be written, 0 when name_ptr is null
+ * PLATFORM: MACOS|DARWIN — Mach-O strtab only.
+ */
 export function macho_link_name_extra_byte(name_ptr: *u8): i32 {
-  if (name_ptr[0] != 95) {
-    return 1;
+  if (name_ptr == 0 as *u8) {
+    return 0;
   }
-  return 0;
+  return 1;
 }
 
 /** Exported function `write_macho_o_to_buf`.
