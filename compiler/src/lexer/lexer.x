@@ -46,18 +46,30 @@ import token;
 // PLATFORM: SHARED — whole token is written through t. Kind is set only in the literal.
 function lexer_tok_with_kind(t: *Token, k: TokenKind): void {
   if (t == 0) { return; }
-  let cur: Token = { kind: (0 as TokenKind), line: 0, col: 0, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-  unsafe { cur = *t; }
+  let line0: i32 = t.line;
+  let col0: i32 = t.col;
+  let iv: i64 = t.int_val;
+  let fv: f64 = t.float_val;
+  let id: *u8 = t.ident;
+  let il: i32 = t.ident_len;
+  // Kind lives in the literal. Field stores match try_keyword (IDENT path).
+  // A 48-byte `*t = nxt` on the tip leaves kind at 0.
   let nxt: Token = {
     kind: k,
-    line: cur.line,
-    col: cur.col,
-    int_val: cur.int_val,
-    float_val: cur.float_val,
-    ident: cur.ident,
-    ident_len: cur.ident_len
+    line: line0,
+    col: col0,
+    int_val: iv,
+    float_val: fv,
+    ident: id,
+    ident_len: il
   };
-  unsafe { *t = nxt; }
+  t.kind = nxt.kind;
+  t.line = nxt.line;
+  t.col = nxt.col;
+  t.int_val = nxt.int_val;
+  t.float_val = nxt.float_val;
+  t.ident = nxt.ident;
+  t.ident_len = nxt.ident_len;
 }
 
 export extern function cfg_eval_expr_c(start: *u8, len: i32): i32;

@@ -265,7 +265,11 @@ if [ -f parser_x.o ] && [ -f lexer_x.o ]; then
     fi
     if [ ! -f "$_lex_f" ] || [ lexer_x.o -nt "$_lex_f" ]; then
       _exp="$_shim_dir/lexer_x_trackl_exports.txt"
-      nm -gU lexer_x.o | awk '/ [Tt] /{print $3}' | grep -v '^_lexer_init$' | grep -v '^lexer_init$' >"$_exp"
+      # Also drop token_is_eof — restored-built lexer_x.o exports it and
+      # conflicts with Track L parser_x.o (ld duplicate). Parser owns EOF.
+      nm -gU lexer_x.o | awk '/ [Tt] /{print $3}' \
+        | grep -v '^_lexer_init$' | grep -v '^lexer_init$' \
+        | grep -v '^_token_is_eof$' | grep -v '^token_is_eof$' >"$_exp"
       ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o || fail "ld -r filter lexer_init failed"
     fi
     _new_objs=""
