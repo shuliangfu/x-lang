@@ -48,6 +48,19 @@ export function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref:
           nm[4] == 105 && nm[5] == 101 && nm[6] == 119) {
         return 16;
       }
+      // knife256/10.2: Result_i32/Result_u8 = 16 (dual-GP). Cap tip demoted
+      // left Result_u8 at 8 → map_u8 ate mapped into x1 (run-result -8→248).
+      // "Result_i32" nlen 10
+      if (nlen == 10 && nm[0] == 82 && nm[1] == 101 && nm[2] == 115 && nm[3] == 117 &&
+          nm[4] == 108 && nm[5] == 116 && nm[6] == 95 && nm[7] == 105 && nm[8] == 51 &&
+          nm[9] == 50) {
+        return 16;
+      }
+      // "Result_u8" nlen 9
+      if (nlen == 9 && nm[0] == 82 && nm[1] == 101 && nm[2] == 115 && nm[3] == 117 &&
+          nm[4] == 108 && nm[5] == 116 && nm[6] == 95 && nm[7] == 117 && nm[8] == 56) {
+        return 16;
+      }
     }
     return glue_type_named_layout_size_any_module_elf_c__demoted(arena, ty_ref);
   }

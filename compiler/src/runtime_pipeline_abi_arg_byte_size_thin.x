@@ -72,8 +72,8 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
           ko = pipeline_type_kind_ord_at(arena, tr);
           if (ko == 8) {
             alt = asm_local_slot_bytes(arena, tr);
-            // Only >16 → AAPCS64 byref (String). 9–16 stay dual-GP (Result).
-            if (alt > 16) {
+            // >8: dual-GP (Result_u8 16) or byref (String 260).
+            if (alt > 8) {
               if (alt > sz) { sz = alt; }
             }
           }
@@ -84,7 +84,7 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
           ko = pipeline_type_kind_ord_at(arena, pty);
           if (ko == 8) {
             alt = asm_local_slot_bytes(arena, pty);
-            if (alt > 16) {
+            if (alt > 8) {
               if (alt > sz) { sz = alt; }
             }
           }

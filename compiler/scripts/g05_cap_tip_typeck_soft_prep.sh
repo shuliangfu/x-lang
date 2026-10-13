@@ -56,6 +56,10 @@ _soft_keep build_asm/selfhost_pabi/typeck_field_type_ref_deps_soft.o \
   src/typeck/typeck_field_type_ref_deps_soft.x
 _soft_keep build_asm/selfhost_pabi/typeck_field_offset_deps_soft.o \
   src/typeck/typeck_field_offset_deps_soft.x
+_soft_keep build_asm/selfhost_pabi/typeck_soa_find_layout_idx_by_name_soft.o \
+  src/typeck/typeck_soa_find_layout_idx_by_name_soft.x
+_soft_keep build_asm/selfhost_pabi/typeck_type_is_free_type_param_soft.o \
+  src/typeck/typeck_type_is_free_type_param_soft.x
 OC="${LLVM_OBJCOPY:-}"
 if [ -z "$OC" ]; then
   for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
@@ -68,6 +72,12 @@ fi
 as -arch arm64 -o build_asm/selfhost_pabi/typeck_try_propagate_hardfail_a64.o \
   src/asm/typeck_try_propagate_hardfail_a64.s \
   || { echo "g05_cap_tip_typeck_soft_prep: try_propagate asm soft failed" >&2; exit 1; }
+as -arch arm64 -o build_asm/selfhost_pabi/typeck_soa_find_layout_idx_by_name_demoted_tramp_a64.o \
+  src/asm/typeck_soa_find_layout_idx_by_name_demoted_tramp_a64.s \
+  || { echo "g05_cap_tip_typeck_soft_prep: find_layout demoted tramp failed" >&2; exit 1; }
+as -arch arm64 -o build_asm/selfhost_pabi/typeck_type_is_free_type_param_demoted_tramp_a64.o \
+  src/asm/typeck_type_is_free_type_param_demoted_tramp_a64.s \
+  || { echo "g05_cap_tip_typeck_soft_prep: free_param demoted tramp failed" >&2; exit 1; }
 cp -f typeck_x.o build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 "$OC" \
   --redefine-sym=_typeck_call_arg_repr_compatible_ok=_typeck_call_arg_repr_compatible_ok__demoted \
@@ -77,6 +87,12 @@ cp -f typeck_x.o build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
   --redefine-sym=_typeck_check_expr_try_propagate=_typeck_check_expr_try_propagate__demoted \
   --redefine-sym=_typeck_get_field_type_ref_from_layout_deps=_typeck_get_field_type_ref_from_layout_deps__demoted \
   --redefine-sym=_typeck_get_field_offset_from_layout_deps=_typeck_get_field_offset_from_layout_deps__demoted \
+  --redefine-sym=_typeck_soa_find_layout_idx_by_name=_typeck_soa_find_layout_idx_by_name__demoted \
+  --redefine-sym=_typeck_type_is_free_type_param=_typeck_type_is_free_type_param__demoted \
+  build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
+# Weaken demoted body so prepended trampoline (__demoted -> soft) wins the link.
+"$OC" --weaken-symbol=_typeck_soa_find_layout_idx_by_name__demoted \
+  --weaken-symbol=_typeck_type_is_free_type_param__demoted \
   build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 python3 scripts/g05_cap_tip_typeck_retarget.py build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 echo "g05_cap_tip_typeck_soft_prep: OK"

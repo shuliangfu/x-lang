@@ -2374,11 +2374,11 @@ export function typeck_x_type_size(module: *Module, arena: *ASTArena, ty_ref: i3
  */
 export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, name_len: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
+  // knife256/10.2: Cap tip codegen clobbers LHS of `f() != name[j]` (x1 reused for
+  // index) → compared j vs name[j] → find_layout always miss → Type.method() fail.
+  // Use typeck_layout_name_equal (name_into buffer) — no post-call indexed load.
   unsafe {
     let k: i32 = 0;
-    let j: i32 = 0;
-    let ln: i32 = 0;
-    let eq: i32 = 0;
     if (module == 0 as *Module || name == 0 as *u8 || name_len <= 0 || name_len > 255) {
       return -1;
     }
@@ -2387,20 +2387,8 @@ export function typeck_soa_find_layout_idx_by_name(module: *Module, name: *u8, n
     // The x86 emit pushes the index and the callee homes rcx over that push.
     let nsl_soa: i32 = pipeline_module_num_struct_layouts_at(module);
     while (k < nsl_soa) {
-      ln = pipeline_module_struct_layout_name_len(module, k);
-      if (ln == name_len) {
-        j = 0;
-        eq = 1;
-        while (j < name_len) {
-          if (pipeline_module_struct_layout_name_byte_at(module, k, j) != name[j]) {
-            eq = 0;
-            break;
-          }
-          j = j + 1;
-        }
-        if (eq != 0) {
-          return k;
-        }
+      if (typeck_layout_name_equal(module, k, name, name_len)) {
+        return k;
       }
       k = k + 1;
     }

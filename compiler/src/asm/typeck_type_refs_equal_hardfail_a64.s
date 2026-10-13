@@ -1,7 +1,9 @@
 /* Cap tip typeck_type_refs_equal soft (knife256/10.2).
  * Truncated .x soft greened ANY NAMED vs non-NAMED (return_import_call).
  * Cap tip named_name_into copy hollow — read name at pipe_ty_slot_at()+4.
- * PLATFORM: MACOS|ARM64 Cap tip. */
+ * BOTH TYPE_NAMED → accept (import-prefix Option_i32 vs option.Option_i32).
+ * Note: also greened free T vs struct A UFCS; LANG-004 nobound residual
+ * needs generic_bound-before-UFCS (separate). PLATFORM: MACOS|ARM64 Cap tip. */
 	.section __TEXT,__text,regular,pure_instructions
 	.globl _typeck_type_refs_equal
 	.p2align 2
@@ -55,15 +57,13 @@ Lcheck:
 	bl	_pipe_ar_ty_name_len
 	mov	w1, w0
 	add	x0, x23, #4
-	/* Hollow/empty name: accept (type_alias Coord=i32). Result/Option
-	 * hard-fail relies on get_dep soft filling result.Result_i32 names. */
 	ldrb	w5, [x0]
-	cbz	w5, Lret0			/* empty name hollow Result vs i32 */
+	cbz	w5, Lret0
 	cmp	w1, #6
-	b.lt	Lret1			/* short real name → accept (type_alias) */
+	b.lt	Lret1
 	cmp	w1, #64
 	b.ls	0f
-	mov	w1, #64			/* clamp absurd Cap tip name_len */
+	mov	w1, #64
 0:
 	mov	w2, #0
 Lseg:
