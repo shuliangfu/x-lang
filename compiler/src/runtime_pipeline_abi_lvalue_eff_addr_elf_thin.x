@@ -1,6 +1,8 @@
 // Thin pure: pipeline_asm_emit_lvalue_eff_addr_elf_c Cap leave (knife256/10.2).
 // Hollow m8 / phase1 branches to text_c → CG002 on ELF field/ptr assign.
-// FIELD(44): recurse base; PTR base load_64; add layout offset.
+// FIELD(44): recurse base; load a PTR base only when rax is still the slot
+// address. needs_ptr_load already LDR'd a *T formal, so a second load
+// stores s.field through the old field value (Set_i32.keys SEGV at 0).
 // VAR(3): stack_off → glue_enc_local_slot_ptr_or_addr_elf_c (LEA/LDR).
 // PLATFORM: SHARED freestanding · MACOS tip cold · LINUX gold.
 
@@ -14,6 +16,7 @@ export extern function glue_emit_module_from_ctx(ctx: *u8): *u8;
 export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function glue_call_arg_resolve_var_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
 export extern function glue_enc_local_slot_ptr_or_addr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, stack_off: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_local_var_slot_needs_ptr_load_elf_c(arena: *u8, var_ref: i32, var_off: i32, ctx: *u8): i32;
 export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -63,13 +66,28 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
           }
         }
       }
-      // VAR base with PTR type: local_slot may LEA the slot; load pointer value.
+      // VAR base with PTR type. local_slot LDR's when needs_ptr_load
+      // (formal *T / indirect home): rax is already the struct address.
+      // A second load derefs that pointer and s.field stores through null.
+      // LEA (needs_ptr_load == 0) still loads: rax is the address of the slot.
       if (pipeline_expr_kind_ord_at(arena, base) == 3) {
         let rty2: i32 = pipeline_expr_resolved_type_ref(arena, base);
         if (rty2 > 0) {
           if (pipeline_type_kind_ord_at(arena, rty2) == 9) {
-            if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
-              return 0 - 1;
+            let soff2: i32 = glue_call_arg_resolve_var_stack_off_elf_c(arena, ctx, base);
+            if (soff2 < 0) {
+              soff2 = glue_var_expr_stack_off_elf_c(arena, ctx, base);
+            }
+            let already: i32 = 0;
+            if (soff2 >= 0) {
+              if (glue_local_var_slot_needs_ptr_load_elf_c(arena, base, soff2, ctx) != 0) {
+                already = 1;
+              }
+            }
+            if (already == 0) {
+              if (backend_enc_load_64_from_rax_arch(elf_ctx, ta) != 0) {
+                return 0 - 1;
+              }
             }
           }
         }
