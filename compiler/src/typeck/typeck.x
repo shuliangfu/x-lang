@@ -5834,6 +5834,40 @@ caller_arena: *ASTArena, ctx: *PipelineDepCtx): i32 {
               from_dep_index, caller_arena, nm_buf, nlen);
           }
         }
+        /*
+         * knife256/10.2 Cap tip: *NamedStruct / []Named formals must map the
+         * pointee through the same import-binding NAMED path as by-value
+         * Option_i32 (else score sees *Option_i32 vs *option.Option_i32 and
+         * Cap tip T001 on option.none_i32(&o) while unwrap_or by-value greens).
+         * Recurse get_dep on elem then realloc compound in caller.
+         * PLATFORM: SHARED — closes Cap tip option L2 T001.
+         */
+        let ord_ptr_gd: i32 = 9;
+        let ord_slice_gd: i32 = 11;
+        let ord_linear_gd: i32 = 12;
+        if (kind == ord_ptr_gd || kind == ord_slice_gd || kind == ord_linear_gd) {
+          let elem_gd: i32 = pipeline_type_elem_ref_at(dep_arena, dep_return_type_ref);
+          if (elem_gd > 0) {
+            let inner_gd: i32 = get_dep_return_type_in_caller_arena(from_dep_index, elem_gd,
+              caller_arena, ctx);
+            if (inner_gd > 0) {
+              if (kind == ord_ptr_gd) {
+                return find_or_alloc_ptr_type_ref(caller_arena, inner_gd);
+              }
+              if (kind == ord_linear_gd) {
+                return find_or_alloc_linear_type_ref(caller_arena, inner_gd);
+              }
+              {
+                let rlen_gd: i32 = pipeline_type_region_label_len_at(dep_arena, dep_return_type_ref);
+                let rbuf_gd: *u8 = typeck_scratch64_slot(14);
+                if (rlen_gd > 0) {
+                  pipeline_type_region_label_into(dep_arena, dep_return_type_ref, rbuf_gd);
+                }
+                return pipeline_type_find_or_alloc_slice(caller_arena, inner_gd, rbuf_gd, rlen_gd);
+              }
+            }
+          }
+        }
       }
     }
     return dep_return_type_to_caller_arena(dep_arena, dep_return_type_ref, caller_arena);
@@ -7016,6 +7050,52 @@ param_ty_raw: i32, from_dep_index: i32, ctx: *PipelineDepCtx): i32 {
         let pe2: i32 = pipeline_type_elem_ref_at(caller_arena, param_ty);
         if (ae2 > 0 && pe2 > 0 && pipeline_typeck_type_refs_equal_c(caller_arena, ae2, pe2) != 0) {
           return 1000;
+        }
+        /*
+         * knife256/10.2: Cap tip may miss type_refs_equal on import-qualified
+         * vs bare TYPE_NAMED pointees (*option.Option_i32 vs *Option_i32).
+         * Last-segment NAMED soft-exact (same as overload expect_match).
+         * PLATFORM: SHARED — score authority only; no second matcher.
+         */
+        if (ae2 > 0 && pe2 > 0
+            && pipeline_type_kind_ord_at(caller_arena, ae2) == 8
+            && pipeline_type_kind_ord_at(caller_arena, pe2) == 8) {
+          let na2: u8[256] = [];
+          let nb2: u8[256] = [];
+          let la2: i32 = pipeline_type_named_name_into(caller_arena, ae2, &na2[0]);
+          let lb2: i32 = pipeline_type_named_name_into(caller_arena, pe2, &nb2[0]);
+          if (la2 > 0 && lb2 > 0) {
+            let sa2: i32 = 0;
+            let sb2: i32 = 0;
+            let ii2: i32 = 0;
+            while (ii2 < la2) {
+              if (na2[ii2] == 46 as u8) {
+                sa2 = ii2 + 1;
+              }
+              ii2 = ii2 + 1;
+            }
+            ii2 = 0;
+            while (ii2 < lb2) {
+              if (nb2[ii2] == 46 as u8) {
+                sb2 = ii2 + 1;
+              }
+              ii2 = ii2 + 1;
+            }
+            if ((la2 - sa2) == (lb2 - sb2) && (la2 - sa2) > 0) {
+              let eq2: i32 = 1;
+              ii2 = 0;
+              while (ii2 < (la2 - sa2)) {
+                if (na2[sa2 + ii2] != nb2[sb2 + ii2]) {
+                  eq2 = 0;
+                  break;
+                }
+                ii2 = ii2 + 1;
+              }
+              if (eq2 != 0) {
+                return 1000;
+              }
+            }
+          }
         }
         return -1;
       }
