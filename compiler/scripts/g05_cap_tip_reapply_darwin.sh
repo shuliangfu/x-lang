@@ -662,6 +662,24 @@ if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
   done
 fi
 
+# knife256/10.2: m8 pipeline_elf_ctx_add_common_sym is an 8-byte ret0.
+# Line 159 recopies m8_reloc_stubs.o over the g05 stub and can restore that
+# strong hollow after add_common_sym_soft.o is prepended. Weaken this one
+# symbol so the soft wins. Do not redefine it: a redefine rewrites relocs
+# inside the stub. The soft stores shndx 65522; macho_write already emits
+# that shndx as a Mach-O common.
+# PLATFORM: MACOS — Apple ld rejects two strong definitions of one symbol.
+if [ -n "${_oc:-}" ] && [ -s build_asm/selfhost_pabi/add_common_sym_soft.o ] \
+   && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/add_common_sym_soft.o "*)
+      "$_oc" --weaken-symbol=_pipeline_elf_ctx_add_common_sym \
+        build_asm/selfhost_pabi/m8_reloc_stubs_g05.o 2>/dev/null \
+        && echo "g05_cap_tip_reapply: weakened m8 add_common_sym (soft wins)" >&2 || true
+      ;;
+  esac
+fi
+
 # knife256/10.2: weaken leftover glue_sysv_arg_byte_size_c so Cap tip thin
 # first-wins; redefine-sym would rename packer call sites to _dispatch_dead.
 # PLATFORM: MACOS Cap tip.
