@@ -49,6 +49,11 @@ export function xlang_module_collect_imports_from_buf(module: *u8, data: *u8, le
   if (module == (0 as *u8) || data == (0 as *u8) || len <= 0) { return; }
   if (len > 2147483647) { return; }
   n = len as i32;
+  // Cap tip 10.2: do not call lexer_init here (historical rdi/module smash).
+  // Field stores force a clean cursor without that symbol. PLATFORM: SHARED.
+  lex.pos = 0 as usize;
+  lex.line = 1;
+  lex.col = 1;
   unsafe { memset(&import_res as *u8, 0, 16 as usize); }
   unsafe { memcpy(&import_res as *u8, (&lex as *u8), 16 as usize); }
   unsafe { parser_collect_imports_buf(lex, data, n, module, &import_res); }

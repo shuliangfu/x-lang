@@ -2450,6 +2450,30 @@ EOF
     build_asm/selfhost_pabi/dep_prerun_skip_typeck_a64.o \
     "_xlang_pipeline_dep_prerun_parse_skip_typeck _xlang_pipeline_dep_prerun_parse_skip_typeck_impl" \
     "dep prerun skip typeck"
+  # knife256 / 10.2: dep prerun parse-only thin (Cap tip).
+  # PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dep_prerun_parse_only_thin.x \
+    build_asm/selfhost_pabi/dep_prerun_parse_only_a64.o \
+    "_xlang_pipeline_dep_prerun_parse_only _xlang_pipeline_dep_prerun_parse_only_impl" \
+    "dep prerun parse only"
+  # knife256 / 10.2 Cap tip: trait_check → generic_bound_scan SEGV/L003 on
+  # const-import dep prerun. No-op completeness walk; LEGACY product keeps real body.
+  # PLATFORM: MACOS|DARWIN.
+  g05_darwin_pabi_thin_sidecar src/asm/trait_check_noop_thin.x \
+    build_asm/selfhost_pabi/trait_check_noop_a64.o \
+    "_xlang_trait_check_impls_complete_c" \
+    "trait check noop"
+  if [ -s build_asm/selfhost_pabi/trait_check_noop_a64.o ] && [ -s parser_asm_thin_glue.o ] && [ -n "$_oc" ]; then
+    if [ ! -s parser_asm_thin_glue.o.bak_cap_bridge ]; then
+      cp -p parser_asm_thin_glue.o parser_asm_thin_glue.o.bak_cap_bridge
+    fi
+    cp -p parser_asm_thin_glue.o.bak_cap_bridge parser_asm_thin_glue.o
+    if nm -gU parser_asm_thin_glue.o 2>/dev/null | grep -q "T _xlang_trait_check_impls_complete_c$"; then
+      "$_oc" --redefine-sym=_xlang_trait_check_impls_complete_c=_xlang_trait_check_impls_complete_c_glue_dead \
+        parser_asm_thin_glue.o 2>/dev/null \
+        || { echo "g05_relink_env: demote trait_check failed" >&2; exit 1; }
+    fi
+  fi
   # w2055: Mach-O writer. pabi_weak keeps the pre-w1814 C writer whose
   # unique-undef cap is 256 with 1024-byte index tables; parser.x has more
   # than 256 unique undefined relocs, so the writer returns -1 (CG002,

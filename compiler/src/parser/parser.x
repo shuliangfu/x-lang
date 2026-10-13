@@ -9607,6 +9607,20 @@ export function parse_into(arena: *ASTArena, module: *Module, source: u8[]): Par
   let import_res: CollectImportsResult = { lex: lex };
   collect_imports(lex, source, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
+  // Cap tip 10.2: on zero const-import bindings, collect may leave a non-zero
+  // cursor (dep prerun then lexes mid-buffer → L003). Restart at file head.
+  // Do NOT call lexer_init here — Cap tip lexer_init still smashes rdi/module
+  // (same hazard as collect thin; e5ba88d9d). Field-store only. PLATFORM: SHARED.
+  // Cap tip 10.2: collect may leave a mid-buffer cursor on export-only deps
+  // and sticky L003 from scanning generics/`@` in comments. Restart cursor
+  // when nimp==0 and always clear illegal_char sticky (field-store only —
+  // no lexer_init; Cap tip rdi/module smash). PLATFORM: SHARED.
+  if (get_module_num_imports(module) == 0) {
+    lex.pos = 0 as usize;
+    lex.line = 1;
+    lex.col = 1;
+  }
+  lexer.lexer_illegal_char_reset();
   let loop_count: i32 = 0;
   while (1 == 1) {
     /* See implementation. */
@@ -11826,6 +11840,18 @@ export function parse_into_buf(arena: *ASTArena, module: *Module, data: *u8, len
   let import_res: CollectImportsResult = { lex: lex };
   collect_imports_buf(lex, data, len, module, &import_res);
   copy_lex_from_import_into(&lex, import_res);
+  // Cap tip 10.2: twin of parse_into — reset cursor when no const-imports.
+  // Field-store only (no lexer_init; Cap tip rdi/module smash). PLATFORM: SHARED.
+  // Cap tip 10.2: collect may leave a mid-buffer cursor on export-only deps
+  // and sticky L003 from scanning generics/`@` in comments. Restart cursor
+  // when nimp==0 and always clear illegal_char sticky (field-store only —
+  // no lexer_init; Cap tip rdi/module smash). PLATFORM: SHARED.
+  if (get_module_num_imports(module) == 0) {
+    lex.pos = 0 as usize;
+    lex.line = 1;
+    lex.col = 1;
+  }
+  lexer.lexer_illegal_char_reset();
   let loop_count_buf: i32 = 0;
   while (1 == 1) {
     /* See implementation. */

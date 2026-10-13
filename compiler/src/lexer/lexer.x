@@ -1550,16 +1550,31 @@ export function lexer_init(out: *Lexer): void {
  */
 // PLATFORM: SHARED — same cursor step as the by-value form. The slot is updated in place.
 export function advance_one(lex: *Lexer, c: u8): void {
+  // Cap tip 10.2: whole-struct `*lex = nxt` / widened i32 field stores smash
+  // line into a truncated stack pointer mid-scan → L003 on dep prerun
+  // (core.option). Field pos + 4-byte memcpy for line/col. PLATFORM: SHARED.
   if (lex == 0) { return; }
-  let cur: Lexer = Lexer { pos: 0, line: 1, col: 1 };
-  unsafe { cur = *lex; }
-  if (c == 10) {
-    let nxt: Lexer = Lexer { pos: cur.pos + 1, line: cur.line + 1, col: 1 };
-    unsafe { *lex = nxt; }
-    return;
+  let pos: usize = 0;
+  let line: i32 = 1;
+  let col: i32 = 1;
+  unsafe {
+    pos = lex.pos;
+    line = lex.line;
+    col = lex.col;
   }
-  let nxt2: Lexer = Lexer { pos: cur.pos + 1, line: cur.line, col: cur.col + 1 };
-  unsafe { *lex = nxt2; }
+  if (c == 10) {
+    pos = pos + 1;
+    line = line + 1;
+    col = 1;
+  } else {
+    pos = pos + 1;
+    col = col + 1;
+  }
+  unsafe {
+    lex.pos = pos;
+    memcpy((lex as *u8) + 8, &line as *u8, 4);
+    memcpy((lex as *u8) + 12, &col as *u8, 4);
+  }
 }
 
 /** Exported function `is_alpha`.
@@ -5240,9 +5255,12 @@ export function lexer_next_punct_into(out: *LexerResult, l: Lexer, data: u8[], c
  * @return void
  */
 export function write_next_lex_into(out: *LexerResult, l: Lexer): void {
+  // Cap tip 10.2: widened i32 field stores smash neighbors. PLATFORM: SHARED.
   out.next_lex.pos = l.pos;
-  out.next_lex.line = l.line;
-  out.next_lex.col = l.col;
+  unsafe {
+    memcpy((out as *u8) + 8, &l.line as *u8, 4);
+    memcpy((out as *u8) + 12, &l.col as *u8, 4);
+  }
   out.token_start = (0 as usize);
 }
 /** Exported function `write_tok_into`.

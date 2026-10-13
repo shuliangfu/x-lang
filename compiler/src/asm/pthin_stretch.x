@@ -124,7 +124,8 @@ export function parser_asm_stretch_import_path_validate_c(path: *u8, path_len: i
     if (c == 0) {
       break;
     }
-    if (c == 46) {
+    if (c == 46 || c == 47) {
+      // '.' module sep or '/' path sep (absolute / relative file imports).
       i = i + 1;
       continue;
     }
