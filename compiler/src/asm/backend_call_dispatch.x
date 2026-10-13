@@ -1402,6 +1402,23 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
       }
     }
   }
+  // knife256/10.2: ARRAY/SLICE/PTR call-arg is always E* (8B). named_layout /
+  // type_ref_byte_size on u8[12] return 12 and undid call_arg_value decay
+  // (print packed x0=ptr,x1=ptr,x2=len). Gate after widen. PLATFORM: SHARED.
+  if (arena != 0 as *u8) {
+    if (arg_ref > 0) {
+      tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+      if (tr > 0) {
+        ko = pipeline_type_kind_ord_at(arena, tr);
+        // TYPE_PTR=9 TYPE_ARRAY=10 TYPE_SLICE=11
+        if (ko == 9 || ko == 10 || ko == 11) { return 8; }
+      }
+    }
+    if (pty > 0) {
+      ko = pipeline_type_kind_ord_at(arena, pty);
+      if (ko == 9 || ko == 10 || ko == 11) { return 8; }
+    }
+  }
   if (sz <= 0) { return 8; }
   // w1545 (10.72): Win64 9–16B named struct goes by reference like > 16B.
   // 24 is the by-reference class size (drives the w1521 > 16 machinery:

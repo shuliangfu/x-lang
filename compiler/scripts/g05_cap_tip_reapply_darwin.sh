@@ -37,6 +37,10 @@ mkdir -p build_asm/selfhost_pabi
 if [ -f "$CACHE/dual_gp_new.o" ]; then
   cp -f "$CACHE/dual_gp_new.o" build_asm/selfhost_pabi/dual_gp_byte_size_a64.o
 fi
+# knife256/10.2: ARRAY→*u8 call-arg decay (print ABI x0=ptr,x1=len)
+if [ -f "$CACHE/arg_byte_size_a64.o" ]; then
+  cp -f "$CACHE/arg_byte_size_a64.o" build_asm/selfhost_pabi/arg_byte_size_a64.o
+fi
 if [ -f "$CACHE/mw.o" ]; then
   cp -f "$CACHE/mw.o" build_asm/selfhost_pabi/macho_write_a64.o
 fi
@@ -218,6 +222,21 @@ if [ -n "$_oc" ] && [ -s build_asm/selfhost_pabi/m8_reloc_stubs_g05.o ]; then
         ;;
     esac
   done
+fi
+
+# knife256/10.2: weaken leftover glue_sysv_arg_byte_size_c so Cap tip thin
+# first-wins; redefine-sym would rename packer call sites to _dispatch_dead.
+# PLATFORM: MACOS Cap tip.
+if [ -n "$OC" ] && [ -s src/asm/backend_call_dispatch.o ]; then
+  if [ -s src/asm/backend_call_dispatch.o.bak_pre_argbs ]; then
+    cp -f src/asm/backend_call_dispatch.o.bak_pre_argbs src/asm/backend_call_dispatch.o
+  elif [ -s "$CACHE/backend_call_dispatch.o.bak_pre_argbs" ]; then
+    cp -f "$CACHE/backend_call_dispatch.o.bak_pre_argbs" src/asm/backend_call_dispatch.o
+  fi
+  if nm -m src/asm/backend_call_dispatch.o 2>/dev/null | grep -q 'external _glue_sysv_arg_byte_size_c$'; then
+    "$OC" --weaken-symbol=_glue_sysv_arg_byte_size_c src/asm/backend_call_dispatch.o
+    echo "g05_cap_tip_reapply: weakened dispatch arg_byte_size (thin wins)" >&2
+  fi
 fi
 
 rm -f xlang.cap_g05_l2

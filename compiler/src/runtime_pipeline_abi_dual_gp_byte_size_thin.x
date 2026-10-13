@@ -29,22 +29,32 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
   if (arena == (0 as *u8) || ty_ref <= 0) {
     return 0;
   }
+  // knife256/10.2: PTR/ARRAY/SLICE never INTEGER dual-GP. Gate BEFORE
+  // named_layout_size — that helper returns elem*N for u8[12] (12) and would
+  // pack print(msg,12) as x0=ptr,x1=ptr,x2=len. PLATFORM: SHARED.
+  tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  // TYPE_PTR=9 TYPE_ARRAY=10 TYPE_SLICE=11
+  if (tk == 9 || tk == 10 || tk == 11) {
+    return 0;
+  }
   sz = glue_type_named_layout_size_any_module_elf_c(arena, ty_ref);
   if (sz > 8 && sz <= 16) {
     return sz;
   }
   // knife256/10.2: local struct Lex is TYPE_STRUCT (not TYPE_NAMED=8). Cap tip
   // soft-floors size_simple/layout to 8 and skipped dual-GP; lexpack stayed
-  // 1-GP and take() omitted x0/x1 param homes. Try size_simple for any kind
-  // before the NAMED-only name table. PLATFORM: SHARED · MACOS Cap tip.
+  // 1-GP and take() omitted x0/x1 param homes. Try size_simple for STRUCT /
+  // NAMED only. PLATFORM: SHARED.
   mod = pipeline_asm_emit_module_ref_c();
   if (mod != (0 as *u8)) {
-    sz = glue_type_size_simple(mod, arena, ty_ref, 0);
-    if (sz > 8 && sz <= 16) {
-      return sz;
+    if (tk != 8) {
+      // STRUCT / other aggregate: size_simple 9–16 → dual-GP.
+      sz = glue_type_size_simple(mod, arena, ty_ref, 0);
+      if (sz > 8 && sz <= 16) {
+        return sz;
+      }
     }
   }
-  tk = pipeline_type_kind_ord_at(arena, ty_ref);
   // TYPE_NAMED == 8 — name heuristics below
   if (tk != 8) {
     return 0;

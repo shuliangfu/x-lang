@@ -2401,18 +2401,29 @@ EOF
       && [ -s build_asm/selfhost_pabi/pabi_weak.o ] || return 0
     # w2060: always rebuild with the current product (see cimp above).
       rm -f "$_ts_o"
-      # knife256/10.2: Cap tip xlang_asm may CG002 on Cap leave thins; fall
-      # back to restored ./xlang (same as pthin/af Cap leave compile). Do not
-      # FORCE_CC. PLATFORM: MACOS tip cold.
-      if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1; then
-        rm -f "$_ts_o.tmp.o"
-        if [ -x ./xlang ] && ./xlang --emit-obj "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1 \
+      # knife256/10.2: Cap tip -c hollows export-extern FFI (no BR26). Prefer
+      # restored_1952 compile vehicle for Cap leave thins; never FORCE_CC;
+      # never install restored as tip. PLATFORM: MACOS tip cold.
+      _ts_ok=0
+      if [ -x ./xlang.restored_1952 ]; then
+        if XLANG_PREFER_ASM_O=1 ./xlang.restored_1952 -backend asm -c "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1 \
           && [ -s "$_ts_o.tmp.o" ]; then
-          echo "g05_relink_env: $_ts_x via restored ./xlang (Darwin $_ts_tag)" >&2
-        else
+          echo "g05_relink_env: $_ts_x via restored_1952 vehicle (Darwin $_ts_tag)" >&2
+          _ts_ok=1
+        fi
+      fi
+      if [ "$_ts_ok" != "1" ]; then
+        rm -f "$_ts_o.tmp.o"
+        if ! XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1; then
           rm -f "$_ts_o.tmp.o"
-          echo "g05_relink_env: $_ts_x failed (Darwin $_ts_tag)" >&2
-          exit 1
+          if [ -x ./xlang ] && ./xlang --emit-obj "$_ts_x" -o "$_ts_o.tmp.o" >/dev/null 2>&1 \
+            && [ -s "$_ts_o.tmp.o" ]; then
+            echo "g05_relink_env: $_ts_x via ./xlang (Darwin $_ts_tag)" >&2
+          else
+            rm -f "$_ts_o.tmp.o"
+            echo "g05_relink_env: $_ts_x failed (Darwin $_ts_tag)" >&2
+            exit 1
+          fi
         fi
       fi
       for _ts_s in $_ts_syms; do
@@ -2458,7 +2469,12 @@ EOF
     "dep prerun parse only"
   # knife256 / 10.2 Cap tip: dual-GP byte size (Lexer 16B INTEGER).
   # PLATFORM: MACOS|DARWIN.
-  g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
+    g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_arg_byte_size_thin.x \
+    build_asm/selfhost_pabi/arg_byte_size_a64.o \
+    "_glue_sysv_arg_byte_size_c" \
+    "arg_byte_size"
+
+g05_darwin_pabi_thin_sidecar src/runtime_pipeline_abi_dual_gp_byte_size_thin.x \
     build_asm/selfhost_pabi/dual_gp_byte_size_a64.o \
     "_glue_sysv_dual_gp_byte_size_c" \
     "dual gp byte size"
