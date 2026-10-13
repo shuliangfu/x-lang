@@ -21,6 +21,7 @@ export extern function glue_enc_arm64_mov_xn_to_x0_elf_c(elf_ctx: *u8, n: i32): 
 export extern function arch_arm64_enc_enc_mov_rax_to_x9(elf_ctx: *u8): i32;
 export extern function glue_enc_canonicalize_param_in_rax_elf_c(elf_ctx: *u8, arena: *u8, mod: *u8, func_index: i32, i: i32, ta: i32): i32;
 export extern function glue_func_param_agg_byte_size_c(arena: *u8, mod: *u8, func_index: i32, i: i32): i32;
+export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 export extern function glue_func_param_home_width_c(arena: *u8, mod: *u8, func_index: i32, i: i32): i32;
 export extern function pipe_asm_ctx_off_frame_size(): i32;
 export extern function pipe_load_i32_le(base: *u8, off: i32): i32;
@@ -161,6 +162,26 @@ export function pipeline_asm_emit_param_home_elf_c(elf_ctx: *u8, ctx: *u8, mod: 
     unsafe {
       psz = glue_func_param_agg_byte_size_c(arena, mod, func_index, i);
       home_w = glue_func_param_home_width_c(arena, mod, func_index, i);
+    }
+    // knife256/10.2 Cap tip: soft psz≤8 for local Lex / TYPE_NAMED Lexer
+    // skipped dual-GP param homes (take() omitted str x0/x1). Widen via
+    // dual_gp thin (size_simple + Lexer/Lex names). PLATFORM: MACOS Cap tip.
+    if (psz <= 8) {
+      unsafe {
+        pty_h = pipeline_module_func_param_type_ref_at(mod, func_index, i);
+      }
+      if (pty_h > 0) {
+        let alt_ph: i32 = 0;
+        unsafe {
+          alt_ph = glue_sysv_dual_gp_byte_size_c(arena, pty_h);
+        }
+        if (alt_ph > psz) {
+          psz = alt_ph;
+        }
+        if (alt_ph > home_w) {
+          home_w = alt_ph;
+        }
+      }
     }
     home = cur;
     /* 记224: F32(14) also arrives in sK (same v-reg as dK). Prior only

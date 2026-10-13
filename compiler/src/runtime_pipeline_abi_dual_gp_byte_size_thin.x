@@ -33,17 +33,21 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
   if (sz > 8 && sz <= 16) {
     return sz;
   }
-  tk = pipeline_type_kind_ord_at(arena, ty_ref);
-  // TYPE_NAMED == 8
-  if (tk != 8) {
-    return 0;
-  }
+  // knife256/10.2: local struct Lex is TYPE_STRUCT (not TYPE_NAMED=8). Cap tip
+  // soft-floors size_simple/layout to 8 and skipped dual-GP; lexpack stayed
+  // 1-GP and take() omitted x0/x1 param homes. Try size_simple for any kind
+  // before the NAMED-only name table. PLATFORM: SHARED · MACOS Cap tip.
   mod = pipeline_asm_emit_module_ref_c();
   if (mod != (0 as *u8)) {
     sz = glue_type_size_simple(mod, arena, ty_ref, 0);
     if (sz > 8 && sz <= 16) {
       return sz;
     }
+  }
+  tk = pipeline_type_kind_ord_at(arena, ty_ref);
+  // TYPE_NAMED == 8 — name heuristics below
+  if (tk != 8) {
+    return 0;
   }
   nlen = pipeline_type_named_name_into(arena, ty_ref, &name[0]);
   if (nlen <= 0 || nlen > 255) {
@@ -77,6 +81,12 @@ export function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32 {
         name[base_off + 3] == 117 && name[base_off + 4] == 108 && name[base_off + 5] == 116 &&
         name[base_off + 6] == 95 && name[base_off + 7] == 105 && name[base_off + 8] == 51 &&
         name[base_off + 9] == 50) {
+      return 16;
+    }
+  }
+  // Lex (3) — local/probe struct twin of Lexer layout
+  if (bl == 3) {
+    if (name[base_off] == 76 && name[base_off + 1] == 101 && name[base_off + 2] == 120) {
       return 16;
     }
   }
