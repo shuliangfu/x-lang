@@ -4072,23 +4072,21 @@ export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]
 }
 
 export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
-  // knife256 / 10.2: park to hollow BSS; reload via out-ptr stores. PLATFORM: SHARED.
-  // 10.2 Cap tip: if park rejects (hi32==0 / null), fall back to the call args —
-  // otherwise sp stays null and sp[l.pos] SEGV in dep prerun (core.option).
-  let sp: *u8 = (0 as *u8);
-  let slen: usize = 0;
-  unsafe {
-    lexer_src_park(data, len);
-    lexer_src_data_store((&sp as *u8));
-    lexer_src_len_store((&slen as *u8));
-    // 10.2: no fall back to call-arg data when park rejected (tip-image
-    // smash 0x1000020c0 / L003 cross-module). Empty park → leave cursor.
-    // PLATFORM: SHARED.
-    if (sp == (0 as *u8)) {
-      unsafe { *out = (lex); }
-      return;
-    }
+  // knife256 / 10.2 Cap tip: walk call-arg data/len directly — do not park.
+  // Park tip-image reject left sp null (early return → unsynced cursor) or a
+  // smashed image pointer (L003 illegal char) on first dep prerun
+  // (core.option / core.mem alone). Slice twin skip_whitespace_and_comments
+  // already uses u8[] without park. PLATFORM: SHARED.
+  if (data == (0 as *u8)) {
+    unsafe { *out = (lex); }
+    return;
   }
+  let n: i32 = len;
+  if (n < 0) {
+    n = 0;
+  }
+  let sp: *u8 = data;
+  let slen: usize = n as usize;
 
   let l: Lexer = lex;
   // Nesting depth for block comments; 0 means not inside a block comment.
@@ -5317,7 +5315,7 @@ export function lexer_next_buf_into(out: *LexerResult, lex: Lexer, data: *u8, le
     let sl: u8[] = [];
     let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
     if (n < 0) { n = 0; }
-    lexer_src_park(data, n);
+    /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
     b.data = data;
     b.length = (n as usize);
     memcpy((&sl as *u8), (&b as *u8), (16 as usize));
@@ -5344,7 +5342,7 @@ export function lexer_next_buf(out: *LexerResult, lex: Lexer, data: *u8, len: i3
     let sl: u8[] = [];
     let b: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
     if (n < 0) { n = 0; }
-    lexer_src_park(data, n);
+    /* Cap tip: omit lexer_src_park (tip-image L003 on dep prerun). */
     b.data = data;
     b.length = (n as usize);
     memcpy((&sl as *u8), (&b as *u8), (16 as usize));
