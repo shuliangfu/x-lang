@@ -881,14 +881,23 @@ _g_park_log:
 	.globl _lexer_src_park
 _lexer_src_park:
 	// x0=data *u8, w1=len i32.
-	// Reject hi32==0 (true PAGEZERO / null-page) — NOT tbz #32.
+	// Reject hi32==0 / tip-image smash; on reject CLEAR park BSS so a
+	// prior file's park cannot poison the next module (L003 sync).
 	// Never-shrink only when data pointer UNCHANGED (same buffer grow).
-	// New data pointer always replaces — tip u8[1024] clamp must not
-	// poison a later real source park (IDENT via peek_ident_ptr).
 	// PLATFORM: MACOS arm64.
 	cbz	x0, 1f
 	lsr	x2, x0, #32
 	cbz	x2, 1f
+	adrp	x2, _lexer_src_park@PAGE
+	lsr	x3, x0, #12
+	lsr	x4, x2, #12
+	sub	x3, x3, x4
+	cmp	x3, #0
+	b.ge	2f
+	neg	x3, x3
+2:
+	cmp	x3, #4096
+	b.lo	1f
 	sxtw	x1, w1
 	cmp	x1, #0
 	b.le	1f
@@ -900,13 +909,20 @@ _lexer_src_park:
 	adrp	x2, _g_lex_src_len@PAGE
 	ldr	x3, [x2, _g_lex_src_len@PAGEOFF]
 	cmp	x1, x3
-	b.le	1f
+	b.le	3f
 0:
 	adrp	x2, _g_lex_src_data@PAGE
 	str	x0, [x2, _g_lex_src_data@PAGEOFF]
 	adrp	x2, _g_lex_src_len@PAGE
 	str	x1, [x2, _g_lex_src_len@PAGEOFF]
+3:
+	ret
 1:
+	// reject: clear park so stale source cannot leak across modules
+	adrp	x2, _g_lex_src_data@PAGE
+	str	xzr, [x2, _g_lex_src_data@PAGEOFF]
+	adrp	x2, _g_lex_src_len@PAGE
+	str	xzr, [x2, _g_lex_src_len@PAGEOFF]
 	ret
 	.globl _lexer_src_data_store
 _lexer_src_data_store:

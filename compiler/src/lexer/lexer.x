@@ -4081,13 +4081,12 @@ export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: 
     lexer_src_park(data, len);
     lexer_src_data_store((&sp as *u8));
     lexer_src_len_store((&slen as *u8));
+    // 10.2: no fall back to call-arg data when park rejected (tip-image
+    // smash 0x1000020c0 / L003 cross-module). Empty park → leave cursor.
+    // PLATFORM: SHARED.
     if (sp == (0 as *u8)) {
-      sp = data;
-      if (len > 0) {
-        slen = (len as usize);
-      } else {
-        slen = (0 as usize);
-      }
+      unsafe { *out = (lex); }
+      return;
     }
   }
 
@@ -4388,7 +4387,7 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
       fixed.data = sp;
       fixed.length = slen;
       memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
-      if (((fat_hdr as usize) > (4096 as usize))) {
+      if (((fat_hdr as usize) > (4096 as usize)) && (sp != (0 as *u8))) {
         memcpy(fat_hdr, (&fixed as *u8), (16 as usize));
       }
     }
