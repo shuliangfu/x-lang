@@ -46,45 +46,28 @@ let g_stretch_run_len: u8[64] = [
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-/** ident first-byte class (a-z A-Z _). */
-let g_stretch_ident_start: u8[256] = [
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
-  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-];
+/**
+ * Cap tip (10.2): do NOT use u8[256] global class tables here.
+ * Cap tip asm indexes u8[] with i32 stride (lsl #2), so c>=64 reads OOB
+ * and rejects valid path bytes (e.g. 's' in core.str → nimp=0 hollow import;
+ * core.option still recorded then L003 in dep prerun). Range checks are
+ * stride-safe. PLATFORM: SHARED.
+ */
+function stretch_ident_start_ok(c: u8): i32 {
+  if (c == 95) { return 1; }
+  if (c >= 65 && c <= 90) { return 1; }
+  if (c >= 97 && c <= 122) { return 1; }
+  return 0;
+}
 
-/** ident continue-byte class (a-z A-Z 0-9 _). */
-let g_stretch_ident_continue: u8[256] = [
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1,
-  0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-];
+function stretch_ident_continue_ok(c: u8): i32 {
+  if (c == 95) { return 1; }
+  if (c >= 48 && c <= 57) { return 1; }
+  if (c >= 65 && c <= 90) { return 1; }
+  if (c >= 97 && c <= 122) { return 1; }
+  return 0;
+}
+
 
 // --- TokenKind constants (aligned with the C enum in the .inc). ---
 const STRETCH_TOKEN_IDENT: i32 = 1;
@@ -146,7 +129,7 @@ export function parser_asm_stretch_import_path_validate_c(path: *u8, path_len: i
       continue;
     }
     unsafe {
-      if (g_stretch_ident_continue[c] == 0) {
+      if (stretch_ident_continue_ok(c) == 0) {
         return 0;
       }
     }
@@ -275,7 +258,7 @@ export function parser_asm_stretch_import_path_normalize_c(path_buf: *u8, path_l
       out_len = out_len + 1;
     } else {
       unsafe {
-        if (g_stretch_ident_continue[c] != 0) {
+        if (stretch_ident_continue_ok(c) != 0) {
           path_buf[out_len] = c;
           out_len = out_len + 1;
         }
@@ -533,14 +516,14 @@ export function parser_asm_stretch_import_path_finalize_c(path_buf: *u8, path_le
 export function parser_asm_stretch_ident_byte_ok_c(c: u8, is_first: i32): i32 {
   if (is_first != 0) {
     unsafe {
-      if (g_stretch_ident_start[c] != 0) {
+      if (stretch_ident_start_ok(c) != 0) {
         return 1;
       }
     }
     return 0;
   }
   unsafe {
-    if (g_stretch_ident_continue[c] != 0) {
+    if (stretch_ident_continue_ok(c) != 0) {
       return 1;
     }
   }
