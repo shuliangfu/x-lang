@@ -94,6 +94,104 @@ if [ -s build_asm/selfhost_pabi/m8_reloc_stubs.o ]; then
   cp -f build_asm/selfhost_pabi/m8_reloc_stubs.o build_asm/selfhost_pabi/m8_reloc_stubs_g05.o
 fi
 
+# knife256/10.2: Cap tip match_module_bytes returns stack pad → match arms
+# Color.Green keep var_idx=-1 (enum has no variant). Prepend BSS get/set soft.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/asm/match_module_slot_a64.s ]; then
+  clang -c -o build_asm/selfhost_pabi/match_module_slot_a64.o src/asm/match_module_slot_a64.s \
+    || { echo "g05_cap_tip_reapply: match_module_slot assemble failed" >&2; exit 1; }
+fi
+if [ -s build_asm/selfhost_pabi/match_module_slot_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/match_module_slot_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/match_module_slot_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended match_module_slot_a64.o" >&2
+      ;;
+  esac
+  # Demote seed-bridge hollow twins so BSS soft first-wins (else ld duplicate).
+  _oc_mm="${LLVM_OBJCOPY:-}"
+  [ -n "$_oc_mm" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_mm=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+  [ -n "$_oc_mm" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc_mm=/usr/local/opt/llvm/bin/llvm-objcopy; }
+  if [ -n "$_oc_mm" ] && [ -s src/x_seed_bridge.o ]; then
+    [ -s src/x_seed_bridge.o.bak_cap ] || cp -f src/x_seed_bridge.o src/x_seed_bridge.o.bak_cap
+    cp -f src/x_seed_bridge.o.bak_cap src/x_seed_bridge.o
+    "$_oc_mm" \
+      --redefine-sym=_pipeline_match_module_bytes=_pipeline_match_module_bytes__demoted \
+      --redefine-sym=_pipeline_parser_set_match_module=_pipeline_parser_set_match_module__demoted \
+      --redefine-sym=_pipeline_parser_get_match_module=_pipeline_parser_get_match_module__demoted \
+      src/x_seed_bridge.o \
+      && echo "g05_cap_tip_reapply: demoted seed_bridge match_module get/set/bytes" >&2
+  fi
+fi
+
+# knife256/10.2: Cap tip/LEGACY pure-asm of runtime_slice_glue.x is hollow
+# (bl next-insn). Install hand-asm leaf into ../core/slice/slice.o.
+# PLATFORM: MACOS Cap tip leaf (not tip product).
+if [ -f src/asm/runtime_slice_glue_a64.s ]; then
+  clang -c -o ../core/slice/slice.o src/asm/runtime_slice_glue_a64.s \
+    && echo "g05_cap_tip_reapply: installed hand-asm core/slice/slice.o" >&2 \
+    || echo "g05_cap_tip_reapply: WARN slice glue install failed" >&2
+fi
+
+# knife256/10.2: Cap tip ondemand scans user.o only → slice/mod.o option
+# UNDEFs missed when main only uses slice API. Soft-extend option needles.
+# PLATFORM: MACOS Cap tip.
+if [ -f src/asm/labi_od_option_slice_needles_a64.s ]; then
+  clang -c -o build_asm/selfhost_pabi/labi_od_option_slice_needles_a64.o \
+    src/asm/labi_od_option_slice_needles_a64.s \
+    || { echo "g05_cap_tip_reapply: option_slice needles assemble failed" >&2; exit 1; }
+fi
+if [ -s build_asm/selfhost_pabi/labi_od_option_slice_needles_a64.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/labi_od_option_slice_needles_a64.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/labi_od_option_slice_needles_a64.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended labi_od_option_slice_needles_a64.o" >&2
+      ;;
+  esac
+  _oc_od="${LLVM_OBJCOPY:-}"
+  [ -n "$_oc_od" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_od=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+  [ -n "$_oc_od" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc_od=/usr/local/opt/llvm/bin/llvm-objcopy; }
+  if [ -n "$_oc_od" ] && [ -s src/runtime_link_abi.o ]; then
+    [ -s src/runtime_link_abi.o.bak_cap ] || cp -f src/runtime_link_abi.o src/runtime_link_abi.o.bak_cap
+    cp -f src/runtime_link_abi.o.bak_cap src/runtime_link_abi.o
+    "$_oc_od" \
+      --redefine-sym=_labi_od_simple_group_sym_count=_labi_od_simple_group_sym_count__demoted \
+      --redefine-sym=_labi_od_simple_group_sym_at=_labi_od_simple_group_sym_at__demoted \
+      src/runtime_link_abi.o \
+      && echo "g05_cap_tip_reapply: demoted link_abi option/slice needles" >&2
+    python3 scripts/g05_cap_tip_link_abi_needle_retarget.py src/runtime_link_abi.o \
+      && echo "g05_cap_tip_reapply: retargeted link_abi needle callers" >&2
+  fi
+fi
+
+# knife256/10.2: Cap tip skip-typeck dep layouts leave Split_*.left type_ref=0
+# → INDEX on sp.left fails "subscript base". Prepend field type_ref/offset softs.
+# PLATFORM: MACOS Cap tip.
+if [ -s build_asm/selfhost_pabi/typeck_field_type_ref_deps_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_field_type_ref_deps_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_field_type_ref_deps_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_field_type_ref_deps_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/typeck_field_offset_deps_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_field_offset_deps_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_field_offset_deps_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_field_offset_deps_soft.o" >&2
+      ;;
+  esac
+fi
+
 # knife256/10.2: m8 hollow glue_emit_vector_type_let_init returns 0 →
 # VAR try_let false-success (while/count-up empty body). Prepend decline (-3).
 # PLATFORM: MACOS Cap tip.

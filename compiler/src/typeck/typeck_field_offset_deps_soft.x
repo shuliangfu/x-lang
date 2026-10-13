@@ -58,6 +58,19 @@ export function typeck_get_field_offset_from_layout_deps(
         return 4;
       }
     }
+    /* Split_*: left@0 right@16 (fat slice 16B each on arm64/x64) */
+    if (type_name_len >= 8 && type_name[0] == 83 && type_name[1] == 112 &&
+        type_name[2] == 108 && type_name[3] == 105 && type_name[4] == 116 &&
+        type_name[5] == 95) {
+      if (field_name_len == 4 && field_name[0] == 108 && field_name[1] == 101 &&
+          field_name[2] == 102 && field_name[3] == 116) {
+        return 0;
+      }
+      if (field_name_len == 5 && field_name[0] == 114 && field_name[1] == 105 &&
+          field_name[2] == 103 && field_name[3] == 104 && field_name[4] == 116) {
+        return 16;
+      }
+    }
     return 0 - 1;
   }
 }

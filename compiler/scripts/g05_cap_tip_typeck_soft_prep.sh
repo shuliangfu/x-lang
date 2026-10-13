@@ -52,6 +52,10 @@ as -arch arm64 -o build_asm/selfhost_pabi/typeck_type_refs_equal_soft.o \
   || { echo "g05_cap_tip_typeck_soft_prep: equal asm soft failed" >&2; exit 1; }
 _soft_keep build_asm/selfhost_pabi/typeck_field_unknown_hard_fail_soft.o \
   src/typeck/typeck_field_unknown_hard_fail_soft.x
+_soft_keep build_asm/selfhost_pabi/typeck_field_type_ref_deps_soft.o \
+  src/typeck/typeck_field_type_ref_deps_soft.x
+_soft_keep build_asm/selfhost_pabi/typeck_field_offset_deps_soft.o \
+  src/typeck/typeck_field_offset_deps_soft.x
 OC="${LLVM_OBJCOPY:-}"
 if [ -z "$OC" ]; then
   for c in /opt/homebrew/opt/llvm/bin/llvm-objcopy /usr/local/opt/llvm/bin/llvm-objcopy; do
@@ -71,6 +75,8 @@ cp -f typeck_x.o build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
   --redefine-sym=_typeck_type_refs_equal=_typeck_type_refs_equal__demoted \
   --redefine-sym=_typeck_field_unknown_hard_fail=_typeck_field_unknown_hard_fail__demoted \
   --redefine-sym=_typeck_check_expr_try_propagate=_typeck_check_expr_try_propagate__demoted \
+  --redefine-sym=_typeck_get_field_type_ref_from_layout_deps=_typeck_get_field_type_ref_from_layout_deps__demoted \
+  --redefine-sym=_typeck_get_field_offset_from_layout_deps=_typeck_get_field_offset_from_layout_deps__demoted \
   build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 python3 scripts/g05_cap_tip_typeck_retarget.py build_asm/selfhost_pabi/typeck_x.cap_repr_weak.o
 echo "g05_cap_tip_typeck_soft_prep: OK"

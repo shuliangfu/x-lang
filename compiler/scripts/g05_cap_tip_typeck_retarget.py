@@ -48,6 +48,8 @@ def main() -> int:
         b"_typeck_type_refs_equal": b"_typeck_type_refs_equal__demoted",
         b"_typeck_field_unknown_hard_fail": b"_typeck_field_unknown_hard_fail__demoted",
         b"_typeck_check_expr_try_propagate": b"_typeck_check_expr_try_propagate__demoted",
+        b"_typeck_get_field_type_ref_from_layout_deps": b"_typeck_get_field_type_ref_from_layout_deps__demoted",
+        b"_typeck_get_field_offset_from_layout_deps": b"_typeck_get_field_offset_from_layout_deps__demoted",
     }
     demoted_names = set(demoted_of.values())
     targets = list(demoted_of.keys())
