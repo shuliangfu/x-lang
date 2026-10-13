@@ -1039,10 +1039,124 @@ int xlang_ensure_runtime_time_os_o(const char *argv0) {
   return link_abi_ensure_from_catalog(argv0, 5, p);
 }
 
-/* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
+/* Catalog host-cc of seeds/runtime_queue_contention.from_x.c defines only
+ * the mutex and worker impls. The smoke, the trampoline, and
+ * queue_smoke_push_back live in src/asm/runtime_queue_contention.x.
+ * Darwin's one merge is scripts/ensure_host_cc_seed_o.sh
+ * try-runtime-os-prefer, which ld -r's that thin with
+ * src/asm/runtime_queue_contention_darwin.x. Call that script when the
+ * object is missing or does not define sync_queue_contention_smoke_c.
+ * The defined-sym cache is keyed by path and is not invalidated, so the
+ * completeness probe copies the object to a fresh /tmp path.
+ * Cold twin of src/runtime/labi_ensure_list.x.
+ * PLATFORM: SHARED — the script owns Darwin pure merge and Linux/Windows seed policy.
+ */
 int xlang_ensure_runtime_queue_contention_o(const char *argv0) {
-  const char *p = xlang_runtime_queue_contention_o_path(argv0);
-  return link_abi_ensure_from_catalog(argv0, 6, p);
+  const char *p;
+  char comp[4096];
+  char script[4096];
+  char chk[64];
+  char rev[16];
+  const char *cp_argv[4];
+  const char *sh_argv[5];
+  const char *prefix = "/tmp/xlang_qc_chk_";
+  static int seq = 0;
+  int n;
+  int i;
+  int r;
+  int rc;
+  int defines;
+
+  p = xlang_runtime_queue_contention_o_path(argv0);
+  if (p == NULL || p[0] == 0)
+    return -1;
+  defines = 0;
+  if (asm_link_obj_skip_missing(p) != NULL) {
+    i = 0;
+    while (prefix[i] != 0) {
+      if (i >= 40)
+        return -1;
+      chk[i] = prefix[i];
+      i++;
+    }
+    n = seq;
+    seq = n + 1;
+    if (n < 0)
+      n = 0;
+    r = 0;
+    if (n == 0) {
+      rev[0] = '0';
+      r = 1;
+    } else {
+      while (n > 0) {
+        if (r >= 12)
+          return -1;
+        rev[r] = (char)('0' + (n % 10));
+        r++;
+        n /= 10;
+      }
+    }
+    while (r > 0) {
+      r--;
+      if (i >= 58)
+        return -1;
+      chk[i] = rev[r];
+      i++;
+    }
+    if (i + 3 >= (int)sizeof chk)
+      return -1;
+    chk[i++] = '.';
+    chk[i++] = 'o';
+    chk[i] = 0;
+    cp_argv[0] = "/bin/cp";
+    cp_argv[1] = p;
+    cp_argv[2] = chk;
+    cp_argv[3] = NULL;
+    if (xlang_spawn_sync("/bin/cp", cp_argv) == 0)
+      defines = xlang_link_obj_has_defined_sym(chk, "sync_queue_contention_smoke_c");
+    (void)unlink(chk);
+  }
+  if (defines != 0)
+    return 0;
+  if (xlang_resolve_compiler_dir(argv0, comp, sizeof comp) != 0)
+    return -1;
+  i = 0;
+  while (comp[i] != 0)
+    i++;
+  {
+    const char *leaf = "/scripts/ensure_host_cc_seed_o.sh";
+    int j = 0;
+    if (i + 40 >= (int)sizeof script)
+      return -1;
+    while (j < i) {
+      script[j] = comp[j];
+      j++;
+    }
+    r = 0;
+    while (leaf[r] != 0)
+      script[j++] = leaf[r++];
+    script[j] = 0;
+  }
+  if (link_abi_path_readable(script) == 0)
+    return -1;
+  /* Child inherits these. Restored after wait so the parent link stays at
+   * the product default. The script reads them when the prefer body runs. */
+  (void)setenv("XLANG_G05_PREFER_X_O", "1", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "1", 1);
+  sh_argv[0] = "/bin/bash";
+  sh_argv[1] = script;
+  sh_argv[2] = "try-runtime-os-prefer";
+  sh_argv[3] = "runtime_queue_contention.o";
+  sh_argv[4] = NULL;
+  rc = xlang_spawn_sync("/bin/bash", sh_argv);
+  (void)setenv("XLANG_G05_PREFER_X_O", "0", 1);
+  (void)setenv("XLANG_HOST_CC_SEED_FORCE", "0", 1);
+  if (rc != 0)
+    return -1;
+  /* Product path was not probed above, so this load is not a stale cache. */
+  if (xlang_link_obj_has_defined_sym(p, "sync_queue_contention_smoke_c") == 0)
+    return -1;
+  return 0;
 }
 
 /* wave174: catalog thin ensure wrap pure (cold twin ≡ labi_ensure_list.x). */
