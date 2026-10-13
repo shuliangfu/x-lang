@@ -1,6 +1,5 @@
-// knife256/10.2 Cap tip: ARRAY/SLICE/PTR call-arg → 8B E* (LEGACY print ABI).
-// backend_call_dispatch widen via named_layout(u8[12])=12 undid decay.
-// PLATFORM: SHARED — MACOS Cap tip first-wins; demote leftover T on link.
+// knife256/10.2 Cap tip: ARRAY/SLICE/PTR call-arg → 8B E*; nested Result CALL → 16.
+// PLATFORM: SHARED — MACOS Cap tip first-wins.
 export extern function pipeline_asm_call_arg_value_byte_size_c(arena: *u8, ctx: *u8, arg_ref: i32, pty: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, arg_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ty_ref: i32): i32;
@@ -10,9 +9,6 @@ export extern function pipeline_asm_type_ref_byte_size_c(arena: *u8, ty_ref: i32
 export extern function glue_sysv_dual_gp_byte_size_c(arena: *u8, ty_ref: i32): i32;
 export extern function glue_call_return_byte_size_c(arena: *u8, arg_ref: i32): i32;
 
-/**
- * SysV/AAPCS64 call-arg byte size. knife256/10.2: never widen PTR/ARRAY/SLICE.
- */
 #[no_mangle]
 export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_ref: i32): i32 {
   unsafe {
@@ -23,14 +19,12 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
   if (arena != 0 as *u8) {
     sz = pipeline_asm_call_arg_value_byte_size_c(arena, ctx, arg_ref, pty);
   }
-  // Early: arg or formal is PTR/ARRAY/SLICE → E* (keep call_arg_value decay).
   if (arena != 0 as *u8) {
     if (arg_ref > 0) {
       tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
       if (tr > 0) {
         ko = pipeline_type_kind_ord_at(arena, tr);
         if (ko == 9 || ko == 10 || ko == 11) {
-          if (sz <= 0) { return 8; }
           return 8;
         }
       }
@@ -46,23 +40,33 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
     if (arena != 0 as *u8) {
       ko = pipeline_expr_kind_ord_at(arena, arg_ref);
       if (ko == 48 || ko == 49) {
-        if (sz <= 16) {
-          if (pty > 0) {
-            alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
-            if (alt > sz) { sz = alt; }
-            alt = glue_type_named_layout_size_any_module_elf_c(arena, pty);
-            if (alt > sz) { sz = alt; }
+        // Nested Result CALL arg: call_return (mod-arena) → 16.
+        alt = glue_call_return_byte_size_c(arena, arg_ref);
+        if (alt == 16) { return 16; }
+        if (alt > 8) {
+          if (alt <= 16) {
+            return alt;
           }
-          tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
-          if (tr > 0) {
-            alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
-            if (alt > sz) { sz = alt; }
-            alt = glue_type_named_layout_size_any_module_elf_c(arena, tr);
-            if (alt > sz) { sz = alt; }
-          }
-          alt = glue_call_return_byte_size_c(arena, arg_ref);
-          if (alt > sz) { sz = alt; }
         }
+        if (pty > 0) {
+          alt = glue_sysv_dual_gp_byte_size_c(arena, pty);
+          if (alt > 8) {
+            if (alt <= 16) {
+              return alt;
+            }
+          }
+        }
+        tr = pipeline_expr_resolved_type_ref(arena, arg_ref);
+        if (tr > 0) {
+          alt = glue_sysv_dual_gp_byte_size_c(arena, tr);
+          if (alt > 8) {
+            if (alt <= 16) {
+              return alt;
+            }
+          }
+        }
+        if (sz <= 0) { return 8; }
+        return sz;
       } else {
         if (sz <= 8) {
           if (pty > 0) {
@@ -70,14 +74,6 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
             if (alt > 8) {
               if (alt <= 16) {
                 if (alt > sz) { sz = alt; }
-              }
-            }
-            if (sz <= 8) {
-              alt = pipeline_asm_type_ref_byte_size_c(arena, pty);
-              if (alt > 8) {
-                if (alt <= 16) {
-                  if (alt > sz) { sz = alt; }
-                }
               }
             }
             alt = glue_sysv_dual_gp_byte_size_c(arena, pty);
@@ -89,14 +85,6 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
             if (alt > 8) {
               if (alt <= 16) {
                 if (alt > sz) { sz = alt; }
-              }
-            }
-            if (sz <= 8) {
-              alt = pipeline_asm_type_ref_byte_size_c(arena, tr);
-              if (alt > 8) {
-                if (alt <= 16) {
-                  if (alt > sz) { sz = alt; }
-                }
               }
             }
             alt = glue_sysv_dual_gp_byte_size_c(arena, tr);
@@ -113,7 +101,6 @@ export function glue_sysv_arg_byte_size_c(arena: *u8, ctx: *u8, pty: i32, arg_re
     }
   }
   if (sz <= 0) { return 8; }
-  // w1545 Win64 mid-size byref stays in backend_call_dispatch leftover (Windows).
   return sz;
   }
 }

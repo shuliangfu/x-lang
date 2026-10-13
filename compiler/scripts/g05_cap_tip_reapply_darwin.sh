@@ -126,6 +126,129 @@ if [ -s build_asm/selfhost_pabi/match_module_slot_a64.o ]; then
   fi
 fi
 
+# knife256/10.2: Cap tip Split_* named size 0/8 → no x8 sret on split_at call.
+# Soft named_layout_size + size_simple → 32; demote/retarget pipeline_abi.
+# PLATFORM: MACOS Cap tip.
+if [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_named_layout_size_split_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/typeck_size_simple_split_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_size_simple_split_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_size_simple_split_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_size_simple_split_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/typeck_asm_local_slot_bytes_split_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/typeck_asm_local_slot_bytes_split_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/typeck_asm_local_slot_bytes_split_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended typeck_asm_local_slot_bytes_split_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/asm_local_slot_reg_offset_split_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/asm_local_slot_reg_offset_split_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/asm_local_slot_reg_offset_split_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended asm_local_slot_reg_offset_split_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/fill_local_slots_split_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/fill_local_slots_split_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/fill_local_slots_split_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended fill_local_slots_split_soft.o" >&2
+      ;;
+  esac
+fi
+
+# knife256/10.2: Result call-return size soft
+if [ -s build_asm/selfhost_pabi/call_return_byte_size_result_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/call_return_byte_size_result_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/call_return_byte_size_result_soft.o $G05_OBJS"
+      echo "g05_cap_tip_reapply: prepended call_return_byte_size_result_soft.o" >&2
+      ;;
+  esac
+fi
+if [ -s build_asm/selfhost_pabi/field_access_effective_offset_split_soft.o ]; then
+  case " $G05_OBJS " in
+    *" build_asm/selfhost_pabi/field_access_effective_offset_split_soft.o "*) ;;
+    *)
+      G05_OBJS="build_asm/selfhost_pabi/field_access_effective_offset_split_soft.o $G05_OBJS"
+      export G05_OBJS
+      echo "g05_cap_tip_reapply: prepended field_access_effective_offset_split_soft.o" >&2
+      ;;
+  esac
+fi
+_oc_sz="${LLVM_OBJCOPY:-}"
+[ -n "$_oc_sz" ] || { [ -x /opt/homebrew/opt/llvm/bin/llvm-objcopy ] && _oc_sz=/opt/homebrew/opt/llvm/bin/llvm-objcopy; }
+[ -n "$_oc_sz" ] || { [ -x /usr/local/opt/llvm/bin/llvm-objcopy ] && _oc_sz=/usr/local/opt/llvm/bin/llvm-objcopy; }
+if [ -n "$_oc_sz" ] && [ -s build_asm/selfhost_pabi/pabi_weak.o ] \
+   && [ -s build_asm/selfhost_pabi/typeck_named_layout_size_split_soft.o ]; then
+  [ -s build_asm/selfhost_pabi/pabi_weak.o.bak_cap ] || cp -f build_asm/selfhost_pabi/pabi_weak.o build_asm/selfhost_pabi/pabi_weak.o.bak_cap
+  cp -f build_asm/selfhost_pabi/pabi_weak.o.bak_cap build_asm/selfhost_pabi/pabi_weak.o
+  _sz_redefs=(
+    --redefine-sym=_glue_type_named_layout_size_any_module_elf_c=_glue_type_named_layout_size_any_module_elf_c__demoted
+  )
+  if [ -s build_asm/selfhost_pabi/typeck_size_simple_split_soft.o ]; then
+    _sz_redefs+=(--redefine-sym=_glue_type_size_simple=_glue_type_size_simple__demoted)
+  fi
+  if [ -s build_asm/selfhost_pabi/typeck_asm_local_slot_bytes_split_soft.o ]; then
+    _sz_redefs+=(--redefine-sym=_asm_local_slot_bytes=_asm_local_slot_bytes__demoted)
+  fi
+  if [ -s build_asm/selfhost_pabi/asm_local_slot_reg_offset_split_soft.o ]; then
+    _sz_redefs+=(--redefine-sym=_asm_local_slot_reg_offset=_asm_local_slot_reg_offset__demoted)
+  fi
+  if [ -s build_asm/selfhost_pabi/fill_local_slots_split_soft.o ]; then
+    _sz_redefs+=(--redefine-sym=_pipeline_asm_fill_local_slots=_pipeline_asm_fill_local_slots__demoted)
+  fi
+  if [ -s build_asm/selfhost_pabi/call_return_byte_size_result_soft.o ]; then
+    _sz_redefs+=(--redefine-sym=_glue_call_return_byte_size_c=_glue_call_return_byte_size_c__demoted)
+  fi
+  "$_oc_sz" "${_sz_redefs[@]}" build_asm/selfhost_pabi/pabi_weak.o \
+    && echo "g05_cap_tip_reapply: demoted pabi_weak Split size/slot/call_return softs" >&2
+  # Also demote tip pipeline_abi body if it still owns call_return T
+  if [ -s build_asm/selfhost_pabi/call_return_byte_size_result_soft.o ] \
+     && [ -s src/runtime_pipeline_abi.o ]; then
+    if nm src/runtime_pipeline_abi.o 2>/dev/null | grep -q 'T _glue_call_return_byte_size_c$'; then
+      "$_oc_sz" --redefine-sym=_glue_call_return_byte_size_c=_glue_call_return_byte_size_c__demoted \
+        src/runtime_pipeline_abi.o \
+        && echo "g05_cap_tip_reapply: demoted pipeline_abi call_return" >&2
+    fi
+  fi
+fi
+# Demote hollow split_at in leaf mod.o so hand-asm slice.o wins at user link.
+if [ -n "$_oc_sz" ] && [ -s ../core/slice/mod.o ]; then
+  [ -s ../core/slice/mod.o.bak_pre_split ] || cp -f ../core/slice/mod.o ../core/slice/mod.o.bak_pre_split
+  cp -f ../core/slice/mod.o.bak_pre_split ../core/slice/mod.o
+  "$_oc_sz" \
+    --redefine-sym=_core_slice_split_at_i32=_core_slice_split_at_i32__demoted \
+    --redefine-sym=_core_slice_split_at_u8=_core_slice_split_at_u8__demoted \
+    --redefine-sym=_core_slice_split_at_u64=_core_slice_split_at_u64__demoted \
+    ../core/slice/mod.o \
+    && echo "g05_cap_tip_reapply: demoted leaf mod.o split_at (slice.o wins)" >&2
+fi
+
 # knife256/10.2: Cap tip/LEGACY pure-asm of runtime_slice_glue.x is hollow
 # (bl next-insn). Install hand-asm leaf into ../core/slice/slice.o.
 # PLATFORM: MACOS Cap tip leaf (not tip product).
@@ -361,6 +484,8 @@ if [ -n "$OC" ] && [ -s src/asm/backend_call_dispatch.o ]; then
 fi
 
 rm -f xlang.cap_g05_l2
+
+
 bash scripts/g05_relink_xlang.sh
 
 if [ ! -x xlang.cap_g05_l2 ]; then
