@@ -270,7 +270,17 @@ if [ -f parser_x.o ] && [ -f lexer_x.o ]; then
       nm -gU lexer_x.o | awk '/ [Tt] /{print $3}' \
         | grep -v '^_lexer_init$' | grep -v '^lexer_init$' \
         | grep -v '^_token_is_eof$' | grep -v '^token_is_eof$' >"$_exp"
-      ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o || fail "ld -r filter lexer_init failed"
+      # Darwin: -exported_symbols_list. GNU ld.bfd: --retain-symbols-file
+      # (unknown Darwin flag is treated as a linker script → syntax error).
+      # PLATFORM: SHARED.
+      case "$(uname -s)" in
+        Darwin)
+          ld -r -o "$_lex_f" -exported_symbols_list "$_exp" lexer_x.o             || fail "ld -r filter lexer_init failed"
+          ;;
+        *)
+          ld -r -o "$_lex_f" --retain-symbols-file="$_exp" lexer_x.o             || fail "ld -r filter lexer_init failed"
+          ;;
+      esac
     fi
     _new_objs=""
     for _o in $SEED_LINK_OBJS; do
