@@ -38,6 +38,16 @@ export extern function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u
 export extern function pipeline_asm_emit_break_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_continue_elf_c(arena: *u8, elf_ctx: *u8, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_neg_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_binop_left_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_binop_right_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_emit_binop_add_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_sub_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_mul_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_div_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_mod_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_and_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_asm_emit_binop_shift_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32, is_shr: i32): i32;
+export extern function pipeline_asm_emit_binop_bitwise_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32, is_xor: i32): i32;
 export extern function pipeline_asm_emit_bitnot_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function pipeline_asm_emit_lognot_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_expr_is_await_at_c(arena: *u8, expr_ref: i32): i32;
@@ -307,6 +317,57 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   if (ko == 40) {
     unsafe {
       return pipeline_asm_emit_continue_elf_c(arena, elf_ctx, ctx, ta);
+    }
+  }
+  /* Cap tip-thin 256/10.2: EXPR_ADD..BITXOR before empty slow stub. */
+  if (ko == 4) {
+    unsafe {
+      return pipeline_asm_emit_binop_add_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 5) {
+    unsafe {
+      return pipeline_asm_emit_binop_sub_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 6) {
+    unsafe {
+      return pipeline_asm_emit_binop_mul_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 7) {
+    unsafe {
+      return pipeline_asm_emit_binop_div_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 8) {
+    unsafe {
+      return pipeline_asm_emit_binop_mod_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 9) {
+    unsafe {
+      return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+    }
+  }
+  if (ko == 10) {
+    unsafe {
+      return pipeline_asm_emit_binop_shift_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
+    }
+  }
+  if (ko == 11) {
+    unsafe {
+      return pipeline_asm_emit_binop_and_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta);
+    }
+  }
+  if (ko == 12) {
+    unsafe {
+      return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 0);
+    }
+  }
+  if (ko == 13) {
+    unsafe {
+      return pipeline_asm_emit_binop_bitwise_elf_c(arena, elf_ctx, pipeline_expr_binop_left_ref_at(arena, expr_ref), pipeline_expr_binop_right_ref_at(arena, expr_ref), ctx, ta, 1);
     }
   }
   if (ko == 22) {
