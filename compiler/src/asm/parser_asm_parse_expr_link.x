@@ -161,15 +161,15 @@ function pel_copy_slice(dst: *u8, source: *u8): void {
  */
 #[cfg(target_os = "windows")]
 #[no_mangle]
-export function parse_expr_into(arena: *u8, lexp: *u8, source: *u8, out: *u8): void {
+export function parse_expr_into(arena: *u8, lexp: *u8, source: *u8, out: *u8): i32 {
   if (lexp == 0) {
-    return;
+    return 0;
   }
   if (source == 0) {
-    return;
+    return 0;
   }
   if (out == 0) {
-    return;
+    return 0;
   }
   let lexbuf: u8[16] = [];
   let lp: *u8 = &lexbuf[0];
@@ -183,6 +183,7 @@ export function parse_expr_into(arena: *u8, lexp: *u8, source: *u8, out: *u8): v
     parser_parse_expr_into(arena, lp, srcp, outp);
   }
   pel_copy(out, outp, 24);
+  return 0;
 }
 
 /**
@@ -197,12 +198,12 @@ export function parse_expr_into(arena: *u8, lexp: *u8, source: *u8, out: *u8): v
  */
 #[cfg(not(target_os = "windows"))]
 #[no_mangle]
-export function parse_expr_into(arena: *u8, lo: u64, hi: u64, source: *u8, out: *u8): void {
+export function parse_expr_into(arena: *u8, lo: u64, hi: u64, source: *u8, out: *u8): i32 {
   if (source == 0) {
-    return;
+    return 0;
   }
   if (out == 0) {
-    return;
+    return 0;
   }
   let srcbuf: u8[16] = [];
   let srcp: *u8 = &srcbuf[0];
@@ -213,4 +214,5 @@ export function parse_expr_into(arena: *u8, lo: u64, hi: u64, source: *u8, out: 
     parser_parse_expr_into(arena, lo, hi, srcp, outp);
   }
   pel_copy(out, outp, 24);
+  return 0;
 }

@@ -3999,30 +3999,96 @@ function lexer_block_comment_prev_is_path_like(prev: u8): i32 {
  */
 // PLATFORM: SHARED — the advanced cursor is written through out.
 export function skip_whitespace_and_comments(out: *Lexer, lex: Lexer, data: u8[]): void {
-  // knife256 / 10.2: peel → buf (tip u8[] mid-fn → 0x2a). PLATFORM: SHARED.
-  let peel: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
-  let fat_hdr: *u8 = (0 as *u8);
-  unsafe {
-    memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
-    memcpy((&peel as *u8), fat_hdr, (16 as usize));
+  // 10.2 Cap tip: use u8[] .length / [] like the rest of lexer.x. The
+  // knife256 peel→park→buf path SEGV'd in dep prerun (core.option) when
+  // fat_hdr indirection / PAGEZERO park left a bad sp. PLATFORM: SHARED.
+  let l: Lexer = lex;
+  let depth: i32 = 0;
+  while (l.pos < data.length) {
+    let c: u8 = data[l.pos];
+    if (c == 32 || c == 9 || c == 10 || c == 13) {
+      advance_one(&l, c);
+    } else if (c == 47 && l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 47) {
+      while (l.pos < data.length && data[l.pos] != 10) {
+        advance_one(&l, data[l.pos]);
+      }
+    } else if (c == 47 && l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 42) {
+      let open_line: i32 = l.line;
+      let open_col: i32 = l.col;
+      advance_one(&l, 47);
+      advance_one(&l, 42);
+      depth = 1;
+      while (l.pos < data.length && depth > 0) {
+        if (l.pos + (1 as usize) < data.length && data[l.pos] == 47 && data[l.pos + (1 as usize)] == 42) {
+          let nest_ok: i32 = 1;
+          if (l.pos > (0 as usize)) {
+            let prev: u8 = data[l.pos - (1 as usize)];
+            if (lexer_block_comment_prev_is_path_like(prev) != 0) {
+              nest_ok = 0;
+            }
+          }
+          if (nest_ok != 0) {
+            if (l.pos + (2 as usize) < data.length) {
+              if (data[l.pos + (2 as usize)] == 46) {
+                nest_ok = 0;
+              }
+            }
+          }
+          if (nest_ok != 0) {
+            advance_one(&l, 47);
+            advance_one(&l, 42);
+            depth = depth + 1;
+          } else {
+            advance_one(&l, data[l.pos]);
+          }
+        } else if (l.pos + (1 as usize) < data.length && data[l.pos] == 42 && data[l.pos + (1 as usize)] == 47) {
+          advance_one(&l, 42);
+          advance_one(&l, 47);
+          depth = depth - 1;
+        } else {
+          advance_one(&l, data[l.pos]);
+        }
+      }
+      if (depth > 0) {
+        lexer_note_unclosed_block_comment(open_line, open_col);
+      }
+      depth = 0;
+    } else if (c == 35) {
+      if (l.pos + (1 as usize) < data.length && data[l.pos + (1 as usize)] == 91) {
+        unsafe { *out = (l); }
+        return;
+      } else {
+        while (l.pos < data.length && data[l.pos] != 10) {
+          advance_one(&l, data[l.pos]);
+        }
+      }
+    } else {
+      unsafe { *out = (l); }
+      return;
+    }
   }
-  skip_whitespace_and_comments_buf(out, lex, peel.data, (peel.length as i32));
+  unsafe { *out = (l); }
+  return;
 }
 
-
-/** See implementation for details. */
-/**
- * Same as skip_whitespace_and_comments for raw (data, len) buffers.
- * PLATFORM: SHARED — LANG-007 S0: slice glue is extern; call inside unsafe (Cap-T001).
- */
 export function skip_whitespace_and_comments_buf(out: *Lexer, lex: Lexer, data: *u8, len: i32): void {
   // knife256 / 10.2: park to hollow BSS; reload via out-ptr stores. PLATFORM: SHARED.
+  // 10.2 Cap tip: if park rejects (hi32==0 / null), fall back to the call args —
+  // otherwise sp stays null and sp[l.pos] SEGV in dep prerun (core.option).
   let sp: *u8 = (0 as *u8);
   let slen: usize = 0;
   unsafe {
     lexer_src_park(data, len);
     lexer_src_data_store((&sp as *u8));
     lexer_src_len_store((&slen as *u8));
+    if (sp == (0 as *u8)) {
+      sp = data;
+      if (len > 0) {
+        slen = (len as usize);
+      } else {
+        slen = (0 as usize);
+      }
+    }
   }
 
   let l: Lexer = lex;
@@ -4449,13 +4515,8 @@ export function lexer_next_body_into(out: *LexerResult, l: Lexer, data: u8[]): v
     let start_parked: usize = lexer_parked_token_start(out);
     let span_len: usize = l.pos - start_parked;
     let tok: Token = { kind: (0 as TokenKind), line: line_save, col: col_save, int_val: (0 as i64), float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
-    let peel: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
-    let fat_hdr: *u8 = (0 as *u8);
-    unsafe {
-      memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
-      memcpy((&peel as *u8), fat_hdr, (16 as usize));
-      try_keyword_buf(&tok, peel.data, (peel.length as i32), start_parked, span_len, line_save, col_save);
-    }
+    // 10.2 Cap tip: try_keyword(u8[]) — avoid peel→buf (PAGEZERO SEGV / L003 sync).
+    try_keyword(&tok, data, start_parked, span_len, line_save, col_save);
     write_next_lex_into(out, l);
     let kind_i: i32 = (tok.kind as i32);
     if (kind_i == 0) {
@@ -5209,30 +5270,17 @@ export function write_tok_into(out: *LexerResult, t: Token): void {
  */
 export function lexer_next_impl(out: *LexerResult, lex: Lexer, data: u8[]): void {
   let l: Lexer = lex;
-  // knife256 / 10.2: peel+park before skip/body; tip smashes u8[] to 0x2a.
+  // 10.2 Cap tip: direct u8[] — no peel/park (PAGEZERO/image SEGV in dep prerun).
   // PLATFORM: SHARED.
-  let peel: LexerBuf = LexerBuf { data: (0 as *u8), length: (0 as usize) };
-  let fat_hdr: *u8 = (0 as *u8);
-  unsafe {
-    memcpy((&fat_hdr as *u8), (&data as *u8), (8 as usize));
-    memcpy((&peel as *u8), fat_hdr, (16 as usize));
-    lexer_src_park(peel.data, (peel.length as i32));
-  }
   skip_whitespace_and_comments(&l, lex, data);
-  let sp: *u8 = (0 as *u8);
-  let slen: usize = 0;
-  unsafe {
-    lexer_src_data_store((&sp as *u8));
-    lexer_src_len_store((&slen as *u8));
-  }
-  if (l.pos >= slen) {
+  if (l.pos >= data.length) {
     let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
     write_tok_into(out, t);
     return;
   }
-  if (sp[l.pos] == 0) {
+  if (data[l.pos] == 0) {
     let t: Token = { kind: (0 as TokenKind), line: l.line, col: l.col, int_val: (0 as i64),
       float_val: 0.0, ident: (0 as *u8), ident_len: 0 };
     write_next_lex_into(out, l);
