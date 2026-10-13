@@ -888,16 +888,18 @@ _lexer_src_park:
 	cbz	x0, 1f
 	lsr	x2, x0, #32
 	cbz	x2, 1f
-	adrp	x2, _lexer_src_park@PAGE
-	lsr	x3, x0, #12
-	lsr	x4, x2, #12
-	sub	x3, x3, x4
+	// Reject only addresses inside the main executable image
+	// [__mh_execute_header, +12MB]. ±16MB page-neighborhood falsely
+	// rejected heap/mmap source near the tip and broke f32/L2.
+	adrp	x2, __mh_execute_header@PAGE
+	add	x2, x2, __mh_execute_header@PAGEOFF
+	sub	x3, x0, x2
 	cmp	x3, #0
-	b.ge	2f
-	neg	x3, x3
-2:
-	cmp	x3, #4096
+	b.lo	4f
+	mov	x4, #0xc00000
+	cmp	x3, x4
 	b.lo	1f
+4:
 	sxtw	x1, w1
 	cmp	x1, #0
 	b.le	1f
