@@ -15,10 +15,13 @@
 // names that field slot. A lane binop under the minus is stored by
 // the existing binop writer, then each destination lane is negated.
 // A CALL or METHOD under the minus is stored by the existing struct
-// let-init call arm, then each destination lane is negated. A decline
-// of that form stored neg of lane 0 only, so lane 1 of `let n = -id(a)`
-// was 0. f32, a lane size other than 4, a vector wider than 16, and a
-// negative immediate with lane size 8 still return -3 (neg w0 is
+// let-init call arm, then each destination lane is negated. An INDEX
+// under the minus uses that same let-init: it already copies the
+// indexed 16-byte value into the destination. A decline of that form
+// stored neg of lane 0 only, so lane 1 of `let n = -id(a)` was 0 and
+// lane 1 of `let n = -arr[1]` was 0. f32, a lane size other than 4, a
+// vector wider than 16, and a negative immediate with lane size 8
+// still return -3 (neg w0 is
 // 32-bit; the fill zero-extends). Bare CALL and VAR copy still return -3.
 // A non-SIMD type still returns
 // -3: a hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
@@ -73,9 +76,9 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * @param stack_slot_off i32 — destination slot of lane 0
  * @param type_ref i32 — let type; not a SIMD vector spelling returns -3
  * @return i32 — 0 when kind 46, a lane binop, a scalar lit, unary-minus
- *   of an integer lit, a VAR, a FIELD, a lane binop, a CALL, or a
- *   METHOD is stored; -1 when that store fails; -3 when this face does
- *   not handle the expr
+ *   of an integer lit, a VAR, a FIELD, a lane binop, a CALL, a METHOD,
+ *   or an INDEX is stored; -1 when that store fails; -3 when this face
+ *   does not handle the expr
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
  * (kind 51 is add). Kind 0 (INT_LIT) and kind 2 (BOOL_LIT) call
@@ -87,8 +90,9 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * (kinds 4..13 and 51) stores that binop with
  * pipeline_asm_emit_vector_binop_let_init_elf_c, then negates each
  * destination lane in place. Kind 22 of a CALL (kind 48) or a METHOD
- * (kind 49) stores that call with glue_emit_struct_type_let_init_elf_c,
- * then negates each destination lane in place. f32, a lane size other
+ * (kind 49) or an INDEX (kind 47) stores that value with
+ * glue_emit_struct_type_let_init_elf_c, then negates each destination
+ * lane in place. f32, a lane size other
  * than 4, a vector wider than 16, and a negative pattern whose lane is
  * 8 bytes stay declined: neg w0 is 32-bit and the fill zero-extends.
  * Bare CALL and VAR copy stay declined.
@@ -167,12 +171,13 @@ export function glue_emit_vector_type_let_init_elf_c(
       // lane-addressable here. A lane binop (kinds 4..13 and 51) is
       // stored into the destination by the existing binop writer, then
       // each of those lanes is negated in place. A CALL (kind 48) or a
-      // METHOD (kind 49) is stored by the existing struct let-init
-      // call arm, then negated the same way. Declining this stored
-      // neg of lane 0 only: lane 1 of `let v = -a` was 0, lane 1 of
-      // `let n = -h.v` was 0, lane 1 of `let n = -(a + b)` was 0, and
-      // lane 1 of `let n = -id(a)` was 0. The width gate runs before
-      // that store, so a decline emits nothing. Bare CALL stays
+      // METHOD (kind 49) or an INDEX (kind 47) is stored by the
+      // existing struct let-init, then negated the same way. Declining
+      // this stored neg of lane 0 only: lane 1 of `let v = -a` was 0,
+      // lane 1 of `let n = -h.v` was 0, lane 1 of `let n = -(a + b)`
+      // was 0, lane 1 of `let n = -id(a)` was 0, and lane 1 of
+      // `let n = -arr[1]` was 0. The width gate runs before that
+      // store, so a decline emits nothing. Bare CALL and DEREF stay
       // declined. ta != 1 stays declined.
       // PLATFORM: MACOS|ARM64.
       if (ta != 1) {
@@ -185,7 +190,7 @@ export function glue_emit_vector_type_let_init_elf_c(
       if (rc != 0) {
         from_dest = 1;
       } else {
-        if (op_ko == 48 || op_ko == 49) {
+        if (op_ko == 48 || op_ko == 49 || op_ko == 47) {
           from_dest = 2;
         } else {
           if (op_ko != 3 && op_ko != 44) {
@@ -215,10 +220,12 @@ export function glue_emit_vector_type_let_init_elf_c(
         }
       } else {
         if (from_dest == 2) {
-          // Existing call arm sets the expected return type, emits the
-          // call, and stores both halves. A hand-rolled emit would skip
-          // that widen and keep only lane 0. Non-zero may already have
-          // emitted, so do not fall through to scalar neg.
+          // CALL and METHOD set the expected return type, emit, and
+          // store both halves. INDEX uses the same let-init: lvalue
+          // address, 16-byte load, then the pair store. A hand-rolled
+          // emit of an index keeps 8 bytes. Non-zero may already have
+          // emitted, so do not fall through to scalar neg. DEREF stays
+          // out of this arm.
           // PLATFORM: MACOS|ARM64.
           unsafe {
             rc = glue_emit_struct_type_let_init_elf_c(
