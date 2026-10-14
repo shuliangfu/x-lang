@@ -40,6 +40,27 @@ function w254_sl_cell_i32(base: *u8): i32 {
   }
 }
 
+/**
+ * Store each STRUCT_LIT field into the base parked in rbx/x19.
+ * Nested STRUCT_LIT (kind 45) recurses. Other inits are emitted, then
+ * stored. VAR, FIELD, INDEX, CALL, and METHOD of 9..16 bytes spill the
+ * x0:x1 value and copy those bytes. ARRAY_LIT (kind 46) leaves the
+ * payload address in x0, so that same 9..16 window copies from the
+ * address with the existing wide-pointer sequence. An ARRAY_LIT wider
+ * than 16 stays on the 8-byte scalar store. Layouts wider than 16 for
+ * the other kinds already copy from the address in x0.
+ * @param arena *u8 — expression arena. Null returns -1.
+ * @param elf_ctx *u8 — emit context. Null returns -1.
+ * @param lit_ref i32 — STRUCT_LIT expression ref. Non-positive returns -1.
+ * @param ctx *u8 — asm ctx. Null falls back to the module ref.
+ * @param ta i32 — 0 is x86_64, 1 is arm64. The wide copy keeps this
+ *   function's existing ta == 0 or ta == 1 gate.
+ * @param base_off i32 — byte offset added to each field offset. Outside
+ *   0..4096 returns -1.
+ * @return i32 — 0 when every field is stored, -1 on encode or shape failure.
+ * PLATFORM: MACOS|DARWIN tip. Windows seed is
+ * runtime_pipeline_abi.windows_link_stubs.c and gates the same copy on ta == 1.
+ */
 #[no_mangle]
 export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: *u8, lit_ref: i32, ctx: *u8, ta: i32, base_off: i32): i32 {
   let nf: i32 = 0;
@@ -51,6 +72,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let iko: i32 = 0;
   let fty: i32 = 0;
   let wide: i32 = 0;
+  let use_ptr: i32 = 0;
   let add_x19: u32 = 0;
   let mod: *u8 = 0 as *u8;
   let cell: u8[8];
@@ -122,7 +144,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
         return 0 - 1;
       }
     }
-    if ((ta == 0 || ta == 1) && (iko == 3 || iko == 44 || iko == 47 || iko == 48 || iko == 49)) {
+    if ((ta == 0 || ta == 1) && (iko == 3 || iko == 44 || iko == 46 || iko == 47 || iko == 48 || iko == 49)) {
       fty = 0;
       wide = 0;
       if (mod != (0 as *u8)) {
@@ -140,7 +162,23 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           return 0 - 1;
         }
         add_x19 = (2432696947 as u32) | ((store_off as u32) * 1024);
+        // PLATFORM: MACOS|DARWIN. VAR, FIELD, INDEX, CALL, and METHOD of
+        // 9..16 bytes leave the value in x0:x1 and take the pair spill
+        // below. A layout wider than 16 leaves the source address in x0.
+        // ARRAY_LIT (46) always leaves the payload address in x0, so a
+        // named size of 9..16 uses that same address copy. An ARRAY_LIT
+        // wider than 16 stays on the scalar store below.
+        use_ptr = 0;
         if (wide > 16) {
+          if (iko != 46) {
+            use_ptr = 1;
+          }
+        } else {
+          if (iko == 46) {
+            use_ptr = 1;
+          }
+        }
+        if (use_ptr != 0) {
           unsafe {
             pipe_store_i32_le(&cell[0], 0, backend_enc_pop_rbx_arch(elf_ctx, ta));
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
@@ -158,24 +196,26 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           fi = fi + 1;
           continue;
         }
-        unsafe {
-          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32));
-          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 4181724147 as u32));
-          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-          if (store_off > 0) {
-            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+        if (iko != 46) {
+          unsafe {
+            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2847868896 as u32));
+            if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 4181724147 as u32));
+            if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            if (store_off > 0) {
+              pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, add_x19));
+              if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            }
+            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32));
+            if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, wide, ta));
+            if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+            pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2432713727 as u32));
             if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
           }
-          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2432697312 as u32));
-          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-          pipe_store_i32_le(&cell[0], 0, glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx, 0 - 3, wide, ta));
-          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
-          pipe_store_i32_le(&cell[0], 0, backend_enc_append_u32_le_c(elf_ctx, 2432713727 as u32));
-          if (w254_sl_cell_i32(&cell[0]) != 0) { return 0 - 1; }
+          fi = fi + 1;
+          continue;
         }
-        fi = fi + 1;
-        continue;
       }
     }
     unsafe {
