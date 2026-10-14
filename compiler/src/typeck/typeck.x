@@ -10272,6 +10272,8 @@ decl_ty_ref: i32): i32 {
     let quad_k: i32 = 0;
     let pent_ref: i32 = 0;
     let pent_k: i32 = 0;
+    let hex_ref: i32 = 0;
+    let hex_k: i32 = 0;
     let ntypes_s: i32 = 0;
     if (ast.ref_is_null(init_ref) || ast.ref_is_null(decl_ty_ref)) {
       return 0;
@@ -10285,9 +10287,9 @@ decl_ty_ref: i32): i32 {
     /*
      * TYPE_VECTOR of i32 (Vec8i) does not take the kind-8 soft equality
      * that lets `let v: i32x8 = ~1` through. Codegen already splats an
-     * INT_LIT and one, two, three, or four more unaries of that lit into
+     * INT_LIT and one, two, three, four, or five more unaries of that lit into
      * that slot. Stamp the declared vector type so the
-     * let equal-check sees one type. A sixth unary, a VAR, a binop,
+     * let equal-check sees one type. A seventh unary, a VAR, a binop,
      * or a float vector stays on the later coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
@@ -10321,11 +10323,11 @@ decl_ty_ref: i32): i32 {
                 }
                 /*
                  * One more unary of a non-null INT_LIT, and one, two, or
-                 * three unaries beyond that: ~(-3), ~(~(-3)), ~(~(~(-3))),
-                 * and -(~(~(~(-3)))).
-                 * A sixth unary is kind 22 or 23 at the deepest operand,
+                 * four unaries beyond that: ~(-3), ~(~(-3)), ~(~(~(-3))),
+                 * -(~(~(~(-3)))), and -(~(~(~(~(-3))))).
+                 * A seventh unary is kind 22 or 23 at the deepest operand,
                  * not INT_LIT, so it stays unstamped. The emitter folds
-                 * five and declines six. VAR, binop, CALL, keyword null, and
+                 * six and declines seven. VAR, binop, CALL, keyword null, and
                  * LOGNOT stay off. PLATFORM: SHARED.
                  */
                 if (op_k == 22) {
@@ -10372,7 +10374,7 @@ decl_ty_ref: i32): i32 {
                             }
                             /*
                              * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                             * separate compares. A sixth unary stays 22 or 23, so it is not
+                             * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
                              * stamped. PLATFORM: SHARED.
                              */
 
@@ -10388,6 +10390,28 @@ decl_ty_ref: i32): i32 {
                                 if (pent_k == 0) {
                                   if (pipeline_expr_is_null_keyword_c(arena, pent_ref) == 0) {
                                     splat_ok = 1;
+                                  }
+                                }
+                                /*
+                                 * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                                 * separate compares. A seventh unary stays 22 or 23, so it is
+                                 * not stamped. The new ref is range-checked. The emitter
+                                 * folds six and declines seven. PLATFORM: SHARED.
+                                 */
+                                if (pent_k == 22) {
+                                  hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                                }
+                                if (pent_k == 23) {
+                                  hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                                }
+                                if (hex_ref > 0) {
+                                  if (hex_ref <= arena.num_exprs) {
+                                    hex_k = pipeline_expr_kind_ord_at(arena, hex_ref);
+                                    if (hex_k == 0) {
+                                      if (pipeline_expr_is_null_keyword_c(arena, hex_ref) == 0) {
+                                        splat_ok = 1;
+                                      }
+                                    }
                                   }
                                 }
                               }
@@ -11495,10 +11519,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @return i32 — 0 when the assign typechecks, -1 on failure
  * Plain ASSIGN of an INT_LIT onto a VAR or FIELD of TYPE_VECTOR i32,
  * of unary minus / bitwise not of an INT_LIT, or of one, two, three, or
- * four more unaries of that lit, onto a VAR or FIELD of that vector, is stamped
+ * five more unaries of that lit, onto a VAR or FIELD of that vector, is stamped
  * with the LHS type before the RHS is checked. Let-init already
  * accepts that splat, and the field store fills every lane. Compound
- * assign, an i32 variable RHS, a binop, keyword null, a sixth unary,
+ * assign, an i32 variable RHS, a binop, keyword null, a seventh unary,
  * LOGNOT, deref, and a non-i32 element (Vec4f) are not stamped. The
  * linked body is the assign thin; this function is the source authority.
  * PLATFORM: SHARED — the type rule is the same on every host.
@@ -11663,12 +11687,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * lit checker no-ops when already resolved, and the unary checker
      * keeps this type instead of restamping i32. A bare INT_LIT is
      * stamped for a VAR or a FIELD. Unary minus / bitwise not of an
-     * INT_LIT, and one, two, three, or four more unaries of that lit, are
+     * INT_LIT, and one, two, three, four, or five more unaries of that lit, are
      * stamped for a VAR or a FIELD. The field store fills every lane of
      * an INT_LIT wider than 16 bytes, and kind 22 or 23 calls the same
      * let-init, so `h.v = -(~(~(~(-3))))` is the same splat as the let.
      * Compound assign (kinds 29..39) is not a splat. An i32 variable, a
-     * binop, keyword null, a sixth unary, LOGNOT, deref, and a non-i32
+     * binop, keyword null, a seventh unary, LOGNOT, deref, and a non-i32
      * element (Vec4f) are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
@@ -11694,6 +11718,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             let splat_quad_k: i32 = 0;
             let splat_pent: i32 = 0;
             let splat_pent_k: i32 = 0;
+            let splat_hex: i32 = 0;
+            let splat_hex_k: i32 = 0;
             if (splat_elem > 0) {
               if (splat_elem <= splat_nt) {
                 if (pipeline_type_kind_ord_at(arena, splat_elem) == 0) {
@@ -11729,10 +11755,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                     }
                     /*
                      * One more unary of a non-null INT_LIT, and exactly
-                     * one, two, or three unaries beyond that, still only a VAR or a
-                     * FIELD. A sixth unary, an i32 variable, a binop,
+                     * one, two, three, or four unaries beyond that, still only a VAR or a
+                     * FIELD. A seventh unary, an i32 variable, a binop,
                      * keyword null, and LOGNOT stay unstamped. The
-                     * emitter folds five and declines six.
+                     * emitter folds six and declines seven.
                      * PLATFORM: SHARED.
                      */
                     if (splat_op_k == 22) {
@@ -11791,7 +11817,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                           }
                           /*
                            * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                           * separate compares. A sixth unary stays 22 or 23, so it is not
+                           * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
                            * stamped. PLATFORM: SHARED.
                            */
 
@@ -11810,6 +11836,31 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                 }
                                 if (splat_lhs_k == ord_field) {
                                   splat_ok = 1;
+                                }
+                              }
+                            }
+                            /*
+                             * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                             * separate compares. A seventh unary stays 22 or 23, so it is
+                             * not stamped. The emitter folds six and declines seven.
+                             * Still only a VAR or a FIELD. PLATFORM: SHARED.
+                             */
+                            if (splat_pent_k == 22) {
+                              splat_hex = pipeline_expr_unary_operand_ref_at(arena, splat_pent);
+                            }
+                            if (splat_pent_k == 23) {
+                              splat_hex = pipeline_expr_unary_operand_ref_at(arena, splat_pent);
+                            }
+                            if (splat_hex > 0) {
+                              splat_hex_k = pipeline_expr_kind_ord_at(arena, splat_hex);
+                              if (splat_hex_k == ord_lit) {
+                                if (typeck_expr_is_null_keyword(arena, splat_hex) == 0) {
+                                  if (splat_lhs_k == ord_var) {
+                                    splat_ok = 1;
+                                  }
+                                  if (splat_lhs_k == ord_field) {
+                                    splat_ok = 1;
+                                  }
                                 }
                               }
                             }
@@ -15879,11 +15930,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * and ~ on a non-i32 vector), vector comparison, and non-bool
  * LOGNOT operands.
  * An already-resolved unary minus or bitwise not of a non-null INT_LIT,
- * or of one, two, three, or four more unaries of that lit, whose type is an i32
+ * or of one, two, three, four, or five more unaries of that lit, whose type is an i32
  * TYPE_VECTOR keeps that stamp. Assign pre-stamps `~1` / `-3`,
  * `~(-3)` / `-(~1)`, and `-(~(~(~(-3))))` onto Vec8i; the immediate operand
  * is typechecked with expected 0 and the demoted body is not called, so
- * it cannot restamp i32. A sixth unary is not kept. Let-init does not
+ * it cannot restamp i32. A seventh unary is not kept. Let-init does not
  * pre-stamp, so it still uses the later coerce.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
@@ -15908,10 +15959,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * Assign of `~1` / `-3` onto an i32 TYPE_VECTOR pre-stamps this
      * unary with that vector type. The demoted body restamps i32 and
      * would drop the splat. When this expr is already a TYPE_VECTOR of
-     * i32 and the operand is a non-null INT_LIT, or one, two, three, or four
+     * i32 and the operand is a non-null INT_LIT, or one, two, three, four, or five
      * more unaries of one, typecheck the immediate operand with
      * expected 0 and keep the stamp. Expected 0 keeps that operand a
-     * scalar. A sixth unary falls through. Let-init does not pre-stamp,
+     * scalar. A seventh unary falls through. Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
      * Two compares, not a chained && : the bootstrap image
      * clobbers the register a chained compare reuses.
@@ -15931,6 +15982,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       let pre_quad_k: i32 = 0;
       let pre_pent: i32 = 0;
       let pre_pent_k: i32 = 0;
+      let pre_hex: i32 = 0;
+      let pre_hex_k: i32 = 0;
       let pre_nt: i32 = 0;
       if (expr_kind == ord_neg) {
         pre_keep = 1;
@@ -15959,9 +16012,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                       }
                       /*
                        * One more unary of a non-null INT_LIT, and
-                       * exactly one, two, or three unaries beyond that. The keep
+                       * exactly one, two, three, or four unaries beyond that. The keep
                        * below checks op_ref with expected 0, so the inner
-                       * unaries stay scalar. A sixth unary is not
+                       * unaries stay scalar. A seventh unary is not
                        * INT_LIT. LOGNOT does not set pre_keep.
                        * PLATFORM: SHARED.
                        */
@@ -16006,7 +16059,7 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                             }
                             /*
                              * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                             * separate compares. A sixth unary stays 22 or 23, so it is not
+                             * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
                              * stamped. PLATFORM: SHARED.
                              */
 
@@ -16021,6 +16074,26 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                               if (pre_pent_k == 0) {
                                 if (typeck_expr_is_null_keyword(arena, pre_pent) == 0) {
                                   pre_keep = 1;
+                                }
+                              }
+                              /*
+                               * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                               * separate compares. A seventh unary stays 22 or 23, so it is
+                               * not kept. The keep below still checks op_ref with expected 0.
+                               * PLATFORM: SHARED.
+                               */
+                              if (pre_pent_k == ord_neg) {
+                                pre_hex = pipeline_expr_unary_operand_ref_at(arena, pre_pent);
+                              }
+                              if (pre_pent_k == ord_bitnot) {
+                                pre_hex = pipeline_expr_unary_operand_ref_at(arena, pre_pent);
+                              }
+                              if (pre_hex > 0) {
+                                pre_hex_k = pipeline_expr_kind_ord_at(arena, pre_hex);
+                                if (pre_hex_k == 0) {
+                                  if (typeck_expr_is_null_keyword(arena, pre_hex) == 0) {
+                                    pre_keep = 1;
+                                  }
                                 }
                               }
                             }

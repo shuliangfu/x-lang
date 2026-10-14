@@ -2,8 +2,8 @@
 // Source authority is the i32 TYPE_VECTOR splat in typeck.x. Cap tip -c
 // of that mega emits a hollow mov w0,#0; ret, so this thin is what the
 // link runs. An INT_LIT, unary minus / bitwise not of an INT_LIT, or
-// one, two, three, or four more unaries of that unary, into a TYPE_VECTOR
-// of i32 is stamped with the declared type. A sixth unary calls the
+// one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
+// of i32 is stamped with the declared type. A seventh unary calls the
 // demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
@@ -29,7 +29,7 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * soft equality, so `let v: i32x8 = ~1` typechecks. Kind 13 does not, so
  * `let v: Vec8i = ~1` was "expected ?, found i32". The vector let-init
  * already splats INT_LIT, unary -/~ of an INT_LIT, and one, two,
- * three, or four more unary -/~ of that unary. A sixth
+ * three, four, or five more unary -/~ of that unary. A seventh
  * unary, a variable, a binop,
  * keyword null, and a float vector stay on the demoted body.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -62,6 +62,8 @@ export function typeck_coerce_init_expr_to_decl(
     let quad_k: i32 = 0;
     let pent_ref: i32 = 0;
     let pent_k: i32 = 0;
+    let hex_ref: i32 = 0;
+    let hex_k: i32 = 0;
     let ntypes: i32 = 0;
     if (arena == 0 as *u8 || init_ref <= 0 || decl_ty_ref <= 0) {
       return typeck_coerce_init_expr_to_decl__demoted(
@@ -104,11 +106,11 @@ export function typeck_coerce_init_expr_to_decl(
               }
               /*
                * One more unary of a non-null INT_LIT, and one, two, or
-               * three unaries beyond that: ~(-3), ~(~(-3)), ~(~(~(-3))),
-               * and -(~(~(~(-3)))).
-               * A sixth unary is kind 22 or 23 at the deepest operand,
+               * four unaries beyond that: ~(-3), ~(~(-3)), ~(~(~(-3))),
+               * -(~(~(~(-3)))), and -(~(~(~(~(-3))))).
+               * A seventh unary is kind 22 or 23 at the deepest operand,
                * not INT_LIT, so it stays unstamped. The emitter folds
-               * five and declines six. VAR, binop, CALL, keyword null, and
+               * six and declines seven. VAR, binop, CALL, keyword null, and
                * LOGNOT stay off. PLATFORM: SHARED.
                */
               if (op_k == ord_neg) {
@@ -152,7 +154,7 @@ export function typeck_coerce_init_expr_to_decl(
                     }
                     /*
                      * Fifth unary of a non-null INT_LIT. Kind 22 and kind 23 are
-                     * separate compares. A sixth unary stays 22 or 23, so it is not
+                     * separate compares. One more unary of this wrapper is stamped below. A seventh unary stays 22 or 23, so it is not
                      * stamped. PLATFORM: SHARED.
                      */
 
@@ -167,6 +169,26 @@ export function typeck_coerce_init_expr_to_decl(
                       if (pent_k == ord_lit) {
                         if (pipeline_expr_is_null_keyword_c(arena, pent_ref) == 0) {
                           splat_ok = 1;
+                        }
+                      }
+                      /*
+                       * Sixth unary of a non-null INT_LIT. Kind 22 and kind 23 are
+                       * separate compares. A seventh unary stays 22 or 23, so it is
+                       * not stamped. The emitter folds six and declines seven.
+                       * PLATFORM: SHARED.
+                       */
+                      if (pent_k == ord_neg) {
+                        hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                      }
+                      if (pent_k == ord_bitnot) {
+                        hex_ref = pipeline_expr_unary_operand_ref_at(arena, pent_ref);
+                      }
+                      if (hex_ref > 0) {
+                        hex_k = pipeline_expr_kind_ord_at(arena, hex_ref);
+                        if (hex_k == ord_lit) {
+                          if (pipeline_expr_is_null_keyword_c(arena, hex_ref) == 0) {
+                            splat_ok = 1;
+                          }
                         }
                       }
                     }
