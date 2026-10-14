@@ -1554,7 +1554,10 @@ export function math_atan2_c(y: f64, x: f64): f64 {
  *    carry into q.
  * All u32 arithmetic wraps (matching C unsigned); m>>1 is expressed as
  * (m - (m&1))/2 so negative m keeps arithmetic-shift semantics regardless
- * of the .x shift lowering. PLATFORM: SHARED freestanding (no libm).
+ * of the .x shift lowering. The tiny probe and the result bits are copied
+ * into their f64 locals with memcpy. A store through the punned pointer
+ * is not emitted.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_sqrt_c(x: f64): f64 {
@@ -1563,10 +1566,9 @@ export function math_sqrt_c(x: f64): f64 {
    * so the one-tiny/one+tiny probes collapse to one under round-to-nearest;
    * built from its exact bit pattern (Python-verified). */
   let tiny: f64 = 0.0;
-  unsafe {
-    let pt: *u64 = &tiny as *u64;
-    *pt = 118622047889322841;   /* 0x01a56e1fc2f8f359 = 1.0e-300 */
-  }
+  let tiny_bits: u64 = 118622047889322841; /* 0x01a56e1fc2f8f359 */
+  // *pt = is a deref assign and is not emitted. Copy the 8 bits into tiny.
+  unsafe { memcpy(&tiny as *u8, &tiny_bits as *u8, 8); }
   /* Local copy (parameter reassignment avoided by style). */
   let r: f64 = x;
   let pr: *u64 = &r as *u64;
@@ -1693,10 +1695,9 @@ export function math_sqrt_c(x: f64): f64 {
   }
   hi0 = hi0 + ((m << 20) as u32);  /* exponent scale (wraps like C int) */
   let z: f64 = 0.0;
-  unsafe {
-    let pz: *u64 = &z as *u64;
-    *pz = ((hi0 as u64) << 32) | (lo0 as u64);
-  }
+  let z_bits: u64 = ((hi0 as u64) << 32) | (lo0 as u64);
+  // *pz = is a deref assign and is not emitted. Copy the 8 bits into z.
+  unsafe { memcpy(&z as *u8, &z_bits as *u8, 8); }
   return z;
 }
 
