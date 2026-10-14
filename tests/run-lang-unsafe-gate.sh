@@ -110,9 +110,14 @@ done
 if ! grep -qE '^## Gate[[:space:]]*$' "$DOC"; then
   die "doc missing ## Gate section"
 fi
-# U4: unsafe keyword must stay reserved in lexer / stretch slice.
-if ! grep -q '"unsafe"' compiler/seeds/parser_asm/parser_asm_emit_heavy_stretch_slice.inc 2>/dev/null \
-  && ! grep -q 'unsafe' compiler/src/lexer/token.x 2>/dev/null; then
+# U4: unsafe spelling must stay in the live stretch keyword table.
+# The heavy stretch .inc was emptied; its C string table is not the authority.
+# The byte row is u-n-s-a-f-e (117,110,115,97,102,101) in pthin_stretch.x.
+# The lexer keeps the word as IDENT. pthin_expr_primary.x enters
+# parse_unsafe_x after that ident. token.x has no TOKEN_UNSAFE on purpose.
+# PLATFORM: SHARED — probe the live table, not the emptied slice.
+if ! grep -q '117, 110, 115, 97, 102, 101' compiler/src/asm/pthin_stretch.x 2>/dev/null \
+  || ! grep -q 'parser_asm_primary_parse_unsafe_x_into_c' compiler/src/asm/pthin_expr_primary.x 2>/dev/null; then
   die "unsafe keyword not reserved in lexer"
 fi
 echo "lang-unsafe manifest OK"
