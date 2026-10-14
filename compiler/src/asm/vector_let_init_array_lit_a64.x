@@ -12,10 +12,11 @@
 // home negates each i32 lane with the existing neg w0. A decline of
 // that form stored neg of lane 0 only, so lane 1 of `let v = -a` was 0
 // and lane 1 of `let n = -h.v` was 0. The existing lane-home helper
-// names that field slot. f32, a
-// lane size other than 4, a vector wider than 16, and a negative
-// immediate with lane size 8 still return -3 (neg w0 is 32-bit; the
-// fill zero-extends). CALL, binop, and VAR copy still return -3.
+// names that field slot. A lane binop under the minus is stored by
+// the existing binop writer, then each destination lane is negated.
+// f32, a lane size other than 4, a vector wider than 16, and a
+// negative immediate with lane size 8 still return -3 (neg w0 is
+// 32-bit; the fill zero-extends). CALL and VAR copy still return -3.
 // A non-SIMD type still returns
 // -3: a hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
 // Windows keeps seeds/win_vector_type_let_init_override.c. Do not link
@@ -65,7 +66,7 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * @param stack_slot_off i32 — destination slot of lane 0
  * @param type_ref i32 — let type; not a SIMD vector spelling returns -3
  * @return i32 — 0 when kind 46, a lane binop, a scalar lit, unary-minus
- *   of an integer lit, or unary-minus of a VAR or FIELD is stored;
+ *   of an integer lit, a VAR, a FIELD, or a lane binop is stored;
  *   -1 when that store fails; -3 when this face does not handle the expr
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
@@ -74,10 +75,13 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * negates that value and calls the same fill. Kind 22 of a VAR (kind
  * 3) or a FIELD (kind 44) with a frame home negates each i32 lane via
  * neg w0. The home comes from glue_vector_var_lane_stack_off_elf_c.
- * A negative home declines before any emit. f32, a lane size other
- * than 4, a vector wider than 16, and a negative pattern whose lane
- * is 8 bytes stay declined: neg w0 is 32-bit and the fill
- * zero-extends. CALL, binop, and VAR copy stay declined.
+ * A negative home declines before any emit. Kind 22 of a lane binop
+ * (kinds 4..13 and 51) stores that binop with
+ * pipeline_asm_emit_vector_binop_let_init_elf_c, then negates each
+ * destination lane in place. f32, a lane size other than 4, a vector
+ * wider than 16, and a negative pattern whose lane is 8 bytes stay
+ * declined: neg w0 is 32-bit and the fill zero-extends. CALL and VAR
+ * copy stay declined.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -96,6 +100,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   let neg_lit: i32 = 0;
   let lane_i: i32 = 0;
   let src_off: i32 = 0;
+  let from_dest: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -149,18 +154,27 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     if (op_ko != 0) {
       // Non-literal NEG. A VAR (kind 3) or a FIELD (kind 44) is
-      // lane-addressable here. Each lane is loaded, negated with the
-      // existing neg w0, and stored. Declining this stored neg of lane
-      // 0 only: lane 1 of `let v = -a` was 0, and lane 1 of `let n = -h.v`
-      // was 0 after the field held the inline lanes. The existing
-      // glue_vector_var_lane_stack_off_elf_c names that home. A negative
-      // home returns -3 before any emit. f32 is not integer neg. Lane
-      // size other than 4, and a vector wider than 16, stay declined
-      // (neg w0 is 32-bit). CALL and binop stay declined.
-      // ta != 1 stays declined: this body is the Darwin arm64 let-init.
+      // lane-addressable here. A lane binop (kinds 4..13 and 51) is
+      // stored into the destination by the existing binop writer, then
+      // each of those lanes is negated in place. Declining this stored
+      // neg of lane 0 only: lane 1 of `let v = -a` was 0, lane 1 of
+      // `let n = -h.v` was 0, and lane 1 of `let n = -(a + b)` was 0.
+      // The width gate runs before that store, so a decline emits
+      // nothing. CALL stays declined. ta != 1 stays declined.
       // PLATFORM: MACOS|ARM64.
-      if (ta != 1 || (op_ko != 3 && op_ko != 44)) {
+      if (ta != 1) {
         return 0 - 3;
+      }
+      from_dest = 0;
+      unsafe {
+        rc = glue_is_vector_lane_scalar_binop_ko(op_ko);
+      }
+      if (rc != 0) {
+        from_dest = 1;
+      } else {
+        if (op_ko != 3 && op_ko != 44) {
+          return 0 - 3;
+        }
       }
       unsafe {
         rc = glue_vector_elem_is_f32_c(arena, type_ref);
@@ -174,22 +188,36 @@ export function glue_emit_vector_type_let_init_elf_c(
       if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0 || (lanes_s[0] * esz_s[0]) > 16) {
         return 0 - 3;
       }
-      lane_i = 0;
-      while (lane_i < lanes_s[0]) {
+      if (from_dest != 0) {
         unsafe {
-          src_off = glue_vector_var_lane_stack_off_elf_c(
-            arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+          rc = pipeline_asm_emit_vector_binop_let_init_elf_c(
+            arena, elf_ctx, lit_ref, ctx, ta, stack_slot_off, type_ref);
         }
-        if (src_off < 0) {
-          return 0 - 3;
+        if (rc != 0) {
+          return 0 - 1;
         }
-        lane_i = lane_i + 1;
+      } else {
+        lane_i = 0;
+        while (lane_i < lanes_s[0]) {
+          unsafe {
+            src_off = glue_vector_var_lane_stack_off_elf_c(
+              arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+          }
+          if (src_off < 0) {
+            return 0 - 3;
+          }
+          lane_i = lane_i + 1;
+        }
       }
       lane_i = 0;
       while (lane_i < lanes_s[0]) {
-        unsafe {
-          src_off = glue_vector_var_lane_stack_off_elf_c(
-            arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+        if (from_dest != 0) {
+          src_off = stack_slot_off + (lane_i * esz_s[0]);
+        } else {
+          unsafe {
+            src_off = glue_vector_var_lane_stack_off_elf_c(
+              arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+          }
         }
         unsafe {
           rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off, esz_s[0], ta);
