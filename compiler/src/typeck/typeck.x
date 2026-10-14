@@ -10436,11 +10436,12 @@ decl_ty_ref: i32): i32 {
            * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, one unary minus of
            * a FLOAT_LIT, one more unary minus of that, one unary
            * beyond that, one unary beyond that, one unary beyond
-           * that, or one unary beyond that, is the same splat the
-           * emitter fills. Two minuses cancel. Three minuses apply
-           * the sign once. Four minuses cancel again. Five minuses
-           * apply the sign once more. Six minuses cancel again.
-           * Kind 1 and kind 22 are separate compares. A seventh unary
+           * that, one unary beyond that, or one unary beyond that,
+           * is the same splat the emitter fills. Two minuses cancel.
+           * Three minuses apply the sign once. Four minuses cancel
+           * again. Five minuses apply the sign once more. Six minuses
+           * cancel again. Seven minuses apply the sign once more.
+           * Kind 1 and kind 22 are separate compares. An eighth unary
            * stays kind 22 at the inner operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter. The
            * operand refs are range-checked. PLATFORM: SHARED.
@@ -10458,6 +10459,8 @@ decl_ty_ref: i32): i32 {
             let f_pent_k: i32 = 0;
             let f_hex: i32 = 0;
             let f_hex_k: i32 = 0;
+            let f_sept: i32 = 0;
+            let f_sept_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -10476,8 +10479,9 @@ decl_ty_ref: i32): i32 {
                  * leaves the sign bit clear. One unary beyond that
                  * applies the sign once. One unary beyond that cancels
                  * again. One unary beyond that applies the sign once
-                 * more. One unary beyond that cancels again. A seventh
-                 * unary is kind 22 here, not kind 1.
+                 * more. One unary beyond that cancels again. Seven
+                 * minuses apply the sign once. An eighth unary is kind
+                 * 22 here, not kind 1.
                  * The new ref is range-checked. PLATFORM: SHARED.
                  */
                 if (fop_k == 22) {
@@ -10522,8 +10526,9 @@ decl_ty_ref: i32): i32 {
                                         /*
                                          * Six minuses: the innermost is a FLOAT_LIT.
                                          * The emitter leaves the sign bit clear.
-                                         * A seventh unary is kind 22 here, not
-                                         * kind 1. The new ref is range-checked.
+                                         * Seven minuses apply the sign once. An
+                                         * eighth unary is kind 22 here, not kind 1.
+                                         * The new ref is range-checked.
                                          * PLATFORM: SHARED.
                                          */
                                         if (f_pent_k == 22) {
@@ -10533,6 +10538,24 @@ decl_ty_ref: i32): i32 {
                                               f_hex_k = pipeline_expr_kind_ord_at(arena, f_hex);
                                               if (f_hex_k == 1) {
                                                 splat_ok = 1;
+                                              }
+                                              /*
+                                               * Seven minuses: the innermost is a
+                                               * FLOAT_LIT. The emitter applies the
+                                               * sign once. An eighth unary is kind
+                                               * 22 here, not kind 1. Load the operand
+                                               * of f_hex only. PLATFORM: SHARED.
+                                               */
+                                              if (f_hex_k == 22) {
+                                                f_sept = pipeline_expr_unary_operand_ref_at(arena, f_hex);
+                                                if (f_sept > 0) {
+                                                  if (f_sept <= arena.num_exprs) {
+                                                    f_sept_k = pipeline_expr_kind_ord_at(arena, f_sept);
+                                                    if (f_sept_k == 1) {
+                                                      splat_ok = 1;
+                                                    }
+                                                  }
+                                                }
                                               }
                                             }
                                           }
