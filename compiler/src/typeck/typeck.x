@@ -10290,10 +10290,10 @@ decl_ty_ref: i32): i32 {
      * INT_LIT and one, two, three, four, or five more unaries of that lit into
      * that slot. Stamp the declared vector type so the
      * let equal-check sees one type. A TYPE_VECTOR of f32 stamps a
-     * FLOAT_LIT and one through eight unary minuses of that literal.
-     * Two, four, six, and eight minuses cancel. Three, five, and
-     * seven apply the sign once. A ninth f32 unary, a bitwise not, a
-     * seventh i32 unary, a VAR, or a binop stays on the later
+     * FLOAT_LIT and one through nine unary minuses of that literal.
+     * Two, four, six, and eight minuses cancel. Three, five, seven,
+     * and nine apply the sign once. A tenth f32 unary, a bitwise not,
+     * a seventh i32 unary, a VAR, or a binop stays on the later
      * coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
@@ -10436,9 +10436,9 @@ decl_ty_ref: i32): i32 {
            * that, one unary beyond that, or one unary beyond that,
            * or one unary beyond that, is the same splat the emitter
            * fills. Two, four, six, and eight minuses cancel. Three,
-           * five, and seven apply the sign once. Kind 1 and kind 22
-           * are separate compares. A ninth unary stays kind 22 at the
-           * inner operand, so it is not stamped.
+           * five, seven, and nine apply the sign once. Kind 1 and kind
+           * 22 are separate compares. A tenth unary stays kind 22 at
+           * the inner operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter. The
            * operand refs are range-checked. PLATFORM: SHARED.
            */
@@ -10459,6 +10459,8 @@ decl_ty_ref: i32): i32 {
             let f_sept_k: i32 = 0;
             let f_oct: i32 = 0;
             let f_oct_k: i32 = 0;
+            let f_nona: i32 = 0;
+            let f_nona_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -10556,10 +10558,11 @@ decl_ty_ref: i32): i32 {
                                                     /*
                                                      * Eight minuses: the innermost is a
                                                      * FLOAT_LIT. Four pairs cancel, so
-                                                     * the sign bit stays clear. A ninth
-                                                     * unary is kind 22 here, not kind 1.
-                                                     * Load the operand of f_sept only.
-                                                     * The new ref is range-checked.
+                                                     * the sign bit stays clear. Nine
+                                                     * minuses apply the sign once. A
+                                                     * tenth unary is kind 22 here, not
+                                                     * kind 1. Load the operand of f_sept
+                                                     * only. The new ref is range-checked.
                                                      * PLATFORM: SHARED.
                                                      */
                                                     if (f_sept_k == 22) {
@@ -10569,6 +10572,25 @@ decl_ty_ref: i32): i32 {
                                                           f_oct_k = pipeline_expr_kind_ord_at(arena, f_oct);
                                                           if (f_oct_k == 1) {
                                                             splat_ok = 1;
+                                                          }
+                                                          /*
+                                                           * Nine minuses: the innermost is a
+                                                           * FLOAT_LIT. The emitter applies the
+                                                           * sign once. A tenth unary is kind 22
+                                                           * here, not kind 1. Load the operand
+                                                           * of f_oct only. The new ref is
+                                                           * range-checked. PLATFORM: SHARED.
+                                                           */
+                                                          if (f_oct_k == 22) {
+                                                            f_nona = pipeline_expr_unary_operand_ref_at(arena, f_oct);
+                                                            if (f_nona > 0) {
+                                                              if (f_nona <= arena.num_exprs) {
+                                                                f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
+                                                                if (f_nona_k == 1) {
+                                                                  splat_ok = 1;
+                                                                }
+                                                              }
+                                                            }
                                                           }
                                                         }
                                                       }
