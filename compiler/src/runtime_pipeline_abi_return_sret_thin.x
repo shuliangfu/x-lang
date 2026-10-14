@@ -55,6 +55,10 @@ export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et:
 export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
 export extern function glue_peel_as_array_slice_ascription_c(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function pipeline_type_array_size_at(arena: *u8, type_ref: i32): i32;
+export extern function glue_var_expr_stack_off_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function pipeline_expr_field_access_base_ref(arena: *u8, expr_ref: i32): i32;
 export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
@@ -337,7 +341,14 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * An ARRAY_LIT operand whose function return type is TYPE_ARRAY calls
  * glue_asm_emit_array_lit_durable_ptr_rax_elf_c first. Success leaves a
  * durable element pointer in rax/x0 and skips emit_expr. Any other result
- * falls through to emit_expr. A VAR return of a small array is unchanged.
+ * falls through to emit_expr. A VAR return of a small array is unchanged
+ * when the function return type is TYPE_ARRAY (the value stays in rax/x0).
+ * A VAR whose declared type is TYPE_ARRAY, returned as TYPE_SLICE, leas
+ * that slot and moves the element count into x1 (arm64) or rdx (SysV).
+ * A FIELD whose base is a VAR, whose field type is TYPE_ARRAY, and whose
+ * function returns TYPE_SLICE calls emit_expr once (that already leaves
+ * the field address in rax/x0) and then moves the element count into x1
+ * (arm64) or rdx (SysV). A STRUCT_LIT base stays on emit_expr.
  * An ARRAY_LIT whose return type is TYPE_SLICE, after the existing
  * ARRAY/SLICE ascription peel, uses that same helper and then moves the
  * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
@@ -428,9 +439,11 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       // pointer in rax/x0. emit_expr leaves the address of a callee frame
       // slot; a slice cell stores that pointer and the next cell's stores
       // clobber it. The durable helper is the existing authority. A non-zero
-      // result falls through to emit_expr. A VAR operand stays on the value
-      // path above this arm. PLATFORM: SHARED — LINUX|x86_64 · MACOS|ARM64 ·
-      // WINDOWS still runs the >16 hidden-dest copy below.
+      // result falls through to emit_expr. A VAR whose function return type
+      // is TYPE_ARRAY stays on the value path. A VAR whose declared type is
+      // TYPE_ARRAY and whose function returns TYPE_SLICE is the arm below
+      // the ARRAY_LIT slice arm. PLATFORM: SHARED — LINUX|x86_64 ·
+      // MACOS|ARM64 · WINDOWS still runs the >16 hidden-dest copy below.
       let dur_ok: i32 = 0;
       let opk_d: i32 = 0;
       let mod_d: *u8 = 0 as *u8;
@@ -443,6 +456,9 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let n_d: i32 = 0;
       let len_reg: i32 = 0;
       let win_d: i32 = 0;
+      let decl_ty: i32 = 0;
+      let arr_off: i32 = 0;
+      let base_er: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -553,6 +569,194 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                         return 0 - 1;
                       }
                       dur_ok = 1;
+                    }
+                  }
+                }
+              }
+            }
+          }
+          // VAR of a local TYPE_ARRAY returned as TYPE_SLICE. emit_expr
+          // loads the inline bytes into x0, which is the value ABI of a
+          // [N]T return, and leaves x1 holding the address used to store
+          // those bytes. The caller reads x1 as the slice length, so
+          // ret_array_as_slice returns 1. Lea the slot and put N in x1
+          // (arm64) or rdx (SysV). The caller's stack-escape copier
+          // mallocs when that pointer is below sp. A TYPE_ARRAY return
+          // stays on the value path. A slice variable stays on emit_expr.
+          // A field whose base is a VAR is the next arm. A STRUCT_LIT
+          // field stays on emit_expr. Windows stays on emit_expr.
+          // PLATFORM: MACOS|ARM64 · LINUX x86_64.
+          if (dur_ok == 0) {
+            unsafe {
+              opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+            }
+            if (opk_d == 3) {
+              unsafe {
+                mod_d = pipeline_asm_emit_module_ref_c();
+                fi_d = pipeline_asm_emit_func_index_c();
+              }
+              if (mod_d != (0 as *u8) && fi_d >= 0) {
+                unsafe {
+                  rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+                }
+                if (rty_d > 0) {
+                  unsafe {
+                    rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+                  }
+                  // TYPE_SLICE = 11. TYPE_ARRAY = 10 stays on emit_expr.
+                  if (rk_d == 11) {
+                    unsafe {
+                      decl_ty = glue_var_decl_type_ref_elf_c(arena, ctx, ret_op);
+                    }
+                    if (decl_ty > 0) {
+                      unsafe {
+                        rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                      }
+                      if (rk_d == 10) {
+                        unsafe {
+                          n_d = pipeline_type_array_size_at(arena, decl_ty);
+                          arr_off = glue_var_expr_stack_off_elf_c(arena, ctx, ret_op);
+                        }
+                        // Negative offsets are the x86 "not this slot"
+                        // miss used by the sret local arm. Darwin locals
+                        // are a non-negative addend from x29.
+                        if (n_d >= 0 && n_d <= 1024 && arr_off >= 0) {
+                          unsafe {
+                            rc = backend_enc_lea_rbp_to_rax_arch(elf_ctx, arr_off, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                          unsafe {
+                            rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                          unsafe {
+                            rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_d, 0, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                          if (ta == 1) {
+                            len_reg = 1;
+                          } else {
+                            len_reg = 2;
+                          }
+                          unsafe {
+                            rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                          unsafe {
+                            rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                          }
+                          if (rc != 0) {
+                            return 0 - 1;
+                          }
+                          dur_ok = 1;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          // FIELD of a VAR whose field type is TYPE_ARRAY, returned as
+          // TYPE_SLICE. emit_expr stores the array in the callee frame and
+          // leaves that address in x0, but x1 still holds a frame address.
+          // The caller reads x1 as the slice length, so the copy loop walks
+          // off the stack. Call emit_expr once, then put N in x1 (arm64) or
+          // rdx (SysV). Do not lea: a second address would drop the stores
+          // emit_expr just wrote. A STRUCT_LIT base writes no payload, so
+          // packing N onto that x0 is a different producer. A TYPE_ARRAY
+          // function return stays on the value path. Windows stays on
+          // emit_expr. PLATFORM: MACOS|ARM64 · LINUX x86_64.
+          if (dur_ok == 0) {
+            unsafe {
+              opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+            }
+            // EXPR_FIELD_ACCESS = 44.
+            if (opk_d == 44) {
+              unsafe {
+                mod_d = pipeline_asm_emit_module_ref_c();
+                fi_d = pipeline_asm_emit_func_index_c();
+              }
+              if (mod_d != (0 as *u8) && fi_d >= 0) {
+                unsafe {
+                  rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+                }
+                if (rty_d > 0) {
+                  unsafe {
+                    rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+                  }
+                  // TYPE_SLICE = 11. TYPE_ARRAY = 10 stays on emit_expr.
+                  if (rk_d == 11) {
+                    unsafe {
+                      base_er = pipeline_expr_field_access_base_ref(arena, ret_op);
+                    }
+                    if (base_er > 0) {
+                      unsafe {
+                        opk_d = pipeline_expr_kind_ord_at(arena, base_er);
+                      }
+                      // EXPR_VAR = 3. STRUCT_LIT (45) is not this arm.
+                      if (opk_d == 3) {
+                        unsafe {
+                          decl_ty = glue_field_access_field_type_ref_c(arena, mod_d, ret_op);
+                        }
+                        if (decl_ty > 0) {
+                          unsafe {
+                            rk_d = pipeline_type_kind_ord_at(arena, decl_ty);
+                          }
+                          // TYPE_ARRAY = 10. A slice field stays on emit_expr.
+                          if (rk_d == 10) {
+                            unsafe {
+                              n_d = pipeline_type_array_size_at(arena, decl_ty);
+                            }
+                            if (n_d >= 0 && n_d <= 1024) {
+                              unsafe {
+                                rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              unsafe {
+                                rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              unsafe {
+                                rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_d, 0, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              if (ta == 1) {
+                                len_reg = 1;
+                              } else {
+                                len_reg = 2;
+                              }
+                              unsafe {
+                                rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              unsafe {
+                                rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                              }
+                              if (rc != 0) {
+                                return 0 - 1;
+                              }
+                              dur_ok = 1;
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
