@@ -61,8 +61,31 @@ Lmsg:
 	adrp	x0, Lnl@PAGE
 	add	x0, x0, Lnl@PAGEOFF
 	bl	Lputs
-	/* Cap tip diag_ctx_get_file also X-codegen-SEGVs; skip loc when file null */
-	cbz	x19, Ldone
+	/* Null file still prints " --> line:col" when line>0 or col>0.
+	 * Do not call diag_ctx_get_file (Cap tip SEGV). A null file with
+	 * both halves <= 0 stays header-only. Same bytes as
+	 * diag_io_fprint_loc_line_col. PLATFORM: MACOS|ARM64. */
+	cbnz	x19, Lloc_file
+	cmp	w20, #0
+	b.gt	Lloc_nums
+	cmp	w21, #0
+	b.le	Ldone
+Lloc_nums:
+	adrp	x0, Larrow@PAGE
+	add	x0, x0, Larrow@PAGEOFF
+	bl	Lputs
+	mov	w0, w20
+	bl	Lput_i32
+	adrp	x0, Lcolonly@PAGE
+	add	x0, x0, Lcolonly@PAGEOFF
+	bl	Lputs
+	mov	w0, w21
+	bl	Lput_i32
+	adrp	x0, Lnl@PAGE
+	add	x0, x0, Lnl@PAGEOFF
+	bl	Lputs
+	b	Ldone
+Lloc_file:
 	adrp	x0, Larrow@PAGE
 	add	x0, x0, Larrow@PAGEOFF
 	bl	Lputs
