@@ -15541,8 +15541,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * (`!i32`, `!f32`) → C truthiness false green; if/while already require bool.
  * Root cause (wave677): unary -true stamped bool then host/fs treated as int
  * false green; ~true fell to return mismatch. G.7: invalid_bool_binop.
- * Allowed: ~int, -int, -float, !bool (LOGNOT→bool). Rejected: ~f32/f64, ~ptr,
- * -ptr, -bool, ~bool, aggregate -/~/!, and non-bool LOGNOT operands.
+ * Allowed: ~int, -int, -float, !bool (LOGNOT→bool), and unary - on
+ * TYPE_VECTOR (kind 13). Arithmetic already allows a same-size vector
+ * pair. Rejected: ~f32/f64, ~ptr, -ptr, -bool, ~bool, aggregate -/~/!
+ * (including ~ and ! on a vector), vector comparison, and non-bool
+ * LOGNOT operands.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -15573,11 +15576,29 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * helper from wave657/658; diag invalid_aggregate_cmp (message covers unary).
      */
     if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
-      if (typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0) {
-        line_u = pipeline_expr_line_at(arena, expr_ref);
-        col_u = pipeline_expr_col_at(arena, expr_ref);
-        driver_diagnostic_typeck_invalid_aggregate_cmp(line_u, col_u);
-        return -1;
+      /*
+       * TYPE_VECTOR (kind 13) is a SIMD value. The aggregate helper
+       * still returns 1 so comparison, bitwise not, and logical not
+       * stay rejected. Arithmetic already skips that helper for a
+       * kind-13 pair. Unary minus did not, so `let v: Vec8i = -a`
+       * was T001 while `let v: i32x8 = -a` (TYPE_NAMED, kind 8) was
+       * not. Two compares, not a chained && : the bootstrap image
+       * clobbers the register a chained compare reuses.
+       * PLATFORM: SHARED — this exemption. The helper stays SHARED.
+       */
+      let vec_neg: i32 = 0;
+      if (expr_kind == ord_neg) {
+        if (pipeline_type_kind_ord_at(arena, op_tr) == 13) {
+          vec_neg = 1;
+        }
+      }
+      if (vec_neg == 0) {
+        if (typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0) {
+          line_u = pipeline_expr_line_at(arena, expr_ref);
+          col_u = pipeline_expr_col_at(arena, expr_ref);
+          driver_diagnostic_typeck_invalid_aggregate_cmp(line_u, col_u);
+          return -1;
+        }
       }
     }
     if (expr_kind == ord_lognot) {
