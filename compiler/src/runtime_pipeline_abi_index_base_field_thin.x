@@ -27,6 +27,9 @@ export extern function glue_enc_local_slot_ptr_or_addr_elf_c(
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function glue_index_deref_ptr_field_slot_rax_elf_c(arena: *u8, elf_ctx: *u8, fa_ref: i32, ta: i32): i32;
+export extern function pipeline_asm_emit_lvalue_eff_addr_elf_c(
+  arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32
+): i32;
 export extern function pipeline_asm_modlet_load_to_rax_elf_c(elf_ctx: *u8, name: *u8, name_len: i32, ta: i32): i32;
 export extern function glue_var_expr_type_ref_with_decl_fallback_c(arena: *u8, base_ref: i32): i32;
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
@@ -60,8 +63,22 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
 }
 
 /**
- * INDEX lvalue base effective address into rax/x0 (ELF / Mach-O / COFF).
- * @return i32 - 0 ok; -1 error. PLATFORM: SHARED.
+ * INDEX base effective address into x0.
+ * A VAR field base (`h.v[i]`) is the local slot address plus the field
+ * offset. A nested FIELD base (`w.h.v[i]`) uses the lvalue address of
+ * the parent field. emit_expr of that parent loads the by-value bits, and
+ * the lane load then uses those bits as a pointer (Darwin `w.h.v[0]`
+ * exit 10). A PTR parent stays on emit_expr: that rvalue is already the
+ * pointee address. Slice and pointer fields of the indexed field still
+ * peel through glue_index_deref_ptr_field_slot_rax_elf_c.
+ * @param arena *u8 — AST arena; null is not expected (callers checked)
+ * @param elf_ctx *u8 — encoder context
+ * @param ix_ref i32 — INDEX expression; base ref <= 0 returns -1
+ * @param ctx *u8 — asm function context; null is not expected
+ * @param ta i32 — 0 x86_64, 1 arm64
+ * @return i32 — 0 when x0 holds the element base address; -1 on a bad
+ *   base or an encoder error
+ * PLATFORM: SHARED body. Darwin ARM64 is the measured nested-FIELD fail.
  */
 #[no_mangle]
 export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -130,8 +147,31 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       if (fb_ref <= 0) {
         return 0 - 1;
       }
-      unsafe {
-        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, fb_ref, ctx, ta);
+      // Nested FIELD only. Other bases (call, deref) stay rvalues.
+      // PTR parent: emit_expr is the pointee address. By-value parent:
+      // lvalue address, then the field offset below. Do not call lvalue
+      // on base_ref itself — that already includes this field's offset.
+      // PLATFORM: SHARED. Darwin ARM64 measured w.h.v[0].
+      tr = 0;
+      trk = 0;
+      if (fb_ko == 44) {
+        unsafe {
+          tr = glue_field_access_field_type_ref_c(arena, mod, fb_ref);
+        }
+        if (tr > 0) {
+          unsafe {
+            trk = pipeline_type_kind_ord_at(arena, tr);
+          }
+        }
+      }
+      if (fb_ko == 44 && trk != 9) {
+        unsafe {
+          rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, fb_ref, ctx, ta);
+        }
+      } else {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, fb_ref, ctx, ta);
+        }
       }
       if (rc != 0) {
         return 0 - 1;
