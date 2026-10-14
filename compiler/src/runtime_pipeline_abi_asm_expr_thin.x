@@ -84,6 +84,7 @@ export extern function pipeline_expr_int64_val_at(arena: *u8, expr_ref: i32): i6
 export extern function pipeline_expr_resolved_type_ref(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_type_kind_ord_at(arena: *u8, ref: i32): i32;
 export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern function glue_emit_float_lit_to_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ta: i32, force_ty_ref: i32, call_abi_widen_f64: i32): i32;
 export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function pipeline_asm_emit_module_ref_c(): *u8;
@@ -313,6 +314,16 @@ export function pipeline_asm_emit_expr_elf_rec(arena: *u8, elf_ctx: *u8, expr_re
   r = w495_cell_i32(&cell_r[0]);
   if (r != (0 - 99)) {
     return r;
+  }
+  /* EXPR_FLOAT_LIT = 1. The Darwin fast overlay handles INT_LIT, BOOL_LIT,
+   * and VAR only, then returns -99. The C seed fast emits this kind through
+   * glue_emit_float_lit_to_rax_elf_c. The slow stub returns 0 and writes no
+   * movk, so a compare keeps the leftover left value in x0 (pi cmp pi).
+   * PLATFORM: SHARED. One emitter; this arm is the Darwin rec call site. */
+  if (ko == 1) {
+    unsafe {
+      return glue_emit_float_lit_to_rax_elf_c(arena, elf_ctx, expr_ref, ta, 0, 0);
+    }
   }
   if (ko == 25 || ko == 27) {
     unsafe {
