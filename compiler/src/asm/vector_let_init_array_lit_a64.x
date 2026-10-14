@@ -6,7 +6,13 @@
 // as add) call the existing per-lane binop writer. INT_LIT (0) and
 // BOOL_LIT (2) call the existing lane-imm fill. EXPR_NEG (22) over an
 // INT_LIT is the parser form of `-3`: negate that literal and splat
-// with the same fill. Declining that splat stored `neg w0`
+// with the same fill. Kind 22 or 23 whose operand is itself kind 22
+// or 23 of a non-null INT_LIT folds both operators into that
+// immediate and uses the same fill. `let v: i32x8 = ~(-3)` wrote 2
+// into lane 0 and left lane 7. A nested unary of a VAR, a binop, a
+// CALL, a METHOD, an INDEX, a DEREF, or an ARRAY_LIT stays on the
+// per-lane path. Keyword null, f32, and a lane size other than 4
+// stay declined. Declining that splat stored `neg w0`
 // (zero-extended x0) plus the untouched x1, so lane 1 of i32x4 = -3
 // was 0. EXPR_NEG of a VAR or a FIELD whose lanes already have a frame
 // home negates each i32 lane with the existing neg w0. A decline of
@@ -68,6 +74,7 @@ export extern function glue_emit_struct_type_let_init_elf_c(
 ): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
 ): i32;
@@ -131,7 +138,11 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
  * classification and emits mvn w0 on each i32 lane. f32 bitwise not
  * returns -3. An i32 immediate not is `-imm - 1` splatted by the
- * existing fill. Lane size 8 of that pattern stays declined.
+ * existing fill. Kind 22 or 23 of another kind 22 or 23 whose
+ * operand is a non-null INT_LIT folds both operators into that
+ * immediate and calls the same fill. Keyword null, an f32 element,
+ * ta other than 1, and a lane size other than 4 stay on the decline
+ * below. Lane size 8 of that pattern stays declined.
  * A lane size other than 4, and a
  * negative pattern whose lane is 8 bytes, stay declined: neg w0 is
  * 32-bit and the fill zero-extends. f64 stays declined. f32 with a
@@ -167,6 +178,9 @@ export function glue_emit_vector_type_let_init_elf_c(
   let from_dest: i32 = 0;
   let lane_f32: i32 = 0;
   let sign_bit: i32 = 0;
+  let inner_ref: i32 = 0;
+  let inner_ko: i32 = 0;
+  let nested_u: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
@@ -254,6 +268,78 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     unsafe {
       op_ko = pipeline_expr_kind_ord_at(arena, lit_ref);
+    }
+    // Nested unary of a non-null INT_LIT. `~(-3)` and `-(~1)` are
+    // kind 23 of kind 22, or kind 22 of kind 23. The operand is not
+    // kind 0, so the arm below used to return -3 and the caller stored
+    // one lane: lane 0 of `let v: i32x8 = ~(-3)` was 2 and lane 7 was
+    // not. Fold the inner operator, then the outer one, and splat with
+    // the existing fill. A VAR, a binop, CALL, METHOD, INDEX, DEREF,
+    // or ARRAY_LIT under the inner unary is not kind 0 and stays on
+    // that arm. Keyword null stays declined. f32 is not an i32 not.
+    // Lane size other than 4 stays declined. ta other than 1 stays
+    // declined. Two statements for each not: `~x` is `-x - 1`.
+    // PLATFORM: MACOS|ARM64.
+    nested_u = 0;
+    if (op_ko == 22) {
+      nested_u = 1;
+    }
+    if (op_ko == 23) {
+      nested_u = 1;
+    }
+    if (nested_u != 0) {
+      unsafe {
+        inner_ref = pipeline_expr_unary_operand_ref_at(arena, lit_ref);
+      }
+      if (inner_ref > 0) {
+        unsafe {
+          inner_ko = pipeline_expr_kind_ord_at(arena, inner_ref);
+        }
+        if (inner_ko == 0) {
+          unsafe {
+            rc = pipeline_expr_is_null_keyword_c(arena, inner_ref);
+          }
+          if (rc == 0) {
+            if (ta == 1) {
+              unsafe {
+                rc = glue_vector_elem_is_f32_c(arena, type_ref);
+              }
+              if (rc == 0) {
+                unsafe {
+                  imm = pipeline_expr_int_val_at(arena, inner_ref);
+                  rc = glue_vector_type_lanes_esz_c(
+                    arena, type_ref, &lanes_s[0], &esz_s[0]);
+                }
+                if (rc == 0) {
+                  if (esz_s[0] == 4) {
+                    if (lanes_s[0] > 0) {
+                      if (op_ko == 22) {
+                        imm = 0 - imm;
+                      }
+                      if (op_ko == 23) {
+                        imm = 0 - imm;
+                        imm = imm - 1;
+                      }
+                      if (lane_not != 0) {
+                        imm = 0 - imm;
+                        imm = imm - 1;
+                      }
+                      if (lane_not == 0) {
+                        imm = 0 - imm;
+                      }
+                      unsafe {
+                        rc = glue_simd_emit_imm_fill_slot_c(
+                          elf_ctx, stack_slot_off, lanes_s[0], esz_s[0], ta, imm);
+                      }
+                      return rc;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
     if (op_ko != 0) {
       // Non-literal NEG. A VAR (kind 3) or a FIELD (kind 44) is
