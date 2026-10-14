@@ -3826,12 +3826,13 @@ export function pipeline_asm_emit_call_args_elf_c(
             fp_cur = fp_cur + hn;
           }
         } else if (glue_arg_ref_is_f64_width_c(arena, ctx, ar_i, pty_i) != 0
-            || (pty_i <= 0 && glue_arg_ref_is_sse_float_c(arena, ar_i, pty_i) != 0)) {
-          /* AAPCS64 FP class: f64 scalars pass in v0-v7 (fmov dK of the rax
-           * bits at reload), independent of the GP cursor (x0-x7). Variadic
-           * f32 extras (no formal, pty<=0) also take a v-slot so Cap va_arg<f32>
-           * walking the FP save sees them. Named f32 stays GP this wave
-           * (callee param home is f64-only).
+            || glue_arg_ref_is_sse_float_c(arena, ar_i, pty_i) != 0) {
+          /* AAPCS64 FP class: f32 and f64 scalars pass in v0-v7 (fmov dK of
+           * the rax bits at reload), independent of the GP cursor (x0-x7).
+           * Param home reads kind 14 and kind 15 from sK/dK. A named f32
+           * left in a GP disagrees with that home (f32_id / from_lanes).
+           * Variadic f32 extras (pty<=0) stay on the same v-slot so
+           * va_arg<f32> still sees them.
            * PLATFORM: MACOS|ARM64 AAPCS64. */
           gp_units[i] = 1;
           gp_start[i] = 0 - 1;
@@ -4849,15 +4850,16 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
           }
         }
         /* PLATFORM: LINUX|x86_64 SysV — f32/f64 extras go xmm0–7 then stack.
-         * PLATFORM: MACOS|ARM64 AAPCS64 — f64 extras take v-slots (callee
-         * param home reads dK since the AAPCS64 f64 boundary wave); f32
-         * stays GP-bits (param home is f64-only this wave). */
+         * PLATFORM: MACOS|ARM64 AAPCS64 — f32 and f64 extras take v-slots.
+         * Param home reads kind 14 and kind 15 from sK/dK, so a named f32
+         * in a GP misses the formal. */
         if (ta == 0) {
           is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
           is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, ctx, arg_ex, 0);
         } else {
           is_f64_e[ei] = glue_arg_ref_is_f64_width_c(arena, ctx, arg_ex, 0);
-          is_sse_e[ei] = is_f64_e[ei];
+          is_sse_e[ei] = glue_arg_ref_is_sse_float_c(arena, arg_ex, 0);
+          if (is_f64_e[ei] != 0) { is_sse_e[ei] = 1; }
         }
         if (is_sse_e[ei] != 0) {
           // PLATFORM: WINDOWS x86_64 — extras share the positional cursor
@@ -5177,11 +5179,9 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
                         // PLATFORM: LINUX+MACOS x86_64 SysV — f32/f64 extras go xmm0–7.
                         // PLATFORM: MACOS|ARM64 AAPCS64 — same extras go s0–s7 / d0–d7
                         // (host-C gcc reads FP regs). Encoder now has fmov sK,w0.
-                        // Since the AAPCS64 f64 boundary wave, xlang-compiled
-                        // callees home f64 formals from dK too (param home),
-                        // so import-METHOD, UFCS leave, the CALL packer and
-                        // param home all agree on v-slots for f64. f32 local
-                        // formals still home from GP (f64-only wave scope).
+                        // Param home reads f32 (kind 14) and f64 (kind 15) from
+                        // sK/dK. Import METHOD, UFCS, the free CALL packer,
+                        // and param home all use v-slots for both widths.
                         if (ta == 0 || ta == 1) {
                           is_sse_m[i_m] = glue_arg_ref_is_sse_float_c(arena, ar_m, pty_m);
                           is_f64_m[i_m] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_m, pty_m);
@@ -5641,14 +5641,15 @@ function w1521_emit_method_body(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u
         gp_start_u[i_u] = 0 - 1;
         gp_units_u[i_u] = 0;
         // Same-layer twin of import METHOD SSE classify (G.7 有则补全).
-        // PLATFORM: MACOS|ARM64 AAPCS64 — f64 extras take v-slots (callee
-        // param home reads dK); f32 stays GP-bits this wave.
+        // PLATFORM: MACOS|ARM64 AAPCS64 — f32 and f64 take v-slots. Param
+        // home reads kind 14 and kind 15 from sK/dK.
         if (ta == 0) {
           is_sse_u[i_u] = glue_arg_ref_is_sse_float_c(arena, ar_u, pty_u);
           is_f64_u[i_u] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_u, pty_u);
         } else {
           is_f64_u[i_u] = glue_arg_ref_is_f64_width_c(arena, ctx, ar_u, pty_u);
-          is_sse_u[i_u] = is_f64_u[i_u];
+          is_sse_u[i_u] = glue_arg_ref_is_sse_float_c(arena, ar_u, pty_u);
+          if (is_f64_u[i_u] != 0) { is_sse_u[i_u] = 1; }
         }
         if (is_sse_u[i_u] != 0) {
           // PLATFORM: WINDOWS x86_64 — same positional float as import METHOD.
