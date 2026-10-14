@@ -29,6 +29,7 @@ export extern function backend_enc_load_rbp_to_rax_arch(elf_ctx: *u8, off: i32, 
 export extern function backend_enc_load_rbp_to_rbx_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
 export extern function backend_enc_load_rbp_to_rdx_arch(elf_ctx: *u8, off: i32, ta: i32): i32;
 export extern function glue_type_named_layout_size_any_module_elf_c(arena: *u8, ty_ref: i32): i32;
+export extern function glue_fixed_array_total_bytes_c(arena: *u8, ty_ref: i32, depth: i32): i32;
 export extern function glue_copy_large_struct_from_rax_ptr_elf_c(elf_ctx: *u8, slot_off: i32, sz: i32, ta: i32): i32;
 export extern function pipe_asm_ctx_off_next_offset(): i32;
 export extern function pipe_load_i32_le(p: *u8, off: i32): i32;
@@ -45,10 +46,14 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * Nested STRUCT_LIT (kind 45) recurses. Other inits are emitted, then
  * stored. VAR, FIELD, INDEX, CALL, and METHOD of 9..16 bytes spill the
  * x0:x1 value and copy those bytes. ARRAY_LIT (kind 46) leaves the
- * payload address in x0, so that same 9..16 window copies from the
- * address with the existing wide-pointer sequence. An ARRAY_LIT wider
- * than 16 stays on the 8-byte scalar store. Layouts wider than 16 for
- * the other kinds already copy from the address in x0.
+ * payload address in x0. A TYPE_ARRAY field's named-layout size is not
+ * that byte count. glue_fixed_array_total_bytes_c supplies N times the
+ * element stride. When that count is at least 8, the same address copy
+ * stores the payload. An 8-byte array used to miss the wide gate and
+ * store the pointer. An array wider than 16 used to stay on that same
+ * 8-byte store. A named type that is not a TYPE_ARRAY keeps the
+ * previous gate. Layouts wider than 16 for the other kinds already
+ * copy from the address in x0.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param elf_ctx *u8 — emit context. Null returns -1.
  * @param lit_ref i32 — STRUCT_LIT expression ref. Non-positive returns -1.
@@ -72,6 +77,7 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
   let iko: i32 = 0;
   let fty: i32 = 0;
   let wide: i32 = 0;
+  let arr_bytes: i32 = 0;
   let use_ptr: i32 = 0;
   let add_x19: u32 = 0;
   let mod: *u8 = 0 as *u8;
@@ -157,7 +163,23 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           wide = glue_type_named_layout_size_any_module_elf_c(arena, fty);
         }
       }
-      if (wide > 8) {
+      // TYPE_ARRAY (kind 10) does not report its byte count through the
+      // named-layout size, so [2]i32 and [8]i32 never entered the copy
+      // below and the scalar store wrote the payload pointer. The
+      // existing total-bytes helper is N times the element stride.
+      // A result below 8 stays on the scalar store: the copy rejects it.
+      // A named type that is not an array returns 0 and keeps `wide`.
+      // PLATFORM: MACOS|DARWIN.
+      arr_bytes = 0;
+      if (iko == 46 && fty > 0) {
+        unsafe {
+          arr_bytes = glue_fixed_array_total_bytes_c(arena, fty, 0);
+        }
+        if (arr_bytes >= 8) {
+          wide = arr_bytes;
+        }
+      }
+      if (wide > 8 || (iko == 46 && arr_bytes >= 8)) {
         if (store_off < 0 || store_off > 4095) {
           return 0 - 1;
         }
@@ -165,9 +187,9 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
         // PLATFORM: MACOS|DARWIN. VAR, FIELD, INDEX, CALL, and METHOD of
         // 9..16 bytes leave the value in x0:x1 and take the pair spill
         // below. A layout wider than 16 leaves the source address in x0.
-        // ARRAY_LIT (46) always leaves the payload address in x0, so a
-        // named size of 9..16 uses that same address copy. An ARRAY_LIT
-        // wider than 16 stays on the scalar store below.
+        // ARRAY_LIT (46) always leaves the payload address in x0. Once
+        // `wide` is the array's byte count, that address copy covers
+        // 8 bytes and widths above 16 as well as the 9..16 window.
         use_ptr = 0;
         if (wide > 16) {
           if (iko != 46) {
@@ -177,6 +199,9 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           if (iko == 46) {
             use_ptr = 1;
           }
+        }
+        if (iko == 46 && arr_bytes >= 8) {
+          use_ptr = 1;
         }
         if (use_ptr != 0) {
           unsafe {
