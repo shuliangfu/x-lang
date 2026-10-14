@@ -35,7 +35,10 @@
 // path: it is two's complement, and integer negate of an f32 bit
 // pattern is not an IEEE sign flip. A lane size other than 4, and a
 // negative immediate with lane size 8, still return -3 (neg w0 is
-// 32-bit; the fill zero-extends). f64 stays declined. A VAR, a FIELD,
+// 32-bit; the fill zero-extends). f64 stays declined. EXPR_BITNOT
+// (kind 23) of an i32 lane uses the same classification and emits
+// mvn w0 per lane. f32 bitwise not stays declined. A scalar mvn w0
+// plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
 // an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
 // each lane is 4 bytes. The lane home, the lane-byte writer, and the
 // binop let-init already cover every lane. CALL, METHOD, INDEX, and
@@ -79,6 +82,7 @@ export extern function backend_enc_load_rbp_lane_to_rax_arch(
   elf_ctx: *u8, offset: i32, esz: i32, ta: i32
 ): i32;
 export extern function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_not_eax_arch(elf_ctx: *u8, ta: i32): i32;
 export extern function backend_enc_mov_imm32_to_rbx_arch(
   elf_ctx: *u8, imm32: i32, ta: i32
 ): i32;
@@ -124,7 +128,11 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * its value expr first, using glue_expr_block_transparent_value_ref_at,
  * at most four times. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
- * destination lane in place. A lane size other than 4, and a
+ * destination lane in place. Kind 23 (EXPR_BITNOT) uses that same
+ * classification and emits mvn w0 on each i32 lane. f32 bitwise not
+ * returns -3. An i32 immediate not is `-imm - 1` splatted by the
+ * existing fill. Lane size 8 of that pattern stays declined.
+ * A lane size other than 4, and a
  * negative pattern whose lane is 8 bytes, stay declined: neg w0 is
  * 32-bit and the fill zero-extends. f64 stays declined. f32 with a
  * 4-byte lane uses the sign-bit eor above, on the same loop that
@@ -151,6 +159,9 @@ export function glue_emit_vector_type_let_init_elf_c(
   let lit_ref: i32 = 0;
   let op_ko: i32 = 0;
   let neg_lit: i32 = 0;
+  let not_lit: i32 = 0;
+  let lane_not: i32 = 0;
+  let enter_unary: i32 = 0;
   let lane_i: i32 = 0;
   let src_off: i32 = 0;
   let from_dest: i32 = 0;
@@ -221,10 +232,20 @@ export function glue_emit_vector_type_let_init_elf_c(
   // is 0. FLOAT_LIT stays declined.
   // Lane size 8 of a negative pattern stays declined: the fill
   // zero-extends the 32-bit immediate, which is not a negative i64.
+  // EXPR_BITNOT = 23 shares this operand split. mvn w0 is per i32
+  // lane. f32 bitwise not returns -3 inside the non-literal arm.
+  // PLATFORM: MACOS|ARM64.
   if (ko == 0 || ko == 2) {
     lit_ref = init_ref;
   }
   if (ko == 22) {
+    enter_unary = 1;
+  }
+  if (ko == 23) {
+    enter_unary = 1;
+    lane_not = 1;
+  }
+  if (enter_unary != 0) {
     unsafe {
       lit_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
     }
@@ -280,11 +301,17 @@ export function glue_emit_vector_type_let_init_elf_c(
         rc = glue_vector_elem_is_f32_c(arena, type_ref);
       }
       // Nonzero means Vec4f, the f32x4 spelling, or TYPE_VECTOR of F32.
-      // Stay in this function. Integer neg w0 is not an IEEE sign flip,
-      // so the shared loop xors bit 31. esz other than 4 still returns
-      // -3 below. f64 is not this flag. PLATFORM: MACOS|ARM64.
-      if (rc != 0) {
-        lane_f32 = 1;
+      // Unary minus stays in this function and xors bit 31. Bitwise
+      // not of an f32 lane is not that flip, so kind 23 returns -3.
+      // esz other than 4 still returns -3 below. PLATFORM: MACOS|ARM64.
+      if (lane_not != 0) {
+        if (rc != 0) {
+          return 0 - 3;
+        }
+      } else {
+        if (rc != 0) {
+          lane_f32 = 1;
+        }
       }
       unsafe {
         rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
@@ -406,8 +433,17 @@ export function glue_emit_vector_type_let_init_elf_c(
             rc = backend_enc_xor_rbx_rax_arch(elf_ctx, ta);
           }
         } else {
-          unsafe {
-            rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+          if (lane_not != 0) {
+            // mvn w0, w0. The 4-byte load is LDR w0, so only this
+            // lane's bits flip. neg w0 stays unary minus.
+            // PLATFORM: MACOS|ARM64.
+            unsafe {
+              rc = backend_enc_not_eax_arch(elf_ctx, ta);
+            }
+          } else {
+            unsafe {
+              rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+            }
           }
         }
         if (rc != 0) {
@@ -430,7 +466,11 @@ export function glue_emit_vector_type_let_init_elf_c(
       }
       return 0;
     }
-    neg_lit = 1;
+    if (lane_not != 0) {
+      not_lit = 1;
+    } else {
+      neg_lit = 1;
+    }
   }
   if (lit_ref > 0) {
     unsafe {
@@ -443,6 +483,16 @@ export function glue_emit_vector_type_let_init_elf_c(
     if (neg_lit != 0) {
       imm = 0 - imm;
       if (esz_s[0] == 8 && imm < 0) {
+        return 0 - 3;
+      }
+    }
+    if (not_lit != 0) {
+      // ~x is -x - 1 in two's complement. Two statements. An 8-byte
+      // lane would zero-extend this 32-bit pattern, which is not an
+      // i64 not. PLATFORM: MACOS|ARM64.
+      imm = 0 - imm;
+      imm = imm - 1;
+      if (esz_s[0] == 8) {
         return 0 - 3;
       }
     }
