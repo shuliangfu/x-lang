@@ -25,7 +25,12 @@
 // of `n = -*p` was 0. An ARRAY_LIT under the minus is
 // stored by the existing lane-byte writer, then each destination lane
 // is negated. Declining that left lane 0 of `let n = -[1, 2, 3, 4]`
-// unequal to -1. f32, a lane size other than 4, a vector wider than
+// unequal to -1. A transparent EXPR_BLOCK (26), including `unsafe { e }`,
+// is peeled with the existing helper before that classification.
+// Declining the block stored neg of lane 0 for `let n = unsafe { -*p }`
+// and left lane 0 of `let n = unsafe { [1, 2, 3, 4] }` unequal to 1.
+// Bare VAR and bare DEREF still return -3 after the peel. f32, a lane
+// size other than 4, a vector wider than
 // 16, and a negative immediate with lane size 8 still return -3 (neg
 // w0 is 32-bit; the fill zero-extends). Bare CALL and VAR copy still
 // return -3.
@@ -37,6 +42,7 @@
 
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function pipeline_expr_kind_ord_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_expr_block_transparent_value_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_vector_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, stack_slot_off: i32
 ): i32;
@@ -98,7 +104,9 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * destination lane in place. Kind 22 of a CALL (kind 48) or a METHOD
  * (kind 49), an INDEX (kind 47), or a DEREF (kind 52) stores that
  * value with glue_emit_struct_type_let_init_elf_c, then negates each destination
- * lane in place. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
+ * lane in place. A transparent EXPR_BLOCK (kind 26) is replaced by
+ * its value expr first, using glue_expr_block_transparent_value_ref_at,
+ * at most four times. Kind 22 of an ARRAY_LIT (kind 46) stores that literal
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
  * destination lane in place. f32, a lane size other
  * than 4, a vector wider than 16, and a negative pattern whose lane is
@@ -123,6 +131,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let lane_i: i32 = 0;
   let src_off: i32 = 0;
   let from_dest: i32 = 0;
+  let peeled: i32 = 0;
+  let peel_n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -131,6 +141,31 @@ export function glue_emit_vector_type_let_init_elf_c(
   }
   if (simd == 0) {
     return 0 - 3;
+  }
+  // EXPR_BLOCK = 26. `unsafe { e }` and `{ e }` with one value and no
+  // lets or loops are not the initializer. The existing peel returns
+  // that value. Leaving the block in place declined into one neg w0
+  // (`let n = unsafe { -*p }`, lane 1 was 0) or stored the array
+  // pointer (`let n = unsafe { [1, 2, 3, 4] }`, lane 0 was not 1).
+  // A peel that is not positive, or that returns the same ref, stops.
+  // Bare VAR and bare DEREF still return -3 so the caller keeps those
+  // copies. PLATFORM: MACOS|ARM64.
+  peel_n = 0;
+  while (peel_n < 4) {
+    peeled = 0;
+    unsafe {
+      peeled = glue_expr_block_transparent_value_ref_at(arena, init_ref);
+    }
+    if (peeled <= 0) {
+      peel_n = 4;
+    } else {
+      if (peeled == init_ref) {
+        peel_n = 4;
+      } else {
+        init_ref = peeled;
+        peel_n = peel_n + 1;
+      }
+    }
   }
   unsafe {
     ko = pipeline_expr_kind_ord_at(arena, init_ref);
