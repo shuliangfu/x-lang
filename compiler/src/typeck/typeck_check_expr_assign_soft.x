@@ -13,8 +13,8 @@
 // minuses apply the sign once more. Six minuses cancel again. Seven
 // minuses apply the sign once more. Eight minuses cancel again.
 // Nine minuses apply the sign once more. Ten minuses cancel again.
-// The float-lit checker
-// keeps an already-resolved type. An eleventh unary and a bitwise not
+// Eleven minuses apply the sign once more. The float-lit checker
+// keeps an already-resolved type. A twelfth unary and a bitwise not
 // call the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
@@ -64,12 +64,13 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * once. Four minuses cancel again. Five minuses apply the sign once
  * more. Six minuses cancel again. Seven minuses apply the sign once
  * more. Eight minuses cancel again. Nine minuses apply the sign once
- * more. Ten minuses cancel again. The float-lit checker keeps an
+ * more. Ten minuses cancel again. Eleven minuses apply the sign once
+ * more. The float-lit checker keeps an
  * already-resolved type, so the
  * bare stamp survives. The unary checker keeps the one-deep, two-deep,
  * three-deep, four-deep, five-deep, six-deep, seven-deep, eight-deep,
- * nine-deep, and ten-deep stamps. An eleventh unary and a bitwise not
- * of that float are not stamped.
+ * nine-deep, ten-deep, and eleven-deep stamps. A twelfth unary and a
+ * bitwise not of that float are not stamped.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -314,13 +315,14 @@ export function typeck_check_expr_assign(
                * minuses cancel again. Seven minuses apply the sign
                * once more. Eight minuses cancel again. Nine minuses
                * apply the sign once more. Ten minuses cancel again.
+               * Eleven minuses apply the sign once more.
                * Kind 22 and kind 1 are
                * separate compares. The float-lit checker keeps an
                * already-resolved type, so the kind-1 stamp survives.
                * The unary checker keeps the one-deep, two-deep,
                * three-deep, four-deep, five-deep, six-deep,
-               * seven-deep, eight-deep, nine-deep, and ten-deep stamps.
-               * An eleventh unary stays kind 22. Bitwise not stays off.
+               * seven-deep, eight-deep, nine-deep, ten-deep, and eleven-deep
+               * stamps. A twelfth unary stays kind 22. Bitwise not stays off.
                * An i32 element does not enter.
                * PLATFORM: SHARED.
                */
@@ -345,6 +347,8 @@ export function typeck_check_expr_assign(
                 let f_nona_k: i32 = 0;
                 let f_deca: i32 = 0;
                 let f_deca_k: i32 = 0;
+                let f_undeca: i32 = 0;
+                let f_undeca_k: i32 = 0;
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -515,6 +519,27 @@ export function typeck_check_expr_assign(
                                                           }
                                                           if (lhs_kind == ord_field) {
                                                             splat_ok = 1;
+                                                          }
+                                                        }
+                                                        /*
+                                                         * Eleven minuses: the innermost is a
+                                                         * FLOAT_LIT. The emitter applies the
+                                                         * sign once. A twelfth unary is kind
+                                                         * 22 here, not kind 1. Load the operand
+                                                         * of f_deca only. PLATFORM: SHARED.
+                                                         */
+                                                        if (f_deca_k == 22) {
+                                                          f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
+                                                          if (f_undeca > 0) {
+                                                            f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
+                                                            if (f_undeca_k == 1) {
+                                                              if (lhs_kind == ord_var) {
+                                                                splat_ok = 1;
+                                                              }
+                                                              if (lhs_kind == ord_field) {
+                                                                splat_ok = 1;
+                                                              }
+                                                            }
                                                           }
                                                         }
                                                       }

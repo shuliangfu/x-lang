@@ -11769,8 +11769,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * sign once. Four minuses cancel again. Five minuses apply the sign
  * once more. Six minuses cancel again. Seven minuses apply the sign
  * once more. Eight minuses cancel again. Nine minuses apply the sign
- * once more. Ten minuses cancel again. The float-lit checker keeps an
- * already-resolved type. An eleventh unary and a bitwise not stay
+ * once more. Ten minuses cancel again. Eleven minuses apply the sign
+ * once more. The float-lit checker keeps an
+ * already-resolved type. A twelfth unary and a bitwise not stay
  * unstamped. The linked body
  * is the assign thin;
  * this function is the source authority.
@@ -11949,8 +11950,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * Five minuses apply the sign once more. Six minuses cancel again.
      * Seven minuses apply the sign once more. Eight minuses cancel
      * again. Nine minuses apply the sign once more. Ten minuses cancel
-     * again. The float-lit
-     * checker keeps an already-resolved type. An eleventh unary and a
+     * again. Eleven minuses apply the sign once more. The float-lit
+     * checker keeps an already-resolved type. A twelfth unary and a
      * bitwise not of that float are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
@@ -12143,8 +12144,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * already-resolved type, so the kind-1 stamp survives.
                  * The unary checker keeps the one-deep, two-deep,
                  * three-deep, four-deep, five-deep, six-deep,
-                 * seven-deep, eight-deep, nine-deep, and ten-deep stamps.
-                 * An eleventh unary stays kind 22.
+                 * seven-deep, eight-deep, nine-deep, ten-deep, and eleven-deep
+                 * stamps. A twelfth unary stays kind 22.
                  * Bitwise not stays off. The unary operand ref
                  * is range-checked. An i32 element does not enter.
                  * PLATFORM: SHARED.
@@ -12170,6 +12171,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_nona_k: i32 = 0;
                   let f_deca: i32 = 0;
                   let f_deca_k: i32 = 0;
+                  let f_undeca: i32 = 0;
+                  let f_undeca_k: i32 = 0;
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (splat_rhs_k == 22) {
@@ -12348,6 +12351,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                                                               }
                                                                               if (splat_lhs_k == ord_field) {
                                                                                 splat_ok = 1;
+                                                                              }
+                                                                            }
+                                                                            /*
+                                                                             * Eleven minuses: the innermost is a
+                                                                             * FLOAT_LIT. The emitter applies the
+                                                                             * sign once. A twelfth unary is kind
+                                                                             * 22 here, not kind 1. Load the operand
+                                                                             * of f_deca only. The new ref is
+                                                                             * range-checked. PLATFORM: SHARED.
+                                                                             */
+                                                                            if (f_deca_k == 22) {
+                                                                              f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
+                                                                              if (f_undeca > 0) {
+                                                                                if (f_undeca <= arena.num_exprs) {
+                                                                                  f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
+                                                                                  if (f_undeca_k == 1) {
+                                                                                    if (splat_lhs_k == ord_var) {
+                                                                                      splat_ok = 1;
+                                                                                    }
+                                                                                    if (splat_lhs_k == ord_field) {
+                                                                                      splat_ok = 1;
+                                                                                    }
+                                                                                  }
+                                                                                }
                                                                               }
                                                                             }
                                                                           }
@@ -16489,7 +16516,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * again. Five minuses apply the sign once more. Six minuses
      * cancel again. Seven minuses apply the sign once more.
      * Eight minuses cancel again. Nine minuses apply the sign
-     * once more. Ten minuses cancel again. An eleventh unary
+     * once more. Ten minuses cancel again. Eleven minuses
+     * apply the sign once more. A twelfth unary
      * falls through.
      * Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
@@ -16642,7 +16670,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * once more. Six minuses cancel again. Seven minuses
                  * apply the sign once more. Eight minuses cancel again.
                  * Nine minuses apply the sign once more. Ten minuses
-                 * cancel again. An eleventh unary stays kind 22, so
+                 * cancel again. Eleven minuses apply the sign once
+                 * more. A twelfth unary stays kind 22, so
                  * it is not kept.
                  * Bitwise not stays
                  * off. The operand ref
@@ -16668,6 +16697,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_nona_k: i32 = 0;
                   let f_deca: i32 = 0;
                   let f_deca_k: i32 = 0;
+                  let f_undeca: i32 = 0;
+                  let f_undeca_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       if (op_ref <= arena.num_exprs) {
@@ -16793,6 +16824,25 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                                                               f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
                                                                               if (f_deca_k == 1) {
                                                                                 pre_keep = 1;
+                                                                              }
+                                                                              /*
+                                                                               * Eleven minuses: the innermost is a
+                                                                               * FLOAT_LIT. The emitter applies the
+                                                                               * sign once. A twelfth unary is kind
+                                                                               * 22 here, not kind 1. Load the operand
+                                                                               * of f_deca only. The new ref is
+                                                                               * range-checked. PLATFORM: SHARED.
+                                                                               */
+                                                                              if (f_deca_k == 22) {
+                                                                                f_undeca = pipeline_expr_unary_operand_ref_at(arena, f_deca);
+                                                                                if (f_undeca > 0) {
+                                                                                  if (f_undeca <= arena.num_exprs) {
+                                                                                    f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
+                                                                                    if (f_undeca_k == 1) {
+                                                                                      pre_keep = 1;
+                                                                                    }
+                                                                                  }
+                                                                                }
                                                                               }
                                                                             }
                                                                           }
