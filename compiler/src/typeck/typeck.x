@@ -10291,10 +10291,11 @@ decl_ty_ref: i32): i32 {
      * that slot. Stamp the declared vector type so the
      * let equal-check sees one type. A TYPE_VECTOR of f32 stamps a
      * FLOAT_LIT, one unary minus of a FLOAT_LIT, one more unary
-     * minus of that, one unary beyond that, or one unary beyond
-     * that. Two minuses cancel. Three minuses apply the sign once.
-     * Four minuses cancel again. A fifth unary, a bitwise not, a
-     * seventh i32 unary, a VAR, or a binop stays on the later
+     * minus of that, one unary beyond that, one unary beyond
+     * that, or one unary beyond that. Two minuses cancel. Three
+     * minuses apply the sign once. Four minuses cancel again. Five
+     * minuses apply the sign once more. A sixth unary, a bitwise
+     * not, a seventh i32 unary, a VAR, or a binop stays on the later
      * coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
@@ -10433,11 +10434,12 @@ decl_ty_ref: i32): i32 {
           /*
            * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, one unary minus of
            * a FLOAT_LIT, one more unary minus of that, one unary
-           * beyond that, or one unary beyond that, is the same splat
-           * the emitter fills. Two minuses cancel. Three minuses
-           * apply the sign once. Four minuses cancel again. Kind 1
-           * and kind 22 are separate compares. A fifth unary stays
-           * kind 22 at the inner operand, so it is not stamped.
+           * beyond that, one unary beyond that, or one unary beyond
+           * that, is the same splat the emitter fills. Two minuses
+           * cancel. Three minuses apply the sign once. Four minuses
+           * cancel again. Five minuses apply the sign once more.
+           * Kind 1 and kind 22 are separate compares. A sixth unary
+           * stays kind 22 at the inner operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter. The
            * operand refs are range-checked. PLATFORM: SHARED.
            */
@@ -10450,6 +10452,8 @@ decl_ty_ref: i32): i32 {
             let f_deep_k: i32 = 0;
             let f_quad: i32 = 0;
             let f_quad_k: i32 = 0;
+            let f_pent: i32 = 0;
+            let f_pent_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -10467,7 +10471,8 @@ decl_ty_ref: i32): i32 {
                  * The emitter retargets the fill at that literal and
                  * leaves the sign bit clear. One unary beyond that
                  * applies the sign once. One unary beyond that cancels
-                 * again. A fifth unary is kind 22 here, not kind 1.
+                 * again. One unary beyond that applies the sign once
+                 * more. A sixth unary is kind 22 here, not kind 1.
                  * The new ref is range-checked. PLATFORM: SHARED.
                  */
                 if (fop_k == 22) {
@@ -10493,6 +10498,23 @@ decl_ty_ref: i32): i32 {
                                   f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
                                   if (f_quad_k == 1) {
                                     splat_ok = 1;
+                                  }
+                                  /*
+                                   * Five minuses: the innermost is a FLOAT_LIT.
+                                   * The emitter applies the sign once. A sixth
+                                   * unary is kind 22 here, not kind 1. The new
+                                   * ref is range-checked. PLATFORM: SHARED.
+                                   */
+                                  if (f_quad_k == 22) {
+                                    f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
+                                    if (f_pent > 0) {
+                                      if (f_pent <= arena.num_exprs) {
+                                        f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
+                                        if (f_pent_k == 1) {
+                                          splat_ok = 1;
+                                        }
+                                      }
+                                    }
                                   }
                                 }
                               }
