@@ -57,6 +57,13 @@ export extern function glue_emit_struct_type_let_init_elf_c(
 export extern function pipeline_asm_set_call_expected_ret_ty_c(type_ref: i32): void;
 export extern function pipeline_asm_emit_set_call_sret_reg_shift_c(v: i32): void;
 export extern function backend_enc_mov_rbx_to_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_store_rax_to_rbx_offset_arch(
+  elf_ctx: *u8, off: i32, load_sz: i32, ta: i32
+): i32;
+export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_type_lanes_esz_c(
+  arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
+): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(
   elf_ctx: *u8, k: i32, ta: i32
 ): i32;
@@ -452,6 +459,146 @@ function assign_field_one_scalar(
 }
 
 /**
+ * Store a 16-byte SIMD field from the AAPCS64 pair.
+ * The scalar path pushes only x0. The field address is then written
+ * into x1, so the high half is gone and lanes 2 and 3 stay stale.
+ * Push x0, copy x1 into x0, push that, then store [addr+8] and [addr].
+ * A lane push is pre-indexed and sits below these two saves.
+ * Wider than 16 bytes is left to the scalar path: that result is not
+ * this GPR pair.
+ * @param arena *u8 — AST arena; null is not reached (caller checked)
+ * @param elf_ctx *u8 — encoder context
+ * @param left_ref i32 — FIELD lvalue
+ * @param right_ref i32 — RHS already evaluated into x0:x1 by this function
+ * @param ctx *u8 — emit context
+ * @param ta i32 — 1 is arm64; any other arch returns -99 before emitting
+ * @return i32 — 0 when both halves are stored; -1 when an encoder step
+ *   fails after the RHS emit; -99 when the field is not a 16-byte SIMD
+ * PLATFORM: MACOS|ARM64. Windows (ta == 0) stays on the one-GPR store.
+ */
+function assign_field_one_simd16(
+  arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32
+): i32 {
+  let cell: u8[8];
+  let lanes_s: i32[1] = [];
+  let esz_s: i32[1] = [];
+  let fty: i32 = 0;
+  let simd: i32 = 0;
+  let lanes: i32 = 0;
+  let esz: i32 = 0;
+  let rc: i32 = 0;
+  if (ta != 1) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_field_access_field_type_ref_c(
+      arena, pipeline_asm_emit_module_ref_c(), left_ref));
+  }
+  fty = assign_field_cell_i32(&cell[0]);
+  if (fty <= 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, asm_type_is_simd_vector_spelling(arena, fty));
+  }
+  simd = assign_field_cell_i32(&cell[0]);
+  if (simd == 0) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, glue_vector_type_lanes_esz_c(
+      arena, fty, &lanes_s[0], &esz_s[0]));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0 || lanes_s[0] <= 0 || esz_s[0] <= 0) {
+    return 0 - 99;
+  }
+  lanes = lanes_s[0];
+  esz = esz_s[0];
+  // GPR pair is 16 bytes. A wider vector is not stored here.
+  if (lanes * esz != 16) {
+    return 0 - 99;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_expr_elf_c(
+      arena, elf_ctx, right_ref, ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // Low half first, then the high half that still sits in x1.
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_push_rax_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_mov_rbx_to_rax_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_push_rax_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_lvalue_eff_addr_elf_c(
+      arena, elf_ctx, left_ref, ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_mov_rax_to_rbx_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_pop_rax_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  // High half at +8. x1 is still the field address.
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_store_rax_to_rbx_offset_arch(
+      elf_ctx, 8, 8, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_pop_rax_arch(elf_ctx, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  unsafe {
+    pipe_store_i32_le(&cell[0], 0, backend_enc_store_rax_to_rbx_offset_arch(
+      elf_ctx, 0, 8, ta));
+  }
+  rc = assign_field_cell_i32(&cell[0]);
+  if (rc != 0) {
+    return 0 - 1;
+  }
+  return 0;
+}
+
+/**
  * Emit a FIELD-lvalue assignment, including wide named layouts and compound ops.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — encoder context; null returns -1
@@ -466,7 +613,8 @@ function assign_field_one_scalar(
  * on x86-64 copies a VAR, FIELD, or STRUCT_LIT through let-init slot -3,
  * a CALL through sret, and an INDEX through memcpy. Exactly 16 bytes uses
  * let-init only when the base is a pointer and the RHS is a frame VAR or
- * a FIELD. ta != 0 stays on the one-GPR store. Pipe cells hold extern
+ * a FIELD. On arm64 a 16-byte SIMD field stores x0 and x1. Any other
+ * ta != 0 value stays on the one-GPR store. Pipe cells hold extern
  * results. PLATFORM: WINDOWS | DARWIN — one strong T. Windows links
  * this object ahead of the egg. Darwin weakens the pabi_weak copy.
  */
@@ -518,6 +666,18 @@ export function glue_emit_assign_field_elf_c(
       if (handled != 0) {
         return rc;
       }
+    }
+  }
+  // 16-byte SIMD on arm64. -99 keeps the one-GPR store below.
+  // PLATFORM: MACOS|ARM64.
+  if (ek == 28 && ta == 1) {
+    unsafe {
+      pipe_store_i32_le(&rccell[0], 0, assign_field_one_simd16(
+        arena, elf_ctx, left_ref, right_ref, ctx, ta));
+    }
+    rc = assign_field_cell_i32(&rccell[0]);
+    if (rc != (0 - 99)) {
+      return rc;
     }
   }
   unsafe {
