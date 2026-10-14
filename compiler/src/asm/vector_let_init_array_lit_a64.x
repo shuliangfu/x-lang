@@ -6,12 +6,18 @@
 // as add) call the existing per-lane binop writer. INT_LIT (0) and
 // BOOL_LIT (2) call the existing lane-imm fill. EXPR_NEG (22) over an
 // INT_LIT is the parser form of `-3`: negate that literal and splat
-// with the same fill. Declining it stored `neg w0` (zero-extended x0)
-// plus the untouched x1, so lane 1 of i32x4 = -3 was 0. NEG of a
-// non-literal, and a negative pattern with lane size 8, still return
-// -3 (the fill zero-extends a 32-bit immediate). VAR copy and
-// CALL/METHOD still return -3. A non-SIMD type still returns -3: a
-// hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
+// with the same fill. Declining that splat stored `neg w0`
+// (zero-extended x0) plus the untouched x1, so lane 1 of i32x4 = -3
+// was 0. EXPR_NEG of a VAR whose lanes already have a frame home
+// negates each i32 lane with the existing neg w0. A decline of that
+// form stored neg of lane 0 only, so lane 1 of `let v = -a` was 0 and
+// lanes 2..3 stayed the source. FIELD stays declined: the lane-home
+// helper reports the pointer temporary, not the field bytes. f32, a
+// lane size other than 4, a vector wider than 16, and a negative
+// immediate with lane size 8 still return -3 (neg w0 is 32-bit; the
+// fill zero-extends). CALL, binop, and VAR copy still return -3.
+// A non-SIMD type still returns
+// -3: a hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
 // Windows keeps seeds/win_vector_type_let_init_override.c. Do not link
 // that C body here.
 // PLATFORM: MACOS|ARM64.
@@ -34,6 +40,20 @@ export extern function glue_vector_type_lanes_esz_c(
 export extern function glue_simd_emit_imm_fill_slot_c(
   elf_ctx: *u8, stack_slot_off: i32, lanes: i32, esz: i32, ta: i32, imm_bits: i32
 ): i32;
+export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
+export extern function glue_vector_var_lane_stack_off_elf_c(
+  arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32, ta: i32
+): i32;
+export extern function backend_enc_load_rbp_lane_to_rax_arch(
+  elf_ctx: *u8, offset: i32, esz: i32, ta: i32
+): i32;
+export extern function backend_enc_neg_eax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_lea_rbp_to_rbx_arch(
+  elf_ctx: *u8, offset: i32, ta: i32
+): i32;
+export extern function backend_enc_store_rax_to_rbx_offset_arch(
+  elf_ctx: *u8, offset: i32, sz: i32, ta: i32
+): i32;
 
 /**
  * Store SIMD ARRAY_LIT lanes, a lane binop, or a scalar lit splat.
@@ -51,10 +71,12 @@ export extern function glue_simd_emit_imm_fill_slot_c(
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
  * (kind 51 is add). Kind 0 (INT_LIT) and kind 2 (BOOL_LIT) call
  * glue_simd_emit_imm_fill_slot_c. Kind 22 (EXPR_NEG) of an INT_LIT
- * negates that value and calls the same fill. NEG of a non-literal,
- * and a negative pattern whose lane is 8 bytes, stay declined: the
- * fill zero-extends the 32-bit immediate. VAR copy and CALL/METHOD
- * stay declined.
+ * negates that value and calls the same fill. Kind 22 of a VAR with
+ * a frame home negates each i32 lane via neg w0. FIELD stays declined
+ * (the lane-home helper reports the pointer temporary). f32, a lane
+ * size other than 4, a vector wider than 16, and a negative pattern
+ * whose lane is 8 bytes stay declined: neg w0 is 32-bit and the fill
+ * zero-extends. CALL, binop, and VAR copy stay declined.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -71,6 +93,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let lit_ref: i32 = 0;
   let op_ko: i32 = 0;
   let neg_lit: i32 = 0;
+  let lane_i: i32 = 0;
+  let src_off: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -106,7 +130,7 @@ export function glue_emit_vector_type_let_init_elf_c(
   // EXPR_NEG = 22 over an INT_LIT is the parser form of `-3`. Negate
   // that literal and splat with the same fill. A decline stores
   // zero-extended `neg w0` plus untouched x1, so lane 1 of i32x4 = -3
-  // is 0. NEG of a non-literal stays declined. FLOAT_LIT stays declined.
+  // is 0. FLOAT_LIT stays declined.
   // Lane size 8 of a negative pattern stays declined: the fill
   // zero-extends the 32-bit immediate, which is not a negative i64.
   if (ko == 0 || ko == 2) {
@@ -123,7 +147,76 @@ export function glue_emit_vector_type_let_init_elf_c(
       op_ko = pipeline_expr_kind_ord_at(arena, lit_ref);
     }
     if (op_ko != 0) {
-      return 0 - 3;
+      // Non-literal NEG. Only a VAR (kind 3) is lane-addressable here.
+      // Each lane is loaded, negated with the existing neg w0, and stored.
+      // Declining this stored neg of lane 0 only: lane 1 of `let v = -a`
+      // was 0, and lanes 2..3 stayed the source. FIELD (kind 44) stays
+      // declined: the lane-home helper names the pointer temporary, not
+      // the field bytes. f32 is not integer neg. Lane size other than 4,
+      // and a vector wider than 16, stay declined (neg w0 is 32-bit).
+      // CALL and binop stay declined. Nothing is emitted before a decline.
+      // ta != 1 stays declined: this body is the Darwin arm64 let-init.
+      // PLATFORM: MACOS|ARM64.
+      if (ta != 1 || op_ko != 3) {
+        return 0 - 3;
+      }
+      unsafe {
+        rc = glue_vector_elem_is_f32_c(arena, type_ref);
+      }
+      if (rc != 0) {
+        return 0 - 3;
+      }
+      unsafe {
+        rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
+      }
+      if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0 || (lanes_s[0] * esz_s[0]) > 16) {
+        return 0 - 3;
+      }
+      lane_i = 0;
+      while (lane_i < lanes_s[0]) {
+        unsafe {
+          src_off = glue_vector_var_lane_stack_off_elf_c(
+            arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+        }
+        if (src_off < 0) {
+          return 0 - 3;
+        }
+        lane_i = lane_i + 1;
+      }
+      lane_i = 0;
+      while (lane_i < lanes_s[0]) {
+        unsafe {
+          src_off = glue_vector_var_lane_stack_off_elf_c(
+            arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+        }
+        unsafe {
+          rc = backend_enc_load_rbp_lane_to_rax_arch(elf_ctx, src_off, esz_s[0], ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_neg_eax_arch(elf_ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_lea_rbp_to_rbx_arch(elf_ctx, stack_slot_off, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        unsafe {
+          rc = backend_enc_store_rax_to_rbx_offset_arch(
+            elf_ctx, lane_i * esz_s[0], esz_s[0], ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
+        lane_i = lane_i + 1;
+      }
+      return 0;
     }
     neg_lit = 1;
   }
