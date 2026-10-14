@@ -14,9 +14,12 @@
 // and lane 1 of `let n = -h.v` was 0. The existing lane-home helper
 // names that field slot. A lane binop under the minus is stored by
 // the existing binop writer, then each destination lane is negated.
-// f32, a lane size other than 4, a vector wider than 16, and a
+// A CALL or METHOD under the minus is stored by the existing struct
+// let-init call arm, then each destination lane is negated. A decline
+// of that form stored neg of lane 0 only, so lane 1 of `let n = -id(a)`
+// was 0. f32, a lane size other than 4, a vector wider than 16, and a
 // negative immediate with lane size 8 still return -3 (neg w0 is
-// 32-bit; the fill zero-extends). CALL and VAR copy still return -3.
+// 32-bit; the fill zero-extends). Bare CALL and VAR copy still return -3.
 // A non-SIMD type still returns
 // -3: a hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
 // Windows keeps seeds/win_vector_type_let_init_override.c. Do not link
@@ -32,6 +35,10 @@ export extern function glue_is_vector_lane_scalar_binop_ko(ko: i32): i32;
 export extern function pipeline_asm_emit_vector_binop_let_init_elf_c(
   arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
   stack_slot_off: i32, type_ref: i32
+): i32;
+export extern function glue_emit_struct_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  let_ty_ref: i32, stack_slot_off: i32
 ): i32;
 export extern function pipeline_expr_int_val_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
@@ -66,8 +73,9 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * @param stack_slot_off i32 — destination slot of lane 0
  * @param type_ref i32 — let type; not a SIMD vector spelling returns -3
  * @return i32 — 0 when kind 46, a lane binop, a scalar lit, unary-minus
- *   of an integer lit, a VAR, a FIELD, or a lane binop is stored;
- *   -1 when that store fails; -3 when this face does not handle the expr
+ *   of an integer lit, a VAR, a FIELD, a lane binop, a CALL, or a
+ *   METHOD is stored; -1 when that store fails; -3 when this face does
+ *   not handle the expr
  * Kind 46 (ARRAY_LIT) calls pipeline_asm_emit_vector_let_init_elf_c.
  * Kinds 4..13 call pipeline_asm_emit_vector_binop_let_init_elf_c
  * (kind 51 is add). Kind 0 (INT_LIT) and kind 2 (BOOL_LIT) call
@@ -78,10 +86,12 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * A negative home declines before any emit. Kind 22 of a lane binop
  * (kinds 4..13 and 51) stores that binop with
  * pipeline_asm_emit_vector_binop_let_init_elf_c, then negates each
- * destination lane in place. f32, a lane size other than 4, a vector
- * wider than 16, and a negative pattern whose lane is 8 bytes stay
- * declined: neg w0 is 32-bit and the fill zero-extends. CALL and VAR
- * copy stay declined.
+ * destination lane in place. Kind 22 of a CALL (kind 48) or a METHOD
+ * (kind 49) stores that call with glue_emit_struct_type_let_init_elf_c,
+ * then negates each destination lane in place. f32, a lane size other
+ * than 4, a vector wider than 16, and a negative pattern whose lane is
+ * 8 bytes stay declined: neg w0 is 32-bit and the fill zero-extends.
+ * Bare CALL and VAR copy stay declined.
  * PLATFORM: MACOS|ARM64.
  */
 #[no_mangle]
@@ -156,11 +166,14 @@ export function glue_emit_vector_type_let_init_elf_c(
       // Non-literal NEG. A VAR (kind 3) or a FIELD (kind 44) is
       // lane-addressable here. A lane binop (kinds 4..13 and 51) is
       // stored into the destination by the existing binop writer, then
-      // each of those lanes is negated in place. Declining this stored
+      // each of those lanes is negated in place. A CALL (kind 48) or a
+      // METHOD (kind 49) is stored by the existing struct let-init
+      // call arm, then negated the same way. Declining this stored
       // neg of lane 0 only: lane 1 of `let v = -a` was 0, lane 1 of
-      // `let n = -h.v` was 0, and lane 1 of `let n = -(a + b)` was 0.
-      // The width gate runs before that store, so a decline emits
-      // nothing. CALL stays declined. ta != 1 stays declined.
+      // `let n = -h.v` was 0, lane 1 of `let n = -(a + b)` was 0, and
+      // lane 1 of `let n = -id(a)` was 0. The width gate runs before
+      // that store, so a decline emits nothing. Bare CALL stays
+      // declined. ta != 1 stays declined.
       // PLATFORM: MACOS|ARM64.
       if (ta != 1) {
         return 0 - 3;
@@ -172,8 +185,12 @@ export function glue_emit_vector_type_let_init_elf_c(
       if (rc != 0) {
         from_dest = 1;
       } else {
-        if (op_ko != 3 && op_ko != 44) {
-          return 0 - 3;
+        if (op_ko == 48 || op_ko == 49) {
+          from_dest = 2;
+        } else {
+          if (op_ko != 3 && op_ko != 44) {
+            return 0 - 3;
+          }
         }
       }
       unsafe {
@@ -188,7 +205,7 @@ export function glue_emit_vector_type_let_init_elf_c(
       if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0 || (lanes_s[0] * esz_s[0]) > 16) {
         return 0 - 3;
       }
-      if (from_dest != 0) {
+      if (from_dest == 1) {
         unsafe {
           rc = pipeline_asm_emit_vector_binop_let_init_elf_c(
             arena, elf_ctx, lit_ref, ctx, ta, stack_slot_off, type_ref);
@@ -197,16 +214,31 @@ export function glue_emit_vector_type_let_init_elf_c(
           return 0 - 1;
         }
       } else {
-        lane_i = 0;
-        while (lane_i < lanes_s[0]) {
+        if (from_dest == 2) {
+          // Existing call arm sets the expected return type, emits the
+          // call, and stores both halves. A hand-rolled emit would skip
+          // that widen and keep only lane 0. Non-zero may already have
+          // emitted, so do not fall through to scalar neg.
+          // PLATFORM: MACOS|ARM64.
           unsafe {
-            src_off = glue_vector_var_lane_stack_off_elf_c(
-              arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+            rc = glue_emit_struct_type_let_init_elf_c(
+              arena, elf_ctx, lit_ref, ctx, ta, type_ref, stack_slot_off);
           }
-          if (src_off < 0) {
-            return 0 - 3;
+          if (rc != 0) {
+            return 0 - 1;
           }
-          lane_i = lane_i + 1;
+        } else {
+          lane_i = 0;
+          while (lane_i < lanes_s[0]) {
+            unsafe {
+              src_off = glue_vector_var_lane_stack_off_elf_c(
+                arena, ctx, lit_ref, lane_i, esz_s[0], ta);
+            }
+            if (src_off < 0) {
+              return 0 - 3;
+            }
+            lane_i = lane_i + 1;
+          }
         }
       }
       lane_i = 0;
