@@ -1,9 +1,9 @@
 // Field assign for the Windows PE link.
 // Body matches seeds/win_assign_field_override.c except the arm64
-// arm below: a SIMD field wider than 16 bytes whose RHS is unary
-// minus uses the existing vector let-init. A frame-homed VAR or
-// FIELD of that width uses the existing frame memcpy. That seed
-// does not.
+// arm below: a SIMD field whose RHS is unary minus uses the existing
+// vector let-init, for 16 bytes and for a wider 4-byte lane. A
+// frame-homed VAR or FIELD wider than 16 uses the existing frame
+// memcpy. That seed does not.
 // The egg copy is a different, shorter body, so this object has to
 // be linked ahead of it.
 // runtime_pipeline_abi_assign_field_thin.x is a different dispatcher.
@@ -489,12 +489,17 @@ function assign_field_one_scalar(
  * lane-0 homes are frame offsets, the existing frame memcpy copies
  * every lane. A negative home emits nothing and keeps the scalar
  * store. Other wide RHS kinds stay scalar.
+ * Exactly 16 bytes still stores x0 and x1, except unary minus.
+ * `neg w0` clears lane 1 and leaves lanes 2 and 3, so lane 3 of
+ * `p.v = -h.v` for i32x4 stayed 4. That RHS uses the same let-init.
+ * A -3 decline keeps the pair store.
  * @param arena *u8 — AST arena; null is not reached (caller checked)
  * @param elf_ctx *u8 — encoder context
  * @param left_ref i32 — FIELD lvalue
- * @param right_ref i32 — RHS. The 16-byte arm evaluates it into x0:x1.
- *   Unary minus goes to the vector let-init. A frame VAR or FIELD
- *   is copied with the existing frame memcpy.
+ * @param right_ref i32 — RHS. A non-minus 16-byte value is evaluated
+ *   into x0:x1. Unary minus goes to the vector let-init. A frame
+ *   VAR or FIELD wider than 16 is copied with the existing frame
+ *   memcpy.
  * @param ctx *u8 — emit context
  * @param ta i32 — 1 is arm64; any other arch returns -99 before emitting
  * @return i32 — 0 when the field is stored; -1 when an encoder step
@@ -628,6 +633,40 @@ function assign_field_one_simd16(
     }
     return 0 - 99;
   }
+  // emit_expr of unary minus loads the 16-byte field, then neg w0.
+  // A W write clears the top half of x0, so lane 1 becomes 0, and
+  // the high pair in x1 is still lanes 2 and 3. Lane 3 of
+  // `p.v = -h.v` stayed 4. The existing let-init already negates
+  // every 4-byte lane of a 16-byte SIMD into the slot it is given.
+  // A negative field home, or a -3 decline, emits nothing and keeps
+  // this pair store. -1 may already have emitted.
+  // PLATFORM: MACOS|ARM64.
+  if (esz == 4) {
+    unsafe {
+      pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+    }
+    rk = assign_field_cell_i32(&cell[0]);
+    if (rk == 22) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, glue_vector_var_lane_stack_off_elf_c(
+          arena, ctx, left_ref, 0, esz, ta));
+      }
+      home = assign_field_cell_i32(&cell[0]);
+      if (home >= 0) {
+        unsafe {
+          pipe_store_i32_le(&cell[0], 0, glue_emit_vector_type_let_init_elf_c(
+            arena, elf_ctx, right_ref, ctx, ta, home, fty));
+        }
+        rc = assign_field_cell_i32(&cell[0]);
+        if (rc == 0) {
+          return 0;
+        }
+        if (rc == (0 - 1)) {
+          return 0 - 1;
+        }
+      }
+    }
+  }
   unsafe {
     pipe_store_i32_le(&cell[0], 0, pipeline_asm_emit_expr_elf_c(
       arena, elf_ctx, right_ref, ctx, ta));
@@ -722,10 +761,12 @@ function assign_field_one_simd16(
  * on x86-64 copies a VAR, FIELD, or STRUCT_LIT through let-init slot -3,
  * a CALL through sret, and an INDEX through memcpy. Exactly 16 bytes uses
  * let-init only when the base is a pointer and the RHS is a frame VAR or
- * a FIELD. On arm64 a 16-byte SIMD field stores x0 and x1. A wider
- * SIMD whose lane is 4 bytes and whose RHS is unary minus uses the
- * existing vector let-init into the field home. The same width whose
- * RHS is a frame-homed VAR or FIELD uses the existing frame memcpy.
+ * a FIELD. On arm64 a 16-byte SIMD field stores x0 and x1, unless
+ * the RHS is unary minus: that uses the existing vector let-init
+ * into the field home. A wider SIMD whose lane is 4 bytes and whose
+ * RHS is unary minus uses that same let-init. The same wider width
+ * whose RHS is a frame-homed VAR or FIELD uses the existing frame
+ * memcpy.
  * Any other ta != 0 value stays on the one-GPR store. Pipe cells hold extern
  * results. PLATFORM: WINDOWS | DARWIN — one strong T. Windows links
  * this object ahead of the egg. Darwin weakens the pabi_weak copy.
