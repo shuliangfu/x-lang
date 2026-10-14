@@ -11633,9 +11633,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * bare FLOAT_LIT, one unary minus of a FLOAT_LIT, one more unary
  * minus of that, one unary beyond that, and one unary beyond that,
  * on a VAR or a FIELD. Two minuses cancel. Three minuses apply the
- * sign once. Four minuses cancel again. The float-lit checker keeps
- * an already-resolved type. A fifth unary and a bitwise not stay
- * unstamped. The linked body is the assign thin;
+ * sign once. Four minuses cancel again. Five minuses apply the sign
+ * once more. The float-lit checker keeps an already-resolved type.
+ * A sixth unary and a bitwise not stay unstamped. The linked body
+ * is the assign thin;
  * this function is the source authority.
  * PLATFORM: SHARED — the type rule is the same on every host.
  */
@@ -11809,8 +11810,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * minus of a FLOAT_LIT, one more unary minus of that, one unary
      * beyond that, and one unary beyond that. Two minuses cancel.
      * Three minuses apply the sign once. Four minuses cancel again.
-     * The float-lit checker keeps an already-resolved type. A fifth
-     * unary and a bitwise not of that float are not stamped.
+     * Five minuses apply the sign once more. The float-lit checker
+     * keeps an already-resolved type. A sixth unary and a bitwise
+     * not of that float are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
      * PLATFORM: SHARED — same type rule on every host. The linked body
@@ -11997,9 +11999,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * Kind 22 and kind 1 are separate compares. The
                  * float-lit checker keeps an already-resolved type, so
                  * the kind-1 stamp survives. The unary checker keeps
-                 * the one-deep, two-deep, three-deep, and four-deep
-                 * stamps. A fifth unary stays kind 22. Bitwise not
-                 * stays off. The unary operand ref
+                 * the one-deep, two-deep, three-deep, four-deep, and
+                 * five-deep stamps. A sixth unary stays kind 22.
+                 * Bitwise not stays off. The unary operand ref
                  * is range-checked. An i32 element does not enter.
                  * PLATFORM: SHARED.
                  */
@@ -12012,6 +12014,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_deep_k: i32 = 0;
                   let f_quad: i32 = 0;
                   let f_quad_k: i32 = 0;
+                  let f_pent: i32 = 0;
+                  let f_pent_k: i32 = 0;
                   splat_lhs_k = pipeline_expr_kind_ord_at(arena, left_ref);
                   splat_rhs_k = pipeline_expr_kind_ord_at(arena, right_ref);
                   if (splat_rhs_k == 22) {
@@ -12045,8 +12049,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                              * One more unary minus whose operand is a
                              * FLOAT_LIT, or one unary beyond that.
                              * Three minuses apply the sign once. Four
-                             * minuses cancel again. A fifth unary is
-                             * kind 22 here, not kind 1. The new ref is
+                             * minuses cancel again. Five minuses apply
+                             * the sign once more. A sixth unary is kind
+                             * 22 here, not kind 1. The new ref is
                              * range-checked. PLATFORM: SHARED.
                              */
                             if (f_in_k == 22) {
@@ -12073,6 +12078,22 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                           }
                                           if (splat_lhs_k == ord_field) {
                                             splat_ok = 1;
+                                          }
+                                        }
+                                        if (f_quad_k == 22) {
+                                          f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
+                                          if (f_pent > 0) {
+                                            if (f_pent <= arena.num_exprs) {
+                                              f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
+                                              if (f_pent_k == 1) {
+                                                if (splat_lhs_k == ord_var) {
+                                                  splat_ok = 1;
+                                                }
+                                                if (splat_lhs_k == ord_field) {
+                                                  splat_ok = 1;
+                                                }
+                                              }
+                                            }
                                           }
                                         }
                                       }
@@ -16193,7 +16214,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * one unary minus of a FLOAT_LIT, one more unary minus of that,
      * one unary beyond that, and one unary beyond that. Two minuses
      * cancel. Three minuses apply the sign once. Four minuses cancel
-     * again. A fifth unary falls through.
+     * again. Five minuses apply the sign once more. A sixth unary
+     * falls through.
      * Let-init does not pre-stamp,
      * so it falls through to coerce. LOGNOT never sets the keep flag.
      * Two compares, not a chained && : the bootstrap image
@@ -16341,8 +16363,9 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                  * unary beyond that, and one unary beyond that. Kind
                  * 22 and kind 1 are separate compares. Two minuses
                  * cancel. Three minuses apply the sign once. Four
-                 * minuses cancel again. A fifth unary stays kind 22,
-                 * so it is not kept. Bitwise not stays off. The operand ref
+                 * minuses cancel again. Five minuses apply the sign
+                 * once more. A sixth unary stays kind 22, so it is not
+                 * kept. Bitwise not stays off. The operand ref
                  * is range-checked. The keep below still typechecks the
                  * immediate operand with expected 0. PLATFORM: SHARED.
                  */
@@ -16353,6 +16376,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   let f_deep_k: i32 = 0;
                   let f_quad: i32 = 0;
                   let f_quad_k: i32 = 0;
+                  let f_pent: i32 = 0;
+                  let f_pent_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       if (op_ref <= arena.num_exprs) {
@@ -16372,7 +16397,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                * One more unary minus whose operand is a
                                * FLOAT_LIT, or one unary beyond that.
                                * Three minuses apply the sign once. Four
-                               * minuses cancel again. A fifth unary is
+                               * minuses cancel again. Five minuses apply
+                               * the sign once more. A sixth unary is
                                * kind 22 here, not kind 1. The new ref is
                                * range-checked. PLATFORM: SHARED.
                                */
@@ -16391,6 +16417,17 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                                           f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
                                           if (f_quad_k == 1) {
                                             pre_keep = 1;
+                                          }
+                                          if (f_quad_k == 22) {
+                                            f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
+                                            if (f_pent > 0) {
+                                              if (f_pent <= arena.num_exprs) {
+                                                f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
+                                                if (f_pent_k == 1) {
+                                                  pre_keep = 1;
+                                                }
+                                              }
+                                            }
                                           }
                                         }
                                       }

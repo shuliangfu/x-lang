@@ -53,8 +53,9 @@
 // glue_ieee_f64_bits_to_f32_bits and splatted with the same imm fill.
 // One more unary minus of that FLOAT_LIT cancels the sign and uses
 // the same fill. One unary beyond that applies the sign once.
-// One unary beyond that cancels again. A fifth unary of that float
-// stays declined. A scalar mvn w0
+// One unary beyond that cancels again. One unary beyond that applies
+// the sign once more. A sixth unary of that float stays declined.
+// A scalar mvn w0
 // plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
 // an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
 // each lane is 4 bytes. The lane home, the lane-byte writer, and the
@@ -237,6 +238,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   let f_deep_k: i32 = 0;
   let f_quad: i32 = 0;
   let f_quad_k: i32 = 0;
+  let f_pent: i32 = 0;
+  let f_pent_k: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -295,13 +298,14 @@ export function glue_emit_vector_type_let_init_elf_c(
   }
   // FLOAT_LIT = 1, one EXPR_NEG of a FLOAT_LIT (`-1.0`), one more
   // EXPR_NEG of that (`-(-1.0)`), one unary beyond that
-  // (`-(-(-1.0))`), or one unary beyond that (`-(-(-(-1.0)))`). The
-  // parser stores the magnitude as f64 bits. The existing
-  // glue_ieee_f64_bits_to_f32_bits narrows those bits. The existing
-  // glue_simd_emit_imm_fill_slot_c splats the f32 pattern. Two
-  // minuses cancel, so that unary does not xor the sign bit. Three
-  // minuses apply the sign once. Four minuses cancel again. A fifth
-  // unary is not kind 1 and stays on the decline below. Bitwise not
+  // (`-(-(-1.0))`), one unary beyond that (`-(-(-(-1.0)))`), or one
+  // unary beyond that (`-(-(-(-(-1.0))))`). The parser stores the
+  // magnitude as f64 bits. The existing glue_ieee_f64_bits_to_f32_bits
+  // narrows those bits. The existing glue_simd_emit_imm_fill_slot_c
+  // splats the f32 pattern. Two minuses cancel, so that unary does
+  // not xor the sign bit. Three minuses apply the sign once. Four
+  // minuses cancel again. Five minuses apply the sign once more. A
+  // sixth unary is not kind 1 and stays on the decline below. Bitwise not
   // of a float stays declined. The element must be f32, the lane
   // size 4, and ta 1.
   // An f64 lane stays declined.
@@ -316,6 +320,8 @@ export function glue_emit_vector_type_let_init_elf_c(
   f_deep_k = 0;
   f_quad = 0;
   f_quad_k = 0;
+  f_pent = 0;
+  f_pent_k = 0;
   if (ko == 1) {
     f_ref = init_ref;
     f_ko = 1;
@@ -345,8 +351,8 @@ export function glue_emit_vector_type_let_init_elf_c(
             f_neg = 0;
           }
           // Three minuses: the innermost is still a FLOAT_LIT. Apply
-          // the sign once. Four minuses cancel again. A fifth unary
-          // leaves kind 22 here.
+          // the sign once. Four minuses cancel again. Five minuses
+          // apply the sign once more. A sixth unary leaves kind 22.
           if (f_in_k == 22) {
             unsafe {
               f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
@@ -375,6 +381,24 @@ export function glue_emit_vector_type_let_init_elf_c(
                     f_ref = f_quad;
                     f_ko = 1;
                     f_neg = 0;
+                  }
+                  // Five minuses: the innermost is a FLOAT_LIT. Apply
+                  // the sign once. A sixth unary is kind 22 here, not
+                  // kind 1. PLATFORM: MACOS|ARM64.
+                  if (f_quad_k == 22) {
+                    unsafe {
+                      f_pent = pipeline_expr_unary_operand_ref_at(arena, f_quad);
+                    }
+                    if (f_pent > 0) {
+                      unsafe {
+                        f_pent_k = pipeline_expr_kind_ord_at(arena, f_pent);
+                      }
+                      if (f_pent_k == 1) {
+                        f_ref = f_pent;
+                        f_ko = 1;
+                        f_neg = 1;
+                      }
+                    }
                   }
                 }
               }
