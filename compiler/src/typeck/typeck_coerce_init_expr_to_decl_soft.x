@@ -5,9 +5,10 @@
 // one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
 // of i32 is stamped with the declared type. A seventh unary calls the
 // demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT, one
-// unary minus of a FLOAT_LIT, one more unary minus of that, or one
-// unary beyond that. Two minuses cancel. Three minuses apply the
-// sign once. A fourth unary and a bitwise not call the demoted body.
+// unary minus of a FLOAT_LIT, one more unary minus of that, one
+// unary beyond that, or one unary beyond that. Two minuses cancel.
+// Three minuses apply the sign once. Four minuses cancel again. A
+// fifth unary and a bitwise not call the demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -36,9 +37,10 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * unary, a variable, a binop,
  * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
  * stamps a FLOAT_LIT, one unary minus of a FLOAT_LIT, one more
- * unary minus of that, or one unary beyond that. Two minuses cancel.
- * Three minuses apply the sign once. A fourth unary of that float
- * stays on the demoted body.
+ * unary minus of that, one unary beyond that, or one unary beyond
+ * that. Two minuses cancel. Three minuses apply the sign once. Four
+ * minuses cancel again. A fifth unary of that float stays on the
+ * demoted body.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses. An out-of-range expr ref is not
  * counted here: pipeline_expr_kind_ord_at already returns -1, which is
@@ -206,10 +208,11 @@ export function typeck_coerce_init_expr_to_decl(
           }
           /*
            * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, one unary minus of
-           * a FLOAT_LIT, one more unary minus of that, or one unary
-           * beyond that, is the same splat the emitter fills. Two
-           * minuses cancel. Three minuses apply the sign once. Kind 1
-           * and kind 22 are separate compares. A fourth unary stays
+           * a FLOAT_LIT, one more unary minus of that, one unary
+           * beyond that, or one unary beyond that, is the same splat
+           * the emitter fills. Two minuses cancel. Three minuses
+           * apply the sign once. Four minuses cancel again. Kind 1
+           * and kind 22 are separate compares. A fifth unary stays
            * kind 22 at the inner operand, so it is not stamped.
            * Bitwise not stays off. An i32 element does not enter.
            * PLATFORM: SHARED.
@@ -221,6 +224,8 @@ export function typeck_coerce_init_expr_to_decl(
             let f_in_k: i32 = 0;
             let f_deep: i32 = 0;
             let f_deep_k: i32 = 0;
+            let f_quad: i32 = 0;
+            let f_quad_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -236,8 +241,9 @@ export function typeck_coerce_init_expr_to_decl(
                * One more unary minus whose operand is a FLOAT_LIT.
                * The emitter retargets the fill at that literal and
                * leaves the sign bit clear. One unary beyond that
-               * applies the sign once. A fourth unary is kind 22
-               * here, not kind 1. PLATFORM: SHARED.
+               * applies the sign once. One unary beyond that cancels
+               * again. A fifth unary is kind 22 here, not kind 1.
+               * PLATFORM: SHARED.
                */
               if (fop_k == 22) {
                 f_in = pipeline_expr_unary_operand_ref_at(arena, fop);
@@ -252,6 +258,15 @@ export function typeck_coerce_init_expr_to_decl(
                       f_deep_k = pipeline_expr_kind_ord_at(arena, f_deep);
                       if (f_deep_k == 1) {
                         splat_ok = 1;
+                      }
+                      if (f_deep_k == 22) {
+                        f_quad = pipeline_expr_unary_operand_ref_at(arena, f_deep);
+                        if (f_quad > 0) {
+                          f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
+                          if (f_quad_k == 1) {
+                            splat_ok = 1;
+                          }
+                        }
                       }
                     }
                   }
