@@ -5,9 +5,9 @@
 // one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
 // of i32 is stamped with the declared type. A seventh unary calls the
 // demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT and one
-// through nine unary minuses of that literal. Two, four, six, and
-// eight minuses cancel. Three, five, seven, and nine apply the sign
-// once. A tenth unary and a bitwise not call the demoted body.
+// through ten unary minuses of that literal. Two, four, six, eight,
+// and ten minuses cancel. Three, five, seven, and nine apply the sign
+// once. An eleventh unary and a bitwise not call the demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -35,9 +35,9 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * three, four, or five more unary -/~ of that unary. A seventh
  * unary, a variable, a binop,
  * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
- * stamps a FLOAT_LIT and one through nine unary minuses of that
- * literal. Two, four, six, and eight minuses cancel. Three, five,
- * seven, and nine apply the sign once. A tenth unary of that float
+ * stamps a FLOAT_LIT and one through ten unary minuses of that
+ * literal. Two, four, six, eight, and ten minuses cancel. Three, five,
+ * seven, and nine apply the sign once. An eleventh unary of that float
  * stays on the demoted body.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses. An out-of-range expr ref is not
@@ -212,8 +212,9 @@ export function typeck_coerce_init_expr_to_decl(
            * or one unary beyond that, is the same splat the emitter
            * fills. Two, four, six, and eight minuses cancel. Three,
            * five, seven, and nine apply the sign once. Kind 1 and kind
-           * 22 are separate compares. A tenth unary stays kind 22 at
-           * the inner operand, so it is not stamped.
+           * 22 are separate compares. Ten minuses cancel again. An
+           * eleventh unary stays kind 22 at the inner operand, so it
+           * is not stamped.
            * Bitwise not stays off. An i32 element does not enter.
            * PLATFORM: SHARED.
            */
@@ -236,6 +237,8 @@ export function typeck_coerce_init_expr_to_decl(
             let f_oct_k: i32 = 0;
             let f_nona: i32 = 0;
             let f_nona_k: i32 = 0;
+            let f_deca: i32 = 0;
+            let f_deca_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -349,6 +352,22 @@ export function typeck_coerce_init_expr_to_decl(
                                               f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
                                               if (f_nona_k == 1) {
                                                 splat_ok = 1;
+                                              }
+                                              /*
+                                               * Ten minuses: the innermost is a FLOAT_LIT.
+                                               * Five pairs cancel, so the sign bit stays
+                                               * clear. An eleventh unary is kind 22 here,
+                                               * not kind 1. Load the operand of f_nona only.
+                                               * PLATFORM: SHARED.
+                                               */
+                                              if (f_nona_k == 22) {
+                                                f_deca = pipeline_expr_unary_operand_ref_at(arena, f_nona);
+                                                if (f_deca > 0) {
+                                                  f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
+                                                  if (f_deca_k == 1) {
+                                                    splat_ok = 1;
+                                                  }
+                                                }
                                               }
                                             }
                                           }

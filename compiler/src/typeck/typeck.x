@@ -10290,9 +10290,9 @@ decl_ty_ref: i32): i32 {
      * INT_LIT and one, two, three, four, or five more unaries of that lit into
      * that slot. Stamp the declared vector type so the
      * let equal-check sees one type. A TYPE_VECTOR of f32 stamps a
-     * FLOAT_LIT and one through nine unary minuses of that literal.
-     * Two, four, six, and eight minuses cancel. Three, five, seven,
-     * and nine apply the sign once. A tenth f32 unary, a bitwise not,
+     * FLOAT_LIT and one through ten unary minuses of that literal.
+     * Two, four, six, eight, and ten minuses cancel. Three, five, seven,
+     * and nine apply the sign once. An eleventh f32 unary, a bitwise not,
      * a seventh i32 unary, a VAR, or a binop stays on the later
      * coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
@@ -10437,8 +10437,9 @@ decl_ty_ref: i32): i32 {
            * or one unary beyond that, is the same splat the emitter
            * fills. Two, four, six, and eight minuses cancel. Three,
            * five, seven, and nine apply the sign once. Kind 1 and kind
-           * 22 are separate compares. A tenth unary stays kind 22 at
-           * the inner operand, so it is not stamped.
+           * 22 are separate compares. Ten minuses cancel again. An
+           * eleventh unary stays kind 22 at the inner operand, so it
+           * is not stamped.
            * Bitwise not stays off. An i32 element does not enter. The
            * operand refs are range-checked. PLATFORM: SHARED.
            */
@@ -10461,6 +10462,8 @@ decl_ty_ref: i32): i32 {
             let f_oct_k: i32 = 0;
             let f_nona: i32 = 0;
             let f_nona_k: i32 = 0;
+            let f_deca: i32 = 0;
+            let f_deca_k: i32 = 0;
             if (init_kind == 1) {
               splat_ok = 1;
             }
@@ -10588,6 +10591,26 @@ decl_ty_ref: i32): i32 {
                                                                 f_nona_k = pipeline_expr_kind_ord_at(arena, f_nona);
                                                                 if (f_nona_k == 1) {
                                                                   splat_ok = 1;
+                                                                }
+                                                                /*
+                                                                 * Ten minuses: the innermost is a
+                                                                 * FLOAT_LIT. Five pairs cancel, so the
+                                                                 * sign bit stays clear. An eleventh
+                                                                 * unary is kind 22 here, not kind 1.
+                                                                 * Load the operand of f_nona only. The
+                                                                 * new ref is range-checked.
+                                                                 * PLATFORM: SHARED.
+                                                                 */
+                                                                if (f_nona_k == 22) {
+                                                                  f_deca = pipeline_expr_unary_operand_ref_at(arena, f_nona);
+                                                                  if (f_deca > 0) {
+                                                                    if (f_deca <= arena.num_exprs) {
+                                                                      f_deca_k = pipeline_expr_kind_ord_at(arena, f_deca);
+                                                                      if (f_deca_k == 1) {
+                                                                        splat_ok = 1;
+                                                                      }
+                                                                    }
+                                                                  }
                                                                 }
                                                               }
                                                             }
