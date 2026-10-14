@@ -12,7 +12,7 @@
 // Six minuses cancel again. Seven minuses apply the sign once more.
 // Eight minuses cancel again. Nine minuses apply the sign once more.
 // Ten minuses cancel again. Eleven minuses apply the sign once more.
-// A twelfth unary of that float is not a keep.
+// Twelve minuses cancel again. A thirteenth unary of that float is not a keep.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -61,7 +61,8 @@ export extern "C" function pipeline_expr_is_null_keyword_c(arena: *u8, expr_ref:
  * cancel again. Seven minuses apply the sign once more. Eight
  * minuses cancel again. Nine minuses apply the sign once more.
  * Ten minuses cancel again. Eleven minuses apply the sign once
- * more. A twelfth unary and a bitwise not are not a keep.
+ * more. Twelve minuses cancel again. A thirteenth unary and a
+ * bitwise not are not a keep.
  * A missing pre-stamp falls through and let-init coerce
  * stamps the same shape afterwards.
  * PLATFORM: SHARED — same type rule on every host.
@@ -243,8 +244,8 @@ export function typeck_check_expr_unary(
                  * again. Seven minuses apply the sign once more. Eight
                  * minuses cancel again. Nine minuses apply the sign once
                  * more. Ten minuses cancel again. Eleven minuses apply
-                 * the sign once more. A twelfth unary stays kind 22,
-                 * so it is not kept.
+                 * the sign once more. Twelve minuses cancel again.
+                 * A thirteenth unary stays kind 22, so it is not kept.
                  * Bitwise not stays off. The keep below
                  * still typechecks the immediate operand with expected 0.
                  * PLATFORM: SHARED.
@@ -270,6 +271,8 @@ export function typeck_check_expr_unary(
                   let f_deca_k: i32 = 0;
                   let f_undeca: i32 = 0;
                   let f_undeca_k: i32 = 0;
+                  let f_duodeca: i32 = 0;
+                  let f_duodeca_k: i32 = 0;
                   if (expr_kind == ord_neg) {
                     if (op_ref > 0) {
                       already_op_k = pipeline_expr_kind_ord_at(arena, op_ref);
@@ -401,6 +404,23 @@ export function typeck_check_expr_unary(
                                                               f_undeca_k = pipeline_expr_kind_ord_at(arena, f_undeca);
                                                               if (f_undeca_k == 1) {
                                                                 already_keep = 1;
+                                                              }
+                                                              /*
+                                                               * Twelve minuses: the innermost is a
+                                                               * FLOAT_LIT. Six pairs cancel, so the
+                                                               * sign bit stays clear. A thirteenth
+                                                               * unary is kind 22 here, not kind 1.
+                                                               * Load the operand of f_undeca only.
+                                                               * PLATFORM: SHARED.
+                                                               */
+                                                              if (f_undeca_k == 22) {
+                                                                f_duodeca = pipeline_expr_unary_operand_ref_at(arena, f_undeca);
+                                                                if (f_duodeca > 0) {
+                                                                  f_duodeca_k = pipeline_expr_kind_ord_at(arena, f_duodeca);
+                                                                  if (f_duodeca_k == 1) {
+                                                                    already_keep = 1;
+                                                                  }
+                                                                }
                                                               }
                                                             }
                                                           }
