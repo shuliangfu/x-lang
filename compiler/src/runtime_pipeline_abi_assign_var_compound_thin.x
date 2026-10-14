@@ -8,8 +8,11 @@
 // (try_let + finish; finish calls glue_emit_assign_rhs_to_rax_elf_c, which
 // dispatches compound ops) and adds the file-scope scalar path the Windows
 // override had: no frame slot + shared module let → value to rax → egg store.
-// It also defines glue_emit_assign_rhs_elf_c (same body as
-// runtime_pipeline_abi_assign_thin.x); neither egg links that name.
+// It also defines glue_emit_assign_rhs_elf_c. A TYPE_SLICE VAR whose RHS
+// peels to ARRAY_LIT leaves a durable pointer plus the element count for
+// store_slice. Other RHS shapes still take the f32 FLOAT_LIT path or
+// emit_expr. The copies in assign_thin.x and assign_helpers_thin.x are
+// not linked; do not keep them in sync with this body.
 // It also defines glue_emit_assign_load_lr_elf_c (replaces the unchanged
 // runtime_pipeline_abi_assign_rhsrax_arms_load_lr_thin.x leaf, which calls
 // glue_try_binop_left_rax_right_rbx_elf_c twice and so emits the load pair
@@ -52,6 +55,16 @@ export extern function backend_enc_mov_rax_to_rbx_arch(elf_ctx: *u8, ta: i32): i
 export extern function glue_binop_var_slot_cache_invalidate_rbx(): void;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
 export extern function glue_emit_assign_var_store_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function glue_var_decl_type_ref_elf_c(arena: *u8, ctx: *u8, var_expr_ref: i32): i32;
+export extern function pipeline_type_kind_ord_at(arena: *u8, type_ref: i32): i32;
+export extern function glue_peel_as_array_slice_ascription_c(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
+export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
+export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
+export extern function backend_enc_mov_rax_to_arg_reg_arch(elf_ctx: *u8, k: i32, ta: i32): i32;
 
 /**
  * File-scope scalar assign: value (plain or compound) into rax, then store
@@ -164,22 +177,73 @@ export function glue_emit_assign_var_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i
 }
 
 /**
- * Assign RHS emit: f32 lhs + FLOAT_LIT rhs uses the imm32 path; else the
- * general expression emitter. Same body as runtime_pipeline_abi_assign_thin.x.
+ * Assign RHS emit. A VAR whose declared type is TYPE_SLICE (kind 11) and
+ * whose RHS peels to ARRAY_LIT (kind 46, bare or `as []T`) leaves the
+ * durable data pointer in rax/x0 and the element count in x1 (arm64) or
+ * rdx (ta==0, including Windows). store_slice writes those two registers.
+ * emit_expr of the ascription writes the ints on the caller frame and
+ * leaves that address in both registers, so the length slot receives the
+ * pointer. Other RHS kinds, a non-VAR lhs, and a durable-helper failure
+ * fall through: an f32 lhs plus FLOAT_LIT uses the imm32 path, otherwise
+ * pipeline_asm_emit_expr_elf_c. A length-encoder failure after the durable
+ * helper has already emitted returns -1 and does not emit the RHS again.
+ * Linux VAR assign does not reach this gate (assign.o sidecar).
  * @param arena *u8 — AST arena
  * @param elf_ctx *u8 — ELF emit context
  * @param left_ref i32 — lhs
  * @param right_ref i32 — rhs
- * @param ctx *u8 — emit context
- * @param ta i32 — target arch
- * @return i32 — 0 ok; -1 failure
- * PLATFORM: SHARED freestanding (linked on Darwin + Windows).
+ * @param ctx *u8 — emit context (AsmFuncCtx*)
+ * @param ta i32 — target arch (0 = x86_64, 1 = arm64)
+ * @return i32 — 0 when the RHS is in rax (and rdx/x1 for a slice literal); -1 on failure
+ * PLATFORM: SHARED freestanding (linked on Darwin + Windows). The length
+ * register is the one backend_enc_store_rdx_to_rbp_arch stores.
  */
 #[no_mangle]
 export function glue_emit_assign_rhs_elf_c(arena: *u8, elf_ctx: *u8, left_ref: i32, right_ref: i32, ctx: *u8, ta: i32): i32 {
   unsafe {
     if (arena == (0 as *u8) || right_ref <= 0) {
       return 0 - 1;
+    }
+    // TYPE_SLICE = 11. Decl-type lookup returns 0 unless the lhs is a VAR,
+    // so a field or index assign stays on emit_expr. ta 0 and 1 only:
+    // store_slice reads x1 on arm64 and rdx on x86_64, Windows included.
+    // The return arm's Windows exclusion does not apply to this store.
+    if (ta == 0 || ta == 1) {
+      let decl_ty: i32 = glue_var_decl_type_ref_elf_c(arena, ctx, left_ref);
+      if (decl_ty > 0 && pipeline_type_kind_ord_at(arena, decl_ty) == 11) {
+        let peel: i32 = glue_peel_as_array_slice_ascription_c(arena, right_ref);
+        if (peel <= 0) {
+          peel = right_ref;
+        }
+        // ARRAY_LIT = 46. A call or a slice variable stays on emit_expr.
+        if (pipeline_expr_kind_ord_at(arena, peel) == 46) {
+          let n_arr: i32 = pipeline_expr_array_lit_num_elems_at(arena, peel);
+          if (n_arr >= 0 && n_arr <= 1024) {
+            let elem_ty: i32 = pipeline_type_elem_ref_at(arena, decl_ty);
+            let esz: i32 = glue_array_lit_force_esz_from_elem_type_c(arena, elem_ty);
+            let rc: i32 = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, peel, esz, ta, ctx, elem_ty);
+            if (rc == 0) {
+              if (backend_enc_push_rax_arch(elf_ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_arr, 0, ta) != 0) {
+                return 0 - 1;
+              }
+              let len_reg: i32 = 2;
+              if (ta == 1) {
+                len_reg = 1;
+              }
+              if (backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta) != 0) {
+                return 0 - 1;
+              }
+              if (backend_enc_pop_rax_arch(elf_ctx, ta) != 0) {
+                return 0 - 1;
+              }
+              return 0;
+            }
+          }
+        }
+      }
     }
     if (pipeline_expr_kind_ord_at(arena, right_ref) == 1) {
       let lhs_f32: i32 = glue_assign_lhs_f32_type_ref_elf_c(arena, ctx, left_ref);
