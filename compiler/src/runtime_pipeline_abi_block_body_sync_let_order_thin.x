@@ -30,6 +30,10 @@ export extern function glue_lazy_append_block_let_local(arena: *u8, ctx: *u8, bl
 export extern function glue_block_body_emit_let_init(arena: *u8, elf_ctx: *u8, block_ref: i32, idx: i32, init_ref: i32, slot: i32, ctx: *u8, ta: i32, lnb: *u8, llen: i32): i32;
 export extern function glue_block_compute_pass1_deferred_lets(arena: *u8, ctx: *u8, block_ref: i32, slot_base: i32, nconst: i32, nlet: i32, deferred: *u8): void;
 export extern function ast_pipeline_block_const_init_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function pipeline_block_const_type_ref(arena: *u8, block_ref: i32, i: i32): i32;
+export extern function glue_emit_slice_from_array_let_init_elf_c(arena: *u8, elf_ctx: *u8, block_ref: i32, let_idx: i32, init_ref: i32, let_type_ref: i32, ctx: *u8, ta: i32, slice_slot_off: i32): i32;
+export extern function glue_emit_fixed_array_type_let_init_elf_c(arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32, type_ref: i32, stack_slot_off: i32): i32;
+export extern function glue_init_is_empty_array_lit(arena: *u8, init_ref: i32): i32;
 export extern function backend_asm_ctx_slot_offset(ctx: *u8, slot_idx: i32): i32;
 export extern function backend_enc_store_rax_to_rbp_arch(elf_ctx: *u8, offset: i32, ta: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
@@ -128,6 +132,8 @@ function w1009_emit_let(
 
 /**
  * Two-pass block body ELF emit with pass1-deferred lets (wave1009).
+ * Pass0 consts of slice or fixed-array type call the same let-init writers
+ * as the mega const loop. Other consts store rax into the slot.
  * @param dm *u8 — this level's pass1-let mask (0: no deferral). Not the language defer pool.
  * @return i32 — 0 ok; -1 fail
  * Language `defer { }` is not a statement-order kind. It is emitted, LIFO,
@@ -163,6 +169,11 @@ function w1009_body_sync_level(
   let ci: i32 = 0;
   let init_ref: i32 = 0;
   let slot_off: i32 = 0;
+  let type_ref: i32 = 0;
+  let slice_st: i32 = 0;
+  let arr_st: i32 = 0;
+  let done: i32 = 0;
+  let empty: i32 = 0;
   let mod: *u8 = 0 as *u8;
   let ly: *u8 = 0 as *u8;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || block_ref <= 0) {
@@ -184,12 +195,48 @@ function w1009_body_sync_level(
         arena, ctx, block_ref, slot_base, nconst, nlet, dm
       );
     }
-    // Pass0 consts (scalar store path).
+    /* Pass0 consts. The mega const loop writes a slice or a fixed array
+     * into the const slot. This thin used to emit_expr and store rax, so
+     * the slot held the address of a temp. INDEX then read that pointer
+     * as the array (SIGSEGV on [2][]i32, wrong sum on [2]i32). Slice kind
+     * 11 and fixed-array kind 10 reuse the let writers. Anything else,
+     * including a scalar i32, still stores rax. An empty ARRAY_LIT that
+     * neither writer accepts stores nothing, matching the mega.
+     * PLATFORM: SHARED freestanding · LINUX gold · MACOS|ARM64. */
     ci = 0;
     while (ci < nconst) {
       init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, ci);
       slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + ci);
+      done = 0;
+      type_ref = 0;
+      empty = 0;
       if (init_ref > 0) {
+        type_ref = pipeline_block_const_type_ref(arena, block_ref, ci);
+        empty = glue_init_is_empty_array_lit(arena, init_ref);
+      }
+      if (init_ref > 0 && type_ref > 0) {
+        slice_st = glue_emit_slice_from_array_let_init_elf_c(
+            arena, elf_ctx, block_ref, ci, init_ref, type_ref, ctx, ta, slot_off);
+        if (slice_st == 1) {
+          done = 1;
+        } else {
+          if (slice_st < 0) {
+            return 0 - 1;
+          }
+        }
+      }
+      if (done == 0 && init_ref > 0 && type_ref > 0) {
+        arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+            arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+        if (arr_st == 0) {
+          done = 1;
+        } else {
+          if (arr_st == (0 - 1)) {
+            return 0 - 1;
+          }
+        }
+      }
+      if (done == 0 && init_ref > 0 && empty == 0) {
         if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
           return 0 - 1;
         }

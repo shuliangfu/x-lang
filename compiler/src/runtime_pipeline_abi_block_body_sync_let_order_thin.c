@@ -40,6 +40,13 @@ extern void glue_block_compute_pass1_deferred_lets(void *arena, void *ctx, int32
                                                    int32_t slot_base, int32_t nconst, int32_t nlet,
                                                    uint8_t *deferred);
 extern int32_t ast_pipeline_block_const_init_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t pipeline_block_const_type_ref(void *arena, int32_t block_ref, int32_t i);
+extern int32_t glue_emit_slice_from_array_let_init_elf_c(void *arena, void *elf_ctx, int32_t block_ref,
+                                                        int32_t let_idx, int32_t init_ref, int32_t let_type_ref,
+                                                        void *ctx, int32_t ta, int32_t slice_slot_off);
+extern int32_t glue_emit_fixed_array_type_let_init_elf_c(void *arena, void *elf_ctx, int32_t init_ref, void *ctx,
+                                                        int32_t ta, int32_t type_ref, int32_t stack_slot_off);
+extern int32_t glue_init_is_empty_array_lit(void *arena, int32_t init_ref);
 extern int32_t backend_asm_ctx_slot_offset(void *ctx, int32_t slot_idx);
 extern int32_t backend_enc_store_rax_to_rbp_arch(void *elf_ctx, int32_t offset, int32_t ta);
 extern int32_t pipeline_asm_emit_expr_elf_c(void *arena, void *elf_ctx, int32_t expr_ref, void *ctx,
@@ -168,6 +175,11 @@ static int32_t w1010_body_sync_level(void *arena, void *elf_ctx, int32_t block_r
   int32_t ci;
   int32_t init_ref;
   int32_t slot_off;
+  int32_t type_ref;
+  int32_t slice_st;
+  int32_t arr_st;
+  int32_t done;
+  int32_t empty;
   void *mod;
   uint8_t *ly;
 
@@ -187,10 +199,41 @@ static int32_t w1010_body_sync_level(void *arena, void *elf_ctx, int32_t block_r
     memset(dm, 0, (size_t)nlet);
     glue_block_compute_pass1_deferred_lets(arena, ctx, block_ref, slot_base, nconst, nlet, dm);
   }
+  /* Pass0 consts. Same writers as the .x thin: slice kind 11 and
+   * fixed-array kind 10 go into the const slot. A scalar store of rax
+   * kept only a pointer to a temp (SIGSEGV on [2][]i32). Other consts,
+   * including a scalar i32, still store rax. An empty ARRAY_LIT that
+   * neither writer accepts stores nothing.
+   * PLATFORM: WINDOWS mirror of the SHARED .x. g05 compiles the .x. */
   for (ci = 0; ci < nconst; ci++) {
     init_ref = ast_pipeline_block_const_init_ref(arena, block_ref, ci);
     slot_off = backend_asm_ctx_slot_offset(ctx, slot_base + ci);
+    done = 0;
+    type_ref = 0;
+    empty = 0;
     if (init_ref > 0) {
+      type_ref = pipeline_block_const_type_ref(arena, block_ref, ci);
+      empty = glue_init_is_empty_array_lit(arena, init_ref);
+    }
+    if (init_ref > 0 && type_ref > 0) {
+      slice_st = glue_emit_slice_from_array_let_init_elf_c(
+          arena, elf_ctx, block_ref, ci, init_ref, type_ref, ctx, ta, slot_off);
+      if (slice_st == 1) {
+        done = 1;
+      } else if (slice_st < 0) {
+        return -1;
+      }
+    }
+    if (done == 0 && init_ref > 0 && type_ref > 0) {
+      arr_st = glue_emit_fixed_array_type_let_init_elf_c(
+          arena, elf_ctx, init_ref, ctx, ta, type_ref, slot_off);
+      if (arr_st == 0) {
+        done = 1;
+      } else if (arr_st == -1) {
+        return -1;
+      }
+    }
+    if (done == 0 && init_ref > 0 && empty == 0) {
       if (pipeline_asm_emit_expr_elf_c(arena, elf_ctx, init_ref, ctx, ta) != 0) {
         return -1;
       }
