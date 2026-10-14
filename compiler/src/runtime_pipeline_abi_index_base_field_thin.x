@@ -69,8 +69,13 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * the parent field. emit_expr of that parent loads the by-value bits, and
  * the lane load then uses those bits as a pointer (Darwin `w.h.v[0]`
  * exit 10). A PTR parent stays on emit_expr: that rvalue is already the
- * pointee address. Slice and pointer fields of the indexed field still
- * peel through glue_index_deref_ptr_field_slot_rax_elf_c.
+ * pointee address. An INDEX base (`arr[0][i]`) uses the lvalue address
+ * of that inner INDEX. emit_expr of the inner INDEX loads the by-value
+ * element, and the outer lane load then uses those bits as a pointer
+ * (Darwin `arr[0][0]` exit 1). PTR and SLICE elements stay on emit_expr.
+ * CALL and DEREF bases stay on emit_expr. Slice and pointer fields of
+ * the indexed field still peel through
+ * glue_index_deref_ptr_field_slot_rax_elf_c.
  * @param arena *u8 — AST arena; null is not expected (callers checked)
  * @param elf_ctx *u8 — encoder context
  * @param ix_ref i32 — INDEX expression; base ref <= 0 returns -1
@@ -78,7 +83,8 @@ function w1521_ib_field_is_ptr(arena: *u8, fa_ref: i32): i32 {
  * @param ta i32 — 0 x86_64, 1 arm64
  * @return i32 — 0 when x0 holds the element base address; -1 on a bad
  *   base or an encoder error
- * PLATFORM: SHARED body. Darwin ARM64 is the measured nested-FIELD fail.
+ * PLATFORM: SHARED body. Darwin ARM64 measured the nested-FIELD fail
+ * and the nested-INDEX fail.
  */
 #[no_mangle]
 export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix_ref: i32, ctx: *u8, ta: i32): i32 {
@@ -147,7 +153,7 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
       if (fb_ref <= 0) {
         return 0 - 1;
       }
-      // Nested FIELD only. Other bases (call, deref) stay rvalues.
+      // Nested FIELD only. CALL and DEREF stay rvalues.
       // PTR parent: emit_expr is the pointee address. By-value parent:
       // lvalue address, then the field offset below. Do not call lvalue
       // on base_ref itself — that already includes this field's offset.
@@ -220,8 +226,39 @@ export function glue_emit_index_eff_addr_base_elf_c(arena: *u8, elf_ctx: *u8, ix
         }
       }
     } else {
-      unsafe {
-        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+      // INDEX base (`arr[0][i]`). emit_expr loads the by-value element
+      // into x0:x1; the outer lane load then uses those bits as a
+      // pointer. lvalue of the inner INDEX is its element address
+      // (scaled lea). The inner base is not this INDEX, so this does
+      // not recurse. PTR (9) and SLICE (11) stay on emit_expr: that
+      // rvalue is already the pointee or the header the trailing peel
+      // loads. CALL and DEREF stay rvalues.
+      // PLATFORM: SHARED. Darwin ARM64 measured arr[0][0].
+      tr = 0;
+      trk = 0;
+      if (base_ko == 47) {
+        unsafe {
+          tr = pipeline_expr_resolved_type_ref(arena, base_ref);
+        }
+        if (tr <= 0) {
+          unsafe {
+            tr = glue_var_expr_type_ref_with_decl_fallback_c(arena, base_ref);
+          }
+        }
+        if (tr > 0) {
+          unsafe {
+            trk = pipeline_type_kind_ord_at(arena, tr);
+          }
+        }
+      }
+      if (base_ko == 47 && trk != 9 && trk != 11) {
+        unsafe {
+          rc = pipeline_asm_emit_lvalue_eff_addr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+        }
+      } else {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, base_ref, ctx, ta);
+        }
       }
       if (rc != 0) {
         return 0 - 1;
