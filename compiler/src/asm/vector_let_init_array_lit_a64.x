@@ -8,8 +8,10 @@
 // INT_LIT is the parser form of `-3`: negate that literal and splat
 // with the same fill. Kind 22 or 23 whose operand is itself kind 22
 // or 23 of a non-null INT_LIT folds both operators into that
-// immediate and uses the same fill. `let v: i32x8 = ~(-3)` wrote 2
-// into lane 0 and left lane 7. A nested unary of a VAR, a binop, a
+// immediate and uses the same fill. One more unary of that same
+// literal folds the third operator too. `let v: i32x8 = ~(~(-3))`
+// wrote -3 into lane 0 and left lane 1 at 0. A fourth unary stays
+// declined. A nested unary of a VAR, a binop, a
 // CALL, a METHOD, an INDEX, a DEREF, or an ARRAY_LIT stays on the
 // per-lane path. Keyword null, f32, and a lane size other than 4
 // stay declined. Declining that splat stored `neg w0`
@@ -140,7 +142,9 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * returns -3. An i32 immediate not is `-imm - 1` splatted by the
  * existing fill. Kind 22 or 23 of another kind 22 or 23 whose
  * operand is a non-null INT_LIT folds both operators into that
- * immediate and calls the same fill. Keyword null, an f32 element,
+ * immediate and calls the same fill. One more unary wrapping that
+ * literal folds the third operator with the same fill. A fourth
+ * unary stays declined. Keyword null, an f32 element,
  * ta other than 1, and a lane size other than 4 stay on the decline
  * below. Lane size 8 of that pattern stays declined.
  * A lane size other than 4, and a
@@ -181,6 +185,11 @@ export function glue_emit_vector_type_let_init_elf_c(
   let inner_ref: i32 = 0;
   let inner_ko: i32 = 0;
   let nested_u: i32 = 0;
+  let lit_src: i32 = 0;
+  let apply_wrap: i32 = 0;
+  let deep_ref: i32 = 0;
+  let deep_ko: i32 = 0;
+  let third_u: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
@@ -274,9 +283,12 @@ export function glue_emit_vector_type_let_init_elf_c(
     // kind 0, so the arm below used to return -3 and the caller stored
     // one lane: lane 0 of `let v: i32x8 = ~(-3)` was 2 and lane 7 was
     // not. Fold the inner operator, then the outer one, and splat with
-    // the existing fill. A VAR, a binop, CALL, METHOD, INDEX, DEREF,
-    // or ARRAY_LIT under the inner unary is not kind 0 and stays on
-    // that arm. Keyword null stays declined. f32 is not an i32 not.
+    // the existing fill. When that inner operand is itself kind 22 or
+    // 23 of a non-null INT_LIT, fold that wrapper first. A fourth
+    // unary is not kind 0 and stays declined. A VAR, a binop, CALL,
+    // METHOD, INDEX, DEREF, or ARRAY_LIT under the inner unary is not
+    // kind 0 and stays on that arm. Keyword null stays declined. f32
+    // is not an i32 not.
     // Lane size other than 4 stays declined. ta other than 1 stays
     // declined. Two statements for each not: `~x` is `-x - 1`.
     // PLATFORM: MACOS|ARM64.
@@ -296,8 +308,44 @@ export function glue_emit_vector_type_let_init_elf_c(
           inner_ko = pipeline_expr_kind_ord_at(arena, inner_ref);
         }
         if (inner_ko == 0) {
+          lit_src = inner_ref;
+        }
+        /*
+         * One more unary, still of a non-null INT_LIT: ~(~(-3)),
+         * -(~(~1)), ~(-(-3)), ~~~1, -(-(-3)). The operand of this
+         * inner unary is not kind 0, so the two-level arm above does
+         * not fire and the caller stores one str x0. Lane 0 of
+         * `let v: i32x8 = ~(~(-3))` was -3 and lane 1 was 0. Apply the
+         * wrapper, then the middle operator, then the outer one, and
+         * splat with the same fill. A fourth unary is not an INT_LIT
+         * here and stays on the decline. A VAR, a binop, CALL, METHOD,
+         * INDEX, DEREF, or ARRAY_LIT under the wrapper stays declined.
+         * Keyword null stays declined. Two statements for each not.
+         * PLATFORM: MACOS|ARM64.
+         */
+        if (inner_ko == 22) {
+          third_u = 1;
+        }
+        if (inner_ko == 23) {
+          third_u = 1;
+        }
+        if (third_u != 0) {
           unsafe {
-            rc = pipeline_expr_is_null_keyword_c(arena, inner_ref);
+            deep_ref = pipeline_expr_unary_operand_ref_at(arena, inner_ref);
+          }
+          if (deep_ref > 0) {
+            unsafe {
+              deep_ko = pipeline_expr_kind_ord_at(arena, deep_ref);
+            }
+            if (deep_ko == 0) {
+              lit_src = deep_ref;
+              apply_wrap = 1;
+            }
+          }
+        }
+        if (lit_src > 0) {
+          unsafe {
+            rc = pipeline_expr_is_null_keyword_c(arena, lit_src);
           }
           if (rc == 0) {
             if (ta == 1) {
@@ -306,13 +354,22 @@ export function glue_emit_vector_type_let_init_elf_c(
               }
               if (rc == 0) {
                 unsafe {
-                  imm = pipeline_expr_int_val_at(arena, inner_ref);
+                  imm = pipeline_expr_int_val_at(arena, lit_src);
                   rc = glue_vector_type_lanes_esz_c(
                     arena, type_ref, &lanes_s[0], &esz_s[0]);
                 }
                 if (rc == 0) {
                   if (esz_s[0] == 4) {
                     if (lanes_s[0] > 0) {
+                      if (apply_wrap != 0) {
+                        if (inner_ko == 22) {
+                          imm = 0 - imm;
+                        }
+                        if (inner_ko == 23) {
+                          imm = 0 - imm;
+                          imm = imm - 1;
+                        }
+                      }
                       if (op_ko == 22) {
                         imm = 0 - imm;
                       }
