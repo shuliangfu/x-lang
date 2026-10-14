@@ -1,6 +1,9 @@
 // Field assign for the Windows PE link.
-// Body matches seeds/win_assign_field_override.c. The egg copy is a
-// different, shorter body, so this object has to be linked ahead of it.
+// Body matches seeds/win_assign_field_override.c except the arm64
+// arm below: a SIMD field wider than 16 bytes whose RHS is unary
+// minus uses the existing vector let-init. That seed does not.
+// The egg copy is a different, shorter body, so this object has to
+// be linked ahead of it.
 // runtime_pipeline_abi_assign_field_thin.x is a different dispatcher.
 // Do not switch that file on. glue_emit_assign_field_scalar_elf_c is a
 // different symbol. File-local helpers keep each frame under one page.
@@ -63,6 +66,13 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
 export extern function asm_type_is_simd_vector_spelling(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_type_lanes_esz_c(
   arena: *u8, type_ref: i32, out_lanes: *i32, out_esz: *i32
+): i32;
+export extern function glue_vector_var_lane_stack_off_elf_c(
+  arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32, ta: i32
+): i32;
+export extern function glue_emit_vector_type_let_init_elf_c(
+  arena: *u8, elf_ctx: *u8, init_ref: i32, ctx: *u8, ta: i32,
+  stack_slot_off: i32, type_ref: i32
 ): i32;
 export extern function backend_enc_mov_rax_to_arg_reg_arch(
   elf_ctx: *u8, k: i32, ta: i32
@@ -464,16 +474,21 @@ function assign_field_one_scalar(
  * into x1, so the high half is gone and lanes 2 and 3 stay stale.
  * Push x0, copy x1 into x0, push that, then store [addr+8] and [addr].
  * A lane push is pre-indexed and sits below these two saves.
- * Wider than 16 bytes is left to the scalar path: that result is not
- * this GPR pair.
+ * Wider than 16 with a 4-byte lane and a unary-minus RHS is not this
+ * pair. The existing vector let-init writes every lane at the field
+ * home (lane 0's frame offset). A negative home or a -3 decline emits
+ * nothing and keeps the scalar store. -1 may already have emitted.
+ * `p.v = -h.v` for i32x8 negated the address of h.v and stored that
+ * pointer, so lane 0 was not -1. Other wide RHS kinds stay scalar.
  * @param arena *u8 — AST arena; null is not reached (caller checked)
  * @param elf_ctx *u8 — encoder context
  * @param left_ref i32 — FIELD lvalue
- * @param right_ref i32 — RHS already evaluated into x0:x1 by this function
+ * @param right_ref i32 — RHS. The 16-byte arm evaluates it into x0:x1.
+ *   The wide arm passes it to the vector let-init.
  * @param ctx *u8 — emit context
  * @param ta i32 — 1 is arm64; any other arch returns -99 before emitting
- * @return i32 — 0 when both halves are stored; -1 when an encoder step
- *   fails after the RHS emit; -99 when the field is not a 16-byte SIMD
+ * @return i32 — 0 when the field is stored; -1 when an encoder step
+ *   fails after emit has started; -99 when this arm does not handle it
  * PLATFORM: MACOS|ARM64. Windows (ta == 0) stays on the one-GPR store.
  */
 function assign_field_one_simd16(
@@ -487,6 +502,8 @@ function assign_field_one_simd16(
   let lanes: i32 = 0;
   let esz: i32 = 0;
   let rc: i32 = 0;
+  let rk: i32 = 0;
+  let home: i32 = 0;
   if (ta != 1) {
     return 0 - 99;
   }
@@ -515,8 +532,40 @@ function assign_field_one_simd16(
   }
   lanes = lanes_s[0];
   esz = esz_s[0];
-  // GPR pair is 16 bytes. A wider vector is not stored here.
+  // GPR pair is 16 bytes. A wider 4-byte-lane SIMD whose RHS is
+  // unary minus (kind 22) is stored by the existing per-lane writer.
+  // That writer already negates a wide FIELD, VAR, or ARRAY_LIT into
+  // the slot it is given. The slot here is the destination field.
+  // A binop, CALL, METHOD, INDEX, or DEREF under the minus still
+  // returns -3 before emitting, and this arm then keeps the scalar
+  // store. A bare copy is not kind 22. PLATFORM: MACOS|ARM64.
   if (lanes * esz != 16) {
+    if (esz == 4 && (lanes * esz) > 16) {
+      unsafe {
+        pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
+      }
+      rk = assign_field_cell_i32(&cell[0]);
+      if (rk == 22) {
+        unsafe {
+          pipe_store_i32_le(&cell[0], 0, glue_vector_var_lane_stack_off_elf_c(
+            arena, ctx, left_ref, 0, esz, ta));
+        }
+        home = assign_field_cell_i32(&cell[0]);
+        if (home >= 0) {
+          unsafe {
+            pipe_store_i32_le(&cell[0], 0, glue_emit_vector_type_let_init_elf_c(
+              arena, elf_ctx, right_ref, ctx, ta, home, fty));
+          }
+          rc = assign_field_cell_i32(&cell[0]);
+          if (rc == 0) {
+            return 0;
+          }
+          if (rc == (0 - 1)) {
+            return 0 - 1;
+          }
+        }
+      }
+    }
     return 0 - 99;
   }
   unsafe {
@@ -613,7 +662,9 @@ function assign_field_one_simd16(
  * on x86-64 copies a VAR, FIELD, or STRUCT_LIT through let-init slot -3,
  * a CALL through sret, and an INDEX through memcpy. Exactly 16 bytes uses
  * let-init only when the base is a pointer and the RHS is a frame VAR or
- * a FIELD. On arm64 a 16-byte SIMD field stores x0 and x1. Any other
+ * a FIELD. On arm64 a 16-byte SIMD field stores x0 and x1. A wider
+ * SIMD whose lane is 4 bytes and whose RHS is unary minus uses the
+ * existing vector let-init into the field home. Any other
  * ta != 0 value stays on the one-GPR store. Pipe cells hold extern
  * results. PLATFORM: WINDOWS | DARWIN — one strong T. Windows links
  * this object ahead of the egg. Darwin weakens the pabi_weak copy.
