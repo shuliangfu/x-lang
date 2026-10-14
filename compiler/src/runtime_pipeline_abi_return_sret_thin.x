@@ -53,6 +53,11 @@ export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
 export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
 export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
 export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
+export extern function glue_peel_as_array_slice_ascription_c(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_array_lit_num_elems_at(arena: *u8, expr_ref: i32): i32;
+export extern function backend_enc_push_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_pop_rax_arch(elf_ctx: *u8, ta: i32): i32;
+export extern function backend_enc_mov_imm64_to_rax_arch(elf_ctx: *u8, lo: i32, hi: i32, ta: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -333,6 +338,10 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * glue_asm_emit_array_lit_durable_ptr_rax_elf_c first. Success leaves a
  * durable element pointer in rax/x0 and skips emit_expr. Any other result
  * falls through to emit_expr. A VAR return of a small array is unchanged.
+ * An ARRAY_LIT whose return type is TYPE_SLICE, after the existing
+ * ARRAY/SLICE ascription peel, uses that same helper and then moves the
+ * element count into x1 (arm64) or rdx (SysV). Windows keeps emit_expr.
+ * A length-register failure after a successful durable emit returns -1.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — ELF codegen context; null returns -1
  * @param expr_ref i32 — EXPR_RETURN; <=0 returns -1
@@ -430,6 +439,10 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
       let rk_d: i32 = 0;
       let elem_d: i32 = 0;
       let esz_d: i32 = 0;
+      let peel_d: i32 = 0;
+      let n_d: i32 = 0;
+      let len_reg: i32 = 0;
+      let win_d: i32 = 0;
       if (ta == 0 || ta == 1) {
         unsafe {
           opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
@@ -447,7 +460,7 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
               unsafe {
                 rk_d = pipeline_type_kind_ord_at(arena, rty_d);
               }
-              // TYPE_ARRAY = 10. TYPE_SLICE stays on emit_expr this step.
+              // TYPE_ARRAY = 10. TYPE_SLICE is the arm below.
               if (rk_d == 10) {
                 unsafe {
                   elem_d = pipeline_type_elem_ref_at(arena, rty_d);
@@ -456,6 +469,92 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
                 }
                 if (rc == 0) {
                   dur_ok = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      // TYPE_SLICE return of an ARRAY_LIT (bare or `as []T`) must leave
+      // the durable data pointer in rax/x0 and the element count in x1
+      // (arm64) or rdx (SysV arg reg 2). emit_expr of the ascription
+      // writes the ints over the callee frame and returns that address
+      // with no length, so the caller copies a dead slot (SIGSEGV).
+      // Peel is the existing helper. Windows 16-byte returns stay on
+      // emit_expr. PLATFORM: MACOS|ARM64 · LINUX x86_64.
+      if (dur_ok == 0 && (ta == 0 || ta == 1)) {
+        if (ta == 0) {
+          unsafe {
+            win_d = link_abi_host_is_windows();
+          }
+        }
+        if (win_d == 0) {
+          unsafe {
+            peel_d = glue_peel_as_array_slice_ascription_c(arena, ret_op);
+          }
+          if (peel_d <= 0) {
+            peel_d = ret_op;
+          }
+          unsafe {
+            opk_d = pipeline_expr_kind_ord_at(arena, peel_d);
+          }
+          if (opk_d == 46) {
+            unsafe {
+              mod_d = pipeline_asm_emit_module_ref_c();
+              fi_d = pipeline_asm_emit_func_index_c();
+            }
+            if (mod_d != (0 as *u8) && fi_d >= 0) {
+              unsafe {
+                rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+              }
+              if (rty_d > 0) {
+                unsafe {
+                  rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+                }
+                // TYPE_SLICE = 11. TYPE_ARRAY stays on the arm above.
+                if (rk_d == 11) {
+                  unsafe {
+                    n_d = pipeline_expr_array_lit_num_elems_at(arena, peel_d);
+                    elem_d = pipeline_type_elem_ref_at(arena, rty_d);
+                    esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
+                  }
+                  if (n_d >= 0 && n_d <= 1024) {
+                    unsafe {
+                      rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, peel_d, esz_d, ta, ctx, elem_d);
+                    }
+                    if (rc == 0) {
+                      unsafe {
+                        rc = backend_enc_push_rax_arch(elf_ctx, ta);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      unsafe {
+                        rc = backend_enc_mov_imm64_to_rax_arch(elf_ctx, n_d, 0, ta);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      if (ta == 1) {
+                        len_reg = 1;
+                      } else {
+                        len_reg = 2;
+                      }
+                      unsafe {
+                        rc = backend_enc_mov_rax_to_arg_reg_arch(elf_ctx, len_reg, ta);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      unsafe {
+                        rc = backend_enc_pop_rax_arch(elf_ctx, ta);
+                      }
+                      if (rc != 0) {
+                        return 0 - 1;
+                      }
+                      dur_ok = 1;
+                    }
+                  }
                 }
               }
             }
