@@ -509,12 +509,16 @@ if [ -s build_asm/selfhost_pabi/typeck_method_call_resolve_generic_bound_demoted
   esac
 fi
 
-# knife256/10.2: m8 hollow glue_emit_vector_type_let_init returns 0 →
-# VAR try_let false-success (while/count-up empty body). Prepend decline (-3).
-# PLATFORM: MACOS Cap tip.
-if [ -f src/asm/vector_let_init_decline_a64.s ]; then
-  clang -c -o build_asm/selfhost_pabi/vector_let_init_decline_a64.o src/asm/vector_let_init_decline_a64.s \
-    || { echo "g05_cap_tip_reapply: vector_let_init_decline assemble failed" >&2; exit 1; }
+# knife256/10.2: ARRAY_LIT kind 46 stores lane bytes via
+# pipeline_asm_emit_vector_let_init. Other kinds return -3 so VAR try_let
+# does not swallow scalar i=i+1. Do not assemble the emptied decline .s
+# (it no longer defines the symbol). PLATFORM: MACOS|ARM64.
+if [ -f src/asm/vector_let_init_array_lit_a64.x ] && [ -x ./xlang_asm ]; then
+  env -u XLANG -u XLANG_FORCE -u FORCE -u PREFER -u G05 -u RUN_ALL_USE_C \
+    XLANG_PREFER_ASM_O=1 ./xlang_asm -backend asm -c \
+    src/asm/vector_let_init_array_lit_a64.x \
+    -o build_asm/selfhost_pabi/vector_let_init_decline_a64.o \
+    || { echo "g05_cap_tip_reapply: vector let-init array-lit compile failed" >&2; exit 1; }
 fi
 if [ -s build_asm/selfhost_pabi/vector_let_init_decline_a64.o ]; then
   case " $G05_OBJS " in

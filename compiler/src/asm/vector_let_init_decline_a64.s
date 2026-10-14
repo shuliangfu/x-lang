@@ -1,9 +1,4 @@
-/* Cap tip: m8 hollow glue_emit_vector_type_let_init returned 0 and
- * short-circuited VAR try_let (scalar i=i+1 / while body empty).
- * Decline with -3 (not-handled) so finish+store runs. PLATFORM: MACOS|ARM64. */
-	.section __TEXT,__text,regular,pure_instructions
-	.globl _glue_emit_vector_type_let_init_elf_c
-	.p2align 2
-_glue_emit_vector_type_let_init_elf_c:
-	mov	w0, #-3
-	ret
+/* glue_emit_vector_type_let_init_elf_c moved to
+ * vector_let_init_array_lit_a64.x. This file must not define the symbol:
+ * a hollow `mov w0, #0` short-circuits VAR try_let, and a blanket -3
+ * drops ARRAY_LIT lane bytes. PLATFORM: MACOS|ARM64. */
