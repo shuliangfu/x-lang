@@ -48,7 +48,10 @@
 // negative immediate with lane size 8, still return -3 (neg w0 is
 // 32-bit; the fill zero-extends). f64 stays declined. EXPR_BITNOT
 // (kind 23) of an i32 lane uses the same classification and emits
-// mvn w0 per lane. f32 bitwise not stays declined. A scalar mvn w0
+// mvn w0 per lane. f32 bitwise not stays declined. A FLOAT_LIT, or one
+// unary minus of a FLOAT_LIT, on an f32 lane is narrowed with
+// glue_ieee_f64_bits_to_f32_bits and splatted with the same imm fill.
+// A second unary of that float stays declined. A scalar mvn w0
 // plus str x0 left lane 1 of `let v: i32x4 = ~a` at 0. A VAR, a FIELD,
 // an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
 // each lane is 4 bytes. The lane home, the lane-byte writer, and the
@@ -86,6 +89,9 @@ export extern function glue_vector_type_lanes_esz_c(
 export extern function glue_simd_emit_imm_fill_slot_c(
   elf_ctx: *u8, stack_slot_off: i32, lanes: i32, esz: i32, ta: i32, imm_bits: i32
 ): i32;
+export extern function pipeline_expr_float_bits_lo_at(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_float_bits_hi_at(arena: *u8, expr_ref: i32): i32;
+export extern function glue_ieee_f64_bits_to_f32_bits(lo: i32, hi: i32): i32;
 export extern function glue_vector_elem_is_f32_c(arena: *u8, type_ref: i32): i32;
 export extern function glue_vector_var_lane_stack_off_elf_c(
   arena: *u8, ctx: *u8, var_expr_ref: i32, lane: i32, esz: i32, ta: i32
@@ -150,7 +156,10 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * beyond that folds the fourth operator with the same fill. One unary
  * beyond that folds the fifth operator with the same fill. One unary
  * beyond that folds the sixth operator with the same fill. A seventh
- * unary stays declined. Keyword null, an f32 element,
+ * unary stays declined. A FLOAT_LIT, or one unary minus of a FLOAT_LIT,
+ * on an f32 lane is narrowed with glue_ieee_f64_bits_to_f32_bits and
+ * splatted before that integer fold. A second unary of that float stays
+ * declined. Keyword null, an f32 element of the integer fold,
  * ta other than 1, and a lane size other than 4 stay on the decline
  * below. Lane size 8 of that pattern stays declined.
  * A lane size other than 4, and a
@@ -210,6 +219,13 @@ export function glue_emit_vector_type_let_init_elf_c(
   let apply_pent: i32 = 0;
   let peeled: i32 = 0;
   let peel_n: i32 = 0;
+  let f_ref: i32 = 0;
+  let f_ko: i32 = 0;
+  let f_lo: i32 = 0;
+  let f_hi: i32 = 0;
+  let f_bits: i32 = 0;
+  let f_neg: i32 = 0;
+  let f_sign: i32 = 0;
   if (arena == (0 as *u8) || elf_ctx == (0 as *u8) || ctx == (0 as *u8) || init_ref <= 0) {
     return 0 - 3;
   }
@@ -266,11 +282,76 @@ export function glue_emit_vector_type_let_init_elf_c(
     }
     return rc;
   }
+  // FLOAT_LIT = 1, or one EXPR_NEG of a FLOAT_LIT (`let v: Vec4f = -1.0`).
+  // The parser stores the magnitude as f64 bits. The existing
+  // glue_ieee_f64_bits_to_f32_bits narrows those bits. The existing
+  // glue_simd_emit_imm_fill_slot_c splats the f32 pattern. A second
+  // unary is not kind 1, so it stays on the decline below. Bitwise
+  // not of a float stays declined. The element must be f32, the lane
+  // size 4, and ta 1. An f64 lane stays declined. The sign bit is two
+  // statements (0x80000000), xored into the f64 high half before the
+  // narrow. PLATFORM: MACOS|ARM64.
+  f_ref = 0;
+  f_ko = 0;
+  f_neg = 0;
+  if (ko == 1) {
+    f_ref = init_ref;
+    f_ko = 1;
+  }
+  if (ko == 22) {
+    unsafe {
+      f_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+    }
+    if (f_ref > 0) {
+      unsafe {
+        f_ko = pipeline_expr_kind_ord_at(arena, f_ref);
+      }
+      if (f_ko == 1) {
+        f_neg = 1;
+      }
+    }
+  }
+  if (f_ko == 1) {
+    if (f_ref > 0) {
+      if (ta == 1) {
+        unsafe {
+          rc = glue_vector_elem_is_f32_c(arena, type_ref);
+        }
+        if (rc != 0) {
+          unsafe {
+            rc = glue_vector_type_lanes_esz_c(
+              arena, type_ref, &lanes_s[0], &esz_s[0]);
+          }
+          if (rc == 0) {
+            if (esz_s[0] == 4) {
+              if (lanes_s[0] > 0) {
+                unsafe {
+                  f_lo = pipeline_expr_float_bits_lo_at(arena, f_ref);
+                  f_hi = pipeline_expr_float_bits_hi_at(arena, f_ref);
+                }
+                if (f_neg != 0) {
+                  f_sign = 0 - 2147483647;
+                  f_sign = f_sign - 1;
+                  f_hi = f_hi ^ f_sign;
+                }
+                unsafe {
+                  f_bits = glue_ieee_f64_bits_to_f32_bits(f_lo, f_hi);
+                  rc = glue_simd_emit_imm_fill_slot_c(
+                    elf_ctx, stack_slot_off, lanes_s[0], esz_s[0], ta, f_bits);
+                }
+                return rc;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
   // EXPR_INT_LIT = 0, EXPR_BOOL_LIT = 2. Splat the i32 into every lane.
   // EXPR_NEG = 22 over an INT_LIT is the parser form of `-3`. Negate
   // that literal and splat with the same fill. A decline stores
   // zero-extended `neg w0` plus untouched x1, so lane 1 of i32x4 = -3
-  // is 0. FLOAT_LIT stays declined.
+  // is 0. An f32 FLOAT_LIT is the arm above. An f64 literal stays declined.
   // Lane size 8 of a negative pattern stays declined: the fill
   // zero-extends the 32-bit immediate, which is not a negative i64.
   // EXPR_BITNOT = 23 shares this operand split. mvn w0 is per i32

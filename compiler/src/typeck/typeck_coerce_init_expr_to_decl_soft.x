@@ -4,7 +4,9 @@
 // link runs. An INT_LIT, unary minus / bitwise not of an INT_LIT, or
 // one, two, three, four, or five more unaries of that unary, into a TYPE_VECTOR
 // of i32 is stamped with the declared type. A seventh unary calls the
-// demoted body.
+// demoted body. A TYPE_VECTOR of f32 also stamps a FLOAT_LIT or one
+// unary minus of a FLOAT_LIT. A second unary and a bitwise not call
+// the demoted body.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
 
@@ -31,7 +33,9 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * already splats INT_LIT, unary -/~ of an INT_LIT, and one, two,
  * three, four, or five more unary -/~ of that unary. A seventh
  * unary, a variable, a binop,
- * keyword null, and a float vector stay on the demoted body.
+ * and keyword null stay on the demoted body. A TYPE_VECTOR of f32
+ * stamps a FLOAT_LIT or one unary minus of a FLOAT_LIT. A second
+ * unary of that float stays on the demoted body.
  * Two compares, not a chained && : the bootstrap image clobbers the
  * register a chained compare reuses. An out-of-range expr ref is not
  * counted here: pipeline_expr_kind_ord_at already returns -1, which is
@@ -194,6 +198,29 @@ export function typeck_coerce_init_expr_to_decl(
                     }
                   }
                 }
+              }
+            }
+          }
+          /*
+           * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, or one unary minus
+           * of a FLOAT_LIT, is the same splat the emitter fills.
+           * Kind 1 and kind 22 are separate compares. A second unary
+           * stays kind 22, so it is not stamped. Bitwise not stays off.
+           * An i32 element does not enter. PLATFORM: SHARED.
+           */
+          if (elem_k == 14) {
+            let fop: i32 = 0;
+            let fop_k: i32 = 0;
+            if (init_kind == 1) {
+              splat_ok = 1;
+            }
+            if (init_kind == 22) {
+              fop = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+            }
+            if (fop > 0) {
+              fop_k = pipeline_expr_kind_ord_at(arena, fop);
+              if (fop_k == 1) {
+                splat_ok = 1;
               }
             }
           }

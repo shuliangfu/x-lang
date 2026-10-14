@@ -10289,8 +10289,10 @@ decl_ty_ref: i32): i32 {
      * that lets `let v: i32x8 = ~1` through. Codegen already splats an
      * INT_LIT and one, two, three, four, or five more unaries of that lit into
      * that slot. Stamp the declared vector type so the
-     * let equal-check sees one type. A seventh unary, a VAR, a binop,
-     * or a float vector stays on the later coerces.
+     * let equal-check sees one type. A TYPE_VECTOR of f32 stamps a
+     * FLOAT_LIT or one unary minus of a FLOAT_LIT. A second unary, a
+     * bitwise not, a seventh i32 unary, a VAR, or a binop stays on
+     * the later coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
      * PLATFORM: SHARED — type rule, not a host ABI.
@@ -10421,6 +10423,32 @@ decl_ty_ref: i32): i32 {
                       }
                     }
                   }
+                }
+              }
+            }
+          }
+          /*
+           * TYPE_VECTOR of f32 (Vec4f). A FLOAT_LIT, or one unary minus
+           * of a FLOAT_LIT, is the same splat the emitter fills.
+           * Kind 1 and kind 22 are separate compares. A second unary
+           * stays kind 22, so it is not stamped. Bitwise not stays off.
+           * An i32 element does not enter. The operand ref is
+           * range-checked. PLATFORM: SHARED.
+           */
+          if (elem_k == 14) {
+            let fop: i32 = 0;
+            let fop_k: i32 = 0;
+            if (init_kind == 1) {
+              splat_ok = 1;
+            }
+            if (init_kind == 22) {
+              fop = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+            }
+            if (fop > 0) {
+              if (fop <= arena.num_exprs) {
+                fop_k = pipeline_expr_kind_ord_at(arena, fop);
+                if (fop_k == 1) {
+                  splat_ok = 1;
                 }
               }
             }
