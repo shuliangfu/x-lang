@@ -10259,6 +10259,12 @@ decl_ty_ref: i32): i32 {
   unsafe {
     let decl_kind: i32 = 0;
     let init_kind: i32 = 0;
+    let splat_ok: i32 = 0;
+    let elem_ref: i32 = 0;
+    let elem_k: i32 = 0;
+    let op_ref: i32 = 0;
+    let op_k: i32 = 0;
+    let ntypes_s: i32 = 0;
     if (ast.ref_is_null(init_ref) || ast.ref_is_null(decl_ty_ref)) {
       return 0;
     }
@@ -10268,6 +10274,52 @@ decl_ty_ref: i32): i32 {
     }
     decl_kind = pipeline_type_kind_ord_at(arena, decl_ty_ref);
     init_kind = pipeline_expr_kind_ord_at(arena, init_ref);
+    /*
+     * TYPE_VECTOR of i32 (Vec8i) does not take the kind-8 soft equality
+     * that lets `let v: i32x8 = ~1` through. Codegen already splats an
+     * INT_LIT and unary -/~ of an INT_LIT into that slot. Stamp the
+     * declared vector type so the let equal-check sees one type.
+     * A VAR, a binop, or a float vector stays on the later coerces.
+     * Keyword null stays rejected. Two compares, not a chained &&.
+     * The linked body is the thin: cap tip -c of this mega is hollow.
+     * PLATFORM: SHARED — type rule, not a host ABI.
+     */
+    if (decl_kind == 13) {
+      ntypes_s = arena.num_types;
+      elem_ref = pipeline_type_elem_ref_at(arena, decl_ty_ref);
+      if (elem_ref > 0) {
+        if (elem_ref <= ntypes_s) {
+          elem_k = pipeline_type_kind_ord_at(arena, elem_ref);
+          if (elem_k == 0) {
+            if (init_kind == 0) {
+              if (pipeline_expr_is_null_keyword_c(arena, init_ref) == 0) {
+                splat_ok = 1;
+              }
+            }
+            if (init_kind == 22) {
+              op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+            }
+            if (init_kind == 23) {
+              op_ref = pipeline_expr_unary_operand_ref_at(arena, init_ref);
+            }
+            if (op_ref > 0) {
+              if (op_ref <= arena.num_exprs) {
+                op_k = pipeline_expr_kind_ord_at(arena, op_ref);
+                if (op_k == 0) {
+                  if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
+                    splat_ok = 1;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    if (splat_ok == 1) {
+      pipeline_expr_set_resolved_type_ref(arena, init_ref, decl_ty_ref);
+      return 1;
+    }
     if (typeck_coerce_init_lit_to_decl(arena, init_ref, decl_ty_ref, decl_kind, init_kind) != 0) {
       return 1;
     }
