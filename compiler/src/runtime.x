@@ -98,7 +98,6 @@ export extern "C" function dce_is_mono_used_impl(ctx: *u8, mod: *u8, k: i32): i3
 export extern "C" function dce_is_type_used_impl(ctx: *u8, mod: *u8, type_name: *u8): i32;
 export extern "C" function runtime_report_precise_parse_failure_if_known_impl(input_path: *u8, src: *u8, src_len: i64): i32;
 export extern "C" function runtime_run_test_c_impl(argc: i32, argv: *u8): i32;
-export extern "C" function driver_lib_roots_from_key_impl(lib_key: *u8, out_arr: *u8, bufs: *u8): i32;
 
 export extern "C" function runtime_prepare_dce_ctx_impl(mod: *u8, all_dep_mods: *u8, n_all: i32, used_funcs: *u8, n_used: *i32, used_mono: *u8, used_type_names: *u8, n_used_types: *i32, wpo_reach: *u8, dce: *u8, dce_ready: *i32): void;
 export extern "C" function driver_run_x_emit_c_from_compile_state_impl(state: *u8, argc: i32, argv: *u8): i32;
@@ -964,20 +963,11 @@ export function runtime_run_test_c(argc: i32, argv: *u8): i32 {
   return 0;
 }
 
-/** Exported function `driver_lib_roots_from_key`.
- * Implements `driver_lib_roots_from_key`.
- * @param lib_key *u8
- * @param out_arr *u8
- * @param bufs *u8
- * @return i32
+/*
+ * driver_lib_roots_from_key lives only in src/runtime/rt_lib_root.x.
+ * A second #[no_mangle] here returned 0 and dropped every -L root.
+ * PLATFORM: SHARED — one authority; the cold seed is a declaration under FROM_X.
  */
-#[no_mangle]
-export function driver_lib_roots_from_key(lib_key: *u8, out_arr: *u8, bufs: *u8): i32 {
-  unsafe {
-    return driver_lib_roots_from_key_impl(lib_key, out_arr, bufs);
-  }
-  return 0;
-}
 
 /*
  * Retired mega wrappers: driver_smoke_lex_dump_{on_large_stack,thread_fn}
