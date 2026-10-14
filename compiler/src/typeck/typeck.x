@@ -15541,10 +15541,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * (`!i32`, `!f32`) → C truthiness false green; if/while already require bool.
  * Root cause (wave677): unary -true stamped bool then host/fs treated as int
  * false green; ~true fell to return mismatch. G.7: invalid_bool_binop.
- * Allowed: ~int, -int, -float, !bool (LOGNOT→bool), and unary - on
- * TYPE_VECTOR (kind 13). Arithmetic already allows a same-size vector
- * pair. Rejected: ~f32/f64, ~ptr, -ptr, -bool, ~bool, aggregate -/~/!
- * (including ~ and ! on a vector), vector comparison, and non-bool
+ * Allowed: ~int, -int, -float, !bool (LOGNOT→bool), unary - on
+ * TYPE_VECTOR (kind 13), and bitwise not of a TYPE_VECTOR whose
+ * element is i32 (kind 0, Vec8i). Arithmetic already allows a
+ * same-size vector pair. Rejected: ~f32/f64 (scalar and Vec4f),
+ * ~ptr, -ptr, -bool, ~bool, aggregate -/~/! (including ! on a vector
+ * and ~ on a non-i32 vector), vector comparison, and non-bool
  * LOGNOT operands.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
@@ -15578,21 +15580,48 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
     if (!ast.ref_is_null(op_tr) && op_tr > 0 && op_tr <= arena.num_types) {
       /*
        * TYPE_VECTOR (kind 13) is a SIMD value. The aggregate helper
-       * still returns 1 so comparison, bitwise not, and logical not
-       * stay rejected. Arithmetic already skips that helper for a
-       * kind-13 pair. Unary minus did not, so `let v: Vec8i = -a`
-       * was T001 while `let v: i32x8 = -a` (TYPE_NAMED, kind 8) was
-       * not. Two compares, not a chained && : the bootstrap image
-       * clobbers the register a chained compare reuses.
+       * still returns 1 so comparison, logical not, and bitwise not
+       * of a non-i32 element stay rejected. Arithmetic already skips
+       * that helper for a kind-13 pair. Unary minus did not, so
+       * `let v: Vec8i = -a` was T001 while `let v: i32x8 = -a`
+       * (TYPE_NAMED, kind 8) was not. Bitwise not of an i32 element
+       * skips the helper the same way. Two compares, not a chained
+       * && : the bootstrap image clobbers the register a chained
+       * compare reuses.
        * PLATFORM: SHARED — this exemption. The helper stays SHARED.
        */
-      let vec_neg: i32 = 0;
-      if (expr_kind == ord_neg) {
-        if (pipeline_type_kind_ord_at(arena, op_tr) == 13) {
-          vec_neg = 1;
+      let vec_skip: i32 = 0;
+      let elem_ref: i32 = 0;
+      let elem_k: i32 = 0;
+      let ntypes_u: i32 = 0;
+      if (pipeline_type_kind_ord_at(arena, op_tr) == 13) {
+        if (expr_kind == ord_neg) {
+          vec_skip = 1;
+        }
+        /*
+         * Vec8i is TYPE_VECTOR of i32 (kind 0). Named i32x8 is kind 8
+         * and never hits this helper, so `let v: i32x8 = ~a` already
+         * typechecks. Kind 13 of i32 did not, so `let v: Vec8i = ~a`
+         * was T001 before codegen. Vec4f is kind 13 of f32 (kind 14):
+         * ~ of that stays in the aggregate helper. Logical not does
+         * not set vec_skip. Two compares, not a chained && : the
+         * bootstrap image clobbers the register a chained compare reuses.
+         * PLATFORM: SHARED — this exemption. The helper stays SHARED.
+         */
+        if (expr_kind == ord_bitnot) {
+          ntypes_u = arena.num_types;
+          elem_ref = pipeline_type_elem_ref_at(arena, op_tr);
+          if (elem_ref > 0) {
+            if (elem_ref <= ntypes_u) {
+              elem_k = pipeline_type_kind_ord_at(arena, elem_ref);
+              if (elem_k == 0) {
+                vec_skip = 1;
+              }
+            }
+          }
         }
       }
-      if (vec_neg == 0) {
+      if (vec_skip == 0) {
         if (typeck_type_is_aggregate_cmp_operand(module, arena, op_tr) != 0) {
           line_u = pipeline_expr_line_at(arena, expr_ref);
           col_u = pipeline_expr_col_at(arena, expr_ref);
