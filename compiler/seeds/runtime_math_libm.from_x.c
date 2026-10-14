@@ -38,14 +38,15 @@ int math_fenv_mask_to_fe(int32_t mask);
 int32_t math_fenv_fe_to_mask(int fe);
 void math_fenv_emit_cap_report(int32_t avail);
 
-#ifdef XLANG_RUNTIME_MATH_LIBM_FROM_X
-/* In R2 mode, _c functions are provided by thin (.x); rest needs forward decls */
+/* PLATFORM: SHARED — math_special_smoke_c and math_fenv_capability_smoke_impl_c
+ * call these public names on every build. Catalog host-cc does not define
+ * XLANG_RUNTIME_MATH_LIBM_FROM_X. Bodies stay in runtime_math_libm.x.
+ */
 double math_erf_c(double x);
 double math_erfc_c(double x);
 double math_log1p_c(double x);
 double math_expm1_c(double x);
 int32_t math_fenv_available_c(void);
-#endif
 
 /* === libm _impl functions ===
  * 9.2.4 exact-7 (floor/ceil/trunc/round/fabs/fmin/fmax): host-libm splices
