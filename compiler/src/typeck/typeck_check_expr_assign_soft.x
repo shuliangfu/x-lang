@@ -6,12 +6,12 @@
 // five more unaries of that unary, onto a TYPE_VECTOR of i32 stamps the RHS
 // with the LHS type, then calls the demoted body. A seventh unary
 // calls the demoted body with no stamp. A TYPE_VECTOR of f32 also
-// stamps a bare FLOAT_LIT, one unary minus of a FLOAT_LIT, and one
-// more unary minus of that, and one unary beyond that, when the LHS
-// is a VAR or a FIELD. Two minuses cancel. Three minuses apply the
-// sign once. The float-lit checker keeps an already-resolved type.
-// A fourth unary and a bitwise not call the demoted body with no
-// stamp.
+// stamps a bare FLOAT_LIT, one unary minus of a FLOAT_LIT, one more
+// unary minus of that, one unary beyond that, and one unary beyond
+// that, when the LHS is a VAR or a FIELD. Two minuses cancel. Three
+// minuses apply the sign once. Four minuses cancel again. The
+// float-lit checker keeps an already-resolved type. A fifth unary
+// and a bitwise not call the demoted body with no stamp.
 // Every other assign calls the demoted body with no stamp.
 // PLATFORM: SHARED — type rule is the same on macOS, Ubuntu, and Windows.
 // The demote/retarget step that makes this symbol win is Mach-O only.
@@ -54,12 +54,13 @@ export extern "C" function pipeline_expr_set_resolved_type_ref(arena: *u8, expr_
  * INT_LIT, and one more unary of that, is stamped for a VAR or a
  * FIELD. A seventh unary, a binop, LOGNOT, compound assign, and deref
  * are not stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT, one
- * unary minus of a FLOAT_LIT, one more unary minus of that, and one
- * unary beyond that, for a VAR or a FIELD. Two minuses cancel. Three
- * minuses apply the sign once. The float-lit checker keeps an
- * already-resolved type, so the bare stamp survives. The unary checker
- * keeps the one-deep, two-deep, and three-deep stamps. A fourth unary
- * and a bitwise not of that float are not stamped.
+ * unary minus of a FLOAT_LIT, one more unary minus of that, one unary
+ * beyond that, and one unary beyond that, for a VAR or a FIELD. Two
+ * minuses cancel. Three minuses apply the sign once. Four minuses
+ * cancel again. The float-lit checker keeps an already-resolved type,
+ * so the bare stamp survives. The unary checker keeps the one-deep,
+ * two-deep, three-deep, and four-deep stamps. A fifth unary and a
+ * bitwise not of that float are not stamped.
  * A failed LHS check does not call
  * demoted, so the diagnostic is not emitted twice.
  * Two compares, not a chained && : the bootstrap image clobbers the
@@ -295,15 +296,17 @@ export function typeck_check_expr_assign(
               }
               /*
                * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, one unary
-               * minus of a FLOAT_LIT, one more unary minus of that, and
-               * one unary beyond that, on a VAR or a FIELD, is the
-               * splat the let-init already fills. Two minuses cancel.
-               * Three minuses apply the sign once. Kind 22 and kind 1
-               * are separate compares. The float-lit checker keeps an
+               * minus of a FLOAT_LIT, one more unary minus of that, one
+               * unary beyond that, and one unary beyond that, on a VAR
+               * or a FIELD, is the splat the let-init already fills.
+               * Two minuses cancel. Three minuses apply the sign once.
+               * Four minuses cancel again. Kind 22 and kind 1 are
+               * separate compares. The float-lit checker keeps an
                * already-resolved type, so the kind-1 stamp survives.
-               * The unary checker keeps the one-deep, two-deep, and
-               * three-deep stamps. A fourth unary stays kind 22.
-               * Bitwise not stays off. An i32 element does not enter.
+               * The unary checker keeps the one-deep, two-deep,
+               * three-deep, and four-deep stamps. A fifth unary stays
+               * kind 22. Bitwise not stays off. An i32 element does
+               * not enter.
                * PLATFORM: SHARED.
                */
               if (elem_k == 14) {
@@ -313,6 +316,8 @@ export function typeck_check_expr_assign(
                 let f_in_k: i32 = 0;
                 let f_deep: i32 = 0;
                 let f_deep_k: i32 = 0;
+                let f_quad: i32 = 0;
+                let f_quad_k: i32 = 0;
                 if (right_ref > 0) {
                   lhs_kind = pipeline_expr_kind_ord_at(arena, left_ref);
                   rhs_kind = pipeline_expr_kind_ord_at(arena, right_ref);
@@ -343,9 +348,10 @@ export function typeck_check_expr_assign(
                         }
                         /*
                          * One more unary minus whose operand is a
-                         * FLOAT_LIT. Three minuses apply the sign once
-                         * in the emitter. A fourth unary is kind 22
-                         * here, not kind 1. PLATFORM: SHARED.
+                         * FLOAT_LIT, or one unary beyond that. Three
+                         * minuses apply the sign once. Four minuses
+                         * cancel again. A fifth unary is kind 22 here,
+                         * not kind 1. PLATFORM: SHARED.
                          */
                         if (f_in_k == ord_neg) {
                           f_deep = pipeline_expr_unary_operand_ref_at(arena, f_in);
@@ -357,6 +363,20 @@ export function typeck_check_expr_assign(
                               }
                               if (lhs_kind == ord_field) {
                                 splat_ok = 1;
+                              }
+                            }
+                            if (f_deep_k == ord_neg) {
+                              f_quad = pipeline_expr_unary_operand_ref_at(arena, f_deep);
+                              if (f_quad > 0) {
+                                f_quad_k = pipeline_expr_kind_ord_at(arena, f_quad);
+                                if (f_quad_k == 1) {
+                                  if (lhs_kind == ord_var) {
+                                    splat_ok = 1;
+                                  }
+                                  if (lhs_kind == ord_field) {
+                                    splat_ok = 1;
+                                  }
+                                }
                               }
                             }
                           }
