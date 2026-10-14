@@ -113,9 +113,11 @@ export extern function backend_enc_store_rax_to_rbx_offset_arch(
  * with pipeline_asm_emit_vector_let_init_elf_c, then negates each
  * destination lane in place. f32, a lane size other than 4, and a
  * negative pattern whose lane is 8 bytes stay declined: neg w0 is
- * 32-bit and the fill zero-extends. A VAR or an ARRAY_LIT whose lanes
- * are 4 bytes may be wider than 16. FIELD, a lane binop, CALL, METHOD,
- * INDEX, and DEREF stay declined past 16 bytes.
+ * 32-bit and the fill zero-extends. A VAR, a FIELD, or an ARRAY_LIT
+ * whose lanes are 4 bytes may be wider than 16. The FIELD home is the
+ * same slot plus lane times 4, and that helper does not stop at 16.
+ * A lane binop, CALL, METHOD, INDEX, and DEREF stay declined past 16
+ * bytes: those writers store 16 bytes.
  * Bare CALL and VAR copy stay declined.
  * PLATFORM: MACOS|ARM64.
  */
@@ -267,23 +269,19 @@ export function glue_emit_vector_type_let_init_elf_c(
       }
       // Lane size other than 4 stays declined: neg w0 is 32-bit.
       // Binop, CALL, METHOD, INDEX, and DEREF writers store 16 bytes,
-      // so a wider vector would negate lanes past that store. FIELD
-      // wider than 16 stays declined: `let n: i32x8 = h.v` is still
-      // exit 11, and that copy is not this arm. VAR uses the existing
-      // lane home (slot + lane * 4). ARRAY_LIT uses the existing
-      // lane-byte writer, which already stores every element.
-      // Declining those two left `let v: i32x8 = -a` as neg w0 of the
-      // address of a, and lane 0 of
-      // `let v: i32x8 = -[1, 2, 3, 4, 5, 6, 7, 8]` was not -1.
+      // so a wider vector would negate lanes past that store. VAR and
+      // FIELD use the existing lane home (slot + lane * 4). That home
+      // has no 16-byte cap. The field slot already holds every lane.
+      // ARRAY_LIT uses the existing lane-byte writer, which already
+      // stores every element. Declining FIELD wider than 16 left
+      // `let n: i32x8 = -h.v` as neg w0 of the address of h, so lane 0
+      // was not -1. from_dest 0 is only VAR (kind 3) or FIELD (kind 44).
       // PLATFORM: MACOS|ARM64.
       if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0) {
         return 0 - 3;
       }
       if ((lanes_s[0] * esz_s[0]) > 16) {
         if (from_dest != 0 && from_dest != 3) {
-          return 0 - 3;
-        }
-        if (from_dest == 0 && op_ko != 3) {
           return 0 - 3;
         }
       }
