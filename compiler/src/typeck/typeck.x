@@ -10264,6 +10264,8 @@ decl_ty_ref: i32): i32 {
     let elem_k: i32 = 0;
     let op_ref: i32 = 0;
     let op_k: i32 = 0;
+    let inner_ref: i32 = 0;
+    let inner_k: i32 = 0;
     let ntypes_s: i32 = 0;
     if (ast.ref_is_null(init_ref) || ast.ref_is_null(decl_ty_ref)) {
       return 0;
@@ -10277,9 +10279,10 @@ decl_ty_ref: i32): i32 {
     /*
      * TYPE_VECTOR of i32 (Vec8i) does not take the kind-8 soft equality
      * that lets `let v: i32x8 = ~1` through. Codegen already splats an
-     * INT_LIT and unary -/~ of an INT_LIT into that slot. Stamp the
-     * declared vector type so the let equal-check sees one type.
-     * A VAR, a binop, or a float vector stays on the later coerces.
+     * INT_LIT, unary -/~ of an INT_LIT, and exactly one more unary of
+     * that lit into that slot. Stamp the declared vector type so the
+     * let equal-check sees one type. A third unary, a VAR, a binop,
+     * or a float vector stays on the later coerces.
      * Keyword null stays rejected. Two compares, not a chained &&.
      * The linked body is the thin: cap tip -c of this mega is hollow.
      * PLATFORM: SHARED — type rule, not a host ABI.
@@ -10308,6 +10311,28 @@ decl_ty_ref: i32): i32 {
                 if (op_k == 0) {
                   if (pipeline_expr_is_null_keyword_c(arena, op_ref) == 0) {
                     splat_ok = 1;
+                  }
+                }
+                /*
+                 * Exactly one more unary of a non-null INT_LIT.
+                 * ~(-3), -(~1), -(-3), ~~1. A third unary is kind
+                 * 22 or 23, not INT_LIT, so it stays unstamped.
+                 * The emitter folds only this depth. PLATFORM: SHARED.
+                 */
+                if (op_k == 22) {
+                  inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                }
+                if (op_k == 23) {
+                  inner_ref = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                }
+                if (inner_ref > 0) {
+                  if (inner_ref <= arena.num_exprs) {
+                    inner_k = pipeline_expr_kind_ord_at(arena, inner_ref);
+                    if (inner_k == 0) {
+                      if (pipeline_expr_is_null_keyword_c(arena, inner_ref) == 0) {
+                        splat_ok = 1;
+                      }
+                    }
                   }
                 }
               }
@@ -11406,13 +11431,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * @param ctx *PipelineDepCtx — dep context; may be null
  * @return i32 — 0 when the assign typechecks, -1 on failure
  * Plain ASSIGN of an INT_LIT onto a VAR or FIELD of TYPE_VECTOR i32,
- * or of unary minus / bitwise not of an INT_LIT onto a VAR or FIELD
- * of that vector, is stamped with the LHS type before the RHS is
- * checked. Let-init already accepts that splat, and the field store
- * fills every lane of an INT_LIT wider than 16 bytes. Compound assign, an
- * i32 variable RHS, a binop, keyword null, a nested unary, LOGNOT,
- * deref, and a non-i32 element (Vec4f) are not stamped. The linked
- * body is the assign thin; this function is the source authority.
+ * of unary minus / bitwise not of an INT_LIT, or of exactly one more
+ * unary of that lit, onto a VAR or FIELD of that vector, is stamped
+ * with the LHS type before the RHS is checked. Let-init already
+ * accepts that splat, and the field store fills every lane. Compound
+ * assign, an i32 variable RHS, a binop, keyword null, a third unary,
+ * LOGNOT, deref, and a non-i32 element (Vec4f) are not stamped. The
+ * linked body is the assign thin; this function is the source authority.
  * PLATFORM: SHARED — the type rule is the same on every host.
  */
 export function typeck_check_expr_assign(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -11574,12 +11599,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * "expected ?, found i32". Stamp the RHS before check_expr: the
      * lit checker no-ops when already resolved, and the unary checker
      * keeps this type instead of restamping i32. A bare INT_LIT is
-     * stamped for a VAR or a FIELD. Unary minus / bitwise not is
-     * stamped for a VAR or a FIELD. The field store fills every lane
-     * of an INT_LIT wider than 16 bytes, so `h.v = 1` is the same splat
-     * as `v = 1`. Compound assign (kinds 29..39) is not
-     * a splat. An i32 variable, a binop, keyword null, a nested unary,
-     * LOGNOT, deref, and a non-i32 element (Vec4f) are not stamped.
+     * stamped for a VAR or a FIELD. Unary minus / bitwise not of an
+     * INT_LIT, and exactly one more unary of that lit, is stamped for
+     * a VAR or a FIELD. The field store fills every lane of an INT_LIT
+     * wider than 16 bytes, and kind 22 or 23 calls the same let-init,
+     * so `h.v = ~(-3)` is the same splat as `v = ~(-3)`. Compound
+     * assign (kinds 29..39) is not a splat. An i32 variable, a binop,
+     * keyword null, a third unary, LOGNOT, deref, and a non-i32
+     * element (Vec4f) are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
      * PLATFORM: SHARED — same type rule on every host. The linked body
@@ -11596,6 +11623,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
             let splat_lhs_k: i32 = 0;
             let splat_op: i32 = 0;
             let splat_op_k: i32 = 0;
+            let splat_in: i32 = 0;
+            let splat_in_k: i32 = 0;
             if (splat_elem > 0) {
               if (splat_elem <= splat_nt) {
                 if (pipeline_type_kind_ord_at(arena, splat_elem) == 0) {
@@ -11626,6 +11655,30 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                         }
                         if (splat_lhs_k == ord_field) {
                           splat_ok = 1;
+                        }
+                      }
+                    }
+                    /*
+                     * Exactly one more unary of a non-null INT_LIT,
+                     * still only a VAR or a FIELD. A third unary stays
+                     * unstamped. PLATFORM: SHARED.
+                     */
+                    if (splat_op_k == 22) {
+                      splat_in = pipeline_expr_unary_operand_ref_at(arena, splat_op);
+                    }
+                    if (splat_op_k == 23) {
+                      splat_in = pipeline_expr_unary_operand_ref_at(arena, splat_op);
+                    }
+                    if (splat_in > 0) {
+                      splat_in_k = pipeline_expr_kind_ord_at(arena, splat_in);
+                      if (splat_in_k == ord_lit) {
+                        if (typeck_expr_is_null_keyword(arena, splat_in) == 0) {
+                          if (splat_lhs_k == ord_var) {
+                            splat_ok = 1;
+                          }
+                          if (splat_lhs_k == ord_field) {
+                            splat_ok = 1;
+                          }
                         }
                       }
                     }
@@ -15690,11 +15743,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * ~ptr, -ptr, -bool, ~bool, aggregate -/~/! (including ! on a vector
  * and ~ on a non-i32 vector), vector comparison, and non-bool
  * LOGNOT operands.
- * An already-resolved unary minus or bitwise not of a non-null INT_LIT
- * whose type is an i32 TYPE_VECTOR keeps that stamp. Assign pre-stamps
- * `~1` / `-3` onto Vec8i; the operand is typechecked with expected 0
- * and the demoted body is not called, so it cannot restamp i32.
- * Let-init does not pre-stamp, so it still uses the later coerce.
+ * An already-resolved unary minus or bitwise not of a non-null INT_LIT,
+ * or of exactly one more unary of that lit, whose type is an i32
+ * TYPE_VECTOR keeps that stamp. Assign pre-stamps `~1` / `-3` and
+ * `~(-3)` / `-(~1)` onto Vec8i; the immediate operand is typechecked
+ * with expected 0 and the demoted body is not called, so it cannot
+ * restamp i32. A third unary is not kept. Let-init does not pre-stamp,
+ * so it still uses the later coerce.
  * PLATFORM: SHARED — seed typeck_gen + empty_surface same commit (G.7).
  */
 export function typeck_check_expr_unary(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -15718,11 +15773,12 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * Assign of `~1` / `-3` onto an i32 TYPE_VECTOR pre-stamps this
      * unary with that vector type. The demoted body restamps i32 and
      * would drop the splat. When this expr is already a TYPE_VECTOR of
-     * i32 and the operand is a non-null INT_LIT, typecheck the operand
-     * with expected 0 and keep the stamp. Expected 0 keeps the lit as
-     * i32 and does not pull a nested unary into this layer. Let-init
-     * does not pre-stamp, so it falls through. LOGNOT never sets the
-     * keep flag. Two compares, not a chained && : the bootstrap image
+     * i32 and the operand is a non-null INT_LIT, or a unary of one,
+     * typecheck the immediate operand with expected 0 and keep the
+     * stamp. Expected 0 keeps that operand a scalar. A third unary
+     * falls through. Let-init does not pre-stamp, so it falls through
+     * to coerce. LOGNOT never sets the keep flag. Two compares, not a
+     * chained && : the bootstrap image
      * clobbers the register a chained compare reuses.
      * PLATFORM: SHARED — same keep rule as the linked unary thin.
      */
@@ -15732,6 +15788,8 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
       let pre_elem: i32 = 0;
       let pre_ek: i32 = 0;
       let pre_op_k: i32 = 0;
+      let pre_in: i32 = 0;
+      let pre_in_k: i32 = 0;
       let pre_nt: i32 = 0;
       if (expr_kind == ord_neg) {
         pre_keep = 1;
@@ -15756,6 +15814,27 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                       if (pre_op_k == 0) {
                         if (typeck_expr_is_null_keyword(arena, op_ref) == 0) {
                           pre_keep = 1;
+                        }
+                      }
+                      /*
+                       * Exactly one more unary of a non-null INT_LIT.
+                       * The keep below checks op_ref with expected 0,
+                       * so the inner unary stays a scalar. A third
+                       * unary is not INT_LIT. LOGNOT does not set
+                       * pre_keep. PLATFORM: SHARED.
+                       */
+                      if (pre_op_k == ord_neg) {
+                        pre_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                      }
+                      if (pre_op_k == ord_bitnot) {
+                        pre_in = pipeline_expr_unary_operand_ref_at(arena, op_ref);
+                      }
+                      if (pre_in > 0) {
+                        pre_in_k = pipeline_expr_kind_ord_at(arena, pre_in);
+                        if (pre_in_k == 0) {
+                          if (typeck_expr_is_null_keyword(arena, pre_in) == 0) {
+                            pre_keep = 1;
+                          }
                         }
                       }
                     }
