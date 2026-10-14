@@ -473,17 +473,10 @@ for script in "${BSTRICT_SCRIPTS[@]}"; do
       # script now builds runtime_atomic_glue.o / runtime_time_os.o via
       # ensure_runtime_*_o and passes them explicitly on the -o link line.
       ;;
-    run-net.sh)
-      # PLATFORM: MACOS|DARWIN — net_tcp_listen_c binds port 8080; on Darwin the listen
-      # syscall path (seed xlang-c) returns -1 (exit 1). Linux x86_64 covers the net gate.
-      # Not caused by vector/codegen changes; pre-existing Darwin net runtime issue.
-      case "$(uname -s)" in
-        Darwin)
-          echo "run-all-bstrict: skip $script on Darwin (net listen syscall; Linux covers)"
-          continue
-          ;;
-      esac
-      ;;
+    # run-net.sh stays on the shared path (no Darwin continue).
+    # PLATFORM: SHARED — product net_tcp_listen_c(127.0.0.1, 8080) exits 0
+    # on Darwin (main + udp_batch_buf). The old skip claimed listen returned
+    # -1 via seed xlang-c. Do not skip arm64.
     run-dual-chain-struct-return.sh)
       # arm64：该脚本强制 seed/xlang_asm 双链 typeck；struct/return 项已在前序脚本覆盖。
       case "$(uname -m 2>/dev/null)" in
