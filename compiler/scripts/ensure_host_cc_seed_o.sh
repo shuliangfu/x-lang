@@ -7392,6 +7392,9 @@ net_ipv6_os_retry_pure() {
 # w1227: src/asm/runtime_net_sock_fast_darwin.x segfaults on some
 # pure-asm tries and emits on a later try. Every frame is closed.
 # Direct xlang_asm, not pure_asm_x_to_o. Symbols stay strong.
+# Twenty-two text symbols: the old twenty-four counted
+# net_tcp_errno_ptr_c and net_udp_errno_ptr_c, which std/net already
+# emits. This half must not define them.
 # PLATFORM: MACOS|DARWIN arm64. Other hosts return 1. cwd is compiler/.
 net_sock_os_retry_pure() {
   local o="${1:-}"
@@ -7419,7 +7422,9 @@ net_sock_os_retry_pure() {
     return 1
   fi
   n="$(nm "$o" | awk '$2=="T"' | wc -l | tr -d ' ')"
-  if [ "$n" != "24" ]; then
+  # 22 = 15 exports + 7 file-private sock_* helpers. TCP/UDP errno _c
+  # names are defined by std/net/tcp.o and udp.o. PLATFORM: MACOS|DARWIN.
+  if [ "$n" != "22" ]; then
     rm -f "$o"
     return 1
   fi
@@ -28785,8 +28790,6 @@ ensure_net_sock_fast_darwin_pure() {
         _net_close_socket_c \
         _net_tcp_listen_c \
         _net_udp_bind_c \
-        _net_tcp_errno_ptr_c \
-        _net_udp_errno_ptr_c \
         _net_ipv6_errno_ptr_c \
         _runtime_net_sock_fast_x_doc_anchor; do
         if ! nm "$o" 2>/dev/null | awk -v s="$_ns_short" 'BEGIN{if(s~/^_/)s=substr(s,2)} $2=="T" && ($3==s || $3=="_" s) { n++ } END { exit (n==1)?0:1 }'; then
@@ -32814,7 +32817,7 @@ case "$MODE" in
     exit $?
     ;;
   net-sock-os-retry|net_sock_os_retry_pure)
-    # w1227: twenty-four pure-asm symbols of runtime_net_sock_fast_darwin.x.
+    # w1227: twenty-two pure-asm symbols of runtime_net_sock_fast_darwin.x.
     # Does not link the thin half and does not write std/net/net_sock_fast.o.
     # PLATFORM: MACOS|DARWIN arm64. cwd is compiler/.
     if [ "$#" -lt 1 ]; then

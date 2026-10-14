@@ -25,17 +25,23 @@
 // poll, close, and fcntl are static-inline svc #0x80. This compiler
 // cannot emit that. libSystem performs the same calls. fcntl itself is
 // variadic, and this compiler puts the third argument in a register
-// while Darwin reads it from the stack. ___fcntl takes the flags in
+// while Darwin reads it from the stack. __fcntl takes the flags in
 // the third register, so non-blocking mode goes through that symbol.
+// The source spells the C names __error and __fcntl. The Mach-O
+// writer adds one underscore, so the undefs are ___error and ___fcntl.
 // Measured on this Mac: F_SETFL is 4, O_NONBLOCK is 4, SOL_SOCKET is
 // 65535, SO_REUSEADDR is 4. AF_INET is 2, SOCK_STREAM is 1, SOCK_DGRAM
 // is 2, IPPROTO_TCP is 6, IPPROTO_UDP is 17.
 //
-// net_tcp_errno_ptr, net_udp_errno_ptr, and net_ipv6_errno_ptr are
-// already exported by std/net/tcp.x, udp.x, and ipv6.x. This file only
-// keeps the _c names, which exist solely in the C seed. WSA startup is
-// a no-op on Darwin, so the constructor attribute is not required.
-// PLATFORM: MACOS|DARWIN arm64
+// std/net/tcp.x exports net_tcp_errno_ptr and std/net/udp.x exports
+// net_udp_errno_ptr. export_sym appends _c, so those objects already
+// define net_tcp_errno_ptr_c and net_udp_errno_ptr_c. This file must
+// not define them again. Both copies were strong, and these Darwin
+// copies were marked no-dead-strip, so ld -dead_strip hit a duplicate
+// and raised SIGTRAP. net_ipv6_errno_ptr_c stays: no std member defines
+// that name. WSA startup is a no-op on Darwin, so the constructor
+// attribute is not required.
+// PLATFORM: MACOS|DARWIN arm64. The Linux twin is a separate object.
 
 extern "C" function malloc(n: i64): *u8;
 extern "C" function free(p: *u8): void;
@@ -49,39 +55,21 @@ extern "C" function accept(fd: i32, addr: *u8, nlen: *i32): i32;
 extern "C" function sendto(fd: i32, buf: *u8, nlen: i64, flg: i32, addr: *u8, alen: i32): i64;
 extern "C" function recvfrom(fd: i32, buf: *u8, nlen: i64, flg: i32, addr: *u8, nlen: *i32): i64;
 extern "C" function poll(fds: *u8, nfds: i32, timeout: i32): i32;
-extern "C" function ___fcntl(fd: i32, cmd: i32, arg: i32): i32;
+extern "C" function __fcntl(fd: i32, cmd: i32, arg: i32): i32;
 extern "C" function setsockopt(fd: i32, level: i32, opt: i32, val: *i32, nlen: i32): i32;
-extern "C" function ___error(): *i32;
+extern "C" function __error(): *i32;
 extern "C" function net_tcp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
 extern "C" function net_udp_set_addr_port_buf_c(sin: *u8, addr_u32: u32, port_u32: u32): void;
 
-/** errno slot used when a product object asks for the _c name.
- * @return pointer from ___error, or null if that call returns null
- * PLATFORM: MACOS|DARWIN arm64
- */
-#[no_mangle]
-export function net_tcp_errno_ptr_c(): *i32 {
-  unsafe { return ___error(); }
-  return 0;
-}
-
-/** errno slot for the UDP _c name. Same pointer as the TCP face.
- * @return pointer from ___error
- * PLATFORM: MACOS|DARWIN arm64
- */
-#[no_mangle]
-export function net_udp_errno_ptr_c(): *i32 {
-  unsafe { return ___error(); }
-  return 0;
-}
-
-/** errno slot for the IPv6 _c name. Same pointer as the TCP face.
- * @return pointer from ___error
+/** errno slot for the IPv6 _c name. TCP and UDP already emit their
+ * link names from std/net/tcp.x and udp.x, so this file does not
+ * repeat those two. No std member defines this IPv6 name.
+ * @return pointer from __error, or null if that call returns null
  * PLATFORM: MACOS|DARWIN arm64
  */
 #[no_mangle]
 export function net_ipv6_errno_ptr_c(): *i32 {
-  unsafe { return ___error(); }
+  unsafe { return __error(); }
   return 0;
 }
 
@@ -262,7 +250,7 @@ export function net_set_blocking_c(fd: i32, blocking: i32): i32 {
   let r: i32 = 0;
   if (fd < 0) { return 0 - 1; }
   if (blocking != 0) { arg = 0; }
-  unsafe { r = ___fcntl(fd, 4, arg); }
+  unsafe { r = __fcntl(fd, 4, arg); }
   if (r != 0) { return 0 - 1; }
   return 0;
 }
@@ -314,7 +302,7 @@ function sock_reuse(fd: i32): i32 {
  * PLATFORM: MACOS|DARWIN arm64
  */
 function sock_nonblock(fd: i32): i32 {
-  unsafe { return ___fcntl(fd, 4, 4); }
+  unsafe { return __fcntl(fd, 4, 4); }
   return 0 - 1;
 }
 
