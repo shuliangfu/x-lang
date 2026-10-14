@@ -2401,14 +2401,20 @@ export function math_log_c(x: f64): f64 {
  * @return f64 - |x| with the sign bit cleared; fabs(-0.0) = +0.0; NaN keeps
  *               its payload with the sign bit cleared
  * Bit-level: mask off bit 63 via the computed mask (1 << 63) - 1.
- * PLATFORM: SHARED freestanding (no libm).
+ * The cleared bits are copied back with memcpy. A store through the
+ * punned pointer is not emitted.
+ * PLATFORM: SHARED — no libm; hosted C memcpy on the product link.
  */
 #[no_mangle]
 export function math_fabs_c(x: f64): f64 {
   let v: f64 = x;
   let one: u64 = 1;
   let p: *u64 = &v as *u64;
-  unsafe { *p = *p & ((one << 63) - 1); }
+  let bits: u64 = 0;
+  unsafe { bits = *p; }
+  let cleared: u64 = bits & ((one << 63) - 1);
+  // *p = is a deref assign and is not emitted. Copy the cleared bits into v.
+  unsafe { memcpy(&v as *u8, &cleared as *u8, 8); }
   return v;
 }
 
