@@ -31,11 +31,12 @@
 // and left lane 0 of `let n = unsafe { [1, 2, 3, 4] }` unequal to 1.
 // Bare VAR and bare DEREF still return -3 after the peel. f32, a lane
 // size other than 4, and a negative immediate with lane size 8 still
-// return -3 (neg w0 is 32-bit; the fill zero-extends). A VAR or an
-// ARRAY_LIT under minus may be wider than 16 when each lane is 4
-// bytes: the lane home and the lane-byte writer already cover every
-// lane. FIELD, a lane binop, CALL, METHOD, INDEX, and DEREF under
-// minus stay declined past 16 bytes. Bare CALL and VAR copy still
+// return -3 (neg w0 is 32-bit; the fill zero-extends). A VAR, a FIELD,
+// an ARRAY_LIT, or a lane binop under minus may be wider than 16 when
+// each lane is 4 bytes. The lane home, the lane-byte writer, and the
+// binop let-init already cover every lane. CALL, METHOD, INDEX, and
+// DEREF under minus stay declined past 16 bytes: those writers still
+// store 16 bytes. Bare CALL and VAR copy still
 // return -3.
 // A non-SIMD type still returns
 // -3: a hollow 0 short-circuits VAR try_let (scalar i=i+1 / empty while).
@@ -268,20 +269,25 @@ export function glue_emit_vector_type_let_init_elf_c(
         rc = glue_vector_type_lanes_esz_c(arena, type_ref, &lanes_s[0], &esz_s[0]);
       }
       // Lane size other than 4 stays declined: neg w0 is 32-bit.
-      // Binop, CALL, METHOD, INDEX, and DEREF writers store 16 bytes,
-      // so a wider vector would negate lanes past that store. VAR and
-      // FIELD use the existing lane home (slot + lane * 4). That home
-      // has no 16-byte cap. The field slot already holds every lane.
+      // CALL, METHOD, INDEX, and DEREF (from_dest 2) still store 16
+      // bytes, so a wider vector would negate lanes past that store.
+      // A lane binop (from_dest 1) uses the existing binop let-init.
+      // On arm64 that writer stores both 128-bit halves of an i32x8
+      // add: ld1.4s, add.4s, st1.4s at +0 and at +16. The scalar
+      // fallback loops every lane. Declining the binop left
+      // `let v: i32x8 = -(a + b)` as add w0, neg w0, and one str x0,
+      // so lane 0 was -11 and lane 7 was never stored. VAR and FIELD
+      // use the existing lane home (slot + lane * 4). That home has
+      // no 16-byte cap. The field slot already holds every lane.
       // ARRAY_LIT uses the existing lane-byte writer, which already
-      // stores every element. Declining FIELD wider than 16 left
-      // `let n: i32x8 = -h.v` as neg w0 of the address of h, so lane 0
-      // was not -1. from_dest 0 is only VAR (kind 3) or FIELD (kind 44).
+      // stores every element. from_dest 0 is only VAR (kind 3) or
+      // FIELD (kind 44).
       // PLATFORM: MACOS|ARM64.
       if (rc != 0 || esz_s[0] != 4 || lanes_s[0] <= 0) {
         return 0 - 3;
       }
       if ((lanes_s[0] * esz_s[0]) > 16) {
-        if (from_dest != 0 && from_dest != 3) {
+        if (from_dest == 2) {
           return 0 - 3;
         }
       }
