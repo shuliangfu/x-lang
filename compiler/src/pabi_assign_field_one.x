@@ -1,7 +1,8 @@
 // Field assign for the Windows PE link.
 // Body matches seeds/win_assign_field_override.c except the arm64
-// arm below: a SIMD field whose RHS is unary minus uses the existing
-// vector let-init, for 16 bytes and for a wider 4-byte lane. A
+// arm below: a SIMD field whose RHS is unary minus or bitwise not
+// uses the existing vector let-init, for 16 bytes and for a wider
+// 4-byte lane. A
 // frame-homed VAR or FIELD wider than 16 uses the existing frame
 // memcpy. An ARRAY_LIT of at least 16 bytes uses that same let-init
 // into the field home. That seed does not.
@@ -502,7 +503,8 @@ function assign_field_one_scalar(
  * @param elf_ctx *u8 — encoder context
  * @param left_ref i32 — FIELD lvalue
  * @param right_ref i32 — RHS. A non-minus 16-byte value is evaluated
- *   into x0:x1. Unary minus goes to the vector let-init. An ARRAY_LIT
+ *   into x0:x1. Unary minus and bitwise not go to the vector
+ *   let-init. An ARRAY_LIT
  *   of at least 16 bytes uses that same let-init at the field home.
  *   A frame VAR or FIELD wider than 16 is copied with the existing
  *   frame memcpy.
@@ -526,6 +528,7 @@ function assign_field_one_simd16(
   let rk: i32 = 0;
   let home: i32 = 0;
   let src: i32 = 0;
+  let unary_lane: i32 = 0;
   if (ta != 1) {
     return 0 - 99;
   }
@@ -590,12 +593,15 @@ function assign_field_one_simd16(
     }
   }
   // GPR pair is 16 bytes. A wider 4-byte-lane SIMD whose RHS is
-  // unary minus (kind 22) is stored by the existing per-lane writer.
-  // That writer already negates a wide FIELD, VAR, or ARRAY_LIT into
-  // the slot it is given. The slot here is the destination field.
-  // A binop, CALL, METHOD, INDEX, or DEREF under the minus still
-  // returns -3 before emitting, and this arm then keeps the scalar
-  // store. A bare VAR (kind 3) or FIELD (kind 44) is not kind 22.
+  // unary minus (kind 22) or bitwise not (kind 23) is stored by the
+  // existing per-lane writer. That writer already negates or mvn's
+  // a wide FIELD, VAR, or ARRAY_LIT into the slot it is given. The
+  // slot here is the destination field. Kind 23 used to miss this
+  // gate, so `p.v = ~h.v` on i32x8 did one scalar mvn and lane 0
+  // was not -2. A binop, CALL, METHOD, INDEX, or DEREF under the
+  // minus or the not still returns -3 before emitting, and this arm
+  // then keeps the scalar store. A bare VAR (kind 3) or FIELD
+  // (kind 44) is not kind 22 or 23.
   // Those two already have a frame home. The let of the same value
   // copies it with lea of the source home plus the frame memcpy.
   // That memcpy parks the source with mov x1, x0 before the dest lea.
@@ -606,7 +612,17 @@ function assign_field_one_simd16(
         pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
       }
       rk = assign_field_cell_i32(&cell[0]);
+      // Two statements. A chained comparison is not reliable here.
+      // Kind 22 stays unary minus. Kind 23 is bitwise not. Both are
+      // already implemented by the let-init. PLATFORM: MACOS|ARM64.
+      unary_lane = 0;
       if (rk == 22) {
+        unary_lane = 1;
+      }
+      if (rk == 23) {
+        unary_lane = 1;
+      }
+      if (unary_lane != 0) {
         unsafe {
           pipe_store_i32_le(&cell[0], 0, glue_vector_var_lane_stack_off_elf_c(
             arena, ctx, left_ref, 0, esz, ta));
@@ -677,17 +693,25 @@ function assign_field_one_simd16(
   // emit_expr of unary minus loads the 16-byte field, then neg w0.
   // A W write clears the top half of x0, so lane 1 becomes 0, and
   // the high pair in x1 is still lanes 2 and 3. Lane 3 of
-  // `p.v = -h.v` stayed 4. The existing let-init already negates
-  // every 4-byte lane of a 16-byte SIMD into the slot it is given.
-  // A negative field home, or a -3 decline, emits nothing and keeps
-  // this pair store. -1 may already have emitted.
+  // `p.v = -h.v` stayed 4. Bitwise not does the same with mvn w0:
+  // lane 1 of `p.v = ~h.v` was 0. The existing let-init already
+  // negates or mvn's every 4-byte lane of a 16-byte SIMD into the
+  // slot it is given. A negative field home, or a -3 decline, emits
+  // nothing and keeps this pair store. -1 may already have emitted.
   // PLATFORM: MACOS|ARM64.
   if (esz == 4) {
     unsafe {
       pipe_store_i32_le(&cell[0], 0, pipeline_expr_kind_ord_at(arena, right_ref));
     }
     rk = assign_field_cell_i32(&cell[0]);
+    unary_lane = 0;
     if (rk == 22) {
+      unary_lane = 1;
+    }
+    if (rk == 23) {
+      unary_lane = 1;
+    }
+    if (unary_lane != 0) {
       unsafe {
         pipe_store_i32_le(&cell[0], 0, glue_vector_var_lane_stack_off_elf_c(
           arena, ctx, left_ref, 0, esz, ta));
