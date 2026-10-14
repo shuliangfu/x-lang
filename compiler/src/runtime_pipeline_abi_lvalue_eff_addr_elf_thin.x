@@ -21,6 +21,11 @@ export extern function backend_enc_load_64_from_rax_arch(elf_ctx: *u8, ta: i32):
 export extern function backend_enc_add_imm_to_rax_arch(elf_ctx: *u8, imm: i32, ta: i32): i32;
 export extern function pipeline_expr_unary_operand_ref_at(arena: *u8, expr_ref: i32): i32;
 export extern function pipeline_asm_emit_expr_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, ctx: *u8, ta: i32): i32;
+export extern function pipeline_expr_index_base_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_expr_index_index_ref(arena: *u8, expr_ref: i32): i32;
+export extern function pipeline_asm_index_elem_byte_sz_c(arena: *u8, expr_ref: i32): i32;
+export extern function glue_emit_index_eff_addr_scaled_elf_c(
+  arena: *u8, elf_ctx: *u8, ix_ref: i32, base_ref: i32, idx_ref: i32, ctx: *u8, ta: i32, esz: i32): i32;
 
 /**
  * ELF lvalue effective address → rax.
@@ -120,6 +125,26 @@ export function pipeline_asm_emit_lvalue_eff_addr_elf_c(arena: *u8, elf_ctx: *u8
         return 0 - 1;
       }
       return pipeline_asm_emit_expr_elf_c(arena, elf_ctx, op, ctx, ta);
+    }
+    // INDEX == 47. `p[i].field` is FIELD whose base is INDEX. Recursing
+    // the FIELD arm landed here and returned -1, so the module emitted
+    // nothing (CG002). Scaling stays in glue_emit_index_eff_addr_scaled_elf_c,
+    // the same helper addr-of already uses. A constant 0 index adds nothing,
+    // so a *T formal `p[0].field` is the pointer value plus the field offset.
+    // PLATFORM: SHARED.
+    if (k == 47) {
+      let ib: i32 = pipeline_expr_index_base_ref(arena, expr_ref);
+      let ii: i32 = pipeline_expr_index_index_ref(arena, expr_ref);
+      let esz: i32 = 0;
+      if (ib <= 0) {
+        return 0 - 1;
+      }
+      if (ii <= 0) {
+        return 0 - 1;
+      }
+      esz = pipeline_asm_index_elem_byte_sz_c(arena, expr_ref);
+      return glue_emit_index_eff_addr_scaled_elf_c(
+        arena, elf_ctx, expr_ref, ib, ii, ctx, ta, esz);
     }
     return 0 - 1;
   }
