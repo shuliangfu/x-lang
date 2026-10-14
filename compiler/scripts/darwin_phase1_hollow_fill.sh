@@ -262,23 +262,45 @@ Lfast_var_modlet:
 	b.le	Lfast_var_fail_pop
 	cmp	w8, #255
 	b.gt	Lfast_var_fail_pop
+	/* name_into clobbers x8 (caller-saved) and clears 256 bytes at sp.
+	 * Park vlen at sp+0x100, past that clear. PLATFORM: MACOS arm64. */
+	str	w8, [sp, #0x100]
 	mov	x0, x19
 	mov	w1, w21
 	mov	x2, sp
 	bl	_pipeline_expr_var_name_into
+	ldr	w8, [sp, #0x100]
 	mov	x0, x20
 	mov	x1, sp
 	mov	w2, w8
 	mov	w3, w23
 	bl	_pipeline_asm_modlet_load_to_rax_elf_c
-	cmp	w0, #0
-	b.ne	Lfast_var_fail_pop
+	cbz	w0, Lfast_var_modlet_ok
+	/* off<0 and not an Lxml modlet. Registrar skipped is_const, so the
+	 * value lives in the existing fold (not a second walker). Same call
+	 * as the unlinked C seed's VAR off<0 arm. A miss still returns -99
+	 * so the slow emitter keeps non-lit names. PLATFORM: MACOS arm64. */
+	bl	_pipeline_asm_emit_module_ref_c
+	cbz	x0, Lfast_var_fail_pop
+	mov	x5, x0
+	ldr	w3, [sp, #0x100]
+	add	x4, sp, #0x104
+	mov	x1, x19
+	mov	x2, sp
+	mov	x0, x5
+	bl	_asm_module_top_level_const_lit_i32
+	cbz	w0, Lfast_var_fail_pop
+	ldr	w1, [sp, #0x104]
+	mov	x0, x20
+	mov	w2, w23
+	bl	_backend_enc_mov_imm32_to_w0_arch
+	add	sp, sp, #0x110
+	b	Lfast_ret
+Lfast_var_modlet_ok:
 	add	sp, sp, #0x110
 	mov	w0, #0
 	b	Lfast_ret
 Lfast_var_fail_pop:
-	/* knife256/10.2: toplevel const not in locals/modlet — defer to full
-	 * emit_expr_elf_c (-99), do not hard-fail CG002. */
 	add	sp, sp, #0x110
 	mov	w0, #-99
 	b	Lfast_ret
