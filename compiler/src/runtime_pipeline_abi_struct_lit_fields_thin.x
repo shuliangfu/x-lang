@@ -2,7 +2,9 @@
 //   win_emit_struct_lit_fields_into_parked_rbx
 //   pipeline_asm_emit_struct_lit_fields_elf_c
 //   pipeline_asm_emit_struct_lit_elf_c
-// Fields/elf bodies match seeds/runtime_pipeline_abi.windows_link_stubs.c
+// Darwin wide-copy gate is ahead of
+// seeds/runtime_pipeline_abi.windows_link_stubs.c. That seed still
+// stores an ARRAY_LIT wider than 16 as a pointer. Do not edit it here.
 // (reserve home, park rbx, call win_emit, materialize ≤16B into GP).
 // Do not take these T from archive_leaf (stale CG002). Rebuild every
 // Darwin relink with _g05_pure_overlay (no PREFER). Pipe cells hold
@@ -51,9 +53,13 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * element stride. When that count is at least 8, the same address copy
  * stores the payload. An 8-byte array used to miss the wide gate and
  * store the pointer. An array wider than 16 used to stay on that same
- * 8-byte store. A named type that is not a TYPE_ARRAY keeps the
- * previous gate. Layouts wider than 16 for the other kinds already
- * copy from the address in x0.
+ * 8-byte store. A named SIMD field is not a TYPE_ARRAY, so that helper
+ * returns 0 and the layout size stays lanes times the element width.
+ * When that size is at least 8, ARRAY_LIT uses the same address copy.
+ * i32x8 is 32 bytes. The old gate left use_ptr clear and str x0 stored
+ * the payload address, so lane 0 was not 1. A width below 8 stays on
+ * the scalar store: the copy rejects it. Layouts wider than 16 for the
+ * other kinds already copy from the address in x0.
  * @param arena *u8 — expression arena. Null returns -1.
  * @param elf_ctx *u8 — emit context. Null returns -1.
  * @param lit_ref i32 — STRUCT_LIT expression ref. Non-positive returns -1.
@@ -63,8 +69,9 @@ function w254_sl_cell_i32(base: *u8): i32 {
  * @param base_off i32 — byte offset added to each field offset. Outside
  *   0..4096 returns -1.
  * @return i32 — 0 when every field is stored, -1 on encode or shape failure.
- * PLATFORM: MACOS|DARWIN tip. Windows seed is
- * runtime_pipeline_abi.windows_link_stubs.c and gates the same copy on ta == 1.
+ * PLATFORM: MACOS|DARWIN tip. The Windows seed
+ * runtime_pipeline_abi.windows_link_stubs.c still leaves an ARRAY_LIT
+ * wider than 16 on the scalar store. This gate does not.
  */
 #[no_mangle]
 export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: *u8, lit_ref: i32, ctx: *u8, ta: i32, base_off: i32): i32 {
@@ -201,6 +208,19 @@ export function win_emit_struct_lit_fields_into_parked_rbx(arena: *u8, elf_ctx: 
           }
         }
         if (iko == 46 && arr_bytes >= 8) {
+          use_ptr = 1;
+        }
+        // A named field is not TYPE_ARRAY, so arr_bytes stays 0 and the
+        // wide>16 arm left use_ptr clear. ARRAY_LIT still leaves the
+        // payload address in x0. Copying `wide` bytes is the same
+        // pointer copy as [8]i32. Measured layout sizes: i32x8 and u32x8
+        // are 32, i32x16 is 64. When arr_bytes already replaced `wide`,
+        // this line is the same flag. A width below 8 never reaches
+        // here. Vec8i's named-layout size does not enter this block, so
+        // that field stays on the scalar store. H { v: [1, 2, 3, 4, 5, 6, 7, 8] }
+        // stored that address with str x0, so the field's lane 0 was not 1.
+        // PLATFORM: MACOS|DARWIN.
+        if (iko == 46 && wide >= 8) {
           use_ptr = 1;
         }
         if (use_ptr != 0) {
