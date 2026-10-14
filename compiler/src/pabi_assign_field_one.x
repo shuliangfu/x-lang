@@ -2,7 +2,8 @@
 // Body matches seeds/win_assign_field_override.c except the arm64
 // arm below: a SIMD field whose RHS is unary minus or bitwise not
 // uses the existing vector let-init, for 16 bytes and for a wider
-// 4-byte lane. An INT_LIT wider than 16 bytes uses that same fill.
+// 4-byte lane. A bare FLOAT_LIT uses that fill on the 16-byte arm.
+// An INT_LIT wider than 16 bytes uses that same fill.
 // A
 // frame-homed VAR or FIELD wider than 16 uses the existing frame
 // memcpy. An ARRAY_LIT of at least 16 bytes uses that same let-init
@@ -727,10 +728,15 @@ function assign_field_one_simd16(
   // A W write clears the top half of x0, so lane 1 becomes 0, and
   // the high pair in x1 is still lanes 2 and 3. Lane 3 of
   // `p.v = -h.v` stayed 4. Bitwise not does the same with mvn w0:
-  // lane 1 of `p.v = ~h.v` was 0. The existing let-init already
-  // negates or mvn's every 4-byte lane of a 16-byte SIMD into the
-  // slot it is given. A negative field home, or a -3 decline, emits
-  // nothing and keeps this pair store. -1 may already have emitted.
+  // lane 1 of `p.v = ~h.v` was 0. A bare FLOAT_LIT (kind 1) takes
+  // the same fallthrough: emit_expr writes the f64 bits
+  // (1.0 is movk x0, #0x3ff0, lsl #48) and the pair store writes
+  // two str x. Lane 0 of `h.v = 1.0` on Vec4f was 0. The existing
+  // let-init already splats that literal, and already negates or
+  // mvn's every 4-byte lane, into the slot it is given. Kind 1 is
+  // not a unary. It shares this call. A negative field home, or a
+  // -3 decline, emits nothing and keeps this pair store. -1 may
+  // already have emitted. Wider than 16 does not take kind 1 here.
   // PLATFORM: MACOS|ARM64.
   if (esz == 4) {
     unsafe {
@@ -742,6 +748,9 @@ function assign_field_one_simd16(
       unary_lane = 1;
     }
     if (rk == 23) {
+      unary_lane = 1;
+    }
+    if (rk == 1) {
       unary_lane = 1;
     }
     if (unary_lane != 0) {

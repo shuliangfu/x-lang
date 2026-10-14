@@ -11077,17 +11077,42 @@ col: i32): void {
   }
 }
 
-/** Exported function `typeck_check_expr_float_lit`.
- * Implements `typeck_check_expr_float_lit`.
- * @param arena *ASTArena
- * @param expr_ref i32
- * @return i32
+/**
+ * Default-type a FLOAT_LIT to f64 unless a caller already resolved it.
+ * @param arena *ASTArena — expr and type arena; null skips the keep
+ * @param expr_ref i32 — FLOAT_LIT expr; <= 0 skips the keep
+ * @return i32 — always 0 (side-effect stamp only)
+ * Copies f64 bits from the literal into lo@684 / hi@688 first. An
+ * already-resolved type in 1..num_types is kept, matching
+ * typeck_check_expr_int_lit. Assign pre-stamps a TYPE_VECTOR of f32
+ * onto a bare FLOAT_LIT; overwriting that stamp with f64 is what made
+ * `v = 1.0` a mismatch. An unresolved lit still becomes f64, so
+ * let-coerce can restamp f32 or a vector afterwards. The bits stay
+ * written on the keep path.
+ * Two compares, not a chained && : the bootstrap image clobbers the
+ * register a chained compare reuses.
+ * PLATFORM: SHARED. The linked body is the float-lit thin; this
+ * function is the source authority. Cap tip -c of this mega is hollow.
  */
 export function typeck_check_expr_float_lit(arena: *ASTArena, expr_ref: i32): i32 {
   // PLATFORM: SHARED — LANG-007 S0: Cap-T001 whole-body unsafe FFI gate.
   unsafe {
+    let already: i32 = 0;
+    let ntypes: i32 = 0;
+    let ft: i32 = 0;
     pipeline_expr_typeck_set_float_bits_from_val(arena, expr_ref);
-    let ft: i32 = ensure_f64_type_ref(arena);
+    if (arena != 0 as *ASTArena) {
+      if (expr_ref > 0) {
+        already = pipeline_expr_resolved_type_ref(arena, expr_ref);
+        ntypes = arena.num_types;
+        if (already > 0) {
+          if (already <= ntypes) {
+            return 0;
+          }
+        }
+      }
+    }
+    ft = ensure_f64_type_ref(arena);
     if (ft != 0) {
       pipeline_expr_set_resolved_type_ref(arena, expr_ref, ft);
     }
@@ -11551,11 +11576,11 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
  * with the LHS type before the RHS is checked. Let-init already
  * accepts that splat, and the field store fills every lane. Compound
  * assign, an i32 variable RHS, a binop, keyword null, a seventh unary,
- * LOGNOT, and deref are not stamped. A TYPE_VECTOR of f32 stamps one
- * unary minus of a FLOAT_LIT on a VAR or a FIELD. A bare FLOAT_LIT is
- * not stamped: the float-lit checker overwrites a resolved type with
- * f64. A second unary and a bitwise not stay unstamped. The
- * linked body is the assign thin; this function is the source authority.
+ * LOGNOT, and deref are not stamped. A TYPE_VECTOR of f32 stamps a
+ * bare FLOAT_LIT and one unary minus of a FLOAT_LIT on a VAR or a
+ * FIELD. The float-lit checker keeps an already-resolved type. A
+ * second unary and a bitwise not stay unstamped. The linked body is
+ * the assign thin; this function is the source authority.
  * PLATFORM: SHARED — the type rule is the same on every host.
  */
 export function typeck_check_expr_assign(module: *Module, arena: *ASTArena, expr_ref: i32,
@@ -11724,9 +11749,10 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
      * let-init, so `h.v = -(~(~(~(-3))))` is the same splat as the let.
      * Compound assign (kinds 29..39) is not a splat. An i32 variable, a
      * binop, keyword null, a seventh unary, LOGNOT, and deref are not
-     * stamped. A TYPE_VECTOR of f32 stamps one unary minus of a
-     * FLOAT_LIT. A bare FLOAT_LIT is not stamped. A second unary and a
-     * bitwise not of that float are not stamped.
+     * stamped. A TYPE_VECTOR of f32 stamps a bare FLOAT_LIT and one
+     * unary minus of a FLOAT_LIT. The float-lit checker keeps an
+     * already-resolved type. A second unary and a bitwise not of that
+     * float are not stamped.
      * Two compares, not a chained && : the bootstrap image clobbers
      * the register a chained compare reuses.
      * PLATFORM: SHARED — same type rule on every host. The linked body
@@ -11904,13 +11930,13 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                   }
                 }
                 /*
-                 * TYPE_VECTOR of f32 (Vec4f). One unary minus of a
-                 * FLOAT_LIT, on a VAR or a FIELD, is the splat the
-                 * let-init already fills. Kind 22 and kind 1 are
-                 * separate compares. A bare FLOAT_LIT is not stamped:
-                 * typeck_check_expr_float_lit overwrites any resolved
-                 * type with f64. A second unary stays kind 22. Bitwise
-                 * not stays off. The operand ref is range-checked.
+                 * TYPE_VECTOR of f32 (Vec4f). A bare FLOAT_LIT, and one
+                 * unary minus of a FLOAT_LIT, on a VAR or a FIELD, is
+                 * the splat the let-init already fills. Kind 22 and
+                 * kind 1 are separate compares. The float-lit checker
+                 * keeps an already-resolved type, so the kind-1 stamp
+                 * survives. A second unary stays kind 22. Bitwise not
+                 * stays off. The unary operand ref is range-checked.
                  * An i32 element does not enter. PLATFORM: SHARED.
                  */
                 if (pipeline_type_kind_ord_at(arena, splat_elem) == 14) {
@@ -11932,6 +11958,14 @@ return_type_ref: i32, ctx: *PipelineDepCtx): i32 {
                           splat_ok = 1;
                         }
                       }
+                    }
+                  }
+                  if (splat_rhs_k == 1) {
+                    if (splat_lhs_k == ord_var) {
+                      splat_ok = 1;
+                    }
+                    if (splat_lhs_k == ord_field) {
+                      splat_ok = 1;
                     }
                   }
                 }
