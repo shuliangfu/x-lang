@@ -50,6 +50,9 @@ export extern function pipeline_asm_emit_func_index_c(): i32;
 export extern function pipeline_module_func_return_type_at(mod: *u8, fi: i32): i32;
 export extern function glue_field_access_field_type_ref_c(arena: *u8, mod: *u8, fa_ref: i32): i32;
 export extern function w1545_win_ret_slot_for_c(mod: *u8, func_index: i32): i32;
+export extern function pipeline_type_elem_ref_at(arena: *u8, type_ref: i32): i32;
+export extern function glue_array_lit_force_esz_from_elem_type_c(arena: *u8, et: i32): i32;
+export extern function glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena: *u8, elf_ctx: *u8, expr_ref: i32, force_esz: i32, ta: i32, ctx: *u8, dest_elem_ty: i32): i32;
 
 /**
  * `return f(...)` forwarding a > 16-byte result: pass this function's own
@@ -326,6 +329,10 @@ function w1521_rs_mid_named_field(arena: *u8, op: i32): i32 {
  * function tail_join (AsmFuncCtxLayout name at 1392, length at 1520).
  * A 9..16 byte named field is loaded with pipeline_asm_deref_struct16
  * so both words are in rax and rdx before the epilogue.
+ * An ARRAY_LIT operand whose function return type is TYPE_ARRAY calls
+ * glue_asm_emit_array_lit_durable_ptr_rax_elf_c first. Success leaves a
+ * durable element pointer in rax/x0 and skips emit_expr. Any other result
+ * falls through to emit_expr. A VAR return of a small array is unchanged.
  * @param arena *u8 — AST arena; null returns -1
  * @param elf_ctx *u8 — ELF codegen context; null returns -1
  * @param expr_ref i32 — EXPR_RETURN; <=0 returns -1
@@ -408,15 +415,65 @@ export function pipeline_asm_emit_return_elf_impl(arena: *u8, elf_ctx: *u8, expr
         }
       }
     } else {
-      unsafe {
-        rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+      // ARRAY_LIT returned as TYPE_ARRAY must leave a durable element
+      // pointer in rax/x0. emit_expr leaves the address of a callee frame
+      // slot; a slice cell stores that pointer and the next cell's stores
+      // clobber it. The durable helper is the existing authority. A non-zero
+      // result falls through to emit_expr. A VAR operand stays on the value
+      // path above this arm. PLATFORM: SHARED — LINUX|x86_64 · MACOS|ARM64 ·
+      // WINDOWS still runs the >16 hidden-dest copy below.
+      let dur_ok: i32 = 0;
+      let opk_d: i32 = 0;
+      let mod_d: *u8 = 0 as *u8;
+      let fi_d: i32 = 0;
+      let rty_d: i32 = 0;
+      let rk_d: i32 = 0;
+      let elem_d: i32 = 0;
+      let esz_d: i32 = 0;
+      if (ta == 0 || ta == 1) {
+        unsafe {
+          opk_d = pipeline_expr_kind_ord_at(arena, ret_op);
+        }
+        if (opk_d == 46) {
+          unsafe {
+            mod_d = pipeline_asm_emit_module_ref_c();
+            fi_d = pipeline_asm_emit_func_index_c();
+          }
+          if (mod_d != (0 as *u8) && fi_d >= 0) {
+            unsafe {
+              rty_d = pipeline_module_func_return_type_at(mod_d, fi_d);
+            }
+            if (rty_d > 0) {
+              unsafe {
+                rk_d = pipeline_type_kind_ord_at(arena, rty_d);
+              }
+              // TYPE_ARRAY = 10. TYPE_SLICE stays on emit_expr this step.
+              if (rk_d == 10) {
+                unsafe {
+                  elem_d = pipeline_type_elem_ref_at(arena, rty_d);
+                  esz_d = glue_array_lit_force_esz_from_elem_type_c(arena, elem_d);
+                  rc = glue_asm_emit_array_lit_durable_ptr_rax_elf_c(arena, elf_ctx, ret_op, esz_d, ta, ctx, elem_d);
+                }
+                if (rc == 0) {
+                  dur_ok = 1;
+                }
+              }
+            }
+          }
+        }
       }
-      if (rc != 0) {
-        return 0 - 1;
+      if (dur_ok == 0) {
+        unsafe {
+          rc = pipeline_asm_emit_expr_elf_c(arena, elf_ctx, ret_op, ctx, ta);
+        }
+        if (rc != 0) {
+          return 0 - 1;
+        }
       }
       // w1521: Windows builds a > 16-byte STRUCT_LIT (or other aggregate
       // operand) in a frame temp and leaves its address in rax; copy it into
-      // the hidden dest (Linux pabi writes the dest itself). PLATFORM: WINDOWS.
+      // the hidden dest (Linux pabi writes the dest itself). A durable
+      // TYPE_ARRAY pointer is the same source address. PLATFORM: WINDOWS.
       if (ta == 0 && act != 0 && home > 0 && rsz > 16) {
         let on_win: i32 = 0;
         unsafe {
